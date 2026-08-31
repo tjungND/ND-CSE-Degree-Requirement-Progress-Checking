@@ -82,12 +82,12 @@ same problems whenever it loads.
 
 ## Repo peculiarities you should know
 
-- **This folder's path contains a colon** (`FY26-27 (DGS: Taeho Jung)`). Because of that:
-  npm scripts call `./node_modules/.bin/...` by relative path (a colon corrupts npm's PATH), and
-  tests run on **node's built-in runner** (`node --test`, Node ≥ 24) instead of vitest, whose
-  vite-node runner cannot load modules from a node_modules under a colon path. `vite dev` may
-  fail here too — use `npm run build && npm run preview` to try the app locally, or clone the
-  repo to a colon-free path where everything (including `npm run dev`) works normally.
+- Tests run on **node's built-in runner** (`node --test`; Node ≥ 24 runs the TypeScript
+  directly) — no test-framework dependency. `npm run dev` gives a live-reload dev server;
+  `npm run build && npm run preview` serves the production build.
+- **Never put a `:` (colon) in any parent folder's name.** This repo once lived under
+  `FY26-27 (DGS: Taeho Jung)` and the colon silently broke npm's script PATH and vite's module
+  loader; the folder was renamed to fix it. The dependency-free test runner was kept.
 - The engine (`src/engine/`) is pure: every requirement function has the handbook sentence
   quoted above it, and `audit(student, rules, today)` takes "today" as an argument. If code and
   handbook disagree, the handbook wins — fix the code.

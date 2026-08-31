@@ -49,8 +49,8 @@ touching code and without the original author.
   the person who broke it is a DGS editing a spreadsheet, not a developer. If the fetch fails,
   fall back to `data/snapshot.json` and show a visible "rules last synced on <date>" notice.
 - `src/ui/` — student form, course table with autocomplete from the sheet, and the report.
-- `tests/` — node's built-in runner (`node --test`; vitest can't run here — a parent folder's
-  name contains a colon, which breaks vite-node). One fixture per student scenario in `tests/scenarios/` (a JSON student +
+- `tests/` — node's built-in runner (`node --test`, dependency-free; Node ≥ 24 runs the
+  TypeScript directly). One fixture per student scenario in `tests/scenarios/` (a JSON student +
   the expected verdict per requirement). Add a scenario for every bug fixed.
 - `scripts/sync-sheet.ts` — pulls the published CSVs and rewrites `data/snapshot.json`. Run by a
   GitHub Action on a weekly schedule and via `workflow_dispatch`, committing if changed.

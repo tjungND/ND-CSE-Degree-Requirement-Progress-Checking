@@ -5,14 +5,14 @@
   "description": "ND CSE Degree Requirement Progress Checking — static self-check audit against the CSE Graduate Studies Handbook §3 (MSCSE) and §4 (Ph.D.)",
   "type": "module",
   "scripts": {
-    "dev": "\"./node_modules/.bin/vite\"",
-    "build": "\"./node_modules/.bin/tsc\" --noEmit && \"./node_modules/.bin/vite\" build",
-    "preview": "\"./node_modules/.bin/vite\" preview",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
     "test": "node --test tests/",
     "test:watch": "node --test --watch tests/",
     "sync-sheet": "node scripts/sync-sheet.ts"
   },
-  "//scripts-note": "Two path quirks, both because a parent folder of this repo has a ':' in its name (FY26-27 (DGS: Taeho Jung)): (1) binaries are invoked by relative path, since the colon corrupts the PATH npm builds for scripts; (2) tests run on node's built-in runner (node --test, native TypeScript), because vitest/vite-node cannot load modules from a node_modules under a colon path. Vite still does the production build.",
+  "//scripts-note": "Tests run on node's built-in runner (node --test; Node >= 24 runs the TypeScript directly) — no test-framework dependency. Vite does the dev server and the production build. Never put a ':' in any parent folder name — it corrupts npm's PATH and breaks vite's module loader.",
   "devDependencies": {
     "@types/node": "^26.4.0",
     "typescript": "^5.6.0",
