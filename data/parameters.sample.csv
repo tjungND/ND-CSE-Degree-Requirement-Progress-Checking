@@ -1,0 +1,23 @@
+key,value,handbook_section,notes
+ms_regular_credits_min,24,§3.2,
+ms_project_credits_min,6,§3.2,CSE 68901 / 68902
+ms_4xxxx_credits_max,6,§3.2,
+ms_noncse_credits_max,9,§3.2,
+ms_time_limit_years,5,§3.3,
+ms_thesis_readers_min,2,§3.4,thesis option only
+phd_regular_credits_min,24,§4.2,60000-level or higher
+phd_total_credits_min,60,CONFIRM,Prototype used 60; confirm the source (Graduate School?) and cite it
+phd_seminar_courses,"CSE 63801, CSE 63802",§4.2,required in year one
+phd_4xxxx_cse_credits_max,6,§4.2,
+phd_noncse_6xxxx_credits_max,9,§4.2,
+phd_transfer_window_years,5,§4.2,prior M.S. coursework
+phd_residency_semesters,4,§4.3,"consecutive, full-time, excluding summer"
+phd_time_limit_years,8,§4.3,
+qualifier_deadline_semesters,4,§4.4,DGS may extend
+category_courses_required,3,§4.4.2,
+category_distinct_groups_required,3,§4.4.2,
+category_min_grade,B,§4.4.2,
+research_qualifier_deadline_months,18,§4.4.3,
+candidacy_deadline_semester,8,§4.5,before the end of the eighth semester
+candidacy_committee_additional_members_min,3,§4.5,beyond advisor/co-advisor
+gpa_min,3.0,§2.2,

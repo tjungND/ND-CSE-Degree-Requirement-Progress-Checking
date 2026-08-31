@@ -1,0 +1,14 @@
+course_id,title,credits,course_type,counts_toward_mscse,counts_toward_phd,core_area,category_group,typically_offered,effective_term,notes
+CSE 60111,Complexity and Algorithms,3,regular,yes,yes,algorithms,alg,spring,Fall 2026,§4.4.2 typical spring course
+CSE 60321,Advanced Computer Architecture,3,regular,yes,yes,architecture,arch,spring,Fall 2026,§4.4.2 typical spring course
+CSE 60427,Human-Centered Computing Research,3,regular,yes,yes,,hcc,fall,Fall 2026,§4.4.2 typical fall course
+CSE 60535,Graduate Computer Vision,3,regular,yes,yes,,dsai,fall,Fall 2026,§4.4.2 typical fall course
+CSE 60641,Graduate Operating Systems,3,regular,yes,yes,os,sys,fall,Fall 2026,§4.4.2 typical fall course
+CSE 60762,Custom System on Chip Design,3,regular,yes,yes,,arch,spring,Fall 2026,§4.4.2 typical spring course
+CSE 60770,Secure Software Engineering,3,regular,yes,yes,,sys,fall,Fall 2026,§4.4.2 typical fall course
+CSE 60868,Graduate Neural Networks,3,regular,yes,yes,,dsai,spring,Fall 2026,§4.4.2 typical spring course
+CSE 60876,Research Methods,3,regular,yes,yes,,any,spring,Fall 2026,Listed under all five groups in §4.4.2 — the student assigns it to whichever group they still need
+CSE 63801,Research Seminar I,1,seminar,no,yes,,,fall,Fall 2026,§4.2 — required of Ph.D. students in year one
+CSE 63802,Research Seminar II,1,seminar,no,yes,,,spring,Fall 2026,§4.2 — required of Ph.D. students in year one
+CSE 68901,M.S. Thesis Direction,3,project,yes,no,,,varies,Fall 2026,§3.2 — thesis direction credits
+CSE 68902,M.S. Project,3,project,yes,no,,,varies,Fall 2026,§3.2 — project credits

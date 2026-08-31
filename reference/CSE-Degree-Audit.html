@@ -1,0 +1,3049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSE Graduate Degree Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+<style>
+:root{
+  --bg:#F4F6F9; --surface:#FFFFFF; --surface-2:#EDF1F6; --surface-3:#E3E9F1;
+  --ink:#0E1726; --ink-2:#47536B; --ink-3:#6E7B93;
+  --line:#D8DFE9; --line-strong:#BCC7D6;
+  --brand:#0C2340; --brand-soft:#1B3A63;
+  --gold:#8A6912; --gold-bright:#C99700;
+  --ok:#10693F; --ok-bg:#E4F2EA; --ok-line:#A8D6BE;
+  --warn:#8E5108; --warn-bg:#FBEEDD; --warn-line:#E7C48D;
+  --bad:#A81E14; --bad-bg:#FBE9E7; --bad-line:#EFB4AD;
+  --info:#1F4E8C; --info-bg:#E7EEF9; --info-line:#B7CCE9;
+  --shadow:0 1px 2px rgba(14,23,38,.06), 0 8px 24px -12px rgba(14,23,38,.18);
+  --r:10px; --r-sm:6px;
+  --f-display:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A101B; --surface:#121A28; --surface-2:#192333; --surface-3:#22304a;
+    --ink:#E7ECF4; --ink-2:#A8B4C8; --ink-3:#7C8AA2;
+    --line:#223047; --line-strong:#354864;
+    --brand:#A9C4E8; --brand-soft:#8FB0DC;
+    --gold:#E3B549; --gold-bright:#E3B549;
+    --ok:#54C48F; --ok-bg:#0E2A1F; --ok-line:#255C43;
+    --warn:#E5AA44; --warn-bg:#2C2112; --warn-line:#5E4620;
+    --bad:#F4867C; --bad-bg:#2F1715; --bad-line:#67302B;
+    --info:#93B9EC; --info-bg:#15213A; --info-line:#2C4570;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A101B; --surface:#121A28; --surface-2:#192333; --surface-3:#22304a;
+  --ink:#E7ECF4; --ink-2:#A8B4C8; --ink-3:#7C8AA2;
+  --line:#223047; --line-strong:#354864;
+  --brand:#A9C4E8; --brand-soft:#8FB0DC;
+  --gold:#E3B549; --gold-bright:#E3B549;
+  --ok:#54C48F; --ok-bg:#0E2A1F; --ok-line:#255C43;
+  --warn:#E5AA44; --warn-bg:#2C2112; --warn-line:#5E4620;
+  --bad:#F4867C; --bad-bg:#2F1715; --bad-line:#67302B;
+  --info:#93B9EC; --info-bg:#15213A; --info-line:#2C4570;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--f-body); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--f-display); text-wrap:balance; margin:0; letter-spacing:-.01em}
+button,input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--gold-bright); outline-offset:2px; border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+
+.wrap{max-width:1440px; margin:0 auto; padding:0 24px 72px}
+
+/* ---- masthead ---- */
+.masthead{border-top:3px solid var(--gold-bright); background:var(--surface); border-bottom:1px solid var(--line)}
+.masthead-in{max-width:1440px; margin:0 auto; padding:26px 24px 0; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start; justify-content:space-between}
+.eyebrow{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); font-weight:600; margin:0 0 8px}
+.masthead h1{font-size:clamp(28px,3.4vw,40px); font-weight:700; color:var(--brand); line-height:1.1}
+.masthead .sub{margin:10px 0 0; color:var(--ink-2); max-width:62ch; font-size:14.5px}
+.masthead-tools{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+.tabs{display:flex; gap:2px; margin:22px 0 0; border-bottom:1px solid var(--line)}
+.tab{
+  appearance:none; background:none; border:0; border-bottom:3px solid transparent;
+  padding:11px 18px; font-weight:600; font-size:14.5px; color:var(--ink-3); cursor:pointer;
+  margin-bottom:-1px; transition:color .15s, border-color .15s;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--brand); border-bottom-color:var(--gold-bright)}
+
+/* ---- layout ---- */
+.layout{display:grid; grid-template-columns:minmax(0,1fr); gap:28px; margin-top:28px; align-items:start}
+.layout > *{min-width:0}
+@media (min-width:1120px){ .layout{grid-template-columns:minmax(0,1fr) 452px} }
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); margin-bottom:22px}
+.card-hd{display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:16px 20px 0}
+.card-hd h2{font-size:19px; font-weight:700}
+.card-hd .cite{flex:none}
+.card-bd{padding:16px 20px 20px}
+.hint{color:var(--ink-3); font-size:13px; margin:6px 0 0; max-width:70ch}
+
+.cite{font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3); letter-spacing:.01em; white-space:nowrap}
+
+/* ---- forms ---- */
+.grid{display:grid; gap:14px 16px}
+.f{display:flex; flex-direction:column; gap:5px; min-width:0}
+.f > label{font-size:12px; font-weight:600; letter-spacing:.02em; color:var(--ink-2); text-transform:uppercase; line-height:1.3}
+.f input,.f select{
+  background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r-sm);
+  padding:8px 10px; font-size:14px; width:100%; min-width:0;
+}
+.f input:hover,.f select:hover{border-color:var(--ink-3)}
+.f input[type="number"]{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.two{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+.check{display:flex; gap:10px; align-items:flex-start; padding:9px 11px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface-2); cursor:pointer}
+.check:hover{border-color:var(--line-strong)}
+.check input{margin:2px 0 0; accent-color:var(--gold-bright); flex:none; width:16px; height:16px}
+.check span{font-size:13.5px; line-height:1.45}
+.check em{display:block; font-style:normal; color:var(--ink-3); font-size:12.5px; margin-top:2px}
+.checks{display:grid; gap:8px}
+.subhead{font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--gold); margin:20px 0 9px; padding-bottom:5px; border-bottom:1px solid var(--line)}
+.subhead:first-child{margin-top:0}
+
+.btn{
+  appearance:none; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink);
+  border-radius:var(--r-sm); padding:8px 14px; font-size:13.5px; font-weight:600; cursor:pointer;
+  transition:background .15s, border-color .15s;
+}
+.btn:hover{background:var(--surface-2); border-color:var(--ink-3)}
+.btn-primary{background:var(--brand); border-color:var(--brand); color:#fff}
+:root[data-theme="dark"] .btn-primary, :root:not([data-theme="light"]) .btn-primary{}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn-primary{color:#0A101B}}
+:root[data-theme="dark"] .btn-primary{color:#0A101B}
+.btn-primary:hover{background:var(--brand-soft); border-color:var(--brand-soft)}
+.btn-sm{padding:5px 10px; font-size:12.5px}
+.btn-ghost{border-color:transparent; background:none; color:var(--ink-3)}
+.btn-ghost:hover{background:var(--surface-2); color:var(--bad); border-color:transparent}
+.btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:16px}
+
+/* ---- course table ---- */
+.tablewrap{overflow-x:auto; margin:0 -20px; padding:0 20px}
+table.courses{width:100%; border-collapse:collapse; font-size:13.5px; min-width:660px}
+table.courses th{
+  text-align:left; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+  font-weight:600; padding:0 10px 7px; border-bottom:1px solid var(--line); white-space:nowrap;
+}
+table.courses td{padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+table.courses tr:last-child td{border-bottom:0}
+table.courses .num{font-family:var(--f-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+table.courses .ttl{color:var(--ink-2); font-size:12.5px}
+.rt{text-align:right}
+.dropped{color:var(--ink-3)}
+.dropped .num{text-decoration:line-through}
+.note{display:block; font-size:11.5px; color:var(--warn); margin-top:3px; font-weight:500}
+.note.ok{color:var(--ok)}
+.empty{color:var(--ink-3); font-size:13.5px; padding:18px 0; text-align:center}
+
+/* ---- audit panel ---- */
+.audit{position:static}
+@media (min-width:1120px){ .audit{position:sticky; top:20px; max-height:calc(100vh - 40px); overflow-y:auto; scrollbar-width:thin} }
+
+.score{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden; margin-bottom:18px}
+.score-top{padding:18px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:16px}
+.dial{flex:none; width:76px; height:76px; position:relative}
+.dial svg{transform:rotate(-90deg); display:block}
+.dial-n{position:absolute; inset:0; display:grid; place-items:center; font-family:var(--f-mono); font-size:19px; font-weight:600; font-variant-numeric:tabular-nums}
+.score-txt h2{font-size:17px; font-weight:700}
+.score-txt p{margin:4px 0 0; font-size:13px; color:var(--ink-2)}
+
+.meters{padding:14px 20px 16px; display:grid; gap:12px}
+.meter-hd{display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:13px}
+.meter-hd b{font-weight:600}
+.meter-hd .v{font-family:var(--f-mono); font-variant-numeric:tabular-nums; font-size:12.5px; color:var(--ink-2)}
+.bar{height:7px; border-radius:4px; background:var(--surface-3); overflow:hidden; margin-top:5px; display:flex}
+.bar i{display:block; height:100%; transition:width .3s ease}
+.bar i.done{background:var(--ok)}
+.bar i.prog{background:var(--warn)}
+.bar i.over{background:var(--bad)}
+
+.reqgroup{margin-bottom:18px}
+.reqgroup > h3{
+  font-family:var(--f-body); font-size:11.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 8px; display:flex; align-items:baseline; gap:8px;
+}
+.reqgroup > h3 .cite{color:var(--gold)}
+.req{
+  background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--line-strong);
+  border-radius:var(--r-sm); padding:11px 13px; margin-bottom:7px;
+}
+.req-hd{display:flex; gap:10px; align-items:flex-start; justify-content:space-between}
+.req-hd b{font-weight:600; font-size:14px; line-height:1.35}
+.req p{margin:5px 0 0; font-size:12.8px; color:var(--ink-2); line-height:1.5}
+.req p .num{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.pill{
+  flex:none; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  padding:3px 8px; border-radius:20px; border:1px solid; white-space:nowrap;
+}
+.req.met{border-left-color:var(--ok)} .req.met .pill{color:var(--ok); background:var(--ok-bg); border-color:var(--ok-line)}
+.req.progress{border-left-color:var(--warn)} .req.progress .pill{color:var(--warn); background:var(--warn-bg); border-color:var(--warn-line)}
+.req.unmet{border-left-color:var(--bad)} .req.unmet .pill{color:var(--bad); background:var(--bad-bg); border-color:var(--bad-line)}
+.req.review{border-left-color:var(--info)} .req.review .pill{color:var(--info); background:var(--info-bg); border-color:var(--info-line)}
+.req.na{border-left-color:var(--line-strong); opacity:.72} .req.na .pill{color:var(--ink-3); background:var(--surface-2); border-color:var(--line)}
+
+.deadline{font-size:12px; margin-top:6px; font-family:var(--f-mono); color:var(--ink-3)}
+.deadline.hot{color:var(--bad); font-weight:500}
+.deadline.soon{color:var(--warn); font-weight:500}
+
+.panel-actions{display:flex; gap:8px; flex-wrap:wrap; padding:14px 0 4px; border-top:1px solid var(--line); margin-top:6px}
+.toast{
+  position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:var(--brand); color:#fff; padding:10px 18px; border-radius:22px; font-size:13.5px; font-weight:500;
+  box-shadow:var(--shadow); z-index:50; max-width:calc(100vw - 40px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .toast{color:#0A101B}}
+:root[data-theme="dark"] .toast{color:#0A101B}
+
+
+/* ---- course-data panel ---- */
+.datacard{border-style:dashed}
+.datacard summary{cursor:pointer; padding:16px 20px; font-weight:700; font-size:15px; font-family:var(--f-display); list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px}
+.datacard summary::-webkit-details-marker{display:none}
+.datacard summary::after{content:"Open"; font-family:var(--f-body); font-size:12px; font-weight:600; color:var(--ink-3); letter-spacing:.04em; text-transform:uppercase}
+.datacard[open] summary::after{content:"Close"}
+.datacard textarea{width:100%; min-height:110px; font-family:var(--f-mono); font-size:12px; line-height:1.5;
+  background:var(--surface-2); border:1px solid var(--line-strong); border-radius:var(--r-sm); padding:9px 11px; resize:vertical}
+.prov{font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3); padding:10px 20px 0}
+.diff{margin-top:12px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface-2); padding:11px 13px; font-size:13px}
+.diff b{display:block; margin-bottom:4px}
+.diff ul{margin:4px 0 0; padding-left:18px} .diff li{margin:2px 0}
+.diff .add{color:var(--ok)} .diff .rm{color:var(--bad)} .diff .ch{color:var(--warn)}
+footer.legal{margin-top:8px; padding:18px 20px; border:1px dashed var(--line-strong); border-radius:var(--r); background:var(--surface-2); font-size:12.5px; color:var(--ink-2); line-height:1.6}
+footer.legal b{color:var(--ink)}
+#prov-line{white-space:normal; display:inline-block; margin-top:6px}
+
+@media print{
+  .masthead-tools,.tabs,.inputs,.panel-actions,.btn,.toast{display:none!important}
+  body{background:#fff}
+  .layout{grid-template-columns:1fr}
+  .audit{position:static; max-height:none; overflow:visible}
+  .card,.score,.req{box-shadow:none; break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div>
+      <p class="eyebrow">University of Notre Dame &middot; Computer Science and Engineering</p>
+      <h1>Graduate Degree Audit</h1>
+      <p class="sub">Enter your coursework and milestones to see, requirement by requirement, where you stand against the CSE Graduate Studies Handbook (July 2026). Every check cites the section it comes from.</p>
+    </div>
+    <div class="masthead-tools">
+      <button class="btn btn-sm" id="btn-demo" type="button">Load example</button>
+      <button class="btn btn-sm" id="btn-reset" type="button">Clear</button>
+    </div>
+  </div>
+  <div class="masthead-in" style="padding-top:0">
+    <div class="tabs" role="tablist" aria-label="Degree program">
+      <button class="tab" role="tab" id="tab-ms" data-prog="ms" aria-selected="true">M.S. in CSE &nbsp;<span class="cite">&sect;3</span></button>
+      <button class="tab" role="tab" id="tab-phd" data-prog="phd" aria-selected="false">Ph.D. &nbsp;<span class="cite">&sect;4</span></button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="layout">
+
+  <!-- ===================== INPUTS ===================== -->
+  <main class="inputs">
+
+    <section class="card">
+      <div class="card-hd"><h2>Your standing</h2><span class="cite" id="sem-now"></span></div>
+      <div class="card-bd">
+        <div class="grid two">
+          <div class="f">
+            <label for="i-term">Entered the program</label>
+            <select id="i-term"><option value="fall">Fall</option><option value="spring">Spring</option></select>
+          </div>
+          <div class="f">
+            <label for="i-year">Year</label>
+            <input type="number" id="i-year" min="2000" max="2040" step="1" value="2025">
+          </div>
+          <div class="f">
+            <label for="i-gpa">Cumulative GPA</label>
+            <input type="number" id="i-gpa" min="0" max="4" step="0.01" placeholder="3.50">
+          </div>
+          <div class="f">
+            <label for="i-ft">Full-time semesters completed</label>
+            <input type="number" id="i-ft" min="0" max="20" step="1" value="0">
+          </div>
+        </div>
+
+        <div id="ms-track-wrap">
+          <div class="subhead">M.S. track</div>
+          <div class="grid two">
+            <div class="f">
+              <label for="i-track">Which describes you</label>
+              <select id="i-track">
+                <option value="standard">Standard MSCSE admission</option>
+                <option value="integrated">Integrated B.S. + M.S. (&sect;3.5)</option>
+                <option value="transition">Transition to Computing (&sect;3.6)</option>
+              </select>
+            </div>
+            <div class="f" id="ugpa-wrap" hidden>
+              <label for="i-ugpa">Undergraduate GPA</label>
+              <input type="number" id="i-ugpa" min="0" max="4" step="0.01" placeholder="3.25">
+            </div>
+          </div>
+          <div class="checks" style="margin-top:12px">
+            <label class="check"><input type="checkbox" id="m-advisor-ms"><span>I have a project or thesis advisor<em>&sect;2.3 &mdash; M.S. students identify an advisor by the beginning of their first semester, with help from the DGS.</em></span></label>
+          </div>
+        </div>
+
+        <div id="phd-basic-wrap" hidden>
+          <div class="checks" style="margin-top:14px">
+            <label class="check"><input type="checkbox" id="m-advisor-phd"><span>I am currently supervised by a faculty advisor<em>&sect;2.3 &mdash; continuous advisor supervision is required for the whole Ph.D.</em></span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-hd"><h2>Coursework</h2><span class="cite" id="course-cite">&sect;3.2</span></div>
+      <div class="card-bd">
+        <p class="hint" id="course-hint"></p>
+
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); margin-top:14px">
+          <div class="f" style="grid-column:span 1">
+            <label for="c-id">Course number</label>
+            <input id="c-id" list="known-courses" placeholder="CSE 60641" autocomplete="off">
+            <datalist id="known-courses"></datalist>
+          </div>
+          <div class="f" style="grid-column:span 2">
+            <label for="c-title">Title</label>
+            <input id="c-title" placeholder="Graduate Operating Systems" autocomplete="off">
+          </div>
+          <div class="f">
+            <label for="c-cr">Credits</label>
+            <input type="number" id="c-cr" min="0" max="12" step="1" value="3">
+          </div>
+          <div class="f">
+            <label for="c-grade">Grade</label>
+            <select id="c-grade">
+              <option value="IP">In progress</option>
+              <option>A</option><option>A-</option><option>B+</option><option selected>B</option>
+              <option>B-</option><option>C+</option><option>C</option><option>C-</option><option>D</option><option>F</option>
+              <option value="S">S (satisfactory)</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="c-kind">Course type</label>
+            <select id="c-kind">
+              <option value="regular">Regular course</option>
+              <option value="seminar">Research seminar</option>
+              <option value="research">Research credits</option>
+              <option value="independent">Independent study</option>
+              <option value="msproject">M.S. project / thesis direction</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="c-where">Taken at</label>
+            <select id="c-where">
+              <option value="nd">Notre Dame</option>
+              <option value="transfer">Transferred in</option>
+            </select>
+          </div>
+          <div class="f" id="cat-wrap" hidden>
+            <label for="c-cat">Specialization group</label>
+            <select id="c-cat">
+              <option value="">&mdash; none / not on the list &mdash;</option>
+              <option value="alg">Algorithms</option>
+              <option value="hcc">Human Centered Computing</option>
+              <option value="arch">Architecture</option>
+              <option value="dsai">Data Science and AI</option>
+              <option value="sys">Systems and Software</option>
+            </select>
+          </div>
+          <div class="f" id="core-wrap" hidden>
+            <label for="c-core">Core knowledge area</label>
+            <select id="c-core">
+              <option value="">&mdash; none &mdash;</option>
+              <option value="os">Operating Systems</option>
+              <option value="algorithms">Algorithms</option>
+              <option value="architecture">Computer Architecture</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="checks" style="margin-top:12px">
+          <label class="check" id="bridge-wrap" hidden><input type="checkbox" id="c-bridge"><span>Transition to Computing bridge course<em>&sect;3.6 &mdash; CSE 50xxx bridge courses do not count toward the MSCSE.</em></span></label>
+          <label class="check" id="dbl-wrap" hidden><input type="checkbox" id="c-dbl"><span>Double-counted with my B.S. degree<em>&sect;3.5 &mdash; at most two 3-credit CSE 6xxxx courses may count for both degrees.</em></span></label>
+        </div>
+
+        <div class="btnrow"><button class="btn btn-primary" id="btn-add" type="button">Add course</button></div>
+
+        <div class="tablewrap" style="margin-top:18px">
+          <table class="courses">
+            <thead><tr>
+              <th>Course</th><th>Type</th><th class="rt">Cr</th><th>Grade</th><th>Counts toward</th><th></th>
+            </tr></thead>
+            <tbody id="course-rows"></tbody>
+          </table>
+        </div>
+        <p class="empty" id="course-empty">No courses yet. Add your first one above.</p>
+      </div>
+    </section>
+
+
+    <details class="card datacard" id="datacard">
+      <summary>Course data <span class="cite" id="prov-chip"></span></summary>
+      <div class="card-bd" style="padding-top:0">
+        <p class="hint">This app's course rules come from the <b>CSE Degree Requirement Rules</b> sheet in your DGS folder. To push a sheet edit to every student: open the sheet, <b>File &rarr; Download &rarr; Comma-separated values</b>, then drop the file in below (or paste the cells). Nothing changes for anyone until you publish.</p>
+
+        <div class="btnrow" style="margin-top:0">
+          <button class="btn btn-sm" id="pick-rul" type="button">Choose CSV&hellip;</button>
+          <span class="cite" id="rul-status">using the built-in copy</span>
+        </div>
+        <textarea id="csv-rul" placeholder="…or paste the sheet here, header row included" spellcheck="false"></textarea>
+
+        <div id="diff"></div>
+
+        <div class="btnrow">
+          <button class="btn" id="btn-check" type="button">Check the data</button>
+          <button class="btn" id="btn-try" type="button">Try it here only</button>
+          <button class="btn btn-primary" id="btn-pub" type="button">Publish to everyone</button>
+        </div>
+        <p class="hint" id="pub-note">“Try it here only” keeps the change in this browser. “Publish to everyone” saves a new version of this page — every student sees the new rules the next time they open it.</p>
+        <input type="file" id="csv-file" accept=".csv,text/csv" hidden>
+      </div>
+    </details>
+
+    <section class="card">
+      <div class="card-hd"><h2>Milestones</h2><span class="cite" id="ms-cite"></span></div>
+      <div class="card-bd" id="milestones"></div>
+    </section>
+  </main>
+
+  <!-- ===================== AUDIT ===================== -->
+  <aside class="audit">
+    <div class="score">
+      <div class="score-top">
+        <div class="dial">
+          <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
+            <circle cx="38" cy="38" r="32" fill="none" stroke="var(--surface-3)" stroke-width="8"></circle>
+            <circle id="dial-arc" cx="38" cy="38" r="32" fill="none" stroke="var(--ok)" stroke-width="8"
+                    stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="201"></circle>
+          </svg>
+          <div class="dial-n" id="dial-n">0/0</div>
+        </div>
+        <div class="score-txt">
+          <h2 id="score-hd">Getting started</h2>
+          <p id="score-sub">Add your courses to see where you stand.</p>
+        </div>
+      </div>
+      <div class="meters" id="meters"></div>
+    </div>
+
+    <div id="reqs"></div>
+
+    <div class="panel-actions">
+      <button class="btn btn-primary btn-sm" id="btn-save" type="button">Save my progress</button>
+      <button class="btn btn-sm" id="btn-load" type="button">Load a saved file</button>
+      <button class="btn btn-sm" id="btn-summary" type="button">Copy summary</button>
+      <button class="btn btn-sm" id="btn-print" type="button">Print</button>
+      <input type="file" id="file-in" accept=".json,application/json" hidden>
+    </div>
+
+    <footer class="legal">
+      <b>This is a self-check, not an official audit.</b> It applies the rules in Sections 3 and 4 of the CSE Graduate Studies Handbook (July 2026). Several requirements turn on approvals this page cannot see &mdash; advisor and DGS sign-off, the category-specialization course list announced by email each term, transfer-credit recommendations, and Graduate School deadlines. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.<br><span class="cite" id="prov-line"></span>
+    </footer>
+  </aside>
+
+</div>
+</div>
+
+<script id="app-data" type="application/json">{"version":1,"updated":"2026-08-28","source":"CSE Degree Requirement Rules (Google Sheet, DGS folder)","catalog":[{"id":"CSE 60111","title":"Complexity and Algorithms","cr":3,"kind":"regular","offered":"spring","active":true},{"id":"CSE 60321","title":"Advanced Computer Architecture","cr":3,"kind":"regular","offered":"spring","active":true},{"id":"CSE 60427","title":"Human-Centered Computing Research","cr":3,"kind":"regular","offered":"fall","active":true},{"id":"CSE 60535","title":"Graduate Computer Vision","cr":3,"kind":"regular","offered":"fall","active":true},{"id":"CSE 60641","title":"Graduate Operating Systems","cr":3,"kind":"regular","offered":"fall","active":true},{"id":"CSE 60762","title":"Custom System on Chip Design","cr":3,"kind":"regular","offered":"spring","active":true},{"id":"CSE 60770","title":"Secure Software Engineering","cr":3,"kind":"regular","offered":"fall","active":true},{"id":"CSE 60868","title":"Graduate Neural Networks","cr":3,"kind":"regular","offered":"spring","active":true},{"id":"CSE 60876","title":"Research Methods","cr":3,"kind":"regular","offered":"spring","active":true},{"id":"CSE 63801","title":"Research Seminar I","cr":1,"kind":"seminar","offered":"fall","active":true},{"id":"CSE 63802","title":"Research Seminar II","cr":1,"kind":"seminar","offered":"spring","active":true},{"id":"CSE 68901","title":"M.S. Thesis Direction","cr":3,"kind":"project","offered":"varies","active":true},{"id":"CSE 68902","title":"M.S. Project","cr":3,"kind":"project","offered":"varies","active":true}],"rules":[{"id":"CSE 60111","title":"Complexity and Algorithms","ms":"yes","phd":"yes","core":"algorithms","group":"alg","offered":"spring","effective":"Fall 2026","notes":"\u00a74.4.2 typical spring course"},{"id":"CSE 60321","title":"Advanced Computer Architecture","ms":"yes","phd":"yes","core":"architecture","group":"arch","offered":"spring","effective":"Fall 2026","notes":"\u00a74.4.2 typical spring course"},{"id":"CSE 60427","title":"Human-Centered Computing Research","ms":"yes","phd":"yes","core":"","group":"hcc","offered":"fall","effective":"Fall 2026","notes":"\u00a74.4.2 typical fall course"},{"id":"CSE 60535","title":"Graduate Computer Vision","ms":"yes","phd":"yes","core":"","group":"dsai","offered":"fall","effective":"Fall 2026","notes":"\u00a74.4.2 typical fall course"},{"id":"CSE 60641","title":"Graduate Operating Systems","ms":"yes","phd":"yes","core":"os","group":"sys","offered":"fall","effective":"Fall 2026","notes":"\u00a74.4.2 typical fall course"},{"id":"CSE 60762","title":"Custom System on Chip Design","ms":"yes","phd":"yes","core":"","group":"arch","offered":"spring","effective":"Fall 2026","notes":"\u00a74.4.2 typical spring course"},{"id":"CSE 60770","title":"Secure Software Engineering","ms":"yes","phd":"yes","core":"","group":"sys","offered":"fall","effective":"Fall 2026","notes":"\u00a74.4.2 typical fall course"},{"id":"CSE 60868","title":"Graduate Neural Networks","ms":"yes","phd":"yes","core":"","group":"dsai","offered":"spring","effective":"Fall 2026","notes":"\u00a74.4.2 typical spring course"},{"id":"CSE 60876","title":"Research Methods","ms":"yes","phd":"yes","core":"","group":"any","offered":"spring","effective":"Fall 2026","notes":"Listed under all five groups in \u00a74.4.2 \u2014 the student assigns it to whichever group they still need"},{"id":"CSE 63801","title":"Research Seminar I","ms":"no","phd":"yes","core":"","group":"","offered":"fall","effective":"Fall 2026","notes":"\u00a74.2 \u2014 required of Ph.D. students in year one"},{"id":"CSE 63802","title":"Research Seminar II","ms":"no","phd":"yes","core":"","group":"","offered":"spring","effective":"Fall 2026","notes":"\u00a74.2 \u2014 required of Ph.D. students in year one"},{"id":"CSE 68901","title":"M.S. Thesis Direction","ms":"yes","phd":"no","core":"","group":"","offered":"varies","effective":"Fall 2026","notes":"\u00a73.2 \u2014 thesis direction credits"},{"id":"CSE 68902","title":"M.S. Project","ms":"yes","phd":"no","core":"","group":"","offered":"varies","effective":"Fall 2026","notes":"\u00a73.2 \u2014 project credits"}]}</script>
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   Course catalog — the "typical" category specialization courses
+   named in the handbook (§4.4.2) plus the courses §3.2/§4.2 cite.
+   The official list is announced by email each term.
+   ============================================================ */
+var DATA = (function(){
+  try{ return JSON.parse(document.getElementById("app-data").textContent); }
+  catch(e){ return {version:0, updated:"", catalog:[], rules:[]}; }
+})();
+
+/* Course lookups, built from the two Google Sheets:
+   catalog  — every CSE course (titles, credits, course type)
+   rules    — how a course counts: 40xxx eligibility (§3.2/§4.2),
+              core knowledge area (§4.4.1), specialization group (§4.4.2) */
+var BY_ID = {}, RULE = {};
+(DATA.catalog||[]).forEach(function(c){ BY_ID[c.id.toUpperCase()] = c; });
+(DATA.rules||[]).forEach(function(r){ RULE[r.id.toUpperCase()] = r; });
+
+function lookup(id){ return BY_ID[String(id||"").toUpperCase()] || null; }
+function ruleFor(id){ return RULE[String(id||"").toUpperCase()] || null; }
+
+/* Merged list for the course-number autocomplete. */
+var CATALOG = (DATA.catalog||[]).filter(function(c){ return c.active!==false; })
+  .map(function(c){
+    var r = RULE[c.id.toUpperCase()];
+    return {id:c.id, title:c.title, cr:c.cr, kind:c.kind||"regular",
+            cat:(r&&r.group&&r.group!=="any")?r.group:"",
+            core:(r&&r.core)?r.core:"", multi:!!(r&&r.group==="any")};
+  });
+(DATA.rules||[]).forEach(function(r){   // rules-only rows still autocomplete
+  if(!BY_ID[r.id.toUpperCase()])
+    CATALOG.push({id:r.id, title:r.title, cr:3, kind:"regular",
+                  cat:(r.group&&r.group!=="any")?r.group:"", core:r.core||"",
+                  multi:r.group==="any"});
+});
+
+var CAT_NAME = {alg:"Algorithms", hcc:"Human Centered Computing", arch:"Architecture",
+                dsai:"Data Science and AI", sys:"Systems and Software"};
+var CORE_NAME = {os:"Operating Systems", algorithms:"Algorithms", architecture:"Computer Architecture"};
+var KIND_NAME = {regular:"Regular course", seminar:"Research seminar", research:"Research credits",
+                 independent:"Independent study", msproject:"M.S. project / thesis"};
+var GP = {"A":4,"A-":3.667,"B+":3.333,"B":3,"B-":2.667,"C+":2.333,"C":2,"C-":1.667,"D":1,"F":0};
+
+/* ============================================================ state */
+var S = {
+  prog:"ms", term:"fall", year:2025, gpa:"", ft:0, track:"standard", ugpa:"",
+  courses:[], flags:{}, path:"project"
+};
+var LSKEY = "nd-cse-degree-audit-v1";
+
+function save(){ try{ localStorage.setItem(LSKEY, JSON.stringify(S)); }catch(e){} }
+function load(){
+  try{ var r = localStorage.getItem(LSKEY); if(r){ var o = JSON.parse(r); if(o && o.courses) S = Object.assign(S,o); } }catch(e){}
+}
+
+/* ============================================================ helpers */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+function levelOf(id){ var m = String(id||"").match(/(\d{5})/); return m ? Math.floor(+m[1]/10000) : 0; }
+function deptOf(id){ var m = String(id||"").trim().match(/^([A-Za-z]{2,5})/); return m ? m[1].toUpperCase() : ""; }
+function isCSE(c){ return deptOf(c.id) === "CSE"; }
+function passed(c){ return c.grade!=="IP" && c.grade!=="F" && c.grade!=="I"; }
+function inProgress(c){ return c.grade==="IP"; }
+function gradeOK(c){ return c.grade==="S" || (GP[c.grade]!==undefined && GP[c.grade] >= 3); }
+function plural(n,w){ return n+" "+w+(n===1?"":"s"); }
+
+/* -------- academic-semester arithmetic -------- */
+function ord(term,year){ return year*2 + (term==="fall"?1:0); }
+function ordName(o){ var f = o%2===1; return (f?"Fall ":"Spring ")+Math.floor(f?(o-1)/2:o/2); }
+function nowOrd(){
+  var d = new Date(), m = d.getMonth(), y = d.getFullYear();
+  if(m >= 7) return ord("fall",y);
+  return ord("spring",y);
+}
+function semesterNumber(){ return nowOrd() - ord(S.term, +S.year||2025) + 1; }
+function entryDate(){ var y = +S.year||2025; return S.term==="fall" ? new Date(y,7,15) : new Date(y,0,10); }
+function monthsSinceEntry(){
+  var e = entryDate(), n = new Date();
+  return (n.getFullYear()-e.getFullYear())*12 + (n.getMonth()-e.getMonth());
+}
+
+/* ============================================================
+   CREDIT ACCOUNTING — applies the caps in §3.2 / §4.2 in entry
+   order and annotates every course with why it did or didn't count.
+   ============================================================ */
+function account(){
+  var A = {
+    regular:0, project:0, other:0, total:0,
+    fourk:0, nonCSE:0, ndRegular:0, transfer:0,
+    inProgRegular:0, bridge:0, bridgeCourses:0, dbl:0,
+    seminar63801:false, seminar63802:false, seminarCr:0,
+    excess:[], needApproval:[], unverified:[], notes:{}
+  };
+  var capFour = 0, capNon = 0;
+  S.courses.forEach(function(c){
+    var cr = +c.cr||0, note = "", counts = "";
+    var lvl = levelOf(c.id), cse = isCSE(c);
+    if(c.where==="transfer") A.transfer += cr;
+
+    if(S.prog==="ms"){
+      if(c.bridge){ A.bridge += cr; A.bridgeCourses++; c._counts="Transition bridge (§3.6)";
+        c._note="Preparatory — does not count toward the MSCSE."; return; }
+      if(c.kind==="msproject"){ A.project += cr; A.total += cr; c._counts="Project / thesis (§3.2)"; c._note=""; return; }
+      if(c.kind!=="regular"){ A.other += cr; A.total += cr; c._counts="30-credit total only";
+        c._note="§3.2 — not a regular course."; return; }
+      // regular course, MS
+      if(lvl===4){
+        var rl = ruleFor(c.id), verdict = rl ? rl.ms : "";
+        if(verdict === "no"){ c._counts="Does not count";
+          c._note="The rules sheet marks this course as not counting toward the MSCSE."; return; }
+        if(capFour + cr > 6){ A.excess.push(c.id+" — over the 6-credit 40000-level cap");
+          c._counts="Does not count"; c._note="§3.2 caps 40000-level credit at 6."; return; }
+        capFour += cr; A.fourk += cr;
+        note = "40000-level (6-credit cap)";
+        if(verdict !== "yes"){ A.needApproval.push(c.id); note += "; needs DGS approval"; }
+      }
+      if(!cse){
+        if(capNon + cr > 9){ A.excess.push(c.id+" — over the 9-credit non-CSE cap");
+          c._counts="Does not count"; c._note="§3.2 caps non-CSE credit at 9."; return; }
+        capNon += cr; A.nonCSE += cr; note = note ? note+"; outside CSE (9-credit cap)" : "Outside CSE (9-credit cap)";
+      }
+      if(c.dbl) A.dbl += cr;
+      if(inProgress(c)) A.inProgRegular += cr; else A.regular += cr;
+      A.total += cr;
+      c._counts = "24 regular credits (§3.2)"; c._note = note;
+      return;
+    }
+
+    /* ---------------- Ph.D. ---------------- */
+    if(c.kind==="seminar"){
+      A.seminarCr += cr; A.total += cr;
+      if(/63801/.test(c.id)) A.seminar63801 = passed(c) || inProgress(c);
+      if(/63802/.test(c.id)) A.seminar63802 = passed(c) || inProgress(c);
+      if(c.where==="nd") A.ndRegular += 0;
+      c._counts = /6380[12]/.test(c.id) ? "Research seminar (§4.2)" : "60-credit total only";
+      c._note = /6380[12]/.test(c.id) ? "" : "§4.2 — seminars are not regular courses.";
+      return;
+    }
+    if(c.kind!=="regular"){ A.other += cr; A.total += cr; c._counts="60-credit total only";
+      c._note="§4.2 — not a regular course."; return; }
+    if(lvl===4){
+      if(!cse){ c._counts="Does not count"; c._note="§4.2 — only CSE 4xxxx may count, up to 6 credits."; return; }
+      var rlp = ruleFor(c.id), vp = rlp ? rlp.phd : "";
+      if(vp === "no"){ c._counts="Does not count";
+        c._note="The rules sheet marks this course as not counting toward the Ph.D."; return; }
+      if(capFour + cr > 6){ A.excess.push(c.id+" — over the 6-credit CSE 4xxxx cap");
+        c._counts="Does not count"; c._note="§4.2 caps CSE 4xxxx credit at 6."; return; }
+      capFour += cr; A.fourk += cr; note = "CSE 4xxxx (6-credit cap)";
+      if(vp !== "yes"){ A.needApproval.push(c.id); note += "; needs DGS approval"; }
+    } else if(lvl < 6){
+      c._counts="Does not count"; c._note="§4.2 requires 60000 level or higher (CSE 4xxxx excepted)."; return;
+    }
+    if(!cse){
+      if(capNon + cr > 9){ A.excess.push(c.id+" — over the 9-credit non-CSE cap");
+        c._counts="Does not count"; c._note="§4.2 caps non-CSE credit at 9."; return; }
+      capNon += cr; A.nonCSE += cr; note = note ? note+"; outside CSE (9-credit cap)" : "Outside CSE (9-credit cap)";
+    }
+    if(inProgress(c)) A.inProgRegular += cr; else A.regular += cr;
+    if(c.where==="nd") A.ndRegular += cr;
+    A.total += cr;
+    c._counts = "24 regular credits (§4.2)"; c._note = note;
+  });
+  return A;
+}
+
+/* -------- §4.4.2 distinct-group check -------- */
+function specialization(){
+  var used = {}, dup = [], ip = [], low = [];
+  S.courses.forEach(function(c){
+    if(c.kind!=="regular" || !c.cat) return;
+    if(inProgress(c)){ ip.push(c); return; }
+    if(!gradeOK(c)){ low.push(c); return; }
+    if(used[c.cat]) dup.push(c); else used[c.cat] = c;
+  });
+  var groups = Object.keys(used);
+  var ipGroups = ip.filter(function(c){ return !used[c.cat]; })
+                   .map(function(c){ return c.cat; })
+                   .filter(function(v,i,a){ return a.indexOf(v)===i; });
+  return {groups:groups, dup:dup, ip:ip, low:low, ipGroups:ipGroups,
+          missing:Object.keys(CAT_NAME).filter(function(k){ return !used[k]; })};
+}
+
+/* -------- §4.4.1 core knowledge -------- */
+function coreKnowledge(){
+  var out = {};
+  Object.keys(CORE_NAME).forEach(function(k){
+    var byCourse = S.courses.some(function(c){ return c.core===k && passed(c); });
+    var ipCourse = S.courses.some(function(c){ return c.core===k && inProgress(c); });
+    out[k] = { done: byCourse || !!S.flags["core_prev_"+k], ip: ipCourse,
+               prev: !!S.flags["core_prev_"+k], nd: byCourse };
+  });
+  return out;
+}
+
+/* ============================================================ deadlines */
+function due(targetOrd, done){
+  if(done) return null;
+  var rem = targetOrd - nowOrd();
+  var name = ordName(targetOrd);
+  if(rem < 0)  return {t:"Past due — the deadline was the end of "+name, c:"hot"};
+  if(rem === 0) return {t:"Due this semester ("+name+")", c:"hot"};
+  if(rem === 1) return {t:"Due by the end of "+name, c:"soon"};
+  return {t:"Due by the end of "+name+" — "+plural(rem,"semester")+" left", c:""};
+}
+function R(label,status,detail,cite,deadline){
+  return {label:label,status:status,detail:detail,cite:cite,deadline:deadline||null};
+}
+function F(k){ return !!S.flags[k]; }
+function chk(label,key,cite,detail){
+  return R(label, F(key)?"met":"unmet", detail||"", cite);
+}
+
+/* Rules that come from the course-data sheets rather than the handbook text. */
+function dataRules(A, prog){
+  var out = [];
+  if(A.needApproval.length) out.push(R("40000-level courses cleared by the DGS","review",
+    A.needApproval.join(", ")+" — the rules sheet does not list "+
+    (A.needApproval.length===1?"this course":"these courses")+" as pre-approved, so "+
+    (A.needApproval.length===1?"it needs":"they need")+" your advisor's and the DGS's sign-off before "+
+    (A.needApproval.length===1?"it counts":"they count")+".",
+    prog==="ms" ? "§3.2" : "§4.2"));
+  return out;
+}
+
+/* ============================================================ M.S. rules */
+function evalMS(A){
+  var g = [], gpa = parseFloat(S.gpa), sem = semesterNumber();
+  var proj = S.path==="project";
+
+  g.push({title:"Basic requirements", cite:"§2.2–2.3, §3.1", rules:[
+    R("Cumulative GPA of at least 3.0",
+      isNaN(gpa) ? "review" : (gpa>=3 ? "met" : "unmet"),
+      isNaN(gpa) ? "Enter your cumulative GPA above. A GPA below 3.0 blocks candidacy, the defense, and the degree."
+                 : "Your GPA is "+gpa.toFixed(2)+(gpa>=3?"." : ". Below 3.0 you cannot defend or receive the degree, and two consecutive semesters below 3.0 can cost funding."),
+      "§2.2"),
+    chk("A project or thesis advisor is identified","m-advisor-ms","§2.3",
+        "M.S. students identify an advisor by the beginning of their first semester, with help from the DGS.")
+  ]});
+
+  var need24 = Math.max(0, 24 - A.regular);
+  var need6  = Math.max(0, 6 - A.project);
+  var need30 = Math.max(0, 30 - A.total);
+  var cw = [
+    R("24 credit hours of regular courses",
+      A.regular>=24 ? "met" : (A.regular+A.inProgRegular>=24 ? "progress" : (A.regular>0?"progress":"unmet")),
+      A.regular+" of 24 credits complete"+(A.inProgRegular?", "+A.inProgRegular+" in progress":"")+
+      (need24? " — "+need24+" to go." : ". Requirement satisfied."),
+      "§3.2"),
+    R("6 credit hours of M.S. project or thesis direction",
+      A.project>=6 ? "met" : (A.project>0?"progress":"unmet"),
+      A.project+" of 6 credits recorded"+(need6?" — "+need6+" to go. Register for CSE 68902 (project) or CSE 68901 (thesis direction).":". Requirement satisfied."),
+      "§3.2"),
+    R("30 total credits of courses and research",
+      A.total>=30 ? "met" : (A.total>0?"progress":"unmet"),
+      A.total+" of 30 credits counting toward the degree"+(need30?" — "+need30+" to go.":". Requirement satisfied."),
+      "§3.2"),
+    (function(){
+      var over = A.excess.filter(function(x){return /40000/.test(x);});
+      return R("At most 6 credits at the 40000 level",
+        over.length ? "review" : "met",
+        A.fourk+" of the 6 permitted 40000-level credits used."+
+        (over.length ? " Credits beyond the cap are excluded from the 24 — see the course list." : ""),
+        "§3.2");
+    })(),
+    R("At most 9 credits from outside CSE",
+      A.nonCSE===0 ? "na" : (F("ms_noncse") ? "met" : "review"),
+      A.nonCSE===0 ? "No courses from outside CSE recorded."
+        : A.nonCSE+" of the 9 permitted non-CSE credits used. "+(F("ms_noncse")
+          ? "Advisor and DGS approval recorded." : "These require your advisor's and the DGS's approval — tick the box in Milestones once you have it."),
+      "§3.2"),
+    chk("Every course in my plan of study was approved by my advisor","ms_approve","§3.2")
+  ].concat(dataRules(A,"ms"));
+  g.push({title:"Coursework", cite:"§3.2", rules:cw});
+
+  var pt = [];
+  if(proj){
+    pt.push(chk("A written project report is complete","ms_proj_report","§3.4(i)",
+      "The project is a substantial software, algorithm, data-analysis, or hardware artifact, carried out over 6 credits under your advisor."));
+    pt.push(chk("The report and deliverables are accepted and approved by my advisor","ms_proj_approved","§3.4(i)"));
+  } else {
+    pt.push(chk("A thesis topic is proposed and approved by my advisor","ms_th_topic","§3.4(ii)"));
+    pt.push(chk("Two TTT readers are nominated and approved","ms_th_readers","§3.4(ii)",
+      "Readers come from the department's Tenure and Tenure Track faculty. Your advisor may not be one of the two readers; anyone outside that pool needs prior DGS approval."));
+    pt.push(chk("Both readers have approved the thesis","ms_th_readerok","§3.4(ii)"));
+    pt.push(chk("The oral thesis defense is passed","ms_th_defense","§3.4(ii)",
+      "The defense includes general questions in your major area of specialty."));
+    pt.push(chk("The thesis is submitted electronically to the Graduate School","ms_th_submit","§3.4(ii)"));
+  }
+  g.push({title:(proj?"M.S. project":"M.S. thesis"), cite:"§3.4", rules:pt});
+
+  if(S.track==="integrated"){
+    var ug = parseFloat(S.ugpa);
+    var dblCourses = S.courses.filter(function(c){ return c.dbl; });
+    g.push({title:"Integrated B.S. + M.S.", cite:"§3.5", rules:[
+      chk("Admitted to the Integrated B.S. + M.S. program","int_admit","§3.5",
+        "Apply by the deadline on the CSE web site — typically the end of the fall semester of your senior year. No GRE and no application fee."),
+      R("Undergraduate GPA of at least 3.25",
+        isNaN(ug) ? "review" : (ug>=3.25 ? "met":"unmet"),
+        isNaN(ug) ? "Enter your undergraduate GPA above." : "Your undergraduate GPA is "+ug.toFixed(2)+".",
+        "§3.5"),
+      chk("One-page statement of intent submitted, naming a faculty supervisor","int_stmt","§3.5"),
+      R("At most two 3-credit CSE 6xxxx courses double-counted with the B.S.",
+        dblCourses.length===0 ? "na" : (dblCourses.length<=2 ? (F("int_approvals")?"met":"review") : "unmet"),
+        dblCourses.length===0 ? "No double-counted courses recorded."
+          : dblCourses.length+" course"+(dblCourses.length===1?"":"s")+" marked as double-counted ("+A.dbl+" credits). "+
+            (dblCourses.length>2 ? "Only two 3-credit courses may count for both degrees."
+             : (F("int_approvals") ? "Instructor and DGS approval recorded."
+                : "Each needs the course instructor's and the DGS's approval.")),
+        "§3.5"),
+      R("Additional senior-year 6xxxx courses",
+        "review",
+        "6xxxx CSE courses you completed as a senior that were not used for the B.S. may also count toward the MSCSE, with the instructor's and DGS's approval, subject to the §3.2 limits.",
+        "§3.5")
+    ]});
+  }
+
+  if(S.track==="transition"){
+    var need12 = Math.max(0, 12 - A.bridge);
+    var fourCourses = S.courses.filter(function(c){ return levelOf(c.id)===4 && isCSE(c) && c.kind==="regular" && !c.bridge; });
+    g.push({title:"Transition to Computing", cite:"§3.6", rules:[
+      R("12 credit hours of bridge coursework, taken concurrently",
+        A.bridge>=12 ? "met" : (A.bridge>0?"progress":"unmet"),
+        A.bridge+" of 12 bridge credits recorded across "+plural(A.bridgeCourses,"course")+
+        (need12?" — "+need12+" to go. The sequence is Transition to Software Design, Transition to Data Structures & Algorithms, Transition to Computer Systems & Organization, and the Integrative Computing Studio (CSE 60xxx).":"."),
+        "§3.6.1"),
+      R("Any substitutions approved by the DGS",
+        F("tr_sub") ? "met" : "review",
+        "Substitutions are allowed for students with prior preparation, provided the total stays at 12 credits.",
+        "§3.6.1"),
+      R("CSE 50xxx bridge courses excluded from the MSCSE",
+        "met",
+        "Bridge courses are preparatory and do not count toward §3.1–3.5. This page already excludes every course you marked as a bridge course.",
+        "§3.6.1"),
+      R("At most two CSE 40xxx courses counted toward the MSCSE",
+        fourCourses.length===0 ? "na" : (fourCourses.length<=2 ? (F("tr_40k")?"met":"review") : "unmet"),
+        fourCourses.length===0 ? "No CSE 40xxx courses recorded."
+          : plural(fourCourses.length,"CSE 40xxx course")+" recorded. The handbook expects such cases to be rare and each needs DGS approval.",
+        "§3.6.1")
+    ]});
+  }
+
+  var msDeadlineOrd = ord(S.term,+S.year||2025) + 9; // 5 academic years
+  g.push({title:"Residence and time", cite:"§3.3", rules:[
+    R("One semester of full-time status (or one summer session)",
+      (+S.ft>=1) ? "met" : "unmet",
+      (+S.ft>=1) ? "Minimum residency satisfied with "+plural(+S.ft,"full-time semester")+"."
+                 : "Record at least one full-time semester (9 or more credit hours) above.",
+      "§3.3"),
+    R("All requirements complete within 5 years",
+      "progress",
+      "You entered in "+ordName(ord(S.term,+S.year||2025))+" and are in semester "+sem+
+      ". Failure to finish within 5 years forfeits degree eligibility.",
+      "§3.3", due(msDeadlineOrd,false))
+  ]});
+  return g;
+}
+
+/* ============================================================ Ph.D. rules */
+function evalPHD(A){
+  var g = [], gpa = parseFloat(S.gpa), sem = semesterNumber();
+  var entry = ord(S.term,+S.year||2025);
+  var spec = specialization(), core = coreKnowledge();
+  var qualDeadline = entry + 3;      // within 4 semesters
+  var candDeadline = entry + 7;      // before the end of the 8th semester
+  var timeDeadline = entry + 15;     // 8 academic years
+  var months = monthsSinceEntry();
+
+  g.push({title:"Basic requirements", cite:"§2.2–2.3, §4.1", rules:[
+    R("Cumulative GPA of at least 3.0",
+      isNaN(gpa) ? "review" : (gpa>=3?"met":"unmet"),
+      isNaN(gpa) ? "Enter your cumulative GPA above. A GPA below 3.0 blocks candidacy, the defense, and the degree."
+                 : "Your GPA is "+gpa.toFixed(2)+(gpa>=3?"." : ". Below 3.0 you cannot defend or receive the degree, and two consecutive semesters below 3.0 can cost funding."),
+      "§2.2"),
+    chk("I am currently supervised by a faculty advisor","m-advisor-phd","§2.3",
+      "Continuous advisor supervision is required throughout the Ph.D. Report any disruption to the DGS immediately.")
+  ]});
+
+  var need24 = Math.max(0,24-A.regular), need60 = Math.max(0,60-A.total);
+  var cw = [
+    R("24 credit hours of regular courses at the 60000 level or higher",
+      A.regular>=24 ? "met" : (A.regular>0?"progress":"unmet"),
+      A.regular+" of 24 credits complete"+(A.inProgRegular?", "+A.inProgRegular+" in progress":"")+
+      (need24?" — "+need24+" to go.":". Requirement satisfied."),
+      "§4.2"),
+    R("2 credits of Research Seminar (CSE 63801 and CSE 63802)",
+      (A.seminar63801 && A.seminar63802) ? "met" : ((A.seminar63801||A.seminar63802)?"progress":"unmet"),
+      (A.seminar63801&&A.seminar63802) ? "Both seminars recorded."
+        : "Recorded: "+([A.seminar63801?"CSE 63801":null, A.seminar63802?"CSE 63802":null]
+            .filter(Boolean).join(", ") || "neither")+
+          ". Both are expected during your first year.",
+      "§4.2", sem>2 && !(A.seminar63801&&A.seminar63802) ? {t:"Expected during the first year — you are in semester "+sem, c:"soon"} : null),
+    R("60 total credits of courses and research",
+      A.total>=60 ? "met" : (A.total>0?"progress":"unmet"),
+      A.total+" of 60 credits counting toward the degree"+(need60?" — "+need60+" to go. Research credits count here.":". Requirement satisfied."),
+      "§4.2"),
+    R("At least 9 credits taken at Notre Dame",
+      A.ndRegular>=9 ? "met" : (A.ndRegular>0?"progress":"unmet"),
+      A.ndRegular+" of 9 Notre Dame regular-course credits recorded. This holds regardless of how much credit you transfer in, and it is what makes you eligible for the qualifying examination.",
+      "§4.2"),
+    (function(){
+      var over = A.excess.filter(function(x){return /4xxxx/.test(x);});
+      var ok = F("phd_4xxxx");
+      return R("At most 6 credits from CSE 4xxxx",
+        A.fourk===0 && !over.length ? "met" : (over.length || !ok ? "review" : "met"),
+        A.fourk+" of the 6 permitted CSE 4xxxx credits used."+
+        (over.length ? " Credits beyond the cap are excluded from the 24 — see the course list." : "")+
+        (A.fourk>0 ? (ok ? " Advisor and DGS approval recorded."
+                         : " These need your advisor's and the DGS's approval.") : ""),
+        "§4.2");
+    })(),
+    R("At most 9 credits at 6xxxx from outside CSE",
+      A.nonCSE===0 ? "na" : (F("phd_noncse")?"met":"review"),
+      A.nonCSE===0 ? "No courses from outside CSE recorded."
+        : A.nonCSE+" of the 9 permitted non-CSE credits used. "+(F("phd_noncse")
+          ? "Advisor and DGS approval recorded." : "These require your advisor's and the DGS's approval."),
+      "§4.2"),
+    R("Transfer credits recommended by the DGS and approved by the Graduate School",
+      A.transfer===0 ? "na" : (F("phd_transfer")?"met":"review"),
+      A.transfer===0 ? "No transfer credits recorded."
+        : A.transfer+" transfer credits recorded. An unfinished M.S. transfers at most 6 credits; a completed M.S. or Ph.D. transfers up to 24 into a Notre Dame Ph.D. Courses must be from the five years before admission, with grades of B or better, and transferred grades are not part of your GPA.",
+      "§4.2, §5.2"),
+    chk("Every course in my plan of study was approved by my advisor","phd_courseapprove","§4.2")
+  ].concat(dataRules(A,"phd"));
+  g.push({title:"Coursework", cite:"§4.2", rules:cw});
+
+  /* ---- qualifying exam ---- */
+  var qual = [];
+  ["os","algorithms","architecture"].forEach(function(k){
+    var c = core[k];
+    qual.push(R("Core knowledge: "+CORE_NAME[k],
+      c.done ? "met" : (c.ip ? "progress" : (F("core_plan") ? "review" : "unmet")),
+      c.done ? (c.nd ? "Satisfied by a course you recorded." : "Recorded as passed at your previous institution.")
+        : (c.ip ? "A course covering this area is in progress."
+          : (F("core_plan") ? "Covered by a customized study plan approved by the DGS."
+             : "Pass a "+CORE_NAME[k]+" course here, or tick the box in Milestones if you passed one before you arrived.")),
+      "§4.4.1", due(qualDeadline, c.done)));
+  });
+  qual.push(R("Three specialization courses from three distinct groups, each B or higher",
+    spec.groups.length>=3 ? "met" : (spec.groups.length>0 || spec.ip.length ? "progress" : "unmet"),
+    (spec.groups.length>=3
+      ? "Groups satisfied: "+spec.groups.map(function(k){return CAT_NAME[k];}).join(", ")+"."
+      : plural(spec.groups.length,"group")+" satisfied"+
+        (spec.groups.length?" ("+spec.groups.map(function(k){return CAT_NAME[k];}).join(", ")+")":"")+
+        ". Still open: "+spec.missing.map(function(k){return CAT_NAME[k];}).join(", ")+".")+
+    (spec.dup.length ? " "+plural(spec.dup.length,"course")+" you assigned duplicate a group already covered — reassign or take a course in a different group." : "")+
+    (spec.low.length ? " "+plural(spec.low.length,"course")+" fell below a B; you may retake the course to replace the grade or take another one." : "")+
+    (spec.ipGroups.length ? " In progress: "+spec.ipGroups.map(function(k){return CAT_NAME[k];}).join(", ")+"." : "")+
+    " The approved list is announced by email at the start of each term.",
+    "§4.4.2", due(qualDeadline, spec.groups.length>=3)));
+  qual.push(R("A significant research contribution",
+    F("q_res_contrib") ? "met" : "unmet",
+    "First author or a major contributing author on a workshop, conference, or journal submission, or a research survey. Your advisor evaluates it.",
+    "§4.4.3", F("q_res_contrib") ? null :
+      (months>18 ? {t:"Past due — the advisor's determination was due 18 months after you entered", c:"hot"}
+                 : {t:plural(18-months,"month")+" until the 18-month determination", c:(18-months<=4?"soon":"")})));
+  qual.push(chk("My advisor submitted the Research-Qualifier form and a research sample to the DGS office","q_res_form","§4.4.3",
+    "The advisor decides pass or fail within 18 months of your entering the program. A failure sends the case to a three-member committee, which has 6 months to judge a remediation plan."));
+  qual.push(R("Qualifier completion filed with the CSE DGS office",
+    F("q_form") ? "met" : "unmet",
+    "Notify the DGS office by filing the appropriate form once all three components are done."+
+    (F("q_ext") ? " You have recorded a DGS extension of the deadline." : ""),
+    "§4.4", F("q_form")||F("q_ext") ? null : due(qualDeadline,false)));
+  g.push({title:"Qualifying examination", cite:"§4.4", rules:qual});
+
+  /* ---- candidacy ---- */
+  var courseworkDone = A.regular>=24 || (A.regular+A.inProgRegular>=24);
+  g.push({title:"Candidacy examination", cite:"§4.5", rules:[
+    R("All coursework complete, or in progress this semester",
+      courseworkDone ? "met" : "unmet",
+      courseworkDone ? "Coursework is complete or finishing this semester."
+        : "You are at "+A.regular+" of 24 regular credits. Coursework must be finished, or in progress in the same semester, before the candidacy exam.",
+      "§4.5"),
+    chk("Committee approved by the DGS","cand_committee","§4.5",
+      "Your advisor (and co-advisor) plus at least three additional voting TTT members. Outside members need a CV sent to the DGS in advance, and CSE must hold the majority."),
+    chk("Written dissertation proposal complete","cand_written","§4.5"),
+    chk("Proposal distributed to the committee at least 2 weeks before the oral exam","cand_distrib","§4.5"),
+    R("Oral candidacy examination passed",
+      F("cand_oral") ? "met" : "unmet",
+      "Held on the Notre Dame campus with all Notre Dame committee members physically present. Three votes of four, or four of five, are required to pass. A second failure forfeits degree eligibility.",
+      "§4.5", due(candDeadline, F("cand_oral"))),
+    chk("Reporting form signed and sent to the Graduate School within 5 business days","cand_form","§4.5"),
+    R("MSCSE awarded along the way",
+      F("cand_oral") ? "met" : "progress",
+      "Passing the candidacy exam can satisfy the M.S. thesis requirement and the Ph.D. candidacy exam at once, earning you the MSCSE degree.",
+      "§4.5")
+  ]});
+
+  g.push({title:"Dissertation and defense", cite:"§4.6–4.7", rules:[
+    chk("Dissertation delivered to the candidacy committee readers","dis_deliver","§4.6",
+      "Readers normally get two to four weeks. Replacing a committee member needs your advisor's and the DGS's approval."),
+    chk("All readers unanimously approved the dissertation for defense","dis_readers","§4.6",
+      "Only a unanimously approved dissertation may be defended. Approval means it is defensible, not that the readers agree with it."),
+    chk("Dissertation defense passed","def_pass","§4.7",
+      "On campus, with all Notre Dame members present. The first part is public, the examination is closed. Three of four votes, or four of five, are required. A second failure forfeits degree eligibility."),
+    chk("Reporting form signed and sent to the Graduate School within 5 business days","def_form","§4.7"),
+    chk("Final dissertation submitted electronically to the Graduate School","def_submit","§4.7")
+  ]});
+
+  g.push({title:"Residence and time", cite:"§4.3", rules:[
+    R("Four consecutive full-time semesters of residence",
+      (+S.ft>=4) ? "met" : (+S.ft>0?"progress":"unmet"),
+      (+S.ft||0)+" of 4 full-time semesters recorded (summer sessions do not count).",
+      "§4.3"),
+    R("All requirements complete within 8 years",
+      "progress",
+      "You entered in "+ordName(entry)+" and are in semester "+sem+
+      ". Students entering with an M.S. in CSE typically finish in about four years; five is typical otherwise. Failure to finish within 8 years forfeits degree eligibility.",
+      "§4.3", due(timeDeadline,false))
+  ]});
+  return g;
+}
+
+/* ============================================================ milestone definitions */
+function milestoneSpec(){
+  if(S.prog==="ms"){
+    var out = [{h:"Plan of study &mdash; &sect;3.2", items:[
+      {k:"ms_approve", t:"My advisor approved every course in my plan of study"},
+      {k:"ms_noncse",  t:"My advisor and the DGS approved my non-CSE courses", s:"Up to 9 credits from another department may count."}
+    ]}];
+    out.push({h:"Project or thesis &mdash; &sect;3.4", path:true, items:
+      S.path==="project" ? [
+        {k:"ms_proj_report",   t:"A written project report is complete"},
+        {k:"ms_proj_approved", t:"The report and deliverables are accepted and approved by my advisor"}
+      ] : [
+        {k:"ms_th_topic",    t:"A thesis topic is proposed and approved by my advisor"},
+        {k:"ms_th_readers",  t:"Two TTT readers are nominated and approved", s:"Your advisor may not be one of the two readers."},
+        {k:"ms_th_readerok", t:"Both readers have approved the thesis"},
+        {k:"ms_th_defense",  t:"The oral thesis defense is passed"},
+        {k:"ms_th_submit",   t:"The thesis is submitted electronically to the Graduate School"}
+      ]});
+    if(S.track==="integrated") out.push({h:"Integrated B.S. + M.S. &mdash; &sect;3.5", items:[
+      {k:"int_admit",     t:"I am admitted to the Integrated B.S. + M.S. program"},
+      {k:"int_stmt",      t:"I submitted the one-page statement of intent naming a faculty supervisor"},
+      {k:"int_approvals", t:"The course instructor and the DGS approved each double-counted 6xxxx course"}
+    ]});
+    if(S.track==="transition") out.push({h:"Transition to Computing &mdash; &sect;3.6", items:[
+      {k:"tr_sub", t:"The DGS approved any substitutions in the 12-credit bridge sequence"},
+      {k:"tr_40k", t:"The DGS approved counting CSE 40xxx courses toward the MSCSE", s:"The handbook expects this to be rare."}
+    ]});
+    return out;
+  }
+  return [
+    {h:"Plan of study &mdash; &sect;4.2", items:[
+      {k:"phd_courseapprove", t:"My advisor approved every course in my plan of study"},
+      {k:"phd_noncse",   t:"My advisor and the DGS approved my non-CSE 6xxxx courses"},
+      {k:"phd_4xxxx",    t:"My advisor and the DGS approved my CSE 4xxxx courses"},
+      {k:"phd_transfer", t:"The DGS recommended and the Graduate School approved my transfer credits"}
+    ]},
+    {h:"Qualifying examination &mdash; &sect;4.4", items:[
+      {k:"core_prev_os",           t:"I passed an Operating Systems course at a previous institution"},
+      {k:"core_prev_algorithms",   t:"I passed an Algorithms course at a previous institution"},
+      {k:"core_prev_architecture", t:"I passed a Computer Architecture course at a previous institution"},
+      {k:"core_plan", t:"I have a customized study plan approved by the DGS", s:"For students entering with a background in a different area."},
+      {k:"q_res_contrib", t:"I made a significant research contribution", s:"First or major contributing author on a submission, or a research survey."},
+      {k:"q_res_form", t:"My advisor submitted the Research-Qualifier form and a research sample to the DGS office"},
+      {k:"q_form", t:"I filed the qualifier completion form with the CSE DGS office"},
+      {k:"q_ext",  t:"The DGS granted me an extension on the qualifier deadline"}
+    ]},
+    {h:"Candidacy examination &mdash; &sect;4.5", items:[
+      {k:"cand_committee", t:"My committee is approved by the DGS", s:"Advisor plus at least three additional voting TTT members, CSE in the majority."},
+      {k:"cand_written",   t:"My written dissertation proposal is complete"},
+      {k:"cand_distrib",   t:"I distributed the proposal at least 2 weeks before the oral exam"},
+      {k:"cand_oral",      t:"I passed the oral candidacy examination"},
+      {k:"cand_form",      t:"The reporting form went to the Graduate School within 5 business days"}
+    ]},
+    {h:"Dissertation and defense &mdash; &sect;4.6&ndash;4.7", items:[
+      {k:"dis_deliver", t:"My dissertation is delivered to the committee readers"},
+      {k:"dis_readers", t:"All readers unanimously approved it for defense"},
+      {k:"def_pass",    t:"I passed the dissertation defense"},
+      {k:"def_form",    t:"The reporting form went to the Graduate School within 5 business days"},
+      {k:"def_submit",  t:"I submitted the final dissertation electronically"}
+    ]}
+  ];
+}
+
+/* ============================================================ rendering */
+function renderMilestones(){
+  var spec = milestoneSpec(), h = "";
+  spec.forEach(function(gr){
+    h += '<div class="subhead">'+gr.h+'</div>';
+    if(gr.path){
+      h += '<div class="grid two" style="margin-bottom:10px"><div class="f"><label for="i-path">Which are you doing</label>'+
+           '<select id="i-path"><option value="project"'+(S.path==="project"?" selected":"")+'>M.S. project (&sect;3.4 i)</option>'+
+           '<option value="thesis"'+(S.path==="thesis"?" selected":"")+'>M.S. thesis (&sect;3.4 ii)</option></select></div></div>';
+    }
+    h += '<div class="checks">';
+    gr.items.forEach(function(it){
+      h += '<label class="check"><input type="checkbox" data-flag="'+it.k+'"'+(F(it.k)?" checked":"")+'>'+
+           '<span>'+it.t+(it.s?'<em>'+it.s+'</em>':'')+'</span></label>';
+    });
+    h += '</div>';
+  });
+  $("milestones").innerHTML = h;
+}
+
+function renderCourses(){
+  var tb = $("course-rows"), h = "";
+  S.courses.forEach(function(c,i){
+    var dead = /Does not count|bridge/i.test(c._counts||"");
+    h += '<tr class="'+(dead?"dropped":"")+'">'+
+      '<td><span class="num">'+esc(c.id)+'</span><br><span class="ttl">'+esc(c.title||"")+'</span>'+
+        (c.cat?'<br><span class="ttl">Group: '+CAT_NAME[c.cat]+'</span>':'')+
+        (c.core?'<br><span class="ttl">Core: '+CORE_NAME[c.core]+'</span>':'')+
+'</td>'+
+      '<td>'+KIND_NAME[c.kind]+(c.where==="transfer"?'<br><span class="ttl">transferred</span>':'')+'</td>'+
+      '<td class="rt num">'+(+c.cr||0)+'</td>'+
+      '<td class="num">'+esc(c.grade)+'</td>'+
+      '<td>'+esc(c._counts||"")+(c._note?'<span class="note'+(/^§/.test(c._note)?'':' ok')+'">'+esc(c._note)+'</span>':'')+'</td>'+
+      '<td class="rt"><button class="btn btn-ghost btn-sm" data-del="'+i+'" type="button" aria-label="Remove '+esc(c.id)+'">Remove</button></td>'+
+    '</tr>';
+  });
+  tb.innerHTML = h;
+  $("course-empty").style.display = S.courses.length ? "none" : "block";
+}
+
+function meterHTML(label, done, prog, need, unit){
+  var pd = Math.min(100, done/need*100), pp = Math.min(100-pd, prog/need*100);
+  return '<div><div class="meter-hd"><b>'+label+'</b><span class="v">'+done+
+    (prog?" + "+prog:"")+' / '+need+' '+unit+'</span></div>'+
+    '<div class="bar"><i class="done" style="width:'+pd+'%"></i><i class="prog" style="width:'+pp+'%"></i></div></div>';
+}
+
+function render(){
+  var A = account();
+  var groups = S.prog==="ms" ? evalMS(A) : evalPHD(A);
+  renderCourses();
+
+  var m = "";
+  if(S.prog==="ms"){
+    m += meterHTML("Regular courses", A.regular, A.inProgRegular, 24, "cr");
+    m += meterHTML("Project or thesis", A.project, 0, 6, "cr");
+    m += meterHTML("Total credits", A.total, 0, 30, "cr");
+  } else {
+    m += meterHTML("Regular courses", A.regular, A.inProgRegular, 24, "cr");
+    m += meterHTML("Credits at Notre Dame", A.ndRegular, 0, 9, "cr");
+    m += meterHTML("Total credits", A.total, 0, 60, "cr");
+  }
+  $("meters").innerHTML = m;
+
+  var h = "", met=0, tot=0, unmet=0, review=0;
+  groups.forEach(function(gr){
+    h += '<div class="reqgroup"><h3>'+gr.title+' <span class="cite">'+gr.cite+'</span></h3>';
+    gr.rules.forEach(function(r){
+      if(r.status!=="na"){ tot++; if(r.status==="met") met++;
+        if(r.status==="unmet") unmet++; if(r.status==="review") review++; }
+      var pill = {met:"Met", progress:"In progress", unmet:"Not yet", review:"Needs review", na:"N/A"}[r.status];
+      h += '<div class="req '+r.status+'"><div class="req-hd"><b>'+r.label+'</b><span class="pill">'+pill+'</span></div>'+
+           (r.detail?'<p>'+r.detail+'</p>':'')+
+           (r.deadline?'<div class="deadline '+r.deadline.c+'">'+r.deadline.t+'</div>':'')+
+           '</div>';
+    });
+    h += '</div>';
+  });
+  $("reqs").innerHTML = h;
+
+  var pct = tot ? met/tot : 0;
+  $("dial-arc").setAttribute("stroke-dashoffset", String(201 - 201*pct));
+  $("dial-arc").setAttribute("stroke", pct===1 ? "var(--ok)" : (pct>0.5 ? "var(--warn)" : "var(--bad)"));
+  $("dial-n").textContent = met+"/"+tot;
+  $("score-hd").textContent = pct===1 ? "All requirements met"
+    : (met===0 ? "Getting started" : plural(tot-met,"requirement")+" to go");
+  $("score-sub").textContent = pct===1
+    ? "Confirm with the Graduate Program Coordinator before you file."
+    : (unmet+review===0 ? "Everything left is in progress."
+      : [unmet?plural(unmet,"item")+" not started":null, review?review+" needing a decision or approval":null]
+        .filter(Boolean).join(", ")+".");
+  $("sem-now").textContent = "Semester "+semesterNumber()+" · "+ordName(nowOrd());
+  save();
+}
+
+/* ============================================================ wiring */
+function syncProgramUI(){
+  $("tab-ms").setAttribute("aria-selected", S.prog==="ms");
+  $("tab-phd").setAttribute("aria-selected", S.prog==="phd");
+  $("ms-track-wrap").hidden   = S.prog!=="ms";
+  $("phd-basic-wrap").hidden  = S.prog!=="phd";
+  $("cat-wrap").hidden        = S.prog!=="phd";
+  $("core-wrap").hidden       = S.prog!=="phd";
+  $("bridge-wrap").hidden     = !(S.prog==="ms" && S.track==="transition");
+  $("dbl-wrap").hidden        = !(S.prog==="ms" && S.track==="integrated");
+  $("ugpa-wrap").hidden       = !(S.prog==="ms" && S.track==="integrated");
+  $("course-cite").textContent = S.prog==="ms" ? "§3.2" : "§4.2";
+  $("ms-cite").textContent     = S.prog==="ms" ? "§3.2–3.6" : "§4.2–4.7";
+  $("course-hint").innerHTML = S.prog==="ms"
+    ? "Add everything you have taken or are taking. <b>Regular courses</b> have a regular meeting time, assigned readings, graded assignments, and a final exam &mdash; research seminars, research credits, and independent study do not (&sect;3.2)."
+    : "Add everything you have taken or are taking. <b>Regular courses</b> have a regular meeting time, assigned readings, graded assignments, and a final exam (&sect;4.2). Tag a course with a specialization group or core area to have it count toward the qualifier.";
+  renderMilestones();
+  render();
+}
+
+function addCourse(){
+  var id = $("c-id").value.trim();
+  if(!id){ $("c-id").focus(); toast("Enter a course number first."); return; }
+  S.courses.push({
+    id:id.toUpperCase().replace(/\s+/g," "), title:$("c-title").value.trim(),
+    cr:+$("c-cr").value||0, grade:$("c-grade").value, kind:$("c-kind").value,
+    where:$("c-where").value, cat:$("c-cat").value, core:$("c-core").value,
+    bridge:$("c-bridge").checked, dbl:$("c-dbl").checked
+  });
+  ["c-id","c-title"].forEach(function(k){ $(k).value=""; });
+  $("c-cat").value=""; $("c-core").value=""; $("c-bridge").checked=false; $("c-dbl").checked=false;
+  $("c-cr").value=3; $("c-id").focus();
+  render();
+}
+
+var toastT;
+function toast(msg){
+  var el = document.querySelector(".toast");
+  if(!el){ el = document.createElement("div"); el.className="toast"; document.body.appendChild(el); }
+  el.textContent = msg; el.style.display="block";
+  clearTimeout(toastT); toastT = setTimeout(function(){ el.style.display="none"; }, 3200);
+}
+
+function summaryText(){
+  var A = account(), groups = S.prog==="ms" ? evalMS(A) : evalPHD(A);
+  var L = ["Notre Dame CSE — "+(S.prog==="ms"?"MSCSE":"Ph.D.")+" degree audit",
+           "Generated "+new Date().toLocaleDateString()+" · entered "+ordName(ord(S.term,+S.year||2025))+
+           " · semester "+semesterNumber(), ""];
+  groups.forEach(function(gr){
+    L.push(gr.title.toUpperCase()+"  ("+gr.cite+")");
+    gr.rules.forEach(function(r){
+      var mark = {met:"[x]", progress:"[~]", unmet:"[ ]", review:"[?]", na:"[-]"}[r.status];
+      L.push("  "+mark+" "+r.label);
+      if(r.status!=="met" && r.detail) L.push("        "+r.detail.replace(/\s+/g," "));
+      if(r.deadline) L.push("        "+r.deadline.t);
+    });
+    L.push("");
+  });
+  L.push("[x] met  [~] in progress  [ ] not yet  [?] needs a decision or approval  [-] not applicable");
+  L.push("Self-check against the CSE Graduate Studies Handbook, July 2026. Confirm with the DGS office.");
+  return L.join("\n");
+}
+
+async function saveFile(){
+  var data = JSON.stringify({v:1, saved:new Date().toISOString(), state:S}, null, 2);
+  var name = "cse-degree-audit-"+(S.prog==="ms"?"mscse":"phd")+".json";
+  var dl = null;
+  try{ dl = await window.claude.use("downloads"); }catch(e){}
+  if(dl){
+    try{ await dl.save({filename:name, data:data}); toast("Saved. Reload it any time with “Load a saved file”."); return; }
+    catch(err){
+      if(err && err.code==="declined") return;
+      if(err && err.code==="rate_limited"){ toast("A save prompt is already open."); return; }
+    }
+  }
+  try{ await navigator.clipboard.writeText(data); toast("Downloads aren’t available here — your progress is copied to the clipboard. Paste it into a .json file."); }
+  catch(e){ toast("Couldn’t save a file here. Your progress is still stored in this browser."); }
+}
+
+function loadFile(f){
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var o = JSON.parse(r.result);
+      var st = o && o.state ? o.state : o;
+      if(!st || !Array.isArray(st.courses)) throw new Error("shape");
+      S = Object.assign({prog:"ms",term:"fall",year:2025,gpa:"",ft:0,track:"standard",ugpa:"",courses:[],flags:{},path:"project"}, st);
+      hydrate(); syncProgramUI(); toast("Loaded your saved progress.");
+    }catch(e){ toast("That file isn’t a saved audit. Pick the .json file this page saved."); }
+  };
+  r.onerror = function(){ toast("Couldn’t read that file."); };
+  r.readAsText(f);
+}
+
+function hydrate(){
+  $("i-term").value=S.term; $("i-year").value=S.year; $("i-gpa").value=S.gpa;
+  $("i-ft").value=S.ft; $("i-track").value=S.track; $("i-ugpa").value=S.ugpa;
+  $("m-advisor-ms").checked  = F("m-advisor-ms");
+  $("m-advisor-phd").checked = F("m-advisor-phd");
+}
+
+/* -------- catalog datalist + prefill -------- */
+$("c-id").addEventListener("input", function(){
+  var v = this.value.trim().toUpperCase().replace(/\s+/g," ");
+  var hit = CATALOG.filter(function(c){ return c.id===v; })[0];
+  if(!hit) return;
+  $("c-title").value = hit.title; $("c-cr").value = hit.cr; $("c-kind").value = hit.kind;
+  if(S.prog==="phd"){ $("c-cat").value = hit.cat||""; $("c-core").value = hit.core||""; }
+  if(hit.multi) toast("CSE 60876 counts in any of the five groups — pick whichever one you still need.");
+});
+
+/* -------- events -------- */
+[["tab-ms","ms"],["tab-phd","phd"]].forEach(function(p){
+  $(p[0]).addEventListener("click", function(){ S.prog=p[1]; syncProgramUI(); });
+});
+$("i-term").addEventListener("change", function(){ S.term=this.value; render(); });
+$("i-year").addEventListener("input",  function(){ S.year=this.value; render(); });
+$("i-gpa").addEventListener("input",   function(){ S.gpa=this.value; render(); });
+$("i-ft").addEventListener("input",    function(){ S.ft=this.value; render(); });
+$("i-ugpa").addEventListener("input",  function(){ S.ugpa=this.value; render(); });
+$("i-track").addEventListener("change",function(){ S.track=this.value; syncProgramUI(); });
+$("btn-add").addEventListener("click", addCourse);
+$("c-id").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); addCourse(); } });
+$("course-rows").addEventListener("click", function(e){
+  var b = e.target.closest("[data-del]"); if(!b) return;
+  S.courses.splice(+b.getAttribute("data-del"),1); render();
+});
+$("milestones").addEventListener("change", function(e){
+  if(e.target.id==="i-path"){ S.path=e.target.value; renderMilestones(); render(); return; }
+  var k = e.target.getAttribute("data-flag"); if(!k) return;
+  S.flags[k] = e.target.checked; render();
+});
+["m-advisor-ms","m-advisor-phd"].forEach(function(id){
+  $(id).addEventListener("change", function(){ S.flags[id]=this.checked; render(); });
+});
+$("btn-save").addEventListener("click", saveFile);
+$("btn-load").addEventListener("click", function(){ $("file-in").click(); });
+$("file-in").addEventListener("change", function(){ if(this.files[0]) loadFile(this.files[0]); this.value=""; });
+$("btn-print").addEventListener("click", function(){ window.print(); });
+$("btn-summary").addEventListener("click", async function(){
+  var t = summaryText();
+  try{ await navigator.clipboard.writeText(t); toast("Summary copied — paste it into an email to your advisor."); }
+  catch(e){
+    var ta = document.createElement("textarea"); ta.value=t;
+    ta.style.cssText="position:fixed;left:-9999px"; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand("copy"); toast("Summary copied."); }
+    catch(e2){ toast("Couldn’t copy here — use Print instead."); }
+    document.body.removeChild(ta);
+  }
+});
+$("btn-reset").addEventListener("click", function(){
+  if(!S.courses.length && !Object.keys(S.flags).length){ toast("Nothing to clear."); return; }
+  S = {prog:S.prog, term:"fall", year:new Date().getFullYear(), gpa:"", ft:0,
+       track:"standard", ugpa:"", courses:[], flags:{}, path:"project"};
+  hydrate(); syncProgramUI(); toast("Cleared.");
+});
+$("btn-demo").addEventListener("click", function(){
+  if(S.prog==="ms"){
+    S.term="fall"; S.year=new Date().getFullYear()-1; S.gpa="3.62"; S.ft=2; S.track="standard"; S.path="project";
+    S.courses=[
+      {id:"CSE 60641",title:"Graduate Operating Systems",cr:3,grade:"A-",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60111",title:"Complexity and Algorithms",cr:3,grade:"B+",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60535",title:"Graduate Computer Vision",cr:3,grade:"A",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60770",title:"Secure Software Engineering",cr:3,grade:"B",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 40113",title:"Design & Analysis of Algorithms",cr:3,grade:"A-",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"ACMS 60890",title:"Statistical Foundations of Data Science",cr:3,grade:"B+",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 68902",title:"M.S. Project",cr:3,grade:"S",kind:"msproject",where:"nd",cat:"",core:""}
+    ];
+    S.flags={"m-advisor-ms":true, ms_approve:true};
+  } else {
+    S.term="fall"; S.year=new Date().getFullYear()-2; S.gpa="3.78"; S.ft=4;
+    S.courses=[
+      {id:"CSE 60641",title:"Graduate Operating Systems",cr:3,grade:"A",kind:"regular",where:"nd",cat:"sys",core:"os"},
+      {id:"CSE 60111",title:"Complexity and Algorithms",cr:3,grade:"B+",kind:"regular",where:"nd",cat:"alg",core:"algorithms"},
+      {id:"CSE 60321",title:"Advanced Computer Architecture",cr:3,grade:"B",kind:"regular",where:"nd",cat:"arch",core:"architecture"},
+      {id:"CSE 60868",title:"Graduate Neural Networks",cr:3,grade:"A-",kind:"regular",where:"nd",cat:"dsai",core:""},
+      {id:"CSE 60535",title:"Graduate Computer Vision",cr:3,grade:"A",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60770",title:"Secure Software Engineering",cr:3,grade:"IP",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 63801",title:"Research Seminar I",cr:1,grade:"S",kind:"seminar",where:"nd",cat:"",core:""},
+      {id:"CSE 63802",title:"Research Seminar II",cr:1,grade:"S",kind:"seminar",where:"nd",cat:"",core:""},
+      {id:"CSE 78000",title:"Dissertation Research",cr:24,grade:"S",kind:"research",where:"nd",cat:"",core:""}
+    ];
+    S.flags={"m-advisor-phd":true, phd_courseapprove:true, q_res_contrib:true};
+  }
+  hydrate(); syncProgramUI(); toast("Example student loaded — clear it before entering your own record.");
+});
+
+
+/* ============================================================
+   COURSE DATA PANEL — parse the two sheets, diff them against
+   what the page is running, and (for the owner) republish.
+   ============================================================ */
+function parseCSV(text){
+  var rows=[], row=[], f="", q=false, i=0, t=String(text||"").replace(/\r\n?/g,"\n");
+  for(; i<t.length; i++){
+    var ch=t[i];
+    if(q){
+      if(ch==='"'){ if(t[i+1]==='"'){ f+='"'; i++; } else q=false; }
+      else f+=ch;
+    } else if(ch==='"') q=true;
+    else if(ch===","){ row.push(f); f=""; }
+    else if(ch==="\n"){ row.push(f); f=""; rows.push(row); row=[]; }
+    else f+=ch;
+  }
+  row.push(f); rows.push(row);
+  return rows.filter(function(r){ return r.some(function(x){ return String(x).trim()!==""; }); });
+}
+function headerKey(h){ return String(h).split(" (")[0].trim().toLowerCase().replace(/\s+/g,"_"); }
+function toObjects(text){
+  var rows = parseCSV(text); if(rows.length<2) return {err:"needs a header row and at least one course"};
+  var hdr = rows[0].map(headerKey);
+  if(hdr.indexOf("course_id")<0) return {err:"no course_id column — is this the right sheet?"};
+  var out = rows.slice(1).map(function(r){
+    var o={}; hdr.forEach(function(h,i){ o[h]=(r[i]||"").trim(); }); return o;
+  }).filter(function(o){ return o.course_id && !/^example/i.test(o.course_id); });
+  return {rows:out};
+}
+function buildData(rulText){
+  var rul = rulText ? toObjects(rulText) : null;
+  if(rul && rul.err) return {err:"Rules sheet: "+rul.err};
+  var d = {
+    version:(DATA.version||0)+1,
+    updated:new Date().toISOString().slice(0,10),
+    source:DATA.source||"",
+    catalog: rul ? rul.rows.map(function(c){
+      return {id:c.course_id.toUpperCase(), title:c.title||"", cr:parseInt(c.credits,10)||3,
+              kind:(c.course_type||"regular").toLowerCase(),
+              offered:(c.typically_offered||"varies").toLowerCase(),
+              active:(c.active||"yes").toLowerCase()!=="no"};
+    }) : (DATA.catalog||[]),
+    rules: rul ? rul.rows.map(function(r){
+      return {id:r.course_id.toUpperCase(), title:r.title||"",
+              ms:(r.counts_toward_mscse||"").toLowerCase(), phd:(r.counts_toward_phd||"").toLowerCase(),
+              core:(r.core_area||"").toLowerCase(), group:(r.category_group||"").toLowerCase(),
+              offered:(r.typically_offered||"varies").toLowerCase(),
+              effective:r.effective_term||"", notes:r.notes||""};
+    }) : (DATA.rules||[])
+  };
+  // validation
+  var bad=[], groups=["alg","hcc","arch","dsai","sys","any",""], cores=["os","algorithms","architecture",""];
+  d.rules.forEach(function(r){
+    if(groups.indexOf(r.group)<0) bad.push(r.id+": category_group “"+r.group+"” is not one of alg/hcc/arch/dsai/sys/any");
+    if(cores.indexOf(r.core)<0)   bad.push(r.id+": core_area “"+r.core+"” is not one of os/algorithms/architecture");
+    if(r.ms && ["yes","no","dgs_approval"].indexOf(r.ms)<0)   bad.push(r.id+": counts_toward_mscse “"+r.ms+"” is not yes/no/dgs_approval");
+    if(r.phd && ["yes","no","dgs_approval"].indexOf(r.phd)<0) bad.push(r.id+": counts_toward_phd “"+r.phd+"” is not yes/no/dgs_approval");
+  });
+  if(bad.length) return {err:"Fix these cells first:", list:bad.slice(0,12)};
+  return {data:d};
+}
+function diffData(nd){
+  var oldC={}, oldR={}, add=[], rm=[], ch=[];
+  (DATA.catalog||[]).forEach(function(c){ oldC[c.id]=c; });
+  (DATA.rules||[]).forEach(function(r){ oldR[r.id]=r; });
+  nd.catalog.forEach(function(c){
+    var o=oldC[c.id];
+    if(!o) add.push(c.id+" "+(c.title||""));
+    else if(o.title!==c.title||o.cr!==c.cr||o.kind!==c.kind||o.active!==c.active) ch.push(c.id+" (catalog)");
+    delete oldC[c.id];
+  });
+  Object.keys(oldC).forEach(function(k){ rm.push(k+" (catalog)"); });
+  nd.rules.forEach(function(r){
+    var o=oldR[r.id];
+    if(!o) add.push(r.id+" (rule)");
+    else if(o.ms!==r.ms||o.phd!==r.phd||o.core!==r.core||o.group!==r.group) ch.push(r.id+" (rule)");
+    delete oldR[r.id];
+  });
+  Object.keys(oldR).forEach(function(k){ rm.push(k+" (rule)"); });
+  return {add:add, rm:rm, ch:ch};
+}
+function showDiff(html){ $("diff").innerHTML = html; }
+function readPanel(){
+  var r=$("csv-rul").value.trim();
+  if(!r){ showDiff('<div class="diff">Paste or choose the sheet first.</div>'); return null; }
+  var b = buildData(r);
+  if(b.err){
+    showDiff('<div class="diff"><b class="rm">'+esc(b.err)+'</b>'+
+      (b.list?'<ul>'+b.list.map(function(x){return '<li class="rm">'+esc(x)+'</li>';}).join('')+'</ul>':'')+'</div>');
+    return null;
+  }
+  return b.data;
+}
+function renderDiff(nd){
+  var d = diffData(nd), parts=[];
+  if(d.add.length) parts.push('<li class="add">'+d.add.length+' added: '+esc(d.add.slice(0,8).join(", "))+(d.add.length>8?"…":"")+'</li>');
+  if(d.ch.length)  parts.push('<li class="ch">'+d.ch.length+' changed: '+esc(d.ch.slice(0,8).join(", "))+(d.ch.length>8?"…":"")+'</li>');
+  if(d.rm.length)  parts.push('<li class="rm">'+d.rm.length+' removed: '+esc(d.rm.slice(0,8).join(", "))+(d.rm.length>8?"…":"")+'</li>');
+  showDiff('<div class="diff"><b>'+nd.catalog.length+' catalog courses, '+nd.rules.length+' rules — data looks valid.</b>'+
+    (parts.length?'<ul>'+parts.join("")+'</ul>':'<ul><li>No changes from what this page is running.</li></ul>')+'</div>');
+  return d;
+}
+function applyLocal(nd){
+  DATA = nd; BY_ID={}; RULE={};
+  (DATA.catalog||[]).forEach(function(c){ BY_ID[c.id.toUpperCase()]=c; });
+  (DATA.rules||[]).forEach(function(r){ RULE[r.id.toUpperCase()]=r; });
+  CATALOG = (DATA.catalog||[]).filter(function(c){ return c.active!==false; }).map(function(c){
+    var r = RULE[c.id.toUpperCase()];
+    return {id:c.id,title:c.title,cr:c.cr,kind:c.kind||"regular",
+            cat:(r&&r.group&&r.group!=="any")?r.group:"", core:(r&&r.core)?r.core:"", multi:!!(r&&r.group==="any")};
+  });
+  (DATA.rules||[]).forEach(function(r){
+    if(!BY_ID[r.id.toUpperCase()]) CATALOG.push({id:r.id,title:r.title,cr:3,kind:"regular",
+      cat:(r.group&&r.group!=="any")?r.group:"", core:r.core||"", multi:r.group==="any"});
+  });
+  fillDatalist(); provenance(); render();
+}
+function provenance(){
+  var t = "Course data v"+(DATA.version||0)+(DATA.updated?" · updated "+DATA.updated:"")+
+          " · "+(DATA.catalog||[]).length+" courses, "+(DATA.rules||[]).length+" rules";
+  var a=$("prov-chip"), b=$("prov-line");
+  if(a) a.textContent = "v"+(DATA.version||0)+(DATA.updated?" · "+DATA.updated:"");
+  if(b) b.textContent = t;
+}
+function fillDatalist(){
+  var dl = $("known-courses"); dl.innerHTML="";
+  CATALOG.forEach(function(c){
+    var o=document.createElement("option"); o.value=c.id; o.label=c.title; o.textContent=c.title; dl.appendChild(o);
+  });
+}
+async function publishData(nd){
+  var art = null;
+  try{ art = await window.claude.use("artifact"); }catch(e){}
+  if(!art){ toast("Publishing isn’t available in this view — use “Try it here only”, or ask Claude to sync from the sheets."); return; }
+  var tmplEl = document.getElementById("self-src");
+  if(!tmplEl){ toast("This copy can’t republish itself. Ask Claude to sync from the sheets instead."); return; }
+  var ES = "__END" + "SCRIPT__";
+  var tmpl = tmplEl.textContent.split(ES).join("</scr"+"ipt");
+  var PH = "__APP" + "_DATA__";
+  var body = tmpl.replace(PH, JSON.stringify(nd).replace(/</g,"\\u003c"));
+  var doc = '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">\n</head>\n<body>\n' +
+            body + '\n<script id="self-src" type="text/plain">' +
+            tmpl.split("</scr"+"ipt").join(ES) + '<\/script>\n</body>\n</html>';
+  $("btn-pub").disabled = true; $("btn-pub").textContent = "Publishing…";
+  try{
+    await art.publish(doc);
+    toast("Published. Every student sees the new rules from now on.");
+  }catch(err){
+    var code = err && err.code;
+    if(code==="conflict") toast("Someone else published first — reload this page and re-apply your CSV.");
+    else if(code==="not_writer"||code==="not_granted") toast("Only the artifact's owner can publish. Send the CSVs to the DGS, or use “Try it here only”.");
+    else toast("Couldn’t publish"+(err&&err.message?": "+err.message:"."));
+  }
+  $("btn-pub").disabled = false; $("btn-pub").textContent = "Publish to everyone";
+}
+
+/* panel wiring */
+var pickTarget = "cat";
+$("pick-rul").addEventListener("click", function(){ pickTarget="rul"; $("csv-file").click(); });
+$("csv-file").addEventListener("change", function(){
+  var f=this.files[0]; this.value=""; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){
+    $("csv-rul").value = r.result;
+    $("rul-status").textContent = f.name;
+    var nd=readPanel(); if(nd) renderDiff(nd);
+  };
+  r.onerror=function(){ toast("Couldn’t read that file."); };
+  r.readAsText(f);
+});
+$("btn-check").addEventListener("click", function(){ var nd=readPanel(); if(nd) renderDiff(nd); });
+$("btn-try").addEventListener("click", function(){
+  var nd=readPanel(); if(!nd) return;
+  renderDiff(nd); applyLocal(nd); toast("Applied in this browser only.");
+});
+$("btn-pub").addEventListener("click", function(){
+  var nd=readPanel(); if(!nd) return;
+  renderDiff(nd); publishData(nd);
+});
+
+/* -------- boot -------- */
+load();
+fillDatalist(); provenance();
+if(!S.year) S.year = new Date().getFullYear();
+hydrate();
+Object.keys(S.flags||{}).forEach(function(k){ var el=$(k); if(el && el.type==="checkbox") el.checked=!!S.flags[k]; });
+syncProgramUI();
+})();
+</script>
+
+<script id="self-src" type="text/plain"><title>CSE Graduate Degree Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+<style>
+:root{
+  --bg:#F4F6F9; --surface:#FFFFFF; --surface-2:#EDF1F6; --surface-3:#E3E9F1;
+  --ink:#0E1726; --ink-2:#47536B; --ink-3:#6E7B93;
+  --line:#D8DFE9; --line-strong:#BCC7D6;
+  --brand:#0C2340; --brand-soft:#1B3A63;
+  --gold:#8A6912; --gold-bright:#C99700;
+  --ok:#10693F; --ok-bg:#E4F2EA; --ok-line:#A8D6BE;
+  --warn:#8E5108; --warn-bg:#FBEEDD; --warn-line:#E7C48D;
+  --bad:#A81E14; --bad-bg:#FBE9E7; --bad-line:#EFB4AD;
+  --info:#1F4E8C; --info-bg:#E7EEF9; --info-line:#B7CCE9;
+  --shadow:0 1px 2px rgba(14,23,38,.06), 0 8px 24px -12px rgba(14,23,38,.18);
+  --r:10px; --r-sm:6px;
+  --f-display:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A101B; --surface:#121A28; --surface-2:#192333; --surface-3:#22304a;
+    --ink:#E7ECF4; --ink-2:#A8B4C8; --ink-3:#7C8AA2;
+    --line:#223047; --line-strong:#354864;
+    --brand:#A9C4E8; --brand-soft:#8FB0DC;
+    --gold:#E3B549; --gold-bright:#E3B549;
+    --ok:#54C48F; --ok-bg:#0E2A1F; --ok-line:#255C43;
+    --warn:#E5AA44; --warn-bg:#2C2112; --warn-line:#5E4620;
+    --bad:#F4867C; --bad-bg:#2F1715; --bad-line:#67302B;
+    --info:#93B9EC; --info-bg:#15213A; --info-line:#2C4570;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A101B; --surface:#121A28; --surface-2:#192333; --surface-3:#22304a;
+  --ink:#E7ECF4; --ink-2:#A8B4C8; --ink-3:#7C8AA2;
+  --line:#223047; --line-strong:#354864;
+  --brand:#A9C4E8; --brand-soft:#8FB0DC;
+  --gold:#E3B549; --gold-bright:#E3B549;
+  --ok:#54C48F; --ok-bg:#0E2A1F; --ok-line:#255C43;
+  --warn:#E5AA44; --warn-bg:#2C2112; --warn-line:#5E4620;
+  --bad:#F4867C; --bad-bg:#2F1715; --bad-line:#67302B;
+  --info:#93B9EC; --info-bg:#15213A; --info-line:#2C4570;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--f-body); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--f-display); text-wrap:balance; margin:0; letter-spacing:-.01em}
+button,input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--gold-bright); outline-offset:2px; border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+
+.wrap{max-width:1440px; margin:0 auto; padding:0 24px 72px}
+
+/* ---- masthead ---- */
+.masthead{border-top:3px solid var(--gold-bright); background:var(--surface); border-bottom:1px solid var(--line)}
+.masthead-in{max-width:1440px; margin:0 auto; padding:26px 24px 0; display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start; justify-content:space-between}
+.eyebrow{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); font-weight:600; margin:0 0 8px}
+.masthead h1{font-size:clamp(28px,3.4vw,40px); font-weight:700; color:var(--brand); line-height:1.1}
+.masthead .sub{margin:10px 0 0; color:var(--ink-2); max-width:62ch; font-size:14.5px}
+.masthead-tools{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+.tabs{display:flex; gap:2px; margin:22px 0 0; border-bottom:1px solid var(--line)}
+.tab{
+  appearance:none; background:none; border:0; border-bottom:3px solid transparent;
+  padding:11px 18px; font-weight:600; font-size:14.5px; color:var(--ink-3); cursor:pointer;
+  margin-bottom:-1px; transition:color .15s, border-color .15s;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--brand); border-bottom-color:var(--gold-bright)}
+
+/* ---- layout ---- */
+.layout{display:grid; grid-template-columns:minmax(0,1fr); gap:28px; margin-top:28px; align-items:start}
+.layout > *{min-width:0}
+@media (min-width:1120px){ .layout{grid-template-columns:minmax(0,1fr) 452px} }
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); margin-bottom:22px}
+.card-hd{display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:16px 20px 0}
+.card-hd h2{font-size:19px; font-weight:700}
+.card-hd .cite{flex:none}
+.card-bd{padding:16px 20px 20px}
+.hint{color:var(--ink-3); font-size:13px; margin:6px 0 0; max-width:70ch}
+
+.cite{font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3); letter-spacing:.01em; white-space:nowrap}
+
+/* ---- forms ---- */
+.grid{display:grid; gap:14px 16px}
+.f{display:flex; flex-direction:column; gap:5px; min-width:0}
+.f > label{font-size:12px; font-weight:600; letter-spacing:.02em; color:var(--ink-2); text-transform:uppercase; line-height:1.3}
+.f input,.f select{
+  background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r-sm);
+  padding:8px 10px; font-size:14px; width:100%; min-width:0;
+}
+.f input:hover,.f select:hover{border-color:var(--ink-3)}
+.f input[type="number"]{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.two{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+.check{display:flex; gap:10px; align-items:flex-start; padding:9px 11px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface-2); cursor:pointer}
+.check:hover{border-color:var(--line-strong)}
+.check input{margin:2px 0 0; accent-color:var(--gold-bright); flex:none; width:16px; height:16px}
+.check span{font-size:13.5px; line-height:1.45}
+.check em{display:block; font-style:normal; color:var(--ink-3); font-size:12.5px; margin-top:2px}
+.checks{display:grid; gap:8px}
+.subhead{font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--gold); margin:20px 0 9px; padding-bottom:5px; border-bottom:1px solid var(--line)}
+.subhead:first-child{margin-top:0}
+
+.btn{
+  appearance:none; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink);
+  border-radius:var(--r-sm); padding:8px 14px; font-size:13.5px; font-weight:600; cursor:pointer;
+  transition:background .15s, border-color .15s;
+}
+.btn:hover{background:var(--surface-2); border-color:var(--ink-3)}
+.btn-primary{background:var(--brand); border-color:var(--brand); color:#fff}
+:root[data-theme="dark"] .btn-primary, :root:not([data-theme="light"]) .btn-primary{}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn-primary{color:#0A101B}}
+:root[data-theme="dark"] .btn-primary{color:#0A101B}
+.btn-primary:hover{background:var(--brand-soft); border-color:var(--brand-soft)}
+.btn-sm{padding:5px 10px; font-size:12.5px}
+.btn-ghost{border-color:transparent; background:none; color:var(--ink-3)}
+.btn-ghost:hover{background:var(--surface-2); color:var(--bad); border-color:transparent}
+.btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:16px}
+
+/* ---- course table ---- */
+.tablewrap{overflow-x:auto; margin:0 -20px; padding:0 20px}
+table.courses{width:100%; border-collapse:collapse; font-size:13.5px; min-width:660px}
+table.courses th{
+  text-align:left; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+  font-weight:600; padding:0 10px 7px; border-bottom:1px solid var(--line); white-space:nowrap;
+}
+table.courses td{padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+table.courses tr:last-child td{border-bottom:0}
+table.courses .num{font-family:var(--f-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+table.courses .ttl{color:var(--ink-2); font-size:12.5px}
+.rt{text-align:right}
+.dropped{color:var(--ink-3)}
+.dropped .num{text-decoration:line-through}
+.note{display:block; font-size:11.5px; color:var(--warn); margin-top:3px; font-weight:500}
+.note.ok{color:var(--ok)}
+.empty{color:var(--ink-3); font-size:13.5px; padding:18px 0; text-align:center}
+
+/* ---- audit panel ---- */
+.audit{position:static}
+@media (min-width:1120px){ .audit{position:sticky; top:20px; max-height:calc(100vh - 40px); overflow-y:auto; scrollbar-width:thin} }
+
+.score{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden; margin-bottom:18px}
+.score-top{padding:18px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:16px}
+.dial{flex:none; width:76px; height:76px; position:relative}
+.dial svg{transform:rotate(-90deg); display:block}
+.dial-n{position:absolute; inset:0; display:grid; place-items:center; font-family:var(--f-mono); font-size:19px; font-weight:600; font-variant-numeric:tabular-nums}
+.score-txt h2{font-size:17px; font-weight:700}
+.score-txt p{margin:4px 0 0; font-size:13px; color:var(--ink-2)}
+
+.meters{padding:14px 20px 16px; display:grid; gap:12px}
+.meter-hd{display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:13px}
+.meter-hd b{font-weight:600}
+.meter-hd .v{font-family:var(--f-mono); font-variant-numeric:tabular-nums; font-size:12.5px; color:var(--ink-2)}
+.bar{height:7px; border-radius:4px; background:var(--surface-3); overflow:hidden; margin-top:5px; display:flex}
+.bar i{display:block; height:100%; transition:width .3s ease}
+.bar i.done{background:var(--ok)}
+.bar i.prog{background:var(--warn)}
+.bar i.over{background:var(--bad)}
+
+.reqgroup{margin-bottom:18px}
+.reqgroup > h3{
+  font-family:var(--f-body); font-size:11.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 8px; display:flex; align-items:baseline; gap:8px;
+}
+.reqgroup > h3 .cite{color:var(--gold)}
+.req{
+  background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--line-strong);
+  border-radius:var(--r-sm); padding:11px 13px; margin-bottom:7px;
+}
+.req-hd{display:flex; gap:10px; align-items:flex-start; justify-content:space-between}
+.req-hd b{font-weight:600; font-size:14px; line-height:1.35}
+.req p{margin:5px 0 0; font-size:12.8px; color:var(--ink-2); line-height:1.5}
+.req p .num{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.pill{
+  flex:none; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  padding:3px 8px; border-radius:20px; border:1px solid; white-space:nowrap;
+}
+.req.met{border-left-color:var(--ok)} .req.met .pill{color:var(--ok); background:var(--ok-bg); border-color:var(--ok-line)}
+.req.progress{border-left-color:var(--warn)} .req.progress .pill{color:var(--warn); background:var(--warn-bg); border-color:var(--warn-line)}
+.req.unmet{border-left-color:var(--bad)} .req.unmet .pill{color:var(--bad); background:var(--bad-bg); border-color:var(--bad-line)}
+.req.review{border-left-color:var(--info)} .req.review .pill{color:var(--info); background:var(--info-bg); border-color:var(--info-line)}
+.req.na{border-left-color:var(--line-strong); opacity:.72} .req.na .pill{color:var(--ink-3); background:var(--surface-2); border-color:var(--line)}
+
+.deadline{font-size:12px; margin-top:6px; font-family:var(--f-mono); color:var(--ink-3)}
+.deadline.hot{color:var(--bad); font-weight:500}
+.deadline.soon{color:var(--warn); font-weight:500}
+
+.panel-actions{display:flex; gap:8px; flex-wrap:wrap; padding:14px 0 4px; border-top:1px solid var(--line); margin-top:6px}
+.toast{
+  position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:var(--brand); color:#fff; padding:10px 18px; border-radius:22px; font-size:13.5px; font-weight:500;
+  box-shadow:var(--shadow); z-index:50; max-width:calc(100vw - 40px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .toast{color:#0A101B}}
+:root[data-theme="dark"] .toast{color:#0A101B}
+
+
+/* ---- course-data panel ---- */
+.datacard{border-style:dashed}
+.datacard summary{cursor:pointer; padding:16px 20px; font-weight:700; font-size:15px; font-family:var(--f-display); list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px}
+.datacard summary::-webkit-details-marker{display:none}
+.datacard summary::after{content:"Open"; font-family:var(--f-body); font-size:12px; font-weight:600; color:var(--ink-3); letter-spacing:.04em; text-transform:uppercase}
+.datacard[open] summary::after{content:"Close"}
+.datacard textarea{width:100%; min-height:110px; font-family:var(--f-mono); font-size:12px; line-height:1.5;
+  background:var(--surface-2); border:1px solid var(--line-strong); border-radius:var(--r-sm); padding:9px 11px; resize:vertical}
+.prov{font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3); padding:10px 20px 0}
+.diff{margin-top:12px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--surface-2); padding:11px 13px; font-size:13px}
+.diff b{display:block; margin-bottom:4px}
+.diff ul{margin:4px 0 0; padding-left:18px} .diff li{margin:2px 0}
+.diff .add{color:var(--ok)} .diff .rm{color:var(--bad)} .diff .ch{color:var(--warn)}
+footer.legal{margin-top:8px; padding:18px 20px; border:1px dashed var(--line-strong); border-radius:var(--r); background:var(--surface-2); font-size:12.5px; color:var(--ink-2); line-height:1.6}
+footer.legal b{color:var(--ink)}
+#prov-line{white-space:normal; display:inline-block; margin-top:6px}
+
+@media print{
+  .masthead-tools,.tabs,.inputs,.panel-actions,.btn,.toast{display:none!important}
+  body{background:#fff}
+  .layout{grid-template-columns:1fr}
+  .audit{position:static; max-height:none; overflow:visible}
+  .card,.score,.req{box-shadow:none; break-inside:avoid}
+}
+</style>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div>
+      <p class="eyebrow">University of Notre Dame &middot; Computer Science and Engineering</p>
+      <h1>Graduate Degree Audit</h1>
+      <p class="sub">Enter your coursework and milestones to see, requirement by requirement, where you stand against the CSE Graduate Studies Handbook (July 2026). Every check cites the section it comes from.</p>
+    </div>
+    <div class="masthead-tools">
+      <button class="btn btn-sm" id="btn-demo" type="button">Load example</button>
+      <button class="btn btn-sm" id="btn-reset" type="button">Clear</button>
+    </div>
+  </div>
+  <div class="masthead-in" style="padding-top:0">
+    <div class="tabs" role="tablist" aria-label="Degree program">
+      <button class="tab" role="tab" id="tab-ms" data-prog="ms" aria-selected="true">M.S. in CSE &nbsp;<span class="cite">&sect;3</span></button>
+      <button class="tab" role="tab" id="tab-phd" data-prog="phd" aria-selected="false">Ph.D. &nbsp;<span class="cite">&sect;4</span></button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="layout">
+
+  <!-- ===================== INPUTS ===================== -->
+  <main class="inputs">
+
+    <section class="card">
+      <div class="card-hd"><h2>Your standing</h2><span class="cite" id="sem-now"></span></div>
+      <div class="card-bd">
+        <div class="grid two">
+          <div class="f">
+            <label for="i-term">Entered the program</label>
+            <select id="i-term"><option value="fall">Fall</option><option value="spring">Spring</option></select>
+          </div>
+          <div class="f">
+            <label for="i-year">Year</label>
+            <input type="number" id="i-year" min="2000" max="2040" step="1" value="2025">
+          </div>
+          <div class="f">
+            <label for="i-gpa">Cumulative GPA</label>
+            <input type="number" id="i-gpa" min="0" max="4" step="0.01" placeholder="3.50">
+          </div>
+          <div class="f">
+            <label for="i-ft">Full-time semesters completed</label>
+            <input type="number" id="i-ft" min="0" max="20" step="1" value="0">
+          </div>
+        </div>
+
+        <div id="ms-track-wrap">
+          <div class="subhead">M.S. track</div>
+          <div class="grid two">
+            <div class="f">
+              <label for="i-track">Which describes you</label>
+              <select id="i-track">
+                <option value="standard">Standard MSCSE admission</option>
+                <option value="integrated">Integrated B.S. + M.S. (&sect;3.5)</option>
+                <option value="transition">Transition to Computing (&sect;3.6)</option>
+              </select>
+            </div>
+            <div class="f" id="ugpa-wrap" hidden>
+              <label for="i-ugpa">Undergraduate GPA</label>
+              <input type="number" id="i-ugpa" min="0" max="4" step="0.01" placeholder="3.25">
+            </div>
+          </div>
+          <div class="checks" style="margin-top:12px">
+            <label class="check"><input type="checkbox" id="m-advisor-ms"><span>I have a project or thesis advisor<em>&sect;2.3 &mdash; M.S. students identify an advisor by the beginning of their first semester, with help from the DGS.</em></span></label>
+          </div>
+        </div>
+
+        <div id="phd-basic-wrap" hidden>
+          <div class="checks" style="margin-top:14px">
+            <label class="check"><input type="checkbox" id="m-advisor-phd"><span>I am currently supervised by a faculty advisor<em>&sect;2.3 &mdash; continuous advisor supervision is required for the whole Ph.D.</em></span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-hd"><h2>Coursework</h2><span class="cite" id="course-cite">&sect;3.2</span></div>
+      <div class="card-bd">
+        <p class="hint" id="course-hint"></p>
+
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); margin-top:14px">
+          <div class="f" style="grid-column:span 1">
+            <label for="c-id">Course number</label>
+            <input id="c-id" list="known-courses" placeholder="CSE 60641" autocomplete="off">
+            <datalist id="known-courses"></datalist>
+          </div>
+          <div class="f" style="grid-column:span 2">
+            <label for="c-title">Title</label>
+            <input id="c-title" placeholder="Graduate Operating Systems" autocomplete="off">
+          </div>
+          <div class="f">
+            <label for="c-cr">Credits</label>
+            <input type="number" id="c-cr" min="0" max="12" step="1" value="3">
+          </div>
+          <div class="f">
+            <label for="c-grade">Grade</label>
+            <select id="c-grade">
+              <option value="IP">In progress</option>
+              <option>A</option><option>A-</option><option>B+</option><option selected>B</option>
+              <option>B-</option><option>C+</option><option>C</option><option>C-</option><option>D</option><option>F</option>
+              <option value="S">S (satisfactory)</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="c-kind">Course type</label>
+            <select id="c-kind">
+              <option value="regular">Regular course</option>
+              <option value="seminar">Research seminar</option>
+              <option value="research">Research credits</option>
+              <option value="independent">Independent study</option>
+              <option value="msproject">M.S. project / thesis direction</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="c-where">Taken at</label>
+            <select id="c-where">
+              <option value="nd">Notre Dame</option>
+              <option value="transfer">Transferred in</option>
+            </select>
+          </div>
+          <div class="f" id="cat-wrap" hidden>
+            <label for="c-cat">Specialization group</label>
+            <select id="c-cat">
+              <option value="">&mdash; none / not on the list &mdash;</option>
+              <option value="alg">Algorithms</option>
+              <option value="hcc">Human Centered Computing</option>
+              <option value="arch">Architecture</option>
+              <option value="dsai">Data Science and AI</option>
+              <option value="sys">Systems and Software</option>
+            </select>
+          </div>
+          <div class="f" id="core-wrap" hidden>
+            <label for="c-core">Core knowledge area</label>
+            <select id="c-core">
+              <option value="">&mdash; none &mdash;</option>
+              <option value="os">Operating Systems</option>
+              <option value="algorithms">Algorithms</option>
+              <option value="architecture">Computer Architecture</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="checks" style="margin-top:12px">
+          <label class="check" id="bridge-wrap" hidden><input type="checkbox" id="c-bridge"><span>Transition to Computing bridge course<em>&sect;3.6 &mdash; CSE 50xxx bridge courses do not count toward the MSCSE.</em></span></label>
+          <label class="check" id="dbl-wrap" hidden><input type="checkbox" id="c-dbl"><span>Double-counted with my B.S. degree<em>&sect;3.5 &mdash; at most two 3-credit CSE 6xxxx courses may count for both degrees.</em></span></label>
+        </div>
+
+        <div class="btnrow"><button class="btn btn-primary" id="btn-add" type="button">Add course</button></div>
+
+        <div class="tablewrap" style="margin-top:18px">
+          <table class="courses">
+            <thead><tr>
+              <th>Course</th><th>Type</th><th class="rt">Cr</th><th>Grade</th><th>Counts toward</th><th></th>
+            </tr></thead>
+            <tbody id="course-rows"></tbody>
+          </table>
+        </div>
+        <p class="empty" id="course-empty">No courses yet. Add your first one above.</p>
+      </div>
+    </section>
+
+
+    <details class="card datacard" id="datacard">
+      <summary>Course data <span class="cite" id="prov-chip"></span></summary>
+      <div class="card-bd" style="padding-top:0">
+        <p class="hint">This app's course rules come from the <b>CSE Degree Requirement Rules</b> sheet in your DGS folder. To push a sheet edit to every student: open the sheet, <b>File &rarr; Download &rarr; Comma-separated values</b>, then drop the file in below (or paste the cells). Nothing changes for anyone until you publish.</p>
+
+        <div class="btnrow" style="margin-top:0">
+          <button class="btn btn-sm" id="pick-rul" type="button">Choose CSV&hellip;</button>
+          <span class="cite" id="rul-status">using the built-in copy</span>
+        </div>
+        <textarea id="csv-rul" placeholder="…or paste the sheet here, header row included" spellcheck="false"></textarea>
+
+        <div id="diff"></div>
+
+        <div class="btnrow">
+          <button class="btn" id="btn-check" type="button">Check the data</button>
+          <button class="btn" id="btn-try" type="button">Try it here only</button>
+          <button class="btn btn-primary" id="btn-pub" type="button">Publish to everyone</button>
+        </div>
+        <p class="hint" id="pub-note">“Try it here only” keeps the change in this browser. “Publish to everyone” saves a new version of this page — every student sees the new rules the next time they open it.</p>
+        <input type="file" id="csv-file" accept=".csv,text/csv" hidden>
+      </div>
+    </details>
+
+    <section class="card">
+      <div class="card-hd"><h2>Milestones</h2><span class="cite" id="ms-cite"></span></div>
+      <div class="card-bd" id="milestones"></div>
+    </section>
+  </main>
+
+  <!-- ===================== AUDIT ===================== -->
+  <aside class="audit">
+    <div class="score">
+      <div class="score-top">
+        <div class="dial">
+          <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
+            <circle cx="38" cy="38" r="32" fill="none" stroke="var(--surface-3)" stroke-width="8"></circle>
+            <circle id="dial-arc" cx="38" cy="38" r="32" fill="none" stroke="var(--ok)" stroke-width="8"
+                    stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="201"></circle>
+          </svg>
+          <div class="dial-n" id="dial-n">0/0</div>
+        </div>
+        <div class="score-txt">
+          <h2 id="score-hd">Getting started</h2>
+          <p id="score-sub">Add your courses to see where you stand.</p>
+        </div>
+      </div>
+      <div class="meters" id="meters"></div>
+    </div>
+
+    <div id="reqs"></div>
+
+    <div class="panel-actions">
+      <button class="btn btn-primary btn-sm" id="btn-save" type="button">Save my progress</button>
+      <button class="btn btn-sm" id="btn-load" type="button">Load a saved file</button>
+      <button class="btn btn-sm" id="btn-summary" type="button">Copy summary</button>
+      <button class="btn btn-sm" id="btn-print" type="button">Print</button>
+      <input type="file" id="file-in" accept=".json,application/json" hidden>
+    </div>
+
+    <footer class="legal">
+      <b>This is a self-check, not an official audit.</b> It applies the rules in Sections 3 and 4 of the CSE Graduate Studies Handbook (July 2026). Several requirements turn on approvals this page cannot see &mdash; advisor and DGS sign-off, the category-specialization course list announced by email each term, transfer-credit recommendations, and Graduate School deadlines. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.<br><span class="cite" id="prov-line"></span>
+    </footer>
+  </aside>
+
+</div>
+</div>
+
+<script id="app-data" type="application/json">__APP_DATA____ENDSCRIPT__>
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   Course catalog — the "typical" category specialization courses
+   named in the handbook (§4.4.2) plus the courses §3.2/§4.2 cite.
+   The official list is announced by email each term.
+   ============================================================ */
+var DATA = (function(){
+  try{ return JSON.parse(document.getElementById("app-data").textContent); }
+  catch(e){ return {version:0, updated:"", catalog:[], rules:[]}; }
+})();
+
+/* Course lookups, built from the two Google Sheets:
+   catalog  — every CSE course (titles, credits, course type)
+   rules    — how a course counts: 40xxx eligibility (§3.2/§4.2),
+              core knowledge area (§4.4.1), specialization group (§4.4.2) */
+var BY_ID = {}, RULE = {};
+(DATA.catalog||[]).forEach(function(c){ BY_ID[c.id.toUpperCase()] = c; });
+(DATA.rules||[]).forEach(function(r){ RULE[r.id.toUpperCase()] = r; });
+
+function lookup(id){ return BY_ID[String(id||"").toUpperCase()] || null; }
+function ruleFor(id){ return RULE[String(id||"").toUpperCase()] || null; }
+
+/* Merged list for the course-number autocomplete. */
+var CATALOG = (DATA.catalog||[]).filter(function(c){ return c.active!==false; })
+  .map(function(c){
+    var r = RULE[c.id.toUpperCase()];
+    return {id:c.id, title:c.title, cr:c.cr, kind:c.kind||"regular",
+            cat:(r&&r.group&&r.group!=="any")?r.group:"",
+            core:(r&&r.core)?r.core:"", multi:!!(r&&r.group==="any")};
+  });
+(DATA.rules||[]).forEach(function(r){   // rules-only rows still autocomplete
+  if(!BY_ID[r.id.toUpperCase()])
+    CATALOG.push({id:r.id, title:r.title, cr:3, kind:"regular",
+                  cat:(r.group&&r.group!=="any")?r.group:"", core:r.core||"",
+                  multi:r.group==="any"});
+});
+
+var CAT_NAME = {alg:"Algorithms", hcc:"Human Centered Computing", arch:"Architecture",
+                dsai:"Data Science and AI", sys:"Systems and Software"};
+var CORE_NAME = {os:"Operating Systems", algorithms:"Algorithms", architecture:"Computer Architecture"};
+var KIND_NAME = {regular:"Regular course", seminar:"Research seminar", research:"Research credits",
+                 independent:"Independent study", msproject:"M.S. project / thesis"};
+var GP = {"A":4,"A-":3.667,"B+":3.333,"B":3,"B-":2.667,"C+":2.333,"C":2,"C-":1.667,"D":1,"F":0};
+
+/* ============================================================ state */
+var S = {
+  prog:"ms", term:"fall", year:2025, gpa:"", ft:0, track:"standard", ugpa:"",
+  courses:[], flags:{}, path:"project"
+};
+var LSKEY = "nd-cse-degree-audit-v1";
+
+function save(){ try{ localStorage.setItem(LSKEY, JSON.stringify(S)); }catch(e){} }
+function load(){
+  try{ var r = localStorage.getItem(LSKEY); if(r){ var o = JSON.parse(r); if(o && o.courses) S = Object.assign(S,o); } }catch(e){}
+}
+
+/* ============================================================ helpers */
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+function levelOf(id){ var m = String(id||"").match(/(\d{5})/); return m ? Math.floor(+m[1]/10000) : 0; }
+function deptOf(id){ var m = String(id||"").trim().match(/^([A-Za-z]{2,5})/); return m ? m[1].toUpperCase() : ""; }
+function isCSE(c){ return deptOf(c.id) === "CSE"; }
+function passed(c){ return c.grade!=="IP" && c.grade!=="F" && c.grade!=="I"; }
+function inProgress(c){ return c.grade==="IP"; }
+function gradeOK(c){ return c.grade==="S" || (GP[c.grade]!==undefined && GP[c.grade] >= 3); }
+function plural(n,w){ return n+" "+w+(n===1?"":"s"); }
+
+/* -------- academic-semester arithmetic -------- */
+function ord(term,year){ return year*2 + (term==="fall"?1:0); }
+function ordName(o){ var f = o%2===1; return (f?"Fall ":"Spring ")+Math.floor(f?(o-1)/2:o/2); }
+function nowOrd(){
+  var d = new Date(), m = d.getMonth(), y = d.getFullYear();
+  if(m >= 7) return ord("fall",y);
+  return ord("spring",y);
+}
+function semesterNumber(){ return nowOrd() - ord(S.term, +S.year||2025) + 1; }
+function entryDate(){ var y = +S.year||2025; return S.term==="fall" ? new Date(y,7,15) : new Date(y,0,10); }
+function monthsSinceEntry(){
+  var e = entryDate(), n = new Date();
+  return (n.getFullYear()-e.getFullYear())*12 + (n.getMonth()-e.getMonth());
+}
+
+/* ============================================================
+   CREDIT ACCOUNTING — applies the caps in §3.2 / §4.2 in entry
+   order and annotates every course with why it did or didn't count.
+   ============================================================ */
+function account(){
+  var A = {
+    regular:0, project:0, other:0, total:0,
+    fourk:0, nonCSE:0, ndRegular:0, transfer:0,
+    inProgRegular:0, bridge:0, bridgeCourses:0, dbl:0,
+    seminar63801:false, seminar63802:false, seminarCr:0,
+    excess:[], needApproval:[], unverified:[], notes:{}
+  };
+  var capFour = 0, capNon = 0;
+  S.courses.forEach(function(c){
+    var cr = +c.cr||0, note = "", counts = "";
+    var lvl = levelOf(c.id), cse = isCSE(c);
+    if(c.where==="transfer") A.transfer += cr;
+
+    if(S.prog==="ms"){
+      if(c.bridge){ A.bridge += cr; A.bridgeCourses++; c._counts="Transition bridge (§3.6)";
+        c._note="Preparatory — does not count toward the MSCSE."; return; }
+      if(c.kind==="msproject"){ A.project += cr; A.total += cr; c._counts="Project / thesis (§3.2)"; c._note=""; return; }
+      if(c.kind!=="regular"){ A.other += cr; A.total += cr; c._counts="30-credit total only";
+        c._note="§3.2 — not a regular course."; return; }
+      // regular course, MS
+      if(lvl===4){
+        var rl = ruleFor(c.id), verdict = rl ? rl.ms : "";
+        if(verdict === "no"){ c._counts="Does not count";
+          c._note="The rules sheet marks this course as not counting toward the MSCSE."; return; }
+        if(capFour + cr > 6){ A.excess.push(c.id+" — over the 6-credit 40000-level cap");
+          c._counts="Does not count"; c._note="§3.2 caps 40000-level credit at 6."; return; }
+        capFour += cr; A.fourk += cr;
+        note = "40000-level (6-credit cap)";
+        if(verdict !== "yes"){ A.needApproval.push(c.id); note += "; needs DGS approval"; }
+      }
+      if(!cse){
+        if(capNon + cr > 9){ A.excess.push(c.id+" — over the 9-credit non-CSE cap");
+          c._counts="Does not count"; c._note="§3.2 caps non-CSE credit at 9."; return; }
+        capNon += cr; A.nonCSE += cr; note = note ? note+"; outside CSE (9-credit cap)" : "Outside CSE (9-credit cap)";
+      }
+      if(c.dbl) A.dbl += cr;
+      if(inProgress(c)) A.inProgRegular += cr; else A.regular += cr;
+      A.total += cr;
+      c._counts = "24 regular credits (§3.2)"; c._note = note;
+      return;
+    }
+
+    /* ---------------- Ph.D. ---------------- */
+    if(c.kind==="seminar"){
+      A.seminarCr += cr; A.total += cr;
+      if(/63801/.test(c.id)) A.seminar63801 = passed(c) || inProgress(c);
+      if(/63802/.test(c.id)) A.seminar63802 = passed(c) || inProgress(c);
+      if(c.where==="nd") A.ndRegular += 0;
+      c._counts = /6380[12]/.test(c.id) ? "Research seminar (§4.2)" : "60-credit total only";
+      c._note = /6380[12]/.test(c.id) ? "" : "§4.2 — seminars are not regular courses.";
+      return;
+    }
+    if(c.kind!=="regular"){ A.other += cr; A.total += cr; c._counts="60-credit total only";
+      c._note="§4.2 — not a regular course."; return; }
+    if(lvl===4){
+      if(!cse){ c._counts="Does not count"; c._note="§4.2 — only CSE 4xxxx may count, up to 6 credits."; return; }
+      var rlp = ruleFor(c.id), vp = rlp ? rlp.phd : "";
+      if(vp === "no"){ c._counts="Does not count";
+        c._note="The rules sheet marks this course as not counting toward the Ph.D."; return; }
+      if(capFour + cr > 6){ A.excess.push(c.id+" — over the 6-credit CSE 4xxxx cap");
+        c._counts="Does not count"; c._note="§4.2 caps CSE 4xxxx credit at 6."; return; }
+      capFour += cr; A.fourk += cr; note = "CSE 4xxxx (6-credit cap)";
+      if(vp !== "yes"){ A.needApproval.push(c.id); note += "; needs DGS approval"; }
+    } else if(lvl < 6){
+      c._counts="Does not count"; c._note="§4.2 requires 60000 level or higher (CSE 4xxxx excepted)."; return;
+    }
+    if(!cse){
+      if(capNon + cr > 9){ A.excess.push(c.id+" — over the 9-credit non-CSE cap");
+        c._counts="Does not count"; c._note="§4.2 caps non-CSE credit at 9."; return; }
+      capNon += cr; A.nonCSE += cr; note = note ? note+"; outside CSE (9-credit cap)" : "Outside CSE (9-credit cap)";
+    }
+    if(inProgress(c)) A.inProgRegular += cr; else A.regular += cr;
+    if(c.where==="nd") A.ndRegular += cr;
+    A.total += cr;
+    c._counts = "24 regular credits (§4.2)"; c._note = note;
+  });
+  return A;
+}
+
+/* -------- §4.4.2 distinct-group check -------- */
+function specialization(){
+  var used = {}, dup = [], ip = [], low = [];
+  S.courses.forEach(function(c){
+    if(c.kind!=="regular" || !c.cat) return;
+    if(inProgress(c)){ ip.push(c); return; }
+    if(!gradeOK(c)){ low.push(c); return; }
+    if(used[c.cat]) dup.push(c); else used[c.cat] = c;
+  });
+  var groups = Object.keys(used);
+  var ipGroups = ip.filter(function(c){ return !used[c.cat]; })
+                   .map(function(c){ return c.cat; })
+                   .filter(function(v,i,a){ return a.indexOf(v)===i; });
+  return {groups:groups, dup:dup, ip:ip, low:low, ipGroups:ipGroups,
+          missing:Object.keys(CAT_NAME).filter(function(k){ return !used[k]; })};
+}
+
+/* -------- §4.4.1 core knowledge -------- */
+function coreKnowledge(){
+  var out = {};
+  Object.keys(CORE_NAME).forEach(function(k){
+    var byCourse = S.courses.some(function(c){ return c.core===k && passed(c); });
+    var ipCourse = S.courses.some(function(c){ return c.core===k && inProgress(c); });
+    out[k] = { done: byCourse || !!S.flags["core_prev_"+k], ip: ipCourse,
+               prev: !!S.flags["core_prev_"+k], nd: byCourse };
+  });
+  return out;
+}
+
+/* ============================================================ deadlines */
+function due(targetOrd, done){
+  if(done) return null;
+  var rem = targetOrd - nowOrd();
+  var name = ordName(targetOrd);
+  if(rem < 0)  return {t:"Past due — the deadline was the end of "+name, c:"hot"};
+  if(rem === 0) return {t:"Due this semester ("+name+")", c:"hot"};
+  if(rem === 1) return {t:"Due by the end of "+name, c:"soon"};
+  return {t:"Due by the end of "+name+" — "+plural(rem,"semester")+" left", c:""};
+}
+function R(label,status,detail,cite,deadline){
+  return {label:label,status:status,detail:detail,cite:cite,deadline:deadline||null};
+}
+function F(k){ return !!S.flags[k]; }
+function chk(label,key,cite,detail){
+  return R(label, F(key)?"met":"unmet", detail||"", cite);
+}
+
+/* Rules that come from the course-data sheets rather than the handbook text. */
+function dataRules(A, prog){
+  var out = [];
+  if(A.needApproval.length) out.push(R("40000-level courses cleared by the DGS","review",
+    A.needApproval.join(", ")+" — the rules sheet does not list "+
+    (A.needApproval.length===1?"this course":"these courses")+" as pre-approved, so "+
+    (A.needApproval.length===1?"it needs":"they need")+" your advisor's and the DGS's sign-off before "+
+    (A.needApproval.length===1?"it counts":"they count")+".",
+    prog==="ms" ? "§3.2" : "§4.2"));
+  return out;
+}
+
+/* ============================================================ M.S. rules */
+function evalMS(A){
+  var g = [], gpa = parseFloat(S.gpa), sem = semesterNumber();
+  var proj = S.path==="project";
+
+  g.push({title:"Basic requirements", cite:"§2.2–2.3, §3.1", rules:[
+    R("Cumulative GPA of at least 3.0",
+      isNaN(gpa) ? "review" : (gpa>=3 ? "met" : "unmet"),
+      isNaN(gpa) ? "Enter your cumulative GPA above. A GPA below 3.0 blocks candidacy, the defense, and the degree."
+                 : "Your GPA is "+gpa.toFixed(2)+(gpa>=3?"." : ". Below 3.0 you cannot defend or receive the degree, and two consecutive semesters below 3.0 can cost funding."),
+      "§2.2"),
+    chk("A project or thesis advisor is identified","m-advisor-ms","§2.3",
+        "M.S. students identify an advisor by the beginning of their first semester, with help from the DGS.")
+  ]});
+
+  var need24 = Math.max(0, 24 - A.regular);
+  var need6  = Math.max(0, 6 - A.project);
+  var need30 = Math.max(0, 30 - A.total);
+  var cw = [
+    R("24 credit hours of regular courses",
+      A.regular>=24 ? "met" : (A.regular+A.inProgRegular>=24 ? "progress" : (A.regular>0?"progress":"unmet")),
+      A.regular+" of 24 credits complete"+(A.inProgRegular?", "+A.inProgRegular+" in progress":"")+
+      (need24? " — "+need24+" to go." : ". Requirement satisfied."),
+      "§3.2"),
+    R("6 credit hours of M.S. project or thesis direction",
+      A.project>=6 ? "met" : (A.project>0?"progress":"unmet"),
+      A.project+" of 6 credits recorded"+(need6?" — "+need6+" to go. Register for CSE 68902 (project) or CSE 68901 (thesis direction).":". Requirement satisfied."),
+      "§3.2"),
+    R("30 total credits of courses and research",
+      A.total>=30 ? "met" : (A.total>0?"progress":"unmet"),
+      A.total+" of 30 credits counting toward the degree"+(need30?" — "+need30+" to go.":". Requirement satisfied."),
+      "§3.2"),
+    (function(){
+      var over = A.excess.filter(function(x){return /40000/.test(x);});
+      return R("At most 6 credits at the 40000 level",
+        over.length ? "review" : "met",
+        A.fourk+" of the 6 permitted 40000-level credits used."+
+        (over.length ? " Credits beyond the cap are excluded from the 24 — see the course list." : ""),
+        "§3.2");
+    })(),
+    R("At most 9 credits from outside CSE",
+      A.nonCSE===0 ? "na" : (F("ms_noncse") ? "met" : "review"),
+      A.nonCSE===0 ? "No courses from outside CSE recorded."
+        : A.nonCSE+" of the 9 permitted non-CSE credits used. "+(F("ms_noncse")
+          ? "Advisor and DGS approval recorded." : "These require your advisor's and the DGS's approval — tick the box in Milestones once you have it."),
+      "§3.2"),
+    chk("Every course in my plan of study was approved by my advisor","ms_approve","§3.2")
+  ].concat(dataRules(A,"ms"));
+  g.push({title:"Coursework", cite:"§3.2", rules:cw});
+
+  var pt = [];
+  if(proj){
+    pt.push(chk("A written project report is complete","ms_proj_report","§3.4(i)",
+      "The project is a substantial software, algorithm, data-analysis, or hardware artifact, carried out over 6 credits under your advisor."));
+    pt.push(chk("The report and deliverables are accepted and approved by my advisor","ms_proj_approved","§3.4(i)"));
+  } else {
+    pt.push(chk("A thesis topic is proposed and approved by my advisor","ms_th_topic","§3.4(ii)"));
+    pt.push(chk("Two TTT readers are nominated and approved","ms_th_readers","§3.4(ii)",
+      "Readers come from the department's Tenure and Tenure Track faculty. Your advisor may not be one of the two readers; anyone outside that pool needs prior DGS approval."));
+    pt.push(chk("Both readers have approved the thesis","ms_th_readerok","§3.4(ii)"));
+    pt.push(chk("The oral thesis defense is passed","ms_th_defense","§3.4(ii)",
+      "The defense includes general questions in your major area of specialty."));
+    pt.push(chk("The thesis is submitted electronically to the Graduate School","ms_th_submit","§3.4(ii)"));
+  }
+  g.push({title:(proj?"M.S. project":"M.S. thesis"), cite:"§3.4", rules:pt});
+
+  if(S.track==="integrated"){
+    var ug = parseFloat(S.ugpa);
+    var dblCourses = S.courses.filter(function(c){ return c.dbl; });
+    g.push({title:"Integrated B.S. + M.S.", cite:"§3.5", rules:[
+      chk("Admitted to the Integrated B.S. + M.S. program","int_admit","§3.5",
+        "Apply by the deadline on the CSE web site — typically the end of the fall semester of your senior year. No GRE and no application fee."),
+      R("Undergraduate GPA of at least 3.25",
+        isNaN(ug) ? "review" : (ug>=3.25 ? "met":"unmet"),
+        isNaN(ug) ? "Enter your undergraduate GPA above." : "Your undergraduate GPA is "+ug.toFixed(2)+".",
+        "§3.5"),
+      chk("One-page statement of intent submitted, naming a faculty supervisor","int_stmt","§3.5"),
+      R("At most two 3-credit CSE 6xxxx courses double-counted with the B.S.",
+        dblCourses.length===0 ? "na" : (dblCourses.length<=2 ? (F("int_approvals")?"met":"review") : "unmet"),
+        dblCourses.length===0 ? "No double-counted courses recorded."
+          : dblCourses.length+" course"+(dblCourses.length===1?"":"s")+" marked as double-counted ("+A.dbl+" credits). "+
+            (dblCourses.length>2 ? "Only two 3-credit courses may count for both degrees."
+             : (F("int_approvals") ? "Instructor and DGS approval recorded."
+                : "Each needs the course instructor's and the DGS's approval.")),
+        "§3.5"),
+      R("Additional senior-year 6xxxx courses",
+        "review",
+        "6xxxx CSE courses you completed as a senior that were not used for the B.S. may also count toward the MSCSE, with the instructor's and DGS's approval, subject to the §3.2 limits.",
+        "§3.5")
+    ]});
+  }
+
+  if(S.track==="transition"){
+    var need12 = Math.max(0, 12 - A.bridge);
+    var fourCourses = S.courses.filter(function(c){ return levelOf(c.id)===4 && isCSE(c) && c.kind==="regular" && !c.bridge; });
+    g.push({title:"Transition to Computing", cite:"§3.6", rules:[
+      R("12 credit hours of bridge coursework, taken concurrently",
+        A.bridge>=12 ? "met" : (A.bridge>0?"progress":"unmet"),
+        A.bridge+" of 12 bridge credits recorded across "+plural(A.bridgeCourses,"course")+
+        (need12?" — "+need12+" to go. The sequence is Transition to Software Design, Transition to Data Structures & Algorithms, Transition to Computer Systems & Organization, and the Integrative Computing Studio (CSE 60xxx).":"."),
+        "§3.6.1"),
+      R("Any substitutions approved by the DGS",
+        F("tr_sub") ? "met" : "review",
+        "Substitutions are allowed for students with prior preparation, provided the total stays at 12 credits.",
+        "§3.6.1"),
+      R("CSE 50xxx bridge courses excluded from the MSCSE",
+        "met",
+        "Bridge courses are preparatory and do not count toward §3.1–3.5. This page already excludes every course you marked as a bridge course.",
+        "§3.6.1"),
+      R("At most two CSE 40xxx courses counted toward the MSCSE",
+        fourCourses.length===0 ? "na" : (fourCourses.length<=2 ? (F("tr_40k")?"met":"review") : "unmet"),
+        fourCourses.length===0 ? "No CSE 40xxx courses recorded."
+          : plural(fourCourses.length,"CSE 40xxx course")+" recorded. The handbook expects such cases to be rare and each needs DGS approval.",
+        "§3.6.1")
+    ]});
+  }
+
+  var msDeadlineOrd = ord(S.term,+S.year||2025) + 9; // 5 academic years
+  g.push({title:"Residence and time", cite:"§3.3", rules:[
+    R("One semester of full-time status (or one summer session)",
+      (+S.ft>=1) ? "met" : "unmet",
+      (+S.ft>=1) ? "Minimum residency satisfied with "+plural(+S.ft,"full-time semester")+"."
+                 : "Record at least one full-time semester (9 or more credit hours) above.",
+      "§3.3"),
+    R("All requirements complete within 5 years",
+      "progress",
+      "You entered in "+ordName(ord(S.term,+S.year||2025))+" and are in semester "+sem+
+      ". Failure to finish within 5 years forfeits degree eligibility.",
+      "§3.3", due(msDeadlineOrd,false))
+  ]});
+  return g;
+}
+
+/* ============================================================ Ph.D. rules */
+function evalPHD(A){
+  var g = [], gpa = parseFloat(S.gpa), sem = semesterNumber();
+  var entry = ord(S.term,+S.year||2025);
+  var spec = specialization(), core = coreKnowledge();
+  var qualDeadline = entry + 3;      // within 4 semesters
+  var candDeadline = entry + 7;      // before the end of the 8th semester
+  var timeDeadline = entry + 15;     // 8 academic years
+  var months = monthsSinceEntry();
+
+  g.push({title:"Basic requirements", cite:"§2.2–2.3, §4.1", rules:[
+    R("Cumulative GPA of at least 3.0",
+      isNaN(gpa) ? "review" : (gpa>=3?"met":"unmet"),
+      isNaN(gpa) ? "Enter your cumulative GPA above. A GPA below 3.0 blocks candidacy, the defense, and the degree."
+                 : "Your GPA is "+gpa.toFixed(2)+(gpa>=3?"." : ". Below 3.0 you cannot defend or receive the degree, and two consecutive semesters below 3.0 can cost funding."),
+      "§2.2"),
+    chk("I am currently supervised by a faculty advisor","m-advisor-phd","§2.3",
+      "Continuous advisor supervision is required throughout the Ph.D. Report any disruption to the DGS immediately.")
+  ]});
+
+  var need24 = Math.max(0,24-A.regular), need60 = Math.max(0,60-A.total);
+  var cw = [
+    R("24 credit hours of regular courses at the 60000 level or higher",
+      A.regular>=24 ? "met" : (A.regular>0?"progress":"unmet"),
+      A.regular+" of 24 credits complete"+(A.inProgRegular?", "+A.inProgRegular+" in progress":"")+
+      (need24?" — "+need24+" to go.":". Requirement satisfied."),
+      "§4.2"),
+    R("2 credits of Research Seminar (CSE 63801 and CSE 63802)",
+      (A.seminar63801 && A.seminar63802) ? "met" : ((A.seminar63801||A.seminar63802)?"progress":"unmet"),
+      (A.seminar63801&&A.seminar63802) ? "Both seminars recorded."
+        : "Recorded: "+([A.seminar63801?"CSE 63801":null, A.seminar63802?"CSE 63802":null]
+            .filter(Boolean).join(", ") || "neither")+
+          ". Both are expected during your first year.",
+      "§4.2", sem>2 && !(A.seminar63801&&A.seminar63802) ? {t:"Expected during the first year — you are in semester "+sem, c:"soon"} : null),
+    R("60 total credits of courses and research",
+      A.total>=60 ? "met" : (A.total>0?"progress":"unmet"),
+      A.total+" of 60 credits counting toward the degree"+(need60?" — "+need60+" to go. Research credits count here.":". Requirement satisfied."),
+      "§4.2"),
+    R("At least 9 credits taken at Notre Dame",
+      A.ndRegular>=9 ? "met" : (A.ndRegular>0?"progress":"unmet"),
+      A.ndRegular+" of 9 Notre Dame regular-course credits recorded. This holds regardless of how much credit you transfer in, and it is what makes you eligible for the qualifying examination.",
+      "§4.2"),
+    (function(){
+      var over = A.excess.filter(function(x){return /4xxxx/.test(x);});
+      var ok = F("phd_4xxxx");
+      return R("At most 6 credits from CSE 4xxxx",
+        A.fourk===0 && !over.length ? "met" : (over.length || !ok ? "review" : "met"),
+        A.fourk+" of the 6 permitted CSE 4xxxx credits used."+
+        (over.length ? " Credits beyond the cap are excluded from the 24 — see the course list." : "")+
+        (A.fourk>0 ? (ok ? " Advisor and DGS approval recorded."
+                         : " These need your advisor's and the DGS's approval.") : ""),
+        "§4.2");
+    })(),
+    R("At most 9 credits at 6xxxx from outside CSE",
+      A.nonCSE===0 ? "na" : (F("phd_noncse")?"met":"review"),
+      A.nonCSE===0 ? "No courses from outside CSE recorded."
+        : A.nonCSE+" of the 9 permitted non-CSE credits used. "+(F("phd_noncse")
+          ? "Advisor and DGS approval recorded." : "These require your advisor's and the DGS's approval."),
+      "§4.2"),
+    R("Transfer credits recommended by the DGS and approved by the Graduate School",
+      A.transfer===0 ? "na" : (F("phd_transfer")?"met":"review"),
+      A.transfer===0 ? "No transfer credits recorded."
+        : A.transfer+" transfer credits recorded. An unfinished M.S. transfers at most 6 credits; a completed M.S. or Ph.D. transfers up to 24 into a Notre Dame Ph.D. Courses must be from the five years before admission, with grades of B or better, and transferred grades are not part of your GPA.",
+      "§4.2, §5.2"),
+    chk("Every course in my plan of study was approved by my advisor","phd_courseapprove","§4.2")
+  ].concat(dataRules(A,"phd"));
+  g.push({title:"Coursework", cite:"§4.2", rules:cw});
+
+  /* ---- qualifying exam ---- */
+  var qual = [];
+  ["os","algorithms","architecture"].forEach(function(k){
+    var c = core[k];
+    qual.push(R("Core knowledge: "+CORE_NAME[k],
+      c.done ? "met" : (c.ip ? "progress" : (F("core_plan") ? "review" : "unmet")),
+      c.done ? (c.nd ? "Satisfied by a course you recorded." : "Recorded as passed at your previous institution.")
+        : (c.ip ? "A course covering this area is in progress."
+          : (F("core_plan") ? "Covered by a customized study plan approved by the DGS."
+             : "Pass a "+CORE_NAME[k]+" course here, or tick the box in Milestones if you passed one before you arrived.")),
+      "§4.4.1", due(qualDeadline, c.done)));
+  });
+  qual.push(R("Three specialization courses from three distinct groups, each B or higher",
+    spec.groups.length>=3 ? "met" : (spec.groups.length>0 || spec.ip.length ? "progress" : "unmet"),
+    (spec.groups.length>=3
+      ? "Groups satisfied: "+spec.groups.map(function(k){return CAT_NAME[k];}).join(", ")+"."
+      : plural(spec.groups.length,"group")+" satisfied"+
+        (spec.groups.length?" ("+spec.groups.map(function(k){return CAT_NAME[k];}).join(", ")+")":"")+
+        ". Still open: "+spec.missing.map(function(k){return CAT_NAME[k];}).join(", ")+".")+
+    (spec.dup.length ? " "+plural(spec.dup.length,"course")+" you assigned duplicate a group already covered — reassign or take a course in a different group." : "")+
+    (spec.low.length ? " "+plural(spec.low.length,"course")+" fell below a B; you may retake the course to replace the grade or take another one." : "")+
+    (spec.ipGroups.length ? " In progress: "+spec.ipGroups.map(function(k){return CAT_NAME[k];}).join(", ")+"." : "")+
+    " The approved list is announced by email at the start of each term.",
+    "§4.4.2", due(qualDeadline, spec.groups.length>=3)));
+  qual.push(R("A significant research contribution",
+    F("q_res_contrib") ? "met" : "unmet",
+    "First author or a major contributing author on a workshop, conference, or journal submission, or a research survey. Your advisor evaluates it.",
+    "§4.4.3", F("q_res_contrib") ? null :
+      (months>18 ? {t:"Past due — the advisor's determination was due 18 months after you entered", c:"hot"}
+                 : {t:plural(18-months,"month")+" until the 18-month determination", c:(18-months<=4?"soon":"")})));
+  qual.push(chk("My advisor submitted the Research-Qualifier form and a research sample to the DGS office","q_res_form","§4.4.3",
+    "The advisor decides pass or fail within 18 months of your entering the program. A failure sends the case to a three-member committee, which has 6 months to judge a remediation plan."));
+  qual.push(R("Qualifier completion filed with the CSE DGS office",
+    F("q_form") ? "met" : "unmet",
+    "Notify the DGS office by filing the appropriate form once all three components are done."+
+    (F("q_ext") ? " You have recorded a DGS extension of the deadline." : ""),
+    "§4.4", F("q_form")||F("q_ext") ? null : due(qualDeadline,false)));
+  g.push({title:"Qualifying examination", cite:"§4.4", rules:qual});
+
+  /* ---- candidacy ---- */
+  var courseworkDone = A.regular>=24 || (A.regular+A.inProgRegular>=24);
+  g.push({title:"Candidacy examination", cite:"§4.5", rules:[
+    R("All coursework complete, or in progress this semester",
+      courseworkDone ? "met" : "unmet",
+      courseworkDone ? "Coursework is complete or finishing this semester."
+        : "You are at "+A.regular+" of 24 regular credits. Coursework must be finished, or in progress in the same semester, before the candidacy exam.",
+      "§4.5"),
+    chk("Committee approved by the DGS","cand_committee","§4.5",
+      "Your advisor (and co-advisor) plus at least three additional voting TTT members. Outside members need a CV sent to the DGS in advance, and CSE must hold the majority."),
+    chk("Written dissertation proposal complete","cand_written","§4.5"),
+    chk("Proposal distributed to the committee at least 2 weeks before the oral exam","cand_distrib","§4.5"),
+    R("Oral candidacy examination passed",
+      F("cand_oral") ? "met" : "unmet",
+      "Held on the Notre Dame campus with all Notre Dame committee members physically present. Three votes of four, or four of five, are required to pass. A second failure forfeits degree eligibility.",
+      "§4.5", due(candDeadline, F("cand_oral"))),
+    chk("Reporting form signed and sent to the Graduate School within 5 business days","cand_form","§4.5"),
+    R("MSCSE awarded along the way",
+      F("cand_oral") ? "met" : "progress",
+      "Passing the candidacy exam can satisfy the M.S. thesis requirement and the Ph.D. candidacy exam at once, earning you the MSCSE degree.",
+      "§4.5")
+  ]});
+
+  g.push({title:"Dissertation and defense", cite:"§4.6–4.7", rules:[
+    chk("Dissertation delivered to the candidacy committee readers","dis_deliver","§4.6",
+      "Readers normally get two to four weeks. Replacing a committee member needs your advisor's and the DGS's approval."),
+    chk("All readers unanimously approved the dissertation for defense","dis_readers","§4.6",
+      "Only a unanimously approved dissertation may be defended. Approval means it is defensible, not that the readers agree with it."),
+    chk("Dissertation defense passed","def_pass","§4.7",
+      "On campus, with all Notre Dame members present. The first part is public, the examination is closed. Three of four votes, or four of five, are required. A second failure forfeits degree eligibility."),
+    chk("Reporting form signed and sent to the Graduate School within 5 business days","def_form","§4.7"),
+    chk("Final dissertation submitted electronically to the Graduate School","def_submit","§4.7")
+  ]});
+
+  g.push({title:"Residence and time", cite:"§4.3", rules:[
+    R("Four consecutive full-time semesters of residence",
+      (+S.ft>=4) ? "met" : (+S.ft>0?"progress":"unmet"),
+      (+S.ft||0)+" of 4 full-time semesters recorded (summer sessions do not count).",
+      "§4.3"),
+    R("All requirements complete within 8 years",
+      "progress",
+      "You entered in "+ordName(entry)+" and are in semester "+sem+
+      ". Students entering with an M.S. in CSE typically finish in about four years; five is typical otherwise. Failure to finish within 8 years forfeits degree eligibility.",
+      "§4.3", due(timeDeadline,false))
+  ]});
+  return g;
+}
+
+/* ============================================================ milestone definitions */
+function milestoneSpec(){
+  if(S.prog==="ms"){
+    var out = [{h:"Plan of study &mdash; &sect;3.2", items:[
+      {k:"ms_approve", t:"My advisor approved every course in my plan of study"},
+      {k:"ms_noncse",  t:"My advisor and the DGS approved my non-CSE courses", s:"Up to 9 credits from another department may count."}
+    ]}];
+    out.push({h:"Project or thesis &mdash; &sect;3.4", path:true, items:
+      S.path==="project" ? [
+        {k:"ms_proj_report",   t:"A written project report is complete"},
+        {k:"ms_proj_approved", t:"The report and deliverables are accepted and approved by my advisor"}
+      ] : [
+        {k:"ms_th_topic",    t:"A thesis topic is proposed and approved by my advisor"},
+        {k:"ms_th_readers",  t:"Two TTT readers are nominated and approved", s:"Your advisor may not be one of the two readers."},
+        {k:"ms_th_readerok", t:"Both readers have approved the thesis"},
+        {k:"ms_th_defense",  t:"The oral thesis defense is passed"},
+        {k:"ms_th_submit",   t:"The thesis is submitted electronically to the Graduate School"}
+      ]});
+    if(S.track==="integrated") out.push({h:"Integrated B.S. + M.S. &mdash; &sect;3.5", items:[
+      {k:"int_admit",     t:"I am admitted to the Integrated B.S. + M.S. program"},
+      {k:"int_stmt",      t:"I submitted the one-page statement of intent naming a faculty supervisor"},
+      {k:"int_approvals", t:"The course instructor and the DGS approved each double-counted 6xxxx course"}
+    ]});
+    if(S.track==="transition") out.push({h:"Transition to Computing &mdash; &sect;3.6", items:[
+      {k:"tr_sub", t:"The DGS approved any substitutions in the 12-credit bridge sequence"},
+      {k:"tr_40k", t:"The DGS approved counting CSE 40xxx courses toward the MSCSE", s:"The handbook expects this to be rare."}
+    ]});
+    return out;
+  }
+  return [
+    {h:"Plan of study &mdash; &sect;4.2", items:[
+      {k:"phd_courseapprove", t:"My advisor approved every course in my plan of study"},
+      {k:"phd_noncse",   t:"My advisor and the DGS approved my non-CSE 6xxxx courses"},
+      {k:"phd_4xxxx",    t:"My advisor and the DGS approved my CSE 4xxxx courses"},
+      {k:"phd_transfer", t:"The DGS recommended and the Graduate School approved my transfer credits"}
+    ]},
+    {h:"Qualifying examination &mdash; &sect;4.4", items:[
+      {k:"core_prev_os",           t:"I passed an Operating Systems course at a previous institution"},
+      {k:"core_prev_algorithms",   t:"I passed an Algorithms course at a previous institution"},
+      {k:"core_prev_architecture", t:"I passed a Computer Architecture course at a previous institution"},
+      {k:"core_plan", t:"I have a customized study plan approved by the DGS", s:"For students entering with a background in a different area."},
+      {k:"q_res_contrib", t:"I made a significant research contribution", s:"First or major contributing author on a submission, or a research survey."},
+      {k:"q_res_form", t:"My advisor submitted the Research-Qualifier form and a research sample to the DGS office"},
+      {k:"q_form", t:"I filed the qualifier completion form with the CSE DGS office"},
+      {k:"q_ext",  t:"The DGS granted me an extension on the qualifier deadline"}
+    ]},
+    {h:"Candidacy examination &mdash; &sect;4.5", items:[
+      {k:"cand_committee", t:"My committee is approved by the DGS", s:"Advisor plus at least three additional voting TTT members, CSE in the majority."},
+      {k:"cand_written",   t:"My written dissertation proposal is complete"},
+      {k:"cand_distrib",   t:"I distributed the proposal at least 2 weeks before the oral exam"},
+      {k:"cand_oral",      t:"I passed the oral candidacy examination"},
+      {k:"cand_form",      t:"The reporting form went to the Graduate School within 5 business days"}
+    ]},
+    {h:"Dissertation and defense &mdash; &sect;4.6&ndash;4.7", items:[
+      {k:"dis_deliver", t:"My dissertation is delivered to the committee readers"},
+      {k:"dis_readers", t:"All readers unanimously approved it for defense"},
+      {k:"def_pass",    t:"I passed the dissertation defense"},
+      {k:"def_form",    t:"The reporting form went to the Graduate School within 5 business days"},
+      {k:"def_submit",  t:"I submitted the final dissertation electronically"}
+    ]}
+  ];
+}
+
+/* ============================================================ rendering */
+function renderMilestones(){
+  var spec = milestoneSpec(), h = "";
+  spec.forEach(function(gr){
+    h += '<div class="subhead">'+gr.h+'</div>';
+    if(gr.path){
+      h += '<div class="grid two" style="margin-bottom:10px"><div class="f"><label for="i-path">Which are you doing</label>'+
+           '<select id="i-path"><option value="project"'+(S.path==="project"?" selected":"")+'>M.S. project (&sect;3.4 i)</option>'+
+           '<option value="thesis"'+(S.path==="thesis"?" selected":"")+'>M.S. thesis (&sect;3.4 ii)</option></select></div></div>';
+    }
+    h += '<div class="checks">';
+    gr.items.forEach(function(it){
+      h += '<label class="check"><input type="checkbox" data-flag="'+it.k+'"'+(F(it.k)?" checked":"")+'>'+
+           '<span>'+it.t+(it.s?'<em>'+it.s+'</em>':'')+'</span></label>';
+    });
+    h += '</div>';
+  });
+  $("milestones").innerHTML = h;
+}
+
+function renderCourses(){
+  var tb = $("course-rows"), h = "";
+  S.courses.forEach(function(c,i){
+    var dead = /Does not count|bridge/i.test(c._counts||"");
+    h += '<tr class="'+(dead?"dropped":"")+'">'+
+      '<td><span class="num">'+esc(c.id)+'</span><br><span class="ttl">'+esc(c.title||"")+'</span>'+
+        (c.cat?'<br><span class="ttl">Group: '+CAT_NAME[c.cat]+'</span>':'')+
+        (c.core?'<br><span class="ttl">Core: '+CORE_NAME[c.core]+'</span>':'')+
+'</td>'+
+      '<td>'+KIND_NAME[c.kind]+(c.where==="transfer"?'<br><span class="ttl">transferred</span>':'')+'</td>'+
+      '<td class="rt num">'+(+c.cr||0)+'</td>'+
+      '<td class="num">'+esc(c.grade)+'</td>'+
+      '<td>'+esc(c._counts||"")+(c._note?'<span class="note'+(/^§/.test(c._note)?'':' ok')+'">'+esc(c._note)+'</span>':'')+'</td>'+
+      '<td class="rt"><button class="btn btn-ghost btn-sm" data-del="'+i+'" type="button" aria-label="Remove '+esc(c.id)+'">Remove</button></td>'+
+    '</tr>';
+  });
+  tb.innerHTML = h;
+  $("course-empty").style.display = S.courses.length ? "none" : "block";
+}
+
+function meterHTML(label, done, prog, need, unit){
+  var pd = Math.min(100, done/need*100), pp = Math.min(100-pd, prog/need*100);
+  return '<div><div class="meter-hd"><b>'+label+'</b><span class="v">'+done+
+    (prog?" + "+prog:"")+' / '+need+' '+unit+'</span></div>'+
+    '<div class="bar"><i class="done" style="width:'+pd+'%"></i><i class="prog" style="width:'+pp+'%"></i></div></div>';
+}
+
+function render(){
+  var A = account();
+  var groups = S.prog==="ms" ? evalMS(A) : evalPHD(A);
+  renderCourses();
+
+  var m = "";
+  if(S.prog==="ms"){
+    m += meterHTML("Regular courses", A.regular, A.inProgRegular, 24, "cr");
+    m += meterHTML("Project or thesis", A.project, 0, 6, "cr");
+    m += meterHTML("Total credits", A.total, 0, 30, "cr");
+  } else {
+    m += meterHTML("Regular courses", A.regular, A.inProgRegular, 24, "cr");
+    m += meterHTML("Credits at Notre Dame", A.ndRegular, 0, 9, "cr");
+    m += meterHTML("Total credits", A.total, 0, 60, "cr");
+  }
+  $("meters").innerHTML = m;
+
+  var h = "", met=0, tot=0, unmet=0, review=0;
+  groups.forEach(function(gr){
+    h += '<div class="reqgroup"><h3>'+gr.title+' <span class="cite">'+gr.cite+'</span></h3>';
+    gr.rules.forEach(function(r){
+      if(r.status!=="na"){ tot++; if(r.status==="met") met++;
+        if(r.status==="unmet") unmet++; if(r.status==="review") review++; }
+      var pill = {met:"Met", progress:"In progress", unmet:"Not yet", review:"Needs review", na:"N/A"}[r.status];
+      h += '<div class="req '+r.status+'"><div class="req-hd"><b>'+r.label+'</b><span class="pill">'+pill+'</span></div>'+
+           (r.detail?'<p>'+r.detail+'</p>':'')+
+           (r.deadline?'<div class="deadline '+r.deadline.c+'">'+r.deadline.t+'</div>':'')+
+           '</div>';
+    });
+    h += '</div>';
+  });
+  $("reqs").innerHTML = h;
+
+  var pct = tot ? met/tot : 0;
+  $("dial-arc").setAttribute("stroke-dashoffset", String(201 - 201*pct));
+  $("dial-arc").setAttribute("stroke", pct===1 ? "var(--ok)" : (pct>0.5 ? "var(--warn)" : "var(--bad)"));
+  $("dial-n").textContent = met+"/"+tot;
+  $("score-hd").textContent = pct===1 ? "All requirements met"
+    : (met===0 ? "Getting started" : plural(tot-met,"requirement")+" to go");
+  $("score-sub").textContent = pct===1
+    ? "Confirm with the Graduate Program Coordinator before you file."
+    : (unmet+review===0 ? "Everything left is in progress."
+      : [unmet?plural(unmet,"item")+" not started":null, review?review+" needing a decision or approval":null]
+        .filter(Boolean).join(", ")+".");
+  $("sem-now").textContent = "Semester "+semesterNumber()+" · "+ordName(nowOrd());
+  save();
+}
+
+/* ============================================================ wiring */
+function syncProgramUI(){
+  $("tab-ms").setAttribute("aria-selected", S.prog==="ms");
+  $("tab-phd").setAttribute("aria-selected", S.prog==="phd");
+  $("ms-track-wrap").hidden   = S.prog!=="ms";
+  $("phd-basic-wrap").hidden  = S.prog!=="phd";
+  $("cat-wrap").hidden        = S.prog!=="phd";
+  $("core-wrap").hidden       = S.prog!=="phd";
+  $("bridge-wrap").hidden     = !(S.prog==="ms" && S.track==="transition");
+  $("dbl-wrap").hidden        = !(S.prog==="ms" && S.track==="integrated");
+  $("ugpa-wrap").hidden       = !(S.prog==="ms" && S.track==="integrated");
+  $("course-cite").textContent = S.prog==="ms" ? "§3.2" : "§4.2";
+  $("ms-cite").textContent     = S.prog==="ms" ? "§3.2–3.6" : "§4.2–4.7";
+  $("course-hint").innerHTML = S.prog==="ms"
+    ? "Add everything you have taken or are taking. <b>Regular courses</b> have a regular meeting time, assigned readings, graded assignments, and a final exam &mdash; research seminars, research credits, and independent study do not (&sect;3.2)."
+    : "Add everything you have taken or are taking. <b>Regular courses</b> have a regular meeting time, assigned readings, graded assignments, and a final exam (&sect;4.2). Tag a course with a specialization group or core area to have it count toward the qualifier.";
+  renderMilestones();
+  render();
+}
+
+function addCourse(){
+  var id = $("c-id").value.trim();
+  if(!id){ $("c-id").focus(); toast("Enter a course number first."); return; }
+  S.courses.push({
+    id:id.toUpperCase().replace(/\s+/g," "), title:$("c-title").value.trim(),
+    cr:+$("c-cr").value||0, grade:$("c-grade").value, kind:$("c-kind").value,
+    where:$("c-where").value, cat:$("c-cat").value, core:$("c-core").value,
+    bridge:$("c-bridge").checked, dbl:$("c-dbl").checked
+  });
+  ["c-id","c-title"].forEach(function(k){ $(k).value=""; });
+  $("c-cat").value=""; $("c-core").value=""; $("c-bridge").checked=false; $("c-dbl").checked=false;
+  $("c-cr").value=3; $("c-id").focus();
+  render();
+}
+
+var toastT;
+function toast(msg){
+  var el = document.querySelector(".toast");
+  if(!el){ el = document.createElement("div"); el.className="toast"; document.body.appendChild(el); }
+  el.textContent = msg; el.style.display="block";
+  clearTimeout(toastT); toastT = setTimeout(function(){ el.style.display="none"; }, 3200);
+}
+
+function summaryText(){
+  var A = account(), groups = S.prog==="ms" ? evalMS(A) : evalPHD(A);
+  var L = ["Notre Dame CSE — "+(S.prog==="ms"?"MSCSE":"Ph.D.")+" degree audit",
+           "Generated "+new Date().toLocaleDateString()+" · entered "+ordName(ord(S.term,+S.year||2025))+
+           " · semester "+semesterNumber(), ""];
+  groups.forEach(function(gr){
+    L.push(gr.title.toUpperCase()+"  ("+gr.cite+")");
+    gr.rules.forEach(function(r){
+      var mark = {met:"[x]", progress:"[~]", unmet:"[ ]", review:"[?]", na:"[-]"}[r.status];
+      L.push("  "+mark+" "+r.label);
+      if(r.status!=="met" && r.detail) L.push("        "+r.detail.replace(/\s+/g," "));
+      if(r.deadline) L.push("        "+r.deadline.t);
+    });
+    L.push("");
+  });
+  L.push("[x] met  [~] in progress  [ ] not yet  [?] needs a decision or approval  [-] not applicable");
+  L.push("Self-check against the CSE Graduate Studies Handbook, July 2026. Confirm with the DGS office.");
+  return L.join("\n");
+}
+
+async function saveFile(){
+  var data = JSON.stringify({v:1, saved:new Date().toISOString(), state:S}, null, 2);
+  var name = "cse-degree-audit-"+(S.prog==="ms"?"mscse":"phd")+".json";
+  var dl = null;
+  try{ dl = await window.claude.use("downloads"); }catch(e){}
+  if(dl){
+    try{ await dl.save({filename:name, data:data}); toast("Saved. Reload it any time with “Load a saved file”."); return; }
+    catch(err){
+      if(err && err.code==="declined") return;
+      if(err && err.code==="rate_limited"){ toast("A save prompt is already open."); return; }
+    }
+  }
+  try{ await navigator.clipboard.writeText(data); toast("Downloads aren’t available here — your progress is copied to the clipboard. Paste it into a .json file."); }
+  catch(e){ toast("Couldn’t save a file here. Your progress is still stored in this browser."); }
+}
+
+function loadFile(f){
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var o = JSON.parse(r.result);
+      var st = o && o.state ? o.state : o;
+      if(!st || !Array.isArray(st.courses)) throw new Error("shape");
+      S = Object.assign({prog:"ms",term:"fall",year:2025,gpa:"",ft:0,track:"standard",ugpa:"",courses:[],flags:{},path:"project"}, st);
+      hydrate(); syncProgramUI(); toast("Loaded your saved progress.");
+    }catch(e){ toast("That file isn’t a saved audit. Pick the .json file this page saved."); }
+  };
+  r.onerror = function(){ toast("Couldn’t read that file."); };
+  r.readAsText(f);
+}
+
+function hydrate(){
+  $("i-term").value=S.term; $("i-year").value=S.year; $("i-gpa").value=S.gpa;
+  $("i-ft").value=S.ft; $("i-track").value=S.track; $("i-ugpa").value=S.ugpa;
+  $("m-advisor-ms").checked  = F("m-advisor-ms");
+  $("m-advisor-phd").checked = F("m-advisor-phd");
+}
+
+/* -------- catalog datalist + prefill -------- */
+$("c-id").addEventListener("input", function(){
+  var v = this.value.trim().toUpperCase().replace(/\s+/g," ");
+  var hit = CATALOG.filter(function(c){ return c.id===v; })[0];
+  if(!hit) return;
+  $("c-title").value = hit.title; $("c-cr").value = hit.cr; $("c-kind").value = hit.kind;
+  if(S.prog==="phd"){ $("c-cat").value = hit.cat||""; $("c-core").value = hit.core||""; }
+  if(hit.multi) toast("CSE 60876 counts in any of the five groups — pick whichever one you still need.");
+});
+
+/* -------- events -------- */
+[["tab-ms","ms"],["tab-phd","phd"]].forEach(function(p){
+  $(p[0]).addEventListener("click", function(){ S.prog=p[1]; syncProgramUI(); });
+});
+$("i-term").addEventListener("change", function(){ S.term=this.value; render(); });
+$("i-year").addEventListener("input",  function(){ S.year=this.value; render(); });
+$("i-gpa").addEventListener("input",   function(){ S.gpa=this.value; render(); });
+$("i-ft").addEventListener("input",    function(){ S.ft=this.value; render(); });
+$("i-ugpa").addEventListener("input",  function(){ S.ugpa=this.value; render(); });
+$("i-track").addEventListener("change",function(){ S.track=this.value; syncProgramUI(); });
+$("btn-add").addEventListener("click", addCourse);
+$("c-id").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); addCourse(); } });
+$("course-rows").addEventListener("click", function(e){
+  var b = e.target.closest("[data-del]"); if(!b) return;
+  S.courses.splice(+b.getAttribute("data-del"),1); render();
+});
+$("milestones").addEventListener("change", function(e){
+  if(e.target.id==="i-path"){ S.path=e.target.value; renderMilestones(); render(); return; }
+  var k = e.target.getAttribute("data-flag"); if(!k) return;
+  S.flags[k] = e.target.checked; render();
+});
+["m-advisor-ms","m-advisor-phd"].forEach(function(id){
+  $(id).addEventListener("change", function(){ S.flags[id]=this.checked; render(); });
+});
+$("btn-save").addEventListener("click", saveFile);
+$("btn-load").addEventListener("click", function(){ $("file-in").click(); });
+$("file-in").addEventListener("change", function(){ if(this.files[0]) loadFile(this.files[0]); this.value=""; });
+$("btn-print").addEventListener("click", function(){ window.print(); });
+$("btn-summary").addEventListener("click", async function(){
+  var t = summaryText();
+  try{ await navigator.clipboard.writeText(t); toast("Summary copied — paste it into an email to your advisor."); }
+  catch(e){
+    var ta = document.createElement("textarea"); ta.value=t;
+    ta.style.cssText="position:fixed;left:-9999px"; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand("copy"); toast("Summary copied."); }
+    catch(e2){ toast("Couldn’t copy here — use Print instead."); }
+    document.body.removeChild(ta);
+  }
+});
+$("btn-reset").addEventListener("click", function(){
+  if(!S.courses.length && !Object.keys(S.flags).length){ toast("Nothing to clear."); return; }
+  S = {prog:S.prog, term:"fall", year:new Date().getFullYear(), gpa:"", ft:0,
+       track:"standard", ugpa:"", courses:[], flags:{}, path:"project"};
+  hydrate(); syncProgramUI(); toast("Cleared.");
+});
+$("btn-demo").addEventListener("click", function(){
+  if(S.prog==="ms"){
+    S.term="fall"; S.year=new Date().getFullYear()-1; S.gpa="3.62"; S.ft=2; S.track="standard"; S.path="project";
+    S.courses=[
+      {id:"CSE 60641",title:"Graduate Operating Systems",cr:3,grade:"A-",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60111",title:"Complexity and Algorithms",cr:3,grade:"B+",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60535",title:"Graduate Computer Vision",cr:3,grade:"A",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60770",title:"Secure Software Engineering",cr:3,grade:"B",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 40113",title:"Design & Analysis of Algorithms",cr:3,grade:"A-",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"ACMS 60890",title:"Statistical Foundations of Data Science",cr:3,grade:"B+",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 68902",title:"M.S. Project",cr:3,grade:"S",kind:"msproject",where:"nd",cat:"",core:""}
+    ];
+    S.flags={"m-advisor-ms":true, ms_approve:true};
+  } else {
+    S.term="fall"; S.year=new Date().getFullYear()-2; S.gpa="3.78"; S.ft=4;
+    S.courses=[
+      {id:"CSE 60641",title:"Graduate Operating Systems",cr:3,grade:"A",kind:"regular",where:"nd",cat:"sys",core:"os"},
+      {id:"CSE 60111",title:"Complexity and Algorithms",cr:3,grade:"B+",kind:"regular",where:"nd",cat:"alg",core:"algorithms"},
+      {id:"CSE 60321",title:"Advanced Computer Architecture",cr:3,grade:"B",kind:"regular",where:"nd",cat:"arch",core:"architecture"},
+      {id:"CSE 60868",title:"Graduate Neural Networks",cr:3,grade:"A-",kind:"regular",where:"nd",cat:"dsai",core:""},
+      {id:"CSE 60535",title:"Graduate Computer Vision",cr:3,grade:"A",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 60770",title:"Secure Software Engineering",cr:3,grade:"IP",kind:"regular",where:"nd",cat:"",core:""},
+      {id:"CSE 63801",title:"Research Seminar I",cr:1,grade:"S",kind:"seminar",where:"nd",cat:"",core:""},
+      {id:"CSE 63802",title:"Research Seminar II",cr:1,grade:"S",kind:"seminar",where:"nd",cat:"",core:""},
+      {id:"CSE 78000",title:"Dissertation Research",cr:24,grade:"S",kind:"research",where:"nd",cat:"",core:""}
+    ];
+    S.flags={"m-advisor-phd":true, phd_courseapprove:true, q_res_contrib:true};
+  }
+  hydrate(); syncProgramUI(); toast("Example student loaded — clear it before entering your own record.");
+});
+
+
+/* ============================================================
+   COURSE DATA PANEL — parse the two sheets, diff them against
+   what the page is running, and (for the owner) republish.
+   ============================================================ */
+function parseCSV(text){
+  var rows=[], row=[], f="", q=false, i=0, t=String(text||"").replace(/\r\n?/g,"\n");
+  for(; i<t.length; i++){
+    var ch=t[i];
+    if(q){
+      if(ch==='"'){ if(t[i+1]==='"'){ f+='"'; i++; } else q=false; }
+      else f+=ch;
+    } else if(ch==='"') q=true;
+    else if(ch===","){ row.push(f); f=""; }
+    else if(ch==="\n"){ row.push(f); f=""; rows.push(row); row=[]; }
+    else f+=ch;
+  }
+  row.push(f); rows.push(row);
+  return rows.filter(function(r){ return r.some(function(x){ return String(x).trim()!==""; }); });
+}
+function headerKey(h){ return String(h).split(" (")[0].trim().toLowerCase().replace(/\s+/g,"_"); }
+function toObjects(text){
+  var rows = parseCSV(text); if(rows.length<2) return {err:"needs a header row and at least one course"};
+  var hdr = rows[0].map(headerKey);
+  if(hdr.indexOf("course_id")<0) return {err:"no course_id column — is this the right sheet?"};
+  var out = rows.slice(1).map(function(r){
+    var o={}; hdr.forEach(function(h,i){ o[h]=(r[i]||"").trim(); }); return o;
+  }).filter(function(o){ return o.course_id && !/^example/i.test(o.course_id); });
+  return {rows:out};
+}
+function buildData(rulText){
+  var rul = rulText ? toObjects(rulText) : null;
+  if(rul && rul.err) return {err:"Rules sheet: "+rul.err};
+  var d = {
+    version:(DATA.version||0)+1,
+    updated:new Date().toISOString().slice(0,10),
+    source:DATA.source||"",
+    catalog: rul ? rul.rows.map(function(c){
+      return {id:c.course_id.toUpperCase(), title:c.title||"", cr:parseInt(c.credits,10)||3,
+              kind:(c.course_type||"regular").toLowerCase(),
+              offered:(c.typically_offered||"varies").toLowerCase(),
+              active:(c.active||"yes").toLowerCase()!=="no"};
+    }) : (DATA.catalog||[]),
+    rules: rul ? rul.rows.map(function(r){
+      return {id:r.course_id.toUpperCase(), title:r.title||"",
+              ms:(r.counts_toward_mscse||"").toLowerCase(), phd:(r.counts_toward_phd||"").toLowerCase(),
+              core:(r.core_area||"").toLowerCase(), group:(r.category_group||"").toLowerCase(),
+              offered:(r.typically_offered||"varies").toLowerCase(),
+              effective:r.effective_term||"", notes:r.notes||""};
+    }) : (DATA.rules||[])
+  };
+  // validation
+  var bad=[], groups=["alg","hcc","arch","dsai","sys","any",""], cores=["os","algorithms","architecture",""];
+  d.rules.forEach(function(r){
+    if(groups.indexOf(r.group)<0) bad.push(r.id+": category_group “"+r.group+"” is not one of alg/hcc/arch/dsai/sys/any");
+    if(cores.indexOf(r.core)<0)   bad.push(r.id+": core_area “"+r.core+"” is not one of os/algorithms/architecture");
+    if(r.ms && ["yes","no","dgs_approval"].indexOf(r.ms)<0)   bad.push(r.id+": counts_toward_mscse “"+r.ms+"” is not yes/no/dgs_approval");
+    if(r.phd && ["yes","no","dgs_approval"].indexOf(r.phd)<0) bad.push(r.id+": counts_toward_phd “"+r.phd+"” is not yes/no/dgs_approval");
+  });
+  if(bad.length) return {err:"Fix these cells first:", list:bad.slice(0,12)};
+  return {data:d};
+}
+function diffData(nd){
+  var oldC={}, oldR={}, add=[], rm=[], ch=[];
+  (DATA.catalog||[]).forEach(function(c){ oldC[c.id]=c; });
+  (DATA.rules||[]).forEach(function(r){ oldR[r.id]=r; });
+  nd.catalog.forEach(function(c){
+    var o=oldC[c.id];
+    if(!o) add.push(c.id+" "+(c.title||""));
+    else if(o.title!==c.title||o.cr!==c.cr||o.kind!==c.kind||o.active!==c.active) ch.push(c.id+" (catalog)");
+    delete oldC[c.id];
+  });
+  Object.keys(oldC).forEach(function(k){ rm.push(k+" (catalog)"); });
+  nd.rules.forEach(function(r){
+    var o=oldR[r.id];
+    if(!o) add.push(r.id+" (rule)");
+    else if(o.ms!==r.ms||o.phd!==r.phd||o.core!==r.core||o.group!==r.group) ch.push(r.id+" (rule)");
+    delete oldR[r.id];
+  });
+  Object.keys(oldR).forEach(function(k){ rm.push(k+" (rule)"); });
+  return {add:add, rm:rm, ch:ch};
+}
+function showDiff(html){ $("diff").innerHTML = html; }
+function readPanel(){
+  var r=$("csv-rul").value.trim();
+  if(!r){ showDiff('<div class="diff">Paste or choose the sheet first.</div>'); return null; }
+  var b = buildData(r);
+  if(b.err){
+    showDiff('<div class="diff"><b class="rm">'+esc(b.err)+'</b>'+
+      (b.list?'<ul>'+b.list.map(function(x){return '<li class="rm">'+esc(x)+'</li>';}).join('')+'</ul>':'')+'</div>');
+    return null;
+  }
+  return b.data;
+}
+function renderDiff(nd){
+  var d = diffData(nd), parts=[];
+  if(d.add.length) parts.push('<li class="add">'+d.add.length+' added: '+esc(d.add.slice(0,8).join(", "))+(d.add.length>8?"…":"")+'</li>');
+  if(d.ch.length)  parts.push('<li class="ch">'+d.ch.length+' changed: '+esc(d.ch.slice(0,8).join(", "))+(d.ch.length>8?"…":"")+'</li>');
+  if(d.rm.length)  parts.push('<li class="rm">'+d.rm.length+' removed: '+esc(d.rm.slice(0,8).join(", "))+(d.rm.length>8?"…":"")+'</li>');
+  showDiff('<div class="diff"><b>'+nd.catalog.length+' catalog courses, '+nd.rules.length+' rules — data looks valid.</b>'+
+    (parts.length?'<ul>'+parts.join("")+'</ul>':'<ul><li>No changes from what this page is running.</li></ul>')+'</div>');
+  return d;
+}
+function applyLocal(nd){
+  DATA = nd; BY_ID={}; RULE={};
+  (DATA.catalog||[]).forEach(function(c){ BY_ID[c.id.toUpperCase()]=c; });
+  (DATA.rules||[]).forEach(function(r){ RULE[r.id.toUpperCase()]=r; });
+  CATALOG = (DATA.catalog||[]).filter(function(c){ return c.active!==false; }).map(function(c){
+    var r = RULE[c.id.toUpperCase()];
+    return {id:c.id,title:c.title,cr:c.cr,kind:c.kind||"regular",
+            cat:(r&&r.group&&r.group!=="any")?r.group:"", core:(r&&r.core)?r.core:"", multi:!!(r&&r.group==="any")};
+  });
+  (DATA.rules||[]).forEach(function(r){
+    if(!BY_ID[r.id.toUpperCase()]) CATALOG.push({id:r.id,title:r.title,cr:3,kind:"regular",
+      cat:(r.group&&r.group!=="any")?r.group:"", core:r.core||"", multi:r.group==="any"});
+  });
+  fillDatalist(); provenance(); render();
+}
+function provenance(){
+  var t = "Course data v"+(DATA.version||0)+(DATA.updated?" · updated "+DATA.updated:"")+
+          " · "+(DATA.catalog||[]).length+" courses, "+(DATA.rules||[]).length+" rules";
+  var a=$("prov-chip"), b=$("prov-line");
+  if(a) a.textContent = "v"+(DATA.version||0)+(DATA.updated?" · "+DATA.updated:"");
+  if(b) b.textContent = t;
+}
+function fillDatalist(){
+  var dl = $("known-courses"); dl.innerHTML="";
+  CATALOG.forEach(function(c){
+    var o=document.createElement("option"); o.value=c.id; o.label=c.title; o.textContent=c.title; dl.appendChild(o);
+  });
+}
+async function publishData(nd){
+  var art = null;
+  try{ art = await window.claude.use("artifact"); }catch(e){}
+  if(!art){ toast("Publishing isn’t available in this view — use “Try it here only”, or ask Claude to sync from the sheets."); return; }
+  var tmplEl = document.getElementById("self-src");
+  if(!tmplEl){ toast("This copy can’t republish itself. Ask Claude to sync from the sheets instead."); return; }
+  var ES = "__END" + "SCRIPT__";
+  var tmpl = tmplEl.textContent.split(ES).join("</scr"+"ipt");
+  var PH = "__APP" + "_DATA__";
+  var body = tmpl.replace(PH, JSON.stringify(nd).replace(/</g,"\\u003c"));
+  var doc = '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">\n</head>\n<body>\n' +
+            body + '\n<script id="self-src" type="text/plain">' +
+            tmpl.split("</scr"+"ipt").join(ES) + '<\/script>\n</body>\n</html>';
+  $("btn-pub").disabled = true; $("btn-pub").textContent = "Publishing…";
+  try{
+    await art.publish(doc);
+    toast("Published. Every student sees the new rules from now on.");
+  }catch(err){
+    var code = err && err.code;
+    if(code==="conflict") toast("Someone else published first — reload this page and re-apply your CSV.");
+    else if(code==="not_writer"||code==="not_granted") toast("Only the artifact's owner can publish. Send the CSVs to the DGS, or use “Try it here only”.");
+    else toast("Couldn’t publish"+(err&&err.message?": "+err.message:"."));
+  }
+  $("btn-pub").disabled = false; $("btn-pub").textContent = "Publish to everyone";
+}
+
+/* panel wiring */
+var pickTarget = "cat";
+$("pick-rul").addEventListener("click", function(){ pickTarget="rul"; $("csv-file").click(); });
+$("csv-file").addEventListener("change", function(){
+  var f=this.files[0]; this.value=""; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){
+    $("csv-rul").value = r.result;
+    $("rul-status").textContent = f.name;
+    var nd=readPanel(); if(nd) renderDiff(nd);
+  };
+  r.onerror=function(){ toast("Couldn’t read that file."); };
+  r.readAsText(f);
+});
+$("btn-check").addEventListener("click", function(){ var nd=readPanel(); if(nd) renderDiff(nd); });
+$("btn-try").addEventListener("click", function(){
+  var nd=readPanel(); if(!nd) return;
+  renderDiff(nd); applyLocal(nd); toast("Applied in this browser only.");
+});
+$("btn-pub").addEventListener("click", function(){
+  var nd=readPanel(); if(!nd) return;
+  renderDiff(nd); publishData(nd);
+});
+
+/* -------- boot -------- */
+load();
+fillDatalist(); provenance();
+if(!S.year) S.year = new Date().getFullYear();
+hydrate();
+Object.keys(S.flags||{}).forEach(function(k){ var el=$(k); if(el && el.type==="checkbox") el.checked=!!S.flags[k]; });
+syncProgramUI();
+})();
+__ENDSCRIPT__>
+</script>
+
+</body>
+</html>
