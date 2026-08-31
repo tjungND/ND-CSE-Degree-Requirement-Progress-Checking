@@ -5,6 +5,7 @@
 import { parseTermLabel } from '../engine/term.ts';
 import { parseCsv } from './csv.ts';
 import type { CourseType, Counts, RuleCourse, SheetIssue } from './types.ts';
+import { RESERVED_GROUP_CODES } from './types.ts';
 
 const COURSE_ID_RE = /^[A-Z]{2,5} \d{5}$/;
 const CODE_RE = /^[a-z0-9_]+$/;
@@ -264,7 +265,9 @@ export function parseCategoriesTab(
     }
     const group = cells['category_group'] ?? '';
     if (CODE_RE.test(group)) {
-      if (group !== 'any') {
+      // Reserved codes ('any', 'ineligible') may sit in this list for the
+      // sheet's own dropdowns, but they are NOT matchable §4.4.2 groups.
+      if (!(RESERVED_GROUP_CODES as readonly string[]).includes(group)) {
         if (categoryGroups.some((c) => c.code === group)) dup('category_group', group, rowNum);
         else categoryGroups.push({ code: group, name: cells['category_group_name'] || group });
       }

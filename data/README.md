@@ -37,7 +37,7 @@ policy columns are the DGS's.
 | `counts_toward_mscse` | `yes` \| `no` \| `dgs_approval` | `dgs_approval` → the app counts it provisionally and tells the student to get sign-off. |
 | `counts_toward_phd` | `yes` \| `no` \| `dgs_approval` | same |
 | `core_area` | `os` \| `algorithms` \| `architecture` \| blank | Which §4.4.1 core-knowledge area the course satisfies. |
-| `category_group` | `alg` \| `hcc` \| `arch` \| `dsai` \| `sys` \| `any` \| blank | Which §4.4.2 specialization group it belongs to. `any` = listed under all groups. |
+| `category_group` | `alg` \| `hcc` \| `arch` \| `dsai` \| `sys` \| `any` \| `ineligible` \| blank | Which §4.4.2 specialization group it belongs to. `any` = listed under all groups (the student picks one). `ineligible` = can never satisfy the category requirement — the DGS marks all 40000-level courses this way. Blank = not a category course. |
 | `typically_offered` | `fall` \| `spring` \| `both` \| `varies` \| blank | Informational (planning hints). |
 | `active` | `yes` \| `no` | `yes` → shown in the student's course picker. `no` → hidden from the picker but still recognised when typed (old courses). |
 | `last_offered` | text | Last term listed in Banner (informational). |
@@ -90,7 +90,8 @@ rather than silently passing.
 
 ### Tab `Categories` — two lists side by side
 Columns A–B hold the §4.4.1 core-knowledge areas, columns D–E the §4.4.2 specialization groups
-(column C is empty). The app reads each pair by its header name.
+(column C is empty). The app reads each pair by its header name. The codes `any` and
+`ineligible` are reserved: valid on Courses rows, but never real matchable groups.
 
 | `core_area` | `core_area_name` | | `category_group` | `category_group_name` |
 |---|---|---|---|---|
@@ -100,6 +101,7 @@ Columns A–B hold the §4.4.1 core-knowledge areas, columns D–E the §4.4.2 s
 | | | | `dsai` | Data Science and Artificial Intelligence |
 | | | | `sys` | Systems and Software |
 | | | | `any` | (listed under every group — student picks) |
+| | | | `ineligible` | Courses ineligible for qualifying examination |
 
 ### Tab `Changelog` (optional, human-only) — date, who, what changed. The app does not read it.
 

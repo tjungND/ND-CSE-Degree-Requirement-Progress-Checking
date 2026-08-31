@@ -4,6 +4,13 @@ import type { Term } from '../engine/types.ts';
 
 export type Counts = 'yes' | 'no' | 'dgs_approval';
 
+/** category_group values that are valid on a Courses row but are NOT real
+ * §4.4.2 specialization groups: 'any' = listed under every group (student
+ * picks), 'ineligible' = can never satisfy the category requirement (the DGS
+ * marks all 40000-level courses this way). They may appear in the Categories
+ * tab for the sheet's own dropdowns, but never join the matchable group list. */
+export const RESERVED_GROUP_CODES = ['any', 'ineligible'] as const;
+
 export type CourseType = 'regular' | 'seminar' | 'research' | 'independent' | 'project';
 
 /** One row of the Courses tab (the same course_id may appear in several rows
@@ -19,7 +26,7 @@ export interface RuleCourse {
   countsTowardMscse?: Counts; // blank → needs DGS review
   countsTowardPhd?: Counts;
   coreArea?: string; // validated against the Categories core list (§4.4.1)
-  categoryGroup?: string; // validated against the Categories groups + 'any' (§4.4.2)
+  categoryGroup?: string; // validated against the Categories groups + RESERVED_GROUP_CODES (§4.4.2)
   typicallyOffered?: string;
   active: boolean; // course-picker visibility only
   effectiveTerm?: Term;

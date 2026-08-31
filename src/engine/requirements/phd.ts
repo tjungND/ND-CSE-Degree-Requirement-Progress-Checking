@@ -422,6 +422,10 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     if (c.superseded || c.entry.origin !== 'nd') continue;
     const group = c.rule?.categoryGroup;
     if (!group) continue;
+    // 'ineligible' (all 40000-level courses, per the DGS's sheet) can never
+    // satisfy §4.4.2 — and any group code not in the Categories list is not a
+    // candidate either (defensive: a stale sheet value must not inflate counts).
+    if (group !== 'any' && !allGroups.includes(group)) continue;
     const cand: GroupCandidate = {
       courseId: c.entry.courseId,
       title: c.rule?.title ?? c.entry.title ?? '',

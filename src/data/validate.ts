@@ -2,6 +2,7 @@
 // plain English for the DGS diagnostics panel.
 import { termIndex } from '../engine/term.ts';
 import type { RuleCourse, SheetIssue } from './types.ts';
+import { RESERVED_GROUP_CODES } from './types.ts';
 
 export function validateCourses(
   courses: RuleCourse[],
@@ -10,7 +11,7 @@ export function validateCourses(
   issues: SheetIssue[],
 ): RuleCourse[] {
   const coreCodes = new Set(coreAreas.map((c) => c.code));
-  const groupCodes = new Set([...categoryGroups.map((c) => c.code), 'any']);
+  const groupCodes = new Set([...categoryGroups.map((c) => c.code), ...RESERVED_GROUP_CODES]);
 
   const kept: RuleCourse[] = [];
   const seen = new Set<string>();

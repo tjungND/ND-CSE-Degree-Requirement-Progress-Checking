@@ -13,6 +13,6 @@ CSE 63802,Research Seminar II,6,1,1,1,seminar,no,yes,,,spring,yes,Spring 2026,Fa
 CSE 68901,M.S. Thesis Direction,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,yes,§3.2 — thesis direction credits
 CSE 68902,M.S. Project,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,yes,§3.2 — project credits
 CSE 98900,Research and Dissertation,9,1,15,9,research,no,yes,,,both,yes,Fall 2026,Fall 2026,yes,Ph.D. research credits — count toward the 60 total only
-CSE 40113,Design/Analysis of Algorithms,4,3,3,3,regular,dgs_approval,dgs_approval,,,fall,yes,Fall 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
-CSE 40567,Computer Security,4,3,3,3,regular,dgs_approval,dgs_approval,,,spring,yes,Spring 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
-CSE 40875,Statistical Computing,4,3,3,3,regular,dgs_approval,dgs_approval,,,fall,yes,Fall 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40113,Design/Analysis of Algorithms,4,3,3,3,regular,dgs_approval,dgs_approval,,ineligible,fall,yes,Fall 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40567,Computer Security,4,3,3,3,regular,dgs_approval,dgs_approval,,ineligible,spring,yes,Spring 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40875,Statistical Computing,4,3,3,3,regular,dgs_approval,dgs_approval,,ineligible,fall,yes,Fall 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
