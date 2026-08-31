@@ -52,7 +52,7 @@ export function validateCourses(
     // Semantic sniff: a research/seminar-titled course typed 'regular' would
     // count toward the 24 regular credits (§3.2/§4.2) — almost certainly a
     // sheet mistake (the live sheet has several such rows).
-    if (c.courseType === 'regular' && /research|dissertation|seminar|thesis/i.test(c.title)) {
+    if (c.courseType === 'regular' && /\b(research|dissertation|seminar|thesis)\b/i.test(c.title)) {
       issues.push({
         severity: 'warning',
         tab: 'Courses',
