@@ -9,7 +9,7 @@
 // entry-order greedy, where re-sorting the course list changed the verdict.
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { RuleCourse, Rules } from '../data/types.ts';
-import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
+import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
 import { compareTerm, normalizeEntryTerm, shiftTermYears, termIndex, termLabel } from './term.ts';
@@ -98,12 +98,17 @@ export function classify(student: Student, rules: Rules): {
     (a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId),
   );
 
-  // §4.4.2 retakes / duplicate entries: credits count once. Applies to courses
-  // that are (or look like) regular courses; project/research/seminar credits
-  // legitimately accumulate across terms.
+  // §4.4.2 retakes / duplicate entries: credits count once. Applies to ND
+  // courses that are (or look like) regular courses; project/research/seminar
+  // credits legitimately accumulate, and foreign transfer ids may collide with
+  // ND numbering without being retakes.
+  // Which attempt counts: the last PASSING final grade; failing that, a live
+  // in-progress retake (so a student re-taking a failed course gets in-progress
+  // credit, and a later failed attempt never erases an earlier pass).
   const supersededSet = new Set<CourseEntry>();
   const byId = new Map<string, CourseEntry[]>();
   for (const c of sorted) {
+    if (c.origin !== 'nd') continue;
     const rule = resolveRuleRow(rules, c.courseId, c.term);
     const type = rule?.courseType ?? 'regular';
     if (type !== 'regular') continue;
@@ -113,8 +118,14 @@ export function classify(student: Student, rules: Rules): {
   }
   for (const [id, attempts] of byId) {
     if (attempts.length < 2) continue;
-    const finals = attempts.filter((a) => !isInProgress(a.grade));
-    const counted = finals.length > 0 ? finals[finals.length - 1]! : attempts[attempts.length - 1]!;
+    const passing = attempts.filter((a) => isPassed(a.grade));
+    const inProgress = attempts.filter((a) => isInProgress(a.grade));
+    const counted =
+      passing.length > 0
+        ? passing[passing.length - 1]!
+        : inProgress.length > 0
+          ? inProgress[inProgress.length - 1]!
+          : attempts[attempts.length - 1]!; // all failed → last one (earns nothing anyway)
     for (const a of attempts) if (a !== counted) supersededSet.add(a);
     warnings.push(`${id} is entered ${attempts.length} times — its credits count once (§4.4.2 retake rule).`);
   }
@@ -125,12 +136,26 @@ export function classify(student: Student, rules: Rules): {
     const grade = c.grade;
     const base: ClassifiedCourse = { entry: c, rule, pool: 'none', caps: [], tier: 'provisional' };
 
+    // Guard rails for hand-edited/imported data: an unknown grade or a
+    // missing/negative credit value must never be silently counted.
+    if (!GRADES.includes(grade)) {
+      warnings.push(`${c.courseId}: grade '${String(grade)}' is not recognized — the course is not counted. Fix the entry.`);
+      return { ...base, ineligibleReason: `not counted — unrecognized grade '${String(grade)}'` };
+    }
+    if (!Number.isFinite(c.credits) || c.credits < 0) {
+      warnings.push(`${c.courseId}: credits '${String(c.credits)}' is not a number — the course is not counted. Fix the entry.`);
+      return { ...base, ineligibleReason: 'not counted — the credit value is missing or not a number' };
+    }
+
     if (supersededSet.has(c)) {
-      const countedTerm = byId.get(c.courseId)?.find((a) => !supersededSet.has(a))?.term;
+      const countedAttempt = byId.get(c.courseId)?.find((a) => !supersededSet.has(a));
+      const countedIsLater = countedAttempt && compareTerm(countedAttempt.term, c.term) > 0;
       return {
         ...base,
         superseded: true,
-        ineligibleReason: `superseded by the ${countedTerm ? termLabel(countedTerm) : 'later'} retake — credits count once, and the retake grade replaces this one (§4.4.2)`,
+        ineligibleReason: countedIsLater
+          ? `superseded by the ${termLabel(countedAttempt.term)} retake — credits count once, and the retake grade replaces this one (§4.4.2)`
+          : `credits count once (§4.4.2) — the ${countedAttempt ? termLabel(countedAttempt.term) : 'other'} attempt of this course is the one counted`,
       };
     }
 
@@ -212,11 +237,18 @@ export function classify(student: Student, rules: Rules): {
     if (counts === 'no') {
       return { ...base, ineligibleReason: `the rules sheet says it does not count toward the ${programName}` };
     }
+    // A sheet-listed dgs_approval course is cleared by the matching attestation:
+    // 40000-level → the 4xxxx checkbox; non-CSE → the non-CSE checkbox. A CSE
+    // course above the 40000 level flagged dgs_approval has no checkbox — it
+    // stays provisional and the approvals row explains.
+    const approvalAttested =
+      (level === 4 && attestations.dgsApproved4xxxx === true) ||
+      (!isCse && attestations.dgsApprovedNonCse === true);
     const approvalPending =
       counts === undefined
         ? 'the rules sheet does not say whether it counts — needs DGS review'
         : counts === 'dgs_approval'
-          ? level === 4 && attestations.dgsApproved4xxxx === true
+          ? approvalAttested
             ? undefined
             : 'needs advisor + DGS approval per the rules sheet'
           : undefined;

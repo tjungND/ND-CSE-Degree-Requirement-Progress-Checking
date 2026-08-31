@@ -1,0 +1,28 @@
+{
+  "name": "phd-transfer-cap-binds",
+  "description": "Unfinished prior M.S. (§5.2: at most six transfer credits): nine eligible transfer credits are entered, so the cap binds and the newest three are excluded.",
+  "today": "2027-03-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "unfinished",
+    "gpa": 3.4,
+    "courses": [
+      { "courseId": "CS 51000", "title": "Algorithms (Purdue)", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "transfer", "institution": "Purdue" },
+      { "courseId": "CS 52300", "title": "Compilers (Purdue)", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A-", "origin": "transfer", "institution": "Purdue" },
+      { "courseId": "CS 53800", "title": "Networks (Purdue)", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "B+", "origin": "transfer", "institution": "Purdue" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.transfer": { "status": "needs_dgs_review", "detailIncludes": ["6 of 6"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24", "6 pending review"] }
+  },
+  "expectCourseLines": {
+    "CS 53800": ["not counted", "cap"]
+  }
+}

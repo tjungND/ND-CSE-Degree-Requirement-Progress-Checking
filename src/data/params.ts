@@ -51,6 +51,11 @@ export function makeParameters(
     number: (key) => {
       const entry = raw.get(key);
       if (!entry) return undefined;
+      // Number('') is 0 — a blank cell must read as missing, never as zero.
+      if (entry.value.trim() === '') {
+        badValue(key, 'a number (the cell is blank)');
+        return undefined;
+      }
       const n = Number(entry.value);
       if (!Number.isFinite(n)) {
         badValue(key, 'a number');

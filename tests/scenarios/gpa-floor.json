@@ -16,7 +16,7 @@
     "attestations": {}
   },
   "expect": {
-    "shared.gpa": { "status": "unmet", "detailIncludes": ["3"] },
+    "shared.gpa": { "status": "unmet", "detailIncludes": ["2.90", "below the 3.0"] },
     "phd.dissertation.approval": { "status": "unmet" },
     "phd.dissertation.defense": { "status": "unmet", "detailIncludes": ["may not defend"] }
   }

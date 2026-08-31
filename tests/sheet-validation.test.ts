@@ -44,6 +44,44 @@ describe('sheet validation', () => {
     assert.equal(rules.courses.has('CSE 60641'), false, 'bad row is skipped, not guessed');
   });
 
+  it("blank course_type → reported and skipped, never silently 'regular'", () => {
+    const texts = fixtureCsvTexts();
+    const courses = texts.courses.replace(
+      'CSE 60641,Graduate Operating Systems,6,3,3,3,regular',
+      'CSE 60641,Graduate Operating Systems,6,3,3,3,',
+    );
+    const rules = rulesFromCsvTexts({ ...texts, courses }, meta);
+    const issue = rules.issues.find((i) => i.column === 'course_type' && i.message.includes('blank'));
+    assert.ok(issue, 'expected a blank course_type issue');
+    assert.equal(rules.courses.has('CSE 60641'), false);
+  });
+
+  it('a duplicated header column is reported and the first one wins', () => {
+    const texts = fixtureCsvTexts();
+    const courses = texts.courses.replace(',notes\n', ',notes,notes\n');
+    const rules = rulesFromCsvTexts({ ...texts, courses }, meta);
+    const issue = rules.issues.find((i) => i.message.includes("two 'notes' columns"));
+    assert.ok(issue, 'expected a duplicate-header issue');
+  });
+
+  it("an unrecognized grade in student data is never counted (import tampering guard)", () => {
+    const rules = rulesFromCsvTexts(fixtureCsvTexts(), meta);
+    const student = {
+      schemaVersion: 1, program: 'phd', entryTerm: { season: 'fall', year: 2026 }, priorMs: 'none',
+      courses: [
+        { courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'Z', origin: 'nd' },
+        { courseId: 'CSE 60111', credits: Number.NaN, term: { season: 'spring', year: 2027 }, grade: 'A', origin: 'nd' },
+      ],
+      milestones: {}, attestations: {},
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const report = audit(student as any, rules, '2027-01-15');
+    const total = report.requirements.find((r) => r.id === 'phd.credits.total');
+    assert.ok(total?.detail.includes('0 of 60'), total?.detail ?? 'no total row');
+    assert.ok(report.warnings.some((w) => w.includes("grade 'Z'")));
+    assert.ok(report.warnings.some((w) => w.includes('credits')));
+  });
+
   it('duplicate course_id + effective_term → reported, first row wins', () => {
     const texts = fixtureCsvTexts();
     const dup =
@@ -103,6 +141,19 @@ describe('sheet validation', () => {
       rules.categoryGroups.map((c) => c.code),
       ['alg', 'hcc', 'arch', 'dsai', 'sys'],
     );
+  });
+});
+
+describe('blank parameter values never read as zero', () => {
+  it("gpa_min = '' → issue + cannot_evaluate, NOT a 0.0 floor everyone passes", () => {
+    const sc: ScenarioFile = JSON.parse(
+      readFileSync(join(here, 'scenarios', 'gpa-floor.json'), 'utf8'),
+    );
+    const rules = buildRules({ parameters: { gpa_min: '' } });
+    assert.equal(rules.parameters.number('gpa_min'), undefined);
+    assert.ok(rules.issues.some((i) => i.message.includes("'gpa_min'") && i.message.includes('blank')));
+    const report = audit(sc.student, rules, sc.today);
+    assert.equal(report.requirements.find((r) => r.id === 'shared.gpa')?.status, 'cannot_evaluate');
   });
 });
 

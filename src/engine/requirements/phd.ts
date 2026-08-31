@@ -317,6 +317,9 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): Requirem
         parts.push('Remember to notify the CSE DGS office by filing the qualifier form (§4.4)');
       }
     } else if (ctx.today > date && !ctx.student.attestations.qualifierExtensionGranted) {
+      // Decision Q17b: a deadline past with the work incomplete is unmet, even
+      // when a component is still in progress (matching deadlineStatus()).
+      status = 'unmet';
       parts.push(
         `Overdue — all three components were due by the end of ${termLabel(term)} (${date}, approximate). The DGS may extend the deadline on a case-by-case basis (§4.4)`,
       );

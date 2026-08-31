@@ -18,15 +18,29 @@ interface Tab {
   rows: [number, Record<string, string>][];
 }
 
-function readTab(text: string): Tab {
+function readTab(text: string, tabName: string, issues: SheetIssue[]): Tab {
   const raw = parseCsv(text);
   const header = (raw[0] ?? []).map((h) => h.trim().toLowerCase());
+  const seen = new Set<string>();
+  for (const name of header) {
+    if (!name) continue;
+    if (seen.has(name)) {
+      issues.push({
+        severity: 'error',
+        tab: tabName,
+        row: 1,
+        column: name,
+        message: `The ${tabName} tab's header row has two '${name}' columns — only the first is read; delete or rename one.`,
+      });
+    }
+    seen.add(name);
+  }
   const rows: Tab['rows'] = [];
   for (let i = 1; i < raw.length; i++) {
     const cells: Record<string, string> = {};
     for (let c = 0; c < header.length; c++) {
       const name = header[c]!;
-      if (name) cells[name] = (raw[i]![c] ?? '').trim();
+      if (name && !(name in cells)) cells[name] = (raw[i]![c] ?? '').trim(); // first column wins
     }
     rows.push([i + 1, cells]); // 1-based spreadsheet row (header is row 1)
   }
@@ -49,7 +63,7 @@ function isBlankRow(cells: Record<string, string>): boolean {
 // ---------- Courses tab ----------
 
 export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[] {
-  const tab = readTab(text);
+  const tab = readTab(text, 'Courses', issues);
   const out: RuleCourse[] = [];
   if (!tab.header.includes('course_id')) {
     issues.push({
@@ -60,8 +74,11 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
     return out;
   }
   for (const [rowNum, cells] of tab.rows) {
-    if (isBlankRow(cells) || isNoteRow(cells, 'course_id', COURSE_ID_RE)) continue;
     const courseId = (cells['course_id'] ?? '').toUpperCase().replace(/\s+/g, ' ').trim();
+    // Note-row check runs on the NORMALIZED id, so "cse 60641" is a data row
+    // (parsed below), not a silently skipped note.
+    if (isBlankRow(cells) || isNoteRow({ ...cells, course_id: courseId }, 'course_id', COURSE_ID_RE))
+      continue;
     if (!COURSE_ID_RE.test(courseId)) {
       issues.push({
         severity: 'error',
@@ -83,12 +100,29 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       });
     };
 
-    const typeRaw = cells['course_type'] || 'regular';
+    // A blank course_type must not silently become 'regular' (which counts
+    // toward the 24 regular credits) — report it and skip the row.
+    const typeRaw = cells['course_type'] ?? '';
+    if (typeRaw === '') {
+      bad('course_type', '(blank)', COURSE_TYPES.join('|'));
+      continue;
+    }
     if (!COURSE_TYPES.includes(typeRaw as CourseType)) {
       bad('course_type', typeRaw, COURSE_TYPES.join('|'));
       continue;
     }
     const courseType = typeRaw as CourseType;
+
+    const activeRaw = cells['active'] ?? '';
+    if (activeRaw !== '' && activeRaw !== 'yes' && activeRaw !== 'no') {
+      issues.push({
+        severity: 'warning',
+        tab: 'Courses',
+        row: rowNum,
+        column: 'active',
+        message: `Courses row ${rowNum} (${courseId}), column active: '${activeRaw}' is not yes|no — treating it as yes.`,
+      });
+    }
 
     const countsOf = (column: string): Counts | undefined | null => {
       const v = cells[column] ?? '';
@@ -150,7 +184,7 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       coreArea: cells['core_area'] || undefined,
       categoryGroup: cells['category_group'] || undefined,
       typicallyOffered: cells['typically_offered'] || undefined,
-      active: (cells['active'] || 'yes') !== 'no',
+      active: activeRaw !== 'no',
       effectiveTerm,
       notes: cells['notes'] || undefined,
       sheetRow: rowNum,
@@ -165,7 +199,7 @@ export function parseParametersTab(
   text: string,
   issues: SheetIssue[],
 ): Map<string, { value: string; section: string; row: number }> {
-  const tab = readTab(text);
+  const tab = readTab(text, 'Parameters', issues);
   const out = new Map<string, { value: string; section: string; row: number }>();
   for (const [rowNum, cells] of tab.rows) {
     if (isBlankRow(cells) || isNoteRow(cells, 'key', CODE_RE)) continue;
@@ -201,15 +235,24 @@ export function parseCategoriesTab(
   text: string,
   issues: SheetIssue[],
 ): { coreAreas: { code: string; name: string }[]; categoryGroups: { code: string; name: string }[] } {
-  const tab = readTab(text);
+  const tab = readTab(text, 'Categories', issues);
   const coreAreas: { code: string; name: string }[] = [];
   const categoryGroups: { code: string; name: string }[] = [];
+  const dup = (column: string, code: string, rowNum: number) =>
+    issues.push({
+      severity: 'error',
+      tab: 'Categories',
+      row: rowNum,
+      column,
+      message: `Categories row ${rowNum}: the code '${code}' appears twice in ${column} — using the first entry.`,
+    });
   for (const [rowNum, cells] of tab.rows) {
     // Each half is read independently; a prose note row has an invalid code in
     // one half and nothing in the other, so both halves just skip it.
     const core = cells['core_area'] ?? '';
     if (CODE_RE.test(core)) {
-      coreAreas.push({ code: core, name: cells['core_area_name'] || core });
+      if (coreAreas.some((c) => c.code === core)) dup('core_area', core, rowNum);
+      else coreAreas.push({ code: core, name: cells['core_area_name'] || core });
     } else if (core !== '' && (cells['core_area_name'] ?? '') !== '') {
       issues.push({
         severity: 'error',
@@ -221,7 +264,10 @@ export function parseCategoriesTab(
     }
     const group = cells['category_group'] ?? '';
     if (CODE_RE.test(group)) {
-      if (group !== 'any') categoryGroups.push({ code: group, name: cells['category_group_name'] || group });
+      if (group !== 'any') {
+        if (categoryGroups.some((c) => c.code === group)) dup('category_group', group, rowNum);
+        else categoryGroups.push({ code: group, name: cells['category_group_name'] || group });
+      }
     } else if (group !== '' && (cells['category_group_name'] ?? '') !== '') {
       issues.push({
         severity: 'error',

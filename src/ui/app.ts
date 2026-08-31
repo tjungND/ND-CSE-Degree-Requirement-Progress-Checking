@@ -23,7 +23,11 @@ const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
 export function startApp(root: HTMLElement, rules: Rules): void {
   let student: Student = loadLocal() ?? emptyStudent();
-  const todayIso = new Date().toISOString().slice(0, 10);
+  // Local date, not UTC — an evening at Notre Dame must not audit as tomorrow.
+  const now = new Date();
+  const p2 = (n: number) => String(n).padStart(2, '0');
+  const todayIso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+  const fullTimeFloor = rules.parameters.number('fulltime_credits_min') ?? 9;
   let toastTimer: number | undefined;
 
   const update = (mutate: (s: Student) => void): void => {
@@ -201,7 +205,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       byTermCredits.set(termIndex(c.term), (byTermCredits.get(termIndex(c.term)) ?? 0) + c.credits);
     }
     for (const [key, t] of [...terms.entries()].sort((a, b) => a[0] - b[0])) {
-      const auto = (byTermCredits.get(key) ?? 0) >= 9;
+      const auto = (byTermCredits.get(key) ?? 0) >= fullTimeFloor;
       const overridden = (student.fullTimeTermOverrides ?? []).some((o) => termIndex(o) === key);
       const cb = el('input', {
         type: 'checkbox',
@@ -217,7 +221,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       cb.checked = auto || overridden;
       cb.disabled = auto;
       box.append(
-        el('label', { class: 'ft-term' }, cb, ` ${termLabel(t)}${auto ? ' (9+ credits entered)' : ''}`),
+        el('label', { class: 'ft-term' }, cb, ` ${termLabel(t)}${auto ? ` (${fullTimeFloor}+ credits entered)` : ''}`),
       );
     }
     return box;
@@ -351,8 +355,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('th', {}, ''),
       ),
     );
+    // Consume lines as they are matched so two entries of the same course in
+    // the same term each get their own line (e.g. a duplicate-entry pair).
+    const linePool = [...courseLines];
     student.courses.forEach((c, index) => {
-      const line = courseLines.find((l) => l.courseId === c.courseId && termIndex(l.term) === termIndex(c.term));
+      const li = linePool.findIndex((l) => l.courseId === c.courseId && termIndex(l.term) === termIndex(c.term));
+      const line = li >= 0 ? linePool.splice(li, 1)[0] : undefined;
       const rule = resolveRuleRow(rules, c.courseId, c.term);
       const nameCell = el(
         'td',
@@ -376,9 +384,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         }
         countsCell.append(el('div', {}, sel));
       }
+      // Strike through only courses that count NOTHING — a course partly over
+      // a cap still counts its allowed credits.
+      const countsNothing =
+        line !== undefined && /^(not counted|superseded|failed|credits count once)/.test(line.text);
       const row = el(
         'tr',
-        { class: line && /not counted|superseded|failed/.test(line.text) ? 'dropped' : '' },
+        { class: countsNothing ? 'dropped' : '' },
         nameCell,
         el('td', {}, termLabel(c.term)),
         el('td', {}, String(c.credits)),
@@ -493,9 +505,16 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       if (!file) return;
       try {
         const imported = await importFile(file);
+        const previous = student;
         student = imported;
+        try {
+          render(); // render BEFORE persisting, so a file that crashes rendering is never saved
+        } catch (renderErr) {
+          student = previous;
+          render();
+          throw renderErr;
+        }
         saveLocal(student);
-        render();
         toast('Progress loaded.');
       } catch (err) {
         toast(err instanceof Error ? err.message : 'That file could not be read.');

@@ -35,8 +35,11 @@ export async function loadRules(nowIso: string): Promise<Rules> {
       fetchCsv(sheetUrls.categories),
     ]);
     const rules = rulesFromCsvTexts({ courses, parameters, categories }, { source: 'live', syncedAt: nowIso });
-    // A live sheet with no usable Courses rows is worse than the snapshot.
-    if (rules.courses.size === 0) return rulesFromSnapshot();
+    // A live sheet missing an entire tab's data is worse than the snapshot
+    // (e.g. a tab accidentally unpublished still returns an empty CSV).
+    if (rules.courses.size === 0 || rules.parameters.raw.size === 0 || rules.categoryGroups.length === 0) {
+      return rulesFromSnapshot();
+    }
     return rules;
   } catch {
     return rulesFromSnapshot();

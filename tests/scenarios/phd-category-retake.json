@@ -13,7 +13,8 @@
       { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "C+", "origin": "nd" },
       { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2028 }, "grade": "A", "origin": "nd" },
       { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
-      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 50500", "title": "Some Bridge Course", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
     ],
     "milestones": {},
     "attestations": {}
@@ -23,6 +24,7 @@
     "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] }
   },
   "expectCourseLines": {
-    "CSE 60111": ["retake"]
+    "CSE 60111": ["retake"],
+    "CSE 50500": ["not counted", "50000-level"]
   }
 }

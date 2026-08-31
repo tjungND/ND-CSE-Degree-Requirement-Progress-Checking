@@ -57,13 +57,14 @@ Paste these rows into the `Parameters` tab — until then the affected requireme
 | transfer_min_grade | B | §5.2 |
 | fulltime_credits_min | 9 | §2.1.2 |
 
-Also: change `phd_total_credits_min`'s `handbook_section` from `CONFIRM` to `§4.2` (the sentence
-is right there: "The graduate school requires a total of sixty (60) credits of courses and
-research for the Ph.D."), and fix these `Courses` rows, which are typed `regular` + `yes` and
-would wrongly count toward the **24 regular credits**: `CSE 98900 Research and Dissertation`
-(→ `research`), `CSE 68900 Thesis Direction` (→ `project` or `research`), `CSE 87701`,
-`CSE 44901`/`CSE 48900 Undergraduate Research` (→ `no`, or an appropriate type). The app's
-diagnostics panel (bottom of the input column) lists these same problems whenever it loads.
+Also fix these `Courses` rows, which are typed `regular` + `counts_toward = yes` and would
+wrongly count toward the **24 regular credits**: `CSE 98900 Research and Dissertation`
+(→ `research`), `CSE 68900 Thesis Direction` (→ `project` or `research`), and `CSE 87701`.
+Two more just need a decision (they already surface as "needs DGS review"/provisional rather
+than counting silently): `CSE 44901 Undergraduate Research` (blank `counts_toward_*`) and
+`CSE 48900 Undergraduate Research` (`dgs_approval`) — pick final `counts_toward_*` and
+`course_type` values. The app's diagnostics panel (bottom of the input column) lists these
+same problems whenever it loads.
 
 ## Sync, deploy, test
 

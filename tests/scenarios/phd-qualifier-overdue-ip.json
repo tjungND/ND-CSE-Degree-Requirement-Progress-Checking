@@ -1,0 +1,28 @@
+{
+  "name": "phd-qualifier-overdue-ip",
+  "description": "Past the §4.4 four-semester qualifier deadline with one core area still merely in progress: the umbrella row is unmet (deadline reality beats in-progress children), with the DGS-may-extend note.",
+  "today": "2027-01-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2024 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "IP", "origin": "nd" }
+    ],
+    "milestones": { "advisorIdentified": "2024-09-01", "researchQualifierPassed": "2025-08-01" },
+    "attestations": { "advisorApprovedPlan": true }
+  },
+  "expect": {
+    "phd.qualifier.core.architecture": { "status": "in_progress" },
+    "phd.qualifier.categories": { "status": "met" },
+    "phd.qualifier.research": { "status": "met" },
+    "phd.qualifier": { "status": "unmet", "detailIncludes": ["Overdue", "DGS may extend"] }
+  }
+}

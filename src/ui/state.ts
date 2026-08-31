@@ -31,8 +31,27 @@ export function validateStudent(data: unknown): Student {
     );
   }
   if (d.program !== 'mscse' && d.program !== 'phd') throw new Error("This file has no program ('mscse' or 'phd').");
-  if (!d.entryTerm || typeof d.entryTerm.year !== 'number') throw new Error('This file has no entry term.');
+  if (!d.entryTerm || typeof d.entryTerm.year !== 'number' || !SEASONS.includes(d.entryTerm.season as never)) {
+    throw new Error('This file has no valid entry term.');
+  }
   if (!Array.isArray(d.courses)) throw new Error('This file has no course list.');
+  // Deep-check each course — a malformed entry accepted here would crash every
+  // later page load, since the file is saved to localStorage.
+  d.courses.forEach((c: unknown, i: number) => {
+    const e = c as Record<string, unknown>;
+    const where = `Course ${i + 1} in the file`;
+    if (!e || typeof e !== 'object') throw new Error(`${where} is not an object.`);
+    if (typeof e['courseId'] !== 'string' || e['courseId'].trim() === '')
+      throw new Error(`${where} has no course number.`);
+    if (typeof e['credits'] !== 'number' || !Number.isFinite(e['credits']))
+      throw new Error(`${where} (${String(e['courseId'])}) has no numeric credits value.`);
+    const term = e['term'] as Record<string, unknown> | undefined;
+    if (!term || typeof term['year'] !== 'number' || !SEASONS.includes(term['season'] as never))
+      throw new Error(`${where} (${String(e['courseId'])}) has no valid term.`);
+    if (typeof e['grade'] !== 'string') throw new Error(`${where} (${String(e['courseId'])}) has no grade.`);
+    if (e['origin'] !== 'nd' && e['origin'] !== 'transfer')
+      throw new Error(`${where} (${String(e['courseId'])}) has no origin ('nd' or 'transfer').`);
+  });
   return {
     ...emptyStudent(),
     ...d,
@@ -41,6 +60,8 @@ export function validateStudent(data: unknown): Student {
     courses: d.courses,
   } as Student;
 }
+
+const SEASONS = ['fall', 'spring', 'summer'];
 
 export function loadLocal(): Student | undefined {
   try {

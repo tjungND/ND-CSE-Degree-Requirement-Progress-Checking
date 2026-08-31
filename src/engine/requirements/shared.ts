@@ -78,13 +78,28 @@ export function advisorRow(ctx: Ctx): RequirementResult {
  * (dgs_approval rows, unknown courses, free-text non-CSE, transfers). */
 export function approvalsRow(ctx: Ctx): RequirementResult {
   const pending = ctx.classified.filter((c) => !c.superseded && c.approvalPending && c.pool !== 'none');
-  const status = pending.length === 0 ? 'not_applicable' : 'needs_dgs_review';
+  // §3.2/§4.2: "All courses taken by a student must have the approval of their
+  // advisor." — self-attested via the plan-of-study checkbox (decision Q21).
+  const planUnconfirmed =
+    ctx.student.courses.length > 0 && ctx.student.attestations.advisorApprovedPlan !== true;
+  const status = pending.length === 0 && !planUnconfirmed ? 'not_applicable' : 'needs_dgs_review';
+  const parts: string[] = [];
+  if (pending.length > 0) {
+    parts.push(
+      `These courses are counted provisionally until the sign-off happens: ${pending
+        .map((c) => `${c.entry.courseId} (${c.approvalPending})`)
+        .join('; ')}`,
+    );
+  }
+  if (planUnconfirmed) {
+    parts.push(
+      'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the attestation below the milestones',
+    );
+  }
   const detail =
-    pending.length === 0
+    parts.length === 0
       ? 'No entered course needs a DGS decision.'
-      : `These courses are counted provisionally until the sign-off happens: ${pending
-          .map((c) => `${c.entry.courseId} (${c.approvalPending})`)
-          .join('; ')}. The attestation checkboxes record approvals you already have.`;
+      : parts.join('. ') + '. The attestation checkboxes record approvals you already have.';
   return {
     id: 'shared.approvals',
     group: 'Approvals',

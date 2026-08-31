@@ -1,0 +1,31 @@
+{
+  "name": "phd-failed-retake",
+  "description": "A failed course being retaken right now: the live IP retake counts (in progress), the F attempt earns nothing (DGS decision), and a U-graded seminar earns nothing.",
+  "today": "2026-03-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2024 },
+    "priorMs": "none",
+    "gpa": 2.8,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "F", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "IP", "origin": "nd" },
+      { "courseId": "CSE 63801", "credits": 1, "term": { "season": "fall", "year": 2025 }, "grade": "U", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.core.os": { "status": "in_progress" },
+    "phd.credits.total": { "status": "unmet", "detailIncludes": ["0 of 60", "3 in progress"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["0 of 24"] },
+    "phd.seminar": { "status": "unmet" },
+    "shared.approvals": { "status": "needs_dgs_review", "detailIncludes": ["advisor approved your plan"] }
+  },
+  "expectCourseLines": {
+    "CSE 60641": ["credits count once", "§4.4.2"],
+    "CSE 63801": ["failed", "earns no credit"]
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "unknown-course",
-  "description": "A CSE course id that is not in the rules sheet: flagged for DGS review, counted only provisionally, never silently accepted or rejected.",
+  "description": "Sheet verdicts are honored at every level: an unknown course is provisional (never silently counted), counts_toward=no is honored for a 6xxxx independent course and a blocked 4xxxx, and blank counts_toward means needs DGS review.",
   "today": "2027-01-15",
   "rules": { "base": "default" },
   "student": {
@@ -11,7 +11,10 @@
     "gpa": 3.2,
     "courses": [
       { "courseId": "CSE 60007", "title": "Made-Up Graduate Topics", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
-      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 66998", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 40437", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60999", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
     ],
     "milestones": {},
     "attestations": {}
@@ -21,6 +24,9 @@
     "phd.credits.regular": { "status": "unmet" }
   },
   "expectCourseLines": {
-    "CSE 60007": ["not in the rules sheet", "DGS"]
+    "CSE 60007": ["not in the rules sheet", "DGS"],
+    "CSE 66998": ["does not count"],
+    "CSE 40437": ["does not count"],
+    "CSE 60999": ["needs DGS review"]
   }
 }

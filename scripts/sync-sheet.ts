@@ -28,8 +28,8 @@ const [courses, parameters, categories] = await Promise.all([
 const syncedAt = new Date().toISOString();
 const rules = rulesFromCsvTexts({ courses, parameters, categories }, { source: 'live', syncedAt });
 
-if (rules.courses.size === 0) {
-  console.error('Refusing to write a snapshot with zero usable Courses rows — check the published sheet.');
+if (rules.courses.size === 0 || rules.parameters.raw.size === 0 || rules.categoryGroups.length === 0) {
+  console.error('Refusing to write a snapshot with an empty Courses/Parameters/Categories tab — check the published sheet.');
   process.exit(1);
 }
 
