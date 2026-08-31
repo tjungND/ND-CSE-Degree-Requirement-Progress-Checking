@@ -7,6 +7,7 @@ import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
+import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
@@ -29,6 +30,10 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   const todayIso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
   const fullTimeFloor = rules.parameters.number('fulltime_credits_min') ?? 9;
   let toastTimer: number | undefined;
+  /** Parsed-transcript preview awaiting the student's confirmation. */
+  let transcriptPreview:
+    | { courses: ParsedCourse[]; selected: boolean[]; duplicate: boolean[]; gpa?: number; useGpa: boolean }
+    | undefined;
 
   const update = (mutate: (s: Student) => void): void => {
     mutate(student);
@@ -239,10 +244,138 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         { class: 'hint' },
         'Add everything you have taken or are taking. Regular courses have a regular meeting time, assigned readings, graded assignments, and a final exam — research seminars, research credits, and independent study do not (§3.2/§4.2). Courses not in the list can be typed in full (e.g. a non-CSE course) and will be flagged for DGS review.',
       ),
+      transcriptUpload(),
+      transcriptPreview ? transcriptPreviewBlock() : null,
       courseForm(),
       courseTable(courseLines),
     );
     return card;
+  }
+
+  // ---------- transcript upload ----------
+
+  function transcriptUpload(): HTMLElement {
+    const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: 'hidden' });
+    fileInput.addEventListener('change', async () => {
+      const file = (fileInput as HTMLInputElement).files?.[0];
+      if (!file) return;
+      toast('Reading the transcript… (it never leaves this browser)');
+      try {
+        const { pdfToLines } = await import('../transcript/pdf.ts'); // pdfjs loads lazily
+        const lines = await pdfToLines(await file.arrayBuffer());
+        const parsed = parseTranscript(lines);
+        if (!parsed.isNotreDame) {
+          transcriptPreview = undefined;
+          render();
+          toast(
+            "Only Notre Dame's unofficial transcript is accepted for now — transcripts from other institutions must be manually reviewed by the DGS (enter those courses as 'Transferred in').",
+          );
+          return;
+        }
+        if (parsed.courses.length === 0) {
+          transcriptPreview = undefined;
+          render();
+          toast('This looks like a Notre Dame transcript, but no course lines could be read from it. Add your courses manually, and tell the DGS so the parser can be improved.');
+          return;
+        }
+        const duplicate = parsed.courses.map((c) =>
+          student.courses.some(
+            (s) => s.courseId === c.courseId && termIndex(s.term) === termIndex(c.term),
+          ),
+        );
+        transcriptPreview = {
+          courses: parsed.courses,
+          selected: parsed.courses.map((_, i) => !duplicate[i]),
+          duplicate,
+          gpa: parsed.cumulativeGpa,
+          useGpa: parsed.cumulativeGpa !== undefined,
+        };
+        render();
+        for (const w of parsed.warnings) toast(w);
+      } catch {
+        transcriptPreview = undefined;
+        render();
+        toast('That PDF could not be read (a scanned image, or not a PDF?). Add your courses manually.');
+      } finally {
+        (fileInput as HTMLInputElement).value = '';
+      }
+    });
+    return el(
+      'div',
+      { class: 'transcript-upload' },
+      el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Upload ND unofficial transcript (PDF)'),
+      el('span', { class: 'hint-inline' }, ' — courses are read locally and shown for your confirmation first. Notre Dame transcripts only.'),
+      fileInput,
+    );
+  }
+
+  function transcriptPreviewBlock(): HTMLElement {
+    const tp = transcriptPreview!;
+    const box = el('div', { class: 'transcript-preview' });
+    box.append(
+      el('h3', {}, `Found ${tp.courses.length} course${tp.courses.length === 1 ? '' : 's'} — untick anything that shouldn't count, then add`),
+    );
+    const table = el('table', { class: 'courses' });
+    table.append(
+      el('tr', {}, el('th', {}, ''), el('th', {}, 'Course'), el('th', {}, 'Term'), el('th', {}, 'Cr'), el('th', {}, 'Grade'), el('th', {}, '')),
+    );
+    tp.courses.forEach((c, i) => {
+      const cb = el('input', { type: 'checkbox', onchange: (e) => (tp.selected[i] = (e.target as HTMLInputElement).checked) });
+      cb.checked = tp.selected[i]!;
+      table.append(
+        el(
+          'tr',
+          {},
+          el('td', {}, cb),
+          el('td', {}, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
+          el('td', {}, termLabel(c.term)),
+          el('td', {}, String(c.credits)),
+          el('td', {}, c.grade === 'IP' ? 'In progress' : c.grade),
+          el('td', { class: 'ctitle' }, tp.duplicate[i] ? 'already entered' : c.origin === 'transfer' ? 'transfer' : ''),
+        ),
+      );
+    });
+    box.append(table);
+    if (tp.gpa !== undefined) {
+      const cb = el('input', { type: 'checkbox', onchange: (e) => (tp.useGpa = (e.target as HTMLInputElement).checked) });
+      cb.checked = tp.useGpa;
+      box.append(el('label', { class: 'attest' }, cb, ` Use the transcript's cumulative GPA (${tp.gpa.toFixed(2)}) for the §2.2 check`));
+    }
+    box.append(
+      el(
+        'div',
+        { class: 'save-buttons' },
+        el(
+          'button',
+          {
+            class: 'btn primary',
+            onclick: () => {
+              const picked = tp.courses.filter((_, i) => tp.selected[i]);
+              update((s) => {
+                for (const c of picked) {
+                  s.courses.push({
+                    courseId: c.courseId,
+                    title: c.title,
+                    credits: c.credits,
+                    term: c.term,
+                    grade: c.grade,
+                    origin: c.origin,
+                    institution: c.institution,
+                  });
+                }
+                if (tp.useGpa && tp.gpa !== undefined) s.gpa = tp.gpa;
+              });
+              transcriptPreview = undefined;
+              render();
+              toast(`Added ${picked.length} course${picked.length === 1 ? '' : 's'} from the transcript.`);
+            },
+          },
+          'Add selected courses',
+        ),
+        el('button', { class: 'btn', onclick: () => { transcriptPreview = undefined; render(); } }, 'Cancel'),
+      ),
+    );
+    return box;
   }
 
   function courseForm(): HTMLElement {

@@ -88,6 +88,14 @@ same problems whenever it loads.
 - **Never put a `:` (colon) in any parent folder's name.** This repo once lived under
   `FY26-27 (DGS: Taeho Jung)` and the colon silently broke npm's script PATH and vite's module
   loader; the folder was renamed to fix it. The dependency-free test runner was kept.
+- **Transcript upload** (`src/transcript/`): students can upload their ND unofficial transcript
+  PDF; it is parsed **in the browser** (pdfjs-dist — the app's one runtime dependency, bundled,
+  no network) and the parsed courses are shown for confirmation before anything is added.
+  Non-ND transcripts are refused with a message pointing to manual DGS review. PDF parsing is
+  best-effort against the Banner self-service transcript layout: if the Registrar changes the
+  format, collect one fresh transcript PDF (any volunteer student), and ask Claude Code to
+  update `src/transcript/parse.ts` and its tests against it. Nothing uploaded ever leaves the
+  student's browser.
 - The engine (`src/engine/`) is pure: every requirement function has the handbook sentence
   quoted above it, and `audit(student, rules, today)` takes "today" as an argument. If code and
   handbook disagree, the handbook wins — fix the code.

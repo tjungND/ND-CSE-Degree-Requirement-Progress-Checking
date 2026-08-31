@@ -154,3 +154,11 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
   body { background: #fff; }
   .audit, .req { border-color: #bbb; }
 }
+
+/* transcript upload */
+.transcript-upload { margin: 0 0 12px; }
+.transcript-upload .btn { margin-left: 0; }
+.hint-inline { color: var(--muted); font-size: 12.5px; }
+.transcript-preview { border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #fffdf5; }
+.transcript-preview h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
+.transcript-preview .save-buttons { margin-top: 10px; }
