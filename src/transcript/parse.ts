@@ -35,13 +35,16 @@ const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'
  * ('I' becomes an F after 30 days per §5.1 — a human should decide). */
 const SKIP_GRADES = new Set(['W', 'WF', 'WP', 'AU', 'NR', 'X', 'NG', 'I']);
 
-const TERM_RE = /\b(Fall|Spring|Summer)\s+(?:Semester|Session)\s+(\d{4})\b/i;
+const TERM_RE = /\b(Fall|Spring|Summer)\s+(?:Semester\s+|Session\s+)?(\d{4})\b/i;
 const COURSE_HEAD_RE = /^([A-Z]{2,5})\s+(\d{5})\b\s*(?:(UG|GR|PR|LW|EM|GB)\b)?\s*(.*)$/;
 
 export function parseTranscript(lines: string[]): ParsedTranscript {
   const warnings: string[] = [];
-  const head = lines.slice(0, 60).join(' ');
-  const isNotreDame = /NOTRE\s+DAME/i.test(head);
+  // The ND marker can live anywhere: the page body, the official PDF's header,
+  // or only the browser's print footer (an nd.edu URL) on a printed-to-PDF
+  // web transcript — so scan the whole text.
+  const all = lines.join(' ');
+  const isNotreDame = /NOTRE\s+DAME/i.test(all) || /\bnd\.edu\b/i.test(all) || /\binside\.nd\b/i.test(all);
   if (!isNotreDame) {
     return { isNotreDame: false, courses: [], warnings };
   }
@@ -60,20 +63,22 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     if (line === '') continue;
     const upper = line.toUpperCase();
 
-    // Section switches.
-    if (/TRANSFER CREDIT/.test(upper)) {
+    // Section switches — tolerant of both Banner 8 ("INSTITUTION CREDIT",
+    // "COURSES IN PROGRESS", trailing "-Top-" link text) and Banner 9
+    // ("Institutional Credit", "Course(s) in Progress") wording.
+    if (/TRANSFER CREDIT ACCEPTED|TRANSFER CREDIT\b/.test(upper)) {
       origin = 'transfer';
       inProgress = false;
       expectInstitution = true;
       continue;
     }
-    if (/INSTITUTION CREDIT/.test(upper)) {
+    if (/INSTITUTION(AL)? CREDIT/.test(upper)) {
       origin = 'nd';
       inProgress = false;
       institution = undefined;
       continue;
     }
-    if (/COURSES? IN PROGRESS|WORK IN PROGRESS/.test(upper)) {
+    if (/COURSE\(?S?\)? IN PROGRESS|WORK IN PROGRESS/.test(upper)) {
       origin = 'nd';
       inProgress = true;
       institution = undefined;
@@ -84,7 +89,15 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       continue;
     }
 
-    // Cumulative GPA: the "Overall" totals row — its last ≤4.334 decimal is the GPA.
+    // Cumulative GPA. Web transcript: the "Overall" totals row's last ≤4.334
+    // decimal. Official ND PDF: running totals like "NOTRE DAME Ehrs: 72.000
+    // QPts: 106.000 GPA-Hrs: 28.000 GPA: 3.786" — take the labeled value; the
+    // LAST occurrence in either style is the final cumulative figure.
+    const labeledGpa = /\bGPA:?\s*([0-4]\.\d{1,3})\b\s*$/.exec(line);
+    if (labeledGpa) {
+      cumulativeGpa = Number(labeledGpa[1]);
+      continue;
+    }
     if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper)) {
       const nums = line.match(/\d+\.\d{1,3}/g);
       if (nums && nums.length > 0) {
@@ -139,19 +152,31 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       if (decimals.length === 4) break;
     }
     if (decimals.length === 0) continue; // not a course row (no credit hours)
-    // credits [qualityPoints] — with 2+ decimals the FIRST is the credit hours.
+    // Web-transcript layout: "… GRADE credits [qualityPoints]" — with 2+
+    // trailing decimals the FIRST is the credit hours.
     const credits = decimals[0]!;
-    if (credits > 20) continue; // definitely not a credit-hours value
 
     let grade: Grade | undefined;
     const tail = tokens[tokens.length - 1] ?? '';
     const tailUpper = tail.toUpperCase();
+    let creditsOverride: number | undefined;
+    const popCreditsBeforeGrade = () => {
+      // ND's OFFICIAL PDF orders columns "… credits GRADE qualitypoints"
+      // (e.g. "Tpcs in Evol Biol 3.000 B+ 9.999") — after removing the grade,
+      // a decimal still trails the title: THAT is the credit-hours value.
+      const prev = tokens[tokens.length - 1] ?? '';
+      if (/^\d+\.\d{1,3}$/.test(prev) && Number(prev) <= 20) {
+        creditsOverride = Number(tokens.pop());
+      }
+    };
     if (LETTER_GRADES.includes(tailUpper as Grade)) {
       grade = tailUpper as Grade;
       tokens.pop();
+      popCreditsBeforeGrade();
     } else if (tailUpper === 'P' || tailUpper === 'PASS') {
       grade = 'S';
       tokens.pop();
+      popCreditsBeforeGrade();
     } else if (SKIP_GRADES.has(tailUpper)) {
       skipped.push(`${courseId} (${tailUpper})`);
       continue;
@@ -161,6 +186,9 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       continue;
     }
 
+    const resolvedCredits = creditsOverride ?? credits;
+    if (resolvedCredits > 20) continue; // not a plausible credit-hours value
+
     if (!term) {
       warnings.push(`${courseId} appeared before any term header — it was skipped; add it manually.`);
       continue;
@@ -169,7 +197,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     courses.push({
       courseId,
       title: tokens.join(' ') || undefined,
-      credits,
+      credits: resolvedCredits,
       grade: grade ?? 'IP',
       term,
       origin,

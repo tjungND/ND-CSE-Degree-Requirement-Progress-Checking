@@ -263,6 +263,17 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       try {
         const { pdfToLines } = await import('../transcript/pdf.ts'); // pdfjs loads lazily
         const lines = await pdfToLines(await file.arrayBuffer());
+        // Kellogg's own instructions tell students to SCREENSHOT the page —
+        // those PDFs have no text layer, and deserve a specific message,
+        // not a false "this isn't ND" rejection.
+        if (lines.join('').trim().length < 40) {
+          transcriptPreview = undefined;
+          render();
+          toast(
+            'This PDF has no readable text (a screenshot?). Please use your browser’s "Print → Save as PDF" on the transcript page instead, or add courses manually.',
+          );
+          return;
+        }
         const parsed = parseTranscript(lines);
         if (!parsed.isNotreDame) {
           transcriptPreview = undefined;

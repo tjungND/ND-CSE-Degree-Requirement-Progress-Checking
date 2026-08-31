@@ -108,6 +108,38 @@ describe('transcript parsing', () => {
     assert.equal(other.courses.length, 0);
   });
 
+  it("parses ND's OFFICIAL PDF layout (credits BEFORE grade, Ehrs/GPA running totals)", () => {
+    const official = parseTranscript([
+      'UNIVERSITY OF NOTRE DAME NOTRE DAME, INDIANA 46556',
+      'Fall Semester 2026',
+      'BIOS 60574 Tpcs in Evol & Systematic Biol 3.000 B+ 9.999',
+      'CSE 60641 Graduate Operating Systems 3.000 A 12.000',
+      'NOTRE DAME Ehrs: 72.000 QPts: 106.000 GPA-Hrs: 28.000 GPA: 3.786',
+    ]);
+    const bios = official.courses.find((c) => c.courseId === 'BIOS 60574');
+    assert.equal(bios?.credits, 3, 'credits column, not the 9.999 quality points');
+    assert.equal(bios?.grade, 'B+');
+    assert.equal(bios?.title, 'Tpcs in Evol & Systematic Biol');
+    assert.equal(official.cumulativeGpa, 3.786, 'labeled GPA from the running-totals line');
+  });
+
+  it('accepts Banner 9 wording, bare term labels, and a footer-URL-only ND marker', () => {
+    const b9 = parseTranscript([
+      'Academic Transcript',
+      'Institutional Credit',
+      'Fall 2026',
+      'CSE 60641 GR Graduate Operating Systems A 3.000 12.000',
+      'Course(s) in Progress',
+      'Spring 2027',
+      'CSE 60876 GR Research Methods 3.000',
+      'https://studentselfservice.nd.edu/StudentSelfService — Page 1 of 1',
+    ]);
+    assert.equal(b9.isNotreDame, true, 'nd.edu footer URL is an ND marker');
+    assert.equal(b9.courses.find((c) => c.courseId === 'CSE 60641')?.grade, 'A');
+    assert.deepEqual(b9.courses.find((c) => c.courseId === 'CSE 60641')?.term, { season: 'fall', year: 2026 });
+    assert.equal(b9.courses.find((c) => c.courseId === 'CSE 60876')?.grade, 'IP');
+  });
+
   it('handles empty/garbage text without throwing', () => {
     assert.equal(parseTranscript([]).isNotreDame, false);
     const nd = parseTranscript(['University of Notre Dame', 'no course data here at all']);
