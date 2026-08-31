@@ -66,7 +66,11 @@ anything the sheet doesn't settle shows "needs DGS review".
 The code lives in the GitHub repository **ND-CSE-Degree-Requirement-Progress-Checking**.
 You need repo access, [Node.js](https://nodejs.org) ≥ 24, and ideally
 [Claude Code](https://claude.com/claude-code) — the repo's `CLAUDE.md` teaches it this
-project's rules, so plain-English requests work well.
+project's rules, so plain-English requests work well. A fresh Claude session inherits the
+project's full context automatically: it reads `CLAUDE.md`, which points it to
+`docs/CLAUDE-HANDOFF.md` (every design decision and its why, plus recipes for the common
+maintenance asks) and `docs/DECISIONS.md` (every policy interpretation). You never need to
+re-explain the project — just describe what you want changed.
 
 ```bash
 git clone <repo url> && cd <repo>

@@ -76,10 +76,14 @@ same problems whenever it loads.
   `npm run sync-sheet`.
 - **Deploy**: every push to `main` rebuilds and redeploys GitHub Pages (`deploy` Action).
   One-time repo setting: Settings → Pages → Source: **GitHub Actions**.
-- **Tests**: `npm test` (44-ish tests: one JSON scenario per student case in `tests/scenarios/`
-  plus engine/loader units). `npm run build` type-checks and bundles. Both must pass before
-  merging anything. When a student finds a wrong verdict: add a scenario JSON reproducing it,
-  fix, keep the scenario forever.
+- **Tests**: `npm test` (60+ tests: one JSON scenario per student case in `tests/scenarios/`
+  plus engine/loader/transcript units). `npm run build` type-checks and bundles. Both must pass
+  before merging anything; `npm run e2e` additionally drives the built app in headless Chrome
+  (screenshots land in `.e2e-out/`) — run it for UI-visible changes. When a student finds a
+  wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
+- **For Claude Code sessions**: `docs/CLAUDE-HANDOFF.md` is the context capsule (design
+  decisions, invariants, recipes); `.claude/skills/run-app/` teaches it to launch and
+  screenshot the app.
 - **Published-CSV URLs** live in `data/sheet-urls.json` (the only file to edit if the sheet is
   ever re-published or replaced).
 

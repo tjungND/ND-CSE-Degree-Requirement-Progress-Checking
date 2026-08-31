@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "node --test tests/",
     "test:watch": "node --test --watch tests/",
-    "sync-sheet": "node scripts/sync-sheet.ts"
+    "sync-sheet": "node scripts/sync-sheet.ts",
+    "e2e": "node scripts/e2e/run.mjs"
   },
   "//scripts-note": "Tests run on node's built-in runner (node --test; Node >= 24 runs the TypeScript directly) — no test-framework dependency. Vite does the dev server and the production build. Never put a ':' in any parent folder name — it corrupts npm's PATH and breaks vite's module loader.",
   "devDependencies": {
