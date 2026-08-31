@@ -1,6 +1,8 @@
-code,name
-alg,Algorithms
-hcc,Human Centered Computing
-arch,Architecture
-dsai,Data Science and Artificial Intelligence
-sys,Systems and Software
+core_area,core_area_name,,category_group,category_group_name
+os,Operating Systems,,alg,Algorithms
+algorithms,Algorithms,,hcc,Human Centered Computing
+architecture,Computer Architecture,,arch,Architecture
+,,,dsai,Data Science and Artificial Intelligence
+,,,sys,Systems and Software
+,,,any,(listed under every group — student picks)
+Core areas come from Handbook §4.4.1; specialization groups from §4.4.2. The Courses tab dropdowns read these lists.,,,,
