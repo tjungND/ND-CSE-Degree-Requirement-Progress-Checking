@@ -1,0 +1,22 @@
+course_id,title,level,credit_min,credit_max,credits_default,course_type,counts_toward_mscse,counts_toward_phd,core_area,category_group,typically_offered,active,last_offered,effective_term,dgs_reviewed,notes
+CSE 60111,Complexity and Algorithms,6,3,3,3,regular,yes,yes,algorithms,alg,spring,yes,Spring 2026,Fall 2026,yes,§4.4.2 typical spring course
+CSE 60321,Advanced Computer Architecture,6,3,3,3,regular,yes,yes,architecture,arch,spring,yes,Spring 2026,Fall 2026,yes,§4.4.2 typical spring course
+CSE 60427,Human-Centered Computing Research,6,3,3,3,regular,yes,yes,,hcc,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
+CSE 60535,Graduate Computer Vision,6,3,3,3,regular,yes,yes,,dsai,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
+CSE 60641,Graduate Operating Systems,6,3,3,3,regular,yes,yes,os,sys,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
+CSE 60762,Custom System on Chip Design,6,3,3,3,regular,yes,yes,,arch,spring,yes,Spring 2026,Fall 2026,yes,§4.4.2 typical spring course
+CSE 60770,Secure Software Engineering,6,3,3,3,regular,yes,yes,,sys,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
+CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,dsai,spring,yes,Spring 2026,Fall 2026,yes,"§4.4.2 typical spring course, dsai until Fall 2027"
+CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,alg,spring,yes,Spring 2026,Fall 2027,yes,Fixture: moved to the alg group from Fall 2027 (tests effective_term selection)
+CSE 60876,Research Methods,6,3,3,3,regular,yes,yes,,any,spring,yes,Spring 2026,Fall 2026,yes,Listed under all five groups in §4.4.2 — the student assigns it to whichever group they still need
+CSE 60999,Topics in Computing,6,3,3,3,regular,,,,,varies,yes,Fall 2026,Fall 2026,no,Fixture: blank counts_toward_* — the app must say needs DGS review
+CSE 63801,Research Seminar I,6,1,1,1,seminar,no,yes,,,fall,yes,Fall 2026,Fall 2026,yes,§4.2 — required of Ph.D. students in year one
+CSE 63802,Research Seminar II,6,1,1,1,seminar,no,yes,,,spring,yes,Spring 2026,Fall 2026,yes,§4.2 — required of Ph.D. students in year one
+CSE 66998,Special Studies,6,1,6,3,independent,no,no,,,varies,yes,Fall 2026,Fall 2026,yes,Fixture: a 6xxxx course whose counts_toward_* = no must be honored (prototype bug)
+CSE 68901,M.S. Thesis Direction,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,yes,§3.2 — thesis direction credits
+CSE 68902,M.S. Project,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,yes,§3.2 — project credits
+CSE 98900,Research and Dissertation,9,1,15,9,research,no,yes,,,both,yes,Fall 2026,Fall 2026,yes,Ph.D. research credits — count toward the 60 total only
+CSE 40113,Design/Analysis of Algorithms,4,3,3,3,regular,dgs_approval,dgs_approval,,,fall,yes,Fall 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40567,Computer Security,4,3,3,3,regular,dgs_approval,dgs_approval,,,spring,yes,Spring 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40875,Statistical Computing,4,3,3,3,regular,dgs_approval,dgs_approval,,,fall,yes,Fall 2026,Fall 2026,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40437,Social Sensing,4,3,3,3,regular,no,no,,,spring,yes,Spring 2026,Fall 2026,yes,Fixture: a 4xxxx course the DGS blocked outright (counts_toward_* = no)

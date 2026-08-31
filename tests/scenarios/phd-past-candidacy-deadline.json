@@ -1,0 +1,25 @@
+{
+  "name": "phd-past-candidacy-deadline",
+  "description": "Semester 9 (entered Fall 2026, now Fall 2030) with no candidacy exam passed: the §4.5 end-of-eighth-semester deadline is gone.",
+  "today": "2030-10-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": { "advisorIdentified": "2026-09-01", "researchQualifierPassed": "2027-11-01" },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.candidacy": { "status": "unmet", "detailIncludes": ["Overdue"] },
+    "phd.qualifier": { "status": "unmet", "detailIncludes": ["DGS may extend"] },
+    "phd.timeLimit": { "status": "in_progress", "detailIncludes": ["2034"] },
+    "phd.msAlongTheWay": { "status": "not_applicable" }
+  }
+}

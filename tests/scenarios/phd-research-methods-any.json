@@ -1,0 +1,23 @@
+{
+  "name": "phd-research-methods-any",
+  "description": "Algorithms and Architecture groups covered; Research Methods (listed under every group, §4.4.2) is assigned by the student to Data Science and AI, completing three distinct groups.",
+  "today": "2028-03-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "courses": [
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A-", "origin": "nd" },
+      { "courseId": "CSE 60876", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "B+", "origin": "nd", "assignedGroup": "dsai" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.categories": { "status": "met", "detailIncludes": ["Research Methods"] }
+  }
+}

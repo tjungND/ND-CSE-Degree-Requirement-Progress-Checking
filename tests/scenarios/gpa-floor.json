@@ -1,0 +1,23 @@
+{
+  "name": "gpa-floor",
+  "description": "Cumulative GPA below 3.0: the §2.2 floor is unmet and the defense rows carry the 'may not defend' gate note.",
+  "today": "2027-01-10",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 2.9,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "B-", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "shared.gpa": { "status": "unmet", "detailIncludes": ["3"] },
+    "phd.dissertation.approval": { "status": "unmet" },
+    "phd.dissertation.defense": { "status": "unmet", "detailIncludes": ["may not defend"] }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "mscse-project-two-short",
+  "description": "MSCSE project-option student with 18 of 24 regular credits (two 3-credit courses short); the 6 project credits are done.",
+  "today": "2027-10-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A-", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "B+", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "B", "origin": "nd" },
+      { "courseId": "CSE 68902", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "S", "origin": "nd" },
+      { "courseId": "CSE 68902", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "S", "origin": "nd" }
+    ],
+    "milestones": { "advisorIdentified": "2026-08-25" },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["18 of 24"] },
+    "ms.credits.project": { "status": "met" },
+    "ms.credits.total": { "status": "unmet", "detailIncludes": ["24 of 30"] },
+    "ms.project.report": { "status": "unmet" },
+    "ms.timeLimit": { "status": "in_progress", "detailIncludes": ["2031"] }
+  }
+}

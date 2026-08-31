@@ -1,0 +1,30 @@
+{
+  "name": "in-progress-mix",
+  "description": "First semester, everything still in progress: IP credits count provisionally (rows show in progress, never met) and never satisfy the §4.4.2 B floor as final.",
+  "today": "2026-11-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "IP", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "IP", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "IP", "origin": "nd" },
+      { "courseId": "CSE 63801", "credits": 1, "term": { "season": "fall", "year": 2026 }, "grade": "IP", "origin": "nd" },
+      { "courseId": "CSE 63802", "credits": 1, "term": { "season": "fall", "year": 2026 }, "grade": "IP", "origin": "nd" },
+      { "courseId": "CSE 98900", "credits": 9, "term": { "season": "fall", "year": 2026 }, "grade": "IP", "origin": "nd" }
+    ],
+    "milestones": { "advisorIdentified": "2026-08-20" },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.seminar": { "status": "in_progress" },
+    "phd.qualifier.core.os": { "status": "in_progress" },
+    "phd.qualifier.categories": { "status": "in_progress" },
+    "phd.qualifier": { "status": "in_progress" },
+    "phd.credits.regular": { "status": "unmet" },
+    "phd.credits.total": { "status": "unmet" }
+  }
+}

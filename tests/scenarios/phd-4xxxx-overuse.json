@@ -1,0 +1,30 @@
+{
+  "name": "phd-4xxxx-overuse",
+  "description": "Nine credits of CSE 4xxxx (only six may count, §4.2) plus a non-CSE 40000-level course (counts nothing — DGS decision 2026-08-31). DGS approval for the 4xxxx credits is attested.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.4,
+    "courses": [
+      { "courseId": "CSE 40113", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 40875", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A-", "origin": "nd" },
+      { "courseId": "CSE 40567", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "ACMS 40842", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": { "dgsApproved4xxxx": true }
+  },
+  "expect": {
+    "phd.cap.fourk": { "status": "met", "detailIncludes": ["6", "not counted"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] }
+  },
+  "expectCourseLines": {
+    "CSE 40567": ["not counted", "cap"],
+    "ACMS 40842": ["not counted", "40000-level"]
+  }
+}

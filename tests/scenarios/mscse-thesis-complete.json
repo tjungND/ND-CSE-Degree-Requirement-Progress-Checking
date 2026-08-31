@@ -1,0 +1,46 @@
+{
+  "name": "mscse-thesis-complete",
+  "description": "MSCSE thesis-option student who is complete: 24 regular + 6 thesis-direction credits, thesis approved and defended, GPA 3.4 — every requirement met.",
+  "today": "2028-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "thesis",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.4,
+    "courses": [
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A-", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "B+", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "B", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60876", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 68901", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "S", "origin": "nd" },
+      { "courseId": "CSE 68901", "credits": 3, "term": { "season": "spring", "year": 2028 }, "grade": "S", "origin": "nd" }
+    ],
+    "milestones": {
+      "advisorIdentified": "2026-08-20",
+      "advisorName": "Prof. Y",
+      "thesisApprovedByReaders": "2028-04-20",
+      "thesisDefensePassed": "2028-05-05"
+    },
+    "attestations": { "advisorApprovedPlan": true }
+  },
+  "expect": {
+    "shared.gpa": { "status": "met" },
+    "shared.advisor": { "status": "met" },
+    "shared.approvals": { "status": "not_applicable" },
+    "ms.credits.total": { "status": "met" },
+    "ms.credits.regular": { "status": "met", "detailIncludes": ["24 of 24"] },
+    "ms.credits.project": { "status": "met" },
+    "ms.cap.fourk": { "status": "not_applicable" },
+    "ms.cap.noncse": { "status": "not_applicable" },
+    "ms.residency": { "status": "met" },
+    "ms.timeLimit": { "status": "met" },
+    "ms.thesis.defense": { "status": "met" }
+  }
+}

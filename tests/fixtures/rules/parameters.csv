@@ -1,0 +1,31 @@
+key,value,handbook_section,notes
+ms_total_credits_min,30,§3.2,
+ms_regular_credits_min,24,§3.2,
+ms_project_credits_min,6,§3.2,CSE 68901 / 68902
+ms_4xxxx_credits_max,6,§3.2,CSE 4xxxx only (DGS decision 2026-08-31)
+ms_noncse_credits_max,9,§3.2,
+ms_time_limit_years,5,§3.3,
+ms_thesis_readers_min,2,§3.4,thesis option only
+ms_transfer_completed_ms_credits_max,9,§5.2,completed prior M.S./Ph.D.
+phd_total_credits_min,60,§4.2,
+phd_regular_credits_min,24,§4.2,60000-level or higher
+phd_nd_credits_min,9,§4.2,at least nine credits at Notre Dame
+phd_seminar_courses,"CSE 63801, CSE 63802",§4.2,required in year one
+phd_4xxxx_cse_credits_max,6,§4.2,
+phd_noncse_6xxxx_credits_max,9,§4.2,
+phd_transfer_window_years,5,§4.2,prior M.S. coursework
+phd_transfer_completed_ms_credits_max,24,§5.2,completed prior M.S./Ph.D.
+phd_residency_semesters,4,§4.3,"consecutive, full-time, excluding summer"
+phd_time_limit_years,8,§4.3,
+transfer_unfinished_ms_credits_max,6,§5.2,unfinished prior M.S.
+transfer_min_grade,B,§5.2,
+fulltime_credits_min,9,§2.1.2,
+qualifier_deadline_semesters,4,§4.4,DGS may extend
+category_courses_required,3,§4.4.2,
+category_distinct_groups_required,3,§4.4.2,
+category_min_grade,B,§4.4.2,
+research_qualifier_deadline_months,18,§4.4.3,
+candidacy_deadline_semester,8,§4.5,before the end of the eighth semester
+candidacy_committee_additional_members_min,3,§4.5,beyond advisor/co-advisor
+gpa_min,3,§2.2,
+Every number the handbook states lives here so a future DGS can change it without touching code. Add rows freely; keep the key names stable because the app reads them by name.,,,

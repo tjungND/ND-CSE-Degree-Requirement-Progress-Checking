@@ -1,0 +1,26 @@
+{
+  "name": "unknown-course",
+  "description": "A CSE course id that is not in the rules sheet: flagged for DGS review, counted only provisionally, never silently accepted or rejected.",
+  "today": "2027-01-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.2,
+    "courses": [
+      { "courseId": "CSE 60007", "title": "Made-Up Graduate Topics", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "shared.approvals": { "status": "needs_dgs_review", "detailIncludes": ["CSE 60007"] },
+    "phd.credits.regular": { "status": "unmet" }
+  },
+  "expectCourseLines": {
+    "CSE 60007": ["not in the rules sheet", "DGS"]
+  }
+}

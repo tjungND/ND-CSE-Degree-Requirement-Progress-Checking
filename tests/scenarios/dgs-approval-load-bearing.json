@@ -1,0 +1,29 @@
+{
+  "name": "dgs-approval-load-bearing",
+  "description": "A dgs_approval course is needed to reach the 24 regular credits: the row shows needs DGS review, not met.",
+  "today": "2028-01-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "courses": [
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 40113", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.regular": { "status": "needs_dgs_review", "detailIncludes": ["CSE 40113"] }
+  }
+}

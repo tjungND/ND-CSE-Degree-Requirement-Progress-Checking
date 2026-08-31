@@ -1,0 +1,28 @@
+{
+  "name": "phd-category-retake",
+  "description": "A category course first earned a C+ and was retaken with an A: §4.4.2 grade replacement — the retake counts, credits count once, the first attempt is marked superseded.",
+  "today": "2028-06-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.3,
+    "courses": [
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "C+", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2028 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.categories": { "status": "met" },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] }
+  },
+  "expectCourseLines": {
+    "CSE 60111": ["retake"]
+  }
+}

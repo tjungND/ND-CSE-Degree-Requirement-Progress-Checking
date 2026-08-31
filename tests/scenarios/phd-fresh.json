@@ -1,0 +1,34 @@
+{
+  "name": "phd-fresh",
+  "description": "A brand-new Ph.D. student with nothing entered: coursework rows unmet, deadline rows show due-by dates, GPA cannot be evaluated.",
+  "today": "2026-09-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "courses": [],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "shared.gpa": { "status": "cannot_evaluate" },
+    "shared.advisor": { "status": "unmet" },
+    "phd.credits.total": { "status": "unmet" },
+    "phd.credits.regular": { "status": "unmet" },
+    "phd.credits.nd": { "status": "unmet" },
+    "phd.seminar": { "status": "unmet" },
+    "phd.cap.fourk": { "status": "not_applicable" },
+    "phd.cap.noncse": { "status": "not_applicable" },
+    "phd.transfer": { "status": "not_applicable" },
+    "phd.residency": { "status": "in_progress" },
+    "phd.timeLimit": { "status": "in_progress", "detailIncludes": ["2034"] },
+    "phd.qualifier": { "status": "unmet" },
+    "phd.qualifier.core.os": { "status": "unmet" },
+    "phd.qualifier.research": { "status": "in_progress", "detailIncludes": ["18"] },
+    "phd.candidacy": { "status": "in_progress", "detailIncludes": ["2030"] },
+    "phd.dissertation.approval": { "status": "unmet" },
+    "phd.msAlongTheWay": { "status": "not_applicable" }
+  }
+}

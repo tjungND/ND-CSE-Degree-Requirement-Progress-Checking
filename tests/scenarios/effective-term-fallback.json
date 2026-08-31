@@ -1,0 +1,25 @@
+{
+  "name": "effective-term-fallback",
+  "description": "Rules rows apply by the course's term: a Fall 2024 course predating every row still resolves (earliest row applies retroactively), and a two-row course picks the later row from its effective term. CSE 60868 moved dsai→alg in Fall 2027; taken Spring 2028 it lands in alg, so with 60641 (sys) and 60111 (alg) there are only two distinct groups — a wrong row-selection rule would yield three.",
+  "today": "2028-06-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2024 },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60868", "credits": 3, "term": { "season": "spring", "year": 2028 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.core.os": { "status": "met" },
+    "phd.qualifier.categories": { "status": "unmet", "detailIncludes": ["distinct group"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] }
+  }
+}

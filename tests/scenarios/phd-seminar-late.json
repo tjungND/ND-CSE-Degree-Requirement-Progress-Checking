@@ -1,0 +1,22 @@
+{
+  "name": "phd-seminar-late",
+  "description": "Semester 3 with neither research seminar taken: the row is unmet and warns that §4.2 expects them during the first year.",
+  "today": "2027-10-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": { "advisorIdentified": "2026-08-25" },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.seminar": { "status": "unmet", "detailIncludes": ["first year"] }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "dgs-approval-not-load-bearing",
+  "description": "The same dgs_approval course when 24 regular credits are already met without it: the row is met; the approval flag lives on the course line and the aggregate approvals row.",
+  "today": "2028-06-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "courses": [
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60876", "credits": 3, "term": { "season": "spring", "year": 2028 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 40113", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.regular": { "status": "met", "detailIncludes": ["24 of 24"] },
+    "shared.approvals": { "status": "needs_dgs_review", "detailIncludes": ["CSE 40113"] }
+  },
+  "expectCourseLines": {
+    "CSE 40113": ["approval"]
+  }
+}
