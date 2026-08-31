@@ -1,5 +1,3 @@
-From Taeho on Aug 31, 2026
-
 You have inherited the **CSE Graduate Degree Audit** app: a web page where our M.S. and Ph.D.
 students self-check, requirement by requirement, where they stand against the Graduate Studies
 Handbook (§3 MSCSE, §4 Ph.D.), with the handbook section cited on every line.
