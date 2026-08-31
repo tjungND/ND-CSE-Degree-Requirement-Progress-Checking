@@ -20,7 +20,7 @@ export interface Ctx {
 }
 
 export function missingParamDetail(key: string): string {
-  return `Cannot evaluate — the rules sheet is missing '${key}'. Ask the DGS to add it to the Parameters tab.`;
+  return `Cannot evaluate — the rules sheet is missing '${key}'. Ask the DGS to add it to the Parameters tab`;
 }
 
 /** Standard credit-threshold row: "X of N credits complete", with in-progress
