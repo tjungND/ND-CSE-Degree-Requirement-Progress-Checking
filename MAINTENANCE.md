@@ -1,5 +1,8 @@
 # Maintenance guide — for the next DGS
 
+> **Start with [`DGS-READ-THIS.md`](DGS-READ-THIS.md)** — the practical guide to running this
+> app. This file holds the deeper technical notes it refers to.
+
 You inherited a small static web app that lets CSE graduate students self-check their standing
 against the Graduate Handbook (§3 MSCSE, §4 Ph.D.). You should almost never need to touch code:
 **policy lives in a Google Sheet you own; the handbook's structure lives in code.**

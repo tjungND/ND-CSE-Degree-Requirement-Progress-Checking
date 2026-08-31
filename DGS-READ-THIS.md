@@ -1,102 +1,107 @@
-# How to start the degree-audit app in Claude Code
+From Taeho on Aug 31, 2026
 
-This folder is a starter kit, not the app. You copy it into a new repository, drop in two source
-files, and hand the repo to Claude Code. The plan below is written for the way the app will be
-maintained for years: the code changes rarely, the Google Sheet changes every year.
+You have inherited the **CSE Graduate Degree Audit** app: a web page where our M.S. and Ph.D.
+students self-check, requirement by requirement, where they stand against the Graduate Studies
+Handbook (§3 MSCSE, §4 Ph.D.), with the handbook section cited on every line.
 
-## The shape of the thing (so the decisions below make sense)
+It was built so a DGS can run it **without being a programmer**: everything that changes year to
+year — which courses count, their core/specialization tags, every numeric threshold — lives in a
+Google Sheet you own. The code encodes only the handbook's *structure* and changes only when the
+handbook does.
 
-    Google Sheet (DGS edits)  ──publish-to-web CSV──►  static web app (student's browser)
-             │                                                 ▲
-             └── weekly GitHub Action ──► data/snapshot.json ──┘ (fallback if the fetch fails)
-
-- The app is **static files** — no server, no database, no accounts. It is hosted on GitHub Pages
-  (free, automatic on every push) and can be linked from, or iframed into, cse.nd.edu.
-- **Student data stays in the student's browser.** Nobody sees it, so there is no FERPA question
-  and nothing to secure.
-- **Everything a DGS might change lives in the sheet**: which courses count, their core/category
-  tags, and every number (24 credits, 6-credit cap, B minimum, 4-semester qualifier window …).
-  The handbook *structure* (what the requirements are) lives in code with the § quoted next to
-  it, and only changes when the handbook does.
-
-## Step 1 — Prepare the Google Sheet (15 minutes, once)
-1. The sheet is **CSE-Degree-Audit-Rules** in this Drive folder (tabs README, Courses, Parameters,
-   Categories, Changelog). Confirm the prefilled policy columns row by row over time; the app
-   treats a blank verdict as "needs DGS review", so nothing breaks while rows are unreviewed.
-2. **File → Share → Publish to web → Link**, pick the Courses, Parameters and Categories tabs in
-   turn with *Comma-separated values*, click Publish, and copy the three URLs. (This makes the
-   tabs readable by anyone with the link, which is fine: it is public policy, and no student
-   data is in there.)
-3. The two older sheets ("CSE Degree Requirement Rules (audit app source)" and "CSE Course
-   Catalog (audit app source)") are superseded; re-share the new sheet with the same colleagues.
-4. Sharing at handoff: transfer ownership to the next DGS or move the sheet to a departmental
-   Shared Drive so it never depends on one person's account.
-
-## Step 2 — Make the repo (10 minutes)
-```bash
-mkdir cse-degree-audit && cd cse-degree-audit
-git init
-# copy this whole starter folder in: CLAUDE.md, KICKOFF-PROMPT.md, data/, docs/, reference/, tests/
 ```
-Then add the two source files the kit cannot include for you:
-- `docs/CSE-Graduate-Handbook-July2026.pdf` — download from
-  https://cse.nd.edu/wp-content/uploads/sites/7/2026/07/CSE-Graduate-Handbook-July2026.pdf
-- `reference/CSE-Degree-Audit.html` — the prototype already in your DGS folder.
-
-Create an empty repository on GitHub (github.com is fine; an nd.edu GitHub Enterprise org works too
-if it offers Pages) and push. Turn on **Settings → Pages → Source: GitHub Actions**.
-
-## Step 3 — Install and open Claude Code (5 minutes)
-```bash
-npm install -g @anthropic-ai/claude-code   # or: curl -fsSL https://claude.ai/install.sh | bash
-cd cse-degree-audit
-claude
+Google Sheet (you edit)  ──publish-to-web CSV──►  static web page (student's browser)
+         │                                                ▲
+         └── weekly GitHub Action ──► data/snapshot.json ─┘  (fallback if the fetch fails)
 ```
-Log in with your Anthropic account when prompted. Claude Code reads `CLAUDE.md` automatically at
-the start of every session — that file is where the project's rules live, which is why the kit
-puts the constraints there instead of in a chat message you would have to repeat.
 
-## Step 4 — First session: plan, don't build
-Press **Shift+Tab** twice (plan mode), paste the contents of `KICKOFF-PROMPT.md`, and read the
-plan it comes back with. The plan asks you a list of interpretation questions (in-progress
-courses, Research Methods counting for any group, the 60-credit total, …). **Answer those in
-the chat** — this is the most valuable ten minutes of the whole project, because your answers
-are the policy and Claude will write them into `docs/DECISIONS.md` for the next DGS.
+Three properties to never break: (1) **no student data ever leaves the student's browser** —
+no server, no accounts; even uploaded transcript PDFs are parsed on the student's own computer
+(this is the FERPA story, and the page promises it); (2) **policy lives in the sheet, structure
+lives in code** — never hard-code a course number or threshold; (3) **the app never guesses** —
+anything the sheet doesn't settle shows "needs DGS review".
 
-Give it the three published-CSV URLs when it asks. Then approve the plan.
+## The yearly routine
 
-## Step 5 — Build sessions
-Let Claude follow the build order in the plan. Useful prompts along the way:
-- "Run the scenario tests and show me the report for tests/scenarios/phd-two-groups.json as a
-  student would see it." — reading a rendered report catches misinterpretations faster than
-  reading code.
-- "Add a scenario for this case: …" — whenever a colleague or student finds an edge case.
-- "Open the dev server and screenshot the Ph.D. report" — Claude can drive a browser to check
-  layout.
-- "Write MAINTENANCE.md for a future DGS who has never seen this repo" — do this before you stop.
-- `/review` before merging anything you did not watch it write.
+1. **Store the latest grad handbook PDF under `docs/`** (keep the previous year's PDF too, so
+   the diff is easy), and update the filename in `CLAUDE.md`. Then ask Claude Code:
+   *"Diff §3 and §4 of the new handbook against the old one; list every rule that changed;
+   propose Parameters/Courses edits and any code changes."* Numbers go in the sheet; changed
+   rule *structure* goes in code (each with the handbook sentence quoted above it). Finally,
+   search the repo for the old year string (e.g. "July 2026") and update the page texts.
 
-Commit after each step; GitHub Pages redeploys on every push to `main`.
+2. **Update the spreadsheet**: https://docs.google.com/spreadsheets/d/1C8zYQvLN3gsOpjQHR1RMKdekB1VC_nv9rwSJ_RQCxVA/edit?usp=sharing
 
-## Step 6 — Ship it
-- Test with two or three real students' transcripts (they enter their own data; you look over
-  their shoulder).
-- Link from the graduate-studies page on cse.nd.edu, or embed with
-  `<iframe src="https://<org>.github.io/cse-degree-audit/" …>`.
-- Announce the sheet as the single place to update course rules each term.
+   This spreadsheet publicly posts three tabs — "Courses, Categories, Parameters" — which are
+   downloaded and fed into the app for decision making. Students see your edits within ~5
+   minutes of Google republishing. What you'll actually touch:
 
-## Yearly handoff checklist (goes in MAINTENANCE.md too)
-1. New handbook PDF → replace `docs/…pdf`, ask Claude Code: "Diff §3 and §4 of the new handbook
-   against the old one and list every rule that changed; propose code or sheet changes."
-2. New courses / retired courses → edit the `Courses` tab; nothing else.
-3. Changed numbers → edit `Parameters`; nothing else.
-4. Transfer the sheet and the GitHub repo to the next DGS.
+   - **Courses** (one row per course): `counts_toward_mscse` / `counts_toward_phd`
+     (`yes` | `no` | `dgs_approval`; blank = the app says "needs DGS review");
+     `course_type` (only `regular` counts toward the 24 regular-course credits — watch for
+     research-ish courses mistyped `regular`); `core_area` (§4.4.1: `os`/`algorithms`/
+     `architecture`); `category_group` (§4.4.2: `alg`/`hcc`/`arch`/`dsai`/`sys`, plus the
+     reserved values `any` = student picks the group, and `ineligible` = can never satisfy
+     the category requirement — all 40000-level courses are marked this way); `active` = `no`
+     hides a retired course from the picker but keeps it recognized. **When a course's rules
+     change, add a new row with a later `effective_term`** instead of editing the old one —
+     the app applies to each student's course the newest row not after that course's term.
+   - **Parameters** (every number the handbook states): edit the value, update
+     `handbook_section`. Caution: changes apply to **every student immediately** — there is no
+     per-cohort grandfathering (that would need a code change). Keep key names exactly as they
+     are; a missing/blank key makes its requirement show "cannot evaluate", never a silent pass.
+   - **Categories**: two lists side by side (core areas in columns A–B, specialization groups
+     in D–E). If the handbook ever adds a group, add it here first. Leave the `any` and
+     `ineligible` rows alone.
 
-## Decisions you may want to revisit
-- **Live fetch + snapshot fallback** vs. **snapshot only** (Action re-syncs weekly, app never
-  calls Google). Snapshot-only is simpler and works even if a future DGS unpublishes the sheet by
-  accident, at the cost of up to a week's delay (or a manual "Run workflow" click). Either is fine;
-  the kit defaults to live + fallback.
-- **Vite + TypeScript** vs. the prototype's single HTML file. A single file is easy to upload
-  anywhere but hard to test; the kit chooses a real project so the rule engine has unit tests
-  the next DGS can run. `npm run build` still yields plain static files.
+3. **Let the app check your work.** Open the app and expand **"Rules-sheet diagnostics"** at
+   the bottom of the input column — every sheet mistake is listed there in plain English with
+   its row number. As of Aug 2026 it still lists: seven Parameters rows to paste in (exact
+   table in `MAINTENANCE.md` § "One-time setup") and three mistyped Courses rows
+   (`CSE 98900`, `CSE 68900`, `CSE 87701` are `regular`+`yes` but are research/thesis courses).
+
+4. **See what students see**: open the app, click **Load example** (or enter a test record).
+   Nothing you enter is stored anywhere but that browser.
+
+## When the app itself needs changing
+
+The code lives in the GitHub repository **ND-CSE-Degree-Requirement-Progress-Checking**.
+You need repo access, [Node.js](https://nodejs.org) ≥ 24, and ideally
+[Claude Code](https://claude.com/claude-code) — the repo's `CLAUDE.md` teaches it this
+project's rules, so plain-English requests work well.
+
+```bash
+git clone <repo url> && cd <repo>
+npm install
+npm test          # 60+ tests — one per student scenario + engine/loader units
+npm run dev       # live preview at http://localhost:5173
+```
+
+- **The two gates:** `npm test` and `npm run build` must pass before anything merges.
+- **Deploys are automatic:** every push to `main` rebuilds GitHub Pages (see the Actions tab).
+  A weekly Action snapshots the sheet into `data/snapshot.json`; run it by hand from the
+  Actions tab or locally via `npm run sync-sheet`.
+- **A student reports a wrong verdict** (the most valuable maintenance moment): reproduce it,
+  have Claude Code add a scenario JSON in `tests/scenarios/` capturing the case and the correct
+  expected verdict (with the handbook §), fix until green, and keep the scenario forever.
+  If it's really a policy ambiguity, decide it and record it in `docs/DECISIONS.md` — that
+  file is the memory of every interpretation ever made; **read it before overruling one.**
+- **Transcript parsing degrades** (Registrar changed the PDF format): get one fresh unofficial
+  transcript from a volunteer student and ask Claude Code to update
+  `src/transcript/parse.ts` and its tests against it.
+
+Where things live: `src/engine/` (rule engine — one pure function per requirement, handbook
+sentence quoted above each) · `src/data/` (sheet fetch/parse/validate) · `src/ui/` (the page) ·
+`src/transcript/` (in-browser PDF parsing) · `tests/scenarios/*.json` (the safety net) ·
+`data/sheet-urls.json` (published-CSV links — only edit if the sheet is ever re-published) ·
+`data/README.md` (the sheet schema, column by column) · `MAINTENANCE.md` (deeper technical
+notes). One quirk: **never put a `:` (colon) in any folder name above the repo** — it breaks
+Node tooling (it happened once; details in `MAINTENANCE.md`).
+
+## Handoff checklist
+
+1. Transfer the Google Sheet to the next DGS — or better, move it to a departmental Shared
+   Drive — and add them as admin on the GitHub repo.
+2. Walk them through one live edit: change a `Parameters` value, watch the app pick it up.
+3. Point them at this file; everything else follows from it.
+4. Nothing else — student data was never yours to hand over.
