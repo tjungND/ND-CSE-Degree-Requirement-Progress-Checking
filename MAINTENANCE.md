@@ -95,7 +95,9 @@ same problems whenever it loads.
   best-effort against the Banner self-service transcript layout: if the Registrar changes the
   format, collect one fresh transcript PDF (any volunteer student), and ask Claude Code to
   update `src/transcript/parse.ts` and its tests against it. Nothing uploaded ever leaves the
-  student's browser.
+  student's browser — the page says so explicitly next to the upload button, in the save card,
+  and in the footer (FERPA: no education records are transmitted or stored anywhere; the app's
+  only network request is the read-only fetch of the public course-rules sheet).
 - The engine (`src/engine/`) is pure: every requirement function has the handbook sentence
   quoted above it, and `audit(student, rules, today)` takes "today" as an argument. If code and
   handbook disagree, the handbook wins — fix the code.

@@ -315,7 +315,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       'div',
       { class: 'transcript-upload' },
       el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Upload ND unofficial transcript (PDF)'),
-      el('span', { class: 'hint-inline' }, ' — courses are read locally and shown for your confirmation first. Notre Dame transcripts only.'),
+      el('span', { class: 'hint-inline' }, ' — Notre Dame transcripts only; parsed courses are shown for your confirmation before anything is added.'),
+      el(
+        'p',
+        { class: 'privacy-note' },
+        el('strong', {}, 'Privacy: '),
+        'your transcript is processed entirely on your own computer, inside this browser. It is never uploaded, transmitted, or stored anywhere else — your FERPA-protected education records stay with you.',
+      ),
       fileInput,
     );
   }
@@ -671,7 +677,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'p',
         { class: 'hint' },
-        'Everything you enter is saved in this browser automatically and never sent anywhere. To keep a copy or move to another device, save it as a file.',
+        'Everything you enter — including any transcript PDF you upload — is processed and saved in this browser only, and never sent anywhere. To keep a copy or move to another device, save it as a file.',
       ),
       el(
         'div',
@@ -722,8 +728,18 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return el(
       'footer',
       { class: 'legal' },
-      el('strong', {}, 'This is a self-check, not an official audit. '),
-      'It applies the rules in Sections 3 and 4 of the CSE Graduate Studies Handbook (July 2026). Several requirements turn on approvals this page cannot see — advisor and DGS sign-off, the category-specialization course list announced by email each term, transfer-credit recommendations, and Graduate School deadlines. Deadline dates shown are approximate; the registrar sets the real calendar. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.',
+      el(
+        'div',
+        {},
+        el('strong', {}, 'This is a self-check, not an official audit. '),
+        'It applies the rules in Sections 3 and 4 of the CSE Graduate Studies Handbook (July 2026). Several requirements turn on approvals this page cannot see — advisor and DGS sign-off, the category-specialization course list announced by email each term, transfer-credit recommendations, and Graduate School deadlines. Deadline dates shown are approximate; the registrar sets the real calendar. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.',
+      ),
+      el(
+        'div',
+        { class: 'legal-privacy' },
+        el('strong', {}, 'Your data never leaves your device. '),
+        'Everything you enter — and any transcript PDF you upload — is processed locally in this browser and saved only on this computer. Nothing is transmitted to the University or to any third party (the page only reads the public course-rules sheet), so your FERPA-protected education records remain under your control.',
+      ),
     );
   }
 

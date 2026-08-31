@@ -162,3 +162,8 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .transcript-preview { border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #fffdf5; }
 .transcript-preview h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
 .transcript-preview .save-buttons { margin-top: 10px; }
+
+/* privacy notes (FERPA) */
+.privacy-note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; max-width: 80ch; }
+.privacy-note strong, .legal-privacy strong { color: var(--ink); }
+.legal-privacy { margin-top: 10px; }
