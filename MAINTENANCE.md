@@ -1,7 +1,8 @@
 # Maintenance guide — for the next DGS
 
-> **Start with [`DGS-READ-THIS.md`](DGS-READ-THIS.md)** — the practical guide to running this
-> app. This file holds the deeper technical notes it refers to.
+> **Start with [`README.md`](README.md)** — the practical guide to running this app (Track A:
+> sheet edits without code; Track B: changing the app with Claude Code or Codex). This file holds
+> the deeper technical notes it refers to.
 
 You inherited a small static web app that lets CSE graduate students self-check their standing
 against the Graduate Handbook (§3 MSCSE, §4 Ph.D.). You should almost never need to touch code:
@@ -81,9 +82,10 @@ same problems whenever it loads.
   before merging anything; `npm run e2e` additionally drives the built app in headless Chrome
   (screenshots land in `.e2e-out/`) — run it for UI-visible changes. When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
-- **For Claude Code sessions**: `docs/CLAUDE-HANDOFF.md` is the context capsule (design
-  decisions, invariants, recipes); `.claude/skills/run-app/` teaches it to launch and
-  screenshot the app.
+- **For AI coding sessions**: `CLAUDE.md` holds the project rules (Claude Code reads it
+  automatically; Codex reads `AGENTS.md`, which points to it); `docs/CLAUDE-HANDOFF.md` is the
+  context capsule (design decisions, invariants, recipes); `.claude/skills/run-app/` teaches
+  Claude Code to launch and screenshot the app.
 - **Published-CSV URLs** live in `data/sheet-urls.json` (the only file to edit if the sheet is
   ever re-published or replaced).
 
@@ -113,7 +115,12 @@ same problems whenever it loads.
 
 ## Handoff checklist
 
-1. Transfer the Google Sheet (or move it to a departmental Shared Drive) and the GitHub repo to
-   the next DGS.
-2. Point them at this file, `data/README.md`, and `docs/DECISIONS.md`.
-3. Nothing else — students keep their own data.
+The canonical checklist is in [`README.md` § Handoff checklist](README.md#handoff-checklist)
+(sheet ownership, repository access or transfer — which changes the live URL — one live edit
+together, and pointing the next DGS at the README). Nothing else — students keep their own data.
+
+## License
+
+Dual-licensed by the University of Notre Dame: free for non-commercial (academic and research)
+use, paid non-exclusive license for commercial use via the IDEA Center (softwarelicensing@nd.edu).
+Full text in [`LICENSE.md`](LICENSE.md); summary in the README.

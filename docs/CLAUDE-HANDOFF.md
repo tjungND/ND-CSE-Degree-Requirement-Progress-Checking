@@ -5,19 +5,36 @@ context capsule from the session that built it (Aug 2026, with DGS Taeho Jung an
 policy questions). Read `CLAUDE.md` first (constraints), then this, before changing rule logic.
 The git log is narrative — commit messages explain each step's reasoning.
 
-## State of the world (as of 2026-08-31)
+## State of the world (as of 2026-09-01)
 
 Complete and verified: engine (§2/§3/§4 requirements, 31 requirement rows), sheet loader with
 plain-English diagnostics + snapshot fallback, UI (form, course table, transcript upload,
-report), 60+ tests, GitHub workflows (test/deploy/sync-sheet), docs (DGS-READ-THIS,
-MAINTENANCE, data/README, DECISIONS). An adversarial multi-agent review confirmed 25 defects;
-all fixed with regression tests.
+report), 60+ tests, GitHub workflows (test/deploy/sync-sheet), docs (README, MAINTENANCE,
+data/README, DECISIONS, LICENSE). An adversarial multi-agent review confirmed 25 defects; all
+fixed with regression tests.
+
+Repo is pushed and public: https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
+(`test` and `deploy` Actions green on the first push, 2026-08-31).
+
+2026-09-01 doc changes (no code): `DGS-READ-THIS.md` was replaced by a root `README.md` written
+for two kinds of DGS — Track A (sheet edits, no code) and Track B (changing the app with Claude
+Code or Codex, step by step); `LICENSE.md` added (University of Notre Dame dual license: free
+non-commercial, paid commercial via the IDEA Center — leave it alone unless the DGS asks);
+`AGENTS.md` added so Codex reads the same rules as `CLAUDE.md`. Keep `CLAUDE.md` and `AGENTS.md`
+consistent when either changes.
 
 Known-pending (the app's diagnostics panel is the live truth):
-- 7 Parameters rows for the DGS to paste into the sheet (`MAINTENANCE.md` § one-time setup).
+- 7 Parameters rows for the DGS to paste into the sheet (`MAINTENANCE.md` § one-time setup) —
+  still absent from the live sheet as of 2026-09-01.
 - 3 mistyped Courses rows (`CSE 98900`, `CSE 68900`, `CSE 87701`: `regular`+`yes` but research/thesis).
-- Repo may not be pushed to GitHub yet (target name: `ND-CSE-Degree-Requirement-Progress-Checking`;
-  after first push: Settings → Pages → Source: GitHub Actions).
+- GitHub Pages: the `deploy` run succeeded but the Pages URL
+  (https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/) still returned 404 on
+  2026-09-01 — check Settings → Pages → Source: GitHub Actions, then re-run `deploy`.
+- The sheet's own README tab still says the CSV links go in `src/data/sheet-urls.ts`; the real
+  file is `data/sheet-urls.json` (sheet-side fix for the DGS).
+- Snapshot commits made by the weekly `sync-sheet` Action use `GITHUB_TOKEN`, which does not
+  trigger other workflows, so the deployed fallback snapshot only refreshes on the next human push.
+  Fix if wanted: add a `workflow_run` trigger on `sync-sheet` to `.github/workflows/deploy.yml`.
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 

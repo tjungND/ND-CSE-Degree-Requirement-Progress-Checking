@@ -10,7 +10,9 @@ by requirement, whether they currently satisfy the **MSCSE** (Graduate Handbook 
 **The app is built, tested, and in maintenance.** Before changing rule logic or architecture,
 read `docs/CLAUDE-HANDOFF.md` — the context capsule from the session that built it (non-obvious
 design decisions, invariants, and recipes for common maintenance asks). The humans' guide is
-`DGS-READ-THIS.md`; deeper ops notes are in `MAINTENANCE.md`.
+`README.md` (Track A: sheet edits without code; Track B: changing the app with Claude Code or
+Codex); deeper ops notes are in `MAINTENANCE.md`. `AGENTS.md` points Codex and other agents at
+this file — keep the two consistent.
 
 The Director of Graduate Studies (DGS) changes every few years. The next DGS must be able to
 update which courses count, and the tunable numbers, by editing a Google Sheet — without
@@ -45,7 +47,8 @@ touching code and without the original author.
 
 (`reference/CSE-Degree-Audit.html` is the pre-build prototype, kept for history only — its rule
 logic is superseded and was found buggy; never treat it as truth. `START-HERE.md` and
-`KICKOFF-PROMPT.md` are the original starter-kit notes, also historical.)
+`KICKOFF-PROMPT.md` are the original starter-kit notes, also historical. `DGS-READ-THIS.md` was
+replaced by `README.md` on 2026-09-01.)
 
 ## Architecture (as built)
 - Vite + TypeScript, vanilla UI, zero runtime dependencies except lazily-loaded `pdfjs-dist`.
@@ -77,3 +80,7 @@ logic is superseded and was found buggy; never treat it as truth. `START-HERE.md
   dependency without saying why.
 - Never let a `:` (colon) into any parent folder name — it breaks npm's PATH and vite's module
   loader (details in `MAINTENANCE.md`).
+- The project is dual-licensed by the University of Notre Dame (free for non-commercial use,
+  paid commercial license via the IDEA Center). Do not edit, remove, or add license files or the
+  README's License section unless the DGS asks; do not add dependencies whose licenses conflict
+  with redistribution.

@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "ND CSE Degree Requirement Progress Checking — static self-check audit against the CSE Graduate Studies Handbook §3 (MSCSE) and §4 (Ph.D.)",
+  "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "scripts": {
     "dev": "vite",
