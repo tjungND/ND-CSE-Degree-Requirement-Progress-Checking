@@ -87,6 +87,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   the edition, the official PDF URL, `handbookLink()` and the `ALPHA_NOTICE` wording; rendered as
   the `.banner.alpha` under the masthead, the `.legal-alpha` footer paragraph, and two lines in
   the copied summary. Remove the banner (not the footer) when the DGS declares the app out of alpha.
+- **Contacts, feedback address, license line, "untested upload" note** (2026-09-01, DGS
+  decision): `src/ui/contacts.ts` holds the DGS / Assistant DGS / Graduate Program Administrator
+  entries, the repo + LICENSE URLs, and `reportToDgs()`; rendered as the footer's "Who to
+  contact" list and "License" line, the feedback sentence in the alpha banner + footer, and the
+  `.untested-note` under the transcript-upload button. Update `contacts.ts` at every DGS handoff;
+  drop the untested note once a real transcript has been run through the parser (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
 - **Attestations**: DGS-approval checkboxes upgrade matching courses' certainty tier;
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).

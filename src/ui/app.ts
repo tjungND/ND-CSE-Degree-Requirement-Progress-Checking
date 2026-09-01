@@ -10,6 +10,7 @@ import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { ALPHA_NOTICE, handbookLink } from './handbook.ts';
+import { CONTACTS, LICENSE_URL, REPO_URL, mailto, reportToDgs } from './contacts.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
   clearLocal,
@@ -131,6 +132,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'banner alpha', role: 'note' },
       el('strong', {}, 'Alpha version under testing. '),
       ALPHA_NOTICE,
+      ...reportToDgs(' Error reports and feedback are welcome — please email'),
     );
   }
 
@@ -329,6 +331,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'transcript-upload' },
       el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Upload ND unofficial transcript (PDF)'),
       el('span', { class: 'hint-inline' }, ' — Notre Dame transcripts only; parsed courses are shown for your confirmation before anything is added.'),
+      el(
+        'p',
+        { class: 'privacy-note untested-note' },
+        el('strong', {}, 'Untested: '),
+        'the PDF upload has not been tested on a real transcript. FERPA prohibits sharing student records with the AI tools used to build this page, so the parser was written from publicly available information only. Check the parsed courses carefully, and ',
+        ...reportToDgs('please report any error to'),
+      ),
       el(
         'p',
         { class: 'privacy-note' },
@@ -754,12 +763,42 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         { class: 'legal-alpha' },
         el('strong', {}, 'Alpha version under testing. '),
         ALPHA_NOTICE,
+        ...reportToDgs(' Error reports and feedback are welcome — please email'),
       ),
       el(
         'div',
         { class: 'legal-privacy' },
         el('strong', {}, 'Your data never leaves your device. '),
         'Everything you enter — and any transcript PDF you upload — is processed locally in this browser and saved only on this computer. Nothing is transmitted to the University or to any third party (the page only reads the public course-rules sheet), so your FERPA-protected education records remain under your control.',
+      ),
+      contactsBlock(),
+      el(
+        'div',
+        { class: 'legal-license' },
+        el('strong', {}, 'License. '),
+        '© 2026 University of Notre Dame du Lac. Free for non-commercial (academic and research) use; commercial use requires a license from Notre Dame\'s IDEA Center (',
+        mailto('softwarelicensing@nd.edu'),
+        '). Full terms: ',
+        el('a', { href: LICENSE_URL, target: '_blank', rel: 'noopener noreferrer' }, 'LICENSE.md'),
+        ' · source: ',
+        el('a', { href: REPO_URL, target: '_blank', rel: 'noopener noreferrer' }, 'GitHub'),
+        '.',
+      ),
+    );
+  }
+
+  /** Who to contact — names and addresses live in src/ui/contacts.ts. */
+  function contactsBlock(): HTMLElement {
+    return el(
+      'div',
+      { class: 'legal-contacts' },
+      el('strong', {}, 'Who to contact. '),
+      el(
+        'ul',
+        {},
+        ...CONTACTS.map((c) =>
+          el('li', {}, `${c.role}: ${c.name} (`, mailto(c.email), `) — ${c.scope}.`),
+        ),
       ),
     );
   }

@@ -168,4 +168,8 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 /* privacy notes (FERPA) */
 .privacy-note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; max-width: 80ch; }
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
-.legal-alpha, .legal-privacy { margin-top: 10px; }
+.legal-alpha, .legal-privacy, .legal-contacts, .legal-license { margin-top: 10px; }
+.legal-contacts strong, .legal-license strong { color: var(--ink); }
+.legal-contacts ul { margin: 4px 0 0; padding-left: 18px; }
+.legal-contacts li { margin: 2px 0; }
+.untested-note strong { color: #7a1f1f; }

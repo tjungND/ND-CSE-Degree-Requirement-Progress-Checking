@@ -348,6 +348,7 @@ in-browser PDF parsing · `tests/scenarios/*.json` — one student case per file
 `data/README.md` — the sheet schema, column by column · `docs/DECISIONS.md` — every policy
 interpretation ever made · `docs/CLAUDE-HANDOFF.md` — engineering decisions and recipes for AI
 sessions · `MAINTENANCE.md` — deeper technical notes and the list of one-time setup still pending ·
+`src/ui/handbook.ts` — handbook edition + PDF link · `src/ui/contacts.ts` — who to contact ·
 `CLAUDE.md` / `AGENTS.md` — the instructions AI agents read · `START-HERE.md`, `KICKOFF-PROMPT.md`,
 `reference/` — the original build-time starter kit, historical only.
 
@@ -366,10 +367,13 @@ tooling (details in `MAINTENANCE.md`).
    `https://<new-owner>.github.io/ND-CSE-Degree-Requirement-Progress-Checking/` — then re-enable
    *Settings → Pages → Source: GitHub Actions*, update the link or iframe on cse.nd.edu, and
    update the URL at the top of this file.
-3. **Walk through one live edit together:** change a Parameters value, wait five minutes, watch the
+3. **Update the people on the page:** names and e-mail addresses of the DGS, Assistant DGS and
+   Graduate Program Administrator live in `src/ui/contacts.ts` (the footer, the feedback notes
+   and the error-report address all read from it). Edit, commit, push — Track B, five minutes.
+4. **Walk through one live edit together:** change a Parameters value, wait five minutes, watch the
    app pick it up, change it back, log both in the Changelog.
-4. **Point them at this file.** Everything else follows from it.
-5. Nothing else — student data was never yours to hand over.
+5. **Point them at this file.** Everything else follows from it.
+6. Nothing else — student data was never yours to hand over.
 
 ## Status and open items
 
