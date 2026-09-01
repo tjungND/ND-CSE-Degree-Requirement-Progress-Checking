@@ -13,8 +13,11 @@ report), 60+ tests, GitHub workflows (test/deploy/sync-sheet), docs (README, MAI
 data/README, DECISIONS, LICENSE). An adversarial multi-agent review confirmed 25 defects; all
 fixed with regression tests.
 
-Repo is pushed and public: https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
-(`test` and `deploy` Actions green on the first push, 2026-08-31).
+Repo is pushed and public: https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking.
+CI note: the first two pushes (2026-08-31, 2026-09-01) FAILED in the `build` job because the test
+script was `node --test tests/` — Node 24's runner does not accept a directory ("Cannot find
+module …/tests"). Fixed 2026-09-01 to `node --test "tests/**/*.test.ts"` (60/60 pass on Node 24
+and 22). Nothing was deployed to Pages until that fix landed.
 
 2026-09-01 doc changes (no code): `DGS-READ-THIS.md` was replaced by a root `README.md` written
 for two kinds of DGS — Track A (sheet edits, no code) and Track B (changing the app with Claude
@@ -27,9 +30,9 @@ Known-pending (the app's diagnostics panel is the live truth):
 - 7 Parameters rows for the DGS to paste into the sheet (`MAINTENANCE.md` § one-time setup) —
   still absent from the live sheet as of 2026-09-01.
 - 3 mistyped Courses rows (`CSE 98900`, `CSE 68900`, `CSE 87701`: `regular`+`yes` but research/thesis).
-- GitHub Pages: the `deploy` run succeeded but the Pages URL
-  (https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/) still returned 404 on
-  2026-09-01 — check Settings → Pages → Source: GitHub Actions, then re-run `deploy`.
+- GitHub Pages: Settings → Pages → Source is set to GitHub Actions (2026-09-01). The URL
+  (https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/) goes live with the
+  first green `deploy` run after the test-script fix above — confirm it, then link from cse.nd.edu.
 - The sheet's own README tab still says the CSV links go in `src/data/sheet-urls.ts`; the real
   file is `data/sheet-urls.json` (sheet-side fix for the DGS).
 - Snapshot commits made by the weekly `sync-sheet` Action use `GITHUB_TOKEN`, which does not
