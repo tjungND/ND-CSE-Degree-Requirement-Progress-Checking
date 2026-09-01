@@ -35,6 +35,13 @@ Known-pending (the app's diagnostics panel is the live truth):
   `courses.html`, from cse.nd.edu.
 - The sheet's own README tab still says the CSV links go in `src/data/sheet-urls.ts`; the real
   file is `data/sheet-urls.json` (sheet-side fix for the DGS).
+- Google's published-CSV endpoint intermittently HANGS (no response at all): seen 2026-09-01
+  from a GitHub runner (the first sync-sheet run timed out at 30 s) and from a browser (one
+  request hung past 20 s, the next three took ~300 ms). `scripts/sync-sheet.ts` therefore fetches
+  sequentially with 3 attempts × 60 s and the workflow logs a curl reachability line per tab;
+  the browser loader keeps its single 12 s attempt and falls back to the snapshot with the banner
+  — by design, since the snapshot is now at most ~6 h behind. The DGS ran `npm run sync-sheet`
+  locally and committed the snapshot that day (2c13949).
 - Working copy in Google Drive: on 2026-09-01 Drive delivered a commit to the other Mac with
   `.git/index` missing and a stale `.git/index.lock`; repaired with `git reset -q` after moving
   the lock away (`MAINTENANCE.md` § repo peculiarities). Nothing was lost, but expect it again.

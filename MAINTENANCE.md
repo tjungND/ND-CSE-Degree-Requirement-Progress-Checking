@@ -74,7 +74,14 @@ only when the rules should carry a different date than the last edit (see "Sync"
   sync-sheet → Run workflow; locally `npm run sync-sheet` (then commit the snapshot if it changed).
   **GitHub pauses scheduled workflows in a public repository after 60 days without repository
   activity** and emails the owner — re-enable from the Actions tab (Actions → sync-sheet →
-  "Enable workflow").
+  "Enable workflow"). If a run fails at `npm run sync-sheet` with a timeout: the very first run
+  (2026-09-01) did — Google left the runner's request hanging for 30 s — so the script now
+  fetches the three tabs one at a time with three attempts and a 60 s timeout, and the workflow
+  logs a `curl` reachability line per tab just before it. Look at those lines: an `HTTP 200` in
+  a few seconds means the hang was transient (re-run the workflow: Actions → sync-sheet → Re-run,
+  or `gh run rerun <run-id>`); a timeout there too means Google is not answering GitHub's
+  runners at all, and the fallback is to run `npm run sync-sheet` on your own Mac and commit
+  `data/snapshot.json` (the pages then date the rules from that commit).
 - **Deploy**: every push to `main` rebuilds and redeploys GitHub Pages (`deploy` Action).
   One-time repo setting: Settings → Pages → Source: **GitHub Actions**.
 - **Tests**: `npm test` (60+ tests: one JSON scenario per student case in `tests/scenarios/`

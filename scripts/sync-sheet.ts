@@ -16,12 +16,35 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const snapshotPath = join(root, 'data', 'snapshot.json');
 const urls = JSON.parse(readFileSync(join(root, 'data', 'sheet-urls.json'), 'utf8'));
 
-async function fetchCsv(url: string): Promise<string> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  const text = await res.text();
-  if (/^\s*</.test(text)) throw new Error(`got HTML instead of CSV from ${url} — is the tab still published?`);
-  return text;
+// Google occasionally leaves a request from a GitHub runner hanging (the first
+// scheduled run, 2026-09-01, timed out after 30 s with no response at all), so
+// the tabs are fetched one at a time, with retries, a generous timeout and a
+// timing line per tab — the Action log then shows what happened.
+const FETCH_TIMEOUT_MS = 60_000;
+const FETCH_ATTEMPTS = 3;
+
+async function fetchCsv(name: string, url: string): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
+    const started = Date.now();
+    const seconds = () => ((Date.now() - started) / 1000).toFixed(1);
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), redirect: 'follow' });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status} after ${seconds()} s`);
+      if (/^\s*</.test(text)) throw new Error(`got HTML instead of CSV after ${seconds()} s — is the tab still published?`);
+      console.log(`Fetched ${name}: ${text.length} characters in ${seconds()} s${attempt > 1 ? ` (attempt ${attempt})` : ''}.`);
+      return text;
+    } catch (e) {
+      lastError = e;
+      console.warn(`Fetching ${name} failed (attempt ${attempt} of ${FETCH_ATTEMPTS}, ${seconds()} s): ${e instanceof Error ? e.message : String(e)}`);
+      if (attempt < FETCH_ATTEMPTS) await new Promise((r) => setTimeout(r, 5_000 * attempt));
+    }
+  }
+  throw new Error(
+    `Could not fetch the ${name} tab (${url}): ${lastError instanceof Error ? lastError.message : String(lastError)}. ` +
+      'If this keeps happening from GitHub Actions, see MAINTENANCE.md "Sync, deploy, test".',
+  );
 }
 
 /** The committed snapshot, or undefined if it is missing or unreadable. */
@@ -39,11 +62,9 @@ function readPrevious(): { syncedAt: string; csv: CsvTexts } | undefined {
   return undefined;
 }
 
-const [courses, parameters, categories] = await Promise.all([
-  fetchCsv(urls.courses),
-  fetchCsv(urls.parameters),
-  fetchCsv(urls.categories),
-]);
+const courses = await fetchCsv('Courses', urls.courses);
+const parameters = await fetchCsv('Parameters', urls.parameters);
+const categories = await fetchCsv('Categories', urls.categories);
 const live: CsvTexts = { courses, parameters, categories };
 
 const syncedAt = new Date().toISOString();

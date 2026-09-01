@@ -25,6 +25,12 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Reachability check (diagnostic only — shows whether Google answers the runner)
+        run: |
+          for tab in courses parameters categories; do
+            url=$(node -p "require('./data/sheet-urls.json').$tab")
+            curl -sS -o /dev/null --max-time 60 -w "$tab: HTTP %{http_code}, %{size_download} bytes in %{time_total} s\n" "$url" || echo "$tab: curl failed"
+          done
       - run: npm run sync-sheet
       - run: npm test
       - name: Commit the snapshot if it changed, then redeploy
