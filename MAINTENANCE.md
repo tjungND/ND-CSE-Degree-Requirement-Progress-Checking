@@ -56,10 +56,10 @@ review" rather than counting silently — pick final values), and a number of ac
 have blank verdicts (shown as "Not yet decided" on the public course-rules page). The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
-The optional Parameters row `rules_effective_date` (`2026-09-01` format) overrides the automatic
-"The course rules here are up-to-date as of <date>" line on both pages with "Rules effective as of
-<date>"; add it only when the rules should carry a different date than the last edit (see "Sync"
-below).
+The optional Parameters row `rules_effective_date` (`2026-09-01` format) replaces the automatic
+"The course rules here were last updated on <date>" half of the dated line on both pages with
+"are effective as of <date>"; add it only when the rules should carry a different date than the
+last edit (see "Sync" below).
 
 ## Sync, deploy, test
 
@@ -68,11 +68,11 @@ below).
   `deploy` workflow (by `workflow_dispatch` — a push made with the Action's own token never
   triggers `on: push`). Unchanged content leaves the file untouched on purpose: the snapshot's
   `syncedAt` is therefore the moment the current rules were first seen, and that is the date both
-  pages print as "The course rules here are up-to-date as of …" (Google sends no Last-Modified
-  header for published CSVs — verified 2026-09-01 — so this is the only zero-setup source). While
-  the live sheet is newer than the deployed copy the pages say "as of <today>" (they have just
-  read the live sheet) and the diagnostics panel explains; that state should last at most ~6
-  hours. Run the sync by hand: repo → Actions →
+  pages print as "The course rules here were last updated on …" (Google sends no Last-Modified
+  header for published CSVs — verified 2026-09-01 — so this is the only zero-setup source); the
+  sentence ends ", and are up-to-date as of <the day the page read the sheet>". While the live
+  sheet is newer than the deployed copy the first half says "were updated after <date>" and the
+  diagnostics panel explains; that state should last at most ~6 hours. Run the sync by hand: repo → Actions →
   sync-sheet → Run workflow; locally `npm run sync-sheet` (then commit the snapshot if it changed).
   **GitHub pauses scheduled workflows in a public repository after 60 days without repository
   activity** and emails the owner — re-enable from the Actions tab (Actions → sync-sheet →

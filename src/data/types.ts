@@ -68,7 +68,7 @@ export interface Rules {
   syncedAt: string;
   /** When the course rules last changed, as far as the app can tell — see
    * `src/data/rules-date.ts`. Undefined only for rules built without a snapshot
-   * (tests); then the pages fall back to "those in effect for <term>". */
+   * (tests); then the pages fall back to "are those in effect for <term>". */
   rulesDate?: RulesDate;
 }
 

@@ -1,8 +1,9 @@
 // The dated line under each page's title, and how the rules get their date:
 // rules_effective_date row (override) → the snapshot-based date from
-// src/data/rules-date.ts ("up-to-date as of <sheet's last change>" when the live
-// sheet still matches the committed snapshot, "as of <today>" when it is newer) →
-// "those in effect for <term>".
+// src/data/rules-date.ts ("were last updated on <sheet's last change>" when the
+// live sheet still matches the committed snapshot, "were updated after <copy date>"
+// when it is newer) → "are those in effect for <term>"; always followed by ", and
+// are up-to-date as of <the day the page read the sheet>".
 // rules_effective_date is a display-only key: missing is silent at the Parameters
 // level, present is not "unknown", and the engine never reads it.
 import assert from 'node:assert/strict';
@@ -22,10 +23,12 @@ function rawWith(extra: Record<string, string>): Map<string, { value: string; se
   return raw;
 }
 
-const rulesWith = (extra: Record<string, string>, rulesDate?: RulesDate) => ({
-  parameters: { raw: rawWith(extra) },
-  rulesDate,
-});
+const rulesWith = (
+  extra: Record<string, string>,
+  rulesDate?: RulesDate,
+  source: 'live' | 'snapshot' = 'live',
+  syncedAt = '2026-11-03T14:00:00Z',
+) => ({ parameters: { raw: rawWith(extra) }, rulesDate, source, syncedAt });
 
 const TODAY = '2026-11-03';
 
@@ -52,30 +55,46 @@ describe('display-only parameters', () => {
 });
 
 describe('the dated line under the title', () => {
+  const TAIL = ', and are up-to-date as of November 3, 2026.'; // TODAY, as a calendar date
+
   it('prefers the DGS override, rendering ISO as prose and passing other text through', () => {
     assert.equal(
       rulesDateLine(rulesWith({ rules_effective_date: '2026-09-01' }, { kind: 'known', at: '2026-10-05T12:00:00Z' }), 'Fall 2026', TODAY),
-      'Rules effective as of September 1, 2026.',
+      `The course rules here are effective as of September 1, 2026${TAIL}`,
     );
-    assert.equal(rulesDateLine(rulesWith({ rules_effective_date: 'Fall 2026' }), 'Fall 2026', TODAY), 'Rules effective as of Fall 2026.');
+    assert.equal(
+      rulesDateLine(rulesWith({ rules_effective_date: 'Fall 2026' }), 'Fall 2026', TODAY),
+      `The course rules here are effective as of Fall 2026${TAIL}`,
+    );
   });
 
   it("dates the rules by the sheet's last change when the rules shown are the snapshot content", () => {
     const line = rulesDateLine(rulesWith({}, { kind: 'known', at: '2026-09-01T18:30:00Z' }), 'Fall 2026', TODAY);
-    assert.match(line, /^The course rules here are up-to-date as of (August 31|September 1|September 2), 2026\.$/); // local time zone
+    assert.match(line, /^The course rules here were last updated on (August 31|September 1|September 2), 2026, and are up-to-date as of November 3, 2026\.$/); // local time zone
   });
 
-  it('dates the rules "as of today" while the live sheet is newer than the snapshot (the page just read it)', () => {
+  it('says "updated after" while the live sheet is newer than the snapshot', () => {
     const line = rulesDateLine(rulesWith({}, { kind: 'after', at: '2026-09-01T18:30:00Z' }), 'Fall 2026', TODAY);
-    assert.equal(line, 'The course rules here are up-to-date as of November 3, 2026.'); // calendar date, no time-zone shift
+    assert.match(line, /^The course rules here were updated after (August 31|September 1|September 2), 2026, and are up-to-date as of November 3, 2026\.$/);
+  });
+
+  it('when the fallback copy is shown, "up-to-date as of" is the day that copy was saved', () => {
+    const line = rulesDateLine(rulesWith({}, { kind: 'known', at: '2026-09-01T18:30:00Z' }, 'snapshot', '2026-09-01T18:30:00Z'), 'Fall 2026', TODAY);
+    assert.match(line, /^The course rules here were last updated on (\w+ \d+, 2026), and are up-to-date as of \1\.$/);
   });
 
   it('falls back to the current term when nothing is dated (blank override included)', () => {
-    const fallback = 'The course rules here are those in effect for Fall 2026.';
+    const fallback = `The course rules here are those in effect for Fall 2026${TAIL}`;
     assert.equal(rulesDateLine(rulesWith({ rules_effective_date: '  ' }), 'Fall 2026', TODAY), fallback);
     assert.equal(rulesDateLine(rulesWith({}), 'Fall 2026', TODAY), fallback);
     assert.equal(rulesDateLine(rulesWith({}, { kind: 'known', at: 'garbage' }), 'Fall 2026', TODAY), fallback);
-    assert.equal(rulesDateLine(rulesWith({}, { kind: 'after', at: '2026-09-01T18:30:00Z' }), 'Fall 2026', 'not-a-date'), fallback);
+  });
+
+  it('never prints a broken date: a bad "today" just drops the second half', () => {
+    assert.equal(
+      rulesDateLine(rulesWith({}, { kind: 'known', at: '2026-09-01T18:30:00Z' }), 'Fall 2026', 'not-a-date'),
+      rulesDateLine(rulesWith({}, { kind: 'known', at: '2026-09-01T18:30:00Z' }), 'Fall 2026', TODAY).replace(/, and are up-to-date as of November 3, 2026\.$/, '.'),
+    );
   });
 });
 

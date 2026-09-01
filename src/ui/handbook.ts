@@ -22,32 +22,35 @@ export const ALPHA_NOTICE =
   'guarantee. It is not an official degree audit; the final decision on every requirement ' +
   'is at the discretion of the Director of Graduate Studies.';
 
-/** The dated line under each page's title — one sentence, one date (DGS wording,
- *  2026-09-01): "The course rules here are up-to-date as of <date>." Precedence:
- *  1. the DGS's explicit `rules_effective_date` Parameters row (an override for
- *     when the policy date differs from the last edit) → "Rules effective as of …";
- *  2. `rules.rulesDate` from `src/data/rules-date.ts`: `known` → the date the sheet
- *     last changed (as recorded by the sync); `after` → the live sheet is newer than
- *     the deployed copy, and since the page has just read it, "as of <today>" (the
- *     next sync run, within 6 hours, pins the revision date);
- *  3. nothing dated at all (rules built without a snapshot) → "… those in effect for
- *     <current term>." */
+/** The dated line under each page's title — two dates, one sentence (DGS wording,
+ *  2026-09-01): "The course rules here were last updated on <X>, and are up-to-date
+ *  as of <Y>." X is when the sheet's content last changed; Y is the day the page
+ *  read the sheet (or, when the live fetch failed, the day the fallback copy was
+ *  saved — the banner explains). X comes from `rules.rulesDate`
+ *  (`src/data/rules-date.ts`): `known` → that date; `after` → the live sheet is
+ *  newer than the deployed copy, so "were updated after <copy date>" until the next
+ *  sync run (within 6 hours) pins the revision date. The DGS's optional
+ *  `rules_effective_date` Parameters row replaces X with "are effective as of <date>";
+ *  rules built without a snapshot (tests) fall back to "are those in effect for
+ *  <term>". */
 export function rulesDateLine(
-  rules: { parameters: { raw: ReadonlyMap<string, { value: string }> }; rulesDate?: RulesDate },
+  rules: {
+    parameters: { raw: ReadonlyMap<string, { value: string }> };
+    rulesDate?: RulesDate;
+    source: 'live' | 'snapshot';
+    syncedAt: string;
+  },
   currentTermLabel: string,
   todayIso: string,
 ): string {
-  const v = rules.parameters.raw.get('rules_effective_date')?.value.trim();
-  if (v) return `Rules effective as of ${formatYmdLong(v) ?? v}.`;
-  if (rules.rulesDate?.kind === 'known') {
-    const at = formatDateLong(rules.rulesDate.at);
-    if (at) return `The course rules here are up-to-date as of ${at}.`;
-  }
-  if (rules.rulesDate?.kind === 'after') {
-    const today = formatYmdLong(todayIso);
-    if (today) return `The course rules here are up-to-date as of ${today}.`;
-  }
-  return `The course rules here are those in effect for ${currentTermLabel}.`;
+  const asOf = rules.source === 'live' ? formatYmdLong(todayIso.slice(0, 10)) : formatDateLong(rules.syncedAt);
+  const tail = asOf ? `, and are up-to-date as of ${asOf}.` : '.';
+  const override = rules.parameters.raw.get('rules_effective_date')?.value.trim();
+  if (override) return `The course rules here are effective as of ${formatYmdLong(override) ?? override}${tail}`;
+  const at = formatDateLong(rules.rulesDate?.at);
+  if (at && rules.rulesDate?.kind === 'known') return `The course rules here were last updated on ${at}${tail}`;
+  if (at) return `The course rules here were updated after ${at}${tail}`;
+  return `The course rules here are those in effect for ${currentTermLabel}${tail}`;
 }
 
 /** "2026-09-01" → "September 1, 2026" as a calendar date (no time-zone shift);

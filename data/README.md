@@ -84,7 +84,7 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `transfer_unfinished_ms_credits_max` | 6 | §5.2 | unfinished prior M.S. |
 | `transfer_min_grade` | B | §5.2 | |
 | `fulltime_credits_min` | 9 | §2.1.2 | |
-| `rules_effective_date` | 2026-09-01 | | **Display only, optional override.** Normally leave it out: the pages print "The course rules here are up-to-date as of <date>" automatically — the date the six-hourly sync first saw the current sheet content (see `snapshot.json` below). Add this row only when the rules should carry a different date than the last edit — e.g. a change decided today that takes effect next term; then the pages print "Rules effective as of <date>" instead, for as long as the row exists. YYYY-MM-DD preferred (other text is shown as written). |
+| `rules_effective_date` | 2026-09-01 | | **Display only, optional override.** Normally leave it out: the pages print "The course rules here were last updated on <date>, and are up-to-date as of <day of reading>" automatically — the first date is when the six-hourly sync first saw the current sheet content (see `snapshot.json` below). Add this row only when the rules should carry a different date than the last edit — e.g. a change decided today that takes effect next term; then the pages print "Rules effective as of <date>" instead, for as long as the row exists. YYYY-MM-DD preferred (other text is shown as written). |
 
 Add rows freely; the app ignores keys it does not know and warns (in the diagnostics panel)
 about known keys that are missing — the affected requirement then shows "cannot evaluate"
@@ -118,8 +118,8 @@ Written by `npm run sync-sheet` (and the six-hourly Action): `{ schemaVersion, s
 parser handles live and fallback data identically, and each commit diff reads as "what the DGS
 changed". The script leaves the file **untouched while the sheet content is unchanged** (line
 endings and trailing whitespace ignored), so `syncedAt` is the moment the current rules were first
-seen — that is the date the pages print as "The course rules here are up-to-date as of …"; when
-the live sheet differs from this file they print "as of <today>" until the next sync. Google sends no
+seen — that is the date the pages print as "The course rules here were last updated on …"; when
+the live sheet differs from this file they print "were updated after …" until the next sync. Google sends no
 `Last-Modified` header for published CSVs (verified 2026-09-01), which is why the date comes from
 here (`src/data/rules-date.ts`).
 

@@ -42,7 +42,7 @@ function noteNewerSheet(rules: Rules): Rules {
       severity: 'warning',
       tab: 'Courses',
       message:
-        `The live sheet differs from the copy saved in the app on ${rules.rulesDate.at.slice(0, 10)}, so the pages date the rules "as of today" instead of by their revision date. ` +
+        `The live sheet differs from the copy saved in the app on ${rules.rulesDate.at.slice(0, 10)}, so the pages can only say the rules were "updated after" that date. ` +
         'This is normal for up to ~6 hours after an edit — the sync-sheet Action then records the date, saves the new copy and redeploys. ' +
         "If it persists for more than a day, check that Action (MAINTENANCE.md, 'Sync, deploy, test').",
     });
