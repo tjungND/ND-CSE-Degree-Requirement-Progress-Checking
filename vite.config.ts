@@ -10,5 +10,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // Two pages: the audit tool (index.html) and the public course-rules list
+    // (courses.html). Both share src/data/ and src/ui/; courses.html holds no
+    // student data at all.
+    rollupOptions: { input: { index: 'index.html', courses: 'courses.html' } },
   },
 });

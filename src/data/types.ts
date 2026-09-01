@@ -31,6 +31,9 @@ export interface RuleCourse {
   active: boolean; // course-picker visibility only
   effectiveTerm?: Term;
   notes?: string;
+  /** dgs_reviewed = yes: the DGS has confirmed this row. Shown on the public
+   * course list; the audit engine ignores it (an unreviewed 'yes' still counts). */
+  dgsReviewed: boolean;
   /** 1-based spreadsheet row, for diagnostics. */
   sheetRow: number;
 }

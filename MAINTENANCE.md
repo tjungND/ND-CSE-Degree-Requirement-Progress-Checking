@@ -81,7 +81,8 @@ same problems whenever it loads.
 - **Tests**: `npm test` (60+ tests: one JSON scenario per student case in `tests/scenarios/`
   plus engine/loader/transcript units). `npm run build` type-checks and bundles. Both must pass
   before merging anything; `npm run e2e` additionally drives the built app in headless Chrome
-  (screenshots land in `.e2e-out/`) — run it for UI-visible changes. When a student finds a
+  (screenshots land in `.e2e-out/`, including the public course-rules page `courses.html`) — run
+  it for UI-visible changes. When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
 - **For AI coding sessions**: `CLAUDE.md` holds the project rules (Claude Code reads it
   automatically; Codex reads `AGENTS.md`, which points to it); `docs/CLAUDE-HANDOFF.md` is the

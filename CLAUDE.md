@@ -59,7 +59,10 @@ replaced by `README.md` on 2026-09-01.)
   rows in plain English (the person who broke it is a DGS editing a spreadsheet). On fetch
   failure: fall back to `data/snapshot.json` (raw CSV text) + visible "rules last synced" note.
 - `src/ui/` — form, course table with sheet-driven autocomplete, transcript upload + preview,
-  report. All user-entered text rendered via `textContent`, never innerHTML.
+  report. All user-entered text rendered via `textContent`, never innerHTML. A second page,
+  `courses.html` → `src/courses.ts` → `src/ui/courses-page.ts`, is the public course-rules list
+  (read-only view of the Courses tab; no student data); both pages are built by Vite from
+  `vite.config.ts` `rollupOptions.input`.
 - `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser.
 - `tests/` — **node's built-in runner** (`node --test`; that's why relative imports carry `.ts`
   extensions). One JSON fixture per student scenario in `tests/scenarios/`; add a scenario for

@@ -173,3 +173,47 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .legal-contacts ul { margin: 4px 0 0; padding-left: 18px; }
 .legal-contacts li { margin: 2px 0; }
 .untested-note strong { color: #7a1f1f; }
+
+/* ---------- courses.html: the public course-rules list ---------- */
+.courses-page h2 { color: var(--navy); font-size: 20px; margin: 26px 0 10px; }
+.courses-page h3 { margin: 0 0 6px; font-size: 15px; color: var(--navy); }
+.courses-page .muted { color: var(--muted); }
+.courses-page .small { font-size: 12.5px; }
+.courses-page .sub a { color: inherit; text-decoration: underline; }
+.ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.ov-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.ov-list { display: flex; flex-direction: column; gap: 3px; }
+.ov-item { display: flex; gap: 8px; align-items: baseline; text-decoration: none; color: var(--ink); font-size: 13px; line-height: 1.35; padding: 2px 6px; border-radius: 6px; }
+.ov-item .cid { font-weight: 700; color: var(--navy); white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+.ov-item .ctitle { color: var(--muted); }
+.ov-item.pending .cid { color: #6b5510; }
+.ov-item:hover { background: #eef2f8; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 6px; }
+.filters input[type=search] { flex: 1 1 240px; min-width: 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.filters select { padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); }
+.filters .check { font-size: 13.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
+.count { margin: 6px 0; }
+.table-scroll { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+table.course-rules { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 980px; }
+table.course-rules th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 2px solid var(--line); padding: 8px 8px; background: #fafbfc; position: sticky; top: 0; }
+table.course-rules th .sort { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; text-transform: inherit; letter-spacing: inherit; }
+table.course-rules th .sort.active { color: var(--navy); }
+table.course-rules td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; }
+table.course-rules tr:hover td { background: #f3f5f8; }
+table.course-rules tr:target td { background: #fff7e0; }
+table.course-rules tr.retired td { color: var(--grey); }
+table.course-rules .course-id { font-weight: 700; white-space: nowrap; }
+table.course-rules .course-id .pill { margin-left: 6px; }
+.courses-page .pill.yes { background: #e4f2ea; color: var(--ok); }
+.courses-page .pill.no { background: #fbe9e7; color: var(--bad); }
+.courses-page .pill.approval { background: #e7eef9; color: var(--info); }
+.courses-page .pill.undecided { background: #ededf0; color: var(--grey); }
+.courses-page .pill.pending { background: #fff7e0; color: #6b5510; }
+.courses-page .pill.retired { background: #f1f2f4; color: var(--grey); }
+.legend ul { padding-left: 18px; margin: 6px 0 0; }
+.legend li { margin: 4px 0; font-size: 13.5px; }
+@media print {
+  .filters, .banner { display: none; }
+  .table-scroll { border: 0; overflow: visible; }
+  table.course-rules { min-width: 0; font-size: 11px; }
+}

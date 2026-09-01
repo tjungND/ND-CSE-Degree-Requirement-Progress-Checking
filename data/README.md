@@ -42,7 +42,7 @@ policy columns are the DGS's.
 | `active` | `yes` \| `no` | `yes` → shown in the student's course picker. `no` → hidden from the picker but still recognised when typed (old courses). |
 | `last_offered` | text | Last term listed in Banner (informational). |
 | `effective_term` | e.g. `Fall 2026` | First term this row applies. Keep old rows; add a new row with a later `effective_term` when a rule changes. For each course a student took, the app applies the newest row whose `effective_term` is not after that course's term; if every row is later than the course (e.g. everything says Fall 2026 and the course was taken in 2024), the **oldest row applies retroactively**, so old coursework still resolves. |
-| `dgs_reviewed` | `yes` \| `no` | DGS's own checklist; the app ignores it. |
+| `dgs_reviewed` | `yes` \| `no` | DGS's own checklist. Shown on the public course-rules page (`courses.html`) as Confirmed (`yes`) or Pending (anything else); the audit engine ignores it. |
 | `notes` | text | Free text shown to the student on hover. Cite the § when relevant. |
 
 A blank `counts_toward_*` on an active course makes the app say "needs DGS review" for that

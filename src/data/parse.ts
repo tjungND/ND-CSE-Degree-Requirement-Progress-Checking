@@ -188,6 +188,7 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       active: activeRaw !== 'no',
       effectiveTerm,
       notes: cells['notes'] || undefined,
+      dgsReviewed: (cells['dgs_reviewed'] ?? '').trim().toLowerCase() === 'yes',
       sheetRow: rowNum,
     });
   }

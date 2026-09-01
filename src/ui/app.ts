@@ -110,7 +110,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         { class: 'sub' },
         'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
         handbookLink(),
-        '. Every check cites the section it comes from.',
+        '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
+        el('a', { href: './courses.html' }, 'course rules page'),
+        '.',
       ),
       el(
         'div',

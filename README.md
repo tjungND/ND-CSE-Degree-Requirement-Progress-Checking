@@ -4,9 +4,13 @@ A web page where Notre Dame CSE graduate students self-check, requirement by req
 they stand against the Graduate Studies Handbook (§3 MSCSE, §4 Ph.D.), with the handbook section
 cited on every line. It is a self-check, not an official audit.
 
-- **Live app:** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
+- **Live app (self-check tool):** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
   (the address is shown under the repository's *Settings → Pages*; it changes if the repository is
   ever transferred to another account — see the handoff checklist)
+- **Public course-rules list:** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/courses.html
+  — which courses count toward each degree, their core area and specialization category, when
+  they are typically offered, and whether the DGS has confirmed the row. Generated live from the
+  same sheet; safe to link from cse.nd.edu and to send to students.
 - **Rules sheet (the DGS edits this):** Google Sheet **CSE-Degree-Audit-Rules** —
   https://docs.google.com/spreadsheets/d/1C8zYQvLN3gsOpjQHR1RMKdekB1VC_nv9rwSJ_RQCxVA/edit
 - **Code:** this repository, https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
@@ -75,7 +79,7 @@ app skip that row and report it.
 | `category_group` | `alg` / `hcc` / `arch` / `dsai` / `sys` / `any` / `ineligible` / blank | Which §4.4.2 specialization group it belongs to. `any` = listed under every group, the student picks one (Research Methods). `ineligible` = can never satisfy the category requirement — all 40000-level courses are marked this way. |
 | `active` | `yes` / `no` | `no` hides a retired course from the student's picker but keeps it recognized for students who took it. |
 | `effective_term` | e.g. `Fall 2026` | First term this row applies. See A3. |
-| `dgs_reviewed` | `yes` / `no` | Your own checklist; the app ignores it. |
+| `dgs_reviewed` | `yes` / `no` | `yes` shows the row as **Confirmed** on the public course-rules page; anything else shows **Pending**. The audit engine ignores it — an unreviewed `yes` in `counts_toward_*` still counts. |
 | `notes` | text | Shown to the student on hover. Cite the § when relevant. |
 
 The other columns (`title`, `level`, `credit_min`, `credit_max`, `credits_default`,
@@ -136,7 +140,9 @@ decision, correction). The next DGS will thank you.
    listed there in plain English with its row number. Your rows should not appear; if one does, the
    message says which column and why (usually a value outside the dropdown set).
 3. Click **Load example**, or type the course you added into the course table (it autocompletes
-   when `active` = `yes`), and read the report as a student would.
+   when `active` = `yes`), and read the report as a student would. Open `courses.html` too — the
+   public course-rules list should show your row with the right core area, category, and
+   Confirmed/Pending mark.
 4. If the page shows a banner *"rules last synced on …"*, the live fetch failed and the app is
    using its weekly snapshot. Check in the sheet that **File → Share → Publish to web** is still on
    for the three tabs. If the sheet was replaced by a new file, see A9.
@@ -342,7 +348,8 @@ follow them.
 ## Where things live
 
 `src/engine/` — rule engine, one pure function per requirement with the handbook sentence quoted
-above it · `src/data/` — sheet fetch, parse, validate · `src/ui/` — the page · `src/transcript/` —
+above it · `src/data/` — sheet fetch, parse, validate · `src/ui/` — the pages (`app.ts` the
+self-check tool, `courses-page.ts` the public course-rules list served as `courses.html`) · `src/transcript/` —
 in-browser PDF parsing · `tests/scenarios/*.json` — one student case per file, the safety net ·
 `data/sheet-urls.json` — the published-CSV links (edit only if the sheet is re-published) ·
 `data/README.md` — the sheet schema, column by column · `docs/DECISIONS.md` — every policy

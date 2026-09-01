@@ -93,6 +93,14 @@ Known-pending (the app's diagnostics panel is the live truth):
   contact" list and "License" line, the feedback sentence in the alpha banner + footer, and the
   `.untested-note` under the transcript-upload button. Update `contacts.ts` at every DGS handoff;
   drop the untested note once a real transcript has been run through the parser (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
+- **Public course-rules page** (`courses.html`, 2026-09-01, DGS request): `src/ui/courses-page.ts`
+  renders the Courses tab for students — overview cards per §4.4.1 core area and §4.4.2 category,
+  then a filterable/sortable table (id, title, type, counts toward MSCSE/Ph.D., core area,
+  category, typically offered, DGS reviewed). It uses the SAME loader (`loadRules`) and shows, per
+  course, the row in effect this term (`resolveRuleRow` with `termOfDate(today)`); retired rows are
+  hidden unless the visitor ticks "Include retired courses". `dgs_reviewed` is now parsed into
+  `RuleCourse.dgsReviewed` for this page only — the engine still ignores it. E2E suite
+  "course rules list" screenshots it and checks a filter. Add columns here, never new policy.
 - **Attestations**: DGS-approval checkboxes upgrade matching courses' certainty tier;
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).

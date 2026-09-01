@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openSession } from './cdp.mjs';
-import { driveApp } from './drive-app.mjs';
+import { driveApp, driveCourses } from './drive-app.mjs';
 import { driveTranscript } from './drive-transcript.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -98,6 +98,7 @@ try {
   for (const [name, fn] of [
     ['app basics', (s) => driveApp(s, baseUrl)],
     ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf)],
+    ['course rules list', (s) => driveCourses(s, baseUrl)],
   ]) {
     console.log(`\n▶ ${name}`);
     const session = await openSession(DEBUG_PORT, outDir);
