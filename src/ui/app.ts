@@ -10,7 +10,7 @@ import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { ALPHA_NOTICE, handbookLink } from './handbook.ts';
-import { CONTACTS, LICENSE_URL, REPO_URL, mailto, reportToDgs } from './contacts.ts';
+import { LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
   clearLocal,
@@ -103,17 +103,22 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return el(
       'header',
       { class: 'masthead' },
-      el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
-      el('h1', {}, 'Graduate Degree Requirement Self-check Tool'),
       el(
-        'p',
-        { class: 'sub' },
-        'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
-        handbookLink(),
-        '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
-        el('a', { href: './courses.html' }, 'course rules page'),
-        '.',
+        'div',
+        { class: 'masthead-main' },
+        el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+        el('h1', {}, 'Graduate Degree Requirement Self-check Tool'),
+        el(
+          'p',
+          { class: 'sub' },
+          'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
+          handbookLink(),
+          '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
+          el('a', { href: './courses.html' }, 'course rules page'),
+          '.',
+        ),
       ),
+      contactCard(),
       el(
         'div',
         { class: 'masthead-tools' },
@@ -134,6 +139,14 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'banner alpha', role: 'note' },
       el('strong', {}, 'Alpha version under testing. '),
       ALPHA_NOTICE,
+      ' ',
+      el(
+        'strong',
+        {},
+        'Every verdict on this page is computed from the DGS’s published course rules — see the ',
+        el('a', { href: './courses.html' }, 'course rules page'),
+        ' for which courses count and how they are categorized; if a rule there looks wrong, the verdict here will be too.',
+      ),
       ...reportToDgs(' Error reports and feedback are welcome — please email'),
     );
   }
@@ -765,6 +778,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         { class: 'legal-alpha' },
         el('strong', {}, 'Alpha version under testing. '),
         ALPHA_NOTICE,
+        ' Every verdict is computed from the DGS’s published course rules (see the ',
+        el('a', { href: './courses.html' }, 'course rules page'),
+        ').',
         ...reportToDgs(' Error reports and feedback are welcome — please email'),
       ),
       el(
@@ -773,7 +789,6 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'Your data never leaves your device. '),
         'Everything you enter — and any transcript PDF you upload — is processed locally in this browser and saved only on this computer. Nothing is transmitted to the University or to any third party (the page only reads the public course-rules sheet), so your FERPA-protected education records remain under your control.',
       ),
-      contactsBlock(),
       el(
         'div',
         { class: 'legal-license' },
@@ -789,21 +804,6 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     );
   }
 
-  /** Who to contact — names and addresses live in src/ui/contacts.ts. */
-  function contactsBlock(): HTMLElement {
-    return el(
-      'div',
-      { class: 'legal-contacts' },
-      el('strong', {}, 'Who to contact. '),
-      el(
-        'ul',
-        {},
-        ...CONTACTS.map((c) =>
-          el('li', {}, `${c.role}: ${c.name} (`, mailto(c.email), `) — ${c.scope}.`),
-        ),
-      ),
-    );
-  }
 
   // ---------- example / clear ----------
 

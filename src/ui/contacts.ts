@@ -45,6 +45,32 @@ export function reportToDgs(prefix: string): (string | Node)[] {
   return [prefix, ' the DGS (', mailto(DGS.email), ').'];
 }
 
+/** The "Who to contact" card shown at the top right of every page. */
+export function contactCard(): HTMLElement {
+  return el(
+    'aside',
+    { class: 'contact-card', 'aria-label': 'Who to contact' },
+    el('h2', {}, 'Who to contact'),
+    el(
+      'ul',
+      {},
+      ...CONTACTS.map((c) =>
+        el(
+          'li',
+          {},
+          el('span', { class: 'role' }, c.role),
+          ': ',
+          c.name,
+          ' (',
+          mailto(c.email),
+          ')',
+          el('span', { class: 'scope' }, c.scope),
+        ),
+      ),
+    ),
+  );
+}
+
 // The public source repository, linked from the footer's license line.
 export const REPO_URL = 'https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking';
 export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE.md`;

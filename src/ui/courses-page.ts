@@ -7,7 +7,7 @@
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
-import { CONTACTS, DGS, LICENSE_URL, REPO_URL, mailto, reportToDgs } from './contacts.ts';
+import { DGS, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 import { ALPHA_NOTICE, handbookLink } from './handbook.ts';
 
@@ -161,17 +161,22 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     return el(
       'header',
       { class: 'masthead' },
-      el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
-      el('h1', {}, 'Graduate Course Rules'),
       el(
-        'p',
-        { class: 'sub' },
-        'Which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, which core-knowledge area (§4.4.1) and specialization category (§4.4.2) each one satisfies, and when it is typically offered — as set by the Director of Graduate Studies under the ',
-        handbookLink(),
-        '. This list is generated live from the DGS’s rules sheet; the ',
-        el('a', { href: './index.html' }, 'degree self-check tool'),
-        ' applies the same rules to your own coursework.',
+        'div',
+        { class: 'masthead-main' },
+        el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+        el('h1', {}, 'Graduate Course Rules'),
+        el(
+          'p',
+          { class: 'sub' },
+          'Which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, which core-knowledge area (§4.4.1) and specialization category (§4.4.2) each one satisfies, and when it is typically offered — as set by the Director of Graduate Studies under the ',
+          handbookLink(),
+          '. This list is generated live from the DGS’s rules sheet; the ',
+          el('a', { href: './index.html' }, 'degree self-check tool'),
+          ' applies the same rules to your own coursework.',
+        ),
       ),
+      contactCard(),
     );
   }
 
@@ -182,6 +187,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         { class: 'banner alpha', role: 'note' },
         el('strong', {}, 'Alpha version under testing. '),
         ALPHA_NOTICE,
+        ' ',
+        el(
+          'strong',
+          {},
+          'The ',
+          el('a', { href: './index.html' }, 'self-check tool'),
+          ' computes every verdict from the rules on this page.',
+        ),
         ' Rows marked ',
         el('span', { class: 'pill pending' }, 'Pending'),
         ' have not yet been confirmed by the DGS and may change.',
@@ -436,12 +449,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         'This page reads the Director of Graduate Studies’ course-rules sheet each time it loads, so it reflects the DGS’s latest decisions (Google republishes edits within a few minutes). Where this page and the ',
         handbookLink(),
         ' disagree, the handbook and the DGS decide.',
-      ),
-      el(
-        'div',
-        { class: 'legal-contacts' },
-        el('strong', {}, 'Who to contact. '),
-        el('ul', {}, ...CONTACTS.map((c) => el('li', {}, `${c.role}: ${c.name} (`, mailto(c.email), `) — ${c.scope}.`))),
       ),
       el(
         'div',

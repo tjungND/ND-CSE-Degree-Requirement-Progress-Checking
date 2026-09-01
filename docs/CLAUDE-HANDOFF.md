@@ -89,9 +89,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   the copied summary. Remove the banner (not the footer) when the DGS declares the app out of alpha.
 - **Contacts, feedback address, license line, "untested upload" note** (2026-09-01, DGS
   decision): `src/ui/contacts.ts` holds the DGS / Assistant DGS / Graduate Program Administrator
-  entries, the repo + LICENSE URLs, and `reportToDgs()`; rendered as the footer's "Who to
-  contact" list and "License" line, the feedback sentence in the alpha banner + footer, and the
-  `.untested-note` under the transcript-upload button. Update `contacts.ts` at every DGS handoff;
+  entries, the repo + LICENSE URLs, `reportToDgs()` and `contactCard()`; rendered as the
+  "Who to contact" card at the top right of the masthead on BOTH pages (the masthead is a
+  two-column grid: text | card; tools row spans below; single column under 900px), the footer
+  "License" line, the feedback sentence in the alpha banner + footer, and the `.untested-note`
+  under the transcript-upload button. The alpha banner also states in bold that every verdict is
+  computed from the published course rules (linking to `courses.html`). Update `contacts.ts` at every DGS handoff;
   drop the untested note once a real transcript has been run through the parser (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
 - **Public course-rules page** (`courses.html`, 2026-09-01, DGS request): `src/ui/courses-page.ts`
   renders the Courses tab for students — overview cards per §4.4.1 core area and §4.4.2 category,
