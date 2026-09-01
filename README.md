@@ -273,8 +273,8 @@ Approve the commands it proposes (`npm test`, `npm run build`, …) when it asks
 - **New handbook year.** Put the new PDF in `docs/` (keep the old one) and update the file name in
   `CLAUDE.md`. Then: *"Diff §3 and §4 of docs/CSE-Graduate-Handbook-July2027.pdf against the
   July 2026 PDF. List every rule that changed. Propose Parameters/Courses/Categories edits for
-  the numbers and lists, and code changes only for changed structure. Then search the repo for
-  'July 2026' and update the page texts."*
+  the numbers and lists, and code changes only for changed structure. Then update the edition
+  and PDF link in src/ui/handbook.ts and search the repo for 'July 2026'."*
 - **"Course X should count for Y."** That is a sheet edit (Track A), not code. Any agent that
   proposes to hard-code a course number is wrong; say so.
 - **A student reports a wrong verdict.** *"Here is the student's situation: … The correct verdict

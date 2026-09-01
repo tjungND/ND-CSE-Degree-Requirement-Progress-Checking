@@ -3,6 +3,7 @@
 import type { AuditReport, RequirementResult, Status } from '../engine/types.ts';
 import { termLabel } from '../engine/term.ts';
 import { el } from './dom.ts';
+import { HANDBOOK_EDITION, HANDBOOK_URL } from './handbook.ts';
 
 const STATUS_LABEL: Record<Status, string> = {
   met: 'Met',
@@ -180,6 +181,10 @@ export function summaryText(report: AuditReport, todayIso: string): string {
   for (const line of report.courseLines) {
     lines.push(`  · ${line.courseId} (${termLabel(line.term)}): ${line.text}`);
   }
-  lines.push('', 'Self-check against the CSE Graduate Studies Handbook, July 2026. Confirm with the DGS office.');
+  lines.push(
+    '',
+    `Self-check against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`,
+    'Alpha version under testing — informational only, no warranty or guarantee; the final decision is at the DGS\'s discretion. Confirm with the DGS office.',
+  );
   return lines.join('\n');
 }

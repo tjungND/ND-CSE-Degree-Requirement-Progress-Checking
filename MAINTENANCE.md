@@ -42,7 +42,8 @@ change; ask for it.
 1. Put the new PDF in `docs/` (keep the old one) and update the path in `CLAUDE.md`.
 2. Ask Claude Code: *"Diff §3 and §4 of the new handbook against the old one; list every rule
    that changed; propose Parameters/Courses edits and any code changes."*
-3. Update the handbook-year strings (search the repo for "July 2026").
+3. Update the handbook edition and PDF link in `src/ui/handbook.ts` (one place — the page header,
+   footer and copied summary read from it), then search the repo for the old edition string.
 4. Record any interpretation calls in `docs/DECISIONS.md` (that file is the memory of every
    judgment call ever made — read it before overruling one).
 

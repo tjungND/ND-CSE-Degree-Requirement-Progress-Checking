@@ -9,6 +9,7 @@ import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
+import { ALPHA_NOTICE, handbookLink } from './handbook.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
   clearLocal,
@@ -57,6 +58,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     root.append(
       ...[
       masthead(),
+      alphaNotice(),
       rules.source === 'snapshot' ? snapshotBanner() : null,
       el(
         'div',
@@ -105,7 +107,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'p',
         { class: 'sub' },
-        'Enter your coursework and milestones to see, requirement by requirement, where you stand against the CSE Graduate Studies Handbook (July 2026). Every check cites the section it comes from.',
+        'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
+        handbookLink(),
+        '. Every check cites the section it comes from.',
       ),
       el(
         'div',
@@ -118,6 +122,15 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           el('button', { class: 'btn', onclick: clearAll }, 'Clear'),
         ),
       ),
+    );
+  }
+
+  function alphaNotice(): HTMLElement {
+    return el(
+      'div',
+      { class: 'banner alpha', role: 'note' },
+      el('strong', {}, 'Alpha version under testing. '),
+      ALPHA_NOTICE,
     );
   }
 
@@ -732,7 +745,15 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'div',
         {},
         el('strong', {}, 'This is a self-check, not an official audit. '),
-        'It applies the rules in Sections 3 and 4 of the CSE Graduate Studies Handbook (July 2026). Several requirements turn on approvals this page cannot see — advisor and DGS sign-off, the category-specialization course list announced by email each term, transfer-credit recommendations, and Graduate School deadlines. Deadline dates shown are approximate; the registrar sets the real calendar. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.',
+        'It applies the rules in Sections 3 and 4 of the ',
+        handbookLink(),
+        '. Several requirements turn on approvals this page cannot see — advisor and DGS sign-off, the category-specialization course list announced by email each term, transfer-credit recommendations, and Graduate School deadlines. Deadline dates shown are approximate; the registrar sets the real calendar. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.',
+      ),
+      el(
+        'div',
+        { class: 'legal-alpha' },
+        el('strong', {}, 'Alpha version under testing. '),
+        ALPHA_NOTICE,
       ),
       el(
         'div',

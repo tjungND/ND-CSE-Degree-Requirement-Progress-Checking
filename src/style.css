@@ -38,6 +38,8 @@ body {
   background: #fff7e0; border: 1px solid #e0c877; color: #6b5510;
   border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
 }
+.banner.alpha { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
+.masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
 
 /* layout */
 .layout { display: grid; grid-template-columns: 1fr 480px; gap: 18px; align-items: start; }
@@ -166,4 +168,4 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 /* privacy notes (FERPA) */
 .privacy-note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; max-width: 80ch; }
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
-.legal-privacy { margin-top: 10px; }
+.legal-alpha, .legal-privacy { margin-top: 10px; }

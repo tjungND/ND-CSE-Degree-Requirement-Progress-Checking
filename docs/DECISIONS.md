@@ -11,6 +11,7 @@ Code to update the engine (each has a matching test scenario).
 
 | date | question | decision | decided by | handbook § |
 |---|---|---|---|---|
+| 2026-09-01 | Should the page carry an alpha/no-warranty disclaimer, and should handbook mentions link to the official PDF? | Yes. A red banner under the masthead, a footer paragraph, and the copied summary all state: alpha version under testing; informational purposes only; no warranty or guarantee; the final decision on every requirement is at the DGS's discretion. Every mention of the handbook edition links to the official PDF; edition and URL live in one place, `src/ui/handbook.ts`. | DGS | — |
 | 2026-08-31 | May the ≤6 CSE-4xxxx credits count *inside* the 24 regular-course credits, despite "at the 60000 level or higher"? | Yes — CSE-4xxxx credits count inside the 24, up to the 6-credit cap. Applies to both programs. | DGS | §3.2, §4.2 |
 | 2026-08-31 | Does a non-CSE 40000-level course count toward anything (and can the 4xxxx and non-CSE caps overlap)? | Non-CSE 40000-level courses do not count at all, for either program. The 4xxxx cap therefore covers CSE 4xxxx only, and the two caps can never overlap on one course. | DGS | §3.2, §4.2 |
 | 2026-08-31 | What counts toward the 30 (M.S.) / 60 (Ph.D.) total credits? | Only courses that **passed** count toward the totals. Pass = any non-failing final grade (A…D, or S); F/U count nothing; "in progress" counts only provisionally (a row leaning on it shows *in progress*, never *met*). | DGS | §3.2, §4.2 |

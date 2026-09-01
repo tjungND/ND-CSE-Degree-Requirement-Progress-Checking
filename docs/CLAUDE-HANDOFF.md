@@ -83,6 +83,10 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **UI safety**: all user text renders via `textContent` (the old prototype had an innerHTML
   XSS); imports are deep-validated and a failed render never persists (no localStorage brick);
   "today" is computed in LOCAL time (UTC audited evening users as tomorrow).
+- **Alpha disclaimer + handbook link** (2026-09-01, DGS decision): `src/ui/handbook.ts` holds
+  the edition, the official PDF URL, `handbookLink()` and the `ALPHA_NOTICE` wording; rendered as
+  the `.banner.alpha` under the masthead, the `.legal-alpha` footer paragraph, and two lines in
+  the copied summary. Remove the banner (not the footer) when the DGS declares the app out of alpha.
 - **Attestations**: DGS-approval checkboxes upgrade matching courses' certainty tier;
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).
@@ -117,7 +121,9 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 - **"New handbook year"**: new PDF in `docs/` (keep old), update `CLAUDE.md` filename, diff
   §3/§4 old-vs-new, route numbers→Parameters tab, course lists→Courses tab, structure→code
-  (quote the new sentence), update year strings in the UI, log decisions.
+  (quote the new sentence), update `HANDBOOK_EDITION` and `HANDBOOK_URL` in `src/ui/handbook.ts`
+  (the masthead, footer and copied summary all read from there), then grep for the old edition
+  string to catch stragglers, log decisions.
 - **"Course X should count for Y"**: that's a SHEET edit, not code. Say so.
 - **"Add a checkable requirement"**: implement in `src/engine/requirements/{shared,mscse,phd}.ts`
   with the quoted sentence; register the id in `audit.ts` REQUIREMENT_IDS; add a scenario
