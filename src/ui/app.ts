@@ -145,17 +145,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el('strong', {}, 'Alpha version under testing. '),
       ALPHA_NOTICE,
       ' ',
-      el(
-        'strong',
-        {},
-        RULES_ACCURACY_NOTICE,
-        ' See the ',
-        el('a', { href: './courses.html' }, 'course rules page'),
-        ' for which courses count and how they are categorized.',
-      ),
-      ' ',
+      el('strong', {}, RULES_ACCURACY_NOTICE),
+      ' (See the ',
+      el('a', { href: './courses.html' }, 'course rules page'),
+      '.) ',
       ALPHA_SCOPE_NOTICE,
-      ...reportToDgs(' If a verdict looks wrong, or you have feedback, please email'),
+      ...reportToDgs(' Error reports and feedback — please email'),
     );
   }
 
@@ -793,7 +788,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         ' (See the ',
         el('a', { href: './courses.html' }, 'course rules page'),
         '.)',
-        ...reportToDgs(' If a verdict looks wrong, or you have feedback, please email'),
+        ...reportToDgs(' Error reports and feedback — please email'),
       ),
       el(
         'div',
