@@ -27,17 +27,17 @@ non-commercial, paid commercial via the IDEA Center — leave it alone unless th
 consistent when either changes.
 
 Known-pending (the app's diagnostics panel is the live truth):
-- 7 Parameters rows for the DGS to paste into the sheet (`MAINTENANCE.md` § one-time setup) —
-  still absent from the live sheet as of 2026-09-01.
-- 3 mistyped Courses rows (`CSE 98900`, `CSE 68900`, `CSE 87701`: `regular`+`yes` but research/thesis).
-- GitHub Pages: Settings → Pages → Source is set to GitHub Actions (2026-09-01). The URL
-  (https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/) goes live with the
-  first green `deploy` run after the test-script fix above — confirm it, then link from cse.nd.edu.
+- Sheet: the 7 Parameters rows and the 3 mistyped Courses rows (`CSE 98900`, `CSE 68900`,
+  `CSE 87701`) were fixed by the DGS on 2026-09-01 (verified against the live CSV). Still open:
+  `CSE 44901` has blank `counts_toward_*`; a number of active rows have blank verdicts.
+- GitHub Pages is live at https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
+  (Settings → Pages → Source: GitHub Actions; deploy green since 2026-09-01) — link it, and
+  `courses.html`, from cse.nd.edu.
 - The sheet's own README tab still says the CSV links go in `src/data/sheet-urls.ts`; the real
   file is `data/sheet-urls.json` (sheet-side fix for the DGS).
-- Snapshot commits made by the weekly `sync-sheet` Action use `GITHUB_TOKEN`, which does not
-  trigger other workflows, so the deployed fallback snapshot only refreshes on the next human push.
-  Fix if wanted: add a `workflow_run` trigger on `sync-sheet` to `.github/workflows/deploy.yml`.
+- Working copy in Google Drive: on 2026-09-01 Drive delivered a commit to the other Mac with
+  `.git/index` missing and a stale `.git/index.lock`; repaired with `git reset -q` after moving
+  the lock away (`MAINTENANCE.md` § repo peculiarities). Nothing was lost, but expect it again.
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
@@ -47,7 +47,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   `.ts` files directly — hence the explicit `.ts` extensions on all relative imports
   (`allowImportingTsExtensions`). Vite still does dev/build.
 - **`data/snapshot.json` stores raw CSV text**, not parsed JSON: one parse/validate path for
-  live and fallback data, and the weekly sync commit diffs read as "what the DGS changed".
+  live and fallback data, and each sync commit diff reads as "what the DGS changed". Since
+  2026-09-01 the sync (every 6 hours) leaves the file untouched while the content is unchanged
+  — that is what makes `syncedAt` mean "when the current rules were first seen" (next bullet
+  but one) — and commits + `gh workflow run deploy.yml` only on a real change (a `GITHUB_TOKEN`
+  push never triggers `on: push`; `workflow_dispatch` is GitHub's documented exception).
 - **Status algebra** (`src/engine/status.ts`): every credit has a certainty tier —
   `definite` (passed + sheet says yes/attested) > `in_progress` (IP) > `provisional`
   (dgs_approval / unknown / non-CSE / transfer). A threshold row's status is the certainty of
@@ -104,6 +108,23 @@ Known-pending (the app's diagnostics panel is the live truth):
   hidden unless the visitor ticks "Include retired courses". `dgs_reviewed` is now parsed into
   `RuleCourse.dgsReviewed` for this page only — the engine still ignores it. E2E suite
   "course rules list" screenshots it and checks a filter. Add columns here, never new policy.
+  Its banner is the OFFICIAL wording (DGS, 2026-09-01): the mappings are set by the DGS with
+  faculty input and are what the DGS and the Graduate Program Administrator use; it is not
+  labelled alpha (only the self-check tool is). It also says not every listed course is offered.
+- **Dated line under each title** (`rulesDateLine()` in `src/ui/handbook.ts`, 2026-09-01):
+  precedence (1) optional Parameters row `rules_effective_date` (a `DISPLAY_PARAMETER_KEYS`
+  entry: known, optional, silent when missing, never an engine input) → "Rules effective as
+  of …"; (2) `Rules.rulesDate` from `src/data/rules-date.ts` — the live CSV texts are compared
+  (line endings / trailing whitespace ignored) with the bundled `data/snapshot.json`: identical →
+  `{kind:'known', at: snapshot.syncedAt}` → "Course rules last updated …"; different →
+  `{kind:'after', …}` → "Course rules updated after …" plus a diagnostics warning that explains
+  the ~6-hour window and what to check if it persists; the snapshot fallback is always `known`;
+  (3) nothing dated (rules built without a snapshot, i.e. tests) → "Course rules in effect for
+  <term>". **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
+  2026-09-01 by fetching all three tabs from the deployed page's own origin (exposed headers:
+  cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)
+  — so the sync's own record is the only zero-setup date source; the earlier header-reading
+  code was removed. Tests: `tests/rules-date.test.ts`.
 - **Attestations**: DGS-approval checkboxes upgrade matching courses' certainty tier;
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).
@@ -130,7 +151,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   `today` + rules patch + expected status/detail substrings per requirement id). Add one per
   bug, forever.
 - `npm run e2e` — real headless-Chrome pass (see `.claude/skills/run-app/SKILL.md`).
-- `npm run sync-sheet` — fetches the live sheet, prints its diagnostics, rewrites the snapshot.
+- `npm run sync-sheet` — fetches the live sheet, prints its diagnostics, and rewrites the
+  snapshot only if the sheet content changed (it says which tabs).
 - Read screenshots you take. A wrong verdict is easier to spot in the rendered report than in
   JSON.
 

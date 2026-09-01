@@ -2,13 +2,14 @@
 // undefined AND records a SheetIssue; the engine turns undefined into
 // "cannot evaluate — rules sheet is missing <key>" (never a silent pass).
 import type { Parameters, SheetIssue } from './types.ts';
-import { KNOWN_PARAMETER_KEYS } from './types.ts';
+import { DISPLAY_PARAMETER_KEYS, KNOWN_PARAMETER_KEYS } from './types.ts';
 
 export function makeParameters(
   raw: Map<string, { value: string; section: string; row: number }>,
   issues: SheetIssue[],
 ): Parameters {
   const known = new Set<string>(KNOWN_PARAMETER_KEYS);
+  const display = new Set<string>(DISPLAY_PARAMETER_KEYS);
 
   for (const key of known) {
     if (!raw.has(key)) {
@@ -20,7 +21,7 @@ export function makeParameters(
     }
   }
   for (const [key, entry] of raw) {
-    if (!known.has(key)) {
+    if (!known.has(key) && !display.has(key)) {
       issues.push({
         severity: 'warning',
         tab: 'Parameters',

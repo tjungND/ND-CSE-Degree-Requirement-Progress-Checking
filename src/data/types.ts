@@ -66,7 +66,33 @@ export interface Rules {
   issues: SheetIssue[];
   source: 'live' | 'snapshot';
   syncedAt: string;
+  /** When the course rules last changed, as far as the app can tell — see
+   * `src/data/rules-date.ts`. Undefined only for rules built without a snapshot
+   * (tests); then the pages fall back to "in effect for <term>". */
+  rulesDate?: RulesDate;
 }
+
+/** How the pages know when the rules last changed (`src/data/rules-date.ts`).
+ *  - `known`: the rules being shown are the snapshot's content (the live sheet
+ *    still matches it, or the snapshot itself is in use) → they last changed
+ *    at `at`, i.e. when the sync first saw this content.
+ *  - `after`: the live sheet differs from the snapshot → it changed some time
+ *    after `at`; the next sync run (within 6 hours) records the date and
+ *    redeploys. */
+export interface RulesDate {
+  kind: 'known' | 'after';
+  /** ISO instant — the snapshot's `syncedAt`. */
+  at: string;
+}
+
+/** Display-only parameter keys: read by the pages, never by the engine. Missing
+ * is allowed (nothing shows, no warning); present → shown as given. */
+export const DISPLAY_PARAMETER_KEYS = [
+  // Optional override for the dated line on both pages (YYYY-MM-DD or free
+  // text) → "Rules effective as of …". Without it the pages print the date the
+  // rules last changed, as recorded by the sync (`rules-date.ts`).
+  'rules_effective_date',
+] as const;
 
 /** Parameter keys the app reads. Anything else in the sheet is ignored with a
  * gentle warning; anything here that is missing makes its requirement

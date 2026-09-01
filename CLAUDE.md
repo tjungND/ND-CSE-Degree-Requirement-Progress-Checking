@@ -57,7 +57,10 @@ replaced by `README.md` on 2026-09-01.)
   requirement with its handbook sentence quoted above it; stable requirement ids in `audit.ts`.
 - `src/data/` — published-CSV fetch → parse → validate → typed `Rules`. Validation reports bad
   rows in plain English (the person who broke it is a DGS editing a spreadsheet). On fetch
-  failure: fall back to `data/snapshot.json` (raw CSV text) + visible "rules last synced" note.
+  failure: fall back to `data/snapshot.json` (raw CSV text) + a visible "showing the copy saved
+  on …" note. The rules are dated against that snapshot (`src/data/rules-date.ts`): Google sends
+  no Last-Modified header, so "when did the rules last change" = when the six-hourly sync first
+  saw the current content.
 - `src/ui/` — form, course table with sheet-driven autocomplete, transcript upload + preview,
   report. All user-entered text rendered via `textContent`, never innerHTML. A second page,
   `courses.html` → `src/courses.ts` → `src/ui/courses-page.ts`, is the public course-rules list
@@ -67,7 +70,8 @@ replaced by `README.md` on 2026-09-01.)
 - `tests/` — **node's built-in runner** (`node --test`; that's why relative imports carry `.ts`
   extensions). One JSON fixture per student scenario in `tests/scenarios/`; add a scenario for
   every bug fixed. `npm run e2e` drives real headless Chrome (see `.claude/skills/run-app/`).
-- `scripts/sync-sheet.ts` + `.github/workflows/` — weekly sheet snapshot, CI tests, Pages deploy.
+- `scripts/sync-sheet.ts` + `.github/workflows/` — six-hourly sheet snapshot (rewritten, committed
+  and redeployed only when the sheet content changed), CI tests, Pages deploy.
 
 ## Working rules
 - Start non-trivial work in plan mode; show the plan before writing code.
@@ -75,7 +79,9 @@ replaced by `README.md` on 2026-09-01.)
   its §, and check `docs/DECISIONS.md` for an existing interpretation.
 - Ask before changing the sheet schema (column names, allowed values, parameter keys). The
   schema is a contract with humans; changes need matching updates to `data/README.md`,
-  `MAINTENANCE.md`, `KNOWN_PARAMETER_KEYS`, the sample CSVs, and the test fixtures.
+  `MAINTENANCE.md`, `KNOWN_PARAMETER_KEYS` (engine inputs — missing = error) or
+  `DISPLAY_PARAMETER_KEYS` (page text only, e.g. `rules_effective_date` — missing = warning),
+  the sample CSVs, and the test fixtures.
 - Record every new interpretation choice in `docs/DECISIONS.md` (date, question, decision, who).
 - `npm test` and `npm run build` must pass before you say something is done; run `npm run e2e`
   for UI-visible changes and look at the screenshots.

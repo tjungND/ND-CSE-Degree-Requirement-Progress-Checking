@@ -4,7 +4,7 @@ import type { Term } from '../engine/types.ts';
 import { compareTerm, termIndex } from '../engine/term.ts';
 import { makeParameters } from './params.ts';
 import { parseCategoriesTab, parseCoursesTab, parseParametersTab } from './parse.ts';
-import type { RuleCourse, Rules, SheetIssue } from './types.ts';
+import type { RuleCourse, Rules, RulesDate, SheetIssue } from './types.ts';
 import { validateCourses } from './validate.ts';
 
 export interface CsvTexts {
@@ -15,7 +15,7 @@ export interface CsvTexts {
 
 export function rulesFromCsvTexts(
   texts: CsvTexts,
-  meta: { source: 'live' | 'snapshot'; syncedAt: string },
+  meta: { source: 'live' | 'snapshot'; syncedAt: string; rulesDate?: RulesDate },
 ): Rules {
   const issues: SheetIssue[] = [];
   const { coreAreas, categoryGroups } = parseCategoriesTab(texts.categories, issues);
@@ -45,6 +45,7 @@ export function rulesFromCsvTexts(
     issues,
     source: meta.source,
     syncedAt: meta.syncedAt,
+    rulesDate: meta.rulesDate,
   };
 }
 

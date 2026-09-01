@@ -9,7 +9,7 @@ import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
-import { ALPHA_NOTICE, handbookLink } from './handbook.ts';
+import { ALPHA_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
@@ -117,6 +117,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           el('a', { href: './courses.html' }, 'course rules page'),
           '.',
         ),
+        el(
+          'p',
+          { class: 'effective' },
+          rulesDateLine(rules, termLabel(termOfDate(todayIso))),
+          rules.source === 'live' ? ` · read from the DGS’s rules sheet ${todayIso}` : '',
+        ),
       ),
       contactCard(),
       el(
@@ -143,7 +149,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'strong',
         {},
-        'Every verdict on this page is computed from the DGS’s published course rules — see the ',
+        'Every verdict on this page is computed from the official course rules set by the DGS — see the ',
         el('a', { href: './courses.html' }, 'course rules page'),
         ' for which courses count and how they are categorized; if a rule there looks wrong, the verdict here will be too.',
       ),
@@ -156,7 +162,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return el(
       'div',
       { class: 'banner' },
-      `The live rules sheet could not be reached — using rules last synced on ${date}. Recent DGS edits may be missing.`,
+      `The live rules sheet could not be reached — showing the copy of the rules saved on ${date}. Recent DGS edits may be missing.`,
     );
   }
 
@@ -778,7 +784,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         { class: 'legal-alpha' },
         el('strong', {}, 'Alpha version under testing. '),
         ALPHA_NOTICE,
-        ' Every verdict is computed from the DGS’s published course rules (see the ',
+        ' Every verdict is computed from the official course rules set by the DGS (see the ',
         el('a', { href: './courses.html' }, 'course rules page'),
         ').',
         ...reportToDgs(' Error reports and feedback are welcome — please email'),

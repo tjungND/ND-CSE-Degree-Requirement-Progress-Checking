@@ -46,6 +46,9 @@ body {
   border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
 }
 .banner.alpha { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
+.banner.official { background: #e9eef7; border-color: #b9c7e0; color: #1e2f4d; }
+.banner.official a { color: inherit; }
+.masthead .effective { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
 
 /* layout */

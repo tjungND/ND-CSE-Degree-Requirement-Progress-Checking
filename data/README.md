@@ -2,8 +2,9 @@
 
 Sheet: **CSE-Degree-Audit-Rules** (owner: the current DGS; lives in the shared "DGS things (CSE)"
 Drive folder under "Degree Audit App (Claude Code starter kit)"). The app reads it read-only at page load through Google's
-"Publish to web" CSV links, and a GitHub Action snapshots it into `data/snapshot.json` weekly so
-the app still works if the sheet is ever unpublished.
+"Publish to web" CSV links, and a GitHub Action snapshots it into `data/snapshot.json` every six
+hours (committing only when the content changed) so the app still works if the sheet is ever
+unpublished — and so the pages can say when the rules last changed.
 
 ## How the app reads the sheet
 In the sheet: **File → Share → Publish to web → Link → choose one tab → Comma-separated values
@@ -83,6 +84,7 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `transfer_unfinished_ms_credits_max` | 6 | §5.2 | unfinished prior M.S. |
 | `transfer_min_grade` | B | §5.2 | |
 | `fulltime_credits_min` | 9 | §2.1.2 | |
+| `rules_effective_date` | 2026-09-01 | | **Display only, optional override.** Normally leave it out: the pages print "Course rules last updated <date>" automatically — the date the six-hourly sync first saw the current sheet content (see `snapshot.json` below). Add this row only when the rules should carry a different date than the last edit — e.g. a change decided today that takes effect next term; then the pages print "Rules effective as of <date>" instead, for as long as the row exists. YYYY-MM-DD preferred (other text is shown as written). |
 
 Add rows freely; the app ignores keys it does not know and warns (in the diagnostics panel)
 about known keys that are missing — the affected requirement then shows "cannot evaluate"
@@ -111,10 +113,15 @@ a human note and skipped silently — the real tabs end with such notes. Anythin
 is reported, with its row number, in the app's diagnostics panel.
 
 ### `snapshot.json`
-Written by `npm run sync-sheet` (and the weekly Action): `{ schemaVersion, syncedAt, csv:
-{ courses, parameters, categories } }` — the **raw CSV text** of the three tabs, so the app's
-one parser handles live and fallback data identically, and the weekly commit diff reads as
-"what the DGS changed".
+Written by `npm run sync-sheet` (and the six-hourly Action): `{ schemaVersion, syncedAt, csv:
+{ courses, parameters, categories } }` — the **raw CSV text** of the three tabs, so the app's one
+parser handles live and fallback data identically, and each commit diff reads as "what the DGS
+changed". The script leaves the file **untouched while the sheet content is unchanged** (line
+endings and trailing whitespace ignored), so `syncedAt` is the moment the current rules were first
+seen — that is the date the pages print as "Course rules last updated …"; when the live sheet
+differs from this file they print "updated after …" until the next sync. Google sends no
+`Last-Modified` header for published CSVs (verified 2026-09-01), which is why the date comes from
+here (`src/data/rules-date.ts`).
 
 ## Validation the app must do on load
 - unknown value in an enumerated column → row is skipped and reported ("Courses row 14, column

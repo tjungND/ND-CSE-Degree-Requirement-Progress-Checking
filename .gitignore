@@ -2,3 +2,6 @@ node_modules/
 dist/
 .DS_Store
 .e2e-out/
+# Google Drive shortcut files (the working copy lives in a Drive folder)
+*.gsheet
+*.gdoc

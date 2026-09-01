@@ -23,7 +23,7 @@ only the handbook's *structure* and changes only when the handbook does.
 ```
 Google Sheet (you edit)  ──publish-to-web CSV──►  static web page (student's browser)
          │                                                ▲
-         └── weekly GitHub Action ──► data/snapshot.json ─┘  (fallback if the fetch fails)
+         └── 6-hourly GitHub Action ─► data/snapshot.json ┘  (fallback if the fetch fails; also dates the rules)
 ```
 
 ## Which instructions do you need?
@@ -128,10 +128,17 @@ recognized.
    per-cohort grandfathering. If a new number must apply only to new students, that is a code
    change — Track B.
 
-### A6. Log the change
+### A6. Log the change and date it
 
 Add a row to the **Changelog** tab: date, your name, what changed, why (handbook §, faculty
-decision, correction). The next DGS will thank you.
+decision, correction). The next DGS will thank you. Both pages date the rules automatically, so
+nothing else is needed: a GitHub Action checks the published sheet every six hours, and when its
+content has changed it records the date, saves the new copy in the repository, and redeploys —
+within a few hours of your edit the pages say "Course rules last updated <date>" (until then they
+say "updated after <previous date>"). Only if the rules should carry a different date than the
+last edit (a change decided today that takes effect next term, say) add a **Parameters** row
+`rules_effective_date` with that date (`2026-09-01` format); the pages then print "Rules
+effective as of <date>" instead — and keep printing it until you remove the row.
 
 ### A7. Verify in the app (five minutes later)
 
@@ -143,9 +150,9 @@ decision, correction). The next DGS will thank you.
    when `active` = `yes`), and read the report as a student would. Open `courses.html` too — the
    public course-rules list should show your row with the right core area, category, and
    Confirmed/Pending mark.
-4. If the page shows a banner *"rules last synced on …"*, the live fetch failed and the app is
-   using its weekly snapshot. Check in the sheet that **File → Share → Publish to web** is still on
-   for the three tabs. If the sheet was replaced by a new file, see A9.
+4. If the page shows a banner *"showing the copy of the rules saved on …"*, the live fetch
+   failed and the app is using its saved copy. Check in the sheet that **File → Share → Publish
+   to web** is still on for the three tabs. If the sheet was replaced by a new file, see A9.
 
 Nothing you enter in the app is stored anywhere but that browser.
 
@@ -160,7 +167,7 @@ Nothing you enter in the app is stored anywhere but that browser.
 
 The published-CSV links change, and the three links in `data/sheet-urls.json` in this repository
 must be updated — that is a ten-minute Track B job (recipe in B4). Until then the app keeps
-running on its last weekly snapshot and says so.
+running on its last saved copy and says so.
 
 ---
 
@@ -325,7 +332,7 @@ git revert HEAD
 git push
 ```
 
-Or tell the agent: *"Revert the last commit and push; then explain what went wrong."* The weekly
+Or tell the agent: *"Revert the last commit and push; then explain what went wrong."* The
 `sync-sheet` Action never changes code, only `data/snapshot.json`.
 
 ### B7. Without an agent
@@ -360,8 +367,11 @@ sessions · `MAINTENANCE.md` — deeper technical notes and the list of one-time
 `reference/` — the original build-time starter kit, historical only.
 
 Automation: every push to `main` runs the tests and redeploys GitHub Pages (`deploy` Action); every
-push or pull request runs `test`; every Monday `sync-sheet` snapshots the sheet into
-`data/snapshot.json` (run it by hand from the Actions tab or with `npm run sync-sheet`).
+push or pull request runs `test`; every six hours `sync-sheet` checks the sheet and, when its
+content has changed, commits the new `data/snapshot.json` and redeploys — that commit is also how
+the pages know when the rules were last updated (run it by hand from the Actions tab or with
+`npm run sync-sheet`). GitHub pauses scheduled Actions after 60 days without repository activity
+and emails you; re-enable it from the Actions tab.
 One quirk: **never put a `:` (colon) in any folder name above the repository** — it breaks Node
 tooling (details in `MAINTENANCE.md`).
 

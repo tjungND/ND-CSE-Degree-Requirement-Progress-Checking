@@ -9,7 +9,7 @@ import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
 import { DGS, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
-import { ALPHA_NOTICE, handbookLink } from './handbook.ts';
+import { handbookLink, rulesDateLine } from './handbook.ts';
 
 // ---------- labels (sheet codes → words students understand) ----------
 
@@ -169,36 +169,45 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         el(
           'p',
           { class: 'sub' },
-          'Which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, which core-knowledge area (§4.4.1) and specialization category (§4.4.2) each one satisfies, and when it is typically offered — as set by the Director of Graduate Studies under the ',
+          'Which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, which core-knowledge area (§4.4.1) and specialization category (§4.4.2) each one satisfies, and when it is typically offered — as determined by the Director of Graduate Studies with faculty input under the ',
           handbookLink(),
-          '. This list is generated live from the DGS’s rules sheet; the ',
+          '. The ',
           el('a', { href: './index.html' }, 'degree self-check tool'),
-          ' applies the same rules to your own coursework.',
+          ' applies these same rules to your own coursework.',
+        ),
+        el(
+          'p',
+          { class: 'effective' },
+          effectiveLine(),
         ),
       ),
       contactCard(),
     );
   }
 
+  /** "Rules effective as of … · shown for Fall 2026 · N active of M courses". */
+  function effectiveLine(): string {
+    const active = rows.filter((r) => r.active).length;
+    const parts = [
+      rulesDateLine(rules, termLabel(currentTerm)),
+      `${active} active courses (${rows.length - active} retired courses are listed for students who took them)`,
+    ];
+    if (rules.source === 'live') parts.push(`read from the DGS’s rules sheet ${todayIso}`);
+    return parts.join(' · ');
+  }
+
   function notices(): HTMLElement[] {
     const out: HTMLElement[] = [
       el(
         'div',
-        { class: 'banner alpha', role: 'note' },
-        el('strong', {}, 'Alpha version under testing. '),
-        ALPHA_NOTICE,
-        ' ',
-        el(
-          'strong',
-          {},
-          'The ',
-          el('a', { href: './index.html' }, 'self-check tool'),
-          ' computes every verdict from the rules on this page.',
-        ),
-        ' Rows marked ',
+        { class: 'banner official', role: 'note' },
+        el('strong', {}, 'Official course rules. '),
+        'These mappings are set by the Director of Graduate Studies with faculty input, and they are what the DGS and the Graduate Program Administrator use to decide whether a student’s courses satisfy the degree requirements. Rows marked ',
         el('span', { class: 'pill pending' }, 'Pending'),
-        ' have not yet been confirmed by the DGS and may change.',
-        ...reportToDgs(' Error reports and feedback are welcome — please email'),
+        ' are still under DGS review and may change. ',
+        el('strong', {}, 'Not every course listed is currently offered: '),
+        'retired courses are hidden unless you tick “Include retired courses”, and active courses run only in some terms — the “Typically offered” column is a planning hint, so check the class search for the actual schedule. Where this page and the handbook disagree, the handbook and the DGS decide.',
+        ...reportToDgs(' Corrections and questions — please email'),
       ),
     ];
     if (rules.source === 'snapshot') {
@@ -206,7 +215,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         el(
           'div',
           { class: 'banner' },
-          `The live rules sheet could not be reached — showing rules last synced on ${rules.syncedAt.slice(0, 10)}. Recent DGS edits may be missing.`,
+          `The live rules sheet could not be reached — showing the copy of the rules saved on ${rules.syncedAt.slice(0, 10)}. Recent DGS edits may be missing.`,
         ),
       );
     }
@@ -446,7 +455,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         'div',
         {},
         el('strong', {}, 'Source. '),
-        'This page reads the Director of Graduate Studies’ course-rules sheet each time it loads, so it reflects the DGS’s latest decisions (Google republishes edits within a few minutes). Where this page and the ',
+        'This page reads the Director of Graduate Studies’ official course-rules sheet each time it loads, so it always reflects the DGS’s latest decisions (Google republishes edits within a few minutes). Where this page and the ',
         handbookLink(),
         ' disagree, the handbook and the DGS decide.',
       ),

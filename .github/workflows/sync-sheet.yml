@@ -1,13 +1,20 @@
-# Weekly snapshot of the published Google Sheet into data/snapshot.json, so the
-# app keeps working even if the sheet is unpublished. Also runnable by hand:
-# repo → Actions → sync-sheet → Run workflow.
+# Snapshot of the published Google Sheet into data/snapshot.json, every 6 hours:
+# the app keeps working if the sheet is ever unpublished, and the pages can say
+# when the rules last changed — scripts/sync-sheet.ts leaves the file untouched
+# while the sheet's content is unchanged, so each commit here marks a real edit
+# (see src/data/rules-date.ts). When the snapshot changes it is committed and the
+# deploy workflow is started. Also runnable by hand: repo → Actions → sync-sheet
+# → Run workflow. Note: GitHub pauses scheduled workflows in a public repository
+# after 60 days without repository activity and emails the owner — re-enable it
+# from the Actions tab (MAINTENANCE.md, "Sync, deploy, test").
 name: sync-sheet
 on:
   schedule:
-    - cron: '17 9 * * 1' # Mondays 09:17 UTC
+    - cron: '17 */6 * * *' # 00:17, 06:17, 12:17, 18:17 UTC
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write # to start the deploy workflow after a snapshot commit
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -20,14 +27,21 @@ jobs:
       - run: npm ci
       - run: npm run sync-sheet
       - run: npm test
-      - name: Commit the snapshot if it changed
+      - name: Commit the snapshot if it changed, then redeploy
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if git diff --quiet -- data/snapshot.json; then
-            echo "Snapshot unchanged."
+            echo "Snapshot unchanged — nothing to commit."
             exit 0
           fi
           git config user.name "sheet-sync bot"
           git config user.email "actions@users.noreply.github.com"
           git add data/snapshot.json
-          git commit -m "Weekly rules-sheet snapshot ($(date -u +%F))"
+          git commit -m "Rules-sheet snapshot: the sheet's content changed ($(date -u +%F))"
           git push
+          # A push made with GITHUB_TOKEN never triggers the deploy workflow's
+          # `on: push` (GitHub's guard against workflow loops). Starting it by
+          # workflow_dispatch is the documented exception, so the deployed
+          # fallback copy and the "last updated" date refresh without a human push.
+          gh workflow run deploy.yml --ref main

@@ -51,7 +51,8 @@ Look at the screenshots you take — a blank frame means the page didn't render.
 - Ports in use: `lsof -ti:4173,4273 -sTCP:LISTEN | xargs kill` frees stuck servers;
   `pkill -f remote-debugging-port` clears an orphaned headless Chrome.
 - The app fetches the LIVE Google Sheet on load; with no network it falls back to
-  `data/snapshot.json` and shows the "rules last synced" banner — that's expected, not a bug.
+  `data/snapshot.json` and shows the "showing the copy of the rules saved on …" banner — that's
+  expected, not a bug.
 - Student state persists in localStorage per origin; drivers call `localStorage.clear()` and
   reload to get a clean slate.
 - `npx` misbehaves if any parent folder name ever contains a colon — see MAINTENANCE.md.

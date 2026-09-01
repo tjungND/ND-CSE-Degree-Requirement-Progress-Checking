@@ -11,7 +11,7 @@ against the Graduate Handbook (§3 MSCSE, §4 Ph.D.). You should almost never ne
 ```
 Google Sheet (you edit)  ──publish-to-web CSV──►  static web app (student's browser)
          │                                                ▲
-         └── weekly GitHub Action ──► data/snapshot.json ─┘ (fallback if the fetch fails)
+         └── 6-hourly GitHub Action ─► data/snapshot.json ┘ (fallback if the fetch fails; also dates the rules)
 ```
 
 Student data never leaves the student's browser (localStorage + a save-to-file button).
@@ -47,35 +47,34 @@ change; ask for it.
 4. Record any interpretation calls in `docs/DECISIONS.md` (that file is the memory of every
    judgment call ever made — read it before overruling one).
 
-## One-time setup still pending (as of 2026-08-31)
+## Sheet items still open (as of 2026-09-01)
 
-Paste these rows into the `Parameters` tab — until then the affected requirements honestly show
-"cannot evaluate":
+The one-time setup is done: the seven Parameters rows the engine needs are in the sheet, and the
+three mistyped `Courses` rows (`CSE 98900`, `CSE 68900`, `CSE 87701`) are fixed. Still open:
+`CSE 44901 Undergraduate Research` has blank `counts_toward_*` (it surfaces as "needs DGS
+review" rather than counting silently — pick final values), and a number of active rows still
+have blank verdicts (shown as "Not yet decided" on the public course-rules page). The app's
+diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
-| key | value | handbook_section |
-|---|---|---|
-| ms_total_credits_min | 30 | §3.2 |
-| phd_nd_credits_min | 9 | §4.2 |
-| ms_transfer_completed_ms_credits_max | 9 | §5.2 |
-| phd_transfer_completed_ms_credits_max | 24 | §5.2 |
-| transfer_unfinished_ms_credits_max | 6 | §5.2 |
-| transfer_min_grade | B | §5.2 |
-| fulltime_credits_min | 9 | §2.1.2 |
-
-Also fix these `Courses` rows, which are typed `regular` + `counts_toward = yes` and would
-wrongly count toward the **24 regular credits**: `CSE 98900 Research and Dissertation`
-(→ `research`), `CSE 68900 Thesis Direction` (→ `project` or `research`), and `CSE 87701`.
-Two more just need a decision (they already surface as "needs DGS review"/provisional rather
-than counting silently): `CSE 44901 Undergraduate Research` (blank `counts_toward_*`) and
-`CSE 48900 Undergraduate Research` (`dgs_approval`) — pick final `counts_toward_*` and
-`course_type` values. The app's diagnostics panel (bottom of the input column) lists these
-same problems whenever it loads.
+The optional Parameters row `rules_effective_date` (`2026-09-01` format) overrides the automatic
+"Course rules last updated <date>" line on both pages with "Rules effective as of <date>"; add it
+only when the rules should carry a different date than the last edit (see "Sync" below).
 
 ## Sync, deploy, test
 
-- **Weekly snapshot**: the `sync-sheet` GitHub Action refreshes `data/snapshot.json` every Monday
-  and commits if changed. Run it by hand: repo → Actions → sync-sheet → Run workflow. Locally:
-  `npm run sync-sheet`.
+- **Sync (every 6 hours)**: the `sync-sheet` GitHub Action fetches the published sheet and,
+  only when its content has changed, rewrites `data/snapshot.json`, commits it, and starts the
+  `deploy` workflow (by `workflow_dispatch` — a push made with the Action's own token never
+  triggers `on: push`). Unchanged content leaves the file untouched on purpose: the snapshot's
+  `syncedAt` is therefore the moment the current rules were first seen, and that is the date both
+  pages print as "Course rules last updated …" (Google sends no Last-Modified header for
+  published CSVs — verified 2026-09-01 — so this is the only zero-setup source). While the live
+  sheet is newer than the deployed copy the pages say "updated after <date>" and the diagnostics
+  panel explains; that state should last at most ~6 hours. Run the sync by hand: repo → Actions →
+  sync-sheet → Run workflow; locally `npm run sync-sheet` (then commit the snapshot if it changed).
+  **GitHub pauses scheduled workflows in a public repository after 60 days without repository
+  activity** and emails the owner — re-enable from the Actions tab (Actions → sync-sheet →
+  "Enable workflow").
 - **Deploy**: every push to `main` rebuilds and redeploys GitHub Pages (`deploy` Action).
   One-time repo setting: Settings → Pages → Source: **GitHub Actions**.
 - **Tests**: `npm test` (60+ tests: one JSON scenario per student case in `tests/scenarios/`
@@ -114,6 +113,14 @@ same problems whenever it loads.
   handbook disagree, the handbook wins — fix the code.
 - Sheet-schema changes (column names, allowed values) are a contract with the humans who edit
   the sheet: update `data/README.md` and this file together with the loader.
+- **The working copy lives in a Google Drive folder, `.git` included.** Drive syncs git's
+  lock-and-rename writes imperfectly: on 2026-09-01 a commit made on one Mac arrived on the other
+  with `.git/index` missing and a stale `.git/index.lock` in its place (`git status` then lists
+  every file as deleted and untracked). Nothing is lost when that happens — HEAD, refs and objects
+  were intact; the fix is `mv .git/index.lock /tmp/` (only once you are sure no git command is
+  running) followed by `git reset -q` to rebuild the index from HEAD. Rules that avoid it: run
+  git on one machine at a time, let Drive finish syncing before switching machines, and never
+  run git on both. Drive's own shortcut files (`*.gsheet`, `*.gdoc`) are git-ignored.
 
 ## Handoff checklist
 

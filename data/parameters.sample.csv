@@ -29,3 +29,4 @@ candidacy_deadline_semester,8,§4.5,before the end of the eighth semester
 candidacy_committee_additional_members_min,3,§4.5,beyond advisor/co-advisor
 gpa_min,3,§2.2,
 Every number the handbook states lives here so a future DGS can change it without touching code. Add rows freely; keep the key names stable because the app reads them by name.,,,
+rules_effective_date,2026-09-01,,OPTIONAL override — leave this row out and both pages date the rules automatically (see data/README.md); add it only to show a different date
