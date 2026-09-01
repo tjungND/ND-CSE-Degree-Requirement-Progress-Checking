@@ -101,7 +101,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       'header',
       { class: 'masthead' },
       el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
-      el('h1', {}, 'Graduate Degree Audit'),
+      el('h1', {}, 'Graduate Degree Requirement Self-check Tool'),
       el(
         'p',
         { class: 'sub' },
@@ -151,7 +151,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     priorSel.append(
       option('none', 'No prior graduate degree', student.priorMs === 'none'),
       option('unfinished', 'Prior M.S., not completed', student.priorMs === 'unfinished'),
-      option('completed', 'Completed prior M.S./Ph.D.', student.priorMs === 'completed'),
+      option('completed', 'Completed prior M.S. or Ph.D.', student.priorMs === 'completed'),
     );
     const gpaInput = el('input', {
       type: 'number',
