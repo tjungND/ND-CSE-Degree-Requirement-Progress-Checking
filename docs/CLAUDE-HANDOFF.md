@@ -123,11 +123,13 @@ Known-pending (the app's diagnostics panel is the live truth):
   entry: known, optional, silent when missing, never an engine input) → "Rules effective as
   of …"; (2) `Rules.rulesDate` from `src/data/rules-date.ts` — the live CSV texts are compared
   (line endings / trailing whitespace ignored) with the bundled `data/snapshot.json`: identical →
-  `{kind:'known', at: snapshot.syncedAt}` → "Course rules last updated …"; different →
-  `{kind:'after', …}` → "Course rules updated after …" plus a diagnostics warning that explains
-  the ~6-hour window and what to check if it persists; the snapshot fallback is always `known`;
-  (3) nothing dated (rules built without a snapshot, i.e. tests) → "Course rules in effect for
-  <term>". **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
+  `{kind:'known', at: snapshot.syncedAt}` → "The course rules here are up-to-date as of <that
+  date>."; different → `{kind:'after', …}` → the same sentence with TODAY's date (the page has
+  just read the live sheet) plus a diagnostics warning that explains the ~6-hour window and what
+  to check if it persists; the snapshot fallback is always `known`; (3) nothing dated (rules
+  built without a snapshot, i.e. tests) → "The course rules here are those in effect for
+  <term>." DGS wording decision 2026-09-01: ONE date, one sentence — no fetch date ("read from
+  the sheet …") and no course counts on that line. **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
   2026-09-01 by fetching all three tabs from the deployed page's own origin (exposed headers:
   cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)
   — so the sync's own record is the only zero-setup date source; the earlier header-reading

@@ -120,8 +120,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el(
           'p',
           { class: 'effective' },
-          rulesDateLine(rules, termLabel(termOfDate(todayIso))),
-          rules.source === 'live' ? ` · read from the DGS’s rules sheet ${todayIso}` : '',
+          rulesDateLine(rules, termLabel(termOfDate(todayIso)), todayIso),
         ),
       ),
       contactCard(),

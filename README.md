@@ -134,11 +134,12 @@ Add a row to the **Changelog** tab: date, your name, what changed, why (handbook
 decision, correction). The next DGS will thank you. Both pages date the rules automatically, so
 nothing else is needed: a GitHub Action checks the published sheet every six hours, and when its
 content has changed it records the date, saves the new copy in the repository, and redeploys —
-within a few hours of your edit the pages say "Course rules last updated <date>" (until then they
-say "updated after <previous date>"). Only if the rules should carry a different date than the
-last edit (a change decided today that takes effect next term, say) add a **Parameters** row
-`rules_effective_date` with that date (`2026-09-01` format); the pages then print "Rules
-effective as of <date>" instead — and keep printing it until you remove the row.
+within a few hours of your edit the pages say "The course rules here are up-to-date as of
+<date of your edit>" (until then they say "as of <today>", because the page has just read the
+live sheet). Only if the rules should carry a different date than the last edit (a change decided
+today that takes effect next term, say) add a **Parameters** row `rules_effective_date` with that
+date (`2026-09-01` format); the pages then print "Rules effective as of <date>" instead — and keep
+printing it until you remove the row.
 
 ### A7. Verify in the app (five minutes later)
 

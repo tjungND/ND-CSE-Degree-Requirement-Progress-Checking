@@ -169,31 +169,16 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         el(
           'p',
           { class: 'sub' },
-          'Which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, which core-knowledge area (§4.4.1) and specialization category (§4.4.2) each one satisfies, and when it is typically offered — as determined by the Director of Graduate Studies with faculty input under the ',
+          'This page describes which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, which core-knowledge area (§4.4.1) and specialization category (§4.4.2) each one satisfies, and when it is typically offered — as determined by the Director of Graduate Studies with faculty input under the ',
           handbookLink(),
           '. The ',
           el('a', { href: './index.html' }, 'degree self-check tool'),
           ' applies these same rules to your own coursework.',
         ),
-        el(
-          'p',
-          { class: 'effective' },
-          effectiveLine(),
-        ),
+        el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
       ),
       contactCard(),
     );
-  }
-
-  /** "Rules effective as of … · shown for Fall 2026 · N active of M courses". */
-  function effectiveLine(): string {
-    const active = rows.filter((r) => r.active).length;
-    const parts = [
-      rulesDateLine(rules, termLabel(currentTerm)),
-      `${active} active courses (${rows.length - active} retired courses are listed for students who took them)`,
-    ];
-    if (rules.source === 'live') parts.push(`read from the DGS’s rules sheet ${todayIso}`);
-    return parts.join(' · ');
   }
 
   function notices(): HTMLElement[] {
