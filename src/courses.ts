@@ -2,13 +2,14 @@
 // rules loader as the audit page (live sheet → snapshot fallback); no student
 // data is involved on this page at all.
 import './style.css';
-import { loadRules } from './data/load.ts';
+import { loadRulesWithCard } from './ui/loading.ts';
 import { renderCoursesPage } from './ui/courses-page.ts';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (app) {
-  app.textContent = 'Loading the current course rules from the latest Google Spreadsheet… it may take up to 15 seconds';
-  loadRules(new Date().toISOString()).then((rules) => {
+  // The loading card (src/ui/loading.ts) shows progress and, on failure, suggests
+  // reloading; it resolves with the live rules or the saved copy the student chose.
+  loadRulesWithCard(app, new Date().toISOString()).then((rules) => {
     app.textContent = '';
     renderCoursesPage(app, rules);
   });

@@ -22,6 +22,18 @@ export const ALPHA_NOTICE =
   'guarantee. It is not an official degree audit; the final decision on every requirement ' +
   'is at the discretion of the Director of Graduate Studies.';
 
+/** What is NOT in alpha: the course rules themselves (DGS wording, 2026-09-01).
+ * Shown in bold next to the alpha notice in the banner, the footer and the
+ * copied summary, so a student does not read "alpha" as "the rules may be wrong". */
+export const RULES_ACCURACY_NOTICE =
+  'The course rules behind every verdict are accurate: they are exactly the rules the ' +
+  'Director of Graduate Studies and the Graduate Program Administrator use to determine ' +
+  'whether a student’s courses satisfy the degree requirements.';
+
+/** The sentence that follows RULES_ACCURACY_NOTICE — what the alpha label covers. */
+export const ALPHA_SCOPE_NOTICE =
+  'What is still being tested is this tool’s application of those rules to your record.';
+
 /** The dated line under each page's title — two dates, one sentence (DGS wording,
  *  2026-09-01): "The course rules here were last updated on <X>, and are up-to-date
  *  as of <Y>." X is when the sheet's content last changed; Y is the day the page

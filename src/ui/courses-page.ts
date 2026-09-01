@@ -200,7 +200,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         el(
           'div',
           { class: 'banner' },
-          `The live rules sheet could not be reached — showing the copy of the rules saved on ${rules.syncedAt.slice(0, 10)}. Recent DGS edits may be missing.`,
+          `You chose to continue with the copy of the rules saved on ${rules.syncedAt.slice(0, 10)} because the live spreadsheet could not be loaded — recent DGS edits may be missing. Reload the page to try the live spreadsheet again.`,
         ),
       );
     }

@@ -8,8 +8,8 @@ The git log is narrative — commit messages explain each step's reasoning.
 ## State of the world (as of 2026-09-01)
 
 Complete and verified: engine (§2/§3/§4 requirements, 31 requirement rows), sheet loader with
-plain-English diagnostics + snapshot fallback, UI (form, course table, transcript upload,
-report), 60+ tests, GitHub workflows (test/deploy/sync-sheet), docs (README, MAINTENANCE,
+plain-English diagnostics + a student-chosen snapshot fallback, UI (loading card, form, course
+table, transcript upload, report), 70+ tests, GitHub workflows (test/deploy/sync-sheet), docs (README, MAINTENANCE,
 data/README, DECISIONS, LICENSE). An adversarial multi-agent review confirmed 25 defects; all
 fixed with regression tests.
 
@@ -110,7 +110,8 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **Public course-rules page** (`courses.html`, 2026-09-01, DGS request): `src/ui/courses-page.ts`
   renders the Courses tab for students — overview cards per §4.4.1 core area and §4.4.2 category,
   then a filterable/sortable table (id, title, type, counts toward MSCSE/Ph.D., core area,
-  category, typically offered, DGS reviewed). It uses the SAME loader (`loadRules`) and shows, per
+  category, typically offered, DGS reviewed). It uses the SAME loader (`loadLiveRules` via
+  `loadRulesWithCard`) and shows, per
   course, the row in effect this term (`resolveRuleRow` with `termOfDate(today)`); retired rows are
   hidden unless the visitor ticks "Include retired courses". `dgs_reviewed` is now parsed into
   `RuleCourse.dgsReviewed` for this page only — the engine still ignores it. E2E suite
@@ -130,8 +131,25 @@ Known-pending (the app's diagnostics panel is the live truth):
   tests) → "… are those in effect for <term>, …". Every variant ends ", and are up-to-date as of
   <Y>." where Y = today (local calendar date) when `rules.source` is `live`, else the snapshot's
   `syncedAt` day. DGS wording decision 2026-09-01 (final form after two rounds): exactly this
-  sentence, no course counts on that line; the loading text on both entry points names the
-  source and warns it may take up to 15 seconds (the live fetch times out at 12 s). **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
+  sentence, no course counts on that line.
+- **Loading card + reload-first failure handling** (`src/ui/loading.ts`, DGS decisions
+  2026-09-01): while rules load, both pages show a card — step list (connect / course list /
+  parameters / categories / dating), each step ticking with its row count, a bar against the
+  15-second budget (`FETCH_TIMEOUT_MS` in `src/data/load.ts` — keep the card's wording and this
+  constant in step) and an elapsed counter. On failure `loadLiveRules` throws `RulesLoadError`
+  (kinds: timeout / unreachable / http / unpublished / empty; `retryable` says whether reloading
+  can help). The card then explains in plain words and suggests RELOAD first; the saved copy
+  (`rulesFromSnapshot`) is a second-choice button, never automatic — the DGS chose "suggest
+  reloading instead of showing the saved copy". For non-retryable kinds (unpublished/empty —
+  reloading cannot help) the saved-copy button comes first. The snapshot banner now says "You
+  chose to continue with the copy saved on …". E2E: the sandbox has no network, so every run
+  exercises this path — `cdp.mjs`'s `open()` waits for the masthead OR the failed card, requires
+  the card to mention reloading, screenshots it once (`loading-failed.png`) and clicks through.
+- **Alpha ≠ inaccurate rules** (`RULES_ACCURACY_NOTICE` + `ALPHA_SCOPE_NOTICE` in
+  `src/ui/handbook.ts`, DGS wording 2026-09-01): the banner, footer and copied summary now state
+  in bold that the course rules are accurate — exactly the rules the DGS and the Graduate
+  Program Administrator use to determine requirement satisfaction — and that what is in alpha is
+  the TOOL's application of them. Don't reintroduce wording that hedges on the rules themselves. **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
   2026-09-01 by fetching all three tabs from the deployed page's own origin (exposed headers:
   cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)
   — so the sync's own record is the only zero-setup date source; the earlier header-reading

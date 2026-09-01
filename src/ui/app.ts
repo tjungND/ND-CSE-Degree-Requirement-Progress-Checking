@@ -9,7 +9,7 @@ import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
-import { ALPHA_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
+import { ALPHA_NOTICE, ALPHA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
@@ -148,11 +148,14 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'strong',
         {},
-        'Every verdict on this page is computed from the official course rules set by the DGS — see the ',
+        RULES_ACCURACY_NOTICE,
+        ' See the ',
         el('a', { href: './courses.html' }, 'course rules page'),
-        ' for which courses count and how they are categorized; if a rule there looks wrong, the verdict here will be too.',
+        ' for which courses count and how they are categorized.',
       ),
-      ...reportToDgs(' Error reports and feedback are welcome — please email'),
+      ' ',
+      ALPHA_SCOPE_NOTICE,
+      ...reportToDgs(' If a verdict looks wrong, or you have feedback, please email'),
     );
   }
 
@@ -161,7 +164,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return el(
       'div',
       { class: 'banner' },
-      `The live rules sheet could not be reached — showing the copy of the rules saved on ${date}. Recent DGS edits may be missing.`,
+      `You chose to continue with the copy of the rules saved on ${date} because the live spreadsheet could not be loaded — recent DGS edits may be missing. Reload the page to try the live spreadsheet again.`,
     );
   }
 
@@ -783,10 +786,14 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         { class: 'legal-alpha' },
         el('strong', {}, 'Alpha version under testing. '),
         ALPHA_NOTICE,
-        ' Every verdict is computed from the official course rules set by the DGS (see the ',
+        ' ',
+        el('strong', {}, RULES_ACCURACY_NOTICE),
+        ' ',
+        ALPHA_SCOPE_NOTICE,
+        ' (See the ',
         el('a', { href: './courses.html' }, 'course rules page'),
-        ').',
-        ...reportToDgs(' Error reports and feedback are welcome — please email'),
+        '.)',
+        ...reportToDgs(' If a verdict looks wrong, or you have feedback, please email'),
       ),
       el(
         'div',

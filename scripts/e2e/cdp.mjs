@@ -63,6 +63,27 @@ export async function openSession(debugPort, outDir) {
     await send('DOM.setFileInputFiles', { files: [filePath], nodeId: node.nodeId });
   };
 
+  // Navigate and get past the loading card. In a sandbox without network the
+  // live fetch fails at once and the card offers "Continue with the copy saved
+  // on …" — the harness screenshots that card (once) and clicks it, so the
+  // failure path is exercised on every run. With network, the live rules load
+  // and the masthead appears by itself.
+  let failureShotTaken = false;
+  const open = async (url, readySelector = '.masthead h1') => {
+    await send('Page.navigate', { url });
+    await waitFor(`document.querySelector('${readySelector}') || document.querySelector('.load-card.failed')`);
+    if (await evalJs(`!!document.querySelector('.load-card.failed')`)) {
+      const text = await evalJs(`document.querySelector('.load-fail')?.textContent`);
+      if (!/[Rr]eload the page/.test(text ?? '')) throw new Error('failure card must suggest reloading: ' + text);
+      if (!failureShotTaken) {
+        await shot('loading-failed');
+        failureShotTaken = true;
+      }
+      await evalJs(`document.querySelector('.load-card.failed button.use-saved').click()`);
+      await waitFor(`document.querySelector('${readySelector}')`);
+    }
+  };
+
   await send('Page.enable');
   await send('DOM.enable');
   await send('Emulation.setDeviceMetricsOverride', {
@@ -72,5 +93,5 @@ export async function openSession(debugPort, outDir) {
     mobile: false,
   });
 
-  return { send, evalJs, waitFor, shot, setFileInput, close: () => ws.close() };
+  return { send, evalJs, waitFor, shot, setFileInput, open, close: () => ws.close() };
 }

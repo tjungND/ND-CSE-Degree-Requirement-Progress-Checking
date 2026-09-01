@@ -1,32 +1,108 @@
-// Browser-side rules loading: fetch the published sheet CSVs; on any failure,
-// fall back to the bundled snapshot (raw CSV text, same parse path) and let the
-// UI show "showing the copy of the rules saved on <date>". Either way the rules
-// are dated against that snapshot (src/data/rules-date.ts explains how).
+// Browser-side rules loading: fetch the published sheet CSVs, reporting progress
+// so the page can show what it is waiting for (src/ui/loading.ts). On failure
+// the loader THROWS a RulesLoadError — it does NOT fall back to the bundled
+// snapshot by itself (DGS decision 2026-09-01: when Google does not answer,
+// suggest reloading rather than quietly showing an older copy). The page offers
+// the saved copy as a second choice (rulesFromSnapshot) so the tool still works
+// if the sheet is ever unpublished. Either way the rules are dated against that
+// snapshot (src/data/rules-date.ts explains how).
 import sheetUrls from '../../data/sheet-urls.json';
 import snapshot from '../../data/snapshot.json';
 import { rulesFromCsvTexts, type CsvTexts } from './assemble.ts';
 import { dateLiveRules } from './rules-date.ts';
 import type { Rules } from './types.ts';
 
-const FETCH_TIMEOUT_MS = 12_000;
+/** How long the page waits for Google before giving up. The loading card
+ * promises "up to 15 seconds" — keep the two in step. */
+export const FETCH_TIMEOUT_MS = 15_000;
 
-async function fetchCsv(url: string): Promise<string> {
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    // The published CSV is public; no credentials, no cookies.
-    credentials: 'omit',
-    cache: 'no-cache',
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  const text = await res.text();
+export type TabName = keyof CsvTexts;
+export const TAB_NAMES: readonly TabName[] = ['courses', 'parameters', 'categories'];
+/** The tabs in words a student understands ("the course list", not "Courses"). */
+export const TAB_LABELS: Record<TabName, string> = {
+  courses: 'the course list',
+  parameters: 'the parameters',
+  categories: 'the categories',
+};
+
+/** What the loader reports while it works (drives the loading card). */
+export type LoadProgress =
+  | { step: 'connect' }
+  | { step: 'tab'; tab: TabName; rows: number; ms: number }
+  | { step: 'check' };
+
+export type LoadFailureKind = 'timeout' | 'unreachable' | 'http' | 'unpublished' | 'empty';
+
+/** Why a live load failed, in words a student can act on. `retryable` says
+ * whether reloading the page is likely to help (a hung or failed connection:
+ * yes; a sheet that is unpublished or empty: no — that needs the DGS). */
+export class RulesLoadError extends Error {
+  constructor(
+    readonly kind: LoadFailureKind,
+    readonly tab: TabName | undefined,
+    message: string,
+    readonly retryable: boolean,
+  ) {
+    super(message);
+    this.name = 'RulesLoadError';
+  }
+}
+
+/** The day the bundled copy was saved (YYYY-MM-DD), for the page's messages. */
+export const SNAPSHOT_SAVED_ON = snapshot.syncedAt.slice(0, 10);
+
+/** Data rows in a CSV text: non-empty lines (a line of only commas is a blank
+ * sheet row) minus the header. Good enough for "371 rows" on the loading card. */
+export function countCsvRows(csv: string): number {
+  let n = 0;
+  for (const line of csv.split(/\r?\n/)) if (!/^[\s,]*$/.test(line)) n++;
+  return Math.max(0, n - 1);
+}
+
+async function fetchCsv(tab: TabName, url: string, onProgress: (p: LoadProgress) => void): Promise<string> {
+  const started = Date.now();
+  let res: Response;
+  let text: string;
+  try {
+    res = await fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      // The published CSV is public; no credentials, no cookies.
+      credentials: 'omit',
+      cache: 'no-cache',
+    });
+    if (!res.ok) {
+      throw new RulesLoadError('http', tab, `Google answered with an error (HTTP ${res.status}) for ${TAB_LABELS[tab]}.`, true);
+    }
+    text = await res.text();
+  } catch (e) {
+    if (e instanceof RulesLoadError) throw e;
+    if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+      throw new RulesLoadError(
+        'timeout',
+        tab,
+        `Google did not send ${TAB_LABELS[tab]} within ${FETCH_TIMEOUT_MS / 1000} seconds.`,
+        true,
+      );
+    }
+    throw new RulesLoadError('unreachable', tab, 'The spreadsheet could not be reached — check your internet connection.', true);
+  }
   // Google serves an HTML error page (not CSV) for unpublished sheets.
-  if (/^\s*</.test(text)) throw new Error('got HTML instead of CSV — is the tab still published?');
+  if (/^\s*</.test(text)) {
+    throw new RulesLoadError(
+      'unpublished',
+      tab,
+      'The spreadsheet is no longer published to the web, so no one can load it until the DGS re-publishes it. Reloading will not help.',
+      false,
+    );
+  }
+  onProgress({ step: 'tab', tab, rows: countCsvRows(text), ms: Date.now() - started });
   return text;
 }
 
+/** The copy of the rules saved in the app (data/snapshot.json) — shown only
+ * when the student chooses it after a failed live load. Its syncedAt is when
+ * these rules were first seen by the sync, so they are dated `known`. */
 export function rulesFromSnapshot(): Rules {
-  // The snapshot holds exactly the content the sync last saw change, so its
-  // syncedAt is when these rules last changed (rules-date.ts).
   return rulesFromCsvTexts(snapshot.csv, {
     source: 'snapshot',
     syncedAt: snapshot.syncedAt,
@@ -50,27 +126,26 @@ function noteNewerSheet(rules: Rules): Rules {
   return rules;
 }
 
-/** Load live rules; never throws — the snapshot is the safety net. */
-export async function loadRules(nowIso: string): Promise<Rules> {
-  try {
-    const [courses, parameters, categories] = await Promise.all([
-      fetchCsv(sheetUrls.courses),
-      fetchCsv(sheetUrls.parameters),
-      fetchCsv(sheetUrls.categories),
-    ]);
-    const live: CsvTexts = { courses, parameters, categories };
-    const rules = rulesFromCsvTexts(live, {
-      source: 'live',
-      syncedAt: nowIso,
-      rulesDate: dateLiveRules(live, snapshot),
-    });
-    // A live sheet missing an entire tab's data is worse than the snapshot
-    // (e.g. a tab accidentally unpublished still returns an empty CSV).
-    if (rules.courses.size === 0 || rules.parameters.raw.size === 0 || rules.categoryGroups.length === 0) {
-      return rulesFromSnapshot();
-    }
-    return noteNewerSheet(rules);
-  } catch {
-    return rulesFromSnapshot();
+/** Load the live rules, reporting progress; throws RulesLoadError on failure. */
+export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress) => void = () => {}): Promise<Rules> {
+  onProgress({ step: 'connect' });
+  const [courses, parameters, categories] = await Promise.all(
+    TAB_NAMES.map((tab) => fetchCsv(tab, sheetUrls[tab], onProgress)),
+  );
+  onProgress({ step: 'check' });
+  const live: CsvTexts = { courses: courses!, parameters: parameters!, categories: categories! };
+  const rules = rulesFromCsvTexts(live, { source: 'live', syncedAt: nowIso, rulesDate: dateLiveRules(live, snapshot) });
+  // A tab that answered but holds no data (cleared by accident, or unpublished
+  // on its own) is a failure to report, not "there are no courses".
+  const emptyTab: TabName | undefined =
+    rules.courses.size === 0 ? 'courses' : rules.parameters.raw.size === 0 ? 'parameters' : rules.categoryGroups.length === 0 ? 'categories' : undefined;
+  if (emptyTab) {
+    throw new RulesLoadError(
+      'empty',
+      emptyTab,
+      `The spreadsheet answered, but ${TAB_LABELS[emptyTab]} tab is empty — the DGS needs to check the sheet. Reloading will not help until then.`,
+      false,
+    );
   }
+  return noteNewerSheet(rules);
 }

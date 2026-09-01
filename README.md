@@ -151,9 +151,10 @@ then reads "are effective as of <date>" instead — and keeps doing so until you
    when `active` = `yes`), and read the report as a student would. Open `courses.html` too — the
    public course-rules list should show your row with the right core area, category, and
    Confirmed/Pending mark.
-4. If the page shows a banner *"showing the copy of the rules saved on …"*, the live fetch
-   failed and the app is using its saved copy. Check in the sheet that **File → Share → Publish
-   to web** is still on for the three tabs. If the sheet was replaced by a new file, see A9.
+4. If the page cannot load the rules, a card explains why and suggests reloading; a visitor can
+   also choose to continue with the app's saved copy (a banner then says so). If the card says
+   the spreadsheet is not published, check in the sheet that **File → Share → Publish to web**
+   is still on for the three tabs. If the sheet was replaced by a new file, see A9.
 
 Nothing you enter in the app is stored anywhere but that browser.
 
@@ -167,8 +168,9 @@ Nothing you enter in the app is stored anywhere but that browser.
 ### A9. If the sheet is ever re-created, replaced, or its publishing is reset
 
 The published-CSV links change, and the three links in `data/sheet-urls.json` in this repository
-must be updated — that is a ten-minute Track B job (recipe in B4). Until then the app keeps
-running on its last saved copy and says so.
+must be updated — that is a ten-minute Track B job (recipe in B4). Until then the app tells
+visitors the sheet has a problem and offers its last saved copy; it recovers by itself once the
+links are fixed.
 
 ---
 

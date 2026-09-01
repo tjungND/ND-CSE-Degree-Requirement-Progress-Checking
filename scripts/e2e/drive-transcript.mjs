@@ -1,11 +1,9 @@
 // E2E: the transcript-upload flow — reject a non-ND PDF with the right message,
 // preview + add the courses from an ND PDF, prefill the GPA.
 export async function driveTranscript(s, baseUrl, ndPdf, otherPdf) {
-  await s.send('Page.navigate', { url: baseUrl });
-  await s.waitFor(`document.querySelector('.transcript-upload')`);
+  await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
-  await s.send('Page.navigate', { url: baseUrl });
-  await s.waitFor(`document.querySelector('.transcript-upload')`);
+  await s.open(baseUrl, '.transcript-upload');
 
   // 1) Non-ND transcript → rejection message, no preview.
   await s.setFileInput('.transcript-upload input[type=file]', otherPdf);

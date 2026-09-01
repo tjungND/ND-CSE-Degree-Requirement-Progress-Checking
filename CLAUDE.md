@@ -57,10 +57,11 @@ replaced by `README.md` on 2026-09-01.)
   requirement with its handbook sentence quoted above it; stable requirement ids in `audit.ts`.
 - `src/data/` — published-CSV fetch → parse → validate → typed `Rules`. Validation reports bad
   rows in plain English (the person who broke it is a DGS editing a spreadsheet). On fetch
-  failure: fall back to `data/snapshot.json` (raw CSV text) + a visible "showing the copy saved
-  on …" note. The rules are dated against that snapshot (`src/data/rules-date.ts`): Google sends
-  no Last-Modified header, so "when did the rules last change" = when the six-hourly sync first
-  saw the current content.
+  failure: THROW a typed `RulesLoadError` — the loading card (`src/ui/loading.ts`) then suggests
+  reloading first and offers `data/snapshot.json` (raw CSV text) as a student-chosen fallback,
+  never automatically (DGS decision 2026-09-01). The rules are dated against that snapshot
+  (`src/data/rules-date.ts`): Google sends no Last-Modified header, so "when did the rules last
+  change" = when the six-hourly sync first saw the current content.
 - `src/ui/` — form, course table with sheet-driven autocomplete, transcript upload + preview,
   report. All user-entered text rendered via `textContent`, never innerHTML. A second page,
   `courses.html` → `src/courses.ts` → `src/ui/courses-page.ts`, is the public course-rules list

@@ -2,13 +2,14 @@
 // app. All rule logic lives in src/engine/ (pure, tested); all sheet handling
 // in src/data/; this file only wires them to the page.
 import './style.css';
-import { loadRules } from './data/load.ts';
+import { loadRulesWithCard } from './ui/loading.ts';
 import { startApp } from './ui/app.ts';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (app) {
-  app.textContent = 'Loading the current course rules from the latest Google Spreadsheet… it may take up to 15 seconds';
-  loadRules(new Date().toISOString()).then((rules) => {
+  // The loading card (src/ui/loading.ts) shows progress and, on failure, suggests
+  // reloading; it resolves with the live rules or the saved copy the student chose.
+  loadRulesWithCard(app, new Date().toISOString()).then((rules) => {
     app.textContent = '';
     try {
       startApp(app, rules);

@@ -1,9 +1,8 @@
 // E2E: the basic app flow — initial Ph.D. report, example student, M.S. tab.
 export async function driveApp(s, baseUrl) {
-  await s.send('Page.navigate', { url: baseUrl });
-  await s.waitFor(`document.querySelector('.masthead h1')`);
+  await s.open(baseUrl);
   await s.evalJs(`localStorage.clear()`);
-  await s.send('Page.navigate', { url: baseUrl });
+  await s.open(baseUrl);
   await s.waitFor(`document.querySelectorAll('.req').length > 5`);
   await s.shot('app-initial-phd');
 
@@ -31,7 +30,7 @@ export async function driveApp(s, baseUrl) {
 // E2E: the public course-rules list (courses.html) — renders the overview and
 // the full table from the same rules, filters work, no student data involved.
 export async function driveCourses(s, baseUrl) {
-  await s.send('Page.navigate', { url: new URL('courses.html', baseUrl).href });
+  await s.open(new URL('courses.html', baseUrl).href);
   await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr').length > 10`);
   await s.shot('courses-list');
   const count = await s.evalJs(`document.querySelector('.count')?.textContent`);

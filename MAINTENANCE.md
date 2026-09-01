@@ -11,7 +11,7 @@ against the Graduate Handbook (§3 MSCSE, §4 Ph.D.). You should almost never ne
 ```
 Google Sheet (you edit)  ──publish-to-web CSV──►  static web app (student's browser)
          │                                                ▲
-         └── 6-hourly GitHub Action ─► data/snapshot.json ┘ (fallback if the fetch fails; also dates the rules)
+         └── 6-hourly GitHub Action ─► data/snapshot.json ┘ (offered if the fetch fails; dates the rules)
 ```
 
 Student data never leaves the student's browser (localStorage + a save-to-file button).

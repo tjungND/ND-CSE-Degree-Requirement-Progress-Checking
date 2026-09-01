@@ -3,7 +3,7 @@
 import type { AuditReport, RequirementResult, Status } from '../engine/types.ts';
 import { termLabel } from '../engine/term.ts';
 import { el } from './dom.ts';
-import { HANDBOOK_EDITION, HANDBOOK_URL } from './handbook.ts';
+import { ALPHA_SCOPE_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, RULES_ACCURACY_NOTICE } from './handbook.ts';
 
 const STATUS_LABEL: Record<Status, string> = {
   met: 'Met',
@@ -185,6 +185,7 @@ export function summaryText(report: AuditReport, todayIso: string): string {
     '',
     `Self-check against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`,
     'Alpha version under testing — informational only, no warranty or guarantee; the final decision is at the DGS\'s discretion. Confirm with the DGS office.',
+    RULES_ACCURACY_NOTICE + ' ' + ALPHA_SCOPE_NOTICE,
   );
   return lines.join('\n');
 }
