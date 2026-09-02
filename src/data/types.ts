@@ -13,6 +13,28 @@ export const RESERVED_GROUP_CODES = ['any', 'ineligible'] as const;
 
 export type CourseType = 'regular' | 'seminar' | 'research' | 'independent' | 'project';
 
+/** One row of the ExternalCourses tab: a course at ANOTHER university the DGS
+ * has ruled on (docs/DECISIONS.md, 2026-09-01). `satisfiesCoreArea` says which
+ * §4.4.1 core area the course covers (validated against the Categories core
+ * list); `transferable` says whether its credits may transfer under §5.2
+ * (undefined = the DGS has not decided that part); `ndCredits` is the
+ * Notre-Dame-equivalent credit value for non-semester systems — §5.2 "pro-rata"
+ * (undefined = count the credits printed on the transcript). */
+export interface ExternalRule {
+  university: string;
+  /** Normalized forms of the university name + every alias, for matching. */
+  universityKeys: string[];
+  courseId: string;
+  title: string;
+  satisfiesCoreArea?: string;
+  transferable?: boolean;
+  ndCredits?: number;
+  decidedOn?: string;
+  notes?: string;
+  /** 1-based spreadsheet row, for diagnostics. */
+  sheetRow: number;
+}
+
 /** One row of the Courses tab (the same course_id may appear in several rows
  * with different effective_term values — see resolveRuleRow in assemble.ts). */
 export interface RuleCourse {
@@ -63,6 +85,9 @@ export interface Rules {
   parameters: Parameters;
   coreAreas: { code: string; name: string }[];
   categoryGroups: { code: string; name: string }[]; // the real groups; 'any' is not one
+  /** The DGS's rulings on courses from other universities (§4.4.1/§5.2);
+   * empty until the ExternalCourses tab exists and is published. */
+  external: ExternalRule[];
   issues: SheetIssue[];
   source: 'live' | 'snapshot';
   syncedAt: string;

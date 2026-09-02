@@ -4,10 +4,10 @@
 // the same card explains why and suggests RELOADING first; the copy saved in
 // the app is offered as a second choice and is never shown automatically.
 import {
+  EXTERNAL_TAB_CONFIGURED,
   FETCH_TIMEOUT_MS,
   RulesLoadError,
   SNAPSHOT_SAVED_ON,
-  TAB_LABELS,
   loadLiveRules,
   rulesFromSnapshot,
   type LoadProgress,
@@ -35,13 +35,17 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
       const detail = el('span', { class: 'detail' });
       return { li: el('li', {}, dot, label, ' ', detail), dot, detail };
     };
-    const steps = {
-      connect: makeStep('Connecting to the spreadsheet'),
+    const tabSteps: Partial<Record<TabName, Step>> = {
       courses: makeStep('Reading the course list'),
       parameters: makeStep('Reading the parameters'),
       categories: makeStep('Reading the categories'),
-      check: makeStep('Checking when the rules were last updated'),
+      ...(EXTERNAL_TAB_CONFIGURED ? { external: makeStep('Reading the external-course rules') } : {}),
     };
+    const steps = {
+      connect: makeStep('Connecting to the spreadsheet'),
+      ...tabSteps,
+      check: makeStep('Checking when the rules were last updated'),
+    } as { connect: Step; check: Step } & Partial<Record<TabName, Step>>;
     const setStep = (s: Step, state: 'pending' | 'active' | 'done' | 'failed', detail?: string) => {
       s.li.className = state;
       clear(s.dot);
@@ -84,9 +88,10 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
         // The first tab to arrive proves the connection works.
         if (steps.connect.li.className !== 'done') {
           setStep(steps.connect, 'done');
-          for (const tab of ['courses', 'parameters', 'categories'] as const) if (steps[tab].li.className !== 'done') setStep(steps[tab], 'active');
+          for (const s of Object.values(tabSteps)) if (s.li.className !== 'done') setStep(s, 'active');
         }
-        setStep(steps[p.tab], 'done', `(${p.rows.toLocaleString('en-US')} rows)`);
+        const step = tabSteps[p.tab];
+        if (step) setStep(step, 'done', `(${p.rows.toLocaleString('en-US')} rows)`);
       }
       if (p.step === 'check') setStep(steps.check, 'active');
     };
@@ -100,11 +105,11 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
       title.textContent = e.retryable ? 'The course rules could not be loaded' : 'The spreadsheet has a problem';
       subtitle.textContent = e.kind === 'timeout' ? 'Google did not answer in time' : 'nothing was changed on your side';
       // Mark what was still pending: the tab that failed, or everything not yet done.
-      const pendingTabs = (['courses', 'parameters', 'categories'] as const).filter((tab) => steps[tab].li.className !== 'done');
+      const pendingTabs = (Object.keys(tabSteps) as TabName[]).filter((tab) => tabSteps[tab]!.li.className !== 'done');
       const failedTabs: TabName[] = e.tab && pendingTabs.includes(e.tab) ? [e.tab] : pendingTabs;
-      for (const tab of pendingTabs) setStep(steps[tab], failedTabs.includes(tab) ? 'failed' : 'pending', failedTabs.includes(tab) ? '— not received' : '');
+      for (const tab of pendingTabs) setStep(tabSteps[tab]!, failedTabs.includes(tab) ? 'failed' : 'pending', failedTabs.includes(tab) ? '— not received' : '');
       if (steps.connect.li.className !== 'done') setStep(steps.connect, e.kind === 'unreachable' ? 'failed' : 'done');
-      if (e.kind === 'empty' && e.tab) setStep(steps[e.tab], 'failed', '— empty');
+      if (e.kind === 'empty' && e.tab && tabSteps[e.tab]) setStep(tabSteps[e.tab]!, 'failed', '— empty');
 
       const reload = el('button', { class: 'btn primary', type: 'button', onclick: () => location.reload() }, 'Reload the page');
       const useSaved = el(

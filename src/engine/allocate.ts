@@ -8,7 +8,8 @@
 // argument), the rare multi-cap courses by exact search — never the prototype's
 // entry-order greedy, where re-sorting the course list changed the verdict.
 import { resolveRuleRow } from '../data/assemble.ts';
-import type { RuleCourse, Rules } from '../data/types.ts';
+import { findExternalRule } from '../data/external.ts';
+import type { ExternalRule, RuleCourse, Rules } from '../data/types.ts';
 import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
@@ -40,6 +41,14 @@ export interface ClassifiedCourse {
   approvalPending?: string;
   unknown?: boolean;
   superseded?: boolean;
+  /** Transfer-only: the DGS's ExternalCourses ruling for this course, when one
+   * exists (attached even when the course earns no credit, so §4.4.1 core
+   * knowledge can still see a DGS-confirmed course). */
+  external?: ExternalRule;
+  /** Transfer-only: the DGS's ND-equivalent credit value (ExternalCourses
+   * nd_credits — §5.2 "pro-rata"); counting uses this instead of the credits
+   * printed on the transcript. */
+  effectiveCredits?: number;
 }
 
 export interface CourseAllocation {
@@ -165,25 +174,54 @@ export function classify(student: Student, rules: Rules): {
     }
 
     if (c.origin === 'transfer') {
+      // The DGS's ExternalCourses ruling, when one exists. Attached to every
+      // return path so §4.4.1 core knowledge sees it even when no credit counts.
+      const external = findExternalRule(rules.external, c.institution ?? '', c.courseId);
+      const extBase: ClassifiedCourse = { ...base, external };
+      // §5.2 criterion 2: transfers must be "graduate courses … [taken with]
+      // graduate student status" — Bachelor's coursework can never transfer.
+      // §4.4.1 core knowledge has no such restriction, so the course stays
+      // visible to the core check (coreRows reads classified regardless).
+      if (c.degreeLevel === 'bachelors') {
+        return {
+          ...extBase,
+          ineligibleReason:
+            "no credit — Bachelor's coursework cannot transfer (§5.2 requires graduate courses taken with graduate student status); it can still satisfy §4.4.1 core knowledge",
+        };
+      }
+      if (external?.transferable === false) {
+        return {
+          ...extBase,
+          ineligibleReason: `not counted — the DGS has ruled this ${external.university} course non-transferable (external-course rules)`,
+        };
+      }
       // §5.2: "grades of 'B' (3.0 on 4.0 scale) or better were achieved" and
       // "completed within a five-year period prior to admission … or while
       // enrolled". Every transfer needs DGS + Graduate School approval.
       if (transferFloor !== undefined && !meetsGradeFloor(grade, transferFloor as Grade) && !isInProgress(grade)) {
-        return { ...base, ineligibleReason: `not counted — grade below ${transferFloor} (§5.2)` };
+        return { ...extBase, ineligibleReason: `not counted — grade below ${transferFloor} (§5.2)` };
       }
       if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
         return {
-          ...base,
+          ...extBase,
           ineligibleReason: `not counted — completed outside the ${windowYears}-year window before admission (five-year window, §5.2)`,
         };
       }
       const attested = attestations.transferApproved === true;
       return {
-        ...base,
+        ...extBase,
         pool: 'regular',
         caps: ['transfer'],
         tier: tierFor(grade, !attested),
-        approvalPending: attested ? undefined : 'transfer — needs DGS + Graduate School approval (§5.2)',
+        // §5.2 "pro-rata" for non-semester systems: the DGS's ND-equivalent value wins.
+        effectiveCredits: external?.ndCredits,
+        approvalPending: attested
+          ? undefined
+          : external?.transferable === true
+            ? 'pre-approved in the DGS’s external-course rules — to transfer it, send the §5.2 credit-transfer request to the Graduate Program Coordinator'
+            : external
+              ? 'transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)'
+              : 'transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)',
       };
     }
 
@@ -313,7 +351,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
   const allocations = new Map<ClassifiedCourse, CourseAllocation>();
 
   const take = (cc: ClassifiedCourse, amount: number) => {
-    const credits = cc.entry.credits;
+    const credits = cc.effectiveCredits ?? cc.entry.credits;
     const counted = Math.min(credits, amount);
     const excluded = credits - counted;
     for (const capId of cc.caps) {
@@ -400,7 +438,7 @@ function bestMultiOrder(
     let counted = 0;
     for (const cc of order) {
       const avail = Math.min(...cc.caps.map((id) => Math.max(0, room.get(id) ?? 0)));
-      const c = Math.min(cc.entry.credits, avail);
+      const c = Math.min(cc.effectiveCredits ?? cc.entry.credits, avail);
       counted += c;
       for (const id of cc.caps) room.set(id, (room.get(id) ?? 0) - c);
     }
@@ -426,10 +464,13 @@ function buildExplanation(
           : 'the total-credit requirement only';
   if (counted > 0 && excluded > 0) {
     parts.push(
-      `${counted} of ${cc.entry.credits} credits count toward ${poolName}; ${excluded} not counted — ${excludedReason ?? ''}`,
+      `${counted} of ${cc.effectiveCredits ?? cc.entry.credits} credits count toward ${poolName}; ${excluded} not counted — ${excludedReason ?? ''}`,
     );
   } else if (counted > 0) {
     parts.push(`counts toward ${poolName} (${counted} cr)`);
+    if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
+      parts.push(`counted as ${cc.effectiveCredits} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} per the DGS’s pro-rata value (transcript shows ${cc.entry.credits}; §5.2)`);
+    }
     if (cc.caps.includes('fourk')) parts.push('uses the 40000-level allowance');
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
     if (cc.caps.includes('transfer')) parts.push('transfer credit (§5.2)');

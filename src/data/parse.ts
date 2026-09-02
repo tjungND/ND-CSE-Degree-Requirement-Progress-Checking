@@ -4,7 +4,8 @@
 // "note rows" at the bottom of a tab are skipped silently.
 import { parseTermLabel } from '../engine/term.ts';
 import { parseCsv } from './csv.ts';
-import type { CourseType, Counts, RuleCourse, SheetIssue } from './types.ts';
+import { normalizeUniversity } from './external.ts';
+import type { CourseType, Counts, ExternalRule, RuleCourse, SheetIssue } from './types.ts';
 import { RESERVED_GROUP_CODES } from './types.ts';
 
 const COURSE_ID_RE = /^[A-Z]{2,5} \d{5}$/;
@@ -283,4 +284,82 @@ export function parseCategoriesTab(
     }
   }
   return { coreAreas, categoryGroups };
+}
+
+// ---------- ExternalCourses tab (courses at other universities, §4.4.1/§5.2) ----------
+
+export function parseExternalTab(
+  text: string,
+  coreAreas: { code: string; name: string }[],
+  issues: SheetIssue[],
+): ExternalRule[] {
+  const tab = readTab(text, 'ExternalCourses', issues);
+  const out: ExternalRule[] = [];
+  const err = (rowNum: number, column: string, message: string) =>
+    issues.push({ severity: 'error', tab: 'ExternalCourses', row: rowNum, column, message });
+
+  for (const [rowNum, cells] of tab.rows) {
+    if (isBlankRow(cells)) continue;
+    const university = cells['university'] ?? '';
+    const courseId = cells['course_id'] ?? '';
+    // Prose note rows (the tab ends with explanatory sentences): a filled
+    // university cell with everything else empty.
+    if (university !== '' && courseId === '' && Object.entries(cells).every(([k, v]) => k === 'university' || v === '')) continue;
+    if (university === '' || courseId === '') {
+      err(rowNum, university === '' ? 'university' : 'course_id',
+        `ExternalCourses row ${rowNum} is missing its ${university === '' ? 'university' : 'course_id'} — row skipped.`);
+      continue;
+    }
+
+    const rule: ExternalRule = {
+      university,
+      universityKeys: [university, ...(cells['university_aliases'] ?? '').split(';')]
+        .map((a) => normalizeUniversity(a))
+        .filter((a) => a !== ''),
+      courseId,
+      title: cells['course_title'] ?? '',
+      decidedOn: cells['decided_on'] || undefined,
+      notes: cells['notes'] || undefined,
+      sheetRow: rowNum,
+    };
+
+    const core = (cells['satisfies_core_area'] ?? '').toLowerCase();
+    if (core !== '') {
+      if (coreAreas.some((a) => a.code === core)) rule.satisfiesCoreArea = core;
+      else {
+        err(rowNum, 'satisfies_core_area',
+          `ExternalCourses row ${rowNum} (${university} ${courseId}): satisfies_core_area '${core}' is not one of the Categories tab's core areas (${coreAreas.map((a) => a.code).join(', ')}). That cell is ignored.`);
+      }
+    }
+
+    const transferable = (cells['transferable'] ?? '').toLowerCase();
+    if (transferable === 'yes') rule.transferable = true;
+    else if (transferable === 'no') rule.transferable = false;
+    else if (transferable !== '') {
+      err(rowNum, 'transferable',
+        `ExternalCourses row ${rowNum} (${university} ${courseId}): transferable must be 'yes', 'no' or blank (undecided) — got '${transferable}'. That cell is ignored.`);
+    }
+
+    const nd = cells['nd_credits'] ?? '';
+    if (nd !== '') {
+      const n = Number(nd);
+      if (Number.isFinite(n) && n >= 0 && n <= 30) rule.ndCredits = n;
+      else err(rowNum, 'nd_credits', `ExternalCourses row ${rowNum} (${university} ${courseId}): nd_credits '${nd}' is not a number between 0 and 30. That cell is ignored (credits as printed will count).`);
+    }
+
+    const dup = out.find(
+      (r) => r.universityKeys.some((k) => rule.universityKeys.includes(k)) && r.courseId.toUpperCase().replace(/[^A-Z0-9]/g, '') === courseId.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+    );
+    if (dup) {
+      issues.push({
+        severity: 'warning',
+        tab: 'ExternalCourses',
+        row: rowNum,
+        message: `ExternalCourses row ${rowNum} repeats ${university} ${courseId} (already in row ${dup.sheetRow}) — the first row wins.`,
+      });
+      continue;
+    }
+    out.push(rule);
+  }
+  return out;
 }

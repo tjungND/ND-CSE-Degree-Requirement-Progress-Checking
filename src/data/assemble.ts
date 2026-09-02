@@ -3,7 +3,7 @@
 import type { Term } from '../engine/types.ts';
 import { compareTerm, termIndex } from '../engine/term.ts';
 import { makeParameters } from './params.ts';
-import { parseCategoriesTab, parseCoursesTab, parseParametersTab } from './parse.ts';
+import { parseCategoriesTab, parseCoursesTab, parseExternalTab, parseParametersTab } from './parse.ts';
 import type { RuleCourse, Rules, RulesDate, SheetIssue } from './types.ts';
 import { validateCourses } from './validate.ts';
 
@@ -11,6 +11,9 @@ export interface CsvTexts {
   courses: string;
   parameters: string;
   categories: string;
+  /** The ExternalCourses tab — optional: absent until the DGS creates and
+   * publishes it (the app then treats every external course as unreviewed). */
+  external?: string;
 }
 
 export function rulesFromCsvTexts(
@@ -19,6 +22,7 @@ export function rulesFromCsvTexts(
 ): Rules {
   const issues: SheetIssue[] = [];
   const { coreAreas, categoryGroups } = parseCategoriesTab(texts.categories, issues);
+  const external = texts.external !== undefined ? parseExternalTab(texts.external, coreAreas, issues) : [];
   const rawCourses = parseCoursesTab(texts.courses, issues);
   const courses = validateCourses(rawCourses, coreAreas, categoryGroups, issues);
   const parameters = makeParameters(parseParametersTab(texts.parameters, issues), issues);
@@ -42,6 +46,7 @@ export function rulesFromCsvTexts(
     parameters,
     coreAreas,
     categoryGroups,
+    external,
     issues,
     source: meta.source,
     syncedAt: meta.syncedAt,
