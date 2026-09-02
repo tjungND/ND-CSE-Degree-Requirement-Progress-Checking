@@ -11,6 +11,7 @@ import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { ALPHA_NOTICE, ALPHA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
+import { externalTranscriptsCard } from './external-upload.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
   clearLocal,
@@ -69,6 +70,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           { class: 'inputs' },
           standingCard(),
           coursesCard(report.courseLines),
+          externalTranscriptsCard({ student, rules, update, toast, render }),
           milestonesCard(),
           saveCard(report),
           diagnosticsCard(),

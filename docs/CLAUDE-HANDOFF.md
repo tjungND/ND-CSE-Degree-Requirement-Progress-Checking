@@ -154,6 +154,22 @@ Known-pending (the app's diagnostics panel is the live truth):
   cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)
   — so the sync's own record is the only zero-setup date source; the earlier header-reading
   code was removed. Tests: `tests/rules-date.test.ts`.
+- **External transcripts** (branch `feature/external-transcripts`, 2026-09-01): three optional
+  uploads (Bachelor's/Master's/Ph.D.) on the self-check page → `src/transcript/external.ts`
+  (best-effort candidates; no text layer → rejected as a scan, "system-generated PDFs only"; ND
+  detected → redirected to the ND button; unmappable grades kept raw and the student MUST choose)
+  → editable preview (`src/ui/external-upload.ts`) → `origin:'transfer'` entries tagged
+  `degreeLevel`. The DGS's rulings live in the optional ExternalCourses tab (parse:
+  `parseExternalTab`; match: `src/data/external.ts` — normalized university + aliases, ids ignore
+  spaces/hyphens; native script works). Engine: Bachelor's never transfers but still satisfies
+  §4.4.1; sheet-confirmed core → met; transferable yes/no/blank → pre-approved wording / excluded
+  with the ruling named / "not yet decided"; nd_credits replaces transcript credits (§5.2
+  pro-rata) — all in `classify()` (the `external` field rides on ClassifiedCourse so core sees
+  DGS rulings even for zero-credit courses). Unreviewed courses: pending verdict + copy-ready
+  email request in the card. The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
+  rules-date/loading card); its lone failure degrades to "not yet reviewed", never a dead page.
+  Tests: `tests/external-rules.test.ts`, `tests/external-transcript.test.ts`, scenario patch key
+  `external`; e2e uploads `tests/fixtures/external-transcript.pdf` into the Master's slot.
 - **Attestations**: DGS-approval checkboxes upgrade matching courses' certainty tier;
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).

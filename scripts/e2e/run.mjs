@@ -93,11 +93,12 @@ try {
 
   const baseUrl = `http://localhost:${PREVIEW_PORT}/`;
   const ndPdf = join(root, 'tests', 'fixtures', 'nd-transcript.pdf');
+  const externalPdf = join(root, 'tests', 'fixtures', 'external-transcript.pdf');
   const otherPdf = join(root, 'tests', 'fixtures', 'other-transcript.pdf');
 
   for (const [name, fn] of [
     ['app basics', (s) => driveApp(s, baseUrl)],
-    ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf)],
+    ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf)],
     ['course rules list', (s) => driveCourses(s, baseUrl)],
   ]) {
     console.log(`\n▶ ${name}`);

@@ -265,3 +265,14 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .load-note { font-size: 13px; color: var(--muted); }
 .load-fail .load-note a { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; border-top-color: #d6dbe3; } .load-card .load-bar i { transition: none; } }
+
+/* external transcripts card (src/ui/external-upload.ts) */
+.external-slot { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.external-slot:last-of-type { border-bottom: 0; }
+.external-slot .slot-label { font-weight: 600; color: var(--navy); min-width: 140px; display: inline-block; }
+.external-card .transcript-preview input, .external-card .transcript-preview select { padding: 4px 6px; font-size: 13px; max-width: 130px; }
+.external-card .transcript-preview input.course-title { max-width: 100%; width: 160px; }
+.external-verdicts { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.external-verdicts h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
+.external-verdict { font-size: 13px; margin: 3px 0; color: var(--ink); }
+.external-verdict .cid { font-weight: 600; }

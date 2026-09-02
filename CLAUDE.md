@@ -67,7 +67,12 @@ replaced by `README.md` on 2026-09-01.)
   `courses.html` → `src/courses.ts` → `src/ui/courses-page.ts`, is the public course-rules list
   (read-only view of the Courses tab; no student data); both pages are built by Vite from
   `vite.config.ts` `rollupOptions.input`.
-- `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser.
+- `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser; plus
+  `external.ts`, the best-effort parser for transcripts from OTHER universities (three optional
+  uploads — Bachelor's/Master's/Ph.D.; system-generated PDFs only, scans rejected; everything
+  previewed and student-corrected before it is added). Matched against the sheet's optional
+  ExternalCourses tab (`src/data/external.ts`) for §4.4.1 core-knowledge confirmation and §5.2
+  transferability — unmatched courses always show "not yet reviewed by the DGS".
 - `tests/` — **node's built-in runner** (`node --test`; that's why relative imports carry `.ts`
   extensions). One JSON fixture per student scenario in `tests/scenarios/`; add a scenario for
   every bug fixed. `npm run e2e` drives real headless Chrome (see `.claude/skills/run-app/`).

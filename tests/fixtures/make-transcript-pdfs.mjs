@@ -66,6 +66,27 @@ const OTHER = [
   'CS 50300 GR Operating Systems A 3.000 12.000',
 ];
 
+// A system-generated transcript from ANOTHER university, for the external-
+// transcripts flow (three-slot card). Multi-space gaps stand in for the column
+// positions a real registrar PDF has (pdfToLines renders wide gaps the same way).
+const EXTERNAL = [
+  'Purdue University',
+  'Office of the Registrar',
+  'Unofficial Transcript',
+  'Student: John Q. Boilermaker',
+  'Program: Master of Science, Computer Science',
+  '',
+  'Fall 2023',
+  'CS 50300   Operating Systems                 3.0   A',
+  'CS 59000   Special Topics in Systems         3.0   A-',
+  '',
+  'Spring 2024',
+  'CS 58000   Algorithm Design                  3.0   B+',
+  '',
+  'Cumulative GPA: 3.83',
+];
+
 writeFileSync(join(here, 'nd-transcript.pdf'), makePdf(ND));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
-console.log('wrote nd-transcript.pdf and other-transcript.pdf');
+writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
+console.log('wrote nd-transcript.pdf, other-transcript.pdf and external-transcript.pdf');
