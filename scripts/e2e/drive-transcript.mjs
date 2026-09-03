@@ -45,18 +45,18 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!gpa) throw new Error('cumulative GPA was not prefilled');
   await s.shot('transcript-added');
 
-  // 2b) An unlisted (typically non-CSE) ND course typed by hand → the review
-  // block offers a copy-ready request addressed to the DGS + Graduate Program
-  // Administrator (2026-09-03).
+  // 2b) An unlisted (typically non-CSE) ND course typed by hand → the single
+  // "Ask the DGS to review" card offers a copy-ready request addressed to the
+  // DGS + Graduate Program Administrator (2026-09-03).
   await s.evalJs(`(() => {
     const form = document.querySelector('.course-form');
     form.querySelector('input[placeholder="CSE 60641"]').value = 'MATH 60610';
     [...form.querySelectorAll('button')].find((b) => b.textContent === 'Add course').click();
   })()`);
-  await s.waitFor(`document.querySelector('.nd-review')`);
-  const ndReview = await s.evalJs(`document.querySelector('.nd-review').textContent`);
+  await s.waitFor(`document.querySelector('.dgs-review')`);
+  const ndReview = await s.evalJs(`document.querySelector('.dgs-review').textContent`);
   if (!ndReview.includes('Copy review request for 1 course') || !ndReview.includes('Graduate Program Administrator')) {
-    throw new Error('ND review block wrong: ' + ndReview.slice(0, 140));
+    throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
   await s.shot('nd-review');
@@ -82,10 +82,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (verdicts.length !== 3 || !verdicts.every((v) => v.includes('not yet reviewed by the DGS'))) {
     throw new Error('expected 3 pending external verdicts (the sandbox has no ExternalCourses tab)');
   }
+  // ONE combined request: the MATH course from 2b + the 3 external courses.
   const copyBtn = await s.evalJs(
-    `[...document.querySelectorAll('.external-verdicts button')].some(b => b.textContent.includes('Copy review request for 3 courses'))`,
+    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Copy review request for 4 courses'))`,
   );
-  if (!copyBtn) throw new Error('the copy-ready review request button is missing');
+  if (!copyBtn) throw new Error('the combined review request button is missing/wrong');
   const transferDetail = await s.evalJs(
     `[...document.querySelectorAll('.req')].map(e => e.textContent).find(t => t.includes('transfer credits counted')) ?? ''`,
   );

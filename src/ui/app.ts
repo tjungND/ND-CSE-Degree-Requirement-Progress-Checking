@@ -12,7 +12,7 @@ import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
-import { copyReviewRequest, externalTranscriptsCard } from './external-upload.ts';
+import { DEGREE_SLOTS, copyReviewRequest, priorTranscriptSection } from './external-upload.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
   clearLocal,
@@ -72,7 +72,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           { class: 'inputs' },
           standingCard(),
           coursesCard(report.courseLines),
-          externalTranscriptsCard({ student, rules, update, toast, render }),
+          transcriptsCard(),
+          askDgsCard(),
           milestonesCard(),
           saveCard(report),
           diagnosticsCard(),
@@ -290,31 +291,63 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'p',
         { class: 'hint' },
-        'Add everything you have taken or are taking. Regular courses have a regular meeting time, assigned readings, graded assignments, and a final exam — research seminars, research credits, and independent study do not (§3.2/§4.2). Courses not in the list can be typed in full (e.g. a non-CSE course) and will be flagged for DGS review.',
+        'Add everything you have taken or are taking — import your Notre Dame transcript in the Transcripts card below to fill this in automatically, or add courses by hand. Regular courses have a regular meeting time, assigned readings, graded assignments, and a final exam — research seminars, research credits, and independent study do not (§3.2/§4.2). Courses not in the list can be typed in full (e.g. a non-CSE course) and will be flagged for DGS review.',
       ),
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
-      transcriptUpload(),
-      transcriptPreview ? transcriptPreviewBlock() : null,
       courseForm(),
       courseTable(courseLines),
-      ndReviewBlock(),
     );
     return card;
   }
 
-  // Notre Dame courses that still need a DGS decision (2026-09-03): not in
-  // the rules sheet (typical for non-CSE courses), sheet-listed as
-  // dgs_approval and not yet approved, or listed with a blank verdict. The
-  // student copies a review request — paste-ready Courses-tab rows for the
-  // unlisted ones plus detail lines — and MUST email it to the DGS and the
-  // Graduate Program Administrator; the page itself sends nothing.
-  function ndReviewBlock(): HTMLElement | null {
+  // ---------- transcripts (one upload home, 2026-09-03) ----------
+
+  // All four transcript imports in one card: the Notre Dame unofficial
+  // transcript (fills the coursework table and GPA above) and the three
+  // prior-university slots from external-upload.ts.
+  function transcriptsCard(): HTMLElement {
+    return el(
+      'div',
+      { class: 'card external-card' },
+      el('h2', {}, 'Transcripts ', el('span', { class: 'chip-note' }, 'optional')),
+      el(
+        'p',
+        { class: 'hint' },
+        'Import your Notre Dame unofficial transcript to fill in the coursework and GPA above, and up to three transcripts from other universities — every external course is checked against the DGS’s rules: whether it satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2; undergraduate courses can satisfy core knowledge but never transfer credit). ',
+        el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
+        ' — after you agree, and with every field checked by you. Like everything here, files are read on your own computer and never uploaded.',
+      ),
+      transcriptUpload(),
+      transcriptPreview ? transcriptPreviewBlock() : null,
+      ...priorTranscriptSection({ student, rules, update, toast, render }),
+    );
+  }
+
+  // ---------- ask the DGS (ONE review request, 2026-09-03) ----------
+
+  // Everything that still needs a DGS decision, in one card with one copy
+  // button and one email: Notre Dame courses that are not in the rules sheet
+  // (typical for non-CSE), dgs_approval and not yet approved, or blank-verdict
+  // — plus external courses the ExternalCourses tab has not ruled on. The
+  // student MUST email the request to the DGS and the Graduate Program
+  // Administrator; the page itself sends nothing.
+  function askDgsCard(): HTMLElement | null {
     const { classified } = classify(student, rules);
-    const pending = classified.filter(
+    const nd = classified.filter(
       (c) => !c.superseded && c.entry.origin === 'nd' && (c.unknown === true || c.approvalPending !== undefined),
     );
-    if (pending.length === 0) return null;
-    const toRequest = pending.map((c) => ({
+    const external = classified.filter(
+      (c) =>
+        !c.superseded &&
+        c.entry.origin === 'transfer' &&
+        // A course the engine already ruled OUT for a hard reason (outside the
+        // §5.2 window, below the grade floor, …) is not worth the DGS's time.
+        c.ineligibleReason === undefined &&
+        (c.external === undefined || (c.external.transferable === undefined && c.entry.degreeLevel !== 'bachelors')),
+    );
+    const n = nd.length + external.length;
+    if (n === 0) return null;
+    const ndReq = nd.map((c) => ({
       courseId: c.entry.courseId,
       title: c.entry.title ?? c.rule?.title,
       credits: c.entry.credits,
@@ -323,21 +356,35 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       reason: c.unknown === true ? 'not in the course rules yet' : (c.approvalPending ?? 'needs DGS review'),
       unlisted: c.unknown === true,
     }));
-    const n = pending.length;
+    const extReq = external.map((c) => ({
+      institution: c.entry.institution,
+      courseId: c.entry.courseId,
+      title: c.entry.title,
+      credits: c.entry.credits,
+      grade: c.entry.grade,
+      termText: termLabel(c.entry.term),
+      slotLabel: c.entry.degreeLevel ? (DEGREE_SLOTS.find((sl) => sl.level === c.entry.degreeLevel)?.label ?? c.entry.degreeLevel) : undefined,
+      reason: c.external === undefined ? 'not yet reviewed by the DGS' : 'transferability not yet decided',
+      unlisted: c.external === undefined,
+    }));
+    const line = (courseId: string, where: string | undefined, reason: string) =>
+      el('div', { class: 'review-line' }, el('span', { class: 'cid' }, courseId), `${where ? ` (${where})` : ''} — ${reason}`);
     return el(
       'div',
-      { class: 'nd-review' },
+      { class: 'card dgs-review' },
+      el('h2', {}, 'Ask the DGS to review ', el('span', { class: 'chip-note' }, `${n} course${n === 1 ? '' : 's'}`)),
       el(
         'p',
         { class: 'hint' },
-        `${n} course${n === 1 ? '' : 's'} above need${n === 1 ? 's' : ''} a DGS decision before the self-check can count ${n === 1 ? 'it' : 'them'}. `,
-        el('strong', {}, 'Decisions are made only by email:'),
-        ' copy the review request and send it to the DGS (',
+        el('strong', {}, 'Decisions are made only by email: '),
+        'copy the review request and send it to the DGS (',
         mailto(DGS.email),
         ') and the Graduate Program Administrator (',
         mailto(GRAD_ADMIN.email),
-        ') — the page itself sends nothing.',
+        '). The email includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing.',
       ),
+      ...nd.map((c, i) => line(c.entry.courseId, 'Notre Dame', ndReq[i]!.reason)),
+      ...external.map((c, i) => line(c.entry.courseId, c.entry.institution ?? 'other university', extReq[i]!.reason)),
       el(
         'div',
         { class: 'save-buttons' },
@@ -347,7 +394,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             class: 'btn',
             onclick: () => {
               import('../transcript/external.ts')
-                .then(({ buildNdCourseReviewRequest }) => copyReviewRequest(buildNdCourseReviewRequest(toRequest)))
+                .then(({ buildCombinedReviewRequest }) => copyReviewRequest(buildCombinedReviewRequest(ndReq, extReq)))
                 .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator. (Nothing is sent by this page.)'))
                 .catch(() => toast('Could not copy automatically — please email the DGS and the Graduate Program Administrator with your course ids, credits, grades and terms.'));
             },
@@ -385,7 +432,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           transcriptPreview = undefined;
           render();
           toast(
-            "Only Notre Dame's unofficial transcript is accepted here — for courses from other universities, use the Prior Coursework card below.",
+            "Only Notre Dame's unofficial transcript is accepted here — for courses from other universities, use the Previous-Transcript rows below.",
           );
           return;
         }
@@ -419,9 +466,11 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     });
     return el(
       'div',
-      { class: 'transcript-upload' },
-      el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
-      el('span', { class: 'hint-inline' }, ' — from your Notre Dame unofficial transcript (the system-generated PDF from insideND). Parsed courses are shown for your confirmation before anything is added; for other universities, use the Prior Coursework card below.'),
+      { class: 'transcript-upload external-slot' },
+      el('span', { class: 'slot-label' }, 'Notre Dame Unofficial Transcript'),
+      ' — ',
+      el('button', { class: 'btn tiny', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
+      el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA above. Parsed courses are shown for your confirmation before anything is added.'),
       fileInput,
     );
   }

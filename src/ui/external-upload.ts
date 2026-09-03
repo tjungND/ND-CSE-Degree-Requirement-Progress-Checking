@@ -1,25 +1,25 @@
-// "Prior Coursework" card (feature decisions 2026-09-01; renamed 2026-09-03):
-// up to three uploads — Bachelor's, Master's, Ph.D., all optional — parsed
-// entirely in the browser (system-generated PDFs only, no scans), previewed for
-// correction, then added as origin:'transfer' courses tagged with their degree
-// level. Each filled slot shows the DGS's verdicts from the ExternalCourses
-// rules, and pending courses get a copy-ready review request to email the DGS
-// (the page itself transmits nothing — FERPA).
+// Prior-university transcript slots (feature decisions 2026-09-01; since
+// 2026-09-03 part of the single "Transcripts" card composed in app.ts): up to
+// three uploads — undergraduate, Master's, Ph.D., all optional — parsed
+// entirely in the browser (system-generated PDFs read exactly; scans via the
+// explicit opt-in English-only OCR), previewed for correction, then added as
+// origin:'transfer' courses tagged with their degree level. The verdicts block
+// shows the DGS's rulings from the ExternalCourses rules; anything unruled is
+// picked up by app.ts's single "Ask the DGS to review" card (the page itself
+// transmits nothing — FERPA).
 import { findExternalRule } from '../data/external.ts';
 import type { Rules } from '../data/types.ts';
 import { GRADES, isPassed } from '../engine/grades.ts';
 import { termLabel } from '../engine/term.ts';
 import type { CourseEntry, Grade, Season, Student } from '../engine/types.ts';
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
-import { DGS, GRAD_ADMIN, mailto } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 
 /** Write a review request to the clipboard in BOTH flavors (2026-09-03):
  * text/plain keeps the tab-separated rows; text/html carries them as a real
  * table — HTML email flattens tabs to spaces, but a table survives Gmail and
  * pastes into Sheets as cells. Falls back to plain text where ClipboardItem
- * is unsupported. Shared by the Prior Coursework card and the ND-courses
- * review block in app.ts. */
+ * is unsupported. Used by the "Ask the DGS to review" card in app.ts. */
 export function copyReviewRequest(built: { text: string; html: string }): Promise<void> {
   return (async () => {
     try {
@@ -78,28 +78,20 @@ export interface ExternalCardArgs {
   render: () => void;
 }
 
-/** The whole card: intro, three slots, preview (when one is open). */
-export function externalTranscriptsCard(args: ExternalCardArgs): HTMLElement {
+/** The prior-university slot rows, previews and per-course verdicts. Since
+ * 2026-09-03 these are composed into the single "Transcripts" card by app.ts
+ * (one upload home for all four transcripts) and the copy-ready review
+ * request lives in app.ts's "Ask the DGS to review" card — ONE button for ND
+ * and external courses together. */
+export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | null)[] {
   const { student, rules } = args;
-  return el(
-    'div',
-    { class: 'card external-card' },
-    el('h2', {}, 'Prior Coursework ', el('span', { class: 'chip-note' }, 'optional')),
-    el(
-      'p',
-      { class: 'hint' },
-      'Took courses at another university before Notre Dame? Import up to three transcripts — undergraduate, Master’s, Ph.D. — and every course is checked against the DGS’s external-course rules: whether it satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2). Undergraduate courses can satisfy core knowledge but never transfer credit (§5.2). ',
-      el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
-      ' — after you agree, and with every field checked by you. Like everything here, the file is read on your own computer and never uploaded. ',
-      el('strong', {}, 'Decisions are made only by email:'),
-      ' when courses need review, you must copy the review request this card writes for you and send it to the DGS and the Graduate Program Administrator.',
-    ),
+  return [
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
     ocrBusy ? ocrProgressBlock() : null,
     preview ? previewBlock(args) : null,
-    pendingRequestBlock(student, rules, args.toast),
-  );
+    verdictsBlock(student, rules),
+  ];
 }
 
 function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
@@ -129,7 +121,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         return;
       }
       if (parsed.looksLikeNotreDame) {
-        toast('This looks like a Notre Dame transcript — use the “Import Courses from PDF” button in the courses card above for it; these three slots are for OTHER universities.');
+        toast('This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above for it; these three slots are for OTHER universities.');
         return;
       }
       preview = {
@@ -225,7 +217,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 ocrBusy = undefined;
                 if (parsed.looksLikeNotreDame) {
                   render();
-                  toast('This looks like a Notre Dame transcript — use the “Import Courses from PDF” button in the courses card above, with the digital PDF from insideND (not a scan).');
+                  toast('This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above, with the digital PDF from insideND (not a scan).');
                   return;
                 }
                 preview = {
@@ -405,13 +397,13 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   return box;
 }
 
-/** Per-course DGS verdicts for everything uploaded, plus the copy-ready review
- * request for anything the DGS has not ruled on yet. */
-function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) => void): HTMLElement | null {
+/** Per-course DGS verdicts for everything uploaded. The copy-ready review
+ * request moved to the single "Ask the DGS to review" card in app.ts
+ * (2026-09-03) — ND and external courses share ONE request. */
+function verdictsBlock(student: Student, rules: Rules): HTMLElement | null {
   const external = student.courses.filter((c) => c.origin === 'transfer' && c.degreeLevel !== undefined);
   if (external.length === 0) return null;
   const lines: HTMLElement[] = [];
-  const pending: CourseEntry[] = [];
   for (const c of external) {
     const rule = findExternalRule(rules.external, c.institution ?? '', c.courseId);
     const verdictParts: string[] = [];
@@ -422,13 +414,8 @@ function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) 
     if (c.degreeLevel === 'bachelors') verdictParts.push('no transfer credit (Bachelor’s, §5.2)');
     else if (rule?.transferable === true) verdictParts.push('transferable ✓ (send the §5.2 request)');
     else if (rule?.transferable === false) verdictParts.push('not transferable (DGS ruling)');
-    if (!rule) {
-      verdictParts.push('not yet reviewed by the DGS');
-      pending.push(c);
-    } else if (rule.transferable === undefined && c.degreeLevel !== 'bachelors') {
-      verdictParts.push('transferability not yet decided');
-      pending.push(c);
-    }
+    if (!rule) verdictParts.push('not yet reviewed by the DGS');
+    else if (rule.transferable === undefined && c.degreeLevel !== 'bachelors') verdictParts.push('transferability not yet decided');
     lines.push(
       el(
         'div',
@@ -439,43 +426,5 @@ function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) 
     );
   }
   const out = el('div', { class: 'external-verdicts' }, el('h3', {}, 'What the DGS’s rules say'), ...lines);
-  if (pending.length > 0) {
-    // Paste-ready for the ExternalCourses tab (decision 2026-09-03): the course
-    // rows are tab-separated in the sheet's column order.
-    const requestText = async () => {
-      const { buildExternalReviewRequest } = await import('../transcript/external.ts');
-      return buildExternalReviewRequest(
-        pending.map((c) => ({
-          institution: c.institution,
-          courseId: c.courseId,
-          title: c.title,
-          credits: c.credits,
-          grade: c.grade,
-          termText: termLabel(c.term),
-          slotLabel: c.degreeLevel ? (DEGREE_SLOTS.find((sl) => sl.level === c.degreeLevel)?.label ?? c.degreeLevel) : undefined,
-        })),
-      );
-    };
-    out.append(
-      el(
-        'div',
-        { class: 'save-buttons' },
-        el(
-          'button',
-          {
-            class: 'btn',
-            onclick: () => {
-              requestText()
-                .then(copyReviewRequest)
-                .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator. (Nothing is sent by this page.)'))
-                .catch(() => toast('Could not copy automatically — please email the DGS with your university, course ids, credits, grades and terms.'));
-            },
-          },
-          `Copy review request for ${pending.length} course${pending.length === 1 ? '' : 's'}`,
-        ),
-        el('span', { class: 'hint-inline' }, ' — you MUST email it to the DGS (', mailto(DGS.email), ') and the Graduate Program Administrator (', mailto(GRAD_ADMIN.email), ') for these courses to be reviewed; the page itself sends nothing.'),
-      ),
-    );
-  }
   return out;
 }

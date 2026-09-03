@@ -181,81 +181,78 @@ export interface ReviewRequestCourse {
 function buildReviewRequest(opts: {
   subject: string;
   intro: string;
-  /** Omit (or pass no rows) to skip the sheet-paste section entirely. */
-  rowsIntro?: string;
-  rows: readonly (readonly string[])[];
+  /** Sheet-paste sections (one per tab); a section with no rows is skipped. */
+  sections: readonly { rowsIntro: string; rows: readonly (readonly string[])[] }[];
   details: readonly string[];
 }): { text: string; html: string } {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const greeting = 'Dear DGS and Graduate Program Administrator,';
-  const hasRows = opts.rowsIntro !== undefined && opts.rows.length > 0;
+  const sections = opts.sections.filter((s) => s.rows.length > 0);
   const text =
     `Subject: ${opts.subject}\n\n${greeting}\n\n${opts.intro}\n\n` +
-    (hasRows ? `${opts.rowsIntro}\n\n${opts.rows.map((r) => r.join('\t')).join('\n')}\n\n` : '') +
+    sections.map((s) => `${s.rowsIntro}\n\n${s.rows.map((r) => r.join('\t')).join('\n')}\n\n`).join('') +
     `Course details:\n` +
     opts.details.map((d) => `- ${d}`).join('\n') +
     `\n\nThank you!\n`;
   const html =
     `<p>${esc(`Subject: ${opts.subject}`)}</p><p>${esc(greeting)}</p><p>${esc(opts.intro)}</p>` +
-    (hasRows
-      ? `<p>${esc(opts.rowsIntro!)}</p><table border="1" cellspacing="0" cellpadding="4">` +
-        opts.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('') +
-        `</table>`
-      : '') +
+    sections
+      .map(
+        (s) =>
+          `<p>${esc(s.rowsIntro)}</p><table border="1" cellspacing="0" cellpadding="4">` +
+          s.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('') +
+          `</table>`,
+      )
+      .join('') +
     `<p>Course details:</p><ul>` +
     opts.details.map((d) => `<li>${esc(d)}</li>`).join('') +
     `</ul><p>Thank you!</p>`;
   return { text, html };
 }
 
-/** External (other-university) courses the DGS has not ruled on. Rows are in
- * the ExternalCourses tab's column order — university (upper-cased to the
- * sheet's capital-English convention), course_id, course_title — so the DGS
- * fills in only the ruling columns. The details the DGS needs to decide
- * (credits, grade, term, which transcript) are for the decision, not the
- * sheet. */
-export function buildExternalReviewRequest(courses: readonly ReviewRequestCourse[]): { text: string; html: string } {
-  return buildReviewRequest({
-    subject: 'External course review request (degree self-check)',
-    intro:
-      'Could you review these courses from another institution for the degree audit — ' +
-      'whether any satisfies a §4.4.1 core-knowledge area, and whether the credits can transfer (§5.2)?',
-    rowsIntro:
-      'Rows for the ExternalCourses tab, in the tab’s column order — ' +
-      'paste into the sheet at a new row’s “university” cell, then fill in the ruling columns:',
-    rows: courses.map((c) => [(c.institution ?? '').toUpperCase(), c.courseId, c.title ?? '']),
-    details: courses.map(
-      (c) =>
-        `${c.courseId}${c.title ? ` “${c.title}”` : ''}: ${c.credits} credit${c.credits === 1 ? '' : 's'}, ` +
-        `grade ${c.grade}, ${c.termText}${c.slotLabel ? ` (${c.slotLabel})` : ''}`,
-    ),
-  });
+/** One pending course in the combined review request (2026-09-03: ONE request
+ * covers everything). `unlisted` marks courses that need a NEW sheet row —
+ * ND courses missing from the Courses tab, external courses with no
+ * ExternalCourses ruling; the rest need a decision, not a row. */
+export interface PendingReviewCourse extends ReviewRequestCourse {
+  reason: string;
+  unlisted: boolean;
 }
 
-/** NOTRE DAME courses that still need a DGS decision (2026-09-03): not in the
- * rules sheet yet (typical for non-CSE courses), sheet-listed as dgs_approval
- * and not yet approved, or listed with a blank verdict. Paste-ready rows are
- * provided only for the UNLISTED ones — they become new Courses-tab rows
- * (leading columns: course_id, title); the rest need a decision, not a row. */
-export function buildNdCourseReviewRequest(
-  courses: readonly (ReviewRequestCourse & { reason: string; unlisted: boolean })[],
+/** THE review request (2026-09-03): one email covering Notre Dame courses
+ * that still need a DGS decision (not in the rules sheet — typical for
+ * non-CSE; dgs_approval not yet approved; blank verdict) AND external courses
+ * the ExternalCourses tab has not ruled on. Paste-ready rows per tab —
+ * Courses (course_id, title) and ExternalCourses (UNIVERSITY in the sheet's
+ * capital-English convention, course_id, course_title) — then detail lines
+ * with credits, grade, term and the reason each course needs review. */
+export function buildCombinedReviewRequest(
+  nd: readonly PendingReviewCourse[],
+  external: readonly PendingReviewCourse[],
 ): { text: string; html: string } {
-  const unlisted = courses.filter((c) => c.unlisted);
+  const detail = (c: PendingReviewCourse, where?: string) =>
+    `${c.courseId}${c.title ? ` “${c.title}”` : ''}${where ? ` (${where})` : ''}: ` +
+    `${c.credits} credit${c.credits === 1 ? '' : 's'}, grade ${c.grade}, ${c.termText}` +
+    `${c.slotLabel ? ` (${c.slotLabel})` : ''} — ${c.reason}`;
   return buildReviewRequest({
-    subject: 'Notre Dame course review request (degree self-check)',
+    subject: 'Course review request (degree self-check)',
     intro:
-      'Could you review these Notre Dame courses for the degree audit? ' +
-      'The self-check cannot count them until the course rules decide them.',
-    rowsIntro:
-      unlisted.length > 0
-        ? 'Rows for the Courses tab (leading columns, course_id and title — paste into the sheet ' +
-          'at a new row’s “course_id” cell, then fill in the rest):'
-        : undefined,
-    rows: unlisted.map((c) => [c.courseId, c.title ?? '']),
-    details: courses.map(
-      (c) =>
-        `${c.courseId}${c.title ? ` “${c.title}”` : ''}: ${c.credits} credit${c.credits === 1 ? '' : 's'}, ` +
-        `grade ${c.grade}, ${c.termText} — ${c.reason}`,
-    ),
+      'Could you review these courses for the degree audit? ' +
+      'The self-check cannot count them until they are decided in the course rules.',
+    sections: [
+      {
+        rowsIntro:
+          'Rows for the Courses tab (leading columns, course_id and title — paste into the sheet ' +
+          'at a new row’s “course_id” cell, then fill in the rest):',
+        rows: nd.filter((c) => c.unlisted).map((c) => [c.courseId, c.title ?? '']),
+      },
+      {
+        rowsIntro:
+          'Rows for the ExternalCourses tab, in the tab’s column order — ' +
+          'paste into the sheet at a new row’s “university” cell, then fill in the ruling columns:',
+        rows: external.filter((c) => c.unlisted).map((c) => [(c.institution ?? '').toUpperCase(), c.courseId, c.title ?? '']),
+      },
+    ],
+    details: [...nd.map((c) => detail(c, 'Notre Dame')), ...external.map((c) => detail(c, c.institution ?? 'other university'))],
   });
 }

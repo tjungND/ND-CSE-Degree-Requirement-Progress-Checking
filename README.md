@@ -145,9 +145,10 @@ then reads "are effective as of <date>" instead — and keeps doing so until you
 
 Students import prior coursework (Previous Undergraduate / Master's / Ph.D. transcripts) and the app
 checks them against the **ExternalCourses** tab. When a student emails you a
-review request (the app writes it for them), the email contains tab-separated
-rows in the tab's column order — paste them straight into the sheet at a new
-row's `university` cell, then fill in your rulings: which core area each
+review request (the app writes ONE request covering their Notre Dame and
+external courses together), the email contains tab-separated rows per sheet
+tab — paste the ExternalCourses block straight into that tab at a new row's
+`university` cell, then fill in your rulings: which core area each
 satisfies (`satisfies_core_area`, if any), whether its credits can transfer
 (`transferable`), and — for quarter/ECTS systems — the ND-equivalent
 `nd_credits` (§5.2 pro-rata). The student's page
@@ -159,13 +160,14 @@ never transfer credit (§5.2). Schema and one-time setup: `data/README.md`.
 
 Notre Dame courses that are not in the **Courses** tab (typically non-CSE), are
 marked `dgs_approval`, or have blank verdicts show "needs DGS review", and the
-coursework card writes a review request for the student — they must email it to
-you and the Graduate Program Administrator. For courses that are not in the
-sheet at all, the email contains paste-ready rows (`course_id`, `title`) —
-paste them into the **Courses** tab at a new row's `course_id` cell, fill in
-the remaining columns, and the student's page updates within minutes. For
-`dgs_approval` courses your decision is by email; the student then ticks the
-matching box under "Approvals you already have".
+"Ask the DGS to review" card writes ONE review request for the student —
+covering their Notre Dame and external courses together — which they must
+email to you and the Graduate Program Administrator. For courses that are not
+in the sheet at all, the email contains paste-ready rows (`course_id`,
+`title`) — paste them into the **Courses** tab at a new row's `course_id`
+cell, fill in the remaining columns, and the student's page updates within
+minutes. For `dgs_approval` courses your decision is by email; the student
+then ticks the matching box under "Approvals you already have".
 
 ### A7. Verify in the app (five minutes later)
 

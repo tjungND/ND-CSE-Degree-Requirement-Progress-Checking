@@ -158,29 +158,33 @@ Known-pending (the app's diagnostics panel is the live truth):
   cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)
   — so the sync's own record is the only zero-setup date source; the earlier header-reading
   code was removed. Tests: `tests/rules-date.test.ts`.
-- **External transcripts** (branch `feature/external-transcripts`, 2026-09-01): three optional
-  uploads (Bachelor's/Master's/Ph.D.) on the self-check page → `src/transcript/external.ts`
-  (best-effort candidates; no text layer → rejected as a scan, "system-generated PDFs only"; ND
-  detected → redirected to the ND button; unmappable grades kept raw and the student MUST choose)
+- **External transcripts** (2026-09-01; since 2026-09-03 all four imports live in the single
+  "Transcripts" card composed by `transcriptsCard()` in app.ts — ND row + the three
+  prior-university rows from `priorTranscriptSection()`): → `src/transcript/external.ts`
+  (best-effort candidates; no text layer → explicit OCR opt-in, English only; ND
+  detected → redirected to the ND row; unmappable grades kept raw and the student MUST choose)
   → editable preview (`src/ui/external-upload.ts`) → `origin:'transfer'` entries tagged
   `degreeLevel`. The DGS's rulings live in the optional ExternalCourses tab (parse:
   `parseExternalTab`; match: `src/data/external.ts` — the normalized university name alone (aliases retired 2026-09-03; capital-English-as-printed convention), ids ignore
-  spaces/hyphens; native script works). Engine: Bachelor's never transfers but still satisfies
+  spaces/hyphens). Engine: Bachelor's never transfers but still satisfies
   §4.4.1; sheet-confirmed core → met; transferable yes/no/blank → pre-approved wording / excluded
   with the ruling named / "not yet decided"; nd_credits replaces transcript credits (§5.2
   pro-rata) — all in `classify()` (the `external` field rides on ClassifiedCourse so core sees
-  DGS rulings even for zero-credit courses). Unreviewed courses: pending verdict + copy-ready
-  email request in the card — since 2026-09-03 the request carries tab-separated rows in the
-  tab's column order (UNIVERSITY, course_id, course_title; `buildExternalReviewRequest` in
-  `src/transcript/external.ts`) so the DGS pastes them straight into the sheet. The copy writes
-  text/plain (tabs) AND text/html (a real `<table>`): HTML email flattens tabs to spaces, a table
-  survives Gmail and pastes as cells. (A paste while a cell is in EDIT mode still lands in one
-  cell — click the target cell once, don't double-click.) All requests are addressed to the DGS
-  AND the Graduate Program Administrator (policy 2026-09-03) — `GRAD_ADMIN` in `contacts.ts`,
-  clipboard writer `copyReviewRequest` in `external-upload.ts`. ND courses get the same treatment
-  (`ndReviewBlock` in `app.ts` + `buildNdCourseReviewRequest`): anything origin-ND that is
-  unknown, unattested dgs_approval, or blank-verdict gets a copy-ready request; only unknown
-  courses become paste-ready Courses-tab rows (course_id, title). RETIRED 2026-09-03: the
+  DGS rulings even for zero-credit courses). Per-course verdicts render in the Transcripts card
+  (`verdictsBlock`); everything still needing a DGS decision — ND courses that are unknown,
+  unattested dgs_approval, or blank-verdict, plus external courses without a ruling (or with
+  transferability undecided) — feeds ONE combined request in the "Ask the DGS to review" card
+  (`askDgsCard` in app.ts + `buildCombinedReviewRequest` in `src/transcript/external.ts`;
+  consolidation 2026-09-03 — students found two buttons/two emails confusing). The request has
+  one tab-separated section per sheet tab (Courses: course_id, title; ExternalCourses:
+  UNIVERSITY, course_id, course_title), rows only for courses needing a NEW sheet row;
+  engine-ineligible courses (outside the §5.2 window etc.) are excluded as not worth the DGS's
+  time. The copy writes text/plain (tabs) AND text/html (real `<table>`s): HTML email flattens
+  tabs to spaces, a table survives Gmail and pastes as cells. (A paste while a cell is in EDIT
+  mode still lands in one cell — click the target cell once, don't double-click.) All requests
+  are addressed to the DGS AND the Graduate Program Administrator (policy 2026-09-03) —
+  `GRAD_ADMIN` in `contacts.ts`, clipboard writer `copyReviewRequest` in `external-upload.ts`.
+  RETIRED 2026-09-03: the
   per-course core-area claim dropdown and the per-area "previously passed elsewhere"
   attestations (both predated the ExternalCourses tab; Q12 superseded). The type fields
   `claimedCoreArea` / `corePassedElsewhere` remain, deprecated, so old saves still import —
