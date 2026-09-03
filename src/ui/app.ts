@@ -285,7 +285,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const card = el(
       'section',
       { class: 'card' },
-      el('h2', {}, 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
+      el('h2', {}, 'Coursework at Notre Dame ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
       el(
         'p',
         { class: 'hint' },
