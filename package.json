@@ -21,7 +21,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "pdfjs-dist": "^6.3.289",
+    "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^7.0.0"
   }
 }

@@ -79,7 +79,9 @@ export async function ocrPdfToLines(
       const canvas = document.createElement('canvas');
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
-      await page.render({ canvas, viewport }).promise;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('no canvas 2d context');
+      await page.render({ canvasContext: ctx, viewport }).promise;
       const { data: out } = await worker.recognize(canvas, {}, { blocks: true });
       for (const block of out.blocks ?? []) {
         for (const paragraph of block.paragraphs) {

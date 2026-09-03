@@ -179,6 +179,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   `public/ocr/` (worker.min.js, tesseract-core-simd-lstm.wasm.js single-file SIMD+LSTM core,
   eng.traineddata.gz best_int) — never the CDN defaults, or the no-external-calls rule breaks.
   Requires WASM SIMD (2021+ browsers); failure → plain message to use a system-generated PDF.
+  SAFARI LESSON (2026-09-03): pdfjs-dist is PINNED TO THE v4 LINE (^4.10.38) on purpose — v6
+  freely uses 2025 builtins (Map.getOrInsertComputed, Promise.try, URL.parse,
+  Uint8Array.fromBase64, Float16Array) in its main AND worker code, which Safari lacks, so on
+  Safari every PDF read failed (system-generated ones then looked like scans). Before ever
+  upgrading pdfjs, grep the new build + pdf.worker.min.mjs for those identifiers and check
+  they are guarded, then test in real Safari.
   Pages render via pdfjs at scale 2.5, max 10 pages; per-line confidences flow through
   `parseExternalTranscript(lines, confidences)` and rows under 80 get `lowConfidence` → ⚠ +
   amber row in the preview (`.ocr-low`), plus the `.ocr-banner` warning. The ND uploader still
