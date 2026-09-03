@@ -122,14 +122,17 @@ last edit (see "Sync" below).
   handbook disagree, the handbook wins — fix the code.
 - Sheet-schema changes (column names, allowed values) are a contract with the humans who edit
   the sheet: update `data/README.md` and this file together with the loader.
-- **The working copy lives in a Google Drive folder, `.git` included.** Drive syncs git's
-  lock-and-rename writes imperfectly: on 2026-09-01 a commit made on one Mac arrived on the other
-  with `.git/index` missing and a stale `.git/index.lock` in its place (`git status` then lists
-  every file as deleted and untracked). Nothing is lost when that happens — HEAD, refs and objects
-  were intact; the fix is `mv .git/index.lock /tmp/` (only once you are sure no git command is
-  running) followed by `git reset -q` to rebuild the index from HEAD. Rules that avoid it: run
-  git on one machine at a time, let Drive finish syncing before switching machines, and never
-  run git on both. Drive's own shortcut files (`*.gsheet`, `*.gdoc`) are git-ignored.
+- **Never keep a working copy inside Google Drive (or OneDrive/Dropbox).** The repo lived in a
+  Drive-synced folder until 2026-09-02, and in two days Drive damaged `.git` four different ways:
+  a vanished index (every file shown as deleted), stranded `index.lock` files, `Icon\r` badge
+  files dropped into `.git/refs/` ("fatal: bad object refs/Icon?"), and conflict-duplicated
+  object directories (`objects/0a 2/`) that made trees unreadable. Since then each machine keeps
+  an ordinary clone OUTSIDE any synced folder (e.g. `~/degree-audit-app` — still no `:` in the
+  path) and GitHub does the syncing: `git push` on one Mac, `git pull` on the other. If a repo
+  ever shows those symptoms again, everything is on GitHub — `git fetch --refetch origin` repairs
+  missing objects (after `find .git -name $'Icon\r' -delete` if refs are poisoned), and a fresh
+  clone is always the fastest cure. Drive's own files (`*.gsheet`, `*.gdoc`, `Icon\r`) are
+  git-ignored for anyone who ignores this advice.
 
 ## Handoff checklist
 
