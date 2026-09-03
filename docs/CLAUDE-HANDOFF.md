@@ -42,9 +42,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   the browser loader keeps its single 12 s attempt and falls back to the snapshot with the banner
   — by design, since the snapshot is now at most ~6 h behind. The DGS ran `npm run sync-sheet`
   locally and committed the snapshot that day (2c13949).
-- Working copy in Google Drive: on 2026-09-01 Drive delivered a commit to the other Mac with
-  `.git/index` missing and a stale `.git/index.lock`; repaired with `git reset -q` after moving
-  the lock away (`MAINTENANCE.md` § repo peculiarities). Nothing was lost, but expect it again.
+- Working copies are ordinary git clones OUTSIDE any Drive/OneDrive/Dropbox folder (since
+  2026-09-02; e.g. `~/degree-audit-app`), with GitHub as the sync between machines. The repo
+  previously lived in a Drive-synced folder and Drive damaged `.git` four ways in two days —
+  the war story and the repair commands are in `MAINTENANCE.md` § repo peculiarities. The old
+  Drive folder is retired; never run git or npm in it.
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 

@@ -2,6 +2,10 @@ node_modules/
 dist/
 .DS_Store
 .e2e-out/
-# Google Drive shortcut files (the working copy lives in a Drive folder)
+# Google Drive artifacts (the sheet's shortcut files; the Icon\r badge files
+# macOS/Drive stamp into folders)
 *.gsheet
 *.gdoc
+Icon?
+# transient tarball used to ship the tree to a build sandbox
+_claude-build-snapshot.tgz
