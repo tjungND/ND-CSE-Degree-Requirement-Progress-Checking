@@ -127,12 +127,14 @@ here (`src/data/rules-date.ts`).
 One row per course at ANOTHER university that the DGS has ruled on (feature
 2026-09-01; sample: `external.sample.csv`). The app matches a student's uploaded
 external courses against it by university + course id (case, punctuation,
-diacritics and spacing are ignored; native-script aliases work).
+diacritics and spacing are ignored). Enter the university's name in CAPITAL
+ENGLISH exactly as its transcripts print it (decision 2026-09-03) — the
+review-request emails students send contain tab-separated rows in this tab's
+column order, ready to paste straight into the sheet.
 
 | column | values | meaning |
 |---|---|---|
-| `university` | text | the institution's name as its transcripts print it |
-| `university_aliases` | `;`-separated | other spellings that should match (abbreviations, native script) |
+| `university` | text | the institution's name in capital English, exactly as its transcripts print it |
 | `course_id` | text | as printed there ("CS 50300", "30240233"); spaces/hyphens don't matter |
 | `course_title` | text | for humans reading the sheet |
 | `satisfies_core_area` | a `core_area` code or blank | §4.4.1 core area the course covers — a match makes the student's core row **met** |

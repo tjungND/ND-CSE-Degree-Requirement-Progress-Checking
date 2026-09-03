@@ -417,16 +417,20 @@ function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) 
   }
   const out = el('div', { class: 'external-verdicts' }, el('h3', {}, 'What the DGS’s rules say'), ...lines);
   if (pending.length > 0) {
-    const requestText = () => {
-      const rows = pending.map(
-        (c) => `- ${c.institution ?? '?'}: ${c.courseId}${c.title ? ` “${c.title}”` : ''}, ${c.credits} credit${c.credits === 1 ? '' : 's'}, grade ${c.grade}, ${termLabel(c.term)}${c.degreeLevel ? ` (${DEGREE_SLOTS.find((sl) => sl.level === c.degreeLevel)?.label ?? c.degreeLevel})` : ''}`,
-      );
-      return (
-        `Subject: External course review request (degree self-check)\n\n` +
-        `Dear DGS,\n\nCould you review these courses from another institution for the degree audit — ` +
-        `whether any satisfies a §4.4.1 core-knowledge area, and whether the credits can transfer (§5.2)?\n\n` +
-        rows.join('\n') +
-        `\n\nThank you!\n`
+    // Paste-ready for the ExternalCourses tab (decision 2026-09-03): the course
+    // rows are tab-separated in the sheet's column order.
+    const requestText = async () => {
+      const { buildExternalReviewRequest } = await import('../transcript/external.ts');
+      return buildExternalReviewRequest(
+        pending.map((c) => ({
+          institution: c.institution,
+          courseId: c.courseId,
+          title: c.title,
+          credits: c.credits,
+          grade: c.grade,
+          termText: termLabel(c.term),
+          slotLabel: c.degreeLevel ? (DEGREE_SLOTS.find((sl) => sl.level === c.degreeLevel)?.label ?? c.degreeLevel) : undefined,
+        })),
       );
     };
     out.append(
@@ -438,8 +442,8 @@ function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) 
           {
             class: 'btn',
             onclick: () => {
-              navigator.clipboard
-                .writeText(requestText())
+              requestText()
+                .then((text) => navigator.clipboard.writeText(text))
                 .then(() => toast('Review request copied — paste it into an email to the DGS. (Nothing is sent by this page.)'))
                 .catch(() => toast('Could not copy automatically — please email the DGS with your university, course ids, credits, grades and terms.'));
             },

@@ -2,8 +2,8 @@
 // 2026-09-01). Layouts vary wildly across institutions, so this extracts
 // CANDIDATE course rows for the student to correct and confirm — nothing is
 // added without their review, and unmatched grades must be chosen by hand.
-// System-generated PDFs only: a PDF with no text layer is rejected outright
-// (no OCR — the DGS chose correctness over convenience).
+// System-generated PDFs are read exactly; a PDF with no text layer is offered
+// the opt-in English-only OCR instead (decision 2026-09-02; src/transcript/ocr.ts).
 import type { Grade } from '../engine/types.ts';
 
 export interface ExternalCourseCandidate {
@@ -148,4 +148,43 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     });
   }
   return { hasTextLayer: true, looksLikeNotreDame, university: guessUniversity(lines), courses };
+}
+
+/** One unreviewed course, pre-rendered for the review request (the caller
+ * supplies the term label and slot label so this stays UI- and engine-free). */
+export interface ReviewRequestCourse {
+  institution?: string;
+  courseId: string;
+  title?: string;
+  credits: number;
+  grade: string;
+  termText: string;
+  slotLabel?: string;
+}
+
+/** The copy-ready review request (decision 2026-09-03). The course rows are
+ * TAB-separated in the ExternalCourses tab's column order — university,
+ * course_id, course_title — so the DGS can paste them straight into the sheet
+ * and fill in the ruling columns; the university is upper-cased to match the
+ * sheet's capital-English convention. The details the DGS needs to decide
+ * (credits, grade, term, which transcript) follow as plain lines — they are
+ * for the decision, not for the sheet. */
+export function buildExternalReviewRequest(courses: readonly ReviewRequestCourse[]): string {
+  const tsv = courses.map((c) => `${(c.institution ?? '').toUpperCase()}\t${c.courseId}\t${c.title ?? ''}`);
+  const details = courses.map(
+    (c) =>
+      `- ${c.courseId}${c.title ? ` “${c.title}”` : ''}: ${c.credits} credit${c.credits === 1 ? '' : 's'}, ` +
+      `grade ${c.grade}, ${c.termText}${c.slotLabel ? ` (${c.slotLabel})` : ''}`,
+  );
+  return (
+    `Subject: External course review request (degree self-check)\n\n` +
+    `Dear DGS,\n\nCould you review these courses from another institution for the degree audit — ` +
+    `whether any satisfies a §4.4.1 core-knowledge area, and whether the credits can transfer (§5.2)?\n\n` +
+    `Rows for the ExternalCourses tab (tab-separated, in the tab's column order — ` +
+    `paste into the sheet at a new row's "university" cell, then fill in the ruling columns):\n\n` +
+    tsv.join('\n') +
+    `\n\nCourse details:\n` +
+    details.join('\n') +
+    `\n\nThank you!\n`
+  );
 }

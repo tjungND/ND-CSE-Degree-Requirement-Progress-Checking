@@ -164,13 +164,15 @@ Known-pending (the app's diagnostics panel is the live truth):
   detected → redirected to the ND button; unmappable grades kept raw and the student MUST choose)
   → editable preview (`src/ui/external-upload.ts`) → `origin:'transfer'` entries tagged
   `degreeLevel`. The DGS's rulings live in the optional ExternalCourses tab (parse:
-  `parseExternalTab`; match: `src/data/external.ts` — normalized university + aliases, ids ignore
+  `parseExternalTab`; match: `src/data/external.ts` — the normalized university name alone (aliases retired 2026-09-03; capital-English-as-printed convention), ids ignore
   spaces/hyphens; native script works). Engine: Bachelor's never transfers but still satisfies
   §4.4.1; sheet-confirmed core → met; transferable yes/no/blank → pre-approved wording / excluded
   with the ruling named / "not yet decided"; nd_credits replaces transcript credits (§5.2
   pro-rata) — all in `classify()` (the `external` field rides on ClassifiedCourse so core sees
   DGS rulings even for zero-credit courses). Unreviewed courses: pending verdict + copy-ready
-  email request in the card. The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
+  email request in the card — since 2026-09-03 the request carries tab-separated rows in the
+  tab's column order (UNIVERSITY, course_id, course_title; `buildExternalReviewRequest` in
+  `src/transcript/external.ts`) so the DGS pastes them straight into the sheet. The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
   rules-date/loading card); its lone failure degrades to "not yet reviewed", never a dead page.
   Tests: `tests/external-rules.test.ts`, `tests/external-transcript.test.ts`, scenario patch key
   `external`; e2e uploads `tests/fixtures/external-transcript.pdf` into the Master's slot.

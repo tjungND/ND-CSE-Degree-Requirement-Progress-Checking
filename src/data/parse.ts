@@ -298,8 +298,10 @@ export function parseExternalTab(
   const err = (rowNum: number, column: string, message: string) =>
     issues.push({ severity: 'error', tab: 'ExternalCourses', row: rowNum, column, message });
 
+  let aliasContentSeen = false;
   for (const [rowNum, cells] of tab.rows) {
     if (isBlankRow(cells)) continue;
+    if ((cells['university_aliases'] ?? '').trim() !== '') aliasContentSeen = true;
     const university = cells['university'] ?? '';
     const courseId = cells['course_id'] ?? '';
     // Prose note rows (the tab ends with explanatory sentences): a filled
@@ -313,9 +315,7 @@ export function parseExternalTab(
 
     const rule: ExternalRule = {
       university,
-      universityKeys: [university, ...(cells['university_aliases'] ?? '').split(';')]
-        .map((a) => normalizeUniversity(a))
-        .filter((a) => a !== ''),
+      universityKey: normalizeUniversity(university),
       courseId,
       title: cells['course_title'] ?? '',
       decidedOn: cells['decided_on'] || undefined,
@@ -348,7 +348,7 @@ export function parseExternalTab(
     }
 
     const dup = out.find(
-      (r) => r.universityKeys.some((k) => rule.universityKeys.includes(k)) && r.courseId.toUpperCase().replace(/[^A-Z0-9]/g, '') === courseId.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+      (r) => r.universityKey === rule.universityKey && r.courseId.toUpperCase().replace(/[^A-Z0-9]/g, '') === courseId.toUpperCase().replace(/[^A-Z0-9]/g, ''),
     );
     if (dup) {
       issues.push({
@@ -360,6 +360,16 @@ export function parseExternalTab(
       continue;
     }
     out.push(rule);
+  }
+  if (aliasContentSeen) {
+    issues.push({
+      severity: 'warning',
+      tab: 'ExternalCourses',
+      column: 'university_aliases',
+      message:
+        'The university_aliases column is no longer used (decision 2026-09-03): courses are matched by the ' +
+        'university name exactly as the transcript prints it. The column can be deleted.',
+    });
   }
   return out;
 }

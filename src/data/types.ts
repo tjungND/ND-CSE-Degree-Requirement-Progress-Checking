@@ -22,8 +22,9 @@ export type CourseType = 'regular' | 'seminar' | 'research' | 'independent' | 'p
  * (undefined = count the credits printed on the transcript). */
 export interface ExternalRule {
   university: string;
-  /** Normalized forms of the university name + every alias, for matching. */
-  universityKeys: string[];
+  /** Normalized form of the university name, for matching (the aliases column
+   * was retired 2026-09-03 — the name as the transcript prints it is the key). */
+  universityKey: string;
   courseId: string;
   title: string;
   satisfiesCoreArea?: string;

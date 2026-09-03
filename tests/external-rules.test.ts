@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { findExternalRule, normalizeCourseId, normalizeUniversity } from '../src/data/external.ts';
+import { buildExternalReviewRequest } from '../src/transcript/external.ts';
 import { parseExternalTab } from '../src/data/parse.ts';
 import type { SheetIssue } from '../src/data/types.ts';
 import { audit } from '../src/engine/audit.ts';
@@ -71,13 +72,28 @@ describe('ExternalCourses parsing', () => {
   it('warns on duplicate (university, course) pairs — first row wins', () => {
     const issues: SheetIssue[] = [];
     const rows = parseExternalTab(
-      'university,university_aliases,course_id,transferable\nPurdue University,Purdue,CS 1,yes\nPurdue,,CS-1,no\n',
+      'university,course_id,transferable\nPURDUE UNIVERSITY,CS 1,yes\nPurdue-University,CS-1,no\n',
       CORE,
       issues,
     );
     assert.equal(rows.length, 1);
     assert.equal(rows[0]?.transferable, true);
     assert.match(issues[0]?.message ?? '', /first row wins/);
+  });
+
+  it('a leftover university_aliases column is ignored, with one gentle warning', () => {
+    const issues: SheetIssue[] = [];
+    const rows = parseExternalTab(
+      'university,university_aliases,course_id,transferable\nPURDUE UNIVERSITY,Purdue;PU,CS 1,yes\n',
+      CORE,
+      issues,
+    );
+    assert.equal(rows.length, 1);
+    assert.equal(findExternalRule(rows, 'Purdue', 'CS 1'), undefined); // the alias no longer matches
+    assert.ok(findExternalRule(rows, 'purdue university', 'CS 1'));
+    assert.equal(issues.length, 1);
+    assert.match(issues[0]!.message, /no longer used/);
+    assert.match(issues[0]!.message, /can be deleted/);
   });
 });
 
@@ -88,15 +104,32 @@ describe('matching is forgiving about spelling, never about identity', () => {
     assert.equal(normalizeCourseId('CS 503 00'), 'CS50300');
   });
 
-  it('finds rules via the university name or any DGS-listed alias', () => {
-    for (const uni of ['Purdue University', 'purdue', 'PURDUE UNIVERSITY WEST LAFAYETTE']) {
+  it('finds rules via the transcript-printed name — forgiving spelling, no aliases', () => {
+    for (const uni of ['PURDUE UNIVERSITY', 'Purdue University', ' purdue-university ']) {
       assert.ok(findExternalRule(rules.external, uni, 'cs 50300'), uni);
     }
-    assert.ok(findExternalRule(rules.external, '清华大学', '30240233'));
-    assert.ok(findExternalRule(rules.external, 'University of Montreal', 'IFT 2125'));
+    assert.ok(findExternalRule(rules.external, 'Université de Montréal', 'IFT 2125')); // diacritics stripped both ways
+    assert.ok(findExternalRule(rules.external, 'Tsinghua University', '30240233'));
+    assert.equal(findExternalRule(rules.external, 'Purdue', 'CS 50300'), undefined); // abbreviations no longer match
+    assert.equal(findExternalRule(rules.external, '清华大学', '30240233'), undefined); // native script retired with aliases
     assert.equal(findExternalRule(rules.external, 'Purdue University', 'CS 99999'), undefined);
     assert.equal(findExternalRule(rules.external, 'Indiana University', 'CS 50300'), undefined);
     assert.equal(findExternalRule(rules.external, '', 'CS 50300'), undefined);
+  });
+});
+
+describe('the copy-ready review request', () => {
+  it('carries tab-separated rows in the sheet column order, university in capitals', () => {
+    const text = buildExternalReviewRequest([
+      { institution: 'Purdue University', courseId: 'CS 50300', title: 'Operating Systems', credits: 3, grade: 'A', termText: 'Fall 2023', slotLabel: 'Previous Master’s Transcript' },
+      { courseId: 'CS 59000', credits: 1, grade: 'B+', termText: 'Fall 2024' },
+    ]);
+    assert.match(text, /^Subject: External course review request/);
+    assert.ok(text.includes('PURDUE UNIVERSITY\tCS 50300\tOperating Systems'), 'TSV row with upper-cased university');
+    assert.ok(text.includes('\tCS 59000\t'), 'unknown university → empty first cell, tabs intact');
+    assert.match(text, /3 credits, grade A, Fall 2023 \(Previous Master’s Transcript\)/);
+    assert.match(text, /1 credit, grade B\+, Fall 2024/);
+    assert.match(text, /paste into the sheet/);
   });
 });
 
@@ -119,7 +152,8 @@ describe('what a DGS ruling changes in the engine', () => {
 
   it('transferable=no → not counted, with the DGS ruling named', () => {
     const { classified } = classify(student([{ courseId: 'CS 59000' }]), rules);
-    assert.match(classified[0]?.ineligibleReason ?? '', /ruled this Purdue University course non-transferable/);
+    // The message quotes the university as the sheet spells it (capital English).
+    assert.match(classified[0]?.ineligibleReason ?? '', /ruled this PURDUE UNIVERSITY course non-transferable/);
   });
 
   it('transferable=yes → still provisional until the §5.2 request, but pre-approved wording', () => {

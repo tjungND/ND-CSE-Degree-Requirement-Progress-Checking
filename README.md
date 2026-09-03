@@ -145,10 +145,12 @@ then reads "are effective as of <date>" instead — and keeps doing so until you
 
 Students import prior coursework (Previous Undergraduate / Master's / Ph.D. transcripts) and the app
 checks them against the **ExternalCourses** tab. When a student emails you a
-review request (the app writes it for them), decide and add a row: university,
-course id and title, which core area it satisfies (`satisfies_core_area`, if
-any), whether its credits can transfer (`transferable`), and — for quarter/ECTS
-systems — the ND-equivalent `nd_credits` (§5.2 pro-rata). The student's page
+review request (the app writes it for them), the email contains tab-separated
+rows in the tab's column order — paste them straight into the sheet at a new
+row's `university` cell, then fill in your rulings: which core area each
+satisfies (`satisfies_core_area`, if any), whether its credits can transfer
+(`transferable`), and — for quarter/ECTS systems — the ND-equivalent
+`nd_credits` (§5.2 pro-rata). The student's page
 updates within minutes; anything without a row honestly shows "not yet reviewed
 by the DGS". Bachelor's-level courses can satisfy core knowledge (§4.4.1) but
 never transfer credit (§5.2). Schema and one-time setup: `data/README.md`.

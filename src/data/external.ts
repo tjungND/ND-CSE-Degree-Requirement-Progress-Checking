@@ -2,15 +2,16 @@
 // ruled on — whether each satisfies a §4.4.1 core-knowledge area and whether
 // its credits can transfer under §5.2 (feature decisions, docs/DECISIONS.md
 // 2026-09-01). Matching is deliberately forgiving about spelling: university
-// names are compared case-, punctuation- and diacritic-insensitively (plus the
-// DGS-listed aliases), and course ids ignore spaces and hyphens — but a course
+// names are compared case-, punctuation- and diacritic-insensitively, matched
+// on the name exactly as transcripts print it (the aliases column was retired
+// 2026-09-03), and course ids ignore spaces and hyphens — but a course
 // with no matching row is NEVER guessed at; it stays "not yet reviewed".
 import type { ExternalRule } from './types.ts';
 
 /** "Univ. of Notre-Dame " → "univ of notre dame" (case, punctuation and
- * diacritics ignored; whitespace collapsed). Non-Latin names — 清华대학 etc. —
- * keep their letters, so the DGS can list a native-script alias and a student
- * can paste the name exactly as their transcript prints it. */
+ * diacritics ignored; whitespace collapsed). Non-Latin letters are kept, but
+ * the sheet convention (2026-09-03) is the university's name in CAPITAL
+ * ENGLISH exactly as its transcripts print it. */
 export function normalizeUniversity(name: string): string {
   return name
     .normalize('NFKD')
@@ -36,5 +37,5 @@ export function findExternalRule(
   const uni = normalizeUniversity(university);
   const id = normalizeCourseId(courseId);
   if (uni === '' || id === '') return undefined;
-  return rules.find((r) => r.universityKeys.includes(uni) && normalizeCourseId(r.courseId) === id);
+  return rules.find((r) => r.universityKey === uni && normalizeCourseId(r.courseId) === id);
 }
