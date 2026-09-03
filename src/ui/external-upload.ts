@@ -1,4 +1,4 @@
-// "Transcripts from other universities" card (feature decisions 2026-09-01):
+// "Prior Coursework" card (feature decisions 2026-09-01; renamed 2026-09-03):
 // up to three uploads — Bachelor's, Master's, Ph.D., all optional — parsed
 // entirely in the browser (system-generated PDFs only, no scans), previewed for
 // correction, then added as origin:'transfer' courses tagged with their degree
@@ -16,9 +16,9 @@ import { clear, el, option } from './dom.ts';
 
 export type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
 export const DEGREE_SLOTS: { level: DegreeLevel; label: string }[] = [
-  { level: 'bachelors', label: 'Bachelor’s' },
-  { level: 'masters', label: 'Master’s' },
-  { level: 'phd', label: 'Ph.D.' },
+  { level: 'bachelors', label: 'Previous Undergraduate Transcript' },
+  { level: 'masters', label: 'Previous Master’s Transcript' },
+  { level: 'phd', label: 'Previous Ph.D. Transcript' },
 ];
 
 interface PreviewRow {
@@ -45,7 +45,7 @@ interface ExternalPreview {
 let preview: ExternalPreview | undefined;
 /** A scan was uploaded and awaits the student's explicit OCR opt-in
  * (DGS decision 2026-09-02: never OCR without asking; English only). */
-let pendingScan: { slot: DegreeLevel; slotLabel: string; buffer: ArrayBuffer; filename: string } | undefined;
+let pendingScan: { slot: DegreeLevel; buffer: ArrayBuffer; filename: string } | undefined;
 /** OCR in flight — drives the progress line. */
 let ocrBusy: { label: string; percent: number } | undefined;
 
@@ -63,11 +63,11 @@ export function externalTranscriptsCard(args: ExternalCardArgs): HTMLElement {
   return el(
     'div',
     { class: 'card external-card' },
-    el('h2', {}, 'Transcripts from other universities ', el('span', { class: 'chip-note' }, 'optional')),
+    el('h2', {}, 'Prior Coursework ', el('span', { class: 'chip-note' }, 'optional')),
     el(
       'p',
       { class: 'hint' },
-      'Took courses elsewhere? Upload up to three transcripts — Bachelor’s, Master’s, Ph.D. — and every course is checked against the DGS’s external-course rules: whether it satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2). Bachelor’s courses can satisfy core knowledge but never transfer credit (§5.2). ',
+      'Took courses at another university before Notre Dame? Import up to three transcripts — undergraduate, Master’s, Ph.D. — and every course is checked against the DGS’s external-course rules: whether it satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2). Undergraduate courses can satisfy core knowledge but never transfer credit (§5.2). ',
       el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
       ' — after you agree, and with every field checked by you. Like everything here, the file is read on your own computer and never uploaded.',
     ),
@@ -101,12 +101,12 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       const parsed = parseExternalTranscript(lines);
       if (!parsed.hasTextLayer) {
         // A scan or photo: never OCR silently — offer it (DGS decision 2026-09-02).
-        pendingScan = { slot: slot.level, slotLabel: slot.label, buffer, filename: file.name };
+        pendingScan = { slot: slot.level, buffer, filename: file.name };
         render();
         return;
       }
       if (parsed.looksLikeNotreDame) {
-        toast('This looks like a Notre Dame transcript — use the "Upload ND unofficial transcript" button above for it; these three slots are for OTHER universities.');
+        toast('This looks like a Notre Dame transcript — use the “Import Courses from PDF” button in the courses card above for it; these three slots are for OTHER universities.');
         return;
       }
       preview = {
@@ -134,7 +134,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
     }
   });
 
-  const parts: (Node | string)[] = [el('span', { class: 'slot-label' }, `${slot.label} transcript`)];
+  const parts: (Node | string)[] = [el('span', { class: 'slot-label' }, slot.label)];
   if (have.length > 0) {
     const uni = have[0]!.institution ?? 'another university';
     parts.push(
@@ -154,7 +154,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       ' — ',
-      el('button', { class: 'btn tiny', onclick: () => (fileInput as HTMLInputElement).click() }, 'Upload PDF'),
+      el('button', { class: 'btn tiny', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
       fileInput,
     );
   }
@@ -186,7 +186,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
         {
           class: 'btn primary',
           onclick: () => {
-            const { slot, slotLabel, buffer } = scan;
+            const { slot, buffer } = scan;
             pendingScan = undefined;
             ocrBusy = { label: 'Starting the text reader', percent: 0 };
             render();
@@ -202,7 +202,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 ocrBusy = undefined;
                 if (parsed.looksLikeNotreDame) {
                   render();
-                  toast('This looks like a Notre Dame transcript — use the "Upload ND unofficial transcript" button above (with the digital PDF from insideND, not a scan).');
+                  toast('This looks like a Notre Dame transcript — use the “Import Courses from PDF” button in the courses card above, with the digital PDF from insideND (not a scan).');
                   return;
                 }
                 preview = {
@@ -263,7 +263,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   const uniInput = el('input', { value: p.university, placeholder: 'University name as printed on the transcript' });
   uniInput.addEventListener('change', () => (p.university = (uniInput as HTMLInputElement).value));
   box.append(
-    el('h3', {}, `${slotLabel} transcript — check every line, fix what the parser got wrong, then add`),
+    el('h3', {}, `${slotLabel} — check every line, fix what the parser got wrong, then add`),
     ...(p.fromOcr
       ? [
           el(
@@ -419,7 +419,7 @@ function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) 
   if (pending.length > 0) {
     const requestText = () => {
       const rows = pending.map(
-        (c) => `- ${c.institution ?? '?'}: ${c.courseId}${c.title ? ` “${c.title}”` : ''}, ${c.credits} credit${c.credits === 1 ? '' : 's'}, grade ${c.grade}, ${termLabel(c.term)}${c.degreeLevel ? ` (${c.degreeLevel === 'bachelors' ? 'Bachelor’s' : c.degreeLevel === 'masters' ? 'Master’s' : 'Ph.D.'} transcript)` : ''}`,
+        (c) => `- ${c.institution ?? '?'}: ${c.courseId}${c.title ? ` “${c.title}”` : ''}, ${c.credits} credit${c.credits === 1 ? '' : 's'}, grade ${c.grade}, ${termLabel(c.term)}${c.degreeLevel ? ` (${DEGREE_SLOTS.find((sl) => sl.level === c.degreeLevel)?.label ?? c.degreeLevel})` : ''}`,
       );
       return (
         `Subject: External course review request (degree self-check)\n\n` +

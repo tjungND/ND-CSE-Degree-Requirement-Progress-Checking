@@ -143,7 +143,7 @@ then reads "are effective as of <date>" instead — and keeps doing so until you
 
 ### A6b. A student asks about a course from another university
 
-Students upload external transcripts (Bachelor's / Master's / Ph.D.) and the app
+Students import prior coursework (Previous Undergraduate / Master's / Ph.D. transcripts) and the app
 checks them against the **ExternalCourses** tab. When a student emails you a
 review request (the app writes it for them), decide and add a row: university,
 course id and title, which core area it satisfies (`satisfies_core_area`, if

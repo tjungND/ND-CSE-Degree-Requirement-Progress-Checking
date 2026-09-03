@@ -47,6 +47,7 @@ body {
 }
 .banner.alpha { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
 .banner.official { background: #e9eef7; border-color: #b9c7e0; color: #1e2f4d; }
+.banner.privacy { background: #eef7ee; border-color: #b3d6b3; color: #1d4d1d; }
 .banner.official a { color: inherit; }
 .masthead .effective { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
@@ -180,7 +181,6 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
 .legal-alpha, .legal-privacy, .legal-license { margin-top: 10px; }
 .legal-license strong { color: var(--ink); }
-.untested-note strong { color: #7a1f1f; }
 
 /* ---------- courses.html: the public course-rules list ---------- */
 .courses-page h2 { color: var(--navy); font-size: 20px; margin: 26px 0 10px; }

@@ -47,7 +47,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
 
   // 3) External transcript (Master's slot) → editable preview → add → verdicts.
   await s.setFileInput('.external-file-masters', externalPdf);
-  await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Master’s transcript'))`);
+  await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Master’s Transcript'))`);
   const uni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   console.log('  external university guessed:', uni);
   if (uni !== 'Purdue University') throw new Error(`university not guessed from the PDF header: '${uni}'`);

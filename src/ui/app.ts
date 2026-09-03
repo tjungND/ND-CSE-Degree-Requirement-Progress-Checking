@@ -61,6 +61,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       ...[
       masthead(),
       alphaNotice(),
+      privacyNotice(),
       rules.source === 'snapshot' ? snapshotBanner() : null,
       el(
         'div',
@@ -153,6 +154,17 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       '.) ',
       ALPHA_SCOPE_NOTICE,
       ...reportToDgs(' Error reports and feedback — please email'),
+    );
+  }
+
+  /** Right below the alpha notice (DGS placement, 2026-09-03): everything —
+   * input, imported PDFs, and the optional OCR — stays in the browser. */
+  function privacyNotice(): HTMLElement {
+    return el(
+      'div',
+      { class: 'banner privacy', role: 'note' },
+      el('strong', {}, 'Private by design. '),
+      'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing is uploaded, transmitted, or stored anywhere else. The page’s only network request is the read-only fetch of the public course rules.',
     );
   }
 
@@ -314,7 +326,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           transcriptPreview = undefined;
           render();
           toast(
-            "Only Notre Dame's unofficial transcript is accepted for now — transcripts from other institutions must be manually reviewed by the DGS (enter those courses as 'Transferred in').",
+            "Only Notre Dame's unofficial transcript is accepted here — for courses from other universities, use the Prior Coursework card below.",
           );
           return;
         }
@@ -349,21 +361,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return el(
       'div',
       { class: 'transcript-upload' },
-      el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Upload ND unofficial transcript (PDF)'),
-      el('span', { class: 'hint-inline' }, ' — Notre Dame transcripts only; parsed courses are shown for your confirmation before anything is added.'),
-      el(
-        'p',
-        { class: 'privacy-note untested-note' },
-        el('strong', {}, 'Untested: '),
-        'the PDF upload has not been tested on a real transcript. FERPA prohibits sharing student records with the AI tools used to build this page, so the parser was written from publicly available information only. Check the parsed courses carefully, and ',
-        ...reportToDgs('please report any error to'),
-      ),
-      el(
-        'p',
-        { class: 'privacy-note' },
-        el('strong', {}, 'Privacy: '),
-        'your transcript is processed entirely on your own computer, inside this browser. It is never uploaded, transmitted, or stored anywhere else — your FERPA-protected education records stay with you.',
-      ),
+      el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
+      el('span', { class: 'hint-inline' }, ' — from your Notre Dame unofficial transcript (the system-generated PDF from insideND). Parsed courses are shown for your confirmation before anything is added; for other universities, use the Prior Coursework card below.'),
       fileInput,
     );
   }

@@ -71,9 +71,11 @@ replaced by `README.md` on 2026-09-01.)
   (read-only view of the Courses tab; no student data); both pages are built by Vite from
   `vite.config.ts` `rollupOptions.input`.
 - `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser; plus
-  `external.ts`, the best-effort parser for transcripts from OTHER universities (three optional
-  uploads — Bachelor's/Master's/Ph.D.; system-generated PDFs only, scans rejected; everything
-  previewed and student-corrected before it is added). Matched against the sheet's optional
+  `external.ts`, the best-effort parser for transcripts from OTHER universities (the "Prior
+  Coursework" card: three optional uploads — Previous Undergraduate/Master's/Ph.D. Transcript;
+  system-generated PDFs are read directly, scanned ones via the opt-in in-browser OCR,
+  English-language transcripts only; everything previewed and student-corrected before it is
+  added). Matched against the sheet's optional
   ExternalCourses tab (`src/data/external.ts`) for §4.4.1 core-knowledge confirmation and §5.2
   transferability — unmatched courses always show "not yet reviewed by the DGS".
 - `tests/` — **node's built-in runner** (`node --test`; that's why relative imports carry `.ts`
