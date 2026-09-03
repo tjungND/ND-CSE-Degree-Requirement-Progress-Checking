@@ -119,17 +119,28 @@ describe('matching is forgiving about spelling, never about identity', () => {
 });
 
 describe('the copy-ready review request', () => {
-  it('carries tab-separated rows in the sheet column order, university in capitals', () => {
-    const text = buildExternalReviewRequest([
-      { institution: 'Purdue University', courseId: 'CS 50300', title: 'Operating Systems', credits: 3, grade: 'A', termText: 'Fall 2023', slotLabel: 'Previous Master’s Transcript' },
-      { courseId: 'CS 59000', credits: 1, grade: 'B+', termText: 'Fall 2024' },
-    ]);
+  const built = buildExternalReviewRequest([
+    { institution: 'Purdue University', courseId: 'CS 50300', title: 'Operating Systems', credits: 3, grade: 'A', termText: 'Fall 2023', slotLabel: 'Previous Master’s Transcript' },
+    { courseId: 'CS 59000', title: 'Data & "Structures" <II>', credits: 1, grade: 'B+', termText: 'Fall 2024' },
+  ]);
+
+  it('text flavor: tab-separated rows in the sheet column order, university in capitals', () => {
+    const { text } = built;
     assert.match(text, /^Subject: External course review request/);
     assert.ok(text.includes('PURDUE UNIVERSITY\tCS 50300\tOperating Systems'), 'TSV row with upper-cased university');
     assert.ok(text.includes('\tCS 59000\t'), 'unknown university → empty first cell, tabs intact');
     assert.match(text, /3 credits, grade A, Fall 2023 \(Previous Master’s Transcript\)/);
     assert.match(text, /1 credit, grade B\+, Fall 2024/);
     assert.match(text, /paste into the sheet/);
+  });
+
+  it('html flavor: a real table (tabs do not survive HTML email), entities escaped', () => {
+    const { html } = built;
+    assert.ok(html.includes('<table'), 'rows travel as a real table');
+    assert.ok(html.includes('<tr><td>PURDUE UNIVERSITY</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
+    assert.ok(html.includes('<td></td><td>CS 59000</td>'), 'unknown university → empty first cell');
+    assert.ok(html.includes('Data &amp; &quot;Structures&quot; &lt;II&gt;'), 'titles are HTML-escaped');
+    assert.ok(!html.includes('<II>'), 'no raw markup leaks from titles');
   });
 });
 

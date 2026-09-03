@@ -62,7 +62,15 @@ function guessUniversity(lines: string[]): string | undefined {
     const clean = line.replace(/\s{2,}/g, ' ').trim();
     if (clean.length < 4 || clean.length > 80) continue;
     if (/\d{3,}/.test(clean)) continue; // addresses, ids, dates
-    if (UNI_RE.test(clean)) return clean.replace(/^(unofficial|official)?\s*transcript\s*(of|from)?\s*/i, '').trim() || clean;
+    if (UNI_RE.test(clean)) {
+      // Header lines often append record words ("TSINGHUA UNIVERSITY STUDENT
+      // RECORD"); strip them so the guess is the institution's name alone.
+      const stripped = clean
+        .replace(/^(unofficial|official)?\s*transcript\s*(of|from)?\s*/i, '')
+        .replace(/[\s—–-]*(unofficial|official)?\s*(student|academic)?\s*(records?|transcripts?|copy)\s*$/i, '')
+        .trim();
+      return stripped || clean;
+    }
   }
   return undefined;
 }
@@ -162,29 +170,47 @@ export interface ReviewRequestCourse {
   slotLabel?: string;
 }
 
-/** The copy-ready review request (decision 2026-09-03). The course rows are
- * TAB-separated in the ExternalCourses tab's column order — university,
- * course_id, course_title — so the DGS can paste them straight into the sheet
- * and fill in the ruling columns; the university is upper-cased to match the
- * sheet's capital-English convention. The details the DGS needs to decide
- * (credits, grade, term, which transcript) follow as plain lines — they are
- * for the decision, not for the sheet. */
-export function buildExternalReviewRequest(courses: readonly ReviewRequestCourse[]): string {
-  const tsv = courses.map((c) => `${(c.institution ?? '').toUpperCase()}\t${c.courseId}\t${c.title ?? ''}`);
+/** The copy-ready review request (decision 2026-09-03), in TWO clipboard
+ * flavors written together: `text` (tab-separated rows) for plain-text
+ * contexts, and `html`, where the rows are a REAL `<table>` — HTML email
+ * composers (Gmail etc.) flatten tab characters to spaces, but a table
+ * survives the whole journey: app → email → the DGS copies it → Google
+ * Sheets pastes it as cells. Rows are in the ExternalCourses tab's column
+ * order — university (upper-cased to the sheet's capital-English
+ * convention), course_id, course_title — so the DGS fills in only the
+ * ruling columns. The details the DGS needs to decide (credits, grade,
+ * term, which transcript) follow as plain lines — they are for the
+ * decision, not for the sheet. */
+export function buildExternalReviewRequest(courses: readonly ReviewRequestCourse[]): { text: string; html: string } {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const cells = courses.map((c) => [(c.institution ?? '').toUpperCase(), c.courseId, c.title ?? '']);
   const details = courses.map(
     (c) =>
-      `- ${c.courseId}${c.title ? ` “${c.title}”` : ''}: ${c.credits} credit${c.credits === 1 ? '' : 's'}, ` +
+      `${c.courseId}${c.title ? ` “${c.title}”` : ''}: ${c.credits} credit${c.credits === 1 ? '' : 's'}, ` +
       `grade ${c.grade}, ${c.termText}${c.slotLabel ? ` (${c.slotLabel})` : ''}`,
   );
-  return (
-    `Subject: External course review request (degree self-check)\n\n` +
-    `Dear DGS,\n\nCould you review these courses from another institution for the degree audit — ` +
-    `whether any satisfies a §4.4.1 core-knowledge area, and whether the credits can transfer (§5.2)?\n\n` +
+  const subject = 'Subject: External course review request (degree self-check)';
+  const intro =
+    'Could you review these courses from another institution for the degree audit — ' +
+    'whether any satisfies a §4.4.1 core-knowledge area, and whether the credits can transfer (§5.2)?';
+  const text =
+    `${subject}\n\n` +
+    `Dear DGS,\n\n${intro}\n\n` +
     `Rows for the ExternalCourses tab (tab-separated, in the tab's column order — ` +
     `paste into the sheet at a new row's "university" cell, then fill in the ruling columns):\n\n` +
-    tsv.join('\n') +
+    cells.map((r) => r.join('\t')).join('\n') +
     `\n\nCourse details:\n` +
-    details.join('\n') +
-    `\n\nThank you!\n`
-  );
+    details.map((d) => `- ${d}`).join('\n') +
+    `\n\nThank you!\n`;
+  const html =
+    `<p>${esc(subject)}</p><p>Dear DGS,</p><p>${esc(intro)}</p>` +
+    `<p>Rows for the ExternalCourses tab (in the tab's column order — paste the table into the ` +
+    `sheet at a new row's “university” cell, then fill in the ruling columns):</p>` +
+    `<table border="1" cellspacing="0" cellpadding="4">` +
+    cells.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('') +
+    `</table>` +
+    `<p>Course details:</p><ul>` +
+    details.map((d) => `<li>${esc(d)}</li>`).join('') +
+    `</ul><p>Thank you!</p>`;
+  return { text, html };
 }

@@ -443,7 +443,21 @@ function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) 
             class: 'btn',
             onclick: () => {
               requestText()
-                .then((text) => navigator.clipboard.writeText(text))
+                .then(async ({ text, html }) => {
+                  // Write BOTH flavors: HTML email flattens tabs to spaces, so
+                  // the course rows travel as a real table — it survives Gmail
+                  // and pastes into Sheets as cells (DGS decision 2026-09-03).
+                  try {
+                    await navigator.clipboard.write([
+                      new ClipboardItem({
+                        'text/plain': new Blob([text], { type: 'text/plain' }),
+                        'text/html': new Blob([html], { type: 'text/html' }),
+                      }),
+                    ]);
+                  } catch {
+                    await navigator.clipboard.writeText(text); // no ClipboardItem support
+                  }
+                })
                 .then(() => toast('Review request copied — paste it into an email to the DGS. (Nothing is sent by this page.)'))
                 .catch(() => toast('Could not copy automatically — please email the DGS with your university, course ids, credits, grades and terms.'));
             },

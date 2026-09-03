@@ -24,6 +24,11 @@ const PURDUE = [
 ].concat(Array(20).fill('Purdue University Registrar record — not an official copy unless sealed.'));
 
 describe('external transcript parsing', () => {
+  it('strips record/transcript suffixes from the university guess', () => {
+    const lines = ['TSINGHUA UNIVERSITY STUDENT RECORD', ...PURDUE.slice(1)];
+    assert.equal(parseExternalTranscript(lines).university, 'TSINGHUA UNIVERSITY');
+  });
+
   it('extracts course candidates with credits, mapped grades and the term year', () => {
     const r = parseExternalTranscript(PURDUE);
     assert.equal(r.hasTextLayer, true);

@@ -172,7 +172,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   DGS rulings even for zero-credit courses). Unreviewed courses: pending verdict + copy-ready
   email request in the card — since 2026-09-03 the request carries tab-separated rows in the
   tab's column order (UNIVERSITY, course_id, course_title; `buildExternalReviewRequest` in
-  `src/transcript/external.ts`) so the DGS pastes them straight into the sheet. The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
+  `src/transcript/external.ts`) so the DGS pastes them straight into the sheet. The copy writes
+  text/plain (tabs) AND text/html (a real `<table>`): HTML email flattens tabs to spaces, a table
+  survives Gmail and pastes as cells. (A paste while a cell is in EDIT mode still lands in one
+  cell — click the target cell once, don't double-click.) The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
   rules-date/loading card); its lone failure degrades to "not yet reviewed", never a dead page.
   Tests: `tests/external-rules.test.ts`, `tests/external-transcript.test.ts`, scenario patch key
   `external`; e2e uploads `tests/fixtures/external-transcript.pdf` into the Master's slot.
