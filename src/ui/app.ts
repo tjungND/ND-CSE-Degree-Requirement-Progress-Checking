@@ -13,7 +13,7 @@ import { clear, el, option } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
-import { renderReport, summaryText } from './report.ts';
+import { advisorSummary, renderReport } from './report.ts';
 import {
   clearLocal,
   emptyStudent,
@@ -331,7 +331,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'p',
         { class: 'hint' },
-        'Add everything you have taken or are taking — import your Notre Dame transcript in the Transcripts card above to fill this in automatically, or add courses by hand. Regular courses have a regular meeting time, assigned readings, graded assignments, and a final exam — research seminars, research credits, and independent study do not (§3.2/§4.2). Courses not in the list can be typed in full (e.g. a non-CSE course) and will be flagged for DGS review.',
+        'Everything you have taken or are taking belongs here — importing your transcripts above fills it in automatically, non-CSE and other-university courses included; you can also add or fix courses by hand. Anything the course rules have not decided yet goes into the review request below.',
       ),
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       courseForm(),
@@ -360,7 +360,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'p',
         { class: 'hint' },
-        'The easiest way to start: import your transcripts, and most of the page below fills itself in. Your Notre Dame unofficial transcript fills the coursework and GPA; up to three transcripts from other universities are checked against the DGS’s rules — whether each course satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2; undergraduate courses can satisfy core knowledge but never transfer credit). ',
+        'The easiest way to start: import your transcripts, and most of the page below fills itself in. ',
         el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
         ' — after you agree, and with every field checked by you. Like everything here, files are read on your own computer and never uploaded.',
       ),
@@ -892,13 +892,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           {
             class: 'btn',
             onclick: () => {
-              navigator.clipboard
-                .writeText(summaryText(report, todayIso))
+              copyReviewRequest(
+                advisorSummary(report, {
+                  todayIso,
+                  entryTerm: termLabel(student.entryTerm),
+                  priorStudy: PRIOR_LABELS[student.priorMs],
+                  gpa: student.gpa,
+                }),
+              )
                 .then(() => toast('Summary copied — paste it into an email to your advisor.'))
                 .catch(() => toast('Could not copy — your browser blocked clipboard access.'));
             },
           },
-          'Copy summary',
+          'Copy summary for your advisor',
         ),
         el('button', { class: 'btn', onclick: () => window.print() }, 'Print'),
       ),

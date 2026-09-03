@@ -12,6 +12,15 @@ export async function driveApp(s, baseUrl) {
   await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
   await s.shot('app-example-phd');
 
+  // The rule on the output side (2026-09-03): clicking a § chip reveals the
+  // handbook sentence the verdict is checked against.
+  await s.evalJs(`document.querySelector('button.cite').click()`);
+  const quote = await s.evalJs(`document.querySelector('.rule-quote:not(.hidden)')?.textContent ?? ''`);
+  if (!quote.startsWith('Handbook §')) throw new Error('clicking the § chip did not reveal the handbook rule: ' + quote.slice(0, 60));
+  console.log('  § chip reveals the handbook rule');
+  await s.shot('rule-quote');
+  await s.evalJs(`document.querySelector('button.cite').click()`); // close it again
+
   await s.evalJs(
     `[...document.querySelectorAll('button.tab')].find(b => b.textContent.includes('M.S.')).click()`,
   );

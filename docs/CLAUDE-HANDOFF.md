@@ -153,7 +153,13 @@ Known-pending (the app's diagnostics panel is the live truth):
   `src/ui/handbook.ts`, DGS wording 2026-09-01): the banner, footer and copied summary now state
   in bold that the course rules are accurate — exactly the rules the DGS and the Graduate
   Program Administrator use to determine requirement satisfaction — and that what is in beta is
-  the TOOL's application of them. Don't reintroduce wording that hedges on the rules themselves. **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
+  the TOOL's application of them. Don't reintroduce wording that hedges on the rules themselves.
+- **Rules on the output side + advisor summary** (2026-09-03, DGS): every requirement card's §
+  chip is a button revealing `.rule-quote` — the handbook sentence from `citation.quote`; the
+  input-card intros stay lean (no policy prose). `advisorSummary()` in report.ts replaces
+  `summaryText()`: {text, html} clipboard flavors via `copyReviewRequest`, subject + greeting,
+  standing line (program/entry/prior study/GPA), requirements grouped attention-first with
+  details, courses as counted, notices. Button: "Copy summary for your advisor". **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
   2026-09-01 by fetching all three tabs from the deployed page's own origin (exposed headers:
   cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)
   — so the sync's own record is the only zero-setup date source; the earlier header-reading

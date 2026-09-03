@@ -14,15 +14,6 @@ const STATUS_LABEL: Record<Status, string> = {
   not_applicable: 'N/A',
 };
 
-const STATUS_MARK: Record<Status, string> = {
-  met: '[x]',
-  in_progress: '[~]',
-  unmet: '[ ]',
-  needs_dgs_review: '[?]',
-  cannot_evaluate: '[!]',
-  not_applicable: '[-]',
-};
-
 function dial(report: AuditReport): HTMLElement {
   const { met, scored } = report.summary;
   const pct = scored === 0 ? 0 : met / scored;
@@ -120,7 +111,14 @@ function meters(report: AuditReport): HTMLElement {
 
 function requirementCard(r: RequirementResult): HTMLElement {
   const pill = el('span', { class: `pill s-${r.status}` }, STATUS_LABEL[r.status]);
-  const cite = el('span', { class: 'cite', title: r.citation.quote }, r.citation.section);
+  // The rule itself, on the output side (DGS request 2026-09-03): clicking the
+  // § chip reveals the handbook sentence this verdict is checked against.
+  const quote = el('div', { class: 'rule-quote hidden' }, `Handbook ${r.citation.section}: “${r.citation.quote}”`);
+  const cite = el(
+    'button',
+    { class: 'cite', title: 'Show the handbook rule behind this check', onclick: () => quote.classList.toggle('hidden') },
+    r.citation.section,
+  );
   const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title), pill);
   const chips = el('div', { class: 'req-chips' }, cite);
   if (r.deadline && r.status !== 'met') {
@@ -138,6 +136,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
     head,
     chips,
     el('div', { class: 'req-detail' }, r.detail),
+    quote,
   );
 }
 
@@ -163,29 +162,58 @@ export function renderReport(report: AuditReport): HTMLElement {
   return panel;
 }
 
-/** Plain-text summary for "Copy summary" — paste into an email to an advisor. */
-export function summaryText(report: AuditReport, todayIso: string): string {
-  const lines: string[] = [
-    `CSE Graduate Degree Audit self-check (${report.program === 'mscse' ? 'MSCSE, §3' : 'Ph.D., §4'}) — ${todayIso}`,
-    `${report.summary.met} of ${report.summary.scored} requirements met. Legend: [x] met  [~] in progress  [ ] not yet  [?] needs a decision or approval  [!] cannot evaluate  [-] n/a`,
-    '',
-  ];
-  let group = '';
-  for (const r of report.requirements) {
-    if (r.group !== group) {
-      group = r.group;
-      lines.push(group.toUpperCase());
-    }
-    lines.push(`  ${STATUS_MARK[r.status]} ${r.title} (${r.citation.section})`);
-  }
-  for (const line of report.courseLines) {
-    lines.push(`  · ${line.courseId} (${termLabel(line.term)}): ${line.text}`);
-  }
-  lines.push(
-    '',
+/** The "Copy summary for your advisor" email (2026-09-03): two clipboard
+ * flavors (text + HTML — the HTML pastes cleanly into Gmail), a subject and
+ * greeting, one standing line, the requirements grouped ATTENTION-FIRST
+ * (what still needs work before what is done, details included where they
+ * matter), the courses as counted, and the beta/accuracy notices. */
+export function advisorSummary(
+  report: AuditReport,
+  opts: { todayIso: string; entryTerm: string; priorStudy: string; gpa?: number },
+): { text: string; html: string } {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const ORDER: Status[] = ['unmet', 'needs_dgs_review', 'cannot_evaluate', 'in_progress', 'met', 'not_applicable'];
+  const HEADINGS: Record<Status, string> = {
+    unmet: 'Not yet met',
+    needs_dgs_review: 'Needs a decision or approval',
+    cannot_evaluate: 'Cannot evaluate yet (missing input)',
+    in_progress: 'In progress',
+    met: 'Met',
+    not_applicable: 'Not applicable',
+  };
+  const withDetail = new Set<Status>(['unmet', 'needs_dgs_review', 'cannot_evaluate', 'in_progress']);
+  const groups = ORDER.map((status) => ({
+    heading: HEADINGS[status],
+    rows: report.requirements.filter((r) => r.status === status),
+    detailed: withDetail.has(status),
+  })).filter((g) => g.rows.length > 0);
+  const programLabel = report.program === 'mscse' ? 'M.S. in CSE (Handbook §3)' : 'Ph.D. (Handbook §4)';
+  const intro = 'Here is my current standing from the CSE Graduate Degree Requirement Self-check Tool.';
+  const standing =
+    `Program: ${programLabel}. Entered ${opts.entryTerm}; prior graduate study: ${opts.priorStudy}; ` +
+    `cumulative GPA ${opts.gpa !== undefined ? opts.gpa : 'not entered yet'}. ` +
+    `${report.summary.met} of ${report.summary.scored} requirements met as of ${opts.todayIso}.`;
+  const line = (r: RequirementResult, detailed: boolean) =>
+    `${r.title} (${r.citation.section})${detailed && r.detail ? ` — ${r.detail}` : ''}`;
+  const courses = report.courseLines.map((l) => `${l.courseId} (${termLabel(l.term)}): ${l.text}`);
+  const notices = [
     `Self-check against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`,
     `Beta version under testing. ${BETA_NOTICE} Confirm with the DGS office.`,
-    RULES_ACCURACY_NOTICE + ' ' + BETA_SCOPE_NOTICE,
-  );
-  return lines.join('\n');
+    `${RULES_ACCURACY_NOTICE} ${BETA_SCOPE_NOTICE}`,
+  ];
+  const text =
+    `Subject: Degree progress summary (CSE degree self-check)\n\nDear Advisor,\n\n${intro}\n\n${standing}\n\n` +
+    groups.map((g) => `${g.heading.toUpperCase()}\n${g.rows.map((r) => `- ${line(r, g.detailed)}`).join('\n')}`).join('\n\n') +
+    (courses.length > 0 ? `\n\nCOURSES AS COUNTED\n${courses.map((c) => `- ${c}`).join('\n')}` : '') +
+    `\n\n${notices.join('\n')}\n\nThank you!\n`;
+  const html =
+    `<p>Subject: Degree progress summary (CSE degree self-check)</p><p>Dear Advisor,</p>` +
+    `<p>${esc(intro)}</p><p>${esc(standing)}</p>` +
+    groups
+      .map((g) => `<p><strong>${esc(g.heading)}</strong></p><ul>${g.rows.map((r) => `<li>${esc(line(r, g.detailed))}</li>`).join('')}</ul>`)
+      .join('') +
+    (courses.length > 0 ? `<p><strong>Courses as counted</strong></p><ul>${courses.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '') +
+    notices.map((n) => `<p>${esc(n)}</p>`).join('') +
+    `<p>Thank you!</p>`;
+  return { text, html };
 }
