@@ -147,10 +147,11 @@ Students import prior coursework (Previous Undergraduate / Master's / Ph.D. tran
 checks them against the **ExternalCourses** tab. When a student emails you a
 review request (the app writes ONE request covering their Notre Dame and
 external courses together), the email states their prior-graduate-study choice
-(§5.2 caps) and contains tab-separated blocks marked "DO NOT MODIFY THIS
-PART" — one table per sheet tab, plus course details grouped per transcript.
-Paste the ExternalCourses table straight into that tab at a new row's
-`university` cell, then fill in your rulings: which core area each
+(§5.2 caps), notes that their transcript PDFs are attached, and everything
+below its "(DO NOT MODIFY ANYTHING BELOW THIS LINE)" divider is
+machine-readable — one tab-separated table per sheet tab, plus course details
+grouped per transcript. Paste the ExternalCourses table straight into that tab
+at a new row's `university` cell, then fill in your rulings: which core area each
 satisfies (`satisfies_core_area`, if any), whether its credits can transfer
 (`transferable`), and — for quarter/ECTS systems — the ND-equivalent
 `nd_credits` (§5.2 pro-rata). The student's page

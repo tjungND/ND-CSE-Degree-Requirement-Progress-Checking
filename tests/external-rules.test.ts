@@ -135,22 +135,28 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.match(built.text, /^Subject: Course review request/);
     assert.match(built.text, /Dear DGS and Graduate Program Administrator,/);
     assert.match(built.text, /Prior graduate study: Completed prior M\.S\. or Ph\.D\./);
+    assert.match(built.text, /transcripts .* are attached to this email/i);
     assert.ok(!built.text.includes('audit'), 'the request says self-check, never audit');
+    // The human half (sign-off included) sits ABOVE one line; everything
+    // machine-readable is below it, marked exactly once.
+    assert.equal(built.text.match(/DO NOT MODIFY/g)?.length, 1);
+    assert.match(built.text, /Thank you!\n\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)/);
+    assert.ok(built.text.indexOf('(DO NOT MODIFY') < built.text.indexOf('Courses tab'), 'the line precedes the tables');
   });
 
-  it('text flavor: one DO-NOT-MODIFY table per sheet tab, rows only for unlisted courses', () => {
+  it('text flavor: one table per sheet tab, rows only for unlisted courses', () => {
     const { text } = built;
-    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 Courses tab \(DO NOT MODIFY THIS PART\)/u);
-    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 ExternalCourses tab \(DO NOT MODIFY THIS PART\)/u);
+    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 Courses tab:/u);
+    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 ExternalCourses tab:/u);
     assert.ok(text.includes('MATH 60610\tReal Analysis I'), 'Courses-tab row');
     assert.ok(text.includes('PURDUE UNIVERSITY\tCS 50300\tOperating Systems'), 'ExternalCourses-tab row, university upper-cased');
     assert.ok(!text.includes('CSE 40567\t'), 'sheet-listed ND course gets no new row');
     assert.ok(!text.includes('\tCS 51400'), 'ruled-but-undecided external course gets no new row');
   });
 
-  it('details: DO-NOT-MODIFY title, grouped per transcript', () => {
+  it('details: grouped per transcript, below the line', () => {
     const { text } = built;
-    assert.match(text, /Course details \(DO NOT MODIFY THIS PART\):/);
+    assert.match(text, /Course details:/);
     assert.match(text, /Notre Dame:\n- MATH 60610/);
     assert.match(text, /Previous Master\u2019s Transcript \u2014 PURDUE UNIVERSITY:\n- CS 50300/u);
     assert.match(text, /CSE 40567: 3 credits, grade B, Fall 2026 \u2014 needs advisor \+ DGS approval/u);
@@ -160,6 +166,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
   it('html flavor: real tables (tabs do not survive HTML email), entities escaped, grouped details', () => {
     const { html } = built;
     assert.equal((html.match(/<table/g) ?? []).length, 2, 'one table per sheet tab');
+    assert.ok(html.includes('<hr><p><strong>(DO NOT MODIFY ANYTHING BELOW THIS LINE)</strong></p>'), 'the line + marker in HTML');
     assert.ok(html.includes('<tr><td>MATH 60610</td><td>Real Analysis I</td></tr>'));
     assert.ok(html.includes('<tr><td>PURDUE UNIVERSITY</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
     assert.ok(html.includes('<strong>Notre Dame:</strong>'));

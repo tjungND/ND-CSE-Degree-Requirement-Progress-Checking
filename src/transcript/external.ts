@@ -193,17 +193,23 @@ function buildReviewRequest(opts: {
   const greeting = 'Dear DGS and Graduate Program Administrator,';
   const sections = opts.sections.filter((s) => s.rows.length > 0);
   const groups = opts.detailGroups.filter((g) => g.lines.length > 0);
+  // The human half (greeting, context, sign-off) sits ABOVE one line; the
+  // machine-readable half (tables + details) below it, marked once
+  // (DGS wording, 2026-09-03).
+  const marker = '(DO NOT MODIFY ANYTHING BELOW THIS LINE)';
+  const divider = '-'.repeat(64);
   const text =
     `Subject: ${opts.subject}\n\n${greeting}\n\n${opts.intro}\n\n` +
     opts.context.map((c) => `${c}\n`).join('') +
-    `\n` +
+    `\nThank you!\n\n${divider}\n${marker}\n\n` +
     sections.map((s) => `${s.rowsIntro}\n\n${s.rows.map((r) => r.join('\t')).join('\n')}\n\n`).join('') +
     `${opts.detailsTitle}\n\n` +
     groups.map((g) => `${g.heading}\n${g.lines.map((d) => `- ${d}`).join('\n')}`).join('\n\n') +
-    `\n\nThank you!\n`;
+    `\n`;
   const html =
     `<p>${esc(`Subject: ${opts.subject}`)}</p><p>${esc(greeting)}</p><p>${esc(opts.intro)}</p>` +
     (opts.context.length > 0 ? `<p>${opts.context.map((c) => esc(c)).join('<br>')}</p>` : '') +
+    `<p>Thank you!</p><hr><p><strong>${esc(marker)}</strong></p>` +
     sections
       .map(
         (s) =>
@@ -213,8 +219,7 @@ function buildReviewRequest(opts: {
       )
       .join('') +
     `<p>${esc(opts.detailsTitle)}</p>` +
-    groups.map((g) => `<p><strong>${esc(g.heading)}</strong></p><ul>${g.lines.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`).join('') +
-    `<p>Thank you!</p>`;
+    groups.map((g) => `<p><strong>${esc(g.heading)}</strong></p><ul>${g.lines.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`).join('');
   return { text, html };
 }
 
@@ -264,22 +269,21 @@ export function buildCombinedReviewRequest(opts: {
     intro:
       'Could you review these courses for the degree self-check? ' +
       'It cannot count them until they are decided in the course rules.',
-    context: [`Prior graduate study: ${opts.priorStudy}.`],
+    context: [
+      `Prior graduate study: ${opts.priorStudy}.`,
+      'My transcripts (Bachelor’s / Master’s / Ph.D., whichever apply) are attached to this email.',
+    ],
     sections: [
       {
-        rowsIntro:
-          'This is the table that can be imported to the DGS’s rules sheet — Courses tab ' +
-          '(DO NOT MODIFY THIS PART):',
+        rowsIntro: 'This is the table that can be imported to the DGS’s rules sheet — Courses tab:',
         rows: opts.nd.filter((c) => c.unlisted).map((c) => [c.courseId, c.title ?? '']),
       },
       {
-        rowsIntro:
-          'This is the table that can be imported to the DGS’s rules sheet — ExternalCourses tab ' +
-          '(DO NOT MODIFY THIS PART):',
+        rowsIntro: 'This is the table that can be imported to the DGS’s rules sheet — ExternalCourses tab:',
         rows: opts.external.filter((c) => c.unlisted).map((c) => [(c.institution ?? '').toUpperCase(), c.courseId, c.title ?? '']),
       },
     ],
-    detailsTitle: 'Course details (DO NOT MODIFY THIS PART):',
+    detailsTitle: 'Course details:',
     detailGroups: groups,
   });
 }

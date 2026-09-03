@@ -307,11 +307,27 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         update((s) => void (s.gpa = v === '' ? undefined : Number(v)));
       },
     });
-    const transferTable = courseTable(courseLines, 'transfer');
+    // Group the list by university + degree (2026-09-03): Notre Dame first,
+    // then one section per (university, transcript) in first-seen order.
+    const all = student.courses.map((c, index) => ({ c, index }));
+    const nd = all.filter(({ c }) => c.origin === 'nd');
+    const groups: { heading: string; entries: { c: CourseEntry; index: number }[] }[] = [];
+    for (const e of all.filter(({ c }) => c.origin === 'transfer')) {
+      const slot = e.c.degreeLevel
+        ? (DEGREE_SLOTS.find((sl) => sl.level === e.c.degreeLevel)?.label ?? e.c.degreeLevel)
+        : 'graduate coursework (§5.2)';
+      const heading = `${e.c.institution ?? 'University not set'} — ${slot}`;
+      let g = groups.find((x) => x.heading === heading);
+      if (!g) {
+        g = { heading, entries: [] };
+        groups.push(g);
+      }
+      g.entries.push(e);
+    }
     const card = el(
       'section',
       { class: 'card' },
-      el('h2', {}, 'Coursework at Notre Dame ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
+      el('h2', {}, 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
       el(
         'p',
         { class: 'hint' },
@@ -319,9 +335,11 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       ),
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       courseForm(),
-      courseTable(courseLines, 'nd'),
-      transferTable ? el('h3', { class: 'subhead' }, 'From other universities') : null,
-      transferTable,
+      el('h3', { class: 'subhead' }, 'Notre Dame'),
+      nd.length > 0
+        ? courseTable(courseLines, nd)
+        : el('p', { class: 'empty' }, 'No Notre Dame courses yet. Import your transcript above, or add one here.'),
+      ...groups.flatMap((g) => [el('h3', { class: 'subhead' }, g.heading), courseTable(courseLines, g.entries)]),
     );
     return card;
   }
@@ -413,7 +431,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         mailto(DGS.email),
         ') and the Graduate Program Administrator (',
         mailto(GRAD_ADMIN.email),
-        '). The email includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing.',
+        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing.',
       ),
       ...nd.map((c, i) => line(c.entry.courseId, 'Notre Dame', ndReq[i]!.reason)),
       ...external.map((c, i) => line(c.entry.courseId, c.entry.institution ?? 'other university', extReq[i]!.reason)),
@@ -429,7 +447,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                 .then(({ buildCombinedReviewRequest }) =>
                   copyReviewRequest(buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq })),
                 )
-                .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator. (Nothing is sent by this page.)'))
+                .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator, and attach your transcript PDFs. (Nothing is sent by this page.)'))
                 .catch(() => toast('Could not copy automatically — please email the DGS and the Graduate Program Administrator with your course ids, credits, grades and terms.'));
             },
           },
@@ -597,10 +615,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const gradeSel = el('select', {});
     for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, g === 'IP'));
     const originSel = el('select', {});
-    originSel.append(option('nd', 'Taken at Notre Dame', true), option('transfer', 'Transferred in (§5.2)'));
+    originSel.append(option('nd', 'Taken at Notre Dame', true), option('transfer', 'From another university'));
     const institutionInput = el('input', { placeholder: 'Institution', class: 'hidden' });
     // (The per-course core-area claim dropdown was retired 2026-09-03 —
     // the DGS's ExternalCourses rulings are the only §4.4.1 external path.)
+    // Degree level for a course from another university (2026-09-03): an
+    // UNDERGRADUATE course is still worth adding — it earns no transfer
+    // credit (§5.2) but can satisfy §4.4.1 core knowledge once the DGS
+    // confirms it in the external-course rules.
+    const levelSel = el('select', { class: 'hidden' });
+    levelSel.append(option('', 'Graduate coursework (§5.2 transfer)', true));
+    levelSel.append(option('bachelors', 'Undergraduate — core knowledge only, no transfer credit'));
+    levelSel.append(option('masters', 'From a previous Master’s'));
+    levelSel.append(option('phd', 'From a previous Ph.D.'));
     const groupSel = el('select', { class: 'hidden' });
     groupSel.append(option('', 'Assign a specialization group…'));
     for (const g of rules.categoryGroups) groupSel.append(option(g.code, `Count as: ${g.name}`));
@@ -608,6 +635,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     originSel.addEventListener('change', () => {
       const transfer = (originSel as HTMLSelectElement).value === 'transfer';
       institutionInput.classList.toggle('hidden', !transfer);
+      levelSel.classList.toggle('hidden', !transfer);
     });
 
     idInput.addEventListener('change', () => {
@@ -644,6 +672,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       };
       if (entry.origin === 'transfer') {
         if (institutionInput.value) entry.institution = institutionInput.value;
+        const level = (levelSel as HTMLSelectElement).value;
+        if (level) entry.degreeLevel = level as CourseEntry['degreeLevel'];
       }
       const group = (groupSel as HTMLSelectElement).value;
       if (group && !groupSel.classList.contains('hidden')) entry.assignedGroup = group as CourseEntry['assignedGroup'];
@@ -663,26 +693,21 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         labelWrap('Grade', gradeSel),
         labelWrap('Where', originSel),
       ),
-      el('div', { class: 'row3' }, institutionInput, groupSel, el('button', { class: 'btn primary', onclick: add }, 'Add course')),
+      el('div', { class: 'row3' }, institutionInput, levelSel, groupSel, el('button', { class: 'btn primary', onclick: add }, 'Add course')),
     );
   }
 
-  // One table per origin (2026-09-03): Notre Dame courses in the card's main
-  // table, other-university courses in their own table below it with the
-  // university named per row. `which` filters; the original index is kept so
-  // the delete/assign controls edit the right entry.
-  function courseTable(courseLines: { courseId: string; term: Term; text: string }[], which: 'nd' | 'transfer'): HTMLElement | null {
-    const mine = student.courses.map((c, index) => ({ c, index })).filter(({ c }) => (which === 'nd' ? c.origin === 'nd' : c.origin === 'transfer'));
-    if (mine.length === 0) {
-      return which === 'nd' ? el('p', { class: 'empty' }, 'No Notre Dame courses yet. Import your transcript above, or add one here.') : null;
-    }
+  // One table per (university, degree) group (2026-09-03) — the group heading
+  // above each table carries the university and transcript, so the rows stay
+  // uniform. The original index is kept so the delete/assign controls edit
+  // the right entry.
+  function courseTable(courseLines: { courseId: string; term: Term; text: string }[], entries: { c: CourseEntry; index: number }[]): HTMLElement {
     const table = el('table', { class: 'courses' });
     table.append(
       el(
         'tr',
         {},
         el('th', {}, 'Course'),
-        which === 'transfer' ? el('th', {}, 'University') : null,
         el('th', {}, 'Term'),
         el('th', {}, 'Cr'),
         el('th', {}, 'Grade'),
@@ -693,7 +718,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     // Consume lines as they are matched so two entries of the same course in
     // the same term each get their own line (e.g. a duplicate-entry pair).
     const linePool = [...courseLines];
-    mine.forEach(({ c, index }) => {
+    entries.forEach(({ c, index }) => {
       const li = linePool.findIndex((l) => l.courseId === c.courseId && termIndex(l.term) === termIndex(c.term));
       const line = li >= 0 ? linePool.splice(li, 1)[0] : undefined;
       const rule = resolveRuleRow(rules, c.courseId, c.term);
@@ -727,14 +752,6 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'tr',
         { class: countsNothing ? 'dropped' : '' },
         nameCell,
-        which === 'transfer'
-          ? el(
-              'td',
-              {},
-              el('div', {}, c.institution ?? '?'),
-              c.degreeLevel ? el('div', { class: 'ctitle' }, DEGREE_SLOTS.find((sl) => sl.level === c.degreeLevel)?.label ?? '') : null,
-            )
-          : null,
         el('td', {}, termLabel(c.term)),
         el('td', {}, String(c.credits)),
         el('td', {}, c.grade === 'IP' ? 'In progress' : c.grade),

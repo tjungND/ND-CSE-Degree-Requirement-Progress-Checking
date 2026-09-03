@@ -163,9 +163,13 @@ Known-pending (the app's diagnostics panel is the live truth):
   prior-university rows from `priorTranscriptSection()`; the card is FIRST on the page, "start
   here", and imports are one-at-a-time: while any preview is open, `importsBusy()` +
   the ND-preview state disable every import button until it is confirmed or cancelled. The
-  coursework card lists ND courses and other-university courses in separate tables, the latter
-  with a University column; a Previous Master's/Ph.D. import while priorMs='none' shows a
-  reconcile warning in the standing card — never an automatic flip): → `src/transcript/external.ts`
+  "Coursework" card (retitled from "Coursework at Notre Dame" 2026-09-03) groups the list by
+  university AND degree — "Notre Dame" first, then one `h3.subhead` + table per
+  (university — transcript slot); the manual form's "From another university" entries carry a
+  degree-level select (graduate §5.2 / undergraduate = core-knowledge-only / Master's / Ph.D.)
+  so undergrad courses can be added for §4.4.1; a Previous Master's/Ph.D. import while
+  priorMs='none' shows a reconcile warning in the standing card — never an automatic flip): →
+  `src/transcript/external.ts`
   (best-effort candidates; no text layer → explicit OCR opt-in, English only; ND
   detected → redirected to the ND row; unmappable grades kept raw and the student MUST choose)
   → editable preview (`src/ui/external-upload.ts`) → `origin:'transfer'` entries tagged
@@ -180,9 +184,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   unattested dgs_approval, or blank-verdict, plus external courses without a ruling (or with
   transferability undecided) — feeds ONE combined request in the "Ask the DGS to review" card
   (`askDgsCard` in app.ts + `buildCombinedReviewRequest` in `src/transcript/external.ts`;
-  consolidation 2026-09-03 — students found two buttons/two emails confusing). The request has
-  one tab-separated section per sheet tab (Courses: course_id, title; ExternalCourses:
-  UNIVERSITY, course_id, course_title), rows only for courses needing a NEW sheet row;
+  consolidation 2026-09-03 — students found two buttons/two emails confusing). The request keeps
+  the human half (greeting, prior graduate study, "transcripts are attached", sign-off) above one
+  divider + "(DO NOT MODIFY ANYTHING BELOW THIS LINE)"; below it, one tab-separated section per
+  sheet tab (Courses: course_id, title; ExternalCourses: UNIVERSITY, course_id, course_title),
+  rows only for courses needing a NEW sheet row, then details grouped per transcript;
   engine-ineligible courses (outside the §5.2 window etc.) are excluded as not worth the DGS's
   time. The copy writes text/plain (tabs) AND text/html (real `<table>`s): HTML email flattens
   tabs to spaces, a table survives Gmail and pastes as cells. (A paste while a cell is in EDIT
