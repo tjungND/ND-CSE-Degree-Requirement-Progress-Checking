@@ -19,7 +19,7 @@ export const CONTACTS: Contact[] = [
     scope: 'Ph.D. policies and the graduate program in general',
   },
   {
-    role: 'Assistant DGS',
+    role: 'Assistant DGS (ADGS)',
     name: 'Aaron Dingler',
     email: 'adingler@nd.edu',
     scope: 'MSCSE policies',

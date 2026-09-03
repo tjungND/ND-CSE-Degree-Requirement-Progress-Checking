@@ -58,11 +58,11 @@ day too (its "How the app reads it" cell now names `data/sheet-urls.json` and in
 ExternalCourses in the publish list) — nothing sheet-side is open. The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
-One-time setup for the external-transcripts feature (branch `feature/external-transcripts`):
-create the **ExternalCourses** tab in the rules sheet (header row in
-`data/README.md`; sample rows in `data/external.sample.csv`), publish it to the
-web as CSV, and paste the URL into `data/sheet-urls.json` (`external`). The app,
-sync and snapshot all treat that tab as optional until then.
+One-time setup for the external-transcripts feature — DONE 2026-09-02: the **ExternalCourses**
+tab exists in the rules sheet (header row in `data/README.md`; sample rows in
+`data/external.sample.csv`), is published to the web as CSV, and its URL is in
+`data/sheet-urls.json` (`external`). The app, sync and snapshot all treat the tab as
+optional, so clearing that URL turns the external rulings off without breaking anything.
 
 The optional Parameters row `rules_effective_date` (`2026-09-01` format) replaces the automatic
 "The course rules here were last updated on <date>" half of the dated line on both pages with
