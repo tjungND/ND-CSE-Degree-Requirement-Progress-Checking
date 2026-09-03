@@ -51,7 +51,10 @@ logic is superseded and was found buggy; never treat it as truth. `START-HERE.md
 replaced by `README.md` on 2026-09-01.)
 
 ## Architecture (as built)
-- Vite + TypeScript, vanilla UI, zero runtime dependencies except lazily-loaded `pdfjs-dist`.
+- Vite + TypeScript, vanilla UI, zero runtime dependencies except two lazily-loaded ones:
+  `pdfjs-dist` (transcript PDFs) and `tesseract.js` (opt-in OCR of scanned external
+  transcripts — self-hosted engine + English model in `public/ocr/`, ~7 MB, fetched
+  same-origin only when a student explicitly chooses OCR).
 - `src/engine/` — pure functions only: `audit(student, rules, today)`. No DOM, no fetch, no
   `Date.now()` ("today" is an argument so tests are deterministic). One function per
   requirement with its handbook sentence quoted above it; stable requirement ids in `audit.ts`.
@@ -91,8 +94,9 @@ replaced by `README.md` on 2026-09-01.)
 - Record every new interpretation choice in `docs/DECISIONS.md` (date, question, decision, who).
 - `npm test` and `npm run build` must pass before you say something is done; run `npm run e2e`
   for UI-visible changes and look at the screenshots.
-- Do not add analytics, tracking, runtime network calls beyond the sheet fetch, or any
-  dependency without saying why.
+- Do not add analytics, tracking, runtime network calls beyond the sheet fetch (same-origin
+  loads of the app's own bundled assets, e.g. `public/ocr/`, are fine), or any dependency
+  without saying why.
 - Never let a `:` (colon) into any parent folder name — it breaks npm's PATH and vite's module
   loader (details in `MAINTENANCE.md`).
 - The project is dual-licensed by the University of Notre Dame (free for non-commercial use,

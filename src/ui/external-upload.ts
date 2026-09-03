@@ -30,15 +30,24 @@ interface PreviewRow {
   rawGrade?: string;
   season: Season;
   year: number | undefined;
+  /** OCR read this row's line poorly — the preview marks it for checking. */
+  lowConfidence?: boolean;
 }
 
 interface ExternalPreview {
   slot: DegreeLevel;
   university: string;
   rows: PreviewRow[];
+  /** Rows came from OCR of a scan — approximate; the preview says so. */
+  fromOcr?: boolean;
 }
 
 let preview: ExternalPreview | undefined;
+/** A scan was uploaded and awaits the student's explicit OCR opt-in
+ * (DGS decision 2026-09-02: never OCR without asking; English only). */
+let pendingScan: { slot: DegreeLevel; slotLabel: string; buffer: ArrayBuffer; filename: string } | undefined;
+/** OCR in flight — drives the progress line. */
+let ocrBusy: { label: string; percent: number } | undefined;
 
 export interface ExternalCardArgs {
   student: Student;
@@ -59,10 +68,12 @@ export function externalTranscriptsCard(args: ExternalCardArgs): HTMLElement {
       'p',
       { class: 'hint' },
       'Took courses elsewhere? Upload up to three transcripts — Bachelor’s, Master’s, Ph.D. — and every course is checked against the DGS’s external-course rules: whether it satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2). Bachelor’s courses can satisfy core knowledge but never transfer credit (§5.2). ',
-      el('strong', {}, 'System-generated PDFs only'),
-      ' — no scans or photos. Like everything here, the file is read on your own computer and never uploaded.',
+      el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
+      ' — after you agree, and with every field checked by you. Like everything here, the file is read on your own computer and never uploaded.',
     ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
+    pendingScan ? scanOptInBlock(args) : null,
+    ocrBusy ? ocrProgressBlock() : null,
     preview ? previewBlock(args) : null,
     pendingRequestBlock(student, rules, args.toast),
   );
@@ -82,11 +93,16 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
     toast('Reading the transcript… (it never leaves this browser)');
     try {
       const { pdfToLines } = await import('../transcript/pdf.ts'); // pdfjs loads lazily
-      const lines = await pdfToLines(await file.arrayBuffer());
+      // Keep the original bytes: pdfjs consumes the buffer it is given, and a
+      // scan goes on to OCR (the student deciding) with the same file.
+      const buffer = await file.arrayBuffer();
+      const lines = await pdfToLines(buffer.slice(0));
       const { parseExternalTranscript } = await import('../transcript/external.ts');
       const parsed = parseExternalTranscript(lines);
       if (!parsed.hasTextLayer) {
-        toast('This PDF has no readable text, so it is a scan or a photo — only system-generated PDFs are accepted, for correctness. Ask your university for a digital PDF, or use your browser’s "Print → Save as PDF" on the online transcript.');
+        // A scan or photo: never OCR silently — offer it (DGS decision 2026-09-02).
+        pendingScan = { slot: slot.level, slotLabel: slot.label, buffer, filename: file.name };
+        render();
         return;
       }
       if (parsed.looksLikeNotreDame) {
@@ -145,6 +161,100 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   return el('div', { class: 'external-slot' }, ...parts);
 }
 
+/** The explicit OCR opt-in for a scanned PDF (DGS decision 2026-09-02):
+ * system-generated PDFs stay the encouraged path; OCR is approximate,
+ * ENGLISH-ONLY, and never runs without the student choosing it. */
+function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
+  const { toast, render } = args;
+  const scan = pendingScan!;
+  return el(
+    'div',
+    { class: 'ocr-optin', role: 'note' },
+    el(
+      'p',
+      {},
+      el('strong', {}, `“${scan.filename}” looks like a scanned or photographed transcript. `),
+      'A scan cannot be read exactly — the reliable route is a system-generated PDF from your university’s portal. You can instead try the built-in text recognition (OCR): ',
+      el('strong', {}, 'English-language transcripts only'),
+      ', results are approximate, and you must check every field before adding. Either way the file never leaves your browser.',
+    ),
+    el(
+      'div',
+      { class: 'save-buttons' },
+      el(
+        'button',
+        {
+          class: 'btn primary',
+          onclick: () => {
+            const { slot, slotLabel, buffer } = scan;
+            pendingScan = undefined;
+            ocrBusy = { label: 'Starting the text reader', percent: 0 };
+            render();
+            void (async () => {
+              try {
+                const { ocrPdfToLines } = await import('../transcript/ocr.ts');
+                const { lines, pagesRead, pagesTotal } = await ocrPdfToLines(buffer, (progress) => {
+                  ocrBusy = progress;
+                  render();
+                });
+                const { parseExternalTranscript } = await import('../transcript/external.ts');
+                const parsed = parseExternalTranscript(lines.map((l) => l.text), lines.map((l) => l.confidence));
+                ocrBusy = undefined;
+                if (parsed.looksLikeNotreDame) {
+                  render();
+                  toast('This looks like a Notre Dame transcript — use the "Upload ND unofficial transcript" button above (with the digital PDF from insideND, not a scan).');
+                  return;
+                }
+                preview = {
+                  slot,
+                  university: parsed.university ?? '',
+                  fromOcr: true,
+                  rows: parsed.courses.map((c) => ({
+                    include: true,
+                    courseId: c.courseId,
+                    title: c.title ?? '',
+                    credits: c.credits,
+                    grade: c.grade ?? '',
+                    rawGrade: c.rawGrade,
+                    season: 'fall' as Season,
+                    year: c.year,
+                    lowConfidence: c.lowConfidence,
+                  })),
+                };
+                render();
+                if (parsed.courses.length === 0) {
+                  toast(`OCR finished but found no course-like lines (${pagesRead} of ${pagesTotal} pages read). You can add the courses by hand in the preview.`);
+                } else if (pagesTotal > pagesRead) {
+                  toast(`Read the first ${pagesRead} of ${pagesTotal} pages (the reader stops at ${pagesRead}).`);
+                }
+              } catch (e) {
+                // Leave a breadcrumb for debugging without surfacing internals.
+                console.error('OCR failed:', e);
+                ocrBusy = undefined;
+                render();
+                toast('The text reader could not run in this browser — please use a system-generated PDF instead.');
+              }
+            })();
+          },
+        },
+        'Try OCR (English only)',
+      ),
+      el('button', { class: 'btn', onclick: () => { pendingScan = undefined; render(); } }, 'Cancel'),
+    ),
+  );
+}
+
+/** Progress line while OCR runs (model load, then page by page). */
+function ocrProgressBlock(): HTMLElement {
+  const busy = ocrBusy!;
+  return el(
+    'div',
+    { class: 'ocr-progress', role: 'status', 'aria-live': 'polite' },
+    el('span', { class: 'spin sm', 'aria-hidden': 'true' }),
+    ` ${busy.label}… ${busy.percent}%`,
+  );
+}
+
 function previewBlock(args: ExternalCardArgs): HTMLElement {
   const { rules, update, toast, render } = args;
   const p = preview!;
@@ -154,6 +264,16 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   uniInput.addEventListener('change', () => (p.university = (uniInput as HTMLInputElement).value));
   box.append(
     el('h3', {}, `${slotLabel} transcript — check every line, fix what the parser got wrong, then add`),
+    ...(p.fromOcr
+      ? [
+          el(
+            'div',
+            { class: 'ocr-banner', role: 'note' },
+            el('strong', {}, 'Read by OCR from a scan — approximate. English transcripts only. '),
+            'Check every field against your transcript before adding; rows marked ⚠ were hard to read.',
+          ),
+        ]
+      : []),
     el('p', { class: 'hint' }, 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it. Grades the parser could not read must be chosen by hand (rows without a grade are not added).'),
     el('label', { class: 'field' }, el('span', { class: 'label' }, 'University'), uniInput),
   );
@@ -187,8 +307,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     });
     const tr = el(
       'tr',
-      {},
-      el('td', {}, cb),
+      { class: r.lowConfidence ? 'ocr-low' : '' },
+      el('td', {}, r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null, cb),
       el('td', {}, idIn),
       el('td', {}, titleIn),
       el('td', {}, crIn),

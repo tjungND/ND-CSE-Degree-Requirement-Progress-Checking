@@ -107,6 +107,12 @@ last edit (see "Sync" below).
 
 ## Repo peculiarities you should know
 
+- **`public/ocr/` holds the self-hosted OCR engine** (tesseract.js v7 worker, SIMD+LSTM WASM
+  core, English best_int model — ~7 MB committed on purpose): the app promises no external
+  network calls, so these may NEVER be swapped for CDN URLs. They load only when a student
+  explicitly chooses OCR for a scanned external transcript (English-only, opt-in). Update
+  recipe in `docs/CLAUDE-HANDOFF.md`.
+
 - Tests run on **node's built-in runner** (`node --test`; Node ≥ 24 runs the TypeScript
   directly) — no test-framework dependency. `npm run dev` gives a live-reload dev server;
   `npm run build && npm run preview` serves the production build.

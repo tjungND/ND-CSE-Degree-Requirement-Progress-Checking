@@ -276,3 +276,10 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .external-verdicts h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
 .external-verdict { font-size: 13px; margin: 3px 0; color: var(--ink); }
 .external-verdict .cid { font-weight: 600; }
+
+/* opt-in OCR for scanned external transcripts (src/ui/external-upload.ts) */
+.ocr-optin { margin-top: 10px; background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 12px 14px; }
+.ocr-optin p { margin: 0 0 10px; }
+.ocr-banner { background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 8px 12px; margin: 6px 0 10px; font-size: 13.5px; }
+.ocr-progress { margin-top: 10px; color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+tr.ocr-low td { background: #fff7e0; }

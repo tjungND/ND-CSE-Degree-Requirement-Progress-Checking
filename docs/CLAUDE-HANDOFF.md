@@ -172,6 +172,23 @@ Known-pending (the app's diagnostics panel is the live truth):
   rules-date/loading card); its lone failure degrades to "not yet reviewed", never a dead page.
   Tests: `tests/external-rules.test.ts`, `tests/external-transcript.test.ts`, scenario patch key
   `external`; e2e uploads `tests/fixtures/external-transcript.pdf` into the Master's slot.
+- **Opt-in OCR for scanned external transcripts** (2026-09-02, DGS decision): a PDF with no
+  text layer now offers `.ocr-optin` instead of a flat rejection — explicit button, wording
+  states ENGLISH-LANGUAGE TRANSCRIPTS ONLY and that results are approximate. Engine:
+  `tesseract.js` v7 (`src/transcript/ocr.ts`), entirely in-browser with SELF-HOSTED assets in
+  `public/ocr/` (worker.min.js, tesseract-core-simd-lstm.wasm.js single-file SIMD+LSTM core,
+  eng.traineddata.gz best_int) — never the CDN defaults, or the no-external-calls rule breaks.
+  Requires WASM SIMD (2021+ browsers); failure → plain message to use a system-generated PDF.
+  Pages render via pdfjs at scale 2.5, max 10 pages; per-line confidences flow through
+  `parseExternalTranscript(lines, confidences)` and rows under 80 get `lowConfidence` → ⚠ +
+  amber row in the preview (`.ocr-low`), plus the `.ocr-banner` warning. The ND uploader still
+  takes NO scans (digital insideND PDF only; OCR'd ND text redirects there). The e2e OCR leg
+  runs the real engine in headless Chrome (~15-60 s; 120 s waitFor).
+- Updating the OCR assets: bump `tesseract.js` in package.json, `npm install`, re-copy
+  `node_modules/tesseract.js/dist/worker.min.js` and
+  `node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js` into `public/ocr/`, and
+  fetch the matching `@tesseract.js-data/eng` best_int `eng.traineddata.gz`; the scan fixture
+  regenerates with `python3 tests/fixtures/make-scan-fixture.py`.
 - **Attestations**: DGS-approval checkboxes upgrade matching courses' certainty tier;
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).

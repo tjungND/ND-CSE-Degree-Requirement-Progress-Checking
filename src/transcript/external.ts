@@ -15,6 +15,9 @@ export interface ExternalCourseCandidate {
   grade?: Grade;
   rawGrade?: string;
   year?: number;
+  /** OCR only: the source line read below the confidence floor — the preview
+   * marks the row so the student checks it against the paper. */
+  lowConfidence?: boolean;
 }
 
 export interface ExternalParseResult {
@@ -64,7 +67,10 @@ function guessUniversity(lines: string[]): string | undefined {
   return undefined;
 }
 
-export function parseExternalTranscript(lines: string[]): ExternalParseResult {
+/** OCR lines below this confidence get their rows flagged in the preview. */
+const OCR_CONFIDENCE_FLOOR = 80;
+
+export function parseExternalTranscript(lines: string[], confidences?: number[]): ExternalParseResult {
   const allText = lines.join('\n');
   if (allText.replace(/\s+/g, '').length < 200) {
     return { hasTextLayer: false, looksLikeNotreDame: false, courses: [] };
@@ -73,8 +79,10 @@ export function parseExternalTranscript(lines: string[]): ExternalParseResult {
 
   const courses: ExternalCourseCandidate[] = [];
   let currentYear: number | undefined;
+  let lineIndex = -1;
   const LEAD_CODE_RE = /^([A-Z]{2,6}[- ]?\d{2,5}[A-Z]{0,2}|\d{5,10})\b[.:]?\s*(.*)$/;
   for (const line of lines) {
+    lineIndex += 1;
     // Track the nearest term-ish header so course rows inherit its year.
     if (/(fall|spring|summer|autumn|winter|semester|term|trimester|quarter|session)/i.test(line)) {
       const y = YEAR_RE.exec(line);
@@ -125,6 +133,10 @@ export function parseExternalTranscript(lines: string[]): ExternalParseResult {
     // A candidate needs a code plus at least a credit value or a grade —
     // otherwise it is a header/footer line that happened to start with a code.
     if (credits === undefined && grade === undefined && rawGrade === undefined) continue;
+    const confidence = confidences?.[lineIndex];
+    // OCR-only sanity check: real credit values come in half-credit steps, so
+    // "3.6" is a misread ("3.0" with a 0→6 confusion) — flag, never silently fix.
+    const oddCredits = confidences !== undefined && credits !== undefined && (credits * 2) % 1 !== 0;
     courses.push({
       courseId: code.replace(/^([A-Z]+)[- ]?(\d)/, '$1 $2'),
       title: titleParts.join(' ').slice(0, 90) || undefined,
@@ -132,6 +144,7 @@ export function parseExternalTranscript(lines: string[]): ExternalParseResult {
       grade,
       rawGrade,
       year: YEAR_RE.exec(line) ? Number(YEAR_RE.exec(line)![1]) : currentYear,
+      lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
     });
   }
   return { hasTextLayer: true, looksLikeNotreDame, university: guessUniversity(lines), courses };

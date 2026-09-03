@@ -2,7 +2,7 @@
   "name": "nd-cse-degree-audit",
   "private": true,
   "version": "1.0.0",
-  "description": "ND CSE Degree Requirement Progress Checking — static self-check audit against the CSE Graduate Studies Handbook §3 (MSCSE) and §4 (Ph.D.)",
+  "description": "ND CSE Degree Requirement Progress Checking \u2014 static self-check audit against the CSE Graduate Studies Handbook \u00a73 (MSCSE) and \u00a74 (Ph.D.)",
   "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
   "scripts": {
@@ -14,13 +14,14 @@
     "sync-sheet": "node scripts/sync-sheet.ts",
     "e2e": "node scripts/e2e/run.mjs"
   },
-  "//scripts-note": "Tests run on node's built-in runner (node --test; Node >= 24 runs the TypeScript directly) — no test-framework dependency. The test script must name the files with a quoted glob: giving node --test a directory (tests/) fails on Node 24 with 'Cannot find module', which is what broke CI on Aug 31–Sep 1, 2026. Vite does the dev server and the production build. Never put a ':' in any parent folder name — it corrupts npm's PATH and breaks vite's module loader.",
+  "//scripts-note": "Tests run on node's built-in runner (node --test; Node >= 24 runs the TypeScript directly) \u2014 no test-framework dependency. The test script must name the files with a quoted glob: giving node --test a directory (tests/) fails on Node 24 with 'Cannot find module', which is what broke CI on Aug 31\u2013Sep 1, 2026. Vite does the dev server and the production build. Never put a ':' in any parent folder name \u2014 it corrupts npm's PATH and breaks vite's module loader.",
   "devDependencies": {
     "@types/node": "^26.4.0",
     "typescript": "^5.6.0",
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "pdfjs-dist": "^6.3.289"
+    "pdfjs-dist": "^6.3.289",
+    "tesseract.js": "^7.0.0"
   }
 }

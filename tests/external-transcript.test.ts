@@ -85,3 +85,41 @@ describe('external transcript parsing', () => {
     assert.equal(r.courses[0]?.courseId, 'MATH 21001');
   });
 });
+
+describe('OCR confidence flags', () => {
+  it('flags rows whose source line read below the floor; leaves confident rows unflagged', () => {
+    const lines = [
+      'Some University   Transcript of Records',
+      'MATH 21001   Linear Algebra   4.0   A',
+      'CS 5321   Operating Systems   3.0   B',
+      ...Array(10).fill('Record issued by the Registrar — verify with the issuing office before relying on it.'),
+    ];
+    const conf = lines.map(() => 96);
+    conf[2] = 61; // the CS 5321 line was hard to read
+    const r = parseExternalTranscript(lines, conf);
+    assert.equal(r.courses.length, 2);
+    assert.equal(r.courses[0]?.lowConfidence, undefined);
+    assert.equal(r.courses[1]?.lowConfidence, true);
+  });
+
+  it('flags OCR rows whose credits are not a half-credit multiple (0→6 misreads)', () => {
+    const lines = [
+      'Some University   Transcript of Records',
+      'MATH 21001   Linear Algebra   3.6   A',
+      ...Array(10).fill('Record issued by the Registrar.'),
+    ];
+    const withConf = parseExternalTranscript(lines, lines.map(() => 96));
+    assert.equal(withConf.courses[0]?.lowConfidence, true);
+    const noConf = parseExternalTranscript(lines);
+    assert.equal(noConf.courses[0]?.lowConfidence, undefined); // text layer: trust the file
+  });
+
+  it('never flags anything when no confidences are given (text-layer path)', () => {
+    const r = parseExternalTranscript([
+      'Some University   Transcript of Records',
+      'MATH 21001   Linear Algebra   4.0   A',
+      ...Array(10).fill('Record issued by the Registrar.'),
+    ]);
+    assert.equal(r.courses[0]?.lowConfidence, undefined);
+  });
+});
