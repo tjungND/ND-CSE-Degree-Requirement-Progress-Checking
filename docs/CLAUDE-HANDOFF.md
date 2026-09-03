@@ -33,8 +33,8 @@ Known-pending (the app's diagnostics panel is the live truth):
 - GitHub Pages is live at https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
   (Settings → Pages → Source: GitHub Actions; deploy green since 2026-09-01) — link it, and
   `courses.html`, from cse.nd.edu.
-- The sheet's own README tab still says the CSV links go in `src/data/sheet-urls.ts`; the real
-  file is `data/sheet-urls.json` (sheet-side fix for the DGS).
+- The sheet's own README tab pointed to `src/data/sheet-urls.ts`; fixed by the DGS 2026-09-03 —
+  it now says `data/sheet-urls.json` and lists ExternalCourses among the tabs to publish.
 - Google's published-CSV endpoint intermittently HANGS (no response at all): seen 2026-09-01
   from a GitHub runner (the first sync-sheet run timed out at 30 s) and from a browser (one
   request hung past 20 s, the next three took ~300 ms). `scripts/sync-sheet.ts` therefore fetches

@@ -47,14 +47,15 @@ change; ask for it.
 4. Record any interpretation calls in `docs/DECISIONS.md` (that file is the memory of every
    judgment call ever made — read it before overruling one).
 
-## Sheet items still open (as of 2026-09-03)
+## Sheet items (all clear as of 2026-09-03)
 
 The one-time setup is done: the seven Parameters rows the engine needs are in the sheet, and the
 three mistyped `Courses` rows (`CSE 98900`, `CSE 68900`, `CSE 87701`) are fixed. `CSE 44901` was
 decided on 2026-09-03 (dgs_approval for both degrees; kept inactive so students who took it
 years ago can still enter it), and the last active rows with blank verdicts were filled the
-same day (both verified against the live CSV). Still open: the sheet's own README tab points
-to the old `src/data/sheet-urls.ts` path — the real file is `data/sheet-urls.json`. The app's
+same day (both verified against the live CSV). The sheet's own README tab was fixed the same
+day too (its "How the app reads it" cell now names `data/sheet-urls.json` and includes
+ExternalCourses in the publish list) — nothing sheet-side is open. The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
 One-time setup for the external-transcripts feature (branch `feature/external-transcripts`):
