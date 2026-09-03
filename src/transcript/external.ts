@@ -27,8 +27,18 @@ export interface ExternalParseResult {
   looksLikeNotreDame: boolean;
   /** Best guess at the institution's name, from the header lines. */
   university?: string;
+  /** POSITIVE evidence only (2026-09-03): a line that both names a graduate
+   * degree and says conferred/awarded/granted. Absence stays undefined — the
+   * app never guesses whether a degree was completed. */
+  degreeConferred?: true;
   courses: ExternalCourseCandidate[];
 }
+
+/** Conferral wording and graduate-degree names must appear on the SAME line
+ * ("Master of Science — Conferred May 2021"), so a bachelor's conferral on a
+ * graduate transcript does not count as graduate-degree evidence. */
+const CONFER_RE = /conferr|awarded|granted/i;
+const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy/i;
 
 const LETTER_GRADE_RE = /^(A|A-|B\+|B|B-|C\+|C|C-|D\+?|D-?|F)$/;
 // Codes: "CS 5321", "CS-5321", "COMP1521", or an all-digit id ("30240233").
@@ -155,7 +165,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
     });
   }
-  return { hasTextLayer: true, looksLikeNotreDame, university: guessUniversity(lines), courses };
+  const degreeConferred = lines.some((l) => CONFER_RE.test(l) && GRAD_DEGREE_RE.test(l)) || undefined;
+  return { hasTextLayer: true, looksLikeNotreDame, university: guessUniversity(lines), degreeConferred, courses };
 }
 
 /** One unreviewed course, pre-rendered for the review request (the caller

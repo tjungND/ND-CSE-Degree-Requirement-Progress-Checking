@@ -164,7 +164,7 @@ export function msTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResu
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date) {
       status = 'unmet';
-      detail = `Overdue — the ${years}-year limit passed on ${date} (approximate). §3.3: failure to complete within ${years} years forfeits degree eligibility. Talk to the DGS.`;
+      detail = `Overdue — the ${years}-year limit passed on ${date} (approximate). Talk to the DGS.`;
       deadline = { date, approx: true, state: 'overdue', label: `Overdue since ${date}` };
     } else {
       status = 'in_progress';

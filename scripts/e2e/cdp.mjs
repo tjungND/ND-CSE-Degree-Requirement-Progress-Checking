@@ -69,6 +69,7 @@ export async function openSession(debugPort, outDir) {
   // failure path is exercised on every run. With network, the live rules load
   // and the masthead appears by itself.
   let failureShotTaken = false;
+  let consentShotTaken = false;
   const open = async (url, readySelector = '.masthead h1') => {
     await send('Page.navigate', { url });
     await waitFor(`document.querySelector('${readySelector}') || document.querySelector('.load-card.failed')`);
@@ -81,6 +82,16 @@ export async function openSession(debugPort, outDir) {
       }
       await evalJs(`document.querySelector('.load-card.failed button.use-saved').click()`);
       await waitFor(`document.querySelector('${readySelector}')`);
+    }
+    // Department-approval gate (2026-09-03): screenshot the first one, then
+    // Agree so the scripts can click the page beneath.
+    if (await evalJs(`!!document.querySelector('.consent-overlay')`)) {
+      if (!consentShotTaken) {
+        await shot('consent-gate');
+        consentShotTaken = true;
+      }
+      await evalJs(`document.querySelector('.consent-overlay button.btn').click()`);
+      await waitFor(`!document.querySelector('.consent-overlay')`);
     }
   };
 

@@ -1,0 +1,22 @@
+{
+ "name": "phd-ms-along-the-way",
+ "description": "DGS policy 2026-09-03: the along-the-way MSCSE (§4.5) needs the candidacy exam passed AND at least ms_regular_credits_min regular course credits completed at Notre Dame. This student passed candidacy but has only 6 completed regular ND credits, so the row shows progress instead of met.",
+ "today": "2028-03-01",
+ "rules": { "base": "default" },
+ "student": {
+  "schemaVersion": 1,
+  "program": "phd",
+  "entryTerm": { "season": "fall", "year": 2026 },
+  "priorMs": "none",
+  "gpa": 3.8,
+  "courses": [
+   { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+   { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "B+", "origin": "nd" }
+  ],
+  "milestones": { "candidacyPassed": "2027-12-01" },
+  "attestations": {}
+ },
+ "expect": {
+  "phd.msAlongTheWay": { "status": "in_progress", "detailIncludes": ["6 of 24"] }
+ }
+}

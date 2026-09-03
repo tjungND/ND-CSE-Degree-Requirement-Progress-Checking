@@ -136,5 +136,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   );
   await s.waitFor(`document.querySelectorAll('.external-verdict').length === 6`);
   console.log('  6 external courses (3 typed + 3 OCR) in the verdicts block');
+  // Undergrad core-title rule (2026-09-03): of the 3 OCR bachelors courses,
+  // the two whose titles mention operating/algorithm join the request —
+  // MATH (1) + masters slot (3) + those two = 6 pending.
+  const combined6 = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
+  if (!combined6.includes('Copy review request for 6 courses')) {
+    throw new Error('expected 6 pending after OCR (undergrad core-title rule): ' + combined6.slice(0, 140));
+  }
+  console.log('  undergrad core-title courses joined the review request (6 pending)');
   await s.shot('external-ocr-added');
 }

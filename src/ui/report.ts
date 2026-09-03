@@ -195,7 +195,11 @@ export function advisorSummary(
     `${report.summary.met} of ${report.summary.scored} requirements met as of ${opts.todayIso}.`;
   const line = (r: RequirementResult, detailed: boolean) =>
     `${r.title} (${r.citation.section})${detailed && r.detail ? ` — ${r.detail}` : ''}`;
-  const courses = report.courseLines.map((l) => `${l.courseId} (${termLabel(l.term)}): ${l.text}`);
+  // Only the courses that COUNT toward something (DGS request, 2026-09-03) —
+  // same pattern the on-page table uses to strike dropped rows.
+  const COUNTS_NOTHING_RE = /^(not counted|superseded|failed|credits count once)/;
+  const countedLines = report.courseLines.filter((l) => !COUNTS_NOTHING_RE.test(l.text));
+  const courses = countedLines.map((l) => `${l.courseId} (${termLabel(l.term)}): ${l.text}`);
   const notices = [
     `Self-check against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`,
     `Beta version under testing. ${BETA_NOTICE} Confirm with the DGS office.`,
@@ -204,15 +208,34 @@ export function advisorSummary(
   const text =
     `Subject: Degree progress summary (CSE degree self-check)\n\nDear Advisor,\n\n${intro}\n\n${standing}\n\n` +
     groups.map((g) => `${g.heading.toUpperCase()}\n${g.rows.map((r) => `- ${line(r, g.detailed)}`).join('\n')}`).join('\n\n') +
-    (courses.length > 0 ? `\n\nCOURSES AS COUNTED\n${courses.map((c) => `- ${c}`).join('\n')}` : '') +
+    (courses.length > 0 ? `\n\nCOURSES COUNTED TOWARD REQUIREMENTS\n${courses.map((c) => `- ${c}`).join('\n')}` : '') +
     `\n\n${notices.join('\n')}\n\nThank you!\n`;
+  // HTML flavor: one TABLE per part (DGS request, 2026-09-03) so the summary
+  // reads cleanly in an email client; the text flavor keeps simple lists.
+  const table = (headers: string[], rows: string[][]) =>
+    `<table border="1" cellspacing="0" cellpadding="4"><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>` +
+    rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('') +
+    `</table>`;
   const html =
     `<p>Subject: Degree progress summary (CSE degree self-check)</p><p>Dear Advisor,</p>` +
     `<p>${esc(intro)}</p><p>${esc(standing)}</p>` +
     groups
-      .map((g) => `<p><strong>${esc(g.heading)}</strong></p><ul>${g.rows.map((r) => `<li>${esc(line(r, g.detailed))}</li>`).join('')}</ul>`)
+      .map(
+        (g) =>
+          `<p><strong>${esc(g.heading)}</strong></p>` +
+          table(
+            ['Requirement', '§', 'Status'],
+            g.rows.map((r) => [r.title, r.citation.section, g.detailed && r.detail ? r.detail : STATUS_LABEL[r.status]]),
+          ),
+      )
       .join('') +
-    (courses.length > 0 ? `<p><strong>Courses as counted</strong></p><ul>${courses.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '') +
+    (courses.length > 0
+      ? `<p><strong>Courses counted toward requirements</strong></p>` +
+        table(
+          ['Course', 'Term', 'Counts toward'],
+          countedLines.map((l) => [l.courseId, termLabel(l.term), l.text]),
+        )
+      : '') +
     notices.map((n) => `<p>${esc(n)}</p>`).join('') +
     `<p>Thank you!</p>`;
   return { text, html };

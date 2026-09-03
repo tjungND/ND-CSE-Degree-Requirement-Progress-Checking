@@ -154,6 +154,15 @@ Known-pending (the app's diagnostics panel is the live truth):
   in bold that the course rules are accurate — exactly the rules the DGS and the Graduate
   Program Administrator use to determine requirement satisfaction — and that what is in beta is
   the TOOL's application of them. Don't reintroduce wording that hedges on the rules themselves.
+- **Approval gate + detail philosophy + along-the-way gate** (2026-09-03, DGS): `.consent-overlay`
+  in `startApp()` shows on EVERY visit until Agree (not stored; cdp.mjs `open()` auto-dismisses it
+  in e2e). Detail philosophy: MET rows explain how, unsatisfied rows show only progress (rules
+  live behind the § chips). `msAlongTheWayRow` needs candidacy passed AND
+  `ms_regular_credits_min` regular credits at ND (`alloc.ndRegular.definite`; scenario
+  phd-ms-along-the-way). Unreviewed undergrad courses whose titles match `CORE_TITLE_RE` in
+  app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
+  conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
+  `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
 - **Rules on the output side + advisor summary** (2026-09-03, DGS): every requirement card's §
   chip is a button revealing `.rule-quote` — the handbook sentence from `citation.quote`; the
   input-card intros stay lean (no policy prose). `advisorSummary()` in report.ts replaces

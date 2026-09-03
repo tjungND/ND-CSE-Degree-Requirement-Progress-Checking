@@ -54,15 +54,14 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   if (advisorIdentified || advisorName) {
     status = 'met';
     detail = `Advisor${advisorName ? `: ${advisorName}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}.`;
-    if (!ms) detail += ' Any disruption to this relationship must be reported to the DGS immediately (§2.3).';
   } else {
     status = 'unmet';
     const start = startOfTerm(ctx.entry).date;
     detail = ms
       ? ctx.today > start
-        ? `No advisor entered — an advisor was expected by the beginning of your first semester (§2.3). Talk to the DGS.`
+        ? `No advisor entered — was expected by your first semester. Talk to the DGS.`
         : `Identify a thesis or project advisor by the beginning of your first semester (§2.3).`
-      : `No advisor entered — continuous advisor supervision is required for the whole Ph.D. (§2.3).`;
+      : `No advisor entered yet.`;
   }
   return {
     id: 'shared.advisor',

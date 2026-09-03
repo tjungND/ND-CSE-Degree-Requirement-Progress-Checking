@@ -24,6 +24,12 @@ import {
 } from './state.ts';
 
 const SEASONS: Season[] = ['fall', 'spring', 'summer'];
+/** Titles that suggest a §4.4.1 core area (DGS keywords, 2026-09-03): an
+ * unreviewed UNDERGRADUATE course matching these joins the review request —
+ * it earns no transfer credit, but the DGS may confirm its core area. Extend
+ * the list here if the DGS adds keywords. */
+export const CORE_TITLE_RE = /algorithm|operating|architect/i;
+
 /** The "Prior graduate study" dropdown labels — reused in the review request. */
 const PRIOR_LABELS: Record<Student['priorMs'], string> = {
   none: 'No prior graduate degree',
@@ -33,6 +39,24 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
 const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
 export function startApp(root: HTMLElement, rules: Rules): void {
+  // Department-approval gate (DGS request, 2026-09-03): shown on EVERY visit
+  // until the student clicks Agree — the tool is under testing and not yet
+  // approved by the department. Nothing is stored about the click.
+  const consentBox = el(
+    'div',
+    { class: 'consent-box' },
+    el('h2', {}, 'Before you continue'),
+    el(
+      'p',
+      {},
+      'This tool has not been approved by the department yet. It is for testing and informational purposes only.',
+    ),
+    el('p', {}, 'For errors and feedback, please contact the DGS (Prof. Taeho Jung, ', mailto(DGS.email), ').'),
+  );
+  const consentOverlay = el('div', { class: 'consent-overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Testing notice' }, consentBox);
+  consentBox.append(el('button', { class: 'btn primary', onclick: () => consentOverlay.remove() }, 'Agree'));
+  document.body.append(consentOverlay);
+
   let student: Student = loadLocal() ?? emptyStudent();
   // Local date, not UTC — an evening at Notre Dame must not audit as tomorrow.
   const now = new Date();
@@ -386,15 +410,21 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const nd = classified.filter(
       (c) => !c.superseded && c.entry.origin === 'nd' && (c.unknown === true || c.approvalPending !== undefined),
     );
-    const external = classified.filter(
-      (c) =>
-        !c.superseded &&
-        c.entry.origin === 'transfer' &&
-        // A course the engine already ruled OUT for a hard reason (outside the
-        // §5.2 window, below the grade floor, …) is not worth the DGS's time.
-        c.ineligibleReason === undefined &&
-        (c.external === undefined || (c.external.transferable === undefined && c.entry.degreeLevel !== 'bachelors')),
-    );
+    const external = classified.filter((c) => {
+      if (c.superseded || c.entry.origin !== 'transfer') return false;
+      if (c.external !== undefined) {
+        // Ruled: pending only while transferability is undecided (bachelors
+        // never transfers, so nothing is pending there).
+        return c.external.transferable === undefined && c.entry.degreeLevel !== 'bachelors' && c.ineligibleReason === undefined;
+      }
+      // Unreviewed undergraduate courses earn no transfer credit, but the DGS
+      // keywords (2026-09-03) flag the ones whose TITLE suggests a §4.4.1 core
+      // area — those are worth a ruling.
+      if (c.entry.degreeLevel === 'bachelors') return CORE_TITLE_RE.test(c.entry.title ?? '');
+      // A course the engine already ruled OUT for a hard reason (outside the
+      // §5.2 window, below the grade floor, …) is not worth the DGS's time.
+      return c.ineligibleReason === undefined;
+    });
     const n = nd.length + external.length;
     if (n === 0) return null;
     const ndReq = nd.map((c) => ({
@@ -414,7 +444,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       grade: c.entry.grade,
       termText: termLabel(c.entry.term),
       slotLabel: c.entry.degreeLevel ? (DEGREE_SLOTS.find((sl) => sl.level === c.entry.degreeLevel)?.label ?? c.entry.degreeLevel) : undefined,
-      reason: c.external === undefined ? 'not yet reviewed by the DGS' : 'transferability not yet decided',
+      reason:
+        c.external !== undefined
+          ? 'transferability not yet decided'
+          : c.entry.degreeLevel === 'bachelors'
+            ? 'title suggests a §4.4.1 core area — not yet reviewed by the DGS'
+            : 'not yet reviewed by the DGS',
       unlisted: c.external === undefined,
     }));
     const line = (courseId: string, where: string | undefined, reason: string) =>
@@ -885,8 +920,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'div',
         { class: 'save-buttons' },
-        el('button', { class: 'btn primary', onclick: () => exportFile(student) }, 'Save my progress to a file'),
-        el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Load a saved file'),
+        el('button', { class: 'btn primary', onclick: () => exportFile(student) }, 'Save to a file'),
+        el('button', { class: 'btn', onclick: () => (fileInput as HTMLInputElement).click() }, 'Load a file'),
         el(
           'button',
           {
@@ -904,7 +939,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                 .catch(() => toast('Could not copy — your browser blocked clipboard access.'));
             },
           },
-          'Copy summary for your advisor',
+          'Copy summary for advisor',
         ),
         el('button', { class: 'btn', onclick: () => window.print() }, 'Print'),
       ),

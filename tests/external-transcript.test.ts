@@ -24,6 +24,16 @@ const PURDUE = [
 ].concat(Array(20).fill('Purdue University Registrar record — not an official copy unless sealed.'));
 
 describe('external transcript parsing', () => {
+  it('reports graduate-degree conferral only on positive same-line evidence', () => {
+    const withMs = parseExternalTranscript([...PURDUE, 'Master of Science in Computer Science — Conferred: May 2021']);
+    assert.equal(withMs.degreeConferred, true);
+    // A bachelor's conferral on a graduate transcript is NOT graduate-degree
+    // evidence; neither is a transcript with no conferral line at all.
+    const bsOnly = parseExternalTranscript([...PURDUE, 'Bachelor of Science Awarded May 2019']);
+    assert.equal(bsOnly.degreeConferred, undefined);
+    assert.equal(parseExternalTranscript(PURDUE).degreeConferred, undefined);
+  });
+
   it('strips record/transcript suffixes from the university guess', () => {
     const lines = ['TSINGHUA UNIVERSITY STUDENT RECORD', ...PURDUE.slice(1)];
     assert.equal(parseExternalTranscript(lines).university, 'TSINGHUA UNIVERSITY');

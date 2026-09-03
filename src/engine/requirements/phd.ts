@@ -225,14 +225,12 @@ function transferRow(ctx: Ctx): RequirementResult {
           `Not yet reviewed by the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} — the transcripts card has a copy-ready request to email`,
         );
       }
-      parts.push('Every transfer requires a DGS recommendation and Graduate School approval (§5.2)');
     }
-    parts.push('Transferred grades are not included in your GPA (§5.2)');
   }
   return {
     id: 'phd.transfer',
     group: COURSEWORK,
-    title: 'Transfer credit from a prior M.S. (within 5 years, B or better)',
+    title: 'Transfer credit from a prior M.S.',
     status,
     detail: parts.join('. ') + '.',
     citation: { section: '§4.2, §5.2', quote },
@@ -258,7 +256,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
       detail = `${run} consecutive full-time semesters (summers excluded, §4.3).`;
     } else {
       status = 'in_progress';
-      detail = `Longest consecutive full-time run so far: ${run} of ${required} semesters (a term is full-time at ${floor}+ entered credits, §2.1.2; summers don't break the run; mark research-heavy terms full-time if needed).`;
+      detail = `Longest consecutive full-time run so far: ${run} of ${required} semesters.`;
     }
   }
   return {
@@ -291,7 +289,7 @@ export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementRes
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date) {
       status = 'unmet';
-      detail = `Overdue — the ${years}-year limit passed on ${date} (approximate). §4.3: failure to complete within ${years} years forfeits degree eligibility. Talk to the DGS.`;
+      detail = `Overdue — the ${years}-year limit passed on ${date} (approximate). Talk to the DGS.`;
       deadline = { date, approx: true, state: 'overdue', label: `Overdue since ${date}` };
     } else {
       status = 'in_progress';
@@ -392,7 +390,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         ? `Satisfied by ${confirmed} — confirmed in the DGS’s external-course rules (§4.4.1 allows a course from a previous institution).`
         : ip
           ? `${ip} is in progress.`
-          : `No ${area.name} course yet. Courses tagged for this area in the rules sheet satisfy it; a course from a previous institution counts once the DGS confirms it in the external-course rules — import that transcript in the Transcripts card and send the review request.`;
+          : `No ${area.name} course yet.`;
     return {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,
@@ -638,15 +636,33 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   const quote =
     'The Ph.D. candidacy exam can be used by Ph.D. students to satisfy both the M.S. thesis requirement and the Ph.D. candidacy exam simultaneously, thus earning the MSCSE degree on successfully passing the candidacy exam.';
   const passed = ctx.student.milestones.candidacyPassed;
+  // DGS policy (2026-09-03): the along-the-way MSCSE is only possible with the
+  // M.S. coursework done — at least the MSCSE's regular-course credits
+  // (ms_regular_credits_min), all completed AT NOTRE DAME.
+  const required = ctx.params.number('ms_regular_credits_min');
+  const done = ctx.alloc.ndRegular.definite;
+  let status: Status;
+  let detail: string;
+  if (required === undefined) {
+    status = 'cannot_evaluate';
+    detail = missingParamDetail('ms_regular_credits_min');
+  } else if (passed && done >= required) {
+    status = 'met';
+    detail = `Candidacy passed ${passed}, with ${done} regular course credits completed at Notre Dame (≥ ${required}) — ask the Graduate Program Coordinator about receiving the MSCSE (§4.5).`;
+  } else if (passed) {
+    status = 'in_progress';
+    detail = `${done} of ${required} regular course credits completed at Notre Dame.`;
+  } else {
+    status = 'not_applicable';
+    detail = `Passing the candidacy exam can also earn the MSCSE (§4.5) once ${required} regular course credits are completed at Notre Dame — ${done} of ${required} so far.`;
+  }
   return {
     id: 'phd.msAlongTheWay',
     group: CANDIDACY,
     title: 'MSCSE awarded along the way (information)',
-    status: passed ? 'met' : 'not_applicable',
+    status,
     informational: true,
-    detail: passed
-      ? `You passed candidacy ${passed} — ask the Graduate Program Coordinator about receiving the MSCSE (§4.5).`
-      : 'Passing the candidacy exam can also earn you the MSCSE degree (§4.5) — no action needed now.',
+    detail,
     citation: { section: '§4.5', quote },
   };
 }
