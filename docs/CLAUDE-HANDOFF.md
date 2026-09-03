@@ -28,8 +28,8 @@ consistent when either changes.
 
 Known-pending (the app's diagnostics panel is the live truth):
 - Sheet: the 7 Parameters rows and the 3 mistyped Courses rows (`CSE 98900`, `CSE 68900`,
-  `CSE 87701`) were fixed by the DGS on 2026-09-01 (verified against the live CSV). Still open:
-  `CSE 44901` has blank `counts_toward_*`; a number of active rows have blank verdicts.
+  `CSE 87701`) were fixed by the DGS on 2026-09-01, `CSE 44901` (now dgs_approval for both
+  degrees, inactive) and the last blank verdicts on 2026-09-03 (all verified against the live CSV).
 - GitHub Pages is live at https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
   (Settings → Pages → Source: GitHub Actions; deploy green since 2026-09-01) — link it, and
   `courses.html`, from cse.nd.edu.
