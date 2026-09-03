@@ -160,7 +160,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   code was removed. Tests: `tests/rules-date.test.ts`.
 - **External transcripts** (2026-09-01; since 2026-09-03 all four imports live in the single
   "Transcripts" card composed by `transcriptsCard()` in app.ts — ND row + the three
-  prior-university rows from `priorTranscriptSection()`): → `src/transcript/external.ts`
+  prior-university rows from `priorTranscriptSection()`; the card is FIRST on the page, "start
+  here", and imports are one-at-a-time: while any preview is open, `importsBusy()` +
+  the ND-preview state disable every import button until it is confirmed or cancelled. The
+  coursework card lists ND courses and other-university courses in separate tables, the latter
+  with a University column; a Previous Master's/Ph.D. import while priorMs='none' shows a
+  reconcile warning in the standing card — never an automatic flip): → `src/transcript/external.ts`
   (best-effort candidates; no text layer → explicit OCR opt-in, English only; ND
   detected → redirected to the ND row; unmappable grades kept raw and the student MUST choose)
   → editable preview (`src/ui/external-upload.ts`) → `origin:'transfer'` entries tagged

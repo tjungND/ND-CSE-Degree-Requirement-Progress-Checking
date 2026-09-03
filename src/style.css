@@ -49,6 +49,9 @@ body {
 .banner.official { background: #e9eef7; border-color: #b9c7e0; color: #1e2f4d; }
 .banner.privacy { background: #eef7ee; border-color: #b3d6b3; color: #1d4d1d; }
 .card.dgs-review { border-left: 4px solid #c99700; }
+.hint.warn { color: #7a5b00; background: #fff7e0; border: 1px solid #e8d48a; padding: 6px 10px; border-radius: 6px; }
+.card h3.subhead { margin: 16px 0 6px; font-size: 14px; color: var(--navy); }
+button[disabled] { opacity: 0.45; cursor: not-allowed; }
 .banner.official a { color: inherit; }
 .masthead .effective { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }

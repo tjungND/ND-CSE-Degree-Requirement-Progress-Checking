@@ -119,50 +119,63 @@ describe('matching is forgiving about spelling, never about identity', () => {
 });
 
 describe('the combined review request (one email for everything, 2026-09-03)', () => {
-  const built = buildCombinedReviewRequest(
-    [
+  const built = buildCombinedReviewRequest({
+    priorStudy: 'Completed prior M.S. or Ph.D.',
+    nd: [
       { courseId: 'MATH 60610', title: 'Real Analysis I', credits: 3, grade: 'A', termText: 'Fall 2026', reason: 'not in the course rules yet', unlisted: true },
       { courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the rules sheet', unlisted: false },
     ],
-    [
+    external: [
       { institution: 'Purdue University', courseId: 'CS 50300', title: 'Operating Systems', credits: 3, grade: 'A', termText: 'Fall 2023', slotLabel: 'Previous Master\u2019s Transcript', reason: 'not yet reviewed by the DGS', unlisted: true },
-      { institution: 'Purdue University', courseId: 'CS 51400', title: 'Data & "Structures" <II>', credits: 1, grade: 'B+', termText: 'Fall 2024', reason: 'transferability not yet decided', unlisted: false },
+      { institution: 'Purdue University', courseId: 'CS 51400', title: 'Data & "Structures" <II>', credits: 1, grade: 'B+', termText: 'Fall 2024', slotLabel: 'Previous Master\u2019s Transcript', reason: 'transferability not yet decided', unlisted: false },
     ],
-  );
-
-  it('is one email, addressed to both decision-makers', () => {
-    assert.match(built.text, /^Subject: Course review request/);
-    assert.match(built.text, /Dear DGS and Graduate Program Administrator,/);
   });
 
-  it('text flavor: one tab-separated section per sheet tab, rows only for unlisted courses', () => {
+  it('is one email to both decision-makers, says self-check (not audit), and carries prior graduate study', () => {
+    assert.match(built.text, /^Subject: Course review request/);
+    assert.match(built.text, /Dear DGS and Graduate Program Administrator,/);
+    assert.match(built.text, /Prior graduate study: Completed prior M\.S\. or Ph\.D\./);
+    assert.ok(!built.text.includes('audit'), 'the request says self-check, never audit');
+  });
+
+  it('text flavor: one DO-NOT-MODIFY table per sheet tab, rows only for unlisted courses', () => {
     const { text } = built;
+    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 Courses tab \(DO NOT MODIFY THIS PART\)/u);
+    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 ExternalCourses tab \(DO NOT MODIFY THIS PART\)/u);
     assert.ok(text.includes('MATH 60610\tReal Analysis I'), 'Courses-tab row');
     assert.ok(text.includes('PURDUE UNIVERSITY\tCS 50300\tOperating Systems'), 'ExternalCourses-tab row, university upper-cased');
     assert.ok(!text.includes('CSE 40567\t'), 'sheet-listed ND course gets no new row');
     assert.ok(!text.includes('\tCS 51400'), 'ruled-but-undecided external course gets no new row');
-    assert.match(text, /CSE 40567 \(Notre Dame\): 3 credits, grade B, Fall 2026 \u2014 needs advisor \+ DGS approval/u);
-    assert.match(text, /Fall 2023 \(Previous Master\u2019s Transcript\) \u2014 not yet reviewed by the DGS/u);
-    assert.match(text, /paste into the sheet/);
   });
 
-  it('html flavor: real tables (tabs do not survive HTML email), entities escaped', () => {
+  it('details: DO-NOT-MODIFY title, grouped per transcript', () => {
+    const { text } = built;
+    assert.match(text, /Course details \(DO NOT MODIFY THIS PART\):/);
+    assert.match(text, /Notre Dame:\n- MATH 60610/);
+    assert.match(text, /Previous Master\u2019s Transcript \u2014 PURDUE UNIVERSITY:\n- CS 50300/u);
+    assert.match(text, /CSE 40567: 3 credits, grade B, Fall 2026 \u2014 needs advisor \+ DGS approval/u);
+    assert.match(text, /CS 51400 .*: 1 credit, grade B\+, Fall 2024 \u2014 transferability not yet decided/u);
+  });
+
+  it('html flavor: real tables (tabs do not survive HTML email), entities escaped, grouped details', () => {
     const { html } = built;
     assert.equal((html.match(/<table/g) ?? []).length, 2, 'one table per sheet tab');
     assert.ok(html.includes('<tr><td>MATH 60610</td><td>Real Analysis I</td></tr>'));
     assert.ok(html.includes('<tr><td>PURDUE UNIVERSITY</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
+    assert.ok(html.includes('<strong>Notre Dame:</strong>'));
     assert.ok(html.includes('Data &amp; &quot;Structures&quot; &lt;II&gt;'), 'titles are HTML-escaped');
     assert.ok(!html.includes('<II>'), 'no raw markup leaks from titles');
   });
 
   it('a section with no unlisted rows disappears entirely', () => {
-    const only = buildCombinedReviewRequest(
-      [{ courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the rules sheet', unlisted: false }],
-      [],
-    );
-    assert.ok(!only.text.includes('Rows for the Courses tab'));
-    assert.ok(!only.text.includes('Rows for the ExternalCourses tab'));
+    const only = buildCombinedReviewRequest({
+      priorStudy: 'No prior graduate degree',
+      nd: [{ courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the rules sheet', unlisted: false }],
+      external: [],
+    });
     assert.equal((only.html.match(/<table/g) ?? []).length, 0);
+    assert.ok(!only.text.includes('rules sheet \u2014 Courses tab'));
+    assert.ok(!only.text.includes('rules sheet \u2014 ExternalCourses tab'));
   });
 });
 

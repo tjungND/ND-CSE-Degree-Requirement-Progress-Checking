@@ -12,7 +12,7 @@ import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
-import { DEGREE_SLOTS, copyReviewRequest, priorTranscriptSection } from './external-upload.ts';
+import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
   clearLocal,
@@ -24,6 +24,12 @@ import {
 } from './state.ts';
 
 const SEASONS: Season[] = ['fall', 'spring', 'summer'];
+/** The "Prior graduate study" dropdown labels — reused in the review request. */
+const PRIOR_LABELS: Record<Student['priorMs'], string> = {
+  none: 'No prior graduate degree',
+  unfinished: 'Prior M.S., not completed',
+  completed: 'Completed prior M.S. or Ph.D.',
+};
 const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
 export function startApp(root: HTMLElement, rules: Rules): void {
@@ -70,9 +76,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el(
           'div',
           { class: 'inputs' },
+          transcriptsCard(),
           standingCard(),
           coursesCard(report.courseLines),
-          transcriptsCard(),
           askDgsCard(),
           milestonesCard(),
           saveCard(report),
@@ -202,12 +208,29 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       option('unfinished', 'Prior M.S., not completed', student.priorMs === 'unfinished'),
       option('completed', 'Completed prior M.S. or Ph.D.', student.priorMs === 'completed'),
     );
+    // Reconcile the dropdown with the uploaded transcripts (2026-09-03): a
+    // Previous Master's/Ph.D. transcript with "No prior graduate degree" is a
+    // contradiction the student must resolve — the §5.2 caps depend on it.
+    // The transcript alone cannot say whether the degree was COMPLETED, so
+    // this only points; it never flips the value silently.
+    const priorTranscripts = DEGREE_SLOTS.filter(
+      (sl) => sl.level !== 'bachelors' && student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel === sl.level),
+    );
+    const priorNote =
+      student.priorMs === 'none' && priorTranscripts.length > 0
+        ? el(
+            'p',
+            { class: 'hint warn' },
+            `Your Transcripts card has a ${priorTranscripts.map((sl) => sl.label).join(' and a ')}, but this says “No prior graduate degree” — pick “Completed prior M.S. or Ph.D.” if you earned that degree, or “Prior M.S., not completed” if not (the §5.2 transfer caps depend on it).`,
+          )
+        : null;
     const card = el(
       'section',
       { class: 'card' },
       el('h2', {}, 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
       field('Entered the program', el('div', { class: 'pair' }, seasonSel, yearInput)),
       field('Prior graduate study (§5.2 transfer caps)', priorSel),
+      priorNote,
     );
 
     if (student.program === 'mscse') {
@@ -284,6 +307,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         update((s) => void (s.gpa = v === '' ? undefined : Number(v)));
       },
     });
+    const transferTable = courseTable(courseLines, 'transfer');
     const card = el(
       'section',
       { class: 'card' },
@@ -291,35 +315,43 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'p',
         { class: 'hint' },
-        'Add everything you have taken or are taking — import your Notre Dame transcript in the Transcripts card below to fill this in automatically, or add courses by hand. Regular courses have a regular meeting time, assigned readings, graded assignments, and a final exam — research seminars, research credits, and independent study do not (§3.2/§4.2). Courses not in the list can be typed in full (e.g. a non-CSE course) and will be flagged for DGS review.',
+        'Add everything you have taken or are taking — import your Notre Dame transcript in the Transcripts card above to fill this in automatically, or add courses by hand. Regular courses have a regular meeting time, assigned readings, graded assignments, and a final exam — research seminars, research credits, and independent study do not (§3.2/§4.2). Courses not in the list can be typed in full (e.g. a non-CSE course) and will be flagged for DGS review.',
       ),
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       courseForm(),
-      courseTable(courseLines),
+      courseTable(courseLines, 'nd'),
+      transferTable ? el('h3', { class: 'subhead' }, 'From other universities') : null,
+      transferTable,
     );
     return card;
   }
 
   // ---------- transcripts (one upload home, 2026-09-03) ----------
 
-  // All four transcript imports in one card: the Notre Dame unofficial
-  // transcript (fills the coursework table and GPA above) and the three
-  // prior-university slots from external-upload.ts.
+  // All four transcript imports in one card, FIRST on the page (2026-09-03):
+  // the Notre Dame unofficial transcript (fills the coursework table and GPA
+  // below) and the three prior-university slots from external-upload.ts. While
+  // a preview is open, every import button is blocked until the student
+  // confirms (or cancels) it — one transcript at a time.
   function transcriptsCard(): HTMLElement {
+    const busy = transcriptPreview !== undefined || importsBusy();
     return el(
       'div',
       { class: 'card external-card' },
-      el('h2', {}, 'Transcripts ', el('span', { class: 'chip-note' }, 'optional')),
+      el('h2', {}, 'Transcripts ', el('span', { class: 'chip-note' }, 'start here')),
       el(
         'p',
         { class: 'hint' },
-        'Import your Notre Dame unofficial transcript to fill in the coursework and GPA above, and up to three transcripts from other universities — every external course is checked against the DGS’s rules: whether it satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2; undergraduate courses can satisfy core knowledge but never transfer credit). ',
+        'The easiest way to start: import your transcripts, and most of the page below fills itself in. Your Notre Dame unofficial transcript fills the coursework and GPA; up to three transcripts from other universities are checked against the DGS’s rules — whether each course satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2; undergraduate courses can satisfy core knowledge but never transfer credit). ',
         el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
         ' — after you agree, and with every field checked by you. Like everything here, files are read on your own computer and never uploaded.',
       ),
-      transcriptUpload(),
+      busy
+        ? el('p', { class: 'hint warn' }, 'One transcript at a time: confirm the open preview below (“Add …”) or cancel it before importing another PDF.')
+        : null,
+      transcriptUpload(busy),
       transcriptPreview ? transcriptPreviewBlock() : null,
-      ...priorTranscriptSection({ student, rules, update, toast, render }),
+      ...priorTranscriptSection({ student, rules, update, toast, render, blocked: busy }),
     );
   }
 
@@ -394,7 +426,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             class: 'btn',
             onclick: () => {
               import('../transcript/external.ts')
-                .then(({ buildCombinedReviewRequest }) => copyReviewRequest(buildCombinedReviewRequest(ndReq, extReq)))
+                .then(({ buildCombinedReviewRequest }) =>
+                  copyReviewRequest(buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq })),
+                )
                 .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator. (Nothing is sent by this page.)'))
                 .catch(() => toast('Could not copy automatically — please email the DGS and the Graduate Program Administrator with your course ids, credits, grades and terms.'));
             },
@@ -407,7 +441,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
 
   // ---------- transcript upload ----------
 
-  function transcriptUpload(): HTMLElement {
+  function transcriptUpload(blocked: boolean): HTMLElement {
     const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: 'hidden' });
     fileInput.addEventListener('change', async () => {
       const file = (fileInput as HTMLInputElement).files?.[0];
@@ -469,8 +503,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'transcript-upload external-slot' },
       el('span', { class: 'slot-label' }, 'Notre Dame Unofficial Transcript'),
       ' — ',
-      el('button', { class: 'btn tiny', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
-      el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA above. Parsed courses are shown for your confirmation before anything is added.'),
+      el('button', { class: 'btn tiny', disabled: blocked, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
+      el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. Parsed courses are shown for your confirmation before anything is added.'),
       fileInput,
     );
   }
@@ -633,9 +667,14 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     );
   }
 
-  function courseTable(courseLines: { courseId: string; term: Term; text: string }[]): HTMLElement {
-    if (student.courses.length === 0) {
-      return el('p', { class: 'empty' }, 'No courses yet. Add your first one above.');
+  // One table per origin (2026-09-03): Notre Dame courses in the card's main
+  // table, other-university courses in their own table below it with the
+  // university named per row. `which` filters; the original index is kept so
+  // the delete/assign controls edit the right entry.
+  function courseTable(courseLines: { courseId: string; term: Term; text: string }[], which: 'nd' | 'transfer'): HTMLElement | null {
+    const mine = student.courses.map((c, index) => ({ c, index })).filter(({ c }) => (which === 'nd' ? c.origin === 'nd' : c.origin === 'transfer'));
+    if (mine.length === 0) {
+      return which === 'nd' ? el('p', { class: 'empty' }, 'No Notre Dame courses yet. Import your transcript above, or add one here.') : null;
     }
     const table = el('table', { class: 'courses' });
     table.append(
@@ -643,6 +682,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'tr',
         {},
         el('th', {}, 'Course'),
+        which === 'transfer' ? el('th', {}, 'University') : null,
         el('th', {}, 'Term'),
         el('th', {}, 'Cr'),
         el('th', {}, 'Grade'),
@@ -653,7 +693,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     // Consume lines as they are matched so two entries of the same course in
     // the same term each get their own line (e.g. a duplicate-entry pair).
     const linePool = [...courseLines];
-    student.courses.forEach((c, index) => {
+    mine.forEach(({ c, index }) => {
       const li = linePool.findIndex((l) => l.courseId === c.courseId && termIndex(l.term) === termIndex(c.term));
       const line = li >= 0 ? linePool.splice(li, 1)[0] : undefined;
       const rule = resolveRuleRow(rules, c.courseId, c.term);
@@ -687,6 +727,14 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'tr',
         { class: countsNothing ? 'dropped' : '' },
         nameCell,
+        which === 'transfer'
+          ? el(
+              'td',
+              {},
+              el('div', {}, c.institution ?? '?'),
+              c.degreeLevel ? el('div', { class: 'ctitle' }, DEGREE_SLOTS.find((sl) => sl.level === c.degreeLevel)?.label ?? '') : null,
+            )
+          : null,
         el('td', {}, termLabel(c.term)),
         el('td', {}, String(c.credits)),
         el('td', {}, c.grade === 'IP' ? 'In progress' : c.grade),

@@ -76,6 +76,16 @@ export interface ExternalCardArgs {
   update: (fn: (s: Student) => void) => void;
   toast: (msg: string) => void;
   render: () => void;
+  /** One transcript at a time (2026-09-03): true while ANY preview is open,
+   * disabling every import button until it is confirmed or cancelled. */
+  blocked: boolean;
+}
+
+/** True while this module holds an unconfirmed import — an open preview, a
+ * scan awaiting the OCR opt-in, or OCR in flight. app.ts combines it with its
+ * own ND-preview state to block all import buttons. */
+export function importsBusy(): boolean {
+  return preview !== undefined || pendingScan !== undefined || ocrBusy !== undefined;
 }
 
 /** The prior-university slot rows, previews and per-course verdicts. Since
@@ -169,7 +179,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       ' — ',
-      el('button', { class: 'btn tiny', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
+      el('button', { class: 'btn tiny', disabled: args.blocked, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
       fileInput,
     );
   }

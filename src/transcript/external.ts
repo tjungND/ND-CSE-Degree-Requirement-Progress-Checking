@@ -181,21 +181,29 @@ export interface ReviewRequestCourse {
 function buildReviewRequest(opts: {
   subject: string;
   intro: string;
+  /** Extra context lines shown right under the intro (e.g. prior graduate study). */
+  context: readonly string[];
   /** Sheet-paste sections (one per tab); a section with no rows is skipped. */
   sections: readonly { rowsIntro: string; rows: readonly (readonly string[])[] }[];
-  details: readonly string[];
+  detailsTitle: string;
+  /** Detail lines grouped per transcript, each group under its heading. */
+  detailGroups: readonly { heading: string; lines: readonly string[] }[];
 }): { text: string; html: string } {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const greeting = 'Dear DGS and Graduate Program Administrator,';
   const sections = opts.sections.filter((s) => s.rows.length > 0);
+  const groups = opts.detailGroups.filter((g) => g.lines.length > 0);
   const text =
     `Subject: ${opts.subject}\n\n${greeting}\n\n${opts.intro}\n\n` +
+    opts.context.map((c) => `${c}\n`).join('') +
+    `\n` +
     sections.map((s) => `${s.rowsIntro}\n\n${s.rows.map((r) => r.join('\t')).join('\n')}\n\n`).join('') +
-    `Course details:\n` +
-    opts.details.map((d) => `- ${d}`).join('\n') +
+    `${opts.detailsTitle}\n\n` +
+    groups.map((g) => `${g.heading}\n${g.lines.map((d) => `- ${d}`).join('\n')}`).join('\n\n') +
     `\n\nThank you!\n`;
   const html =
     `<p>${esc(`Subject: ${opts.subject}`)}</p><p>${esc(greeting)}</p><p>${esc(opts.intro)}</p>` +
+    (opts.context.length > 0 ? `<p>${opts.context.map((c) => esc(c)).join('<br>')}</p>` : '') +
     sections
       .map(
         (s) =>
@@ -204,9 +212,9 @@ function buildReviewRequest(opts: {
           `</table>`,
       )
       .join('') +
-    `<p>Course details:</p><ul>` +
-    opts.details.map((d) => `<li>${esc(d)}</li>`).join('') +
-    `</ul><p>Thank you!</p>`;
+    `<p>${esc(opts.detailsTitle)}</p>` +
+    groups.map((g) => `<p><strong>${esc(g.heading)}</strong></p><ul>${g.lines.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`).join('') +
+    `<p>Thank you!</p>`;
   return { text, html };
 }
 
@@ -222,37 +230,56 @@ export interface PendingReviewCourse extends ReviewRequestCourse {
 /** THE review request (2026-09-03): one email covering Notre Dame courses
  * that still need a DGS decision (not in the rules sheet — typical for
  * non-CSE; dgs_approval not yet approved; blank verdict) AND external courses
- * the ExternalCourses tab has not ruled on. Paste-ready rows per tab —
+ * the ExternalCourses tab has not ruled on. Carries the student's prior
+ * graduate study (the §5.2 caps depend on it), paste-ready rows per tab —
  * Courses (course_id, title) and ExternalCourses (UNIVERSITY in the sheet's
- * capital-English convention, course_id, course_title) — then detail lines
- * with credits, grade, term and the reason each course needs review. */
-export function buildCombinedReviewRequest(
-  nd: readonly PendingReviewCourse[],
-  external: readonly PendingReviewCourse[],
-): { text: string; html: string } {
-  const detail = (c: PendingReviewCourse, where?: string) =>
-    `${c.courseId}${c.title ? ` “${c.title}”` : ''}${where ? ` (${where})` : ''}: ` +
-    `${c.credits} credit${c.credits === 1 ? '' : 's'}, grade ${c.grade}, ${c.termText}` +
-    `${c.slotLabel ? ` (${c.slotLabel})` : ''} — ${c.reason}`;
+ * capital-English convention, course_id, course_title) — and detail lines
+ * grouped per transcript. The tables and details are marked DO NOT MODIFY
+ * (DGS wording, 2026-09-03) so students leave the machine-readable parts
+ * intact. */
+export function buildCombinedReviewRequest(opts: {
+  /** The "Prior graduate study" choice, as its dropdown label. */
+  priorStudy: string;
+  nd: readonly PendingReviewCourse[];
+  external: readonly PendingReviewCourse[];
+}): { text: string; html: string } {
+  const detail = (c: PendingReviewCourse) =>
+    `${c.courseId}${c.title ? ` “${c.title}”` : ''}: ` +
+    `${c.credits} credit${c.credits === 1 ? '' : 's'}, grade ${c.grade}, ${c.termText} — ${c.reason}`;
+  // Group the external courses per transcript (slot + university), so the
+  // details read the way the student uploaded them.
+  const groups: { heading: string; lines: string[] }[] = [];
+  if (opts.nd.length > 0) groups.push({ heading: 'Notre Dame:', lines: opts.nd.map(detail) });
+  for (const c of opts.external) {
+    const heading = `${c.slotLabel ?? 'Entered by hand'} — ${(c.institution ?? 'university not given').toUpperCase()}:`;
+    let g = groups.find((x) => x.heading === heading);
+    if (!g) {
+      g = { heading, lines: [] };
+      groups.push(g);
+    }
+    g.lines.push(detail(c));
+  }
   return buildReviewRequest({
     subject: 'Course review request (degree self-check)',
     intro:
-      'Could you review these courses for the degree audit? ' +
-      'The self-check cannot count them until they are decided in the course rules.',
+      'Could you review these courses for the degree self-check? ' +
+      'It cannot count them until they are decided in the course rules.',
+    context: [`Prior graduate study: ${opts.priorStudy}.`],
     sections: [
       {
         rowsIntro:
-          'Rows for the Courses tab (leading columns, course_id and title — paste into the sheet ' +
-          'at a new row’s “course_id” cell, then fill in the rest):',
-        rows: nd.filter((c) => c.unlisted).map((c) => [c.courseId, c.title ?? '']),
+          'This is the table that can be imported to the DGS’s rules sheet — Courses tab ' +
+          '(DO NOT MODIFY THIS PART):',
+        rows: opts.nd.filter((c) => c.unlisted).map((c) => [c.courseId, c.title ?? '']),
       },
       {
         rowsIntro:
-          'Rows for the ExternalCourses tab, in the tab’s column order — ' +
-          'paste into the sheet at a new row’s “university” cell, then fill in the ruling columns:',
-        rows: external.filter((c) => c.unlisted).map((c) => [(c.institution ?? '').toUpperCase(), c.courseId, c.title ?? '']),
+          'This is the table that can be imported to the DGS’s rules sheet — ExternalCourses tab ' +
+          '(DO NOT MODIFY THIS PART):',
+        rows: opts.external.filter((c) => c.unlisted).map((c) => [(c.institution ?? '').toUpperCase(), c.courseId, c.title ?? '']),
       },
     ],
-    details: [...nd.map((c) => detail(c, 'Notre Dame')), ...external.map((c) => detail(c, c.institution ?? 'other university'))],
+    detailsTitle: 'Course details (DO NOT MODIFY THIS PART):',
+    detailGroups: groups,
   });
 }
