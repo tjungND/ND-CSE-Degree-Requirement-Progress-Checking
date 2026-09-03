@@ -18,10 +18,16 @@ export function sameCsvContent(a: CsvTexts, b: CsvTexts): boolean {
   return changedTabs(a, b).length === 0;
 }
 
-/** Which tabs differ (for the sync log). */
+/** Which tabs differ (for the sync log). The optional external tab counts as
+ * changed when it appears, disappears, or its content changes. */
 export function changedTabs(a: CsvTexts, b: CsvTexts): (keyof CsvTexts)[] {
-  const tabs: (keyof CsvTexts)[] = ['courses', 'parameters', 'categories'];
-  return tabs.filter((tab) => normalize(a[tab]) !== normalize(b[tab]));
+  const tabs: (keyof CsvTexts)[] = ['courses', 'parameters', 'categories', 'external'];
+  return tabs.filter((tab) => {
+    const av = a[tab];
+    const bv = b[tab];
+    if (av === undefined || bv === undefined) return av !== bv;
+    return normalize(av) !== normalize(bv);
+  });
 }
 
 function normalize(text: string): string {

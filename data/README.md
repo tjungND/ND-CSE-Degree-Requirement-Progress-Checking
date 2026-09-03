@@ -123,6 +123,29 @@ the live sheet differs from this file they print "were updated after …" until 
 `Last-Modified` header for published CSVs (verified 2026-09-01), which is why the date comes from
 here (`src/data/rules-date.ts`).
 
+### `ExternalCourses` tab (optional — courses from other universities)
+One row per course at ANOTHER university that the DGS has ruled on (feature
+2026-09-01; sample: `external.sample.csv`). The app matches a student's uploaded
+external courses against it by university + course id (case, punctuation,
+diacritics and spacing are ignored; native-script aliases work).
+
+| column | values | meaning |
+|---|---|---|
+| `university` | text | the institution's name as its transcripts print it |
+| `university_aliases` | `;`-separated | other spellings that should match (abbreviations, native script) |
+| `course_id` | text | as printed there ("CS 50300", "30240233"); spaces/hyphens don't matter |
+| `course_title` | text | for humans reading the sheet |
+| `satisfies_core_area` | a `core_area` code or blank | §4.4.1 core area the course covers — a match makes the student's core row **met** |
+| `transferable` | `yes` / `no` / blank | §5.2: blank = not decided yet; `yes` still requires the student's formal request (DGS recommendation + Graduate School approval) |
+| `nd_credits` | number or blank | ND-equivalent credits (§5.2 pro-rata for quarter/ECTS systems); blank = credits as printed |
+| `decided_on`, `notes` | text | for the record |
+
+Anything a student uploads that has NO row here shows "not yet reviewed by the
+DGS" (never guessed), and the student gets a copy-ready email request — that is
+how this tab grows. **One-time setup:** create the tab, publish it to the web as
+CSV (File → Share → Publish to web → ExternalCourses → CSV) and paste the URL
+into `sheet-urls.json` as `external`. Until then the app runs without it.
+
 ## Validation the app must do on load
 - unknown value in an enumerated column → row is skipped and reported ("Courses row 14, column
   `course_type`: 'lecture' is not one of regular|seminar|research|independent|project")

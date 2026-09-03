@@ -45,8 +45,9 @@ body {
   background: #fff7e0; border: 1px solid #e0c877; color: #6b5510;
   border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
 }
-.banner.alpha { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
+.banner.beta { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
 .banner.official { background: #e9eef7; border-color: #b9c7e0; color: #1e2f4d; }
+.banner.privacy { background: #eef7ee; border-color: #b3d6b3; color: #1d4d1d; }
 .banner.official a { color: inherit; }
 .masthead .effective { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
@@ -178,9 +179,8 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 /* privacy notes (FERPA) */
 .privacy-note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; max-width: 80ch; }
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
-.legal-alpha, .legal-privacy, .legal-license { margin-top: 10px; }
+.legal-beta, .legal-privacy, .legal-license { margin-top: 10px; }
 .legal-license strong { color: var(--ink); }
-.untested-note strong { color: #7a1f1f; }
 
 /* ---------- courses.html: the public course-rules list ---------- */
 .courses-page h2 { color: var(--navy); font-size: 20px; margin: 26px 0 10px; }
@@ -265,3 +265,21 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .load-note { font-size: 13px; color: var(--muted); }
 .load-fail .load-note a { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; border-top-color: #d6dbe3; } .load-card .load-bar i { transition: none; } }
+
+/* external transcripts card (src/ui/external-upload.ts) */
+.external-slot { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.external-slot:last-of-type { border-bottom: 0; }
+.external-slot .slot-label { font-weight: 600; color: var(--navy); min-width: 140px; display: inline-block; }
+.external-card .transcript-preview input, .external-card .transcript-preview select { padding: 4px 6px; font-size: 13px; max-width: 130px; }
+.external-card .transcript-preview input.course-title { max-width: 100%; width: 160px; }
+.external-verdicts { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.external-verdicts h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
+.external-verdict { font-size: 13px; margin: 3px 0; color: var(--ink); }
+.external-verdict .cid { font-weight: 600; }
+
+/* opt-in OCR for scanned external transcripts (src/ui/external-upload.ts) */
+.ocr-optin { margin-top: 10px; background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 12px 14px; }
+.ocr-optin p { margin: 0 0 10px; }
+.ocr-banner { background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 8px 12px; margin: 6px 0 10px; font-size: 13.5px; }
+.ocr-progress { margin-top: 10px; color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+tr.ocr-low td { background: #fff7e0; }

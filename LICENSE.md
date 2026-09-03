@@ -3,22 +3,19 @@
 Copyright © 2026 University of Notre Dame du Lac. All rights reserved.
 
 **ND CSE Degree Requirement Progress Checking** is freely available without a fee for a
-non-commercial use, and may be redistributed under these conditions. Please see the attached
-license for further details. For commercial use, the non-exclusive commercial license requires a
-non-refundable annual fee. For commercial use queries, please contact
+non-commercial use, and may be redistributed under these conditions. For commercial use, the
+non-exclusive commercial license requires a non-refundable annual fee; the model license
+agreement is [attached](docs/Notre-Dame-Commercial-License-Model.docx). For commercial use queries, please contact
 [softwarelicensing@nd.edu](mailto:softwarelicensing@nd.edu).
-
-<!-- DGS: the "attached license" is the University's standard non-commercial license text, issued
-     by the IDEA Center (softwarelicensing@nd.edu). Paste it below this comment, or link to it,
-     and delete this comment. -->
 
 ---
 
 ## Non-Exclusive Commercial License Details
 
 - The non-exclusive commercial license requires a non-refundable $25,000 US annual royalty.
-- The non-exclusive commercial license cannot be used in [field].
 - The license is non-negotiable.
+- The full model agreement is attached: [Notre Dame Software Licensing Model — Commercial
+  License](docs/Notre-Dame-Commercial-License-Model.docx).
 
 Information required to complete the license:
 

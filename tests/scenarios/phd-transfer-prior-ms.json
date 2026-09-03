@@ -1,34 +1,148 @@
 {
   "name": "phd-transfer-prior-ms",
-  "description": "Ph.D. student with a completed prior M.S.: transfer rows inside and outside the §5.2 five-year window, one below the B floor, a transfer-claimed core area, and the §4.2 nine-credits-at-ND check.",
+  "description": "Ph.D. student with a completed prior M.S.: transfer rows inside and outside the §5.2 five-year window, one below the B floor, a transfer-claimed core area, and the §4.2 nine-credits-at-ND check. (ExternalCourses tab emptied by the patch: this scenario tests the student-claimed path, before any DGS ruling — the sheet-confirmed path is tests/external-rules.test.ts.)",
   "today": "2027-03-01",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": []
+    }
+  },
   "student": {
     "schemaVersion": 1,
     "program": "phd",
-    "entryTerm": { "season": "fall", "year": 2026 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
     "priorMs": "completed",
     "gpa": 3.5,
     "courses": [
-      { "courseId": "CS 50300", "title": "Operating Systems (Purdue)", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "A", "origin": "transfer", "institution": "Purdue", "claimedCoreArea": "os" },
-      { "courseId": "CS 51400", "title": "Numerical Methods (Purdue)", "credits": 3, "term": { "season": "spring", "year": 2020 }, "grade": "B+", "origin": "transfer", "institution": "Purdue" },
-      { "courseId": "CS 52000", "title": "Compilers (Purdue)", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "C+", "origin": "transfer", "institution": "Purdue" },
-      { "courseId": "CS 53100", "title": "Distributed Systems (Purdue)", "credits": 3, "term": { "season": "fall", "year": 2022 }, "grade": "A", "origin": "transfer", "institution": "Purdue" },
-      { "courseId": "CS 53500", "title": "Databases (Purdue)", "credits": 3, "term": { "season": "spring", "year": 2023 }, "grade": "A-", "origin": "transfer", "institution": "Purdue" },
-      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
-      { "courseId": "CSE 63801", "credits": 1, "term": { "season": "fall", "year": 2026 }, "grade": "S", "origin": "nd" },
-      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "IP", "origin": "nd" }
+      {
+        "courseId": "CS 50300",
+        "title": "Operating Systems (Purdue)",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue",
+        "claimedCoreArea": "os"
+      },
+      {
+        "courseId": "CS 51400",
+        "title": "Numerical Methods (Purdue)",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2020
+        },
+        "grade": "B+",
+        "origin": "transfer",
+        "institution": "Purdue"
+      },
+      {
+        "courseId": "CS 52000",
+        "title": "Compilers (Purdue)",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "C+",
+        "origin": "transfer",
+        "institution": "Purdue"
+      },
+      {
+        "courseId": "CS 53100",
+        "title": "Distributed Systems (Purdue)",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue"
+      },
+      {
+        "courseId": "CS 53500",
+        "title": "Databases (Purdue)",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A-",
+        "origin": "transfer",
+        "institution": "Purdue"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "S",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
     ],
-    "milestones": { "advisorIdentified": "2026-08-30" },
+    "milestones": {
+      "advisorIdentified": "2026-08-30"
+    },
     "attestations": {}
   },
   "expect": {
-    "phd.transfer": { "status": "needs_dgs_review", "detailIncludes": ["9 of"] },
-    "phd.credits.nd": { "status": "unmet", "detailIncludes": ["9"] },
-    "phd.qualifier.core.os": { "status": "needs_dgs_review", "detailIncludes": ["CS 50300"] }
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "9 of"
+      ]
+    },
+    "phd.credits.nd": {
+      "status": "unmet",
+      "detailIncludes": [
+        "9"
+      ]
+    },
+    "phd.qualifier.core.os": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "CS 50300"
+      ]
+    }
   },
   "expectCourseLines": {
-    "CS 51400": ["not counted", "five-year"],
-    "CS 52000": ["not counted", "below B"]
+    "CS 51400": [
+      "not counted",
+      "five-year"
+    ],
+    "CS 52000": [
+      "not counted",
+      "below B"
+    ]
   }
 }

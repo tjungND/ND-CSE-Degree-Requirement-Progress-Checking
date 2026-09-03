@@ -28,13 +28,13 @@ consistent when either changes.
 
 Known-pending (the app's diagnostics panel is the live truth):
 - Sheet: the 7 Parameters rows and the 3 mistyped Courses rows (`CSE 98900`, `CSE 68900`,
-  `CSE 87701`) were fixed by the DGS on 2026-09-01 (verified against the live CSV). Still open:
-  `CSE 44901` has blank `counts_toward_*`; a number of active rows have blank verdicts.
+  `CSE 87701`) were fixed by the DGS on 2026-09-01, `CSE 44901` (now dgs_approval for both
+  degrees, inactive) and the last blank verdicts on 2026-09-03 (all verified against the live CSV).
 - GitHub Pages is live at https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
   (Settings → Pages → Source: GitHub Actions; deploy green since 2026-09-01) — link it, and
   `courses.html`, from cse.nd.edu.
-- The sheet's own README tab still says the CSV links go in `src/data/sheet-urls.ts`; the real
-  file is `data/sheet-urls.json` (sheet-side fix for the DGS).
+- The sheet's own README tab pointed to `src/data/sheet-urls.ts`; fixed by the DGS 2026-09-03 —
+  it now says `data/sheet-urls.json` and lists ExternalCourses among the tabs to publish.
 - Google's published-CSV endpoint intermittently HANGS (no response at all): seen 2026-09-01
   from a GitHub runner (the first sync-sheet run timed out at 30 s) and from a browser (one
   request hung past 20 s, the next three took ~300 ms). `scripts/sync-sheet.ts` therefore fetches
@@ -96,19 +96,21 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **UI safety**: all user text renders via `textContent` (the old prototype had an innerHTML
   XSS); imports are deep-validated and a failed render never persists (no localStorage brick);
   "today" is computed in LOCAL time (UTC audited evening users as tomorrow).
-- **Alpha disclaimer + handbook link** (2026-09-01, DGS decision): `src/ui/handbook.ts` holds
-  the edition, the official PDF URL, `handbookLink()` and the `ALPHA_NOTICE` wording; rendered as
-  the `.banner.alpha` under the masthead, the `.legal-alpha` footer paragraph, and two lines in
-  the copied summary. Remove the banner (not the footer) when the DGS declares the app out of alpha.
+- **Beta disclaimer + handbook link** (2026-09-01, DGS decision): `src/ui/handbook.ts` holds
+  the edition, the official PDF URL, `handbookLink()` and the `BETA_NOTICE` wording; rendered as
+  the `.banner.beta` under the masthead, the `.legal-beta` footer paragraph, and two lines in
+  the copied summary. Remove the banner (not the footer) when the DGS declares the app out of beta (renamed from alpha: DGS, 2026-09-03).
 - **Contacts, feedback address, license line, "untested upload" note** (2026-09-01, DGS
   decision): `src/ui/contacts.ts` holds the DGS / Assistant DGS / Graduate Program Administrator
   entries, the repo + LICENSE URLs, `reportToDgs()` and `contactCard()`; rendered as the
   "Who to contact" card at the top right of the masthead on BOTH pages (the masthead is a
   two-column grid: text | card; tools row spans below; single column under 900px), the footer
-  "License" line, the feedback sentence in the alpha banner + footer, and the `.untested-note`
-  under the transcript-upload button. The alpha banner also states in bold that every verdict is
+  "License" line, the feedback sentence in the beta banner + footer, and the `.untested-note`
+  under the transcript-upload button. The beta banner also states in bold that every verdict is
   computed from the published course rules (linking to `courses.html`). Update `contacts.ts` at every DGS handoff;
-  drop the untested note once a real transcript has been run through the parser (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
+  the untested note was RETIRED 2026-09-03 (the import buttons carry "(beta)" instead, and the
+  page-level privacy banner sits right under the beta notice); real-ND-transcript testing is
+  still worth doing (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
 - **Public course-rules page** (`courses.html`, 2026-09-01, DGS request): `src/ui/courses-page.ts`
   renders the Courses tab for students — overview cards per §4.4.1 core area and §4.4.2 category,
   then a filterable/sortable table (id, title, type, counts toward MSCSE/Ph.D., core area,
@@ -120,7 +122,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   "course rules list" screenshots it and checks a filter. Add columns here, never new policy.
   Its banner is the OFFICIAL wording (DGS, 2026-09-01): the mappings are set by the DGS with
   faculty input and are what the DGS and the Graduate Program Administrator use; it is not
-  labelled alpha (only the self-check tool is). It also says not every listed course is offered.
+  labelled beta (only the self-check tool is). It also says not every listed course is offered.
 - **Dated line under each title** (`rulesDateLine()` in `src/ui/handbook.ts`, 2026-09-01):
   precedence (1) optional Parameters row `rules_effective_date` (a `DISPLAY_PARAMETER_KEYS`
   entry: known, optional, silent when missing, never an engine input) → "Rules effective as
@@ -147,15 +149,54 @@ Known-pending (the app's diagnostics panel is the live truth):
   chose to continue with the copy saved on …". E2E: the sandbox has no network, so every run
   exercises this path — `cdp.mjs`'s `open()` waits for the masthead OR the failed card, requires
   the card to mention reloading, screenshots it once (`loading-failed.png`) and clicks through.
-- **Alpha ≠ inaccurate rules** (`RULES_ACCURACY_NOTICE` + `ALPHA_SCOPE_NOTICE` in
+- **Beta ≠ inaccurate rules** (`RULES_ACCURACY_NOTICE` + `BETA_SCOPE_NOTICE` in
   `src/ui/handbook.ts`, DGS wording 2026-09-01): the banner, footer and copied summary now state
   in bold that the course rules are accurate — exactly the rules the DGS and the Graduate
-  Program Administrator use to determine requirement satisfaction — and that what is in alpha is
+  Program Administrator use to determine requirement satisfaction — and that what is in beta is
   the TOOL's application of them. Don't reintroduce wording that hedges on the rules themselves. **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
   2026-09-01 by fetching all three tabs from the deployed page's own origin (exposed headers:
   cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)
   — so the sync's own record is the only zero-setup date source; the earlier header-reading
   code was removed. Tests: `tests/rules-date.test.ts`.
+- **External transcripts** (branch `feature/external-transcripts`, 2026-09-01): three optional
+  uploads (Bachelor's/Master's/Ph.D.) on the self-check page → `src/transcript/external.ts`
+  (best-effort candidates; no text layer → rejected as a scan, "system-generated PDFs only"; ND
+  detected → redirected to the ND button; unmappable grades kept raw and the student MUST choose)
+  → editable preview (`src/ui/external-upload.ts`) → `origin:'transfer'` entries tagged
+  `degreeLevel`. The DGS's rulings live in the optional ExternalCourses tab (parse:
+  `parseExternalTab`; match: `src/data/external.ts` — normalized university + aliases, ids ignore
+  spaces/hyphens; native script works). Engine: Bachelor's never transfers but still satisfies
+  §4.4.1; sheet-confirmed core → met; transferable yes/no/blank → pre-approved wording / excluded
+  with the ruling named / "not yet decided"; nd_credits replaces transcript credits (§5.2
+  pro-rata) — all in `classify()` (the `external` field rides on ClassifiedCourse so core sees
+  DGS rulings even for zero-credit courses). Unreviewed courses: pending verdict + copy-ready
+  email request in the card. The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
+  rules-date/loading card); its lone failure degrades to "not yet reviewed", never a dead page.
+  Tests: `tests/external-rules.test.ts`, `tests/external-transcript.test.ts`, scenario patch key
+  `external`; e2e uploads `tests/fixtures/external-transcript.pdf` into the Master's slot.
+- **Opt-in OCR for scanned external transcripts** (2026-09-02, DGS decision): a PDF with no
+  text layer now offers `.ocr-optin` instead of a flat rejection — explicit button, wording
+  states ENGLISH-LANGUAGE TRANSCRIPTS ONLY and that results are approximate. Engine:
+  `tesseract.js` v7 (`src/transcript/ocr.ts`), entirely in-browser with SELF-HOSTED assets in
+  `public/ocr/` (worker.min.js, tesseract-core-simd-lstm.wasm.js single-file SIMD+LSTM core,
+  eng.traineddata.gz best_int) — never the CDN defaults, or the no-external-calls rule breaks.
+  Requires WASM SIMD (2021+ browsers); failure → plain message to use a system-generated PDF.
+  SAFARI LESSON (2026-09-03): pdfjs-dist is PINNED TO THE v4 LINE (^4.10.38) on purpose — v6
+  freely uses 2025 builtins (Map.getOrInsertComputed, Promise.try, URL.parse,
+  Uint8Array.fromBase64, Float16Array) in its main AND worker code, which Safari lacks, so on
+  Safari every PDF read failed (system-generated ones then looked like scans). Before ever
+  upgrading pdfjs, grep the new build + pdf.worker.min.mjs for those identifiers and check
+  they are guarded, then test in real Safari.
+  Pages render via pdfjs at scale 2.5, max 10 pages; per-line confidences flow through
+  `parseExternalTranscript(lines, confidences)` and rows under 80 get `lowConfidence` → ⚠ +
+  amber row in the preview (`.ocr-low`), plus the `.ocr-banner` warning. The ND uploader still
+  takes NO scans (digital insideND PDF only; OCR'd ND text redirects there). The e2e OCR leg
+  runs the real engine in headless Chrome (~15-60 s; 120 s waitFor).
+- Updating the OCR assets: bump `tesseract.js` in package.json, `npm install`, re-copy
+  `node_modules/tesseract.js/dist/worker.min.js` and
+  `node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js` into `public/ocr/`, and
+  fetch the matching `@tesseract.js-data/eng` best_int `eng.traineddata.gz`; the scan fixture
+  regenerates with `python3 tests/fixtures/make-scan-fixture.py`.
 - **Attestations**: DGS-approval checkboxes upgrade matching courses' certainty tier;
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).

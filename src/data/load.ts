@@ -17,13 +17,21 @@ import type { Rules } from './types.ts';
 export const FETCH_TIMEOUT_MS = 15_000;
 
 export type TabName = keyof CsvTexts;
-export const TAB_NAMES: readonly TabName[] = ['courses', 'parameters', 'categories'];
+/** The three tabs the app cannot run without. */
+export const REQUIRED_TABS: readonly TabName[] = ['courses', 'parameters', 'categories'];
 /** The tabs in words a student understands ("the course list", not "Courses"). */
 export const TAB_LABELS: Record<TabName, string> = {
   courses: 'the course list',
   parameters: 'the parameters',
   categories: 'the categories',
+  external: 'the external-course rules',
 };
+
+/** Is the ExternalCourses tab published and configured? Until the DGS creates
+ * the tab and pastes its published-CSV URL into data/sheet-urls.json, the app
+ * runs without it and every external course shows as "not yet reviewed". */
+export const EXTERNAL_TAB_CONFIGURED: boolean =
+  typeof (sheetUrls as { external?: string }).external === 'string' && (sheetUrls as { external?: string }).external !== '';
 
 /** What the loader reports while it works (drives the loading card). */
 export type LoadProgress =
@@ -103,7 +111,7 @@ async function fetchCsv(tab: TabName, url: string, onProgress: (p: LoadProgress)
  * when the student chooses it after a failed live load. Its syncedAt is when
  * these rules were first seen by the sync, so they are dated `known`. */
 export function rulesFromSnapshot(): Rules {
-  return rulesFromCsvTexts(snapshot.csv, {
+  return rulesFromCsvTexts(snapshot.csv as CsvTexts, {
     source: 'snapshot',
     syncedAt: snapshot.syncedAt,
     rulesDate: { kind: 'known', at: snapshot.syncedAt },
@@ -126,14 +134,28 @@ function noteNewerSheet(rules: Rules): Rules {
   return rules;
 }
 
-/** Load the live rules, reporting progress; throws RulesLoadError on failure. */
+/** Load the live rules, reporting progress; throws RulesLoadError on failure.
+ * The optional ExternalCourses tab is different: if IT alone fails, the app
+ * still runs — external courses degrade to "not yet reviewed" and the
+ * diagnostics panel says why (never a dead page over the optional tab). */
 export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress) => void = () => {}): Promise<Rules> {
   onProgress({ step: 'connect' });
-  const [courses, parameters, categories] = await Promise.all(
-    TAB_NAMES.map((tab) => fetchCsv(tab, sheetUrls[tab], onProgress)),
-  );
+  const urls = sheetUrls as { courses: string; parameters: string; categories: string; external?: string };
+  let externalIssue: string | undefined;
+  const externalPromise: Promise<string | undefined> = EXTERNAL_TAB_CONFIGURED
+    ? fetchCsv('external', urls.external!, onProgress).catch((e: unknown) => {
+        externalIssue = e instanceof Error ? e.message : String(e);
+        return undefined;
+      })
+    : Promise.resolve(undefined);
+  const [courses, parameters, categories, external] = await Promise.all([
+    fetchCsv('courses', urls.courses, onProgress),
+    fetchCsv('parameters', urls.parameters, onProgress),
+    fetchCsv('categories', urls.categories, onProgress),
+    externalPromise,
+  ]);
   onProgress({ step: 'check' });
-  const live: CsvTexts = { courses: courses!, parameters: parameters!, categories: categories! };
+  const live: CsvTexts = { courses, parameters, categories, ...(external !== undefined ? { external } : {}) };
   const rules = rulesFromCsvTexts(live, { source: 'live', syncedAt: nowIso, rulesDate: dateLiveRules(live, snapshot) });
   // A tab that answered but holds no data (cleared by accident, or unpublished
   // on its own) is a failure to report, not "there are no courses".
@@ -146,6 +168,13 @@ export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress
       `The spreadsheet answered, but ${TAB_LABELS[emptyTab]} tab is empty — the DGS needs to check the sheet. Reloading will not help until then.`,
       false,
     );
+  }
+  if (externalIssue !== undefined) {
+    rules.issues.push({
+      severity: 'warning',
+      tab: 'ExternalCourses',
+      message: `The ExternalCourses tab could not be loaded (${externalIssue}) — courses from other universities show as "not yet reviewed by the DGS" until it is reachable again.`,
+    });
   }
   return noteNewerSheet(rules);
 }

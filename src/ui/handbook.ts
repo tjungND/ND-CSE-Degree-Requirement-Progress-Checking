@@ -16,21 +16,21 @@ export function handbookLink(label: string = HANDBOOK_TITLE): HTMLAnchorElement 
   return el('a', { href: HANDBOOK_URL, target: '_blank', rel: 'noopener noreferrer' }, label);
 }
 
-/** The alpha-status disclaimer, worded by the DGS (docs/DECISIONS.md,
+/** The beta-status disclaimer, worded by the DGS (docs/DECISIONS.md,
  * 2026-09-01; shortened the same day at the DGS's request). */
-export const ALPHA_NOTICE =
+export const BETA_NOTICE =
   'Informational only, no warranty — not an official degree audit; every final decision ' +
   'rests with the Director of Graduate Studies.';
 
-/** What is NOT in alpha: the course rules themselves (DGS wording, 2026-09-01).
- * Shown in bold next to the alpha notice in the banner, the footer and the
- * copied summary, so a student does not read "alpha" as "the rules may be wrong". */
+/** What is NOT in beta: the course rules themselves (DGS wording, 2026-09-01).
+ * Shown in bold next to the beta notice in the banner, the footer and the
+ * copied summary, so a student does not read "beta" as "the rules may be wrong". */
 export const RULES_ACCURACY_NOTICE =
   'The course rules are accurate: they are exactly the rules the DGS and the Graduate ' +
   'Program Administrator use to determine requirement satisfaction.';
 
-/** The sentence that follows RULES_ACCURACY_NOTICE — what the alpha label covers. */
-export const ALPHA_SCOPE_NOTICE = 'Only this tool’s application of them is still being tested.';
+/** The sentence that follows RULES_ACCURACY_NOTICE — what the beta label covers. */
+export const BETA_SCOPE_NOTICE = 'Only this tool’s application of them is still being tested.';
 
 /** The dated line under each page's title — two dates, one sentence (DGS wording,
  *  2026-09-01): "The course rules here were last updated on <X>, and are up-to-date

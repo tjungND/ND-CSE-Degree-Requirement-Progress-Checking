@@ -31,6 +31,11 @@ export interface CourseEntry {
   origin: 'nd' | 'transfer';
   /** transfer-only */
   institution?: string;
+  /** transfer-only: which uploaded transcript (degree level) the course came
+   * from. Bachelor's coursework can satisfy §4.4.1 core knowledge but can never
+   * transfer credit — §5.2 requires graduate courses taken with graduate
+   * student status. Absent on manual transfer entries (treated as graduate). */
+  degreeLevel?: 'bachelors' | 'masters' | 'phd';
   /** transfer-only: §4.4.1 core area the student claims this course satisfies (decision Q12). */
   claimedCoreArea?: CoreArea;
   /** Only meaningful when the rules sheet says category_group = 'any' (decision Q2). */

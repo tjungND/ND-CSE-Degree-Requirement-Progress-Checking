@@ -30,22 +30,26 @@ export interface RulesPatch {
     set?: Record<string, string>;
     remove?: boolean;
   }[];
+  /** Replace the ExternalCourses tab entirely: an array of row objects keyed by
+   * column name ([] = an empty tab); undefined leaves the fixture rows. */
+  external?: Record<string, string>[];
 }
 
-export function fixtureCsvTexts(): { courses: string; parameters: string; categories: string } {
+export function fixtureCsvTexts(): { courses: string; parameters: string; categories: string; external: string } {
   return {
     courses: readFileSync(join(fixtureDir, 'courses.csv'), 'utf8'),
     parameters: readFileSync(join(fixtureDir, 'parameters.csv'), 'utf8'),
     categories: readFileSync(join(fixtureDir, 'categories.csv'), 'utf8'),
+    external: readFileSync(join(fixtureDir, 'external.csv'), 'utf8'),
   };
 }
 
 /** Apply a scenario's inline patch at the CSV level, so patched rules still go
  * through the one true parse/validate pipeline. */
 export function applyPatch(
-  texts: { courses: string; parameters: string; categories: string },
+  texts: { courses: string; parameters: string; categories: string; external?: string },
   patch?: RulesPatch,
-): { courses: string; parameters: string; categories: string } {
+): { courses: string; parameters: string; categories: string; external?: string } {
   if (!patch) return texts;
   let parameters = texts.parameters;
   let courses = texts.courses;
@@ -90,7 +94,12 @@ export function applyPatch(
     courses = serializeCsv([header, ...body]);
   }
 
-  return { courses, parameters, categories: texts.categories };
+  let external = texts.external;
+  if (patch.external) {
+    const header = ['university', 'university_aliases', 'course_id', 'course_title', 'satisfies_core_area', 'transferable', 'nd_credits', 'decided_on', 'notes'];
+    external = serializeCsv([header, ...patch.external.map((row) => header.map((h) => row[h] ?? ''))]);
+  }
+  return { courses, parameters, categories: texts.categories, ...(external !== undefined ? { external } : {}) };
 }
 
 export function buildRules(patch?: RulesPatch): Rules {

@@ -65,7 +65,22 @@ function readPrevious(): { syncedAt: string; csv: CsvTexts } | undefined {
 const courses = await fetchCsv('Courses', urls.courses);
 const parameters = await fetchCsv('Parameters', urls.parameters);
 const categories = await fetchCsv('Categories', urls.categories);
-const live: CsvTexts = { courses, parameters, categories };
+// The ExternalCourses tab is optional (unconfigured until the DGS creates and
+// publishes it — data/sheet-urls.json 'external'). If it alone fails, keep the
+// previous snapshot's copy rather than losing it or failing the whole sync.
+let external: string | undefined;
+if (typeof urls.external === 'string' && urls.external !== '') {
+  try {
+    external = await fetchCsv('ExternalCourses', urls.external);
+  } catch (e) {
+    external = readPrevious()?.csv.external;
+    console.warn(
+      `ExternalCourses could not be fetched (${e instanceof Error ? e.message : String(e)}) — ` +
+        (external !== undefined ? 'keeping the copy from the previous snapshot.' : 'there is no previous copy to keep.'),
+    );
+  }
+}
+const live: CsvTexts = { courses, parameters, categories, ...(external !== undefined ? { external } : {}) };
 
 const syncedAt = new Date().toISOString();
 const rules = rulesFromCsvTexts(live, { source: 'live', syncedAt });

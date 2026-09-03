@@ -51,6 +51,8 @@ export function validateStudent(data: unknown): Student {
     if (typeof e['grade'] !== 'string') throw new Error(`${where} (${String(e['courseId'])}) has no grade.`);
     if (e['origin'] !== 'nd' && e['origin'] !== 'transfer')
       throw new Error(`${where} (${String(e['courseId'])}) has no origin ('nd' or 'transfer').`);
+    if (e['degreeLevel'] !== undefined && !['bachelors', 'masters', 'phd'].includes(e['degreeLevel'] as string))
+      throw new Error(`${where} (${String(e['courseId'])}) has an unrecognized degreeLevel.`);
   });
   return {
     ...emptyStudent(),

@@ -141,6 +141,18 @@ date than the last edit (a change decided today that takes effect next term, say
 **Parameters** row `rules_effective_date` with that date (`2026-09-01` format); the first half
 then reads "are effective as of <date>" instead — and keeps doing so until you remove the row.
 
+### A6b. A student asks about a course from another university
+
+Students import prior coursework (Previous Undergraduate / Master's / Ph.D. transcripts) and the app
+checks them against the **ExternalCourses** tab. When a student emails you a
+review request (the app writes it for them), decide and add a row: university,
+course id and title, which core area it satisfies (`satisfies_core_area`, if
+any), whether its credits can transfer (`transferable`), and — for quarter/ECTS
+systems — the ND-equivalent `nd_credits` (§5.2 pro-rata). The student's page
+updates within minutes; anything without a row honestly shows "not yet reviewed
+by the DGS". Bachelor's-level courses can satisfy core knowledge (§4.4.1) but
+never transfer credit (§5.2). Schema and one-time setup: `data/README.md`.
+
 ### A7. Verify in the app (five minutes later)
 
 1. Wait about five minutes for Google to republish, then open the live app and reload it.

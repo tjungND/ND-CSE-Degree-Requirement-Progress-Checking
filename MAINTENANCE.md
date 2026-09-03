@@ -47,14 +47,22 @@ change; ask for it.
 4. Record any interpretation calls in `docs/DECISIONS.md` (that file is the memory of every
    judgment call ever made — read it before overruling one).
 
-## Sheet items still open (as of 2026-09-01)
+## Sheet items (all clear as of 2026-09-03)
 
 The one-time setup is done: the seven Parameters rows the engine needs are in the sheet, and the
-three mistyped `Courses` rows (`CSE 98900`, `CSE 68900`, `CSE 87701`) are fixed. Still open:
-`CSE 44901 Undergraduate Research` has blank `counts_toward_*` (it surfaces as "needs DGS
-review" rather than counting silently — pick final values), and a number of active rows still
-have blank verdicts (shown as "Not yet decided" on the public course-rules page). The app's
+three mistyped `Courses` rows (`CSE 98900`, `CSE 68900`, `CSE 87701`) are fixed. `CSE 44901` was
+decided on 2026-09-03 (dgs_approval for both degrees; kept inactive so students who took it
+years ago can still enter it), and the last active rows with blank verdicts were filled the
+same day (both verified against the live CSV). The sheet's own README tab was fixed the same
+day too (its "How the app reads it" cell now names `data/sheet-urls.json` and includes
+ExternalCourses in the publish list) — nothing sheet-side is open. The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
+
+One-time setup for the external-transcripts feature (branch `feature/external-transcripts`):
+create the **ExternalCourses** tab in the rules sheet (header row in
+`data/README.md`; sample rows in `data/external.sample.csv`), publish it to the
+web as CSV, and paste the URL into `data/sheet-urls.json` (`external`). The app,
+sync and snapshot all treat that tab as optional until then.
 
 The optional Parameters row `rules_effective_date` (`2026-09-01` format) replaces the automatic
 "The course rules here were last updated on <date>" half of the dated line on both pages with
@@ -100,6 +108,12 @@ last edit (see "Sync" below).
   ever re-published or replaced).
 
 ## Repo peculiarities you should know
+
+- **`public/ocr/` holds the self-hosted OCR engine** (tesseract.js v7 worker, SIMD+LSTM WASM
+  core, English best_int model — ~7 MB committed on purpose): the app promises no external
+  network calls, so these may NEVER be swapped for CDN URLs. They load only when a student
+  explicitly chooses OCR for a scanned external transcript (English-only, opt-in). Update
+  recipe in `docs/CLAUDE-HANDOFF.md`.
 
 - Tests run on **node's built-in runner** (`node --test`; Node ≥ 24 runs the TypeScript
   directly) — no test-framework dependency. `npm run dev` gives a live-reload dev server;
