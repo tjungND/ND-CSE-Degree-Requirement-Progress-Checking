@@ -96,20 +96,20 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **UI safety**: all user text renders via `textContent` (the old prototype had an innerHTML
   XSS); imports are deep-validated and a failed render never persists (no localStorage brick);
   "today" is computed in LOCAL time (UTC audited evening users as tomorrow).
-- **Alpha disclaimer + handbook link** (2026-09-01, DGS decision): `src/ui/handbook.ts` holds
-  the edition, the official PDF URL, `handbookLink()` and the `ALPHA_NOTICE` wording; rendered as
-  the `.banner.alpha` under the masthead, the `.legal-alpha` footer paragraph, and two lines in
-  the copied summary. Remove the banner (not the footer) when the DGS declares the app out of alpha.
+- **Beta disclaimer + handbook link** (2026-09-01, DGS decision): `src/ui/handbook.ts` holds
+  the edition, the official PDF URL, `handbookLink()` and the `BETA_NOTICE` wording; rendered as
+  the `.banner.beta` under the masthead, the `.legal-beta` footer paragraph, and two lines in
+  the copied summary. Remove the banner (not the footer) when the DGS declares the app out of beta (renamed from alpha: DGS, 2026-09-03).
 - **Contacts, feedback address, license line, "untested upload" note** (2026-09-01, DGS
   decision): `src/ui/contacts.ts` holds the DGS / Assistant DGS / Graduate Program Administrator
   entries, the repo + LICENSE URLs, `reportToDgs()` and `contactCard()`; rendered as the
   "Who to contact" card at the top right of the masthead on BOTH pages (the masthead is a
   two-column grid: text | card; tools row spans below; single column under 900px), the footer
-  "License" line, the feedback sentence in the alpha banner + footer, and the `.untested-note`
-  under the transcript-upload button. The alpha banner also states in bold that every verdict is
+  "License" line, the feedback sentence in the beta banner + footer, and the `.untested-note`
+  under the transcript-upload button. The beta banner also states in bold that every verdict is
   computed from the published course rules (linking to `courses.html`). Update `contacts.ts` at every DGS handoff;
   the untested note was RETIRED 2026-09-03 (the import buttons carry "(beta)" instead, and the
-  page-level privacy banner sits right under the alpha notice); real-ND-transcript testing is
+  page-level privacy banner sits right under the beta notice); real-ND-transcript testing is
   still worth doing (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
 - **Public course-rules page** (`courses.html`, 2026-09-01, DGS request): `src/ui/courses-page.ts`
   renders the Courses tab for students — overview cards per §4.4.1 core area and §4.4.2 category,
@@ -122,7 +122,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   "course rules list" screenshots it and checks a filter. Add columns here, never new policy.
   Its banner is the OFFICIAL wording (DGS, 2026-09-01): the mappings are set by the DGS with
   faculty input and are what the DGS and the Graduate Program Administrator use; it is not
-  labelled alpha (only the self-check tool is). It also says not every listed course is offered.
+  labelled beta (only the self-check tool is). It also says not every listed course is offered.
 - **Dated line under each title** (`rulesDateLine()` in `src/ui/handbook.ts`, 2026-09-01):
   precedence (1) optional Parameters row `rules_effective_date` (a `DISPLAY_PARAMETER_KEYS`
   entry: known, optional, silent when missing, never an engine input) → "Rules effective as
@@ -149,10 +149,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   chose to continue with the copy saved on …". E2E: the sandbox has no network, so every run
   exercises this path — `cdp.mjs`'s `open()` waits for the masthead OR the failed card, requires
   the card to mention reloading, screenshots it once (`loading-failed.png`) and clicks through.
-- **Alpha ≠ inaccurate rules** (`RULES_ACCURACY_NOTICE` + `ALPHA_SCOPE_NOTICE` in
+- **Beta ≠ inaccurate rules** (`RULES_ACCURACY_NOTICE` + `BETA_SCOPE_NOTICE` in
   `src/ui/handbook.ts`, DGS wording 2026-09-01): the banner, footer and copied summary now state
   in bold that the course rules are accurate — exactly the rules the DGS and the Graduate
-  Program Administrator use to determine requirement satisfaction — and that what is in alpha is
+  Program Administrator use to determine requirement satisfaction — and that what is in beta is
   the TOOL's application of them. Don't reintroduce wording that hedges on the rules themselves. **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
   2026-09-01 by fetching all three tabs from the deployed page's own origin (exposed headers:
   cache-control `private, max-age=300`, content-disposition, content-type, date, expires, server)

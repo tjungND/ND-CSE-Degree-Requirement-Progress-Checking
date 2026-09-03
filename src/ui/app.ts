@@ -9,7 +9,7 @@ import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
-import { ALPHA_NOTICE, ALPHA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
+import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { externalTranscriptsCard } from './external-upload.ts';
 import { renderReport, summaryText } from './report.ts';
@@ -60,7 +60,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     root.append(
       ...[
       masthead(),
-      alphaNotice(),
+      betaNotice(),
       privacyNotice(),
       rules.source === 'snapshot' ? snapshotBanner() : null,
       el(
@@ -141,23 +141,23 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     );
   }
 
-  function alphaNotice(): HTMLElement {
+  function betaNotice(): HTMLElement {
     return el(
       'div',
-      { class: 'banner alpha', role: 'note' },
-      el('strong', {}, 'Alpha version under testing. '),
-      ALPHA_NOTICE,
+      { class: 'banner beta', role: 'note' },
+      el('strong', {}, 'Beta version under testing. '),
+      BETA_NOTICE,
       ' ',
       el('strong', {}, RULES_ACCURACY_NOTICE),
       ' (See the ',
       el('a', { href: './courses.html' }, 'course rules page'),
       '.) ',
-      ALPHA_SCOPE_NOTICE,
+      BETA_SCOPE_NOTICE,
       ...reportToDgs(' Error reports and feedback — please email'),
     );
   }
 
-  /** Right below the alpha notice (DGS placement, 2026-09-03): everything —
+  /** Right below the beta notice (DGS placement, 2026-09-03): everything —
    * input, imported PDFs, and the optional OCR — stays in the browser. */
   function privacyNotice(): HTMLElement {
     return el(
@@ -779,13 +779,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       ),
       el(
         'div',
-        { class: 'legal-alpha' },
-        el('strong', {}, 'Alpha version under testing. '),
-        ALPHA_NOTICE,
+        { class: 'legal-beta' },
+        el('strong', {}, 'Beta version under testing. '),
+        BETA_NOTICE,
         ' ',
         el('strong', {}, RULES_ACCURACY_NOTICE),
         ' ',
-        ALPHA_SCOPE_NOTICE,
+        BETA_SCOPE_NOTICE,
         ' (See the ',
         el('a', { href: './courses.html' }, 'course rules page'),
         '.)',

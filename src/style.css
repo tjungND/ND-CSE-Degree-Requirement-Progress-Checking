@@ -45,7 +45,7 @@ body {
   background: #fff7e0; border: 1px solid #e0c877; color: #6b5510;
   border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
 }
-.banner.alpha { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
+.banner.beta { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
 .banner.official { background: #e9eef7; border-color: #b9c7e0; color: #1e2f4d; }
 .banner.privacy { background: #eef7ee; border-color: #b3d6b3; color: #1d4d1d; }
 .banner.official a { color: inherit; }
@@ -179,7 +179,7 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 /* privacy notes (FERPA) */
 .privacy-note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; max-width: 80ch; }
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
-.legal-alpha, .legal-privacy, .legal-license { margin-top: 10px; }
+.legal-beta, .legal-privacy, .legal-license { margin-top: 10px; }
 .legal-license strong { color: var(--ink); }
 
 /* ---------- courses.html: the public course-rules list ---------- */
