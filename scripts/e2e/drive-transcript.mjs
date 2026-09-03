@@ -45,6 +45,22 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!gpa) throw new Error('cumulative GPA was not prefilled');
   await s.shot('transcript-added');
 
+  // 2b) An unlisted (typically non-CSE) ND course typed by hand → the review
+  // block offers a copy-ready request addressed to the DGS + Graduate Program
+  // Administrator (2026-09-03).
+  await s.evalJs(`(() => {
+    const form = document.querySelector('.course-form');
+    form.querySelector('input[placeholder="CSE 60641"]').value = 'MATH 60610';
+    [...form.querySelectorAll('button')].find((b) => b.textContent === 'Add course').click();
+  })()`);
+  await s.waitFor(`document.querySelector('.nd-review')`);
+  const ndReview = await s.evalJs(`document.querySelector('.nd-review').textContent`);
+  if (!ndReview.includes('Copy review request for 1 course') || !ndReview.includes('Graduate Program Administrator')) {
+    throw new Error('ND review block wrong: ' + ndReview.slice(0, 140));
+  }
+  console.log('  unlisted ND course → review request offered');
+  await s.shot('nd-review');
+
   // 3) External transcript (Master's slot) → editable preview → add → verdicts.
   await s.setFileInput('.external-file-masters', externalPdf);
   await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Master’s Transcript'))`);

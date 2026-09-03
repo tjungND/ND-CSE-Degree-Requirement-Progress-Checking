@@ -37,6 +37,9 @@ export interface CourseEntry {
    * student status. Absent on manual transfer entries (treated as graduate). */
   degreeLevel?: 'bachelors' | 'masters' | 'phd';
   /** transfer-only: §4.4.1 core area the student claims this course satisfies (decision Q12). */
+  /** Deprecated 2026-09-03 (the claim path is retired — the DGS's
+   * ExternalCourses rulings decide §4.4.1). Kept so old saved/imported
+   * student files still load; the engine ignores it. */
   claimedCoreArea?: CoreArea;
   /** Only meaningful when the rules sheet says category_group = 'any' (decision Q2). */
   assignedGroup?: CategoryGroup;
@@ -63,7 +66,9 @@ export interface Attestations {
   dgsApproved4xxxx?: boolean; // §3.2/§4.2
   dgsApprovedNonCse?: boolean; // §3.2/§4.2
   transferApproved?: boolean; // §5.2 DGS + Graduate School
-  corePassedElsewhere?: CoreArea[]; // §4.4.1 "or have previously passed"
+  /** Deprecated 2026-09-03 (retired with the claim path — see
+   * claimedCoreArea). Kept so old saved files still load; ignored. */
+  corePassedElsewhere?: CoreArea[];
   qualifierExtensionGranted?: boolean; // §4.4 "the DGS may extend the deadline"
 }
 

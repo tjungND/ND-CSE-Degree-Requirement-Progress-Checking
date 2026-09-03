@@ -365,14 +365,16 @@ function coreRows(ctx: Ctx): RequirementResult[] {
     // A course satisfies a core area when its rules row tags it (core_area) and
     // it passed — any passing grade (decision Q9). An EXTERNAL course passes
     // this row outright when the DGS's ExternalCourses tab confirms the area
-    // (2026-09-01); a student-claimed area, and "previously passed elsewhere"
-    // attestations, count only as needs-DGS-review (decision Q12). The §5.2
-    // window/floor/degree-level rules do not apply here ("or have previously
-    // passed" is about knowledge, not credit — an undergraduate course counts).
+    // (2026-09-01). The old student-claimed area and "previously passed
+    // elsewhere" attestation paths were RETIRED 2026-09-03 (they predated the
+    // ExternalCourses tab and duplicated it; Q12 superseded) — a course from a
+    // previous institution counts only via the DGS's ruling in that tab. The
+    // §5.2 window/floor/degree-level rules do not apply here ("or have
+    // previously passed" is about knowledge, not credit — an undergraduate
+    // course counts).
     let done: string | undefined;
     let confirmed: string | undefined;
     let ip: string | undefined;
-    let provisional: string | undefined;
     for (const c of ctx.classified) {
       if (c.superseded) continue;
       if (c.entry.origin === 'nd') {
@@ -381,23 +383,16 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         else if (isInProgress(c.entry.grade)) ip ??= c.entry.courseId;
       } else if (c.external?.satisfiesCoreArea === area.code && isPassed(c.entry.grade)) {
         confirmed ??= `${c.entry.courseId} (${c.external.university})`;
-      } else if (c.entry.claimedCoreArea === area.code && isPassed(c.entry.grade)) {
-        provisional ??= `${c.entry.courseId}${c.entry.institution ? ` (${c.entry.institution})` : ''}`;
       }
     }
-    if (ctx.student.attestations.corePassedElsewhere?.includes(area.code as never)) {
-      provisional ??= 'passed at a previous institution (your attestation)';
-    }
-    const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : provisional ? 'needs_dgs_review' : 'unmet';
+    const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : 'unmet';
     const detail = done
       ? `Satisfied by ${done}.`
       : confirmed
         ? `Satisfied by ${confirmed} — confirmed in the DGS’s external-course rules (§4.4.1 allows a course from a previous institution).`
         : ip
           ? `${ip} is in progress.`
-          : provisional
-            ? `Claimed via ${provisional} — needs DGS confirmation (§4.4.1 allows a course from a previous institution).`
-            : `No ${area.name} course yet. Courses tagged for this area in the rules sheet satisfy it; one at a previous institution needs DGS confirmation.`;
+          : `No ${area.name} course yet. Courses tagged for this area in the rules sheet satisfy it; a course from a previous institution counts once the DGS confirms it in the external-course rules — import it under Prior Coursework and send the review request.`;
     return {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,

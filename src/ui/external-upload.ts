@@ -11,8 +11,29 @@ import { GRADES, isPassed } from '../engine/grades.ts';
 import { termLabel } from '../engine/term.ts';
 import type { CourseEntry, Grade, Season, Student } from '../engine/types.ts';
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
-import { DGS, mailto } from './contacts.ts';
+import { DGS, GRAD_ADMIN, mailto } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
+
+/** Write a review request to the clipboard in BOTH flavors (2026-09-03):
+ * text/plain keeps the tab-separated rows; text/html carries them as a real
+ * table — HTML email flattens tabs to spaces, but a table survives Gmail and
+ * pastes into Sheets as cells. Falls back to plain text where ClipboardItem
+ * is unsupported. Shared by the Prior Coursework card and the ND-courses
+ * review block in app.ts. */
+export function copyReviewRequest(built: { text: string; html: string }): Promise<void> {
+  return (async () => {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([built.text], { type: 'text/plain' }),
+          'text/html': new Blob([built.html], { type: 'text/html' }),
+        }),
+      ]);
+    } catch {
+      await navigator.clipboard.writeText(built.text);
+    }
+  })();
+}
 
 export type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
 export const DEGREE_SLOTS: { level: DegreeLevel; label: string }[] = [
@@ -69,7 +90,9 @@ export function externalTranscriptsCard(args: ExternalCardArgs): HTMLElement {
       { class: 'hint' },
       'Took courses at another university before Notre Dame? Import up to three transcripts — undergraduate, Master’s, Ph.D. — and every course is checked against the DGS’s external-course rules: whether it satisfies a §4.4.1 core-knowledge area, and whether its credits can transfer (§5.2). Undergraduate courses can satisfy core knowledge but never transfer credit (§5.2). ',
       el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
-      ' — after you agree, and with every field checked by you. Like everything here, the file is read on your own computer and never uploaded.',
+      ' — after you agree, and with every field checked by you. Like everything here, the file is read on your own computer and never uploaded. ',
+      el('strong', {}, 'Decisions are made only by email:'),
+      ' when courses need review, you must copy the review request this card writes for you and send it to the DGS and the Graduate Program Administrator.',
     ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
@@ -443,28 +466,14 @@ function pendingRequestBlock(student: Student, rules: Rules, toast: (m: string) 
             class: 'btn',
             onclick: () => {
               requestText()
-                .then(async ({ text, html }) => {
-                  // Write BOTH flavors: HTML email flattens tabs to spaces, so
-                  // the course rows travel as a real table — it survives Gmail
-                  // and pastes into Sheets as cells (DGS decision 2026-09-03).
-                  try {
-                    await navigator.clipboard.write([
-                      new ClipboardItem({
-                        'text/plain': new Blob([text], { type: 'text/plain' }),
-                        'text/html': new Blob([html], { type: 'text/html' }),
-                      }),
-                    ]);
-                  } catch {
-                    await navigator.clipboard.writeText(text); // no ClipboardItem support
-                  }
-                })
-                .then(() => toast('Review request copied — paste it into an email to the DGS. (Nothing is sent by this page.)'))
+                .then(copyReviewRequest)
+                .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator. (Nothing is sent by this page.)'))
                 .catch(() => toast('Could not copy automatically — please email the DGS with your university, course ids, credits, grades and terms.'));
             },
           },
           `Copy review request for ${pending.length} course${pending.length === 1 ? '' : 's'}`,
         ),
-        el('span', { class: 'hint-inline' }, ' — email it to the DGS (', mailto(DGS.email), '); the page itself sends nothing.'),
+        el('span', { class: 'hint-inline' }, ' — you MUST email it to the DGS (', mailto(DGS.email), ') and the Graduate Program Administrator (', mailto(GRAD_ADMIN.email), ') for these courses to be reviewed; the page itself sends nothing.'),
       ),
     );
   }

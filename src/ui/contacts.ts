@@ -35,6 +35,10 @@ export const CONTACTS: Contact[] = [
 /** The DGS — the address error reports and feedback go to. */
 export const DGS: Contact = CONTACTS[0]!;
 
+/** The Graduate Program Administrator — course review requests MUST be
+ * emailed to the DGS AND this address (DGS policy, 2026-09-03). */
+export const GRAD_ADMIN: Contact = CONTACTS.find((c) => c.role === 'Graduate Program Administrator')!;
+
 /** A mailto link showing the address itself. */
 export function mailto(email: string): HTMLAnchorElement {
   return el('a', { href: `mailto:${email}` }, email);

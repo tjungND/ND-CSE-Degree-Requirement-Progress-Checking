@@ -175,7 +175,16 @@ Known-pending (the app's diagnostics panel is the live truth):
   `src/transcript/external.ts`) so the DGS pastes them straight into the sheet. The copy writes
   text/plain (tabs) AND text/html (a real `<table>`): HTML email flattens tabs to spaces, a table
   survives Gmail and pastes as cells. (A paste while a cell is in EDIT mode still lands in one
-  cell — click the target cell once, don't double-click.) The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
+  cell — click the target cell once, don't double-click.) All requests are addressed to the DGS
+  AND the Graduate Program Administrator (policy 2026-09-03) — `GRAD_ADMIN` in `contacts.ts`,
+  clipboard writer `copyReviewRequest` in `external-upload.ts`. ND courses get the same treatment
+  (`ndReviewBlock` in `app.ts` + `buildNdCourseReviewRequest`): anything origin-ND that is
+  unknown, unattested dgs_approval, or blank-verdict gets a copy-ready request; only unknown
+  courses become paste-ready Courses-tab rows (course_id, title). RETIRED 2026-09-03: the
+  per-course core-area claim dropdown and the per-area "previously passed elsewhere"
+  attestations (both predated the ExternalCourses tab; Q12 superseded). The type fields
+  `claimedCoreArea` / `corePassedElsewhere` remain, deprecated, so old saves still import —
+  the engine ignores them. The tab is OPTIONAL at every seam (urls/loader/sync/snapshot/
   rules-date/loading card); its lone failure degrades to "not yet reviewed", never a dead page.
   Tests: `tests/external-rules.test.ts`, `tests/external-transcript.test.ts`, scenario patch key
   `external`; e2e uploads `tests/fixtures/external-transcript.pdf` into the Master's slot.

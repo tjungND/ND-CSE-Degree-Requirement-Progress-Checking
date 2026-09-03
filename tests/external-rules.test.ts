@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { findExternalRule, normalizeCourseId, normalizeUniversity } from '../src/data/external.ts';
-import { buildExternalReviewRequest } from '../src/transcript/external.ts';
+import { buildExternalReviewRequest, buildNdCourseReviewRequest } from '../src/transcript/external.ts';
 import { parseExternalTab } from '../src/data/parse.ts';
 import type { SheetIssue } from '../src/data/types.ts';
 import { audit } from '../src/engine/audit.ts';
@@ -132,6 +132,23 @@ describe('the copy-ready review request', () => {
     assert.match(text, /3 credits, grade A, Fall 2023 \(Previous Master’s Transcript\)/);
     assert.match(text, /1 credit, grade B\+, Fall 2024/);
     assert.match(text, /paste into the sheet/);
+  });
+
+  it('is addressed to both decision-makers', () => {
+    assert.match(built.text, /Dear DGS and Graduate Program Administrator,/);
+  });
+
+  it('the ND-course variant: rows only for unlisted courses, reasons in the details', () => {
+    const { text, html } = buildNdCourseReviewRequest([
+      { courseId: 'MATH 60610', title: 'Real Analysis I', credits: 3, grade: 'A', termText: 'Fall 2026', reason: 'not in the course rules yet', unlisted: true },
+      { courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the rules sheet', unlisted: false },
+    ]);
+    assert.match(text, /^Subject: Notre Dame course review request/);
+    assert.ok(text.includes('MATH 60610\tReal Analysis I'), 'unlisted course becomes a Courses-tab row');
+    assert.ok(!text.includes('CSE 40567\t'), 'sheet-listed courses get no new row');
+    assert.match(text, /CSE 40567: 3 credits, grade B, Fall 2026 — needs advisor \+ DGS approval/);
+    assert.ok(html.includes('<td>MATH 60610</td><td>Real Analysis I</td>'));
+    assert.ok(!html.includes('<td>CSE 40567</td>'));
   });
 
   it('html flavor: a real table (tabs do not survive HTML email), entities escaped', () => {

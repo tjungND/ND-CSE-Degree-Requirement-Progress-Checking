@@ -3,6 +3,7 @@
 // All rule logic lives in src/engine/ — this file only collects input and renders.
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { Rules } from '../data/types.ts';
+import { classify } from '../engine/allocate.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
@@ -10,8 +11,8 @@ import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
-import { LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
-import { externalTranscriptsCard } from './external-upload.ts';
+import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
+import { copyReviewRequest, externalTranscriptsCard } from './external-upload.ts';
 import { renderReport, summaryText } from './report.ts';
 import {
   clearLocal,
@@ -200,26 +201,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       option('unfinished', 'Prior M.S., not completed', student.priorMs === 'unfinished'),
       option('completed', 'Completed prior M.S. or Ph.D.', student.priorMs === 'completed'),
     );
-    const gpaInput = el('input', {
-      type: 'number',
-      min: '0',
-      max: '4',
-      step: '0.01',
-      placeholder: '3.50',
-      value: student.gpa === undefined ? '' : String(student.gpa),
-      onchange: (e) => {
-        const v = (e.target as HTMLInputElement).value;
-        update((s) => void (s.gpa = v === '' ? undefined : Number(v)));
-      },
-    });
-
     const card = el(
       'section',
       { class: 'card' },
       el('h2', {}, 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
       field('Entered the program', el('div', { class: 'pair' }, seasonSel, yearInput)),
       field('Prior graduate study (§5.2 transfer caps)', priorSel),
-      field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
     );
 
     if (student.program === 'mscse') {
@@ -282,6 +269,20 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   // ---------- coursework ----------
 
   function coursesCard(courseLines: { courseId: string; term: Term; text: string }[]): HTMLElement {
+    // The GPA lives here, next to the transcript import that prefills it
+    // (moved from the standing card — DGS request, 2026-09-03).
+    const gpaInput = el('input', {
+      type: 'number',
+      min: '0',
+      max: '4',
+      step: '0.01',
+      placeholder: '3.50',
+      value: student.gpa === undefined ? '' : String(student.gpa),
+      onchange: (e) => {
+        const v = (e.target as HTMLInputElement).value;
+        update((s) => void (s.gpa = v === '' ? undefined : Number(v)));
+      },
+    });
     const card = el(
       'section',
       { class: 'card' },
@@ -291,12 +292,70 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         { class: 'hint' },
         'Add everything you have taken or are taking. Regular courses have a regular meeting time, assigned readings, graded assignments, and a final exam — research seminars, research credits, and independent study do not (§3.2/§4.2). Courses not in the list can be typed in full (e.g. a non-CSE course) and will be flagged for DGS review.',
       ),
+      field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       transcriptUpload(),
       transcriptPreview ? transcriptPreviewBlock() : null,
       courseForm(),
       courseTable(courseLines),
+      ndReviewBlock(),
     );
     return card;
+  }
+
+  // Notre Dame courses that still need a DGS decision (2026-09-03): not in
+  // the rules sheet (typical for non-CSE courses), sheet-listed as
+  // dgs_approval and not yet approved, or listed with a blank verdict. The
+  // student copies a review request — paste-ready Courses-tab rows for the
+  // unlisted ones plus detail lines — and MUST email it to the DGS and the
+  // Graduate Program Administrator; the page itself sends nothing.
+  function ndReviewBlock(): HTMLElement | null {
+    const { classified } = classify(student, rules);
+    const pending = classified.filter(
+      (c) => !c.superseded && c.entry.origin === 'nd' && (c.unknown === true || c.approvalPending !== undefined),
+    );
+    if (pending.length === 0) return null;
+    const toRequest = pending.map((c) => ({
+      courseId: c.entry.courseId,
+      title: c.entry.title ?? c.rule?.title,
+      credits: c.entry.credits,
+      grade: c.entry.grade,
+      termText: termLabel(c.entry.term),
+      reason: c.unknown === true ? 'not in the course rules yet' : (c.approvalPending ?? 'needs DGS review'),
+      unlisted: c.unknown === true,
+    }));
+    const n = pending.length;
+    return el(
+      'div',
+      { class: 'nd-review' },
+      el(
+        'p',
+        { class: 'hint' },
+        `${n} course${n === 1 ? '' : 's'} above need${n === 1 ? 's' : ''} a DGS decision before the self-check can count ${n === 1 ? 'it' : 'them'}. `,
+        el('strong', {}, 'Decisions are made only by email:'),
+        ' copy the review request and send it to the DGS (',
+        mailto(DGS.email),
+        ') and the Graduate Program Administrator (',
+        mailto(GRAD_ADMIN.email),
+        ') — the page itself sends nothing.',
+      ),
+      el(
+        'div',
+        { class: 'save-buttons' },
+        el(
+          'button',
+          {
+            class: 'btn',
+            onclick: () => {
+              import('../transcript/external.ts')
+                .then(({ buildNdCourseReviewRequest }) => copyReviewRequest(buildNdCourseReviewRequest(toRequest)))
+                .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator. (Nothing is sent by this page.)'))
+                .catch(() => toast('Could not copy automatically — please email the DGS and the Graduate Program Administrator with your course ids, credits, grades and terms.'));
+            },
+          },
+          `Copy review request for ${n} course${n === 1 ? '' : 's'}`,
+        ),
+      ),
+    );
   }
 
   // ---------- transcript upload ----------
@@ -457,9 +516,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const originSel = el('select', {});
     originSel.append(option('nd', 'Taken at Notre Dame', true), option('transfer', 'Transferred in (§5.2)'));
     const institutionInput = el('input', { placeholder: 'Institution', class: 'hidden' });
-    const coreSel = el('select', { class: 'hidden' });
-    coreSel.append(option('', 'No core-area claim'));
-    for (const a of rules.coreAreas) coreSel.append(option(a.code, `Covers core: ${a.name} (§4.4.1)`));
+    // (The per-course core-area claim dropdown was retired 2026-09-03 —
+    // the DGS's ExternalCourses rulings are the only §4.4.1 external path.)
     const groupSel = el('select', { class: 'hidden' });
     groupSel.append(option('', 'Assign a specialization group…'));
     for (const g of rules.categoryGroups) groupSel.append(option(g.code, `Count as: ${g.name}`));
@@ -467,7 +525,6 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     originSel.addEventListener('change', () => {
       const transfer = (originSel as HTMLSelectElement).value === 'transfer';
       institutionInput.classList.toggle('hidden', !transfer);
-      coreSel.classList.toggle('hidden', !(transfer && student.program === 'phd'));
     });
 
     idInput.addEventListener('change', () => {
@@ -504,8 +561,6 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       };
       if (entry.origin === 'transfer') {
         if (institutionInput.value) entry.institution = institutionInput.value;
-        const core = (coreSel as HTMLSelectElement).value;
-        if (core) entry.claimedCoreArea = core as CourseEntry['claimedCoreArea'];
       }
       const group = (groupSel as HTMLSelectElement).value;
       if (group && !groupSel.classList.contains('hidden')) entry.assignedGroup = group as CourseEntry['assignedGroup'];
@@ -525,7 +580,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         labelWrap('Grade', gradeSel),
         labelWrap('Where', originSel),
       ),
-      el('div', { class: 'row3' }, institutionInput, coreSel, groupSel, el('button', { class: 'btn primary', onclick: add }, 'Add course')),
+      el('div', { class: 'row3' }, institutionInput, groupSel, el('button', { class: 'btn primary', onclick: add }, 'Add course')),
     );
   }
 
@@ -650,17 +705,10 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       card.append(
         attestation('The DGS extended my qualifier deadline (§4.4)', a.qualifierExtensionGranted, (v, s) => (s.attestations.qualifierExtensionGranted = v)),
       );
-      for (const area of rules.coreAreas) {
-        const checked = a.corePassedElsewhere?.includes(area.code as never) ?? false;
-        card.append(
-          attestation(`I previously passed a ${area.name} course elsewhere (§4.4.1 — the DGS must confirm)`, checked, (v, s) => {
-            const list = new Set(s.attestations.corePassedElsewhere ?? []);
-            if (v) list.add(area.code as never);
-            else list.delete(area.code as never);
-            s.attestations.corePassedElsewhere = [...list];
-          }),
-        );
-      }
+      // (The per-area "previously passed elsewhere" checkboxes were retired
+      // 2026-09-03 — a core area from a previous institution now counts only
+      // via the DGS's ExternalCourses ruling, fed by the Prior Coursework
+      // card. Old saved files with the attestation still load; it is ignored.)
     }
     return card;
   }

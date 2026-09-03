@@ -155,6 +155,18 @@ updates within minutes; anything without a row honestly shows "not yet reviewed
 by the DGS". Bachelor's-level courses can satisfy core knowledge (§4.4.1) but
 never transfer credit (§5.2). Schema and one-time setup: `data/README.md`.
 
+### A6c. A student asks about a Notre Dame course the sheet hasn't decided
+
+Notre Dame courses that are not in the **Courses** tab (typically non-CSE), are
+marked `dgs_approval`, or have blank verdicts show "needs DGS review", and the
+coursework card writes a review request for the student — they must email it to
+you and the Graduate Program Administrator. For courses that are not in the
+sheet at all, the email contains paste-ready rows (`course_id`, `title`) —
+paste them into the **Courses** tab at a new row's `course_id` cell, fill in
+the remaining columns, and the student's page updates within minutes. For
+`dgs_approval` courses your decision is by email; the student then ticks the
+matching box under "Approvals you already have".
+
 ### A7. Verify in the app (five minutes later)
 
 1. Wait about five minutes for Google to republish, then open the live app and reload it.
