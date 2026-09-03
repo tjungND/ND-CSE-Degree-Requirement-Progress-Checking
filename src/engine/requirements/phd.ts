@@ -392,7 +392,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         ? `Satisfied by ${confirmed} — confirmed in the DGS’s external-course rules (§4.4.1 allows a course from a previous institution).`
         : ip
           ? `${ip} is in progress.`
-          : `No ${area.name} course yet. Courses tagged for this area in the rules sheet satisfy it; a course from a previous institution counts once the DGS confirms it in the external-course rules — import it under Prior Coursework and send the review request.`;
+          : `No ${area.name} course yet. Courses tagged for this area in the rules sheet satisfy it; a course from a previous institution counts once the DGS confirms it in the external-course rules — import that transcript in the Transcripts card and send the review request.`;
     return {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,

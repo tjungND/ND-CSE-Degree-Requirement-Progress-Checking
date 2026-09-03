@@ -756,8 +756,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       );
       // (The per-area "previously passed elsewhere" checkboxes were retired
       // 2026-09-03 — a core area from a previous institution now counts only
-      // via the DGS's ExternalCourses ruling, fed by the Prior Coursework
-      // card. Old saved files with the attestation still load; it is ignored.)
+      // via the DGS's ExternalCourses ruling, fed by the Transcripts card.
+      // Old saved files with the attestation still load; it is ignored.)
     }
     return card;
   }
