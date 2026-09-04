@@ -55,7 +55,10 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   await s.waitFor(`document.querySelector('.dgs-review')`);
   const ndReview = await s.evalJs(`document.querySelector('.dgs-review').textContent`);
-  if (!ndReview.includes('Copy review request for 1 course') || !ndReview.includes('Graduate Program Administrator')) {
+  // 2 pending: the typed MATH 60610, plus the ND transcript's transfer-credit
+  // line CS 50300 "Operating Systems" — no §5.2 credit, but its core-keyword
+  // title joins the request for §4.4.1 review (DGS rule 2026-09-04).
+  if (!ndReview.includes('Copy review request for 2 courses') || !ndReview.includes('Graduate Program Administrator')) {
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
@@ -84,7 +87,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   // ONE combined request: the MATH course from 2b + the 3 external courses.
   const copyBtn = await s.evalJs(
-    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Copy review request for 4 courses'))`,
+    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Copy review request for 5 courses'))`,
   );
   if (!copyBtn) throw new Error('the combined review request button is missing/wrong');
   const transferDetail = await s.evalJs(
@@ -147,9 +150,9 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // the two keyword-matching bachelors courses were added, and both join the
   // request — MATH (1) + masters slot (3) + those two = 6 pending.
   const combined6 = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
-  if (!combined6.includes('Copy review request for 6 courses')) {
-    throw new Error('expected 6 pending after OCR (undergrad core-title rule): ' + combined6.slice(0, 140));
+  if (!combined6.includes('Copy review request for 7 courses')) {
+    throw new Error('expected 7 pending after OCR (undergrad core-title rule): ' + combined6.slice(0, 140));
   }
-  console.log('  undergrad core-title courses joined the review request (6 pending)');
+  console.log('  undergrad core-title courses joined the review request (7 pending)');
   await s.shot('external-ocr-added');
 }

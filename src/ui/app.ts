@@ -459,9 +459,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       // keywords (2026-09-03) flag the ones whose TITLE suggests a §4.4.1 core
       // area — those are worth a ruling.
       if (c.entry.degreeLevel === 'bachelors') return CORE_TITLE_RE.test(c.entry.title ?? '');
-      // A course the engine already ruled OUT for a hard reason (outside the
-      // §5.2 window, below the grade floor, …) is not worth the DGS's time.
-      return c.ineligibleReason === undefined;
+      // Unreviewed GRADUATE courses (2026-09-04): pending when transfer credit
+      // is still possible (no hard §5.2 ineligibility) — and even when it is
+      // not (outside the window, below the grade floor), a core-keyword title
+      // still belongs in the request, because the course may satisfy §4.4.1
+      // core knowledge, which has no such restrictions.
+      return c.ineligibleReason === undefined || CORE_TITLE_RE.test(c.entry.title ?? '');
     });
     const n = nd.length + external.length;
     if (n === 0) return null;
@@ -487,7 +490,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           ? 'transferability not yet decided'
           : c.entry.degreeLevel === 'bachelors'
             ? 'title suggests a §4.4.1 core area — not yet reviewed by the DGS'
-            : 'not yet reviewed by the DGS',
+            : c.ineligibleReason !== undefined
+              ? 'no transfer credit, but the title suggests a §4.4.1 core area — not yet reviewed by the DGS'
+              : 'not yet reviewed by the DGS',
       unlisted: c.external === undefined,
     }));
     const line = (courseId: string, where: string | undefined, reason: string) =>
