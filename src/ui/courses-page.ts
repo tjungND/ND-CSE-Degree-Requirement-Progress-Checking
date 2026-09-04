@@ -170,9 +170,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         el(
           'p',
           { class: 'sub' },
-          'This page describes which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, when each is typically offered, and which part of the Ph.D. Qualifying Examination (§4.4) each can satisfy — a core-knowledge area (§4.4.1) or a specialization category (§4.4.2) — as determined by the Director of Graduate Studies with faculty input under the ',
+          el('strong', {}, 'Official course rules. '),
+          'These mappings are set by the Graduate Studies Committee and the Director of Graduate Studies under the ',
           handbookLink(),
-          '. The ',
+          ', and they are what the DGS and the Graduate Program Administrator use to decide whether a student’s courses satisfy the degree requirements. The ',
           el('a', { href: './index.html' }, 'degree self-check tool'),
           ' applies these same rules to your own coursework.',
         ),
@@ -187,8 +188,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       el(
         'div',
         { class: 'banner official', role: 'note' },
-        el('strong', {}, 'Official course rules. '),
-        'These mappings are set by the Director of Graduate Studies with faculty input, and they are what the DGS and the Graduate Program Administrator use to decide whether a student’s courses satisfy the degree requirements. Rows marked ',
+        'Rows marked ',
         el('span', { class: 'pill pending' }, 'Pending'),
         ' are still under DGS review and may change. ',
         el('strong', {}, 'Not every course listed is currently offered: '),
