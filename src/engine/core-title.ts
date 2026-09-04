@@ -16,3 +16,16 @@ export function coreTitleSuggestion(title: string | undefined): string | undefin
   if (/architect/i.test(t)) return 'Computer Architecture';
   return undefined;
 }
+
+/** Does this title's keyword point at the given core-area CODE (the engine's
+ * os / algorithms / architecture)? Used by the §4.4.1 rows to mark an area
+ * "pending review" when an unreviewed course could satisfy it (2026-09-04). */
+const AREA_TITLE_RE: Record<string, RegExp> = {
+  os: /operating/i,
+  algorithms: /algorithm/i,
+  architecture: /architect/i,
+};
+export function coreTitleMatchesArea(title: string | undefined, areaCode: string): boolean {
+  const re = AREA_TITLE_RE[areaCode];
+  return re !== undefined && re.test(title ?? '');
+}

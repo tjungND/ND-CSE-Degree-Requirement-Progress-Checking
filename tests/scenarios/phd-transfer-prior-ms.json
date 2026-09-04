@@ -127,12 +127,7 @@
     "9"
    ]
   },
-  "phd.qualifier.core.os": {
-   "status": "unmet",
-   "detailIncludes": [
-    "No Operating Systems course"
-   ]
-  }
+  "phd.qualifier.core.os": { "status": "needs_dgs_review", "detailIncludes": ["Pending review", "Operating Systems"] }
  },
  "expectCourseLines": {
   "CS 51400": [

@@ -204,6 +204,14 @@ export function classify(student: Student, rules: Rules): {
               : 'not counted — undergraduate credits never transfer (§5.2)',
         };
       }
+      // Graduate courses (2026-09-04): §5.2 transfer credit is not the only
+      // thing a prior course can earn — an unreviewed course whose title
+      // matches the core keywords may satisfy §4.4.1 core knowledge after the
+      // DGS's review, and its line says so. (A DGS-ruled course is decided.)
+      const suggested = external === undefined ? coreTitleSuggestion(c.title) : undefined;
+      const coreNote = suggested
+        ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
+        : '';
       if (external?.transferable === false) {
         return {
           ...extBase,
@@ -214,12 +222,12 @@ export function classify(student: Student, rules: Rules): {
       // "completed within a five-year period prior to admission … or while
       // enrolled". Every transfer needs DGS + Graduate School approval.
       if (transferFloor !== undefined && !meetsGradeFloor(grade, transferFloor as Grade) && !isInProgress(grade)) {
-        return { ...extBase, ineligibleReason: `not counted — grade below ${transferFloor} (§5.2)` };
+        return { ...extBase, ineligibleReason: `not counted — grade below ${transferFloor} (§5.2)${coreNote}` };
       }
       if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
         return {
           ...extBase,
-          ineligibleReason: `not counted — completed outside the ${windowYears}-year window before admission (five-year window, §5.2)`,
+          ineligibleReason: `not counted — completed outside the ${windowYears}-year window before admission (five-year window, §5.2)${coreNote}`,
         };
       }
       const attested = attestations.transferApproved === true;
@@ -236,7 +244,7 @@ export function classify(student: Student, rules: Rules): {
             ? 'pre-approved in the DGS’s external-course rules — to transfer it, send the §5.2 credit-transfer request to the Graduate Program Coordinator'
             : external
               ? 'transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)'
-              : 'transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)',
+              : `transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm')}`,
       };
     }
 

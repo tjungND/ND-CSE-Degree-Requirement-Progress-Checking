@@ -1021,7 +1021,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'This is a self-check, not an official audit. '),
         'It applies the rules in Sections 3 and 4 of the ',
         handbookLink(),
-        '. Several requirements turn on approvals this page cannot see — advisor and DGS sign-off, the category-specialization course list announced by email each term, transfer-credit recommendations, and Graduate School deadlines. Deadline dates shown are approximate; the registrar sets the real calendar. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.',
+        '. Several requirements turn on approvals this page cannot see — advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadline dates shown are approximate; the registrar sets the real calendar. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.',
       ),
       el(
         'div',

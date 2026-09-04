@@ -1,6 +1,7 @@
 // §4 — Requirements for the Doctor of Philosophy Degree.
 // Every builder quotes the handbook sentence it implements.
 import { resolveRuleRow } from '../../data/assemble.ts';
+import { coreTitleMatchesArea } from '../core-title.ts';
 import { isInProgress, isPassed, meetsGradeFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
 import { combineAll, deadlineStatus } from '../status.ts';
@@ -376,24 +377,42 @@ function coreRows(ctx: Ctx): RequirementResult[] {
     let done: string | undefined;
     let confirmed: string | undefined;
     let ip: string | undefined;
+    let pending: string | undefined;
     for (const c of ctx.classified) {
       if (c.superseded) continue;
       if (c.entry.origin === 'nd') {
-        if (c.rule?.coreArea !== area.code) continue;
-        if (isPassed(c.entry.grade)) done = c.entry.courseId;
-        else if (isInProgress(c.entry.grade)) ip ??= c.entry.courseId;
+        if (c.rule?.coreArea === area.code) {
+          if (isPassed(c.entry.grade)) done = c.entry.courseId;
+          else if (isInProgress(c.entry.grade)) ip ??= c.entry.courseId;
+          continue;
+        }
+        // An ND course the rules sheet does not know yet, whose title matches
+        // this area's keyword, may be confirmed once the DGS reviews it
+        // (2026-09-04) — the row says "pending review", not "not yet".
+        if (c.unknown === true && isPassed(c.entry.grade) && coreTitleMatchesArea(c.entry.title, area.code)) {
+          pending ??= c.entry.courseId;
+        }
       } else if (c.external?.satisfiesCoreArea === area.code && isPassed(c.entry.grade)) {
         confirmed ??= `${c.entry.courseId} (${c.external.university})`;
+      } else if (c.external === undefined && isPassed(c.entry.grade) && coreTitleMatchesArea(c.entry.title, area.code)) {
+        // Unreviewed course from a previous institution (any level — §4.4.1
+        // has no §5.2 restrictions) whose title suggests this area: the DGS's
+        // ruling is what decides, so the row shows "pending review"
+        // (2026-09-04). A course the DGS has already ruled on (even with no
+        // core area) is decided, never pending.
+        pending ??= `${c.entry.courseId}${c.entry.institution ? ` (${c.entry.institution})` : ''}`;
       }
     }
-    const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : 'unmet';
+    const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : pending ? 'needs_dgs_review' : 'unmet';
     const detail = done
       ? `Satisfied by ${done}.`
       : confirmed
         ? `Satisfied by ${confirmed} — confirmed in the DGS’s external-course rules (§4.4.1 allows a course from a previous institution).`
         : ip
           ? `${ip} is in progress.`
-          : `No ${area.name} course yet.`;
+          : pending
+            ? `Pending review: ${pending} — its title suggests ${area.name}, and the DGS can confirm it (§4.4.1) via the review request.`
+            : `No ${area.name} course yet.`;
     return {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,
@@ -489,7 +508,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     );
   }
   parts.push(...def.suggestions);
-  parts.push('The approved list is announced by email at the start of each term');
+  parts.push('The approved course list is on the course rules page');
   return {
     id: 'phd.qualifier.categories',
     group: QUALIFIER,
