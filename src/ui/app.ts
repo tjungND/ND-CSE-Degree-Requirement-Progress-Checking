@@ -1045,7 +1045,6 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'div',
         { class: 'legal-source' },
         el('strong', {}, 'Where the rules come from. '),
-        'Everything this tool checks is generated from one spreadsheet. ',
         ...sheetSourceNote('app'),
       ),
       el(

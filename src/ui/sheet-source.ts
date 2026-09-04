@@ -9,8 +9,8 @@
 // `node --test` (tests/sheet-source.test.ts), which requires the attribute;
 // Vite accepts it too.
 import sheetUrls from '../../data/sheet-urls.json' with { type: 'json' };
-import { DGS, mailto } from './contacts.ts';
 import { el } from './dom.ts';
+import { handbookLink } from './handbook.ts';
 
 /** The spreadsheet's title as it appears in Google Drive. */
 export const SHEET_NAME = 'CSE-Degree-Audit-Rules';
@@ -35,42 +35,26 @@ export function sheetSourceLine(): HTMLElement {
   );
 }
 
-/** The footer explanation: what the spreadsheet is (its four tabs), that the
- *  page reads its published copy on every load, that only faculty can open it,
- *  and where students see the same rules instead. `page` picks the
- *  cross-reference: the self-check tool points at the course rules page and
- *  vice versa. Returns the paragraph's children so each footer can prepend its
- *  own opening sentence. */
+/** The footer explanation — deliberately short (DGS, 2026-09-04: readers, even
+ *  faculty, do not need the sheet's internals): the data come from the DGS's
+ *  rules spreadsheet, which is created based on the Graduate Studies Handbook
+ *  (linked), and only faculty can open it. `page` picks the cross-reference —
+ *  the self-check tool points students at the course rules page, and the course
+ *  rules page says it shows the same rules. Returns the paragraph's children so
+ *  each footer can prepend its own opening sentence. */
 export function sheetSourceNote(page: 'app' | 'courses'): (string | Node)[] {
-  const crossRef =
+  const sameRules =
     page === 'app'
-      ? [
-          'the ',
-          el('a', { href: './courses.html' }, 'course rules page'),
-          ' shows the same rules, and this tool applies them to your coursework.',
-        ]
-      : [
-          'this page shows the same rules, and the ',
-          el('a', { href: './index.html' }, 'degree self-check tool'),
-          ' applies them to your coursework.',
-        ];
+      ? ['students see the same rules on the ', el('a', { href: './courses.html' }, 'course rules page'), '.']
+      : ['this page shows the same rules.'];
   return [
-    'The ',
+    'The data come from the DGS’s rules spreadsheet, ',
     sheetLink(),
-    ' Google Spreadsheet is the rules sheet the DGS maintains, with four tabs: ',
-    el('em', {}, 'Courses'),
-    ' (which courses count toward the MSCSE and the Ph.D., and each course’s core-knowledge area and specialization category), ',
-    el('em', {}, 'Parameters'),
-    ' (every number the handbook states — credit minimums, caps, time limits — and the contacts shown above), ',
-    el('em', {}, 'Categories'),
-    ' (the specialization categories of §4.4.2), and ',
-    el('em', {}, 'ExternalCourses'),
-    ' (the DGS’s rulings on courses from other universities). The page reads the sheet’s published copy every time it loads, so it always reflects the DGS’s latest decisions. ',
-    el('strong', {}, 'The spreadsheet itself is accessible by faculty only'),
-    ' — students do not need it: ',
-    ...crossRef,
-    ' Faculty who spot an error in the sheet: please email the DGS (',
-    mailto(DGS.email),
-    ').',
+    ', which is created based on the ',
+    handbookLink(),
+    '. ',
+    el('strong', {}, 'The spreadsheet is accessible by faculty only'),
+    '; ',
+    ...sameRules,
   ];
 }

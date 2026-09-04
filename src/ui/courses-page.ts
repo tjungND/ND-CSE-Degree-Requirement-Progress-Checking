@@ -452,12 +452,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         'div',
         {},
         el('strong', {}, 'Source. '),
-        'This page is generated from the Director of Graduate Studies’ official course-rules sheet (Google republishes edits within a few minutes). ',
-        // What that spreadsheet is and who can open it (DGS, 2026-09-04).
+        // Where the data come from and who can open the sheet (DGS, 2026-09-04;
+        // shortened the same day — the handbook link now sits inside the note).
         ...sheetSourceNote('courses'),
-        ' Where this page and the ',
-        handbookLink(),
-        ' disagree, the handbook and the DGS decide.',
+        ' Where this page and the handbook disagree, the handbook and the DGS decide.',
       ),
       el(
         'div',

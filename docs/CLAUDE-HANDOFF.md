@@ -177,9 +177,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   `src/data/load.ts` imports the same file without the attribute and is only ever bundled by
   Vite), `sheetLink()`, `sheetSourceLine()` (the `p.effective.sheet-source` line under each
   masthead's dated line — the dated sentence itself is untouched per the 2026-09-01 decision) and
-  `sheetSourceNote(page)` (footer paragraph children: the four tabs, published-copy-on-every-load,
-  bold "accessible by faculty only", a cross-link to the other page, and `mailto(DGS.email)` — so
-  it picks up the sheet-driven contact override because it renders after `applyContactOverrides`).
+  `sheetSourceNote(page)` (footer paragraph children — SHORT by DGS decision the same day: the data
+  come from the DGS's rules spreadsheet (link), created based on the handbook (`handbookLink()`),
+  bold "accessible by faculty only", and a cross-link to the course rules page / "this page shows
+  the same rules"; the four-tab description was dropped — don't bring it back).
   app.ts wraps it in `div.legal-source` ("Where the rules come from."); courses-page.ts splices
   it into its existing "Source." paragraph. `tests/sheet-source.test.ts` pins the URL to the JSON
   and rejects published-CSV shapes; e2e `checkSheetLink()` in drive-app.mjs asserts exactly one
