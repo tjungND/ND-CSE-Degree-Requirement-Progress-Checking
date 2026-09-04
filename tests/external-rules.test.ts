@@ -199,8 +199,14 @@ describe('what a DGS ruling changes in the engine', () => {
     const os = report.requirements.find((r) => r.id === 'phd.qualifier.core.os');
     const transfer = report.requirements.find((r) => r.id === 'phd.transfer');
     assert.equal(os?.status, 'met');
-    assert.match(transfer?.detail ?? '', /0 of 24 transfer credits counted/);
-    assert.match(transfer?.detail ?? '', /Bachelor's coursework cannot transfer/);
+    // Undergraduate courses are invisible to the transfer card (2026-09-04) —
+    // with nothing else entered it reads as if no transfer courses exist.
+    assert.equal(transfer?.status, 'not_applicable');
+    assert.match(transfer?.detail ?? '', /No transfer courses entered/);
+    // The per-course line focuses on the core knowledge the DGS confirmed.
+    const line = report.courseLines.find((l) => l.courseId === 'CS 50300');
+    assert.match(line?.text ?? '', /satisfies the .* core-knowledge requirement \(§4\.4\.1\) — confirmed by the DGS/);
+    assert.match(line?.text ?? '', /no transfer credit \(undergraduate, §5\.2\)/);
   });
 
   it('transferable=no → not counted, with the DGS ruling named', () => {

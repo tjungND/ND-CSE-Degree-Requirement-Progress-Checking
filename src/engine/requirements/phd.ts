@@ -18,7 +18,7 @@ import {
 } from '../term.ts';
 import type { Grade, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, missingParamDetail, thresholdRow } from './context.ts';
+import { capRow, joinedDetail, missingParamDetail, thresholdRow } from './context.ts';
 import { fullTimeTermRecords } from './residency.ts';
 
 const COURSEWORK = 'Coursework — §4.2';
@@ -173,7 +173,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
     group: COURSEWORK,
     title: '2 credits of Research Seminar in year one',
     status,
-    detail: parts.join('. ') + '.',
+    ...joinedDetail(parts),
     citation: { section: '§4.2', quote },
   };
 }
@@ -184,7 +184,12 @@ function seminarRow(ctx: Ctx): RequirementResult {
 function transferRow(ctx: Ctx): RequirementResult {
   const quote =
     'Courses from a M.S. degree earned at Notre Dame or another institution within the last five years prior to admission may be used to satisfy the course requirement.';
-  const transfers = ctx.classified.filter((c) => c.entry.origin === 'transfer');
+  // Undergraduate courses are invisible here (DGS request 2026-09-04): they
+  // can never transfer (§5.2), so this card neither lists nor counts them —
+  // their core-knowledge role shows on the coursework list and the core rows.
+  const transfers = ctx.classified.filter(
+    (c) => c.entry.origin === 'transfer' && c.entry.degreeLevel !== 'bachelors',
+  );
   const capKey =
     ctx.student.priorMs === 'completed'
       ? 'phd_transfer_completed_ms_credits_max'
@@ -206,7 +211,7 @@ function transferRow(ctx: Ctx): RequirementResult {
       `${counted} of ${cap} transfer credits counted (§5.2 cap for a ${ctx.student.priorMs === 'completed' ? 'completed prior degree' : 'prior program that was not completed'})`,
     );
     const excluded = ctx.alloc.perCourse.filter(
-      (p) => p.course.entry.origin === 'transfer' && p.excluded > 0,
+      (p) => p.course.entry.origin === 'transfer' && p.course.entry.degreeLevel !== 'bachelors' && p.excluded > 0,
     );
     for (const p of excluded) parts.push(`${p.course.entry.courseId}: ${p.excludedReason ?? 'not counted'}`);
     if (status === 'needs_dgs_review') {
@@ -232,7 +237,7 @@ function transferRow(ctx: Ctx): RequirementResult {
     group: COURSEWORK,
     title: 'Transfer credit from a prior M.S.',
     status,
-    detail: parts.join('. ') + '.',
+    ...joinedDetail(parts),
     citation: { section: '§4.2, §5.2', quote },
   };
 }
@@ -345,7 +350,7 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): Requirem
     group: QUALIFIER,
     title: 'Qualifying examination — all three components',
     status,
-    detail: parts.join('. ') + '.',
+    ...joinedDetail(parts),
     deadline,
     citation: { section: '§4.4', quote },
   };
@@ -490,7 +495,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     group: QUALIFIER,
     title: 'Three specialization courses from three distinct groups, each B or higher',
     status,
-    detail: parts.join('. ') + '.',
+    ...joinedDetail(parts),
     citation: { section: '§4.4.2', quote },
   };
 }
@@ -576,7 +581,7 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     group: CANDIDACY,
     title: 'Candidacy examination (dissertation proposal) passed',
     status: r.status,
-    detail: parts.length > 0 ? parts.join('. ') + '.' : '',
+    ...(parts.length > 0 ? joinedDetail(parts) : { detail: '' }),
     deadline: r.deadline,
     citation: { section: '§4.5', quote },
   };
@@ -629,25 +634,30 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   const quote =
     'The Ph.D. candidacy exam can be used by Ph.D. students to satisfy both the M.S. thesis requirement and the Ph.D. candidacy exam simultaneously, thus earning the MSCSE degree on successfully passing the candidacy exam.';
   const passed = ctx.student.milestones.candidacyPassed;
-  // DGS policy (2026-09-03): the along-the-way MSCSE is only possible with the
-  // M.S. coursework done — at least the MSCSE's regular-course credits
-  // (ms_regular_credits_min), all completed AT NOTRE DAME.
-  const required = ctx.params.number('ms_regular_credits_min');
-  const done = ctx.alloc.ndRegular.definite;
+  // DGS policy (2026-09-03; research credits added 2026-09-04): the
+  // along-the-way MSCSE needs the M.S. coursework done AT NOTRE DAME — the
+  // MSCSE's regular-course credits (ms_regular_credits_min) AND its research
+  // credits (ms_project_credits_min; here research means courses the rules
+  // sheet types 'research' or 'project', i.e. research/dissertation and
+  // thesis-project direction — independent study does not count).
+  const reqReg = ctx.params.number('ms_regular_credits_min');
+  const reqRes = ctx.params.number('ms_project_credits_min');
+  const doneReg = ctx.alloc.ndRegular.definite;
+  const doneRes = ctx.alloc.ndResearch.definite;
   let status: Status;
   let detail: string;
-  if (required === undefined) {
+  if (reqReg === undefined || reqRes === undefined) {
     status = 'cannot_evaluate';
-    detail = missingParamDetail('ms_regular_credits_min');
-  } else if (passed && done >= required) {
+    detail = missingParamDetail(reqReg === undefined ? 'ms_regular_credits_min' : 'ms_project_credits_min');
+  } else if (passed && doneReg >= reqReg && doneRes >= reqRes) {
     status = 'met';
-    detail = `Candidacy passed ${passed}, with ${done} regular course credits completed at Notre Dame (≥ ${required}) — ask the Graduate Program Coordinator about receiving the MSCSE (§4.5).`;
+    detail = `Candidacy passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — ask the Graduate Program Coordinator about receiving the MSCSE (§4.5).`;
   } else if (passed) {
     status = 'in_progress';
-    detail = `${done} of ${required} regular course credits completed at Notre Dame.`;
+    detail = `${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame.`;
   } else {
     status = 'not_applicable';
-    detail = `Passing the candidacy exam can also earn the MSCSE (§4.5) once ${required} regular course credits are completed at Notre Dame — ${done} of ${required} so far.`;
+    detail = `Passing the candidacy exam can also earn the MSCSE (§4.5) once ${reqReg} regular course credits and ${reqRes} research credits are completed at Notre Dame — ${doneReg} of ${reqReg} and ${doneRes} of ${reqRes} so far.`;
   }
   return {
     id: 'phd.msAlongTheWay',

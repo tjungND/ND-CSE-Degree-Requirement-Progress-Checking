@@ -34,6 +34,64 @@ describe('external transcript parsing', () => {
     assert.equal(parseExternalTranscript(PURDUE).degreeConferred, undefined);
   });
 
+  it('reads "Degree Completed: Master of Science" as conferral, but never a negative', () => {
+    // "complet" wording added 2026-09-04 (a real transcript printed it).
+    const completed = parseExternalTranscript([...PURDUE, 'Degree Completed: Master of Science']);
+    assert.equal(completed.degreeConferred, true);
+    const notCompleted = parseExternalTranscript([...PURDUE, 'Master of Science — Not Completed']);
+    assert.equal(notCompleted.degreeConferred, undefined);
+    const incomplete = parseExternalTranscript([...PURDUE, 'Incomplete: Master of Science requirements outstanding']);
+    assert.equal(incomplete.degreeConferred, undefined);
+  });
+
+  it('reads lowercase course codes (2026-09-04)', () => {
+    const lines = [...PURDUE.slice(0, 6), 'cs 5321   advanced operating systems   3.0   A', ...PURDUE.slice(12)];
+    const r = parseExternalTranscript(lines);
+    const c = r.courses.find((x) => x.courseId === 'CS 5321');
+    assert.ok(c, 'lowercase code row parsed');
+    assert.equal(c!.credits, 3);
+    assert.equal(c!.grade, 'A');
+  });
+
+  it('keeps numeric grades as rawGrade for the student to map (2026-09-04)', () => {
+    const lines = [
+      ...PURDUE.slice(0, 6),
+      '30240233   Data Structures and Algorithms   4   92',
+      '30240551   Operating Systems   85',
+      ...PURDUE.slice(12),
+    ];
+    const r = parseExternalTranscript(lines);
+    const withCredits = r.courses.find((x) => x.courseId === '30240233');
+    assert.ok(withCredits, 'numeric-grade row with credits parsed');
+    assert.equal(withCredits!.credits, 4);
+    assert.equal(withCredits!.grade, undefined);
+    assert.equal(withCredits!.rawGrade, '92');
+    const gradeOnly = r.courses.find((x) => x.courseId === '30240551');
+    assert.ok(gradeOnly, 'numeric-grade row without credits parsed');
+    assert.equal(gradeOnly!.rawGrade, '85');
+  });
+
+  it('merges two-line course rows — code+title, then the numbers (2026-09-04)', () => {
+    const lines = [
+      ...PURDUE.slice(0, 6),
+      'CS 6210   Advanced Operating Systems and',
+      'Distributed Computing   3.0   A-',
+      ...PURDUE.slice(12),
+    ];
+    const r = parseExternalTranscript(lines);
+    const c = r.courses.find((x) => x.courseId === 'CS 6210');
+    assert.ok(c, 'two-line row parsed');
+    assert.equal(c!.credits, 3);
+    assert.equal(c!.grade, 'A-');
+    assert.match(c!.title ?? '', /Distributed Computing/);
+  });
+
+  it('refuses term/summary lines that look like codes ("FALL 2023  GPA 3.85")', () => {
+    const lines = [...PURDUE.slice(0, 6), 'FALL 2023   GPA 3.85', 'SEM 2   TOTAL 15.0   A', ...PURDUE.slice(12)];
+    const r = parseExternalTranscript(lines);
+    assert.ok(!r.courses.some((x) => /FALL|SEM|TOTAL|GPA/.test(x.courseId)), 'no phantom term/summary courses');
+  });
+
   it('strips record/transcript suffixes from the university guess', () => {
     const lines = ['TSINGHUA UNIVERSITY STUDENT RECORD', ...PURDUE.slice(1)];
     assert.equal(parseExternalTranscript(lines).university, 'TSINGHUA UNIVERSITY');

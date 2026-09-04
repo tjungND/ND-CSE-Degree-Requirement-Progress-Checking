@@ -2,7 +2,7 @@
 import { startOfTerm } from '../term.ts';
 import type { RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { missingParamDetail } from './context.ts';
+import { joinedDetail, missingParamDetail } from './context.ts';
 
 const GROUP = 'Basic requirements — §2.2–2.3';
 
@@ -95,17 +95,15 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
       'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the attestation below the milestones',
     );
   }
-  const detail =
-    parts.length === 0
-      ? 'No entered course needs a DGS decision.'
-      : parts.join('. ') + '. The attestation checkboxes record approvals you already have.';
+  if (parts.length > 0) parts.push('The attestation checkboxes record approvals you already have');
+  const joined = parts.length === 0 ? { detail: 'No entered course needs a DGS decision.' } : joinedDetail(parts);
   return {
     id: 'shared.approvals',
     group: 'Approvals',
     title: 'Courses needing DGS or advisor sign-off',
     status,
     informational: true,
-    detail,
+    ...joined,
     citation: {
       section: '§3.2/§4.2/§5.2',
       quote: 'All courses taken by a student must have the approval of their advisor.',

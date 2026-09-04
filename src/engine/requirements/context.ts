@@ -23,6 +23,16 @@ export function missingParamDetail(key: string): string {
   return `Cannot evaluate — the rules sheet is missing '${key}'. Ask the DGS to add it to the Parameters tab`;
 }
 
+/** Join independent detail statements into the prose `detail`, keeping the
+ * pieces as `detailParts` so the report can bullet a long detail (DGS request
+ * 2026-09-04). Single-statement details stay plain text. */
+export function joinedDetail(parts: string[]): { detail: string; detailParts?: string[] } {
+  return {
+    detail: parts.join('. ') + (parts.length > 0 ? '.' : ''),
+    detailParts: parts.length > 1 ? parts : undefined,
+  };
+}
+
 /** Standard credit-threshold row: "X of N credits complete", with in-progress
  * and pending-approval credits called out, and the provisional courses named
  * whenever the verdict leans on them. */
@@ -59,7 +69,7 @@ export function thresholdRow(args: {
     group: args.group,
     title: args.title,
     status,
-    detail: parts.join('. ') + '.',
+    ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },
   };
 }
@@ -111,7 +121,7 @@ export function capRow(args: {
     group: args.group,
     title: args.title,
     status,
-    detail: parts.join('. ') + '.',
+    ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },
   };
 }

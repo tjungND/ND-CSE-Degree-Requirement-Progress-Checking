@@ -17,6 +17,6 @@
   "attestations": {}
  },
  "expect": {
-  "phd.msAlongTheWay": { "status": "in_progress", "detailIncludes": ["6 of 24"] }
+  "phd.msAlongTheWay": { "status": "in_progress", "detailIncludes": ["6 of 24 regular", "0 of 6 research"] }
  }
 }

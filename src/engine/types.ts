@@ -122,6 +122,11 @@ export interface RequirementResult {
   /** Informational rows (e.g. MSCSE-along-the-way) are excluded from the score. */
   informational?: boolean;
   detail: string;
+  /** When the detail was built from several independent statements, they are
+   * also kept separately so the UI can render a long detail as a bulleted
+   * list (DGS request 2026-09-04). `detail` stays the joined prose — the
+   * advisor summary and tests keep using it. */
+  detailParts?: string[];
   deadline?: DeadlineInfo;
   citation: { section: string; quote: string };
 }

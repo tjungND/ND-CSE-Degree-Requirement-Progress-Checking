@@ -2,6 +2,8 @@
 // autocomplete, milestone dates, attestations, and the live report.
 // All rule logic lives in src/engine/ — this file only collects input and renders.
 import { resolveRuleRow } from '../data/assemble.ts';
+import { findExternalRule } from '../data/external.ts';
+import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import type { Rules } from '../data/types.ts';
 import { classify } from '../engine/allocate.ts';
 import { audit } from '../engine/audit.ts';
@@ -24,11 +26,8 @@ import {
 } from './state.ts';
 
 const SEASONS: Season[] = ['fall', 'spring', 'summer'];
-/** Titles that suggest a §4.4.1 core area (DGS keywords, 2026-09-03): an
- * unreviewed UNDERGRADUATE course matching these joins the review request —
- * it earns no transfer credit, but the DGS may confirm its core area. Extend
- * the list here if the DGS adds keywords. */
-export const CORE_TITLE_RE = /algorithm|operating|architect/i;
+// (The §4.4.1 core-title keywords moved to src/engine/core-title.ts on
+// 2026-09-04 so the classifier and the import preview share them.)
 
 /** The "Prior graduate study" dropdown labels — reused in the review request. */
 const PRIOR_LABELS: Record<Student['priorMs'], string> = {
@@ -177,7 +176,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return el(
       'div',
       { class: 'banner beta', role: 'note' },
-      el('strong', {}, 'Beta version under testing. '),
+      el('strong', {}, 'Alpha version under testing. '),
       BETA_NOTICE,
       ' ',
       el('strong', {}, RULES_ACCURACY_NOTICE),
@@ -347,7 +346,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     // then one section per (university, transcript) in first-seen order.
     const all = student.courses.map((c, index) => ({ c, index }));
     const nd = all.filter(({ c }) => c.origin === 'nd');
-    const groups: { heading: string; entries: { c: CourseEntry; index: number }[] }[] = [];
+    const groups: { heading: string; bachelors: boolean; entries: { c: CourseEntry; index: number }[]; hidden: number }[] = [];
     for (const e of all.filter(({ c }) => c.origin === 'transfer')) {
       const slot = e.c.degreeLevel
         ? (DEGREE_SLOTS.find((sl) => sl.level === e.c.degreeLevel)?.label ?? e.c.degreeLevel)
@@ -355,8 +354,20 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       const heading = `${e.c.institution ?? 'University not set'} — ${slot}`;
       let g = groups.find((x) => x.heading === heading);
       if (!g) {
-        g = { heading, entries: [] };
+        g = { heading, bachelors: e.c.degreeLevel === 'bachelors', entries: [], hidden: 0 };
         groups.push(g);
+      }
+      // Undergraduate courses (DGS request 2026-09-04): only the ones that can
+      // matter are listed — a title suggesting a §4.4.1 core area, or a course
+      // the DGS has already ruled on. The rest stay in the saved data but out
+      // of the way (undergraduate credits never transfer, §5.2).
+      if (
+        g.bachelors &&
+        !CORE_TITLE_RE.test(e.c.title ?? '') &&
+        !findExternalRule(rules.external, e.c.institution ?? '', e.c.courseId)
+      ) {
+        g.hidden += 1;
+        continue;
       }
       g.entries.push(e);
     }
@@ -375,7 +386,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       nd.length > 0
         ? courseTable(courseLines, nd)
         : el('p', { class: 'empty' }, 'No Notre Dame courses yet. Import your transcript above, or add one here.'),
-      ...groups.flatMap((g) => [el('h3', { class: 'subhead' }, g.heading), courseTable(courseLines, g.entries)]),
+      ...groups.flatMap((g) => [
+        el('h3', { class: 'subhead' }, g.heading),
+        g.bachelors
+          ? el(
+              'p',
+              { class: 'hint' },
+              `Undergraduate credits do not transfer (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here${g.hidden > 0 ? ` — ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown` : ''}.`,
+            )
+          : null,
+        g.entries.length > 0
+          ? courseTable(courseLines, g.entries)
+          : el('p', { class: 'empty' }, 'No core-area-relevant courses on this transcript.'),
+      ]),
     );
     return card;
   }
@@ -568,7 +591,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'transcript-upload external-slot' },
       el('span', { class: 'slot-label' }, 'Notre Dame Unofficial Transcript'),
       ' — ',
-      el('button', { class: 'btn tiny', disabled: blocked, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
+      el('button', { class: 'btn tiny', disabled: blocked, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
       el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. Parsed courses are shown for your confirmation before anything is added.'),
       fileInput,
     );
@@ -995,7 +1018,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'div',
         { class: 'legal-beta' },
-        el('strong', {}, 'Beta version under testing. '),
+        el('strong', {}, 'Alpha version under testing. '),
         BETA_NOTICE,
         ' ',
         el('strong', {}, RULES_ACCURACY_NOTICE),

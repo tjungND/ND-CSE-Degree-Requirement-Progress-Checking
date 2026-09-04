@@ -108,7 +108,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   "License" line, the feedback sentence in the beta banner + footer, and the `.untested-note`
   under the transcript-upload button. The beta banner also states in bold that every verdict is
   computed from the published course rules (linking to `courses.html`). Update `contacts.ts` at every DGS handoff;
-  the untested note was RETIRED 2026-09-03 (the import buttons carry "(beta)" instead, and the
+  the untested note was RETIRED 2026-09-03 (the import buttons carry the version tag — "(alpha)" since 2026-09-04 — and the
   page-level privacy banner sits right under the beta notice); real-ND-transcript testing is
   still worth doing (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
 - **Public course-rules page** (`courses.html`, 2026-09-01, DGS request): `src/ui/courses-page.ts`
@@ -163,6 +163,24 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Alpha label, undergrad relevance filter, ndResearch gate, bulleted details** (2026-09-04, DGS):
+  the banner and import buttons say ALPHA again. `CORE_TITLE_RE` moved to
+  `src/engine/core-title.ts` (plus `coreTitleSuggestion` naming the suggested area); the classifier's
+  bachelors line now leads with the core-knowledge story ("satisfies the X core-knowledge
+  requirement… — confirmed by the DGS" / "title suggests…" / plain "not counted — undergraduate
+  credits never transfer"). Undergraduate imports are FILTERED at the preview
+  (`keepRelevantRows` in external-upload.ts: core-title match or ExternalCourses ruling; the note
+  counts what was left out), and the coursework card hides non-relevant bachelors rows the same
+  way (old saved files keep them in data). The transfer card ignores bachelors entirely
+  (transferRow filter). `alloc.ndResearch` (rule.courseType research|project, ND origin) feeds the
+  along-the-way MSCSE: candidacy + ms_regular_credits_min ND regular + ms_project_credits_min ND
+  research credits (research = research/dissertation + thesis-project direction; independent study
+  excluded). `RequirementResult.detailParts` + `joinedDetail()` (context.ts) let report.ts render
+  long multi-part details as a bulleted list (>120 chars, >1 part); `detail` stays the joined
+  prose for the advisor summary and tests. External parser (2026-09-04): lowercase codes accepted
+  (with a term/summary stopword guard), numeric grades (85, 9.5) kept as rawGrade, and two-line
+  rows (code+title / numbers) merged; conferral wording also accepts "complet…" with a
+  not-completed/incomplete guard.
 - **Inferred prior study + deadline dedupe + free-flowing report** (2026-09-04, DGS): a graduate
   transcript WITHOUT a conferral line now sets priorMs='none'→'unfinished' on add (conservative
   §5.2 cap) and flags `Student.priorMsInferred`; the standing card shows a warning while

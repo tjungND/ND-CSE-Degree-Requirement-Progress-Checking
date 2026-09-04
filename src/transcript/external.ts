@@ -35,9 +35,13 @@ export interface ExternalParseResult {
 }
 
 /** Conferral wording and graduate-degree names must appear on the SAME line
- * ("Master of Science — Conferred May 2021"), so a bachelor's conferral on a
- * graduate transcript does not count as graduate-degree evidence. */
-const CONFER_RE = /conferr|awarded|granted/i;
+ * ("Master of Science — Conferred May 2021", "Degree Completed: Master of
+ * Science"), so a bachelor's conferral on a graduate transcript does not
+ * count as graduate-degree evidence. "complet" added 2026-09-04 — with the
+ * negative guard below, so "Not completed"/"Incomplete" never reads as
+ * positive evidence. */
+const CONFER_RE = /conferr|awarded|granted|complet/i;
+const NOT_COMPLETE_RE = /incomplete|not\s+complet/i;
 const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy/i;
 
 const LETTER_GRADE_RE = /^(A|A-|B\+|B|B-|C\+|C|C-|D\+?|D-?|F)$/;
@@ -97,10 +101,76 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
 
   const courses: ExternalCourseCandidate[] = [];
   let currentYear: number | undefined;
-  let lineIndex = -1;
   const LEAD_CODE_RE = /^([A-Z]{2,6}[- ]?\d{2,5}[A-Z]{0,2}|\d{5,10})\b[.:]?\s*(.*)$/;
-  for (const line of lines) {
-    lineIndex += 1;
+  // Codes are matched case-insensitively (2026-09-04 — some registrars print
+  // "cs 5321"), so common words that would then look like codes are refused:
+  // term headers and summary lines such as "Fall 2023  GPA 3.85".
+  const CODE_STOPWORDS_RE =
+    /^(FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|GPA|CGPA|SGPA|CUM|ROOM|ID|NO)$/;
+
+  /** Scan the tokens after the course code: leading wordy tokens form the
+   * title, then credits, a letter/coded grade — or (2026-09-04) a NUMERIC
+   * grade (85, 9.5 — common outside the US), kept as rawGrade for the student
+   * to map. A later unambiguous letter grade replaces a numeric guess. */
+  const scanTokens = (
+    tokens: string[],
+    into: { credits?: number; grade?: Grade; rawGrade?: string; titleParts: string[] },
+  ): void => {
+    let titleDone = into.titleParts.length > 0 && (into.credits !== undefined || into.grade !== undefined || into.rawGrade !== undefined);
+    for (const token of tokens) {
+      const asCr = asCredits(token);
+      const asGr = mapGrade(token);
+      const gradeShaped =
+        asGr === undefined && /^[A-Z][A-Z+\-/0-9.]{0,3}$/.test(token.toUpperCase()) && !/^\d/.test(token) && token.length <= 4;
+      const numericGrade =
+        asGr === undefined && /^\d{1,3}(?:[.,]\d{1,2})?$/.test(token) && Number(token.replace(',', '.')) <= 100;
+      if (!titleDone && asCr === undefined && asGr === undefined && /[\p{L}]/u.test(token) && !/^\(?\d/.test(token)) {
+        into.titleParts.push(token);
+        continue;
+      }
+      titleDone = true;
+      if (into.credits === undefined && asCr !== undefined) {
+        into.credits = asCr;
+        continue;
+      }
+      if (asGr !== undefined && into.grade === undefined) {
+        into.grade = asGr;
+        into.rawGrade = undefined; // a real grade beats a numeric guess
+        continue;
+      }
+      if (into.grade === undefined && into.rawGrade === undefined && into.titleParts.length > 0) {
+        if (gradeShaped) into.rawGrade = token;
+        else if (numericGrade) into.rawGrade = token;
+      }
+    }
+  };
+
+  /** The course code at the start of a line's first (or second) cell —
+   * case-insensitive, stopword-guarded. Returns the UPPERCASED code and the
+   * rest of the line's tokens (original case, for the title). */
+  const leadCode = (flat: string): { code: string; tokens: string[] } | undefined => {
+    const cells = flat.split(/\s{2,}/);
+    for (const idx of [0, 1] as const) {
+      const cell = cells[idx];
+      if (cell === undefined) break;
+      if (idx === 1 && /[a-z]{3}/i.test(cells[0]!)) break; // wordy first cell → not a leading term/date
+      const m = LEAD_CODE_RE.exec(cell.toUpperCase());
+      if (!m) continue;
+      const code = m[1]!;
+      if (/^(19|20)\d{2}$/.test(code)) return undefined; // a bare year, not a course code
+      if (CODE_STOPWORDS_RE.test(code.replace(/[^A-Z]/g, ''))) return undefined;
+      const rest = cell.slice(cell.length - m[2]!.length); // same indices — toUpperCase is length-stable for these codes
+      const tokens = [rest, ...cells.slice(idx + 1)]
+        .join('  ')
+        .split(/\s+/)
+        .filter((t) => t !== '');
+      return { code, tokens };
+    }
+    return undefined;
+  };
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex]!;
     // Track the nearest term-ish header so course rows inherit its year.
     if (/(fall|spring|summer|autumn|winter|semester|term|trimester|quarter|session)/i.test(line)) {
       const y = YEAR_RE.exec(line);
@@ -112,60 +182,53 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // leading term/date cell). Column gaps are unreliable across layouts, so
     // the rest of the line is TOKENIZED: credits and grade are searched among
     // the tokens after the title; the title is the leading run of wordy tokens.
-    const cells = flat.split(/\s{2,}/);
-    let m = LEAD_CODE_RE.exec(cells[0]!.toUpperCase()) ? LEAD_CODE_RE.exec(cells[0]!) : null;
-    if (!m && cells.length > 1) {
-      const second = LEAD_CODE_RE.exec(cells[1]!);
-      if (second && !/[a-z]{3}/i.test(cells[0]!)) m = second; // e.g. "2023FA | CS 5321 …"
-    }
-    if (!m) continue;
-    const code = m[1]!.toUpperCase();
-    if (/^(19|20)\d{2}$/.test(code)) continue; // a bare year, not a course code
-    const restText = [m === LEAD_CODE_RE.exec(cells[0]!) ? m[2]! : m[2]!, ...cells.slice(m[2] !== undefined && cells.length > 1 && m.input === cells[1] ? 2 : 1)].join('  ');
-    const tokens = restText.split(/\s+/).filter((t) => t !== '');
-
-    let credits: number | undefined;
-    let grade: Grade | undefined;
-    let rawGrade: string | undefined;
-    const titleParts: string[] = [];
-    let titleDone = false;
-    for (const token of tokens) {
-      const asCr = asCredits(token);
-      const asGr = mapGrade(token);
-      const gradeShaped =
-        asGr === undefined && /^[A-Z][A-Z+\-/0-9.]{0,3}$/.test(token.toUpperCase()) && !/^\d/.test(token) && token.length <= 4;
-      if (!titleDone && asCr === undefined && asGr === undefined && /[\p{L}]/u.test(token) && !/^\(?\d/.test(token)) {
-        titleParts.push(token);
-        continue;
-      }
-      titleDone = true;
-      if (credits === undefined && asCr !== undefined) {
-        credits = asCr;
-        continue;
-      }
-      if (grade === undefined && rawGrade === undefined) {
-        if (asGr !== undefined) grade = asGr;
-        else if (gradeShaped && titleParts.length > 0) rawGrade = token;
+    const lead = leadCode(flat);
+    if (!lead) continue;
+    const into: { credits?: number; grade?: Grade; rawGrade?: string; titleParts: string[] } = { titleParts: [] };
+    scanTokens(lead.tokens, into);
+    let usedContinuation = false;
+    if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined && into.titleParts.length > 0) {
+      // Two-line rows (2026-09-04): some registrars print the code + title on
+      // one line and the numbers on the next. If the NEXT line has no code of
+      // its own, few tokens, and yields a credit or grade, treat it as this
+      // row's continuation.
+      const next = lines[lineIndex + 1]?.replace(/\s{2,}/g, '  ').trim();
+      if (next && next.length >= 1 && !leadCode(next)) {
+        const nextTokens = next.split(/\s+/).filter((t) => t !== '');
+        if (nextTokens.length <= 8) {
+          const probe = { titleParts: [...into.titleParts], credits: undefined, grade: undefined, rawGrade: undefined } as typeof into;
+          scanTokens(nextTokens, probe);
+          if (probe.credits !== undefined || probe.grade !== undefined || probe.rawGrade !== undefined) {
+            into.credits = probe.credits;
+            into.grade = probe.grade;
+            into.rawGrade = probe.rawGrade;
+            into.titleParts = probe.titleParts;
+            usedContinuation = true;
+          }
+        }
       }
     }
     // A candidate needs a code plus at least a credit value or a grade —
     // otherwise it is a header/footer line that happened to start with a code.
-    if (credits === undefined && grade === undefined && rawGrade === undefined) continue;
+    if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined) continue;
     const confidence = confidences?.[lineIndex];
     // OCR-only sanity check: real credit values come in half-credit steps, so
     // "3.6" is a misread ("3.0" with a 0→6 confusion) — flag, never silently fix.
-    const oddCredits = confidences !== undefined && credits !== undefined && (credits * 2) % 1 !== 0;
+    const oddCredits = confidences !== undefined && into.credits !== undefined && (into.credits * 2) % 1 !== 0;
+    const yearLine = usedContinuation ? `${line} ${lines[lineIndex + 1] ?? ''}` : line;
     courses.push({
-      courseId: code.replace(/^([A-Z]+)[- ]?(\d)/, '$1 $2'),
-      title: titleParts.join(' ').slice(0, 90) || undefined,
-      credits,
-      grade,
-      rawGrade,
-      year: YEAR_RE.exec(line) ? Number(YEAR_RE.exec(line)![1]) : currentYear,
+      courseId: lead.code.replace(/^([A-Z]+)[- ]?(\d)/, '$1 $2'),
+      title: into.titleParts.join(' ').slice(0, 90) || undefined,
+      credits: into.credits,
+      grade: into.grade,
+      rawGrade: into.rawGrade,
+      year: YEAR_RE.exec(yearLine) ? Number(YEAR_RE.exec(yearLine)![1]) : currentYear,
       lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
     });
+    if (usedContinuation) lineIndex += 1; // the continuation line is consumed
   }
-  const degreeConferred = lines.some((l) => CONFER_RE.test(l) && GRAD_DEGREE_RE.test(l)) || undefined;
+  const degreeConferred =
+    lines.some((l) => CONFER_RE.test(l) && GRAD_DEGREE_RE.test(l) && !NOT_COMPLETE_RE.test(l)) || undefined;
   return { hasTextLayer: true, looksLikeNotreDame, university: guessUniversity(lines), degreeConferred, courses };
 }
 

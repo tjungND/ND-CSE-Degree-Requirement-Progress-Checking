@@ -130,12 +130,23 @@ function requirementCard(r: RequirementResult): HTMLElement {
       ),
     );
   }
+  // A long multi-statement detail reads better as bullets (DGS request
+  // 2026-09-04); short or single-statement details stay prose. The advisor
+  // summary keeps using the joined `detail` string either way.
+  const detailNode =
+    r.detailParts && r.detailParts.length > 1 && r.detail.length > 120
+      ? el(
+          'ul',
+          { class: 'req-detail detail-list' },
+          ...r.detailParts.map((p) => el('li', {}, /[.!?]$/.test(p) ? p : `${p}.`)),
+        )
+      : el('div', { class: 'req-detail' }, r.detail);
   return el(
     'div',
     { class: `req s-${r.status}` },
     head,
     chips,
-    el('div', { class: 'req-detail' }, r.detail),
+    detailNode,
     quote,
   );
 }
@@ -202,7 +213,7 @@ export function advisorSummary(
   const courses = countedLines.map((l) => `${l.courseId} (${termLabel(l.term)}): ${l.text}`);
   const notices = [
     `Self-check against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`,
-    `Beta version under testing. ${BETA_NOTICE} Confirm with the DGS office.`,
+    `Alpha version under testing. ${BETA_NOTICE} Confirm with the DGS office.`,
     `${RULES_ACCURACY_NOTICE} ${BETA_SCOPE_NOTICE}`,
   ];
   const text =

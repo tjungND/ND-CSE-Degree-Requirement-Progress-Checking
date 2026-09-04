@@ -116,7 +116,14 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const ocrRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);
   console.log('  OCR university:', ocrUni, '| rows:', ocrRows);
   if (ocrUni !== 'Purdue University') throw new Error(`OCR university guess wrong: '${ocrUni}'`);
-  if (ocrRows !== 3) throw new Error(`expected 3 OCR-parsed courses, got ${ocrRows}`);
+  // Undergrad relevance filter (2026-09-04): OCR reads 3 courses, but only
+  // the two whose titles match the core keywords are offered — 'Special
+  // Topics in Systems' is left out (undergraduate credits never transfer).
+  if (ocrRows !== 2) throw new Error(`expected 2 core-relevant OCR courses in the preview, got ${ocrRows}`);
+  const bachNote = await s.evalJs(`document.querySelector('.external-card .transcript-preview .hint.warn')?.textContent ?? ''`);
+  if (!bachNote.includes('do not transfer') || !bachNote.includes('1 other course was read and left out')) {
+    throw new Error('bachelors preview note missing/wrong: ' + bachNote.slice(0, 160));
+  }
   await s.shot('external-ocr-preview');
   // Do what the preview tells every student to do: check the fields and fix
   // what OCR got wrong (an empty credits box blocks that row from being added).
@@ -134,11 +141,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Add checked courses').click()`,
   );
-  await s.waitFor(`document.querySelectorAll('.external-verdict').length === 6`);
-  console.log('  6 external courses (3 typed + 3 OCR) in the verdicts block');
-  // Undergrad core-title rule (2026-09-03): of the 3 OCR bachelors courses,
-  // the two whose titles mention operating/algorithm join the request —
-  // MATH (1) + masters slot (3) + those two = 6 pending.
+  await s.waitFor(`document.querySelectorAll('.external-verdict').length === 5`);
+  console.log('  5 external courses (3 typed + 2 core-relevant OCR) in the verdicts block');
+  // Undergrad core-title rule (2026-09-03; relevance filter 2026-09-04): only
+  // the two keyword-matching bachelors courses were added, and both join the
+  // request — MATH (1) + masters slot (3) + those two = 6 pending.
   const combined6 = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
   if (!combined6.includes('Copy review request for 6 courses')) {
     throw new Error('expected 6 pending after OCR (undergrad core-title rule): ' + combined6.slice(0, 140));

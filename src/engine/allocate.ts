@@ -10,6 +10,7 @@
 import { resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules } from '../data/types.ts';
+import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
@@ -71,6 +72,11 @@ export interface AllocationResult {
   total: TierSums;
   /** Regular-pool credits taken at Notre Dame (§4.2's nine-at-ND check). */
   ndRegular: TierSums;
+  /** Research-ish credits taken at Notre Dame — courses the rules sheet types
+   * 'research' or 'project' (thesis/project direction, research &
+   * dissertation). The §4.5 along-the-way MSCSE needs 6 of these (DGS
+   * decision 2026-09-04); independent study does not count. */
+  ndResearch: TierSums;
   /** Counted transfer credits (all provisional unless attested). */
   transfer: TierSums;
   capUsage: Map<CapId, { used: number; limit: number | undefined; excluded: string[] }>;
@@ -182,11 +188,20 @@ export function classify(student: Student, rules: Rules): {
       // graduate student status" — Bachelor's coursework can never transfer.
       // §4.4.1 core knowledge has no such restriction, so the course stays
       // visible to the core check (coreRows reads classified regardless).
+      // The per-course line focuses on the ONE thing an undergraduate course
+      // can do — demonstrate a core-knowledge area (DGS request 2026-09-04).
       if (c.degreeLevel === 'bachelors') {
+        const confirmedArea = external?.satisfiesCoreArea
+          ? (rules.coreAreas.find((a) => a.code === external.satisfiesCoreArea)?.name ?? external.satisfiesCoreArea)
+          : undefined;
+        const suggested = coreTitleSuggestion(c.title);
         return {
           ...extBase,
-          ineligibleReason:
-            "no credit — Bachelor's coursework cannot transfer (§5.2 requires graduate courses taken with graduate student status); it can still satisfy §4.4.1 core knowledge",
+          ineligibleReason: confirmedArea
+            ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS; no transfer credit (undergraduate, §5.2)`
+            : suggested
+              ? `not counted — undergraduate credits never transfer (§5.2); the title suggests the ${suggested} core area (§4.4.1), which the DGS can confirm — send the review request`
+              : 'not counted — undergraduate credits never transfer (§5.2)',
         };
       }
       if (external?.transferable === false) {
@@ -345,6 +360,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     totalOnly: { ...ZERO_SUMS },
     total: { ...ZERO_SUMS },
     ndRegular: { ...ZERO_SUMS },
+    ndResearch: { ...ZERO_SUMS },
     transfer: { ...ZERO_SUMS },
   };
 
@@ -366,6 +382,9 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     target[cc.tier] += counted;
     sums.total[cc.tier] += counted;
     if (isRegular && cc.entry.origin === 'nd') sums.ndRegular[cc.tier] += counted;
+    if (cc.entry.origin === 'nd' && (cc.rule?.courseType === 'research' || cc.rule?.courseType === 'project')) {
+      sums.ndResearch[cc.tier] += counted; // §4.5 along-the-way (DGS 2026-09-04)
+    }
     if (cc.entry.origin === 'transfer') sums.transfer[cc.tier] += counted;
 
     const excludedReason =
@@ -476,7 +495,7 @@ function buildExplanation(
     if (cc.caps.includes('transfer')) parts.push('transfer credit (§5.2)');
   } else {
     const reason = excludedReason ?? 'not counted';
-    parts.push(/not counted|superseded|failed/.test(reason) ? reason : `not counted — ${reason}`);
+    parts.push(/not counted|superseded|failed|^satisfies/.test(reason) ? reason : `not counted — ${reason}`);
   }
   if (cc.approvalPending) parts.push(cc.approvalPending);
   return parts.join('; ');

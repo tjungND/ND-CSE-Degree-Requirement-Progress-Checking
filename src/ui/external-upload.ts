@@ -8,6 +8,7 @@
 // picked up by app.ts's single "Ask the DGS to review" card (the page itself
 // transmits nothing — FERPA).
 import { findExternalRule } from '../data/external.ts';
+import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import type { Rules } from '../data/types.ts';
 import { GRADES, isPassed } from '../engine/grades.ts';
 import { termLabel } from '../engine/term.ts';
@@ -64,6 +65,9 @@ interface ExternalPreview {
   /** The transcript carries a graduate-degree conferral line (2026-09-03) —
    * used to set "Prior graduate study" when the student has not chosen. */
   conferred?: boolean;
+  /** Undergraduate imports only (2026-09-04): parsed rows left out because
+   * neither the core-title keywords nor a DGS ruling made them relevant. */
+  omitted?: number;
 }
 
 let preview: ExternalPreview | undefined;
@@ -89,6 +93,22 @@ export interface ExternalCardArgs {
  * own ND-preview state to block all import buttons. */
 export function importsBusy(): boolean {
   return preview !== undefined || pendingScan !== undefined || ocrBusy !== undefined;
+}
+
+/** Undergraduate imports (DGS request 2026-09-04): undergraduate credits
+ * never transfer (§5.2), so only rows that can matter are offered in the
+ * preview — a title matching the §4.4.1 core keywords (algorithms, operating
+ * systems, architecture), or a course the DGS has already ruled on for this
+ * university. Everything else is left out (and counted, for the note). */
+function keepRelevantRows(
+  slot: DegreeLevel,
+  university: string,
+  rules: Rules,
+  rows: PreviewRow[],
+): { rows: PreviewRow[]; omitted: number } {
+  if (slot !== 'bachelors') return { rows, omitted: 0 };
+  const kept = rows.filter((r) => CORE_TITLE_RE.test(r.title) || findExternalRule(rules.external, university, r.courseId) !== undefined);
+  return { rows: kept, omitted: rows.length - kept.length };
 }
 
 /** The prior-university slot rows, previews and per-course verdicts. Since
@@ -137,23 +157,28 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         toast('This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above for it; these three slots are for OTHER universities.');
         return;
       }
+      const mapped = parsed.courses.map((c: ExternalCourseCandidate) => ({
+        include: true,
+        courseId: c.courseId,
+        title: c.title ?? '',
+        credits: c.credits,
+        grade: (c.grade ?? '') as Grade | '',
+        rawGrade: c.rawGrade,
+        season: 'fall' as Season,
+        year: c.year,
+      }));
+      const kept = keepRelevantRows(slot.level, parsed.university ?? '', rules, mapped);
       preview = {
         slot: slot.level,
         university: parsed.university ?? '',
         conferred: parsed.degreeConferred,
-        rows: parsed.courses.map((c: ExternalCourseCandidate) => ({
-          include: true,
-          courseId: c.courseId,
-          title: c.title ?? '',
-          credits: c.credits,
-          grade: c.grade ?? '',
-          rawGrade: c.rawGrade,
-          season: 'fall' as Season,
-          year: c.year,
-        })),
+        rows: kept.rows,
+        omitted: kept.omitted,
       };
-      if (preview.rows.length === 0) {
+      if (mapped.length === 0) {
         toast('No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand in the preview (and please tell the DGS which university, so parsing can be improved).');
+      } else if (kept.rows.length === 0) {
+        toast(`All ${mapped.length} courses read from this transcript were left out — none matched the Algorithms / Operating Systems / Architecture core keywords, and none are in the DGS’s external-course rules. Undergraduate credits do not transfer (§5.2); if a course belongs to a core area under a different title, add it by hand in the preview.`);
       }
       render();
     } catch {
@@ -192,7 +217,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       ' — ',
-      el('button', { class: 'btn tiny', disabled: args.blocked, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (beta)'),
+      el('button', { class: 'btn tiny', disabled: args.blocked, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
       fileInput,
     );
   }
@@ -243,22 +268,25 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   toast('This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above, with the digital PDF from insideND (not a scan).');
                   return;
                 }
+                const mapped = parsed.courses.map((c) => ({
+                  include: true,
+                  courseId: c.courseId,
+                  title: c.title ?? '',
+                  credits: c.credits,
+                  grade: (c.grade ?? '') as Grade | '',
+                  rawGrade: c.rawGrade,
+                  season: 'fall' as Season,
+                  year: c.year,
+                  lowConfidence: c.lowConfidence,
+                }));
+                const kept = keepRelevantRows(slot, parsed.university ?? '', args.rules, mapped);
                 preview = {
                   slot,
                   university: parsed.university ?? '',
                   fromOcr: true,
                   conferred: parsed.degreeConferred,
-                  rows: parsed.courses.map((c) => ({
-                    include: true,
-                    courseId: c.courseId,
-                    title: c.title ?? '',
-                    credits: c.credits,
-                    grade: c.grade ?? '',
-                    rawGrade: c.rawGrade,
-                    season: 'fall' as Season,
-                    year: c.year,
-                    lowConfidence: c.lowConfidence,
-                  })),
+                  rows: kept.rows,
+                  omitted: kept.omitted,
                 };
                 render();
                 if (parsed.courses.length === 0) {
@@ -310,6 +338,15 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             { class: 'ocr-banner', role: 'note' },
             el('strong', {}, 'Read by OCR from a scan — approximate. English transcripts only. '),
             'Check every field against your transcript before adding; rows marked ⚠ were hard to read.',
+          ),
+        ]
+      : []),
+    ...(p.slot === 'bachelors'
+      ? [
+          el(
+            'p',
+            { class: 'hint warn' },
+            `Undergraduate credits do not transfer (§5.2), so only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
           ),
         ]
       : []),
