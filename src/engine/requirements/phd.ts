@@ -293,7 +293,7 @@ export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementRes
       deadline = { date, approx: true, state: 'overdue', label: `Overdue since ${date}` };
     } else {
       status = 'in_progress';
-      detail = `Complete all requirements by ${date} (approximate — ${years} years from entry).`;
+      detail = ''; // the deadline chip carries the when (2026-09-03)
       deadline = { date, approx: true, state: 'upcoming', label: `Due by ${date} (approximate)` };
     }
   }
@@ -333,12 +333,10 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): Requirem
       // Decision Q17b: a deadline past with the work incomplete is unmet, even
       // when a component is still in progress (matching deadlineStatus()).
       status = 'unmet';
-      parts.push(
-        `Overdue — all three components were due by the end of ${termLabel(term)} (${date}, approximate). The DGS may extend the deadline on a case-by-case basis (§4.4)`,
-      );
+      // The deadline chip carries the when (2026-09-03).
+      parts.push(`Overdue — talk to the DGS`);
       deadline = { date, approx: true, state: 'overdue', label: `Overdue — was due by the end of ${termLabel(term)} (approximate)` };
     } else {
-      parts.push(`All three components due by the end of ${termLabel(term)} — semester ${semesters} (${date}, approximate)`);
       deadline = { date, approx: true, state: 'upcoming', label: `Due by the end of ${termLabel(term)} (approximate)` };
     }
   }
@@ -528,8 +526,9 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
       : r.status === 'needs_dgs_review'
         ? `Passed ${ctx.student.milestones.researchQualifierPassed}, ${r.lateNote}.`
         : r.status === 'unmet'
-          ? `Overdue — the advisor's determination was due within ${months} months of entry (${date}, approximate). Talk to your advisor and the DGS.`
-          : `The research advisor's determination (Research-Qualifier form) is due within ${months} months of entry — by ${date} (approximate).`;
+          ? // The deadline chip carries the when — the detail stays progress-only.
+            `Overdue — talk to your advisor and the DGS.`
+          : `The advisor's Research-Qualifier form is not filed yet.`;
   return {
     id: 'phd.qualifier.research',
     group: QUALIFIER,
@@ -546,7 +545,6 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
 function candidacyRow(ctx: Ctx): RequirementResult {
   const quote = 'The candidacy exam must be taken before the end of the eighth semester in the program.';
   const sem = ctx.params.number('candidacy_deadline_semester');
-  const committee = ctx.params.number('candidacy_committee_additional_members_min');
   if (sem === undefined) {
     return {
       id: 'phd.candidacy',
@@ -570,20 +568,15 @@ function candidacyRow(ctx: Ctx): RequirementResult {
   else if (r.status === 'needs_dgs_review')
     parts.push(`Passed ${ctx.student.milestones.candidacyPassed}, ${r.lateNote ?? ''}`);
   else if (r.status === 'unmet')
-    parts.push(`Overdue — the exam was due before the end of ${termLabel(term)} (semester ${sem}; ${date}, approximate). Talk to the DGS`);
-  else parts.push(`Due by the end of ${termLabel(term)} — semester ${sem} (${date}, approximate)`);
-  parts.push(
-    'All Ph.D. coursework must be completed, or in progress the same semester, before the exam (§4.5)',
-  );
-  parts.push(
-    `Committee: your advisor (and co-advisor if any) plus at least ${committee ?? 3} additional voting members, approved by the DGS (§4.5)`,
-  );
+    // The deadline chip carries the when; policy (coursework-before-exam,
+    // committee make-up) lives behind the § chip (2026-09-03).
+    parts.push(`Overdue — talk to the DGS`);
   return {
     id: 'phd.candidacy',
     group: CANDIDACY,
     title: 'Candidacy examination (dissertation proposal) passed',
     status: r.status,
-    detail: parts.join('. ') + '.',
+    detail: parts.length > 0 ? parts.join('. ') + '.' : '',
     deadline: r.deadline,
     citation: { section: '§4.5', quote },
   };
@@ -606,7 +599,7 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       status: m.dissertationApprovedForDefense ? 'met' : 'unmet',
       detail: m.dissertationApprovedForDefense
         ? `Approved for defense ${m.dissertationApprovedForDefense}.`
-        : 'Not yet: after the advisor approves, the candidacy-committee readers get two to four weeks and must approve unanimously (§4.6).',
+        : 'Not yet approved.',
       citation: {
         section: '§4.6',
         quote: 'Only a dissertation, which has been unanimously approved for defense by the readers, may be defended.',
@@ -659,7 +652,7 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   return {
     id: 'phd.msAlongTheWay',
     group: CANDIDACY,
-    title: 'MSCSE awarded along the way (information)',
+    title: 'MSCSE awarded along the way',
     status,
     informational: true,
     detail,

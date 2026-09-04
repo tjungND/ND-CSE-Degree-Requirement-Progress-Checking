@@ -23,6 +23,6 @@
     "phd.qualifier.core.architecture": { "status": "in_progress" },
     "phd.qualifier.categories": { "status": "met" },
     "phd.qualifier.research": { "status": "met" },
-    "phd.qualifier": { "status": "unmet", "detailIncludes": ["Overdue", "DGS may extend"] }
+    "phd.qualifier": { "status": "unmet", "detailIncludes": ["Overdue"] }
   }
 }

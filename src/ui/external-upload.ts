@@ -175,6 +175,15 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
           onclick: () =>
             update((s) => {
               s.courses = s.courses.filter((c) => !(c.origin === 'transfer' && c.degreeLevel === slot.level));
+              // If "Prior graduate study" was auto-set from a transcript and no
+              // graduate transcript remains, undo the inference (2026-09-04).
+              if (
+                s.priorMsInferred === true &&
+                !s.courses.some((c) => c.origin === 'transfer' && (c.degreeLevel === 'masters' || c.degreeLevel === 'phd'))
+              ) {
+                s.priorMs = 'none';
+                s.priorMsInferred = undefined;
+              }
             }),
         },
         'Remove',
@@ -379,7 +388,9 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               toast('No rows are complete yet — every added row needs a course id, credits, a grade and a year.');
               return;
             }
-            let priorAutoSet = false;
+            // (initializer cast: the assignment happens inside the update()
+            // closure, which TS's flow analysis can't see from the use below)
+            let priorAutoSet = false as 'completed' | 'unfinished' | false;
             update((s) => {
               for (const r of ready) {
                 s.courses.push({
@@ -393,14 +404,16 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   degreeLevel: p.slot,
                 });
               }
-              // Conferral evidence on a Master's/Ph.D. transcript (2026-09-03):
-              // set "Prior graduate study" to completed — only upgrading the
-              // untouched default, never overriding the student's own choice.
-              // Without positive evidence the value stays and the standing
-              // card's reconcile warning does the asking.
-              if ((p.slot === 'masters' || p.slot === 'phd') && p.conferred === true && s.priorMs === 'none') {
-                s.priorMs = 'completed';
-                priorAutoSet = true;
+              // "Prior graduate study" from the transcript (2026-09-03): a
+              // graduate-degree conferral line → completed; a graduate
+              // transcript WITHOUT one → "Prior M.S., not completed" plus the
+              // standing card's warning (the transcript alone cannot prove
+              // completion). Only the untouched default is upgraded — never a
+              // student's own choice; touching the dropdown clears the flag.
+              if ((p.slot === 'masters' || p.slot === 'phd') && s.priorMs === 'none') {
+                s.priorMs = p.conferred === true ? 'completed' : 'unfinished';
+                s.priorMsInferred = true;
+                priorAutoSet = s.priorMs;
               }
             });
             const matched = ready.filter((r) => findExternalRule(rules.external, university, r.courseId)).length;
@@ -411,9 +424,11 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 (matched > 0 ? ` — ${matched} already in the DGS’s external-course rules` : '') +
                 (skipped > 0 ? `; ${skipped} skipped (incomplete — missing a grade, credits or year)` : '') +
                 '.' +
-                (priorAutoSet
+                (priorAutoSet === 'completed'
                   ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the conferral line on your transcript — adjust it under Your standing if that’s wrong.'
-                  : ''),
+                  : priorAutoSet === 'unfinished'
+                    ? ' Prior graduate study was set to “Prior M.S., not completed” — no degree-conferral line was found on your transcript; pick “Completed prior M.S. or Ph.D.” under Your standing if you did earn the degree.'
+                    : ''),
             );
           },
         },

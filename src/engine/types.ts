@@ -78,6 +78,11 @@ export interface Student {
   msOption?: MsOption;
   entryTerm: Term;
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
+  /** True while priorMs holds a value INFERRED from an uploaded transcript
+   * (2026-09-03) rather than chosen by the student — cleared when they touch
+   * the dropdown, and reset with priorMs when the inferring transcript's
+   * courses are removed. */
+  priorMsInferred?: boolean;
   gpa?: number; // self-reported cumulative (decision Q7)
   fullTimeTermOverrides?: Term[]; // decision Q8 residency override
   courses: CourseEntry[];

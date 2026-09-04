@@ -225,7 +225,11 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       onchange: (e) => update((s) => void (s.entryTerm.year = Number((e.target as HTMLInputElement).value) || s.entryTerm.year)),
     });
     const priorSel = el('select', {
-      onchange: (e) => update((s) => void (s.priorMs = (e.target as HTMLSelectElement).value as Student['priorMs'])),
+      onchange: (e) =>
+        update((s) => {
+          s.priorMs = (e.target as HTMLSelectElement).value as Student['priorMs'];
+          s.priorMsInferred = undefined; // the student chose — no longer inferred
+        }),
     });
     priorSel.append(
       option('none', 'No prior graduate degree', student.priorMs === 'none'),
@@ -233,21 +237,29 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       option('completed', 'Completed prior M.S. or Ph.D.', student.priorMs === 'completed'),
     );
     // Reconcile the dropdown with the uploaded transcripts (2026-09-03): a
-    // Previous Master's/Ph.D. transcript with "No prior graduate degree" is a
-    // contradiction the student must resolve — the §5.2 caps depend on it.
-    // The transcript alone cannot say whether the degree was COMPLETED, so
-    // this only points; it never flips the value silently.
+    // graduate transcript sets this automatically on import — "Completed" when
+    // a degree-conferral line was found, otherwise "not completed" plus the
+    // warning below, since the §5.2 caps depend on which it is (DGS
+    // 2026-09-04). If the student somehow still has "none" alongside a
+    // graduate transcript (older saved file, manual change), the original
+    // contradiction warning shows instead.
     const priorTranscripts = DEGREE_SLOTS.filter(
       (sl) => sl.level !== 'bachelors' && student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel === sl.level),
     );
-    const priorNote =
-      student.priorMs === 'none' && priorTranscripts.length > 0
-        ? el(
-            'p',
-            { class: 'hint warn' },
-            `Your Transcripts card has a ${priorTranscripts.map((sl) => sl.label).join(' and a ')}, but this says “No prior graduate degree” — pick “Completed prior M.S. or Ph.D.” if you earned that degree, or “Prior M.S., not completed” if not (the §5.2 transfer caps depend on it).`,
-          )
-        : null;
+    let priorNote: HTMLElement | null = null;
+    if (student.priorMsInferred === true && student.priorMs === 'unfinished') {
+      priorNote = el(
+        'p',
+        { class: 'hint warn' },
+        'Set to “Prior M.S., not completed” because no degree-conferral line was found on your transcript — pick “Completed prior M.S. or Ph.D.” if you earned that degree (the §5.2 transfer caps depend on it).',
+      );
+    } else if (student.priorMs === 'none' && priorTranscripts.length > 0) {
+      priorNote = el(
+        'p',
+        { class: 'hint warn' },
+        `Your Transcripts card has a ${priorTranscripts.map((sl) => sl.label).join(' and a ')}, but this says “No prior graduate degree” — pick “Completed prior M.S. or Ph.D.” if you earned that degree, or “Prior M.S., not completed” if not (the §5.2 transfer caps depend on it).`,
+      );
+    }
     const card = el(
       'section',
       { class: 'card' },

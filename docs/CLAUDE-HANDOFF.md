@@ -163,6 +163,17 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Inferred prior study + deadline dedupe + free-flowing report** (2026-09-04, DGS): a graduate
+  transcript WITHOUT a conferral line now sets priorMs='none'→'unfinished' on add (conservative
+  §5.2 cap) and flags `Student.priorMsInferred`; the standing card shows a warning while
+  inferred-unfinished ("pick Completed if you earned it"), the dropdown's onchange clears the
+  flag (student's choice wins), and the slot Remove handler resets priorMs→'none' when the flag
+  is set and no masters/phd transfer courses remain. Rows with a deadline chip keep their
+  in-progress detail EMPTY (candidacy, qualifier umbrella, both time limits — the chip carries
+  the when); overdue says "Overdue — talk to the DGS" with no policy prose. "MSCSE awarded
+  along the way" has no "(information)" suffix (still `informational: true`). `.audit-col` is
+  plain `min-width: 0` — no sticky/max-height/inner scrollbar; don't reintroduce them. The
+  courses page's offered-note says active ≠ currently offered.
 - **Rules on the output side + advisor summary** (2026-09-03, DGS): every requirement card's §
   chip is a button revealing `.rule-quote` — the handbook sentence from `citation.quote`; the
   input-card intros stay lean (no policy prose). `advisorSummary()` in report.ts replaces

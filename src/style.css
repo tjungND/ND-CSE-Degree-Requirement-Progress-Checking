@@ -62,8 +62,9 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
 /* layout */
 .layout { display: grid; grid-template-columns: 1fr 480px; gap: 18px; align-items: start; }
 @media (max-width: 1120px) { .layout { grid-template-columns: 1fr; } }
-.audit-col { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
-@media (max-width: 1120px) { .audit-col { position: static; max-height: none; } }
+/* The report flows with the page (DGS request 2026-09-03): no inner
+ * scrollbar — the whole column is visible by scrolling the page itself. */
+.audit-col { min-width: 0; }
 
 /* cards */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 14px; }

@@ -28,6 +28,6 @@
     "ms.credits.project": { "status": "met" },
     "ms.credits.total": { "status": "unmet", "detailIncludes": ["24 of 30"] },
     "ms.project.report": { "status": "unmet" },
-    "ms.timeLimit": { "status": "in_progress", "detailIncludes": ["2031"] }
+    "ms.timeLimit": { "status": "in_progress" }
   }
 }

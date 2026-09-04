@@ -23,11 +23,11 @@
     "phd.cap.noncse": { "status": "not_applicable" },
     "phd.transfer": { "status": "not_applicable" },
     "phd.residency": { "status": "in_progress" },
-    "phd.timeLimit": { "status": "in_progress", "detailIncludes": ["2034"] },
+    "phd.timeLimit": { "status": "in_progress" },
     "phd.qualifier": { "status": "unmet" },
     "phd.qualifier.core.os": { "status": "unmet" },
-    "phd.qualifier.research": { "status": "in_progress", "detailIncludes": ["18"] },
-    "phd.candidacy": { "status": "in_progress", "detailIncludes": ["2030"] },
+    "phd.qualifier.research": { "status": "in_progress", "detailIncludes": ["Research-Qualifier"] },
+    "phd.candidacy": { "status": "in_progress" },
     "phd.dissertation.approval": { "status": "unmet" },
     "phd.msAlongTheWay": { "status": "not_applicable" }
   }

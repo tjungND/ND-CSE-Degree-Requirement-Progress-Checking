@@ -191,7 +191,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         el('span', { class: 'pill pending' }, 'Pending'),
         ' are still under DGS review and may change. ',
         el('strong', {}, 'Not every course listed is currently offered: '),
-        'retired courses are hidden unless you tick “Include retired courses”, and active courses run only in some terms — the “Typically offered” column is a planning hint, so check the class search for the actual schedule. Where this page and the handbook disagree, the handbook and the DGS decide.',
+        'even an active (non-retired) course may run only in some semesters, or not at all in a given year — the “Typically offered” column is a planning hint, so check the class search for the actual schedule. Retired courses are hidden unless you tick “Include retired courses”. Where this page and the handbook disagree, the handbook and the DGS decide.',
         ...reportToDgs(' Corrections and questions — please email'),
       ),
     ];

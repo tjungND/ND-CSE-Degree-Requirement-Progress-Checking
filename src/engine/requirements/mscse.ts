@@ -168,7 +168,7 @@ export function msTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResu
       deadline = { date, approx: true, state: 'overdue', label: `Overdue since ${date}` };
     } else {
       status = 'in_progress';
-      detail = `Complete all requirements by ${date} (approximate — ${years} years from entry).`;
+      detail = ''; // the deadline chip carries the when (2026-09-03)
       deadline = { date, approx: true, state: 'upcoming', label: `Due by ${date} (approximate)` };
     }
   }
@@ -202,7 +202,7 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       detail = `Thesis defense passed ${m.thesisDefensePassed}${m.thesisApprovedByReaders ? ` (thesis approved by the readers ${m.thesisApprovedByReaders})` : ''}.`;
     } else {
       status = 'unmet';
-      detail = `Not yet: the committee is your advisor plus ${readers ?? 'two'} TTT readers (the advisor may not be a reader), and the oral defense must be passed (§3.4).`;
+      detail = `Not yet passed.`;
       const min = ctx.params.number('gpa_min');
       if (min !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < min) {
         detail += ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`;

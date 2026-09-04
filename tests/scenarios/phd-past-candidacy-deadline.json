@@ -18,8 +18,8 @@
   },
   "expect": {
     "phd.candidacy": { "status": "unmet", "detailIncludes": ["Overdue"] },
-    "phd.qualifier": { "status": "unmet", "detailIncludes": ["DGS may extend"] },
-    "phd.timeLimit": { "status": "in_progress", "detailIncludes": ["2034"] },
+    "phd.qualifier": { "status": "unmet", "detailIncludes": ["Overdue"] },
+    "phd.timeLimit": { "status": "in_progress" },
     "phd.msAlongTheWay": { "status": "not_applicable" }
   }
 }
