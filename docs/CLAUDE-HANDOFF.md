@@ -163,6 +163,14 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Advisor summary: unmet names in red bold** (2026-09-04, DGS): in `advisorSummary()`
+  (report.ts) the HTML `table()` helper now takes cells that are either plain strings (escaped)
+  or `{ html }` (pre-escaped markup); `titleCell(r)` wraps a status-`unmet` title in
+  `<strong style="color:#a81e14;font-weight:bold">` (inline — email clients drop stylesheets;
+  the hex is the page's `--bad`), and the text flavor's `line()` wraps the same titles in `**…**`.
+  Only `unmet` qualifies (DGS: needs-review / cannot-evaluate / in-progress are not "not met").
+  Locked by `tests/advisor-summary.test.ts` (hand-built AuditReport — advisorSummary is pure
+  string building, so no rules or DOM are needed).
 - **Rules-spreadsheet link, faculty-only note** (2026-09-04, DGS): `src/ui/sheet-source.ts`
   exports `SHEET_NAME`, `SHEET_EDIT_URL` (read from `data/sheet-urls.json` `sheet_edit_url` via a
   JSON import WITH `with { type: 'json' }` — required because `node --test` also loads the module;

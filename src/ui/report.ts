@@ -216,8 +216,15 @@ export function advisorSummary(
     `Program: ${programLabel}. Entered ${opts.entryTerm}; prior graduate study: ${opts.priorStudy}; ` +
     `cumulative GPA ${opts.gpa !== undefined ? opts.gpa : 'not entered yet'}. ` +
     `${report.summary.met} of ${report.summary.scored} requirements met as of ${opts.todayIso}.`;
+  // Unmet requirements stand out by name (DGS request, 2026-09-04): red bold in
+  // the HTML flavor (inline style — email clients drop stylesheets; the color
+  // is the page's --bad), and **double asterisks** in the plain-text flavor,
+  // which cannot carry color. Only status `unmet` ("Not yet") qualifies —
+  // needs-review / cannot-evaluate / in-progress rows are not "not met".
+  const isUnmet = (r: RequirementResult) => r.status === 'unmet';
+  const UNMET_STYLE = 'color:#a81e14;font-weight:bold';
   const line = (r: RequirementResult, detailed: boolean) =>
-    `${r.title} (${r.citation.section})${detailed && r.detail ? ` — ${r.detail}` : ''}`;
+    `${isUnmet(r) ? `**${r.title}**` : r.title} (${r.citation.section})${detailed && r.detail ? ` — ${r.detail}` : ''}`;
   // Only the courses that COUNT toward something (DGS request, 2026-09-03) —
   // same pattern the on-page table uses to strike dropped rows.
   const COUNTS_NOTHING_RE = /^(not counted|superseded|failed|credits count once)/;
@@ -235,10 +242,15 @@ export function advisorSummary(
     `\n\n${notices.join('\n')}\n\nThank you!\n`;
   // HTML flavor: one TABLE per part (DGS request, 2026-09-03) so the summary
   // reads cleanly in an email client; the text flavor keeps simple lists.
-  const table = (headers: string[], rows: string[][]) =>
+  // A cell is plain text (escaped here) or `{ html }` — already-safe markup,
+  // used for the red bold unmet titles (the title is escaped before wrapping).
+  type Cell = string | { html: string };
+  const table = (headers: string[], rows: Cell[][]) =>
     `<table border="1" cellspacing="0" cellpadding="4"><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>` +
-    rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('') +
+    rows.map((r) => `<tr>${r.map((v) => `<td>${typeof v === 'string' ? esc(v) : v.html}</td>`).join('')}</tr>`).join('') +
     `</table>`;
+  const titleCell = (r: RequirementResult): Cell =>
+    isUnmet(r) ? { html: `<strong style="${UNMET_STYLE}">${esc(r.title)}</strong>` } : r.title;
   const html =
     `<p>Subject: Degree progress summary (CSE degree self-check)</p><p>Dear Advisor,</p>` +
     `<p>${esc(intro)}</p><p>${esc(standing)}</p>` +
@@ -248,7 +260,7 @@ export function advisorSummary(
           `<p><strong>${esc(g.heading)}</strong></p>` +
           table(
             ['Requirement', '§', 'Status'],
-            g.rows.map((r) => [r.title, r.citation.section, g.detailed && r.detail ? r.detail : STATUS_LABEL[r.status]]),
+            g.rows.map((r) => [titleCell(r), r.citation.section, g.detailed && r.detail ? r.detail : STATUS_LABEL[r.status]]),
           ),
       )
       .join('') +
