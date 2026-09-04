@@ -16,6 +16,7 @@ import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, ru
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { advisorSummary, renderReport } from './report.ts';
+import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 import {
   clearLocal,
   emptyStudent,
@@ -159,6 +160,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           { class: 'effective' },
           rulesDateLine(rules, termLabel(termOfDate(todayIso)), todayIso),
         ),
+        // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
+        sheetSourceLine(),
       ),
       contactCard(),
       el(
@@ -1036,6 +1039,14 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('a', { href: './courses.html' }, 'course rules page'),
         '.)',
         ...reportToDgs(' Error reports and feedback — please email'),
+      ),
+      // What the rules spreadsheet is and who can open it (DGS, 2026-09-04).
+      el(
+        'div',
+        { class: 'legal-source' },
+        el('strong', {}, 'Where the rules come from. '),
+        'Everything this tool checks is generated from one spreadsheet. ',
+        ...sheetSourceNote('app'),
       ),
       el(
         'div',

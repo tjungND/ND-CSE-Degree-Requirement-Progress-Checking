@@ -198,8 +198,10 @@ Nothing you enter in the app is stored anywhere but that browser.
 
 ### A9. If the sheet is ever re-created, replaced, or its publishing is reset
 
-The published-CSV links change, and the three links in `data/sheet-urls.json` in this repository
-must be updated — that is a ten-minute Track B job (recipe in B4). Until then the app tells
+The published-CSV links change, and the links in `data/sheet-urls.json` in this repository
+must be updated — the published-CSV ones the app reads and `sheet_edit_url`, the spreadsheet's
+own link shown on both pages as "accessible by faculty only" (so keep the new sheet shared with
+faculty) — that is a ten-minute Track B job (recipe in B4). Until then the app tells
 visitors the sheet has a problem and offers its last saved copy; it recovers by itself once the
 links are fixed.
 
@@ -392,7 +394,7 @@ follow them.
 above it · `src/data/` — sheet fetch, parse, validate · `src/ui/` — the pages (`app.ts` the
 self-check tool, `courses-page.ts` the public course-rules list served as `courses.html`) · `src/transcript/` —
 in-browser PDF parsing · `tests/scenarios/*.json` — one student case per file, the safety net ·
-`data/sheet-urls.json` — the published-CSV links (edit only if the sheet is re-published) ·
+`data/sheet-urls.json` — the published-CSV links plus the sheet's own link shown on the pages (edit only if the sheet is re-published or replaced) ·
 `data/README.md` — the sheet schema, column by column · `docs/DECISIONS.md` — every policy
 interpretation ever made · `docs/CLAUDE-HANDOFF.md` — engineering decisions and recipes for AI
 sessions · `MAINTENANCE.md` — deeper technical notes and the list of one-time setup still pending ·

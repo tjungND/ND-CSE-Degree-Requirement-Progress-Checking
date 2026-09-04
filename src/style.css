@@ -191,8 +191,10 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 /* privacy notes (FERPA) */
 .privacy-note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; max-width: 80ch; }
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
-.legal-beta, .legal-privacy, .legal-license { margin-top: 10px; }
-.legal-license strong { color: var(--ink); }
+.legal-beta, .legal-privacy, .legal-license, .legal-source { margin-top: 10px; }
+.legal-license strong, .legal-source strong { color: var(--ink); }
+/* the rules-spreadsheet line under the dated line (both mastheads) */
+.masthead .effective.sheet-source { margin-top: 4px; }
 
 /* ---------- courses.html: the public course-rules list ---------- */
 .courses-page h2 { color: var(--navy); font-size: 20px; margin: 26px 0 10px; }

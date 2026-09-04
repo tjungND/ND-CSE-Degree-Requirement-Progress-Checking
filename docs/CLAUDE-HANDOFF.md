@@ -163,6 +163,19 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Rules-spreadsheet link, faculty-only note** (2026-09-04, DGS): `src/ui/sheet-source.ts`
+  exports `SHEET_NAME`, `SHEET_EDIT_URL` (read from `data/sheet-urls.json` `sheet_edit_url` via a
+  JSON import WITH `with { type: 'json' }` — required because `node --test` also loads the module;
+  `src/data/load.ts` imports the same file without the attribute and is only ever bundled by
+  Vite), `sheetLink()`, `sheetSourceLine()` (the `p.effective.sheet-source` line under each
+  masthead's dated line — the dated sentence itself is untouched per the 2026-09-01 decision) and
+  `sheetSourceNote(page)` (footer paragraph children: the four tabs, published-copy-on-every-load,
+  bold "accessible by faculty only", a cross-link to the other page, and `mailto(DGS.email)` — so
+  it picks up the sheet-driven contact override because it renders after `applyContactOverrides`).
+  app.ts wraps it in `div.legal-source` ("Where the rules come from."); courses-page.ts splices
+  it into its existing "Source." paragraph. `tests/sheet-source.test.ts` pins the URL to the JSON
+  and rejects published-CSV shapes; e2e `checkSheetLink()` in drive-app.mjs asserts exactly one
+  masthead + one footer link per page, sheet-name text, "faculty only" nearby, new-tab rel.
 - **Sheet-driven contacts + nested detail bullets + PDF caveat** (2026-09-04, DGS): the six
   `contact_*` DISPLAY_PARAMETER_KEYS (data/README.md) feed `applyContactOverrides()` in
   contacts.ts — called at the TOP of startApp() and renderCoursesPage(), before anything renders

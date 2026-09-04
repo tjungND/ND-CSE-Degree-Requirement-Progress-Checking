@@ -11,6 +11,7 @@ import { termLabel, termOfDate } from '../engine/term.ts';
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 import { handbookLink, rulesDateLine } from './handbook.ts';
+import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 
 // ---------- labels (sheet codes → words students understand) ----------
 
@@ -179,6 +180,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
           ' applies these same rules to your own coursework.',
         ),
         el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
+        // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
+        sheetSourceLine(),
       ),
       contactCard(),
     );
@@ -449,7 +452,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         'div',
         {},
         el('strong', {}, 'Source. '),
-        'This page reads the Director of Graduate Studies’ official course-rules sheet each time it loads, so it always reflects the DGS’s latest decisions (Google republishes edits within a few minutes). Where this page and the ',
+        'This page is generated from the Director of Graduate Studies’ official course-rules sheet (Google republishes edits within a few minutes). ',
+        // What that spreadsheet is and who can open it (DGS, 2026-09-04).
+        ...sheetSourceNote('courses'),
+        ' Where this page and the ',
         handbookLink(),
         ' disagree, the handbook and the DGS decide.',
       ),

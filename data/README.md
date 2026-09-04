@@ -13,7 +13,10 @@ In the sheet: **File → Share → Publish to web → Link → choose one tab �
     https://docs.google.com/spreadsheets/d/e/<PUBLISHED_ID>/pub?gid=<TAB_GID>&single=true&output=csv
 
 The current URLs are in `data/sheet-urls.json` (Courses gid 922680330, Parameters gid 1921993253,
-Categories gid 298683565); the app reads that file. Note that Google serves these CSVs with the
+Categories gid 298683565); the app reads that file. The same file's `sheet_edit_url` is the
+spreadsheet's ordinary (edit/view) link — since 2026-09-04 both pages show it in the masthead and
+footer, labelled as accessible by faculty only (`src/ui/sheet-source.ts`), so if the sheet is ever
+replaced, update that entry too. Note that Google serves these CSVs with the
 numbers as plain integers (24, not 24.0) and blank cells as empty strings. Publishing makes the tab publicly readable by anyone
 with the link — fine for course rules, which are already public policy. Nothing about students is
 in the sheet.

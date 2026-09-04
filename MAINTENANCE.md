@@ -105,7 +105,9 @@ last edit (see "Sync" below).
   context capsule (design decisions, invariants, recipes); `.claude/skills/run-app/` teaches
   Claude Code to launch and screenshot the app.
 - **Published-CSV URLs** live in `data/sheet-urls.json` (the only file to edit if the sheet is
-  ever re-published or replaced).
+  ever re-published or replaced). Its `sheet_edit_url` is the spreadsheet's own link, shown on
+  both pages with a "faculty only" note (`src/ui/sheet-source.ts`, 2026-09-04) — the sheet is
+  shared with faculty, not students, who see the same rules on `courses.html`.
 
 ## Repo peculiarities you should know
 
