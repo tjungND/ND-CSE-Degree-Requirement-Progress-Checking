@@ -1,6 +1,12 @@
 // People students should contact, shown in the page footer and in the feedback
-// notes. Not policy — names and addresses only. Update this file at every DGS
-// handoff (README.md "Handoff checklist"); nothing else on the page needs to change.
+// notes. Not policy — names and addresses only. Since 2026-09-04 the names and
+// emails come from the rules sheet's Parameters tab (contact_dgs_name,
+// contact_dgs_email, contact_adgs_name, contact_adgs_email,
+// contact_grad_admin_name, contact_grad_admin_email — see data/README.md), so
+// a DGS handoff is a sheet edit, not a code change. The values below are the
+// FALLBACK for keys that are missing or blank; refresh them occasionally so an
+// offline snapshot without the keys still shows someone real.
+import type { Parameters } from '../data/types.ts';
 import { el } from './dom.ts';
 
 export interface Contact {
@@ -31,6 +37,26 @@ export const CONTACTS: Contact[] = [
     scope: 'logistics, paperwork, processing — and everything else',
   },
 ];
+
+/** Overwrite the baked-in contacts with the sheet's Parameters values, when
+ * present and non-blank (2026-09-04). Both pages call this right after the
+ * rules load, before anything renders, so every place a name or address
+ * appears — the contact card, the consent notice, the review-request
+ * emails — shows the sheet's version. Mutates the Contact objects in place,
+ * so the DGS/GRAD_ADMIN references below stay valid. */
+export function applyContactOverrides(params: Parameters): void {
+  const read = (key: string): string | undefined => {
+    const v = params.raw.get(key)?.value.trim();
+    return v ? v : undefined;
+  };
+  const apply = (c: Contact, prefix: string) => {
+    c.name = read(`${prefix}_name`) ?? c.name;
+    c.email = read(`${prefix}_email`) ?? c.email;
+  };
+  apply(CONTACTS[0]!, 'contact_dgs');
+  apply(CONTACTS[1]!, 'contact_adgs');
+  apply(CONTACTS[2]!, 'contact_grad_admin');
+}
 
 /** The DGS — the address error reports and feedback go to. */
 export const DGS: Contact = CONTACTS[0]!;

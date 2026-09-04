@@ -118,6 +118,16 @@ export const DISPLAY_PARAMETER_KEYS = [
   // text) → "Rules effective as of …". Without it the pages print the date the
   // rules last changed, as recorded by the sync (`rules-date.ts`).
   'rules_effective_date',
+  // Who-to-contact overrides (2026-09-04): names and addresses shown in the
+  // contact card, the consent notice, and the review-request emails. A key
+  // that is missing or blank keeps the fallback baked into
+  // src/ui/contacts.ts — so the next DGS updates the sheet, not the code.
+  'contact_dgs_name',
+  'contact_dgs_email',
+  'contact_adgs_name',
+  'contact_adgs_email',
+  'contact_grad_admin_name',
+  'contact_grad_admin_email',
 ] as const;
 
 /** Parameter keys the app reads. Anything else in the sheet is ignored with a

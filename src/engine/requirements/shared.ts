@@ -1,6 +1,6 @@
 // §2 requirements shared by both programs.
 import { startOfTerm } from '../term.ts';
-import type { RequirementResult } from '../types.ts';
+import type { DetailPart, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { joinedDetail, missingParamDetail } from './context.ts';
 
@@ -82,13 +82,14 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   const planUnconfirmed =
     ctx.student.courses.length > 0 && ctx.student.attestations.advisorApprovedPlan !== true;
   const status = pending.length === 0 && !planUnconfirmed ? 'not_applicable' : 'needs_dgs_review';
-  const parts: string[] = [];
+  const parts: DetailPart[] = [];
   if (pending.length > 0) {
-    parts.push(
-      `These courses are counted provisionally until the sign-off happens: ${pending
-        .map((c) => `${c.entry.courseId} (${c.approvalPending})`)
-        .join('; ')}`,
-    );
+    // {lead, items} → the report renders one nested bullet per course
+    // (DGS request 2026-09-04); the prose flattens to the same sentence.
+    parts.push({
+      lead: 'These courses are counted provisionally until the sign-off happens',
+      items: pending.map((c) => `${c.entry.courseId} (${c.approvalPending})`),
+    });
   }
   if (planUnconfirmed) {
     parts.push(

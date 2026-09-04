@@ -16,7 +16,7 @@ import {
   termLabel,
   termOfDate,
 } from '../term.ts';
-import type { Grade, RequirementResult, Status } from '../types.ts';
+import type { DetailPart, Grade, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { capRow, joinedDetail, missingParamDetail, thresholdRow } from './context.ts';
 import { fullTimeTermRecords } from './residency.ts';
@@ -460,7 +460,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   const combined = matchDistinctGroups([...qualifying, ...inProgress], allGroups);
 
   let status: Status;
-  const parts: string[] = [];
+  const parts: DetailPart[] = [];
   if (def.distinctCount >= groupsReq && qualifying.length >= coursesReq) {
     status = 'met';
     const lines = [...def.assignment.entries()].map(([courseId, g]) => {
@@ -468,7 +468,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       const isAny = (cand?.groups.length ?? 0) > 1;
       return `${courseId}${cand?.title ? ` ${cand.title}` : ''} → ${groupName(g)}${isAny ? ' (flexible course — your assignment)' : ''}`;
     });
-    parts.push(`${qualifying.length} qualifying courses covering ${def.distinctCount} distinct groups: ${lines.join('; ')}`);
+    parts.push({ lead: `${qualifying.length} qualifying courses covering ${def.distinctCount} distinct groups`, items: lines });
   } else if (combined.distinctCount >= groupsReq && qualifying.length + inProgress.length >= coursesReq) {
     status = 'in_progress';
     parts.push(

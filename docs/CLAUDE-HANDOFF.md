@@ -163,6 +163,16 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Sheet-driven contacts + nested detail bullets + PDF caveat** (2026-09-04, DGS): the six
+  `contact_*` DISPLAY_PARAMETER_KEYS (data/README.md) feed `applyContactOverrides()` in
+  contacts.ts — called at the TOP of startApp() and renderCoursesPage(), before anything renders
+  (the consent notice shows `Prof. ${DGS.name}`); it mutates the CONTACTS objects in place so the
+  DGS/GRAD_ADMIN references stay valid, and missing/blank keys keep the baked-in fallback (a DGS
+  handoff = sheet edit; refresh the fallback occasionally). `DetailPart` may be
+  `{lead, items}` — joinedDetail flattens it to "lead: a; b; c" for `detail` (test-stable) and
+  report.ts renders it as a two-layer list (`.detail-sublist`, one sub-bullet per item); used by
+  approvalsRow and categoriesRow. BETA_SCOPE_NOTICE now carries the "transcript-PDF import …
+  highly inaccurate" caveat. tests/contacts.test.ts locks the key names.
 - **Alpha label, undergrad relevance filter, ndResearch gate, bulleted details** (2026-09-04, DGS):
   the banner and import buttons say ALPHA again. `CORE_TITLE_RE` moved to
   `src/engine/core-title.ts` (plus `coreTitleSuggestion` naming the suggested area); the classifier's

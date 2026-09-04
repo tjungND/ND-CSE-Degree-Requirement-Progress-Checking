@@ -29,8 +29,12 @@ export const RULES_ACCURACY_NOTICE =
   'The course rules are accurate: they are exactly the rules the DGS and the Graduate ' +
   'Program Administrator use to determine requirement satisfaction.';
 
-/** The sentence that follows RULES_ACCURACY_NOTICE — what the beta label covers. */
-export const BETA_SCOPE_NOTICE = 'Only this tool’s application of them is still being tested.';
+/** The sentences that follow RULES_ACCURACY_NOTICE — what the alpha label
+ * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04). */
+export const BETA_SCOPE_NOTICE =
+  'Only this tool’s application of them is still being tested. In particular, the transcript-PDF ' +
+  'import is under development and still highly inaccurate — check every imported course against ' +
+  'your actual transcript.';
 
 /** The dated line under each page's title — two dates, one sentence (DGS wording,
  *  2026-09-01): "The course rules here were last updated on <X>, and are up-to-date

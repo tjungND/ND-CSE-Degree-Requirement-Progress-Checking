@@ -8,7 +8,7 @@
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
-import { DGS, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
+import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 import { handbookLink, rulesDateLine } from './handbook.ts';
 
@@ -51,6 +51,7 @@ interface Filters {
 }
 
 export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
+  applyContactOverrides(rules.parameters); // sheet-driven contacts (2026-09-04)
   const today = new Date();
   const p2 = (n: number) => String(n).padStart(2, '0');
   const todayIso = `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`;

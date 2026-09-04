@@ -131,14 +131,26 @@ function requirementCard(r: RequirementResult): HTMLElement {
     );
   }
   // A long multi-statement detail reads better as bullets (DGS request
-  // 2026-09-04); short or single-statement details stay prose. The advisor
-  // summary keeps using the joined `detail` string either way.
+  // 2026-09-04); short or single-statement details stay prose. A {lead,
+  // items} part renders as a nested two-layer list (one sub-bullet per item,
+  // DGS request 2026-09-04). The advisor summary keeps the joined `detail`.
+  const parts = r.detailParts ?? [];
+  const structured = parts.some((p) => typeof p !== 'string');
   const detailNode =
-    r.detailParts && r.detailParts.length > 1 && r.detail.length > 120
+    parts.length > 0 && (structured || (parts.length > 1 && r.detail.length > 120))
       ? el(
           'ul',
           { class: 'req-detail detail-list' },
-          ...r.detailParts.map((p) => el('li', {}, /[.!?]$/.test(p) ? p : `${p}.`)),
+          ...parts.map((p) =>
+            typeof p === 'string'
+              ? el('li', {}, /[.!?]$/.test(p) ? p : `${p}.`)
+              : el(
+                  'li',
+                  {},
+                  `${p.lead}:`,
+                  el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, /[.!?]$/.test(i) ? i : `${i}.`))),
+                ),
+          ),
         )
       : el('div', { class: 'req-detail' }, r.detail);
   return el(

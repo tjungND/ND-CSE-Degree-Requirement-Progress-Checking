@@ -4,7 +4,7 @@ import type { Parameters, Rules } from '../../data/types.ts';
 import type { AllocationResult, ClassifiedCourse } from '../allocate.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
-import type { RequirementResult, Status, Student, Term } from '../types.ts';
+import type { DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
 
 export interface Ctx {
   student: Student;
@@ -25,11 +25,15 @@ export function missingParamDetail(key: string): string {
 
 /** Join independent detail statements into the prose `detail`, keeping the
  * pieces as `detailParts` so the report can bullet a long detail (DGS request
- * 2026-09-04). Single-statement details stay plain text. */
-export function joinedDetail(parts: string[]): { detail: string; detailParts?: string[] } {
+ * 2026-09-04). A part may be {lead, items} — flattened to "lead: a; b; c" in
+ * the prose and rendered as a nested list by the report. Single plain
+ * statements stay plain text. */
+export function joinedDetail(parts: DetailPart[]): { detail: string; detailParts?: DetailPart[] } {
+  const flat = (p: DetailPart): string => (typeof p === 'string' ? p : `${p.lead}: ${p.items.join('; ')}`);
+  const structured = parts.some((p) => typeof p !== 'string');
   return {
-    detail: parts.join('. ') + (parts.length > 0 ? '.' : ''),
-    detailParts: parts.length > 1 ? parts : undefined,
+    detail: parts.map(flat).join('. ') + (parts.length > 0 ? '.' : ''),
+    detailParts: parts.length > 1 || structured ? parts : undefined,
   };
 }
 

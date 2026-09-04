@@ -114,6 +114,11 @@ export interface DeadlineInfo extends ApproxDate {
   label: string;
 }
 
+/** One statement of a requirement's detail: plain prose, or a lead sentence
+ * with enumerated items (e.g. the per-course sign-off list) that the report
+ * renders as a nested bullet list (DGS request 2026-09-04). */
+export type DetailPart = string | { lead: string; items: string[] };
+
 export interface RequirementResult {
   id: string;
   group: string; // display group heading, e.g. "Coursework — §4.2"
@@ -124,9 +129,10 @@ export interface RequirementResult {
   detail: string;
   /** When the detail was built from several independent statements, they are
    * also kept separately so the UI can render a long detail as a bulleted
-   * list (DGS request 2026-09-04). `detail` stays the joined prose — the
-   * advisor summary and tests keep using it. */
-  detailParts?: string[];
+   * list (DGS request 2026-09-04). A part may itself carry a lead sentence
+   * plus enumerated items — rendered as a nested (two-layer) list. `detail`
+   * stays the joined prose — the advisor summary and tests keep using it. */
+  detailParts?: DetailPart[];
   deadline?: DeadlineInfo;
   citation: { section: string; quote: string };
 }

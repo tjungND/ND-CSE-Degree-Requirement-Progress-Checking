@@ -85,6 +85,12 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `transfer_min_grade` | B | §5.2 | |
 | `fulltime_credits_min` | 9 | §2.1.2 | |
 | `rules_effective_date` | 2026-09-01 | | **Display only, optional override.** Normally leave it out: the pages print "The course rules here were last updated on <date>, and are up-to-date as of <day of reading>" automatically — the first date is when the six-hourly sync first saw the current sheet content (see `snapshot.json` below). Add this row only when the rules should carry a different date than the last edit — e.g. a change decided today that takes effect next term; then the pages print "Rules effective as of <date>" instead, for as long as the row exists. YYYY-MM-DD preferred (other text is shown as written). |
+| `contact_dgs_name` | Taeho Jung | | **Display only, optional (2026-09-04).** The six `contact_*` rows are how a DGS handoff updates the pages without touching code: they set the names and addresses shown in the "Who to contact" card, the opening notice, and the review-request emails. A missing or blank row keeps the fallback baked into `src/ui/contacts.ts`. |
+| `contact_dgs_email` | tjung@nd.edu | | Where error reports, feedback, and course review requests go. |
+| `contact_adgs_name` | Aaron Dingler | | The Assistant DGS (MSCSE policies). |
+| `contact_adgs_email` | adingler@nd.edu | | |
+| `contact_grad_admin_name` | Cari White | | The Graduate Program Administrator — review requests are emailed to this person AND the DGS. |
+| `contact_grad_admin_email` | csalmons@nd.edu | | |
 
 Add rows freely; the app ignores keys it does not know and warns (in the diagnostics panel)
 about known keys that are missing — the affected requirement then shows "cannot evaluate"

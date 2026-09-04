@@ -13,7 +13,7 @@ import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
-import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, contactCard, mailto, reportToDgs } from './contacts.ts';
+import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { advisorSummary, renderReport } from './report.ts';
 import {
@@ -38,6 +38,9 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
 const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
 export function startApp(root: HTMLElement, rules: Rules): void {
+  // Sheet-driven contacts (2026-09-04): must run before ANYTHING renders —
+  // the consent notice below already shows the DGS's name and address.
+  applyContactOverrides(rules.parameters);
   // Department-approval gate (DGS request, 2026-09-03): shown on EVERY visit
   // until the student clicks Agree — the tool is under testing and not yet
   // approved by the department. Nothing is stored about the click.
@@ -50,7 +53,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       {},
       'This tool has not been approved by the department yet. It is for testing and informational purposes only.',
     ),
-    el('p', {}, 'For errors and feedback, please contact the DGS (Prof. Taeho Jung, ', mailto(DGS.email), ').'),
+    el('p', {}, `For errors and feedback, please contact the DGS (Prof. ${DGS.name}, `, mailto(DGS.email), ').'),
   );
   const consentOverlay = el('div', { class: 'consent-overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Testing notice' }, consentBox);
   consentBox.append(el('button', { class: 'btn primary', onclick: () => consentOverlay.remove() }, 'Agree'));
