@@ -1,9 +1,10 @@
 // The public course list: which CSE graduate courses count toward the MSCSE
-// (§3) and Ph.D. (§4), which §4.4.1 core-knowledge area and §4.4.2
-// specialization category each satisfies, when it is typically offered, and
-// whether the DGS has confirmed the row. Everything shown comes from the
-// Courses tab of the rules sheet (via the same loader as the audit page); this
-// file only presents it. No student data is involved.
+// (§3) and Ph.D. (§4), which Ph.D. Qualifying Examination component each can
+// satisfy — core knowledge (§4.4.1) or specialization category (§4.4.2), both
+// parts of the §4.4 qualifying exam, not degree-credit tags — when it is
+// typically offered, and whether the DGS has confirmed the row. Everything
+// shown comes from the Courses tab of the rules sheet (via the same loader as
+// the audit page); this file only presents it. No student data is involved.
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
@@ -169,7 +170,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         el(
           'p',
           { class: 'sub' },
-          'This page describes which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, which core-knowledge area (§4.4.1) and specialization category (§4.4.2) each one satisfies, and when it is typically offered — as determined by the Director of Graduate Studies with faculty input under the ',
+          'This page describes which CSE courses count toward the MSCSE (§3) and Ph.D. (§4) degrees, when each is typically offered, and which part of the Ph.D. Qualifying Examination (§4.4) each can satisfy — a core-knowledge area (§4.4.1) or a specialization category (§4.4.2) — as determined by the Director of Graduate Studies with faculty input under the ',
           handbookLink(),
           '. The ',
           el('a', { href: './index.html' }, 'degree self-check tool'),
@@ -239,9 +240,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     return el(
       'section',
       { class: 'overview' },
-      el('h2', {}, 'Core knowledge areas ', el('span', { class: 'cite' }, '§4.4.1')),
+      el('h2', {}, 'Ph.D. Qualifying Examination courses ', el('span', { class: 'cite' }, '§4.4')),
+      el(
+        'p',
+        { class: 'muted' },
+        'Core knowledge and specialization are the two course-based requirements of the Ph.D. Qualifying Examination (§4.4) — they apply to Ph.D. students only, and MSCSE students can ignore these groupings. Whether a course counts toward degree credit is a separate question, answered in the table below.',
+      ),
+      el('h3', { class: 'ov-sub' }, 'Core knowledge areas ', el('span', { class: 'cite' }, '§4.4.1')),
       el('div', { class: 'ov-grid' }, ...coreCards),
-      el('h2', {}, 'Specialization categories ', el('span', { class: 'cite' }, '§4.4.2')),
+      el('h3', { class: 'ov-sub' }, 'Specialization categories ', el('span', { class: 'cite' }, '§4.4.2')),
       el('div', { class: 'ov-grid' }, ...groupCards, anyCard),
       el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are not shown here; tick "Include retired courses" in the table below to see them.'),
     );
@@ -286,8 +293,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         refreshTable();
       },
     });
-    category.append(option('', 'Any category', filters.category === ''));
-    for (const g of rules.categoryGroups) category.append(option(g.code, `Category: ${g.name}`, filters.category === g.code));
+    category.append(option('', 'Any specialization', filters.category === ''));
+    for (const g of rules.categoryGroups) category.append(option(g.code, `Specialization: ${g.name}`, filters.category === g.code));
     category.append(option('any-listed', 'Listed under every category', filters.category === 'any-listed'));
     const type = el('select', {
       'aria-label': 'Course type',
@@ -336,11 +343,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
 
   function table(): HTMLElement {
     const list = visibleRows();
-    const th = (key: SortKey, label: string, extra = ''): HTMLElement => {
+    const th = (key: SortKey, label: string, sub = ''): HTMLElement => {
       const active = filters.sort === key;
       return el(
         'th',
-        { class: extra, scope: 'col' },
+        { scope: 'col' },
         el(
           'button',
           {
@@ -357,6 +364,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
           },
           label,
           active ? (filters.desc ? ' ▼' : ' ▲') : '',
+          sub ? el('span', { class: 'th-sub' }, sub) : '',
         ),
       );
     };
@@ -366,10 +374,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       th('course', 'Course'),
       th('title', 'Title'),
       th('type', 'Type'),
-      th('mscse', 'MSCSE'),
-      th('phd', 'Ph.D.'),
-      th('core', 'Core area'),
-      th('category', 'Category'),
+      th('mscse', 'MSCSE', 'degree credit'),
+      th('phd', 'Ph.D.', 'degree credit'),
+      th('core', 'Core knowledge', 'Ph.D. qualifying exam §4.4.1'),
+      th('category', 'Specialization', 'Ph.D. qualifying exam §4.4.2'),
       th('offered', 'Typically offered'),
       th('reviewed', 'DGS reviewed'),
     );
@@ -424,8 +432,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         li(el('span', { class: 'pill approval' }, 'With DGS approval'), 'counts only with the advisor’s and the DGS’s approval (for example CSE 40000-level courses, up to the 6-credit cap).'),
         li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
         li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'the DGS has not ruled on this course yet; ask before relying on it.'),
-        li(el('strong', {}, 'Core area'), 'the §4.4.1 core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies for the Ph.D. qualifying requirement.'),
-        li(el('strong', {}, 'Category'), 'the §4.4.2 specialization category the course belongs to; Ph.D. students need three courses from three distinct categories with a B or higher. "Not eligible" marks courses (all 40000-level) that can never satisfy this requirement.'),
+        li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. Ph.D. students only — not part of any MSCSE requirement.'),
+        li(el('strong', {}, 'Specialization'), 'the other course-based Qualifying Examination requirement (§4.4.2): Ph.D. students need three courses from three distinct specialization categories with a B or higher. "Not eligible" marks courses (all 40000-level) that can never satisfy it. Ph.D. students only — not part of any MSCSE requirement.'),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
         li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.'),
       ),
