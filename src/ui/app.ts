@@ -12,7 +12,7 @@ import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
-import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
+import { BETA_NOTICE, BETA_SCOPE_NOTICE, COVERAGE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { advisorSummary, renderReport } from './report.ts';
@@ -54,7 +54,15 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       {},
       'This tool has not been approved by the department yet. It is for testing and informational purposes only.',
     ),
-    el('p', {}, `For errors and feedback, please contact the DGS (Prof. ${DGS.name}, `, mailto(DGS.email), ').'),
+    // Coverage caveat + open invitation for feedback (DGS wording, 2026-09-05).
+    el('p', {}, COVERAGE_NOTICE),
+    el(
+      'p',
+      {},
+      `Any error report, suggestion, or feedback is welcome — please contact the DGS (Prof. ${DGS.name}, `,
+      mailto(DGS.email),
+      ').',
+    ),
   );
   const consentOverlay = el('div', { class: 'consent-overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Testing notice' }, consentBox);
   consentBox.append(el('button', { class: 'btn primary', onclick: () => consentOverlay.remove() }, 'Agree'));
@@ -190,7 +198,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el('a', { href: './courses.html' }, 'course rules page'),
       '.) ',
       BETA_SCOPE_NOTICE,
-      ...reportToDgs(' Error reports and feedback — please email'),
+      ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
     );
   }
 
@@ -1038,7 +1046,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         ' (See the ',
         el('a', { href: './courses.html' }, 'course rules page'),
         '.)',
-        ...reportToDgs(' Error reports and feedback — please email'),
+        ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
       ),
       // What the rules spreadsheet is and who can open it (DGS, 2026-09-04).
       el(

@@ -194,7 +194,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   `{lead, items}` — joinedDetail flattens it to "lead: a; b; c" for `detail` (test-stable) and
   report.ts renders it as a two-layer list (`.detail-sublist`, one sub-bullet per item); used by
   approvalsRow and categoriesRow. BETA_SCOPE_NOTICE now carries the "transcript-PDF import …
-  highly inaccurate" caveat. tests/contacts.test.ts locks the key names.
+  highly inaccurate" caveat, and since 2026-09-05 ends with `COVERAGE_NOTICE` ("Not all cases are
+  covered yet — for example, 5+1 BS/MS programs, or a BS and an MS earned at the same
+  institution."), which the consent overlay shows as its own paragraph; the feedback line on the
+  self-check page says error reports, suggestions and feedback are all welcome. tests/contacts.test.ts locks the key names.
 - **Alpha label, undergrad relevance filter, ndResearch gate, bulleted details** (2026-09-04, DGS):
   the banner and import buttons say ALPHA again. `CORE_TITLE_RE` moved to
   `src/engine/core-title.ts` (plus `coreTitleSuggestion` naming the suggested area); the classifier's

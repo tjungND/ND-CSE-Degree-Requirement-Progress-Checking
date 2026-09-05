@@ -29,12 +29,20 @@ export const RULES_ACCURACY_NOTICE =
   'The course rules are accurate: they are exactly the rules the DGS and the Graduate ' +
   'Program Administrator use to determine requirement satisfaction.';
 
+/** Which student situations the tool does not model yet (DGS wording,
+ * 2026-09-05). Shown in the opening notice, the alpha banner, the footer and
+ * the copied summary — keep the examples in step with the engine. */
+export const COVERAGE_NOTICE =
+  'Not all cases are covered yet — for example, 5+1 BS/MS programs, or a BS and an MS earned at ' +
+  'the same institution.';
+
 /** The sentences that follow RULES_ACCURACY_NOTICE — what the alpha label
- * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04). */
+ * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04; the
+ * coverage caveat 2026-09-05). */
 export const BETA_SCOPE_NOTICE =
   'Only this tool’s application of them is still being tested. In particular, the transcript-PDF ' +
   'import is under development and still highly inaccurate — check every imported course against ' +
-  'your actual transcript.';
+  `your actual transcript. ${COVERAGE_NOTICE}`;
 
 /** The dated line under each page's title — two dates, one sentence (DGS wording,
  *  2026-09-01): "The course rules here were last updated on <X>, and are up-to-date
