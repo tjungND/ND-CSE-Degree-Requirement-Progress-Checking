@@ -9,6 +9,9 @@ import { combineAll, deadlineStatus } from '../status.ts';
 import {
   addMonthsIso,
   addYearsIso,
+  deadlineTerm,
+  deadlineTermLabel,
+  dueTermPhrase,
   endOfTerm,
   maxConsecutiveFullTime,
   nthSemester,
@@ -289,6 +292,8 @@ export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementRes
     status = 'cannot_evaluate';
     detail = missingParamDetail('phd_time_limit_years');
   } else {
+    // Shown as a semester, never a date (DGS request 2026-09-05): eight years
+    // from the entry term's start is the start of a term.
     const date = addYearsIso(startOfTerm(ctx.entry).date, years);
     if (othersAllMet) {
       status = 'met';
@@ -296,12 +301,12 @@ export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementRes
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date) {
       status = 'unmet';
-      detail = `Overdue — the ${years}-year limit passed on ${date} (approximate). Talk to the DGS.`;
-      deadline = { date, approx: true, state: 'overdue', label: `Overdue since ${date}` };
+      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
+      deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else {
       status = 'in_progress';
       detail = ''; // the deadline chip carries the when (2026-09-03)
-      deadline = { date, approx: true, state: 'upcoming', label: `Due by ${date} (approximate)` };
+      deadline = { date, approx: true, state: 'upcoming', label: `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)` };
     }
   }
   return {
@@ -548,7 +553,9 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     doneOn: ctx.student.milestones.researchQualifierPassed,
     deadline: { date, approx: true },
     today: ctx.today,
-    deadlineLabel: `${months} months after entry (${date})`,
+    // A semester, not a date (DGS request 2026-09-05): 18 months after a fall
+    // entry lands in the middle of the second spring — "mid-Spring 2028".
+    deadlineLabel: `${deadlineTerm(date).when === 'during' ? `mid-${termLabel(deadlineTerm(date).term)}` : deadlineTermLabel(date)} — ${months} months after entry`,
     extensionGranted: ctx.student.attestations.qualifierExtensionGranted,
   });
   const detail =
@@ -592,7 +599,7 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     doneOn: ctx.student.milestones.candidacyPassed,
     deadline: { date, approx: true },
     today: ctx.today,
-    deadlineLabel: `the end of ${termLabel(term)} — semester ${sem} (${date})`,
+    deadlineLabel: `the end of ${termLabel(term)} — semester ${sem}`,
   });
   const parts: string[] = [];
   if (r.status === 'met') parts.push(`Candidacy exam passed ${ctx.student.milestones.candidacyPassed}`);

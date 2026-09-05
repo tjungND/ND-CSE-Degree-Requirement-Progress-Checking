@@ -34,7 +34,9 @@ const KEEP_WORDS = new Set(
    type notes note remarks status enrolled enrollment thesis dissertation research seminar independent study internship practicum
    ssn cwid id refnum name birth dob issued to record of
    total institution transfer overall
-   ph.d ph.d. m.s m.s. b.s b.s. m.sc b.sc ms bs ba ma phd msc bsc`
+   ph.d ph.d. m.s m.s. b.s b.s. m.sc b.sc ms bs ba ma phd msc bsc
+   main ug gr pr lw em gb ugrd grad lec lab rec tut sem dis sum win spr aut wtr smr
+   transfer-credit level: campus subject`
     .split(/\s+/)
     .filter(Boolean),
 );

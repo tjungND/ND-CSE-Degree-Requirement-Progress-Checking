@@ -61,7 +61,7 @@ export function deadlineStatus(args: {
   doneOn?: string; // ISO date the milestone happened, if it did
   deadline: { date: string; approx: boolean };
   today: string;
-  deadlineLabel: string; // human phrase, e.g. "the end of Spring 2030"
+  deadlineLabel: string; // human phrase, e.g. "the end of Spring 2030" — a semester, never a date (2026-09-05)
   extensionGranted?: boolean; // §4.4 "the DGS may extend the deadline"
   dueSoonDays?: number;
 }): { status: Status; deadline: DeadlineInfo; lateNote?: string } {

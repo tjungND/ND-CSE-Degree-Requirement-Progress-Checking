@@ -77,7 +77,10 @@ const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'
 const SKIP_GRADES = new Set(['W', 'WF', 'WP', 'AU', 'NR', 'X', 'NG', 'I']);
 
 const TERM_RE = /\b(Fall|Spring|Summer)\s+(?:Semester\s+|Session\s+)?(\d{4})\b/i;
-const COURSE_HEAD_RE = /^([A-Z]{2,5})\s+(\d{5})\b\s*(?:(UG|GR|PR|LW|EM|GB)\b)?\s*(.*)$/;
+// Banner 9's web transcript prints a Campus column ("Main") between the
+// number and the Level ("CSE 60618 Main GR Title …", 2026-09-05): one
+// capitalized word is skipped there, but only when a level code follows it.
+const COURSE_HEAD_RE = /^([A-Z]{2,5})\s+(\d{5})\b\s*(?:[A-Z][A-Za-z]*\s+(?=(?:UG|GR|PR|LW|EM|GB)\b))?(?:(UG|GR|PR|LW|EM|GB)\b)?\s*(.*)$/;
 /** Banner term codes: YYYY00 = Summer YYYY, YYYY10 = Fall YYYY, YYYY20 = Spring YYYY+1. */
 const BANNER_CODE_RE = /\b(\d{4})(00|10|20)\b/;
 /** Lines that state when the student was admitted / matriculated. */
@@ -162,7 +165,12 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   const admitTerms: Term[] = [];
   const newStudentTerms = new Set<number>();
   const termLevelHints = new Map<number, RegisteredLevel>();
-  let documentLevel: RegisteredLevel | undefined; // "Course Level: Graduate" before any term
+  /** "Course Level: Graduate" (official PDF) / "Transcript Level: Graduate"
+   * (Banner 9 web): the level of every row until the next such line. Kept per
+   * course as it is read (`courseSectionLevel`), since a combined official
+   * transcript holds several records. */
+  let sectionLevel: RegisteredLevel | undefined;
+  const courseSectionLevel: (RegisteredLevel | undefined)[] = [];
   const degreesAwarded: DegreeAwarded[] = [];
   let inDegreesAwarded = false; // inside a "DEGREES AWARDED" block
   let degreeAwaitingDate: DegreeAwarded | undefined; // a "Degree Date:" line may follow
@@ -211,10 +219,27 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     // "Level: Graduate" line, or the term block's college ("College: Graduate
     // School" — Notre Dame's graduate programs all sit in the Graduate School).
     const levelWord = /\b(UNDERGRADUATE|GRADUATE)\b/.exec(upper);
-    if (levelWord && !COURSE_HEAD_RE.test(line) && /^(TERM\s+TOTALS|\(?(UNDER)?GRADUATE\)?$|(COURSE\s+)?LEVEL\s*:|COLLEGE\s*:?\s*(THE\s+)?GRADUATE\s+SCHOOL)/.test(upper)) {
+    if (levelWord && !COURSE_HEAD_RE.test(line)) {
       const level: RegisteredLevel = levelWord[1] === 'UNDERGRADUATE' ? 'undergraduate' : 'graduate';
-      if (term) termLevelHints.set(termIndex(term), level);
-      else documentLevel = level;
+      if (/^(COURSE\s+)?LEVEL\s*:/.test(upper)) {
+        // The official PDF opens each RECORD with "Course Level: Undergraduate"
+        // / "Course Level: Graduate …" — everything that follows, until the
+        // next such line, is at that level (2026-09-05); a term seen before
+        // it belongs to the previous record.
+        sectionLevel = level;
+        term = undefined;
+        continue;
+      }
+      if (/^(TERM\s+TOTALS|\(?(UNDER)?GRADUATE\)?$|COLLEGE\s*:?\s*(THE\s+)?GRADUATE\s+SCHOOL)/.test(upper)) {
+        if (term) termLevelHints.set(termIndex(term), level);
+        else sectionLevel = level;
+        continue;
+      }
+    }
+    // Banner 9's "Transcript Level" table: the value row's first cell is the
+    // level word ("Graduate   Web Transcript   …", 2026-09-05).
+    if (/^(UNDERGRADUATE|GRADUATE)(\s{2,}|$)/.test(rawLine.trim().toUpperCase()) && !term) {
+      sectionLevel = rawLine.trim().toUpperCase().startsWith('UNDERGRADUATE') ? 'undergraduate' : 'graduate';
       continue;
     }
 
@@ -227,7 +252,9 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       expectInstitution = true;
       continue;
     }
-    if (/INSTITUTION(AL)? CREDIT/.test(upper)) {
+    if (/INSTITUTION(AL)? CREDIT|UNIVERSITY OF NOTRE DAME CREDIT/.test(upper)) {
+      // Banner web: "INSTITUTION CREDIT"; the official (Parchment) PDF:
+      // "UNIVERSITY OF NOTRE DAME CREDIT:" (2026-09-05).
       origin = 'nd';
       inProgress = false;
       institution = undefined;
@@ -266,6 +293,15 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     const termMatch = TERM_RE.exec(line);
     if (termMatch && !COURSE_HEAD_RE.test(line)) {
       term = { season: termMatch[1]!.toLowerCase() as Season, year: Number(termMatch[2]) };
+      // The official PDF's transfer block puts the source institution on the
+      // term line ("Fall 2020   College Board", 2026-09-05).
+      if (origin === 'transfer') {
+        const rest = line.replace(TERM_RE, '').replace(/^[\s:,-]+|[\s:,-]+$/g, '').trim();
+        if (/[A-Za-z]{4,}/.test(rest)) {
+          institution = rest;
+          expectInstitution = false;
+        }
+      }
       continue;
     }
 
@@ -327,15 +363,19 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
         creditsOverride = Number(tokens.pop());
       }
     };
-    if (LETTER_GRADES.includes(tailUpper as Grade)) {
-      grade = tailUpper as Grade;
+    if (LETTER_GRADES.includes(tailUpper as Grade) || tailUpper === 'A+') {
+      grade = tailUpper === 'A+' ? 'A' : (tailUpper as Grade); // A+ → A: the top of ND's scale (2026-09-05)
       tokens.pop();
       popCreditsBeforeGrade();
     } else if (tailUpper === 'P' || tailUpper === 'PASS') {
       grade = 'S';
       tokens.pop();
       popCreditsBeforeGrade();
-    } else if (SKIP_GRADES.has(tailUpper)) {
+    } else if (SKIP_GRADES.has(tailUpper) && !(tailUpper === 'I' && decimals.length < 2)) {
+      // A lone trailing "I" on a row with only a credit value is a Roman
+      // numeral in the title ("Calculus I   3.000" in the official PDF's
+      // transfer block), not an Incomplete — a graded row carries quality
+      // points too (2026-09-05).
       skipped.push(`${courseId} (${tailUpper})`);
       continue;
     } else if (tailUpper === 'TR') {
@@ -362,6 +402,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       institution: origin === 'transfer' ? institution : undefined,
       level: origin === 'nd' ? rowLevel : undefined,
     });
+    courseSectionLevel.push(sectionLevel);
   }
 
   if (skipped.length > 0) {
@@ -379,12 +420,14 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   });
 
   // Fill in the level of Notre Dame rows that carried no Level column: the
-  // term's level block, then the course number, then a document-wide
-  // "Course Level:" line (2026-09-05).
-  for (const c of unique) {
-    if (c.origin !== 'nd' || c.level !== undefined) continue;
-    c.level = termLevelHints.get(termIndex(c.term)) ?? levelFromNumber(c.courseId) ?? documentLevel;
-  }
+  // term's level block, then the record's "Course Level:" / "Transcript
+  // Level" line, then the course number (2026-09-05). The record level beats
+  // the number: an undergraduate's 60000-level course is undergraduate
+  // coursework (§5.2 needs graduate student status).
+  courses.forEach((c, i) => {
+    if (c.origin !== 'nd' || c.level !== undefined) return;
+    c.level = termLevelHints.get(termIndex(c.term)) ?? courseSectionLevel[i] ?? levelFromNumber(c.courseId);
+  });
 
   return {
     isNotreDame: true,

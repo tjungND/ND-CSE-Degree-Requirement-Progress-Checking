@@ -115,3 +115,30 @@ export function maxConsecutiveFullTime(terms: { term: Term; fullTime: boolean }[
   }
   return best;
 }
+
+/** How a deadline date reads as a SEMESTER (DGS request 2026-09-05: "remove
+ * the dates and show the semesters"). The engine still keeps the ISO date
+ * (comparisons, ordering); students and advisors see the term:
+ *   the nominal first day of a term  → "the start of Fall 2034"
+ *   the nominal last day of a term   → "the end of Spring 2030"
+ *   any other day                    → "Spring 2028" (during the term)
+ * The registrar's calendar sets the real dates, so every phrase is approximate. */
+export function deadlineTerm(iso: string): { term: Term; when: 'start' | 'end' | 'during' } {
+  const term = termOfDate(iso);
+  if (startOfTerm(term).date === iso) return { term, when: 'start' };
+  if (endOfTerm(term).date === iso) return { term, when: 'end' };
+  return { term, when: 'during' };
+}
+
+/** "the end of Spring 2030" / "Spring 2028" / "the start of Fall 2034". */
+export function deadlineTermLabel(iso: string): string {
+  const { term, when } = deadlineTerm(iso);
+  return when === 'during' ? termLabel(term) : `the ${when} of ${termLabel(term)}`;
+}
+
+/** The phrase after "Due": "by the end of Spring 2030" / "during Spring 2028"
+ * / "before Fall 2034" (a start-of-term deadline is the day the term begins). */
+export function dueTermPhrase(iso: string): string {
+  const { term, when } = deadlineTerm(iso);
+  return when === 'end' ? `by the end of ${termLabel(term)}` : when === 'start' ? `before ${termLabel(term)}` : `during ${termLabel(term)}`;
+}

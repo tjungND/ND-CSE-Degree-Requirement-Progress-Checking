@@ -20,6 +20,69 @@ export interface Run {
   rotated?: boolean;
 }
 
+/** A page's pdfjs text items → Runs in the page's READING orientation, plus
+ * the page width in that orientation (2026-09-05).
+ *
+ * Two kinds of sideways pages exist. (1) Landscape transcripts stored with
+ * /Rotate 90 (Northeastern): every item carries a rotated transform although
+ * the reader sees upright text, and raw x/y are the un-rotated page's —
+ * composing the item transform with the viewport's (which applies /Rotate)
+ * gives device space, where upright text is upright again. (2) Pages whose
+ * CONTENT is drawn sideways with no /Rotate (a Parchment official transcript
+ * after re-saving; the sanitizer's output): every run then shares one 90°
+ * direction in device space. So the dominant text direction is measured per
+ * page and, when it is not left→right, the whole page is turned to make it
+ * so. Either way y is flipped back to "up", so the rest of this module is
+ * unchanged, and only text at odds with the page (a diagonal watermark, a
+ * vertical label) keeps `rotated`. */
+export function runsFromTextItems(
+  items: readonly { str: string; transform: number[]; width?: number }[],
+  viewport: { transform: number[]; width: number; height: number },
+): { runs: Run[]; width: number } {
+  const [m0, m1, m2, m3, m4, m5] = viewport.transform as [number, number, number, number, number, number];
+  const placed: { x: number; y: number; text: string; width: number; ux: number; uy: number; axisAligned: boolean }[] = [];
+  for (const item of items) {
+    if (item.str.trim() === '') continue;
+    const [a, b, c, d, e, f] = item.transform as [number, number, number, number, number, number];
+    // device ← text  =  (device ← user) ∘ (user ← text)
+    const da = a * m0 + b * m2;
+    const db = a * m1 + b * m3;
+    const dc = c * m0 + d * m2;
+    const dd = c * m1 + d * m3;
+    const dx = e * m0 + f * m2 + m4;
+    const dy = e * m1 + f * m3 + m5;
+    const len = Math.hypot(da, db) || 1;
+    const ux = da / len; // unit text direction in device space (y down)
+    const uy = db / len;
+    // Axis-aligned = a multiple of 90°, with the up vector perpendicular (no shear/flip).
+    const axisAligned = (Math.abs(ux) > 0.999 || Math.abs(uy) > 0.999) && Math.abs(dc * da + dd * db) < 0.01 * (len * Math.hypot(dc, dd) || 1);
+    placed.push({ x: dx, y: dy, text: item.str, width: item.width ?? 0, ux, uy, axisAligned });
+  }
+  // Dominant direction: the 90° quadrant most runs share (0 = left→right).
+  const quadrant = (r: { ux: number; uy: number }) => ((Math.round(Math.atan2(r.uy, r.ux) / (Math.PI / 2)) % 4) + 4) % 4;
+  const counts = [0, 0, 0, 0];
+  for (const r of placed) if (r.axisAligned) counts[quadrant(r)] = (counts[quadrant(r)] ?? 0) + 1;
+  const dominant = counts.indexOf(Math.max(...counts));
+  const total = counts.reduce((s, n) => s + n, 0);
+  const turn = dominant !== 0 && total > 0 && counts[dominant]! >= 0.9 * total ? dominant : 0;
+  // Rotate device coordinates so the dominant direction becomes left→right:
+  // R = [[tx, ty], [-ty, tx]] for the dominant unit vector t.
+  const tx = [1, 0, -1, 0][turn]!;
+  const ty = [0, 1, 0, -1][turn]!;
+  const width = turn % 2 === 0 ? viewport.width : viewport.height;
+  const height = turn % 2 === 0 ? viewport.height : viewport.width;
+  // The turned frame's origin: shift so coordinates stay within [0, width] × [0, height].
+  const shiftX = turn === 1 ? 0 : turn === 2 ? viewport.width : turn === 3 ? viewport.height : 0;
+  const shiftY = turn === 1 ? viewport.width : turn === 2 ? viewport.height : 0;
+  const runs: Run[] = placed.map((r) => {
+    const x = tx * r.x + ty * r.y + shiftX;
+    const yDown = -ty * r.x + tx * r.y + shiftY;
+    const rotated = !r.axisAligned || quadrant(r) !== turn;
+    return { x, y: height - yDown, text: r.text, width: r.width, rotated };
+  });
+  return { runs, width };
+}
+
 /** Drop text watermarks before any line grouping (2026-09-05; a UMass
  * transcript whose background repeats "University of Massachusetts Amherst"
  * read only 6 courses — the tiles merged into course lines and broke the
@@ -30,14 +93,18 @@ export interface Run {
  *      every term, "Good Standing") sit in ONE column, i.e. at one or two x
  *      positions, so they survive. */
 export function dropWatermarks(runs: Run[]): Run[] {
-  const upright = runs.filter((r) => !r.rotated);
+  // Signal 3 (2026-09-05, Duke / UC San Diego): a security band drawn as ONE
+  // run that repeats a phrase across the page ("DUKE UNIVERSITY ? DUKE
+  // UNIVERSITY ? DUKE …"). Such a run merges with whatever real line shares
+  // its baseline, so it is dropped outright.
+  const upright = runs.filter((r) => !r.rotated && !isRepeatedPhraseRun(r.text));
   const norm = (r: Run) => r.text.replace(/\s+/g, ' ').trim().toLowerCase();
   const bucket = (r: Run) => Math.round(r.x / 4);
   // phrase → x bucket → how many times it sits there
   const grid = new Map<string, Map<number, number>>();
   for (const r of upright) {
     const key = norm(r);
-    if ((key.match(/[a-z]/g) ?? []).length < 6) continue;
+    if ((key.match(/[a-z]/g) ?? []).length < 3) continue;
     const at = grid.get(key) ?? new Map<number, number>();
     at.set(bucket(r), (at.get(bucket(r)) ?? 0) + 1);
     grid.set(key, at);
@@ -45,7 +112,11 @@ export function dropWatermarks(runs: Run[]): Run[] {
   const tiled = new Set<string>();
   for (const [key, at] of grid) {
     const total = [...at.values()].reduce((s, n) => s + n, 0);
-    if (total >= 6 && at.size >= 3) tiled.add(key);
+    const letters = (key.match(/[a-z]/g) ?? []).length;
+    // Six-letter phrases tile at ≥ 3 x positions; a SHORT word ("COPY",
+    // 2026-09-05) must repeat more, at ≥ 4 positions — column headers ("HRS")
+    // and subject codes sit at one or two x positions and survive.
+    if ((letters >= 6 && total >= 6 && at.size >= 3) || (total >= 8 && at.size >= 4)) tiled.add(key);
   }
   if (tiled.size === 0) return upright;
   // A tiled phrase is dropped only where it repeats down the page; a lone
@@ -55,6 +126,49 @@ export function dropWatermarks(runs: Run[]): Run[] {
     if (!tiled.has(key)) return true;
     return (grid.get(key)?.get(bucket(r)) ?? 0) < 2;
   });
+}
+
+/** The phrase a run repeats (≥ 8 letters, at least twice), or undefined.
+ * Any 12-character window that recurs later in the run defines the unit —
+ * a band cut at the page edge may start mid-phrase ("… SAN DIEGO ? UNIVERSITY
+ * OF CALIFORNIA, SAN DIEGO ? UNIVERSITY OF CALIF"). */
+export function repeatedPhrase(text: string): string | undefined {
+  const t = text.replace(/\s+/g, ' ').trim();
+  if (t.length < 24) return undefined;
+  const starts = [0, ...[...t.matchAll(/ /g)].map((m) => m.index + 1)].filter((i) => i < t.length / 2);
+  for (const i of starts) {
+    const head = t.slice(i, i + 12);
+    if (head.length < 12) break;
+    const j = t.indexOf(head, i + 6);
+    if (j === -1) continue;
+    const unit = t.slice(i, j);
+    if ((unit.match(/[A-Za-z]/g) ?? []).length < 8) continue;
+    return unit.replace(/^[\s?•·*|,-]+|[\s?•·*|,-]+$/g, '').trim();
+  }
+  return undefined;
+}
+
+/** True for a run whose text is a phrase repeated across it — a watermark
+ * band, never a transcript line. */
+export function isRepeatedPhraseRun(text: string): boolean {
+  return repeatedPhrase(text) !== undefined;
+}
+
+/** The institution a page's watermark names, when its repeated phrase (a
+ * band) contains an institution word — so a transcript whose only clean
+ * mention of the university is the watermark (UC San Diego) still gets a
+ * university guess (2026-09-05). */
+export function watermarkInstitution(runs: Run[]): string | undefined {
+  const INSTITUTION_RE = /universit|institute of technology|polytechnic|college/i;
+  const seen = new Map<string, number>();
+  for (const r of runs) {
+    const unit = repeatedPhrase(r.text);
+    if (!unit || !INSTITUTION_RE.test(unit)) continue;
+    seen.set(unit, (seen.get(unit) ?? 0) + 1);
+  }
+  let best: string | undefined;
+  for (const [unit, n] of seen) if (best === undefined || n > (seen.get(best) ?? 0)) best = unit;
+  return best;
 }
 
 /** Group runs into visual lines: same y (2-unit tolerance), sorted
@@ -116,7 +230,7 @@ export function findColumnGap(runs: Run[], pageWidth: number): number | undefine
   // Horizontal rules ("_____") and Banner's "CONTINUED ON NEXT COLUMN ****"
   // banners are drawn to the full column width and touch the gap; they say
   // nothing about the layout, so they do not count as crossings.
-  const DECORATIVE_RE = /^[\W_]+$|CONTINUED ON/i;
+  const DECORATIVE_RE = /^[\W_]+$|CONTINUED ON/i; // covers "_____", "-----", "*****" boxes
   const measurable = runs.filter((r) => !DECORATIVE_RE.test(r.text));
   const tolerance = Math.max(2, runs.length * 0.02);
   // The gap is often only a few units wide, so every candidate position is
@@ -127,8 +241,18 @@ export function findColumnGap(runs: Run[], pageWidth: number): number | undefine
     const right = runs.filter((r) => r.x >= x - 2);
     const left = runs.filter((r) => r.x < x - 2);
     if (right.length < runs.length * 0.3 || left.length < runs.length * 0.3) continue;
-    const rightEdge = Math.min(...right.map((r) => r.x));
-    const wordyAtEdge = right.filter((r) => r.x <= rightEdge + 6 && /[A-Za-z]{4}/.test(r.text)).length;
+    // The column's left edge: the leftmost x where a SUBSTANTIAL share of
+    // the right-hand runs start (2026-09-05) — not the single leftmost run (a
+    // page number or letterhead), and not the busiest x (the title column).
+    const buckets = new Map<number, number>();
+    for (const r of right) buckets.set(Math.round(r.x / 4), (buckets.get(Math.round(r.x / 4)) ?? 0) + 1);
+    const maxCount = Math.max(...buckets.values());
+    const edgeBucket = Math.min(...[...buckets.entries()].filter(([, n]) => n >= Math.max(3, 0.2 * maxCount)).map(([b]) => b));
+    const rightEdge = edgeBucket * 4;
+    // The band between the candidate and that edge must be (nearly) empty —
+    // otherwise the candidate sits inside the left column's last cells.
+    if (right.filter((r) => r.x < rightEdge - 12).length > tolerance) continue;
+    const wordyAtEdge = right.filter((r) => r.x >= rightEdge - 6 && r.x <= rightEdge + 12 && /[A-Za-z]{4}/.test(r.text)).length;
     if (wordyAtEdge < 5) continue;
     return x;
   }
@@ -162,5 +286,9 @@ function repairStraddlers(left: Run[], right: Run[], gapX: number, rightEdge: nu
 /** A page's runs → its lines: watermarks dropped, then column by column when
  * the page has two. */
 export function runsToLines(runs: Run[], pageWidth: number): string[] {
-  return splitColumns(dropWatermarks(runs), pageWidth).flatMap((column) => groupLines(column));
+  const lines = splitColumns(dropWatermarks(runs), pageWidth).flatMap((column) => groupLines(column));
+  // A watermark that names the institution is worth one clean line at the
+  // top of the page for the university guess (2026-09-05).
+  const named = watermarkInstitution(runs);
+  return named ? [named, ...lines] : lines;
 }

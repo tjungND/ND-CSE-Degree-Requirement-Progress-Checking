@@ -3,9 +3,10 @@
 // client-side, which the no-backend / data-never-leaves-the-browser constraint
 // requires). The worker is bundled by Vite (?url) — no CDN, works offline.
 import * as pdfjs from 'pdfjs-dist';
+import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 // Vite turns this into a relative asset URL inside dist/ at build time.
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { runsToLines, type Run } from './layout.ts';
+import { runsFromTextItems, runsToLines } from './layout.ts';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -13,7 +14,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
  * tolerance), sorted left-to-right, with wide horizontal gaps rendered as
  * multiple spaces so column boundaries survive into the text. Pages laid out
  * in two text columns (Banner-style official transcripts) are read left
- * column first, then right — see `splitColumns` in layout.ts (2026-09-05). */
+ * column first, then right — see `splitColumns` in layout.ts (2026-09-05).
+ * Runs are taken in the page's reading orientation (`runsFromTextItems`), so a
+ * landscape page — /Rotate 90, or content drawn sideways — reads like any
+ * other (2026-09-05). */
 export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
   const loadingTask = pdfjs.getDocument({ data });
   const doc = await loadingTask.promise;
@@ -22,21 +26,9 @@ export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
       const content = await page.getTextContent();
-      const runs: Run[] = [];
-      for (const item of content.items) {
-        if (!('str' in item) || item.str.trim() === '') continue;
-        // transform = [a b c d e f]: b/c are non-zero only for rotated text —
-        // diagonal watermarks, which layout.ts drops (2026-09-05).
-        const [a, b, c] = item.transform as number[];
-        runs.push({
-          x: item.transform[4] as number,
-          y: item.transform[5] as number,
-          text: item.str,
-          width: item.width ?? 0,
-          rotated: Math.abs(b ?? 0) > 0.01 || Math.abs(c ?? 0) > 0.01 || (a ?? 1) < 0,
-        });
-      }
-      lines.push(...runsToLines(runs, page.getViewport({ scale: 1 }).width));
+      const items = content.items.filter((it): it is TextItem => 'str' in it);
+      const { runs, width } = runsFromTextItems(items, page.getViewport({ scale: 1 }));
+      lines.push(...runsToLines(runs, width));
       lines.push(''); // page break
     }
   } finally {

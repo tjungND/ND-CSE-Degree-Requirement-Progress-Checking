@@ -163,6 +163,37 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Parser pass over 20 de-identified samples** (2026-09-05, DGS-provided; see the DECISIONS row
+  for the full list): `runsFromTextItems(items, viewport)` in layout.ts is now THE way runs are
+  made (pdf.ts, diagnose script, the scratch tooling) — it composes each item's transform with the
+  viewport's, measures the dominant text direction per page and turns a sideways page upright
+  (returns the turned page width); only text at odds with the page keeps `rotated`.
+  `repeatedPhrase()` / `isRepeatedPhraseRun()` drop security bands drawn as one run;
+  `watermarkInstitution()` feeds the phrase back as a header line (runsToLines prepends it).
+  `findColumnGap` takes the right column's edge as the leftmost x with ≥ max(3, 20 % of the
+  busiest bucket) runs and rejects candidates with runs in the band before it. external.ts:
+  `leadCode` tries a two-cell code at cells 0–1 or 1–2 (`SUBJECT_RE` allows "E E",
+  `NUMBER_RE` allows 601.226 / 106LEC and keeps the rest of the number cell as title tokens),
+  strips a 1–3-letter security prefix, and the single-cell path allows dotted numbers;
+  `scanTokens` handles grade-first rows, H-column flags, integer-in-title, credit echoes and
+  builds the title from the wordy tail when nothing preceded the numbers; `plainTitleLine`
+  lifts a title from the adjacent line; level markers (`LEVEL_BLOCK_RE`, exact-cell level,
+  term-header suffix, `retroLevel` from a closing totals line); `degreeBlock` counts down the
+  lines after a "Degrees Awarded" header; `guessUniversity` tries the collapsed whole line
+  first and rejects sentences/registrar lines. parse.ts: Campus token before the Level, per-record
+  `sectionLevel` from "Course Level:" / the "Transcript Level" table, `UNIVERSITY OF NOTRE DAME
+  CREDIT:`, transfer institution on the term line, Roman-numeral I on credit-only rows. Sanitizer:
+  neutral output names, /Rotate preserved (`rotate` on PdfPage), more KEEP_WORDS. The sample
+  PDFs live only in the session scratchpad — never in the repo; their shapes are pinned by
+  invented fixtures. Scratch recipe: extract lines with `runsFromTextItems` + `runsToLines`, dump
+  JSON per file, run both parsers over all files in one script, eyeball the lines of the outliers.
+- **Semester deadlines** (2026-09-05, DGS): `deadlineTerm` / `deadlineTermLabel` /
+  `dueTermPhrase` in term.ts turn an ISO deadline into "before Fall 2034" / "by the end of Spring
+  2030" / "during Spring 2028"; every chip, detail and advisor-copy line uses them and no date is
+  shown anywhere (tests pin the exact chip strings). `DeadlineInfo.date` is unchanged.
+- **Transcripts card notes** (2026-09-05, DGS): `.unofficial-note` (unofficial transcripts read
+  best) and `.combined-note` (a combined BS+MS PDF goes once into the Master's row) in app.ts /
+  external-upload.ts.
 - **Sheet renamed** (2026-09-05, DGS): the rules sheet is CSE-Degree-Checking-Rules —
   `SHEET_NAME` (sheet-source.ts) is the one place the code carries the name; the e2e
   (drive-app.mjs) and tests/sheet-source.test.ts pin it; published-CSV links and the edit URL

@@ -494,6 +494,15 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
         ' — after you agree, and with every field checked by you. Like everything here, files are read on your own computer and never uploaded.',
       ),
+      // Unofficial transcripts read best (DGS observation 2026-09-05): the web /
+      // self-service PDF is single-column and carries no watermark; official
+      // ones (two columns, security bands) are read too, less reliably.
+      el(
+        'p',
+        { class: 'hint unofficial-note' },
+        el('strong', {}, 'Prefer unofficial transcripts'),
+        ' — the web (self-service) PDF from your university’s portal is recognized best: it is usually one column with no watermark. Official transcripts (two columns, security patterns, e-transcript covers) are read too, but check their previews more carefully.',
+      ),
       busy
         ? el('p', { class: 'hint warn' }, 'One transcript at a time: confirm the open preview below (“Add …”) or cancel it before importing another PDF.')
         : null,

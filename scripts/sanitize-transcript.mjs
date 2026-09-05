@@ -4,7 +4,9 @@
 //   node ~/degree-audit-app/scripts/sanitize-transcript.mjs "transcript.pdf" [--out out.pdf] [--seed N] [--keep-titles]
 //
 // Run it from the folder that holds the transcripts — it finds the repo (and
-// node_modules) from its own location. `npm run sanitize -- "<full path>"` is
+// node_modules) from its own location. The output is written next to the
+// input as sanitized-<seed>.pdf: never under the input's name, which is
+// usually the student's (2026-09-05). `npm run sanitize -- "<full path>"` is
 // the same thing, but works only from inside the repo folder (npm needs its
 // package.json). Quote names with spaces.
 //
@@ -72,10 +74,12 @@ if (args[0] === '--words') {
 
 const input = args[0];
 if (!input || input.startsWith('--')) usage();
-const outPath = outArg ?? input.replace(/\.pdf$/i, '') + '.sanitized.pdf';
 const { pdf, sanitizer, pages } = await sanitizePdf(readFileSync(input), { seed, keepTitles });
+// The output name never repeats the input name (2026-09-05): transcript files
+// are usually named after the student, and a file name travels with the file.
+const outPath = outArg ?? join(dirname(input), `sanitized-${sanitizer.seed}.pdf`);
 writeFileSync(outPath, pdf);
-console.log(`wrote ${outPath} (${pages.length} page${pages.length === 1 ? '' : 's'})`);
+console.log(`wrote ${outPath} (${pages.length} page${pages.length === 1 ? '' : 's'}) — named after the seed, not the input, so no student name rides along`);
 printReport(sanitizer);
 
 function printReport(sanitizer) {

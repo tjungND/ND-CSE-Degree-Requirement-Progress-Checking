@@ -17,6 +17,8 @@ export interface PdfPage {
   height: number;
   x0: number;
   y0: number;
+  /** The page's /Rotate (0, 90, 180, 270), kept in the rebuilt PDF (2026-09-05). */
+  rotate: number;
   runs: PdfRun[];
 }
 export function readRuns(bytes: Uint8Array | Buffer): Promise<PdfPage[]>;

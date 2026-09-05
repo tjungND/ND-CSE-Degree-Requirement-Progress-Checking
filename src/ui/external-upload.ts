@@ -169,6 +169,17 @@ function keepRelevantRows(
 export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | null)[] {
   const { student, rules } = args;
   return [
+    // Where a COMBINED transcript goes (DGS request 2026-09-05: make it easy
+    // to notice): one PDF covering both a BS and an MS is imported once, in
+    // the Master's row; each row's level is read and shown for correction.
+    el(
+      'div',
+      { class: 'combined-note', role: 'note' },
+      el('strong', {}, 'One transcript for both your BS and MS'),
+      ' (a 4+1 / 5+1 program, or both degrees at the same university)? Import it ',
+      el('strong', {}, 'once, in the Previous Master’s Transcript row'),
+      ' — each course’s level (undergraduate or graduate) is read from it and shown in a “Taken as” column you can correct before adding. The Undergraduate row works too; do not import the same PDF twice.',
+    ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
     ocrBusy ? ocrProgressBlock() : null,
@@ -444,7 +455,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           el(
             'p',
             { class: 'hint warn mixed-note' },
-            'This transcript holds both undergraduate and graduate coursework. Check the “Taken as” column: rows taken as an undergraduate can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) — the ones that cannot matter start unticked — while rows taken as a graduate student are §5.2 transfer candidates.',
+            'This transcript holds both undergraduate and graduate coursework — import it just once. Check the “Taken as” column: rows taken as an undergraduate can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) — the ones that cannot matter start unticked — while rows taken as a graduate student are §5.2 transfer candidates.',
           ),
         ]
       : p.slot === 'bachelors'

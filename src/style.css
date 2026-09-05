@@ -284,6 +284,9 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 
 /* external transcripts card (src/ui/external-upload.ts) */
 .external-slot { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+/* Where a combined BS+MS transcript goes (DGS request 2026-09-05): a callout the eye lands on before the three rows. */
+.combined-note { margin: 10px 0 6px; background: #eef4fb; border: 1px solid #b9cfe8; border-left: 4px solid var(--info); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 13.5px; }
+.unofficial-note { margin-top: 2px; }
 .external-slot:last-of-type { border-bottom: 0; }
 .external-slot .slot-label { font-weight: 600; color: var(--navy); min-width: 140px; display: inline-block; }
 .external-card .transcript-preview input, .external-card .transcript-preview select { padding: 4px 6px; font-size: 13px; max-width: 130px; }

@@ -20,7 +20,9 @@ How it works (all on this computer; nothing is uploaded):
      redrawn at the same place and size; everything else — including scan
      noise, rules, stamps — stays as the original pixels, so the app's OCR
      path sees a realistic scan.
-  5. Output: one PNG per page plus a single image-only PDF.
+  5. Output: one PNG per page plus a single image-only PDF, named
+     sanitized-scan-<tag>-p<n>.png / sanitized-scan-<tag>.pdf next to the input
+     — never under the input's name, which is usually the student's.
 
 REVIEW BEFORE SHARING. OCR misses text it cannot read (handwriting, stamps,
 tiny or skewed print) and such text is left UNTOUCHED. Open every output page
@@ -175,8 +177,14 @@ def main():
     ap.add_argument('--keep-titles', action='store_true', help='leave course titles readable (only if you judge it safe)')
     args = ap.parse_args()
 
-    base = os.path.splitext(args.input)[0]
-    out_pdf = args.out or base + '.sanitized.pdf'
+    # Output names never repeat the input name (2026-09-05): scan files are
+    # usually named after the student. A short tag from the input's bytes keeps
+    # runs apart without saying whose scan it was.
+    import hashlib
+    with open(args.input, 'rb') as f:
+        tag = hashlib.sha256(f.read()).hexdigest()[:8]
+    base = os.path.join(os.path.dirname(os.path.abspath(args.input)), f'sanitized-scan-{tag}')
+    out_pdf = args.out or base + '.pdf'
     pages = load_pages(args.input, args.dpi)
     print(f'{len(pages)} page(s) loaded')
 
@@ -194,7 +202,7 @@ def main():
     outputs = []
     for i, (img, words, page) in enumerate(zip(pages, pages_words, result['pages']), 1):
         changed = repaint(img, words, page['words'])
-        png_out = f'{base}.sanitized-p{i}.png'
+        png_out = f'{base}-p{i}.png'
         img.save(png_out)
         outputs.append(png_out)
         print(f'page {i}: {changed} of {len(words)} words repainted → {png_out}')

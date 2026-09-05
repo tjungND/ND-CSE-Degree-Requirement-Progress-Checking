@@ -12,3 +12,6 @@ _claude-build-snapshot.tgz
 # sanitizer outputs (scripts/sanitize-transcript.mjs, scripts/sanitize-scan.py) — never commit a transcript, even de-identified
 *.sanitized.pdf
 *.sanitized-p*.png
+# sanitizer outputs under their new neutral names (2026-09-05)
+sanitized-*.pdf
+sanitized-scan-*.png

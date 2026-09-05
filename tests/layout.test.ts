@@ -3,7 +3,7 @@
 // table — even one whose right half is all numbers — is never split.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { dropWatermarks, groupLines, runsToLines, splitColumns, type Run } from '../src/transcript/layout.ts';
+import { dropWatermarks, groupLines, isRepeatedPhraseRun, repeatedPhrase, runsFromTextItems, runsToLines, splitColumns, watermarkInstitution, type Run } from '../src/transcript/layout.ts';
 
 const W = 612;
 const run = (x: number, y: number, text: string, width = text.length * 4): Run => ({ x, y, text, width });
@@ -106,5 +106,79 @@ describe('two-column page detection', () => {
   it('groupLines renders wide gaps as three spaces and keeps reading order', () => {
     const lines = groupLines([run(200, 100, 'B'), run(40, 100, 'A'), run(40, 120, 'first'), run(46, 100, 'A2')]);
     assert.deepEqual(lines, ['first', 'A A2   B']);
+  });
+});
+
+// Sideways pages and security bands (2026-09-05, from the DGS's de-identified
+// samples): a landscape transcript stored with /Rotate 90 (Northeastern), a
+// page whose content is drawn sideways with no /Rotate (a re-saved Parchment
+// official PDF), a "DUKE UNIVERSITY ? DUKE UNIVERSITY ? …" band drawn as one
+// run, and a "COPY COPY COPY" tile of short words.
+describe('page orientation and watermark bands', () => {
+  const item = (str: string, transform: number[], width = str.length * 4) => ({ str, transform, width });
+
+  it('reads a /Rotate 90 page through the viewport transform: upright text, x left→right, y up', () => {
+    // pdfjs viewport for a 612×792 portrait page rotated 90°: 792×612, transform [0, 1, 1, 0, 0, 0].
+    const viewport = { transform: [0, 1, 1, 0, 0, 0], width: 792, height: 612 };
+    // Text items of a rotated page carry [0, s, -s, 0, e, f]: e runs down the
+    // reading page (line order), f runs across it (left→right).
+    const { runs, width } = runsFromTextItems(
+      [item('First line', [0, 8, -8, 0, 49, 100]), item('Second line', [0, 8, -8, 0, 60, 100]), item('right cell', [0, 8, -8, 0, 49, 400])],
+      viewport,
+    );
+    assert.equal(width, 792);
+    assert.ok(runs.every((r) => !r.rotated), 'upright in reading orientation');
+    const [first, second, right] = runs;
+    assert.ok(first!.y > second!.y, 'the earlier line sits higher (y up)');
+    assert.ok(right!.x > first!.x, 'the cell further along the line sits further right');
+    assert.ok(Math.abs(first!.y - right!.y) < 1, 'same baseline');
+    assert.deepEqual(groupLines(runs), ['First line   right cell', 'Second line']);
+  });
+
+  it('turns a page whose every run is drawn sideways (no /Rotate) upright', () => {
+    const viewport = { transform: [1, 0, 0, -1, 0, 792], width: 612, height: 792 };
+    // Content rotated 90° counter-clockwise: [0, s, -s, 0, e, f] on an unrotated page.
+    const items = [item('Name: Jane', [0, 9.4, -9.4, 0, 36, 18]), item('Date Issued', [0, 9.4, -9.4, 0, 36, 627]), item('CSE 60641   Title   3.000 A', [0, 9.4, -9.4, 0, 285, 24], 200)];
+    const { runs, width } = runsFromTextItems(items, viewport);
+    assert.equal(width, 792, 'the page is landscape once turned');
+    assert.ok(runs.every((r) => !r.rotated));
+    const lines = groupLines(runs);
+    assert.deepEqual(lines, ['Name: Jane   Date Issued', 'CSE 60641   Title   3.000 A']);
+  });
+
+  it('keeps a lone diagonal watermark rotated on an otherwise upright page', () => {
+    const viewport = { transform: [1, 0, 0, -1, 0, 792], width: 612, height: 792 };
+    const s = Math.SQRT1_2 * 28;
+    const { runs } = runsFromTextItems(
+      [item('Fall 2026', [8, 0, 0, 8, 40, 700]), item('CSE 60641 Title 3.000 A', [8, 0, 0, 8, 40, 680], 150), item('EXAMPLE TECH', [s, s, -s, s, 100, 300])],
+      viewport,
+    );
+    assert.deepEqual(runs.map((r) => r.rotated), [false, false, true]);
+  });
+
+  it('drops a run that repeats a phrase across the page, and names the institution it repeats', () => {
+    const band = 'DUKE UNIVERSITY ? DUKE UNIVERSITY ? DUKE UNIVERSITY ? DUKE UNIVERSIT';
+    const partial = 'LJFCQ ? UNIVERSITY OF CALIFORNIA, SAN DIEGO ? UNIVERSITY OF CALIFORNIA, SAN DIEGO ? QCA';
+    assert.equal(isRepeatedPhraseRun(band), true);
+    assert.equal(isRepeatedPhraseRun(partial), true);
+    assert.equal(isRepeatedPhraseRun('Term GPA   3.000   Term Earned   9.000   6.000'), false);
+    assert.equal(isRepeatedPhraseRun('Graduate Independent Study'), false);
+    assert.equal(repeatedPhrase(band), 'DUKE UNIVERSITY');
+    assert.equal(repeatedPhrase(partial), 'UNIVERSITY OF CALIFORNIA, SAN DIEGO');
+    const runs = [run(33, 700, band, 500), run(33, 700, 'ECE 565   Title   3.000   A', 200), run(33, 690, partial, 500), run(33, 680, partial, 500)];
+    assert.deepEqual(dropWatermarks(runs).map((r) => r.text), ['ECE 565   Title   3.000   A']);
+    assert.equal(watermarkInstitution(runs), 'UNIVERSITY OF CALIFORNIA, SAN DIEGO', 'the phrase repeated on the most runs');
+    assert.equal(runsToLines(runs, W)[0], 'UNIVERSITY OF CALIFORNIA, SAN DIEGO', 'the band names the institution at the top of the page');
+  });
+
+  it('drops a tile of a SHORT word repeated at four or more x positions, never a column header', () => {
+    const runs: Run[] = [];
+    for (let y = 700; y > 500; y -= 20) for (const x of [40, 190, 340, 490]) runs.push(run(x, y, 'COPY'));
+    for (let y = 700; y > 500; y -= 20) runs.push(run(60, y, 'CSE')); // a subject column: one x
+    runs.push(run(100, 720, 'HRS'), run(160, 720, 'HRS'), run(220, 720, 'HRS')); // three headers on one line
+    const kept = dropWatermarks(runs).map((r) => r.text);
+    assert.ok(!kept.includes('COPY'));
+    assert.equal(kept.filter((t) => t === 'CSE').length, 10);
+    assert.equal(kept.filter((t) => t === 'HRS').length, 3);
   });
 });

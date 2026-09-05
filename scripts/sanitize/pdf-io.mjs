@@ -23,7 +23,9 @@ export async function readRuns(bytes) {
         runs.push({ x, y, text: item.str, width: item.width ?? 0, height: item.height ?? 0, a, b, c, d, rotated: Math.abs(b) > 0.01 || Math.abs(c) > 0.01 || a < 0 });
       }
       const [x0, y0, x1, y1] = page.view;
-      pages.push({ width: x1 - x0, height: y1 - y0, x0, y0, runs });
+      // /Rotate is kept (2026-09-05): a landscape transcript stored as a
+      // rotated portrait page must sanitize to the same orientation.
+      pages.push({ width: x1 - x0, height: y1 - y0, x0, y0, rotate: page.rotate || 0, runs });
     }
   } finally {
     await doc.destroy();
@@ -72,7 +74,7 @@ export function buildPdf(pages) {
     }
     const pageIndex = objects.length + 1;
     objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.width.toFixed(2)} ${page.height.toFixed(2)}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${pageIndex + 1} 0 R >>`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${page.width.toFixed(2)} ${page.height.toFixed(2)}]${page.rotate ? ` /Rotate ${page.rotate}` : ''} /Resources << /Font << /F1 3 0 R >> >> /Contents ${pageIndex + 1} 0 R >>`,
     );
     objects.push(`<< /Length ${Buffer.byteLength(text, 'latin1')} >>\nstream\n${text}\nendstream`);
     kids.push(`${pageIndex} 0 R`);

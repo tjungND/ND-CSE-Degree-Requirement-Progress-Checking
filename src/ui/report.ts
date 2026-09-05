@@ -1,7 +1,7 @@
 // Renders an AuditReport: score dial, credit meters, requirement groups with
 // status pills + deadline chips + § citations, and the plain-text summary copy.
 import type { AuditReport, RequirementResult, Status } from '../engine/types.ts';
-import { termLabel } from '../engine/term.ts';
+import { dueTermPhrase, termLabel } from '../engine/term.ts';
 import { el } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, RULES_ACCURACY_NOTICE } from './handbook.ts';
 
@@ -224,13 +224,14 @@ export function advisorSummary(
   const isUnmet = (r: RequirementResult) => r.status === 'unmet';
   const UNMET_STYLE = 'color:#a81e14;font-weight:bold';
   // Deadlines travel with the summary (DGS request 2026-09-05): every
-  // requirement that has one and is not done says when — as a date, since the
-  // on-page chip's "end of Spring 2030" wording is not enough in an email.
+  // requirement that has one and is not done says when — as a SEMESTER, not a
+  // date (DGS request later that day: "remove the dates and show the
+  // semesters"); the engine's ISO date still orders the list.
   const deadlineText = (r: RequirementResult): string | undefined => {
     const d = r.deadline;
     if (!d || d.state === 'done' || r.status === 'met') return undefined;
     const approx = d.approx ? ' (approximate)' : '';
-    return d.state === 'overdue' ? `overdue — was due by ${d.date}${approx}` : `due by ${d.date}${approx}`;
+    return d.state === 'overdue' ? `overdue — was due ${dueTermPhrase(d.date)}${approx}` : `due ${dueTermPhrase(d.date)}${approx}`;
   };
   const withDeadline = report.requirements
     .filter((r) => deadlineText(r) !== undefined)
@@ -254,7 +255,7 @@ export function advisorSummary(
   ];
   const deadlinesText =
     withDeadline.length > 0
-      ? `DEADLINES (counted from ${opts.entryTerm}; dates are approximate — the registrar sets the calendar)\n` +
+      ? `DEADLINES (counted from ${opts.entryTerm}; semesters are approximate — the registrar's calendar sets the exact dates)\n` +
         withDeadline.map((r) => `- ${r.title} (${r.citation.section}): ${deadlineText(r)}`).join('\n') +
         '\n\n'
       : '';
@@ -279,7 +280,7 @@ export function advisorSummary(
     `<p>Subject: Degree progress summary (CSE degree self-check)</p><p>Dear Advisor,</p>` +
     `<p>${esc(intro)}</p><p>${esc(standing)}</p>` +
     (withDeadline.length > 0
-      ? `<p><strong>Deadlines</strong> (counted from ${esc(opts.entryTerm)}; dates are approximate — the registrar sets the calendar)</p>` +
+      ? `<p><strong>Deadlines</strong> (counted from ${esc(opts.entryTerm)}; semesters are approximate — the registrar's calendar sets the exact dates)</p>` +
         table(
           ['Requirement', '§', 'Deadline'],
           withDeadline.map((r) => [titleCell(r), r.citation.section, deadlineText(r) ?? '']),

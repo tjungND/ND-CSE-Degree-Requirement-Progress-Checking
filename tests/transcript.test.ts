@@ -291,3 +291,77 @@ describe('combined transcript: entry term, levels and degrees (2026-09-05)', () 
     assert.deepEqual(ugOnly.entryTerm, { term: { season: 'fall', year: 2024 }, how: 'the first term after your Bachelor of Science was awarded' });
   });
 });
+
+// The two REAL Notre Dame layouts (2026-09-05, from de-identified samples the
+// DGS shared): Banner 9's web "Academic Transcript" (a Campus column before
+// the Level, a "Transcript Level" table, "Term : Fall Semester 2026") and the
+// official Parchment PDF ("UNIVERSITY OF NOTRE DAME CREDIT:", "Course Level:"
+// per record, the transfer block's institution on the term line, credits
+// BEFORE the grade, Roman-numeral titles on credit-only rows).
+describe('Notre Dame layouts seen in real samples (2026-09-05)', () => {
+  it('Banner 9 web transcript: Campus column, Transcript Level table, A+', () => {
+    const p = parseTranscript([
+      '7/10/27, 6:17 PM   Academic Transcript',
+      'Transcript Level   Transcript Type',
+      'Graduate   Web Transcript   Level',
+      'Institution Credit',
+      'Term : Fall Semester 2026',
+      'College   Major   Academic Standing',
+      'College of   Computer Science &   -',
+      'Subject Course Campus Level Title   Grade Credit Hours Quality Points R',
+      'CSE   60641   Main   GR   Graduate Operating Systems   A+   3.000   12.000',
+      'CSE   63801   Main   GR   Research Seminar I   S   1.000   0.000',
+      'Term Totals (Graduate)   Attempt Hours Passed Hours Earned Hours GPA Hours Quality Points GPA',
+      'Course(s) in Progress',
+      'Term : Spring Semester 2027',
+      'Subject   Course   Campus   Level   Title   Credit Hours',
+      'CSE   60111   Main   GR   Complexity and Algorithms   3.000',
+      'https://bxestuprod.oit.nd.edu/StudentSelfService/ssb/academicTranscript#!/maintenance   1/2',
+    ]);
+    assert.equal(p.isNotreDame, true);
+    const os = p.courses.find((c) => c.courseId === 'CSE 60641');
+    assert.equal(os?.title, 'Graduate Operating Systems', 'the Campus and Level cells are not part of the title');
+    assert.equal(os?.grade, 'A', 'A+ maps to A');
+    assert.equal(os?.level, 'graduate');
+    assert.equal(p.courses.find((c) => c.courseId === 'CSE 60111')?.grade, 'IP');
+    assert.deepEqual(p.entryTerm?.term, { season: 'fall', year: 2026 });
+  });
+
+  it('official Parchment PDF: ND CREDIT section, Course Level per record, transfer institution on the term line', () => {
+    const p = parseTranscript([
+      'Jane Q. Student   Date Issued: 19-MAY-2031',
+      'Degree Awarded: Bachelor of Arts',
+      'Date Conferred: May 19, 2024',
+      'Course Level: Undergraduate',
+      'Program: Bachelor of Arts',
+      'TRANSFER CREDIT ACCEPTED BY THE UNIVERSITY:',
+      'Fall 2020   College Board',
+      'MATH 10550   Calculus I   4.000',
+      'UNIVERSITY OF NOTRE DAME CREDIT:',
+      'Fall Semester 2020',
+      'First Year of Studies',
+      'CSE 10001   Principles of Computing   3.000 A   12.000',
+      'CSE 60641   Graduate Operating Systems   3.000 A-   11.001',
+      'Good Standing   Total   7.000   7.000   7.000   7.000   26.001   3.714',
+      'Course Level: Graduate',
+      'Program: Doctor of Philosophy',
+      'UNIVERSITY OF NOTRE DAME CREDIT:',
+      'Fall Semester 2024',
+      'CSE 60111   Complexity and Algorithms   3.000 B+   9.999',
+      'OVERALL   Ehrs:   6.000 QPts:   23.000',
+      'GPA-Hrs:   6.000   GPA:   3.833',
+    ]);
+    assert.equal(p.isNotreDame, true);
+    const calc = p.courses.find((c) => c.courseId === 'MATH 10550');
+    assert.equal(calc?.origin, 'transfer');
+    assert.equal(calc?.institution, 'College Board');
+    assert.equal(calc?.title, 'Calculus I', 'a Roman numeral on a credit-only row is not an Incomplete');
+    assert.equal(calc?.grade, 'IP');
+    assert.equal(p.courses.find((c) => c.courseId === 'CSE 10001')?.level, 'undergraduate');
+    assert.equal(p.courses.find((c) => c.courseId === 'CSE 60641')?.level, 'undergraduate', 'the record level beats the course number');
+    assert.equal(p.courses.find((c) => c.courseId === 'CSE 60111')?.level, 'graduate');
+    assert.deepEqual(p.degreesAwarded, [{ name: 'Bachelor of Arts', level: 'bachelors', date: '2024-05-19' }]);
+    assert.deepEqual(p.entryTerm?.term, { season: 'fall', year: 2024 });
+    assert.equal(p.cumulativeGpa, 3.833);
+  });
+});

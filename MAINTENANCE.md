@@ -136,7 +136,10 @@ it keeps the layout the parsers react to and removes the record:
 Both can be run from the folder that holds the transcripts (they find the repo from their own
 location; quote file names with spaces). `npm run sanitize -- "<full path>"` does the same but
 only from inside the repo folder, because npm needs its `package.json`. Output lands next to the
-input as `<name>.sanitized.pdf`; a whole folder:
+input as `sanitized-<seed>.pdf` (the scan tool: `sanitized-scan-<tag>.pdf` plus one PNG per
+page) — never under the input's own name, because transcript files are usually named after the
+student and a file name travels with the file (2026-09-05; rename older `*.sanitized.pdf`
+outputs before sharing them). A whole folder:
 `for f in *.pdf; do node ~/degree-audit-app/scripts/sanitize-transcript.mjs "$f"; done`.
 
 The text tool rebuilds the PDF with every text run at its original position, width and
@@ -154,8 +157,10 @@ all other pixels — scan noise, rules, stamps — untouched; output is PNGs plu
 
 **Both tools print every word or run they kept verbatim, and the scan tool cannot see text
 OCR failed to read.** Look at that list and at every output page before sharing anything; the
-outputs are git-ignored (`*.sanitized.pdf`, `*.sanitized-p*.png`) so they are never committed
-by accident. You remain the judge of what leaves your computer.
+outputs are git-ignored (`sanitized-*.pdf`, `sanitized-scan-*.png`, and the older
+`*.sanitized.pdf` / `*.sanitized-p*.png` names) so they are never committed by accident. You
+remain the judge of what leaves your computer. The tools preserve page rotation, so a landscape
+transcript sanitizes to a landscape copy the app reads the same way (2026-09-05).
 
 ## Repo peculiarities you should know
 

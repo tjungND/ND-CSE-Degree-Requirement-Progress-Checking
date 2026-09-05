@@ -27,7 +27,7 @@ if (!file) {
 }
 
 const pdfjs = await import(pathToFileURL(join(root, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.mjs')).href);
-const { dropWatermarks, splitColumns, runsToLines } = await import(pathToFileURL(join(root, 'src', 'transcript', 'layout.ts')).href);
+const { dropWatermarks, splitColumns, runsToLines, runsFromTextItems } = await import(pathToFileURL(join(root, 'src', 'transcript', 'layout.ts')).href);
 const { parseExternalTranscript } = await import(pathToFileURL(join(root, 'src', 'transcript', 'external.ts')).href);
 
 const mask = (s) => s.replace(/[A-Z]/g, 'A').replace(/[a-z]/g, 'a').replace(/\d/g, '9');
@@ -41,19 +41,11 @@ const allLines = [];
 for (let p = 1; p <= doc.numPages; p++) {
   const page = await doc.getPage(p);
   const content = await page.getTextContent();
-  const runs = [];
-  for (const item of content.items) {
-    if (!('str' in item) || item.str.trim() === '') continue;
-    const [a, b, c] = item.transform;
-    runs.push({
-      x: item.transform[4],
-      y: item.transform[5],
-      text: item.str,
-      width: item.width ?? 0,
-      rotated: Math.abs(b) > 0.01 || Math.abs(c) > 0.01 || a < 0,
-    });
-  }
-  const width = page.getViewport({ scale: 1 }).width;
+  // Runs in the page's reading orientation, exactly as the app takes them
+  // (a sideways page is turned upright first — 2026-09-05).
+  const viewport = page.getViewport({ scale: 1 });
+  const { runs, width } = runsFromTextItems(content.items.filter((it) => 'str' in it), viewport);
+  const turned = width !== viewport.width ? ' (page turned upright)' : '';
   const kept = dropWatermarks(runs);
   const rotated = runs.filter((r) => r.rotated).length;
   const dropped = runs.filter((r) => !r.rotated && !kept.includes(r));
@@ -61,7 +53,7 @@ for (let p = 1; p <= doc.numPages; p++) {
   const columns = splitColumns(kept, width).length;
   const lines = runsToLines(runs, width);
   console.log(
-    `page ${p}: width ${width.toFixed(0)}, runs ${runs.length}, rotated ${rotated}, tiled-watermark runs dropped ${dropped.length}` +
+    `page ${p}: width ${width.toFixed(0)}${turned}, runs ${runs.length}, rotated ${rotated}, watermark runs dropped ${dropped.length}` +
       (phrases.length ? ` (${phrases.map((s) => JSON.stringify(s)).join(', ')})` : '') +
       `, read as ${columns} column${columns === 1 ? '' : 's'}, ${lines.length} lines`,
   );

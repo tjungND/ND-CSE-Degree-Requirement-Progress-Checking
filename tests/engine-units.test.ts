@@ -247,3 +247,30 @@ describe('residency from the entry term (2026-09-05)', () => {
     assert.equal(maxConsecutiveFullTime(records), 3);
   });
 });
+
+// Deadline chips name SEMESTERS, never dates (DGS request 2026-09-05). The
+// engine keeps the ISO date underneath for ordering and comparisons.
+describe('deadline chips read as semesters (2026-09-05)', () => {
+  it('a fresh Fall 2026 Ph.D. student sees terms on every deadline chip', () => {
+    const sc = scenario('phd-fresh');
+    const report = audit(sc.student, buildRules(), sc.today);
+    const label = (id: string) => report.requirements.find((r) => r.id === id)?.deadline?.label;
+    assert.equal(label('phd.timeLimit'), 'Due before Fall 2034 — 8 years after entry (approximate)');
+    assert.equal(label('phd.qualifier.research'), 'Due by mid-Spring 2028 — 18 months after entry (approximate)');
+    assert.equal(label('phd.qualifier'), 'Due by the end of Spring 2028 (approximate)');
+    assert.equal(label('phd.candidacy'), 'Due by the end of Spring 2030 — semester 8 (approximate)');
+    for (const r of report.requirements) {
+      if (r.deadline) assert.doesNotMatch(r.deadline.label, /\d{4}-\d{2}-\d{2}/, `${r.id}: ${r.deadline.label}`);
+      assert.doesNotMatch(r.detail, /\d{4}-\d{2}-\d{2}/, `${r.id} detail: ${r.detail}`);
+    }
+    assert.equal(report.requirements.find((r) => r.id === 'phd.timeLimit')?.deadline?.date, '2034-08-15', 'the ISO date is still carried underneath');
+  });
+
+  it('an overdue chip names the semester too', () => {
+    const sc = scenario('phd-past-candidacy-deadline');
+    const report = audit(sc.student, buildRules(), sc.today);
+    const cand = report.requirements.find((r) => r.id === 'phd.candidacy');
+    assert.equal(cand?.deadline?.state, 'overdue');
+    assert.match(cand?.deadline?.label ?? '', /^Overdue — the deadline was the end of (Spring|Fall) \d{4} — semester 8 \(approximate\)$/);
+  });
+});

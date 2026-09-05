@@ -1,6 +1,6 @@
 // §3 — Requirements for the Master of Science Degree (MSCSE).
 // Every builder quotes the handbook sentence it implements.
-import { addYearsIso, startOfTerm, termLabel } from '../term.ts';
+import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm, termLabel } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { capRow, missingParamDetail, thresholdRow } from './context.ts';
@@ -164,12 +164,13 @@ export function msTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResu
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date) {
       status = 'unmet';
-      detail = `Overdue — the ${years}-year limit passed on ${date} (approximate). Talk to the DGS.`;
-      deadline = { date, approx: true, state: 'overdue', label: `Overdue since ${date}` };
+      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
+      deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else {
       status = 'in_progress';
       detail = ''; // the deadline chip carries the when (2026-09-03)
-      deadline = { date, approx: true, state: 'upcoming', label: `Due by ${date} (approximate)` };
+      // A semester, never a date (DGS request 2026-09-05).
+      deadline = { date, approx: true, state: 'upcoming', label: `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)` };
     }
   }
   return {

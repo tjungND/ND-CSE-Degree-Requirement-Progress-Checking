@@ -128,8 +128,8 @@ describe('external transcript parsing', () => {
     assert.equal(r.courses[0]?.grade, undefined); // "92" is not guessed at
     assert.equal(r.courses[0]?.credits, 4);
     assert.equal(r.courses[0]?.year, 2019);
-    assert.equal(r.courses[1]?.grade, undefined); // A+ is not an ND grade
-    assert.equal(r.courses[1]?.rawGrade, 'A+');
+    assert.equal(r.courses[1]?.grade, 'A'); // A+ maps to A, the top of ND's scale (2026-09-05; the student can change it)
+    assert.equal(r.courses[1]?.rawGrade, undefined);
   });
 
   it('rejects PDFs with no text layer (scans/photos — system-generated only)', () => {
