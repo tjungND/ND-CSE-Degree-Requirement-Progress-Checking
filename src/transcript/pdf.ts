@@ -25,11 +25,15 @@ export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
       const runs: Run[] = [];
       for (const item of content.items) {
         if (!('str' in item) || item.str.trim() === '') continue;
+        // transform = [a b c d e f]: b/c are non-zero only for rotated text —
+        // diagonal watermarks, which layout.ts drops (2026-09-05).
+        const [a, b, c] = item.transform as number[];
         runs.push({
           x: item.transform[4] as number,
           y: item.transform[5] as number,
           text: item.str,
           width: item.width ?? 0,
+          rotated: Math.abs(b ?? 0) > 0.01 || Math.abs(c ?? 0) > 0.01 || (a ?? 1) < 0,
         });
       }
       lines.push(...runsToLines(runs, page.getViewport({ scale: 1 }).width));

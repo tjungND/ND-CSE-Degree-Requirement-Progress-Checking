@@ -3,7 +3,7 @@
 // table — even one whose right half is all numbers — is never split.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { groupLines, runsToLines, splitColumns, type Run } from '../src/transcript/layout.ts';
+import { dropWatermarks, groupLines, runsToLines, splitColumns, type Run } from '../src/transcript/layout.ts';
 
 const W = 612;
 const run = (x: number, y: number, text: string, width = text.length * 4): Run => ({ x, y, text, width });
@@ -82,6 +82,25 @@ describe('two-column page detection', () => {
 
   it('leaves small pages alone', () => {
     assert.equal(splitColumns(twoColumnPage().slice(0, 30), W).length, 1);
+  });
+
+  it('drops a tiled text watermark and a diagonal one, leaving the page as if clean', () => {
+    const clean = twoColumnPage();
+    const dirty = [...clean];
+    // Horizontal tiles at three x positions on a grid that collides with lines.
+    for (let y = 770; y > 300; y -= 37) {
+      for (const x of [20, 220, 420]) dirty.push(run(x, y, 'University of Example Technology', 150));
+    }
+    // A diagonal banner across the page (rotated → never body text).
+    for (let y = 700; y > 300; y -= 80) dirty.push({ ...run(100, y, 'UNIVERSITY OF EXAMPLE TECHNOLOGY', 400), rotated: true });
+    assert.deepEqual(runsToLines(dirty, W), runsToLines(clean, W));
+    assert.equal(dropWatermarks(dirty).length, clean.length);
+  });
+
+  it('keeps a phrase that merely repeats down one column (a thesis-credit title every term)', () => {
+    const runs = twoColumnPage();
+    for (let i = 0; i < 8; i++) runs.push(run(95, 300 - i * 10, 'Research and Thesis Ph.D.', 100));
+    assert.equal(dropWatermarks(runs).length, runs.length);
   });
 
   it('groupLines renders wide gaps as three spaces and keeps reading order', () => {

@@ -4,7 +4,7 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf) {
+export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf) {
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -177,5 +177,21 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     throw new Error('transfer-credit block note missing: ' + transferNote);
   }
   await s.shot('banner-preview');
+  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
+  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
+
+  // 6) The same transcript over a text watermark (tiled institution name +
+  // a diagonal banner, 2026-09-05): must read exactly like the clean one.
+  await s.setFileInput('.external-file-phd', watermarkedPdf);
+  await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Ph.D. Transcript'))`);
+  const wmUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
+  const wmIds = await s.evalJs(
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1]?.value)`,
+  );
+  console.log('  watermarked Banner transcript:', wmUni, '|', JSON.stringify(wmIds));
+  if (wmUni !== bannerUni || JSON.stringify(wmIds) !== JSON.stringify(bannerIds)) {
+    throw new Error('the watermarked transcript did not read like the clean one');
+  }
+  await s.shot('banner-watermarked-preview');
   await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
 }

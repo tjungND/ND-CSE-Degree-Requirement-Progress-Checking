@@ -109,6 +109,24 @@ last edit (see "Sync" below).
   both pages with a "faculty only" note (`src/ui/sheet-source.ts`, 2026-09-04) — the sheet is
   shared with faculty, not students, who see the same rules on `courses.html`.
 
+## A transcript that will not import
+
+Students (or you) may hit a PDF the parser reads badly — too few courses, none, or a
+false "this looks like a Notre Dame transcript". You cannot send the PDF to an AI tool
+(FERPA), but you can share its SHAPE. With the repo checked out and `npm install` done:
+
+    npm run diagnose -- /path/to/transcript.pdf
+
+prints only structure — per-page run counts, how many runs were dropped as a text
+watermark, whether a page was read as two columns, how many course rows the parser
+accepted, and every line with letters replaced by a/A and digits by 9 (`AAAAAAA 999 |
+Aaaaaa Aaaaaaaa | 9.99 | A`). No name, id, course, title, grade or date survives; a tiled
+watermark phrase is shown verbatim only when it names an institution. Paste that output
+into your Claude Code / Codex session and describe the university; the layout logic lives
+in `src/transcript/layout.ts` (columns, watermarks) and the row patterns in
+`src/transcript/external.ts`. Add an invented fixture in the same shape to
+`tests/fixtures/make-transcript-pdfs.mjs` with every fix (see `banner-transcript.pdf`).
+
 ## Repo peculiarities you should know
 
 - **`public/ocr/` holds the self-hosted OCR engine** (tesseract.js v7 worker, SIMD+LSTM WASM

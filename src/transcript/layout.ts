@@ -16,6 +16,45 @@ export interface Run {
   y: number;
   text: string;
   width: number;
+  /** Drawn rotated (a diagonal watermark) — never body text. */
+  rotated?: boolean;
+}
+
+/** Drop text watermarks before any line grouping (2026-09-05; a UMass
+ * transcript whose background repeats "University of Massachusetts Amherst"
+ * read only 6 courses — the tiles merged into course lines and broke the
+ * column split). Two signals, both position-based so no wording is assumed:
+ *   1. rotated runs — diagonal watermarks; transcript text is never rotated;
+ *   2. a phrase (≥ 6 letters) repeated ≥ 6 times on the page at ≥ 3 different
+ *      x positions — a tiled background. Real repeats (a thesis-credit title
+ *      every term, "Good Standing") sit in ONE column, i.e. at one or two x
+ *      positions, so they survive. */
+export function dropWatermarks(runs: Run[]): Run[] {
+  const upright = runs.filter((r) => !r.rotated);
+  const norm = (r: Run) => r.text.replace(/\s+/g, ' ').trim().toLowerCase();
+  const bucket = (r: Run) => Math.round(r.x / 4);
+  // phrase → x bucket → how many times it sits there
+  const grid = new Map<string, Map<number, number>>();
+  for (const r of upright) {
+    const key = norm(r);
+    if ((key.match(/[a-z]/g) ?? []).length < 6) continue;
+    const at = grid.get(key) ?? new Map<number, number>();
+    at.set(bucket(r), (at.get(bucket(r)) ?? 0) + 1);
+    grid.set(key, at);
+  }
+  const tiled = new Set<string>();
+  for (const [key, at] of grid) {
+    const total = [...at.values()].reduce((s, n) => s + n, 0);
+    if (total >= 6 && at.size >= 3) tiled.add(key);
+  }
+  if (tiled.size === 0) return upright;
+  // A tiled phrase is dropped only where it repeats down the page; a lone
+  // occurrence at its own x — the genuine header naming the university — stays.
+  return upright.filter((r) => {
+    const key = norm(r);
+    if (!tiled.has(key)) return true;
+    return (grid.get(key)?.get(bucket(r)) ?? 0) < 2;
+  });
 }
 
 /** Group runs into visual lines: same y (2-unit tolerance), sorted
@@ -108,7 +147,8 @@ function repairStraddlers(left: Run[], right: Run[], gapX: number, rightEdge: nu
   return [repairedLeft, repairedRight];
 }
 
-/** A page's runs → its lines, column by column when the page has two. */
+/** A page's runs → its lines: watermarks dropped, then column by column when
+ * the page has two. */
 export function runsToLines(runs: Run[], pageWidth: number): string[] {
-  return splitColumns(runs, pageWidth).flatMap((column) => groupLines(column));
+  return splitColumns(dropWatermarks(runs), pageWidth).flatMap((column) => groupLines(column));
 }

@@ -12,7 +12,8 @@
     "test": "node --test \"tests/**/*.test.ts\"",
     "test:watch": "node --test --watch \"tests/**/*.test.ts\"",
     "sync-sheet": "node scripts/sync-sheet.ts",
-    "e2e": "node scripts/e2e/run.mjs"
+    "e2e": "node scripts/e2e/run.mjs",
+    "diagnose": "node scripts/diagnose-transcript.mjs"
   },
   "//scripts-note": "Tests run on node's built-in runner (node --test; Node >= 24 runs the TypeScript directly) \u2014 no test-framework dependency. The test script must name the files with a quoted glob: giving node --test a directory (tests/) fails on Node 24 with 'Cannot find module', which is what broke CI on Aug 31\u2013Sep 1, 2026. Vite does the dev server and the production build. Never put a ':' in any parent folder name \u2014 it corrupts npm's PATH and breaks vite's module loader.",
   "devDependencies": {

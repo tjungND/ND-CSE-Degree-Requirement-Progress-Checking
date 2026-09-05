@@ -163,6 +163,15 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Text watermarks** (2026-09-05; UMass Amherst / Western Ontario transcripts repeat the
+  university's name across the page and read 6 / 0 courses): `dropWatermarks()` in layout.ts
+  runs BEFORE `splitColumns` (tiles also broke the column split). Signals: `Run.rotated` (pdf.ts
+  sets it from the transform's b/c) and a ≥6-letter phrase repeated ≥6× on the page at ≥3 x
+  buckets (4 units) — dropped only at x buckets where it occurs ≥2×, so a lone genuine header
+  with the same words stays. `tests/fixtures/banner-watermarked-transcript.pdf` (tiles at three
+  x's every 37 units, gray 0.85, plus a 28pt 30° banner) must extract byte-identically to the
+  clean fixture — the e2e asserts the same ids. `npm run diagnose -- file.pdf`
+  (`scripts/diagnose-transcript.mjs`) is the FERPA-safe way to see a real transcript's shape.
 - **Banner two-column transcripts + Notre Dame markers** (2026-09-05, from the DGS's own IIT
   transcript): `src/transcript/layout.ts` (pure, unit-tested) turns pdfjs runs into lines —
   `splitColumns()` detects a two-text-column page (a ≤2%-crossing vertical band at 40–60% of
@@ -371,12 +380,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   asserting it (the registry meta-test fails until you do); wire any new number through a
   Parameters key (add to `KNOWN_PARAMETER_KEYS`, `data/README.md`, samples, fixtures, and tell
   the DGS the row to paste).
-- **"Transcript parsing broke"**: get one real PDF (the student's own, never kept), extract
-  its lines in Node with a scratch mirror of `pdfToLines` over `pdfjs-dist/legacy/build/pdf.mjs`
-  feeding `src/transcript/layout.ts` `runsToLines` (pdf.ts has a Vite-only `?url` import), look
-  at the line SHAPES (mask names/ids), adjust `src/transcript/parse.ts` or `external.ts`
-  patterns, and extend `tests/transcript.test.ts` / `tests/external-transcript.test.ts` (or a
-  new fixture like `tests/banner-transcript.test.ts`) with invented lines of the same shape.
-  If the page is two-column, check `splitColumns` first — its three tests are documented inline.
+- **"Transcript parsing broke"**: never ask for the PDF (FERPA). Have the DGS run
+  `npm run diagnose -- file.pdf` and paste the output: per-page counts (runs, rotated, dropped
+  as watermark, columns) and every line's shape (letters→a/A, digits→9, `|` = column gap).
+  From the shapes adjust `src/transcript/layout.ts` (columns, watermarks) or the row patterns in
+  `external.ts` / `parse.ts`, then add invented lines of the same shape to the tests and, for a
+  new layout, a positioned-run fixture in `tests/fixtures/make-transcript-pdfs.mjs` plus an e2e
+  leg. If the DGS shares his OWN transcript, use it only in the scratchpad and delete it.
 - **"Grandfather a parameter change"**: Parameters have no effective_term — that's a real code
   change (mirror the Courses-row versioning); warn the DGS it's nontrivial.

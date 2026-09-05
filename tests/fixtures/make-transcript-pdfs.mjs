@@ -45,7 +45,13 @@ function makePositionedPdf(pages) {
   const kids = [];
   for (const runs of pages) {
     let text = '';
-    for (const r of runs) text += `BT /F1 ${r.size ?? 8} Tf 1 0 0 1 ${r.x} ${r.y} Tm (${esc(r.text)}) Tj ET\n`;
+    for (const r of runs) {
+      // Optional rotation (degrees) and gray level — how watermarks are drawn.
+      const th = ((r.angle ?? 0) * Math.PI) / 180;
+      const matrix = r.angle ? [Math.cos(th), Math.sin(th), -Math.sin(th), Math.cos(th)].map((v) => v.toFixed(4)).join(' ') : '1 0 0 1';
+      const color = r.gray !== undefined ? `${r.gray} g ` : '';
+      text += `BT /F1 ${r.size ?? 8} Tf ${color}${matrix} ${r.x} ${r.y} Tm (${esc(r.text)}) Tj ET\n`;
+    }
     const contentIndex = objects.length + 1; // 1-based object number of the stream
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentIndex + 1} 0 R >>`);
     objects.push(`<< /Length ${text.length} >>\nstream\n${text}\nendstream`);
@@ -217,4 +223,20 @@ writeFileSync(join(here, 'nd-transcript.pdf'), makePdf(ND));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
 writeFileSync(join(here, 'banner-transcript.pdf'), makePositionedPdf(bannerPages()));
-console.log('wrote nd-transcript.pdf, other-transcript.pdf, external-transcript.pdf and banner-transcript.pdf');
+
+// The same transcript over a text watermark (2026-09-05: real UMass / Western
+// Ontario transcripts repeat the university's name across the background —
+// horizontal light-gray tiles here, plus a diagonal banner). Must parse
+// identically to banner-transcript.pdf.
+function watermarked(pages) {
+  return pages.map((runs) => {
+    const out = [...runs];
+    for (let y = 775; y > 20; y -= 37) {
+      for (const x of [15, 215, 415]) out.push({ x, y, text: 'Example Institute of Technology', size: 9, gray: 0.85 });
+    }
+    for (let y = 650; y > 100; y -= 180) out.push({ x: 80, y, text: 'EXAMPLE INSTITUTE OF TECHNOLOGY', size: 28, gray: 0.9, angle: 30 });
+    return out;
+  });
+}
+writeFileSync(join(here, 'banner-watermarked-transcript.pdf'), makePositionedPdf(watermarked(bannerPages())));
+console.log('wrote nd-transcript.pdf, other-transcript.pdf, external-transcript.pdf, banner-transcript.pdf and banner-watermarked-transcript.pdf');
