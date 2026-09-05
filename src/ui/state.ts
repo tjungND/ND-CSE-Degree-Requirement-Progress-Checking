@@ -10,11 +10,34 @@ export function emptyStudent(): Student {
     schemaVersion: 1,
     program: 'phd',
     entryTerm: { season: 'fall', year: new Date().getFullYear() },
+    // A guess until the student sets it or a transcript import reads it
+    // (2026-09-05) — the standing card says so while the flag is set.
+    entryTermInferred: { how: 'assumed' },
     priorMs: 'none',
     courses: [],
     milestones: {},
     attestations: {},
   };
+}
+
+const SEASONS = ['fall', 'spring', 'summer'];
+
+function validTerm(t: unknown): t is Student['entryTerm'] {
+  const term = t as Record<string, unknown> | undefined;
+  return !!term && typeof term['year'] === 'number' && SEASONS.includes(term['season'] as never);
+}
+
+/** The entryTermInferred flag of a saved file, when well-formed; otherwise
+ * undefined — a file that carries no flag was saved by a student who set (or
+ * accepted) the term, so it must NOT inherit emptyStudent()'s "assumed". */
+function validInferred(v: unknown): Student['entryTermInferred'] {
+  const f = v as Record<string, unknown> | undefined;
+  if (!f || typeof f !== 'object' || typeof f['how'] !== 'string') return undefined;
+  const alt = f['alternative'] as Record<string, unknown> | undefined;
+  if (alt && typeof alt === 'object' && validTerm(alt['term']) && typeof alt['why'] === 'string') {
+    return { how: f['how'], alternative: { term: alt['term'], why: alt['why'] } };
+  }
+  return { how: f['how'] };
 }
 
 /** Structural check for imported files — plain-English error on mismatch. */
@@ -31,7 +54,7 @@ export function validateStudent(data: unknown): Student {
     );
   }
   if (d.program !== 'mscse' && d.program !== 'phd') throw new Error("This file has no program ('mscse' or 'phd').");
-  if (!d.entryTerm || typeof d.entryTerm.year !== 'number' || !SEASONS.includes(d.entryTerm.season as never)) {
+  if (!validTerm(d.entryTerm)) {
     throw new Error('This file has no valid entry term.');
   }
   if (!Array.isArray(d.courses)) throw new Error('This file has no course list.');
@@ -53,17 +76,18 @@ export function validateStudent(data: unknown): Student {
       throw new Error(`${where} (${String(e['courseId'])}) has no origin ('nd' or 'transfer').`);
     if (e['degreeLevel'] !== undefined && !['bachelors', 'masters', 'phd'].includes(e['degreeLevel'] as string))
       throw new Error(`${where} (${String(e['courseId'])}) has an unrecognized degreeLevel.`);
+    if (e['registeredLevel'] !== undefined && !['undergraduate', 'graduate'].includes(e['registeredLevel'] as string))
+      delete e['registeredLevel']; // a hint only — drop a malformed one rather than refuse the file
   });
   return {
     ...emptyStudent(),
     ...d,
+    entryTermInferred: validInferred((d as Record<string, unknown>)['entryTermInferred']),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},
     courses: d.courses,
   } as Student;
 }
-
-const SEASONS = ['fall', 'spring', 'summer'];
 
 export function loadLocal(): Student | undefined {
   try {

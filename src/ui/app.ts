@@ -2,7 +2,7 @@
 // autocomplete, milestone dates, attestations, and the live report.
 // All rule logic lives in src/engine/ — this file only collects input and renders.
 import { resolveRuleRow } from '../data/assemble.ts';
-import { findExternalRule } from '../data/external.ts';
+import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import type { Rules } from '../data/types.ts';
 import { classify } from '../engine/allocate.ts';
@@ -10,11 +10,12 @@ import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
-import { parseTranscript, type ParsedCourse } from '../transcript/parse.ts';
+import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, COVERAGE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
+import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { advisorSummary, renderReport } from './report.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 import {
@@ -77,7 +78,18 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   let toastTimer: number | undefined;
   /** Parsed-transcript preview awaiting the student's confirmation. */
   let transcriptPreview:
-    | { courses: ParsedCourse[]; selected: boolean[]; duplicate: boolean[]; gpa?: number; useGpa: boolean }
+    | {
+        courses: ParsedCourse[];
+        selected: boolean[];
+        duplicate: boolean[];
+        gpa?: number;
+        useGpa: boolean;
+        /** The entry term read from the transcript (2026-09-05) and whether
+         * the student keeps the checkbox that applies it. */
+        entryTerm?: EntryTermInference;
+        useEntryTerm: boolean;
+        degreesAwarded: DegreeAwarded[];
+      }
     | undefined;
 
   const update = (mutate: (s: Student) => void): void => {
@@ -225,9 +237,29 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   // ---------- standing ----------
 
   function standingCard(): HTMLElement {
+    // The entry term drives the §4.3 residency count and every deadline. When
+    // the student sets it, the "inferred/assumed" flag clears and every Notre
+    // Dame course is re-filed as program or prior coursework (2026-09-05).
+    const setEntry = (mutate: (s: Student) => void) =>
+      update((s) => {
+        mutate(s);
+        s.entryTermInferred = undefined;
+        const moved = reclassifyNotreDameCourses(s);
+        if (moved.toPrior + moved.toProgram > 0) {
+          window.setTimeout(
+            () =>
+              toast(
+                `${moved.toPrior + moved.toProgram} Notre Dame course${moved.toPrior + moved.toProgram === 1 ? ' was' : 's were'} re-filed for the new entry term` +
+                  (moved.toPrior > 0 ? ` — ${moved.toPrior} now prior coursework (before ${termLabel(s.entryTerm)})` : '') +
+                  (moved.toProgram > 0 ? ` — ${moved.toProgram} now program coursework` : '') +
+                  '.',
+              ),
+            0,
+          );
+        }
+      });
     const seasonSel = el('select', {
-      onchange: (e) =>
-        update((s) => void (s.entryTerm.season = (e.target as HTMLSelectElement).value as Season)),
+      onchange: (e) => setEntry((s) => void (s.entryTerm.season = (e.target as HTMLSelectElement).value as Season)),
     });
     for (const se of SEASONS) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), student.entryTerm.season === se));
     const yearInput = el('input', {
@@ -235,8 +267,22 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       min: '2000',
       max: '2040',
       value: String(student.entryTerm.year),
-      onchange: (e) => update((s) => void (s.entryTerm.year = Number((e.target as HTMLInputElement).value) || s.entryTerm.year)),
+      onchange: (e) => setEntry((s) => void (s.entryTerm.year = Number((e.target as HTMLInputElement).value) || s.entryTerm.year)),
     });
+    // While the term is a guess (fresh record) or a transcript reading, say so
+    // — a wrong entry term silently shifts every deadline (bug report 2026-09-05).
+    const inferred = student.entryTermInferred;
+    const entryNote = inferred
+      ? el(
+          'p',
+          { class: 'hint warn entry-note' },
+          inferred.how === 'assumed'
+            ? `${termLabel(student.entryTerm)} is assumed — set the semester you entered the program. `
+            : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
+          'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the eighth-semester candidacy exam (§4.5) — are counted from this term.',
+          inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
+        )
+      : null;
     const priorSel = el('select', {
       onchange: (e) =>
         update((s) => {
@@ -278,6 +324,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'card' },
       el('h2', {}, 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
       field('Entered the program', el('div', { class: 'pair' }, seasonSel, yearInput)),
+      entryNote,
       field('Prior graduate study (§5.2 transfer caps)', priorSel),
       priorNote,
     );
@@ -306,14 +353,17 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   function fullTimeTerms(): HTMLElement {
     // Residency (decision Q8): ≥9 entered credits marks a term full-time
     // automatically; these checkboxes cover research-heavy terms that aren't.
+    // Only terms from the entry term on: residence is counted in THIS program
+    // (2026-09-05 — the engine's residency.ts applies the same guard).
+    const entryIndex = termIndex(student.entryTerm);
     const terms = new Map<number, Term>();
-    for (const c of student.courses) if (c.origin === 'nd') terms.set(termIndex(c.term), c.term);
-    for (const t of student.fullTimeTermOverrides ?? []) terms.set(termIndex(t), t);
+    for (const c of student.courses) if (c.origin === 'nd' && termIndex(c.term) >= entryIndex) terms.set(termIndex(c.term), c.term);
+    for (const t of student.fullTimeTermOverrides ?? []) if (termIndex(t) >= entryIndex) terms.set(termIndex(t), t);
     if (terms.size === 0) return el('div', {});
     const box = el('div', { class: 'ft-terms' }, el('div', { class: 'label' }, 'Full-time terms (for residency, §3.3/§4.3)'));
     const byTermCredits = new Map<number, number>();
     for (const c of student.courses) {
-      if (c.origin !== 'nd') continue;
+      if (c.origin !== 'nd' || termIndex(c.term) < entryIndex) continue;
       byTermCredits.set(termIndex(c.term), (byTermCredits.get(termIndex(c.term)) ?? 0) + c.credits);
     }
     for (const [key, t] of [...terms.entries()].sort((a, b) => a[0] - b[0])) {
@@ -365,20 +415,27 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       const slot = e.c.degreeLevel
         ? (DEGREE_SLOTS.find((sl) => sl.level === e.c.degreeLevel)?.label ?? e.c.degreeLevel)
         : 'graduate coursework (§5.2)';
-      const heading = `${e.c.institution ?? 'University not set'} — ${slot}`;
+      // Prior Notre Dame coursework (2026-09-05): an earlier Notre Dame degree
+      // read from the same transcript — named for what it is.
+      const priorNd = isNotreDameInstitution(e.c.institution);
+      const heading = priorNd
+        ? `Notre Dame, before entering the program — ${e.c.degreeLevel === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
+        : `${e.c.institution ?? 'University not set'} — ${slot}`;
       let g = groups.find((x) => x.heading === heading);
       if (!g) {
         g = { heading, bachelors: e.c.degreeLevel === 'bachelors', entries: [], hidden: 0 };
         groups.push(g);
       }
       // Undergraduate courses (DGS request 2026-09-04): only the ones that can
-      // matter are listed — a title suggesting a §4.4.1 core area, or a course
-      // the DGS has already ruled on. The rest stay in the saved data but out
-      // of the way (undergraduate credits never transfer, §5.2).
+      // matter are listed — a title suggesting a §4.4.1 core area, a course
+      // the DGS has already ruled on, or (Notre Dame) a course the Courses tab
+      // tags with a core area. The rest stay in the saved data but out of the
+      // way (undergraduate credits never transfer, §5.2).
       if (
         g.bachelors &&
         !CORE_TITLE_RE.test(e.c.title ?? '') &&
-        !findExternalRule(rules.external, e.c.institution ?? '', e.c.courseId)
+        !findExternalRule(rules.external, e.c.institution ?? '', e.c.courseId) &&
+        !(priorNd && resolveRuleRow(rules, e.c.courseId, e.c.term)?.coreArea)
       ) {
         g.hidden += 1;
         continue;
@@ -466,16 +523,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         // never transfers, so nothing is pending there).
         return c.external.transferable === undefined && c.entry.degreeLevel !== 'bachelors' && c.ineligibleReason === undefined;
       }
+      // Prior Notre Dame coursework whose Courses-tab row names a core area is
+      // decided for §4.4.1 already (2026-09-05) — no ruling to ask for.
+      const coreDecided = isNotreDameInstitution(c.entry.institution) && c.rule?.coreArea !== undefined;
       // Unreviewed undergraduate courses earn no transfer credit, but the DGS
       // keywords (2026-09-03) flag the ones whose TITLE suggests a §4.4.1 core
       // area — those are worth a ruling.
-      if (c.entry.degreeLevel === 'bachelors') return CORE_TITLE_RE.test(c.entry.title ?? '');
+      if (c.entry.degreeLevel === 'bachelors') return !coreDecided && CORE_TITLE_RE.test(c.entry.title ?? '');
       // Unreviewed GRADUATE courses (2026-09-04): pending when transfer credit
       // is still possible (no hard §5.2 ineligibility) — and even when it is
       // not (outside the window, below the grade floor), a core-keyword title
       // still belongs in the request, because the course may satisfy §4.4.1
       // core knowledge, which has no such restrictions.
-      return c.ineligibleReason === undefined || CORE_TITLE_RE.test(c.entry.title ?? '');
+      return c.ineligibleReason === undefined || (!coreDecided && CORE_TITLE_RE.test(c.entry.title ?? ''));
     });
     const n = nd.length + external.length;
     if (n === 0) return null;
@@ -588,12 +648,30 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             (s) => s.courseId === c.courseId && termIndex(s.term) === termIndex(c.term),
           ),
         );
+        // The entry term read from the transcript (2026-09-05) is applied
+        // unless the student unticks it in the preview. Pre-entry Notre Dame
+        // courses become prior coursework; pre-entry UNDERGRADUATE courses
+        // that cannot matter (no core-area title, no ruling, no Courses-tab
+        // core area) start unticked, like the external undergraduate import.
+        const entry = parsed.entryTerm?.term ?? student.entryTerm;
+        const irrelevantPrior = parsed.courses.map(
+          (c) =>
+            c.origin === 'nd' &&
+            termIndex(c.term) < termIndex(entry) &&
+            priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level }) === 'bachelors' &&
+            !CORE_TITLE_RE.test(c.title ?? '') &&
+            !resolveRuleRow(rules, c.courseId, c.term)?.coreArea &&
+            !findExternalRule(rules.external, 'University of Notre Dame', c.courseId),
+        );
         transcriptPreview = {
           courses: parsed.courses,
-          selected: parsed.courses.map((_, i) => !duplicate[i]),
+          selected: parsed.courses.map((_, i) => !duplicate[i] && !irrelevantPrior[i]),
           duplicate,
           gpa: parsed.cumulativeGpa,
           useGpa: parsed.cumulativeGpa !== undefined,
+          entryTerm: parsed.entryTerm,
+          useEntryTerm: parsed.entryTerm !== undefined,
+          degreesAwarded: parsed.degreesAwarded,
         };
         render();
         for (const w of parsed.warnings) toast(w);
@@ -619,9 +697,45 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   function transcriptPreviewBlock(): HTMLElement {
     const tp = transcriptPreview!;
     const box = el('div', { class: 'transcript-preview' });
+    // The entry term the split below is judged against: the transcript's
+    // reading while its checkbox is ticked, otherwise the standing card's.
+    const entry = tp.useEntryTerm && tp.entryTerm ? tp.entryTerm.term : student.entryTerm;
+    const priorCount = tp.courses.filter((c) => c.origin === 'nd' && termIndex(c.term) < termIndex(entry)).length;
     box.append(
       el('h3', {}, `Found ${tp.courses.length} course${tp.courses.length === 1 ? '' : 's'} — untick anything that shouldn't count, then add`),
     );
+    if (tp.entryTerm) {
+      // The transcript's reading of the entry term (2026-09-05) — applied by
+      // default, because every deadline depends on it; explained, because a
+      // combined transcript can support two readings.
+      const cb = el('input', {
+        type: 'checkbox',
+        class: 'use-entry-term',
+        onchange: (e) => {
+          tp.useEntryTerm = (e.target as HTMLInputElement).checked;
+          render();
+        },
+      });
+      cb.checked = tp.useEntryTerm;
+      box.append(
+        el(
+          'label',
+          { class: 'attest entry-term-line' },
+          cb,
+          ` Set “Entered the program” to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. The residency count and every deadline are counted from this term; check it.`,
+        ),
+      );
+      if (tp.entryTerm.alternative) box.append(el('p', { class: 'hint warn' }, `Note: ${tp.entryTerm.alternative.why}.`));
+    }
+    if (priorCount > 0) {
+      box.append(
+        el(
+          'p',
+          { class: 'hint prior-note' },
+          `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} will be filed as coursework from before you entered the program: no residency, credit or specialization counts, but a core-knowledge course still counts (§4.4.1), and graduate courses may transfer under §5.2. Undergraduate courses that cannot matter start unticked.`,
+        ),
+      );
+    }
     const table = el('table', { class: 'courses' });
     table.append(
       el('tr', {}, el('th', {}, ''), el('th', {}, 'Course'), el('th', {}, 'Term'), el('th', {}, 'Cr'), el('th', {}, 'Grade'), el('th', {}, '')),
@@ -629,16 +743,24 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     tp.courses.forEach((c, i) => {
       const cb = el('input', { type: 'checkbox', onchange: (e) => (tp.selected[i] = (e.target as HTMLInputElement).checked) });
       cb.checked = tp.selected[i]!;
+      const prior = c.origin === 'nd' && termIndex(c.term) < termIndex(entry);
+      const note = tp.duplicate[i]
+        ? 'already entered'
+        : c.origin === 'transfer'
+          ? 'transfer'
+          : prior
+            ? `before entry — prior ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level }) === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
+            : '';
       table.append(
         el(
           'tr',
-          {},
+          { class: prior ? 'prior-row' : '' },
           el('td', {}, cb),
           el('td', {}, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
           el('td', {}, termLabel(c.term)),
           el('td', {}, String(c.credits)),
           el('td', {}, c.grade === 'IP' ? 'In progress' : c.grade),
-          el('td', { class: 'ctitle' }, tp.duplicate[i] ? 'already entered' : c.origin === 'transfer' ? 'transfer' : ''),
+          el('td', { class: 'ctitle' }, note),
         ),
       );
     });
@@ -658,9 +780,15 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             class: 'btn primary',
             onclick: () => {
               const picked = tp.courses.filter((_, i) => tp.selected[i]);
+              let priorAdded = 0;
+              let priorSet: Student['priorMs'] | undefined;
               update((s) => {
+                if (tp.useEntryTerm && tp.entryTerm) {
+                  s.entryTerm = { ...tp.entryTerm.term };
+                  s.entryTermInferred = { how: tp.entryTerm.how, alternative: tp.entryTerm.alternative };
+                }
                 for (const c of picked) {
-                  s.courses.push({
+                  const entryCourse: CourseEntry = {
                     courseId: c.courseId,
                     title: c.title,
                     credits: c.credits,
@@ -668,13 +796,41 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                     grade: c.grade,
                     origin: c.origin,
                     institution: c.institution,
-                  });
+                    registeredLevel: c.origin === 'nd' ? c.level : undefined,
+                  };
+                  s.courses.push(entryCourse);
+                }
+                // Pre-entry Notre Dame courses → prior coursework (2026-09-05).
+                priorAdded = reclassifyNotreDameCourses(s).toPrior;
+                // Prior GRADUATE coursework at Notre Dame sets "Prior graduate
+                // study" the way an uploaded Master's transcript does
+                // (2026-09-03 rule): completed when the transcript shows a
+                // graduate degree awarded, else "not completed" + the warning.
+                if (
+                  s.priorMs === 'none' &&
+                  s.courses.some((c) => isPriorNd(c, s.entryTerm) && c.degreeLevel === 'masters')
+                ) {
+                  const conferred = tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd');
+                  s.priorMs = conferred ? 'completed' : 'unfinished';
+                  s.priorMsInferred = true;
+                  priorSet = s.priorMs;
                 }
                 if (tp.useGpa && tp.gpa !== undefined) s.gpa = tp.gpa;
               });
+              const appliedEntry = tp.useEntryTerm && tp.entryTerm ? tp.entryTerm.term : undefined;
               transcriptPreview = undefined;
               render();
-              toast(`Added ${picked.length} course${picked.length === 1 ? '' : 's'} from the transcript.`);
+              toast(
+                `Added ${picked.length} course${picked.length === 1 ? '' : 's'} from the transcript` +
+                  (appliedEntry ? `; “Entered the program” set to ${termLabel(appliedEntry)} — check it under Your standing` : '') +
+                  (priorAdded > 0 ? `; ${priorAdded} filed as coursework from before you entered the program` : '') +
+                  (priorSet === 'completed'
+                    ? '; Prior graduate study set to “Completed prior M.S. or Ph.D.” from the degree awarded on your transcript'
+                    : priorSet === 'unfinished'
+                      ? '; Prior graduate study set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it'
+                      : '') +
+                  '.',
+              );
             },
           },
           'Add selected courses',

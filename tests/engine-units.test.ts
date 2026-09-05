@@ -16,7 +16,7 @@ import {
   semesterNumber,
   termOfDate,
 } from '../src/engine/term.ts';
-import type { Status, Student } from '../src/engine/types.ts';
+import type { CourseEntry, Status, Student } from '../src/engine/types.ts';
 import { buildRules, type ScenarioFile } from './helpers.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -218,5 +218,32 @@ describe('term arithmetic', () => {
       maxConsecutiveFullTime([t('fall', 2026), t('summer', 2027), t('spring', 2027)]),
       2,
     );
+  });
+});
+
+// Residence counts only from the entry term (2026-09-05): a combined Notre Dame
+// transcript's undergraduate semesters are not Ph.D. residence (§4.3).
+describe('residency from the entry term (2026-09-05)', () => {
+  it('ignores Notre Dame terms and overrides dated before the entry term', async () => {
+    const { fullTimeTermRecords } = await import('../src/engine/requirements/residency.ts');
+    const rules = buildRules();
+    const nd = (season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: 'CSE 60641', credits: 9, term: { season, year }, grade: 'A', origin: 'nd' });
+    const student: Student = {
+      schemaVersion: 1,
+      program: 'phd',
+      entryTerm: { season: 'fall', year: 2024 },
+      priorMs: 'none',
+      courses: [nd('fall', 2020), nd('spring', 2021), nd('fall', 2024), nd('spring', 2025)],
+      fullTimeTermOverrides: [{ season: 'fall', year: 2023 }, { season: 'fall', year: 2025 }],
+      milestones: {},
+      attestations: {},
+    };
+    const ctx = { student, rules, params: rules.parameters } as unknown as Parameters<typeof fullTimeTermRecords>[0];
+    const records = fullTimeTermRecords(ctx);
+    assert.deepEqual(
+      records.map((r) => `${r.term.season} ${r.term.year}${r.fullTime ? ' ft' : ''}`),
+      ['fall 2024 ft', 'spring 2025 ft', 'fall 2025 ft'],
+    );
+    assert.equal(maxConsecutiveFullTime(records), 3);
   });
 });

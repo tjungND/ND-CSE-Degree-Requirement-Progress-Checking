@@ -72,7 +72,10 @@ replaced by `README.md` on 2026-09-01.)
   `vite.config.ts` `rollupOptions.input`.
 - `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser
   (`pdf.ts` + `layout.ts`: pdfjs runs → lines, reading two-column Banner pages column by
-  column; `nd-markers.ts`: the shared "is this Notre Dame's transcript?" test); plus
+  column; `nd-markers.ts`: the shared "is this Notre Dame's transcript?" test; `parse.ts` also
+  reads the ENTRY TERM, the degrees awarded and each row's UG/GR level, so a combined
+  transcript's pre-entry Notre Dame courses become prior coursework — `src/ui/prior-nd.ts`);
+  plus
   `external.ts`, the best-effort parser for transcripts from OTHER universities (all four
   transcript imports live in the single "Transcripts" card: Notre Dame + Previous
   Undergraduate/Master's/Ph.D.; system-generated PDFs are read directly, scanned ones via the

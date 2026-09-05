@@ -20,14 +20,32 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   console.log('  non-ND transcript rejected with the required message');
   await s.shot('transcript-rejected');
 
-  // 2) ND transcript → preview → add all.
+  // 2) ND transcript (COMBINED since 2026-09-05: a B.S. before the Ph.D.) →
+  //    preview reads the entry term (Fall 2026, the first graduate-level term),
+  //    files the two undergraduate terms as prior coursework, unticks the
+  //    undergraduate course that cannot matter (Calculus) → add.
   await s.setFileInput('.transcript-upload input[type=file]', ndPdf);
   await s.waitFor(`document.querySelector('.transcript-preview')`);
   const rows = await s.evalJs(
     `document.querySelectorAll('.transcript-preview table tr').length - 1`,
   );
   console.log('  preview rows:', rows);
-  if (rows < 4) throw new Error(`expected >=4 parsed courses, got ${rows}`);
+  if (rows !== 9) throw new Error(`expected 9 parsed courses (1 transfer + 3 undergraduate + 5 graduate), got ${rows}`);
+  const entryLine = await s.evalJs(`document.querySelector('.transcript-preview .entry-term-line')?.textContent ?? ''`);
+  const entryTicked = await s.evalJs(`document.querySelector('.transcript-preview .use-entry-term')?.checked`);
+  console.log('  entry-term line:', entryLine.slice(0, 120), '| ticked:', entryTicked);
+  if (!entryLine.includes('Set “Entered the program” to Fall 2026') || !entryLine.includes('first graduate-level term') || entryTicked !== true) {
+    throw new Error('the preview must offer the entry term read from the transcript, ticked');
+  }
+  const priorNote = await s.evalJs(`document.querySelector('.transcript-preview .prior-note')?.textContent ?? ''`);
+  if (!priorNote.startsWith('3 courses dated before Fall 2026')) throw new Error('prior-coursework note missing/wrong: ' + priorNote.slice(0, 120));
+  const ticks = await s.evalJs(
+    `[...document.querySelectorAll('.transcript-preview table tr')].slice(1).map(tr => tr.querySelector('.cid').textContent + ':' + (tr.querySelector('input[type=checkbox]').checked ? 'on' : 'off') + ':' + tr.cells[5].textContent)`,
+  );
+  console.log('  preview ticks:', JSON.stringify(ticks));
+  if (!ticks.includes('MATH 10550:off:before entry — prior undergraduate coursework')) throw new Error('an irrelevant undergraduate course must start unticked');
+  if (!ticks.includes('CSE 30321:on:before entry — prior undergraduate coursework')) throw new Error('a core-title undergraduate course must start ticked');
+  if (!ticks.includes('CSE 60641:on:')) throw new Error('a program course must start ticked without a prior note');
   await s.shot('transcript-preview');
 
   await s.evalJs(
@@ -40,9 +58,26 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     `[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`,
   );
   console.log('  course table now has:', JSON.stringify(added));
+  if (added.includes('MATH 10550')) throw new Error('the unticked undergraduate course was added');
   const gpa = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
   console.log('  GPA prefilled from transcript:', gpa);
   if (!gpa) throw new Error('cumulative GPA was not prefilled');
+  // The standing card now shows the term read from the transcript, flagged.
+  const entryNote = await s.evalJs(`document.querySelector('.entry-note')?.textContent ?? ''`);
+  const entryYear = await s.evalJs(`document.querySelector('.card input[type=number][max="2040"]')?.value`);
+  console.log('  standing card entry term:', entryYear, '|', entryNote.slice(0, 100));
+  if (entryYear !== '2026' || !entryNote.startsWith('Fall 2026 was read from your transcript')) {
+    throw new Error('the standing card must show the transcript entry term, flagged as read from the transcript');
+  }
+  const priorHeading = await s.evalJs(`[...document.querySelectorAll('h3.subhead')].map(h => h.textContent).find(t => t.includes('before entering the program')) ?? ''`);
+  if (!priorHeading.includes('undergraduate coursework')) throw new Error('prior Notre Dame coursework heading missing: ' + priorHeading);
+  // Residence is counted from the entry term: the full-time checkboxes list
+  // the program terms only (never the undergraduate Fall 2024 / Spring 2025).
+  const ftTerms = await s.evalJs(`[...document.querySelectorAll('.ft-term')].map(e => e.textContent.trim().replace(/ \\(.*$/, ''))`);
+  console.log('  full-time term checkboxes:', JSON.stringify(ftTerms));
+  if (JSON.stringify(ftTerms) !== JSON.stringify(['Fall 2026', 'Spring 2027', 'Fall 2027'])) {
+    throw new Error('residency terms must start at the entry term');
+  }
   await s.shot('transcript-added');
 
   // 2b) An unlisted (typically non-CSE) ND course typed by hand → the single
@@ -55,10 +90,12 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   await s.waitFor(`document.querySelector('.dgs-review')`);
   const ndReview = await s.evalJs(`document.querySelector('.dgs-review').textContent`);
-  // 2 pending: the typed MATH 60610, plus the ND transcript's transfer-credit
+  // 3 pending: the typed MATH 60610, the ND transcript's transfer-credit
   // line CS 50300 "Operating Systems" — no §5.2 credit, but its core-keyword
-  // title joins the request for §4.4.1 review (DGS rule 2026-09-04).
-  if (!ndReview.includes('Copy review request for 2 courses') || !ndReview.includes('Graduate Program Administrator')) {
+  // title joins the request for §4.4.1 review (DGS rule 2026-09-04) — and
+  // the undergraduate CSE 30321 "Computer Architecture" taken before entry
+  // (2026-09-05: prior Notre Dame coursework not in the Courses tab).
+  if (!ndReview.includes('Copy review request for 3 courses') || !ndReview.includes('Graduate Program Administrator')) {
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
@@ -82,12 +119,14 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     `[...document.querySelectorAll('.external-verdict')].map(e => e.textContent)`,
   );
   console.log('  external verdicts:', JSON.stringify(verdicts));
-  if (verdicts.length !== 3 || !verdicts.every((v) => v.includes('not yet reviewed by the DGS'))) {
-    throw new Error('expected 3 pending external verdicts (the sandbox has no ExternalCourses tab)');
+  // 3 Purdue courses + the prior Notre Dame undergraduate course (CSE 30321,
+  // filed under the Bachelor's slot by the combined-transcript import).
+  if (verdicts.length !== 4 || !verdicts.every((v) => v.includes('not yet reviewed by the DGS'))) {
+    throw new Error('expected 4 pending external verdicts (the sandbox has no ExternalCourses tab)');
   }
-  // ONE combined request: the MATH course from 2b + the 3 external courses.
+  // ONE combined request: the 3 from 2b + the 3 external courses.
   const copyBtn = await s.evalJs(
-    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Copy review request for 5 courses'))`,
+    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Copy review request for 6 courses'))`,
   );
   if (!copyBtn) throw new Error('the combined review request button is missing/wrong');
   const transferDetail = await s.evalJs(
@@ -98,6 +137,18 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     throw new Error('the §5.2 transfer row does not mention the unreviewed external courses');
   }
   await s.shot('external-added');
+
+  // 3b) The combined ND import filled the Bachelor's slot with the prior Notre
+  // Dame undergraduate course; its Remove button frees the slot (and drops
+  // that course from the request: 6 → 5 pending).
+  await s.evalJs(`(() => {
+    const slot = [...document.querySelectorAll('.external-slot')].find((e) => e.textContent.includes('Previous Undergraduate Transcript'));
+    [...slot.querySelectorAll('button')].find((b) => b.textContent === 'Remove').click();
+  })()`);
+  await s.waitFor(`document.querySelector('.external-file-bachelors')`);
+  const afterRemove = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
+  if (!afterRemove.includes('Copy review request for 5 courses')) throw new Error('removing the prior ND undergraduate course should leave 5 pending: ' + afterRemove.slice(0, 140));
+  console.log('  prior ND undergraduate course removed via the Bachelor’s slot (5 pending)');
 
   // 4) Scanned transcript (Bachelor's slot) → explicit OCR opt-in (English only)
   //    → OCR in the browser (self-hosted WASM) → flagged preview → add.
@@ -148,10 +199,10 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   console.log('  5 external courses (3 typed + 2 core-relevant OCR) in the verdicts block');
   // Undergrad core-title rule (2026-09-03; relevance filter 2026-09-04): only
   // the two keyword-matching bachelors courses were added, and both join the
-  // request — MATH (1) + masters slot (3) + those two = 6 pending.
-  const combined6 = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
-  if (!combined6.includes('Copy review request for 7 courses')) {
-    throw new Error('expected 7 pending after OCR (undergrad core-title rule): ' + combined6.slice(0, 140));
+  // request — MATH + CS 50300 (2) + masters slot (3) + those two = 7 pending.
+  const combined7 = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
+  if (!combined7.includes('Copy review request for 7 courses')) {
+    throw new Error('expected 7 pending after OCR (undergrad core-title rule): ' + combined7.slice(0, 140));
   }
   console.log('  undergrad core-title courses joined the review request (7 pending)');
   await s.shot('external-ocr-added');

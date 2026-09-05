@@ -1,6 +1,7 @@
 // §4 — Requirements for the Doctor of Philosophy Degree.
 // Every builder quotes the handbook sentence it implements.
 import { resolveRuleRow } from '../../data/assemble.ts';
+import { isNotreDameInstitution } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
 import { isInProgress, isPassed, meetsGradeFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
@@ -394,6 +395,12 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         }
       } else if (c.external?.satisfiesCoreArea === area.code && isPassed(c.entry.grade)) {
         confirmed ??= `${c.entry.courseId} (${c.external.university})`;
+      } else if (isNotreDameInstitution(c.entry.institution) && c.rule?.coreArea === area.code) {
+        // Prior Notre Dame coursework (2026-09-05): the Courses tab's core
+        // area applies to a Notre Dame course whenever it was taken — an
+        // earlier degree's course needs no ExternalCourses ruling.
+        if (isPassed(c.entry.grade)) done ??= `${c.entry.courseId} (Notre Dame, before entering the program)`;
+        else if (isInProgress(c.entry.grade)) ip ??= c.entry.courseId;
       } else if (c.external === undefined && isPassed(c.entry.grade) && coreTitleMatchesArea(c.entry.title, area.code)) {
         // Unreviewed course from a previous institution (any level — §4.4.1
         // has no §5.2 restrictions) whose title suggests this area: the DGS's

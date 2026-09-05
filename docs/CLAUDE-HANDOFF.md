@@ -163,6 +163,39 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Entry term read from the transcript; prior Notre Dame coursework** (2026-09-05, student
+  bug report: a combined ND transcript — eight undergraduate semesters — showed 13 consecutive
+  semesters and deadlines 8 years from "this fall"). Root cause: `Student.entryTerm` defaulted
+  to the current fall and nothing ever set it; residency counted every `origin:'nd'` term.
+  Now `parseTranscript` returns `entryTerm: EntryTermInference` (`inferEntryTerm`, exported:
+  stated admit term → latest graduate-level "Student Type: New" term → first graduate-level
+  term → after the last awarded degree → earliest; `how` is the plain-English source shown on
+  the standing card; `alternative` names the other reading when a degree is awarded between
+  graduate-level terms — earlier term kept, earlier deadlines being the safe error),
+  `degreesAwarded` (name/level/date; "Sought"/"Current Program" never count) and a per-row
+  `level` (UG → undergraduate; GR/PR/LW/EM/GB → graduate; else the term's "Term Totals
+  (Graduate)"/"College: Graduate School"/"Level:" block; else the course number, 5xxxx unknown).
+  The ND preview offers the term as a ticked checkbox (`.use-entry-term`); on add, app.ts sets
+  `entryTerm` + `entryTermInferred: {how, alternative}` (also `{how:'assumed'}` on a fresh
+  record — `validateStudent` never lets a saved file inherit it) and the standing card shows
+  the `.entry-note` warning until the dropdown is touched (`setEntry` clears the flag and calls
+  `reclassifyNotreDameCourses`). `src/ui/prior-nd.ts` (pure): a Notre Dame course dated before
+  the entry term becomes origin 'transfer' / institution `NOTRE_DAME` ("University of Notre
+  Dame", `src/data/external.ts`, with `isNotreDameInstitution`) / `degreeLevel` from
+  `registeredLevel` (new CourseEntry field) or the number — and back to 'nd' when the entry
+  term moves earlier. Engine: `residency.ts` counts only terms ≥ `student.entryTerm`
+  (overrides too); `allocate.ts` + `coreRows` let a prior ND course satisfy §4.4.1 through the
+  Courses tab's core_area with no ExternalCourses ruling (line "a Notre Dame course listed in
+  the course rules"); prior ND graduate courses are ordinary §5.2 transfers (rulings under
+  UNIVERSITY OF NOTRE DAME). The coursework card heads them "Notre Dame, before entering the
+  program — undergraduate/graduate coursework"; the Bachelor's/Master's slot rows show and
+  Remove them. `advisorSummary` adds a DEADLINES block (date order, "counted from <entry
+  term>") and "Due by <date>" / "overdue — was due by <date>" per requirement line, with a
+  Deadline column in the HTML tables. Tests: transcript.test.ts (COMBINED fixture),
+  prior-nd.test.ts, scenario phd-nd-undergrad-before-entry, advisor-summary.test.ts,
+  engine-units (residency guard); the e2e ND fixture is now a combined transcript (B.S. awarded
+  May 2026, two UG terms) and step 2 checks the checkbox, the prior-row ticks, the standing-card
+  note and the full-time term list; step 3b removes the prior ND course via the Bachelor's slot.
 - **Transcript sanitizers** (2026-09-05, DGS request — he has many sample transcripts to share
   once de-identified): `scripts/sanitize/rules.mjs` is the ONE rule set (deterministic per
   document via a seeded PRNG: same word → same scramble; year offset ±1..8; grades always

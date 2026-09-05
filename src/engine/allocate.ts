@@ -8,7 +8,7 @@
 // argument), the rare multi-cap courses by exact search — never the prototype's
 // entry-order greedy, where re-sorting the course list changed the verdict.
 import { resolveRuleRow } from '../data/assemble.ts';
-import { findExternalRule } from '../data/external.ts';
+import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
@@ -184,6 +184,13 @@ export function classify(student: Student, rules: Rules): {
       // return path so §4.4.1 core knowledge sees it even when no credit counts.
       const external = findExternalRule(rules.external, c.institution ?? '', c.courseId);
       const extBase: ClassifiedCourse = { ...base, external };
+      // Prior NOTRE DAME coursework (2026-09-05 — an earlier Notre Dame degree
+      // on a combined transcript): the Courses tab already says which §4.4.1
+      // core area a Notre Dame course covers, whenever it was taken, so no
+      // ExternalCourses ruling is needed for that part. Transfer credit still
+      // follows §5.2 like any other prior graduate course.
+      const ndCoreArea = isNotreDameInstitution(c.institution) ? rule?.coreArea : undefined;
+      const areaName = (code: string) => rules.coreAreas.find((a) => a.code === code)?.name ?? code;
       // §5.2 criterion 2: transfers must be "graduate courses … [taken with]
       // graduate student status" — Bachelor's coursework can never transfer.
       // §4.4.1 core knowledge has no such restriction, so the course stays
@@ -191,27 +198,29 @@ export function classify(student: Student, rules: Rules): {
       // The per-course line focuses on the ONE thing an undergraduate course
       // can do — demonstrate a core-knowledge area (DGS request 2026-09-04).
       if (c.degreeLevel === 'bachelors') {
-        const confirmedArea = external?.satisfiesCoreArea
-          ? (rules.coreAreas.find((a) => a.code === external.satisfiesCoreArea)?.name ?? external.satisfiesCoreArea)
-          : undefined;
+        const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
         const suggested = coreTitleSuggestion(c.title);
         return {
           ...extBase,
           ineligibleReason: confirmedArea
             ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS; no transfer credit (undergraduate, §5.2)`
-            : suggested
-              ? `not counted — undergraduate credits never transfer (§5.2); the title suggests the ${suggested} core area (§4.4.1), which the DGS can confirm — send the review request`
-              : 'not counted — undergraduate credits never transfer (§5.2)',
+            : ndCoreArea
+              ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules; no transfer credit (undergraduate, §5.2)`
+              : suggested
+                ? `not counted — undergraduate credits never transfer (§5.2); the title suggests the ${suggested} core area (§4.4.1), which the DGS can confirm — send the review request`
+                : 'not counted — undergraduate credits never transfer (§5.2)',
         };
       }
       // Graduate courses (2026-09-04): §5.2 transfer credit is not the only
       // thing a prior course can earn — an unreviewed course whose title
       // matches the core keywords may satisfy §4.4.1 core knowledge after the
       // DGS's review, and its line says so. (A DGS-ruled course is decided.)
-      const suggested = external === undefined ? coreTitleSuggestion(c.title) : undefined;
-      const coreNote = suggested
-        ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
-        : '';
+      const suggested = external === undefined && ndCoreArea === undefined ? coreTitleSuggestion(c.title) : undefined;
+      const coreNote = ndCoreArea
+        ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
+        : suggested
+          ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
+          : '';
       if (external?.transferable === false) {
         return {
           ...extBase,

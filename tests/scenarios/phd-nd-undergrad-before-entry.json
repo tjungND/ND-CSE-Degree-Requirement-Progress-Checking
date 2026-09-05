@@ -1,0 +1,49 @@
+{
+  "name": "phd-nd-undergrad-before-entry",
+  "description": "Combined Notre Dame transcript (bug report 2026-09-05): eight undergraduate semesters before the Ph.D. entry term (Fall 2024). The pre-entry courses are filed as prior Notre Dame coursework (origin transfer, institution University of Notre Dame, level bachelors): they earn no residence, no credits and no specialization, but a Courses-tab core course passed as an undergraduate satisfies §4.4.1 without an ExternalCourses ruling, and an unlisted undergraduate course with a core-area title is pending review. Residence counts the two program semesters only; every deadline is counted from Fall 2024.",
+  "today": "2025-09-04",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2024 },
+    "entryTermInferred": { "how": "the first graduate-level term on your transcript" },
+    "priorMs": "none",
+    "gpa": 3.8,
+    "courses": [
+      { "courseId": "CSE 10001", "title": "Principles of Computing", "credits": 3, "term": { "season": "fall", "year": 2020 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
+      { "courseId": "MATH 10550", "title": "Calculus I", "credits": 4, "term": { "season": "fall", "year": 2020 }, "grade": "A-", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
+      { "courseId": "CSE 20110", "title": "Discrete Mathematics", "credits": 3, "term": { "season": "spring", "year": 2021 }, "grade": "B+", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
+      { "courseId": "CSE 30321", "title": "Computer Architecture", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
+      { "courseId": "CSE 60641", "title": "Graduate Operating Systems", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
+      { "courseId": "CSE 40113", "title": "Design/Analysis of Algorithms", "credits": 3, "term": { "season": "spring", "year": 2024 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
+      { "courseId": "CSE 63801", "title": "Research Seminar I", "credits": 1, "term": { "season": "fall", "year": 2024 }, "grade": "S", "origin": "nd", "registeredLevel": "graduate" },
+      { "courseId": "CSE 60111", "title": "Complexity and Algorithms", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "nd", "registeredLevel": "graduate" },
+      { "courseId": "CSE 60321", "title": "Advanced Computer Architecture", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A-", "origin": "nd", "registeredLevel": "graduate" },
+      { "courseId": "CSE 98900", "title": "Research and Dissertation", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "S", "origin": "nd", "registeredLevel": "graduate" },
+      { "courseId": "CSE 63802", "title": "Research Seminar II", "credits": 1, "term": { "season": "spring", "year": 2025 }, "grade": "S", "origin": "nd", "registeredLevel": "graduate" },
+      { "courseId": "CSE 60770", "title": "Secure Software Engineering", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "nd", "registeredLevel": "graduate" },
+      { "courseId": "CSE 98900", "title": "Research and Dissertation", "credits": 6, "term": { "season": "spring", "year": 2025 }, "grade": "S", "origin": "nd", "registeredLevel": "graduate" },
+      { "courseId": "CSE 60876", "title": "Research Methods", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "IP", "origin": "nd", "registeredLevel": "graduate" }
+    ],
+    "milestones": { "advisorName": "Prof. Example", "advisorIdentified": "2024-10-01" },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.residency": { "status": "in_progress", "detailIncludes": ["2 of 4 semesters"] },
+    "phd.timeLimit": { "status": "in_progress" },
+    "phd.qualifier.research": { "status": "in_progress" },
+    "phd.candidacy": { "status": "in_progress" },
+    "phd.qualifier.core.os": { "status": "met", "detailIncludes": ["CSE 60641 (Notre Dame, before entering the program)"] },
+    "phd.qualifier.core.algorithms": { "status": "met", "detailIncludes": ["Satisfied by CSE 60111"] },
+    "phd.qualifier.core.architecture": { "status": "met", "detailIncludes": ["Satisfied by CSE 60321"] },
+    "phd.transfer": { "status": "not_applicable" },
+    "phd.credits.nd": { "status": "met", "detailIncludes": ["9 of 9"] },
+    "phd.seminar": { "status": "met" }
+  },
+  "expectCourseLines": {
+    "CSE 60641": ["satisfies the Operating Systems core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules; no transfer credit (undergraduate, §5.2)"],
+    "CSE 30321": ["not counted — undergraduate credits never transfer (§5.2); the title suggests the Computer Architecture core area"],
+    "CSE 10001": ["not counted — undergraduate credits never transfer (§5.2)"]
+  }
+}

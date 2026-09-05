@@ -52,3 +52,57 @@ describe('advisor summary highlights unmet requirements by name', () => {
     assert.deepEqual([...order].sort((a, b) => a - b), order);
   });
 });
+
+// Deadlines travel with the summary (DGS request 2026-09-05): a DEADLINES
+// block right after the standing line, and each due row says its date.
+describe('advisor summary carries the deadlines', () => {
+  const withDeadlines: AuditReport = {
+    ...report,
+    requirements: [
+      ...report.requirements,
+      {
+        ...req('phd.candidacy', 'Candidacy examination (dissertation proposal) passed', 'in_progress', ''),
+        deadline: { date: '2030-05-31', approx: true, state: 'upcoming', label: 'Due by the end of Spring 2030 — semester 8 (2030-05-31) (approximate)' },
+      },
+      {
+        ...req('phd.qualifier.research', 'Research component: a significant research contribution', 'unmet', 'Overdue — talk to your advisor and the DGS.'),
+        deadline: { date: '2028-02-15', approx: true, state: 'overdue', label: 'Overdue' },
+      },
+      {
+        ...req('phd.timeLimit', 'All requirements complete within 8 years', 'in_progress', ''),
+        deadline: { date: '2034-08-15', approx: true, state: 'upcoming', label: 'Due by 2034-08-15 (approximate)' },
+      },
+      {
+        ...req('done', 'Something already done', 'met', 'Done.'),
+        deadline: { date: '2027-01-01', approx: true, state: 'done', label: 'Complete' },
+      },
+    ],
+  };
+  const { text, html } = advisorSummary(withDeadlines, { ...opts, entryTerm: 'Fall 2026' });
+
+  it('text: a DEADLINES block in date order, counted from the entry term, skipping done rows', () => {
+    const block = /DEADLINES \(counted from Fall 2026; dates are approximate[^\n]*\)\n((?:- .*\n)+)/.exec(text);
+    assert.ok(block, 'DEADLINES block present');
+    assert.deepEqual(block![1]!.trim().split('\n'), [
+      '- Research component: a significant research contribution (§4.2): overdue — was due by 2028-02-15 (approximate)',
+      '- Candidacy examination (dissertation proposal) passed (§4.2): due by 2030-05-31 (approximate)',
+      '- All requirements complete within 8 years (§4.2): due by 2034-08-15 (approximate)',
+    ]);
+    assert.ok(text.indexOf('DEADLINES') < text.indexOf('NOT YET MET'), 'deadlines come right after the standing line');
+  });
+
+  it('text: each due row also says its date inline', () => {
+    assert.match(text, /^- Candidacy examination \(dissertation proposal\) passed \(§4\.2\) Due by 2030-05-31 \(approximate\)\.$/m);
+    assert.match(text, /^- \*\*Research component: a significant research contribution\*\* \(§4\.2\) — Overdue — talk to your advisor and the DGS\. Overdue — was due by 2028-02-15 \(approximate\)\.$/m);
+    assert.doesNotMatch(text, /Something already done.*2027-01-01/);
+  });
+
+  it('HTML: a Deadlines table plus a Deadline column on the groups that need one', () => {
+    assert.match(html, /<p><strong>Deadlines<\/strong> \(counted from Fall 2026;/);
+    assert.match(html, /<th>Requirement<\/th><th>§<\/th><th>Deadline<\/th><\/tr><tr><td><strong style="[^"]+">Research component/);
+    assert.match(html, /<td>due by 2034-08-15 \(approximate\)<\/td>/);
+    // The Met group has no due row, so no Deadline column there.
+    assert.match(html, /<p><strong>Met<\/strong><\/p><table[^>]*><tr><th>Requirement<\/th><th>§<\/th><th>Status<\/th><\/tr>/);
+    assert.match(html, /<p><strong>In progress<\/strong><\/p><table[^>]*><tr><th>Requirement<\/th><th>§<\/th><th>Status<\/th><th>Deadline<\/th><\/tr>/);
+  });
+});

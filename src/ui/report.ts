@@ -223,8 +223,25 @@ export function advisorSummary(
   // needs-review / cannot-evaluate / in-progress rows are not "not met".
   const isUnmet = (r: RequirementResult) => r.status === 'unmet';
   const UNMET_STYLE = 'color:#a81e14;font-weight:bold';
-  const line = (r: RequirementResult, detailed: boolean) =>
-    `${isUnmet(r) ? `**${r.title}**` : r.title} (${r.citation.section})${detailed && r.detail ? ` — ${r.detail}` : ''}`;
+  // Deadlines travel with the summary (DGS request 2026-09-05): every
+  // requirement that has one and is not done says when — as a date, since the
+  // on-page chip's "end of Spring 2030" wording is not enough in an email.
+  const deadlineText = (r: RequirementResult): string | undefined => {
+    const d = r.deadline;
+    if (!d || d.state === 'done' || r.status === 'met') return undefined;
+    const approx = d.approx ? ' (approximate)' : '';
+    return d.state === 'overdue' ? `overdue — was due by ${d.date}${approx}` : `due by ${d.date}${approx}`;
+  };
+  const withDeadline = report.requirements
+    .filter((r) => deadlineText(r) !== undefined)
+    .sort((a, b) => (a.deadline!.date < b.deadline!.date ? -1 : a.deadline!.date > b.deadline!.date ? 1 : 0));
+  const line = (r: RequirementResult, detailed: boolean) => {
+    const due = deadlineText(r);
+    return (
+      `${isUnmet(r) ? `**${r.title}**` : r.title} (${r.citation.section})${detailed && r.detail ? ` — ${r.detail}` : ''}` +
+      (due ? `${detailed && r.detail && !/[.!?]$/.test(r.detail) ? '.' : ''} ${due.charAt(0).toUpperCase()}${due.slice(1)}.` : '')
+    );
+  };
   // Only the courses that COUNT toward something (DGS request, 2026-09-03) —
   // same pattern the on-page table uses to strike dropped rows.
   const COUNTS_NOTHING_RE = /^(not counted|superseded|failed|credits count once)/;
@@ -235,8 +252,15 @@ export function advisorSummary(
     `Alpha version under testing. ${BETA_NOTICE} Confirm with the DGS office.`,
     `${RULES_ACCURACY_NOTICE} ${BETA_SCOPE_NOTICE}`,
   ];
+  const deadlinesText =
+    withDeadline.length > 0
+      ? `DEADLINES (counted from ${opts.entryTerm}; dates are approximate — the registrar sets the calendar)\n` +
+        withDeadline.map((r) => `- ${r.title} (${r.citation.section}): ${deadlineText(r)}`).join('\n') +
+        '\n\n'
+      : '';
   const text =
     `Subject: Degree progress summary (CSE degree self-check)\n\nDear Advisor,\n\n${intro}\n\n${standing}\n\n` +
+    deadlinesText +
     groups.map((g) => `${g.heading.toUpperCase()}\n${g.rows.map((r) => `- ${line(r, g.detailed)}`).join('\n')}`).join('\n\n') +
     (courses.length > 0 ? `\n\nCOURSES COUNTED TOWARD REQUIREMENTS\n${courses.map((c) => `- ${c}`).join('\n')}` : '') +
     `\n\n${notices.join('\n')}\n\nThank you!\n`;
@@ -254,15 +278,29 @@ export function advisorSummary(
   const html =
     `<p>Subject: Degree progress summary (CSE degree self-check)</p><p>Dear Advisor,</p>` +
     `<p>${esc(intro)}</p><p>${esc(standing)}</p>` +
+    (withDeadline.length > 0
+      ? `<p><strong>Deadlines</strong> (counted from ${esc(opts.entryTerm)}; dates are approximate — the registrar sets the calendar)</p>` +
+        table(
+          ['Requirement', '§', 'Deadline'],
+          withDeadline.map((r) => [titleCell(r), r.citation.section, deadlineText(r) ?? '']),
+        )
+      : '') +
     groups
-      .map(
-        (g) =>
+      .map((g) => {
+        const anyDue = g.rows.some((r) => deadlineText(r) !== undefined);
+        return (
           `<p><strong>${esc(g.heading)}</strong></p>` +
           table(
-            ['Requirement', '§', 'Status'],
-            g.rows.map((r) => [titleCell(r), r.citation.section, g.detailed && r.detail ? r.detail : STATUS_LABEL[r.status]]),
-          ),
-      )
+            anyDue ? ['Requirement', '§', 'Status', 'Deadline'] : ['Requirement', '§', 'Status'],
+            g.rows.map((r) => [
+              titleCell(r),
+              r.citation.section,
+              g.detailed && r.detail ? r.detail : STATUS_LABEL[r.status],
+              ...(anyDue ? [deadlineText(r) ?? ''] : []),
+            ]),
+          )
+        );
+      })
       .join('') +
     (courses.length > 0
       ? `<p><strong>Courses counted toward requirements</strong></p>` +

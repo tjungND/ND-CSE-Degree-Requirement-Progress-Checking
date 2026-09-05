@@ -21,6 +21,20 @@ export function normalizeUniversity(name: string): string {
     .trim();
 }
 
+/** The institution name given to Notre Dame coursework taken BEFORE the entry
+ * term (2026-09-05) — an earlier Notre Dame degree on a combined transcript.
+ * Such courses are prior coursework (§5.2: the transfer conditions "also apply
+ * to the transfer of credits earned in another program at Notre Dame"), so
+ * they carry origin 'transfer' with this institution, and the DGS's
+ * ExternalCourses rulings for them live under this name (in the sheet's
+ * capital-English convention: UNIVERSITY OF NOTRE DAME). */
+export const NOTRE_DAME = 'University of Notre Dame';
+
+/** True for any spelling of Notre Dame as an institution name. */
+export function isNotreDameInstitution(name: string | undefined): boolean {
+  return name !== undefined && /\bnotre\s*dame\b/i.test(name);
+}
+
 /** "cs-5321" / "CS 5321" / "cs5321" → "CS5321". */
 export function normalizeCourseId(id: string): string {
   return id.toUpperCase().replace(/[\s\-–—_./]+/g, '');

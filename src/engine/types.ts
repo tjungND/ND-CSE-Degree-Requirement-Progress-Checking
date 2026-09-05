@@ -34,8 +34,18 @@ export interface CourseEntry {
   /** transfer-only: which uploaded transcript (degree level) the course came
    * from. Bachelor's coursework can satisfy §4.4.1 core knowledge but can never
    * transfer credit — §5.2 requires graduate courses taken with graduate
-   * student status. Absent on manual transfer entries (treated as graduate). */
+   * student status. Absent on manual transfer entries (treated as graduate).
+   * Also set on Notre Dame courses taken BEFORE the entry term (2026-09-05):
+   * a Notre Dame transcript that includes an earlier degree yields prior
+   * coursework — origin 'transfer', institution "University of Notre Dame",
+   * level from the transcript's UG/GR column. */
   degreeLevel?: 'bachelors' | 'masters' | 'phd';
+  /** Notre Dame transcript rows (2026-09-05): the level the student was
+   * registered at (the transcript's UG/GR column). Kept so a course can be
+   * re-sorted between program coursework and prior coursework whenever the
+   * entry term changes — the level, not the term, decides bachelor's vs
+   * master's prior coursework. */
+  registeredLevel?: 'undergraduate' | 'graduate';
   /** transfer-only: §4.4.1 core area the student claims this course satisfies (decision Q12). */
   /** Deprecated 2026-09-03 (the claim path is retired — the DGS's
    * ExternalCourses rulings decide §4.4.1). Kept so old saved/imported
@@ -77,6 +87,15 @@ export interface Student {
   program: Program;
   msOption?: MsOption;
   entryTerm: Term;
+  /** Set while entryTerm holds a value the student has NOT chosen (2026-09-05):
+   * `how` = "assumed" for a fresh record (the fall of the current year), or
+   * the transcript reading it was set from ("the first graduate-level term on
+   * your transcript"); `alternative` names the other reading a combined
+   * transcript supports. Cleared when the student touches the dropdown. The
+   * standing card warns while it is set — the §4.3 residency count and every
+   * deadline (§4.3 eight-year limit, §4.4.3 eighteen months, §4.5 eighth
+   * semester) hang on this term. */
+  entryTermInferred?: { how: string; alternative?: { term: Term; why: string } };
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
   /** True while priorMs holds a value INFERRED from an uploaded transcript
    * (2026-09-03) rather than chosen by the student — cleared when they touch
