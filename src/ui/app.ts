@@ -12,7 +12,7 @@ import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
-import { BETA_NOTICE, BETA_SCOPE_NOTICE, COVERAGE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
+import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
@@ -55,8 +55,10 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       {},
       'This tool has not been approved by the department yet. It is for testing and informational purposes only.',
     ),
-    // Coverage caveat + open invitation for feedback (DGS wording, 2026-09-05).
-    el('p', {}, COVERAGE_NOTICE),
+    // Open invitation for feedback (DGS wording, 2026-09-05). The coverage
+    // caveat (COVERAGE_NOTICE) was shown here from 2026-09-05 until the DGS had
+    // it removed from this notice later the same day; it still ends the alpha
+    // banner, the footer and the copied summary via BETA_SCOPE_NOTICE.
     el(
       'p',
       {},

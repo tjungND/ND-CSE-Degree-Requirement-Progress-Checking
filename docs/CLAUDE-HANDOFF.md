@@ -337,8 +337,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   highly inaccurate" caveat, and since 2026-09-05 ends with `COVERAGE_NOTICE` ("Not all cases are
   covered yet — for example, …"; the examples were the 5+1 / same-institution cases until those
   were handled later that day — now unseen layouts and combined records that do not tell the
-  levels apart), which the consent overlay shows as its own paragraph; the feedback line on the
-  self-check page says error reports, suggestions and feedback are all welcome. tests/contacts.test.ts locks the key names.
+  levels apart). The consent overlay showed COVERAGE_NOTICE as its own paragraph for part of
+  2026-09-05; the DGS then had it removed from the overlay (it stays in the banner, footer and
+  copied summary through BETA_SCOPE_NOTICE). The feedback line on the self-check page says
+  error reports, suggestions and feedback are all welcome. tests/contacts.test.ts locks the key names.
 - **Alpha label, undergrad relevance filter, ndResearch gate, bulleted details** (2026-09-04, DGS):
   the banner and import buttons say ALPHA again. `CORE_TITLE_RE` moved to
   `src/engine/core-title.ts` (plus `coreTitleSuggestion` naming the suggested area); the classifier's

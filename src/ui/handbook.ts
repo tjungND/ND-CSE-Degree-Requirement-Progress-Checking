@@ -30,8 +30,9 @@ export const RULES_ACCURACY_NOTICE =
   'Program Administrator use to determine requirement satisfaction.';
 
 /** Which student situations the tool does not model yet (DGS wording,
- * 2026-09-05). Shown in the opening notice, the alpha banner, the footer and
- * the copied summary — keep the examples in step with the engine. */
+ * 2026-09-05). Shown in the alpha banner, the footer and the copied summary
+ * (via BETA_SCOPE_NOTICE) — no longer in the opening notice, at the DGS's
+ * request later on 2026-09-05. Keep the examples in step with the engine. */
 /** 2026-09-05: the examples changed when combined transcripts (4+1 / 5+1
  * BS-MS, a BS and an MS at one institution, an earlier Notre Dame degree on
  * the Notre Dame transcript) gained a per-row level and an entry-term reading
