@@ -115,8 +115,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     return parts.join(' ');
   };
 
+  // Spacing-insensitive search (usability review 2026-09-05, item 26):
+  // "CSE20110", "cse 20110" and "20110" all find CSE 20110.
+  const squash = (text: string): string => text.toLowerCase().replace(/\s+/g, '');
+
   function visibleRows(): RuleCourse[] {
     const q = filters.query.trim().toLowerCase();
+    const qs = squash(q);
     let list = rows.filter((r) => {
       if (!filters.includeRetired && !r.active) return false;
       if (filters.confirmedOnly && !r.dgsReviewed) return false;
@@ -128,7 +133,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         } else if (r.categoryGroup !== filters.category && r.categoryGroup !== 'any') return false;
       }
       if (filters.type && r.courseType !== filters.type) return false;
-      if (q && !r.courseId.toLowerCase().includes(q) && !r.title.toLowerCase().includes(q)) return false;
+      if (q && !squash(r.courseId).includes(qs) && !r.title.toLowerCase().includes(q)) return false;
       return true;
     });
     const key = (r: RuleCourse): string => {
@@ -168,7 +173,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         'div',
         { class: 'masthead-main' },
         el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
-        el('h1', {}, 'Graduate Course Rules'),
+        el('h1', { tabindex: '-1' }, 'Graduate Course Rules'),
         el(
           'p',
           { class: 'sub' },
@@ -271,11 +276,24 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     );
   }
 
+  /** Visible labels above every filter (usability review 2026-09-05, item 26)
+   * — an aria-label alone told sighted users nothing once a value was chosen. */
+  const labelled = (label: string, control: HTMLElement, id: string): HTMLElement => {
+    control.id = id;
+    return el('div', { class: 'filter' }, el('label', { class: 'label', for: id }, label), control);
+  };
+  const defaultFilters = (): Filters => ({ query: '', program: 'all', core: '', category: '', type: '', includeRetired: false, confirmedOnly: false, sort: 'course', desc: false });
+  const filtersActive = (): boolean => {
+    const d = defaultFilters();
+    return (['query', 'program', 'core', 'category', 'type', 'includeRetired', 'confirmedOnly'] as const).some((k) => filters[k] !== d[k]);
+  };
+  const filterHost = el('div', { class: 'filter-host' });
+  let clearButton: HTMLElement | undefined;
+
   function filterBar(): HTMLElement {
     const search = el('input', {
       type: 'search',
-      placeholder: 'Search by course number or title',
-      'aria-label': 'Search courses',
+      'data-key': 'filter.search',
       value: filters.query,
       oninput: (e) => {
         filters.query = (e.target as HTMLInputElement).value;
@@ -283,7 +301,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       },
     });
     const program = el('select', {
-      'aria-label': 'Program',
+      'data-key': 'filter.program',
       onchange: (e) => {
         filters.program = (e.target as HTMLSelectElement).value as Filters['program'];
         refreshTable();
@@ -295,7 +313,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       option('phd', 'Counts toward Ph.D.', filters.program === 'phd'),
     );
     const core = el('select', {
-      'aria-label': 'Core knowledge area',
+      'data-key': 'filter.core',
       onchange: (e) => {
         filters.core = (e.target as HTMLSelectElement).value;
         refreshTable();
@@ -304,7 +322,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     core.append(option('', 'Any core area', filters.core === ''));
     for (const c of rules.coreAreas) core.append(option(c.code, `Core: ${c.name}`, filters.core === c.code));
     const category = el('select', {
-      'aria-label': 'Specialization category',
+      'data-key': 'filter.category',
       onchange: (e) => {
         filters.category = (e.target as HTMLSelectElement).value;
         refreshTable();
@@ -314,7 +332,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     for (const g of rules.categoryGroups) category.append(option(g.code, `Specialization: ${g.name}`, filters.category === g.code));
     category.append(option('any-listed', 'Listed under every category', filters.category === 'any-listed'));
     const type = el('select', {
-      'aria-label': 'Course type',
+      'data-key': 'filter.type',
       onchange: (e) => {
         filters.type = (e.target as HTMLSelectElement).value;
         refreshTable();
@@ -324,6 +342,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     for (const [code, label] of Object.entries(TYPE_LABEL)) type.append(option(code, label, filters.type === code));
     const retired = el('input', {
       type: 'checkbox',
+      'data-key': 'filter.retired',
       onchange: (e) => {
         filters.includeRetired = (e.target as HTMLInputElement).checked;
         refreshTable();
@@ -332,43 +351,74 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     (retired as HTMLInputElement).checked = filters.includeRetired;
     const confirmed = el('input', {
       type: 'checkbox',
+      'data-key': 'filter.confirmed',
       onchange: (e) => {
         filters.confirmedOnly = (e.target as HTMLInputElement).checked;
         refreshTable();
       },
     });
     (confirmed as HTMLInputElement).checked = filters.confirmedOnly;
+    clearButton = el(
+      'button',
+      {
+        class: 'btn tiny clear-filters',
+        'data-key': 'filter.clear',
+        onclick: () => {
+          Object.assign(filters, defaultFilters());
+          clear(filterHost);
+          filterHost.append(filterBar());
+          refreshTable();
+          filterHost.querySelector<HTMLElement>('[data-key="filter.search"]')?.focus();
+        },
+      },
+      'Clear filters',
+    );
+    clearButton.classList.toggle('hidden', !filtersActive());
     return el(
       'div',
-      { class: 'filters' },
-      search,
-      program,
-      core,
-      category,
-      type,
+      { class: 'filters', role: 'search', 'aria-label': 'Filter the course list' },
+      labelled('Search by course number or title', search, 'filter-search'),
+      labelled('Program', program, 'filter-program'),
+      labelled('Core knowledge area', core, 'filter-core'),
+      labelled('Specialization category', category, 'filter-category'),
+      labelled('Course type', type, 'filter-type'),
       el('label', { class: 'check' }, retired, ' Include retired courses'),
       el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows'),
+      clearButton,
     );
   }
 
   const tableHost = el('div', { class: 'table-host' });
+  /** The result count is a live region created ONCE (a re-created region is
+   * not announced): screen-reader users hear "18 of 176 courses shown" after
+   * each filter change (WCAG 4.1.3; usability review 2026-09-05, item 26). */
+  const countLine = el('p', { class: 'muted small count', role: 'status', 'aria-live': 'polite' });
 
   function refreshTable(): void {
+    // Keep keyboard focus on the sort button that was pressed (the table is
+    // rebuilt on every sort and filter change).
+    const focused = (document.activeElement as HTMLElement | null)?.dataset['key'];
     clear(tableHost);
     tableHost.append(table());
+    if (focused?.startsWith('sort.')) tableHost.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
+    clearButton?.classList.toggle('hidden', !filtersActive());
   }
 
   function table(): HTMLElement {
     const list = visibleRows();
+    // Sortable headers expose their state (aria-sort) and say what pressing
+    // them does (usability review 2026-09-05, item 26).
     const th = (key: SortKey, label: string, sub = ''): HTMLElement => {
       const active = filters.sort === key;
+      const direction = filters.desc ? 'descending' : 'ascending';
       return el(
         'th',
-        { scope: 'col' },
+        { scope: 'col', 'aria-sort': active ? direction : 'none' },
         el(
           'button',
           {
             class: `sort${active ? ' active' : ''}`,
+            'data-key': `sort.${key}`,
             onclick: () => {
               if (filters.sort === key) filters.desc = !filters.desc;
               else {
@@ -377,7 +427,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
               }
               refreshTable();
             },
-            'aria-label': `Sort by ${label}`,
+            'aria-label': active ? `${label} — sorted ${direction}; press to reverse` : `${label} — press to sort by it`,
           },
           label,
           active ? (filters.desc ? ' ▼' : ' ▲') : '',
@@ -397,16 +447,40 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       th('category', 'Specialization', 'Ph.D. qualifying exam §4.4.2'),
       th('offered', 'Typically offered'),
       th('reviewed', 'DGS reviewed'),
+      el('th', { scope: 'col' }, 'Notes'),
     );
     const body = el('tbody', {});
     for (const r of list) {
       const pillCounts = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
       const catClass = !r.categoryGroup ? 'muted' : r.categoryGroup === 'ineligible' ? 'muted' : '';
+      // The DGS's notes were hover-only (a title tooltip — unreachable by
+      // keyboard and touch; usability review 2026-09-05, item 24): now a
+      // disclosure button opens a note row under the course.
+      const note = hoverText(r);
+      const rowId = r.courseId.replace(' ', '-');
+      const noteRow = note ? el('tr', { class: 'note-row hidden', id: `${rowId}-notes` }, el('td', { colspan: '10' }, el('strong', {}, 'DGS notes: '), note)) : null;
+      const notesButton = note
+        ? el(
+            'button',
+            {
+              class: 'btn tiny notes',
+              'aria-label': `Notes for ${r.courseId}`,
+              'aria-expanded': 'false',
+              'aria-controls': `${rowId}-notes`,
+              'data-key': `notes.${rowId}`,
+              onclick: () => {
+                const open = noteRow!.classList.toggle('hidden') === false;
+                notesButton!.setAttribute('aria-expanded', open ? 'true' : 'false');
+              },
+            },
+            'Notes',
+          )
+        : null;
       body.append(
         el(
           'tr',
-          { id: r.courseId.replace(' ', '-'), class: r.active ? '' : 'retired', title: hoverText(r) },
-          el('td', { class: 'course-id' }, r.courseId, r.active ? '' : el('span', { class: 'pill retired' }, 'Retired')),
+          { id: rowId, class: r.active ? '' : 'retired' },
+          el('th', { scope: 'row', class: 'course-id' }, r.courseId, r.active ? '' : el('span', { class: 'pill retired' }, 'Retired')),
           el('td', {}, r.title),
           el('td', {}, TYPE_LABEL[r.courseType]),
           el('td', {}, pillCounts(r.countsTowardMscse)),
@@ -419,28 +493,56 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
             {},
             r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending'),
           ),
+          el('td', { class: 'notes-cell' }, notesButton ?? el('span', { class: 'muted' }, '—')),
         ),
       );
+      if (noteRow) body.append(noteRow);
     }
-    const caption = el(
-      'p',
-      { class: 'muted small count' },
-      `${list.length} of ${rows.filter((r) => filters.includeRetired || r.active).length} courses shown. Hover a row for the DGS’s notes.`,
-    );
+    const shown = rows.filter((r) => filters.includeRetired || r.active).length;
+    countLine.textContent = `${list.length} of ${shown} courses shown.${filtersActive() ? ' Filters are active.' : ''}`;
     return el(
       'div',
       {},
-      caption,
-      el('div', { class: 'table-scroll' }, el('table', { class: 'course-rules' }, el('thead', {}, head), body)),
+      countLine,
+      // The scroll wrapper is keyboard-focusable and named, so a keyboard
+      // user can scroll a wide table (WCAG 2.1.1; item 26).
+      el(
+        'div',
+        { class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': 'Course rules table (scrolls sideways on narrow screens)' },
+        el(
+          'table',
+          { class: 'course-rules' },
+          el('caption', { class: 'visually-hidden' }, 'Courses and how they count toward the CSE graduate requirements'),
+          el('thead', {}, head),
+          body,
+        ),
+      ),
     );
   }
 
+  /** The legend now precedes the table (usability review 2026-09-05, item
+   * 26 — users met "Pending" before its definition): a one-line key that is
+   * always visible, and the full column guide in a disclosure. */
   function legend(): HTMLElement {
     const li = (term: string | Node, text: string) => el('li', {}, term, ' — ', text);
-    return el(
-      'section',
-      { class: 'legend' },
-      el('h2', {}, 'How to read the columns'),
+    const key = el(
+      'p',
+      { class: 'legend-key muted small' },
+      'Key: ',
+      el('span', { class: 'pill yes' }, 'Yes'),
+      ' counts · ',
+      el('span', { class: 'pill approval' }, 'With DGS approval'),
+      ' counts only with approval · ',
+      el('span', { class: 'pill no' }, 'No'),
+      ' does not count · ',
+      el('span', { class: 'pill undecided' }, 'Not yet decided'),
+      ' ask first · ',
+      el('span', { class: 'pill pending' }, 'Pending'),
+      ' row not yet confirmed by the DGS.',
+    );
+    const details = el('details', { class: 'legend' });
+    details.append(
+      el('summary', {}, 'How to read the columns'),
       el(
         'ul',
         {},
@@ -453,8 +555,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         li(el('strong', {}, 'Specialization'), 'the other course-based Qualifying Examination requirement (§4.4.2): Ph.D. students need three courses from three distinct specialization categories with a B or higher. "Not eligible" marks courses (all 40000-level) that can never satisfy it. Ph.D. students only — not part of any MSCSE requirement.'),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
         li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.'),
+        li(el('strong', {}, 'Notes'), 'the DGS’s notes on a course, and older rule versions — open with the Notes button on its row.'),
       ),
     );
+    return el('div', { class: 'legend-block' }, key, details);
   }
 
   function footer(): HTMLElement {
@@ -491,13 +595,18 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
 
   clear(root);
   root.classList.add('courses-page');
+  filterHost.append(filterBar());
   refreshTable();
   root.append(
+    el('a', { class: 'skip-link', href: '#all-courses' }, 'Skip to the course list'),
     masthead(),
-    ...notices(),
-    overview(),
-    el('section', { class: 'all-courses' }, el('h2', {}, 'All courses'), filterBar(), tableHost),
-    legend(),
+    el(
+      'main',
+      { id: 'main' },
+      ...notices(),
+      overview(),
+      el('section', { class: 'all-courses', id: 'all-courses', tabindex: '-1' }, el('h2', {}, 'All courses'), filterHost, legend(), tableHost),
+    ),
     footer(),
   );
 }

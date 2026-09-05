@@ -365,3 +365,87 @@ describe('Notre Dame layouts seen in real samples (2026-09-05)', () => {
     assert.equal(p.cumulativeGpa, 3.833);
   });
 });
+
+describe('cumulative GPA per level (combined-transcript bug report 2026-09-05)', () => {
+  // Banner 9 "All Levels" web transcript: the Transcript Totals section lists
+  // the levels alphabetically — Graduate BEFORE Undergraduate — so "the last
+  // Overall row" was the undergraduate GPA (3.68 in the report).
+  const ALL_LEVELS = [
+    'Academic Transcript',
+    'Transcript Level   Transcript Type',
+    'All Levels   Web Transcript',
+    'Institution Credit',
+    'Term : Fall Semester 2019',
+    'Subject Course Campus Level Title   Grade Credit Hours Quality Points R',
+    'CSE   10001   Main   UG   Principles of Computing   A   3.000   12.000',
+    'Term Totals (Undergraduate)   Attempt Hours Passed Hours Earned Hours GPA Hours Quality Points GPA',
+    'Current Term   3.000   3.000   3.000   3.000   12.000   4.000',
+    'Cumulative   3.000   3.000   3.000   3.000   12.000   4.000',
+    'Term : Spring Semester 2020',
+    'CSE   20110   Main   UG   Discrete Mathematics   B   3.000   9.000',
+    'Term Totals (Undergraduate)   Attempt Hours Passed Hours Earned Hours GPA Hours Quality Points GPA',
+    'Current Term   3.000   3.000   3.000   3.000   9.000   3.000',
+    'Cumulative   6.000   6.000   6.000   6.000   21.000   3.500',
+    'Term : Fall Semester 2024',
+    'CSE   60641   Main   GR   Graduate Operating Systems   A   3.000   12.000',
+    'CSE   60111   Main   GR   Complexity and Algorithms   B+   3.000   9.999',
+    'Term Totals (Graduate)   Attempt Hours Passed Hours Earned Hours GPA Hours Quality Points GPA',
+    'Current Term   6.000   6.000   6.000   6.000   21.999   3.667',
+    'Cumulative   6.000   6.000   6.000   6.000   21.999   3.667',
+    'Transcript Totals',
+    'Transcript Totals - (Graduate)   Attempt Hours Passed Hours Earned Hours GPA Hours Quality Points GPA',
+    'Total Institution   6.000   6.000   6.000   6.000   21.999   3.667',
+    'Total Transfer   0.000   0.000   0.000   0.000   0.000   0.000',
+    'Overall   6.000   6.000   6.000   6.000   21.999   3.667',
+    'Transcript Totals - (Undergraduate)   Attempt Hours Passed Hours Earned Hours GPA Hours Quality Points GPA',
+    'Total Institution   6.000   6.000   6.000   6.000   21.000   3.500',
+    'Total Transfer   0.000   0.000   0.000   0.000   0.000   0.000',
+    'Overall   6.000   6.000   6.000   6.000   21.000   3.500',
+    'https://bxestuprod.oit.nd.edu/StudentSelfService/ssb/academicTranscript',
+  ];
+
+  it('takes the GRADUATE level’s cumulative GPA, whatever order the levels are printed in', () => {
+    const p = parseTranscript(ALL_LEVELS);
+    assert.equal(p.cumulativeGpa, 3.667, 'the graduate figure, not the undergraduate 3.500 printed last');
+    assert.deepEqual(p.cumulativeGpaByLevel, { undergraduate: 3.5, graduate: 3.667 });
+  });
+
+  it('files a term’s Cumulative row under its Term Totals level even without a Transcript Totals section', () => {
+    const p = parseTranscript([...ALL_LEVELS.slice(0, 22), ALL_LEVELS[ALL_LEVELS.length - 1]!]); // cut before "Transcript Totals", keep the nd.edu marker line
+    assert.equal(p.cumulativeGpa, 3.667);
+    assert.deepEqual(p.cumulativeGpaByLevel, { undergraduate: 3.5, graduate: 3.667 });
+  });
+
+  it('never offers an undergraduate figure as the §2.2 GPA', () => {
+    const p = parseTranscript(ALL_LEVELS.filter((l) => !/GR|Graduate/.test(l)));
+    assert.equal(p.cumulativeGpa, undefined);
+    assert.deepEqual(p.cumulativeGpaByLevel, { undergraduate: 3.5 });
+  });
+
+  it('keeps the last figure read when a transcript labels no level', () => {
+    const p = parseTranscript(['University of Notre Dame Academic Transcript', 'Term: Fall Semester 2026', 'CSE 60641 Graduate Operating Systems A 3.000 12.000', 'TRANSCRIPT TOTALS', 'Overall: 3.000 3.000 3.000 3.000 12.000 4.000']);
+    assert.equal(p.cumulativeGpa, 4);
+    assert.equal(p.cumulativeGpaByLevel, undefined);
+  });
+
+  it('official PDF: each record’s TRANSCRIPT TOTALS block belongs to its Course Level', () => {
+    const p = parseTranscript([
+      'Course Level: Undergraduate',
+      'UNIVERSITY OF NOTRE DAME CREDIT:',
+      'Fall Semester 2020',
+      'CSE 10001   Principles of Computing   3.000 A   12.000',
+      '********* TRANSCRIPT TOTALS *********',
+      'OVERALL   Ehrs:   3.000 QPts:   12.000',
+      'GPA-Hrs:   3.000   GPA:   4.000',
+      'Course Level: Graduate',
+      'UNIVERSITY OF NOTRE DAME CREDIT:',
+      'Fall Semester 2024',
+      'CSE 60111   Complexity and Algorithms   3.000 B+   9.999',
+      '********* TRANSCRIPT TOTALS *********',
+      'OVERALL   Ehrs:   3.000 QPts:   9.999',
+      'GPA-Hrs:   3.000   GPA:   3.333',
+    ]);
+    assert.equal(p.cumulativeGpa, 3.333);
+    assert.deepEqual(p.cumulativeGpaByLevel, { undergraduate: 4, graduate: 3.333 });
+  });
+});

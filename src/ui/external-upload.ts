@@ -105,6 +105,12 @@ function degreeLevelFor(slot: DegreeLevel, level: PreviewRow['level']): DegreeLe
 }
 
 let preview: ExternalPreview | undefined;
+/** An import that failed, or a preview-level problem (usability review
+ * 2026-09-05, item 6): a persistent message under the slot row / inside the
+ * preview instead of a 4-second toast. Cleared by the next import, Dismiss,
+ * or (preview errors) the next attempt to add. */
+let importError: { slot: DegreeLevel; message: string } | undefined;
+let previewError: string | undefined;
 /** A scan was uploaded and awaits the student's explicit OCR opt-in
  * (DGS decision 2026-09-02: never OCR without asking; English only). */
 let pendingScan: { slot: DegreeLevel; buffer: ArrayBuffer; filename: string } | undefined;
@@ -116,6 +122,8 @@ export interface ExternalCardArgs {
   rules: Rules;
   update: (fn: (s: Student) => void) => void;
   toast: (msg: string) => void;
+  /** A toast with one action button (Undo) — app.ts supplies it. */
+  toastWithAction?: (msg: string, actionLabel: string, action: () => void) => void;
   render: () => void;
   /** One transcript at a time (2026-09-03): true while ANY preview is open,
    * disabling every import button until it is confirmed or cancelled. */
@@ -195,10 +203,16 @@ function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
 function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCardArgs): HTMLElement {
   const { student, rules, update, toast, render } = args;
   const have = coursesInSlot(student, slot.level);
-  const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: `hidden external-file-${slot.level}` });
+  const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: `hidden external-file-${slot.level}`, 'aria-label': `${slot.label} PDF` });
+  const fail = (message: string): void => {
+    importError = { slot: slot.level, message };
+    render();
+    document.querySelector<HTMLElement>(`[data-key="ext.error.${slot.level}"]`)?.focus();
+  };
   fileInput.addEventListener('change', async () => {
     const file = (fileInput as HTMLInputElement).files?.[0];
     if (!file) return;
+    importError = undefined;
     toast('Reading the transcript… (it never leaves this browser)');
     try {
       const { pdfToLines } = await import('../transcript/pdf.ts'); // pdfjs loads lazily
@@ -240,7 +254,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
           mixedLevels: levels.size > 1,
           notreDame: true,
         };
-        if (ndRows.length === 0) toast('This looks like a Notre Dame transcript, but no course lines could be read from it. Add the courses by hand in the preview, and tell the DGS.');
+        if (ndRows.length === 0) previewError = 'This looks like a Notre Dame transcript, but no course lines could be read from it. Add the courses by hand below, and tell the DGS.';
         render();
         return;
       }
@@ -273,13 +287,13 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         mixedLevels: parsed.mixedLevels,
       };
       if (mapped.length === 0) {
-        toast('No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand in the preview (and please tell the DGS which university, so parsing can be improved).');
+        previewError = 'No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand below (and please tell the DGS which university, so parsing can be improved).';
       } else if (kept.rows.length === 0) {
-        toast(`All ${mapped.length} courses read from this transcript were left out — none matched the Algorithms / Operating Systems / Architecture core keywords, and none are in the DGS’s external-course rules. Undergraduate credits do not transfer (§5.2); if a course belongs to a core area under a different title, add it by hand in the preview.`);
+        previewError = `All ${mapped.length} courses read from this transcript were left out — none matched the Algorithms / Operating Systems / Architecture core keywords, and none are in the DGS’s external-course rules. Undergraduate credits do not transfer (§5.2); if a course belongs to a core area under a different title, add it by hand below.`;
       }
       render();
     } catch {
-      toast('That PDF could not be read (is it a PDF?). Only system-generated PDFs are accepted.');
+      fail('That PDF could not be read (is it a PDF?). Only system-generated PDFs are accepted.');
     } finally {
       (fileInput as HTMLInputElement).value = '';
     }
@@ -294,7 +308,13 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         'button',
         {
           class: 'btn tiny',
-          onclick: () =>
+          'aria-label': `Remove the ${have.length} ${slot.label} course${have.length === 1 ? '' : 's'} from ${uni}`,
+          'data-key': `ext.remove.${slot.level}`,
+          onclick: () => {
+            // Undo instead of a confirm dialog (usability review 2026-09-05,
+            // item 25): everything removed can be put back with one click.
+            const removed = student.courses.filter((c) => c.origin === 'transfer' && c.degreeLevel === slot.level);
+            const priorBefore = { priorMs: student.priorMs, inferred: student.priorMsInferred };
             update((s) => {
               s.courses = s.courses.filter((c) => !(c.origin === 'transfer' && c.degreeLevel === slot.level));
               // If "Prior graduate study" was auto-set from a transcript and no
@@ -306,7 +326,15 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
                 s.priorMs = 'none';
                 s.priorMsInferred = undefined;
               }
-            }),
+            });
+            args.toastWithAction?.(`${removed.length} ${slot.label} course${removed.length === 1 ? '' : 's'} removed.`, 'Undo', () =>
+              update((s) => {
+                s.courses.push(...removed);
+                s.priorMs = priorBefore.priorMs;
+                s.priorMsInferred = priorBefore.inferred;
+              }),
+            );
+          },
         },
         'Remove',
       ),
@@ -314,8 +342,31 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       ' — ',
-      el('button', { class: 'btn tiny', disabled: args.blocked, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
+      el('button', { class: 'btn tiny', disabled: args.blocked, 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
       fileInput,
+    );
+  }
+  if (importError?.slot === slot.level) {
+    parts.push(
+      el(
+        'div',
+        { class: 'import-error', role: 'alert', tabindex: '-1', 'data-key': `ext.error.${slot.level}` },
+        el('span', {}, importError.message),
+        ' ',
+        el(
+          'button',
+          {
+            class: 'btn tiny',
+            'aria-label': 'Dismiss this message',
+            onclick: () => {
+              importError = undefined;
+              render();
+              document.querySelector<HTMLElement>(`[data-key="ext.import.${slot.level}"]`)?.focus();
+            },
+          },
+          'Dismiss',
+        ),
+      ),
     );
   }
   return el('div', { class: 'external-slot' }, ...parts);
@@ -325,7 +376,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
  * system-generated PDFs stay the encouraged path; OCR is approximate,
  * ENGLISH-ONLY, and never runs without the student choosing it. */
 function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
-  const { toast, render } = args;
+  const { render } = args;
   const scan = pendingScan!;
   return el(
     'div',
@@ -345,6 +396,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
         'button',
         {
           class: 'btn primary',
+          'data-key': 'ext.scan.ocr',
           onclick: () => {
             const { slot, buffer } = scan;
             pendingScan = undefined;
@@ -361,8 +413,9 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const parsed = parseExternalTranscript(lines.map((l) => l.text), lines.map((l) => l.confidence));
                 ocrBusy = undefined;
                 if (parsed.looksLikeNotreDame) {
+                  importError = { slot, message: 'This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above, with the digital PDF from insideND (not a scan).' };
                   render();
-                  toast('This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above, with the digital PDF from insideND (not a scan).');
+                  document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
                   return;
                 }
                 const mapped = parsed.courses.map((c) => ({
@@ -388,25 +441,26 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   transferSkipped: parsed.transferRowsSkipped,
                   mixedLevels: parsed.mixedLevels,
                 };
-                render();
                 if (parsed.courses.length === 0) {
-                  toast(`OCR finished but found no course-like lines (${pagesRead} of ${pagesTotal} pages read). You can add the courses by hand in the preview.`);
+                  previewError = `OCR finished but found no course-like lines (${pagesRead} of ${pagesTotal} pages read). You can add the courses by hand below.`;
                 } else if (pagesTotal > pagesRead) {
-                  toast(`Read the first ${pagesRead} of ${pagesTotal} pages (the reader stops at ${pagesRead}).`);
+                  previewError = `Read the first ${pagesRead} of ${pagesTotal} pages (the reader stops at ${pagesRead}) — later pages must be added by hand.`;
                 }
+                render();
               } catch (e) {
                 // Leave a breadcrumb for debugging without surfacing internals.
                 console.error('OCR failed:', e);
                 ocrBusy = undefined;
+                importError = { slot, message: 'The text reader could not run in this browser — please use a system-generated PDF instead.' };
                 render();
-                toast('The text reader could not run in this browser — please use a system-generated PDF instead.');
+                document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
               }
             })();
           },
         },
         'Try OCR (English only)',
       ),
-      el('button', { class: 'btn', onclick: () => { pendingScan = undefined; render(); } }, 'Cancel'),
+      el('button', { class: 'btn', 'data-key': 'ext.scan.cancel', onclick: () => { pendingScan = undefined; render(); } }, 'Cancel'),
     ),
   );
 }
@@ -427,10 +481,17 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   const p = preview!;
   const slotLabel = DEGREE_SLOTS.find((s) => s.level === p.slot)!.label;
   const box = el('div', { class: 'transcript-preview' });
-  const uniInput = el('input', { value: p.university, placeholder: 'University name as printed on the transcript' });
+  const uniInput = el('input', { value: p.university, 'data-key': 'ext.preview.university', 'aria-describedby': 'ext-university-hint' });
   uniInput.addEventListener('change', () => (p.university = (uniInput as HTMLInputElement).value));
+  uniInput.addEventListener('input', () => {
+    if (previewError) {
+      previewError = undefined;
+      box.querySelector('.import-error')?.remove();
+    }
+  });
   box.append(
     el('h3', {}, `${slotLabel} — check every line, fix what the parser got wrong, then add`),
+    ...(previewError ? [el('div', { class: 'import-error', role: 'alert', tabindex: '-1', 'data-key': 'ext.preview.error' }, previewError)] : []),
     ...(p.fromOcr
       ? [
           el(
@@ -476,7 +537,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           ),
         ]
       : []),
-    el('p', { class: 'hint' }, 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it. Grades the parser could not read must be chosen by hand (rows without a grade are not added).'),
+    el('p', { class: 'hint', id: 'ext-university-hint' }, 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it. Grades the parser could not read must be chosen by hand (rows without a grade are not added).'),
     el('label', { class: 'field' }, el('span', { class: 'label' }, 'University'), uniInput),
   );
   const table = el('table', { class: 'courses' });
@@ -484,42 +545,45 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     el(
       'tr',
       {},
-      el('th', {}, ''),
-      el('th', {}, 'Course id'),
-      el('th', {}, 'Title'),
-      el('th', {}, 'Cr'),
-      el('th', {}, 'Grade'),
-      el('th', {}, 'Term'),
-      el('th', {}, 'Year'),
-      el('th', { title: 'The level you were registered at when you took it — undergraduate rows can only satisfy §4.4.1 core knowledge; graduate rows may transfer (§5.2)' }, 'Taken as'),
+      el('th', { scope: 'col' }, el('span', { class: 'visually-hidden' }, 'Add')),
+      el('th', { scope: 'col' }, 'Course id'),
+      el('th', { scope: 'col' }, 'Title'),
+      el('th', { scope: 'col', abbr: 'Credits' }, 'Cr'),
+      el('th', { scope: 'col' }, 'Grade'),
+      el('th', { scope: 'col' }, 'Term'),
+      el('th', { scope: 'col' }, 'Year'),
+      el('th', { scope: 'col', title: 'The level you were registered at when you took it — undergraduate rows can only satisfy §4.4.1 core knowledge; graduate rows may transfer (§5.2)' }, 'Taken as'),
     ),
   );
-  const rowEls = p.rows.map((r) => {
-    const cb = el('input', { type: 'checkbox', onchange: (e) => (r.include = (e.target as HTMLInputElement).checked) });
+  // Every control in a row names its row (usability review 2026-09-05, item
+  // 5): a screen reader says "Credits for CS 25100", not just "spin button".
+  const rowEls = p.rows.map((r, i) => {
+    const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
+    const cb = el('input', { type: 'checkbox', 'aria-label': `Add ${who()}`, 'data-key': `ext.row.${i}.include`, onchange: (e) => (r.include = (e.target as HTMLInputElement).checked) });
     cb.checked = r.include;
-    const idIn = el('input', { value: r.courseId, class: 'course-id' });
+    const idIn = el('input', { value: r.courseId, class: 'course-id', 'aria-label': `Course id, ${who()}`, 'data-key': `ext.row.${i}.id` });
     idIn.addEventListener('change', () => (r.courseId = (idIn as HTMLInputElement).value));
-    const titleIn = el('input', { value: r.title, class: 'course-title' });
+    const titleIn = el('input', { value: r.title, class: 'course-title', 'aria-label': `Title for ${who()}`, 'data-key': `ext.row.${i}.title` });
     titleIn.addEventListener('change', () => (r.title = (titleIn as HTMLInputElement).value));
-    const crIn = el('input', { type: 'number', min: '0', max: '30', step: '0.5', value: r.credits !== undefined ? String(r.credits) : '' });
+    const crIn = el('input', { type: 'number', min: '0', max: '30', step: '0.5', 'aria-label': `Credits for ${who()}`, 'data-key': `ext.row.${i}.credits`, value: r.credits !== undefined ? String(r.credits) : '' });
     crIn.addEventListener('change', () => {
       const v = Number((crIn as HTMLInputElement).value);
       r.credits = Number.isFinite(v) && v > 0 ? v : undefined;
     });
-    const gradeSel = el('select', {});
+    const gradeSel = el('select', { 'aria-label': `Grade for ${who()}`, 'data-key': `ext.row.${i}.grade` });
     gradeSel.append(option('', r.rawGrade ? `choose… (transcript says “${r.rawGrade}”)` : 'choose…', r.grade === ''));
     for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, r.grade === g));
     gradeSel.addEventListener('change', () => (r.grade = (gradeSel as HTMLSelectElement).value as Grade | ''));
-    const seasonSel = el('select', {});
+    const seasonSel = el('select', { 'aria-label': `Semester for ${who()}`, 'data-key': `ext.row.${i}.season` });
     for (const se of ['fall', 'spring', 'summer'] as Season[]) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), r.season === se));
     seasonSel.addEventListener('change', () => (r.season = (seasonSel as HTMLSelectElement).value as Season));
-    const yearIn = el('input', { type: 'number', min: '1970', max: '2040', value: r.year !== undefined ? String(r.year) : '' });
+    const yearIn = el('input', { type: 'number', min: '1970', max: '2040', 'aria-label': `Year for ${who()}`, 'data-key': `ext.row.${i}.year`, value: r.year !== undefined ? String(r.year) : '' });
     yearIn.addEventListener('change', () => {
       const v = Number((yearIn as HTMLInputElement).value);
       r.year = Number.isFinite(v) && v > 1900 ? v : undefined;
     });
     // Taken as (2026-09-05): the level decides Bachelor's vs graduate coursework on add.
-    const levelSel = el('select', { class: 'row-level' });
+    const levelSel = el('select', { class: 'row-level', 'aria-label': `Taken as (level) for ${who()}`, 'data-key': `ext.row.${i}.level` });
     levelSel.append(option('undergraduate', 'Undergraduate', r.level === 'undergraduate'), option('graduate', 'Graduate', r.level === 'graduate'));
     levelSel.addEventListener('change', () => (r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level']));
     const tr = el(
@@ -541,9 +605,11 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   box.append(
     el('button', {
       class: 'btn tiny',
+      'data-key': 'ext.preview.addRow',
       onclick: () => {
         p.rows.push({ include: true, courseId: '', title: '', credits: 3, grade: '', season: 'fall', year: undefined, level: slotDefaultLevel(p.slot) });
         render();
+        document.querySelector<HTMLElement>(`[data-key="ext.row.${p.rows.length - 1}.id"]`)?.focus();
       },
     }, '+ Add a row by hand'),
   );
@@ -555,18 +621,26 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
         'button',
         {
           class: 'btn primary',
+          'data-key': 'ext.preview.add',
           onclick: () => {
             const university = p.university.trim();
+            // Problems stay on screen, next to what needs fixing (item 6).
+            const problem = (message: string, focusKey: string): void => {
+              previewError = message;
+              render();
+              document.querySelector<HTMLElement>(`[data-key="${focusKey}"]`)?.focus();
+            };
             if (university === '') {
-              toast('Please fill in the university name — the DGS’s rules match courses by university + course id.');
+              problem('Enter the university name — the DGS’s rules match courses by university + course id.', 'ext.preview.university');
               return;
             }
             const ready = p.rows.filter((r) => r.include && r.courseId.trim() !== '' && r.grade !== '' && r.credits !== undefined && r.year !== undefined);
             const skipped = p.rows.filter((r) => r.include).length - ready.length;
             if (ready.length === 0) {
-              toast('No rows are complete yet — every added row needs a course id, credits, a grade and a year.');
+              problem('No rows are complete yet — every added row needs a course id, credits, a grade and a year.', 'ext.preview.error');
               return;
             }
+            previewError = undefined;
             // (initializer cast: the assignment happens inside the update()
             // closure, which TS's flow analysis can't see from the use below)
             let priorAutoSet = false as 'completed' | 'unfinished' | false;
@@ -606,6 +680,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             const matched = ready.filter((r) => findExternalRule(rules.external, university, r.courseId)).length;
             const undergraduateRows = ready.length - graduateRows;
             preview = undefined;
+            previewError = undefined;
             render();
             toast(
               `Added ${ready.length} course${ready.length === 1 ? '' : 's'} from ${university}` +
@@ -623,7 +698,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
         },
         'Add checked courses',
       ),
-      el('button', { class: 'btn', onclick: () => { preview = undefined; render(); } }, 'Cancel'),
+      el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; previewError = undefined; render(); } }, 'Cancel'),
     ),
   );
   return box;

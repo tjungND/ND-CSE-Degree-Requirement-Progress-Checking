@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openSession } from './cdp.mjs';
+import { driveA11y } from './drive-a11y.mjs';
 import { driveApp, driveCourses } from './drive-app.mjs';
 import { driveTranscript } from './drive-transcript.mjs';
 
@@ -100,11 +101,14 @@ try {
   const otherPdf = join(root, 'tests', 'fixtures', 'other-transcript.pdf');
   const combinedPdf = join(root, 'tests', 'fixtures', 'combined-transcript.pdf');
 
+  // E2E_ONLY=<substring> runs a single driver while iterating (e.g. E2E_ONLY=access).
+  const only = process.env.E2E_ONLY;
   for (const [name, fn] of [
     ['app basics', (s) => driveApp(s, baseUrl)],
     ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf)],
     ['course rules list', (s) => driveCourses(s, baseUrl)],
-  ]) {
+    ['accessibility and phone layout', (s) => driveA11y(s, baseUrl)],
+  ].filter(([name]) => !only || name.includes(only))) {
     console.log(`\n▶ ${name}`);
     const session = await openSession(DEBUG_PORT, outDir);
     try {

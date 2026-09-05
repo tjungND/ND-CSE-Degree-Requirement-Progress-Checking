@@ -76,13 +76,37 @@ export async function driveCourses(s, baseUrl) {
   const count = await s.evalJs(`document.querySelector('.count')?.textContent`);
   console.log('  course list:', count);
   if (!/\d+ of \d+ courses/.test(count ?? '')) throw new Error('course list did not render');
-  const before = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr').length`);
+  // (Note rows — the DGS's notes, opened per course since 2026-09-05 — are tbody rows too; count courses only.)
+  const before = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
   await s.evalJs(
     `const sel=[...document.querySelectorAll('.filters select')].find(x=>[...x.options].some(o=>o.value==='algorithms')); sel.value='algorithms'; sel.dispatchEvent(new Event('change'))`,
   );
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr').length < ${before}`);
-  const after = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr').length`);
+  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length < ${before}`);
+  const after = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
   console.log(`  core-area filter: ${before} → ${after} rows`);
   if (!(after > 0 && after < before)) throw new Error('core-area filter did not narrow the table');
   await s.shot('courses-filtered');
+
+  // The DGS's notes open from a Notes button on the row (2026-09-05, usability
+  // review item 24) — no longer a hover-only tooltip.
+  const notes = await s.evalJs(`(() => {
+    const b = document.querySelector('table.course-rules button.notes');
+    if (!b) return { present: false };
+    b.click();
+    const row = document.getElementById(b.getAttribute('aria-controls'));
+    return { present: true, expanded: b.getAttribute('aria-expanded'), shown: !!row && !row.classList.contains('hidden'), text: row?.textContent.slice(0, 60) };
+  })()`);
+  if (!notes.present) console.log('  (no course carries DGS notes in this rules snapshot — Notes disclosure not exercised)');
+  else if (notes.expanded !== 'true' || !notes.shown) throw new Error('Notes button did not open the note row: ' + JSON.stringify(notes));
+  else console.log('  Notes button opens the DGS note row:', notes.text);
+  // Clear filters (item 26) drops the core-area filter set above…
+  await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
+  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+  console.log('  Clear filters restores the full list');
+  // …and search ignores spacing: "cse60641" finds CSE 60641.
+  await s.evalJs(`const q = document.querySelector('[data-key="filter.search"]'); q.value = 'cse60641'; q.dispatchEvent(new Event('input'));`);
+  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length === 1`);
+  console.log('  search ignores spacing: "cse60641" → 1 row');
+  await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
+  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
 }

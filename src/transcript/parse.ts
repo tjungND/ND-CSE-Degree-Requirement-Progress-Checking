@@ -63,7 +63,14 @@ export interface EntryTermInference {
 export interface ParsedTranscript {
   isNotreDame: boolean;
   courses: ParsedCourse[];
+  /** The cumulative GPA for the §2.2 check: the GRADUATE-level figure when
+   * the transcript carries totals per level (a combined undergraduate +
+   * graduate Notre Dame transcript prints both — bug report 2026-09-05: the
+   * undergraduate figure was being picked up), else the last cumulative
+   * figure read. Undefined when only an undergraduate figure exists. */
   cumulativeGpa?: number;
+  /** Each level's cumulative GPA, when the transcript labels its totals. */
+  cumulativeGpaByLevel?: Partial<Record<RegisteredLevel, number>>;
   warnings: string[];
   /** Degrees the transcript says were awarded, in reading order (2026-09-05). */
   degreesAwarded: DegreeAwarded[];
@@ -157,7 +164,11 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   let inProgress = false;
   let institution: string | undefined;
   let expectInstitution = false;
-  let cumulativeGpa: number | undefined;
+  let lastGpa: number | undefined;
+  const gpaByLevel: Partial<Record<RegisteredLevel, number>> = {};
+  /** The level a totals block belongs to ("Term Totals (Graduate)",
+   * "Transcript Totals - (Undergraduate)"), until the next term or section. */
+  let totalsLevel: RegisteredLevel | undefined;
   const courses: ParsedCourse[] = [];
   const skipped: string[] = [];
 
@@ -233,6 +244,13 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       if (/^(TERM\s+TOTALS|\(?(UNDER)?GRADUATE\)?$|COLLEGE\s*:?\s*(THE\s+)?GRADUATE\s+SCHOOL)/.test(upper)) {
         if (term) termLevelHints.set(termIndex(term), level);
         else sectionLevel = level;
+        if (/^TERM\s+TOTALS/.test(upper)) totalsLevel = level;
+        continue;
+      }
+      // "Transcript Totals - (Graduate)": the level of the Overall row below.
+      if (/^TRANSCRIPT\s+TOTALS/.test(upper)) {
+        totalsLevel = level;
+        inProgress = false;
         continue;
       }
     }
@@ -258,6 +276,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       origin = 'nd';
       inProgress = false;
       institution = undefined;
+      totalsLevel = undefined;
       continue;
     }
     if (/COURSE\(?S?\)? IN PROGRESS|WORK IN PROGRESS/.test(upper)) {
@@ -272,19 +291,28 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     }
 
     // Cumulative GPA. Web transcript: the "Overall" totals row's last ≤4.334
-    // decimal. Official ND PDF: running totals like "NOTRE DAME Ehrs: 72.000
-    // QPts: 106.000 GPA-Hrs: 28.000 GPA: 3.786" — take the labeled value; the
-    // LAST occurrence in either style is the final cumulative figure.
+    // decimal (and each term's "Cumulative" row under "Term Totals (Level)").
+    // Official ND PDF: running totals like "NOTRE DAME Ehrs: 72.000 QPts:
+    // 106.000 GPA-Hrs: 28.000 GPA: 3.786" — take the labeled value. Every
+    // figure is filed under the level of its totals block (or of the record,
+    // "Course Level: Graduate"), so a combined transcript's graduate figure
+    // can be told from its undergraduate one (bug report 2026-09-05); the
+    // LAST occurrence is also kept for transcripts that label no level.
+    const noteGpa = (value: number): void => {
+      lastGpa = value;
+      const lvl = totalsLevel ?? sectionLevel;
+      if (lvl) gpaByLevel[lvl] = value;
+    };
     const labeledGpa = /\bGPA:?\s*([0-4]\.\d{1,3})\b\s*$/.exec(line);
     if (labeledGpa) {
-      cumulativeGpa = Number(labeledGpa[1]);
+      noteGpa(Number(labeledGpa[1]));
       continue;
     }
-    if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper)) {
+    if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper) || (/^CUMULATIVE\b/.test(upper) && totalsLevel !== undefined)) {
       const nums = line.match(/\d+\.\d{1,3}/g);
       if (nums && nums.length > 0) {
         const last = Number(nums[nums.length - 1]);
-        if (last <= 4.334) cumulativeGpa = last;
+        if (last <= 4.334) noteGpa(last);
       }
       continue;
     }
@@ -293,6 +321,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     const termMatch = TERM_RE.exec(line);
     if (termMatch && !COURSE_HEAD_RE.test(line)) {
       term = { season: termMatch[1]!.toLowerCase() as Season, year: Number(termMatch[2]) };
+      totalsLevel = undefined;
       // The official PDF's transfer block puts the source institution on the
       // term line ("Fall 2020   College Board", 2026-09-05).
       if (origin === 'transfer') {
@@ -429,10 +458,16 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     c.level = termLevelHints.get(termIndex(c.term)) ?? courseSectionLevel[i] ?? levelFromNumber(c.courseId);
   });
 
+  // The §2.2 figure: the graduate level's when levels are labeled (never the
+  // undergraduate one), else the last figure read.
+  const labeled = gpaByLevel.graduate !== undefined || gpaByLevel.undergraduate !== undefined;
+  const cumulativeGpa = labeled ? gpaByLevel.graduate : lastGpa;
+
   return {
     isNotreDame: true,
     courses: unique,
     cumulativeGpa,
+    cumulativeGpaByLevel: labeled ? gpaByLevel : undefined,
     warnings,
     degreesAwarded,
     entryTerm: inferEntryTerm({ courses: unique, admitTerms, newStudentTerms, degreesAwarded }),

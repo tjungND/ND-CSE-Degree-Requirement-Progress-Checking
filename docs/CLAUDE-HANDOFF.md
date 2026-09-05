@@ -50,6 +50,71 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **Usability review, Phase 0 — accessibility and phone mechanics** (2026-09-05, DGS-approved from
+  the merged review in the project doc; the wording items of Phases 1–2 await his approvals):
+  `render()` in app.ts now REMEMBERS FOCUS across the full rebuild (`rememberFocus`/`restoreFocus`:
+  the focused control's stable `data-key`, else its index path from the root, plus text selection
+  and scroll position; `focusAfterRender` names the control to focus when the current one will not
+  exist — after Remove, Add course, a closed preview, a dismissed error) and announces the new
+  headline through `srStatus`, a visually-hidden polite live region created ONCE outside the root
+  (a region re-created by the rebuild is never announced). Give every control that triggers
+  `update()` a `data-key` (naming: `standing.prior`, `course.<index>.remove`, `preview.row.<i>`,
+  `ext.row.<i>.credits`, `milestone.<key>`, `attest.<slug>`, `sort.<key>`, `filter.<name>`…); the
+  path fallback covers the rest. The opening notice is a native `<dialog class="consent
+  consent-overlay">` shown with `showModal()` (focus on Agree, Tab contained, page inert, Escape
+  closes like Agree, focus lands on the h1 — `tabindex=-1`); cdp.mjs still clicks
+  `.consent-overlay button.btn`. Labels: fieldset+legend for "Entered the program" and the course
+  form's Term (`fieldset()` helper), visible "Course number (e.g. CSE 60641)" / "Title" labels
+  instead of placeholders, `aria-pressed` on the program tabs (`role=group`), row-specific
+  `aria-label`s in both preview tables ("Credits for CS 25100"), the specialization `<select>` in
+  the course table named per course, visually-hidden header text for the checkbox/remove columns.
+  Remove is `aria-label="Remove CSE 60641 (Fall 2026)"` with an Undo in the toast
+  (`toastWithAction`, 8 s, `.toast.has-action` is clickable) — same for a previous-transcript
+  slot's Remove. Errors persist inline (`.import-error`, role=alert, tabindex=-1, focused; Dismiss
+  button): `ndImportError` in app.ts, `importError`/`previewError` in external-upload.ts, the
+  course form's `.field-error` with `aria-invalid`/`aria-describedby`; parser warnings render as
+  `.import-warnings` inside the ND preview; toasts remain for confirmations and "Reading…".
+  Landmarks: skip link → `<header class="masthead">` → `<main id="main">` (banners, layout, toast)
+  → `<footer>`; the report column is `#report` (tabindex=-1); the contact card is a `section`
+  region (an `<aside>` inside the header failed axe's complementary-is-top-level). Citation § chips
+  are disclosure buttons (`aria-expanded`/`aria-controls`, named "§4.2 — show the handbook rule…").
+  CSS: `--gold-text: #7a6220` for every gold TEXT use (`--gold` stays for rules/borders; #ae9142
+  measured 2.9:1 at 12 px), one `:focus-visible` rule for all interactive elements, ≥24 px targets
+  (`.cite`, `.btn.tiny`), `.visually-hidden`, `.skip-link`, `dialog.consent::backdrop`; phone
+  layout: `.layout > * { min-width: 0 }`, course tables wrapped in `.table-scroll.plain`
+  (focusable region — `position: relative` on the wrappers so the absolutely positioned hidden
+  header labels are clipped with the table instead of widening the page), `@media (max-width:
+  600px)` paddings, N/A rows toned by colour not opacity (the faded pill measured 4.3:1). The
+  auto-counted full-time term is text ("✓ Spring 2028 — counted automatically"), not a disabled
+  ticked box (drive-transcript.mjs strips the prefix/suffix). Course-rules page: visible labels
+  above the filters (`labelled()`), a "Clear filters" button shown only while a filter is active
+  (`filtersActive()`), the count line is a persistent `role=status` region (`countLine`),
+  spacing-insensitive search (`squash()`), `aria-sort` + descriptive names on the sort buttons
+  (focus restored after the table rebuild by `data-key`), `<caption>` (visually hidden),
+  `<th scope="row">` for the course id (styled back to a body cell), the DGS notes as a per-row
+  Notes disclosure button opening a `tr.note-row` (the `title` tooltip on rows is gone; the
+  overview links keep theirs), the legend now BEFORE the table as a one-line pill key plus a
+  `<details>` "How to read the columns", the scroll wrapper focusable (`tabindex=0`, region), a
+  `<main>` and a skip link. Guard rails: `scripts/e2e/drive-a11y.mjs` (dialog focus/Tab/Escape,
+  focus preserved after a dropdown change and a checkbox click, no horizontal scrolling at 390 px
+  on both pages with `phone-app.png`/`phone-courses.png`, axe-core WCAG 2.x A/AA + best-practice
+  with ZERO violations on both pages) — `axe-core` is a devDependency for this only (MPL-2.0,
+  never shipped); `E2E_ONLY=<substring>` runs one driver. The review's findings, evidence and the
+  remaining Phases 1–2 live in the project doc `degree-audit-app-usability-review.md`.
+- **Combined Notre Dame transcript GPA** (2026-09-05, student bug report — his undergraduate GPA
+  3.68 was imported): `parseTranscript` files every cumulative figure under the LEVEL of its totals
+  block (`totalsLevel` from "Term Totals (Graduate)" / "Transcript Totals - (Undergraduate)", else
+  the record's `sectionLevel`; per-term "Cumulative" rows count too) in `cumulativeGpaByLevel`;
+  `cumulativeGpa` is the graduate level's figure when levels are labelled (never the undergraduate
+  one — undefined if only that exists), else the last figure read. Banner 9 "All Levels" prints
+  the levels alphabetically (Graduate BEFORE Undergraduate), which is how "the last Overall row"
+  became the undergraduate GPA. The ND preview (app.ts) offers the transcript's graduate figure;
+  when graded GRADUATE rows precede the entry term (an earlier graduate program at Notre Dame —
+  the student's Theology M.A. case) it also computes `gpaOfProgramCourses()` (credit-weighted
+  letter grades from the entry term on, `GRADE_POINTS`) and shows a radio choice, transcript's
+  figure by default (DECISIONS 2026-09-05); the choice is kept as `student.gpaSource` (display
+  only; cleared when the GPA is typed; validated leniently in state.ts) and explained under the
+  GPA field (`.gpa-note`). Tests: "cumulative GPA per level" in tests/transcript.test.ts.
 - **Tests run on `node --test`, not vitest.** The repo once lived under a folder named
   `FY26-27 (DGS: Taeho Jung)`; the colon corrupted npm's PATH and broke vite-node's module
   URLs. The folder was renamed, but the dependency-free runner was kept. Node ≥ 24 runs the
@@ -473,7 +538,10 @@ Known-pending (the app's diagnostics panel is the live truth):
 - `npm test` — scenario fixtures in `tests/scenarios/*.json` (schema: student + pinned
   `today` + rules patch + expected status/detail substrings per requirement id). Add one per
   bug, forever.
-- `npm run e2e` — real headless-Chrome pass (see `.claude/skills/run-app/SKILL.md`).
+- `npm run e2e` — real headless-Chrome pass (see `.claude/skills/run-app/SKILL.md`); since
+  2026-09-05 it ends with the accessibility/phone driver (axe-core zero-violation gate, dialog and
+  focus-preservation keyboard checks, 390 px no-sideways-scroll check on both pages). `E2E_ONLY=`
+  a substring of a driver name runs just that driver while iterating.
 - `npm run sync-sheet` — fetches the live sheet, prints its diagnostics, and rewrites the
   snapshot only if the sheet content changed (it says which tabs).
 - Read screenshots you take. A wrong verdict is easier to spot in the rendered report than in

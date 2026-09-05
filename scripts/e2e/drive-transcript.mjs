@@ -11,14 +11,21 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
 
   // 1) Non-ND transcript → rejection message, no preview.
   await s.setFileInput('.transcript-upload input[type=file]', otherPdf);
+  // The rejection is a persistent inline message under the row (2026-09-05,
+  // usability review item 6), not a vanishing toast — and it has focus.
   await s.waitFor(
-    `document.querySelector('.toast')?.textContent.includes("Only Notre Dame's unofficial transcript")`,
+    `document.querySelector('.transcript-upload .import-error')?.textContent.includes("Only Notre Dame's unofficial transcript")`,
   );
   if (await s.evalJs(`!!document.querySelector('.transcript-preview')`)) {
     throw new Error('preview must NOT appear for a non-ND transcript');
   }
-  console.log('  non-ND transcript rejected with the required message');
+  if (!(await s.evalJs(`document.activeElement?.classList.contains('import-error')`))) {
+    throw new Error('the rejection message must receive focus (role=alert, tabindex=-1)');
+  }
+  console.log('  non-ND transcript rejected with the required message (inline, focused)');
   await s.shot('transcript-rejected');
+  await s.evalJs(`document.querySelector('.transcript-upload .import-error button').click()`);
+  await s.waitFor(`!document.querySelector('.transcript-upload .import-error')`);
 
   // 2) ND transcript (COMBINED since 2026-09-05: a B.S. before the Ph.D.) →
   //    preview reads the entry term (Fall 2026, the first graduate-level term),
@@ -73,7 +80,8 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!priorHeading.includes('undergraduate coursework')) throw new Error('prior Notre Dame coursework heading missing: ' + priorHeading);
   // Residence is counted from the entry term: the full-time checkboxes list
   // the program terms only (never the undergraduate Fall 2024 / Spring 2025).
-  const ftTerms = await s.evalJs(`[...document.querySelectorAll('.ft-term')].map(e => e.textContent.trim().replace(/ \\(.*$/, ''))`);
+  // (A term counted automatically reads "✓ Fall 2027 — counted automatically (9+ credits entered)" since 2026-09-05.)
+  const ftTerms = await s.evalJs(`[...document.querySelectorAll('.ft-term')].map(e => e.textContent.trim().replace(/^✓\\s*/, '').replace(/\\s[—(].*$/, ''))`);
   console.log('  full-time term checkboxes:', JSON.stringify(ftTerms));
   if (JSON.stringify(ftTerms) !== JSON.stringify(['Fall 2026', 'Spring 2027', 'Fall 2027'])) {
     throw new Error('residency terms must start at the entry term');
@@ -85,7 +93,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // DGS + Graduate Program Administrator (2026-09-03).
   await s.evalJs(`(() => {
     const form = document.querySelector('.course-form');
-    form.querySelector('input[placeholder="CSE 60641"]').value = 'MATH 60610';
+    form.querySelector('input.course-id').value = 'MATH 60610'; // labelled "Course number" since 2026-09-05 (no placeholder)
     [...form.querySelectorAll('button')].find((b) => b.textContent === 'Add course').click();
   })()`);
   await s.waitFor(`document.querySelector('.dgs-review')`);
@@ -213,7 +221,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // left out with a note; the institution comes from the legend page.
   await s.setFileInput('.external-file-phd', bannerPdf);
   await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Ph.D. Transcript'))`);
-  const redirected = await s.evalJs(`document.querySelector('.toast')?.textContent.includes('looks like a Notre Dame transcript') ?? false`);
+  const redirected = await s.evalJs(`[...document.querySelectorAll('.import-error, .hint.warn.nd-prior-note')].some(e => e.textContent.includes('looks like a Notre Dame transcript') || e.textContent.includes('is a Notre Dame transcript'))`);
   if (redirected) throw new Error('the Banner transcript was redirected to the ND row because of an nd.edu e-mail');
   const bannerUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   const bannerRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);

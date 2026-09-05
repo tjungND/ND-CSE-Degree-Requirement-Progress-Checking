@@ -77,8 +77,11 @@ export function reportToDgs(prefix: string): (string | Node)[] {
 
 /** The "Who to contact" card shown at the top right of every page. */
 export function contactCard(): HTMLElement {
+  // A region, not an <aside>: it sits inside the page header, and a
+  // complementary landmark must not be nested in another landmark (WCAG /
+  // axe "landmark-complementary-is-top-level"; usability review 2026-09-05).
   return el(
-    'aside',
+    'section',
     { class: 'contact-card', 'aria-label': 'Who to contact' },
     el('h2', {}, 'Who to contact'),
     el(

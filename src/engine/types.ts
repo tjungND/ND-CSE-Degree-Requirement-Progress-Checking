@@ -103,6 +103,17 @@ export interface Student {
    * courses are removed. */
   priorMsInferred?: boolean;
   gpa?: number; // self-reported cumulative (decision Q7)
+  /** Where `gpa` came from when a Notre Dame transcript filled it in
+   * (2026-09-05, combined-transcript bug report): the transcript's
+   * graduate-level cumulative figure, or this program's courses alone when
+   * an earlier graduate program at Notre Dame is folded into that figure.
+   * Display only — the engine reads `gpa`; cleared when the student types. */
+  gpaSource?: {
+    basis: 'transcript-graduate' | 'program-only';
+    transcriptGpa?: number;
+    programGpa?: number;
+    undergraduateGpa?: number;
+  };
   fullTimeTermOverrides?: Term[]; // decision Q8 residency override
   courses: CourseEntry[];
   milestones: Milestones;

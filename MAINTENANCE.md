@@ -98,7 +98,12 @@ last edit (see "Sync" below).
   plus engine/loader/transcript units). `npm run build` type-checks and bundles. Both must pass
   before merging anything; `npm run e2e` additionally drives the built app in headless Chrome
   (screenshots land in `.e2e-out/`, including the public course-rules page `courses.html`) — run
-  it for UI-visible changes. When a student finds a
+  it for UI-visible changes. Since 2026-09-05 the e2e run also gates accessibility: axe-core
+  (a devDependency used only by the e2e harness) must report zero WCAG 2.x A/AA violations on
+  both pages, the opening notice must behave as a modal dialog, keyboard focus must survive a
+  change (the page re-renders), and nothing may scroll sideways at a phone width (390 px). If a
+  UI change trips one of these, fix the page rather than the check — each one pins a defect
+  students actually hit. `E2E_ONLY=access npm run e2e` runs just that driver. When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
 - **For AI coding sessions**: `CLAUDE.md` holds the project rules (Claude Code reads it
   automatically; Codex reads `AGENTS.md`, which points to it); `docs/CLAUDE-HANDOFF.md` is the

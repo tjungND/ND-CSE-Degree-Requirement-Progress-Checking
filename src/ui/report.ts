@@ -112,11 +112,25 @@ function meters(report: AuditReport): HTMLElement {
 function requirementCard(r: RequirementResult): HTMLElement {
   const pill = el('span', { class: `pill s-${r.status}` }, STATUS_LABEL[r.status]);
   // The rule itself, on the output side (DGS request 2026-09-03): clicking the
-  // § chip reveals the handbook sentence this verdict is checked against.
-  const quote = el('div', { class: 'rule-quote hidden' }, `Handbook ${r.citation.section}: “${r.citation.quote}”`);
+  // § chip reveals the handbook sentence this verdict is checked against. A
+  // disclosure button (usability review 2026-09-05, item 24): its expanded
+  // state is exposed, and its name says what it does — the tooltip alone
+  // reached neither keyboard nor touch users.
+  const quoteId = `rule-quote-${r.id.replace(/[^a-z0-9]+/gi, '-')}`;
+  const quote = el('div', { class: 'rule-quote hidden', id: quoteId }, `Handbook ${r.citation.section}: “${r.citation.quote}”`);
   const cite = el(
     'button',
-    { class: 'cite', title: 'Show the handbook rule behind this check', onclick: () => quote.classList.toggle('hidden') },
+    {
+      class: 'cite',
+      'aria-label': `${r.citation.section} — show the handbook rule behind this check`,
+      'aria-expanded': 'false',
+      'aria-controls': quoteId,
+      'data-key': `cite.${r.id}`,
+      onclick: () => {
+        const open = quote.classList.toggle('hidden') === false;
+        cite.setAttribute('aria-expanded', open ? 'true' : 'false');
+      },
+    },
     r.citation.section,
   );
   const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title), pill);
