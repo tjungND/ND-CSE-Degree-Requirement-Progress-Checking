@@ -127,6 +127,30 @@ in `src/transcript/layout.ts` (columns, watermarks) and the row patterns in
 `src/transcript/external.ts`. Add an invented fixture in the same shape to
 `tests/fixtures/make-transcript-pdfs.mjs` with every fix (see `banner-transcript.pdf`).
 
+When shapes are not enough, a **de-identified copy** of the transcript can be shared instead —
+it keeps the layout the parsers react to and removes the record:
+
+    npm run sanitize -- /path/to/transcript.pdf            # system-generated (text) PDF
+    python3 scripts/sanitize-scan.py /path/to/scan.pdf     # scanned / photographed PDF or PNG/JPG
+
+The text tool rebuilds the PDF with every text run at its original position, width and
+rotation, but names, addresses and titles become random letters (same length and case),
+student/ID numbers become random digits, every year shifts by one random offset, dates' days
+change, e-mail local parts change (domains stay), letter grades become other grades, GPA and
+totals are randomized, and course numbers keep only their first digit. Structural words
+(term names, INSTITUTION CREDIT, Ehrs/GPA labels, column headers), subject codes (`CS`,
+`COMPSCI`), credit values and lines naming an institution (watermarks included) stay, so the
+app reads the copy the way it read the original. `--keep-titles` leaves course titles readable —
+only when you judge that safe. The scan tool OCRs each page with the app's own bundled engine
+(no tesseract install; Pillow required, PyMuPDF for PDF input), applies the same rules, paints
+over every changed word with the surrounding paper and redraws it at the same size, and leaves
+all other pixels — scan noise, rules, stamps — untouched; output is PNGs plus an image-only PDF.
+
+**Both tools print every word or run they kept verbatim, and the scan tool cannot see text
+OCR failed to read.** Look at that list and at every output page before sharing anything; the
+outputs are git-ignored (`*.sanitized.pdf`, `*.sanitized-p*.png`) so they are never committed
+by accident. You remain the judge of what leaves your computer.
+
 ## Repo peculiarities you should know
 
 - **`public/ocr/` holds the self-hosted OCR engine** (tesseract.js v7 worker, SIMD+LSTM WASM

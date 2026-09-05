@@ -100,7 +100,19 @@ export function groupLines(runs: Run[]): string[] {
  * Runs that cross the band (headers) stay with the left column, where they
  * were read first. */
 export function splitColumns(runs: Run[], pageWidth: number): Run[][] {
-  if (runs.length < 40 || !(pageWidth > 0)) return [runs];
+  const gapX = findColumnGap(runs, pageWidth);
+  if (gapX === undefined) return [runs];
+  const right = runs.filter((r) => r.x >= gapX - 2);
+  const left = runs.filter((r) => r.x < gapX - 2);
+  return repairStraddlers(left, right, gapX, Math.min(...right.map((r) => r.x)));
+}
+
+/** The x of the vertical gap between a two-column page's columns (runs at
+ * x ≥ gap − 2 belong to the right column), or undefined for a one-column
+ * page. The three tests are described on `splitColumns`. Exported so the
+ * transcript sanitizer (scripts/sanitize/) can de-identify column by column. */
+export function findColumnGap(runs: Run[], pageWidth: number): number | undefined {
+  if (runs.length < 40 || !(pageWidth > 0)) return undefined;
   // Horizontal rules ("_____") and Banner's "CONTINUED ON NEXT COLUMN ****"
   // banners are drawn to the full column width and touch the gap; they say
   // nothing about the layout, so they do not count as crossings.
@@ -118,9 +130,9 @@ export function splitColumns(runs: Run[], pageWidth: number): Run[][] {
     const rightEdge = Math.min(...right.map((r) => r.x));
     const wordyAtEdge = right.filter((r) => r.x <= rightEdge + 6 && /[A-Za-z]{4}/.test(r.text)).length;
     if (wordyAtEdge < 5) continue;
-    return repairStraddlers(left, right, x, rightEdge);
+    return x;
   }
-  return [runs];
+  return undefined;
 }
 
 /** pdfjs occasionally merges a left column's last cell with the right

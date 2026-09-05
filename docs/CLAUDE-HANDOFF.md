@@ -163,6 +163,25 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Transcript sanitizers** (2026-09-05, DGS request — he has many sample transcripts to share
+  once de-identified): `scripts/sanitize/rules.mjs` is the ONE rule set (deterministic per
+  document via a seeded PRNG: same word → same scramble; year offset ±1..8; grades always
+  change; credit-like decimals kept unless on a GPA/totals line; subject code + first digit of a
+  course number kept; institution runs kept whole — decided PER RUN for PDFs so a watermark tile
+  on the same baseline cannot shield a name, per OCR line for scans). `sanitizeRuns(runs,
+  pageWidth)` first splits two-column pages with the app's own `findColumnGap` (exported from
+  layout.ts; watermarks dropped before locating the gap) so a left row never borrows a
+  right-column totals context. `pdf-io.mjs` reads pdfjs runs (`rotated` set like pdf.ts) and
+  rebuilds a Courier PDF with each run at its position, horizontally scaled (`Tz`) to the
+  measured width, same rotation; `.d.mts` files type both modules for the tests.
+  `scripts/sanitize-transcript.mjs` (`npm run sanitize`) is the CLI, also `--words in.json
+  out.json` for the scan tool; `scripts/sanitize/ocr-words.mjs` OCRs a page image with
+  tesseract.js + public/ocr (cacheMethod none — never writes the model into the repo);
+  `scripts/sanitize-scan.py` (Pillow; PyMuPDF for PDF input) paints changed words over the
+  local background and redraws them. `tests/sanitize.test.ts` locks the rules and proves
+  fidelity: the sanitized watermarked fixture re-reads with the same upright-run geometry
+  (pdfjs may split a rebuilt two-word cell — tolerated), same 10 rows, same columns and
+  transfer count, shifted years, changed grades. Outputs are git-ignored.
 - **Text watermarks** (2026-09-05; UMass Amherst / Western Ontario transcripts repeat the
   university's name across the page and read 6 / 0 courses): `dropWatermarks()` in layout.ts
   runs BEFORE `splitColumns` (tiles also broke the column split). Signals: `Run.rotated` (pdf.ts

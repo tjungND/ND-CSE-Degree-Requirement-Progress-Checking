@@ -9,3 +9,6 @@ dist/
 Icon?
 # transient tarball used to ship the tree to a build sandbox
 _claude-build-snapshot.tgz
+# sanitizer outputs (scripts/sanitize-transcript.mjs, scripts/sanitize-scan.py) — never commit a transcript, even de-identified
+*.sanitized.pdf
+*.sanitized-p*.png
