@@ -251,6 +251,19 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         'Core knowledge and specialization are the two course-based requirements of the Ph.D. Qualifying Examination (§4.4) — they apply to Ph.D. students only, and MSCSE students can ignore these groupings. Whether a course counts toward degree credit is a separate question, answered in the table below.',
       ),
       el('h3', { class: 'ov-sub' }, 'Core knowledge areas ', el('span', { class: 'cite' }, '§4.4.1')),
+      // §4.4.1: "All PhD students are required to pass (or have previously passed) an
+      // Operating Systems course, an Algorithms course, and a Computer Architecture
+      // course, either at Notre Dame or at their previous institution." — prior
+      // coursework of any level counts (DGS clarification 2026-09-05; decision 2026-09-01).
+      el(
+        'p',
+        { class: 'muted' },
+        'The core-knowledge requirement can be met by the Notre Dame courses listed here ',
+        el('strong', {}, 'or by prior coursework at a previous institution — undergraduate or graduate'),
+        ' (§4.4.1: “either at Notre Dame or at their previous institution”). A course from a previous institution counts once the DGS has confirmed it; the ',
+        el('a', { href: './index.html' }, 'degree self-check tool'),
+        ' prepares that review request from your imported transcripts.',
+      ),
       el('div', { class: 'ov-grid' }, ...coreCards),
       el('h3', { class: 'ov-sub' }, 'Specialization categories ', el('span', { class: 'cite' }, '§4.4.2')),
       el('div', { class: 'ov-grid' }, ...groupCards, anyCard),
@@ -436,7 +449,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
         li(el('span', { class: 'pill approval' }, 'With DGS approval'), 'counts only with the advisor’s and the DGS’s approval (for example CSE 40000-level courses, up to the 6-credit cap).'),
         li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
         li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'the DGS has not ruled on this course yet; ask before relying on it.'),
-        li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. Ph.D. students only — not part of any MSCSE requirement.'),
+        li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.'),
         li(el('strong', {}, 'Specialization'), 'the other course-based Qualifying Examination requirement (§4.4.2): Ph.D. students need three courses from three distinct specialization categories with a B or higher. "Not eligible" marks courses (all 40000-level) that can never satisfy it. Ph.D. students only — not part of any MSCSE requirement.'),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
         li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.'),
