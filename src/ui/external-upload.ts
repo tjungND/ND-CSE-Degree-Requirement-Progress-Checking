@@ -68,6 +68,9 @@ interface ExternalPreview {
   /** Undergraduate imports only (2026-09-04): parsed rows left out because
    * neither the core-title keywords nor a DGS ruling made them relevant. */
   omitted?: number;
+  /** Rows under Banner's "Transfer credit accepted by the institution" block —
+   * courses from a THIRD school — left out by the parser (2026-09-05). */
+  transferSkipped?: number;
 }
 
 let preview: ExternalPreview | undefined;
@@ -164,7 +167,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         credits: c.credits,
         grade: (c.grade ?? '') as Grade | '',
         rawGrade: c.rawGrade,
-        season: 'fall' as Season,
+        season: c.season ?? ('fall' as Season),
         year: c.year,
       }));
       const kept = keepRelevantRows(slot.level, parsed.university ?? '', rules, mapped);
@@ -174,6 +177,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         conferred: parsed.degreeConferred,
         rows: kept.rows,
         omitted: kept.omitted,
+        transferSkipped: parsed.transferRowsSkipped,
       };
       if (mapped.length === 0) {
         toast('No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand in the preview (and please tell the DGS which university, so parsing can be improved).');
@@ -275,7 +279,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   credits: c.credits,
                   grade: (c.grade ?? '') as Grade | '',
                   rawGrade: c.rawGrade,
-                  season: 'fall' as Season,
+                  season: c.season ?? ('fall' as Season),
                   year: c.year,
                   lowConfidence: c.lowConfidence,
                 }));
@@ -287,6 +291,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   conferred: parsed.degreeConferred,
                   rows: kept.rows,
                   omitted: kept.omitted,
+                  transferSkipped: parsed.transferRowsSkipped,
                 };
                 render();
                 if (parsed.courses.length === 0) {
@@ -347,6 +352,15 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             'p',
             { class: 'hint warn' },
             `Undergraduate credits do not transfer (§5.2), so only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
+          ),
+        ]
+      : []),
+    ...(p.transferSkipped
+      ? [
+          el(
+            'p',
+            { class: 'hint warn' },
+            `${p.transferSkipped} row${p.transferSkipped === 1 ? '' : 's'} listed under “Transfer credit accepted by the institution” ${p.transferSkipped === 1 ? 'was' : 'were'} left out — those courses were taken at another school and belong on that school’s own transcript.`,
           ),
         ]
       : []),

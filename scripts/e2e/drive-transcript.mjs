@@ -4,7 +4,7 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf) {
+export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf) {
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -155,4 +155,27 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   console.log('  undergrad core-title courses joined the review request (7 pending)');
   await s.shot('external-ocr-added');
+
+  // 5) Banner two-column official transcript (Ph.D. slot, 2026-09-05): read
+  // column by column through real pdfjs; the student's nd.edu e-mail in its
+  // header must NOT redirect it to the ND row; the transfer-credit block is
+  // left out with a note; the institution comes from the legend page.
+  await s.setFileInput('.external-file-phd', bannerPdf);
+  await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Ph.D. Transcript'))`);
+  const redirected = await s.evalJs(`document.querySelector('.toast')?.textContent.includes('looks like a Notre Dame transcript') ?? false`);
+  if (redirected) throw new Error('the Banner transcript was redirected to the ND row because of an nd.edu e-mail');
+  const bannerUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
+  const bannerRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);
+  const bannerIds = await s.evalJs(
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1]?.value ?? tr.cells[1]?.textContent)`,
+  );
+  const transferNote = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview .hint.warn')].map(e => e.textContent).join(' | ')`);
+  console.log('  Banner two-column transcript:', bannerUni, '|', bannerRows, 'rows |', JSON.stringify(bannerIds));
+  if (bannerUni !== 'Example Institute of Technology') throw new Error('Banner institution not found on the legend page: ' + bannerUni);
+  if (bannerRows !== 10) throw new Error(`expected 10 institution-credit rows from the Banner transcript, got ${bannerRows}`);
+  if (!/2 rows listed under .Transfer credit accepted by the institution. were left out/.test(transferNote)) {
+    throw new Error('transfer-credit block note missing: ' + transferNote);
+  }
+  await s.shot('banner-preview');
+  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
 }

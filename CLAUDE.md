@@ -70,7 +70,9 @@ replaced by `README.md` on 2026-09-01.)
   `courses.html` → `src/courses.ts` → `src/ui/courses-page.ts`, is the public course-rules list
   (read-only view of the Courses tab; no student data); both pages are built by Vite from
   `vite.config.ts` `rollupOptions.input`.
-- `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser; plus
+- `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser
+  (`pdf.ts` + `layout.ts`: pdfjs runs → lines, reading two-column Banner pages column by
+  column; `nd-markers.ts`: the shared "is this Notre Dame's transcript?" test); plus
   `external.ts`, the best-effort parser for transcripts from OTHER universities (all four
   transcript imports live in the single "Transcripts" card: Notre Dame + Previous
   Undergraduate/Master's/Ph.D.; system-generated PDFs are read directly, scanned ones via the

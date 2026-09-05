@@ -5,12 +5,15 @@
 import * as pdfjs from 'pdfjs-dist';
 // Vite turns this into a relative asset URL inside dist/ at build time.
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { runsToLines, type Run } from './layout.ts';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 /** Extract text as visual lines: text runs grouped by their y position (2-unit
  * tolerance), sorted left-to-right, with wide horizontal gaps rendered as
- * multiple spaces so column boundaries survive into the text. */
+ * multiple spaces so column boundaries survive into the text. Pages laid out
+ * in two text columns (Banner-style official transcripts) are read left
+ * column first, then right — see `splitColumns` in layout.ts (2026-09-05). */
 export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
   const loadingTask = pdfjs.getDocument({ data });
   const doc = await loadingTask.promise;
@@ -19,7 +22,6 @@ export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
       const content = await page.getTextContent();
-      interface Run { x: number; y: number; text: string; width: number }
       const runs: Run[] = [];
       for (const item of content.items) {
         if (!('str' in item) || item.str.trim() === '') continue;
@@ -30,27 +32,7 @@ export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
           width: item.width ?? 0,
         });
       }
-      // Group runs into lines by y (top of page first).
-      runs.sort((a, b) => b.y - a.y || a.x - b.x);
-      let current: Run[] = [];
-      const flush = () => {
-        if (current.length === 0) return;
-        current.sort((a, b) => a.x - b.x);
-        let text = '';
-        let cursor = -Infinity;
-        for (const r of current) {
-          if (text !== '') text += r.x - cursor > 8 ? '   ' : ' ';
-          text += r.text;
-          cursor = r.x + r.width;
-        }
-        lines.push(text.trim());
-        current = [];
-      };
-      for (const r of runs) {
-        if (current.length > 0 && Math.abs(current[0]!.y - r.y) > 2) flush();
-        current.push(r);
-      }
-      flush();
+      lines.push(...runsToLines(runs, page.getViewport({ scale: 1 }).width));
       lines.push(''); // page break
     }
   } finally {

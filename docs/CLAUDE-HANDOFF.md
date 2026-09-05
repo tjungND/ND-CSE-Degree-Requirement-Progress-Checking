@@ -163,6 +163,28 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Banner two-column transcripts + Notre Dame markers** (2026-09-05, from the DGS's own IIT
+  transcript): `src/transcript/layout.ts` (pure, unit-tested) turns pdfjs runs into lines —
+  `splitColumns()` detects a two-text-column page (a ≤2%-crossing vertical band at 40–60% of
+  the width, both sides ≥30% of the runs, and a WORDY right edge: ≥5 runs with a four-letter
+  word — a one-column table's right half is numbers/grades, so it never qualifies; decorative
+  rules and "CONTINUED ON NEXT COLUMN" banners are ignored when counting crossings) and reads
+  left column then right; `repairStraddlers()` handles pdfjs merging a left cell with the right
+  column's text into ONE run ("PTS R Fall 2013") by handing a trailing term header to the right
+  column. `pdf.ts` now passes the page width and calls `runsToLines`. `nd-markers.ts`
+  `looksLikeNotreDameTranscript()` is shared by parse.ts (reject) and external.ts (redirect):
+  e-mails are stripped first, "Notre Dame, IN" addresses don't count. external.ts: `leadCode`
+  joins split SUBJ / NO. cells ("CS   455"), the "TRANSFER CREDIT ACCEPTED BY" block is skipped
+  and counted (`transferRowsSkipped` → preview note), `asCredits` accepts 0, connector tokens
+  ("&") stay in titles, candidates carry `season`, and `guessUniversity` scans cells of every
+  line (header first, strong words first, Banner "College :" labels and "College of …"
+  divisions excluded). Fixture `tests/fixtures/banner-transcript.pdf` (positioned runs,
+  invented "Example Institute of Technology", an nd.edu e-mail in the header) drives an e2e leg
+  (Ph.D. slot: 10 rows, transfer note, institution from the legend page); the same lines are
+  locked in `tests/banner-transcript.test.ts`. On the real transcript: 26/26 rows, every term
+  right, 7 transfer rows skipped. To extract lines in Node for such a diagnosis, mirror
+  `pdfToLines` with `pdfjs-dist/legacy/build/pdf.mjs` (pdf.ts itself has a Vite `?url` import)
+  and feed `runsToLines` — never commit the transcript.
 - **Advisor summary: unmet names in red bold** (2026-09-04, DGS): in `advisorSummary()`
   (report.ts) the HTML `table()` helper now takes cells that are either plain strings (escaped)
   or `{ html }` (pre-escaped markup); `titleCell(r)` wraps a status-`unmet` title in
@@ -349,8 +371,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   asserting it (the registry meta-test fails until you do); wire any new number through a
   Parameters key (add to `KNOWN_PARAMETER_KEYS`, `data/README.md`, samples, fixtures, and tell
   the DGS the row to paste).
-- **"Transcript parsing broke"**: get one real PDF, run it through
-  `pdfToLines` in a scratch script, adjust `src/transcript/parse.ts` patterns, extend
-  `tests/transcript.test.ts` with the (anonymized) line shapes.
+- **"Transcript parsing broke"**: get one real PDF (the student's own, never kept), extract
+  its lines in Node with a scratch mirror of `pdfToLines` over `pdfjs-dist/legacy/build/pdf.mjs`
+  feeding `src/transcript/layout.ts` `runsToLines` (pdf.ts has a Vite-only `?url` import), look
+  at the line SHAPES (mask names/ids), adjust `src/transcript/parse.ts` or `external.ts`
+  patterns, and extend `tests/transcript.test.ts` / `tests/external-transcript.test.ts` (or a
+  new fixture like `tests/banner-transcript.test.ts`) with invented lines of the same shape.
+  If the page is two-column, check `splitColumns` first — its three tests are documented inline.
 - **"Grandfather a parameter change"**: Parameters have no effective_term — that's a real code
   change (mirror the Courses-row versioning); warn the DGS it's nontrivial.

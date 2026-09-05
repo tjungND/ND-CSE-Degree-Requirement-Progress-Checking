@@ -12,6 +12,7 @@
 // Parsing a PDF's text is inherently best-effort: everything parsed here is
 // shown to the student for confirmation before anything is added (never guess).
 import type { Grade, Season, Term } from '../engine/types.ts';
+import { looksLikeNotreDameTranscript } from './nd-markers.ts';
 
 export interface ParsedCourse {
   courseId: string;
@@ -43,8 +44,9 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   // The ND marker can live anywhere: the page body, the official PDF's header,
   // or only the browser's print footer (an nd.edu URL) on a printed-to-PDF
   // web transcript — so scan the whole text.
-  const all = lines.join(' ');
-  const isNotreDame = /NOTRE\s+DAME/i.test(all) || /\bnd\.edu\b/i.test(all) || /\binside\.nd\b/i.test(all);
+  // Shared with the external parser (nd-markers.ts, 2026-09-05): an nd.edu
+  // e-mail address or a "Notre Dame, IN" mailing address is NOT a marker.
+  const isNotreDame = looksLikeNotreDameTranscript(lines.join('\n'));
   if (!isNotreDame) {
     return { isNotreDame: false, courses: [], warnings };
   }
