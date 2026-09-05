@@ -32,9 +32,14 @@ export const RULES_ACCURACY_NOTICE =
 /** Which student situations the tool does not model yet (DGS wording,
  * 2026-09-05). Shown in the opening notice, the alpha banner, the footer and
  * the copied summary — keep the examples in step with the engine. */
+/** 2026-09-05: the examples changed when combined transcripts (4+1 / 5+1
+ * BS-MS, a BS and an MS at one institution, an earlier Notre Dame degree on
+ * the Notre Dame transcript) gained a per-row level and an entry-term reading
+ * — those cases are now handled, best-effort, with every row for the student
+ * to check. */
 export const COVERAGE_NOTICE =
-  'Not all cases are covered yet — for example, 5+1 BS/MS programs, or a BS and an MS earned at ' +
-  'the same institution.';
+  'Not all cases are covered yet — for example, transcripts whose layout the parser has not seen, ' +
+  'or a combined BS/MS record whose undergraduate and graduate courses are not told apart on it.';
 
 /** The sentences that follow RULES_ACCURACY_NOTICE — what the alpha label
  * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04; the

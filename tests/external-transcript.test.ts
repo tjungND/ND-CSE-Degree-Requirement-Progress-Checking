@@ -196,3 +196,78 @@ describe('OCR confidence flags', () => {
     assert.equal(r.courses[0]?.lowConfidence, undefined);
   });
 });
+
+// Combined B.S.+M.S. / 4+1 transcripts (2026-09-05): the per-row level lets a
+// single transcript feed both undergraduate (§4.4.1 only) and graduate (§5.2)
+// coursework — from a UG/GR cell, a level block, or the bachelor's conferral date.
+describe('per-row level on combined transcripts (2026-09-05)', () => {
+  it('splits rows at a dated bachelor’s conferral by term', () => {
+    const p = parseExternalTranscript([
+      ...PURDUE.slice(0, 5),
+      'Bachelor of Science in Computer Science — Conferred: May 11, 2024',
+      'Fall 2023',
+      'CS 25100   Data Structures and Algorithms   4.0   A',
+      'Spring 2024',
+      'CS 35400   Operating Systems                3.0   A-',
+      'Fall 2024',
+      'CS 50300   Operating Systems                3.0   A',
+      'CS 58000   Algorithm Design                 3.0   B+',
+      'Master of Science in Computer Science — Conferred: May 10, 2025',
+      ...PURDUE.slice(13),
+    ]);
+    assert.equal(p.bachelorsConferredOn, '2024-05-11');
+    assert.equal(p.mixedLevels, true);
+    assert.equal(p.degreeConferred, true);
+    assert.deepEqual(
+      p.courses.map((c) => [c.courseId, c.level]),
+      [
+        ['CS 25100', 'undergraduate'],
+        ['CS 35400', 'undergraduate'],
+        ['CS 50300', 'graduate'],
+        ['CS 58000', 'graduate'],
+      ],
+    );
+  });
+
+  it('reads UG/GR cells on the row and "Level:" / "Term Totals" blocks; leaves rows undecided otherwise', () => {
+    const p = parseExternalTranscript([
+      ...PURDUE.slice(0, 5),
+      'Fall 2023',
+      'CS 25100 UG  Data Structures and Algorithms   4.0   A',
+      'CS 50300 GR  Operating Systems                3.0   A',
+      'Level: Graduate',
+      'Spring 2024',
+      'CS 58000   Algorithm Design                 3.0   B+',
+      'Term Totals (Undergraduate)',
+      'Fall 2024',
+      'CS 35400   Operating Systems                3.0   A-',
+      ...PURDUE.slice(13),
+    ]);
+    assert.deepEqual(
+      p.courses.map((c) => [c.courseId, c.level, c.title]),
+      [
+        ['CS 25100', 'undergraduate', 'Data Structures and Algorithms'],
+        ['CS 50300', 'graduate', 'Operating Systems'],
+        ['CS 58000', 'graduate', 'Algorithm Design'],
+        ['CS 35400', 'undergraduate', 'Operating Systems'],
+      ],
+    );
+    assert.equal(p.mixedLevels, true);
+    const plain = parseExternalTranscript(PURDUE);
+    assert.ok(plain.courses.every((c) => c.level === undefined), 'no marker → no level (the slot decides)');
+    assert.equal(plain.mixedLevels, undefined);
+    assert.equal(plain.bachelorsConferredOn, undefined);
+  });
+
+  it('a line that merely starts with "Graduate …" is not a level block', () => {
+    const p = parseExternalTranscript([
+      ...PURDUE.slice(0, 5),
+      'Graduate Operating Systems is a core course.',
+      'Fall 2023',
+      'CS 50300   Operating Systems                3.0   A',
+      ...PURDUE.slice(13),
+    ]);
+    assert.equal(p.courses.length, 1);
+    assert.equal(p.courses[0]?.level, undefined);
+  });
+});

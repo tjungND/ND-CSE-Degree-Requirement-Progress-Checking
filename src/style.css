@@ -60,7 +60,7 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
 
 /* layout */
-.layout { display: grid; grid-template-columns: 1fr 480px; gap: 18px; align-items: start; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 480px; gap: 18px; align-items: start; } /* minmax(0,…) — a wide preview table scrolls inside its card instead of widening the column (2026-09-05) */
 @media (max-width: 1120px) { .layout { grid-template-columns: 1fr; } }
 /* The report flows with the page (DGS request 2026-09-03): no inner
  * scrollbar — the whole column is visible by scrolling the page itself. */
@@ -184,7 +184,7 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .transcript-upload { margin: 0 0 12px; }
 .transcript-upload .btn { margin-left: 0; }
 .hint-inline { color: var(--muted); font-size: 12.5px; }
-.transcript-preview { border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #fffdf5; }
+.transcript-preview { border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #fffdf5; overflow-x: auto; }
 .transcript-preview h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
 .transcript-preview .save-buttons { margin-top: 10px; }
 
@@ -287,7 +287,15 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .external-slot:last-of-type { border-bottom: 0; }
 .external-slot .slot-label { font-weight: 600; color: var(--navy); min-width: 140px; display: inline-block; }
 .external-card .transcript-preview input, .external-card .transcript-preview select { padding: 4px 6px; font-size: 13px; max-width: 130px; }
-.external-card .transcript-preview input.course-title { max-width: 100%; width: 160px; }
+/* Eight columns must fit the inputs column at 1400px (2026-09-05, "Taken as" added): tight widths per field. */
+.external-card .transcript-preview input.course-id { width: 80px; }
+.external-card .transcript-preview input.course-title { width: 106px; }
+.external-card .transcript-preview input[type="number"][max="30"] { width: 46px; }
+.external-card .transcript-preview input[type="number"][max="2040"] { width: 58px; }
+.external-card .transcript-preview select { max-width: 74px; }
+.external-card .transcript-preview select.row-level { max-width: 124px; } /* Taken as: Undergraduate / Graduate */
+.external-card .transcript-preview table.courses td, .external-card .transcript-preview table.courses th { padding: 6px 3px; }
+.transcript-preview tr.prior-row .cid, .transcript-preview tr.prior-row input.course-id { color: var(--muted); } /* rows filed as prior coursework / unticked as irrelevant */
 .external-verdicts { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
 .external-verdicts h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
 .external-verdict, .review-line { font-size: 13px; margin: 3px 0; color: var(--ink); }

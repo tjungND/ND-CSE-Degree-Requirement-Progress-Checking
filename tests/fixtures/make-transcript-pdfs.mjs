@@ -230,7 +230,34 @@ const EXTERNAL = [
   'Cumulative GPA: 3.83',
 ];
 
+// A COMBINED B.S.+M.S. transcript from one university (2026-09-05, 4+1 /
+// same-institution case): the bachelor's conferral line splits the rows into
+// undergraduate (before it) and graduate (after it); the M.S. conferral makes
+// the graduate rows a completed prior degree.
+const COMBINED = [
+  'Purdue University',
+  'Office of the Registrar',
+  'Unofficial Transcript',
+  'Student: Jane Q. Boilermaker',
+  'Bachelor of Science in Computer Science — Conferred: May 11, 2024',
+  'Master of Science in Computer Science — Conferred: May 10, 2025',
+  '',
+  'Fall 2023',
+  'CS 25100   Data Structures and Algorithms    4.0   A',
+  'CS 30700   Software Engineering I            3.0   A-',
+  '',
+  'Spring 2024',
+  'CS 35400   Operating Systems                 3.0   A',
+  '',
+  'Fall 2024',
+  'CS 50300   Operating Systems                 3.0   A',
+  'CS 58000   Algorithm Design                  3.0   B+',
+  '',
+  'Cumulative GPA: 3.80',
+];
+
 writeFileSync(join(here, 'nd-transcript.pdf'), makePdf(ND));
+writeFileSync(join(here, 'combined-transcript.pdf'), makePdf(COMBINED));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
 writeFileSync(join(here, 'banner-transcript.pdf'), makePositionedPdf(bannerPages()));

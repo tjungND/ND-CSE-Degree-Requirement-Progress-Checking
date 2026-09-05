@@ -163,6 +163,28 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Combined transcripts + Notre Dame as a previous institution** (2026-09-05, the corner cases
+  the DGS listed): `parseExternalTranscript` now returns a per-row `level` ('undergraduate' |
+  'graduate') from a `UG|UGRD|GR|GRAD` cell right after the code (stripped before tokenizing),
+  a level block (`LEVEL_BLOCK_RE`: "Level:", "Term Totals (…)", a bare "(Undergraduate)" line,
+  "College: Graduate School" — never a line that merely starts with "Graduate …"), or a DATED
+  bachelor's conferral (`bachelorsConferredOn`; rows in terms ≤ that term are undergraduate);
+  `mixedLevels` when both appear. `external-upload.ts`: `PreviewRow.level` (default =
+  `slotDefaultLevel(slot)`), a "Taken as" `select.row-level` per row, `degreeLevelFor(slot,
+  level)` on add (undergraduate → bachelors whatever the slot; graduate → masters, or phd in the
+  Ph.D. slot), `registeredLevel` kept on Notre Dame rows, prior-study inference on ANY graduate
+  row; `keepRelevantRows(university, rules, rows, mixed)` unticks-but-keeps (`irrelevant`) on a
+  mixed transcript and omits on a single-level undergraduate one; a Notre Dame course counts as
+  relevant when the Courses tab tags it with a core area. A Notre Dame transcript in a previous
+  slot is parsed by `parseTranscript` (university `NOTRE_DAME`, `notreDame: true` → the
+  `.nd-prior-note`; the OCR path still redirects). `verdictsBlock` shows the Courses-tab core
+  area for prior ND rows ("(course rules)"); app.ts's review request lists prior ND courses under
+  Notre Dame ("Notre Dame, before entry") as Courses-tab rows when unlisted. CSS: `.layout`'s
+  first column is `minmax(0, 1fr)` and `.transcript-preview` scrolls horizontally, with per-field
+  widths so the eight preview columns fit at 1400px. Fixture `combined-transcript.pdf`
+  (Purdue B.S. conferred May 2024 + M.S. May 2025); e2e steps 7 (combined into the freed
+  Master's slot: levels/ticks, toast "(2 undergraduate, 2 graduate)", prior study completed,
+  two Purdue groups) and 8 (the ND fixture in the Ph.D. slot). COVERAGE_NOTICE re-worded.
 - **Entry term read from the transcript; prior Notre Dame coursework** (2026-09-05, student
   bug report: a combined ND transcript — eight undergraduate semesters — showed 13 consecutive
   semesters and deadlines 8 years from "this fall"). Root cause: `Student.entryTerm` defaulted
@@ -278,8 +300,9 @@ Known-pending (the app's diagnostics panel is the live truth):
   report.ts renders it as a two-layer list (`.detail-sublist`, one sub-bullet per item); used by
   approvalsRow and categoriesRow. BETA_SCOPE_NOTICE now carries the "transcript-PDF import …
   highly inaccurate" caveat, and since 2026-09-05 ends with `COVERAGE_NOTICE` ("Not all cases are
-  covered yet — for example, 5+1 BS/MS programs, or a BS and an MS earned at the same
-  institution."), which the consent overlay shows as its own paragraph; the feedback line on the
+  covered yet — for example, …"; the examples were the 5+1 / same-institution cases until those
+  were handled later that day — now unseen layouts and combined records that do not tell the
+  levels apart), which the consent overlay shows as its own paragraph; the feedback line on the
   self-check page says error reports, suggestions and feedback are all welcome. tests/contacts.test.ts locks the key names.
 - **Alpha label, undergrad relevance filter, ndResearch gate, bulleted details** (2026-09-04, DGS):
   the banner and import buttons say ALPHA again. `CORE_TITLE_RE` moved to

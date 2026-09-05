@@ -7,13 +7,15 @@
 // shows the DGS's rulings from the ExternalCourses rules; anything unruled is
 // picked up by app.ts's single "Ask the DGS to review" card (the page itself
 // transmits nothing — FERPA).
-import { findExternalRule } from '../data/external.ts';
+import { resolveRuleRow } from '../data/assemble.ts';
+import { NOTRE_DAME, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import type { Rules } from '../data/types.ts';
 import { GRADES, isPassed } from '../engine/grades.ts';
-import { termLabel } from '../engine/term.ts';
+import { termIndex, termLabel } from '../engine/term.ts';
 import type { CourseEntry, Grade, Season, Student } from '../engine/types.ts';
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
+import { parseTranscript } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 
 /** Write a review request to the clipboard in BOTH flavors (2026-09-03):
@@ -54,6 +56,15 @@ interface PreviewRow {
   year: number | undefined;
   /** OCR read this row's line poorly — the preview marks it for checking. */
   lowConfidence?: boolean;
+  /** The level the student was registered at for this row (2026-09-05 —
+   * combined B.S.+M.S. / 4+1 transcripts): from the transcript when it says,
+   * else the slot's level. Undergraduate rows can only satisfy §4.4.1 core
+   * knowledge; graduate rows are §5.2 transfer candidates. */
+  level: 'undergraduate' | 'graduate';
+  /** Left out by the relevance filter (an undergraduate row that cannot
+   * matter) but kept visible, unticked, on a MIXED-level transcript so the
+   * student can still tick it or change its level (2026-09-05). */
+  irrelevant?: boolean;
 }
 
 interface ExternalPreview {
@@ -71,6 +82,26 @@ interface ExternalPreview {
   /** Rows under Banner's "Transfer credit accepted by the institution" block —
    * courses from a THIRD school — left out by the parser (2026-09-05). */
   transferSkipped?: number;
+  /** Rows of both levels were read (2026-09-05): the Taken-as column matters. */
+  mixedLevels?: boolean;
+  /** A Notre Dame transcript in a previous-degree slot (2026-09-05): an
+   * earlier Notre Dame degree. The preview reminds the student that the
+   * Notre Dame row handles a transcript that also holds the current program. */
+  notreDame?: boolean;
+}
+
+/** The level a row is treated at: its own when the transcript said, else the slot's. */
+function slotDefaultLevel(slot: DegreeLevel): PreviewRow['level'] {
+  return slot === 'bachelors' ? 'undergraduate' : 'graduate';
+}
+
+/** A row's degree level on add (2026-09-05): undergraduate rows are
+ * Bachelor's coursework whatever the slot; graduate rows take the slot's
+ * degree (Master's, or Ph.D. in the Ph.D. slot; a graduate row on an
+ * undergraduate transcript — a 4+1's fifth year — is Master's coursework). */
+function degreeLevelFor(slot: DegreeLevel, level: PreviewRow['level']): DegreeLevel {
+  if (level === 'undergraduate') return 'bachelors';
+  return slot === 'phd' ? 'phd' : 'masters';
 }
 
 let preview: ExternalPreview | undefined;
@@ -98,19 +129,35 @@ export function importsBusy(): boolean {
   return preview !== undefined || pendingScan !== undefined || ocrBusy !== undefined;
 }
 
-/** Undergraduate imports (DGS request 2026-09-04): undergraduate credits
- * never transfer (§5.2), so only rows that can matter are offered in the
- * preview — a title matching the §4.4.1 core keywords (algorithms, operating
- * systems, architecture), or a course the DGS has already ruled on for this
- * university. Everything else is left out (and counted, for the note). */
+/** Undergraduate rows (DGS request 2026-09-04): undergraduate credits never
+ * transfer (§5.2), so only rows that can matter are offered in the preview —
+ * a title matching the §4.4.1 core keywords (algorithms, operating systems,
+ * architecture), a course the DGS has already ruled on for this university,
+ * or (Notre Dame) a course the Courses tab tags with a core area. On a
+ * single-level undergraduate transcript everything else is left out (and
+ * counted, for the note); on a MIXED-level transcript (2026-09-05) such rows
+ * stay visible but unticked, since the student may need to change a level. */
 function keepRelevantRows(
-  slot: DegreeLevel,
   university: string,
   rules: Rules,
   rows: PreviewRow[],
+  mixed: boolean,
 ): { rows: PreviewRow[]; omitted: number } {
-  if (slot !== 'bachelors') return { rows, omitted: 0 };
-  const kept = rows.filter((r) => CORE_TITLE_RE.test(r.title) || findExternalRule(rules.external, university, r.courseId) !== undefined);
+  const relevant = (r: PreviewRow) =>
+    r.level === 'graduate' ||
+    CORE_TITLE_RE.test(r.title) ||
+    findExternalRule(rules.external, university, r.courseId) !== undefined ||
+    (isNotreDameInstitution(university) && r.year !== undefined && resolveRuleRow(rules, r.courseId, { season: r.season, year: r.year })?.coreArea !== undefined);
+  if (mixed) {
+    for (const r of rows) {
+      if (!relevant(r)) {
+        r.include = false;
+        r.irrelevant = true;
+      }
+    }
+    return { rows, omitted: 0 };
+  }
+  const kept = rows.filter(relevant);
   return { rows: kept, omitted: rows.length - kept.length };
 }
 
@@ -149,15 +196,48 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       const buffer = await file.arrayBuffer();
       const lines = await pdfToLines(buffer.slice(0));
       const { parseExternalTranscript } = await import('../transcript/external.ts');
+      // A NOTRE DAME transcript in a previous-degree slot (2026-09-05): the
+      // record of an earlier Notre Dame degree (undergraduate at Notre Dame
+      // before a Ph.D. elsewhere-then-here, a prior Notre Dame M.S.). Read by
+      // the Notre Dame parser — it knows the UG/GR column and the degrees
+      // awarded — and filed under "University of Notre Dame". (A transcript
+      // that ALSO holds the current program belongs in the Notre Dame row,
+      // which separates the two by the entry term; the preview says so.)
+      const nd = parseTranscript(lines);
+      if (nd.isNotreDame) {
+        const ndRows: PreviewRow[] = nd.courses
+          .filter((c) => c.origin === 'nd')
+          .map((c) => ({
+            include: true,
+            courseId: c.courseId,
+            title: c.title ?? '',
+            credits: c.credits,
+            grade: c.grade,
+            season: c.term.season,
+            year: c.term.year,
+            level: c.level ?? slotDefaultLevel(slot.level),
+          }));
+        const levels = new Set(ndRows.map((r) => r.level));
+        const kept = keepRelevantRows(NOTRE_DAME, rules, ndRows, levels.size > 1);
+        preview = {
+          slot: slot.level,
+          university: NOTRE_DAME,
+          conferred: nd.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd'),
+          rows: kept.rows,
+          omitted: kept.omitted,
+          transferSkipped: nd.courses.filter((c) => c.origin === 'transfer').length || undefined,
+          mixedLevels: levels.size > 1,
+          notreDame: true,
+        };
+        if (ndRows.length === 0) toast('This looks like a Notre Dame transcript, but no course lines could be read from it. Add the courses by hand in the preview, and tell the DGS.');
+        render();
+        return;
+      }
       const parsed = parseExternalTranscript(lines);
       if (!parsed.hasTextLayer) {
         // A scan or photo: never OCR silently — offer it (DGS decision 2026-09-02).
         pendingScan = { slot: slot.level, buffer, filename: file.name };
         render();
-        return;
-      }
-      if (parsed.looksLikeNotreDame) {
-        toast('This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above for it; these three slots are for OTHER universities.');
         return;
       }
       const mapped = parsed.courses.map((c: ExternalCourseCandidate) => ({
@@ -169,8 +249,9 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         rawGrade: c.rawGrade,
         season: c.season ?? ('fall' as Season),
         year: c.year,
+        level: c.level ?? slotDefaultLevel(slot.level),
       }));
-      const kept = keepRelevantRows(slot.level, parsed.university ?? '', rules, mapped);
+      const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, parsed.mixedLevels === true);
       preview = {
         slot: slot.level,
         university: parsed.university ?? '',
@@ -178,6 +259,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         rows: kept.rows,
         omitted: kept.omitted,
         transferSkipped: parsed.transferRowsSkipped,
+        mixedLevels: parsed.mixedLevels,
       };
       if (mapped.length === 0) {
         toast('No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand in the preview (and please tell the DGS which university, so parsing can be improved).');
@@ -282,8 +364,9 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   season: c.season ?? ('fall' as Season),
                   year: c.year,
                   lowConfidence: c.lowConfidence,
+                  level: c.level ?? slotDefaultLevel(slot),
                 }));
-                const kept = keepRelevantRows(slot, parsed.university ?? '', args.rules, mapped);
+                const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, parsed.mixedLevels === true);
                 preview = {
                   slot,
                   university: parsed.university ?? '',
@@ -292,6 +375,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   rows: kept.rows,
                   omitted: kept.omitted,
                   transferSkipped: parsed.transferRowsSkipped,
+                  mixedLevels: parsed.mixedLevels,
                 };
                 render();
                 if (parsed.courses.length === 0) {
@@ -346,15 +430,32 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           ),
         ]
       : []),
-    ...(p.slot === 'bachelors'
+    ...(p.notreDame
       ? [
           el(
             'p',
-            { class: 'hint warn' },
-            `Undergraduate credits do not transfer (§5.2), so only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
+            { class: 'hint warn nd-prior-note' },
+            'This is a Notre Dame transcript, read as the record of an EARLIER Notre Dame degree. If it also holds your current program’s terms, cancel and use the “Notre Dame Unofficial Transcript” row instead — it separates the earlier degree from the program by your entry term.',
           ),
         ]
       : []),
+    ...(p.mixedLevels
+      ? [
+          el(
+            'p',
+            { class: 'hint warn mixed-note' },
+            'This transcript holds both undergraduate and graduate coursework. Check the “Taken as” column: rows taken as an undergraduate can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) — the ones that cannot matter start unticked — while rows taken as a graduate student are §5.2 transfer candidates.',
+          ),
+        ]
+      : p.slot === 'bachelors'
+        ? [
+            el(
+              'p',
+              { class: 'hint warn' },
+              `Undergraduate credits do not transfer (§5.2), so only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
+            ),
+          ]
+        : []),
     ...(p.transferSkipped
       ? [
           el(
@@ -369,7 +470,18 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   );
   const table = el('table', { class: 'courses' });
   table.append(
-    el('tr', {}, el('th', {}, ''), el('th', {}, 'Course id'), el('th', {}, 'Title'), el('th', {}, 'Cr'), el('th', {}, 'Grade'), el('th', {}, 'Term'), el('th', {}, 'Year')),
+    el(
+      'tr',
+      {},
+      el('th', {}, ''),
+      el('th', {}, 'Course id'),
+      el('th', {}, 'Title'),
+      el('th', {}, 'Cr'),
+      el('th', {}, 'Grade'),
+      el('th', {}, 'Term'),
+      el('th', {}, 'Year'),
+      el('th', { title: 'The level you were registered at when you took it — undergraduate rows can only satisfy §4.4.1 core knowledge; graduate rows may transfer (§5.2)' }, 'Taken as'),
+    ),
   );
   const rowEls = p.rows.map((r) => {
     const cb = el('input', { type: 'checkbox', onchange: (e) => (r.include = (e.target as HTMLInputElement).checked) });
@@ -395,9 +507,13 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       const v = Number((yearIn as HTMLInputElement).value);
       r.year = Number.isFinite(v) && v > 1900 ? v : undefined;
     });
+    // Taken as (2026-09-05): the level decides Bachelor's vs graduate coursework on add.
+    const levelSel = el('select', { class: 'row-level' });
+    levelSel.append(option('undergraduate', 'Undergraduate', r.level === 'undergraduate'), option('graduate', 'Graduate', r.level === 'graduate'));
+    levelSel.addEventListener('change', () => (r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level']));
     const tr = el(
       'tr',
-      { class: r.lowConfidence ? 'ocr-low' : '' },
+      { class: [r.lowConfidence ? 'ocr-low' : '', r.irrelevant ? 'prior-row' : ''].join(' ').trim() },
       el('td', {}, r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null, cb),
       el('td', {}, idIn),
       el('td', {}, titleIn),
@@ -405,6 +521,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       el('td', {}, gradeSel),
       el('td', {}, seasonSel),
       el('td', {}, yearIn),
+      el('td', {}, levelSel),
     );
     return tr;
   });
@@ -414,7 +531,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     el('button', {
       class: 'btn tiny',
       onclick: () => {
-        p.rows.push({ include: true, courseId: '', title: '', credits: 3, grade: '', season: 'fall', year: undefined });
+        p.rows.push({ include: true, courseId: '', title: '', credits: 3, grade: '', season: 'fall', year: undefined, level: slotDefaultLevel(p.slot) });
         render();
       },
     }, '+ Add a row by hand'),
@@ -442,8 +559,11 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // (initializer cast: the assignment happens inside the update()
             // closure, which TS's flow analysis can't see from the use below)
             let priorAutoSet = false as 'completed' | 'unfinished' | false;
+            let graduateRows = 0;
             update((s) => {
               for (const r of ready) {
+                const degreeLevel = degreeLevelFor(p.slot, r.level);
+                if (degreeLevel !== 'bachelors') graduateRows += 1;
                 s.courses.push({
                   courseId: r.courseId.trim(),
                   title: r.title.trim() || undefined,
@@ -452,7 +572,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   grade: r.grade as Grade,
                   origin: 'transfer',
                   institution: university,
-                  degreeLevel: p.slot,
+                  degreeLevel,
+                  // Notre Dame rows keep their registered level so a later
+                  // entry-term change can re-file them (prior-nd.ts).
+                  registeredLevel: isNotreDameInstitution(university) ? r.level : undefined,
                 });
               }
               // "Prior graduate study" from the transcript (2026-09-03): a
@@ -461,17 +584,21 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               // standing card's warning (the transcript alone cannot prove
               // completion). Only the untouched default is upgraded — never a
               // student's own choice; touching the dropdown clears the flag.
-              if ((p.slot === 'masters' || p.slot === 'phd') && s.priorMs === 'none') {
+              // Since 2026-09-05 any GRADUATE row triggers this, whatever the
+              // slot (a 4+1's fifth year on an undergraduate transcript).
+              if (graduateRows > 0 && s.priorMs === 'none') {
                 s.priorMs = p.conferred === true ? 'completed' : 'unfinished';
                 s.priorMsInferred = true;
                 priorAutoSet = s.priorMs;
               }
             });
             const matched = ready.filter((r) => findExternalRule(rules.external, university, r.courseId)).length;
+            const undergraduateRows = ready.length - graduateRows;
             preview = undefined;
             render();
             toast(
               `Added ${ready.length} course${ready.length === 1 ? '' : 's'} from ${university}` +
+                (p.mixedLevels ? ` (${undergraduateRows} undergraduate, ${graduateRows} graduate)` : '') +
                 (matched > 0 ? ` — ${matched} already in the DGS’s external-course rules` : '') +
                 (skipped > 0 ? `; ${skipped} skipped (incomplete — missing a grade, credits or year)` : '') +
                 '.' +
@@ -500,16 +627,20 @@ function verdictsBlock(student: Student, rules: Rules): HTMLElement | null {
   const lines: HTMLElement[] = [];
   for (const c of external) {
     const rule = findExternalRule(rules.external, c.institution ?? '', c.courseId);
+    // Prior Notre Dame coursework (2026-09-05): the Courses tab's core area
+    // applies to a Notre Dame course whenever it was taken.
+    const ndCore = isNotreDameInstitution(c.institution) ? resolveRuleRow(rules, c.courseId, c.term)?.coreArea : undefined;
     const verdictParts: string[] = [];
-    if (rule?.satisfiesCoreArea) {
-      const area = rules.coreAreas.find((a) => a.code === rule.satisfiesCoreArea);
-      verdictParts.push(`core knowledge: ${area?.name ?? rule.satisfiesCoreArea} ✓${isPassed(c.grade) ? '' : ' (needs a passing grade)'}`);
+    const coreCode = rule?.satisfiesCoreArea ?? ndCore;
+    if (coreCode) {
+      const area = rules.coreAreas.find((a) => a.code === coreCode);
+      verdictParts.push(`core knowledge: ${area?.name ?? coreCode} ✓${isPassed(c.grade) ? '' : ' (needs a passing grade)'}${rule?.satisfiesCoreArea ? '' : ' (course rules)'}`);
     }
     if (c.degreeLevel === 'bachelors') verdictParts.push('no transfer credit (Bachelor’s, §5.2)');
     else if (rule?.transferable === true) verdictParts.push('transferable ✓ (send the §5.2 request)');
     else if (rule?.transferable === false) verdictParts.push('not transferable (DGS ruling)');
-    if (!rule) verdictParts.push('not yet reviewed by the DGS');
-    else if (rule.transferable === undefined && c.degreeLevel !== 'bachelors') verdictParts.push('transferability not yet decided');
+    if (!rule && !(ndCore && c.degreeLevel === 'bachelors')) verdictParts.push(c.degreeLevel === 'bachelors' ? 'not yet reviewed by the DGS' : 'transfer not yet reviewed by the DGS');
+    else if (rule && rule.transferable === undefined && c.degreeLevel !== 'bachelors') verdictParts.push('transferability not yet decided');
     lines.push(
       el(
         'div',

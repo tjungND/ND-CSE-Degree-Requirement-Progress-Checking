@@ -4,8 +4,10 @@
 // added without their review, and unmatched grades must be chosen by hand.
 // System-generated PDFs are read exactly; a PDF with no text layer is offered
 // the opt-in English-only OCR instead (decision 2026-09-02; src/transcript/ocr.ts).
+import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
+import { dateOnLine } from './parse.ts';
 
 export interface ExternalCourseCandidate {
   courseId: string;
@@ -22,6 +24,13 @@ export interface ExternalCourseCandidate {
   /** OCR only: the source line read below the confidence floor — the preview
    * marks the row so the student checks it against the paper. */
   lowConfidence?: boolean;
+  /** The level the student was registered at for this row, when the
+   * transcript says (2026-09-05 — combined B.S.+M.S. and 4+1 transcripts):
+   * a UG/GR-style level cell on the row, a "Level: Graduate" / "Term Totals
+   * (Undergraduate)" block, or the bachelor's conferral date (rows in terms
+   * up to that date are undergraduate, later ones graduate). Undefined when
+   * nothing says — the slot's level then applies. */
+  level?: 'undergraduate' | 'graduate';
 }
 
 export interface ExternalParseResult {
@@ -35,6 +44,12 @@ export interface ExternalParseResult {
    * degree and says conferred/awarded/granted. Absence stays undefined — the
    * app never guesses whether a degree was completed. */
   degreeConferred?: true;
+  /** A bachelor's degree conferral with a date (2026-09-05): the boundary
+   * between undergraduate and graduate rows on a combined transcript. */
+  bachelorsConferredOn?: string;
+  /** True when rows of BOTH levels were found — the preview then shows the
+   * per-row level for the student to check (2026-09-05). */
+  mixedLevels?: true;
   /** Rows listed under Banner's "TRANSFER CREDIT ACCEPTED BY THE INSTITUTION"
    * (courses this university accepted from ANOTHER school) are not this
    * university's courses — they are left out and counted here so the preview
@@ -229,6 +244,17 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // skipped and counted (2026-09-05).
   let inTransferBlock = false;
   let transferRowsSkipped = 0;
+  // Level signals (2026-09-05, combined B.S.+M.S. / 4+1 transcripts): a
+  // "Level:" / "Term Totals (Graduate)" / "College: Graduate School" line sets
+  // the level of the rows that follow; a UG/GR cell right after the course
+  // code sets one row's; a dated bachelor's conferral splits the rest by term.
+  type Level = NonNullable<ExternalCourseCandidate['level']>;
+  const LEVEL_BLOCK_RE =
+    /^(?:course\s+)?level\s*:?\s*(undergraduate|graduate)\b|^term\s+totals\s*\(?\s*(undergraduate|graduate)\b|^\(?(undergraduate|graduate)\)?$|^college\s*:?\s*(?:the\s+)?(graduate)\s+school\b/i;
+  const ROW_LEVEL_RE = /^(UG|UGRD|GR|GRAD)$/;
+  let blockLevel: Level | undefined;
+  let bachelorsConferredOn: string | undefined;
+  const rowLevels: (Level | undefined)[] = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex]!;
     if (/TRANSFER\s+CREDIT\s+ACCEPTED\s+BY/i.test(line)) inTransferBlock = true;
@@ -242,6 +268,16 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       }
     }
     const flat = line.replace(/\s{2,}/g, '  ').trim();
+    const levelBlock = LEVEL_BLOCK_RE.exec(flat);
+    if (levelBlock && !/\d{2,}/.test(flat.slice(0, 12))) {
+      const word = (levelBlock[1] ?? levelBlock[2] ?? levelBlock[3] ?? levelBlock[4] ?? '').toLowerCase();
+      blockLevel = word === 'undergraduate' ? 'undergraduate' : 'graduate';
+      continue;
+    }
+    if (/\bbachelor/i.test(flat) && CONFER_RE.test(flat) && !NOT_COMPLETE_RE.test(flat) && bachelorsConferredOn === undefined) {
+      // The date may sit on the same line or on a "Degree Date:" line right after.
+      bachelorsConferredOn = dateOnLine(flat) ?? (lines[lineIndex + 1] && /degree\s+date|conferr|awarded/i.test(lines[lineIndex + 1]!) ? dateOnLine(lines[lineIndex + 1]!) : undefined);
+    }
     if (flat.length < 6) continue;
     // The course code is expected at the start of the row (or right after a
     // leading term/date cell). Column gaps are unreliable across layouts, so
@@ -252,6 +288,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (inTransferBlock) {
       transferRowsSkipped += 1;
       continue;
+    }
+    let rowLevel: Level | undefined;
+    if (lead.tokens.length > 0 && ROW_LEVEL_RE.test(lead.tokens[0]!)) {
+      rowLevel = /^U/.test(lead.tokens[0]!) ? 'undergraduate' : 'graduate';
+      lead.tokens.shift();
     }
     const into: { credits?: number; grade?: Grade; rawGrade?: string; titleParts: string[] } = { titleParts: [] };
     scanTokens(lead.tokens, into);
@@ -295,8 +336,21 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       season: YEAR_RE.exec(yearLine) ? (seasonOf(yearLine) ?? currentSeason) : currentSeason,
       lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
     });
+    rowLevels.push(rowLevel ?? blockLevel);
     if (usedContinuation) lineIndex += 1; // the continuation line is consumed
   }
+  // Per-row level (2026-09-05): the row's or block's own marker first; else,
+  // with a dated bachelor's conferral, the row's term against that date.
+  const conferralTerm = bachelorsConferredOn ? termOfDate(bachelorsConferredOn) : undefined;
+  courses.forEach((c, i) => {
+    let level = rowLevels[i];
+    if (level === undefined && conferralTerm && c.year !== undefined) {
+      if (c.season !== undefined) level = termIndex({ season: c.season, year: c.year }) <= termIndex(conferralTerm) ? 'undergraduate' : 'graduate';
+      else if (c.year !== conferralTerm.year) level = c.year < conferralTerm.year ? 'undergraduate' : 'graduate';
+    }
+    if (level !== undefined) c.level = level;
+  });
+  const levels = new Set(courses.map((c) => c.level).filter((l) => l !== undefined));
   const degreeConferred =
     lines.some((l) => CONFER_RE.test(l) && GRAD_DEGREE_RE.test(l) && !NOT_COMPLETE_RE.test(l)) || undefined;
   return {
@@ -304,6 +358,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     looksLikeNotreDame,
     university: guessUniversity(lines),
     degreeConferred,
+    bachelorsConferredOn,
+    mixedLevels: levels.size > 1 ? true : undefined,
     transferRowsSkipped: transferRowsSkipped > 0 ? transferRowsSkipped : undefined,
     courses,
   };

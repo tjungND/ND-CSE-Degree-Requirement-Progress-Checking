@@ -98,10 +98,11 @@ try {
   const bannerPdf = join(root, 'tests', 'fixtures', 'banner-transcript.pdf');
   const watermarkedPdf = join(root, 'tests', 'fixtures', 'banner-watermarked-transcript.pdf');
   const otherPdf = join(root, 'tests', 'fixtures', 'other-transcript.pdf');
+  const combinedPdf = join(root, 'tests', 'fixtures', 'combined-transcript.pdf');
 
   for (const [name, fn] of [
     ['app basics', (s) => driveApp(s, baseUrl)],
-    ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf)],
+    ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf)],
     ['course rules list', (s) => driveCourses(s, baseUrl)],
   ]) {
     console.log(`\n▶ ${name}`);

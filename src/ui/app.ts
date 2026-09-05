@@ -539,16 +539,37 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     });
     const n = nd.length + external.length;
     if (n === 0) return null;
-    const ndReq = nd.map((c) => ({
-      courseId: c.entry.courseId,
-      title: c.entry.title ?? c.rule?.title,
-      credits: c.entry.credits,
-      grade: c.entry.grade,
-      termText: termLabel(c.entry.term),
-      reason: c.unknown === true ? 'not in the course rules yet' : (c.approvalPending ?? 'needs DGS review'),
-      unlisted: c.unknown === true,
-    }));
-    const extReq = external.map((c) => ({
+    // Prior Notre Dame coursework (2026-09-05) is asked about as NOTRE DAME
+    // courses — a row for the Courses tab when it is not listed there (its
+    // core_area then decides §4.4.1); the §5.2 transfer part stays a
+    // per-student recommendation.
+    const priorNd = external.filter((c) => isNotreDameInstitution(c.entry.institution));
+    const others = external.filter((c) => !isNotreDameInstitution(c.entry.institution));
+    const ndReq = [
+      ...nd.map((c) => ({
+        courseId: c.entry.courseId,
+        title: c.entry.title ?? c.rule?.title,
+        credits: c.entry.credits,
+        grade: c.entry.grade,
+        termText: termLabel(c.entry.term),
+        reason: c.unknown === true ? 'not in the course rules yet' : (c.approvalPending ?? 'needs DGS review'),
+        unlisted: c.unknown === true,
+      })),
+      ...priorNd.map((c) => ({
+        courseId: c.entry.courseId,
+        title: c.entry.title ?? c.rule?.title,
+        credits: c.entry.credits,
+        grade: c.entry.grade,
+        termText: termLabel(c.entry.term),
+        reason:
+          `taken at Notre Dame before entering the program (${c.entry.degreeLevel === 'bachelors' ? 'undergraduate' : 'graduate'}) — ` +
+          (c.rule === undefined
+            ? 'not in the course rules yet; does it cover a §4.4.1 core area?'
+            : 'transfer credit needs a DGS recommendation (§5.2)'),
+        unlisted: c.rule === undefined,
+      })),
+    ];
+    const extReq = others.map((c) => ({
       institution: c.entry.institution,
       courseId: c.entry.courseId,
       title: c.entry.title,
@@ -582,8 +603,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         mailto(GRAD_ADMIN.email),
         '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing.',
       ),
-      ...nd.map((c, i) => line(c.entry.courseId, 'Notre Dame', ndReq[i]!.reason)),
-      ...external.map((c, i) => line(c.entry.courseId, c.entry.institution ?? 'other university', extReq[i]!.reason)),
+      ...ndReq.map((r, i) => line(r.courseId, i < nd.length ? 'Notre Dame' : 'Notre Dame, before entry', r.reason)),
+      ...others.map((c, i) => line(c.entry.courseId, c.entry.institution ?? 'other university', extReq[i]!.reason)),
       el(
         'div',
         { class: 'save-buttons' },

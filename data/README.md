@@ -153,7 +153,18 @@ column order, ready to paste straight into the sheet.
 
 Anything a student uploads that has NO row here shows "not yet reviewed by the
 DGS" (never guessed), and the student gets a copy-ready email request — that is
-how this tab grows. **One-time setup:** create the tab, publish it to the web as
+how this tab grows.
+
+**Notre Dame coursework from an EARLIER Notre Dame degree** (2026-09-05 — a
+combined transcript: a Notre Dame B.S. or a prior Notre Dame M.S. before the
+current program) is filed under the university name `UNIVERSITY OF NOTRE DAME`.
+Its §4.4.1 core area comes from the **Courses tab** (the course's `core_area`
+applies whenever the course was taken — add the course there if it is missing),
+so no row is needed here for core knowledge; a row here is only for
+pre-approving the §5.2 transfer of a prior Notre Dame graduate course
+(`transferable`), which the handbook treats like any other prior-program transfer.
+
+**One-time setup:** create the tab, publish it to the web as
 CSV (File → Share → Publish to web → ExternalCourses → CSV) and paste the URL
 into `sheet-urls.json` as `external`. Until then the app runs without it.
 

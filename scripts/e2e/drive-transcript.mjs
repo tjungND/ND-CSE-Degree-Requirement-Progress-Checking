@@ -4,7 +4,7 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf) {
+export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf) {
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -245,4 +245,64 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   await s.shot('banner-watermarked-preview');
   await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
+  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
+
+  // 7) A COMBINED B.S.+M.S. transcript from one university (2026-09-05): the
+  //    Master's slot is freed, then the PDF's bachelor's conferral line splits
+  //    the rows — undergraduate rows can only serve §4.4.1 (the irrelevant one
+  //    starts unticked), graduate rows are §5.2 transfer candidates — and the
+  //    M.S. conferral marks the prior degree completed.
+  await s.evalJs(`(() => {
+    const slot = [...document.querySelectorAll('.external-slot')].find((e) => e.textContent.includes('Previous Master’s Transcript'));
+    [...slot.querySelectorAll('button')].find((b) => b.textContent === 'Remove').click();
+  })()`);
+  await s.waitFor(`document.querySelector('.external-file-masters')`);
+  await s.setFileInput('.external-file-masters', combinedPdf);
+  await s.waitFor(`document.querySelector('.external-card .transcript-preview .mixed-note')`);
+  const combinedRows = await s.evalJs(
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1].value + ':' + tr.querySelector('select.row-level').value + ':' + (tr.querySelector('input[type=checkbox]').checked ? 'on' : 'off'))`,
+  );
+  console.log('  combined transcript rows:', JSON.stringify(combinedRows));
+  const expectedCombined = ['CS 25100:undergraduate:on', 'CS 30700:undergraduate:off', 'CS 35400:undergraduate:on', 'CS 50300:graduate:on', 'CS 58000:graduate:on'];
+  if (JSON.stringify(combinedRows) !== JSON.stringify(expectedCombined)) throw new Error('combined transcript levels/ticks wrong');
+  await s.shot('combined-preview');
+  await s.evalJs(
+    `[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Add checked courses').click()`,
+  );
+  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
+  const combinedToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
+  console.log('  combined toast:', combinedToast.slice(0, 160));
+  if (!combinedToast.includes('(2 undergraduate, 2 graduate)') || !combinedToast.includes('Completed prior M.S. or Ph.D.')) {
+    throw new Error('combined import must report the level split and set prior study from the M.S. conferral');
+  }
+  const headings = await s.evalJs(`[...document.querySelectorAll('h3.subhead')].map(h => h.textContent)`);
+  console.log('  coursework headings:', JSON.stringify(headings));
+  if (!headings.includes('Purdue University — Previous Undergraduate Transcript') || !headings.includes('Purdue University — Previous Master’s Transcript')) {
+    throw new Error('the combined transcript must split into undergraduate and Master’s coursework groups');
+  }
+  const priorSel = await s.evalJs(`[...document.querySelectorAll('.card select')].map(s => s.value).find(v => ['none','unfinished','completed'].includes(v))`);
+  if (priorSel !== 'completed') throw new Error('prior study should be "completed" from the M.S. conferral line, got ' + priorSel);
+  await s.shot('combined-added');
+
+  // 8) A Notre Dame transcript in a previous-degree slot (2026-09-05) is
+  //    accepted as the record of an earlier Notre Dame degree — read by the
+  //    Notre Dame parser, filed under "University of Notre Dame", with the
+  //    reminder that a transcript holding the current program belongs in the
+  //    Notre Dame row.
+  await s.setFileInput('.external-file-phd', ndPdf);
+  await s.waitFor(`document.querySelector('.external-card .transcript-preview .nd-prior-note')`);
+  const ndUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
+  const ndSlotRows = await s.evalJs(
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1].value + ':' + tr.querySelector('select.row-level').value)`,
+  );
+  const ndTransferNote = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview .hint.warn')].map(e => e.textContent).join(' | ')`);
+  console.log('  ND transcript in the Ph.D. slot:', ndUni, '|', JSON.stringify(ndSlotRows));
+  if (ndUni !== 'University of Notre Dame') throw new Error('a Notre Dame transcript in a previous slot must be filed under University of Notre Dame: ' + ndUni);
+  if (ndSlotRows.length !== 8 || !ndSlotRows.includes('CSE 30321:undergraduate') || !ndSlotRows.includes('CSE 60641:graduate')) {
+    throw new Error('ND rows/levels wrong in the previous slot');
+  }
+  if (!/1 row listed under .Transfer credit accepted by the institution. was left out/.test(ndTransferNote)) throw new Error('ND transfer-block note missing: ' + ndTransferNote);
+  await s.shot('nd-in-previous-slot');
+  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
+  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
 }

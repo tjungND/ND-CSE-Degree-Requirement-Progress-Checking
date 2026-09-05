@@ -104,8 +104,9 @@ function termOnLine(line: string): Term | undefined {
 }
 
 /** A calendar date printed on a line, as ISO: "15-MAY-2024", "May 17, 2020",
- * "05/17/2020", "2020-05-17", or "May 2020" (day 15 — only the term matters). */
-function dateOnLine(line: string): string | undefined {
+ * "05/17/2020", "2020-05-17", or "May 2020" (day 15 — only the term matters).
+ * Shared with the external parser (degree conferral dates). */
+export function dateOnLine(line: string): string | undefined {
   const pad = (n: number) => String(n).padStart(2, '0');
   const month = (name: string) => MONTHS.indexOf(name.slice(0, 3).toUpperCase()) + 1;
   let m = /\b(\d{1,2})[-/ ]([A-Za-z]{3,9})[-/ ,]+(\d{4})\b/.exec(line);
