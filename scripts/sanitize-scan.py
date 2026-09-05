@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """De-identify a SCANNED (image) transcript while keeping it a scan.
 
-    python3 scripts/sanitize-scan.py scan.pdf|page.png|page.jpg [--out out.pdf]
-                                     [--dpi 200] [--seed N] [--keep-titles]
+    python3 ~/degree-audit-app/scripts/sanitize-scan.py "scan.pdf"|page.png|page.jpg
+                     [--out out.pdf] [--dpi 200] [--seed N] [--keep-titles]
+
+Run it from the folder that holds the scans; it finds the repo (and its
+node_modules) from its own location. Quote names with spaces.
 
 How it works (all on this computer; nothing is uploaded):
   1. Pages are loaded as images (a PDF is rasterized with PyMuPDF at --dpi).

@@ -1,7 +1,12 @@
 // De-identify a system-generated transcript PDF while keeping its LAYOUT, so
 // parser work can be done on it by people who must not see the record.
 //
-//   npm run sanitize -- path/to/transcript.pdf [--out out.pdf] [--seed N] [--keep-titles]
+//   node ~/degree-audit-app/scripts/sanitize-transcript.mjs "transcript.pdf" [--out out.pdf] [--seed N] [--keep-titles]
+//
+// Run it from the folder that holds the transcripts — it finds the repo (and
+// node_modules) from its own location. `npm run sanitize -- "<full path>"` is
+// the same thing, but works only from inside the repo folder (npm needs its
+// package.json). Quote names with spaces.
 //
 // Reads the PDF exactly as the app does (pdfjs text runs: text, position,
 // width, rotation), de-identifies each run with scripts/sanitize/rules.mjs,

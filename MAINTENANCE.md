@@ -130,8 +130,14 @@ in `src/transcript/layout.ts` (columns, watermarks) and the row patterns in
 When shapes are not enough, a **de-identified copy** of the transcript can be shared instead —
 it keeps the layout the parsers react to and removes the record:
 
-    npm run sanitize -- /path/to/transcript.pdf            # system-generated (text) PDF
-    python3 scripts/sanitize-scan.py /path/to/scan.pdf     # scanned / photographed PDF or PNG/JPG
+    node ~/degree-audit-app/scripts/sanitize-transcript.mjs "transcript.pdf"   # system-generated (text) PDF
+    python3 ~/degree-audit-app/scripts/sanitize-scan.py "scan.pdf"             # scanned / photographed PDF or PNG/JPG
+
+Both can be run from the folder that holds the transcripts (they find the repo from their own
+location; quote file names with spaces). `npm run sanitize -- "<full path>"` does the same but
+only from inside the repo folder, because npm needs its `package.json`. Output lands next to the
+input as `<name>.sanitized.pdf`; a whole folder:
+`for f in *.pdf; do node ~/degree-audit-app/scripts/sanitize-transcript.mjs "$f"; done`.
 
 The text tool rebuilds the PDF with every text run at its original position, width and
 rotation, but names, addresses and titles become random letters (same length and case),
