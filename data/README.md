@@ -1,6 +1,6 @@
 # Rules data — the DGS-editable Google Sheet
 
-Sheet: **CSE-Degree-Audit-Rules** (owner: the current DGS; lives in the shared "DGS things (CSE)"
+Sheet: **CSE-Degree-Checking-Rules** (named CSE-Degree-Audit-Rules until 2026-09-05; owner: the current DGS; lives in the shared "DGS things (CSE)"
 Drive folder under "Degree Audit App (Claude Code starter kit)"). The app reads it read-only at page load through Google's
 "Publish to web" CSV links, and a GitHub Action snapshots it into `data/snapshot.json` every six
 hours (committing only when the content changed) so the app still works if the sheet is ever
@@ -51,7 +51,7 @@ policy columns are the DGS's.
 
 A blank `counts_toward_*` on an active course makes the app say "needs DGS review" for that
 course. The earlier sheets ("CSE Course Catalog" and "CSE Degree Requirement Rules") are
-superseded by the Google Sheet CSE-Degree-Audit-Rules (built from `CSE-Degree-Audit-Rules.xlsx`).
+superseded by the Google Sheet CSE-Degree-Checking-Rules (built from `CSE-Degree-Audit-Rules.xlsx`, under its original name).
 The `*.sample.csv` files here show this exact schema in miniature (they double as the base rules
 for the test suite's fixtures in `tests/fixtures/rules/`).
 

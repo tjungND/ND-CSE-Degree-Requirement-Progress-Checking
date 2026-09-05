@@ -13,7 +13,7 @@ import { el } from './dom.ts';
 import { handbookLink } from './handbook.ts';
 
 /** The spreadsheet's title as it appears in Google Drive. */
-export const SHEET_NAME = 'CSE-Degree-Audit-Rules';
+export const SHEET_NAME = 'CSE-Degree-Checking-Rules'; // renamed from CSE-Degree-Audit-Rules on 2026-09-05 (DGS)
 
 /** The human (edit/view) link — NOT one of the published-CSV links the app fetches. */
 export const SHEET_EDIT_URL: string = sheetUrls.sheet_edit_url;

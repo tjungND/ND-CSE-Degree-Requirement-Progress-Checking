@@ -11,7 +11,7 @@ cited on every line. It is a self-check, not an official audit.
   — which courses count toward each degree, their core area and specialization category, when
   they are typically offered, and whether the DGS has confirmed the row. Generated live from the
   same sheet; safe to link from cse.nd.edu and to send to students.
-- **Rules sheet (the DGS edits this):** Google Sheet **CSE-Degree-Audit-Rules** —
+- **Rules sheet (the DGS edits this):** Google Sheet **CSE-Degree-Checking-Rules** (renamed from CSE-Degree-Audit-Rules on 2026-09-05) —
   https://docs.google.com/spreadsheets/d/1C8zYQvLN3gsOpjQHR1RMKdekB1VC_nv9rwSJ_RQCxVA/edit
 - **Code:** this repository, https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
 
@@ -413,7 +413,7 @@ tooling (details in `MAINTENANCE.md`).
 
 ## Handoff checklist
 
-1. **Sheet:** transfer ownership of CSE-Degree-Audit-Rules to the next DGS, or move it to a
+1. **Sheet:** transfer ownership of CSE-Degree-Checking-Rules to the next DGS, or move it to a
    departmental Shared Drive. Confirm *File → Share → Publish to web* is still on afterwards.
 2. **Repository:** add the next DGS as **Admin** (*Settings → Collaborators*), or transfer the
    repository (*Settings → General → Transfer ownership*). A transfer changes the live URL to

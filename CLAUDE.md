@@ -39,7 +39,7 @@ touching code and without the original author.
 ## Sources of truth (read these before touching rule logic)
 1. `docs/CSE-Graduate-Handbook-July2026.pdf` — §3 (MSCSE) and §4 (Ph.D.). When code and
    handbook disagree, the handbook wins; flag the discrepancy instead of silently choosing.
-2. Google Sheet **CSE-Degree-Audit-Rules** — the DGS-editable data (tabs Courses, Parameters,
+2. Google Sheet **CSE-Degree-Checking-Rules** (renamed from CSE-Degree-Audit-Rules, 2026-09-05) — the DGS-editable data (tabs Courses, Parameters,
    Categories). Published-CSV URLs: `data/sheet-urls.json`. Schema: `data/README.md`.
 3. `docs/DECISIONS.md` — every interpretation decision already made, with dates and reasons.
    Read it before re-deciding anything; append when a new call is made.

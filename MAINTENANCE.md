@@ -20,7 +20,7 @@ Nothing about students is stored anywhere you can see. There is no server.
 ## The three things you'll actually do
 
 ### 1. A course changes (new course, retired course, counts differently)
-Open the Google Sheet **CSE-Degree-Audit-Rules** → `Courses` tab.
+Open the Google Sheet **CSE-Degree-Checking-Rules** (named CSE-Degree-Audit-Rules until 2026-09-05) → `Courses` tab.
 - New course: add a row. `counts_toward_mscse` / `counts_toward_phd` ∈ `yes | no | dgs_approval`
   (`dgs_approval` = counts provisionally, the app tells the student to get sign-off; blank = the
   app says "needs DGS review"). Tag `core_area` (§4.4.1) and `category_group` (§4.4.2) if it

@@ -163,6 +163,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   app.ts (algorithm/operating/architect — DGS keywords) join the review request. A graduate
   conferral line on a Master's/Ph.D. transcript (`degreeConferred` in
   `parseExternalTranscript`, positive evidence only) sets priorMs='none'→'completed' on add.
+- **Sheet renamed** (2026-09-05, DGS): the rules sheet is CSE-Degree-Checking-Rules —
+  `SHEET_NAME` (sheet-source.ts) is the one place the code carries the name; the e2e
+  (drive-app.mjs) and tests/sheet-source.test.ts pin it; published-CSV links and the edit URL
+  in data/sheet-urls.json are unaffected by a Drive rename.
 - **Combined transcripts + Notre Dame as a previous institution** (2026-09-05, the corner cases
   the DGS listed): `parseExternalTranscript` now returns a per-row `level` ('undergraduate' |
   'graduate') from a `UG|UGRD|GR|GRAD` cell right after the code (stripped before tokenizing),

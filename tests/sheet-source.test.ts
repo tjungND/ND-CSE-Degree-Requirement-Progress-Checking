@@ -25,6 +25,6 @@ describe('rules-spreadsheet link', () => {
   });
 
   it('names the sheet as it appears in Google Drive', () => {
-    assert.equal(SHEET_NAME, 'CSE-Degree-Audit-Rules');
+    assert.equal(SHEET_NAME, 'CSE-Degree-Checking-Rules'); // renamed 2026-09-05 (DGS)
   });
 });

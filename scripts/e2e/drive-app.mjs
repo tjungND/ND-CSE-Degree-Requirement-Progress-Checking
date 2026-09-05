@@ -50,7 +50,7 @@ async function checkSheetLink(s, page) {
     return {
       masthead: inMast.length, footer: inFoot.length,
       csv: [...inMast, ...inFoot].some(a => /\\/d\\/e\\/|output=csv/.test(a.href)),
-      name: [...inMast, ...inFoot].every(a => a.textContent === 'CSE-Degree-Audit-Rules'),
+      name: [...inMast, ...inFoot].every(a => a.textContent === 'CSE-Degree-Checking-Rules'),
       facultyOnly: [...inMast, ...inFoot].every(a => /faculty only/.test(text(a))),
       newTab: [...inMast, ...inFoot].every(a => a.target === '_blank' && /noopener/.test(a.rel)),
     };

@@ -1,5 +1,5 @@
 // Rules-side data model: what the DGS's Google Sheet becomes after parsing.
-// Schema of record: the live sheet "CSE-Degree-Audit-Rules" (see data/README.md).
+// Schema of record: the live sheet "CSE-Degree-Checking-Rules" (see data/README.md).
 import type { Term } from '../engine/types.ts';
 
 export type Counts = 'yes' | 'no' | 'dgs_approval';
