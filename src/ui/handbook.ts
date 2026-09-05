@@ -42,6 +42,15 @@ export const COVERAGE_NOTICE =
   'Not all cases are covered yet — for example, transcripts whose layout the parser has not seen, ' +
   'or a combined BS/MS record whose undergraduate and graduate courses are not told apart on it.';
 
+/** The ONE-LINE versions shown in the slim notice strip at the top of the
+ * self-check page (usability review 2026-09-05, item 8 — three stacked
+ * banners became one strip whose "Details" expander holds the full
+ * paragraphs below, unchanged). Same facts, fewer words. */
+export const ALPHA_LINE =
+  'Informational only, no warranty — every final decision rests with the Director of Graduate Studies (DGS). The course rules are accurate; only this tool’s application of them is still being tested.';
+export const PRIVACY_LINE =
+  'Everything you enter — and any transcript PDF — stays in your own browser; nothing is uploaded. The page’s only network request is the read-only fetch of the public course rules.';
+
 /** The sentences that follow RULES_ACCURACY_NOTICE — what the alpha label
  * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04; the
  * coverage caveat 2026-09-05). */

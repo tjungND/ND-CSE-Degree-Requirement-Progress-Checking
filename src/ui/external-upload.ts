@@ -184,9 +184,9 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
       'div',
       { class: 'combined-note', role: 'note' },
       el('strong', {}, 'One transcript for both your BS and MS'),
-      ' (a 4+1 / 5+1 program, or both degrees at the same university)? Import it ',
+      ' (a 4+1 / 5+1 program, or both degrees at one university)? Import it ',
       el('strong', {}, 'once, in the Previous Master’s Transcript row'),
-      ' — each course’s level (undergraduate or graduate) is read from it and shown in a “Taken as” column you can correct before adding. The Undergraduate row works too; do not import the same PDF twice.',
+      '. Each course’s level (undergraduate or graduate) is read from it and shown in a “Taken as” column you can correct before adding. The Undergraduate row works too — never import the same PDF twice.',
     ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
@@ -343,7 +343,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
-      el('button', { class: 'btn tiny', disabled: args.blocked, 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
+      el('button', { class: 'btn tiny', disabled: args.blocked, 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF (alpha)'),
       fileInput,
     );
   }
@@ -560,7 +560,15 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   // 5): a screen reader says "Credits for CS 25100", not just "spin button".
   const rowEls = p.rows.map((r, i) => {
     const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
-    const cb = el('input', { type: 'checkbox', 'aria-label': `Add ${who()}`, 'data-key': `ext.row.${i}.include`, onchange: (e) => (r.include = (e.target as HTMLInputElement).checked) });
+    const cb = el('input', {
+      type: 'checkbox',
+      'aria-label': `Add ${who()}`,
+      'data-key': `ext.row.${i}.include`,
+      onchange: (e) => {
+        r.include = (e.target as HTMLInputElement).checked;
+        render(); // the Add button's count follows (item 13)
+      },
+    });
     cb.checked = r.include;
     const idIn = el('input', { value: r.courseId, class: 'course-id', 'aria-label': `Course id, ${who()}`, 'data-key': `ext.row.${i}.id` });
     idIn.addEventListener('change', () => (r.courseId = (idIn as HTMLInputElement).value));
@@ -602,7 +610,20 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     return tr;
   });
   table.append(...rowEls);
-  box.append(table);
+  const selectAll = (on: boolean) => {
+    for (const r of p.rows) r.include = on;
+    render();
+  };
+  box.append(
+    el(
+      'p',
+      { class: 'select-links' },
+      el('button', { class: 'btn tiny', 'data-key': 'ext.preview.all', onclick: () => selectAll(true) }, 'Select all'),
+      ' ',
+      el('button', { class: 'btn tiny', 'data-key': 'ext.preview.none', onclick: () => selectAll(false) }, 'Select none'),
+    ),
+    table,
+  );
   box.append(
     el('button', {
       class: 'btn tiny',
@@ -697,7 +718,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             );
           },
         },
-        'Add checked courses',
+        `Add ${p.rows.filter((r) => r.include).length} checked course${p.rows.filter((r) => r.include).length === 1 ? '' : 's'}`,
       ),
       el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; previewError = undefined; render(); } }, 'Cancel'),
     ),

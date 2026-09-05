@@ -5,13 +5,16 @@ import { dueTermPhrase, termLabel } from '../engine/term.ts';
 import { el } from './dom.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, RULES_ACCURACY_NOTICE } from './handbook.ts';
 
+// Plain words in sentence case (usability review 2026-09-05, item 16): no
+// abbreviations — "N/A" became "Does not apply" — and the pill CSS no longer
+// upper-cases them.
 const STATUS_LABEL: Record<Status, string> = {
   met: 'Met',
   in_progress: 'In progress',
   unmet: 'Not yet',
-  needs_dgs_review: 'Needs review',
+  needs_dgs_review: 'Needs DGS review',
   cannot_evaluate: 'Cannot evaluate',
-  not_applicable: 'N/A',
+  not_applicable: 'Does not apply',
 };
 
 function dial(report: AuditReport): HTMLElement {
@@ -22,6 +25,7 @@ function dial(report: AuditReport): HTMLElement {
   const svg = document.createElementNS(svgNs, 'svg');
   svg.setAttribute('viewBox', '0 0 80 80');
   svg.setAttribute('class', 'dial');
+  svg.setAttribute('aria-hidden', 'true'); // decorative — the headline text carries the numbers (item 17)
   const track = document.createElementNS(svgNs, 'circle');
   const arc = document.createElementNS(svgNs, 'circle');
   for (const [c, cls] of [
@@ -46,13 +50,24 @@ function dial(report: AuditReport): HTMLElement {
   text.textContent = `${met}/${scored}`;
   svg.append(track, arc, text);
 
+  // The headline counts what is met, in progress and still open instead of
+  // "N to go", which read as bad news to a student on track (usability
+  // review 2026-09-05, item 17); when everything passes it says what "all"
+  // means here — the automatic checks, not the DGS's confirmation.
   const remaining = scored - met;
+  const scoredRows = report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
+  const inProgress = scoredRows.filter((r) => r.status === 'in_progress').length;
+  const needsReview = scoredRows.filter((r) => r.status === 'needs_dgs_review').length;
+  const open = remaining - inProgress;
+  const parts = [`${met} of ${scored} met`];
+  if (inProgress > 0) parts.push(`${inProgress} in progress`);
+  if (open > 0) parts.push(`${open} not yet${needsReview > 0 ? ` (${needsReview} need${needsReview === 1 ? 's' : ''} a DGS decision)` : ''}`);
   const headline =
     scored > 0 && remaining === 0
-      ? 'All requirements met'
-      : met === 0
+      ? 'All automatically checkable items are currently satisfied'
+      : scored === 0
         ? 'Getting started'
-        : `${remaining} requirement${remaining === 1 ? '' : 's'} to go`;
+        : parts.join(' · ');
   return el(
     'div',
     { class: 'scorehead' },
@@ -65,7 +80,7 @@ function dial(report: AuditReport): HTMLElement {
         'div',
         { class: 'subline' },
         remaining === 0 && scored > 0
-          ? 'Confirm with the Graduate Program Coordinator before you file.'
+          ? 'Final confirmation by the DGS is still required — confirm with the Graduate Program Administrator before you file.'
           : 'This is a self-check — approvals and official records live with the DGS office.',
       ),
     ),
@@ -96,12 +111,15 @@ function meters(report: AuditReport): HTMLElement {
     const bar = el('div', { class: 'bar' });
     const fill = el('i', {});
     fill.style.width = `${Math.min(100, (have / need) * 100)}%`;
+    if (have >= need) fill.classList.add('done');
     bar.append(fill);
+    // Past the target the bar is full and the label says so ("12 (9 needed) ✓")
+    // instead of the odd-looking "12/9" (item 17).
     box.append(
       el(
         'div',
         { class: 'meter' },
-        el('div', { class: 'meter-label' }, `${label} `, el('span', {}, `${have}/${need}`)),
+        el('div', { class: 'meter-label' }, `${label} `, el('span', {}, have >= need ? `${have} (${need} needed) ✓` : `${have} of ${need}`)),
         bar,
       ),
     );
@@ -136,14 +154,21 @@ function requirementCard(r: RequirementResult): HTMLElement {
   const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title), pill);
   const chips = el('div', { class: 'req-chips' }, cite);
   if (r.deadline && r.status !== 'met') {
+    // Deadlines in readable body-size type with a lead word, coloured by
+    // state (usability review 2026-09-05, item 15).
     chips.append(
       el(
         'span',
-        { class: `chip d-${r.deadline.state}` },
+        { class: `chip deadline d-${r.deadline.state}` },
+        el('span', { class: 'deadline-word' }, r.deadline.state === 'overdue' ? 'Deadline passed: ' : 'Deadline: '),
         r.deadline.label,
       ),
     );
   }
+  // A link straight to the matching course list (item 29): the core-knowledge
+  // rows, the specialization row and the regular-course rows.
+  const courseLink = courseListLink(r);
+  if (courseLink) chips.append(courseLink);
   // A long multi-statement detail reads better as bullets (DGS request
   // 2026-09-04); short or single-statement details stay prose. A {lead,
   // items} part renders as a nested two-layer list (one sub-bullet per item,
@@ -169,12 +194,33 @@ function requirementCard(r: RequirementResult): HTMLElement {
       : el('div', { class: 'req-detail' }, r.detail);
   return el(
     'div',
-    { class: `req s-${r.status}` },
+    { class: `req s-${r.status}`, id: `req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` },
     head,
     chips,
     detailNode,
     quote,
   );
+}
+
+/** courses.html understands filter query parameters (2026-09-05, item 29),
+ * so an unmet row can point at exactly the courses that would satisfy it. */
+function courseListLink(r: RequirementResult): HTMLElement | undefined {
+  let href: string | undefined;
+  let label = 'See the courses that count →';
+  const core = /^phd\.qualifier\.core\.(.+)$/.exec(r.id);
+  if (core) {
+    href = `./courses.html?core=${encodeURIComponent(core[1]!)}&view=qualifier`;
+    label = 'See the courses for this area →';
+  } else if (r.id === 'phd.qualifier.categories') {
+    href = './courses.html?view=qualifier';
+    label = 'See the specialization categories →';
+  } else if (r.id === 'ms.credits.regular') {
+    href = './courses.html?program=mscse&type=regular&view=mscse';
+  } else if (r.id === 'phd.credits.regular') {
+    href = './courses.html?program=phd&type=regular&view=phd';
+  }
+  if (!href) return undefined;
+  return el('a', { class: 'course-link', href }, label);
 }
 
 /** The score dial, headline and credit meters on their own — shown a second
@@ -203,6 +249,7 @@ export function renderReport(report: AuditReport): HTMLElement {
     el('a', { class: 'jump-link back-link', href: '#main' }, '↑ Back to your inputs'),
     dial(report),
     meters(report),
+    ...(attentionList(report) ? [attentionList(report)!] : []),
   );
 
   const groups = new Map<string, RequirementResult[]>();
@@ -220,7 +267,86 @@ export function renderReport(report: AuditReport): HTMLElement {
       panel.append(card);
     }
   }
+  panel.append(glossary(report.program));
   return panel;
+}
+
+/** "Needs your attention": the rows a student must act on, first — not met,
+ * needing a DGS decision, or missing an input — each linking to its card with
+ * the card's first sentence as the next step (usability review 2026-09-05,
+ * item 27). The handbook order of the cards below is kept: students look
+ * things up by section. */
+function attentionList(report: AuditReport): HTMLElement | null {
+  const ORDER: Status[] = ['unmet', 'needs_dgs_review', 'cannot_evaluate'];
+  const rows = report.requirements
+    .filter((r) => !r.informational && ORDER.includes(r.status))
+    .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
+  if (rows.length === 0) return null;
+  const firstSentence = (text: string): string => {
+    const m = /^(.{1,110}?[.!?])(\s|$)/.exec(text);
+    return (m ? m[1]! : text.slice(0, 110)).trim();
+  };
+  return el(
+    'section',
+    { class: 'attention', 'aria-labelledby': 'attention-title' },
+    el('h3', { id: 'attention-title' }, `Needs your attention (${rows.length})`),
+    el(
+      'ul',
+      {},
+      ...rows.map((r) =>
+        el(
+          'li',
+          {},
+          el('a', { href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` }, r.title),
+          el('span', { class: `pill s-${r.status} small` }, STATUS_LABEL[r.status]),
+          r.deadline && r.deadline.state === 'overdue' ? el('span', { class: 'attention-overdue' }, ' — deadline passed') : null,
+          el('span', { class: 'attention-next' }, ` ${firstSentence(r.detail)}`),
+        ),
+      ),
+    ),
+  );
+}
+
+/** Handbook terms the report uses before it explains them (usability review
+ * 2026-09-05, item 28). Each entry cites its section; the wording follows the
+ * handbook sentences quoted in the engine. */
+function glossary(program: 'mscse' | 'phd'): HTMLElement {
+  const entries: [string, string, string][] = [
+    ['Cumulative GPA', 'The grade-point average over all your graduate coursework at Notre Dame, as the registrar computes it; continuation, candidacy and graduation require at least 3.0.', '§2.2'],
+    ['Regular course', 'A lecture-style course. Only regular courses count toward the 24 regular-course credits; seminars, research, independent study and project credits count toward the total only.', program === 'mscse' ? '§3.2' : '§4.2'],
+    ['Full-time', 'A semester in which you are registered for the full-time credit load (9 or more credits, or research-heavy terms you mark yourself).', '§2.1.2'],
+    program === 'mscse'
+      ? ['Residency', 'Registration in full-time status for one semester during the academic year, or for one summer session.', '§3.3']
+      : ['Residency', 'Full-time status for four consecutive semesters, not counting summer sessions, counted from the term you entered the program.', '§4.3'],
+    ...(program === 'phd'
+      ? ([
+          ['Qualifying examination (qualifier)', 'Three components — core knowledge, category specialization and the research component — all to be completed within four semesters of starting; the DGS may extend the deadline case by case.', '§4.4'],
+          ['Core knowledge', 'An Operating Systems course, an Algorithms course and a Computer Architecture course, passed at Notre Dame or at a previous institution (undergraduate or graduate; a previous-institution course counts once the DGS confirms it).', '§4.4.1'],
+          ['Specialization (category specialization)', 'Three courses from three distinct specialization groups, each passed with a B or higher. A course may count for both core knowledge and specialization.', '§4.4.2'],
+          ['Research qualifier', 'Within 18 months of entering the program, your research advisor determines whether you have passed the research component and files the form.', '§4.4.3'],
+          ['Candidacy exam', 'The dissertation proposal exam; it must be taken before the end of your eighth semester in the program.', '§4.5'],
+          ['Transfer credit', 'Courses from an M.S. earned at Notre Dame or elsewhere within the five years before admission may count toward the course requirement, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
+        ] as [string, string, string][])
+      : ([
+          ['Project or thesis', 'Six credits of Master’s project (CSE 68902) or Master’s thesis direction (CSE 68901), in addition to the 24 regular-course credits.', '§3.2, §3.4'],
+          ['Transfer credit', 'Graduate courses from another program may count toward the course requirement within the handbook’s caps, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
+        ] as [string, string, string][])),
+    ['DGS', 'The Director of Graduate Studies — the faculty member who makes the final call on every requirement here; the Graduate Program Administrator handles the paperwork.', '§1'],
+  ];
+  return el(
+    'details',
+    { class: 'glossary' },
+    el('summary', {}, 'Terms used here'),
+    el(
+      'dl',
+      {},
+      ...entries.flatMap(([term, text, section]) => [
+        el('dt', {}, term, ' ', el('span', { class: 'chip-note' }, section)),
+        el('dd', {}, text),
+      ]),
+    ),
+    el('p', { class: 'hint' }, 'Short forms of the handbook’s wording — the section numbers link the full text through each requirement’s § button above.'),
+  );
 }
 
 /** The "Copy summary for your advisor" email (2026-09-03): two clipboard

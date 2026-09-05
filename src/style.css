@@ -47,6 +47,15 @@ body {
   border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
 }
 .banner.beta { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
+/* One slim strip instead of three stacked banners (item 8). */
+.notice-strip { padding: 8px 14px; }
+.notice-strip .notice-line { margin: 2px 0; font-size: 13.5px; }
+.notice-strip .privacy-line { color: #1d4d1d; }
+.notice-strip a { color: inherit; }
+.notice-details { margin-top: 4px; font-size: 13px; }
+.notice-details summary { cursor: pointer; font-weight: 600; color: #7a1f1f; }
+.notice-details .notice-full { margin: 6px 0 0; }
+.notice-details .notice-full.privacy { color: #1d4d1d; }
 .banner.official { background: #e9eef7; border-color: #b9c7e0; color: #1e2f4d; }
 .banner.privacy { background: #eef7ee; border-color: #b3d6b3; color: #1d4d1d; }
 .card.dgs-review { border-left: 4px solid #c99700; }
@@ -105,6 +114,18 @@ fieldset.field.inline { margin: 0; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .skip-link { position: absolute; left: 8px; top: -100px; background: var(--navy); color: #fff; padding: 8px 12px; border-radius: 0 0 8px 8px; z-index: 1100; text-decoration: none; font-weight: 600; }
 .skip-link:focus { top: 0; }
+/* Radio groups (item 12) and step numbers on the card titles (item 31). */
+.radios { display: flex; flex-direction: column; gap: 4px; }
+.radios .radio { font-size: 14px; }
+.radios input[type="radio"] { margin: 0 4px 0 0; }
+.step-no { color: var(--gold-text); }
+.field-hint { margin: -4px 0 10px; }
+.select-links { margin: 8px 0 0; }
+.print-header { display: none; }
+@media print { .print-header { display: block; font-size: 12px; color: #333; border-bottom: 1px solid #bbb; padding-bottom: 4px; margin: 0 0 8px; } .notice-strip { display: none; } .glossary, .attention { display: none; } }
+.filters .view-filter { flex: 0 0 100%; }
+.filters .view-filter select { max-width: 100%; }
+.col-hidden { display: none !important; }
 /* A persistent problem message next to its source (item 6). */
 .field-error, .import-error { color: var(--bad); background: #fbe9e7; border: 1px solid #e3a3a3; border-left: 4px solid var(--bad); border-radius: 6px; padding: 6px 10px; margin: 6px 0; font-size: 13px; }
 .import-error { flex-basis: 100%; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -181,15 +202,39 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .cite { color: var(--gold-text); font-weight: 700; font-size: 12px; cursor: pointer; border: 0; background: none; padding: 2px 4px; margin-left: -4px; min-height: 24px; min-width: 24px; display: inline-flex; align-items: center; border-radius: 4px; font-family: inherit; } /* ≥24 px target (WCAG 2.5.8) */
 .cite[aria-expanded="true"] { background: #fff7e0; }
 .rule-quote { margin-top: 6px; font-size: 12px; font-style: italic; color: #55606e; border-left: 3px solid var(--gold); padding-left: 8px; }
-.chip { font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--grey); }
-.chip.d-due_soon { color: var(--warn); font-weight: 600; }
-.chip.d-overdue { color: var(--bad); font-weight: 700; }
+/* Deadlines in body-size type with a lead word, coloured by state (item 15). */
+.chip { font-size: 13px; color: var(--muted); }
+.chip.deadline { display: inline-block; padding: 2px 8px; border-radius: 6px; background: #f3f5f8; color: var(--ink); }
+.chip.deadline .deadline-word { font-weight: 700; color: var(--muted); }
+.chip.deadline.d-due_soon { background: #fff3dc; color: #6b4d10; }
+.chip.deadline.d-due_soon .deadline-word { color: var(--warn); }
+.chip.deadline.d-overdue { background: #fbe9e7; color: #7a1f1f; }
+.chip.deadline.d-overdue .deadline-word { color: var(--bad); }
+.course-link { font-size: 13px; color: var(--navy); font-weight: 600; }
+/* "Needs your attention" (item 27) */
+.attention { margin: 6px 0 10px; background: #fffdf5; border: 1px solid #e8d48a; border-left: 4px solid var(--warn); border-radius: 8px; padding: 8px 12px; }
+.attention h3 { margin: 0 0 4px; font-size: 14px; color: var(--navy); }
+.attention ul { margin: 0; padding-left: 18px; }
+.attention li { margin: 3px 0; font-size: 13.5px; }
+.attention li a { color: var(--navy); font-weight: 600; }
+.attention-next { color: var(--muted); }
+.attention-overdue { color: var(--bad); font-weight: 600; }
+/* "Terms used here" (item 28) */
+.glossary { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 13.5px; }
+.glossary summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+.glossary dl { margin: 8px 0 0; }
+.glossary dt { font-weight: 700; margin-top: 8px; }
+.glossary dd { margin: 2px 0 0; color: var(--muted); }
+.glossary .hint { margin-top: 10px; }
+.bar i.done { background: var(--ok); }
 .req-detail { color: var(--muted); font-size: 13px; }
 ul.req-detail.detail-list { margin: 4px 0 0; padding-left: 18px; }
 ul.req-detail.detail-list li { margin: 2px 0; }
 ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px; list-style-type: circle; }
 
-.pill { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 99px; padding: 2px 9px; white-space: nowrap; }
+/* Sentence case, no abbreviations (usability review 2026-09-05, item 16). */
+.pill { font-size: 12px; font-weight: 700; border-radius: 99px; padding: 2px 9px; white-space: nowrap; }
+.pill.small { font-size: 11px; padding: 1px 7px; margin-left: 6px; vertical-align: middle; }
 .req.s-met { border-left-color: var(--ok); }
 .pill.s-met { background: #e4f2ea; color: var(--ok); }
 .req.s-in_progress { border-left-color: var(--warn); }
@@ -353,7 +398,8 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .external-card .transcript-preview input, .external-card .transcript-preview select { padding: 4px 6px; font-size: 13px; max-width: 130px; }
 /* Eight columns must fit the inputs column at 1400px (2026-09-05, "Taken as" added): tight widths per field. */
 .external-card .transcript-preview input.course-id { width: 80px; }
-.external-card .transcript-preview input.course-title { width: 106px; }
+.external-card .transcript-preview td.cell-title { width: 100%; } /* the title takes the free width (item 13) */
+.external-card .transcript-preview input.course-title { width: 100%; min-width: 120px; max-width: none; }
 .external-card .transcript-preview input[type="number"][max="30"] { width: 46px; }
 .external-card .transcript-preview input[type="number"][max="2040"] { width: 58px; }
 .external-card .transcript-preview select { max-width: 74px; }

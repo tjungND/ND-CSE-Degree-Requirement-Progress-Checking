@@ -105,26 +105,26 @@ async function checkDialog(s, baseUrl) {
 
 // 2. Focus survives the re-render that every change triggers.
 async function checkFocusPreserved(s) {
-  await s.evalJs(`document.querySelector('[data-key="standing.prior"]').focus()`);
-  const before = await s.evalJs(`document.querySelector('[data-key="standing.prior"]').value`);
-  await key(s, 'ArrowDown', 'ArrowDown', 40); // a real keystroke: the select changes and the page re-renders
+  // "Prior graduate study" is a radio group (2026-09-05, item 12): ArrowDown
+  // moves the selection to the next radio, which fires change → re-render.
+  await s.evalJs(`document.querySelector('[data-key="standing.prior.none"]').focus()`);
+  await key(s, 'ArrowDown', 'ArrowDown', 40);
   await pause(200);
-  const after = await s.evalJs(`JSON.stringify({ value: document.querySelector('[data-key="standing.prior"]').value, focused: document.activeElement?.dataset?.key })`);
-  const a = JSON.parse(after);
-  if (a.value === before) throw new Error('focus check: ArrowDown did not change the dropdown (' + before + ')');
-  if (a.focused !== 'standing.prior') throw new Error('focus check: focus left the dropdown after the change — now on ' + a.focused);
+  const a = JSON.parse(await s.evalJs(`JSON.stringify({ checked: document.querySelector('[data-key="standing.prior.unfinished"]').checked, focused: document.activeElement?.dataset?.key })`));
+  if (!a.checked) throw new Error('focus check: ArrowDown did not move the radio selection');
+  if (a.focused !== 'standing.prior.unfinished') throw new Error('focus check: focus left the radio after the change — now on ' + a.focused);
   await key(s, 'Tab', 'Tab', 9);
   const next = await s.evalJs(`document.activeElement?.dataset?.key ?? document.activeElement?.tagName`);
-  if (next === 'standing.prior' || next === 'BODY') throw new Error('focus check: Tab after the change did not move on — ' + next);
+  if (next?.startsWith('standing.prior') || next === 'BODY') throw new Error('focus check: Tab after the change did not move on — ' + next);
   // A checkbox: focus then click (the page re-renders), focus must stay put.
   await s.evalJs(`const cb = document.querySelector('[data-key^="attest."]'); cb.focus(); cb.click();`);
   await pause(150);
   const cbKey = await s.evalJs(`document.activeElement?.dataset?.key ?? ''`);
   if (!cbKey.startsWith('attest.')) throw new Error('focus check: focus left the checkbox after the change — now on ' + cbKey);
-  // Put the example back the way it was (the dropdown moved one option down).
-  await s.evalJs(`const sel = document.querySelector('[data-key="standing.prior"]'); sel.value = 'none'; sel.dispatchEvent(new Event('change'));`);
+  // Put the example back the way it was.
+  await s.evalJs(`document.querySelector('[data-key="standing.prior.none"]').click()`);
   await pause(100);
-  console.log('  focus is preserved across re-renders (dropdown, checkbox); Tab continues from the same control');
+  console.log('  focus is preserved across re-renders (radio group, checkbox); Tab continues from the same control');
 }
 
 // 3. No sideways scrolling at a phone (390) or tablet-portrait (820) width.

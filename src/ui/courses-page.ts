@@ -39,6 +39,10 @@ const OFFERED_LABEL: Record<string, string> = {
 
 type SortKey = 'course' | 'title' | 'type' | 'mscse' | 'phd' | 'core' | 'category' | 'offered' | 'reviewed';
 
+/** What the reader is checking (usability review 2026-09-05, item 30): the
+ * table shows only the columns that answer that question. */
+type View = 'all' | 'mscse' | 'phd' | 'qualifier';
+
 interface Filters {
   query: string;
   program: 'all' | 'mscse' | 'phd';
@@ -49,6 +53,73 @@ interface Filters {
   confirmedOnly: boolean;
   sort: SortKey;
   desc: boolean;
+  view: View;
+}
+
+const VIEW_LABEL: Record<View, string> = {
+  all: 'Everything',
+  mscse: 'Whether a course counts toward the M.S. (MSCSE)',
+  phd: 'Whether a course counts toward the Ph.D.',
+  qualifier: 'Whether a course satisfies a Ph.D. qualifier area',
+};
+/** Columns hidden per view, by their 1-based position in the table. */
+const HIDDEN_COLUMNS: Record<View, number[]> = {
+  all: [],
+  mscse: [5, 6, 7], // Ph.D. credit, core knowledge, specialization
+  phd: [4, 6, 7], // MSCSE credit, core knowledge, specialization
+  qualifier: [3, 4, 5, 8], // type, both degree-credit columns, typically offered
+};
+
+/** The filters as URL query parameters (item 29), so an advisor can send a
+ * student a link straight to "the algorithms courses" or "pending rows":
+ * courses.html?q=…&program=…&core=…&category=…&type=…&retired=1&confirmed=1&sort=…&desc=1&view=…
+ * Only non-default values are written; unknown values fall back to defaults. */
+function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategories: Set<string>): Filters {
+  const f = { ...defaults };
+  let params: URLSearchParams;
+  try {
+    params = new URLSearchParams(window.location.search);
+  } catch {
+    return f;
+  }
+  const q = params.get('q');
+  if (q) f.query = q.slice(0, 80);
+  const program = params.get('program');
+  if (program === 'mscse' || program === 'phd') f.program = program;
+  const core = params.get('core');
+  if (core && validCores.has(core)) f.core = core;
+  const category = params.get('category');
+  if (category && (validCategories.has(category) || category === 'any-listed')) f.category = category;
+  const type = params.get('type');
+  if (type && ['regular', 'seminar', 'research', 'independent', 'project'].includes(type)) f.type = type;
+  if (params.get('retired') === '1') f.includeRetired = true;
+  if (params.get('confirmed') === '1') f.confirmedOnly = true;
+  const sort = params.get('sort');
+  if (sort && ['course', 'title', 'type', 'mscse', 'phd', 'core', 'category', 'offered', 'reviewed'].includes(sort)) f.sort = sort as SortKey;
+  if (params.get('desc') === '1') f.desc = true;
+  const view = params.get('view');
+  if (view === 'all' || view === 'mscse' || view === 'phd' || view === 'qualifier') f.view = view;
+  return f;
+}
+
+function filtersToUrl(f: Filters, defaults: Filters): void {
+  const params = new URLSearchParams();
+  if (f.query !== defaults.query) params.set('q', f.query);
+  if (f.program !== defaults.program) params.set('program', f.program);
+  if (f.core !== defaults.core) params.set('core', f.core);
+  if (f.category !== defaults.category) params.set('category', f.category);
+  if (f.type !== defaults.type) params.set('type', f.type);
+  if (f.includeRetired) params.set('retired', '1');
+  if (f.confirmedOnly) params.set('confirmed', '1');
+  if (f.sort !== defaults.sort) params.set('sort', f.sort);
+  if (f.desc) params.set('desc', '1');
+  if (f.view !== defaults.view) params.set('view', f.view);
+  const qs = params.toString();
+  try {
+    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+  } catch {
+    /* file:// or a sandboxed page — the address bar just stays as it was */
+  }
 }
 
 export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
@@ -71,7 +142,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
   const coreName = new Map(rules.coreAreas.map((c) => [c.code, c.name]));
   const groupName = new Map(rules.categoryGroups.map((g) => [g.code, g.name]));
 
-  const filters: Filters = {
+  const DEFAULTS: Filters = {
     query: '',
     program: 'all',
     core: '',
@@ -81,7 +152,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     confirmedOnly: false,
     sort: 'course',
     desc: false,
+    view: 'all',
   };
+  const filters: Filters = filtersFromUrl(DEFAULTS, new Set(rules.coreAreas.map((c) => c.code)), new Set(rules.categoryGroups.map((g) => g.code)));
 
   // ---------- helpers ----------
 
@@ -282,15 +355,32 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     control.id = id;
     return el('div', { class: 'filter' }, el('label', { class: 'label', for: id }, label), control);
   };
-  const defaultFilters = (): Filters => ({ query: '', program: 'all', core: '', category: '', type: '', includeRetired: false, confirmedOnly: false, sort: 'course', desc: false });
+  const defaultFilters = (): Filters => ({ ...DEFAULTS });
   const filtersActive = (): boolean => {
     const d = defaultFilters();
-    return (['query', 'program', 'core', 'category', 'type', 'includeRetired', 'confirmedOnly'] as const).some((k) => filters[k] !== d[k]);
+    return (['query', 'program', 'core', 'category', 'type', 'includeRetired', 'confirmedOnly', 'view'] as const).some((k) => filters[k] !== d[k]);
   };
   const filterHost = el('div', { class: 'filter-host' });
   let clearButton: HTMLElement | undefined;
 
   function filterBar(): HTMLElement {
+    // "What are you checking?" (item 30) — picks the columns; a degree view
+    // also narrows the Program filter to that degree unless the reader
+    // changes it back.
+    const view = el('select', {
+      'data-key': 'filter.view',
+      onchange: (e) => {
+        const v = (e.target as HTMLSelectElement).value as View;
+        filters.view = v;
+        if (v === 'mscse' || v === 'phd') filters.program = v;
+        if (v === 'all' || v === 'qualifier') filters.program = 'all';
+        clear(filterHost);
+        filterHost.append(filterBar());
+        refreshTable();
+        filterHost.querySelector<HTMLElement>('[data-key="filter.view"]')?.focus();
+      },
+    });
+    for (const [k, label] of Object.entries(VIEW_LABEL)) view.append(option(k, label, filters.view === k));
     const search = el('input', {
       type: 'search',
       'data-key': 'filter.search',
@@ -407,6 +497,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     return el(
       'div',
       { class: 'filters', role: 'search', 'aria-label': 'Filter the course list' },
+      el('div', { class: 'filter view-filter' }, labelled('What are you checking?', view, 'filter-view')),
       labelled('Search by course number or title', search, 'filter-search'),
       labelled('Program', program, 'filter-program'),
       labelled('Core knowledge area', core, 'filter-core'),
@@ -433,6 +524,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
     tableHost.append(table());
     if (focused?.startsWith('sort.')) tableHost.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
     clearButton?.classList.toggle('hidden', !filtersActive());
+    filtersToUrl(filters, DEFAULTS);
   }
 
   function table(): HTMLElement {
@@ -529,8 +621,18 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       );
       if (noteRow) body.append(noteRow);
     }
+    // Column visibility for the chosen view (item 30): a class on each hidden
+    // header and cell, so the card layout on phones hides the same fields.
+    const hidden = new Set(HIDDEN_COLUMNS[filters.view]);
+    if (hidden.size > 0) {
+      for (const tr of [head, ...body.querySelectorAll('tr:not(.note-row)')]) {
+        Array.from(tr.children).forEach((cell, i) => {
+          if (hidden.has(i + 1)) cell.classList.add('col-hidden');
+        });
+      }
+    }
     const shown = rows.filter((r) => filters.includeRetired || r.active).length;
-    countLine.textContent = `${list.length} of ${shown} courses shown.${filtersActive() ? ' Filters are active.' : ''}`;
+    countLine.textContent = `${list.length} of ${shown} courses shown.${filtersActive() ? ' Filters are active.' : ''}${filters.view !== 'all' ? ` View: ${VIEW_LABEL[filters.view].toLowerCase()}.` : ''}`;
     return el(
       'div',
       {},

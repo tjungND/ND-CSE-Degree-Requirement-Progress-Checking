@@ -12,7 +12,7 @@ import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
-import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
+import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
@@ -50,7 +50,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   // item 3): focus moves into it, Tab stays inside, the page behind is inert,
   // Escape dismisses it like Agree, and focus returns to the page when it
   // closes — the ARIA dialog pattern, which the old overlay div did not follow.
-  const agreeButton = el('button', { class: 'btn primary', autofocus: true }, 'Agree');
+  // "I understand — continue" rather than "Agree" (usability review 2026-09-05,
+  // item 9): the notice is informational, not a consent; nothing is stored.
+  const agreeButton = el('button', { class: 'btn primary', autofocus: true }, 'I understand — continue');
   const consentDialog = el(
     'dialog',
     { class: 'consent consent-overlay', 'aria-labelledby': 'consent-title' },
@@ -239,8 +241,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       el(
         'main',
         { id: 'main' },
-        betaNotice(),
-        privacyNotice(),
+        el(
+          'p',
+          { class: 'print-header' },
+          `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; confirm with the DGS office.`,
+        ),
+        noticeStrip(),
         rules.source === 'snapshot' ? snapshotBanner() : null,
         // Phones and small tablets (2026-09-05, review item 2): the result
         // first, then the inputs, then the full report — plus a sticky score
@@ -347,30 +353,43 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     );
   }
 
-  function betaNotice(): HTMLElement {
-    return el(
-      'div',
-      { class: 'banner beta', role: 'note' },
-      el('strong', {}, 'Alpha version under testing. '),
-      BETA_NOTICE,
-      ' ',
-      el('strong', {}, RULES_ACCURACY_NOTICE),
-      ' (See the ',
-      el('a', { href: './courses.html' }, 'course rules page'),
-      '.) ',
-      BETA_SCOPE_NOTICE,
-      ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
+  /** One slim strip instead of two stacked banners (usability review
+   * 2026-09-05, item 8): the alpha line and the privacy line, each one
+   * sentence or two, and a "Details" expander that holds the full DGS-worded
+   * paragraphs unchanged (they also stay in the footer and the copied
+   * summary). The privacy paragraph keeps its place right under the alpha
+   * text (DGS placement, 2026-09-03). */
+  function noticeStrip(): HTMLElement {
+    const details = el(
+      'details',
+      { class: 'notice-details' },
+      el('summary', {}, 'Details'),
+      el(
+        'p',
+        { class: 'notice-full beta' },
+        el('strong', {}, 'Alpha version under testing. '),
+        BETA_NOTICE,
+        ' ',
+        el('strong', {}, RULES_ACCURACY_NOTICE),
+        ' (See the ',
+        el('a', { href: './courses.html' }, 'course rules page'),
+        '.) ',
+        BETA_SCOPE_NOTICE,
+        ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
+      ),
+      el(
+        'p',
+        { class: 'notice-full privacy' },
+        el('strong', {}, 'Private by design. '),
+        'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing is uploaded, transmitted, or stored anywhere else. The page’s only network request is the read-only fetch of the public course rules.',
+      ),
     );
-  }
-
-  /** Right below the beta notice (DGS placement, 2026-09-03): everything —
-   * input, imported PDFs, and the optional OCR — stays in the browser. */
-  function privacyNotice(): HTMLElement {
     return el(
       'div',
-      { class: 'banner privacy', role: 'note' },
-      el('strong', {}, 'Private by design. '),
-      'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing is uploaded, transmitted, or stored anywhere else. The page’s only network request is the read-only fetch of the public course rules.',
+      { class: 'banner beta notice-strip', role: 'note' },
+      el('p', { class: 'notice-line' }, el('strong', {}, 'Alpha — under testing. '), ALPHA_LINE, ' Feedback: ', mailto(DGS.email), '.'),
+      el('p', { class: 'notice-line privacy-line' }, el('strong', {}, 'Private by design. '), PRIVACY_LINE),
+      details,
     );
   }
 
@@ -436,18 +455,21 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
       : null;
-    const priorSel = el('select', {
-      'data-key': 'standing.prior',
-      onchange: (e) =>
+    // Radio buttons rather than a dropdown (usability review 2026-09-05,
+    // item 12): three choices, all visible, one tap on a phone.
+    const priorGroup = radios(
+      'standing.prior',
+      [
+        ['none', 'No prior graduate degree'],
+        ['unfinished', 'Prior M.S., not completed'],
+        ['completed', 'Completed prior M.S. or Ph.D.'],
+      ],
+      student.priorMs,
+      (value) =>
         update((s) => {
-          s.priorMs = (e.target as HTMLSelectElement).value as Student['priorMs'];
+          s.priorMs = value as Student['priorMs'];
           s.priorMsInferred = undefined; // the student chose — no longer inferred
         }),
-    });
-    priorSel.append(
-      option('none', 'No prior graduate degree', student.priorMs === 'none'),
-      option('unfinished', 'Prior M.S., not completed', student.priorMs === 'unfinished'),
-      option('completed', 'Completed prior M.S. or Ph.D.', student.priorMs === 'completed'),
     );
     // Reconcile the dropdown with the uploaded transcripts (2026-09-03): a
     // graduate transcript sets this automatically on import — "Completed" when
@@ -476,25 +498,28 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const card = el(
       'section',
       { class: 'card' },
-      el('h2', {}, 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
+      el('h2', {}, el('span', { class: 'step-no' }, '2. '), 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
       // A fieldset with a legend (item 5): the two controls share one question.
       fieldset('Entered the program', el('div', { class: 'pair' }, seasonSel, yearInput)),
-      entryNote,
-      field('Prior graduate study (§5.2 transfer caps)', priorSel),
+      // What this field drives (item 11) — the longer note takes over while
+      // the term is inferred or assumed.
+      entryNote ?? el('p', { class: 'hint field-hint' }, 'Every deadline and the residency count are counted from this term.'),
+      fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
       priorNote,
     );
 
     if (student.program === 'mscse') {
-      const optSel = el('select', {
-        'data-key': 'standing.msOption',
-        onchange: (e) => update((s) => void (s.msOption = (e.target as HTMLSelectElement).value as Student['msOption'])),
-      });
-      optSel.append(
-        option('undecided', 'Undecided', (student.msOption ?? 'undecided') === 'undecided'),
-        option('project', 'M.S. project (§3.4 i)', student.msOption === 'project'),
-        option('thesis', 'M.S. thesis (§3.4 ii)', student.msOption === 'thesis'),
+      const optGroup = radios(
+        'standing.msOption',
+        [
+          ['undecided', 'Undecided'],
+          ['project', 'M.S. project (§3.4 i)'],
+          ['thesis', 'M.S. thesis (§3.4 ii)'],
+        ],
+        student.msOption ?? 'undecided',
+        (value) => update((s) => void (s.msOption = value as Student['msOption'])),
       );
-      card.append(field('Project or thesis option (§3.4)', optSel));
+      card.append(fieldset('Project or thesis option (§3.4)', optGroup));
     }
 
     card.append(fullTimeTerms());
@@ -622,11 +647,11 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const card = el(
       'section',
       { class: 'card' },
-      el('h2', {}, 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
+      el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
       el(
         'p',
         { class: 'hint' },
-        'Everything you have taken or are taking belongs here — importing your transcripts above fills it in automatically, non-CSE and other-university courses included; you can also add or fix courses by hand. Anything the course rules have not decided yet goes into the review request below.',
+        'Everything you have taken or are taking belongs here. Importing your transcripts above fills it in, non-CSE and other-university courses included; you can also add or fix courses by hand. Anything the course rules have not decided yet goes into the review request below.',
       ),
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       gpaNote,
@@ -664,13 +689,15 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return el(
       'div',
       { class: 'card external-card' },
-      el('h2', {}, 'Transcripts ', el('span', { class: 'chip-note' }, 'start here')),
+      el('h2', {}, el('span', { class: 'step-no' }, '1. '), 'Transcripts ', el('span', { class: 'chip-note' }, 'start here')),
+      // Shorter sentences (usability review 2026-09-05, item 10): the same
+      // facts, none over 25 words.
       el(
         'p',
         { class: 'hint' },
-        'The easiest way to start: import your transcripts, and most of the page below fills itself in. ',
-        el('strong', {}, 'System-generated PDFs are read exactly; a scanned or photographed transcript can be read with built-in text recognition (OCR) — English-language transcripts only'),
-        ' — after you agree, and with every field checked by you. Like everything here, files are read on your own computer and never uploaded.',
+        'Start here: import your transcripts, and most of the page below fills itself in. ',
+        el('strong', {}, 'System-generated PDFs are read exactly.'),
+        ' A scanned or photographed transcript can be read with built-in text recognition (OCR) — English only — after you agree. Everything is read on your own computer and nothing is uploaded, and you check every field before it is added.',
       ),
       // Unofficial transcripts read best (DGS observation 2026-09-05): the web /
       // self-service PDF is single-column and carries no watermark; official
@@ -679,7 +706,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'p',
         { class: 'hint unofficial-note' },
         el('strong', {}, 'Prefer unofficial transcripts'),
-        ' — the web (self-service) PDF from your university’s portal is recognized best: it is usually one column with no watermark. Official transcripts (two columns, security patterns, e-transcript covers) are read too, but check their previews more carefully.',
+        ' — the web (self-service) PDF from your university’s portal reads best: one column, no watermark. Official transcripts (two columns, security patterns, e-transcript covers) are read too; check their previews more carefully.',
       ),
       busy
         ? el('p', { class: 'hint warn' }, 'One transcript at a time: confirm the open preview below (“Add …”) or cancel it before importing another PDF.')
@@ -931,7 +958,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'transcript-upload external-slot' },
       el('span', { class: 'slot-label' }, 'Notre Dame Unofficial Transcript'),
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
-      el('button', { class: 'btn tiny', disabled: blocked, 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
+      el('button', { class: 'btn tiny', disabled: blocked, 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF (alpha)'),
       el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. Parsed courses are shown for your confirmation before anything is added.'),
       fileInput,
       errorBox,
@@ -1027,7 +1054,10 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         type: 'checkbox',
         'aria-label': `Add ${c.courseId} (${termLabel(c.term)})`,
         'data-key': `preview.row.${i}`,
-        onchange: (e) => (tp.selected[i] = (e.target as HTMLInputElement).checked),
+        onchange: (e) => {
+          tp.selected[i] = (e.target as HTMLInputElement).checked;
+          render(); // the Add button's count follows (item 13)
+        },
       });
       cb.checked = tp.selected[i]!;
       const prior = c.origin === 'nd' && termIndex(c.term) < termIndex(entry);
@@ -1051,7 +1081,21 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         ),
       );
     });
-    box.append(table);
+    // Select all / none (item 13) — the duplicates stay unticked either way.
+    const selectAll = (on: boolean) => {
+      tp.courses.forEach((_, i) => (tp.selected[i] = on && !tp.duplicate[i]));
+      render();
+    };
+    box.append(
+      el(
+        'p',
+        { class: 'select-links' },
+        el('button', { class: 'btn tiny', 'data-key': 'preview.all', onclick: () => selectAll(true) }, 'Select all'),
+        ' ',
+        el('button', { class: 'btn tiny', 'data-key': 'preview.none', onclick: () => selectAll(false) }, 'Select none'),
+      ),
+      table,
+    );
     // The GPA for the §2.2 check (combined-transcript bug report 2026-09-05).
     if (tp.gpa !== undefined && tp.programGpa !== undefined) {
       // Two defensible figures: the registrar's graduate cumulative GPA (which
@@ -1168,7 +1212,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
               );
             },
           },
-          'Add selected courses',
+          `Add ${tp.selected.filter(Boolean).length} selected course${tp.selected.filter(Boolean).length === 1 ? '' : 's'}`,
         ),
         el('button', { class: 'btn', 'data-key': 'preview.cancel', onclick: () => { transcriptPreview = undefined; focusAfterRender = 'import.nd'; render(); } }, 'Cancel'),
       ),
@@ -1414,7 +1458,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const card = el(
       'section',
       { class: 'card' },
-      el('h2', {}, 'Milestones ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§2.3, §3.4' : '§2.3, §4.4–4.7')),
+      el('h2', {}, el('span', { class: 'step-no' }, '4. '), 'Milestones ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§2.3, §3.4' : '§2.3, §4.4–4.7')),
+      el('p', { class: 'hint' }, 'Enter each date once it has happened; leave the rest blank — every date here is optional.'),
     );
 
     card.append(
@@ -1562,7 +1607,10 @@ export function startApp(root: HTMLElement, rules: Rules): void {
 
   function diagnosticsCard(): HTMLElement {
     const issues = rules.issues;
-    if (issues.length === 0) return el('div', {});
+    // Students see this only when the sheet has ERRORS (usability review
+    // 2026-09-05, item 19); warnings alone are the DGS's business and are
+    // printed by `npm run sync-sheet`.
+    if (!issues.some((i) => i.severity === 'error')) return el('div', {});
     const details = el('details', { class: 'card diagnostics' });
     details.append(
       el(
@@ -1587,9 +1635,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'div',
         {},
         el('strong', {}, 'This is a self-check, not an official audit. '),
-        'It applies the rules in Sections 3 and 4 of the ',
+        'It applies Sections 3 and 4 of the ',
         handbookLink(),
-        '. Several requirements turn on approvals this page cannot see — advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadline dates shown are approximate; the registrar sets the real calendar. Confirm your standing with the Graduate Program Coordinator and the Director of Graduate Studies before you rely on it.',
+        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Confirm your standing with the Graduate Program Administrator and the Director of Graduate Studies before you rely on it.',
       ),
       el(
         'div',
@@ -1680,6 +1728,21 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       { class: 'field inline' },
       el('span', { class: 'label' }, label, hint ? ' ' : '', hint ? el('span', { class: 'label-hint' }, hint) : null),
       control,
+    );
+  }
+  /** A radio group: every option visible, one tap each (item 12). The
+   * `data-key`s are per option, so focus lands back on the chosen radio after
+   * the page rebuilds. */
+  function radios(keyPrefix: string, options: [string, string][], current: string, onPick: (value: string) => void): HTMLElement {
+    const name = keyPrefix.replace(/\W+/g, '-');
+    return el(
+      'div',
+      { class: 'radios' },
+      ...options.map(([value, label]) => {
+        const r = el('input', { type: 'radio', name, value, 'data-key': `${keyPrefix}.${value}`, onchange: () => onPick(value) });
+        r.checked = value === current;
+        return el('label', { class: 'radio' }, r, ` ${label}`);
+      }),
     );
   }
   /** Several controls answering ONE question (entry term = semester + year):

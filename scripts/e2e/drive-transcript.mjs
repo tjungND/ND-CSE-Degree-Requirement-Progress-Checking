@@ -56,7 +56,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.shot('transcript-preview');
 
   await s.evalJs(
-    `[...document.querySelectorAll('.transcript-preview button')].find(b => b.textContent === 'Add selected courses').click()`,
+    `[...document.querySelectorAll('.transcript-preview button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`,
   );
   await s.waitFor(
     `document.querySelectorAll('table.courses tr').length > 4 && !document.querySelector('.transcript-preview')`,
@@ -120,7 +120,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (extRows !== 3) throw new Error(`expected 3 parsed external courses, got ${extRows}`);
   await s.shot('external-preview');
   await s.evalJs(
-    `[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Add checked courses').click()`,
+    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
   );
   await s.waitFor(`document.querySelector('.external-verdicts')`);
   const verdicts = await s.evalJs(
@@ -201,7 +201,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   console.log('  OCR fields fixed by hand in the preview:', fixed);
   await s.evalJs(
-    `[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Add checked courses').click()`,
+    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
   );
   await s.waitFor(`document.querySelectorAll('.external-verdict').length === 5`);
   console.log('  5 external courses (3 typed + 2 core-relevant OCR) in the verdicts block');
@@ -275,7 +275,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (JSON.stringify(combinedRows) !== JSON.stringify(expectedCombined)) throw new Error('combined transcript levels/ticks wrong');
   await s.shot('combined-preview');
   await s.evalJs(
-    `[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Add checked courses').click()`,
+    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
   );
   await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
   const combinedToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
@@ -288,7 +288,8 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!headings.includes('Purdue University — Previous Undergraduate Transcript') || !headings.includes('Purdue University — Previous Master’s Transcript')) {
     throw new Error('the combined transcript must split into undergraduate and Master’s coursework groups');
   }
-  const priorSel = await s.evalJs(`[...document.querySelectorAll('.card select')].map(s => s.value).find(v => ['none','unfinished','completed'].includes(v))`);
+  // "Prior graduate study" is a radio group since 2026-09-05 (item 12).
+  const priorSel = await s.evalJs(`[...document.querySelectorAll('input[type=radio][data-key^="standing.prior."]')].find(r => r.checked)?.value`);
   if (priorSel !== 'completed') throw new Error('prior study should be "completed" from the M.S. conferral line, got ' + priorSel);
   await s.shot('combined-added');
 

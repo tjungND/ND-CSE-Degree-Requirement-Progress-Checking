@@ -101,6 +101,34 @@ Known-pending (the app's diagnostics panel is the live truth):
   with ZERO violations on both pages) — `axe-core` is a devDependency for this only (MPL-2.0,
   never shipped); `E2E_ONLY=<substring>` runs one driver. The review's findings, evidence and the
   remaining Phases 1–2 live in the project doc `degree-audit-app-usability-review.md`.
+- **Usability review Phases 1–2** (2026-09-05, DGS asked for all remaining items; the WORDING is
+  Claude's draft, listed in the DECISIONS row of the same date for the DGS to edit — change the
+  strings in `src/ui/handbook.ts` (`ALPHA_LINE`, `PRIVACY_LINE`), app.ts (card intros, hints,
+  footer), external-upload.ts (combined callout), report.ts (`STATUS_LABEL`, headline, glossary
+  entries) and re-run `npm run e2e`). Mechanics worth knowing: `noticeStrip()` in app.ts replaced
+  `betaNotice()` + `privacyNotice()` — one `.banner.beta.notice-strip` with two one-line
+  paragraphs and a `<details class="notice-details">` holding the full DGS paragraphs (the footer
+  and `advisorSummary` still use the full constants). `radios(keyPrefix, options, current,
+  onPick)` builds a radio group with per-option `data-key`s (`standing.prior.<value>`,
+  `standing.msOption.<value>`) — drive-a11y.mjs's focus check presses ArrowDown on
+  `standing.prior.none`. Both previews re-render on every checkbox tick so the Add button's count
+  ("Add 4 selected courses" / "Add 3 checked courses") follows; e2e matches those labels by
+  regex. `report.ts`: `attentionList()` (rows with status unmet / needs_dgs_review /
+  cannot_evaluate, each `#req-<id>` anchor — cards carry `id="req-…"`), `glossary(program)`
+  (a `<details class="glossary">` with a `<dl>`; entries paraphrase the handbook sentences the
+  engine quotes — keep them in step), `courseListLink(r)` (core rows →
+  `courses.html?core=<code>&view=qualifier`, the categories row → `?view=qualifier`, the
+  regular-course rows → `?program=…&type=regular&view=…`), the headline maths (`open =
+  remaining − inProgress`, needs-review count appended), meters past target ("12 (9 needed) ✓",
+  `.bar i.done`), deadline chips `.chip.deadline.d-<state>` with a `.deadline-word`. The dial SVG
+  is `aria-hidden`. `diagnosticsCard()` renders only when an ERROR exists. `.print-header` is a
+  print-only first line in `<main>`. courses-page.ts: `Filters.view` (`all|mscse|phd|qualifier`,
+  `VIEW_LABEL`, `HIDDEN_COLUMNS` = 1-based column positions hidden per view, applied as
+  `.col-hidden` on header and body cells after the table is built), `filtersFromUrl()` /
+  `filtersToUrl()` (query parameters q, program, core, category, type, retired, confirmed, sort,
+  desc, view; unknown values ignored; `history.replaceState` after every `refreshTable()`), the
+  "What are you checking?" select (`filter.view`) rebuilds the filter bar and pre-sets Program.
+  `docs/USER-TESTING.md` is the student-testing protocol (item 32).
 - **Phone and tablet layouts, both pages** (2026-09-05, DGS request; review items 2, 13, 30).
   Breakpoints: two columns down to 901 px (the report column `minmax(340px, 400px)` on tablets
   in landscape); one column at ≤900 px, where app.ts renders `renderSummary(report)` (dial +

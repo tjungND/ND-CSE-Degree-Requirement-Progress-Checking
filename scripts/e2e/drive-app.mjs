@@ -109,4 +109,16 @@ export async function driveCourses(s, baseUrl) {
   console.log('  search ignores spacing: "cse60641" → 1 row');
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
   await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+
+  // Filters live in the URL (2026-09-05, item 29) and a view picks the columns
+  // (item 30): open a shared link, check what it selected, then change a
+  // filter and check the address bar followed.
+  await s.open(new URL('courses.html?view=mscse&core=algorithms', baseUrl).href, 'table.course-rules');
+  const shared = JSON.parse(await s.evalJs(`JSON.stringify({ view: document.querySelector('[data-key="filter.view"]').value, core: document.querySelector('[data-key="filter.core"]').value, program: document.querySelector('[data-key="filter.program"]').value, hiddenHeaders: document.querySelectorAll('table.course-rules thead th.col-hidden').length, rows: document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length })`));
+  if (shared.view !== 'mscse' || shared.core !== 'algorithms') throw new Error('shared link did not select the view/filters: ' + JSON.stringify(shared));
+  if (shared.hiddenHeaders !== 3) throw new Error('the M.S. view should hide 3 columns, hid ' + shared.hiddenHeaders);
+  await s.evalJs(`(() => { const q = document.querySelector('[data-key="filter.search"]'); q.value = 'algorithms'; q.dispatchEvent(new Event('input')); })()`);
+  const search = await s.evalJs(`window.location.search`);
+  if (!/q=algorithms/.test(search) || !/view=mscse/.test(search)) throw new Error('the address bar did not follow the filters: ' + search);
+  console.log(`  shared link → view/filters applied (${shared.rows} rows, 3 columns hidden); filters written back to the URL (${search})`);
 }
