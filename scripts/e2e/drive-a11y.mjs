@@ -32,11 +32,49 @@ export async function driveA11y(s, baseUrl) {
   await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
   await checkFocusPreserved(s);
   await checkAxe(s, 'self-check page (example student)');
-  await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`);
+  await checkMobilePieces(s, 'app');
+  await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 390);
+  await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 820);
   await s.open(new URL('courses.html', baseUrl).href, 'table.course-rules');
   await checkAxe(s, 'course-rules page');
-  await checkPhone(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`);
+  await checkMobilePieces(s, 'courses');
+  await checkPhone(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`, 390);
+  await checkPhone(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`, 820);
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
+}
+
+// 3b. The phone/tablet layout pieces (2026-09-05, review items 2, 13, 30):
+// hidden on wide screens, present on narrow ones — the summary-first block
+// and sticky score bar on the self-check page, stacked course rows; on the
+// course-rules page the table becomes cards with a Sort control.
+async function checkMobilePieces(s, page) {
+  const visible = (sel) => s.evalJs(`(() => { const e = document.querySelector('${sel}'); return !!e && getComputedStyle(e).display !== 'none' && e.getClientRects().length > 0; })()`);
+  const at = async (width, mobile) => {
+    await s.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile, screenWidth: width, screenHeight: 900 });
+    await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+  };
+  if (page === 'app') {
+    await at(1400, false);
+    if ((await visible('.summary-mobile')) || (await visible('.sticky-score'))) throw new Error('summary block / sticky bar must be hidden on wide screens');
+    await at(390, true);
+    if (!(await visible('.summary-mobile')) || !(await visible('.sticky-score')) || !(await visible('.audit .back-link'))) throw new Error('summary block, sticky bar and back link must show on phones');
+    const stacked = await s.evalJs(`getComputedStyle(document.querySelector('table.courses.stack tr:nth-child(2)')).display`);
+    if (stacked !== 'flex') throw new Error('course rows must stack on phones (got display: ' + stacked + ')');
+    console.log('  phone pieces on the self-check page: summary first, sticky score bar, back link, stacked course rows');
+  } else {
+    await at(1400, false);
+    if (await visible('[data-key="filter.sort"]')) throw new Error('the Sort control must be hidden on wide screens (headers sort there)');
+    await at(390, true);
+    if (!(await visible('[data-key="filter.sort"]'))) throw new Error('the Sort control must show on phones');
+    const card = await s.evalJs(`getComputedStyle(document.querySelector('table.course-rules tbody tr')).display`);
+    if (card !== 'block') throw new Error('course rows must render as cards on phones (got display: ' + card + ')');
+    await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'title'; sel.dispatchEvent(new Event('change')); })()`);
+    const first = await s.evalJs(`document.querySelector('table.course-rules tbody tr th.course-id')?.textContent`);
+    const firstTitle = await s.evalJs(`document.querySelector('table.course-rules tbody tr td.cell-title')?.textContent`);
+    await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'course'; sel.dispatchEvent(new Event('change')); })()`);
+    console.log(`  phone pieces on the course-rules page: cards, Sort control (by title → first card ${first} "${firstTitle}")`);
+  }
+  await at(1400, false);
 }
 
 // 1. The opening notice as a modal dialog.
@@ -89,17 +127,18 @@ async function checkFocusPreserved(s) {
   console.log('  focus is preserved across re-renders (dropdown, checkbox); Tab continues from the same control');
 }
 
-// 3. No sideways scrolling at a phone width.
-async function checkPhone(s, page, readyExpr) {
-  await s.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true, screenWidth: 390, screenHeight: 844 });
+// 3. No sideways scrolling at a phone (390) or tablet-portrait (820) width.
+async function checkPhone(s, page, readyExpr, width = 390) {
+  const height = width < 600 ? 844 : 1180;
+  await s.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true, screenWidth: width, screenHeight: height });
   await s.waitFor(readyExpr);
   await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 250)))');
   const m = JSON.parse(
-    await s.evalJs(`JSON.stringify({ scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, wide: [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > 391 && getComputedStyle(e).position !== 'fixed').slice(0, 5).map(e => e.tagName + '.' + String(e.className).slice(0, 30)) })`),
+    await s.evalJs(`JSON.stringify({ scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, wide: [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > ${width + 1} && getComputedStyle(e).position !== 'fixed').slice(0, 5).map(e => e.tagName + '.' + String(e.className).slice(0, 30)) })`),
   );
-  await s.shot(`phone-${page}`);
-  if (m.scrollW > m.clientW) throw new Error(`${page} at 390 px scrolls sideways (${m.scrollW} > ${m.clientW}); widest: ${m.wide.join(', ')}`);
-  console.log(`  phone width (390 px), ${page} page: no horizontal scrolling`);
+  await s.shot(`${width < 600 ? 'phone' : 'tablet'}-${page}`);
+  if (m.scrollW > m.clientW) throw new Error(`${page} at ${width} px scrolls sideways (${m.scrollW} > ${m.clientW}); widest: ${m.wide.join(', ')}`);
+  console.log(`  ${width < 600 ? 'phone' : 'tablet'} width (${width} px), ${page} page: no horizontal scrolling`);
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
   await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
 }

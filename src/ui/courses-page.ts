@@ -358,6 +358,36 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       },
     });
     (confirmed as HTMLInputElement).checked = filters.confirmedOnly;
+    // On phones the table becomes cards and its sortable headers are hidden,
+    // so sorting moves into the filter bar (shown only there by CSS).
+    const SORT_LABELS: Record<SortKey, string> = {
+      course: 'Course number',
+      title: 'Title',
+      type: 'Type',
+      mscse: 'MSCSE degree credit',
+      phd: 'Ph.D. degree credit',
+      core: 'Core knowledge',
+      category: 'Specialization',
+      offered: 'Typically offered',
+      reviewed: 'DGS reviewed',
+    };
+    const sortSel = el('select', {
+      'data-key': 'filter.sort',
+      onchange: (e) => {
+        filters.sort = (e.target as HTMLSelectElement).value as SortKey;
+        refreshTable();
+      },
+    });
+    for (const [k, label] of Object.entries(SORT_LABELS)) sortSel.append(option(k, label, filters.sort === k));
+    const descBox = el('input', {
+      type: 'checkbox',
+      'data-key': 'filter.desc',
+      onchange: (e) => {
+        filters.desc = (e.target as HTMLInputElement).checked;
+        refreshTable();
+      },
+    });
+    (descBox as HTMLInputElement).checked = filters.desc;
     clearButton = el(
       'button',
       {
@@ -384,6 +414,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       labelled('Course type', type, 'filter-type'),
       el('label', { class: 'check' }, retired, ' Include retired courses'),
       el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows'),
+      el('div', { class: 'filter mobile-only' }, labelled('Sort by', sortSel, 'filter-sort'), el('label', { class: 'check' }, descBox, ' Descending')),
       clearButton,
     );
   }
@@ -481,19 +512,19 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
           'tr',
           { id: rowId, class: r.active ? '' : 'retired' },
           el('th', { scope: 'row', class: 'course-id' }, r.courseId, r.active ? '' : el('span', { class: 'pill retired' }, 'Retired')),
-          el('td', {}, r.title),
-          el('td', {}, TYPE_LABEL[r.courseType]),
-          el('td', {}, pillCounts(r.countsTowardMscse)),
-          el('td', {}, pillCounts(r.countsTowardPhd)),
-          el('td', { class: r.coreArea ? '' : 'muted' }, coreLabel(r)),
-          el('td', { class: catClass }, categoryLabel(r)),
-          el('td', { class: r.typicallyOffered ? '' : 'muted' }, offeredLabel(r)),
+          el('td', { class: 'cell-title' }, r.title),
+          el('td', { 'data-label': 'Type' }, TYPE_LABEL[r.courseType]),
+          el('td', { 'data-label': 'MSCSE degree credit' }, pillCounts(r.countsTowardMscse)),
+          el('td', { 'data-label': 'Ph.D. degree credit' }, pillCounts(r.countsTowardPhd)),
+          el('td', { class: r.coreArea ? '' : 'muted', 'data-label': 'Core knowledge (§4.4.1)' }, coreLabel(r)),
+          el('td', { class: catClass, 'data-label': 'Specialization (§4.4.2)' }, categoryLabel(r)),
+          el('td', { class: r.typicallyOffered ? '' : 'muted', 'data-label': 'Typically offered' }, offeredLabel(r)),
           el(
             'td',
-            {},
+            { 'data-label': 'DGS reviewed' },
             r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending'),
           ),
-          el('td', { class: 'notes-cell' }, notesButton ?? el('span', { class: 'muted' }, '—')),
+          el('td', { class: 'notes-cell' }, notesButton ?? el('span', { class: 'muted no-notes' }, '—')),
         ),
       );
       if (noteRow) body.append(noteRow);

@@ -64,7 +64,8 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
 
 /* layout */
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 480px; gap: 18px; align-items: start; } /* minmax(0,…) — a wide preview table scrolls inside its card instead of widening the column (2026-09-05) */
-@media (max-width: 1120px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1120px) { .layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); } } /* tablets in landscape keep two columns */
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } } /* tablets in portrait and phones: one column */
 /* Nothing may widen the columns on a phone (WCAG 1.4.10 reflow; usability review 2026-09-05, item 1): wide tables scroll inside their card. */
 .layout > * { min-width: 0; }
 .table-scroll.plain { overflow-x: auto; background: none; border: 0; border-radius: 0; }
@@ -256,7 +257,7 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .ov-item:hover { background: #eef2f8; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin: 8px 0 6px; }
 .filters .filter { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.filters .filter:first-child { flex: 1 1 240px; }
+.filters > .filter:first-child { flex: 1 1 240px; }
 .filters .filter .label { font-size: 12px; font-weight: 600; color: var(--muted); }
 .filters input[type=search] { width: 100%; min-width: 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
 .filters select { padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); max-width: 100%; }
@@ -370,3 +371,107 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .ocr-banner { background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 8px 12px; margin: 6px 0 10px; font-size: 13.5px; }
 .ocr-progress { margin-top: 10px; color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
 tr.ocr-low td { background: #fff7e0; }
+
+/* ---------- phones and tablets (2026-09-05, usability review items 2, 13, 30) ---------- */
+/* Wide screens: the report sits beside the inputs, so the mobile-only pieces stay hidden. */
+.summary-mobile, .sticky-score, .mobile-only, .filters .filter.mobile-only { display: none; }
+.jump-link { display: inline-block; margin-top: 8px; font-size: 13.5px; color: var(--navy); font-weight: 600; }
+.summary-mobile .jump-link { margin-top: 4px; }
+.jump-link.back-link { display: none; }
+.slot-sep { white-space: pre; }
+
+@media (max-width: 900px) {
+  /* The result first (dial + meters), then the inputs, then the full report. */
+  .summary-mobile { display: block; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--navy); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .jump-link.back-link { display: inline-block; margin: 0 0 8px; }
+  /* A small sticky score bar with jumps between the two halves of the page. */
+  .sticky-score { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; align-items: center; gap: 14px; padding: 9px 14px; background: var(--navy); color: #fff; font-size: 14px; box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.18); }
+  .sticky-score .sticky-text { flex: 1 1 auto; font-weight: 700; }
+  .sticky-score a { color: #fff; text-decoration: underline; font-weight: 600; min-height: 24px; display: inline-flex; align-items: center; }
+  .sticky-score a:focus-visible { outline-color: #fff; outline-offset: 1px; }
+  html { scroll-padding-bottom: 64px; } /* a focused control is never hidden behind the bar (WCAG 2.4.11) */
+  #app { padding-bottom: 76px; }
+  .toast { bottom: 62px; }
+  .masthead { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  /* Phones. */
+  .masthead h1 { font-size: 22px; }
+  .masthead .contact-card { font-size: 12px; padding: 8px 10px 9px; }
+  .masthead .contact-card li { margin: 3px 0; }
+  .masthead-tools { gap: 8px; }
+  .masthead-tools .tabs { display: flex; width: 100%; }
+  .masthead-tools .tab { flex: 1 1 0; text-align: center; padding: 10px 6px; }
+  .masthead-tools > div:not(.tabs) { display: flex; gap: 6px; width: 100%; }
+  .masthead-tools > div:not(.tabs) .btn { flex: 1 1 0; margin: 0; }
+  .btn { min-height: 40px; }
+  .btn.tiny { min-height: 32px; }
+  .save-buttons .btn { flex: 1 1 auto; }
+  /* iOS Safari zooms the page when a focused control's text is smaller than 16 px. */
+  input, select, textarea, .external-card .transcript-preview input, .external-card .transcript-preview select { font-size: 16px; }
+  .pair input { width: 96px; }
+  .external-slot { display: block; }
+  .external-slot .slot-label { display: block; margin-bottom: 4px; }
+  .external-slot .slot-sep { display: none; }
+  .external-slot .hint-inline { display: block; margin-top: 4px; }
+  .req-head { flex-wrap: wrap; }
+  .scorehead { gap: 10px; }
+  .dial { width: 64px; height: 64px; }
+
+  /* Course tables as stacked rows: course and its Remove/Add control on the
+     first line, the term/credits/grade facts on the next, notes after. The
+     header row is only for screen readers; data-labels replace it visually. */
+  table.courses.stack, table.courses.stack tbody { display: block; width: 100%; }
+  table.courses.stack tr { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 3px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  table.courses.stack tr:first-child { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+  table.courses.stack tr::before { content: ''; order: 2; flex: 0 0 100%; height: 0; }
+  table.courses.stack td { display: block; border: 0; padding: 0; }
+  table.courses.stack td.cell-check { order: 0; flex: 0 0 auto; }
+  table.courses.stack td.cell-course { order: 0; flex: 1 1 0; min-width: 0; }
+  table.courses.stack td.cell-remove { order: 1; flex: 0 0 auto; margin-left: auto; }
+  table.courses.stack td.cell-title { order: 2; flex: 0 0 100%; }
+  table.courses.stack td.cell-meta { order: 3; font-size: 13.5px; }
+  table.courses.stack td.cell-meta::before { content: attr(data-label) ': '; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.courses.stack td.cell-note { order: 4; flex: 0 0 100%; max-width: none; }
+  table.courses.stack td.cell-note:empty { display: none; }
+  table.courses.stack .cid { white-space: normal; }
+  table.courses.stack tr.dropped .cid { text-decoration: line-through; }
+  .table-scroll.plain { overflow: visible; }
+  /* The editable preview (external transcripts): one small form per course. */
+  table.courses.stack.edit tr { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; background: var(--card); }
+  table.courses.stack.edit tr.ocr-low { background: #fff7e0; }
+  table.courses.stack.edit td.cell-meta { display: flex; flex-direction: column; gap: 2px; }
+  table.courses.stack.edit td.cell-meta::before { content: attr(data-label); }
+  table.courses.stack.edit td.cell-course::before, table.courses.stack.edit td.cell-title::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .external-card .transcript-preview table.courses.stack.edit input, .external-card .transcript-preview table.courses.stack.edit select { max-width: 100%; }
+  .external-card .transcript-preview table.courses.stack.edit input.course-id, .external-card .transcript-preview table.courses.stack.edit input.course-title { width: 100%; }
+  .external-card .transcript-preview table.courses.stack.edit input[type="number"][max="30"] { width: 76px; }
+  .external-card .transcript-preview table.courses.stack.edit input[type="number"][max="2040"] { width: 88px; }
+  .external-card .transcript-preview table.courses.stack.edit select { max-width: none; }
+  .transcript-preview tr.prior-row .cid { color: var(--muted); }
+}
+
+/* ---------- courses.html on phones and tablets in portrait: cards instead of the 980 px table ---------- */
+@media (max-width: 860px) {
+  .mobile-only { display: flex; }
+  .filters .filter.mobile-only { display: flex; flex: 0 0 100%; flex-direction: row; align-items: flex-end; gap: 12px; }
+  .courses-page .table-scroll { overflow: visible; border: 0; background: none; }
+  .courses-page .table-scroll:focus-visible { outline: none; }
+  table.course-rules { min-width: 0; display: block; }
+  table.course-rules thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+  table.course-rules tbody { display: block; }
+  table.course-rules tbody tr { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0 0 8px; }
+  table.course-rules tbody tr.note-row { margin-top: -10px; border-top: 0; border-radius: 0 0 10px 10px; }
+  table.course-rules tbody tr:hover td { background: none; }
+  table.course-rules tbody tr:target { background: #fff7e0; }
+  table.course-rules tbody th, table.course-rules tbody td { display: block; border: 0; padding: 2px 0; font-size: 14px; }
+  table.course-rules tbody th.course-id { font-size: 16px; white-space: normal; }
+  table.course-rules tbody td.cell-title { color: var(--muted); margin-bottom: 4px; }
+  table.course-rules tbody td[data-label]::before { content: attr(data-label) ': '; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
+  table.course-rules tbody td.notes-cell { padding-top: 6px; white-space: normal; }
+  table.course-rules tbody td.notes-cell .no-notes { display: none; }
+  table.course-rules tbody tr.note-row td { background: none; }
+  .courses-page .count { margin: 10px 0 4px; }
+}
+@media print { .summary-mobile, .sticky-score, .jump-link, .mobile-only { display: none !important; } }

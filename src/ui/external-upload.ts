@@ -303,7 +303,8 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   if (have.length > 0) {
     const uni = have[0]!.institution ?? 'another university';
     parts.push(
-      el('span', {}, ` — ${have.length} course${have.length === 1 ? '' : 's'} from ${uni} `),
+      el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
+      el('span', {}, `${have.length} course${have.length === 1 ? '' : 's'} from ${uni} `),
       el(
         'button',
         {
@@ -341,7 +342,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
     );
   } else {
     parts.push(
-      ' — ',
+      el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
       el('button', { class: 'btn tiny', disabled: args.blocked, 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
       fileInput,
     );
@@ -540,7 +541,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     el('p', { class: 'hint', id: 'ext-university-hint' }, 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it. Grades the parser could not read must be chosen by hand (rows without a grade are not added).'),
     el('label', { class: 'field' }, el('span', { class: 'label' }, 'University'), uniInput),
   );
-  const table = el('table', { class: 'courses' });
+  const table = el('table', { class: 'courses stack edit' });
   table.append(
     el(
       'tr',
@@ -589,14 +590,14 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     const tr = el(
       'tr',
       { class: [r.lowConfidence ? 'ocr-low' : '', r.irrelevant ? 'prior-row' : ''].join(' ').trim() },
-      el('td', {}, r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null, cb),
-      el('td', {}, idIn),
-      el('td', {}, titleIn),
-      el('td', {}, crIn),
-      el('td', {}, gradeSel),
-      el('td', {}, seasonSel),
-      el('td', {}, yearIn),
-      el('td', {}, levelSel),
+      el('td', { class: 'cell-check' }, r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null, cb),
+      el('td', { class: 'cell-course', 'data-label': 'Course id' }, idIn),
+      el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn),
+      el('td', { class: 'cell-meta', 'data-label': 'Credits' }, crIn),
+      el('td', { class: 'cell-meta', 'data-label': 'Grade' }, gradeSel),
+      el('td', { class: 'cell-meta', 'data-label': 'Term' }, seasonSel),
+      el('td', { class: 'cell-meta', 'data-label': 'Year' }, yearIn),
+      el('td', { class: 'cell-meta', 'data-label': 'Taken as' }, levelSel),
     );
     return tr;
   });

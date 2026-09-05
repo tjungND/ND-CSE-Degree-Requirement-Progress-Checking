@@ -101,6 +101,30 @@ Known-pending (the app's diagnostics panel is the live truth):
   with ZERO violations on both pages) — `axe-core` is a devDependency for this only (MPL-2.0,
   never shipped); `E2E_ONLY=<substring>` runs one driver. The review's findings, evidence and the
   remaining Phases 1–2 live in the project doc `degree-audit-app-usability-review.md`.
+- **Phone and tablet layouts, both pages** (2026-09-05, DGS request; review items 2, 13, 30).
+  Breakpoints: two columns down to 901 px (the report column `minmax(340px, 400px)` on tablets
+  in landscape); one column at ≤900 px, where app.ts renders `renderSummary(report)` (dial +
+  meters + "See the full report ↓", `section.summary-mobile`) ABOVE the inputs and a
+  `nav.sticky-score` bar (score line + "Inputs ↑ / Report ↓" links, `#inputs`/`#report`
+  targets; `html { scroll-padding-bottom }` keeps focused controls above it, the toast moves up)
+  — both hidden on wide screens by CSS, as is the report's "↑ Back to your inputs" link
+  (`.jump-link.back-link`). Phones (≤600 px): `table.courses.stack` rows become flex cards —
+  cells carry `class` (`cell-check`, `cell-course`, `cell-meta` + `data-label`, `cell-note`,
+  `cell-remove`, `cell-title`) and CSS `order`s them (course + Remove on line 1, a `tr::before`
+  break, then Term/Credits/Grade with `::before` labels, then the note); the editable external
+  preview (`table.courses.stack.edit`) becomes one mini form per course with labels above the
+  inputs; the header row is visually hidden (still read by screen readers); the " — " between a
+  transcript label and its button is a `span.slot-sep` hidden on phones; tabs and the
+  example/clear buttons go full width; every control is 16 px so iOS Safari does not zoom on
+  focus; `.btn` ≥40 px. courses.html at ≤860 px (phones + tablets in portrait): the 980 px table
+  becomes cards — `thead` visually hidden, `tbody tr` blocks, `th.course-id` the card title,
+  `td[data-label]::before` labels, the Notes button inside the card, note rows attached below —
+  and, since the sortable headers are hidden, a "Sort by" select + "Descending" checkbox
+  (`.filter.mobile-only`, `filter.sort`/`filter.desc` keys) appears in the filter bar (hidden on
+  wide screens: `.filters .filter.mobile-only { display: none }` — mind the specificity).
+  drive-a11y.mjs checks all of it: pieces hidden at 1400 and shown at 390, stacked rows, cards,
+  the Sort control sorting, and no sideways scrolling at 390 AND 820 px on both pages
+  (`phone-*.png`, `tablet-*.png`). Scratch full-page shots: `scratchpad/ux/shots.mjs` (session only).
 - **Combined Notre Dame transcript GPA** (2026-09-05, student bug report — his undergraduate GPA
   3.68 was imported): `parseTranscript` files every cumulative figure under the LEVEL of its totals
   block (`totalsLevel` from "Term Totals (Graduate)" / "Transcript Totals - (Undergraduate)", else

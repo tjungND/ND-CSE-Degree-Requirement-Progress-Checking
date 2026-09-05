@@ -177,9 +177,33 @@ function requirementCard(r: RequirementResult): HTMLElement {
   );
 }
 
+/** The score dial, headline and credit meters on their own — shown a second
+ * time at the TOP of the page on phones and small tablets, where the full
+ * report sits below every input card (usability review 2026-09-05, item 2).
+ * The links jump between the two halves of the page. */
+export function renderSummary(report: AuditReport): HTMLElement {
+  return el(
+    'section',
+    { class: 'summary-mobile', 'aria-label': 'Your result so far' },
+    dial(report),
+    meters(report),
+    el('a', { class: 'jump-link', href: '#report' }, 'See the full report ↓'),
+  );
+}
+
+/** One-line score for the sticky bar on narrow screens. */
+export function scoreLine(report: AuditReport): string {
+  const { met, scored } = report.summary;
+  return scored === 0 ? 'No requirements scored yet' : `${met} of ${scored} met`;
+}
+
 export function renderReport(report: AuditReport): HTMLElement {
   const panel = el('section', { class: 'audit', 'aria-label': 'Audit report' });
-  panel.append(dial(report), meters(report));
+  panel.append(
+    el('a', { class: 'jump-link back-link', href: '#main' }, '↑ Back to your inputs'),
+    dial(report),
+    meters(report),
+  );
 
   const groups = new Map<string, RequirementResult[]>();
   for (const r of report.requirements) {

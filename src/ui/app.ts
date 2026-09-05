@@ -16,7 +16,7 @@ import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, ru
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
-import { advisorSummary, renderReport } from './report.ts';
+import { advisorSummary, renderReport, renderSummary, scoreLine } from './report.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 import {
   clearLocal,
@@ -242,12 +242,16 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         betaNotice(),
         privacyNotice(),
         rules.source === 'snapshot' ? snapshotBanner() : null,
+        // Phones and small tablets (2026-09-05, review item 2): the result
+        // first, then the inputs, then the full report — plus a sticky score
+        // bar with jump links (both hidden on wide screens by CSS).
+        renderSummary(report),
         el(
           'div',
           { class: 'layout' },
           el(
             'div',
-            { class: 'inputs' },
+            { class: 'inputs', id: 'inputs' },
             transcriptsCard(),
             standingCard(),
             coursesCard(report.courseLines),
@@ -264,6 +268,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
               : null,
             renderReport(report),
           ),
+        ),
+        el(
+          'nav',
+          { class: 'sticky-score', 'aria-label': 'Your score, and jumps between inputs and report' },
+          el('span', { class: 'sticky-text' }, scoreLine(report)),
+          el('a', { href: '#inputs' }, 'Inputs ↑'),
+          el('a', { href: '#report' }, 'Report ↓'),
         ),
         el('div', { class: 'toast', role: 'status' }),
       ),
@@ -919,7 +930,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       'div',
       { class: 'transcript-upload external-slot' },
       el('span', { class: 'slot-label' }, 'Notre Dame Unofficial Transcript'),
-      ' — ',
+      el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
       el('button', { class: 'btn tiny', disabled: blocked, 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import Courses from PDF (alpha)'),
       el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. Parsed courses are shown for your confirmation before anything is added.'),
       fileInput,
@@ -998,7 +1009,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         ),
       );
     }
-    const table = el('table', { class: 'courses' });
+    const table = el('table', { class: 'courses stack' });
     table.append(
       el(
         'tr',
@@ -1031,12 +1042,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el(
           'tr',
           { class: prior ? 'prior-row' : '' },
-          el('td', {}, cb),
-          el('td', {}, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
-          el('td', {}, termLabel(c.term)),
-          el('td', {}, String(c.credits)),
-          el('td', {}, c.grade === 'IP' ? 'In progress' : c.grade),
-          el('td', { class: 'ctitle' }, note),
+          el('td', { class: 'cell-check' }, cb),
+          el('td', { class: 'cell-course' }, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
+          el('td', { class: 'cell-meta', 'data-label': 'Term' }, termLabel(c.term)),
+          el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
+          el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? 'In progress' : c.grade),
+          el('td', { class: 'ctitle cell-note' }, note),
         ),
       );
     });
@@ -1305,7 +1316,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   // uniform. The original index is kept so the delete/assign controls edit
   // the right entry.
   function courseTable(courseLines: { courseId: string; term: Term; text: string }[], entries: { c: CourseEntry; index: number }[]): HTMLElement {
-    const table = el('table', { class: 'courses' });
+    const table = el('table', { class: 'courses stack' });
     table.append(
       el(
         'tr',
@@ -1327,12 +1338,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       const rule = resolveRuleRow(rules, c.courseId, c.term);
       const nameCell = el(
         'td',
-        {},
+        { class: 'cell-course' },
         el('div', { class: 'cid' }, c.courseId),
         el('div', { class: 'ctitle' }, c.title ?? rule?.title ?? ''),
       );
       if (rule?.notes) nameCell.title = rule.notes;
-      const countsCell = el('td', { class: 'counts' }, line?.text ?? '');
+      const countsCell = el('td', { class: 'counts cell-note' }, line?.text ?? '');
       if (rule?.categoryGroup === 'any' && student.program === 'phd') {
         const sel = el('select', {
           'aria-label': `Specialization group for ${c.courseId}`,
@@ -1381,11 +1392,11 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'tr',
         { class: countsNothing ? 'dropped' : '' },
         nameCell,
-        el('td', {}, termLabel(c.term)),
-        el('td', {}, String(c.credits)),
-        el('td', {}, c.grade === 'IP' ? 'In progress' : c.grade),
+        el('td', { class: 'cell-meta', 'data-label': 'Term' }, termLabel(c.term)),
+        el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
+        el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? 'In progress' : c.grade),
         countsCell,
-        el('td', {}, removeButton),
+        el('td', { class: 'cell-remove' }, removeButton),
       );
       table.append(row);
     });
