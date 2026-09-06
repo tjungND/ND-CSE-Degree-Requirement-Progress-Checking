@@ -253,7 +253,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
           el('strong', {}, 'Official course rules. '),
           'These mappings are set by the Graduate Studies Committee and the DGS under the ',
           handbookLink(),
-          ', and they are what the DGS and the Graduate Program Administrator use to decide whether a student’s courses satisfy the degree requirements. The ',
+          ', and they are what the DGS and the Grad Admin use to decide whether a student’s courses satisfy the degree requirements. The ',
           el('a', { href: './index.html' }, 'degree self-check tool'),
           ' applies these same rules to your own coursework.',
         ),

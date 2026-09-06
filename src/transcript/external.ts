@@ -526,7 +526,7 @@ export interface ReviewRequestCourse {
 
 /** Shared assembly for the copy-ready review requests (decisions 2026-09-03).
  * Every request is addressed to BOTH decision-makers — DGS policy: students
- * MUST email it to the DGS and the Graduate Program Administrator. Two
+ * MUST email it to the DGS and the Grad Admin. Two
  * clipboard flavors are returned and written together: `text` (tab-separated
  * rows) for plain-text contexts, and `html`, where the rows are a REAL
  * `<table>` — HTML email composers (Gmail etc.) flatten tab characters to
@@ -544,7 +544,7 @@ function buildReviewRequest(opts: {
   detailGroups: readonly { heading: string; lines: readonly string[] }[];
 }): { text: string; html: string } {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const greeting = 'Dear DGS and Graduate Program Administrator,';
+  const greeting = 'Dear DGS and Grad Admin,';
   const sections = opts.sections.filter((s) => s.rows.length > 0);
   const groups = opts.detailGroups.filter((g) => g.lines.length > 0);
   // The human half (greeting, context, sign-off) sits ABOVE one line; the

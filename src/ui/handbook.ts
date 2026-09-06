@@ -26,8 +26,8 @@ export const BETA_NOTICE =
  * Shown in bold next to the beta notice in the banner, the footer and the
  * copied summary, so a student does not read "beta" as "the rules may be wrong". */
 export const RULES_ACCURACY_NOTICE =
-  'The course rules are accurate: they are exactly the rules the DGS and the Graduate ' +
-  'Program Administrator use to determine requirement satisfaction.';
+  'The course rules are accurate: they are exactly the rules the DGS and the Grad Admin ' +
+  'use to determine requirement satisfaction.';
 
 /** Which student situations the tool does not model yet (DGS wording,
  * 2026-09-05). Shown in the alpha banner, the footer and the copied summary

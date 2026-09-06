@@ -250,7 +250,7 @@ export function classify(student: Student, rules: Rules): {
         approvalPending: attested
           ? undefined
           : external?.transferable === true
-            ? 'pre-approved in the DGS’s external-course rules — to transfer it, send the §5.2 credit-transfer request to the Graduate Program Coordinator'
+            ? 'pre-approved in the DGS’s external-course rules — to transfer it, send the §5.2 credit-transfer request to the Grad Admin'
             : external
               ? 'transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)'
               : `transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm')}`,

@@ -90,7 +90,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
 
   // 2b) An unlisted (typically non-CSE) ND course typed by hand → the single
   // "Ask the DGS to review" card offers a copy-ready request addressed to the
-  // DGS + Graduate Program Administrator (2026-09-03).
+  // DGS + Grad Admin (2026-09-03; abbreviation per the DGS, 2026-09-06).
   await s.evalJs(`(() => {
     const form = document.querySelector('.course-form');
     form.querySelector('input.course-id').value = 'MATH 60610'; // labelled "Course number" since 2026-09-05 (no placeholder)
@@ -103,7 +103,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // title joins the request for §4.4.1 review (DGS rule 2026-09-04) — and
   // the undergraduate CSE 30321 "Computer Architecture" taken before entry
   // (2026-09-05: prior Notre Dame coursework not in the Courses tab).
-  if (!ndReview.includes('Copy review request for 3 courses') || !ndReview.includes('Graduate Program Administrator')) {
+  if (!ndReview.includes('Copy review request for 3 courses') || !ndReview.includes('Grad Admin')) {
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');

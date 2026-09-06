@@ -813,7 +813,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'Decisions are made only by email: '),
         'copy the review request and send it to the DGS (',
         mailto(DGS.email),
-        ') and the Graduate Program Administrator (',
+        ') and the Grad Admin (',
         mailto(GRAD_ADMIN.email),
         '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing.',
       ),
@@ -832,8 +832,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                 .then(({ buildCombinedReviewRequest }) =>
                   copyReviewRequest(buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq })),
                 )
-                .then(() => toast('Review request copied — email it to the DGS and the Graduate Program Administrator, and attach your transcript PDFs. (Nothing is sent by this page.)'))
-                .catch(() => toast('Could not copy automatically — please email the DGS and the Graduate Program Administrator with your course ids, credits, grades and terms.'));
+                .then(() => toast('Review request copied — email it to the DGS and the Grad Admin, and attach your transcript PDFs. (Nothing is sent by this page.)'))
+                .catch(() => toast('Could not copy automatically — please email the DGS and the Grad Admin with your course ids, credits, grades and terms.'));
             },
           },
           `Copy review request for ${n} course${n === 1 ? '' : 's'}`,
@@ -1637,7 +1637,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'This is a self-check, not an official audit. '),
         'It applies Sections 3 and 4 of the ',
         handbookLink(),
-        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Confirm your standing with the Graduate Program Administrator and the Director of Graduate Studies before you rely on it.',
+        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Confirm your standing with the Grad Admin and the DGS before you rely on it.',
       ),
       el(
         'div',

@@ -165,7 +165,7 @@ Notre Dame courses that are not in the **Courses** tab (typically non-CSE), are
 marked `dgs_approval`, or have blank verdicts show "needs DGS review", and the
 "Ask the DGS to review" card writes ONE review request for the student —
 covering their Notre Dame and external courses together — which they must
-email to you and the Graduate Program Administrator. For courses that are not
+email to you and the Grad Admin (Graduate Program Administrator). For courses that are not
 in the sheet at all, the email contains paste-ready rows (`course_id`,
 `title`) — paste them into the **Courses** tab at a new row's `course_id`
 cell, fill in the remaining columns, and the student's page updates within

@@ -31,7 +31,7 @@ export const CONTACTS: Contact[] = [
     scope: 'MSCSE policies',
   },
   {
-    role: 'Graduate Program Administrator',
+    role: 'Graduate Program Administrator (Grad Admin)',
     name: 'Cari White',
     email: 'csalmons@nd.edu',
     scope: 'logistics, paperwork, processing — and everything else',
@@ -61,9 +61,9 @@ export function applyContactOverrides(params: Parameters): void {
 /** The DGS — the address error reports and feedback go to. */
 export const DGS: Contact = CONTACTS[0]!;
 
-/** The Graduate Program Administrator — course review requests MUST be
+/** The Graduate Program Administrator ("Grad Admin", DGS 2026-09-06) — course review requests MUST be
  * emailed to the DGS AND this address (DGS policy, 2026-09-03). */
-export const GRAD_ADMIN: Contact = CONTACTS.find((c) => c.role === 'Graduate Program Administrator')!;
+export const GRAD_ADMIN: Contact = CONTACTS.find((c) => c.role.startsWith('Graduate Program Administrator'))!;
 
 /** A mailto link showing the address itself. */
 export function mailto(email: string): HTMLAnchorElement {

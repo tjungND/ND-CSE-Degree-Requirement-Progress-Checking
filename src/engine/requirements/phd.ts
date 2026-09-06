@@ -227,7 +227,7 @@ function transferRow(ctx: Ctx): RequirementResult {
       const unreviewed = pending.filter((c) => !c.external);
       if (preApproved.length > 0) {
         parts.push(
-          `Pre-approved in the DGS’s external-course rules: ${preApproved.map((c) => c.entry.courseId).join(', ')} — send the credit-transfer request to the Graduate Program Coordinator`,
+          `Pre-approved in the DGS’s external-course rules: ${preApproved.map((c) => c.entry.courseId).join(', ')} — send the credit-transfer request to the Grad Admin`,
         );
       }
       if (unreviewed.length > 0) {
@@ -684,7 +684,7 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
     detail = missingParamDetail(reqReg === undefined ? 'ms_regular_credits_min' : 'ms_project_credits_min');
   } else if (passed && doneReg >= reqReg && doneRes >= reqRes) {
     status = 'met';
-    detail = `Candidacy passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — ask the Graduate Program Coordinator about receiving the MSCSE (§4.5).`;
+    detail = `Candidacy passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — ask the Grad Admin about receiving the MSCSE (§4.5).`;
   } else if (passed) {
     status = 'in_progress';
     detail = `${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame.`;

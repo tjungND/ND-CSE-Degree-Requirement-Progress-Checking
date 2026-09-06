@@ -133,7 +133,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
 
   it('is one email to both decision-makers, says self-check (not audit), and carries prior graduate study', () => {
     assert.match(built.text, /^Subject: Course review request/);
-    assert.match(built.text, /Dear DGS and Graduate Program Administrator,/);
+    assert.match(built.text, /Dear DGS and Grad Admin,/);
     assert.match(built.text, /Prior graduate study: Completed prior M\.S\. or Ph\.D\./);
     assert.match(built.text, /transcripts .* are attached to this email/i);
     assert.ok(!built.text.includes('audit'), 'the request says self-check, never audit');

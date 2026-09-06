@@ -92,7 +92,7 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `contact_dgs_email` | tjung@nd.edu | | Where error reports, feedback, and course review requests go. |
 | `contact_adgs_name` | Aaron Dingler | | The Assistant DGS (MSCSE policies). |
 | `contact_adgs_email` | adingler@nd.edu | | |
-| `contact_grad_admin_name` | Cari White | | The Graduate Program Administrator — review requests are emailed to this person AND the DGS. |
+| `contact_grad_admin_name` | Cari White | | The Graduate Program Administrator ("Grad Admin" on the pages) — review requests are emailed to this person AND the DGS. |
 | `contact_grad_admin_email` | csalmons@nd.edu | | |
 
 Add rows freely; the app ignores keys it does not know and warns (in the diagnostics panel)

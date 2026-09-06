@@ -101,6 +101,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   with ZERO violations on both pages) — `axe-core` is a devDependency for this only (MPL-2.0,
   never shipped); `E2E_ONLY=<substring>` runs one driver. The review's findings, evidence and the
   remaining Phases 1–2 live in the project doc `degree-audit-app-usability-review.md`.
+- **"Grad Admin"** (2026-09-06, DGS): the Graduate Program Administrator is "Grad Admin" everywhere
+  after the contact card's "Graduate Program Administrator (Grad Admin)" — `GRAD_ADMIN` in
+  contacts.ts is found by `role.startsWith('Graduate Program Administrator')`; the email greeting
+  is "Dear DGS and Grad Admin,"; the engine's detail strings say "Grad Admin" (the old "Graduate
+  Program Coordinator" wording is gone). Never reintroduce "Coordinator".
 - **Usability review Phases 1–2** (2026-09-05, DGS asked for all remaining items; the WORDING is
   Claude's draft, listed in the DECISIONS row of the same date for the DGS to edit — change the
   strings in `src/ui/handbook.ts` (`ALPHA_LINE`, `PRIVACY_LINE`), app.ts (card intros, hints,
