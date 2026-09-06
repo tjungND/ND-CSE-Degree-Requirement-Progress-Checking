@@ -130,14 +130,18 @@ Known-pending (the app's diagnostics panel is the live truth):
   - style.css inside the `@container (max-width: 860px)` block: `tr.compact` — no `::before`
     labels on the course/title cells, `.cell-title` flex 1, the meta cells `inline-flex` with a
     "·" `::after` on `.locked-cell`, `.cell-empty` hidden, the level cell keeps its small label
-    (the two-line phone form). A second block, `@container (min-width: 560px) and (max-width:
-    860px)`, makes it ONE line: `table:has(tr.compact)` becomes a 7-column grid (`auto auto
-    minmax(110px, 1fr) auto auto auto auto`), every `tr` spans all columns, and `tr.compact` is a
-    `subgrid` so the columns line up across rows; separators and the level label are dropped
-    there (the level `<select>` carries a `title`). Needs `:has()` and `subgrid` (Chrome 117+,
-    Safari 16+, Firefox 121+) — older browsers fall back to the two-line flex form. The visible
-    `.blocked-tag` was removed the same day (DGS); the blocked row's cue is the greyed text and
-    disabled box, its reason the row `title` + `aria-describedby`.
+    (the two-line phone form). A second block, `@container (min-width: 600px) and (max-width:
+    860px)`, makes it ONE line: `tr.compact` becomes `flex-wrap: nowrap`, the course cell gets
+    `min-width: 96px`, the credits / grade / term cells `min-width` 30 / 22 / 82 px (typical
+    values fit, so columns line up across rows), the title `flex: 1 1 0` and wraps inside its
+    cell; separators and the level label are dropped there (the level `<select>` carries a
+    `title`). DO NOT use grid + subgrid for this: a first version did (`table:has(tr.compact)`
+    as a 7-column grid, rows as subgrids) and Safari rendered it with overlapping cells and the
+    row overflowing the card (DGS screenshots 2026-09-06); Chrome was fine, which is why the
+    container's screenshots did not catch it — Safari cannot be run here, so anything beyond
+    plain flex/grid needs the DGS to look at it on his Mac. The visible `.blocked-tag` was
+    removed the same day (DGS); the blocked row's cue is the greyed text and disabled box, its
+    reason the row `title` + `aria-describedby`.
 - **Batch of 2026-09-06 (night): load time, preview layout, blocked rows, transfer candidates, ND
   Remove.** Mechanics:
   - `src/data/load.ts` `loadLiveRules`: ALL tabs at once (a worker queue with `FETCH_CONCURRENCY =

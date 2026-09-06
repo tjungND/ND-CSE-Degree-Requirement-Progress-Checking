@@ -560,24 +560,26 @@ tr.ocr-low td { background: #fff7e0; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:not(.locked-cell)::before { font-size: 11px; }
   .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 3px 6px; font-size: 13.5px; }
 }
-/* One line per course when the preview is wide enough for it (see above). The
-   TABLE is the grid and each compact row a subgrid, so the columns line up
-   across rows (the widest course number sets the id column, and so on);
-   editable rows and the hidden header span all columns and keep their own
-   layout. */
-@container (min-width: 560px) and (max-width: 860px) {
-  .transcript-preview table.courses.stack.edit:has(tr.compact) { display: grid; grid-template-columns: auto auto minmax(110px, 1fr) auto auto auto auto; column-gap: 14px; }
-  .transcript-preview table.courses.stack.edit:has(tr.compact) tbody { display: contents; }
-  .transcript-preview table.courses.stack.edit:has(tr.compact) tr { grid-column: 1 / -1; }
-  .transcript-preview table.courses.stack.edit tr.compact { display: grid; grid-template-columns: subgrid; align-items: baseline; }
+/* One line per course when the preview is at least 600 px wide (every desktop
+   layout of this page). Plain flexbox with fixed minimum widths for the small
+   columns — NOT grid/subgrid: Safari mis-rendered the subgrid version (cells
+   overlapping, the row overflowing the card; DGS screenshots 2026-09-06), while
+   this flex form is what Safari had rendered correctly. Typical values fit the
+   minimums, so the columns line up across rows; a rarer wide value (a long
+   course number) just pushes its own row's title a little. The title takes the
+   rest and wraps inside its cell when it is long. */
+@container (min-width: 600px) and (max-width: 860px) {
+  .transcript-preview table.courses.stack.edit tr.compact { flex-wrap: nowrap; column-gap: 10px; }
   .transcript-preview table.courses.stack.edit tr.compact::before { content: none; }
-  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta { margin-top: 0; }
-  .transcript-preview table.courses.stack.edit tr.compact td.level-cell::before { content: none; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-course { flex: 0 0 auto; min-width: 96px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-title { flex: 1 1 0; min-width: 90px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta { flex: 0 0 auto; margin-top: 0; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.locked-cell::after { content: none; } /* aligned columns need no separators */
-  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta { color: var(--ink); }
-  .transcript-preview table.courses.stack.edit tr.compact td.cell-title { padding-right: 8px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:nth-of-type(4) { min-width: 30px; } /* credits: "4 cr" */
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:nth-of-type(5) { min-width: 22px; } /* grade */
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:nth-of-type(6) { min-width: 82px; } /* term: "Spring 2024" */
+  .transcript-preview table.courses.stack.edit tr.compact td.level-cell::before { content: none; }
   .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 2px 4px; font-size: 13px; }
-
 }
 
 /* ---------- courses.html on phones and tablets in portrait: cards instead of the 980 px table ---------- */
