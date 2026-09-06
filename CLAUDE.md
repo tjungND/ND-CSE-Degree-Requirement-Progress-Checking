@@ -90,22 +90,6 @@ replaced by `README.md` on 2026-09-01.)
 - `scripts/sync-sheet.ts` + `.github/workflows/` — six-hourly sheet snapshot (rewritten, committed
   and redeployed only when the sheet content changed), CI tests, Pages deploy.
 
-## Where you run, and who pushes (read `docs/PUSHING-FROM-CLAUDE.md`)
-- A **Code session started with this repository attached** (claude.ai/code, the Claude mobile
-  app's Code tab, or the Desktop app's Code tab with a Cloud environment) can push: Anthropic's
-  git proxy authenticates with the DGS's GitHub connection, scoped to this repository — no
-  credential is ever inside the sandbox. A **Cowork session** (even a cloud one with the DGS's
-  Mac linked) cannot push; there, changes ship to the Mac's clone and the DGS pushes
-  (`docs/CLAUDE-HANDOFF.md`, "Where a session runs, and how changes reach GitHub").
-- First thing in every session: `git remote -v && git status -sb && git push --dry-run origin
-  main`, then tell the DGS "this session can push" or "cannot".
-- Commit under the DGS's identity — `git -c user.name="Taeho Jung" -c user.email="tjung@nd.edu"
-  commit` — with the Co-Authored-By trailer, only after tsc, `npm test`, `npm run build` (and
-  `npm run e2e` for anything visible) pass. Push `main`; if the platform refuses, push
-  `claude/<date>-<topic>` and ask the DGS to merge the pull request (one tap in the GitHub app).
-- Never store or ask for a token, deploy key or password to make a push work. If pushing is not
-  authorized, say so and stop; the DGS pushes from the Mac.
-
 ## Working rules
 - Start non-trivial work in plan mode; show the plan before writing code.
 - Before implementing or changing a requirement, quote the handbook sentence in a comment with

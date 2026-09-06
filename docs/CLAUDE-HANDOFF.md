@@ -628,40 +628,6 @@ Known-pending (the app's diagnostics panel is the live truth):
 7. Handbook beats code; DGS decisions live in `docs/DECISIONS.md` — read before overruling,
    append when a new call is made (date, question, decision, who).
 
-## Where a session runs, and how changes reach GitHub
-
-Two kinds of Claude session touch this repository (2026-09-06; the full procedure, including the
-DGS's one-time GitHub connection and the phone route, is `docs/PUSHING-FROM-CLAUDE.md`):
-
-- **A Code session started with this repository attached** — claude.ai/code, the Claude mobile
-  app's Code tab, or the Desktop app's Code tab with a *Cloud* environment. The VM clones the
-  repository and Anthropic's git proxy authenticates pushes with the DGS's GitHub connection,
-  scoped to the repositories the session was created with; no credential is ever inside the
-  sandbox. Work, verify (tsc, `npm test`, `npm run build`, `npm run e2e`), commit under the DGS's
-  identity with the Co-Authored-By trailer, `git push origin main`; if the platform refuses
-  `main` (protected, or "commits authored by someone other than you" — the sync bot's snapshot
-  commits may trigger this), push `claude/<date>-<topic>` and ask the DGS to merge the PR. Start
-  every such session with `git push --dry-run origin main` and say whether it can push.
-- **A Cowork session** (Cowork tab, or "Cowork" in the message box), typically a cloud session
-  with the DGS's Mac linked and `~/degree-audit-app` connected. Started without the repository
-  as a source, it CANNOT push (the proxy answers "… is not in this session's authorized
-  repository set, so the proxy will not inject a credential for it. To fix, add the repository to
-  the session's sources" — and sources are fixed when the session is created; nothing inside a
-  running session can change that). The shipping loop: edit and verify in the container → `tar czf` the changed files
-  into `_claude-build-snapshot.tgz` (git-ignored) → SendUserFile → `device_commit_files`
-  (force:true) into the Mac clone → `device_bash`: extract to `$HOME/chg`, `cp` over, compare
-  sha256, `npm test`, then `git -c user.name="Taeho Jung" -c user.email="tjung@nd.edu" commit
-  --only <files> -F -` (`--only` because the clone carries an untracked `Claude outputs/` folder
-  that must never be committed). Every git command in that VM can leave a stale `.git/index.lock`
-  (the mount forbids unlink): move it into `.git/stale-locks/` before and after, until
-  `ls .git/*.lock` is empty; the DGS's own `rm -f .git/index.lock` in Terminal always works. Then
-  mirror the commit in the container clone, and the DGS pushes from the Mac
-  (`cd ~/degree-audit-app && git push`); after the push, realign the container with
-  `git fetch && git reset --hard origin/main`.
-- **Never** store a token, deploy key or password anywhere to make a push work, and never propose
-  it — the DGS declined the stored-token route on 2026-09-04. A session that is not authorized to
-  push says so and stops.
-
 ## How to verify like the original session did
 
 - `npm test` — scenario fixtures in `tests/scenarios/*.json` (schema: student + pinned
