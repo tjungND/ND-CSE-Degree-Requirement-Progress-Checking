@@ -317,6 +317,19 @@ Approve the commands it proposes (`npm test`, `npm run build`, …) when it asks
    row, paste it into the sheet now (the agent tells you the exact row); until you do, the new
    requirement honestly shows "cannot evaluate".
 
+### B3b. Working from your phone — sessions that can push for you
+
+You do not need the Mac for every change. A Claude **Code** session started **with this
+repository attached** — from <https://claude.ai/code>, the Claude mobile app's Code tab, or the
+Desktop app's Code tab with a *Cloud* environment — clones the repository into a cloud VM, runs
+the same checks, commits under your identity and pushes through Anthropic's proxy using the GitHub
+connection on your Claude account (one-time setup: **Sign in with GitHub** at claude.ai/code). No
+token is ever stored anywhere. Pushes to `main` are checked by the platform; when it refuses one,
+Claude pushes a `claude/…` branch and you merge the pull request from the GitHub app. A **Cowork**
+session cannot push — there Claude ships the change to the Mac and you run `git push`. The full
+procedure, including a first message to paste, is `docs/PUSHING-FROM-CLAUDE.md`. Afterwards,
+`git pull` on each Mac before working there.
+
 ### B4. Prompts for the asks you will actually get
 
 - **New handbook year.** Put the new PDF in `docs/` (keep the old one) and update the file name in

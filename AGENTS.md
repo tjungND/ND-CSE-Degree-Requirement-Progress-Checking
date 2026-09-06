@@ -19,3 +19,8 @@ The non-negotiables, spelled out in `CLAUDE.md`:
 - `npm test` and `npm run build` must pass before you call anything done; run `npm run e2e` for
   UI-visible changes and look at the screenshots. Add a scenario in `tests/scenarios/` for every
   bug fixed.
+- Pushing: only a cloud session that was started with this repository attached can push (the
+  platform's proxy holds the DGS's GitHub credential outside the sandbox). Check with
+  `git push --dry-run origin main` first and say what you found; commit under the DGS's identity
+  with a Co-Authored-By trailer; never store or request a token, deploy key or password to make a
+  push work. Details: `docs/PUSHING-FROM-CLAUDE.md`.
