@@ -56,6 +56,18 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   Cowork VM (it could not delete files) — safe to remove; `START-HERE.md` / `KICKOFF-PROMPT.md` could
   move to `docs/history/`.
 
+## Working in Claude Code Desktop (the Code tab)
+
+- Every Desktop session works in its own git worktree under `.claude/worktrees/<name>/` on a branch
+  `worktree-<name>`, branched from `origin/main` — so the DGS pushes `main` BEFORE starting a session,
+  and the session's first step is `npm ci` (a worktree is a fresh checkout without `node_modules`).
+- Commits land on the worktree branch (authored by the DGS's global git identity). To ship: in
+  Terminal, `cd ~/degree-audit-app && git merge --ff-only worktree-<name> && git push`, then archive the
+  session in the sidebar (that removes the worktree and branch). If `main` moved meanwhile, ask the
+  session to `git fetch && git merge origin/main` first.
+- Claude never pushes; `Continue in → Claude Code on the Web` and `Create PR` would push a branch, so
+  the DGS does not use them for this repo.
+
 ## FERPA reminders that survive every session
 
 - No real transcript is ever read by Claude (Cowork, Claude Code or otherwise): sanitized copies only,

@@ -15,3 +15,7 @@ _claude-build-snapshot.tgz
 # sanitizer outputs under their new neutral names (2026-09-05)
 sanitized-*.pdf
 sanitized-scan-*.png
+# Claude Code Desktop gives every session its own git worktree here (and CLAUDE.local.md holds
+# personal, uncommitted instructions)
+.claude/worktrees/
+CLAUDE.local.md
