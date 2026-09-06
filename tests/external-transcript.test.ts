@@ -53,6 +53,36 @@ describe('external transcript parsing', () => {
     assert.equal(c!.grade, 'A');
   });
 
+  it('reads subjects of seven letters or more when printed in capitals (UMass "COMPSCI", "STATISTC" — DGS bug report 2026-09-06)', () => {
+    const lines = [
+      'University of Massachusetts Amherst',
+      'Office of the University Registrar',
+      '',
+      'Fall 2022',
+      'COMPSCI 501   Formal Language Theory        3.00   A',
+      'STATISTC 501   Methods of Applied Statistics   3.00   A-',
+      'ENGLWRIT 112   College Writing   3.00   A',
+      'MUSIC 100   Music Appreciation   3.00   B+',
+      'CICS 305   Social Issues in Computing   3.00   A',
+      // Subject and number in separate columns (Banner layout), long subject.
+      'BIOCHEM   285   Cellular and Molecular Biology   4.00   B',
+      // Prose that also reads "word number …": a long word in lowercase is not
+      // a subject (the capitals rule), a stopword never is.
+      'Chapter 3   Not a course   3.00   A',
+      'Building 12   Not a course either   3.00   A',
+      'Semester 2   Nor this   3.00   A',
+      'Cumulative GPA: 3.83',
+    ].concat(Array(20).fill('University of Massachusetts Amherst record — not an official copy unless sealed.'));
+    const r = parseExternalTranscript(lines);
+    assert.deepEqual(
+      r.courses.map((c) => `${c.courseId} ${c.credits} ${c.grade}`),
+      ['COMPSCI 501 3 A', 'STATISTC 501 3 A-', 'ENGLWRIT 112 3 A', 'MUSIC 100 3 B+', 'CICS 305 3 A', 'BIOCHEM 285 4 B'],
+    );
+    assert.equal(r.courses.find((c) => c.courseId === 'STATISTC 501')!.title, 'Methods of Applied Statistics');
+    // Short subjects stay case-insensitive (2026-09-04).
+    assert.equal(parseExternalTranscript([...lines.slice(0, 4), 'cs 5321   advanced operating systems   3.0   A', ...lines.slice(15)]).courses[0]!.courseId, 'CS 5321');
+  });
+
   it('keeps numeric grades as rawGrade for the student to map (2026-09-04)', () => {
     const lines = [
       ...PURDUE.slice(0, 6),

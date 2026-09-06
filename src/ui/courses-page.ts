@@ -632,7 +632,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
       }
     }
     const shown = rows.filter((r) => filters.includeRetired || r.active).length;
-    countLine.textContent = `${list.length} of ${shown} courses shown.${filtersActive() ? ' Filters are active.' : ''}${filters.view !== 'all' ? ` View: ${VIEW_LABEL[filters.view].toLowerCase()}.` : ''}`;
+    // The view label keeps its case ("M.S. (MSCSE)", "Ph.D." — lower-casing it
+    // read "m.s. (mscse)", found live 2026-09-06); its first letter is lowered
+    // to sit inside the sentence.
+    const viewLabel = VIEW_LABEL[filters.view];
+    countLine.textContent = `${list.length} of ${shown} courses shown.${filtersActive() ? ' Filters are active.' : ''}${filters.view !== 'all' ? ` View: ${viewLabel.charAt(0).toLowerCase()}${viewLabel.slice(1)}.` : ''}`;
     return el(
       'div',
       {},

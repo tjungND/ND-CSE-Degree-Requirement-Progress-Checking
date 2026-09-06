@@ -69,8 +69,6 @@ const NOT_COMPLETE_RE = /incomplete|not\s+complet/i;
 const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy/i;
 
 const LETTER_GRADE_RE = /^(A|A-|B\+|B|B-|C\+|C|C-|D\+?|D-?|F)$/;
-// Codes: "CS 5321", "CS-5321", "COMP1521", or an all-digit id ("30240233").
-const CODE_RE = /^(?:[A-Z]{2,6}[- ]?\d{2,5}[A-Z]{0,2}|\d{5,10})$/;
 const YEAR_RE = /\b(19[5-9]\d|20[0-4]\d)\b/;
 
 function mapGrade(token: string): Grade | undefined {
@@ -174,15 +172,26 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // "601.226"), up to three trailing letters (Buffalo "106LEC", Western
   // "3331A"); or an all-digit id ("30240233").
   const NUMBER_RE = /^(\d{2,5}(?:\.\d{3})?[A-Za-z]{0,3})\b(.*)$/;
-  const LEAD_CODE_RE = /^([A-Z]{2,6}[- ]?\d{2,5}(?:\.\d{1,3})?[A-Z]{0,3}|\d{5,10})\b[.:]?\s*(.*)$/;
+  // Subjects run 2–10 letters: "CS", "COMPSCI", "STATISTC", "ENGLWRIT" (UMass
+  // prints 7- and 8-letter subjects, DGS bug report 2026-09-06 — the earlier
+  // cap of 6 dropped every such course).
+  const LEAD_CODE_RE = /^([A-Z]{2,10}[- ]?\d{2,5}(?:\.\d{1,3})?[A-Z]{0,3}|\d{5,10})\b[.:]?\s*(.*)$/;
   // Codes are matched case-insensitively (2026-09-04 — some registrars print
   // "cs 5321"), so common words that would then look like codes are refused:
   // term headers and summary lines such as "Fall 2023  GPA 3.85".
   const CODE_STOPWORDS_RE =
-    /^(FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|GPA|CGPA|SGPA|CUM|ROOM|ID|NO|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|CREDITS|HOURS|UNITS|POINTS)$/;
-  // A subject cell: "CS", "COMPSCI", or a two-part code with a space ("E E",
-  // "A A" at the University of Washington, 2026-09-05).
-  const SUBJECT_RE = /^[A-Za-z]{2,7}$|^[A-Za-z]{1,4} [A-Za-z]{1,4}$/;
+    /^(FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|SUBTOTAL|AVERAGE|GPA|CGPA|SGPA|CUM|ROOM|ID|NO|NUM|NUMBER|CODE|TITLE|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|PASSED|CREDIT|CREDITS|HOUR|HOURS|UNIT|UNITS|POINT|POINTS|GRADE|GRADES|COURSE|SECTION|CHAPTER|LEVEL|CLASS|STUDENT|RECORD|GRADUATE|UNDERGRADUATE|ACADEMIC|DEGREE|PROGRAM|PLAN|COLLEGE|SCHOOL|CAMPUS|CATALOG|MAJOR|MINOR|DATE|PRINTED|ISSUED|STANDING|STATUS|VERSION)$/;
+  // A subject cell: "CS", "COMPSCI", "STATISTC", or a two-part code with a
+  // space ("E E", "A A" at the University of Washington, 2026-09-05).
+  const SUBJECT_RE = /^[A-Za-z]{2,10}$|^[A-Za-z]{1,4} [A-Za-z]{1,4}$/;
+  /** Course subjects are printed in capitals (DGS, 2026-09-06). A short
+   * subject may still be lowercase ("cs 5321", 2026-09-04), but a word of
+   * seven letters or more counts as a subject only when it IS all capitals —
+   * "Chapter 3" and "Building 12" are prose, "COMPSCI 501" is a course. */
+  const subjectCase = (original: string): boolean => {
+    const letters = original.replace(/[^A-Za-z]/g, '');
+    return letters.length <= 6 || letters === letters.toUpperCase();
+  };
 
   /** Scan the tokens after the course code: leading wordy tokens form the
    * title, then credits, a letter/coded grade — or (2026-09-04) a NUMERIC
@@ -266,7 +275,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const leadCode = (flat: string): { code: string; tokens: string[] } | undefined => {
     // A stray 1–3-letter security mark merged onto the row's start ("XK ITWS
     // 1882 …", 2026-09-05) is skipped when a real code follows it.
-    const cells = flat.replace(/^[A-Z]{1,3}\s+(?=[A-Za-z]{2,7}(?: [A-Za-z]{1,4})?\s+\d)/, '').split(/\s{2,}/);
+    const cells = flat.replace(/^[A-Z]{1,3}\s+(?=[A-Za-z]{2,10}(?: [A-Za-z]{1,4})?\s+\d)/, '').split(/\s{2,}/);
     // Banner / PeopleSoft layouts print the subject and the number in SEPARATE
     // columns ("CS   455   Data Communication   3.00 A   12.00"; Western's
     // "COMPSCI   3331A Title …" keeps the title in the number's cell; Johns
@@ -278,7 +287,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const numberCell = cells[i + 1];
       if (subjectCell === undefined || numberCell === undefined || cells.length < i + 3) break;
       if (i === 1 && !/^[A-Za-z]{1,3}$/.test(cells[0]!)) break; // only a short division/security cell may precede
-      if (!SUBJECT_RE.test(subjectCell)) continue;
+      if (!SUBJECT_RE.test(subjectCell) || !subjectCase(subjectCell)) continue;
       const num = NUMBER_RE.exec(numberCell);
       if (!num) continue;
       const subject = subjectCell.toUpperCase();
@@ -298,6 +307,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const code = m[1]!;
       if (/^(19|20)\d{2}$/.test(code)) return undefined; // a bare year, not a course code
       if (CODE_STOPWORDS_RE.test(code.replace(/[^A-Z]/g, ''))) return undefined;
+      if (!subjectCase(cell.slice(0, code.length).replace(/\d.*$/, ''))) return undefined; // "Chapter 3": prose, not a code
       const rest = cell.slice(cell.length - m[2]!.length); // same indices — toUpperCase is length-stable for these codes
       const tokens = [rest, ...cells.slice(idx + 1)]
         .join('  ')

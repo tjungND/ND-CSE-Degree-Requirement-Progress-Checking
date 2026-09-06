@@ -101,6 +101,19 @@ Known-pending (the app's diagnostics panel is the live truth):
   with ZERO violations on both pages) — `axe-core` is a devDependency for this only (MPL-2.0,
   never shipped); `E2E_ONLY=<substring>` runs one driver. The review's findings, evidence and the
   remaining Phases 1–2 live in the project doc `degree-audit-app-usability-review.md`.
+- **External parser: long subject codes** (2026-09-06, DGS bug report — UMass "COMPSCI",
+  "STATISTC" rows were skipped). In `src/transcript/external.ts` `LEAD_CODE_RE` takes
+  `[A-Z]{2,10}` (was 6), `SUBJECT_RE` `{2,10}` (was 7), the security-mark lookahead `{2,10}`;
+  the new `subjectCase(original)` guard requires a subject of 7+ letters to be printed in
+  CAPITALS in the original text (shorter ones stay case-insensitive per 2026-09-04), and
+  `CODE_STOPWORDS_RE` grew by the transcript words that precede numbers (COURSE, SECTION,
+  CHAPTER, LEVEL, STUDENT, RECORD, DEGREE, PROGRAM, COLLEGE, MAJOR, DATE, GRADE, CREDIT, …). The
+  unused `CODE_RE` constant is gone. Regression check: the 17 sanitized line dumps in the
+  session scratchpad — 16 unchanged, t17 +3 rows (all real 8-letter-subject courses). Test:
+  external-transcript.test.ts ("reads subjects of seven letters or more…").
+- **Course-rules page count line** keeps the view label's case (2026-09-06): "View: whether a
+  course counts toward the M.S. (MSCSE)." — only the first letter is lowered (was
+  `.toLowerCase()` on the whole label, which printed "m.s. (mscse)").
 - **Advisor summary redesigned for busy advisors** (2026-09-06, DGS: "they include too much
   information … make them more legible to busy advisors who will just wonder what requirements
   are not met and why, and until when the requirements must be met"). `advisorSummary()` moved
