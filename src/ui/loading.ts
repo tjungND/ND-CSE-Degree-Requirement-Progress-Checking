@@ -1,11 +1,12 @@
 // The loading card shown while the course rules come from the sheet (DGS
-// choice 2026-09-01, "Option A"): a step list that ticks as each tab arrives, a
-// bar against the 15-second budget and an elapsed counter. When the load fails
-// the same card explains why and suggests RELOADING first; the copy saved in
-// the app is offered as a second choice and is never shown automatically.
+// choice 2026-09-01, "Option A"): a step list that ticks as each tab arrives
+// (and says when a stalled request is being asked again), a bar against the
+// ~30-second budget and an elapsed counter. When the load fails the same card
+// explains why and suggests RELOADING first; the copy saved in the app is
+// offered as a second choice and is never shown automatically.
 import {
   EXTERNAL_TAB_CONFIGURED,
-  FETCH_TIMEOUT_MS,
+  LOAD_BUDGET_MS,
   RulesLoadError,
   SNAPSHOT_SAVED_ON,
   loadLiveRules,
@@ -17,7 +18,7 @@ import type { Rules } from '../data/types.ts';
 import { DGS, mailto } from './contacts.ts';
 import { clear, el } from './dom.ts';
 
-const BUDGET_S = FETCH_TIMEOUT_MS / 1000;
+const BUDGET_S = LOAD_BUDGET_MS / 1000;
 
 /** Render the loading card into `root`, load the rules, and resolve with them:
  * the live rules, or the saved copy if the student chooses it after a failure.
@@ -26,7 +27,7 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
   return new Promise((resolve) => {
     const spinner = () => el('span', { class: 'spin', 'aria-hidden': 'true' });
     const title = el('strong', {}, 'Loading the current course rules');
-    const subtitle = el('div', { class: 'load-sub' }, `from the DGS’s Google Spreadsheet — usually a few seconds, up to ${BUDGET_S}`);
+    const subtitle = el('div', { class: 'load-sub' }, `from the DGS’s Google Spreadsheet — usually a few seconds; a slow answer is asked for again, up to about ${BUDGET_S} s in all`);
     const headSpin = spinner();
 
     type Step = { li: HTMLLIElement; dot: HTMLSpanElement; detail: HTMLSpanElement };
@@ -58,7 +59,7 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
     const barFill = el('i');
     const bar = el('div', { class: 'bar load-bar' }, barFill);
     const elapsedNum = el('span', {}, '0.0');
-    const elapsed = el('div', { class: 'elapsed' }, elapsedNum, ` s elapsed · up to ${BUDGET_S} s`);
+    const elapsed = el('div', { class: 'elapsed' }, elapsedNum, ` s elapsed · up to about ${BUDGET_S} s`);
     const card = el(
       'div',
       { class: 'load-card', role: 'status', 'aria-live': 'polite' },
@@ -84,6 +85,14 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
 
     const onProgress = (p: LoadProgress) => {
       if (p.step === 'connect') return;
+      if (p.step === 'retry') {
+        // A stalled request: say so, so a 10-second wait is not a mystery.
+        // (The "connecting" step stays as it is — a dropped connection is
+        // retried too, and only a tab that arrives proves the connection.)
+        const step = tabSteps[p.tab];
+        if (step) setStep(step, 'active', `— Google is slow; asking again (attempt ${p.attempt} of ${p.of})`);
+        return;
+      }
       if (p.step === 'tab') {
         // The first tab to arrive proves the connection works.
         if (steps.connect.li.className !== 'done') {

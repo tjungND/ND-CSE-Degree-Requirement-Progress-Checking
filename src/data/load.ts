@@ -6,15 +6,31 @@
 // the saved copy as a second choice (rulesFromSnapshot) so the tool still works
 // if the sheet is ever unpublished. Either way the rules are dated against that
 // snapshot (src/data/rules-date.ts explains how).
-import sheetUrls from '../../data/sheet-urls.json';
-import snapshot from '../../data/snapshot.json';
+import sheetUrls from '../../data/sheet-urls.json' with { type: 'json' }; // the attribute lets node's test runner import this file too
+import snapshot from '../../data/snapshot.json' with { type: 'json' };
 import { rulesFromCsvTexts, type CsvTexts } from './assemble.ts';
 import { dateLiveRules } from './rules-date.ts';
 import type { Rules } from './types.ts';
 
-/** How long the page waits for Google before giving up. The loading card
- * promises "up to 15 seconds" — keep the two in step. */
-export const FETCH_TIMEOUT_MS = 15_000;
+/** How long each request to Google may take before it is abandoned and the
+ * tab asked for again — one entry per attempt. Google's publish-to-web
+ * endpoint answers a tab in well under a second most of the time, but every so
+ * often a request simply stalls (measured from the DGS's Mac, 2026-09-06: about
+ * 1 request in 15 hung past 10 s, whether the tabs were fetched one at a time
+ * or together, while the next request for the same tab answered in 0.3 s).
+ * Waiting longer for a stalled request does not help; asking again does. The
+ * first attempt is short (a stall costs six seconds, not fifteen); the later
+ * ones are longer so a slow but working connection still gets through. */
+export const ATTEMPT_TIMEOUTS_MS: readonly number[] = [6_000, 10_000, 14_000];
+/** Attempts per tab before the load is reported as failed. */
+export const MAX_ATTEMPTS = ATTEMPT_TIMEOUTS_MS.length;
+/** Tabs fetched at the same time (DGS suggestion 2026-09-06). Two keeps the
+ * page fast when Google is healthy and gentle on the endpoint, which stalls
+ * more often under three or four simultaneous requests for one spreadsheet. */
+export const FETCH_CONCURRENCY = 2;
+/** What the loading card calls the upper bound ("usually a few seconds, up to
+ * about 30"): the three attempts end to end, plus the pauses between them. */
+export const LOAD_BUDGET_MS = 30_000;
 
 export type TabName = keyof CsvTexts;
 /** The three tabs the app cannot run without. */
@@ -36,6 +52,8 @@ export const EXTERNAL_TAB_CONFIGURED: boolean =
 /** What the loader reports while it works (drives the loading card). */
 export type LoadProgress =
   | { step: 'connect' }
+  /** A request stalled and the tab is being asked for again. */
+  | { step: 'retry'; tab: TabName; attempt: number; of: number }
   | { step: 'tab'; tab: TabName; rows: number; ms: number }
   | { step: 'check' };
 
@@ -45,14 +63,20 @@ export type LoadFailureKind = 'timeout' | 'unreachable' | 'http' | 'unpublished'
  * whether reloading the page is likely to help (a hung or failed connection:
  * yes; a sheet that is unpublished or empty: no — that needs the DGS). */
 export class RulesLoadError extends Error {
-  constructor(
-    readonly kind: LoadFailureKind,
-    readonly tab: TabName | undefined,
-    message: string,
-    readonly retryable: boolean,
-  ) {
+  readonly kind: LoadFailureKind;
+  readonly tab: TabName | undefined;
+  readonly retryable: boolean;
+  /** The HTTP status for kind 'http' (a 5xx is worth asking again; a 4xx is not). */
+  readonly status: number | undefined;
+  // Plain fields rather than constructor parameter properties: node's
+  // type-stripping test runner does not support the latter (tests/load-retry.test.ts).
+  constructor(kind: LoadFailureKind, tab: TabName | undefined, message: string, retryable: boolean, status?: number) {
     super(message);
     this.name = 'RulesLoadError';
+    this.kind = kind;
+    this.tab = tab;
+    this.retryable = retryable;
+    this.status = status;
   }
 }
 
@@ -67,30 +91,26 @@ export function countCsvRows(csv: string): number {
   return Math.max(0, n - 1);
 }
 
-async function fetchCsv(tab: TabName, url: string, onProgress: (p: LoadProgress) => void): Promise<string> {
+/** One request for one tab. Exported for the tests, which stub `fetch`. */
+export async function fetchCsvOnce(tab: TabName, url: string, onProgress: (p: LoadProgress) => void, timeoutMs: number): Promise<string> {
   const started = Date.now();
   let res: Response;
   let text: string;
   try {
     res = await fetch(url, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
       // The published CSV is public; no credentials, no cookies.
       credentials: 'omit',
       cache: 'no-cache',
     });
     if (!res.ok) {
-      throw new RulesLoadError('http', tab, `Google answered with an error (HTTP ${res.status}) for ${TAB_LABELS[tab]}.`, true);
+      throw new RulesLoadError('http', tab, `Google answered with an error (HTTP ${res.status}) for ${TAB_LABELS[tab]}.`, true, res.status);
     }
     text = await res.text();
   } catch (e) {
     if (e instanceof RulesLoadError) throw e;
     if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
-      throw new RulesLoadError(
-        'timeout',
-        tab,
-        `Google did not send ${TAB_LABELS[tab]} within ${FETCH_TIMEOUT_MS / 1000} seconds.`,
-        true,
-      );
+      throw new RulesLoadError('timeout', tab, `Google did not send ${TAB_LABELS[tab]} within ${timeoutMs / 1000} seconds.`, true);
     }
     throw new RulesLoadError('unreachable', tab, 'The spreadsheet could not be reached — check your internet connection.', true);
   }
@@ -105,6 +125,41 @@ async function fetchCsv(tab: TabName, url: string, onProgress: (p: LoadProgress)
   }
   onProgress({ step: 'tab', tab, rows: countCsvRows(text), ms: Date.now() - started });
   return text;
+}
+
+/** Is this failure the kind that a second request usually cures? A stalled or
+ * dropped request, or a server-side error — not an unpublished sheet (an HTML
+ * page instead of CSV) or a 4xx, which the DGS has to fix. */
+export function worthRetrying(e: unknown): boolean {
+  return e instanceof RulesLoadError && (e.kind === 'timeout' || e.kind === 'unreachable' || (e.kind === 'http' && (e.status ?? 0) >= 500));
+}
+
+/** Fetch one tab, asking again after a stalled request (up to MAX_ATTEMPTS).
+ * The pause between attempts is short: the stall is a one-off on Google's
+ * side, not a sign that the endpoint is overloaded. */
+export async function fetchCsv(
+  tab: TabName,
+  url: string,
+  onProgress: (p: LoadProgress) => void,
+  timeouts: readonly number[] = ATTEMPT_TIMEOUTS_MS,
+  pause: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<string> {
+  const attempts = timeouts.length;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchCsvOnce(tab, url, onProgress, timeouts[attempt - 1]!);
+    } catch (e) {
+      if (!worthRetrying(e) || attempt >= attempts) {
+        if (e instanceof RulesLoadError && e.kind === 'timeout' && attempts > 1) {
+          const total = timeouts.reduce((a, b) => a + b, 0) / 1000;
+          throw new RulesLoadError('timeout', tab, `Google did not send ${TAB_LABELS[tab]} — ${attempts} requests, ${total} seconds in all, went unanswered.`, true);
+        }
+        throw e;
+      }
+      onProgress({ step: 'retry', tab, attempt: attempt + 1, of: attempts });
+      await pause(250 * attempt);
+    }
+  }
 }
 
 /** The copy of the rules saved in the app (data/snapshot.json) — shown only
@@ -141,24 +196,33 @@ function noteNewerSheet(rules: Rules): Rules {
 export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress) => void = () => {}): Promise<Rules> {
   onProgress({ step: 'connect' });
   const urls = sheetUrls as { courses: string; parameters: string; categories: string; external?: string };
-  // ONE tab at a time (2026-09-06). The tabs used to be fetched in parallel,
-  // and the page routinely took 12–30 s or timed out: Google's publish-to-web
-  // endpoint stalls the third and fourth SIMULTANEOUS requests for the same
-  // spreadsheet (measured from the DGS's Mac: any tab alone answers in
-  // 0.3–1 s, two at once are fine, three at once leave two hanging until the
-  // timeout). Sequential fetches finish in about two seconds altogether.
-  const courses = await fetchCsv('courses', urls.courses, onProgress);
-  const parameters = await fetchCsv('parameters', urls.parameters, onProgress);
-  const categories = await fetchCsv('categories', urls.categories, onProgress);
+  // Two tabs at a time, each request retried after a stall (2026-09-06). The
+  // tabs were first fetched all at once (12–30 s waits, timeouts: the endpoint
+  // stalls more often under three or four simultaneous requests), then one
+  // after another (still failed whenever ANY single request stalled — one in
+  // about fifteen does, and one stall was the whole 15-second budget). What
+  // works is not waiting on a stalled request: 8 s, then ask again.
+  const got: Partial<Record<TabName, string>> = {};
   let externalIssue: string | undefined;
-  let external: string | undefined;
-  if (EXTERNAL_TAB_CONFIGURED) {
-    try {
-      external = await fetchCsv('external', urls.external!, onProgress);
-    } catch (e: unknown) {
-      externalIssue = e instanceof Error ? e.message : String(e);
+  let failed = false;
+  const queue: TabName[] = ['courses', 'parameters', 'categories', ...(EXTERNAL_TAB_CONFIGURED ? (['external'] as TabName[]) : [])];
+  const worker = async (): Promise<void> => {
+    for (let tab = queue.shift(); tab !== undefined && !failed; tab = queue.shift()) {
+      try {
+        got[tab] = await fetchCsv(tab, urls[tab]!, onProgress);
+      } catch (e: unknown) {
+        // The optional tab degrades; a required one fails the load (and the
+        // other worker stops taking tabs — the card is already reporting).
+        if (tab !== 'external') {
+          failed = true;
+          throw e;
+        }
+        externalIssue = e instanceof Error ? e.message : String(e);
+      }
     }
-  }
+  };
+  await Promise.all(Array.from({ length: FETCH_CONCURRENCY }, worker));
+  const { courses, parameters, categories, external } = got as { courses: string; parameters: string; categories: string; external?: string };
   onProgress({ step: 'check' });
   const live: CsvTexts = { courses, parameters, categories, ...(external !== undefined ? { external } : {}) };
   const rules = rulesFromCsvTexts(live, { source: 'live', syncedAt: nowIso, rulesDate: dateLiveRules(live, snapshot) });

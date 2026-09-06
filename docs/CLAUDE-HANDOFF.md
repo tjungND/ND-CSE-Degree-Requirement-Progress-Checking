@@ -116,11 +116,22 @@ Known-pending (the app's diagnostics panel is the live truth):
   `.toLowerCase()` on the whole label, which printed "m.s. (mscse)").
 - **Batch of 2026-09-06 (night): load time, preview layout, blocked rows, transfer candidates, ND
   Remove.** Mechanics:
-  - `src/data/load.ts` `loadLiveRules` fetches the tabs ONE AFTER ANOTHER (courses → parameters →
-    categories → external). Measured from the DGS's Mac: Google's publish-to-web CSV endpoint
-    stalls the 3rd+ simultaneous request for the same spreadsheet until our 15 s timeout, so the
-    old `Promise.all` took 15+ s; sequential is ~2 s. Do not "optimise" it back to parallel. No
-    single-download alternative exists (whole-doc HTML = script shell, xlsx = 400, gviz = CORS).
+  - `src/data/load.ts` `loadLiveRules`: TWO tabs at a time (a two-worker queue over courses →
+    parameters → categories → external), each tab via `fetchCsv` = up to three `fetchCsvOnce`
+    attempts with `ATTEMPT_TIMEOUTS_MS = [6000, 10000, 14000]` and a short pause between them;
+    `worthRetrying(e)` = timeout / unreachable / HTTP 5xx (never 4xx or an unpublished sheet).
+    Why: Google's publish-to-web CSV endpoint stalls ~1 request in 15 for 10 s+ regardless of
+    ordering (measured from the DGS's Mac, several rounds, 2026-09-06); a single 15 s request per
+    tab failed whenever any one stalled — both the original `Promise.all` and the sequential
+    version shipped earlier that day. Progress event `{ step: 'retry', tab, attempt, of }` → the
+    loading card's "Google is slow; asking again (attempt 2 of 3)"; `LOAD_BUDGET_MS = 30_000`
+    is the card's stated upper bound. `RulesLoadError` uses plain fields (node's type-stripping
+    runner rejects parameter properties) and carries `status` for HTTP failures; the JSON
+    imports carry `with { type: 'json' }` so `tests/load-retry.test.ts` can import load.ts and
+    stub `fetch`. No single-download alternative exists (whole-doc HTML = script shell, xlsx =
+    400, gviz = CORS). A stall still costs ~6 s on that load; if that ever matters, the next
+    step is a hedged request (start a second request for a tab after ~2 s, take the first
+    answer) — not yet done.
   - `src/style.css`: `.transcript-preview { container-type: inline-size }` and
     `@container (max-width: 860px)` turn `table.courses.stack.edit` into per-course mini-forms
     (line 1: tick + `.cell-course` (flex 0 1 150px) + `.cell-title` (flex 1 1 220px); the
@@ -374,8 +385,9 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **Loading card + reload-first failure handling** (`src/ui/loading.ts`, DGS decisions
   2026-09-01): while rules load, both pages show a card — step list (connect / course list /
   parameters / categories / dating), each step ticking with its row count, a bar against the
-  15-second budget (`FETCH_TIMEOUT_MS` in `src/data/load.ts` — keep the card's wording and this
-  constant in step) and an elapsed counter. On failure `loadLiveRules` throws `RulesLoadError`
+  ~30-second budget (`LOAD_BUDGET_MS` in `src/data/load.ts` — keep the card's wording and this
+  constant in step; since 2026-09-06 each tab is asked for up to three times, see the night
+  batch above) and an elapsed counter. On failure `loadLiveRules` throws `RulesLoadError`
   (kinds: timeout / unreachable / http / unpublished / empty; `retryable` says whether reloading
   can help). The card then explains in plain words and suggests RELOAD first; the saved copy
   (`rulesFromSnapshot`) is a second-choice button, never automatic — the DGS chose "suggest
