@@ -90,7 +90,7 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
         // (The "connecting" step stays as it is — a dropped connection is
         // retried too, and only a tab that arrives proves the connection.)
         const step = tabSteps[p.tab];
-        if (step) setStep(step, 'active', `— Google is slow; asking again (attempt ${p.attempt} of ${p.of})`);
+        if (step) setStep(step, 'active', p.hedged ? '— Google is slow; asking again' : `— still nothing; asking again (attempt ${p.attempt} of ${p.of})`);
         return;
       }
       if (p.step === 'tab') {

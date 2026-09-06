@@ -116,22 +116,29 @@ Known-pending (the app's diagnostics panel is the live truth):
   `.toLowerCase()` on the whole label, which printed "m.s. (mscse)").
 - **Batch of 2026-09-06 (night): load time, preview layout, blocked rows, transfer candidates, ND
   Remove.** Mechanics:
-  - `src/data/load.ts` `loadLiveRules`: TWO tabs at a time (a two-worker queue over courses →
-    parameters → categories → external), each tab via `fetchCsv` = up to three `fetchCsvOnce`
-    attempts with `ATTEMPT_TIMEOUTS_MS = [6000, 10000, 14000]` and a short pause between them;
-    `worthRetrying(e)` = timeout / unreachable / HTTP 5xx (never 4xx or an unpublished sheet).
-    Why: Google's publish-to-web CSV endpoint stalls ~1 request in 15 for 10 s+ regardless of
-    ordering (measured from the DGS's Mac, several rounds, 2026-09-06); a single 15 s request per
-    tab failed whenever any one stalled — both the original `Promise.all` and the sequential
-    version shipped earlier that day. Progress event `{ step: 'retry', tab, attempt, of }` → the
-    loading card's "Google is slow; asking again (attempt 2 of 3)"; `LOAD_BUDGET_MS = 30_000`
-    is the card's stated upper bound. `RulesLoadError` uses plain fields (node's type-stripping
-    runner rejects parameter properties) and carries `status` for HTTP failures; the JSON
-    imports carry `with { type: 'json' }` so `tests/load-retry.test.ts` can import load.ts and
-    stub `fetch`. No single-download alternative exists (whole-doc HTML = script shell, xlsx =
-    400, gviz = CORS). A stall still costs ~6 s on that load; if that ever matters, the next
-    step is a hedged request (start a second request for a tab after ~2 s, take the first
-    answer) — not yet done.
+  - `src/data/load.ts` `loadLiveRules`: ALL tabs at once (a worker queue with `FETCH_CONCURRENCY =
+    4` — the constant stays so a future DGS can throttle without touching the logic), each tab via
+    `fetchCsv` = up to three HEDGED attempts (`fetchCsvOnce`): one request, joined after
+    `HEDGE_AFTER_MS = 2000` without an answer (or at once when the first fails in a retryable
+    way) by a second request for the same tab; the first answer wins and the loser is aborted;
+    the attempt is abandoned at `ATTEMPT_TIMEOUTS_MS = [6000, 10000, 14000]` and a fresh one made
+    after a short pause. `worthRetrying(e)` = timeout / unreachable / HTTP 5xx (never 4xx or an
+    unpublished sheet — those end the attempt at once). Why: Google's publish-to-web CSV endpoint
+    stalls ~17% of requests outright — hang until aborted — at the SAME rate at any concurrency
+    (measured from the DGS's Mac 2026-09-06, 144 requests: 8/48 four-at-once, 9/48 two-at-a-time,
+    8/48 one-after-another; no 429s); a single 15 s request per tab therefore failed whenever
+    any one stalled — both the original `Promise.all` and the sequential version shipped earlier
+    that day. With four requests at ~17% each, over half of page loads see a stall, which is why
+    the hedge (2 s) matters more than the retry (6 s+). Progress event `{ step: 'retry', tab,
+    attempt, of, hedged }` → the card's "Google is slow; asking again" (hedge) / "still nothing;
+    asking again (attempt 2 of 3)" (fresh attempt); `LOAD_BUDGET_MS = 30_000` is the card's stated
+    upper bound. `RulesLoadError` uses plain fields (node's type-stripping runner rejects
+    parameter properties) and carries `status`; the JSON imports carry `with { type: 'json' }`
+    so `tests/load-retry.test.ts` can import load.ts and stub `fetch` (the stub honours the abort
+    signal). No single-download alternative exists (whole-doc HTML = script shell, xlsx = 400,
+    gviz = CORS). Measuring from the Cowork browser pane: it is a HIDDEN tab, so timers
+    (`AbortSignal.timeout`, setTimeout) fire late — measure with AbortControllers swept from a
+    later call, not with timeouts (the 2026-09-06 numbers were taken that way).
   - `src/style.css`: `.transcript-preview { container-type: inline-size }` and
     `@container (max-width: 860px)` turn `table.courses.stack.edit` into per-course mini-forms
     (line 1: tick + `.cell-course` (flex 0 1 150px) + `.cell-title` (flex 1 1 220px); the

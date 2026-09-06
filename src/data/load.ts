@@ -12,22 +12,29 @@ import { rulesFromCsvTexts, type CsvTexts } from './assemble.ts';
 import { dateLiveRules } from './rules-date.ts';
 import type { Rules } from './types.ts';
 
-/** How long each request to Google may take before it is abandoned and the
- * tab asked for again — one entry per attempt. Google's publish-to-web
- * endpoint answers a tab in well under a second most of the time, but every so
- * often a request simply stalls (measured from the DGS's Mac, 2026-09-06: about
- * 1 request in 15 hung past 10 s, whether the tabs were fetched one at a time
- * or together, while the next request for the same tab answered in 0.3 s).
- * Waiting longer for a stalled request does not help; asking again does. The
- * first attempt is short (a stall costs six seconds, not fifteen); the later
- * ones are longer so a slow but working connection still gets through. */
+/** Google's publish-to-web endpoint answers a tab in well under a second most
+ * of the time, but a fair share of requests simply stall — hang until they are
+ * abandoned (measured from the DGS's Mac on 2026-09-06, 144 requests: 17% of
+ * them stalled past 4 s, at the same rate whether the four tabs were fetched
+ * together, two at a time or one after another; the next request for the same
+ * tab answered in ~0.3 s). Waiting on a stalled request does not help; asking
+ * again does — and the sooner, the better.
+ *
+ * So each attempt for a tab is HEDGED: when the first request has not answered
+ * after HEDGE_AFTER_MS, a second request for the same tab is sent alongside it
+ * and whichever answers first wins (the other is dropped). A stall then costs
+ * about two seconds, not the whole attempt. */
+export const HEDGE_AFTER_MS = 2_000;
+/** How long a whole attempt (both requests) may take before the tab is asked
+ * for afresh — one entry per attempt. The first is short; the later ones are
+ * longer so a slow but working connection still gets through. */
 export const ATTEMPT_TIMEOUTS_MS: readonly number[] = [6_000, 10_000, 14_000];
 /** Attempts per tab before the load is reported as failed. */
 export const MAX_ATTEMPTS = ATTEMPT_TIMEOUTS_MS.length;
-/** Tabs fetched at the same time (DGS suggestion 2026-09-06). Two keeps the
- * page fast when Google is healthy and gentle on the endpoint, which stalls
- * more often under three or four simultaneous requests for one spreadsheet. */
-export const FETCH_CONCURRENCY = 2;
+/** Tabs fetched at the same time: all of them (DGS 2026-09-06, after the
+ * measurement above showed no rate limiting and no extra stalls from
+ * simultaneous requests). Lower it here if Google ever changes that. */
+export const FETCH_CONCURRENCY = 4;
 /** What the loading card calls the upper bound ("usually a few seconds, up to
  * about 30"): the three attempts end to end, plus the pauses between them. */
 export const LOAD_BUDGET_MS = 30_000;
@@ -52,8 +59,9 @@ export const EXTERNAL_TAB_CONFIGURED: boolean =
 /** What the loader reports while it works (drives the loading card). */
 export type LoadProgress =
   | { step: 'connect' }
-  /** A request stalled and the tab is being asked for again. */
-  | { step: 'retry'; tab: TabName; attempt: number; of: number }
+  /** A request stalled and the tab is being asked for again: `hedged` for a
+   * second request sent alongside the first, otherwise a fresh attempt. */
+  | { step: 'retry'; tab: TabName; attempt: number; of: number; hedged: boolean }
   | { step: 'tab'; tab: TabName; rows: number; ms: number }
   | { step: 'check' };
 
@@ -91,14 +99,14 @@ export function countCsvRows(csv: string): number {
   return Math.max(0, n - 1);
 }
 
-/** One request for one tab. Exported for the tests, which stub `fetch`. */
-export async function fetchCsvOnce(tab: TabName, url: string, onProgress: (p: LoadProgress) => void, timeoutMs: number): Promise<string> {
-  const started = Date.now();
+/** One HTTP request for one tab; throws a RulesLoadError. An abort (ours —
+ * the hedge that lost, or the attempt's deadline) reads as a timeout. */
+async function requestOnce(tab: TabName, url: string, signal: AbortSignal): Promise<string> {
   let res: Response;
   let text: string;
   try {
     res = await fetch(url, {
-      signal: AbortSignal.timeout(timeoutMs),
+      signal,
       // The published CSV is public; no credentials, no cookies.
       credentials: 'omit',
       cache: 'no-cache',
@@ -110,7 +118,7 @@ export async function fetchCsvOnce(tab: TabName, url: string, onProgress: (p: Lo
   } catch (e) {
     if (e instanceof RulesLoadError) throw e;
     if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
-      throw new RulesLoadError('timeout', tab, `Google did not send ${TAB_LABELS[tab]} within ${timeoutMs / 1000} seconds.`, true);
+      throw new RulesLoadError('timeout', tab, `Google did not send ${TAB_LABELS[tab]} in time.`, true);
     }
     throw new RulesLoadError('unreachable', tab, 'The spreadsheet could not be reached — check your internet connection.', true);
   }
@@ -123,8 +131,73 @@ export async function fetchCsvOnce(tab: TabName, url: string, onProgress: (p: Lo
       false,
     );
   }
-  onProgress({ step: 'tab', tab, rows: countCsvRows(text), ms: Date.now() - started });
   return text;
+}
+
+/** One ATTEMPT for one tab: a request, joined by a second one after
+ * `hedgeAfterMs` without an answer (or at once, if the first fails in a way a
+ * second request may cure); the first answer wins and the other request is
+ * dropped. The whole attempt is abandoned at `timeoutMs`. Exported for the
+ * tests, which stub `fetch`. */
+export function fetchCsvOnce(
+  tab: TabName,
+  url: string,
+  onProgress: (p: LoadProgress) => void,
+  timeoutMs: number,
+  hedgeAfterMs = HEDGE_AFTER_MS,
+  attempt = 1,
+  attempts = MAX_ATTEMPTS,
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const started = Date.now();
+    const controllers: AbortController[] = [];
+    let settled = false;
+    let outstanding = 0;
+    let hedgeSent = false;
+    let firstError: unknown;
+    const finish = (err: unknown, text?: string): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      clearTimeout(hedgeTimer);
+      for (const c of controllers) c.abort();
+      if (err === undefined) resolve(text as string);
+      else reject(err);
+    };
+    const send = (): void => {
+      const c = new AbortController();
+      controllers.push(c);
+      outstanding += 1;
+      requestOnce(tab, url, c.signal).then(
+        (text) => {
+          if (settled) return;
+          onProgress({ step: 'tab', tab, rows: countCsvRows(text), ms: Date.now() - started });
+          finish(undefined, text);
+        },
+        (e: unknown) => {
+          outstanding -= 1;
+          if (settled) return;
+          firstError ??= e;
+          if (!worthRetrying(e)) finish(e); // a definite answer (4xx, unpublished): no point in waiting
+          else if (!hedgeSent) hedge(); // the first request failed early: send the second at once
+          else if (outstanding === 0) finish(firstError); // both failed
+        },
+      );
+    };
+    const hedge = (): void => {
+      if (settled || hedgeSent) return;
+      hedgeSent = true;
+      clearTimeout(hedgeTimer);
+      onProgress({ step: 'retry', tab, attempt, of: attempts, hedged: true });
+      send();
+    };
+    const hedgeTimer = setTimeout(hedge, hedgeAfterMs);
+    const deadline = setTimeout(
+      () => finish(new RulesLoadError('timeout', tab, `Google did not send ${TAB_LABELS[tab]} within ${timeoutMs / 1000} seconds.`, true)),
+      timeoutMs,
+    );
+    send();
+  });
 }
 
 /** Is this failure the kind that a second request usually cures? A stalled or
@@ -134,29 +207,31 @@ export function worthRetrying(e: unknown): boolean {
   return e instanceof RulesLoadError && (e.kind === 'timeout' || e.kind === 'unreachable' || (e.kind === 'http' && (e.status ?? 0) >= 500));
 }
 
-/** Fetch one tab, asking again after a stalled request (up to MAX_ATTEMPTS).
- * The pause between attempts is short: the stall is a one-off on Google's
- * side, not a sign that the endpoint is overloaded. */
+/** Fetch one tab: hedged attempts (fetchCsvOnce), a fresh attempt after each
+ * one that is abandoned, up to `timeouts.length` attempts. The pause between
+ * attempts is short: a stall is a one-off on Google's side, not a sign that
+ * the endpoint is overloaded. */
 export async function fetchCsv(
   tab: TabName,
   url: string,
   onProgress: (p: LoadProgress) => void,
   timeouts: readonly number[] = ATTEMPT_TIMEOUTS_MS,
+  hedgeAfterMs = HEDGE_AFTER_MS,
   pause: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
 ): Promise<string> {
   const attempts = timeouts.length;
   for (let attempt = 1; ; attempt++) {
     try {
-      return await fetchCsvOnce(tab, url, onProgress, timeouts[attempt - 1]!);
+      return await fetchCsvOnce(tab, url, onProgress, timeouts[attempt - 1]!, hedgeAfterMs, attempt, attempts);
     } catch (e) {
       if (!worthRetrying(e) || attempt >= attempts) {
         if (e instanceof RulesLoadError && e.kind === 'timeout' && attempts > 1) {
           const total = timeouts.reduce((a, b) => a + b, 0) / 1000;
-          throw new RulesLoadError('timeout', tab, `Google did not send ${TAB_LABELS[tab]} — ${attempts} requests, ${total} seconds in all, went unanswered.`, true);
+          throw new RulesLoadError('timeout', tab, `Google did not send ${TAB_LABELS[tab]} — ${attempts} attempts, ${total} seconds in all, went unanswered.`, true);
         }
         throw e;
       }
-      onProgress({ step: 'retry', tab, attempt: attempt + 1, of: attempts });
+      onProgress({ step: 'retry', tab, attempt: attempt + 1, of: attempts, hedged: false });
       await pause(250 * attempt);
     }
   }
@@ -196,12 +271,12 @@ function noteNewerSheet(rules: Rules): Rules {
 export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress) => void = () => {}): Promise<Rules> {
   onProgress({ step: 'connect' });
   const urls = sheetUrls as { courses: string; parameters: string; categories: string; external?: string };
-  // Two tabs at a time, each request retried after a stall (2026-09-06). The
-  // tabs were first fetched all at once (12–30 s waits, timeouts: the endpoint
-  // stalls more often under three or four simultaneous requests), then one
-  // after another (still failed whenever ANY single request stalled — one in
-  // about fifteen does, and one stall was the whole 15-second budget). What
-  // works is not waiting on a stalled request: 8 s, then ask again.
+  // All tabs at once, each hedged and retried (2026-09-06; the history: a
+  // plain Promise.all with one 15 s request per tab, then one tab after
+  // another — both failed whenever any single request stalled, because the
+  // one request WAS the budget). Stalls are as frequent at any concurrency,
+  // so the queue below runs FETCH_CONCURRENCY = all four; the constant stays
+  // so a future DGS can throttle it without touching the logic.
   const got: Partial<Record<TabName, string>> = {};
   let externalIssue: string | undefined;
   let failed = false;

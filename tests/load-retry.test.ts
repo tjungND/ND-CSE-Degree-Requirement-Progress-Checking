@@ -1,69 +1,103 @@
-// The rules loader asks Google again after a stalled request (2026-09-06):
-// one attempt of 15 s used to be the whole budget, and Google's publish-to-web
-// endpoint stalls roughly one request in fifteen. `fetch` is stubbed here; the
-// pause between attempts is a no-op so the tests run in milliseconds.
+// The rules loader hedges and retries (2026-09-06): Google's publish-to-web
+// endpoint stalls a fair share of requests outright, so a tab is asked for a
+// second time after a short wait (the first answer wins) and afresh after a
+// whole attempt is abandoned. `fetch` is stubbed here with a script that
+// honours the abort signal; waits are milliseconds so the tests run fast.
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
-import { fetchCsv, RulesLoadError, worthRetrying, type LoadProgress } from '../src/data/load.ts';
+import { fetchCsv, fetchCsvOnce, RulesLoadError, worthRetrying, type LoadProgress } from '../src/data/load.ts';
 
 const CSV = 'course_id,title\r\nCSE 60641,Graduate Operating Systems\r\n';
 const realFetch = globalThis.fetch;
-const timeoutError = () => new DOMException('The operation timed out', 'TimeoutError');
 const noPause = async () => {};
+type Step = 'stall' | 'network' | number | string;
 
-/** A fetch stub answering from a script: 'timeout' throws like an aborted
- * request; a number answers with that HTTP status; a string is the body. */
-function stubFetch(script: (number | string | 'timeout' | 'network')[]): () => number {
+/** A fetch stub answering from a script, one entry per request in order (the
+ * last entry repeats): 'stall' never answers until aborted; 'network' throws
+ * like a dropped connection; a number answers with that HTTP status; any other
+ * string is a 200 body. Records how many requests were made and aborted. */
+function stubFetch(script: Step[]): { calls: () => number; aborted: () => number } {
   let calls = 0;
-  globalThis.fetch = (async () => {
+  let aborted = 0;
+  globalThis.fetch = ((_url: string, init?: RequestInit) => {
     const step = script[Math.min(calls, script.length - 1)]!;
     calls += 1;
-    if (step === 'timeout') throw timeoutError();
-    if (step === 'network') throw new TypeError('Failed to fetch');
-    if (typeof step === 'number') return new Response('', { status: step });
-    return new Response(step, { status: 200 });
+    const signal = init?.signal as AbortSignal | undefined;
+    return new Promise<Response>((resolve, reject) => {
+      let answered = false; // an abort after the answer is a no-op, as in a real fetch
+      signal?.addEventListener('abort', () => {
+        if (answered) return;
+        aborted += 1;
+        reject(new DOMException('The operation was aborted', 'AbortError'));
+      });
+      if (step === 'stall') return;
+      answered = true;
+      if (step === 'network') return reject(new TypeError('Failed to fetch'));
+      if (typeof step === 'number') return resolve(new Response('', { status: step }));
+      resolve(new Response(step, { status: 200 }));
+    });
   }) as typeof fetch;
-  return () => calls;
+  return { calls: () => calls, aborted: () => aborted };
 }
+const trace = (events: LoadProgress[]) =>
+  events.map((e) => (e.step === 'retry' ? (e.hedged ? `hedge ${e.attempt}/${e.of}` : `attempt ${e.attempt}/${e.of}`) : e.step === 'tab' ? `tab ${e.tab} ${e.rows} rows` : e.step));
 
-describe('rules loader: retries', () => {
+describe('rules loader: hedged attempts and retries', () => {
   afterEach(() => {
     globalThis.fetch = realFetch;
   });
 
-  it('asks again after a stalled request and reports the retry', async () => {
-    const calls = stubFetch(['timeout', CSV]);
+  it('a stalled request is joined by a second one, whose answer wins; the stalled one is dropped', async () => {
+    const f = stubFetch(['stall', CSV]);
     const events: LoadProgress[] = [];
-    const text = await fetchCsv('courses', 'https://example.test/courses', (p) => events.push(p), [6000, 10000, 14000], noPause);
+    const text = await fetchCsvOnce('courses', 'https://example.test/courses', (p) => events.push(p), 500, 20);
     assert.equal(text, CSV);
-    assert.equal(calls(), 2);
-    assert.deepEqual(
-      events.map((e) => (e.step === 'retry' ? `retry ${e.attempt}/${e.of}` : e.step === 'tab' ? `tab ${e.tab} ${e.rows} rows` : e.step)),
-      ['retry 2/3', 'tab courses 1 rows'],
-    );
+    assert.equal(f.calls(), 2);
+    assert.equal(f.aborted(), 1, 'the stalled request is aborted once the hedge has answered');
+    assert.deepEqual(trace(events), ['hedge 1/3', 'tab courses 1 rows']);
+  });
+
+  it('a request that fails early is hedged at once, without waiting', async () => {
+    const f = stubFetch(['network', CSV]);
+    const events: LoadProgress[] = [];
+    const started = Date.now();
+    assert.equal(await fetchCsvOnce('categories', 'https://example.test/c', (p) => events.push(p), 500, 400), CSV);
+    assert.ok(Date.now() - started < 300, 'did not wait for the hedge timer');
+    assert.equal(f.calls(), 2);
+    assert.deepEqual(trace(events), ['hedge 1/3', 'tab categories 1 rows']);
+  });
+
+  it('when both requests stall the attempt is abandoned and a fresh one made', async () => {
+    const f = stubFetch(['stall', 'stall', CSV]);
+    const events: LoadProgress[] = [];
+    const text = await fetchCsv('courses', 'https://example.test/courses', (p) => events.push(p), [120, 200, 300], 20, noPause);
+    assert.equal(text, CSV);
+    assert.equal(f.calls(), 3);
+    assert.equal(f.aborted(), 2);
+    assert.deepEqual(trace(events), ['hedge 1/3', 'attempt 2/3', 'tab courses 1 rows']);
   });
 
   it('gives up after the last attempt with a message that counts the attempts', async () => {
-    const calls = stubFetch(['timeout']);
+    const f = stubFetch(['stall']);
     await assert.rejects(
-      fetchCsv('parameters', 'https://example.test/p', () => {}, [6000, 10000, 14000], noPause),
-      (e: unknown) => e instanceof RulesLoadError && e.kind === 'timeout' && e.retryable && /3 requests, 30 seconds in all/.test(e.message),
+      fetchCsv('parameters', 'https://example.test/p', () => {}, [60, 60, 60], 10, noPause),
+      (e: unknown) => e instanceof RulesLoadError && e.kind === 'timeout' && e.retryable && /3 attempts, 0.18 seconds in all/.test(e.message),
     );
-    assert.equal(calls(), 3);
+    assert.equal(f.calls(), 6, 'two requests per attempt, three attempts');
   });
 
-  it('retries a dropped connection and a 5xx, never a 4xx or an unpublished sheet', async () => {
-    let calls = stubFetch(['network', 503, CSV]);
-    assert.equal(await fetchCsv('categories', 'https://example.test/c', () => {}, [6000, 10000, 14000], noPause), CSV);
-    assert.equal(calls(), 3);
+  it('a 5xx is hedged and retried; a 4xx or an unpublished sheet ends the attempt at once', async () => {
+    let f = stubFetch([503, CSV]);
+    assert.equal(await fetchCsv('categories', 'https://example.test/c', () => {}, [500], 400, noPause), CSV);
+    assert.equal(f.calls(), 2);
 
-    calls = stubFetch([404, CSV]);
-    await assert.rejects(fetchCsv('courses', 'https://example.test/x', () => {}, [6000, 10000, 14000], noPause), (e: unknown) => e instanceof RulesLoadError && e.kind === 'http' && e.status === 404);
-    assert.equal(calls(), 1, 'a 404 is not asked again');
+    f = stubFetch([404, CSV]);
+    await assert.rejects(fetchCsv('courses', 'https://example.test/x', () => {}, [500], 20, noPause), (e: unknown) => e instanceof RulesLoadError && e.kind === 'http' && e.status === 404);
+    assert.equal(f.calls(), 1, 'a 404 is not asked again');
 
-    calls = stubFetch(['<!DOCTYPE html><html>Sign in</html>', CSV]);
-    await assert.rejects(fetchCsv('courses', 'https://example.test/y', () => {}, [6000, 10000, 14000], noPause), (e: unknown) => e instanceof RulesLoadError && e.kind === 'unpublished' && !e.retryable);
-    assert.equal(calls(), 1, 'an unpublished sheet is not asked again');
+    f = stubFetch(['<!DOCTYPE html><html>Sign in</html>', CSV]);
+    await assert.rejects(fetchCsv('courses', 'https://example.test/y', () => {}, [500], 20, noPause), (e: unknown) => e instanceof RulesLoadError && e.kind === 'unpublished' && !e.retryable);
+    assert.equal(f.calls(), 1, 'an unpublished sheet is not asked again');
   });
 
   it('worthRetrying: only stalls, dropped connections and server errors', () => {
