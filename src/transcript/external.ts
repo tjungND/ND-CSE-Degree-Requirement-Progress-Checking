@@ -562,14 +562,16 @@ function buildReviewRequest(opts: {
   const groups = opts.detailGroups.filter((g) => g.rows.length > 0);
   const pipeRow = (r: readonly string[]) => r.join(' | ');
   // The human half (greeting, context, sign-off) sits ABOVE one line; the
-  // machine-readable half (tables + details) below it, marked once
-  // (DGS wording, 2026-09-03).
+  // machine-readable half (tables + details) below it. Both halves are
+  // marked at the line (DGS wording, 2026-09-03 and 2026-09-06): the student
+  // may reword the email, but must leave the tables intact.
+  const editable = '(You may edit anything above this line)';
   const marker = '(DO NOT MODIFY ANYTHING BELOW THIS LINE)';
   const divider = '-'.repeat(64);
   const text =
     `Subject: ${opts.subject}\n\n${greeting}\n\n${opts.intro}\n\n` +
     opts.context.map((c) => `${c}\n`).join('') +
-    `\nThank you!\n\n${divider}\n${marker}\n\n` +
+    `\nThank you!\n\n${editable}\n${divider}\n${marker}\n\n` +
     sections.map((s) => `${s.rowsIntro}\n\n${s.rows.map((r) => r.join('\t')).join('\n')}\n\n`).join('') +
     `${opts.detailsTitle}\n\n` +
     groups.map((g) => `${g.heading}\n${pipeRow(opts.detailHeaders)}\n${g.rows.map(pipeRow).join('\n')}`).join('\n\n') +
@@ -577,7 +579,7 @@ function buildReviewRequest(opts: {
   const html =
     `<p>${esc(`Subject: ${opts.subject}`)}</p><p>${esc(greeting)}</p><p>${esc(opts.intro)}</p>` +
     (opts.context.length > 0 ? `<p>${opts.context.map((c) => esc(c)).join('<br>')}</p>` : '') +
-    `<p>Thank you!</p><hr><p><strong>${esc(marker)}</strong></p>` +
+    `<p>Thank you!</p><p><strong>${esc(editable)}</strong></p><hr><p><strong>${esc(marker)}</strong></p>` +
     sections
       .map(
         (s) =>
@@ -615,8 +617,9 @@ export interface PendingReviewCourse extends ReviewRequestCourse {
  * Courses (course_id, title) and ExternalCourses (UNIVERSITY in the sheet's
  * capital-English convention, course_id, course_title) — and detail lines
  * grouped per transcript. The tables and details are marked DO NOT MODIFY
- * (DGS wording, 2026-09-03) so students leave the machine-readable parts
- * intact. */
+ * (DGS wording, 2026-09-03), with "(You may edit anything above this line)"
+ * above the divider (2026-09-06), so students reword only their own half and
+ * leave the machine-readable parts intact. */
 export function buildCombinedReviewRequest(opts: {
   /** The "Prior graduate study" choice, as its dropdown label. */
   priorStudy: string;
@@ -643,7 +646,8 @@ export function buildCombinedReviewRequest(opts: {
       'Could you review these courses for the degree self-check? ' +
       'It cannot count them until they are decided in the course rules.',
     context: [
-      `Prior graduate study: ${opts.priorStudy}.`,
+      // (No second full stop after a label that ends in one — "…or Ph.D.".)
+      `Prior graduate study: ${opts.priorStudy}${opts.priorStudy.endsWith('.') ? '' : '.'}`,
       'My transcripts (Bachelor’s / Master’s / Ph.D., whichever apply) are attached to this email.',
     ],
     sections: [

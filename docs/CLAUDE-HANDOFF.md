@@ -691,7 +691,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   (`askDgsCard` in app.ts + `buildCombinedReviewRequest` in `src/transcript/external.ts`;
   consolidation 2026-09-03 — students found two buttons/two emails confusing). The request keeps
   the human half (greeting, prior graduate study, "transcripts are attached", sign-off) above one
-  divider + "(DO NOT MODIFY ANYTHING BELOW THIS LINE)"; below it, one tab-separated section per
+  "(You may edit anything above this line)" + divider + "(DO NOT MODIFY ANYTHING BELOW THIS LINE)"
+  (the upper marker since 2026-09-06); below it, one tab-separated section per
   sheet tab (Courses: course_id, title; ExternalCourses: UNIVERSITY, course_id, course_title),
   rows only for courses needing a NEW sheet row, then details grouped per transcript;
   engine-ineligible courses (outside the §5.2 window etc.) are excluded as not worth the DGS's

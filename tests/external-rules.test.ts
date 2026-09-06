@@ -141,7 +141,8 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     // The human half (sign-off included) sits ABOVE one line; everything
     // machine-readable is below it, marked exactly once.
     assert.equal(built.text.match(/DO NOT MODIFY/g)?.length, 1);
-    assert.match(built.text, /Thank you!\n\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)/);
+    // The student's half is marked editable right above the divider (2026-09-06).
+    assert.match(built.text, /Thank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)/);
     assert.ok(built.text.indexOf('(DO NOT MODIFY') < built.text.indexOf('Courses tab'), 'the line precedes the tables');
   });
 
@@ -168,7 +169,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
   it('html flavor: real tables (tabs do not survive HTML email), entities escaped, one details table per transcript', () => {
     const { html } = built;
     assert.equal((html.match(/<table/g) ?? []).length, 4, 'one table per sheet tab + one per transcript in the details');
-    assert.ok(html.includes('<hr><p><strong>(DO NOT MODIFY ANYTHING BELOW THIS LINE)</strong></p>'), 'the line + marker in HTML');
+    assert.ok(html.includes('<p><strong>(You may edit anything above this line)</strong></p><hr><p><strong>(DO NOT MODIFY ANYTHING BELOW THIS LINE)</strong></p>'), 'both markers around the line in HTML');
     assert.ok(html.includes('<tr><td>MATH 60610</td><td>Real Analysis I</td></tr>'));
     assert.ok(html.includes('<tr><td>PURDUE UNIVERSITY</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
     assert.ok(html.includes('<p><strong>Notre Dame:</strong></p><table'));
