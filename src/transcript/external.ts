@@ -535,13 +535,14 @@ export interface ReviewRequestCourse {
 }
 
 /** Shared assembly for the copy-ready review requests (decisions 2026-09-03).
- * Every request is addressed to BOTH decision-makers — DGS policy: students
- * MUST email it to the DGS and the Grad Admin. Two
- * clipboard flavors are returned and written together: `text` (tab-separated
- * rows) for plain-text contexts, and `html`, where the rows are a REAL
+ * The request goes to the DGS alone (DGS decision 2026-09-06 — the Grad
+ * Admin is not part of the review). Two clipboard flavors are returned and
+ * written together: `text` (tab-separated sheet rows, pipe-separated detail
+ * rows) for plain-text contexts, and `html`, where every row set is a REAL
  * `<table>` — HTML email composers (Gmail etc.) flatten tab characters to
  * spaces, but a table survives the whole journey: app → email → the DGS
- * copies it → Google Sheets pastes it as cells. */
+ * copies it → Google Sheets pastes it as cells. The course details are
+ * tables too (DGS request 2026-09-06: easier to read than bullet lines). */
 function buildReviewRequest(opts: {
   subject: string;
   intro: string;
@@ -550,13 +551,16 @@ function buildReviewRequest(opts: {
   /** Sheet-paste sections (one per tab); a section with no rows is skipped. */
   sections: readonly { rowsIntro: string; rows: readonly (readonly string[])[] }[];
   detailsTitle: string;
-  /** Detail lines grouped per transcript, each group under its heading. */
-  detailGroups: readonly { heading: string; lines: readonly string[] }[];
+  /** Column headers of the detail tables. */
+  detailHeaders: readonly string[];
+  /** Detail rows grouped per transcript, each group a table under its heading. */
+  detailGroups: readonly { heading: string; rows: readonly (readonly string[])[] }[];
 }): { text: string; html: string } {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const greeting = 'Dear DGS and Grad Admin,';
+  const greeting = 'Dear DGS,';
   const sections = opts.sections.filter((s) => s.rows.length > 0);
-  const groups = opts.detailGroups.filter((g) => g.lines.length > 0);
+  const groups = opts.detailGroups.filter((g) => g.rows.length > 0);
+  const pipeRow = (r: readonly string[]) => r.join(' | ');
   // The human half (greeting, context, sign-off) sits ABOVE one line; the
   // machine-readable half (tables + details) below it, marked once
   // (DGS wording, 2026-09-03).
@@ -568,7 +572,7 @@ function buildReviewRequest(opts: {
     `\nThank you!\n\n${divider}\n${marker}\n\n` +
     sections.map((s) => `${s.rowsIntro}\n\n${s.rows.map((r) => r.join('\t')).join('\n')}\n\n`).join('') +
     `${opts.detailsTitle}\n\n` +
-    groups.map((g) => `${g.heading}\n${g.lines.map((d) => `- ${d}`).join('\n')}`).join('\n\n') +
+    groups.map((g) => `${g.heading}\n${pipeRow(opts.detailHeaders)}\n${g.rows.map(pipeRow).join('\n')}`).join('\n\n') +
     `\n`;
   const html =
     `<p>${esc(`Subject: ${opts.subject}`)}</p><p>${esc(greeting)}</p><p>${esc(opts.intro)}</p>` +
@@ -583,7 +587,14 @@ function buildReviewRequest(opts: {
       )
       .join('') +
     `<p>${esc(opts.detailsTitle)}</p>` +
-    groups.map((g) => `<p><strong>${esc(g.heading)}</strong></p><ul>${g.lines.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>`).join('');
+    groups
+      .map(
+        (g) =>
+          `<p><strong>${esc(g.heading)}</strong></p><table border="1" cellspacing="0" cellpadding="4"><tr>${opts.detailHeaders.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>` +
+          g.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('') +
+          `</table>`,
+      )
+      .join('');
   return { text, html };
 }
 
@@ -612,21 +623,19 @@ export function buildCombinedReviewRequest(opts: {
   nd: readonly PendingReviewCourse[];
   external: readonly PendingReviewCourse[];
 }): { text: string; html: string } {
-  const detail = (c: PendingReviewCourse) =>
-    `${c.courseId}${c.title ? ` “${c.title}”` : ''}: ` +
-    `${c.credits} credit${c.credits === 1 ? '' : 's'}, grade ${c.grade}, ${c.termText} — ${c.reason}`;
+  const detail = (c: PendingReviewCourse): string[] => [c.courseId, c.title ?? '', String(c.credits), c.grade, c.termText, c.reason];
   // Group the external courses per transcript (slot + university), so the
-  // details read the way the student uploaded them.
-  const groups: { heading: string; lines: string[] }[] = [];
-  if (opts.nd.length > 0) groups.push({ heading: 'Notre Dame:', lines: opts.nd.map(detail) });
+  // details read the way the student uploaded them — one table per group.
+  const groups: { heading: string; rows: string[][] }[] = [];
+  if (opts.nd.length > 0) groups.push({ heading: 'Notre Dame:', rows: opts.nd.map(detail) });
   for (const c of opts.external) {
     const heading = `${c.slotLabel ?? 'Entered by hand'} — ${(c.institution ?? 'university not given').toUpperCase()}:`;
     let g = groups.find((x) => x.heading === heading);
     if (!g) {
-      g = { heading, lines: [] };
+      g = { heading, rows: [] };
       groups.push(g);
     }
-    g.lines.push(detail(c));
+    g.rows.push(detail(c));
   }
   return buildReviewRequest({
     subject: 'Course review request (degree self-check)',
@@ -648,6 +657,7 @@ export function buildCombinedReviewRequest(opts: {
       },
     ],
     detailsTitle: 'Course details:',
+    detailHeaders: ['Course', 'Title', 'Credits', 'Grade', 'Term', 'Why it needs a decision'],
     detailGroups: groups,
   });
 }

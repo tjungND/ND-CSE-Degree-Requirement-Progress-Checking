@@ -131,9 +131,10 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     ],
   });
 
-  it('is one email to both decision-makers, says self-check (not audit), and carries prior graduate study', () => {
+  it('is one email to the DGS (2026-09-06: not the Grad Admin), says self-check (not audit), and carries prior graduate study', () => {
     assert.match(built.text, /^Subject: Course review request/);
-    assert.match(built.text, /Dear DGS and Grad Admin,/);
+    assert.match(built.text, /Dear DGS,\n/);
+    assert.doesNotMatch(built.text, /Grad Admin/);
     assert.match(built.text, /Prior graduate study: Completed prior M\.S\. or Ph\.D\./);
     assert.match(built.text, /transcripts .* are attached to this email/i);
     assert.ok(!built.text.includes('audit'), 'the request says self-check, never audit');
@@ -154,22 +155,25 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.ok(!text.includes('\tCS 51400'), 'ruled-but-undecided external course gets no new row');
   });
 
-  it('details: grouped per transcript, below the line', () => {
+  it('details: one table per transcript, below the line (2026-09-06: tables, not bullet lines)', () => {
     const { text } = built;
     assert.match(text, /Course details:/);
-    assert.match(text, /Notre Dame:\n- MATH 60610/);
-    assert.match(text, /Previous Master\u2019s Transcript \u2014 PURDUE UNIVERSITY:\n- CS 50300/u);
-    assert.match(text, /CSE 40567: 3 credits, grade B, Fall 2026 \u2014 needs advisor \+ DGS approval/u);
-    assert.match(text, /CS 51400 .*: 1 credit, grade B\+, Fall 2024 \u2014 transferability not yet decided/u);
+    const header = 'Course | Title | Credits | Grade | Term | Why it needs a decision';
+    assert.match(text, new RegExp(`Notre Dame:\\n${header.replace(/[|]/g, '\\|')}\\nMATH 60610 \\| Real Analysis I \\| 3 \\| A \\| Fall 2026 \\| not in the course rules yet\\n`));
+    assert.match(text, /Previous Master\u2019s Transcript \u2014 PURDUE UNIVERSITY:\n[^\n]*\nCS 50300 \| Operating Systems \| 3 \| A \| Fall 2023 \| not yet reviewed by the DGS/u);
+    assert.match(text, /CSE 40567 \|  \| 3 \| B \| Fall 2026 \| needs advisor \+ DGS approval/u);
+    assert.match(text, /CS 51400 \| .* \| 1 \| B\+ \| Fall 2024 \| transferability not yet decided/u);
   });
 
-  it('html flavor: real tables (tabs do not survive HTML email), entities escaped, grouped details', () => {
+  it('html flavor: real tables (tabs do not survive HTML email), entities escaped, one details table per transcript', () => {
     const { html } = built;
-    assert.equal((html.match(/<table/g) ?? []).length, 2, 'one table per sheet tab');
+    assert.equal((html.match(/<table/g) ?? []).length, 4, 'one table per sheet tab + one per transcript in the details');
     assert.ok(html.includes('<hr><p><strong>(DO NOT MODIFY ANYTHING BELOW THIS LINE)</strong></p>'), 'the line + marker in HTML');
     assert.ok(html.includes('<tr><td>MATH 60610</td><td>Real Analysis I</td></tr>'));
     assert.ok(html.includes('<tr><td>PURDUE UNIVERSITY</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
-    assert.ok(html.includes('<strong>Notre Dame:</strong>'));
+    assert.ok(html.includes('<p><strong>Notre Dame:</strong></p><table'));
+    assert.ok(html.includes('<tr><th>Course</th><th>Title</th><th>Credits</th><th>Grade</th><th>Term</th><th>Why it needs a decision</th></tr>'));
+    assert.ok(html.includes('<tr><td>CSE 40567</td><td></td><td>3</td><td>B</td><td>Fall 2026</td><td>needs advisor + DGS approval per the rules sheet</td></tr>'));
     assert.ok(html.includes('Data &amp; &quot;Structures&quot; &lt;II&gt;'), 'titles are HTML-escaped');
     assert.ok(!html.includes('<II>'), 'no raw markup leaks from titles');
   });
@@ -180,7 +184,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
       nd: [{ courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the rules sheet', unlisted: false }],
       external: [],
     });
-    assert.equal((only.html.match(/<table/g) ?? []).length, 0);
+    assert.equal((only.html.match(/<table/g) ?? []).length, 1, 'only the details table remains');
     assert.ok(!only.text.includes('rules sheet \u2014 Courses tab'));
     assert.ok(!only.text.includes('rules sheet \u2014 ExternalCourses tab'));
   });
@@ -206,7 +210,11 @@ describe('what a DGS ruling changes in the engine', () => {
     // The per-course line focuses on the core knowledge the DGS confirmed.
     const line = report.courseLines.find((l) => l.courseId === 'CS 50300');
     assert.match(line?.text ?? '', /satisfies the .* core-knowledge requirement \(§4\.4\.1\) — confirmed by the DGS/);
-    assert.match(line?.text ?? '', /no transfer credit \(undergraduate, §5\.2\)/);
+    // 2026-09-06: the line no longer repeats "no transfer credit" — the
+    // coursework heading says it once — and it is painted green (a core
+    // area earned now), not red.
+    assert.doesNotMatch(line?.text ?? '', /no transfer credit/);
+    assert.equal(line?.mark, 'counts');
   });
 
   it('transferable=no → not counted, with the DGS ruling named', () => {

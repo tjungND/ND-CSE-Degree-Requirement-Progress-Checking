@@ -123,6 +123,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     courseId: p.course.entry.courseId,
     term: p.course.entry.term,
     text: p.explanation,
+    mark: p.mark,
   }));
 
   return {

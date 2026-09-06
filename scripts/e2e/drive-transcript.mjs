@@ -90,7 +90,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
 
   // 2b) An unlisted (typically non-CSE) ND course typed by hand → the single
   // "Ask the DGS to review" card offers a copy-ready request addressed to the
-  // DGS + Grad Admin (2026-09-03; abbreviation per the DGS, 2026-09-06).
+  // DGS alone (2026-09-06: the Grad Admin is not part of the review).
   await s.evalJs(`(() => {
     const form = document.querySelector('.course-form');
     form.querySelector('input.course-id').value = 'MATH 60610'; // labelled "Course number" since 2026-09-05 (no placeholder)
@@ -103,7 +103,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // title joins the request for §4.4.1 review (DGS rule 2026-09-04) — and
   // the undergraduate CSE 30321 "Computer Architecture" taken before entry
   // (2026-09-05: prior Notre Dame coursework not in the Courses tab).
-  if (!ndReview.includes('Copy review request for 3 courses') || !ndReview.includes('Grad Admin')) {
+  if (!ndReview.includes('Copy review request for 3 courses') || ndReview.includes('Grad Admin') || !ndReview.includes('send it to the DGS')) {
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
@@ -122,15 +122,29 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
   );
-  await s.waitFor(`document.querySelector('.external-verdicts')`);
-  const verdicts = await s.evalJs(
-    `[...document.querySelectorAll('.external-verdict')].map(e => e.textContent)`,
-  );
-  console.log('  external verdicts:', JSON.stringify(verdicts));
-  // 3 Purdue courses + the prior Notre Dame undergraduate course (CSE 30321,
-  // filed under the Bachelor's slot by the combined-transcript import).
-  if (verdicts.length !== 4 || !verdicts.every((v) => v.includes('not yet reviewed by the DGS'))) {
-    throw new Error('expected 4 pending external verdicts (the sandbox has no ExternalCourses tab)');
+  await s.waitFor(`!document.querySelector('.external-card .transcript-preview') && [...document.querySelectorAll('h3.subhead')].some(h => h.textContent.includes('Purdue University'))`);
+  // The DGS's rulings live on each course's line in the coursework table
+  // (2026-09-06 — the separate verdicts block was removed as redundant): the
+  // 3 Purdue courses are pending transfer review, amber; the prior Notre Dame
+  // undergraduate course (CSE 30321, filed under the Bachelor's slot by the
+  // combined import) may satisfy a core area, amber too.
+  // Rows of the table under a coursework heading (the coursework card groups
+  // courses by university + transcript).
+  const groupLines = (heading) => s.evalJs(`(() => {
+    const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes(${JSON.stringify(heading)}));
+    const table = h?.nextElementSibling?.matches('.table-scroll') ? h.nextElementSibling : h?.nextElementSibling?.nextElementSibling;
+    return [...(table?.querySelectorAll('tr') ?? [])].slice(1).map(tr => tr.querySelector('.cid').textContent + ' [' + (tr.querySelector('.mark')?.className ?? 'no mark') + '] ' + tr.querySelector('.cell-note').textContent);
+  })()`);
+  const purdueLines = await groupLines('Purdue University — Previous Master’s Transcript');
+  console.log('  Purdue transfer lines:', JSON.stringify(purdueLines));
+  const pendingPurdue = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('pending DGS review — would count toward regular courses') && l.includes('not yet reviewed by the DGS'));
+  const overCap = purdueLines.filter((l) => l.includes('mark-excluded') && l.includes('over the transfer-credit cap'));
+  if (purdueLines.length !== 3 || pendingPurdue.length + overCap.length !== 3 || pendingPurdue.length < 2) {
+    throw new Error('expected the 3 Purdue lines to be amber "pending DGS review — would count …" (or red over the cap; the sandbox has no ExternalCourses tab)');
+  }
+  const priorNdLines = await groupLines('Notre Dame, before entering the program — undergraduate coursework');
+  if (!priorNdLines.some((l) => l.startsWith('CSE 30321') && l.includes('mark-pending') && l.includes('may satisfy the Computer Architecture core-knowledge requirement'))) {
+    throw new Error('the prior Notre Dame undergraduate course should carry an amber "may satisfy" line: ' + JSON.stringify(priorNdLines));
   }
   // ONE combined request: the 3 from 2b + the 3 external courses.
   const copyBtn = await s.evalJs(
@@ -203,8 +217,10 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
   );
-  await s.waitFor(`document.querySelectorAll('.external-verdict').length === 5`);
-  console.log('  5 external courses (3 typed + 2 core-relevant OCR) in the verdicts block');
+  await s.waitFor(`[...document.querySelectorAll('h3.subhead')].some(h => h.textContent.includes('Purdue University — Previous Undergraduate Transcript'))`);
+  const ocrLines = (await groupLines('Purdue University — Previous Master’s Transcript')).length + (await groupLines('Purdue University — Previous Undergraduate Transcript')).length;
+  if (ocrLines !== 5) throw new Error(`expected 5 external course lines (3 typed + 2 core-relevant OCR), got ${ocrLines}`);
+  console.log('  5 external courses (3 typed + 2 core-relevant OCR) in the coursework table');
   // Undergrad core-title rule (2026-09-03; relevance filter 2026-09-04): only
   // the two keyword-matching bachelors courses were added, and both join the
   // request — MATH + CS 50300 (2) + masters slot (3) + those two = 7 pending.
@@ -226,7 +242,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const bannerUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   const bannerRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);
   const bannerIds = await s.evalJs(
-    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1]?.value ?? tr.cells[1]?.textContent)`,
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent)`,
   );
   const transferNote = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview .hint.warn')].map(e => e.textContent).join(' | ')`);
   console.log('  Banner two-column transcript:', bannerUni, '|', bannerRows, 'rows |', JSON.stringify(bannerIds));
@@ -245,7 +261,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Ph.D. Transcript'))`);
   const wmUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   const wmIds = await s.evalJs(
-    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1]?.value)`,
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent)`,
   );
   console.log('  watermarked Banner transcript:', wmUni, '|', JSON.stringify(wmIds));
   if (wmUni !== bannerUni || JSON.stringify(wmIds) !== JSON.stringify(bannerIds)) {
@@ -268,7 +284,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.setFileInput('.external-file-masters', combinedPdf);
   await s.waitFor(`document.querySelector('.external-card .transcript-preview .mixed-note')`);
   const combinedRows = await s.evalJs(
-    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1].value + ':' + tr.querySelector('select.row-level').value + ':' + (tr.querySelector('input[type=checkbox]').checked ? 'on' : 'off'))`,
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => (tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent) + ':' + tr.querySelector('select.row-level').value + ':' + (tr.querySelector('input[type=checkbox]').checked ? 'on' : 'off'))`,
   );
   console.log('  combined transcript rows:', JSON.stringify(combinedRows));
   const expectedCombined = ['CS 25100:undergraduate:on', 'CS 30700:undergraduate:off', 'CS 35400:undergraduate:on', 'CS 50300:graduate:on', 'CS 58000:graduate:on'];
@@ -302,7 +318,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.waitFor(`document.querySelector('.external-card .transcript-preview .nd-prior-note')`);
   const ndUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   const ndSlotRows = await s.evalJs(
-    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => tr.querySelectorAll('input')[1].value + ':' + tr.querySelector('select.row-level').value)`,
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => (tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent) + ':' + tr.querySelector('select.row-level').value)`,
   );
   const ndTransferNote = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview .hint.warn')].map(e => e.textContent).join(' | ')`);
   console.log('  ND transcript in the Ph.D. slot:', ndUni, '|', JSON.stringify(ndSlotRows));

@@ -114,6 +114,47 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **Course-rules page count line** keeps the view label's case (2026-09-06): "View: whether a
   course counts toward the M.S. (MSCSE)." — only the first letter is lowered (was
   `.toLowerCase()` on the whole label, which printed "m.s. (mscse)").
+- **Batch of 2026-09-06 (evening): transcript preview, per-course marks, review request, advisor
+  summary v3.** Mechanics, file by file:
+  - `src/transcript/level-prefill.ts` (new, DOM-free): `prefillLevelsByTerm(rows, slot)` — the
+    two-year rule for combined BS+MS transcripts (Master's row only, rows spanning > 2 years, rows
+    with `levelSource: 'slot'` and a year; returns `{ graduateFrom, latest }` only when it changed
+    a row). Called from both import paths in external-upload.ts; `PreviewRow.levelSource`
+    (`transcript` | `term` | `slot`) and `PreviewRow.manual` (typed rows) are new;
+    `ExternalPreview.termPrefill` / `universityFromTranscript` drive the texts. `levelNote(p)`
+    writes the "How “Taken as” was filled in" sentence (transcript markers / two-year rule with the
+    window / slot); `mixedLevels` is now also true when the rule produced both levels.
+    Locked fields: the university `<input readonly class="locked">` when
+    `universityFromTranscript && !fromOcr`; course id/title as `<span class="course-id|course-title
+    locked">` when `!fromOcr && !r.manual` (the e2e reads `.cell-course input` OR
+    `.cell-course .course-id`). Tests: level-prefill.test.ts.
+  - `src/engine/allocate.ts`: `CourseMark = 'counts' | 'pending' | 'excluded'` on
+    `CourseAllocation` and `CourseLine` (types.ts, audit.ts). `buildExplanation` returns
+    `{ explanation, mark }`: lead by tier — "pending DGS review — would count …once approved" /
+    "in progress — will count … when passed" / "counts …"; an all-excluded row gets no approval
+    suffix; undergraduate `ineligibleReason`s are the three §4.4.1 sentences (satisfies / may
+    satisfy / not relevant), and `coreNote` on graduate transfer lines now also carries a
+    DGS-confirmed core area (`external.satisfiesCoreArea`). The mark for a counted=0 row follows
+    the reason prefix (`^satisfies` → counts, `^may satisfy` → pending, else excluded).
+  - `src/ui/marks.ts` (new): `statusMark(mark)` = ✓ / ● / ✕ span with a visually-hidden word;
+    CSS `.mark-counts/-pending/-excluded` (--ok / --warn / --bad). app.ts `courseTable` prepends it
+    to `.cell-note` and strikes through on `mark === 'excluded'` (was a text regex).
+    `verdictsBlock` ("What the DGS's rules say") is gone from external-upload.ts, with its CSS.
+  - `src/transcript/external.ts` `buildReviewRequest`: greeting "Dear DGS,"; `detailGroups` are
+    `{ heading, rows }` with `detailHeaders` — HTML `<table>` per group, text rows joined with
+    " | " under a header line. app.ts review card: DGS mailto only; toasts say "email it to the
+    DGS". e2e drive-transcript.mjs asserts the card no longer says "Grad Admin".
+  - `src/ui/advisor-summary.ts` v3: sections = `report.requirements` grouped by `r.group` in
+    first-seen order minus informational / not_applicable / the "Approvals" group; `STATUS_TAG`
+    (word + colour) per status; HTML tables Status · Requirement · § · Why (· Deadline); text
+    rows `  [TAG] title (§) — why. Deadline.`; `actionItems(report)` → `{ student, advisor, dgs }`
+    keyed on REQUIREMENT_IDS with regexes over the detail text (`textOf` joins detailParts):
+    remaining credits/semesters from "X of Y", the seminar's "CSE 63802: not yet", the
+    categories' "below the B floor: …", the approvals row's `{lead, items}` ("COURSE (reason)" →
+    advisor if the reason names the advisor, DGS if it names the DGS/review; the student sends the
+    request), plan-of-study statement → advisor, missing parameter → DGS; dissertation items only
+    when `phd.candidacy` is met. New engine detail phrasings need matching rules here — the
+    tests in advisor-summary.test.ts pin every rule.
 - **Advisor summary redesigned for busy advisors** (2026-09-06, DGS: "they include too much
   information … make them more legible to busy advisors who will just wonder what requirements
   are not met and why, and until when the requirements must be met"). `advisorSummary()` moved

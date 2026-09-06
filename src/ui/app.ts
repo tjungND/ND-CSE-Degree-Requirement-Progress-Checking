@@ -9,12 +9,13 @@ import { classify } from '../engine/allocate.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
-import type { CourseEntry, Season, Student, Term } from '../engine/types.ts';
+import type { CourseEntry, CourseLine, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, option } from './dom.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
+import { statusMark } from './marks.ts';
 import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, scoreLine } from './report.ts';
@@ -39,6 +40,7 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
   completed: 'Completed prior M.S. or Ph.D.',
 };
 const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
+
 
 export function startApp(root: HTMLElement, rules: Rules): void {
   // Sheet-driven contacts (2026-09-04): must run before ANYTHING renders —
@@ -577,7 +579,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
 
   // ---------- coursework ----------
 
-  function coursesCard(courseLines: { courseId: string; term: Term; text: string }[]): HTMLElement {
+  function coursesCard(courseLines: { courseId: string; term: Term; text: string; mark: CourseLine['mark'] }[]): HTMLElement {
     // The GPA lives here, next to the transcript import that prefills it
     // (moved from the standing card — DGS request, 2026-09-03).
     const gpaInput = el('input', {
@@ -814,8 +816,6 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'Decisions are made only by email: '),
         'copy the review request and send it to the DGS (',
         mailto(DGS.email),
-        ') and the Grad Admin (',
-        mailto(GRAD_ADMIN.email),
         '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing.',
       ),
       ...ndReq.map((r, i) => line(r.courseId, i < nd.length ? 'Notre Dame' : 'Notre Dame, before entry', r.reason)),
@@ -833,8 +833,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                 .then(({ buildCombinedReviewRequest }) =>
                   copyReviewRequest(buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq })),
                 )
-                .then(() => toast('Review request copied — email it to the DGS and the Grad Admin, and attach your transcript PDFs. (Nothing is sent by this page.)'))
-                .catch(() => toast('Could not copy automatically — please email the DGS and the Grad Admin with your course ids, credits, grades and terms.'));
+                .then(() => toast('Review request copied — email it to the DGS and attach your transcript PDFs. (Nothing is sent by this page.)'))
+                .catch(() => toast('Could not copy automatically — please email the DGS your course ids, credits, grades and terms.'));
             },
           },
           `Copy review request for ${n} course${n === 1 ? '' : 's'}`,
@@ -1360,7 +1360,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   // above each table carries the university and transcript, so the rows stay
   // uniform. The original index is kept so the delete/assign controls edit
   // the right entry.
-  function courseTable(courseLines: { courseId: string; term: Term; text: string }[], entries: { c: CourseEntry; index: number }[]): HTMLElement {
+  function courseTable(courseLines: { courseId: string; term: Term; text: string; mark: CourseLine['mark'] }[], entries: { c: CourseEntry; index: number }[]): HTMLElement {
     const table = el('table', { class: 'courses stack' });
     table.append(
       el(
@@ -1388,7 +1388,11 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('div', { class: 'ctitle' }, c.title ?? rule?.title ?? ''),
       );
       if (rule?.notes) nameCell.title = rule.notes;
-      const countsCell = el('td', { class: 'counts cell-note' }, line?.text ?? '');
+      // The line's colour (DGS request 2026-09-06): green = earns credit or a
+      // core area now, amber = in progress or counted only until an approval,
+      // red = earns nothing. A shape per colour, and a spoken word, so the
+      // meaning does not rest on colour alone (WCAG 1.4.1).
+      const countsCell = el('td', { class: 'counts cell-note' }, ...(line ? [statusMark(line.mark), line.text] : []));
       if (rule?.categoryGroup === 'any' && student.program === 'phd') {
         const sel = el('select', {
           'aria-label': `Specialization group for ${c.courseId}`,
@@ -1407,8 +1411,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       }
       // Strike through only courses that count NOTHING — a course partly over
       // a cap still counts its allowed credits.
-      const countsNothing =
-        line !== undefined && /^(not counted|superseded|failed|credits count once)/.test(line.text);
+      const countsNothing = line?.mark === 'excluded';
       // Remove: a named button, and an Undo instead of a confirm dialog
       // (usability review 2026-09-05, item 25) — the row comes back in place.
       const removeButton = el(

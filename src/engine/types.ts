@@ -171,6 +171,10 @@ export interface CourseLine {
   courseId: string;
   term: Term;
   text: string;
+  /** How the page paints the line (2026-09-06): green (earns credit or a core
+   * area now), amber (in progress, or counted only until an approval), red
+   * (earns nothing). */
+  mark: 'counts' | 'pending' | 'excluded';
 }
 
 export interface AuditReport {

@@ -52,6 +52,13 @@ export interface ClassifiedCourse {
   effectiveCredits?: number;
 }
 
+/** The colour of a course's line (DGS request 2026-09-06 — "pending review
+ * amber, counts after review green, does not count red"): `counts` = credit
+ * (or a §4.4.1 core area) is earned now; `pending` = in progress, or counted
+ * only provisionally until an advisor/DGS approval; `excluded` = earns
+ * nothing (over a cap, failed, ineligible, not relevant). */
+export type CourseMark = 'counts' | 'pending' | 'excluded';
+
 export interface CourseAllocation {
   course: ClassifiedCourse;
   countedRegular: number;
@@ -59,6 +66,7 @@ export interface CourseAllocation {
   excluded: number;
   excludedReason?: string;
   explanation: string; // the per-course line shown to the student
+  mark: CourseMark;
 }
 
 export interface AllocationResult {
@@ -196,19 +204,22 @@ export function classify(student: Student, rules: Rules): {
       // §4.4.1 core knowledge has no such restriction, so the course stays
       // visible to the core check (coreRows reads classified regardless).
       // The per-course line focuses on the ONE thing an undergraduate course
-      // can do — demonstrate a core-knowledge area (DGS request 2026-09-04).
+      // can do — demonstrate a core-knowledge area (DGS request 2026-09-04;
+      // shortened 2026-09-06: a course that cannot is simply "not relevant to
+      // the core knowledge requirement (§4.4.1)" — the coursework heading
+      // already says undergraduate credits never transfer).
       if (c.degreeLevel === 'bachelors') {
         const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
         const suggested = coreTitleSuggestion(c.title);
         return {
           ...extBase,
           ineligibleReason: confirmedArea
-            ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS; no transfer credit (undergraduate, §5.2)`
+            ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
             : ndCoreArea
-              ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules; no transfer credit (undergraduate, §5.2)`
+              ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules`
               : suggested
-                ? `not counted — undergraduate credits never transfer (§5.2); the title suggests the ${suggested} core area (§4.4.1), which the DGS can confirm — send the review request`
-                : 'not counted — undergraduate credits never transfer (§5.2)',
+                ? `may satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review; send the review request`
+                : 'not relevant to the core knowledge requirement (§4.4.1)',
         };
       }
       // Graduate courses (2026-09-04): §5.2 transfer credit is not the only
@@ -216,15 +227,19 @@ export function classify(student: Student, rules: Rules): {
       // matches the core keywords may satisfy §4.4.1 core knowledge after the
       // DGS's review, and its line says so. (A DGS-ruled course is decided.)
       const suggested = external === undefined && ndCoreArea === undefined ? coreTitleSuggestion(c.title) : undefined;
-      const coreNote = ndCoreArea
-        ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
-        : suggested
-          ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
-          : '';
+      // A DGS-confirmed core area is said on the line itself (2026-09-06 —
+      // the separate "What the DGS's rules say" block is gone).
+      const coreNote = external?.satisfiesCoreArea
+        ? `; satisfies the ${areaName(external.satisfiesCoreArea)} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
+        : ndCoreArea
+          ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
+          : suggested
+            ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
+            : '';
       if (external?.transferable === false) {
         return {
           ...extBase,
-          ineligibleReason: `not counted — the DGS has ruled this ${external.university} course non-transferable (external-course rules)`,
+          ineligibleReason: `not counted — the DGS has ruled this ${external.university} course non-transferable (external-course rules)${coreNote}`,
         };
       }
       // §5.2: "grades of 'B' (3.0 on 4.0 scale) or better were achieved" and
@@ -250,10 +265,10 @@ export function classify(student: Student, rules: Rules): {
         approvalPending: attested
           ? undefined
           : external?.transferable === true
-            ? 'pre-approved in the DGS’s external-course rules — to transfer it, send the §5.2 credit-transfer request to the Grad Admin'
+            ? `pre-approved in the DGS’s external-course rules — to transfer it, send the §5.2 credit-transfer request to the Grad Admin${coreNote}`
             : external
-              ? 'transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)'
-              : `transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm')}`,
+              ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
+              : `transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
       };
     }
 
@@ -414,7 +429,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       countedOther: isRegular ? 0 : counted,
       excluded,
       excludedReason,
-      explanation: buildExplanation(cc, counted, excluded, excludedReason),
+      ...buildExplanation(cc, counted, excluded, excludedReason),
     });
   };
 
@@ -448,7 +463,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       countedOther: 0,
       excluded: cc.entry.credits,
       excludedReason: cc.ineligibleReason,
-      explanation: buildExplanation(cc, 0, cc.entry.credits, cc.ineligibleReason),
+      ...buildExplanation(cc, 0, cc.entry.credits, cc.ineligibleReason),
     });
   }
 
@@ -483,12 +498,19 @@ function bestMultiOrder(
   return best?.order ?? multis;
 }
 
+/** The per-course line and its colour (DGS request 2026-09-06). A credit that
+ * is only counted PROVISIONALLY — until an advisor/DGS approval — is not
+ * presented as counting: its line leads with "pending DGS review — would
+ * count …", amber; an in-progress credit leads with "in progress — will
+ * count … when passed", amber; a definite credit "counts toward …", green;
+ * a credit that earns nothing "not counted — …", red. The mark is what the
+ * page paints; the words carry the same fact for print and copies. */
 function buildExplanation(
   cc: ClassifiedCourse,
   counted: number,
   excluded: number,
   excludedReason?: string,
-): string {
+): { explanation: string; mark: CourseMark } {
   const parts: string[] = [];
   const poolName =
     cc.pool === 'regular'
@@ -498,22 +520,37 @@ function buildExplanation(
         : cc.pool === 'seminar'
           ? 'the research seminar requirement'
           : 'the total-credit requirement only';
+  const total = cc.effectiveCredits ?? cc.entry.credits;
+  const lead =
+    cc.tier === 'provisional' ? 'pending DGS review — would count' : cc.tier === 'in_progress' ? 'in progress — will count' : 'counts';
+  const tail = cc.tier === 'provisional' ? ' once approved' : cc.tier === 'in_progress' ? ' when passed' : '';
+  let mark: CourseMark;
   if (counted > 0 && excluded > 0) {
+    mark = cc.tier === 'definite' ? 'counts' : 'pending';
     parts.push(
-      `${counted} of ${cc.effectiveCredits ?? cc.entry.credits} credits count toward ${poolName}; ${excluded} not counted — ${excludedReason ?? ''}`,
+      `${lead.replace(/counts$/, 'count')} ${counted} of ${total} credits toward ${poolName}${tail}; ${excluded} not counted — ${excludedReason ?? ''}`,
     );
   } else if (counted > 0) {
-    parts.push(`counts toward ${poolName} (${counted} cr)`);
+    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    parts.push(`${lead} toward ${poolName} (${counted} cr)${tail}`);
     if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
       parts.push(`counted as ${cc.effectiveCredits} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} per the DGS’s pro-rata value (transcript shows ${cc.entry.credits}; §5.2)`);
     }
     if (cc.caps.includes('fourk')) parts.push('uses the 40000-level allowance');
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
-    if (cc.caps.includes('transfer')) parts.push('transfer credit (§5.2)');
+    // The pending note already says "transfer — …(§5.2)"; say it once.
+    if (cc.caps.includes('transfer') && !/^transfer/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');
   } else {
     const reason = excludedReason ?? 'not counted';
-    parts.push(/not counted|superseded|failed|^satisfies/.test(reason) ? reason : `not counted — ${reason}`);
+    // An undergraduate course that satisfies (green) or may satisfy (amber) a
+    // §4.4.1 core area earns no credit but is not "excluded" either.
+    mark = /^satisfies/.test(reason) ? 'counts' : /^may satisfy/.test(reason) ? 'pending' : 'excluded';
+    parts.push(/not counted|not relevant|superseded|failed|^satisfies|^may satisfy/.test(reason) ? reason : `not counted — ${reason}`);
+    // A course that earns nothing anyway does not need the approval note —
+    // the review request still lists it (DGS 2026-09-06: the old suffix read
+    // as if a review could make it count).
+    return { explanation: parts.join('; '), mark };
   }
   if (cc.approvalPending) parts.push(cc.approvalPending);
-  return parts.join('; ');
+  return { explanation: parts.join('; '), mark };
 }
