@@ -1,7 +1,7 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-06, ~14:30 UTC (end of the Cowork session that ran Sep 4–6; work continues in
-Claude Code on the DGS's Mac from here — see "Session protocol" in `CLAUDE.md`).
+Last updated: 2026-09-06, ~15:00 UTC (end of the Cowork session that ran Sep 4–6; work continues in
+Claude Code Desktop on the DGS's Mac from here — see "Session protocol" in `CLAUDE.md`).
 
 ## Deployed
 
@@ -58,15 +58,16 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
 
 ## Working in Claude Code Desktop (the Code tab)
 
-- Every Desktop session works in its own git worktree under `.claude/worktrees/<name>/` on a branch
-  `worktree-<name>`, branched from `origin/main` — so the DGS pushes `main` BEFORE starting a session,
-  and the session's first step is `npm ci` (a worktree is a fresh checkout without `node_modules`).
-- Commits land on the worktree branch (authored by the DGS's global git identity). To ship: in
-  Terminal, `cd ~/degree-audit-app && git merge --ff-only worktree-<name> && git push`, then archive the
-  session in the sidebar (that removes the worktree and branch). If `main` moved meanwhile, ask the
-  session to `git fetch && git merge origin/main` first.
-- Claude never pushes; `Continue in → Claude Code on the Web` and `Create PR` would push a branch, so
-  the DGS does not use them for this repo.
+- One long-lived session for this repo, never archived. Desktop runs it in its own git worktree under
+  `.claude/worktrees/<name>/` on the branch `worktree-<name>`, created from `origin/main` — so the DGS
+  pushes `main` before starting the session, and the session runs `npm ci` first.
+- The cycle: the DGS asks → Claude changes, verifies, shows the result → revisions → Claude commits on
+  the branch (fetching and merging `origin/main` first, since the sheet-sync Action commits there) →
+  Claude ends with the one Terminal line the DGS pastes to merge and push:
+  `cd ~/degree-audit-app && git pull --ff-only && git merge --ff-only <branch> && git push`.
+  GitHub Pages deploys `main` within a minute or two.
+- Claude never pushes; "Continue in → Claude Code on the Web" and "Create PR" would push a branch, so
+  they are not used for this repo.
 
 ## FERPA reminders that survive every session
 
