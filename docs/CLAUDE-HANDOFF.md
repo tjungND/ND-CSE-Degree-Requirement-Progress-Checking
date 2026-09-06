@@ -101,6 +101,30 @@ Known-pending (the app's diagnostics panel is the live truth):
   with ZERO violations on both pages) — `axe-core` is a devDependency for this only (MPL-2.0,
   never shipped); `E2E_ONLY=<substring>` runs one driver. The review's findings, evidence and the
   remaining Phases 1–2 live in the project doc `degree-audit-app-usability-review.md`.
+- **Advisor summary redesigned for busy advisors** (2026-09-06, DGS: "they include too much
+  information … make them more legible to busy advisors who will just wonder what requirements
+  are not met and why, and until when the requirements must be met"). `advisorSummary()` moved
+  out of report.ts into its own DOM-free module `src/ui/advisor-summary.ts` (app.ts and the test
+  import it from there). Shape — inverted pyramid: subject line "Degree self-check — Ph.D.,
+  entered Fall 2026 — 6 requirements not yet met, 1 deadline passed"; one standing paragraph
+  (date in words via `formatYmdLong`, program, entry term, prior study, GPA, then the counts as
+  the page headline counts them — informational and does-not-apply rows outside); NOT YET MET as
+  a numbered list (name red-bold/`**…**` per 2026-09-04, §, why, deadline — overdue first, then
+  nearest deadline, then handbook order); NEEDS DGS REVIEW; CANNOT EVALUATE (only when any); IN
+  PROGRESS (first statement of the detail only, deadline if any); "Met:" names on one line;
+  does-not-apply rows, the course list, the separate DEADLINES block, the per-line
+  "(approximate)" and the PDF/coverage caveats are GONE (one deadline footnote + alpha notice +
+  handbook edition remain). Deadlines read "Due by the end of Spring 2028" / "Deadline passed
+  (was due during Spring 2028)" — semesters (2026-09-05), the passed one red bold in HTML.
+  `whyFor(r, firstStatementOnly)` re-voices the engine's student-facing detail for the email:
+  statements from `detailParts` (or `detail` split at sentence ends, sparing M.S./Ph.D./e.g.)
+  minus page instructions (checkbox/attestation/tick/course rules page/self-check page), minus
+  "Talk to…"/"Ask the DGS…", minus "Overdue —" when the row's deadline is overdue; `REWRITES`
+  restate two page instructions as facts (plan-of-study attestation, "Enter your cumulative
+  GPA"); you/your → I/my (the student writes). An unmet row left with nothing says "Not yet."
+  When an engine detail gains a new "do this on the page" sentence, add it to the drop regex or
+  `REWRITES`. Example Ph.D. record: 766 → ~430 words, HTML 7.5 → 4 KB. Tests:
+  `tests/advisor-summary.test.ts` (16 — structure, ordering, both flavors, `whyFor`).
 - **"Grad Admin"** (2026-09-06, DGS): the Graduate Program Administrator is "Grad Admin" everywhere
   after the contact card's "Graduate Program Administrator (Grad Admin)" — `GRAD_ADMIN` in
   contacts.ts is found by `role.startsWith('Graduate Program Administrator')`; the email greeting
@@ -113,7 +137,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   entries) and re-run `npm run e2e`). Mechanics worth knowing: `noticeStrip()` in app.ts replaced
   `betaNotice()` + `privacyNotice()` — one `.banner.beta.notice-strip` with two one-line
   paragraphs and a `<details class="notice-details">` holding the full DGS paragraphs (the footer
-  and `advisorSummary` still use the full constants). `radios(keyPrefix, options, current,
+  still uses the full constants; the advisor summary dropped them on 2026-09-06). `radios(keyPrefix, options, current,
   onPick)` builds a radio group with per-option `data-key`s (`standing.prior.<value>`,
   `standing.msOption.<value>`) — drive-a11y.mjs's focus check presses ArrowDown on
   `standing.prior.none`. Both previews re-render on every checkbox tick so the Add button's count
@@ -368,9 +392,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   the course rules"); prior ND graduate courses are ordinary §5.2 transfers (rulings under
   UNIVERSITY OF NOTRE DAME). The coursework card heads them "Notre Dame, before entering the
   program — undergraduate/graduate coursework"; the Bachelor's/Master's slot rows show and
-  Remove them. `advisorSummary` adds a DEADLINES block (date order, "counted from <entry
+  Remove them. `advisorSummary` added a DEADLINES block (date order, "counted from <entry
   term>") and "Due by <date>" / "overdue — was due by <date>" per requirement line, with a
-  Deadline column in the HTML tables. Tests: transcript.test.ts (COMBINED fixture),
+  Deadline column in the HTML tables (the block went on 2026-09-06 — each line carries its own
+  deadline now). Tests: transcript.test.ts (COMBINED fixture),
   prior-nd.test.ts, scenario phd-nd-undergrad-before-entry, advisor-summary.test.ts,
   engine-units (residency guard); the e2e ND fixture is now a combined transcript (B.S. awarded
   May 2026, two UG terms) and step 2 checks the checkbox, the prior-row ticks, the standing-card
@@ -426,8 +451,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   `pdfToLines` with `pdfjs-dist/legacy/build/pdf.mjs` (pdf.ts itself has a Vite `?url` import)
   and feed `runsToLines` — never commit the transcript.
 - **Advisor summary: unmet names in red bold** (2026-09-04, DGS): in `advisorSummary()`
-  (report.ts) the HTML `table()` helper now takes cells that are either plain strings (escaped)
-  or `{ html }` (pre-escaped markup); `titleCell(r)` wraps a status-`unmet` title in
+  (now src/ui/advisor-summary.ts) the HTML `table()` helper now takes cells that are either plain strings (escaped)
+  or `{ html }` (pre-escaped markup); `nameCell(r)` (was `titleCell`) wraps a status-`unmet` title in
   `<strong style="color:#a81e14;font-weight:bold">` (inline — email clients drop stylesheets;
   the hex is the page's `--bad`), and the text flavor's `line()` wraps the same titles in `**…**`.
   Only `unmet` qualifies (DGS: needs-review / cannot-evaluate / in-progress are not "not met").
@@ -494,8 +519,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   courses page's offered-note says active ≠ currently offered.
 - **Rules on the output side + advisor summary** (2026-09-03, DGS): every requirement card's §
   chip is a button revealing `.rule-quote` — the handbook sentence from `citation.quote`; the
-  input-card intros stay lean (no policy prose). `advisorSummary()` in report.ts replaces
-  `summaryText()`: {text, html} clipboard flavors via `copyReviewRequest`, subject + greeting,
+  input-card intros stay lean (no policy prose). `advisorSummary()` (then in report.ts, now
+  src/ui/advisor-summary.ts) replaced `summaryText()`: {text, html} clipboard flavors via `copyReviewRequest`, subject + greeting,
   standing line (program/entry/prior study/GPA), requirements grouped attention-first with
   details, courses as counted, notices. Button: "Copy summary for your advisor". **Google sends NO Last-Modified (and no ETag) for published CSVs** — verified
   2026-09-01 by fetching all three tabs from the deployed page's own origin (exposed headers:

@@ -91,8 +91,9 @@ export function rulesDateLine(
 }
 
 /** "2026-09-01" → "September 1, 2026" as a calendar date (no time-zone shift);
- *  undefined for anything that is not YYYY-MM-DD. */
-function formatYmdLong(ymd: string): string | undefined {
+ *  undefined for anything that is not YYYY-MM-DD. Also used by the advisor
+ *  summary for its "as of" date. */
+export function formatYmdLong(ymd: string): string | undefined {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
   if (!m) return undefined;
   const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
