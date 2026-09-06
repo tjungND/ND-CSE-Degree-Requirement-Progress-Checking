@@ -166,17 +166,31 @@ export function importsBusy(): boolean {
  * single-level undergraduate transcript everything else is left out (and
  * counted, for the note); on a MIXED-level transcript (2026-09-05) such rows
  * stay visible but unticked, since the student may need to change a level. */
+/** Can this row matter? Graduate rows always (§5.2 transfer candidates);
+ * undergraduate rows only for §4.4.1 core knowledge — a core-keyword title, a
+ * DGS ruling, or (Notre Dame) a Courses-tab core area. Re-evaluated whenever
+ * the student changes a row's "Taken as" (2026-09-06). */
+function isRelevantRow(university: string, rules: Rules, r: PreviewRow): boolean {
+  return (
+    r.level === 'graduate' ||
+    CORE_TITLE_RE.test(r.title) ||
+    findExternalRule(rules.external, university, r.courseId) !== undefined ||
+    (isNotreDameInstitution(university) && r.year !== undefined && resolveRuleRow(rules, r.courseId, { season: r.season, year: r.year })?.coreArea !== undefined)
+  );
+}
+
+/** Why an undergraduate row that cannot matter is not selectable (DGS
+ * request 2026-09-06): shown on hover and read to screen readers. */
+const BLOCKED_ROW_NOTE =
+  'Not selectable: this course is not related to the core-knowledge areas (Algorithms, Operating Systems, Computer Architecture — §4.4.1), and undergraduate credits do not transfer (§5.2), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
+
 function keepRelevantRows(
   university: string,
   rules: Rules,
   rows: PreviewRow[],
   mixed: boolean,
 ): { rows: PreviewRow[]; omitted: number } {
-  const relevant = (r: PreviewRow) =>
-    r.level === 'graduate' ||
-    CORE_TITLE_RE.test(r.title) ||
-    findExternalRule(rules.external, university, r.courseId) !== undefined ||
-    (isNotreDameInstitution(university) && r.year !== undefined && resolveRuleRow(rules, r.courseId, { season: r.season, year: r.year })?.coreArea !== undefined);
+  const relevant = (r: PreviewRow) => isRelevantRow(university, rules, r);
   if (mixed) {
     for (const r of rows) {
       if (!relevant(r)) {
@@ -631,10 +645,17 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   // 5): a screen reader says "Credits for CS 25100", not just "spin button".
   const rowEls = p.rows.map((r, i) => {
     const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
+    // An undergraduate row that cannot matter is not selectable (DGS request
+    // 2026-09-06): the box is disabled and the row explains why on hover; a
+    // change of "Taken as" re-renders, so the box follows the level.
+    const blocked = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r);
+    if (blocked) r.include = false;
+    const noteId = `ext-row-${i}-note`;
     const cb = el('input', {
       type: 'checkbox',
       'aria-label': `Add ${who()}`,
       'data-key': `ext.row.${i}.include`,
+      ...(blocked ? { disabled: 'disabled', 'aria-describedby': noteId, title: BLOCKED_ROW_NOTE } : {}),
       onchange: (e) => {
         r.include = (e.target as HTMLInputElement).checked;
         render(); // the Add button's count follows (item 13)
@@ -673,13 +694,27 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     // Taken as (2026-09-05): the level decides Bachelor's vs graduate coursework on add.
     const levelSel = el('select', { class: 'row-level', 'aria-label': `Taken as (level) for ${who()}`, 'data-key': `ext.row.${i}.level` });
     levelSel.append(option('undergraduate', 'Undergraduate', r.level === 'undergraduate'), option('graduate', 'Graduate', r.level === 'graduate'));
-    levelSel.addEventListener('change', () => (r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level']));
+    levelSel.addEventListener('change', () => {
+      r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level'];
+      r.levelSource = 'slot'; // the student decided — no longer "by the rule"
+      // A row that becomes relevant is offered ticked, like every other
+      // relevant row; one that becomes irrelevant is unticked and locked.
+      if (!(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r))) r.include = true;
+      render();
+    });
     const tr = el(
       'tr',
-      { class: [r.lowConfidence ? 'ocr-low' : '', r.irrelevant ? 'prior-row' : ''].join(' ').trim() },
-      el('td', { class: 'cell-check' }, r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null, cb),
+      { class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : ''].join(' ').trim(), ...(blocked ? { title: BLOCKED_ROW_NOTE } : {}) },
+      el(
+        'td',
+        { class: 'cell-check' },
+        r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null,
+        cb,
+        blocked ? el('span', { id: noteId, class: 'visually-hidden' }, BLOCKED_ROW_NOTE) : null,
+      ),
       el('td', { class: 'cell-course', 'data-label': 'Course id' }, idIn),
-      el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn),
+      // A visible tag as well as the hover text — touch screens have no hover.
+      el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn, blocked ? el('span', { class: 'blocked-tag', 'aria-hidden': 'true' }, 'not selectable — hover for why') : null),
       el('td', { class: 'cell-meta', 'data-label': 'Credits' }, crIn),
       el('td', { class: 'cell-meta', 'data-label': 'Grade' }, gradeSel),
       el('td', { class: 'cell-meta', 'data-label': 'Term' }, seasonSel),
@@ -690,7 +725,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   });
   table.append(...rowEls);
   const selectAll = (on: boolean) => {
-    for (const r of p.rows) r.include = on;
+    for (const r of p.rows) r.include = on && !(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r));
     render();
   };
   box.append(

@@ -69,6 +69,12 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const gpa = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
   console.log('  GPA prefilled from transcript:', gpa);
   if (!gpa) throw new Error('cumulative GPA was not prefilled');
+  // The Notre Dame row now names what it added and offers Remove (2026-09-06),
+  // like a previous-university slot — and the import stays available.
+  const ndRow = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
+  if (!ndRow.includes('7 courses from your transcript') || !ndRow.includes('Import again') || !(await s.evalJs(`!!document.querySelector('[data-key="import.nd.remove"]')`))) {
+    throw new Error('the Notre Dame row must show the imported count, Remove and Import again: ' + ndRow.slice(0, 160));
+  }
   // The standing card now shows the term read from the transcript, flagged.
   const entryNote = await s.evalJs(`document.querySelector('.entry-note')?.textContent ?? ''`);
   const entryYear = await s.evalJs(`document.querySelector('.card input[type=number][max="2040"]')?.value`);
@@ -125,9 +131,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.waitFor(`!document.querySelector('.external-card .transcript-preview') && [...document.querySelectorAll('h3.subhead')].some(h => h.textContent.includes('Purdue University'))`);
   // The DGS's rulings live on each course's line in the coursework table
   // (2026-09-06 — the separate verdicts block was removed as redundant): the
-  // 3 Purdue courses are pending transfer review, amber; the prior Notre Dame
-  // undergraduate course (CSE 30321, filed under the Bachelor's slot by the
-  // combined import) may satisfy a core area, amber too.
+  // 3 Purdue courses are unreviewed §5.2 transfer CANDIDATES, amber (later
+  // the same day: only CSE-related courses transfer, the DGS decides, so
+  // every unreviewed graduate course is a candidate, never "would count");
+  // the prior Notre Dame undergraduate course (CSE 30321, filed under the
+  // Bachelor's slot by the combined import) may satisfy a core area, amber too.
   // Rows of the table under a coursework heading (the coursework card groups
   // courses by university + transcript).
   const groupLines = (heading) => s.evalJs(`(() => {
@@ -137,10 +145,17 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   const purdueLines = await groupLines('Purdue University — Previous Master’s Transcript');
   console.log('  Purdue transfer lines:', JSON.stringify(purdueLines));
-  const pendingPurdue = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('pending DGS review — would count toward regular courses') && l.includes('not yet reviewed by the DGS'));
-  const overCap = purdueLines.filter((l) => l.includes('mark-excluded') && l.includes('over the transfer-credit cap'));
-  if (purdueLines.length !== 3 || pendingPurdue.length + overCap.length !== 3 || pendingPurdue.length < 2) {
-    throw new Error('expected the 3 Purdue lines to be amber "pending DGS review — would count …" (or red over the cap; the sandbox has no ExternalCourses tab)');
+  const candidates = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('pending DGS review — candidate for transfer credit (§5.2)'));
+  const wouldCount = candidates.filter((l) => l.includes('would count toward regular courses'));
+  if (purdueLines.length !== 3 || candidates.length !== 3 || wouldCount.length < 2) {
+    throw new Error('expected the 3 Purdue lines to be amber transfer candidates, at least two "would count toward regular courses … if the DGS approves it" (the sandbox has no ExternalCourses tab)');
+  }
+  const groupHint = await s.evalJs(`(() => {
+    const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('Purdue University — Previous Master’s Transcript'));
+    return h?.nextElementSibling?.matches('p.hint') ? h.nextElementSibling.textContent : '';
+  })()`);
+  if (!groupHint.includes('only CSE-related courses transfer') || !groupHint.includes('every graduate course here is a candidate')) {
+    throw new Error('the transfer group must explain the candidate rule once above the table: ' + groupHint.slice(0, 160));
   }
   const priorNdLines = await groupLines('Notre Dame, before entering the program — undergraduate coursework');
   if (!priorNdLines.some((l) => l.startsWith('CSE 30321') && l.includes('mark-pending') && l.includes('may satisfy the Computer Architecture core-knowledge requirement'))) {
@@ -330,4 +345,41 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.shot('nd-in-previous-slot');
   await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
   await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
+
+  // 9) The Notre Dame transcript is removable like the others (2026-09-06):
+  //    Remove takes back exactly what the import added — the 5 program
+  //    courses and the transcript's own transfer-credit line (the prior
+  //    undergraduate row went with the Bachelor's slot in 3b) — plus the GPA
+  //    it filled in; the hand-typed MATH 60610 and the external courses stay.
+  //    Undo puts everything back.
+  const gpaBefore = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
+  const idsBefore = await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`);
+  const ndRowBefore = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
+  if (!ndRowBefore.includes('6 courses from your transcript')) throw new Error('ND row count before Remove: ' + ndRowBefore.slice(0, 120));
+  await s.evalJs(`document.querySelector('[data-key="import.nd.remove"]').click()`);
+  await s.waitFor(`!document.querySelector('[data-key="import.nd.remove"]')`);
+  const idsAfterRemove = await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`);
+  const headingsAfterRemove = await s.evalJs(`[...document.querySelectorAll('h3.subhead')].map(h => h.textContent)`);
+  const gpaAfterRemove = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
+  const removeToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
+  console.log('  after ND Remove:', JSON.stringify(idsAfterRemove), '| GPA:', JSON.stringify(gpaAfterRemove), '|', removeToast.slice(0, 120));
+  // The transcript's transfer-credit line (CS 50300 from Purdue, no degree
+  // slot) had its own "graduate coursework (§5.2)" group — gone with it.
+  if (idsAfterRemove.length !== idsBefore.length - 6 || idsAfterRemove.some((id) => /^CSE 6/.test(id)) || headingsAfterRemove.includes('Purdue University — graduate coursework (§5.2)')) {
+    throw new Error('ND Remove must take back exactly the 6 transcript rows: ' + JSON.stringify(headingsAfterRemove));
+  }
+  if (!idsAfterRemove.includes('MATH 60610') || !idsAfterRemove.includes('CS 58000')) throw new Error('ND Remove must keep hand-typed and external rows');
+  if (gpaAfterRemove !== '') throw new Error('ND Remove must clear the GPA the transcript filled in');
+  if (!removeToast.startsWith('6 courses from your Notre Dame transcript removed, and the GPA it filled in.')) throw new Error('ND Remove toast wrong: ' + removeToast.slice(0, 120));
+  const ndRowAfter = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
+  if (!ndRowAfter.includes('Import from PDF (alpha)') || ndRowAfter.includes('from your transcript')) throw new Error('ND row after Remove: ' + ndRowAfter.slice(0, 120));
+  await s.shot('nd-removed');
+  await s.evalJs(`document.querySelector('.toast .toast-action').click()`);
+  await s.waitFor(`document.querySelector('[data-key="import.nd.remove"]')`);
+  const idsAfterUndo = await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`);
+  const gpaAfterUndo = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
+  if (!idsAfterUndo.includes('CSE 60641') || idsAfterUndo.length !== idsAfterRemove.length + 6 || gpaAfterUndo !== gpaBefore) {
+    throw new Error(`Undo must restore the 6 rows and the GPA (${gpaBefore} → ${gpaAfterUndo}; ${idsAfterRemove.length} → ${idsAfterUndo.length} rows)`);
+  }
+  console.log('  ND transcript removed (rows + GPA) and restored with Undo');
 }

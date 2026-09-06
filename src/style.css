@@ -279,7 +279,7 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .transcript-upload { margin: 0 0 12px; }
 .transcript-upload .btn { margin-left: 0; }
 .hint-inline { color: var(--muted); font-size: 12.5px; }
-.transcript-preview { border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #fffdf5; overflow-x: auto; position: relative; }
+.transcript-preview { border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #fffdf5; overflow-x: auto; position: relative; container-type: inline-size; } /* container-type: the editable preview lays itself out by ITS width (2026-09-06) */
 .transcript-preview h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
 .transcript-preview .save-buttons { margin-top: 10px; }
 
@@ -402,21 +402,26 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .external-slot:last-of-type { border-bottom: 0; }
 .external-slot .slot-label { font-weight: 600; color: var(--navy); min-width: 140px; display: inline-block; }
 .external-card .transcript-preview input, .external-card .transcript-preview select { padding: 4px 6px; font-size: 13px; max-width: 130px; }
+.external-card .transcript-preview .field input { width: 100%; max-width: 420px; } /* the university name in full (2026-09-06) */
 /* Eight columns must fit the inputs column at 1400px (2026-09-05, "Taken as" added): tight widths per field. */
 .external-card .transcript-preview input.course-id { width: 80px; }
 .external-card .transcript-preview td.cell-title { width: 100%; } /* the title takes the free width (item 13) */
 .external-card .transcript-preview input.course-title { width: 100%; min-width: 120px; max-width: none; }
 /* Fields the transcript supplied are shown, not edited (2026-09-06): the course number in bold like
    the coursework table, the title in the running text colour, the university as a read-only input. */
-.external-card .transcript-preview .course-id.locked { font-weight: 700; white-space: nowrap; }
+.external-card .transcript-preview .course-id.locked { font-weight: 700; }
 .external-card .transcript-preview .course-title.locked { color: var(--ink); }
 .external-card .transcript-preview input.locked { background: #f1f3f5; color: var(--ink); cursor: default; }
 .external-card .transcript-preview input[type="number"][max="30"] { width: 46px; }
 .external-card .transcript-preview input[type="number"][max="2040"] { width: 58px; }
 .external-card .transcript-preview select { max-width: 74px; }
-.external-card .transcript-preview select.row-level { max-width: 124px; } /* Taken as: Undergraduate / Graduate */
+.external-card .transcript-preview select.row-level { max-width: 112px; } /* Taken as: Undergraduate / Graduate */
 .external-card .transcript-preview table.courses td, .external-card .transcript-preview table.courses th { padding: 6px 3px; }
 .transcript-preview tr.prior-row .cid, .transcript-preview tr.prior-row input.course-id, .transcript-preview tr.prior-row .course-id.locked { color: var(--muted); } /* rows filed as prior coursework / unticked as irrelevant */
+.transcript-preview tr.blocked-row .cell-check, .transcript-preview tr.blocked-row .course-title.locked { cursor: help; } /* the row explains itself on hover (2026-09-06) */
+.transcript-preview tr.blocked-row input[type="checkbox"][disabled] { cursor: not-allowed; }
+.transcript-preview tr.blocked-row .blocked-tag { display: block; font-size: 12px; color: var(--muted); font-style: italic; cursor: help; }
+.transcript-preview tr.blocked-row .course-title.locked { color: var(--muted); }
 .review-line { font-size: 13px; margin: 3px 0; color: var(--ink); }
 .review-line .cid { font-weight: 600; }
 
@@ -506,6 +511,36 @@ tr.ocr-low td { background: #fff7e0; }
   .external-card .transcript-preview table.courses.stack.edit input[type="number"][max="2040"] { width: 88px; }
   .external-card .transcript-preview table.courses.stack.edit select { max-width: none; }
   .transcript-preview tr.prior-row .cid { color: var(--muted); }
+}
+
+/* The editable preview when the PREVIEW is narrower than its eight-column table needs (~860 px —
+   which is every layout of this page: the two-column desktop layout leaves the card ~670 px, and
+   the one-column layout below 900 px at most ~810 px): one small form per course, every field
+   visible, nothing to scroll sideways (DGS request 2026-09-06). Keyed on the container, not the
+   viewport, because the inputs column is what the table has to fit in — a host page that embeds
+   the app in a wider column gets the table back. */
+@container (max-width: 860px) {
+  .transcript-preview table.courses.stack.edit, .transcript-preview table.courses.stack.edit tbody { display: block; width: 100%; }
+  .transcript-preview table.courses.stack.edit tr { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 3px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; background: var(--card); }
+  .transcript-preview table.courses.stack.edit tr:first-child { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+  .transcript-preview table.courses.stack.edit tr.ocr-low { background: #fff7e0; }
+  .transcript-preview table.courses.stack.edit tr::before { content: ''; order: 2; flex: 0 0 100%; height: 0; }
+  .transcript-preview table.courses.stack.edit td { display: block; border: 0; padding: 0; }
+  /* Line 1: tick, course id and title side by side (the title wraps to its
+     own line only when the card is too narrow); line 2: the small fields. */
+  .transcript-preview table.courses.stack.edit td.cell-check { order: 0; flex: 0 0 auto; }
+  .transcript-preview table.courses.stack.edit td.cell-course { order: 0; flex: 0 1 150px; min-width: 110px; }
+  .transcript-preview table.courses.stack.edit td.cell-title { order: 1; flex: 1 1 220px; min-width: 0; width: auto; }
+  .transcript-preview table.courses.stack.edit td.cell-meta { order: 3; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+  .transcript-preview table.courses.stack.edit td.cell-meta::before { content: attr(data-label); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .transcript-preview table.courses.stack.edit td.cell-course::before, .transcript-preview table.courses.stack.edit td.cell-title::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .transcript-preview table.courses.stack.edit input, .transcript-preview table.courses.stack.edit select { max-width: 100%; }
+  .transcript-preview table.courses.stack.edit input.course-id, .transcript-preview table.courses.stack.edit input.course-title { width: 100%; }
+  .transcript-preview table.courses.stack.edit .locked { display: block; }
+  .transcript-preview table.courses.stack.edit input[type="number"][max="30"] { width: 76px; }
+  .transcript-preview table.courses.stack.edit input[type="number"][max="2040"] { width: 88px; }
+  .transcript-preview table.courses.stack.edit select { max-width: none; }
+  .transcript-preview table.courses.stack.edit .cid { white-space: normal; }
 }
 
 /* ---------- courses.html on phones and tablets in portrait: cards instead of the 980 px table ---------- */

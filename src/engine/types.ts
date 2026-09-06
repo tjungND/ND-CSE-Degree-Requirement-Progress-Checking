@@ -46,6 +46,13 @@ export interface CourseEntry {
    * entry term changes — the level, not the term, decides bachelor's vs
    * master's prior coursework. */
   registeredLevel?: 'undergraduate' | 'graduate';
+  /** True on every row the Notre Dame transcript import added (2026-09-06) —
+   * program courses, pre-entry prior coursework and the transcript's own
+   * transfer-credit block alike — so the "Remove" button next to that import
+   * can take back exactly what it added and leave hand-entered rows alone.
+   * Absent on rows saved before this flag existed; those are removed one by
+   * one in the table, as before. */
+  fromNdTranscript?: true;
   /** transfer-only: §4.4.1 core area the student claims this course satisfies (decision Q12). */
   /** Deprecated 2026-09-03 (the claim path is retired — the DGS's
    * ExternalCourses rulings decide §4.4.1). Kept so old saved/imported

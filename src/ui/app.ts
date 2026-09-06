@@ -579,6 +579,17 @@ export function startApp(root: HTMLElement, rules: Rules): void {
 
   // ---------- coursework ----------
 
+  /** The §5.2 transfer cap that applies to this student, as the engine reads
+   * it (audit.ts capSpecs) — for the coursework card's explanation. */
+  function transferCapLimit(): string {
+    const key =
+      student.program === 'mscse'
+        ? student.priorMs === 'completed' ? 'ms_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max'
+        : student.priorMs === 'completed' ? 'phd_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max';
+    const n = rules.parameters.number(key);
+    return n === undefined ? 'a capped number of' : String(n);
+  }
+
   function coursesCard(courseLines: { courseId: string; term: Term; text: string; mark: CourseLine['mark'] }[]): HTMLElement {
     // The GPA lives here, next to the transcript import that prefills it
     // (moved from the standing card — DGS request, 2026-09-03).
@@ -647,6 +658,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       }
       g.entries.push(e);
     }
+    /** Does at least one course of this group carry the engine's "candidate
+     * for transfer credit" line (an unreviewed graduate course the handbook
+     * does not rule out)? */
+    const hasTransferCandidate = (entries: { c: CourseEntry }[]): boolean =>
+      entries.some(({ c }) =>
+        courseLines.some((l) => l.courseId === c.courseId && termIndex(l.term) === termIndex(c.term) && l.text.includes('candidate for transfer credit')),
+      );
     const card = el(
       'section',
       { class: 'card' },
@@ -671,7 +689,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
               { class: 'hint' },
               `Undergraduate credits do not transfer (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here${g.hidden > 0 ? ` — ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown` : ''}.`,
             )
-          : null,
+          : g.entries.some(({ c }) => !isNotreDameInstitution(c.institution)) && hasTransferCandidate(g.entries)
+            ? el(
+                'p',
+                { class: 'hint' },
+                // DGS 2026-09-06: every unreviewed graduate course is a candidate;
+                // the DGS decides which ones transfer, CSE-related only, within
+                // the cap — the lines below never rank the candidates. Said only
+                // above a group that still holds a candidate (a group whose only
+                // course the handbook rules out — grade, five-year window — would
+                // contradict it).
+                `Transfer credit (§5.2) is decided by the DGS course by course — only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate; the review request below asks for those rulings.`,
+              )
+            : null,
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
           : el('p', { class: 'empty' }, 'No core-area-relevant courses on this transcript.'),
@@ -954,16 +984,78 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           ),
         )
       : null;
-    return el(
-      'div',
-      { class: 'transcript-upload external-slot' },
+    // Everything the transcript import added can be taken back in one click,
+    // like a previous-university transcript (DGS request 2026-09-06): the
+    // rows it added (program courses, pre-entry prior coursework and the
+    // transcript's transfer-credit block — all flagged `fromNdTranscript`),
+    // the GPA it filled in, and a "Prior graduate study" it inferred. Rows
+    // typed by hand stay; so does the entry term, which the student can
+    // still change under Your standing. Undo instead of a confirm dialog.
+    const imported = student.courses.filter((c) => c.fromNdTranscript === true);
+    const importButton = el(
+      'button',
+      { class: 'btn tiny', disabled: blocked, 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() },
+      imported.length > 0 ? 'Import again' : 'Import from PDF (alpha)',
+    );
+    const parts: (Node | string)[] = [
       el('span', { class: 'slot-label' }, 'Notre Dame Unofficial Transcript'),
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
-      el('button', { class: 'btn tiny', disabled: blocked, 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF (alpha)'),
-      el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. Parsed courses are shown for your confirmation before anything is added.'),
-      fileInput,
-      errorBox,
-    );
+    ];
+    if (imported.length > 0) {
+      const n = imported.length;
+      parts.push(
+        el('span', {}, `${n} course${n === 1 ? '' : 's'} from your transcript `),
+        el(
+          'button',
+          {
+            class: 'btn tiny',
+            'aria-label': `Remove the ${n} course${n === 1 ? '' : 's'} imported from your Notre Dame transcript`,
+            'data-key': 'import.nd.remove',
+            onclick: () => {
+              const removed = student.courses.filter((c) => c.fromNdTranscript === true);
+              const before = { gpa: student.gpa, gpaSource: student.gpaSource, priorMs: student.priorMs, inferred: student.priorMsInferred };
+              focusAfterRender = 'import.nd';
+              update((s) => {
+                s.courses = s.courses.filter((c) => c.fromNdTranscript !== true);
+                if (s.gpaSource !== undefined) {
+                  s.gpa = undefined; // the transcript's figure — a hand-typed GPA has no gpaSource and stays
+                  s.gpaSource = undefined;
+                }
+                if (
+                  s.priorMsInferred === true &&
+                  !s.courses.some((c) => c.origin === 'transfer' && (c.degreeLevel === 'masters' || c.degreeLevel === 'phd'))
+                ) {
+                  s.priorMs = 'none';
+                  s.priorMsInferred = undefined;
+                }
+              });
+              toastWithAction(
+                `${removed.length} course${removed.length === 1 ? '' : 's'} from your Notre Dame transcript removed${before.gpaSource !== undefined ? ', and the GPA it filled in' : ''}.`,
+                'Undo',
+                () =>
+                  update((s) => {
+                    s.courses.push(...removed);
+                    s.gpa = before.gpa;
+                    s.gpaSource = before.gpaSource;
+                    s.priorMs = before.priorMs;
+                    s.priorMsInferred = before.inferred;
+                  }),
+              );
+            },
+          },
+          'Remove',
+        ),
+        ' · ',
+        importButton,
+        el('span', { class: 'hint-inline' }, ' — after new grades post, remove these and import the updated PDF; courses you typed in by hand are kept.'),
+      );
+    } else {
+      parts.push(
+        importButton,
+        el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. Parsed courses are shown for your confirmation before anything is added.'),
+      );
+    }
+    return el('div', { class: 'transcript-upload external-slot' }, ...parts, fileInput, errorBox);
   }
 
   /** Credit-weighted GPA of the graded Notre Dame courses from the entry term
@@ -1170,6 +1262,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                     origin: c.origin,
                     institution: c.institution,
                     registeredLevel: c.origin === 'nd' ? c.level : undefined,
+                    fromNdTranscript: true, // so "Remove" can take back exactly these rows
                   };
                   s.courses.push(entryCourse);
                 }

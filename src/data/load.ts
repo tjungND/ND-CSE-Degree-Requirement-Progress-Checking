@@ -141,19 +141,24 @@ function noteNewerSheet(rules: Rules): Rules {
 export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress) => void = () => {}): Promise<Rules> {
   onProgress({ step: 'connect' });
   const urls = sheetUrls as { courses: string; parameters: string; categories: string; external?: string };
+  // ONE tab at a time (2026-09-06). The tabs used to be fetched in parallel,
+  // and the page routinely took 12–30 s or timed out: Google's publish-to-web
+  // endpoint stalls the third and fourth SIMULTANEOUS requests for the same
+  // spreadsheet (measured from the DGS's Mac: any tab alone answers in
+  // 0.3–1 s, two at once are fine, three at once leave two hanging until the
+  // timeout). Sequential fetches finish in about two seconds altogether.
+  const courses = await fetchCsv('courses', urls.courses, onProgress);
+  const parameters = await fetchCsv('parameters', urls.parameters, onProgress);
+  const categories = await fetchCsv('categories', urls.categories, onProgress);
   let externalIssue: string | undefined;
-  const externalPromise: Promise<string | undefined> = EXTERNAL_TAB_CONFIGURED
-    ? fetchCsv('external', urls.external!, onProgress).catch((e: unknown) => {
-        externalIssue = e instanceof Error ? e.message : String(e);
-        return undefined;
-      })
-    : Promise.resolve(undefined);
-  const [courses, parameters, categories, external] = await Promise.all([
-    fetchCsv('courses', urls.courses, onProgress),
-    fetchCsv('parameters', urls.parameters, onProgress),
-    fetchCsv('categories', urls.categories, onProgress),
-    externalPromise,
-  ]);
+  let external: string | undefined;
+  if (EXTERNAL_TAB_CONFIGURED) {
+    try {
+      external = await fetchCsv('external', urls.external!, onProgress);
+    } catch (e: unknown) {
+      externalIssue = e instanceof Error ? e.message : String(e);
+    }
+  }
   onProgress({ step: 'check' });
   const live: CsvTexts = { courses, parameters, categories, ...(external !== undefined ? { external } : {}) };
   const rules = rulesFromCsvTexts(live, { source: 'live', syncedAt: nowIso, rulesDate: dateLiveRules(live, snapshot) });

@@ -114,6 +114,41 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **Course-rules page count line** keeps the view label's case (2026-09-06): "View: whether a
   course counts toward the M.S. (MSCSE)." — only the first letter is lowered (was
   `.toLowerCase()` on the whole label, which printed "m.s. (mscse)").
+- **Batch of 2026-09-06 (night): load time, preview layout, blocked rows, transfer candidates, ND
+  Remove.** Mechanics:
+  - `src/data/load.ts` `loadLiveRules` fetches the tabs ONE AFTER ANOTHER (courses → parameters →
+    categories → external). Measured from the DGS's Mac: Google's publish-to-web CSV endpoint
+    stalls the 3rd+ simultaneous request for the same spreadsheet until our 15 s timeout, so the
+    old `Promise.all` took 15+ s; sequential is ~2 s. Do not "optimise" it back to parallel. No
+    single-download alternative exists (whole-doc HTML = script shell, xlsx = 400, gviz = CORS).
+  - `src/style.css`: `.transcript-preview { container-type: inline-size }` and
+    `@container (max-width: 860px)` turn `table.courses.stack.edit` into per-course mini-forms
+    (line 1: tick + `.cell-course` (flex 0 1 150px) + `.cell-title` (flex 1 1 220px); the
+    `tr::before` break at order 2; `.cell-meta` at order 3 with `data-label` ::before labels).
+    Every layout of the app page is under 860 px, so the table form only appears when the app is
+    embedded in a wider column. The phone `@media (max-width: 600px)` block still styles the
+    non-edit coursework tables.
+  - `src/ui/external-upload.ts`: `isRelevantRow(university, rules, r)` (graduate, or core title,
+    or DGS rule, or ND Courses-tab core area) decides `blocked` per row → `r.include = false`,
+    checkbox `disabled` + `aria-describedby` + `title=BLOCKED_ROW_NOTE`, `tr.blocked-row` with the
+    same `title`, a visible `.blocked-tag` ("not selectable — hover for why") in the title cell;
+    the "Taken as" change handler sets `levelSource = 'slot'`, ticks a row that became relevant,
+    and re-renders; `selectAll` skips blocked rows.
+  - `src/engine/allocate.ts` `take()`: `transferCandidate` = caps include 'transfer' AND tier
+    provisional AND origin transfer AND `external?.transferable !== true` → `buildExplanation`'s
+    candidate branch ("pending DGS review — candidate for transfer credit (§5.2); would count
+    toward … if the DGS approves it" / partial / "counts only if the DGS picks it — the candidates
+    together exceed the N-credit transfer cap"), mark `pending` even over the cap. Allocation math
+    is untouched — only the words changed. app.ts `coursesCard`: `hasTransferCandidate(entries)`
+    (looks for that phrase in the group's course lines) gates the group hint, `transferCapLimit()`
+    reads the same parameter keys as audit.ts capSpecs for the "at most N credits" figure.
+  - `CourseEntry.fromNdTranscript?: true` (types.ts) is set on every row the ND preview's Add
+    pushes (app.ts) and validated as a hint in state.ts (malformed → dropped). app.ts
+    `transcriptUpload()` renders "N courses from your transcript [Remove] · [Import again]" when
+    any row carries it: Remove (`data-key import.nd.remove`) filters those rows out, clears
+    `gpa`+`gpaSource` when `gpaSource` is set, resets an inferred `priorMs` when no graduate prior
+    transcript remains, and offers Undo via `toastWithAction` (restores rows, GPA, priorMs). The
+    entry term is left alone. e2e step 9 in drive-transcript.mjs; unit test in prior-nd.test.ts.
 - **Batch of 2026-09-06 (evening): transcript preview, per-course marks, review request, advisor
   summary v3.** Mechanics, file by file:
   - `src/transcript/level-prefill.ts` (new, DOM-free): `prefillLevelsByTerm(rows, slot)` — the

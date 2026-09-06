@@ -86,4 +86,15 @@ describe('entry-term flag in saved files', () => {
     assert.equal(s.courses[0]?.registeredLevel, 'graduate');
     assert.equal(s.courses[1]?.registeredLevel, undefined);
   });
+
+  // The Notre Dame import flags what it added (2026-09-06) so its Remove
+  // button can take back exactly those rows; a saved file keeps the flag,
+  // and a malformed value is dropped rather than refusing the file.
+  it('keeps the fromNdTranscript flag and drops a malformed one', () => {
+    const base = { ...emptyStudent(), courses: [nd('CSE 60641', 'fall', 2024, { fromNdTranscript: true }), nd('CSE 60111', 'fall', 2024, { fromNdTranscript: 'yes' as never }), nd('CSE 60321', 'fall', 2024)] };
+    const s = validateStudent(JSON.parse(JSON.stringify(base)));
+    assert.equal(s.courses[0]?.fromNdTranscript, true);
+    assert.equal(s.courses[1]?.fromNdTranscript, undefined);
+    assert.equal(s.courses[2]?.fromNdTranscript, undefined);
+  });
 });

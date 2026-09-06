@@ -423,13 +423,21 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       excluded > 0 && cc.caps.length > 0
         ? `over the ${cc.caps.map(capLabel).join(' and ')} (${caps.find((c) => c.id === cc.caps[0])?.section ?? ''})`
         : undefined;
+    // An UNREVIEWED transfer course is a candidate, whatever the cap did with
+    // it here (DGS 2026-09-06): the DGS decides which courses transfer, so
+    // the allocator's choice of which candidates fill the cap is not a
+    // verdict — its line says "candidate", never "over the cap".
+    const transferCandidate =
+      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.external?.transferable !== true
+        ? { capLimit: caps.find((c) => c.id === 'transfer')?.limit }
+        : undefined;
     allocations.set(cc, {
       course: cc,
       countedRegular: isRegular ? counted : 0,
       countedOther: isRegular ? 0 : counted,
       excluded,
       excludedReason,
-      ...buildExplanation(cc, counted, excluded, excludedReason),
+      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate),
     });
   };
 
@@ -510,6 +518,7 @@ function buildExplanation(
   counted: number,
   excluded: number,
   excludedReason?: string,
+  transferCandidate?: { capLimit: number | undefined },
 ): { explanation: string; mark: CourseMark } {
   const parts: string[] = [];
   const poolName =
@@ -521,6 +530,28 @@ function buildExplanation(
           ? 'the research seminar requirement'
           : 'the total-credit requirement only';
   const total = cc.effectiveCredits ?? cc.entry.credits;
+  if (transferCandidate) {
+    // Every unreviewed graduate course from a prior program is a CANDIDATE
+    // for transfer credit until the DGS rules (DGS 2026-09-06: only
+    // CSE-related courses transfer, the DGS decides which, up to the cap) —
+    // amber, and never "over the cap", whichever candidates the allocator
+    // happened to fit under the cap for the running totals.
+    // The general rule (CSE-related only, the DGS decides, the cap) is said
+    // once above the transcript's group in the coursework card; each line
+    // carries only what is specific to the course.
+    const capWord = transferCandidate.capLimit !== undefined ? `${transferCandidate.capLimit}-credit ` : '';
+    const fate =
+      counted > 0 && excluded === 0
+        ? `would count toward ${poolName} (${counted} cr) if the DGS approves it`
+        : counted > 0
+          ? `would count ${counted} of ${total} credits toward ${poolName} if the DGS approves it (the ${capWord}transfer cap limits the rest)`
+          : `counts only if the DGS picks it — the candidates together exceed the ${capWord}transfer cap`;
+    const coreNote = /; (the same review can confirm|satisfies) [^;]*core-knowledge requirement[^;]*/.exec(cc.approvalPending ?? '')?.[0] ?? '';
+    return {
+      explanation: `pending DGS review — candidate for transfer credit (§5.2); ${fate}${coreNote}`,
+      mark: 'pending',
+    };
+  }
   const lead =
     cc.tier === 'provisional' ? 'pending DGS review — would count' : cc.tier === 'in_progress' ? 'in progress — will count' : 'counts';
   const tail = cc.tier === 'provisional' ? ' once approved' : cc.tier === 'in_progress' ? ' when passed' : '';

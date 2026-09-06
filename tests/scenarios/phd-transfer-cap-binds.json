@@ -23,6 +23,6 @@
     "phd.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24", "6 pending review"] }
   },
   "expectCourseLines": {
-    "CS 53800": ["not counted", "cap"]
+    "CS 53800": ["candidate for transfer credit", "counts only if the DGS picks it", "6-credit transfer cap"]
   }
 }

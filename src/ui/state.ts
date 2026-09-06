@@ -78,6 +78,8 @@ export function validateStudent(data: unknown): Student {
       throw new Error(`${where} (${String(e['courseId'])}) has an unrecognized degreeLevel.`);
     if (e['registeredLevel'] !== undefined && !['undergraduate', 'graduate'].includes(e['registeredLevel'] as string))
       delete e['registeredLevel']; // a hint only — drop a malformed one rather than refuse the file
+    if (e['fromNdTranscript'] !== undefined && e['fromNdTranscript'] !== true)
+      delete e['fromNdTranscript']; // likewise a hint (which rows the transcript import added)
   });
   // gpaSource (2026-09-05) is a display hint — drop a malformed one, keep the file.
   const gs = (d as Record<string, unknown>)['gpaSource'] as Record<string, unknown> | undefined;
