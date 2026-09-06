@@ -111,3 +111,19 @@ replaced by `README.md` on 2026-09-01.)
   paid commercial license via the IDEA Center). Do not edit, remove, or add license files or the
   README's License section unless the DGS asks; do not add dependencies whose licenses conflict
   with redistribution.
+
+## Session protocol (how the DGS works with Claude on this repo)
+- Start by reading `docs/CLAUDE-HANDOFF.md`, `docs/STATE.md` (where things stand, open items) and
+  the newest rows of `docs/DECISIONS.md`. Never re-decide a recorded decision; append a row for
+  every new one. Keep `docs/STATE.md` and the handoff current as you go, not at the end.
+- The DGS sends numbered lists of changes; answer them by number. Verify EVERY change before
+  calling it done — `tsc`, `npm test`, `npm run build`, `npm run e2e`, and look at the
+  screenshots — and check Safari's engine too when layout changed (Chromium alone missed a
+  Safari-only bug on 2026-09-06).
+- Commit under the DGS's own git identity (Taeho Jung <tjung@nd.edu>, the global config on his
+  Macs) with the change explained in the message. Do NOT `git push` — the DGS pushes himself, always.
+  Never rewrite history that has been pushed.
+- FERPA: never open a real transcript. Sanitized copies only, kept outside the repo under neutral
+  names; never let a student's name into code, fixtures, docs or commit messages.
+- Wording: "Grad Admin" is the Graduate Program Administrator; every student-facing string Claude
+  drafts goes into `docs/WORDING-REVIEW.md` for the DGS to edit.

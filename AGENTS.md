@@ -1,7 +1,8 @@
 # Instructions for AI coding agents (Codex, Claude Code, and others)
 
 This repository's agent instructions live in **`CLAUDE.md`** — read it in full before doing
-anything. Then read `docs/CLAUDE-HANDOFF.md` (design decisions, invariants, recipes) and
+anything. Then read `docs/CLAUDE-HANDOFF.md` (design decisions, invariants, recipes),
+`docs/STATE.md` (where things stand, open items — keep it current) and
 `docs/DECISIONS.md` (every policy interpretation already made). The guide for the humans you are
 working with is `README.md`; its Track B describes the workflow they expect from you.
 
