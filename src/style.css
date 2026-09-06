@@ -560,15 +560,18 @@ tr.ocr-low td { background: #fff7e0; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:not(.locked-cell)::before { font-size: 11px; }
   .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 3px 6px; font-size: 13.5px; }
 }
-/* One line per course when the preview is at least 600 px wide (every desktop
-   layout of this page). Plain flexbox with fixed minimum widths for the small
+/* One line per course when the preview is at least 560 px wide — the width the
+   decision of 2026-09-06 records. An 1100 px window leaves the preview 582 px
+   (two columns, the 400 px report column), a 1400 px window 642 px; the rule
+   shipped at 600 px until the Safari-engine check of 2026-09-06 found 1100 px
+   windows on two lines. Plain flexbox with fixed minimum widths for the small
    columns — NOT grid/subgrid: Safari mis-rendered the subgrid version (cells
    overlapping, the row overflowing the card; DGS screenshots 2026-09-06), while
    this flex form is what Safari had rendered correctly. Typical values fit the
    minimums, so the columns line up across rows; a rarer wide value (a long
    course number) just pushes its own row's title a little. The title takes the
    rest and wraps inside its cell when it is long. */
-@container (min-width: 600px) and (max-width: 860px) {
+@container (min-width: 560px) and (max-width: 860px) {
   .transcript-preview table.courses.stack.edit tr.compact { flex-wrap: nowrap; column-gap: 10px; }
   .transcript-preview table.courses.stack.edit tr.compact::before { content: none; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-course { flex: 0 0 auto; min-width: 96px; }

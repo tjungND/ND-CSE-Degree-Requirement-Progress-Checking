@@ -103,7 +103,11 @@ last edit (see "Sync" below).
   both pages, the opening notice must behave as a modal dialog, keyboard focus must survive a
   change (the page re-renders), and nothing may scroll sideways at a phone width (390 px). If a
   UI change trips one of these, fix the page rather than the check — each one pins a defect
-  students actually hit. `E2E_ONLY=access npm run e2e` runs just that driver. When a student finds a
+  students actually hit. `E2E_ONLY=access npm run e2e` runs just that driver. Since 2026-09-06
+  `E2E_BROWSER=webkit npm run e2e` runs the same drivers on Safari's engine (Playwright's WebKit
+  build — `playwright-core` is a devDependency, the browser a one-time `npx playwright-core
+  install webkit` per Mac) with screenshots in `.e2e-out/webkit/`; run it too whenever layout
+  changed, since Chrome alone missed a Safari-only bug that day. When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
 - **For AI coding sessions**: `CLAUDE.md` holds the project rules (Claude Code reads it
   automatically; Codex reads `AGENTS.md`, which points to it); `docs/CLAUDE-HANDOFF.md` is the

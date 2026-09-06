@@ -324,6 +324,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const expectedCombined = ['CS 25100:undergraduate:on', 'CS 30700:undergraduate:off', 'CS 35400:undergraduate:on', 'CS 50300:graduate:on', 'CS 58000:graduate:on'];
   if (JSON.stringify(combinedRows) !== JSON.stringify(expectedCombined)) throw new Error('combined transcript levels/ticks wrong');
   await s.shot('combined-preview');
+  // The compact (text-layer) rows at the two desktop widths the DGS checks in
+  // Safari (2026-09-06): one line per course, the small columns aligned across
+  // rows, nothing spilling out of the card — measured, and a cropped screenshot
+  // of the preview for the eye (combined-preview-1400.png / -1100.png).
+  for (const width of [1400, 1100]) await checkCompactPreview(s, width);
+  await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
+  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
   );
@@ -401,4 +408,45 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     throw new Error(`Undo must restore the 6 rows and the GPA (${gpaBefore} → ${gpaAfterUndo}; ${idsAfterRemove.length} → ${idsAfterUndo.length} rows)`);
   }
   console.log('  ND transcript removed (rows + GPA) and restored with Undo');
+}
+
+// The Master's-slot preview of a text-layer transcript at a given window width
+// (DGS check 2026-09-06, Safari + Chrome). Rows are `tr.compact`; from a
+// 560 px preview up (the recorded decision) every cell of a row sits on its
+// first line, the credits / grade / term / level columns start at the same x
+// in every row, and nothing reaches past the row or scrolls the preview
+// sideways. The cropped screenshot is what to look at when a number is off.
+async function checkCompactPreview(s, width) {
+  await s.send('Emulation.setDeviceMetricsOverride', { width, height: 1900, deviceScaleFactor: 1, mobile: false });
+  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)))');
+  const m = JSON.parse(
+    await s.evalJs(`JSON.stringify((() => {
+      const box = document.querySelector('.external-card .transcript-preview');
+      const r = (e) => e.getBoundingClientRect();
+      const rows = [...box.querySelectorAll('tr.compact')].map((tr) => {
+        const cells = [...tr.querySelectorAll('td')].filter((td) => r(td).width > 0);
+        return {
+          id: tr.querySelector('.course-id')?.textContent ?? tr.querySelector('.cell-course input')?.value ?? '?',
+          height: Math.round(r(tr).height),
+          secondLine: cells.filter((td) => r(td).top - r(tr).top > 18).length,
+          spill: Math.round(Math.max(0, ...cells.map((td) => r(td).right - r(tr).right), r(tr).right - r(box).right)),
+          columns: [...tr.querySelectorAll('td.locked-cell, td.level-cell')].map((td) => Math.round(r(td).left)).join(','),
+        };
+      });
+      const cs = getComputedStyle(box);
+      return { previewWidth: Math.round(box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)), sideways: box.scrollWidth - box.clientWidth, rows };
+    })())`),
+  );
+  await s.shotElement(`combined-preview-${width}`, '.external-card .transcript-preview');
+  const problems = [];
+  if (m.rows.length === 0) problems.push('no compact rows');
+  if (m.sideways > 0) problems.push(`the preview scrolls sideways by ${m.sideways} px`);
+  for (const row of m.rows) {
+    if (row.secondLine > 0) problems.push(`${row.id}: ${row.secondLine} cell(s) on a second line`);
+    if (row.spill > 0) problems.push(`${row.id}: content reaches ${row.spill} px past its row/card`);
+  }
+  const columnSets = new Set(m.rows.map((row) => row.columns));
+  if (columnSets.size > 1) problems.push(`columns start at different x across rows: ${[...columnSets].join(' | ')}`);
+  console.log(`  compact preview at ${width} px: content box ${m.previewWidth} px, ${m.rows.length} rows of ${m.rows.map((row) => row.height).join('/')} px, columns at x=${m.rows[0]?.columns}`);
+  if (problems.length) throw new Error(`compact preview at ${width} px (content box ${m.previewWidth} px): ${problems.join('; ')}`);
 }

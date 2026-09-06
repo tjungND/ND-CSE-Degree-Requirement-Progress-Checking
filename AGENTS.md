@@ -18,5 +18,5 @@ The non-negotiables, spelled out in `CLAUDE.md`:
   handbook; record each answer in `docs/DECISIONS.md` (date, question, decision, who).
 - Ask before changing the sheet schema (column names, allowed values, parameter keys).
 - `npm test` and `npm run build` must pass before you call anything done; run `npm run e2e` for
-  UI-visible changes and look at the screenshots. Add a scenario in `tests/scenarios/` for every
-  bug fixed.
+  UI-visible changes (and `E2E_BROWSER=webkit npm run e2e` — Safari's engine — when layout
+  changed) and look at the screenshots. Add a scenario in `tests/scenarios/` for every bug fixed.

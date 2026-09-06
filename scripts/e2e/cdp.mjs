@@ -1,7 +1,11 @@
 // Minimal Chrome DevTools Protocol client — stdlib only (node >= 22 has a
-// global WebSocket). Used by the e2e drivers; no Playwright/puppeteer needed.
+// global WebSocket). Used by the e2e drivers; no Playwright/puppeteer needed
+// for the Chrome run. The WebKit run (E2E_BROWSER=webkit, scripts/e2e/webkit.mjs)
+// hands the drivers a session of the same shape; what both share — waiting,
+// the loading card, the opening notice — lives in session-common.mjs.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { sessionHelpers } from './session-common.mjs';
 
 export async function openSession(debugPort, outDir) {
   const target = await (
@@ -41,20 +45,36 @@ export async function openSession(debugPort, outDir) {
     return r.result?.value;
   };
 
-  const waitFor = async (expression, timeoutMs = 20000) => {
-    const t0 = Date.now();
-    while (Date.now() - t0 < timeoutMs) {
-      if (await evalJs(`!!(${expression})`)) return;
-      await new Promise((r) => setTimeout(r, 250));
-    }
-    throw new Error('timeout waiting for: ' + expression);
+  const settle = () => evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 120)))');
+  const save = (name, base64) => {
+    writeFileSync(join(outDir, `${name}.png`), Buffer.from(base64, 'base64'));
+    console.log('  screenshot:', `${name}.png`);
   };
 
   const shot = async (name) => {
-    await evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 120)))');
+    await settle();
     const { data } = await send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(join(outDir, `${name}.png`), Buffer.from(data, 'base64'));
-    console.log('  screenshot:', `${name}.png`);
+    save(name, data);
+  };
+
+  // A cropped screenshot of one element (a preview card, say): scrolled into
+  // view, then clipped in page coordinates — the way puppeteer does it.
+  const shotElement = async (name, selector) => {
+    await settle();
+    const rect = await evalJs(`(() => {
+      const e = document.querySelector(${JSON.stringify(selector)});
+      if (!e) return null;
+      e.scrollIntoView({ block: 'start' });
+      const r = e.getBoundingClientRect();
+      return { x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height };
+    })()`);
+    if (!rect) throw new Error('shotElement: nothing matches ' + selector);
+    const { data } = await send('Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: true,
+      clip: { ...rect, scale: 1 },
+    });
+    save(name, data);
   };
 
   const setFileInput = async (selector, filePath) => {
@@ -63,37 +83,11 @@ export async function openSession(debugPort, outDir) {
     await send('DOM.setFileInputFiles', { files: [filePath], nodeId: node.nodeId });
   };
 
-  // Navigate and get past the loading card. In a sandbox without network the
-  // live fetch fails at once and the card offers "Continue with the copy saved
-  // on …" — the harness screenshots that card (once) and clicks it, so the
-  // failure path is exercised on every run. With network, the live rules load
-  // and the masthead appears by itself.
-  let failureShotTaken = false;
-  let consentShotTaken = false;
-  const open = async (url, readySelector = '.masthead h1') => {
-    await send('Page.navigate', { url });
-    await waitFor(`document.querySelector('${readySelector}') || document.querySelector('.load-card.failed')`);
-    if (await evalJs(`!!document.querySelector('.load-card.failed')`)) {
-      const text = await evalJs(`document.querySelector('.load-fail')?.textContent`);
-      if (!/[Rr]eload the page/.test(text ?? '')) throw new Error('failure card must suggest reloading: ' + text);
-      if (!failureShotTaken) {
-        await shot('loading-failed');
-        failureShotTaken = true;
-      }
-      await evalJs(`document.querySelector('.load-card.failed button.use-saved').click()`);
-      await waitFor(`document.querySelector('${readySelector}')`);
-    }
-    // Department-approval gate (2026-09-03): screenshot the first one, then
-    // Agree so the scripts can click the page beneath.
-    if (await evalJs(`!!document.querySelector('.consent-overlay')`)) {
-      if (!consentShotTaken) {
-        await shot('consent-gate');
-        consentShotTaken = true;
-      }
-      await evalJs(`document.querySelector('.consent-overlay button.btn').click()`);
-      await waitFor(`!document.querySelector('.consent-overlay')`);
-    }
-  };
+  const { waitFor, open } = sessionHelpers({
+    navigate: (url) => send('Page.navigate', { url }),
+    evalJs,
+    shot,
+  });
 
   await send('Page.enable');
   await send('DOM.enable');
@@ -104,5 +98,5 @@ export async function openSession(debugPort, outDir) {
     mobile: false,
   });
 
-  return { send, evalJs, waitFor, shot, setFileInput, open, close: () => ws.close() };
+  return { send, evalJs, waitFor, shot, shotElement, setFileInput, open, close: () => ws.close() };
 }

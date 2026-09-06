@@ -86,7 +86,8 @@ replaced by `README.md` on 2026-09-01.)
   transferability — unmatched courses always show "not yet reviewed by the DGS".
 - `tests/` — **node's built-in runner** (`node --test`; that's why relative imports carry `.ts`
   extensions). One JSON fixture per student scenario in `tests/scenarios/`; add a scenario for
-  every bug fixed. `npm run e2e` drives real headless Chrome (see `.claude/skills/run-app/`).
+  every bug fixed. `npm run e2e` drives real headless Chrome and `E2E_BROWSER=webkit npm run e2e`
+  Safari's engine through the same drivers (see `.claude/skills/run-app/`).
 - `scripts/sync-sheet.ts` + `.github/workflows/` — six-hourly sheet snapshot (rewritten, committed
   and redeployed only when the sheet content changed), CI tests, Pages deploy.
 
@@ -115,15 +116,16 @@ replaced by `README.md` on 2026-09-01.)
 ## Session protocol (how the DGS works with Claude on this repo — Claude Code Desktop, Code tab)
 - The DGS keeps ONE long-lived Desktop session for this repo (never archived; a second session would
   mean a second branch to reconcile). Desktop runs the session in its own git worktree under
-  `.claude/worktrees/<name>/` on the branch `worktree-<name>`; the first command of a new session is
+  `.claude/worktrees/<name>/` on the branch `claude/<name>`; the first command of a new session is
   `npm ci` (a worktree starts without `node_modules`).
 - Start by reading `docs/CLAUDE-HANDOFF.md`, `docs/STATE.md` (where things stand, open items) and
   the newest rows of `docs/DECISIONS.md`. Never re-decide a recorded decision; append a row for
   every new one. Keep `docs/STATE.md` and the handoff current as you go, not at the end.
 - The DGS sends numbered lists of changes; answer them by number. Verify EVERY change before
   calling it done — `npx tsc --noEmit`, `npm test`, `npm run build`, `npm run e2e`, and look at the
-  screenshots — and check Safari's engine too when layout changed (Chromium alone missed a
-  Safari-only bug on 2026-09-06). Show the result (screenshot or preview) before committing; the
+  screenshots — and check Safari's engine too when layout changed (`E2E_BROWSER=webkit npm run e2e`;
+  Chromium alone missed a Safari-only bug on 2026-09-06). Show the result (screenshot or preview)
+  before committing; the
   DGS may ask for revisions first.
 - Commit on the session's branch under the DGS's own git identity (Taeho Jung <tjung@nd.edu>, the
   global git config on his Macs) with the change explained in the message. Before each commit that

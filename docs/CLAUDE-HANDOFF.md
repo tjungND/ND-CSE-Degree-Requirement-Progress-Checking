@@ -50,6 +50,34 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **Safari's engine in the e2e run** (2026-09-06 evening, DGS request; the subgrid incident that
+  afternoon showed Chromium alone is not enough): `E2E_BROWSER=webkit npm run e2e` (also `npm run
+  e2e:webkit`) drives the SAME four drivers through Playwright's WebKit build; screenshots in
+  `.e2e-out/webkit/` (the Chrome run keeps `.e2e-out/*.png`; each run clears only its own).
+  Mechanics: `scripts/e2e/webkit.mjs` wraps a Playwright page in the session shape the drivers
+  already use (`send` / `evalJs` / `waitFor` / `shot` / `shotElement` / `setFileInput` / `open` /
+  `close`); the drivers' few direct DevTools-Protocol calls are translated in one `switch`
+  (`Page.navigate` → `page.goto`; `Emulation.setDeviceMetricsOverride` → `page.setViewportSize` —
+  the `mobile` flag has no per-page equivalent in Playwright and the app's breakpoints are
+  width-only; `Input.dispatchKeyEvent` → `page.keyboard`); anything else throws, on purpose, so a
+  new CDP call in a driver is noticed. What both backends share — `waitFor` and the
+  loading-card / opening-notice choreography of `open` — moved out of cdp.mjs into
+  `scripts/e2e/session-common.mjs`: change the start-up flow there, once. `playwright-core`
+  (Apache-2.0) is a devDependency pinned EXACTLY (each version maps to one WebKit build) and is
+  imported lazily, so the Chrome run and CI never load it; the browser itself is not in
+  node_modules — a one-time `npx playwright-core install webkit` per Mac puts it in
+  `~/Library/Caches/ms-playwright/` (shared by every worktree; after bumping the pin run it again;
+  the harness prints that command when the build is missing). Verified 2026-09-06 on the DGS's
+  Mac: all four drivers pass on WebKit 26.6 — pdfjs, the OCR leg, file inputs, the modal dialog,
+  axe-core, the 390 / 820 px layouts; WebKit and Chrome differ by 1–2 px in row heights and
+  column x. Found by the first run: the one-line preview rows (`@container (min-width: …)` in
+  style.css) were keyed on a 600 px preview while the decision of 2026-09-06 records 560 px, so an
+  1100 px window (preview content box 582 px; 642 px at 1400 px) showed two-line rows in both
+  engines — the CSS now says 560 px, and drive-transcript.mjs's `checkCompactPreview` measures
+  the Master's-slot combined preview at 1400 and 1100 px (every cell on the row's first line, the
+  credits / grade / term / level columns at the same x in every row, nothing past the row or
+  scrolling the preview sideways) and crops it to `combined-preview-1400.png` / `-1100.png`
+  (`shotElement`: Playwright's element screenshot on WebKit, a page-coordinate `clip` on Chrome).
 - **Usability review, Phase 0 — accessibility and phone mechanics** (2026-09-05, DGS-approved from
   the merged review in the project doc; the wording items of Phases 1–2 await his approvals):
   `render()` in app.ts now REMEMBERS FOCUS across the full rebuild (`rememberFocus`/`restoreFocus`:
@@ -130,16 +158,19 @@ Known-pending (the app's diagnostics panel is the live truth):
   - style.css inside the `@container (max-width: 860px)` block: `tr.compact` — no `::before`
     labels on the course/title cells, `.cell-title` flex 1, the meta cells `inline-flex` with a
     "·" `::after` on `.locked-cell`, `.cell-empty` hidden, the level cell keeps its small label
-    (the two-line phone form). A second block, `@container (min-width: 600px) and (max-width:
-    860px)`, makes it ONE line: `tr.compact` becomes `flex-wrap: nowrap`, the course cell gets
+    (the two-line phone form). A second block, `@container (min-width: 560px) and (max-width:
+    860px)` (600 px until the Safari-engine run that evening found 1100 px windows on two
+    lines — the WebKit bullet at the top of this list), makes it ONE line: `tr.compact` becomes `flex-wrap: nowrap`, the course cell gets
     `min-width: 96px`, the credits / grade / term cells `min-width` 30 / 22 / 82 px (typical
     values fit, so columns line up across rows), the title `flex: 1 1 0` and wraps inside its
     cell; separators and the level label are dropped there (the level `<select>` carries a
     `title`). DO NOT use grid + subgrid for this: a first version did (`table:has(tr.compact)`
     as a 7-column grid, rows as subgrids) and Safari rendered it with overlapping cells and the
     row overflowing the card (DGS screenshots 2026-09-06); Chrome was fine, which is why the
-    container's screenshots did not catch it — Safari cannot be run here, so anything beyond
-    plain flex/grid needs the DGS to look at it on his Mac. The visible `.blocked-tag` was
+    container's screenshots did not catch it — Safari could not be run in the Cowork container;
+    since that evening `E2E_BROWSER=webkit npm run e2e` drives Safari's engine on the DGS's Mac
+    (the WebKit bullet at the top of this list), so layout changes are checked there before he
+    looks. The visible `.blocked-tag` was
     removed the same day (DGS); the blocked row's cue is the greyed text and disabled box, its
     reason the row `title` + `aria-describedby`.
 - **Batch of 2026-09-06 (night): load time, preview layout, blocked rows, transfer candidates, ND
@@ -761,6 +792,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   2026-09-05 it ends with the accessibility/phone driver (axe-core zero-violation gate, dialog and
   focus-preservation keyboard checks, 390 px no-sideways-scroll check on both pages). `E2E_ONLY=`
   a substring of a driver name runs just that driver while iterating.
+- `E2E_BROWSER=webkit npm run e2e` (or `npm run e2e:webkit`) — the same drivers on Safari's engine
+  (Playwright's WebKit build; one-time `npx playwright-core install webkit` per Mac), screenshots
+  in `.e2e-out/webkit/`. Run it too whenever layout changed — Chrome alone missed a Safari-only
+  bug on 2026-09-06.
 - `npm run sync-sheet` — fetches the live sheet, prints its diagnostics, and rewrites the
   snapshot only if the sheet content changed (it says which tabs).
 - Read screenshots you take. A wrong verdict is easier to spot in the rendered report than in

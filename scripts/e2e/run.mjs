@@ -1,10 +1,16 @@
 // End-to-end harness: builds if needed, serves dist/ with vite preview, drives
-// headless Chrome over the DevTools Protocol, and screenshots into .e2e-out/.
-// Run with: npm run e2e   (needs Chrome/Chromium; override the binary with CHROME_BIN)
+// a headless browser through the four drivers, and screenshots into .e2e-out/.
+//
+//   npm run e2e                      headless Chrome over the DevTools Protocol
+//                                    (needs Chrome/Chromium; CHROME_BIN overrides the binary)
+//   E2E_BROWSER=webkit npm run e2e   Playwright's WebKit — Safari's engine — through the
+//     (= npm run e2e:webkit)         SAME drivers; screenshots in .e2e-out/webkit/. One-time
+//                                    setup per Mac:  npx playwright-core install webkit
+//   E2E_ONLY=<substring>             run a single driver while iterating (e.g. E2E_ONLY=access)
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openSession } from './cdp.mjs';
 import { driveA11y } from './drive-a11y.mjs';
@@ -14,8 +20,18 @@ import { driveTranscript } from './drive-transcript.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PREVIEW_PORT = 4273; // not 4173, so a dev's own preview keeps running
 const DEBUG_PORT = 9333;
-const outDir = join(root, '.e2e-out');
-rmSync(outDir, { recursive: true, force: true });
+
+const browserKind = (process.env.E2E_BROWSER ?? 'chrome').toLowerCase();
+if (browserKind !== 'chrome' && browserKind !== 'webkit') {
+  console.error(`E2E_BROWSER must be "chrome" (the default) or "webkit", not "${process.env.E2E_BROWSER}".`);
+  process.exit(2);
+}
+// Each browser clears only its own screenshots (Chrome: the top-level PNGs;
+// WebKit: the webkit/ folder), so one run never erases the other's frames.
+const outRoot = join(root, '.e2e-out');
+const outDir = browserKind === 'webkit' ? join(outRoot, 'webkit') : outRoot;
+if (browserKind === 'webkit') rmSync(outDir, { recursive: true, force: true });
+else if (existsSync(outRoot)) for (const f of readdirSync(outRoot)) if (f.endsWith('.png')) rmSync(join(outRoot, f));
 mkdirSync(outDir, { recursive: true });
 
 function findChrome() {
@@ -65,6 +81,7 @@ process.on('exit', cleanup);
 process.on('SIGINT', () => process.exit(130));
 
 let failed = false;
+let webkitBrowser; // closed in the finally below (Playwright owns that process, not `children`)
 try {
   // vite is spawned directly (not through npm) so kill() reaches the server.
   const vite = spawn(
@@ -76,21 +93,32 @@ try {
   await waitForHttp(`http://localhost:${PREVIEW_PORT}/`);
   console.log(`preview server on :${PREVIEW_PORT}`);
 
-  const chrome = spawn(
-    findChrome(),
-    [
-      '--headless=new',
-      `--remote-debugging-port=${DEBUG_PORT}`,
-      `--user-data-dir=${join(tmpdir(), 'cse-audit-e2e-profile')}`,
-      '--no-first-run',
-      '--no-sandbox', // required on CI runners; harmless locally
-      'about:blank',
-    ],
-    { stdio: 'ignore' },
-  );
-  children.push(chrome);
-  await waitForHttp(`http://127.0.0.1:${DEBUG_PORT}/json/version`);
-  console.log('headless Chrome up');
+  let openSessionFor;
+  if (browserKind === 'webkit') {
+    // Imported lazily: the Chrome run must never need playwright-core.
+    const { launchWebkit, openWebkitSession } = await import('./webkit.mjs');
+    webkitBrowser = await launchWebkit();
+    const context = await webkitBrowser.newContext({ viewport: { width: 1400, height: 1900 } });
+    console.log(`headless WebKit ${webkitBrowser.version()} up (Playwright)`);
+    openSessionFor = () => openWebkitSession(context, outDir);
+  } else {
+    const chrome = spawn(
+      findChrome(),
+      [
+        '--headless=new',
+        `--remote-debugging-port=${DEBUG_PORT}`,
+        `--user-data-dir=${join(tmpdir(), 'cse-audit-e2e-profile')}`,
+        '--no-first-run',
+        '--no-sandbox', // required on CI runners; harmless locally
+        'about:blank',
+      ],
+      { stdio: 'ignore' },
+    );
+    children.push(chrome);
+    await waitForHttp(`http://127.0.0.1:${DEBUG_PORT}/json/version`);
+    console.log('headless Chrome up');
+    openSessionFor = () => openSession(DEBUG_PORT, outDir);
+  }
 
   const baseUrl = `http://localhost:${PREVIEW_PORT}/`;
   const ndPdf = join(root, 'tests', 'fixtures', 'nd-transcript.pdf');
@@ -110,7 +138,7 @@ try {
     ['accessibility and phone layout', (s) => driveA11y(s, baseUrl)],
   ].filter(([name]) => !only || name.includes(only))) {
     console.log(`\n▶ ${name}`);
-    const session = await openSession(DEBUG_PORT, outDir);
+    const session = await openSessionFor();
     try {
       await fn(session);
       console.log(`✔ ${name}`);
@@ -118,15 +146,16 @@ try {
       failed = true;
       console.error(`✖ ${name}:`, err instanceof Error ? err.message : err);
     } finally {
-      session.close();
+      await session.close();
     }
   }
 } catch (err) {
   failed = true;
   console.error('e2e harness error:', err instanceof Error ? err.message : err);
 } finally {
+  if (webkitBrowser) await webkitBrowser.close().catch(() => {});
   cleanup();
 }
 
-console.log(`\nScreenshots in .e2e-out/. ${failed ? 'E2E FAILED' : 'E2E passed.'}`);
+console.log(`\nScreenshots in ${relative(root, outDir)}/ (${browserKind}). ${failed ? 'E2E FAILED' : 'E2E passed.'}`);
 process.exit(failed ? 1 : 0);
