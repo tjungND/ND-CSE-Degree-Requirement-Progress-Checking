@@ -124,6 +124,25 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const extRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);
   console.log('  external preview rows:', extRows);
   if (extRows !== 3) throw new Error(`expected 3 parsed external courses, got ${extRows}`);
+  // A text-layer import is COMPACT and locked (2026-09-06, second pass):
+  // number, title, credits, grade and term as printed — only "Taken as" is a
+  // control; and while the preview is open every transcript-row button is
+  // inactive, explaining itself on click instead of acting.
+  const compact = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview tr.compact')].map(tr => tr.querySelectorAll('input:not([type=checkbox]), select').length + ':' + [...tr.querySelectorAll('td.locked-cell')].map(td => td.textContent.trim()).join('/'))`);
+  console.log('  compact rows (controls:locked cells):', JSON.stringify(compact));
+  if (compact.length !== 3 || !compact.every((c) => /^1:\d+(\.\d+)? cr\/[A-Z][+-]?\/(Fall|Spring|Summer) \d{4}$/.test(c))) {
+    throw new Error('text-layer rows must be compact: only the level select editable, credits/grade/term locked');
+  }
+  const inactive = await s.evalJs(`[...document.querySelectorAll('.transcript-upload button, .external-slot button')].map(b => b.textContent.trim() + ':' + b.getAttribute('aria-disabled'))`);
+  console.log('  transcript-row buttons while the preview is open:', JSON.stringify(inactive));
+  if (inactive.length < 4 || !inactive.every((b) => b.endsWith(':true'))) throw new Error('every Import/Remove button must be inactive while a preview is open');
+  const ndBefore = await s.evalJs(`document.querySelectorAll('table.courses .cid').length`);
+  await s.evalJs(`document.querySelector('[data-key="import.nd.remove"]').click()`);
+  const inactiveToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
+  if (!inactiveToast.startsWith('Not available while a transcript preview is open') || (await s.evalJs(`document.querySelectorAll('table.courses .cid').length`)) !== ndBefore || !(await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`))) {
+    throw new Error('an inactive Remove must explain itself and do nothing: ' + inactiveToast.slice(0, 100));
+  }
+  console.log('  inactive Remove explained itself, nothing removed');
   await s.shot('external-preview');
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,

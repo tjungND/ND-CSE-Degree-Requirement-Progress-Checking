@@ -11,7 +11,7 @@ import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, CourseLine, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
-import { clear, el, option } from './dom.ts';
+import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
@@ -992,9 +992,14 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     // typed by hand stay; so does the entry term, which the student can
     // still change under Your standing. Undo instead of a confirm dialog.
     const imported = student.courses.filter((c) => c.fromNdTranscript === true);
-    const importButton = el(
-      'button',
-      { class: 'btn tiny', disabled: blocked, 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() },
+    // While a preview is open (this row's or a previous-university one), the
+    // Import and Remove buttons are inactive and say why on hover / click
+    // (DGS request 2026-09-06) — `inactiveButton`, not `disabled`, so the
+    // reason can be shown.
+    const button = (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string): HTMLButtonElement =>
+      blocked ? inactiveButton(attrs, PREVIEW_OPEN_NOTE, toast, label) : el('button', attrs, label);
+    const importButton = button(
+      { class: 'btn tiny', 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() },
       imported.length > 0 ? 'Import again' : 'Import from PDF (alpha)',
     );
     const parts: (Node | string)[] = [
@@ -1005,8 +1010,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       const n = imported.length;
       parts.push(
         el('span', {}, `${n} course${n === 1 ? '' : 's'} from your transcript `),
-        el(
-          'button',
+        button(
           {
             class: 'btn tiny',
             'aria-label': `Remove the ${n} course${n === 1 ? '' : 's'} imported from your Notre Dame transcript`,

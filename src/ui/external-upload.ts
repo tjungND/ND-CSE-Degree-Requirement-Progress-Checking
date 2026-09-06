@@ -19,7 +19,7 @@ import type { CourseEntry, Grade, Season, Student, Term } from '../engine/types.
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
 import { parseTranscript } from '../transcript/parse.ts';
-import { clear, el, option } from './dom.ts';
+import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 
 /** Write a review request to the clipboard in BOTH flavors (2026-09-03):
  * text/plain keeps the tab-separated rows; text/html carries them as a real
@@ -339,14 +339,18 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
     }
   });
 
+  // While any preview is open, Import and Remove are inactive and say why on
+  // hover / click (DGS request 2026-09-06) — `inactiveButton`, not `disabled`,
+  // so the reason can be shown.
+  const button = (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string): HTMLButtonElement =>
+    args.blocked ? inactiveButton(attrs, PREVIEW_OPEN_NOTE, toast, label) : el('button', attrs, label);
   const parts: (Node | string)[] = [el('span', { class: 'slot-label' }, slot.label)];
   if (have.length > 0) {
     const uni = have[0]!.institution ?? 'another university';
     parts.push(
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
       el('span', {}, `${have.length} course${have.length === 1 ? '' : 's'} from ${uni} `),
-      el(
-        'button',
+      button(
         {
           class: 'btn tiny',
           'aria-label': `Remove the ${have.length} ${slot.label} course${have.length === 1 ? '' : 's'} from ${uni}`,
@@ -383,7 +387,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
-      el('button', { class: 'btn tiny', disabled: args.blocked, 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF (alpha)'),
+      button({ class: 'btn tiny', 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF (alpha)'),
       fileInput,
     );
   }
@@ -621,7 +625,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       'p',
       { class: 'hint', id: 'ext-university-hint' },
       uniLocked
-        ? 'The university name and each course’s number and title are taken from your transcript as printed — they cannot be edited here (the DGS’s rules key on them). Credits, grades, terms and “Taken as” can be corrected; grades the parser could not read must be chosen by hand (rows without a grade are not added).'
+        ? 'The university name and each course’s number, title, credits, grade and term are taken from your transcript as printed and cannot be edited here; only “Taken as” can be changed. Anything the parser could not read (a grade, credits or a year) must be filled in by hand — rows without a grade are not added.'
         : 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it. Grades the parser could not read must be chosen by hand (rows without a grade are not added).',
     ),
     el('label', { class: 'field' }, el('span', { class: 'label' }, 'University'), uniInput),
@@ -674,25 +678,52 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       ? el('span', { class: 'course-title locked', 'data-key': `ext.row.${i}.title` }, r.title)
       : el('input', { value: r.title, class: 'course-title', 'aria-label': `Title for ${who()}`, 'data-key': `ext.row.${i}.title` });
     if (!locked) titleIn.addEventListener('change', () => (r.title = (titleIn as HTMLInputElement).value));
-    const crIn = el('input', { type: 'number', min: '0', max: '30', step: '0.5', 'aria-label': `Credits for ${who()}`, 'data-key': `ext.row.${i}.credits`, value: r.credits !== undefined ? String(r.credits) : '' });
-    crIn.addEventListener('change', () => {
-      const v = Number((crIn as HTMLInputElement).value);
-      r.credits = Number.isFinite(v) && v > 0 ? v : undefined;
-    });
-    const gradeSel = el('select', { 'aria-label': `Grade for ${who()}`, 'data-key': `ext.row.${i}.grade` });
-    gradeSel.append(option('', r.rawGrade ? `choose… (transcript says “${r.rawGrade}”)` : 'choose…', r.grade === ''));
-    for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, r.grade === g));
-    gradeSel.addEventListener('change', () => (r.grade = (gradeSel as HTMLSelectElement).value as Grade | ''));
-    const seasonSel = el('select', { 'aria-label': `Semester for ${who()}`, 'data-key': `ext.row.${i}.season` });
-    for (const se of ['fall', 'spring', 'summer'] as Season[]) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), r.season === se));
-    seasonSel.addEventListener('change', () => (r.season = (seasonSel as HTMLSelectElement).value as Season));
-    const yearIn = el('input', { type: 'number', min: '1970', max: '2040', 'aria-label': `Year for ${who()}`, 'data-key': `ext.row.${i}.year`, value: r.year !== undefined ? String(r.year) : '' });
-    yearIn.addEventListener('change', () => {
-      const v = Number((yearIn as HTMLInputElement).value);
-      r.year = Number.isFinite(v) && v > 1900 ? v : undefined;
-    });
+    // Credits, grade and term are locked too for a text-layer import (DGS
+    // request 2026-09-06, second pass) — as printed on the transcript. A value
+    // the parser could not read stays an input, or the row could never be
+    // completed; OCR and hand-typed rows stay fully editable.
+    const lockedText = (cls: string, key: string, text: string): HTMLElement => el('span', { class: `${cls} locked`, 'data-key': `ext.row.${i}.${key}` }, text);
+    let crIn: HTMLElement;
+    if (locked && r.credits !== undefined) crIn = lockedText('course-credits', 'credits', `${r.credits} cr`);
+    else {
+      crIn = el('input', { type: 'number', min: '0', max: '30', step: '0.5', 'aria-label': `Credits for ${who()}`, 'data-key': `ext.row.${i}.credits`, value: r.credits !== undefined ? String(r.credits) : '' });
+      crIn.addEventListener('change', () => {
+        const v = Number((crIn as HTMLInputElement).value);
+        r.credits = Number.isFinite(v) && v > 0 ? v : undefined;
+      });
+    }
+    let gradeSel: HTMLElement;
+    if (locked && r.grade !== '') gradeSel = lockedText('course-grade', 'grade', r.grade === 'IP' ? 'In progress' : r.grade);
+    else {
+      gradeSel = el('select', { 'aria-label': `Grade for ${who()}`, 'data-key': `ext.row.${i}.grade` });
+      gradeSel.append(option('', r.rawGrade ? `choose… (transcript says “${r.rawGrade}”)` : 'choose…', r.grade === ''));
+      for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, r.grade === g));
+      gradeSel.addEventListener('change', () => (r.grade = (gradeSel as HTMLSelectElement).value as Grade | ''));
+    }
+    // The term: one locked "Fall 2023" when the transcript gave both parts.
+    const termLocked = locked && r.year !== undefined;
+    let seasonSel: HTMLElement;
+    let yearIn: HTMLElement | null;
+    if (termLocked) {
+      seasonSel = lockedText('course-term', 'season', termLabel({ season: r.season, year: r.year! }));
+      yearIn = null;
+    } else {
+      seasonSel = el('select', { 'aria-label': `Semester for ${who()}`, 'data-key': `ext.row.${i}.season` });
+      for (const se of ['fall', 'spring', 'summer'] as Season[]) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), r.season === se));
+      seasonSel.addEventListener('change', () => (r.season = (seasonSel as HTMLSelectElement).value as Season));
+      yearIn = el('input', { type: 'number', min: '1970', max: '2040', 'aria-label': `Year for ${who()}`, 'data-key': `ext.row.${i}.year`, value: r.year !== undefined ? String(r.year) : '' });
+      yearIn.addEventListener('change', () => {
+        const v = Number((yearIn as HTMLInputElement).value);
+        r.year = Number.isFinite(v) && v > 1900 ? v : undefined;
+      });
+    }
     // Taken as (2026-09-05): the level decides Bachelor's vs graduate coursework on add.
-    const levelSel = el('select', { class: 'row-level', 'aria-label': `Taken as (level) for ${who()}`, 'data-key': `ext.row.${i}.level` });
+    const levelSel = el('select', {
+      class: 'row-level',
+      'aria-label': `Taken as (level) for ${who()}`,
+      title: 'Taken as — the level you were registered at when you took it: undergraduate rows can only satisfy §4.4.1 core knowledge; graduate rows may transfer (§5.2)',
+      'data-key': `ext.row.${i}.level`,
+    });
     levelSel.append(option('undergraduate', 'Undergraduate', r.level === 'undergraduate'), option('graduate', 'Graduate', r.level === 'graduate'));
     levelSel.addEventListener('change', () => {
       r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level'];
@@ -702,9 +733,16 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       if (!(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r))) r.include = true;
       render();
     });
+    // A locked (text-layer) row is COMPACT (DGS request 2026-09-06, second
+    // pass): two lines — tick, number and title; then "4 cr · A · Fall 2023 ·
+    // Taken as [level]" — no field labels (the values speak for themselves).
+    // Editable rows (OCR, typed by hand) keep their labelled inputs.
     const tr = el(
       'tr',
-      { class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : ''].join(' ').trim(), ...(blocked ? { title: BLOCKED_ROW_NOTE } : {}) },
+      {
+        class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : '', locked ? 'compact' : 'editable'].join(' ').trim(),
+        ...(blocked ? { title: BLOCKED_ROW_NOTE } : {}),
+      },
       el(
         'td',
         { class: 'cell-check' },
@@ -713,13 +751,14 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
         blocked ? el('span', { id: noteId, class: 'visually-hidden' }, BLOCKED_ROW_NOTE) : null,
       ),
       el('td', { class: 'cell-course', 'data-label': 'Course id' }, idIn),
-      // A visible tag as well as the hover text — touch screens have no hover.
-      el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn, blocked ? el('span', { class: 'blocked-tag', 'aria-hidden': 'true' }, 'not selectable — hover for why') : null),
-      el('td', { class: 'cell-meta', 'data-label': 'Credits' }, crIn),
-      el('td', { class: 'cell-meta', 'data-label': 'Grade' }, gradeSel),
-      el('td', { class: 'cell-meta', 'data-label': 'Term' }, seasonSel),
-      el('td', { class: 'cell-meta', 'data-label': 'Year' }, yearIn),
-      el('td', { class: 'cell-meta', 'data-label': 'Taken as' }, levelSel),
+      // (The greyed row + disabled box are the visible cue; the reason is the
+      // hover text and the box's aria-describedby — DGS 2026-09-06: no tag.)
+      el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn),
+      el('td', { class: `cell-meta${locked && r.credits !== undefined ? ' locked-cell' : ''}`, 'data-label': 'Credits' }, crIn),
+      el('td', { class: `cell-meta${locked && r.grade !== '' ? ' locked-cell' : ''}`, 'data-label': 'Grade' }, gradeSel),
+      el('td', { class: `cell-meta${termLocked ? ' locked-cell' : ''}`, 'data-label': 'Term' }, seasonSel),
+      termLocked ? el('td', { class: 'cell-meta cell-empty', 'data-label': 'Year' }) : el('td', { class: 'cell-meta', 'data-label': 'Year' }, yearIn),
+      el('td', { class: 'cell-meta level-cell', 'data-label': 'Taken as' }, levelSel),
     );
     return tr;
   });

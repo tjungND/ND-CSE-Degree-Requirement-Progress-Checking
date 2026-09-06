@@ -114,6 +114,30 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **Course-rules page count line** keeps the view label's case (2026-09-06): "View: whether a
   course counts toward the M.S. (MSCSE)." — only the first letter is lowered (was
   `.toLowerCase()` on the whole label, which printed "m.s. (mscse)").
+- **Batch of 2026-09-06 (afternoon): inactive buttons, locked preview values, compact rows.**
+  - `src/ui/dom.ts` `inactiveButton(attrs, reason, explain, …children)` + `PREVIEW_OPEN_NOTE`:
+    a button with `aria-disabled="true"`, class `inactive` (styled like `[disabled]`), `title` =
+    the reason, and a click that calls `explain(reason)` (the toast) instead of the action. Used
+    by app.ts `transcriptUpload()` (ND Import / Import again / Remove) and external-upload.ts
+    `slotRow()` (Import / Remove) whenever `blocked` — i.e. `transcriptPreview !== undefined ||
+    importsBusy()`. Never use the `disabled` attribute for these: the reason must be hoverable.
+  - external-upload.ts preview rows: for `locked` rows (`!p.fromOcr && !r.manual`) credits,
+    grade and term render as `<span class="… locked" data-key="ext.row.i.credits|grade|season">`
+    ("4 cr", "A", "Fall 2023" — the Year cell is then `cell-empty`), each cell classed
+    `locked-cell`; a value the parser did not read keeps its input (the row must be completable).
+    Row class `compact` (locked) vs `editable` (OCR / manual). The e2e reads compact rows via
+    `tr.compact td.locked-cell`.
+  - style.css inside the `@container (max-width: 860px)` block: `tr.compact` — no `::before`
+    labels on the course/title cells, `.cell-title` flex 1, the meta cells `inline-flex` with a
+    "·" `::after` on `.locked-cell`, `.cell-empty` hidden, the level cell keeps its small label
+    (the two-line phone form). A second block, `@container (min-width: 560px) and (max-width:
+    860px)`, makes it ONE line: `table:has(tr.compact)` becomes a 7-column grid (`auto auto
+    minmax(110px, 1fr) auto auto auto auto`), every `tr` spans all columns, and `tr.compact` is a
+    `subgrid` so the columns line up across rows; separators and the level label are dropped
+    there (the level `<select>` carries a `title`). Needs `:has()` and `subgrid` (Chrome 117+,
+    Safari 16+, Firefox 121+) — older browsers fall back to the two-line flex form. The visible
+    `.blocked-tag` was removed the same day (DGS); the blocked row's cue is the greyed text and
+    disabled box, its reason the row `title` + `aria-describedby`.
 - **Batch of 2026-09-06 (night): load time, preview layout, blocked rows, transfer candidates, ND
   Remove.** Mechanics:
   - `src/data/load.ts` `loadLiveRules`: ALL tabs at once (a worker queue with `FETCH_CONCURRENCY =

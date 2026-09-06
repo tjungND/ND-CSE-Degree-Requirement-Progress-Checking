@@ -35,3 +35,36 @@ export function option(value: string, label: string, selected = false): HTMLOpti
   o.selected = selected;
   return o;
 }
+
+/** Why the transcript-row buttons are inactive while a preview is open (DGS
+ * request 2026-09-06) — shown on hover, on click, and to screen readers. */
+export const PREVIEW_OPEN_NOTE =
+  'Not available while a transcript preview is open: finish selecting and adding those courses (“Add …”), or cancel the preview, and this button becomes active again.';
+
+/** A button that is inactive for a stated reason. Not the `disabled`
+ * attribute: a disabled button gets no hover, no focus and no click, so its
+ * reason could never be shown. `aria-disabled` keeps it in the tab order and
+ * reachable by the mouse; the reason is the tooltip, and a click repeats it
+ * through `explain` (a toast) instead of acting. */
+export function inactiveButton(
+  attrs: Record<string, string | boolean | ((ev: Event) => void)>,
+  reason: string,
+  explain: (reason: string) => void,
+  ...children: Child[]
+): HTMLButtonElement {
+  const { onclick: _ignored, class: cls, ...rest } = attrs;
+  return el(
+    'button',
+    {
+      ...rest,
+      class: `${typeof cls === 'string' ? cls : ''} inactive`.trim(),
+      'aria-disabled': 'true',
+      title: reason,
+      onclick: (ev) => {
+        ev.preventDefault();
+        explain(reason);
+      },
+    },
+    ...children,
+  );
+}

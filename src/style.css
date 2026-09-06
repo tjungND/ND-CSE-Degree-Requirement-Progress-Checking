@@ -66,7 +66,7 @@ dialog.consent::backdrop { background: rgba(10, 22, 40, 0.55); }
 .consent-box h2 { margin-top: 0; }
 .hint.warn { color: #7a5b00; background: #fff7e0; border: 1px solid #e8d48a; padding: 6px 10px; border-radius: 6px; }
 .card h3.subhead { margin: 16px 0 6px; font-size: 14px; color: var(--navy); }
-button[disabled] { opacity: 0.45; cursor: not-allowed; }
+button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 .banner.official a { color: inherit; }
 .masthead .effective { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
@@ -420,7 +420,6 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .transcript-preview tr.prior-row .cid, .transcript-preview tr.prior-row input.course-id, .transcript-preview tr.prior-row .course-id.locked { color: var(--muted); } /* rows filed as prior coursework / unticked as irrelevant */
 .transcript-preview tr.blocked-row .cell-check, .transcript-preview tr.blocked-row .course-title.locked { cursor: help; } /* the row explains itself on hover (2026-09-06) */
 .transcript-preview tr.blocked-row input[type="checkbox"][disabled] { cursor: not-allowed; }
-.transcript-preview tr.blocked-row .blocked-tag { display: block; font-size: 12px; color: var(--muted); font-style: italic; cursor: help; }
 .transcript-preview tr.blocked-row .course-title.locked { color: var(--muted); }
 .review-line { font-size: 13px; margin: 3px 0; color: var(--ink); }
 .review-line .cid { font-weight: 600; }
@@ -541,6 +540,44 @@ tr.ocr-low td { background: #fff7e0; }
   .transcript-preview table.courses.stack.edit input[type="number"][max="2040"] { width: 88px; }
   .transcript-preview table.courses.stack.edit select { max-width: none; }
   .transcript-preview table.courses.stack.edit .cid { white-space: normal; }
+  /* COMPACT rows — a text-layer import, where number, title, credits, grade
+     and term are locked (DGS request 2026-09-06, second pass): no field
+     labels. Wide enough (≥ 560 px): ONE line per course —
+     "☐ CS 25100  Data Structures and Algorithms   4 cr · A · Fall 2023 · [Undergraduate]"
+     (a long title wraps inside its own cell; the level dropdown explains itself
+     on hover). Narrower: two lines, the values on the second. Editable rows
+     (OCR, typed by hand) keep the labelled inputs above. */
+  .transcript-preview table.courses.stack.edit tr.compact { padding: 5px 10px; margin: 5px 0; row-gap: 1px; align-items: baseline; font-size: 14px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-course::before, .transcript-preview table.courses.stack.edit tr.compact td.cell-title::before { content: none; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-course { flex: 0 0 auto; min-width: 0; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-title { flex: 1 1 160px; }
+  .transcript-preview table.courses.stack.edit tr.compact .locked { display: inline; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin-top: 1px; white-space: nowrap; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.locked-cell::before { content: none; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.locked-cell::after { content: '·'; color: var(--muted); margin-left: 10px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.cell-empty { display: none; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.locked-cell:has(+ td.cell-empty)::after { content: none; } /* no dangling "·" before the level dropdown wraps */
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:not(.locked-cell)::before { font-size: 11px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 3px 6px; font-size: 13.5px; }
+}
+/* One line per course when the preview is wide enough for it (see above). The
+   TABLE is the grid and each compact row a subgrid, so the columns line up
+   across rows (the widest course number sets the id column, and so on);
+   editable rows and the hidden header span all columns and keep their own
+   layout. */
+@container (min-width: 560px) and (max-width: 860px) {
+  .transcript-preview table.courses.stack.edit:has(tr.compact) { display: grid; grid-template-columns: auto auto minmax(110px, 1fr) auto auto auto auto; column-gap: 14px; }
+  .transcript-preview table.courses.stack.edit:has(tr.compact) tbody { display: contents; }
+  .transcript-preview table.courses.stack.edit:has(tr.compact) tr { grid-column: 1 / -1; }
+  .transcript-preview table.courses.stack.edit tr.compact { display: grid; grid-template-columns: subgrid; align-items: baseline; }
+  .transcript-preview table.courses.stack.edit tr.compact::before { content: none; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta { margin-top: 0; }
+  .transcript-preview table.courses.stack.edit tr.compact td.level-cell::before { content: none; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.locked-cell::after { content: none; } /* aligned columns need no separators */
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta { color: var(--ink); }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-title { padding-right: 8px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 2px 4px; font-size: 13px; }
+
 }
 
 /* ---------- courses.html on phones and tablets in portrait: cards instead of the 980 px table ---------- */
