@@ -27,13 +27,14 @@ describe('prefillLevelsByTerm', () => {
     assert.deepEqual(rows.map((r) => r.level[0]), ['u', 'u', 'g', 'g', 'g']);
   });
 
-  it('rows the transcript labelled keep their label; rows without a year keep the slot level', () => {
-    const rows = [row('fall', 2020, 'graduate', 'transcript'), row('spring', 2021), row('fall', 2023), row('fall', undefined)];
-    prefillLevelsByTerm(rows, 'masters');
-    assert.deepEqual(rows.map((r) => `${r.level[0]}:${r.levelSource}`), ['g:transcript', 'u:term', 'g:term', 'g:slot']);
+  it('a transcript that labels any row decides by itself: the rule is not applied, unlabelled rows keep the slot level (DGS, 2026-09-06 evening)', () => {
+    const rows = [row('fall', 2020, 'undergraduate', 'transcript'), row('spring', 2021), row('fall', 2023), row('fall', undefined)];
+    assert.equal(prefillLevelsByTerm(rows, 'masters'), undefined);
+    assert.deepEqual(rows.map((r) => `${r.level[0]}:${r.levelSource}`), ['u:transcript', 'g:slot', 'g:slot', 'g:slot']);
     // Every dated row labelled by the transcript → nothing for the rule to do, nothing to explain.
     const labelled = [row('fall', 2020, 'undergraduate', 'transcript'), row('fall', 2023, 'graduate', 'transcript')];
     assert.equal(prefillLevelsByTerm(labelled, 'masters'), undefined);
+    assert.deepEqual(labelled.map((r) => r.level[0]), ['u', 'g']);
   });
 
   it('does nothing for a record within two years, in the Undergraduate row, or in the Ph.D. row', () => {

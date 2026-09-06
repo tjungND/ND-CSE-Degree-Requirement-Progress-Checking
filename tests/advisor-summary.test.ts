@@ -98,11 +98,11 @@ describe('advisor summary: deadlines on the rows that have them', () => {
         deadline: { date: '2028-02-15', approx: true, state: 'overdue', label: 'Overdue' },
       },
       {
-        ...req('phd.candidacy', 'Candidacy examination (dissertation proposal) passed', 'in_progress', '', 'Candidacy examination — §4.5', '§4.5'),
+        ...req('phd.candidacy', 'Oral Candidacy Exam (OCE) passed', 'in_progress', '', 'Oral Candidacy Exam (OCE) — §4.5', '§4.5'),
         deadline: { date: '2030-05-31', approx: true, state: 'upcoming', label: 'Due by the end of Spring 2030 — semester 8 (2030-05-31) (approximate)' },
       },
       {
-        ...req('done', 'Something already done', 'met', 'Done.', 'Candidacy examination — §4.5', '§4.5'),
+        ...req('done', 'Something already done', 'met', 'Done.', 'Oral Candidacy Exam (OCE) — §4.5', '§4.5'),
         deadline: { date: '2027-01-01', approx: true, state: 'done', label: 'Complete' },
       },
     ],
@@ -113,7 +113,7 @@ describe('advisor summary: deadlines on the rows that have them', () => {
   it('subject line adds the passed deadline; rows say their semester, never a date', () => {
     assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 2 requirements not yet met, 1 deadline passed\n/);
     assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[NOT YET\] Research component: a significant research contribution \(§4\.4\.3\) — Deadline passed \(was due during Spring 2028\)\.\n/);
-    assert.match(text, /\nCANDIDACY EXAMINATION — §4\.5\n  \[IN PROGRESS\] Candidacy examination \(dissertation proposal\) passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\)\n/);
+    assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] Oral Candidacy Exam \(OCE\) passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\)\n/);
     for (const dueLine of text.split('\n').filter((l: string) => /\bdue\b/i.test(l))) {
       assert.doesNotMatch(dueLine, /\d{4}-\d{2}-\d{2}/, `no ISO date in a deadline line: ${dueLine}`);
     }
@@ -131,7 +131,7 @@ describe('advisor summary: deadlines on the rows that have them', () => {
   it('to-dos: the passed research deadline asks the advisor to decide and the DGS to rule on an extension', () => {
     const todo = actionItems(withDeadlines);
     assert.ok(todo.student.includes('Pass the research component of the qualifier — the deadline (Spring 2028) has passed (§4.4.3).'));
-    assert.ok(todo.student.includes('Take the candidacy exam by the end of Spring 2030 (§4.5).'));
+    assert.ok(todo.student.includes('Take the Oral Candidacy Exam (OCE) by the end of Spring 2030 (§4.5).'));
     assert.ok(todo.advisor.includes('Determine whether I have passed the research component and file the Research-Qualifier form (§4.4.3).'));
     assert.ok(todo.dgs.includes('Decide whether to extend the research-component deadline (§4.4.3).'));
   });
@@ -153,7 +153,7 @@ describe('actionItems: the rest of the rules', () => {
         },
         req('phd.qualifier.core.os', 'Core knowledge: Operating Systems', 'needs_dgs_review', 'CS 50300 (Purdue) — not yet reviewed by the DGS.', 'Qualifying examination — §4.4', '§4.4.1'),
         req('phd.qualifier.core.algorithms', 'Core knowledge: Algorithms', 'unmet', 'No course yet.', 'Qualifying examination — §4.4', '§4.4.1'),
-        req('phd.candidacy', 'Candidacy examination (dissertation proposal) passed', 'met', 'Candidacy exam passed 2029-04-01.', 'Candidacy examination — §4.5', '§4.5'),
+        req('phd.candidacy', 'Oral Candidacy Exam (OCE) passed', 'met', 'Oral Candidacy Exam (OCE) passed 2029-04-01.', 'Oral Candidacy Exam (OCE) — §4.5', '§4.5'),
         req('phd.dissertation.approval', 'Dissertation unanimously approved for defense by the readers', 'unmet', 'Not yet approved.', 'Dissertation and defense — §4.6–4.7', '§4.6'),
         req('phd.dissertation.defense', 'Dissertation defense passed', 'unmet', 'Not yet.', 'Dissertation and defense — §4.6–4.7', '§4.7'),
         {

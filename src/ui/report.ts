@@ -323,7 +323,7 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
           ['Core knowledge', 'An Operating Systems course, an Algorithms course and a Computer Architecture course, passed at Notre Dame or at a previous institution (undergraduate or graduate; a previous-institution course counts once the DGS confirms it).', '§4.4.1'],
           ['Specialization (category specialization)', 'Three courses from three distinct specialization groups, each passed with a B or higher. A course may count for both core knowledge and specialization.', '§4.4.2'],
           ['Research qualifier', 'Within 18 months of entering the program, your research advisor determines whether you have passed the research component and files the form.', '§4.4.3'],
-          ['Candidacy exam', 'The dissertation proposal exam; it must be taken before the end of your eighth semester in the program.', '§4.5'],
+          ['Oral Candidacy Exam (OCE)', 'The candidacy examination of §4.5, sometimes called the dissertation proposal: a written proposal and an oral exam before your committee. It must be taken before the end of your eighth semester in the program.', '§4.5'],
           ['Transfer credit', 'Courses from an M.S. earned at Notre Dame or elsewhere within the five years before admission may count toward the course requirement, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
         ] as [string, string, string][])
       : ([

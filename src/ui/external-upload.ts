@@ -529,7 +529,8 @@ function ocrProgressBlock(): HTMLElement {
 /** One sentence on where the "Taken as" values came from (DGS request
  * 2026-09-06: say how Graduate/Undergraduate were pre-filled, and ask for a
  * check). Three sources, most specific first: the transcript's own markers,
- * the two-year rule, the slot. */
+ * the two-year rule (which runs only when the transcript states no level at
+ * all — DGS 2026-09-06 evening), the slot. */
 function levelNote(p: ExternalPreview): string {
   const fromTranscript = p.rows.filter((r) => r.levelSource === 'transcript').length;
   const byTerm = p.rows.filter((r) => r.levelSource === 'term').length;

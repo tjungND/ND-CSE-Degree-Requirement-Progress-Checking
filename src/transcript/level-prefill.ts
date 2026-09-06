@@ -19,13 +19,19 @@ const earlierTerm = (a: Term, b: Term): Term => (laterTerm(a, b) === a ? b : a);
  * graduate student, the earlier ones as an undergraduate. Applied in the
  * Master's row only — where a combined transcript goes; a Ph.D. record spans
  * more than two years by nature — when the rows span more than two years.
- * Rows the transcript itself labelled keep their label; rows without a year
- * keep the slot's level. Returns the window for the preview's explanation. */
+ * And only when the transcript says NOTHING about levels (DGS, 2026-09-06
+ * evening): when it tells which courses were taken as a graduate or an
+ * undergraduate student — a UG/GR column, a "Level" block, a dated bachelor's
+ * conferral (`levelSource: 'transcript'` on any row) — that pre-fills the
+ * column and this rule is not applied at all; rows it leaves unlabelled keep
+ * the slot's level. Rows without a year keep the slot's level too. Returns
+ * the window for the preview's explanation. */
 export function prefillLevelsByTerm(
   rows: { season: Season; year: number | undefined; level: Level; levelSource: LevelSource }[],
   slot: Slot,
 ): { graduateFrom: Term; latest: Term } | undefined {
   if (slot !== 'masters') return undefined;
+  if (rows.some((r) => r.levelSource === 'transcript')) return undefined; // the transcript decides by itself
   const dated = rows.map(asTerm).filter((t): t is Term => t !== undefined);
   if (dated.length === 0) return undefined;
   const latest = dated.reduce(laterTerm);

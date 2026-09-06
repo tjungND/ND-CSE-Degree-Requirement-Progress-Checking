@@ -1,6 +1,6 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-06, ~17:40 UTC (the first Claude Code Desktop session on the DGS's Mac,
+Last updated: 2026-09-06, ~18:30 UTC (the first Claude Code Desktop session on the DGS's Mac,
 branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at ~15:00 UTC —
 see "Session protocol" in `CLAUDE.md`).
 
@@ -15,6 +15,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   same four drivers, screenshots in `.e2e-out/webkit/`); the one-line preview rows keyed on the
   recorded 560 px (they were keyed on 600 px, so 1100 px windows showed two-line rows);
   `checkCompactPreview` measures the Master's-slot preview at 1400 and 1100 px in both browsers.
+  Then the DGS's answers to the six open items: wording review closed (file removed), the two-year
+  "Taken as" rule only for transcripts that state no level, the opening notice keeps asking, the
+  §4.5 examination is "Oral Candidacy Exam (OCE)" everywhere the wording is ours.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.
@@ -46,18 +49,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
 
 ## Open for the DGS (decisions, not code)
 
-1. **Wording review** — `docs/WORDING-REVIEW.md` lists every student-facing string Claude drafted
-   (W1–W47) with where it lives. Reply with a numbered list ("W3: say … instead"); Claude applies and
-   re-runs the checks.
-2. The two-year "Taken as" rule runs only in the Previous Master's row and will mis-prefill a part-time
-   M.S. spanning more than two years (the preview asks students to check) — confirm or change.
-3. The Sep 6 request about undergraduate rows was cut off after "If it is relevant," — current behaviour
-   (name the core area it may satisfy / satisfies) was kept; say if something else was meant.
-4. Whether the opening notice should remember the acknowledgment for 30 days per browser (W4).
-5. Two glossary entries flagged as least certain: "Full-time" and "Candidacy exam" (W24).
-6. The preview rows in an 1100 px window: the code now follows the recorded 560 px rule, so they are
-   one line per course with a narrower title column (a long title wraps to two lines inside its own
-   cell — see the 1100 px crop). Say if you would rather have two-line rows below some width.
+Nothing pending: the DGS answered the six items listed here on 2026-09-06 (evening) — see the
+DECISIONS rows of that evening — and the wording review (W1–W47) is closed. A student-facing string
+Claude drafts is now listed, numbered, in the reply that delivers it, for the DGS to edit.
 
 ## Open work (optional)
 

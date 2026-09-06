@@ -302,12 +302,12 @@ export function actionItems(report: AuditReport): ActionItems {
     if (overdue(research)) out.dgs.push(`Decide whether to extend the research-component deadline ${section(research)}.`);
   } else if (research?.status === 'needs_dgs_review') out.dgs.push(`Confirm the late research-component result ${section(research)}.`);
 
-  // Candidacy and dissertation.
+  // The Oral Candidacy Exam (OCE) and the dissertation.
   const candidacy = byId.get('phd.candidacy');
   if (candidacy && isOpen(candidacy.status)) {
-    out.student.push(`Take the candidacy exam${due(candidacy)} ${section(candidacy)}.`);
-    if (overdue(candidacy)) out.dgs.push(`Decide how to handle the passed candidacy deadline ${section(candidacy)}.`);
-  } else if (candidacy?.status === 'needs_dgs_review') out.dgs.push(`Confirm the late candidacy exam ${section(candidacy)}.`);
+    out.student.push(`Take the Oral Candidacy Exam (OCE)${due(candidacy)} ${section(candidacy)}.`);
+    if (overdue(candidacy)) out.dgs.push(`Decide how to handle the passed Oral Candidacy Exam (OCE) deadline ${section(candidacy)}.`);
+  } else if (candidacy?.status === 'needs_dgs_review') out.dgs.push(`Confirm the late Oral Candidacy Exam (OCE) ${section(candidacy)}.`);
   if (candidacy?.status === 'met') {
     const approval = byId.get('phd.dissertation.approval');
     if (approval && isOpen(approval.status)) out.student.push(`Get the dissertation approved for defense by all readers ${section(approval)}.`);

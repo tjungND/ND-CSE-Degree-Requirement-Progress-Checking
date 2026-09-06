@@ -29,7 +29,7 @@ import { fullTimeTermRecords } from './residency.ts';
 const COURSEWORK = 'Coursework — §4.2';
 const TIME = 'Residence and time — §4.3';
 const QUALIFIER = 'Qualifying examination — §4.4';
-const CANDIDACY = 'Candidacy examination — §4.5';
+const CANDIDACY = 'Oral Candidacy Exam (OCE) — §4.5'; // the DGS's name for the §4.5 examination (2026-09-06); the handbook quotes below stay verbatim
 const DISSERTATION = 'Dissertation and defense — §4.6–4.7';
 
 export function phdRows(ctx: Ctx): RequirementResult[] {
@@ -587,7 +587,7 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     return {
       id: 'phd.candidacy',
       group: CANDIDACY,
-      title: 'Candidacy examination (dissertation proposal) passed',
+      title: 'Oral Candidacy Exam (OCE) passed',
       status: 'cannot_evaluate',
       detail: missingParamDetail('candidacy_deadline_semester'),
       citation: { section: '§4.5', quote },
@@ -602,7 +602,7 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     deadlineLabel: `the end of ${termLabel(term)} — semester ${sem}`,
   });
   const parts: string[] = [];
-  if (r.status === 'met') parts.push(`Candidacy exam passed ${ctx.student.milestones.candidacyPassed}`);
+  if (r.status === 'met') parts.push(`Oral Candidacy Exam (OCE) passed ${ctx.student.milestones.candidacyPassed}`);
   else if (r.status === 'needs_dgs_review')
     parts.push(`Passed ${ctx.student.milestones.candidacyPassed}, ${r.lateNote ?? ''}`);
   else if (r.status === 'unmet')
@@ -612,7 +612,7 @@ function candidacyRow(ctx: Ctx): RequirementResult {
   return {
     id: 'phd.candidacy',
     group: CANDIDACY,
-    title: 'Candidacy examination (dissertation proposal) passed',
+    title: 'Oral Candidacy Exam (OCE) passed',
     status: r.status,
     ...(parts.length > 0 ? joinedDetail(parts) : { detail: '' }),
     deadline: r.deadline,
@@ -684,13 +684,13 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
     detail = missingParamDetail(reqReg === undefined ? 'ms_regular_credits_min' : 'ms_project_credits_min');
   } else if (passed && doneReg >= reqReg && doneRes >= reqRes) {
     status = 'met';
-    detail = `Candidacy passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — ask the Grad Admin about receiving the MSCSE (§4.5).`;
+    detail = `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — ask the Grad Admin about receiving the MSCSE (§4.5).`;
   } else if (passed) {
     status = 'in_progress';
     detail = `${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame.`;
   } else {
     status = 'not_applicable';
-    detail = `Passing the candidacy exam can also earn the MSCSE (§4.5) once ${reqReg} regular course credits and ${reqRes} research credits are completed at Notre Dame — ${doneReg} of ${reqReg} and ${doneRes} of ${reqRes} so far.`;
+    detail = `Passing the Oral Candidacy Exam (OCE) can also earn the MSCSE (§4.5) once ${reqReg} regular course credits and ${reqRes} research credits are completed at Notre Dame — ${doneReg} of ${reqReg} and ${doneRes} of ${reqRes} so far.`;
   }
   return {
     id: 'phd.msAlongTheWay',

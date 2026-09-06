@@ -454,7 +454,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           inferred.how === 'assumed'
             ? `${termLabel(student.entryTerm)} is assumed — set the semester you entered the program. `
             : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
-          'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the eighth-semester candidacy exam (§4.5) — are counted from this term.',
+          'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the eighth-semester Oral Candidacy Exam (OCE, §4.5) — are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
       : null;
@@ -1590,7 +1590,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       card.append(
         dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
         dateField('Qualifier completion form filed with the DGS office (§4.4)', 'qualifierFormFiled'),
-        dateField('Candidacy exam passed (§4.5)', 'candidacyPassed'),
+        dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed'),
         dateField('Dissertation approved for defense by all readers (§4.6)', 'dissertationApprovedForDefense'),
         dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
       );

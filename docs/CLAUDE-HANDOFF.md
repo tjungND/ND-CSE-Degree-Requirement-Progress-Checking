@@ -50,6 +50,19 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **The DGS's answers to the open items** (2026-09-06 evening; DECISIONS rows of that evening):
+  the wording review is closed and `docs/WORDING-REVIEW.md` removed — a student-facing string Claude
+  drafts is now listed, numbered, in the reply that delivers it (CLAUDE.md says so); the two-year
+  "Taken as" rule runs only when the transcript states NO level (`prefillLevelsByTerm` returns
+  early when any row has `levelSource: 'transcript'` — the transcript's own markers decide,
+  unlabelled rows keep the slot's level); the opening notice keeps asking on every visit (no
+  30-day memory — don't add one); the §4.5 examination is "Oral Candidacy Exam (OCE)" in every
+  string of our own — `CANDIDACY` group label and row title in phd.ts, its details and the
+  along-the-way MSCSE row, the milestones `dateField`, the glossary entry in report.ts, the
+  standing-card deadline note in app.ts, the advisor summary's to-dos — while the handbook
+  quotes behind the § chips stay verbatim ("The candidacy exam must be taken…"); the id
+  `phd.candidacy` and the `candidacy_*` parameter keys are unchanged. Tests pin the strings
+  (advisor-summary.test.ts, level-prefill.test.ts).
 - **Safari's engine in the e2e run** (2026-09-06 evening, DGS request; the subgrid incident that
   afternoon showed Chromium alone is not enough): `E2E_BROWSER=webkit npm run e2e` (also `npm run
   e2e:webkit`) drives the SAME four drivers through Playwright's WebKit build; screenshots in
@@ -229,7 +242,8 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **Batch of 2026-09-06 (evening): transcript preview, per-course marks, review request, advisor
   summary v3.** Mechanics, file by file:
   - `src/transcript/level-prefill.ts` (new, DOM-free): `prefillLevelsByTerm(rows, slot)` — the
-    two-year rule for combined BS+MS transcripts (Master's row only, rows spanning > 2 years, rows
+    two-year rule for combined BS+MS transcripts (Master's row only, rows spanning > 2 years, NO row labelled by the transcript —
+    since the DGS's answer that evening a transcript that states any level decides by itself — rows
     with `levelSource: 'slot'` and a year; returns `{ graduateFrom, latest }` only when it changed
     a row). Called from both import paths in external-upload.ts; `PreviewRow.levelSource`
     (`transcript` | `term` | `slot`) and `PreviewRow.manual` (typed rows) are new;

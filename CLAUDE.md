@@ -139,4 +139,5 @@ replaced by `README.md` on 2026-09-01.)
 - FERPA: never open a real transcript. Sanitized copies only, kept outside the repo under neutral
   names; never let a student's name into code, fixtures, docs or commit messages.
 - Wording: "Grad Admin" is the Graduate Program Administrator; every student-facing string Claude
-  drafts goes into `docs/WORDING-REVIEW.md` for the DGS to edit.
+  drafts is listed, numbered, in the reply that delivers it, for the DGS to edit (the W1–W47 review
+  file `docs/WORDING-REVIEW.md` was approved in full and removed on 2026-09-06).
