@@ -52,14 +52,28 @@ export function isPriorNd(c: CourseEntry, entry: Term): boolean {
 /** Re-file every Notre Dame course by the student's entry term: before it →
  * prior coursework, from it on → program coursework. Courses from other
  * institutions (the transcript's own transfer-credit block, external
- * transcripts) are untouched. Returns how many entries moved each way. */
+ * transcripts) are untouched. Prior rows are also re-levelled against the
+ * bachelor's award term on every call, so importing the transcript and
+ * setting that term give the same result in either order (DGS 2026-09-07).
+ * Returns how many entries moved each way. */
 export function reclassifyNotreDameCourses(student: Student): { toPrior: number; toProgram: number } {
   let toPrior = 0;
   let toProgram = 0;
   for (const c of student.courses) {
     if (!isNotreDameCourse(c)) continue;
     if (isPriorNd(c, student.entryTerm)) {
-      if (c.origin === 'transfer') continue;
+      // A row already filed as prior stays prior, but is RE-LEVELLED (DGS
+      // 2026-09-07). The bachelor's award term is normally set after the
+      // transcript import — the field sits under Your standing, below the
+      // transcripts card — and before this fix a row filed first kept the
+      // level guessed from its course number, so the order of the two
+      // actions changed what the student saw. priorNdDegreeLevel still
+      // prefers the transcript's own UG/GR label, so a labelled row never
+      // moves; clearing the term falls back to the course number.
+      if (c.origin === 'transfer') {
+        c.degreeLevel = priorNdDegreeLevel(c, student.bachelorsAwarded);
+        continue;
+      }
       c.origin = 'transfer';
       c.institution = NOTRE_DAME;
       c.degreeLevel = priorNdDegreeLevel(c, student.bachelorsAwarded);

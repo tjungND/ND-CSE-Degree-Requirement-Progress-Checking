@@ -37,7 +37,12 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   read from "Degree Completion Date" / "Conferral Date" / "Date Conferred" lines, before or after the
   degree name, and from "05/2024" (both parsers). 2026-09-07: "UG student" / "Grad student"; semesters
   in table cells read "FA26" / "SP25" / "SU25" (`termShort`, tooltip = full name); prose unchanged;
-  the compact preview shows one header, "Taken as", over the dropdown column.
+  the compact preview shows one header, "Taken as", over the dropdown column. A pre-approved transfer's
+  line no longer says "pending DGS review"; its card is "In progress" until the Grad Admin has processed it.
+  Undergraduate wording: "Courses taken as an undergraduate student do not transfer, whether or not the
+  course itself is a graduate course (§5.2)", and every undergraduate course line now carries that reason.
+  Prior Notre Dame rows are re-levelled whenever the bachelor's award term changes, so importing the
+  transcript and setting that term now give the same result in either order.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

@@ -42,8 +42,8 @@
     "phd.seminar": { "status": "met" }
   },
   "expectCourseLines": {
-    "CSE 60641": ["satisfies the Operating Systems core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules"],
-    "CSE 30321": ["may satisfy the Computer Architecture core-knowledge requirement (§4.4.1) — pending DGS review"],
-    "CSE 10001": ["not relevant to the core knowledge requirement (§4.4.1)"]
+    "CSE 60641": ["satisfies the Operating Systems core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules", "taken as an undergraduate student — no transfer credit (§5.2)"],
+    "CSE 30321": ["may satisfy the Computer Architecture core-knowledge requirement (§4.4.1) — pending DGS review", "taken as an undergraduate student — no transfer credit (§5.2)"],
+    "CSE 10001": ["not relevant to the core knowledge requirement (§4.4.1)", "taken as an undergraduate student — no transfer credit (§5.2)"]
   }
 }

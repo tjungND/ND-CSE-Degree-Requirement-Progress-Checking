@@ -776,7 +776,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           ? el(
               'p',
               { class: 'hint' },
-              `Undergraduate credits do not transfer (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here${g.hidden > 0 ? ` — ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown` : ''}.`,
+              `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here${g.hidden > 0 ? ` — ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown` : ''}.`,
             )
           : g.entries.some(({ c }) => !isNotreDameInstitution(c.institution)) && hasTransferCandidate(g.entries)
             ? el(

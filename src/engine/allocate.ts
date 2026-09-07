@@ -203,23 +203,26 @@ export function classify(student: Student, rules: Rules): {
       // graduate student status" — Bachelor's coursework can never transfer.
       // §4.4.1 core knowledge has no such restriction, so the course stays
       // visible to the core check (coreRows reads classified regardless).
-      // The per-course line focuses on the ONE thing an undergraduate course
+      // The per-course line leads with the ONE thing an undergraduate course
       // can do — demonstrate a core-knowledge area (DGS request 2026-09-04;
-      // shortened 2026-09-06: a course that cannot is simply "not relevant to
-      // the core knowledge requirement (§4.4.1)" — the coursework heading
-      // already says undergraduate credits never transfer).
+      // shortened 2026-09-06 so it did not repeat "no transfer credit").
+      // DGS 2026-09-07 restores that half, with its REASON: the bar is the
+      // student's status when they took the course, not the course's level, so
+      // a graduate-numbered course taken before the bachelor's says so on its
+      // own line rather than leaving it to the group heading.
       if (c.degreeLevel === 'bachelors') {
         const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
         const suggested = coreTitleSuggestion(c.title);
+        const ugNote = '; taken as an undergraduate student — no transfer credit (§5.2)';
         return {
           ...extBase,
           ineligibleReason: confirmedArea
-            ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
+            ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS${ugNote}`
             : ndCoreArea
-              ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules`
+              ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules${ugNote}`
               : suggested
-                ? `may satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review; send the review request`
-                : 'not relevant to the core knowledge requirement (§4.4.1)',
+                ? `may satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review; send the review request${ugNote}`
+                : `not relevant to the core knowledge requirement (§4.4.1)${ugNote}`,
         };
       }
       // Graduate courses (2026-09-04): §5.2 transfer credit is not the only
@@ -583,9 +586,25 @@ function buildExplanation(
       mark: 'pending',
     };
   }
-  const lead =
-    cc.tier === 'provisional' ? 'pending DGS review — would count' : cc.tier === 'in_progress' ? 'in progress — will count' : 'counts';
-  const tail = cc.tier === 'provisional' ? ' once approved' : cc.tier === 'in_progress' ? ' when passed' : '';
+  // A transfer the DGS has ALREADY ruled transferable (ExternalCourses tab)
+  // is not "pending DGS review": it is pre-approved and waits only for the
+  // Grad Admin's processing (DGS 2026-09-07 — until then one line said both
+  // "would count … once approved" and "pre-approved").
+  const preApproved = cc.tier === 'provisional' && /^pre-approved/.test(cc.approvalPending ?? '');
+  const lead = preApproved
+    ? 'pre-approved by the DGS — will count'
+    : cc.tier === 'provisional'
+      ? 'pending DGS review — would count'
+      : cc.tier === 'in_progress'
+        ? 'in progress — will count'
+        : 'counts';
+  const tail = preApproved
+    ? ' as transfer credit once the Grad Admin has processed it'
+    : cc.tier === 'provisional'
+      ? ' once approved'
+      : cc.tier === 'in_progress'
+        ? ' when passed'
+        : '';
   let mark: CourseMark;
   if (counted > 0 && excluded > 0) {
     mark = cc.tier === 'definite' ? 'counts' : 'pending';
@@ -600,8 +619,9 @@ function buildExplanation(
     }
     if (cc.caps.includes('fourk')) parts.push('uses the 40000-level allowance');
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
-    // The pending note already says "transfer — …(§5.2)"; say it once.
-    if (cc.caps.includes('transfer') && !/^transfer/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');
+    // The pending note already says "transfer — …(§5.2)" (and the pre-approved
+    // lead says "as transfer credit"); say it once.
+    if (cc.caps.includes('transfer') && !preApproved && !/^transfer/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');
   } else {
     const reason = excludedReason ?? 'not counted';
     // An undergraduate course that satisfies (green) or may satisfy (amber) a
@@ -616,6 +636,7 @@ function buildExplanation(
     // as if a review could make it count).
     return { explanation: parts.join('; '), mark };
   }
-  if (cc.approvalPending) parts.push(cc.approvalPending);
+  // The pre-approved note's opening repeats the lead: keep its instruction.
+  if (cc.approvalPending) parts.push(preApproved ? cc.approvalPending.replace(/^pre-approved in the DGS’s external-course rules — to have it processed, send/, 'send') : cc.approvalPending);
   return { explanation: parts.join('; '), mark };
 }

@@ -143,6 +143,21 @@ Known-pending (the app's diagnostics panel is the live truth):
   560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
   again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
   the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+  `reclassifyNotreDameCourses` re-levels rows ALREADY filed as prior on every call (2026-09-07):
+  the old `if (c.origin === 'transfer') continue` made the result depend on whether the award term
+  was set before or after the import. Keep it order-independent — `tests/prior-nd.test.ts` pins it.
+  Undergraduate wording (DGS 2026-09-07): "Undergraduate credits do not transfer" became "Courses
+  taken as an undergraduate student do not transfer, whether or not the course itself is a graduate
+  course" (app.ts group heading, external-upload.ts preview hint and empty-preview message), and
+  `classify`'s `degreeLevel === 'bachelors'` branch appends `ugNote` — "; taken as an undergraduate
+  student — no transfer credit (§5.2)" — to all four of its reasons. Keep the core-knowledge term
+  FIRST: `buildExplanation`'s mark regex keys on `^satisfies` / `^may satisfy`, so leading with the
+  transfer note would repaint those lines red.
+  Pre-approved transfers (DGS 2026-09-07): `buildExplanation` detects an `approvalPending` that
+  starts "pre-approved" and leads the line with "pre-approved by the DGS — will count … as transfer
+  credit once the Grad Admin has processed it" (the note's repeated opening is stripped; the
+  `approvalPending` string itself is unchanged — advisor-summary routes on its "pre-approved"
+  prefix); `transferRow` is `in_progress` when every pending transfer is ruled transferable.
   Tests: external-transcript.test.ts (wording describe), transcript.test.ts (labels), term.test.ts,
   grad-admin-request.test.ts (count), external-rules.test.ts (casing).
 - **The DGS's answers to the open items** (2026-09-06 evening; DECISIONS rows of that evening):

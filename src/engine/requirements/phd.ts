@@ -191,7 +191,9 @@ function seminarRow(ctx: Ctx): RequirementResult {
 
 /** §4.2 + §5.2 transfer credit: window, B floor, and the 6/24 caps are enforced
  * by the classifier/allocator; this row reports the result. Every transfer is
- * needs-DGS-review until attested (§5.2 requires DGS + Graduate School approval). */
+ * needs-DGS-review until attested (§5.2 requires DGS + Graduate School approval) —
+ * except when every pending course is already ruled transferable: then the row
+ * is "in progress" until the Grad Admin has processed it (DGS 2026-09-07). */
 function transferRow(ctx: Ctx): RequirementResult {
   const quote =
     'Courses from a M.S. degree earned at Notre Dame or another institution within the last five years prior to admission may be used to satisfy the course requirement.';
@@ -217,7 +219,15 @@ function transferRow(ctx: Ctx): RequirementResult {
   } else {
     const counted =
       ctx.alloc.transfer.definite + ctx.alloc.transfer.in_progress + ctx.alloc.transfer.provisional;
-    status = ctx.student.attestations.transferApproved ? 'met' : 'needs_dgs_review';
+    // Split the pending courses by what the DGS's ExternalCourses tab says,
+    // so the student knows exactly what to do next (2026-09-01). Ruled
+    // transferable already → nothing is left for the DGS to decide: the
+    // credit waits for the Grad Admin's processing, so the row is "in
+    // progress", not "needs DGS review" (DGS 2026-09-07).
+    const pending = transfers.filter((c) => !c.superseded && c.approvalPending);
+    const preApproved = pending.filter((c) => c.external?.transferable === true);
+    const unreviewed = pending.filter((c) => !c.external);
+    status = ctx.student.attestations.transferApproved ? 'met' : pending.length > 0 && preApproved.length === pending.length ? 'in_progress' : 'needs_dgs_review';
     parts.push(
       `${counted} of ${cap} transfer credits counted (§5.2 cap for a ${ctx.student.priorMs === 'completed' ? 'completed prior degree' : 'prior program that was not completed'})`,
     );
@@ -225,15 +235,10 @@ function transferRow(ctx: Ctx): RequirementResult {
       (p) => p.course.entry.origin === 'transfer' && p.course.entry.degreeLevel !== 'bachelors' && p.excluded > 0,
     );
     for (const p of excluded) parts.push(`${p.course.entry.courseId}: ${p.excludedReason ?? 'not counted'}`);
-    if (status === 'needs_dgs_review') {
-      // Split the pending courses by what the DGS's ExternalCourses tab says,
-      // so the student knows exactly what to do next (2026-09-01).
-      const pending = transfers.filter((c) => !c.superseded && c.approvalPending);
-      const preApproved = pending.filter((c) => c.external?.transferable === true);
-      const unreviewed = pending.filter((c) => !c.external);
+    if (status !== 'met') {
       if (preApproved.length > 0) {
         parts.push(
-          `Pre-approved in the DGS’s external-course rules: ${preApproved.map((c) => c.entry.courseId).join(', ')} — send the Grad Admin the processing request`,
+          `Pre-approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')} — final once the Grad Admin has processed the transfer; send the Grad Admin the processing request (§5.2)`,
         );
       }
       if (unreviewed.length > 0) {

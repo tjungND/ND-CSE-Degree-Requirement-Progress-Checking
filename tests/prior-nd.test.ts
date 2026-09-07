@@ -79,6 +79,52 @@ describe('prior Notre Dame coursework', () => {
   });
 });
 
+describe('prior Notre Dame rows follow the bachelor’s award term in either order (2026-09-07)', () => {
+  const twoRows = (): Student => ({
+    ...emptyStudent(),
+    entryTerm: { season: 'fall', year: 2026 },
+    courses: [
+      nd('CSE 60641', 'fall', 2024), // graduate number, transcript said nothing
+      nd('CSE 60111', 'fall', 2024, { registeredLevel: 'graduate' }), // the transcript labelled it
+    ],
+  });
+
+  it('setting the award term AFTER the import re-levels rows already filed as prior', () => {
+    // The order a student actually works in: import the Notre Dame
+    // transcript, then fill in "Bachelor's degree awarded" under Your
+    // standing (the field sits below the transcripts card).
+    const later = twoRows();
+    reclassifyNotreDameCourses(later);
+    assert.equal(later.courses[0]?.degreeLevel, 'masters', 'no award term yet → the course number decides');
+    later.bachelorsAwarded = { season: 'spring', year: 2025 };
+    reclassifyNotreDameCourses(later);
+
+    // The other order: the award term is known before the rows are filed.
+    const first = twoRows();
+    first.bachelorsAwarded = { season: 'spring', year: 2025 };
+    reclassifyNotreDameCourses(first);
+
+    assert.deepEqual(
+      later.courses.map((c) => c.degreeLevel),
+      first.courses.map((c) => c.degreeLevel),
+      'the order of the two actions must not change the result',
+    );
+    assert.equal(later.courses[0]?.degreeLevel, 'bachelors', 'dated before the award → undergraduate coursework');
+    assert.equal(later.courses[1]?.degreeLevel, 'masters', 'a transcript-labelled row keeps its label');
+  });
+
+  it('clearing the award term falls back to the course number, and re-levelling moves nothing', () => {
+    const s = twoRows();
+    s.bachelorsAwarded = { season: 'spring', year: 2025 };
+    reclassifyNotreDameCourses(s);
+    assert.equal(s.courses[0]?.degreeLevel, 'bachelors');
+    s.bachelorsAwarded = undefined;
+    assert.deepEqual(reclassifyNotreDameCourses(s), { toPrior: 0, toProgram: 0 }, 're-levelling is not a move');
+    assert.equal(s.courses[0]?.degreeLevel, 'masters', 'no award term → the course number again');
+    assert.equal(s.courses[0]?.origin, 'transfer', 'it stays prior coursework');
+  });
+});
+
 describe('entry-term flag in saved files', () => {
   it('a fresh record is "assumed"; a saved file without the flag is not; a saved flag survives', () => {
     assert.deepEqual(emptyStudent().entryTermInferred, { how: 'assumed' });
