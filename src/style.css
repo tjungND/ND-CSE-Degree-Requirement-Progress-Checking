@@ -64,6 +64,19 @@ dialog.consent { border: 0; padding: 0; background: transparent; max-width: min(
 dialog.consent::backdrop { background: rgba(10, 22, 40, 0.55); }
 .consent-box { background: #fff; border-radius: 12px; max-width: 540px; padding: 22px 26px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
 .consent-box h2 { margin-top: 0; }
+/* The check-before-you-send dialog behind every copy button (2026-09-06 evening). */
+dialog.copy-check { max-width: min(760px, calc(100vw - 32px)); width: 100%; }
+dialog.copy-check .consent-box { max-width: none; }
+.copy-check .copy-to, .copy-check .copy-subject { margin: 4px 0; }
+.copy-check .copy-lead { margin: 12px 0 0; padding: 8px 12px; border-left: 4px solid var(--ok); border-radius: 6px; background: #eef7f1; }
+.copy-check .copy-lead.blocked { border-left-color: var(--warn); background: #fbf3e6; }
+.copy-check .copy-preview { display: block; width: 100%; box-sizing: border-box; height: 40vh; min-height: 160px; margin: 6px 0 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); background: #fafbfc; white-space: pre-wrap; resize: vertical; }
+.copy-check .copy-steps { margin: 8px 0 4px; padding-left: 22px; }
+.copy-check .copy-steps li { margin: 4px 0; }
+.copy-check .save-buttons { justify-content: flex-end; }
+@media (max-width: 600px) { .copy-check .copy-preview { height: 34vh; font-size: 16px; } }
+/* The processing-request card (2026-09-06 evening) — the Grad Admin's half of the two roles. */
+.card.grad-admin-request { border-left: 4px solid var(--info); }
 .hint.warn { color: #7a5b00; background: #fff7e0; border: 1px solid #e8d48a; padding: 6px 10px; border-radius: 6px; }
 .card h3.subhead { margin: 16px 0 6px; font-size: 14px; color: var(--navy); }
 button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
@@ -258,17 +271,19 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 
 .legal { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; max-width: 90ch; }
 
+/* Toasts stack in one fixed live region outside the page root (2026-09-06 evening):
+   a plain message (4 s) and up to three Undo toasts that survive re-renders. */
+.toast-stack { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 1000; max-width: 90vw; pointer-events: none; }
 .toast {
-  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(20px);
   background: var(--navy); color: #fff; border-radius: 8px; padding: 10px 16px;
-  opacity: 0; pointer-events: none; transition: all 0.25s; font-size: 14px; max-width: 90vw;
+  opacity: 0; transition: opacity 0.25s; font-size: 14px; max-width: 90vw;
 }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.show { opacity: 1; }
 .toast.has-action { pointer-events: auto; }
 .toast-action { margin-left: 8px; border: 1px solid rgba(255, 255, 255, 0.7); background: transparent; color: #fff; border-radius: 6px; padding: 3px 10px; font: inherit; font-weight: 600; cursor: pointer; min-height: 24px; }
 
 @media print {
-  .masthead-tools, .inputs, .toast, .save-buttons, .legal-actions, .skip-link { display: none !important; }
+  .masthead-tools, .inputs, .toast-stack, .save-buttons, .legal-actions, .skip-link { display: none !important; }
   .layout { display: block; }
   .audit-col { position: static; max-height: none; overflow: visible; }
   body { background: #fff; }
@@ -415,7 +430,8 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .external-card .transcript-preview input[type="number"][max="30"] { width: 46px; }
 .external-card .transcript-preview input[type="number"][max="2040"] { width: 58px; }
 .external-card .transcript-preview select { max-width: 74px; }
-.external-card .transcript-preview select.row-level { max-width: 112px; } /* Taken as: Undergraduate / Graduate */
+.external-card .transcript-preview select.row-level { max-width: 118px; } /* Taken as: "UG student" / "Grad student" (DGS 2026-09-07) */
+abbr.term { text-decoration: underline dotted; text-decoration-color: var(--line); cursor: help; } /* "FA26" in a table cell; the full name is the tooltip (DGS 2026-09-07) */
 .external-card .transcript-preview table.courses td, .external-card .transcript-preview table.courses th { padding: 6px 3px; }
 .transcript-preview tr.prior-row .cid, .transcript-preview tr.prior-row input.course-id, .transcript-preview tr.prior-row .course-id.locked { color: var(--muted); } /* rows filed as prior coursework / unticked as irrelevant */
 .transcript-preview tr.blocked-row .cell-check, .transcript-preview tr.blocked-row .course-title.locked { cursor: help; } /* the row explains itself on hover (2026-09-06) */
@@ -450,7 +466,7 @@ tr.ocr-low td { background: #fff7e0; }
   .sticky-score a:focus-visible { outline-color: #fff; outline-offset: 1px; }
   html { scroll-padding-bottom: 64px; } /* a focused control is never hidden behind the bar (WCAG 2.4.11) */
   #app { padding-bottom: 76px; }
-  .toast { bottom: 62px; }
+  .toast-stack { bottom: 62px; }
   .masthead { grid-template-columns: 1fr; }
 }
 
@@ -574,15 +590,23 @@ tr.ocr-low td { background: #fff7e0; }
 @container (min-width: 560px) and (max-width: 860px) {
   .transcript-preview table.courses.stack.edit tr.compact { flex-wrap: nowrap; column-gap: 10px; }
   .transcript-preview table.courses.stack.edit tr.compact::before { content: none; }
-  .transcript-preview table.courses.stack.edit tr.compact td.cell-course { flex: 0 0 auto; min-width: 96px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-course { flex: 0 0 auto; min-width: 96px; } /* "CS 25100" in bold */
   .transcript-preview table.courses.stack.edit tr.compact td.cell-title { flex: 1 1 0; min-width: 90px; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta { flex: 0 0 auto; margin-top: 0; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.locked-cell::after { content: none; } /* aligned columns need no separators */
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:nth-of-type(4) { min-width: 30px; } /* credits: "4 cr" */
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:nth-of-type(5) { min-width: 22px; } /* grade */
-  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:nth-of-type(6) { min-width: 82px; } /* term: "Spring 2024" */
+  .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:nth-of-type(6) { min-width: 40px; } /* term: "SP24" (short form, DGS 2026-09-07) */
   .transcript-preview table.courses.stack.edit tr.compact td.level-cell::before { content: none; }
-  .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 2px 4px; font-size: 13px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 2px 4px; font-size: 13px; width: 118px; } /* fixed, so the "Taken as" header below sits exactly over it */
+  /* One header, "Taken as", above the dropdown column (DGS 2026-09-07). The
+     header row comes back for text-layer previews (compact rows) with only that
+     cell visible; the other headers stay clipped for screen readers, as the
+     whole row did before. OCR and hand-typed rows label every field themselves. */
+  .transcript-preview table.courses.stack.edit:has(tr.compact) tr:first-child { position: static; width: auto; height: auto; margin: 6px 0 -2px; padding: 0 11px; overflow: visible; clip: auto; display: flex; flex-wrap: nowrap; justify-content: flex-end; border: 0; background: transparent; }
+  .transcript-preview table.courses.stack.edit:has(tr.compact) tr:first-child::before { content: none; }
+  .transcript-preview table.courses.stack.edit:has(tr.compact) tr:first-child th { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+  .transcript-preview table.courses.stack.edit:has(tr.compact) tr:first-child th.level-head { position: static; width: 118px; height: auto; margin: 0; padding: 0 0 2px; overflow: visible; clip: auto; flex: 0 0 auto; box-sizing: border-box; text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border: 0; }
 }
 
 /* ---------- courses.html on phones and tablets in portrait: cards instead of the 980 px table ---------- */

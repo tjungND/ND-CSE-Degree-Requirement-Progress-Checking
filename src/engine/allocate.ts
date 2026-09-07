@@ -239,7 +239,38 @@ export function classify(student: Student, rules: Rules): {
       if (external?.transferable === false) {
         return {
           ...extBase,
-          ineligibleReason: `not counted — the DGS has ruled this ${external.university} course non-transferable (external-course rules)${coreNote}`,
+          // The university as the student's record spells it (DGS 2026-09-06, late evening: no upper-cased sheet spelling in student-facing text).
+          ineligibleReason: `not counted — the DGS has ruled this ${c.institution ?? external.university} course non-transferable (external-course rules)${coreNote}`,
+        };
+      }
+      // §5.2 (verbatim): "A student may transfer credits earned at another
+      // accredited university only if: 1) the student is in degree status at
+      // Notre Dame; 2) the courses taken are graduate courses appropriate to
+      // the Notre Dame graduate program and the student had graduate student
+      // status when they took these courses; 3) the courses were completed
+      // within a five-year period prior to admission to a graduate degree
+      // program at Notre Dame or while enrolled in a graduate degree program
+      // at Notre Dame; 4) grades of "B" (3.0 on 4.0 scale) or better were
+      // achieved; and 5) the transfer is recommended by the DGS and approved
+      // by the Graduate School."
+      // Criterion 2 by the student's own record (DGS 2026-09-06: "Only the
+      // courses taken with the graduate student status can count. The
+      // graduate-level courses taken before earning the bachelor's degree do
+      // not count."): a course dated in or before the term the bachelor's
+      // degree was awarded was not taken with graduate student status,
+      // whatever its number or the level it was registered at. An unknown
+      // award term changes nothing (degreeLevel decides, as before). The
+      // award term is absolute (DGS 2026-09-06, later that evening): a
+      // transferable=yes ruling in the ExternalCourses tab does NOT restore
+      // the credit of a course taken before the bachelor's degree — the
+      // ruling is about the course, criterion 2 about the student.
+      const awarded = student.bachelorsAwarded;
+      const beforeBachelors = awarded !== undefined && compareTerm(c.term, awarded) <= 0;
+      const whenTaken = awarded !== undefined && compareTerm(c.term, awarded) === 0 ? 'in the term' : 'before';
+      if (beforeBachelors) {
+        return {
+          ...extBase,
+          ineligibleReason: `not counted — taken ${whenTaken} your bachelor’s degree was awarded (${termLabel(awarded!)}), so not as a graduate student (§5.2)${coreNote}`,
         };
       }
       // §5.2: "grades of 'B' (3.0 on 4.0 scale) or better were achieved" and
@@ -265,7 +296,7 @@ export function classify(student: Student, rules: Rules): {
         approvalPending: attested
           ? undefined
           : external?.transferable === true
-            ? `pre-approved in the DGS’s external-course rules — to transfer it, send the §5.2 credit-transfer request to the Grad Admin${coreNote}`
+            ? `pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)${coreNote}`
             : external
               ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
               : `transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
@@ -575,7 +606,10 @@ function buildExplanation(
     const reason = excludedReason ?? 'not counted';
     // An undergraduate course that satisfies (green) or may satisfy (amber) a
     // §4.4.1 core area earns no credit but is not "excluded" either.
-    mark = /^satisfies/.test(reason) ? 'counts' : /^may satisfy/.test(reason) ? 'pending' : 'excluded';
+    // …and so does a graduate course excluded for §5.2 reasons (the award
+    // term, the window, the grade floor, a DGS "no") whose line carries a
+    // core note: confirmed → green, keyword → amber (2026-09-06 evening).
+    mark = /^satisfies|; satisfies the /.test(reason) ? 'counts' : /^may satisfy|; may still satisfy /.test(reason) ? 'pending' : 'excluded';
     parts.push(/not counted|not relevant|superseded|failed|^satisfies|^may satisfy/.test(reason) ? reason : `not counted — ${reason}`);
     // A course that earns nothing anyway does not need the approval note —
     // the review request still lists it (DGS 2026-09-06: the old suffix read

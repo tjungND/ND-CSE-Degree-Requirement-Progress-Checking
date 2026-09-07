@@ -95,7 +95,7 @@ const ADMIT_RE = /\b(ADMIT(?:TED)?\s*TERM|MATRICULAT(?:ED|ION)(?:\s*TERM)?|ENTRY
 /** Banner's per-term "Student Type" line: "New", "New First Time", "New Graduate"… */
 const NEW_STUDENT_RE = /\bSTUDENT\s*TYPE\s*:?\s*NEW\b/;
 const DEGREE_WORD_RE = /\b(BACHELOR|MASTER|DOCTOR|PH\.?\s?D)\b/;
-const AWARD_WORD_RE = /\b(AWARDED|CONFERRED|GRANTED|DEGREE\s*DATE|GRADUATED|GRADUATION\s*DATE)\b/;
+const AWARD_WORD_RE = /\b(AWARDED|CONFERRED|CONFERRAL|GRANTED|DEGREE\s*DATE|DEGREE\s*COMPLETION\s*DATE|COMPLETION\s*DATE|GRADUATED|GRADUATION\s*DATE)\b/; // "Conferral Date", "Degree Completion Date" added 2026-09-06 (late evening)
 const NOT_AWARDED_RE = /\b(SOUGHT|PENDING|EXPECTED|ANTICIPATED|CANDIDATE|CURRENT\s*PROGRAM|IN\s*PROGRESS)\b|NOT\s+COMPLET|INCOMPLETE/;
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -114,7 +114,7 @@ function termOnLine(line: string): Term | undefined {
 }
 
 /** A calendar date printed on a line, as ISO: "15-MAY-2024", "May 17, 2020",
- * "05/17/2020", "2020-05-17", or "May 2020" (day 15 — only the term matters).
+ * "05/17/2020", "2020-05-17", "05/2020" or "May 2020" (day 15 — only the term matters).
  * Shared with the external parser (degree conferral dates). */
 export function dateOnLine(line: string): string | undefined {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -127,6 +127,8 @@ export function dateOnLine(line: string): string | undefined {
   if (m) return `${m[1]}-${m[2]}-${m[3]}`;
   m = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/.exec(line);
   if (m) return `${m[3]}-${pad(Number(m[1]))}-${pad(Number(m[2]))}`;
+  m = /\b(\d{1,2})\/(\d{4})\b/.exec(line); // "05/2024" (2026-09-06, late evening)
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= 12) return `${m[2]}-${pad(Number(m[1]))}-15`;
   m = /\b([A-Za-z]{3,9})\.?\s+(\d{4})\b/.exec(line);
   if (m && month(m[1]!) > 0) return `${m[2]}-${pad(month(m[1]!))}-15`;
   return undefined;

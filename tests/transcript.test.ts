@@ -449,3 +449,14 @@ describe('cumulative GPA per level (combined-transcript bug report 2026-09-05)',
     assert.deepEqual(p.cumulativeGpaByLevel, { undergraduate: 4, graduate: 3.333 });
   });
 });
+
+// "Degree Completion Date" / "Conferral Date" labels (DGS request 2026-09-06,
+// late evening) supply the date like "Degree Date:" does.
+describe('degree date labels on a Notre Dame transcript (2026-09-06, late evening)', () => {
+  it('reads "Degree Completion Date:", "Conferral Date:" and "Completion Date" like "Degree Date:"', () => {
+    for (const label of ['Degree Completion Date: 05/16/2021', 'Conferral Date: May 16, 2021', 'Completion Date 16-MAY-2021']) {
+      const p = parseTranscript(['University of Notre Dame', 'Degrees Awarded', 'Bachelor of Science', label, 'INSTITUTION CREDIT', 'Term: Fall Semester 2021', 'CSE 60641 GR Graduate Operating Systems A 3.000 12.000']);
+      assert.deepEqual(p.degreesAwarded, [{ name: 'Bachelor of Science', level: 'bachelors', date: '2021-05-16' }], label);
+    }
+  });
+});

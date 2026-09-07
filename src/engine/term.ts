@@ -20,6 +20,15 @@ export function termLabel(t: Term): string {
   return `${season} ${t.year}`;
 }
 
+/** The short form for TABLE CELLS (DGS 2026-09-07): "FA26", "SP25", "SU25" —
+ * season code + two-digit year. Prose, tooltips, aria-labels and the emails
+ * keep termLabel's "Fall 2026"; the cells render this inside an <abbr> whose
+ * title is the full name. */
+const SEASON_CODE: Record<Season, string> = { fall: 'FA', spring: 'SP', summer: 'SU' };
+export function termShort(t: Term): string {
+  return `${SEASON_CODE[t.season]}${String(t.year % 100).padStart(2, '0')}`;
+}
+
 /** "Fall 2026" → Term. Returns undefined for anything else. */
 export function parseTermLabel(s: string): Term | undefined {
   const m = /^\s*(spring|summer|fall)\s+(\d{4})\s*$/i.exec(s);

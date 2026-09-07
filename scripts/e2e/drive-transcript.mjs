@@ -53,6 +53,10 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!ticks.includes('MATH 10550:off:before entry — prior undergraduate coursework')) throw new Error('an irrelevant undergraduate course must start unticked');
   if (!ticks.includes('CSE 30321:on:before entry — prior undergraduate coursework')) throw new Error('a core-title undergraduate course must start ticked');
   if (!ticks.includes('CSE 60641:on:')) throw new Error('a program course must start ticked without a prior note');
+  // The dated bachelor's award (2026-09-06) fills "Bachelor's degree awarded" on add; the preview says so.
+  const bsLine = await s.evalJs(`document.querySelector('.transcript-preview .bachelors-line')?.textContent ?? ''`);
+  console.log('  bachelor’s line:', bsLine.slice(0, 140));
+  if (!bsLine.includes('Bachelor of Science awarded 2021-05-16') || !bsLine.includes('will be set to Spring 2021')) throw new Error('the preview must announce the bachelor’s award term: ' + bsLine.slice(0, 160));
   await s.shot('transcript-preview');
 
   await s.evalJs(
@@ -69,6 +73,14 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const gpa = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
   console.log('  GPA prefilled from transcript:', gpa);
   if (!gpa) throw new Error('cumulative GPA was not prefilled');
+  // "Bachelor's degree awarded" was filled from the transcript (2026-09-06): the toast says so and the standing card shows it, flagged.
+  const addToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
+  const bsYear = await s.evalJs(`document.querySelector('[data-key="standing.bachelors.year"]')?.value`);
+  const bsSeason = await s.evalJs(`document.querySelector('[data-key="standing.bachelors.season"]')?.value`);
+  const bsNote = await s.evalJs(`document.querySelector('.bachelors-note')?.textContent ?? ''`);
+  console.log('  bachelor’s award from the transcript:', bsSeason, bsYear, '|', bsNote.slice(0, 90));
+  if (!addToast.includes('“Bachelor’s degree awarded” set to Spring 2021')) throw new Error('the add toast must say the award term was set: ' + addToast.slice(0, 220));
+  if (bsYear !== '2021' || bsSeason !== 'spring' || !bsNote.startsWith('Spring 2021 was read from your transcript')) throw new Error(`standing card: bachelor’s award ${bsSeason} ${bsYear} — ${bsNote.slice(0, 100)}`);
   // The Notre Dame row now names what it added and offers Remove (2026-09-06),
   // like a previous-university slot — and the import stays available.
   const ndRow = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
@@ -113,7 +125,35 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
+  // The Grad Admin button is active on met requirements alone (DGS 2026-09-06, late evening):
+  // nothing to transfer and no milestone yet, but the GPA and Notre Dame-credit rows are met.
+  const gaState = JSON.parse(await s.evalJs(`JSON.stringify((() => { const card = document.querySelector('.grad-admin-request'); const b = card?.querySelector('[data-key="gradadmin.copy"]'); return { inactive: b?.getAttribute('aria-disabled'), chip: card?.querySelector('.chip-note')?.textContent, line: [...(card?.querySelectorAll('.review-line') ?? [])].map(e => e.textContent).find(t => / met so far — /.test(t)) ?? '' }; })())`));
+  console.log('  Grad Admin card after the ND import:', JSON.stringify(gaState));
+  if (gaState.inactive === 'true' || !/^\d+ requirements? met so far — /.test(gaState.line)) throw new Error('the Grad Admin button must be active on met requirements alone: ' + JSON.stringify(gaState));
+  await s.shotElement('grad-admin-met-only', '.grad-admin-request');
   await s.shot('nd-review');
+  // Copy → the check-before-you-send dialog (2026-09-06 evening): the DGS by
+  // name and address, the subject, the message; OK closes it, focus returns.
+  await s.evalJs(`document.querySelector('[data-key="review.copy"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
+  const dlg = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const d = document.querySelector('dialog.copy-check');
+    const dgs = [...document.querySelectorAll('.contact-card li')].find(li => li.textContent.startsWith('Director of Graduate Studies'));
+    const lead = d.querySelector('.copy-lead');
+    return { title: d.querySelector('h2').textContent, to: d.querySelector('.copy-to').textContent, subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 60), dgsEmail: dgs?.querySelector('a')?.textContent ?? '', lead: lead?.querySelector('strong')?.textContent ?? '', leadBeforeMessage: !!lead && !!(lead.compareDocumentPosition(d.querySelector('textarea')) & Node.DOCUMENT_POSITION_FOLLOWING) };
+  })())`));
+  console.log('  copy dialog:', dlg.title, '|', dlg.to, '|', dlg.subject);
+  if (!/^Review request (copied — check it before you send|— copy it yourself \(the clipboard was blocked\))$/.test(dlg.title)) throw new Error('copy dialog title: ' + dlg.title);
+  if (dlg.dgsEmail === '' || !dlg.to.startsWith('To: Director of Graduate Studies') || !dlg.to.includes(dlg.dgsEmail)) throw new Error('copy dialog recipient: ' + dlg.to);
+  if (dlg.subject !== 'Subject: Course review request (degree self-check)' || !dlg.text.startsWith('Subject: Course review request')) throw new Error('copy dialog subject/text: ' + dlg.subject + ' | ' + dlg.text);
+  // The emphasised lead line (DGS request 2026-09-06, late evening) sits right above the message and says it is on the clipboard.
+  if (!/^(✓ The following message has been copied to your clipboard\.|The following message was NOT copied — your browser blocked the clipboard\.)$/.test(dlg.lead) || !dlg.leadBeforeMessage) throw new Error('copy dialog lead line: ' + JSON.stringify(dlg.lead) + ' before message: ' + dlg.leadBeforeMessage);
+  // Numbered steps (2026-09-06 evening): paste, attach the ORIGINAL transcripts (emphasised), send.
+  await s.shot('copy-dialog');
+  await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
+  await s.waitFor(`!document.querySelector('dialog.copy-check')`);
+  if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'review.copy') throw new Error('focus must return to the copy button after OK');
+  console.log('  copy dialog names the DGS, shows subject and message; OK closes it, focus back on the button');
 
   // 3) External transcript (Master's slot) → editable preview → add → verdicts.
   await s.setFileInput('.external-file-masters', externalPdf);
@@ -130,8 +170,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // inactive, explaining itself on click instead of acting.
   const compact = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview tr.compact')].map(tr => tr.querySelectorAll('input:not([type=checkbox]), select').length + ':' + [...tr.querySelectorAll('td.locked-cell')].map(td => td.textContent.trim()).join('/'))`);
   console.log('  compact rows (controls:locked cells):', JSON.stringify(compact));
-  if (compact.length !== 3 || !compact.every((c) => /^1:\d+(\.\d+)? cr\/[A-Z][+-]?\/(Fall|Spring|Summer) \d{4}$/.test(c))) {
-    throw new Error('text-layer rows must be compact: only the level select editable, credits/grade/term locked');
+  // The term cell shows the short form "FA23" (DGS 2026-09-07); its tooltip is the full name.
+  if (compact.length !== 3 || !compact.every((c) => /^1:\d+(\.\d+)? cr\/[A-Z][+-]?\/(FA|SP|SU)\d{2}$/.test(c))) {
+    throw new Error('text-layer rows must be compact: only the level select editable, credits/grade/term locked, the term in its short form');
+  }
+  const termTip = await s.evalJs(`document.querySelector('.external-card .transcript-preview tr.compact td.locked-cell abbr.term')?.title ?? ''`);
+  if (!/^(Fall|Spring|Summer) \d{4}$/.test(termTip)) {
+    throw new Error('the short term must carry the full name as its tooltip: ' + termTip);
   }
   const inactive = await s.evalJs(`[...document.querySelectorAll('.transcript-upload button, .external-slot button')].map(b => b.textContent.trim() + ':' + b.getAttribute('aria-disabled'))`);
   console.log('  transcript-row buttons while the preview is open:', JSON.stringify(inactive));
@@ -176,6 +221,35 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!groupHint.includes('only CSE-related courses transfer') || !groupHint.includes('every graduate course here is a candidate')) {
     throw new Error('the transfer group must explain the candidate rule once above the table: ' + groupHint.slice(0, 160));
   }
+
+  // 3c) The graduate-status rule (DGS 2026-09-06): set the bachelor's award to
+  //     Spring 2024 by hand — every Purdue row (Fall 2023 / Spring 2024) is then
+  //     "not counted — taken before / in the term your bachelor's degree was
+  //     awarded", the candidate hint disappears, and only the core-sounding
+  //     titles stay in the review request. Then back to 2021.
+  const setBachelorsYear = async (year) => {
+    await s.evalJs(`(() => { const y = document.querySelector('[data-key="standing.bachelors.year"]'); y.value = '${year}'; y.dispatchEvent(new Event('change')); })()`);
+    await s.waitFor(`document.querySelector('[data-key="standing.bachelors.year"]')?.value === '${year}'`);
+  };
+  await setBachelorsYear('2024');
+  const ruleLines = await groupLines('Purdue University — Previous Master’s Transcript');
+  console.log('  with the bachelor’s awarded Spring 2024:', JSON.stringify(ruleLines));
+  if (ruleLines.length !== 3 || ruleLines.some((l) => l.includes('mark-counts'))) throw new Error('rule lines: ' + JSON.stringify(ruleLines));
+  if (!ruleLines.some((l) => l.startsWith('CS 50300') && l.includes('not counted — taken before your bachelor’s degree was awarded (Spring 2024)'))) throw new Error('CS 50300 (Fall 2023) must be excluded by the award term');
+  if (!ruleLines.some((l) => l.startsWith('CS 58000') && l.includes('taken in the term your bachelor’s degree was awarded (Spring 2024)'))) throw new Error('CS 58000 (Spring 2024) must be excluded as taken in the award term');
+  const hintGone = await s.evalJs(`(() => { const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('Purdue University — Previous Master’s Transcript')); return !(h?.nextElementSibling?.matches('p.hint')); })()`);
+  if (!hintGone) throw new Error('the candidate hint must disappear when no row is a candidate');
+  const bsNoteChosen = await s.evalJs(`document.querySelector('.bachelors-note')?.textContent ?? ''`);
+  if (bsNoteChosen.includes('read from your transcript')) throw new Error('a hand-set award term is no longer "read from your transcript"');
+  const reviewAfterRule = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
+  if (!reviewAfterRule.includes('Copy review request for 5 courses')) throw new Error('two excluded Purdue rows with core-sounding titles stay, one leaves — 5 expected: ' + reviewAfterRule.slice(0, 140));
+  await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card')].find(c => c.querySelector('h2')?.textContent.includes('Coursework')); c.id = 'shot-coursework'; })()`);
+  await s.shotElement('bachelors-rule', '#shot-coursework');
+  await setBachelorsYear('2021');
+  const candidatesBack = await groupLines('Purdue University — Previous Master’s Transcript');
+  if (!candidatesBack.every((l) => l.includes('candidate for transfer credit'))) throw new Error('back to 2021: the rows must be candidates again: ' + JSON.stringify(candidatesBack));
+  if (!(await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`)).includes('Copy review request for 6 courses')) throw new Error('back to 2021: 6 courses expected in the request');
+  console.log('  bachelor’s award Spring 2024 → all three Purdue rows excluded (§5.2 status), 5 in the request; back to 2021 → candidates again');
   const priorNdLines = await groupLines('Notre Dame, before entering the program — undergraduate coursework');
   if (!priorNdLines.some((l) => l.startsWith('CSE 30321') && l.includes('mark-pending') && l.includes('may satisfy the Computer Architecture core-knowledge requirement'))) {
     throw new Error('the prior Notre Dame undergraduate course should carry an amber "may satisfy" line: ' + JSON.stringify(priorNdLines));
@@ -323,6 +397,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   console.log('  combined transcript rows:', JSON.stringify(combinedRows));
   const expectedCombined = ['CS 25100:undergraduate:on', 'CS 30700:undergraduate:off', 'CS 35400:undergraduate:on', 'CS 50300:graduate:on', 'CS 58000:graduate:on'];
   if (JSON.stringify(combinedRows) !== JSON.stringify(expectedCombined)) throw new Error('combined transcript levels/ticks wrong');
+  // A combined record makes "Bachelor's degree awarded" required in the preview, pre-filled from
+  // the conferral line (DGS 2026-09-06 evening): the fixture's B.S. is dated May 2024.
+  const bsCtl = JSON.parse(await s.evalJs(`JSON.stringify((() => { const y = document.querySelector('[data-key="ext.preview.bachelors.year"]'); return { year: y?.value, required: y?.required, season: document.querySelector('[data-key="ext.preview.bachelors.season"]')?.value, hint: document.querySelector('#ext-bachelors-hint')?.textContent.slice(0, 70) }; })())`));
+  console.log('  preview bachelor’s control:', JSON.stringify(bsCtl));
+  if (bsCtl.year !== '2024' || bsCtl.season !== 'spring' || bsCtl.required !== true || !bsCtl.hint.startsWith('Read from your transcript')) throw new Error('the combined preview must require and pre-fill the bachelor’s award term: ' + JSON.stringify(bsCtl));
   await s.shot('combined-preview');
   // The compact (text-layer) rows at the two desktop widths the DGS checks in
   // Safari (2026-09-06): one line per course, the small columns aligned across
@@ -340,6 +419,9 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!combinedToast.includes('(2 undergraduate, 2 graduate)') || !combinedToast.includes('Completed prior M.S. or Ph.D.')) {
     throw new Error('combined import must report the level split and set prior study from the M.S. conferral');
   }
+  // The hand-set award term (3c) is kept — an import only replaces an inferred one (2026-09-06).
+  if (combinedToast.includes('Bachelor’s degree awarded')) throw new Error('a hand-set award term must not be replaced by an import');
+  if ((await s.evalJs(`document.querySelector('[data-key="standing.bachelors.year"]')?.value`)) !== '2021') throw new Error('the hand-set award term must survive the combined import');
   const headings = await s.evalJs(`[...document.querySelectorAll('h3.subhead')].map(h => h.textContent)`);
   console.log('  coursework headings:', JSON.stringify(headings));
   if (!headings.includes('Purdue University — Previous Undergraduate Transcript') || !headings.includes('Purdue University — Previous Master’s Transcript')) {
@@ -382,6 +464,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const idsBefore = await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`);
   const ndRowBefore = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
   if (!ndRowBefore.includes('6 courses from your transcript')) throw new Error('ND row count before Remove: ' + ndRowBefore.slice(0, 120));
+  const dgsBefore = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
   await s.evalJs(`document.querySelector('[data-key="import.nd.remove"]').click()`);
   await s.waitFor(`!document.querySelector('[data-key="import.nd.remove"]')`);
   const idsAfterRemove = await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`);
@@ -400,14 +483,24 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const ndRowAfter = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
   if (!ndRowAfter.includes('Import from PDF (alpha)') || ndRowAfter.includes('from your transcript')) throw new Error('ND row after Remove: ' + ndRowAfter.slice(0, 120));
   await s.shot('nd-removed');
+  if ((await s.evalJs(`document.querySelector('[data-key="standing.bachelors.year"]')?.value`)) !== '2021') throw new Error('Remove must leave the bachelor’s award term alone');
+  // The Undo must survive a re-render (2026-09-06 evening: it used to die with
+  // the first keystroke, checkbox or toast after a Remove) — commit an
+  // unrelated change, then Undo.
+  await s.evalJs(`(() => { const g = document.querySelector('input[step="0.01"]'); g.value = '3.4'; g.dispatchEvent(new Event('change')); })()`);
+  await s.waitFor(`document.querySelector('input[step="0.01"]')?.value === '3.4'`);
+  if (!(await s.evalJs(`!!document.querySelector('.toast .toast-action')`))) throw new Error('the Undo toast must survive a re-render');
   await s.evalJs(`document.querySelector('.toast .toast-action').click()`);
   await s.waitFor(`document.querySelector('[data-key="import.nd.remove"]')`);
   const idsAfterUndo = await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`);
   const gpaAfterUndo = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
-  if (!idsAfterUndo.includes('CSE 60641') || idsAfterUndo.length !== idsAfterRemove.length + 6 || gpaAfterUndo !== gpaBefore) {
-    throw new Error(`Undo must restore the 6 rows and the GPA (${gpaBefore} → ${gpaAfterUndo}; ${idsAfterRemove.length} → ${idsAfterUndo.length} rows)`);
+  if (JSON.stringify(idsAfterUndo) !== JSON.stringify(idsBefore) || gpaAfterUndo !== gpaBefore) {
+    throw new Error(`Undo must restore the rows in their original order and the GPA (${gpaBefore} → ${gpaAfterUndo}; ${JSON.stringify(idsBefore)} → ${JSON.stringify(idsAfterUndo)})`);
   }
-  console.log('  ND transcript removed (rows + GPA) and restored with Undo');
+  const dgsAfterUndo = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
+  if (dgsAfterUndo !== dgsBefore) throw new Error('the review card must come back exactly as it was: ' + dgsAfterUndo.slice(0, 120));
+  if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'import.nd.remove') throw new Error('focus must land on the Remove button after Undo');
+  console.log('  ND transcript removed (rows + GPA) and restored with Undo — same order, same review card, Undo survived a re-render');
 }
 
 // The Master's-slot preview of a text-layer transcript at a given window width
@@ -434,7 +527,11 @@ async function checkCompactPreview(s, width) {
         };
       });
       const cs = getComputedStyle(box);
-      return { previewWidth: Math.round(box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)), sideways: box.scrollWidth - box.clientWidth, rows };
+      // The one visible header, "Taken as", sits over the dropdown column (DGS 2026-09-07).
+      const ths = [...box.querySelectorAll('tr:first-child th')].filter((th) => r(th).width > 2);
+      const sel = box.querySelector('tr.compact select.row-level');
+      const header = { labels: ths.map((th) => th.textContent), right: ths[0] ? Math.round(r(ths[0]).right) : null, left: ths[0] ? Math.round(r(ths[0]).left) : null, selectRight: sel ? Math.round(r(sel).right) : null, selectLeft: sel ? Math.round(r(sel).left) : null, above: !!(ths[0] && sel) && r(ths[0]).bottom <= r(sel).top };
+      return { previewWidth: Math.round(box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)), sideways: box.scrollWidth - box.clientWidth, rows, header };
     })())`),
   );
   await s.shotElement(`combined-preview-${width}`, '.external-card .transcript-preview');
@@ -447,6 +544,9 @@ async function checkCompactPreview(s, width) {
   }
   const columnSets = new Set(m.rows.map((row) => row.columns));
   if (columnSets.size > 1) problems.push(`columns start at different x across rows: ${[...columnSets].join(' | ')}`);
-  console.log(`  compact preview at ${width} px: content box ${m.previewWidth} px, ${m.rows.length} rows of ${m.rows.map((row) => row.height).join('/')} px, columns at x=${m.rows[0]?.columns}`);
+  const h = m.header;
+  if (h.labels.join('|') !== 'Taken as') problems.push(`visible headers must be exactly "Taken as": ${JSON.stringify(h.labels)}`);
+  if (h.right === null || Math.abs(h.right - h.selectRight) > 2 || Math.abs(h.left - h.selectLeft) > 2 || !h.above) problems.push(`the "Taken as" header must sit over the dropdown column: ${JSON.stringify(h)}`);
+  console.log(`  compact preview at ${width} px: content box ${m.previewWidth} px, ${m.rows.length} rows of ${m.rows.map((row) => row.height).join('/')} px, columns at x=${m.rows[0]?.columns}; header ${JSON.stringify(m.header.labels)} at x=${m.header.left}–${m.header.right} over the dropdown at ${m.header.selectLeft}–${m.header.selectRight}`);
   if (problems.length) throw new Error(`compact preview at ${width} px (content box ${m.previewWidth} px): ${problems.join('; ')}`);
 }

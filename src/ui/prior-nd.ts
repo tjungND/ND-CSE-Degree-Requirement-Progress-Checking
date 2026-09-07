@@ -13,7 +13,8 @@
 // So a Notre Dame course dated before the entry term is filed as PRIOR
 // COURSEWORK: origin 'transfer', institution "University of Notre Dame",
 // degreeLevel from the level the student was registered at (the transcript's
-// UG/GR column, kept as `registeredLevel`; the course number as a fallback).
+// UG/GR column, kept as `registeredLevel`; else the bachelor's award term
+// when known (2026-09-06); the course number as a last resort).
 // The sort is redone whenever the entry term changes, so correcting the
 // dropdown re-files the courses without a re-import. Pure functions — no DOM.
 import { NOTRE_DAME, isNotreDameInstitution } from '../data/external.ts';
@@ -21,10 +22,21 @@ import { termIndex } from '../engine/term.ts';
 import type { CourseEntry, Student, Term } from '../engine/types.ts';
 import { levelFromNumber } from '../transcript/parse.ts';
 
-/** Bachelor's or Master's prior coursework, from the registered level. */
-export function priorNdDegreeLevel(c: Pick<CourseEntry, 'courseId' | 'registeredLevel'>): 'bachelors' | 'masters' {
-  const level = c.registeredLevel ?? levelFromNumber(c.courseId);
-  return level === 'undergraduate' ? 'bachelors' : 'masters';
+/** Bachelor's or Master's prior coursework. The level the student was
+ * registered at (the transcript's UG/GR column) decides; without it, the term
+ * against the bachelor's award term when that is known (DGS 2026-09-06: dated
+ * in or before it → taken as an undergraduate); only then the course number
+ * (1xxxx–4xxxx undergraduate, else graduate). The number is a last resort for
+ * hand-typed rows and never decides credit — the engine's §5.2 rule on
+ * `bachelorsAwarded` does (allocate.ts), and every transfer credit stays
+ * "pending DGS review" until approved. */
+export function priorNdDegreeLevel(
+  c: Pick<CourseEntry, 'courseId' | 'registeredLevel' | 'term'>,
+  bachelorsAwarded?: Term,
+): 'bachelors' | 'masters' {
+  if (c.registeredLevel !== undefined) return c.registeredLevel === 'undergraduate' ? 'bachelors' : 'masters';
+  if (bachelorsAwarded !== undefined) return termIndex(c.term) <= termIndex(bachelorsAwarded) ? 'bachelors' : 'masters';
+  return levelFromNumber(c.courseId) === 'undergraduate' ? 'bachelors' : 'masters';
 }
 
 /** True for a Notre Dame course — program coursework or prior coursework. */
@@ -50,7 +62,7 @@ export function reclassifyNotreDameCourses(student: Student): { toPrior: number;
       if (c.origin === 'transfer') continue;
       c.origin = 'transfer';
       c.institution = NOTRE_DAME;
-      c.degreeLevel = priorNdDegreeLevel(c);
+      c.degreeLevel = priorNdDegreeLevel(c, student.bachelorsAwarded);
       toPrior += 1;
     } else if (c.origin === 'transfer') {
       c.origin = 'nd';

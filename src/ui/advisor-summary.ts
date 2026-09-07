@@ -9,12 +9,14 @@
 // coloured by status — green when met, amber while in progress or awaiting a
 // DGS decision, red when not yet met or not evaluable — with its "why" and
 // deadline (semesters, DGS 2026-09-05); then three TO-DO lists derived from
-// the same rows: what the student, the advisor and the DGS each need to do.
+// the same rows: what the student, the advisor, the DGS (eligibility) and,
+// since 2026-09-06, the Grad Admin (processing) each need to do.
 // Kept from the morning's design: the subject line with the headline facts,
 // the one standing paragraph, the deadline footnote and the alpha notice; the
 // re-voicing of the engine's student-facing details (`whyFor`).
 import type { AuditReport, DetailPart, RequirementResult, Status } from '../engine/types.ts';
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
+import { shortenAfterFirst } from './first-mention.ts';
 import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
 
 export interface AdvisorSummaryOptions {
@@ -39,7 +41,7 @@ const STATUS_TAG: Record<Status, { word: string; color: Color }> = {
   not_applicable: { word: 'DOES NOT APPLY', color: 'green' },
 };
 
-export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions): { text: string; html: string } {
+export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions): { text: string; html: string; subject: string } {
   const rows = report.requirements;
   // Counts as the page's headline counts them: informational rows (the
   // per-course sign-off list, the along-the-way M.S.) and "does not apply"
@@ -117,6 +119,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     todoText('WHAT I NEED TO DO', todo.student) +
     todoText('WHAT I NEED FROM YOU, MY ADVISOR', todo.advisor) +
     todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) +
+    todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) +
     `${deadlineNote ? `${deadlineNote}\n` : ''}${statusNote}\n\nThank you!\n`;
 
   // ---- HTML ----
@@ -149,9 +152,11 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     todoHtml('What I need to do', todo.student) +
     todoHtml('What I need from you, my advisor', todo.advisor) +
     todoHtml('What the DGS needs to do', todo.dgs) +
+    todoHtml('What the Grad Admin needs to do', todo.gradAdmin) +
     (deadlineNote ? `<p>${esc(deadlineNote)}</p>` : '') +
     `<p>${esc(statusNote)}</p><p>Thank you!</p>`;
-  return { text, html };
+  // "Oral Candidacy Exam (OCE)" once per flavour, then "OCE" (2026-09-06 evening).
+  return { text: shortenAfterFirst(text), html: shortenAfterFirst(html), subject };
 }
 
 function esc(s: string): string {
@@ -174,7 +179,10 @@ function deadlineOf(r: RequirementResult): { text: string; passed: boolean } | u
 export interface ActionItems {
   student: string[];
   advisor: string[];
+  /** Eligibility decisions only — rulings, extensions, confirmations. */
   dgs: string[];
+  /** Processing — what the DGS has already decided (2026-09-06 evening). */
+  gradAdmin: string[];
 }
 
 /** What each party needs to do, read off the requirement rows (DGS request
@@ -185,7 +193,7 @@ export interface ActionItems {
  * and the student sends the review request. Dissertation items appear only
  * once candidacy is passed — they are not this semester's work before that. */
 export function actionItems(report: AuditReport): ActionItems {
-  const out: ActionItems = { student: [], advisor: [], dgs: [] };
+  const out: ActionItems = { student: [], advisor: [], dgs: [], gradAdmin: [] };
   const byId = new Map(report.requirements.map((r) => [r.id, r]));
   /** The detail as prose — the joined parts when the row carries them. */
   const textOf = (r: RequirementResult) => (r.detailParts ? r.detailParts.map(flatten).join('. ') : r.detail);
@@ -315,9 +323,22 @@ export function actionItems(report: AuditReport): ActionItems {
     if (defense && isOpen(defense.status)) out.student.push(`Defend the dissertation ${section(defense)}.`);
   }
 
+  // Processing — the Grad Admin's side (2026-09-06 evening): the MSCSE along
+  // the way once its row is met, and the qualifier completion form once every
+  // component is done but no form date is entered.
+  if (byId.get('phd.msAlongTheWay')?.status === 'met') {
+    out.gradAdmin.push('Process the MSCSE awarded along the way (§4.5).');
+    out.student.push('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).');
+  }
+  if (qualifier?.status === 'met' && /qualifier (completion )?form/.test(textOf(qualifier))) {
+    out.student.push('File the qualifier completion form with the Grad Admin (§4.4).');
+    out.gradAdmin.push('Record the completed qualifier once my form arrives (§4.4).');
+  }
+
   // Course-level approvals — the per-course sign-off list.
   const approvals = byId.get('shared.approvals');
   const pendingCourses: string[] = [];
+  const processingCourses: string[] = [];
   for (const part of approvals?.detailParts ?? []) {
     if (typeof part === 'string') {
       if (/plan of study/.test(part)) out.advisor.push('Approve my plan of study (§3.2/§4.2).');
@@ -327,6 +348,13 @@ export function actionItems(report: AuditReport): ActionItems {
       const m = /^(.+?) \((.+)\)$/.exec(item);
       const course = m ? m[1]! : item;
       const reason = m ? m[2]! : '';
+      // Decided by the DGS already (ruled transferable in the ExternalCourses
+      // tab): processing is the Grad Admin's, not another DGS decision.
+      if (/^pre-approved/i.test(reason)) {
+        processingCourses.push(course);
+        out.gradAdmin.push(`Process the transfer credit for ${course} — pre-approved by the DGS (§5.2).`);
+        continue;
+      }
       pendingCourses.push(course);
       if (/advisor/i.test(reason)) out.advisor.push(`Approve ${course} — ${reason.replace(/ — needs advisor \+ DGS approval/, '')}.`);
       if (/DGS|review|rules sheet|transfer/i.test(reason)) out.dgs.push(`Decide on ${course} — ${reason}.`);
@@ -334,6 +362,9 @@ export function actionItems(report: AuditReport): ActionItems {
   }
   if (pendingCourses.length > 0) {
     out.student.push(`Send the DGS the review request for ${pendingCourses.join(', ')} (with my transcripts attached).`);
+  }
+  if (processingCourses.length > 0) {
+    out.student.push(`Send the Grad Admin the processing request for ${processingCourses.join(', ')} (with my transcripts attached).`);
   }
 
   // Missing rules-sheet parameters: the DGS's tool to fix.
@@ -345,6 +376,7 @@ export function actionItems(report: AuditReport): ActionItems {
     student: dedupe(out.student),
     advisor: dedupe(out.advisor),
     dgs: dedupe(out.dgs),
+    gradAdmin: dedupe(out.gradAdmin),
   };
 }
 

@@ -323,12 +323,16 @@ export function parseExternalTab(
       sheetRow: rowNum,
     };
 
-    const core = (cells['satisfies_core_area'] ?? '').toLowerCase();
-    if (core !== '') {
+    // satisfies_core_area: a core-area code, `none` (decided: no core area —
+    // DGS 2026-09-06, so a core-sounding title stops asking for a ruling), or
+    // blank (not decided yet — the course stays in the review request).
+    const core = (cells['satisfies_core_area'] ?? '').trim().toLowerCase();
+    if (core === 'none') rule.satisfiesCoreArea = null;
+    else if (core !== '') {
       if (coreAreas.some((a) => a.code === core)) rule.satisfiesCoreArea = core;
       else {
         err(rowNum, 'satisfies_core_area',
-          `ExternalCourses row ${rowNum} (${university} ${courseId}): satisfies_core_area '${core}' is not one of the Categories tab's core areas (${coreAreas.map((a) => a.code).join(', ')}). That cell is ignored.`);
+          `ExternalCourses row ${rowNum} (${university} ${courseId}): satisfies_core_area '${core}' is not one of the Categories tab's core areas (${coreAreas.map((a) => a.code).join(', ')}), 'none' or blank. That cell is ignored.`);
       }
     }
 
@@ -347,16 +351,21 @@ export function parseExternalTab(
       else err(rowNum, 'nd_credits', `ExternalCourses row ${rowNum} (${university} ${courseId}): nd_credits '${nd}' is not a number between 0 and 30. That cell is ignored (credits as printed will count).`);
     }
 
-    const dup = out.find(
+    // Two rows for the same university + course: the LAST row wins (DGS
+    // 2026-09-06 — a corrected row pasted below an old one takes effect),
+    // with a warning so the older row can be deleted.
+    const dupIndex = out.findIndex(
       (r) => r.universityKey === rule.universityKey && r.courseId.toUpperCase().replace(/[^A-Z0-9]/g, '') === courseId.toUpperCase().replace(/[^A-Z0-9]/g, ''),
     );
-    if (dup) {
+    if (dupIndex >= 0) {
+      const dup = out[dupIndex]!;
       issues.push({
         severity: 'warning',
         tab: 'ExternalCourses',
         row: rowNum,
-        message: `ExternalCourses row ${rowNum} repeats ${university} ${courseId} (already in row ${dup.sheetRow}) — the first row wins.`,
+        message: `ExternalCourses row ${rowNum} repeats ${university} ${courseId} (already in row ${dup.sheetRow}) — the last row wins: row ${rowNum} replaces row ${dup.sheetRow}; delete the older one.`,
       });
+      out.splice(dupIndex, 1, rule);
       continue;
     }
     out.push(rule);

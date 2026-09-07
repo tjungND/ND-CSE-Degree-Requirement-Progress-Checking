@@ -3,7 +3,7 @@
 import type { Season, Term } from '../engine/types.ts';
 
 export type Level = 'undergraduate' | 'graduate';
-export type LevelSource = 'transcript' | 'term' | 'slot';
+export type LevelSource = 'transcript' | 'term' | 'slot' | 'award'; // award: by the bachelor's award term the student set in the preview (2026-09-06 evening)
 export type Slot = 'bachelors' | 'masters' | 'phd';
 
 const SEASON_RANK: Record<Season, number> = { spring: 0, summer: 1, fall: 2 };

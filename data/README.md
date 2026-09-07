@@ -146,7 +146,7 @@ column order, ready to paste straight into the sheet.
 | `university` | text | the institution's name in capital English, exactly as its transcripts print it |
 | `course_id` | text | as printed there ("CS 50300", "30240233"); spaces/hyphens don't matter |
 | `course_title` | text | for humans reading the sheet |
-| `satisfies_core_area` | a `core_area` code or blank | §4.4.1 core area the course covers — a match makes the student's core row **met** |
+| `satisfies_core_area` | a `core_area` code, `none`, or blank | §4.4.1 core area the course covers — a match makes the student's core row **met**. `none` = decided, no core area (a core-sounding title then stops appearing in the review request); blank = not decided yet (the course stays in the review request) |
 | `transferable` | `yes` / `no` / blank | §5.2: blank = not decided yet; `yes` still requires the student's formal request (DGS recommendation + Graduate School approval) |
 | `nd_credits` | number or blank | ND-equivalent credits (§5.2 pro-rata for quarter/ECTS systems); blank = credits as printed |
 | `decided_on`, `notes` | text | for the record |
@@ -163,6 +163,12 @@ applies whenever the course was taken — add the course there if it is missing)
 so no row is needed here for core knowledge; a row here is only for
 pre-approving the §5.2 transfer of a prior Notre Dame graduate course
 (`transferable`), which the handbook treats like any other prior-program transfer.
+
+**Two rows for the same university + course** (say, a decided row pasted below an older blank
+one): the **last** row wins — it replaces the earlier one — and the diagnostics warn so the older
+row can be deleted (DGS decision 2026-09-06). Blank verdict cells mean "not decided yet"; the
+course stays in the students' review request until `transferable` and, for a core-sounding title,
+`satisfies_core_area` (a core area or `none`) are filled in.
 
 **One-time setup:** create the tab, publish it to the web as
 CSV (File → Share → Publish to web → ExternalCourses → CSV) and paste the URL

@@ -72,7 +72,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
   });
 
   it('to-do lists follow the sections and end the email before the notices', () => {
-    const order = ['WHAT I NEED TO DO', 'WHAT I NEED FROM YOU, MY ADVISOR', 'WHAT THE DGS NEEDS TO DO', 'Alpha version under testing.'].map((h) => text.indexOf(`\n${h}`));
+    const order = ['WHAT I NEED TO DO', 'WHAT I NEED FROM YOU, MY ADVISOR', 'WHAT THE DGS NEEDS TO DO', 'WHAT THE GRAD ADMIN NEEDS TO DO', 'Alpha version under testing.'].map((h) => text.indexOf(`\n${h}`));
     assert.ok(order.every((i) => i >= 0) && order[0]! > text.indexOf('COURSEWORK — §4.2'), `all present, after the sections: ${order}`);
     assert.deepEqual([...order].sort((a, b) => a - b), order);
     assert.match(text, /\nWHAT I NEED TO DO\n- Complete 46 more credits toward the total-credit requirement \(9 of them in progress\) \(§4\.2\)\.\n- Complete 12 more credits of regular courses \(3 of them in progress\) \(§4\.2\)\.\n- Send the DGS the review request for MATH 60610 \(with my transcripts attached\)\.\n/);
@@ -113,7 +113,7 @@ describe('advisor summary: deadlines on the rows that have them', () => {
   it('subject line adds the passed deadline; rows say their semester, never a date', () => {
     assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 2 requirements not yet met, 1 deadline passed\n/);
     assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[NOT YET\] Research component: a significant research contribution \(§4\.4\.3\) — Deadline passed \(was due during Spring 2028\)\.\n/);
-    assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] Oral Candidacy Exam \(OCE\) passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\)\n/);
+    assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\)\n/);
     for (const dueLine of text.split('\n').filter((l: string) => /\bdue\b/i.test(l))) {
       assert.doesNotMatch(dueLine, /\d{4}-\d{2}-\d{2}/, `no ISO date in a deadline line: ${dueLine}`);
     }
@@ -189,12 +189,13 @@ describe('actionItems: the rest of the rules', () => {
       'Decide on CSE 60999 — not in the rules sheet — counted provisionally; needs DGS review.',
       "Add the missing parameter 'phd_time_limit_years' to the rules sheet so all requirements complete within 8 years can be checked.",
     ]);
+    assert.deepEqual(todo.gradAdmin, []);
     // Dissertation items appear only because candidacy is met here.
     const early = { ...r, requirements: r.requirements.map((x) => (x.id === 'phd.candidacy' ? { ...x, status: 'in_progress' as const, detail: '' } : x)) };
     assert.ok(!actionItems(early).student.some((s) => /dissertation/i.test(s)));
     // Empty lists say so in the email.
     const { text } = advisorSummary({ program: 'mscse', requirements: [req('shared.gpa', 'Cumulative GPA of at least 3.0', 'met', 'ok', 'Basic requirements — §2.2–2.3', '§2.2')], courseLines: [], summary: { met: 1, scored: 1 }, warnings: [] }, opts);
-    assert.match(text, /\nWHAT I NEED TO DO\n- Nothing at the moment\.\n\nWHAT I NEED FROM YOU, MY ADVISOR\n- Nothing at the moment\.\n\nWHAT THE DGS NEEDS TO DO\n- Nothing at the moment\.\n/);
+    assert.match(text, /\nWHAT I NEED TO DO\n- Nothing at the moment\.\n\nWHAT I NEED FROM YOU, MY ADVISOR\n- Nothing at the moment\.\n\nWHAT THE DGS NEEDS TO DO\n- Nothing at the moment\.\n\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Nothing at the moment\.\n/);
     assert.match(text, /^Subject: Degree self-check — M\.S\. in CSE, entered Fall 2026 — all checked requirements met\n/);
   });
 
@@ -220,6 +221,7 @@ describe('actionItems: the rest of the rules', () => {
     ]);
     assert.deepEqual(todo.advisor, ['Accept and approve the project report and deliverables (§3.4).']);
     assert.deepEqual(todo.dgs, []);
+    assert.deepEqual(todo.gradAdmin, []);
   });
 });
 
@@ -261,5 +263,57 @@ describe('whyFor re-voices the engine detail for the advisor', () => {
   it('splits prose at sentence ends but not inside M.S. / Ph.D. / e.g.', () => {
     assert.equal(whyFor(req('x', 'x', 'in_progress', 'Courses from a prior M.S. may transfer (§5.2). The Ph.D. cap is 24 credits, e.g. eight courses.')), 'Courses from a prior M.S. may transfer (§5.2). The Ph.D. cap is 24 credits, e.g. eight courses.');
     assert.equal(whyFor(req('x', 'x', 'in_progress', 'Courses from a prior M.S. may transfer (§5.2). The Ph.D. cap is 24 credits, e.g. eight courses.'), true), 'Courses from a prior M.S. may transfer (§5.2).');
+  });
+});
+
+// Two people, two jobs (DGS 2026-09-06 evening): the DGS list holds eligibility
+// decisions only; processing goes to a fourth list for the Grad Admin.
+describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
+  const req = (id: string, title: string, status: RequirementResult['status'], detail: string, group: string, section: string): RequirementResult => ({
+    id,
+    title,
+    status,
+    detail,
+    group,
+    citation: { section, quote: '' },
+  });
+  it('a pre-approved transfer is the Grad Admin’s to process, not the DGS’s to decide; the MSCSE and the qualifier form are processing too', () => {
+    const r: AuditReport = {
+      program: 'phd',
+      requirements: [
+        { ...req('phd.qualifier', 'Qualifying examination — all components', 'met', 'Three components complete. Remember to file the qualifier completion form with the Grad Admin (§4.4)', 'Qualifying examination — §4.4', '§4.4') },
+        { ...req('phd.msAlongTheWay', 'MSCSE awarded along the way', 'met', 'OCE passed 2029-04-01, with 24 regular course credits and 6 research credits completed at Notre Dame.', 'Oral Candidacy Exam (OCE) — §4.5', '§4.5'), informational: true },
+        {
+          ...req('shared.approvals', 'Courses needing DGS or advisor sign-off', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
+          detailParts: [
+            {
+              lead: 'Courses pending approval',
+              items: [
+                'CS 50300 (pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2))',
+                'CS 77777 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))',
+              ],
+            },
+          ],
+        },
+      ],
+      courseLines: [],
+      summary: { met: 2, scored: 3 },
+      warnings: [],
+    };
+    const todo = actionItems(r);
+    assert.deepEqual(todo.gradAdmin, [
+      'Process the MSCSE awarded along the way (§4.5).',
+      'Record the completed qualifier once my form arrives (§4.4).',
+      'Process the transfer credit for CS 50300 — pre-approved by the DGS (§5.2).',
+    ]);
+    assert.deepEqual(todo.dgs, ['Decide on CS 77777 — transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2).']);
+    assert.ok(todo.student.includes('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).'));
+    assert.ok(todo.student.includes('File the qualifier completion form with the Grad Admin (§4.4).'));
+    assert.ok(todo.student.includes('Send the Grad Admin the processing request for CS 50300 (with my transcripts attached).'));
+    assert.ok(todo.student.includes('Send the DGS the review request for CS 77777 (with my transcripts attached).'));
+    const { text, html, subject } = advisorSummary(r, { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 });
+    assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — nothing not yet met — 0 in progress, 1 needs DGS review');
+    assert.match(text, /\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Process the MSCSE awarded along the way \(§4\.5\)\.\n/);
+    assert.match(html, /<p><strong>What the Grad Admin needs to do<\/strong><\/p><ul><li>Process the MSCSE awarded along the way/);
   });
 });

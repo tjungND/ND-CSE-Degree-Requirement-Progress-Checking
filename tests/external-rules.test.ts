@@ -42,7 +42,7 @@ const rules = buildRules(); // fixture ExternalCourses tab included
 
 describe('ExternalCourses parsing', () => {
   it('reads the fixture rows and skips the prose note row', () => {
-    assert.equal(rules.external.length, 4);
+    assert.equal(rules.external.length, 5); // incl. the `none` row (2026-09-06)
     assert.equal(rules.issues.filter((i) => i.tab === 'ExternalCourses').length, 0);
   });
 
@@ -69,7 +69,7 @@ describe('ExternalCourses parsing', () => {
     assert.match(issues[2]!.message, /not a number/);
   });
 
-  it('warns on duplicate (university, course) pairs — first row wins', () => {
+  it('warns on duplicate (university, course) pairs — the last row wins (DGS 2026-09-06)', () => {
     const issues: SheetIssue[] = [];
     const rows = parseExternalTab(
       'university,course_id,transferable\nPURDUE UNIVERSITY,CS 1,yes\nPurdue-University,CS-1,no\n',
@@ -77,8 +77,9 @@ describe('ExternalCourses parsing', () => {
       issues,
     );
     assert.equal(rows.length, 1);
-    assert.equal(rows[0]?.transferable, true);
-    assert.match(issues[0]?.message ?? '', /first row wins/);
+    assert.equal(rows[0]?.transferable, false, 'the later row (transferable = no) replaces the earlier one');
+    assert.equal(rows[0]?.sheetRow, 3);
+    assert.match(issues[0]?.message ?? '', /the last row wins: row 3 replaces row 2/);
   });
 
   it('a leftover university_aliases column is ignored, with one gentle warning', () => {
@@ -151,7 +152,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 Courses tab:/u);
     assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 ExternalCourses tab:/u);
     assert.ok(text.includes('MATH 60610\tReal Analysis I'), 'Courses-tab row');
-    assert.ok(text.includes('PURDUE UNIVERSITY\tCS 50300\tOperating Systems'), 'ExternalCourses-tab row, university upper-cased');
+    assert.ok(text.includes('Purdue University\tCS 50300\tOperating Systems'), 'ExternalCourses-tab row, university as the record spells it (2026-09-06, late evening: no upper-casing)');
     assert.ok(!text.includes('CSE 40567\t'), 'sheet-listed ND course gets no new row');
     assert.ok(!text.includes('\tCS 51400'), 'ruled-but-undecided external course gets no new row');
   });
@@ -161,7 +162,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.match(text, /Course details:/);
     const header = 'Course | Title | Credits | Grade | Term | Why it needs a decision';
     assert.match(text, new RegExp(`Notre Dame:\\n${header.replace(/[|]/g, '\\|')}\\nMATH 60610 \\| Real Analysis I \\| 3 \\| A \\| Fall 2026 \\| not in the course rules yet\\n`));
-    assert.match(text, /Previous Master\u2019s Transcript \u2014 PURDUE UNIVERSITY:\n[^\n]*\nCS 50300 \| Operating Systems \| 3 \| A \| Fall 2023 \| not yet reviewed by the DGS/u);
+    assert.match(text, /Previous Master\u2019s Transcript \u2014 Purdue University:\n[^\n]*\nCS 50300 \| Operating Systems \| 3 \| A \| Fall 2023 \| not yet reviewed by the DGS/u);
     assert.match(text, /CSE 40567 \|  \| 3 \| B \| Fall 2026 \| needs advisor \+ DGS approval/u);
     assert.match(text, /CS 51400 \| .* \| 1 \| B\+ \| Fall 2024 \| transferability not yet decided/u);
   });
@@ -171,7 +172,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.equal((html.match(/<table/g) ?? []).length, 4, 'one table per sheet tab + one per transcript in the details');
     assert.ok(html.includes('<p><strong>(You may edit anything above this line)</strong></p><hr><p><strong>(DO NOT MODIFY ANYTHING BELOW THIS LINE)</strong></p>'), 'both markers around the line in HTML');
     assert.ok(html.includes('<tr><td>MATH 60610</td><td>Real Analysis I</td></tr>'));
-    assert.ok(html.includes('<tr><td>PURDUE UNIVERSITY</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
+    assert.ok(html.includes('<tr><td>Purdue University</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
     assert.ok(html.includes('<p><strong>Notre Dame:</strong></p><table'));
     assert.ok(html.includes('<tr><th>Course</th><th>Title</th><th>Credits</th><th>Grade</th><th>Term</th><th>Why it needs a decision</th></tr>'));
     assert.ok(html.includes('<tr><td>CSE 40567</td><td></td><td>3</td><td>B</td><td>Fall 2026</td><td>needs advisor + DGS approval per the rules sheet</td></tr>'));
@@ -221,7 +222,7 @@ describe('what a DGS ruling changes in the engine', () => {
   it('transferable=no → not counted, with the DGS ruling named', () => {
     const { classified } = classify(student([{ courseId: 'CS 59000' }]), rules);
     // The message quotes the university as the sheet spells it (capital English).
-    assert.match(classified[0]?.ineligibleReason ?? '', /ruled this PURDUE UNIVERSITY course non-transferable/);
+    assert.match(classified[0]?.ineligibleReason ?? '', /ruled this Purdue University course non-transferable/);
   });
 
   it('transferable=yes → still provisional until the §5.2 request, but pre-approved wording', () => {
@@ -260,5 +261,52 @@ describe('what a DGS ruling changes in the engine', () => {
     const report = audit(student([{ courseId: 'CS 50300' }]), bare, '2026-09-01');
     const os = report.requirements.find((r) => r.id === 'phd.qualifier.core.os');
     assert.equal(os?.status, 'unmet'); // nothing claimed, nothing confirmed
+  });
+});
+
+// §5.2 criterion 2 — "the student had graduate student status when they took
+// these courses" (DGS 2026-09-06: graduate-level courses taken before the
+// bachelor's degree do not count). The award term is Student.bachelorsAwarded.
+describe('graduate student status — §5.2 criterion 2 (DGS 2026-09-06)', () => {
+  const withBachelors = (courses: Partial<CourseEntry>[], awarded: Student['bachelorsAwarded'] = { season: 'spring', year: 2024 }): Student => ({
+    ...student(courses),
+    bachelorsAwarded: awarded,
+  });
+  const line = (s: Student, courseId: string) => audit(s, rules, '2026-09-01').courseLines.find((l) => l.courseId === courseId);
+
+  it('a course dated in or before the award term earns no transfer credit; an unknown award term changes nothing', () => {
+    const before = classify(withBachelors([{ courseId: 'CS 51000', title: 'Algorithms', term: { season: 'fall', year: 2023 } }]), rules).classified[0]!;
+    assert.equal(before.pool, 'none');
+    assert.match(before.ineligibleReason ?? '', /^not counted — taken before your bachelor’s degree was awarded \(Spring 2024\), so not as a graduate student \(§5\.2\); may still satisfy the Algorithms/);
+    const inTerm = classify(withBachelors([{ courseId: 'CS 52300', title: 'Compilers', term: { season: 'spring', year: 2024 } }]), rules).classified[0]!;
+    assert.match(inTerm.ineligibleReason ?? '', /taken in the term your bachelor’s degree was awarded/);
+    const after = classify(withBachelors([{ courseId: 'CS 52300', title: 'Compilers', term: { season: 'summer', year: 2024 } }]), rules).classified[0]!;
+    assert.equal(after.pool, 'regular');
+    const unknown = classify(student([{ courseId: 'CS 51000', title: 'Algorithms', term: { season: 'fall', year: 2023 } }]), rules).classified[0]!;
+    assert.equal(unknown.pool, 'regular', 'no award term → degreeLevel decides, as before');
+  });
+
+  it('the award term is absolute: a transferable=yes ruling does not restore a pre-bachelor’s course (DGS, later 2026-09-06), its core note stays', () => {
+    const ruled = classify(withBachelors([{ courseId: 'CS 50300', title: 'Operating Systems', term: { season: 'fall', year: 2023 } }]), rules).classified[0]!;
+    assert.equal(ruled.pool, 'none');
+    assert.match(ruled.ineligibleReason ?? '', /^not counted — taken before your bachelor’s degree was awarded \(Spring 2024\)/);
+    assert.match(ruled.ineligibleReason ?? '', /satisfies the Operating Systems core-knowledge requirement \(§4\.4\.1\) — confirmed by the DGS/);
+    const after = classify(withBachelors([{ courseId: 'CS 50300', title: 'Operating Systems', term: { season: 'fall', year: 2024 } }]), rules).classified[0]!;
+    assert.equal(after.pool, 'regular', 'after the award the ruling applies as before');
+    assert.match(after.approvalPending ?? '', /^pre-approved/);
+  });
+
+  it('marks: a confirmed core area stays green, a keyword title amber, anything else red', () => {
+    const confirmed = line(withBachelors([{ courseId: 'IFT-2125', title: 'Introduction à l’algorithmique', institution: 'Université de Montréal', term: { season: 'fall', year: 2023 } }]), 'IFT-2125')!;
+    assert.match(confirmed.text, /^not counted — taken before/);
+    assert.match(confirmed.text, /confirmed by the DGS/);
+    assert.equal(confirmed.mark, 'counts');
+    assert.equal(line(withBachelors([{ courseId: 'CS 51000', title: 'Algorithms', term: { season: 'fall', year: 2023 } }]), 'CS 51000')!.mark, 'pending');
+    assert.equal(line(withBachelors([{ courseId: 'CS 52300', title: 'Compilers', term: { season: 'fall', year: 2023 } }]), 'CS 52300')!.mark, 'excluded');
+  });
+
+  it('an award term that is not before the entry term is warned about', () => {
+    const report = audit(withBachelors([], { season: 'fall', year: 2026 }), rules, '2026-09-01');
+    assert.ok(report.warnings.some((w) => /not before your entry term \(Fall 2026\)/.test(w)), JSON.stringify(report.warnings));
   });
 });

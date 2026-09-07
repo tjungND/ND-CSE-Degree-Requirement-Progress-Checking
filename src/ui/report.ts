@@ -79,8 +79,8 @@ function dial(report: AuditReport): HTMLElement {
         'div',
         { class: 'subline' },
         remaining === 0 && scored > 0
-          ? 'Final confirmation by the DGS is still required — confirm with the Grad Admin before you file.'
-          : 'This is a self-check — approvals and official records live with the DGS office.',
+          ? 'All automatic checks pass — the DGS still confirms eligibility, and the Grad Admin processes it: send the processing request before you file.'
+          : 'This is a self-check — the DGS decides eligibility by the rules; the Grad Admin processes it and keeps the official record.',
       ),
     ),
   );
@@ -330,7 +330,8 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
           ['Project or thesis', 'Six credits of Master’s project (CSE 68902) or Master’s thesis direction (CSE 68901), in addition to the 24 regular-course credits.', '§3.2, §3.4'],
           ['Transfer credit', 'Graduate courses from another program may count toward the course requirement within the handbook’s caps, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
         ] as [string, string, string][])),
-    ['DGS', 'The Director of Graduate Studies — the faculty member who makes the final call on every requirement here; the Graduate Program Administrator (Grad Admin) handles the paperwork.', '§1'],
+    ['DGS', 'The Director of Graduate Studies — the faculty member who determines, by the handbook and the course rules, whether each requirement here is satisfied. Processing is not the DGS’s job (see Grad Admin).', '§1'],
+    ['Grad Admin', 'The Graduate Program Administrator: processes what the DGS has decided and keeps the official record — transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§3.4, §4.5–4.7), the MSCSE along the way (§4.5). Requests go by email; this page sends nothing.', '§5.2'],
   ];
   return el(
     'details',

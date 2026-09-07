@@ -50,6 +50,101 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **The DGS batch of 2026-09-06 (evening): items 1–6 plus the OCE short form.** Mechanics, file by
+  file, with the decisions in DECISIONS rows of that evening:
+  - `src/engine/review.ts` `coursesNeedingDgsReview(student, rules)` is THE rule for which courses
+    the review request asks about (kind nd / priorNd / external, reason, unlisted = needs a new sheet
+    row — a Courses-tab row for any unlisted Notre Dame course, CSE or not). An ExternalCourses row
+    is a decision only where its cells say something: `transferable` for §5.2, `satisfies_core_area`
+    for §4.4.1 (`none` parses to `null` = decided, no core area; blank = undefined = undecided,
+    and the course stays in the request). `askDgsCard` only formats. Matrix: tests/review-pending.test.ts.
+  - Toasts: `.toast-stack` created once in startApp OUTSIDE the root (render() no longer holds a
+    toast element); `toast()` = one plain slot, 4 s; `toastWithAction(msg, label, action, { ttlMs,
+    focusKey })` = one element per Undo (12 s default, 20 s for the ND / slot Removes), never
+    replaced by a plain toast, ≤ 3 live; `cancelUndo()` on Load example / Clear / Load a file. Every
+    Undo re-inserts rows at their original indexes (`{ c, i }` pairs recorded at removal) and sets
+    `focusAfterRender` from `focusKey` (the button lives outside the root, so the rebuild has
+    nothing to remember). The e2e reads `.toast` = the newest (prepended).
+  - `src/ui/first-mention.ts`: `shortenAfterFirst(text)` (case-insensitive regex, first match kept)
+    is applied by `advisorSummary`, `gradAdminRequest` and `buildReviewRequest` to text AND html;
+    `applyFirstMentionRule(root)` runs in render() between `root.append` and `restoreFocus`
+    (TreeWalker, nodeValue only; skips `details.glossary`, `.print-header`, `select`, `textarea`).
+    The engine keeps writing "Oral Candidacy Exam (OCE)"; surfaces shorten repeats. The e2e counts
+    exactly one full mention outside the glossary.
+  - Graduate student status (§5.2 criterion 2): `Student.bachelorsAwarded?: Term` +
+    `bachelorsAwardedInferred?: { how }` (state.ts validates both leniently). classify():
+    after the DGS "no" ruling and before the grade floor, a transfer course with
+    `compareTerm(term, bachelorsAwarded) <= 0` ⇒ "not counted — taken before / in the term your
+    bachelor's degree was awarded (…), so not as a graduate student (§5.2)" + coreNote — absolute
+    since the DGS's second pass that evening: a `transferable: yes` ruling does NOT restore it. `buildExplanation`'s mark regex: `; satisfies the` ⇒ counts, `; may still satisfy` ⇒
+    pending (so excluded lines with a confirmed core area are green, not struck). audit.ts warns when
+    the award term is not before the entry term. prior-nd.ts: registered level → award term → number.
+    UI: the standing card's third fieldset (data-keys `standing.bachelors.season/year`, blank year =
+    unknown, `.bachelors-note` in four variants); `bachelorsAwardFrom()` / `bachelorsMayBeSet()` /
+    `bachelorsTermFor()` in app.ts fill it from the ND transcript's `degreesAwarded` (preview
+    `.bachelors-line`, toast fragment) and `ExternalPreview.bachelorsConferredOn` from the external
+    parser; an import replaces only an inferred value; Remove/Undo leave it alone. The Master's-row
+    preview of a COMBINED record (`bachelorsForPreview`: mixed levels, a conferral line, or the
+    two-year rule) shows a REQUIRED `bachelorsField` (data-keys `ext.preview.bachelors.season/year`),
+    pre-filled from the conferral date; a student's edit re-fills every dated row's level
+    (`relevelByAward`, levelSource `award`) and is written to the record as chosen. Scenarios:
+    phd-transfer-before-bachelors, phd-nd-grad-before-bachelors. The e2e ND fixture's B.S. is dated
+    2021 (UG terms 2020–21) so the Purdue fixtures (2023–24) stay candidates; step 3c flips the term
+    to 2024 (all three Purdue rows excluded, request 6 → 5) and back.
+  - Manual form: `src/ui/university-name.ts` (`titleCaseUniversity`, `canonicalUniversityName`,
+    `knownUniversities`); one `<datalist id="known-universities">` appended in render(); both
+    University boxes (form, editable preview) Title-Case on change. Level = '' (graduate, NO
+    degreeLevel — the row belongs to no transcript slot, groups under "graduate coursework (§5.2)")
+    or 'bachelors'.
+  - Roles: `src/ui/grad-admin-request.ts` (`processingItems`, `gradAdminRequest` → { subject,
+    text, html, items }; `MILESTONE_FIELDS` mirrors the milestones card's labels — keep them in
+    step; since the second pass the text carries the review request's markers — exported from
+    src/transcript/external.ts as `EDITABLE_MARKER` / `DO_NOT_MODIFY_MARKER` / `MARKER_DIVIDER` —
+    an "Attached: …" line naming `selfCheckFileName(program)`, and one "Met — …" table per met
+    requirement built from `RequirementResult.satisfiedBy` (course ids from `countedCourseIds` in
+    context.ts for the threshold rows, the seminar, the transfer row, the core rows and the
+    specialization row; the semesters of `longestFullTimeRun` for residency; milestone dates and
+    the GPA figure looked up in the student record). The Grad Admin button also calls
+    `exportFile(student)` before the dialog; `askGradAdminCard(report)` after milestonesCard (always shown; `inactiveButton` when
+    nothing is processable); advisor-summary.ts `ActionItems.gradAdmin` + fourth list; a
+    "pre-approved" reason routes to the Grad Admin, never to the DGS list. The DGS card's intro
+    must not say "Grad Admin" (e2e pin).
+  - `src/ui/copy-dialog.ts`: `copyDialog(opts)` writes the clipboard (`writeClipboard`, which
+    external-upload's `copyReviewRequest` now delegates to) then shows `<dialog class="consent
+    copy-check">` on document.body — never `consent-overlay` (the e2e auto-dismisses that);
+    OK/Escape remove it and refocus `returnFocusKey`. The three builders return `subject`. Numbered
+    `steps` (paste — or select-and-copy when blocked — then the caller's steps, then "Send it"):
+    the DGS and Grad Admin requests emphasise attaching the ORIGINAL transcripts, the Grad Admin one
+    also the saved self-check file. An emphasised `.copy-lead` line right above the message says
+    "The following message has been copied to your clipboard" (or that the clipboard was blocked) —
+    DGS request 2026-09-06, late evening; e2e pins it in both dialogs.
+    Headless clipboards are usually refused: the dialog then shows the "copy it yourself" variant
+    with the textarea selected — the e2e accepts either heading.
+- **Late-evening items** (2026-09-06, four more DGS requests; DECISIONS rows of that night):
+  `processingItems().count` includes `met.length`, so the Grad Admin button is active on met
+  requirements alone and the card carries a "N requirements met so far — …" line (e2e: after the ND
+  import the button is not `aria-disabled`). "Taken as" values read "Undergraduate student" /
+  "Graduate student" (`select.row-level` max-width 158 px; the manual form's label is "Taken as"
+  too) — the values `undergraduate`/`graduate` and `degreeLevel` are unchanged; the column
+  tooltip and the mixed/level notes say the value is the student's status, not the course's level.
+  The review request no longer upper-cases institutions (`buildCombinedReviewRequest` heading and
+  ExternalCourses paste rows), and allocate.ts's "ruled this … course non-transferable" line uses
+  `c.institution` — the sheet's spelling appears nowhere student-facing; hand-typed names keep
+  Title Case. The bachelor's date: `DEGREE_DATE_LINE_RE` / `NOT_YET_RE` in external.ts — a
+  bachelor's-naming line takes a date from itself (with a conferral word or in a degrees block),
+  from a labelled line within the next six (stopping at a course row or the next degree's name), or
+  from a dated line up to two lines before (`recentDegreeDate`); `dateOnLine` also reads
+  "05/2024"; the ND parser's `AWARD_WORD_RE` accepts "Conferral", "(Degree) Completion Date".
+  Shortened 2026-09-07 on the DGS's request: the options read "UG student" / "Grad student"
+  (`select.row-level` back to 118 px) and semesters in table cells use `termShort` ("FA26",
+  "SP25", "SU25") inside `<abbr class="term" title="Fall 2026">` — the preview's locked term cell,
+  the ND preview and the coursework table; everything else (prose, toasts, aria-labels, emails)
+  keeps `termLabel`. e2e pins the short form and its tooltip in both tables. Same day: in the
+  560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
+  again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
+  the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+  Tests: external-transcript.test.ts (wording describe), transcript.test.ts (labels), term.test.ts,
+  grad-admin-request.test.ts (count), external-rules.test.ts (casing).
 - **The DGS's answers to the open items** (2026-09-06 evening; DECISIONS rows of that evening):
   the wording review is closed and `docs/WORDING-REVIEW.md` removed — a student-facing string Claude
   drafts is now listed, numbered, in the reply that delivers it (CLAUDE.md says so); the two-year

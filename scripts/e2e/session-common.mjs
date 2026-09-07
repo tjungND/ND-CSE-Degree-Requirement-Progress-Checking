@@ -23,7 +23,10 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
   let consentShotTaken = false;
   const open = async (url, readySelector = '.masthead h1') => {
     await navigate(url);
-    await waitFor(`document.querySelector('${readySelector}') || document.querySelector('.load-card.failed')`);
+    // The live rules come from Google at start-up: allow a slow network a full
+    // minute before calling the load a failure (two drivers timed out at 20 s on
+    // 2026-09-06 with nothing wrong in the page).
+    await waitFor(`document.querySelector('${readySelector}') || document.querySelector('.load-card.failed')`, 60000);
     if (await evalJs(`!!document.querySelector('.load-card.failed')`)) {
       const text = await evalJs(`document.querySelector('.load-fail')?.textContent`);
       if (!/[Rr]eload the page/.test(text ?? '')) throw new Error('failure card must suggest reloading: ' + text);

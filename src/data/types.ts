@@ -27,7 +27,7 @@ export interface ExternalRule {
   universityKey: string;
   courseId: string;
   title: string;
-  satisfiesCoreArea?: string;
+  satisfiesCoreArea?: string | null; // null = decided, no core area (`none` in the sheet, DGS 2026-09-06); undefined = blank, not decided yet
   transferable?: boolean;
   ndCredits?: number;
   decidedOn?: string;

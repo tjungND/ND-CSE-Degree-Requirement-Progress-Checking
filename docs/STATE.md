@@ -1,6 +1,6 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-06, ~18:30 UTC (the first Claude Code Desktop session on the DGS's Mac,
+Last updated: 2026-09-06, ~21:00 UTC (the first Claude Code Desktop session on the DGS's Mac,
 branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at ~15:00 UTC —
 see "Session protocol" in `CLAUDE.md`).
 
@@ -18,6 +18,26 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   Then the DGS's answers to the six open items: wording review closed (file removed), the two-year
   "Taken as" rule only for transcripts that state no level, the opening notice keeps asking, the
   §4.5 examination is "Oral Candidacy Exam (OCE)" everywhere the wording is ours.
+  Then the evening batch (DECISIONS rows of 2026-09-06 evening; details in the handoff): the OCE name in
+  full once per surface, then "OCE"; the §5.2 graduate-status rule with the new "Bachelor's degree
+  awarded" term; the manual form's university list, Title Case and two Level choices; the DGS/Grad Admin
+  split (a "Ask the Grad Admin to process" card + processing request, a fourth advisor-summary list);
+  "Qualifying examination — all components"; a check-before-you-send dialog on every copy button; the
+  vanishing review card fixed (undecided ExternalCourses rows, `none`, Undo survives re-renders).
+  Second pass after the DGS's review: the bachelor's term is required (pre-filled) in the Master's-row
+  preview of a combined record; the award term is absolute (no `transferable = yes` override); the
+  processing request carries the edit markers, an attachments line, one table per met requirement
+  (from the engine's `satisfiedBy`), and its button saves the self-check file; the copy dialogs walk
+  through numbered steps and lead with an emphasised "the following message has been copied to your
+  clipboard" line above the message. ExternalCourses duplicates: the last row wins.
+  Late evening (four more DGS items): the Grad Admin button is active on met requirements alone (they
+  count as items); "Taken as" reads "Undergraduate student" / "Graduate student" — the student's status,
+  not the course's level — in the preview, the manual form and the notes; the review request and the
+  engine keep university names as the record spells them (no upper-casing); the bachelor's date is also
+  read from "Degree Completion Date" / "Conferral Date" / "Date Conferred" lines, before or after the
+  degree name, and from "05/2024" (both parsers). 2026-09-07: "UG student" / "Grad student"; semesters
+  in table cells read "FA26" / "SP25" / "SU25" (`termShort`, tooltip = full name); prose unchanged;
+  the compact preview shows one header, "Taken as", over the dropdown column.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.
@@ -49,9 +69,14 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
 
 ## Open for the DGS (decisions, not code)
 
-Nothing pending: the DGS answered the six items listed here on 2026-09-06 (evening) — see the
-DECISIONS rows of that evening — and the wording review (W1–W47) is closed. A student-facing string
-Claude drafts is now listed, numbered, in the reply that delivers it, for the DGS to edit.
+1. The evening batch's wording (listed, numbered, in the reply that delivered it): the Grad Admin card
+   and processing request, the copy dialog, the bachelor's-award notes, the two Level labels, the
+   rewordings around the two roles. Say "Sn: …" to change any of them.
+2. Two 2026-09-01 notices still say the rules are "exactly the rules the DGS and the Grad Admin use to
+   determine requirement satisfaction" (handbook.ts RULES_ACCURACY_NOTICE, courses-page.ts) — under
+   the two-roles split the DGS alone determines; keep or reword?
+3. The Courses tab keeps the FIRST of two rows with the same course_id + effective_term (the
+   ExternalCourses tab now keeps the LAST, DGS 2026-09-06) — should the Courses tab follow?
 
 ## Open work (optional)
 
@@ -61,6 +86,10 @@ Claude drafts is now listed, numbered, in the reply that delivers it, for the DG
 - Hands-on full pass in real Safari and on a phone; email round-trips (review request and advisor
   summary pasted into Gmail — tables, red bold names/deadlines).
 - First ExternalCourses rulings as review requests arrive.
+- Chrome e2e flake (2026-09-06/07, three times in one night, never on WebKit): a driver's FIRST page load
+  times out — even at the 60 s wait now in session-common.mjs — and the same driver passes on a
+  re-run (`E2E_ONLY=<name>`). Nothing in the page; look at cdp.mjs's session start (a fresh target
+  per session, no wait for the load event after `Page.navigate`) before trusting a red run.
 - Link both pages from cse.nd.edu; remove the alpha banner when ready (the opening notice is separate).
 - Housekeeping: `.git/stale-locks/` and `.git/objects/*/tmp_obj_*` litter in the Mac clone came from the
   Cowork VM (it could not delete files) — safe to remove; `START-HERE.md` / `KICKOFF-PROMPT.md` could

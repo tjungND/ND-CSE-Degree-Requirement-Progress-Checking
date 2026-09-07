@@ -301,3 +301,40 @@ describe('per-row level on combined transcripts (2026-09-05)', () => {
     assert.equal(p.courses[0]?.level, undefined);
   });
 });
+
+// The bachelor's date under other labels (DGS request 2026-09-06, late evening:
+// "use the degree conferral date or degree completion date"): "Degree Completion
+// Date", "Conferral Date", "Date Conferred", "05/2024" — before or after the
+// degree name. It splits the rows and pre-fills "Bachelor's degree awarded".
+describe('bachelor’s conferral or completion date wording (2026-09-06, late evening)', () => {
+  const rows = ['Fall 2023', 'CS 35400   Operating Systems   3.0   A', 'Fall 2024', 'CS 50300   Operating Systems   3.0   A'];
+  const parse = (degreeLines: string[]) => parseExternalTranscript([...PURDUE.slice(0, 5), ...degreeLines, ...rows, ...PURDUE.slice(13)]);
+
+  it('reads a "Degree Completion Date" line after the degree name and splits the rows at it', () => {
+    const p = parse(['Bachelor of Science in Computer Science', 'Major: Computer Science', 'Degree Completion Date: 05/17/2024']);
+    assert.equal(p.bachelorsConferredOn, '2024-05-17');
+    assert.deepEqual(
+      p.courses.map((c) => [c.courseId, c.level]),
+      [
+        ['CS 35400', 'undergraduate'],
+        ['CS 50300', 'graduate'],
+      ],
+    );
+    assert.equal(p.degreeConferred, undefined, 'a bachelor’s is not graduate-degree evidence');
+  });
+
+  it('reads "Conferral Date" up to two lines BEFORE the name, "Date Conferred" after it, and a month/year date', () => {
+    assert.equal(parse(['Conferral Date: May 17, 2024', 'Bachelor of Arts, Computer Science']).bachelorsConferredOn, '2024-05-17');
+    assert.equal(parse(['Degree Completion Date: 05/17/2024', 'College of Science', 'Bachelor of Science']).bachelorsConferredOn, '2024-05-17');
+    assert.equal(parse(['Bachelor of Science', 'Date Conferred 17-MAY-2024']).bachelorsConferredOn, '2024-05-17');
+    assert.equal(parse(['Bachelor of Science', 'Degree Completion Date: 05/2024']).bachelorsConferredOn, '2024-05-15', 'month/year → the 15th; only the term matters');
+  });
+
+  it('never takes a forecast, a sought degree, a date too far away, or the next degree’s date', () => {
+    assert.equal(parse(['Degree Sought: Bachelor of Science', 'Expected Graduation: May 2027']).bachelorsConferredOn, undefined);
+    assert.equal(parse(['Bachelor of Science in Computer Science', 'Expected Graduation Date: 05/17/2027']).bachelorsConferredOn, undefined);
+    assert.equal(parse(['Conferral Date: May 17, 2024', 'a', 'b', 'c', 'Bachelor of Science']).bachelorsConferredOn, undefined, 'a dated line four lines earlier is not this degree’s');
+    assert.equal(parse(['Bachelor of Science', 'Master of Science — Conferred: May 10, 2025']).bachelorsConferredOn, undefined);
+    assert.equal(parse(['Bachelor of Science', 'Master of Science — Conferred: May 10, 2025']).degreeConferred, true);
+  });
+});
