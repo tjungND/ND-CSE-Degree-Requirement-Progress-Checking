@@ -3,7 +3,7 @@
 import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm, termLabel } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, missingParamDetail, thresholdRow } from './context.ts';
+import { capRow, countedCourseIds, missingParamDetail, thresholdRow } from './context.ts';
 import { fullTimeTermRecords } from './residency.ts';
 
 const COURSEWORK = 'Coursework — §3.2';
@@ -28,6 +28,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: '30 total credits of courses and research',
       sums: ctx.alloc.total,
+      satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
       required: ctx.params.number('ms_total_credits_min'),
       requiredKey: 'ms_total_credits_min',
       section: '§3.2',
@@ -47,6 +48,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: '24 credit hours of regular courses',
       sums: ctx.alloc.regular,
+      satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
       required: ctx.params.number('ms_regular_credits_min'),
       requiredKey: 'ms_regular_credits_min',
       section: '§3.2',
@@ -64,6 +66,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: '6 credit hours of M.S. project or thesis direction',
       sums: ctx.alloc.project,
+      satisfiedBy: countedCourseIds(ctx, (p) => (p.course.pool === 'project' ? p.countedOther : 0)),
       required: ctx.params.number('ms_project_credits_min'),
       requiredKey: 'ms_project_credits_min',
       section: '§3.2',
@@ -124,12 +127,14 @@ function residencyRow(ctx: Ctx): RequirementResult {
   const floor = ctx.params.number('fulltime_credits_min');
   let status: Status;
   let detail: string;
+  let satisfied: string[] = [];
   if (floor === undefined) {
     status = 'cannot_evaluate';
     detail = missingParamDetail('fulltime_credits_min');
   } else if (fullTime.length > 0) {
     status = 'met';
     detail = `Full-time (${floor}+ credits, §2.1.2) in ${fullTime.map((r) => termLabel(r.term)).join(', ')}.`;
+    satisfied = fullTime.map((r) => termLabel(r.term));
   } else {
     status = 'in_progress';
     detail = `No full-time term yet — a term counts once its entered credits reach ${floor} (§2.1.2), or mark a research-heavy term as full-time.`;
@@ -140,6 +145,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
     title: 'One semester of full-time status (or one summer session)',
     status,
     detail,
+    ...(satisfied.length > 0 ? { satisfiedBy: satisfied } : {}),
     citation: { section: '§3.3', quote },
   };
 }

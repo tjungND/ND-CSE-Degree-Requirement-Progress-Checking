@@ -5,18 +5,22 @@ import { resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import type { Rules } from '../data/types.ts';
-import { classify } from '../engine/allocate.ts';
+import { coursesNeedingDgsReview, type PendingDgsReview } from '../engine/review.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
-import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
+import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, CourseLine, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
-import { DEGREE_SLOTS, copyReviewRequest, importsBusy, priorTranscriptSection } from './external-upload.ts';
+import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
+import { applyFirstMentionRule } from './first-mention.ts';
+import { canonicalUniversityName, knownUniversities } from './university-name.ts';
+import { copyDialog } from './copy-dialog.ts';
+import { gradAdminRequest, selfCheckFileName } from './grad-admin-request.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, scoreLine } from './report.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
@@ -136,38 +140,73 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     render();
   };
 
+  // Toasts live in a stack created once OUTSIDE the root (2026-09-06
+  // evening). render() rebuilds the page on every change, and an Undo that
+  // lived inside it died with the first keystroke, checkbox or "Reading…"
+  // toast after a Remove — the DGS's "the review card never comes back". Now
+  // a plain toast has one slot (4 s), and each Undo is its own element (12 s
+  // for a row, 20 s for a transcript-wide removal) that no plain toast
+  // replaces; Load example / Clear / Load a file cancel every Undo, since a
+  // stale one would splice old rows into a replaced record. The stack is one
+  // polite live region, so screen readers hear each message (a region created
+  // per toast would not be announced).
+  const toastStack = el('div', { class: 'toast-stack', role: 'status', 'aria-live': 'polite' });
+  document.body.append(toastStack);
+  let plainToast: HTMLElement | undefined;
+  let plainToastTimer: number | undefined;
   const toast = (msg: string): void => {
-    const t = document.querySelector('.toast');
-    if (t) {
-      t.textContent = msg;
-      t.classList.remove('has-action');
-      t.classList.add('show');
-      window.clearTimeout(toastTimer);
-      toastTimer = window.setTimeout(() => t.classList.remove('show'), 4000);
-    }
+    plainToast?.remove();
+    const t = el('div', { class: 'toast show' }, msg);
+    plainToast = t;
+    toastStack.prepend(t);
+    window.clearTimeout(plainToastTimer);
+    plainToastTimer = window.setTimeout(() => {
+      t.remove();
+      if (plainToast === t) plainToast = undefined;
+    }, 4000);
   };
-  /** A toast carrying one action (Undo) — stays longer, and is clickable. */
-  const toastWithAction = (msg: string, actionLabel: string, action: () => void): void => {
-    const t = document.querySelector('.toast');
-    if (!t) return;
-    t.textContent = msg;
+  const undoToasts = new Map<HTMLElement, number>();
+  const cancelUndo = (): void => {
+    for (const [t, timer] of undoToasts) {
+      window.clearTimeout(timer);
+      t.remove();
+    }
+    undoToasts.clear();
+  };
+  /** A toast carrying one action (Undo) — stays longer, is clickable, and
+   * survives re-renders. `focusKey` names the control to focus after the
+   * action's render (the button lives outside the root, so the rebuild has
+   * nothing to remember). */
+  const toastWithAction = (msg: string, actionLabel: string, action: () => void, opts: { ttlMs?: number; focusKey?: string } = {}): void => {
+    for (const [t, timer] of undoToasts) {
+      if (undoToasts.size < 3) break; // at most three live Undos — the oldest goes
+      window.clearTimeout(timer);
+      t.remove();
+      undoToasts.delete(t);
+    }
+    const t = el('div', { class: 'toast show has-action' }, msg, ' ');
+    const dismiss = (): void => {
+      const timer = undoToasts.get(t);
+      if (timer !== undefined) window.clearTimeout(timer);
+      undoToasts.delete(t);
+      t.remove();
+    };
     t.append(
-      ' ',
       el(
         'button',
         {
           class: 'toast-action',
           onclick: () => {
-            t.classList.remove('show', 'has-action');
+            dismiss();
+            if (opts.focusKey !== undefined) focusAfterRender = opts.focusKey;
             action();
           },
         },
         actionLabel,
       ),
     );
-    t.classList.add('show', 'has-action');
-    window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => t.classList.remove('show', 'has-action'), 8000);
+    toastStack.prepend(t);
+    undoToasts.set(t, window.setTimeout(dismiss, opts.ttlMs ?? 12000));
   };
 
   // Every change rebuilds the page from the student record (simple, and the
@@ -247,9 +286,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el(
           'p',
           { class: 'print-header' },
-          `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; confirm with the DGS office.`,
+          `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS determines eligibility, the Grad Admin processes it.`,
         ),
         noticeStrip(),
+        // The universities the ExternalCourses tab knows, for both University
+        // boxes (manual course form, previous-transcript preview) — one
+        // datalist per page (2026-09-06 evening).
+        el('datalist', { id: 'known-universities' }, ...knownUniversities(rules.external).map((u) => el('option', { value: u }))),
         rules.source === 'snapshot' ? snapshotBanner() : null,
         // Phones and small tablets (2026-09-05, review item 2): the result
         // first, then the inputs, then the full report — plus a sticky score
@@ -266,6 +309,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             coursesCard(report.courseLines),
             askDgsCard(),
             milestonesCard(),
+            askGradAdminCard(report),
             saveCard(report),
             diagnosticsCard(),
           ),
@@ -285,11 +329,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           el('a', { href: '#inputs' }, 'Inputs ↑'),
           el('a', { href: '#report' }, 'Report ↓'),
         ),
-        el('div', { class: 'toast', role: 'status' }),
       ),
       footer(),
       ].filter((n): n is HTMLElement => n !== null),
     );
+    // "Oral Candidacy Exam (OCE)" in full once, then "OCE" (DGS 2026-09-06
+    // evening) — text nodes only, in document order, before focus is restored.
+    applyFirstMentionRule(root);
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
     // so a keystroke in a title field does not chatter.
@@ -454,7 +500,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           inferred.how === 'assumed'
             ? `${termLabel(student.entryTerm)} is assumed — set the semester you entered the program. `
             : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
-          'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the eighth-semester Oral Candidacy Exam (OCE, §4.5) — are counted from this term.',
+          'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the Oral Candidacy Exam (OCE) by the eighth semester (§4.5) — are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
       : null;
@@ -498,6 +544,47 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         `Your Transcripts card has a ${priorTranscripts.map((sl) => sl.label).join(' and a ')}, but this says “No prior graduate degree” — pick “Completed prior M.S. or Ph.D.” if you earned that degree, or “Prior M.S., not completed” if not (the §5.2 transfer caps depend on it).`,
       );
     }
+    // Bachelor's degree awarded (DGS 2026-09-06): graduate-level courses dated
+    // in or before this term earn no transfer credit — §5.2 needs graduate
+    // student status (allocate.ts). Optional: the year is the switch (empty =
+    // unknown), the semester defaults to spring (May commencement). A
+    // transcript import fills it in when it finds a dated bachelor's award;
+    // the note says so until the student touches either control.
+    const awarded = student.bachelorsAwarded;
+    const bsYear = el('input', {
+      type: 'number',
+      min: '1970',
+      max: '2040',
+      'aria-label': 'Bachelor’s degree awarded — year',
+      'data-key': 'standing.bachelors.year',
+      value: awarded ? String(awarded.year) : '',
+    });
+    const bsSeason = el('select', { 'aria-label': 'Bachelor’s degree awarded — semester', 'data-key': 'standing.bachelors.season' });
+    for (const se of SEASONS) bsSeason.append(option(se, se[0]!.toUpperCase() + se.slice(1), (awarded?.season ?? 'spring') === se));
+    const setBachelors = (): void =>
+      update((s) => {
+        const year = Number((bsYear as HTMLInputElement).value);
+        s.bachelorsAwarded = (bsYear as HTMLInputElement).value !== '' && Number.isFinite(year) && year >= 1970 ? { season: (bsSeason as HTMLSelectElement).value as Season, year } : undefined;
+        s.bachelorsAwardedInferred = undefined; // the student decided
+        reclassifyNotreDameCourses(s); // prior Notre Dame rows without a registered level follow the award term
+      });
+    bsYear.addEventListener('change', setBachelors);
+    bsSeason.addEventListener('change', () => {
+      if ((bsYear as HTMLInputElement).value !== '') setBachelors();
+    });
+    const hasGraduateTransfers = student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel !== 'bachelors');
+    const bsInferred = student.bachelorsAwardedInferred;
+    const bsNote = el(
+      'p',
+      { class: `hint${bsInferred || (awarded === undefined && hasGraduateTransfers) ? ' warn' : ''} field-hint bachelors-note` },
+      awarded && bsInferred
+        ? `${termLabel(awarded)} was read from your transcript (${bsInferred.how}). Check it — courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).`
+        : awarded
+          ? 'Courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).'
+          : hasGraduateTransfers
+            ? 'Optional, but you have coursework from before Notre Dame: enter the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2); until it is set, every graduate-level course from before Notre Dame is taken as graduate coursework.'
+            : 'Optional — the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2), so set it if you have coursework from before Notre Dame.',
+    );
     const card = el(
       'section',
       { class: 'card' },
@@ -507,6 +594,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       // What this field drives (item 11) — the longer note takes over while
       // the term is inferred or assumed.
       entryNote ?? el('p', { class: 'hint field-hint' }, 'Every deadline and the residency count are counted from this term.'),
+      fieldset('Bachelor’s degree awarded (optional)', el('div', { class: 'pair' }, bsSeason, bsYear)),
+      bsNote,
       fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
       priorNote,
     );
@@ -699,7 +788,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                 // above a group that still holds a candidate (a group whose only
                 // course the handbook rules out — grade, five-year window — would
                 // contradict it).
-                `Transfer credit (§5.2) is decided by the DGS course by course — only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate; the review request below asks for those rulings.`,
+                `Transfer credit (§5.2) is decided by the DGS course by course — only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate; the review request below asks for those rulings. Once the DGS has ruled a course transferable, the Grad Admin processes the credit transfer — the processing request below the milestones covers it.`,
               )
             : null,
         g.entries.length > 0
@@ -759,81 +848,35 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   // student MUST email the request to the DGS and the Graduate Program
   // Administrator; the page itself sends nothing.
   function askDgsCard(): HTMLElement | null {
-    const { classified } = classify(student, rules);
-    const nd = classified.filter(
-      (c) => !c.superseded && c.entry.origin === 'nd' && (c.unknown === true || c.approvalPending !== undefined),
-    );
-    const external = classified.filter((c) => {
-      if (c.superseded || c.entry.origin !== 'transfer') return false;
-      if (c.external !== undefined) {
-        // Ruled: pending only while transferability is undecided (bachelors
-        // never transfers, so nothing is pending there).
-        return c.external.transferable === undefined && c.entry.degreeLevel !== 'bachelors' && c.ineligibleReason === undefined;
-      }
-      // Prior Notre Dame coursework whose Courses-tab row names a core area is
-      // decided for §4.4.1 already (2026-09-05) — no ruling to ask for.
-      const coreDecided = isNotreDameInstitution(c.entry.institution) && c.rule?.coreArea !== undefined;
-      // Unreviewed undergraduate courses earn no transfer credit, but the DGS
-      // keywords (2026-09-03) flag the ones whose TITLE suggests a §4.4.1 core
-      // area — those are worth a ruling.
-      if (c.entry.degreeLevel === 'bachelors') return !coreDecided && CORE_TITLE_RE.test(c.entry.title ?? '');
-      // Unreviewed GRADUATE courses (2026-09-04): pending when transfer credit
-      // is still possible (no hard §5.2 ineligibility) — and even when it is
-      // not (outside the window, below the grade floor), a core-keyword title
-      // still belongs in the request, because the course may satisfy §4.4.1
-      // core knowledge, which has no such restrictions.
-      return c.ineligibleReason === undefined || (!coreDecided && CORE_TITLE_RE.test(c.entry.title ?? ''));
-    });
-    const n = nd.length + external.length;
+    // Which courses need a DGS decision, and why, is the engine's call
+    // (src/engine/review.ts, 2026-09-06 evening — with the test matrix that
+    // pins it); this card only lists them and builds the copy-ready request.
+    const pending = coursesNeedingDgsReview(student, rules);
+    const n = pending.length;
     if (n === 0) return null;
-    // Prior Notre Dame coursework (2026-09-05) is asked about as NOTRE DAME
-    // courses — a row for the Courses tab when it is not listed there (its
-    // core_area then decides §4.4.1); the §5.2 transfer part stays a
-    // per-student recommendation.
-    const priorNd = external.filter((c) => isNotreDameInstitution(c.entry.institution));
-    const others = external.filter((c) => !isNotreDameInstitution(c.entry.institution));
-    const ndReq = [
-      ...nd.map((c) => ({
-        courseId: c.entry.courseId,
-        title: c.entry.title ?? c.rule?.title,
-        credits: c.entry.credits,
-        grade: c.entry.grade,
-        termText: termLabel(c.entry.term),
-        reason: c.unknown === true ? 'not in the course rules yet' : (c.approvalPending ?? 'needs DGS review'),
-        unlisted: c.unknown === true,
-      })),
-      ...priorNd.map((c) => ({
-        courseId: c.entry.courseId,
-        title: c.entry.title ?? c.rule?.title,
-        credits: c.entry.credits,
-        grade: c.entry.grade,
-        termText: termLabel(c.entry.term),
-        reason:
-          `taken at Notre Dame before entering the program (${c.entry.degreeLevel === 'bachelors' ? 'undergraduate' : 'graduate'}) — ` +
-          (c.rule === undefined
-            ? 'not in the course rules yet; does it cover a §4.4.1 core area?'
-            : 'transfer credit needs a DGS recommendation (§5.2)'),
-        unlisted: c.rule === undefined,
-      })),
-    ];
-    const extReq = others.map((c) => ({
-      institution: c.entry.institution,
-      courseId: c.entry.courseId,
-      title: c.entry.title,
-      credits: c.entry.credits,
-      grade: c.entry.grade,
-      termText: termLabel(c.entry.term),
-      slotLabel: c.entry.degreeLevel ? (DEGREE_SLOTS.find((sl) => sl.level === c.entry.degreeLevel)?.label ?? c.entry.degreeLevel) : undefined,
-      reason:
-        c.external !== undefined
-          ? 'transferability not yet decided'
-          : c.entry.degreeLevel === 'bachelors'
-            ? 'title suggests a §4.4.1 core area — not yet reviewed by the DGS'
-            : c.ineligibleReason !== undefined
-              ? 'no transfer credit, but the title suggests a §4.4.1 core area — not yet reviewed by the DGS'
-              : 'not yet reviewed by the DGS',
-      unlisted: c.external === undefined,
-    }));
+    const request = (p: PendingDgsReview) => ({
+      courseId: p.course.entry.courseId,
+      title: p.course.entry.title ?? p.course.rule?.title,
+      credits: p.course.entry.credits,
+      grade: p.course.entry.grade,
+      termText: termLabel(p.course.entry.term),
+      reason: p.reason,
+      unlisted: p.unlisted,
+    });
+    // Notre Dame courses (program coursework and prior coursework) feed the
+    // Courses-tab rows; other universities the ExternalCourses rows.
+    const ndReq = pending.filter((p) => p.kind !== 'external').map(request);
+    const extReq = pending
+      .filter((p) => p.kind === 'external')
+      .map((p) => ({
+        ...request(p),
+        institution: p.course.entry.institution,
+        slotLabel: p.course.entry.degreeLevel
+          ? (DEGREE_SLOTS.find((sl) => sl.level === p.course.entry.degreeLevel)?.label ?? p.course.entry.degreeLevel)
+          : undefined,
+      }));
+    const where = (p: PendingDgsReview): string =>
+      p.kind === 'nd' ? 'Notre Dame' : p.kind === 'priorNd' ? 'Notre Dame, before entry' : (p.course.entry.institution ?? 'other university');
     const line = (courseId: string, where: string | undefined, reason: string) =>
       el('div', { class: 'review-line' }, el('span', { class: 'cid' }, courseId), `${where ? ` (${where})` : ''} — ${reason}`);
     return el(
@@ -846,10 +889,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'Decisions are made only by email: '),
         'copy the review request and send it to the DGS (',
         mailto(DGS.email),
-        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing.',
+        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing. The DGS decides eligibility only; once a course is decided, having it processed is a separate request — see the processing card below the milestones.',
       ),
-      ...ndReq.map((r, i) => line(r.courseId, i < nd.length ? 'Notre Dame' : 'Notre Dame, before entry', r.reason)),
-      ...others.map((c, i) => line(c.entry.courseId, c.entry.institution ?? 'other university', extReq[i]!.reason)),
+      ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
       el(
         'div',
         { class: 'save-buttons' },
@@ -859,12 +901,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             class: 'btn',
             'data-key': 'review.copy',
             onclick: () => {
-              import('../transcript/external.ts')
-                .then(({ buildCombinedReviewRequest }) =>
-                  copyReviewRequest(buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq })),
-                )
-                .then(() => toast('Review request copied — email it to the DGS and attach your transcript PDFs. (Nothing is sent by this page.)'))
-                .catch(() => toast('Could not copy automatically — please email the DGS your course ids, credits, grades and terms.'));
+              // Copy, then the check-before-you-send dialog (DGS request 2026-09-06 evening).
+              void import('../transcript/external.ts').then(({ buildCombinedReviewRequest }) => {
+                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq });
+                return copyDialog({
+                  what: 'Review request',
+                  recipient: { role: DGS.role, name: DGS.name, email: DGS.email },
+                  subject: built.subject,
+                  text: built.text,
+                  html: built.html,
+                  steps: [{ text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply). The DGS cannot review the courses without them.', emphasis: true }],
+                  returnFocusKey: 'review.copy',
+                });
+              });
             },
           },
           `Copy review request for ${n} course${n === 1 ? '' : 's'}`,
@@ -923,11 +972,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         // that cannot matter (no core-area title, no ruling, no Courses-tab
         // core area) start unticked, like the external undergraduate import.
         const entry = parsed.entryTerm?.term ?? student.entryTerm;
+        const bsTerm = bachelorsTermFor(parsed.degreesAwarded);
         const irrelevantPrior = parsed.courses.map(
           (c) =>
             c.origin === 'nd' &&
             termIndex(c.term) < termIndex(entry) &&
-            priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level }) === 'bachelors' &&
+            priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bsTerm) === 'bachelors' &&
             !CORE_TITLE_RE.test(c.title ?? '') &&
             !resolveRuleRow(rules, c.courseId, c.term)?.coreArea &&
             !findExternalRule(rules.external, 'University of Notre Dame', c.courseId),
@@ -1016,7 +1066,10 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             'aria-label': `Remove the ${n} course${n === 1 ? '' : 's'} imported from your Notre Dame transcript`,
             'data-key': 'import.nd.remove',
             onclick: () => {
-              const removed = student.courses.filter((c) => c.fromNdTranscript === true);
+              // Index-preserving (2026-09-06 evening): Undo puts every row
+              // back where it was, so the table order and the course.N.remove
+              // keys are exactly as before the Remove.
+              const removed = student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.fromNdTranscript === true);
               const before = { gpa: student.gpa, gpaSource: student.gpaSource, priorMs: student.priorMs, inferred: student.priorMsInferred };
               focusAfterRender = 'import.nd';
               update((s) => {
@@ -1038,12 +1091,13 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                 'Undo',
                 () =>
                   update((s) => {
-                    s.courses.push(...removed);
+                    for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
                     s.gpa = before.gpa;
                     s.gpaSource = before.gpaSource;
                     s.priorMs = before.priorMs;
                     s.priorMsInferred = before.inferred;
                   }),
+                { ttlMs: 20000, focusKey: 'import.nd.remove' },
               );
             },
           },
@@ -1065,6 +1119,22 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   /** Credit-weighted GPA of the graded Notre Dame courses from the entry term
    * on — this program's courses only (letter grades; S/U and in-progress rows
    * carry no points). Undefined when nothing is graded yet. */
+  /** The dated bachelor's award on a parsed Notre Dame transcript, as the
+   * term to file pre-entry courses by and to fill "Bachelor's degree awarded"
+   * with (DGS 2026-09-06). */
+  function bachelorsAwardFrom(degrees: DegreeAwarded[]): { term: Term; degree: DegreeAwarded } | undefined {
+    const d = degrees.find((x) => x.level === 'bachelors' && x.date !== undefined);
+    return d ? { term: termOfDate(d.date!), degree: d } : undefined;
+  }
+  /** An import fills the field only while it is empty or still an import's own reading. */
+  const bachelorsMayBeSet = (s: Student): boolean => s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined;
+  /** The award term a Notre Dame import would use: the transcript's, when it
+   * may still set the field; else whatever the student has. */
+  const bachelorsTermFor = (degrees: DegreeAwarded[]): Term | undefined => {
+    const bs = bachelorsAwardFrom(degrees);
+    return bs && bachelorsMayBeSet(student) ? bs.term : student.bachelorsAwarded;
+  };
+
   function gpaOfProgramCourses(courses: ParsedCourse[], entry: Term): number | undefined {
     let points = 0;
     let hours = 0;
@@ -1124,6 +1194,18 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       );
       if (tp.entryTerm.alternative) box.append(el('p', { class: 'hint warn' }, `Note: ${tp.entryTerm.alternative.why}.`));
     }
+    // The dated bachelor's award (2026-09-06) fills "Bachelor's degree awarded"
+    // under Your standing, unless the student already set it by hand.
+    const bs = bachelorsAwardFrom(tp.degreesAwarded);
+    if (bs && bachelorsMayBeSet(student)) {
+      box.append(
+        el(
+          'p',
+          { class: 'hint bachelors-line' },
+          `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date} — “Bachelor’s degree awarded” under Your standing will be set to ${termLabel(bs.term)}. Courses taken in or before that term, even graduate-level ones, are not counted as transfer credit (§5.2).`,
+        ),
+      );
+    }
     if (priorCount > 0) {
       box.append(
         el(
@@ -1163,7 +1245,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         : c.origin === 'transfer'
           ? 'transfer'
           : prior
-            ? `before entry — prior ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level }) === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
+            ? `before entry — prior ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded)) === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
             : '';
       table.append(
         el(
@@ -1171,7 +1253,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           { class: prior ? 'prior-row' : '' },
           el('td', { class: 'cell-check' }, cb),
           el('td', { class: 'cell-course' }, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
-          el('td', { class: 'cell-meta', 'data-label': 'Term' }, termLabel(c.term)),
+          el('td', { class: 'cell-meta', 'data-label': 'Term' }, el('abbr', { class: 'term', title: termLabel(c.term) }, termShort(c.term))),
           el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
           el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? 'In progress' : c.grade),
           el('td', { class: 'ctitle cell-note' }, note),
@@ -1251,10 +1333,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
               const picked = tp.courses.filter((_, i) => tp.selected[i]);
               let priorAdded = 0;
               let priorSet: Student['priorMs'] | undefined;
+              let bachelorsSet: Term | undefined;
               update((s) => {
                 if (tp.useEntryTerm && tp.entryTerm) {
                   s.entryTerm = { ...tp.entryTerm.term };
                   s.entryTermInferred = { how: tp.entryTerm.how, alternative: tp.entryTerm.alternative };
+                }
+                // The bachelor's award term (2026-09-06), before the prior
+                // rows are filed — they follow it when unlabelled.
+                const bs = bachelorsAwardFrom(tp.degreesAwarded);
+                if (bs && bachelorsMayBeSet(s)) {
+                  s.bachelorsAwarded = bs.term;
+                  s.bachelorsAwardedInferred = { how: `the ${bs.degree.name} awarded ${bs.degree.date} on your Notre Dame transcript` };
+                  bachelorsSet = bs.term;
                 }
                 for (const c of picked) {
                   const entryCourse: CourseEntry = {
@@ -1306,6 +1397,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
                     : priorSet === 'unfinished'
                       ? '; Prior graduate study set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it'
                       : '') +
+                  (bachelorsSet ? `; “Bachelor’s degree awarded” set to ${termLabel(bachelorsSet)} from the degree on your transcript — check it under Your standing` : '') +
                   '.',
               );
             },
@@ -1341,24 +1433,33 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, g === 'IP'));
     const originSel = el('select', { 'data-key': 'course.new.origin' });
     originSel.append(option('nd', 'Taken at Notre Dame', true), option('transfer', 'From another university'));
-    const institutionInput = el('input', { 'data-key': 'course.new.institution' });
+    // University: offered from the ExternalCourses tab, Title-Cased on leaving
+    // the box (DGS 2026-09-06 evening); matching ignores case anyway.
+    const institutionInput = el('input', { list: 'known-universities', 'data-key': 'course.new.institution' });
+    institutionInput.addEventListener('change', () => {
+      (institutionInput as HTMLInputElement).value = canonicalUniversityName((institutionInput as HTMLInputElement).value);
+    });
     // (The per-course core-area claim dropdown was retired 2026-09-03 —
     // the DGS's ExternalCourses rulings are the only §4.4.1 external path.)
-    // Degree level for a course from another university (2026-09-03): an
-    // UNDERGRADUATE course is still worth adding — it earns no transfer
-    // credit (§5.2) but can satisfy §4.4.1 core knowledge once the DGS
-    // confirms it in the external-course rules.
+    // Level for a course from another university — two choices since
+    // 2026-09-06 (DGS: the generic "graduate coursework" overlapped with
+    // "from a previous Master's / Ph.D."): Graduate (after the bachelor's; a
+    // §5.2 transfer candidate; saved with NO degree level, so the row belongs
+    // to no transcript slot and groups under "graduate coursework (§5.2)") or
+    // Undergraduate (before it; earns no transfer credit but can satisfy
+    // §4.4.1 core knowledge once the DGS confirms it). The Master's/Ph.D.
+    // distinction stays with the transcript slots and "Prior graduate study".
     const levelSel = el('select', { 'data-key': 'course.new.level' });
-    levelSel.append(option('', 'Graduate coursework (§5.2 transfer)', true));
-    levelSel.append(option('bachelors', 'Undergraduate — core knowledge only, no transfer credit'));
-    levelSel.append(option('masters', 'From a previous Master’s'));
-    levelSel.append(option('phd', 'From a previous Ph.D.'));
+    // "… student" (DGS 2026-09-06, late evening): the choice is the student's
+    // status at the time, never the course's level.
+    levelSel.append(option('', 'Grad student — after your bachelor’s degree was awarded (§5.2 transfer candidate)', true));
+    levelSel.append(option('bachelors', 'UG student — before your bachelor’s degree was awarded (core knowledge only, no transfer credit)'));
     const groupSel = el('select', { 'data-key': 'course.new.group' });
     groupSel.append(option('', 'Assign a specialization group…'));
     for (const g of rules.categoryGroups) groupSel.append(option(g.code, `Count as: ${g.name}`));
     // The optional controls are shown/hidden with their labels.
-    const institutionField = labelWrap('University', institutionInput);
-    const levelField = labelWrap('Level', levelSel);
+    const institutionField = labelWrap('University', institutionInput, '(as your transcript prints it — pick it from the list if it is there)');
+    const levelField = labelWrap('Taken as', levelSel, '(your status when you took it — not the course’s level)');
     const groupField = labelWrap('Specialization group (§4.4.2)', groupSel);
     institutionField.classList.add('hidden');
     levelField.classList.add('hidden');
@@ -1415,7 +1516,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         origin: (originSel as HTMLSelectElement).value as CourseEntry['origin'],
       };
       if (entry.origin === 'transfer') {
-        if (institutionInput.value) entry.institution = institutionInput.value;
+        const institution = canonicalUniversityName((institutionInput as HTMLInputElement).value);
+      if (institution) entry.institution = institution;
         const level = (levelSel as HTMLSelectElement).value;
         if (level) entry.degreeLevel = level as CourseEntry['degreeLevel'];
       }
@@ -1525,10 +1627,12 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             const last = index === student.courses.length - 1;
             focusAfterRender = last ? (index > 0 ? `course.${index - 1}.remove` : 'course.new.id') : `course.${index}.remove`;
             update((s) => void s.courses.splice(index, 1));
-            toastWithAction(`${removed.courseId} removed.`, 'Undo', () => {
-              focusAfterRender = `course.${index}.remove`;
-              update((s) => void s.courses.splice(Math.min(index, s.courses.length), 0, removed));
-            });
+            toastWithAction(
+              `${removed.courseId} removed.`,
+              'Undo',
+              () => update((s) => void s.courses.splice(Math.min(index, s.courses.length), 0, removed)),
+              { focusKey: `course.${index}.remove` },
+            );
           },
         },
         '✕',
@@ -1537,7 +1641,8 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'tr',
         { class: countsNothing ? 'dropped' : '' },
         nameCell,
-        el('td', { class: 'cell-meta', 'data-label': 'Term' }, termLabel(c.term)),
+        // Short form in the cell, full name as the tooltip (DGS 2026-09-07).
+        el('td', { class: 'cell-meta', 'data-label': 'Term' }, el('abbr', { class: 'term', title: termLabel(c.term) }, termShort(c.term))),
         el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
         el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? 'In progress' : c.grade),
         countsCell,
@@ -1552,6 +1657,66 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   }
 
   // ---------- milestones + attestations ----------
+
+  // "Ask the Grad Admin to process" (DGS request 2026-09-06 evening): the
+  // other half of the two roles. The DGS decides eligibility (the review
+  // request above); the Grad Admin processes what has been decided and keeps
+  // the official record. Placed after the milestones, whose dates it reports.
+  function askGradAdminCard(report: ReturnType<typeof audit>): HTMLElement {
+    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
+    const n = built.items.count;
+    const label = 'Copy processing request for the Grad Admin';
+    const attrs = { class: 'btn', 'data-key': 'gradadmin.copy' };
+    const button =
+      n === 0
+        ? inactiveButton(
+            attrs,
+            'Nothing to process yet — this button becomes active as soon as any requirement is met, or a transfer credit the DGS has ruled transferable, a milestone date, or the MSCSE along the way appears in your record.',
+            toast,
+            label,
+          )
+        : el(
+            'button',
+            {
+              ...attrs,
+              onclick: () => {
+                // The self-check file goes with the request (DGS 2026-09-06
+                // evening): save it now, and the steps say to attach it.
+                exportFile(student);
+                void copyDialog({
+                  what: 'Processing request',
+                  recipient: { role: GRAD_ADMIN.role, name: GRAD_ADMIN.name, email: GRAD_ADMIN.email, cc: { role: DGS.role, name: DGS.name, email: DGS.email } },
+                  subject: built.subject,
+                  text: built.text,
+                  html: built.html,
+                  steps: [
+                    { text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply).', emphasis: true },
+                    { text: `Attach the self-check file that was just saved to your downloads: ${selfCheckFileName(student.program)}. (If no download started, use “Save to a file” in the card “Your data stays in this browser”.)`, emphasis: true },
+                  ],
+                  returnFocusKey: 'gradadmin.copy',
+                });
+              },
+            },
+            label,
+          );
+    return el(
+      'section',
+      { class: 'card grad-admin-request' },
+      el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, `${n} item${n === 1 ? '' : 's'}`)),
+      el(
+        'p',
+        { class: 'hint' },
+        el('strong', {}, 'Two people, two jobs. '),
+        'The DGS decides eligibility by the course rules — that is what the review request above asks for. The Grad Admin (',
+        `${GRAD_ADMIN.name}, `,
+        mailto(GRAD_ADMIN.email),
+        ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§3.4, §4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
+      ),
+      ...built.items.lines.map((text) => el('div', { class: 'review-line' }, text)),
+      n === 0 ? el('p', { class: 'hint' }, 'Nothing to process yet.') : null,
+      el('div', { class: 'save-buttons' }, button),
+    );
+  }
 
   function milestonesCard(): HTMLElement {
     const m = student.milestones;
@@ -1589,7 +1754,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     } else {
       card.append(
         dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
-        dateField('Qualifier completion form filed with the DGS office (§4.4)', 'qualifierFormFiled'),
+        dateField('Qualifier completion form filed with the Grad Admin (DGS office, §4.4)', 'qualifierFormFiled'),
         dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed'),
         dateField('Dissertation approved for defense by all readers (§4.6)', 'dissertationApprovedForDefense'),
         dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
@@ -1598,7 +1763,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
 
     card.append(el('h2', { class: 'mt' }, 'Approvals you already have'));
     card.append(
-      el('p', { class: 'hint' }, 'Tick only what has actually been approved — this is a self-check, and the DGS office holds the real record.'),
+      el('p', { class: 'hint' }, 'Tick only what has actually been approved — this is a self-check; the DGS decides, and the Grad Admin holds the real record.'),
       attestation('My advisor approved my plan of study (§3.2/§4.2)', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
       attestation('The DGS approved my 40000-level course(s) (§3.2/§4.2)', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
       attestation('The DGS approved my non-CSE course(s) (§3.2/§4.2)', a.dgsApprovedNonCse, (v, s) => (s.attestations.dgsApprovedNonCse = v)),
@@ -1649,6 +1814,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       if (!file) return;
       try {
         const imported = await importFile(file);
+        cancelUndo();
         const previous = student;
         student = imported;
         try {
@@ -1684,16 +1850,15 @@ export function startApp(root: HTMLElement, rules: Rules): void {
             class: 'btn',
             'data-key': 'save.copy',
             onclick: () => {
-              copyReviewRequest(
-                advisorSummary(report, {
-                  todayIso,
-                  entryTerm: termLabel(student.entryTerm),
-                  priorStudy: PRIOR_LABELS[student.priorMs],
-                  gpa: student.gpa,
-                }),
-              )
-                .then(() => toast('Summary copied — paste it into an email to your advisor.'))
-                .catch(() => toast('Could not copy — your browser blocked clipboard access.'));
+              const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
+              void copyDialog({
+                what: 'Summary for your advisor',
+                recipient: { role: 'Your advisor', name: student.milestones.advisorName ?? 'name not entered under Milestones' },
+                subject: built.subject,
+                text: built.text,
+                html: built.html,
+                returnFocusKey: 'save.copy',
+              });
             },
           },
           'Copy summary for advisor',
@@ -1738,7 +1903,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         el('strong', {}, 'This is a self-check, not an official audit. '),
         'It applies Sections 3 and 4 of the ',
         handbookLink(),
-        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Confirm your standing with the Grad Admin and the DGS before you rely on it.',
+        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Eligibility is determined by the DGS; processing and the official record are the Grad Admin’s — confirm with them before you rely on it.',
       ),
       el(
         'div',
@@ -1787,6 +1952,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
 
   function loadExample(): void {
     if (student.courses.length > 0 && !window.confirm('Replace what you have entered with the example student?')) return;
+    cancelUndo(); // a stale Undo would splice old rows into the replaced record
     student = {
       schemaVersion: 1,
       program: 'phd',
@@ -1813,6 +1979,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
 
   function clearAll(): void {
     if (!window.confirm('Clear everything you have entered on this device?')) return;
+    cancelUndo();
     student = emptyStudent();
     clearLocal();
     render();

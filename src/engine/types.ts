@@ -109,6 +109,22 @@ export interface Student {
    * the dropdown, and reset with priorMs when the inferring transcript's
    * courses are removed. */
   priorMsInferred?: boolean;
+  /** The term the bachelor's degree was awarded (DGS 2026-09-06: "Only the
+   * courses taken with the graduate student status can count. The
+   * graduate-level courses taken before earning the bachelor's degree do not
+   * count."). §5.2 criterion 2 needs graduate student status, so a transfer
+   * course dated in or before this term earns no credit whatever its number
+   * or registration level (classify() in allocate.ts). Optional: while it is
+   * unknown, each course's degreeLevel decides, as before. Set under "Your
+   * standing", or filled in by a transcript import that finds a dated
+   * bachelor's award (then bachelorsAwardedInferred says so). */
+  bachelorsAwarded?: Term;
+  /** Set while bachelorsAwarded holds a value read from a transcript rather
+   * than chosen by the student; `how` names the reading. Cleared when the
+   * student touches the control; a later import may replace an inferred
+   * value, never a chosen one. Remove/Undo leave both alone (like the entry
+   * term — a fact about the student, not about the import). */
+  bachelorsAwardedInferred?: { how: string };
   gpa?: number; // self-reported cumulative (decision Q7)
   /** Where `gpa` came from when a Notre Dame transcript filled it in
    * (2026-09-05, combined-transcript bug report): the transcript's
@@ -172,6 +188,12 @@ export interface RequirementResult {
   detailParts?: DetailPart[];
   deadline?: DeadlineInfo;
   citation: { section: string; quote: string };
+  /** What satisfies the row right now — course ids for course-based rows,
+   * semester labels for residency — so the Grad Admin's processing request
+   * can table "which courses meet this requirement" from data rather than
+   * prose (DGS request 2026-09-06 evening). Only definite credits count
+   * here (passed, no approval pending). Absent when nothing does yet. */
+  satisfiedBy?: string[];
 }
 
 export interface CourseLine {

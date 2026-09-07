@@ -1,0 +1,37 @@
+{
+  "name": "phd-transfer-before-bachelors",
+  "description": "DGS 2026-09-06: only courses taken with graduate student status transfer (§5.2 criterion 2). Bachelor's awarded Spring 2024: a graduate-numbered course from Fall 2023 and one from Spring 2024 (the award term itself) earn nothing, a Fall 2024 course is a candidate, and a pre-award course the DGS ruled transferable in the ExternalCourses tab earns nothing either (the award term is absolute — DGS, later that evening) while its confirmed core area stays.",
+  "today": "2027-03-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2024 },
+    "priorMs": "completed",
+    "gpa": 3.5,
+    "courses": [
+      { "courseId": "CS 51000", "title": "Algorithms", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "CS 52300", "title": "Compilers", "credits": 3, "term": { "season": "spring", "year": 2024 }, "grade": "A-", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "CS 53800", "title": "Networks", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "B+", "origin": "transfer", "institution": "Purdue University" },
+      { "courseId": "CS 50300", "title": "Operating Systems", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": ["3 of 24", "CS 51000: not counted", "CS 50300: not counted", "your bachelor’s degree was awarded (Spring 2024)", "Not yet reviewed by the DGS: CS 53800"]
+    },
+    "phd.qualifier.core.os": { "status": "met", "detailIncludes": ["CSE 60641"] },
+    "phd.qualifier.core.algorithms": { "status": "needs_dgs_review", "detailIncludes": ["CS 51000"] }
+  },
+  "expectCourseLines": {
+    "CS 51000": ["not counted — taken before your bachelor’s degree was awarded (Spring 2024), so not as a graduate student (§5.2)", "may still satisfy the Algorithms core-knowledge requirement"],
+    "CS 52300": ["not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"],
+    "CS 53800": ["candidate for transfer credit"],
+    "CS 50300": ["not counted — taken before your bachelor’s degree was awarded (Spring 2024)", "satisfies the Operating Systems core-knowledge requirement (§4.4.1) — confirmed by the DGS"]
+  }
+}

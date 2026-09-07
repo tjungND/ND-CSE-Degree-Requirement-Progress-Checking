@@ -32,6 +32,7 @@ export async function driveA11y(s, baseUrl) {
   await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
   await checkFocusPreserved(s);
   await checkAxe(s, 'self-check page (example student)');
+  await checkCopyDialog(s);
   await checkMobilePieces(s, 'app');
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 390);
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 820);
@@ -75,6 +76,25 @@ async function checkMobilePieces(s, page) {
     console.log(`  phone pieces on the course-rules page: cards, Sort control (by title → first card ${first} "${firstTitle}")`);
   }
   await at(1400, false);
+}
+
+// 2b. The check-before-you-send dialog behind the copy buttons (2026-09-06
+// evening): axe-clean, names the advisor, Escape closes it, focus returns.
+async function checkCopyDialog(s) {
+  await s.evalJs(`document.querySelector('[data-key="save.copy"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
+  const to = await s.evalJs(`document.querySelector('dialog.copy-check .copy-to')?.textContent ?? ''`);
+  if (!to.includes('Your advisor, Prof. Example')) throw new Error('copy dialog: the advisor by name — ' + to);
+  await s.evalJs(AXE_SOURCE + '; true');
+  const result = JSON.parse(
+    await s.evalJs(`axe.run(document.querySelector('dialog.copy-check'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] } }).then(r => JSON.stringify(r.violations.map(v => ({ id: v.id, impact: v.impact, count: v.nodes.length, first: v.nodes[0]?.target.join(' ') }))))`),
+  );
+  if (result.length > 0) throw new Error(`axe-core found ${result.length} violation type(s) in the copy dialog: ` + result.map((v) => `${v.id} [${v.impact}] ×${v.count} (first: ${v.first})`).join('; '));
+  await key(s, 'Escape', 'Escape', 27);
+  await s.waitFor(`!document.querySelector('dialog.copy-check')`);
+  const focused = await s.evalJs(`document.activeElement?.dataset?.key ?? ''`);
+  if (focused !== 'save.copy') throw new Error('copy dialog: focus must return to the copy button after Escape — ' + focused);
+  console.log('  copy dialog: axe-clean, names the advisor, Escape closes it, focus returns to the button');
 }
 
 // 1. The opening notice as a modal dialog.

@@ -13,6 +13,68 @@ export async function driveApp(s, baseUrl) {
   await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
   await s.shot('app-example-phd');
 
+  // "Oral Candidacy Exam (OCE)" in full once on the page (plus the glossary,
+  // which keeps the full term), then "OCE" (DGS 2026-09-06 evening).
+  const oce = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const all = document.querySelector('#app').textContent;
+    const gl = document.querySelector('details.glossary')?.textContent ?? '';
+    const count = (t) => t.split('Oral Candidacy Exam (OCE)').length - 1;
+    return { page: count(all) - count(gl), glossary: count(gl), short: (all.match(/\\bOCE\\b/g) ?? []).length };
+  })())`));
+  console.log('  OCE mentions — page (outside the glossary):', oce.page, '| glossary:', oce.glossary, '| short "OCE":', oce.short);
+  if (oce.page !== 1 || oce.glossary !== 1 || oce.short < 3) throw new Error('OCE first-mention rule: ' + JSON.stringify(oce));
+
+  // Manual course from another university (2026-09-06 evening): the University
+  // box offers the ExternalCourses tab's universities and Title-Cases what is
+  // typed; Level has two choices; the course lands under its heading.
+  const form = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const origin = document.querySelector('[data-key="course.new.origin"]'); origin.value = 'transfer'; origin.dispatchEvent(new Event('change'));
+    const uni = document.querySelector('[data-key="course.new.institution"]');
+    const options = [...document.querySelectorAll('#known-universities option')].map(o => o.value);
+    uni.value = 'example institute of technology'; uni.dispatchEvent(new Event('change'));
+    const typed = uni.value;
+    if (options.length > 0) { uni.value = options[0].toLowerCase(); uni.dispatchEvent(new Event('change')); }
+    const known = uni.value;
+    return { list: uni.getAttribute('list'), options, typed, known, levels: [...document.querySelector('[data-key="course.new.level"]').options].map(o => o.value + '=' + o.textContent) };
+  })())`));
+  console.log('  university box:', form.list, '|', form.options.length, 'known |', JSON.stringify(form.typed), JSON.stringify(form.known), '| levels:', JSON.stringify(form.levels));
+  if (form.list !== 'known-universities' || form.typed !== 'Example Institute of Technology') throw new Error('university box: ' + JSON.stringify(form));
+  if (form.options.length > 0 && form.known !== form.options[0]) throw new Error('a known university typed in lower case must come back in its list spelling: ' + JSON.stringify(form));
+  if (form.levels.length !== 2 || !form.levels[0].startsWith('=Grad student — after') || !form.levels[1].startsWith('bachelors=UG student — before')) throw new Error('level options: ' + JSON.stringify(form.levels));
+  await s.evalJs(`(() => { const uni = document.querySelector('[data-key="course.new.institution"]'); uni.value = 'example institute of technology'; uni.dispatchEvent(new Event('change')); const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CS 53000'; id.dispatchEvent(new Event('change')); document.querySelector('[data-key="course.new.add"]').click(); })()`);
+  await s.waitFor(`[...document.querySelectorAll('h3.subhead')].some(h => h.textContent === 'Example Institute of Technology — graduate coursework (§5.2)')`);
+  console.log('  a hand-typed course from another university lands under its Title-Cased heading');
+  await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card')].find(c => c.querySelector('h2')?.textContent.includes('Coursework')); c.id = 'shot-coursework'; })()`);
+  await s.shotElement('manual-transfer-course', '#shot-coursework');
+  await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CS 53000').querySelector('button.remove').click()`);
+  await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CS 53000')`);
+
+  // Coursework table: the term cell shows the short form with the full name as its tooltip (DGS 2026-09-07).
+  const termCell = await s.evalJs(`(() => { const a = document.querySelector('table.courses td[data-label="Term"] abbr.term'); return a ? a.textContent + '|' + a.title : ''; })()`);
+  console.log('  coursework term cell:', termCell);
+  if (!/^(FA|SP|SU)\d{2}\|(Fall|Spring|Summer) \d{4}$/.test(termCell)) throw new Error('coursework term cell must read e.g. "FA26" with the full name as tooltip: ' + termCell);
+
+  // The Grad Admin card (2026-09-06 evening) and its copy dialog, the DGS in cc.
+  const ga = await s.evalJs(`document.querySelector('.grad-admin-request')?.textContent ?? ''`);
+  if (!ga.includes('Ask the Grad Admin to process') || !ga.includes('Two people, two jobs')) throw new Error('Grad Admin card: ' + ga.slice(0, 120));
+  await s.shotElement('grad-admin-card', '.grad-admin-request');
+  await s.evalJs(`document.querySelector('[data-key="gradadmin.copy"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
+  const gaDlg = JSON.parse(await s.evalJs(`JSON.stringify((() => { const d = document.querySelector('dialog.copy-check'); return { title: d.querySelector('h2').textContent, to: [...d.querySelectorAll('.copy-to')].map(p => p.textContent), subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 200) }; })())`));
+  console.log('  Grad Admin dialog:', gaDlg.title, '|', JSON.stringify(gaDlg.to), '|', gaDlg.subject);
+  if (!gaDlg.title.startsWith('Processing request') || !gaDlg.to[0].startsWith('To: Graduate Program Administrator') || !(gaDlg.to[1] ?? '').startsWith('Cc: Director of Graduate Studies') || !gaDlg.subject.startsWith('Subject: Processing request (degree self-check) — Ph.D., entered Fall 2026') || !gaDlg.text.includes('Dear Grad Admin,')) throw new Error('Grad Admin dialog: ' + JSON.stringify(gaDlg));
+  // Four numbered steps (2026-09-06 evening): paste, attach the ORIGINAL transcripts, attach the saved self-check file, send.
+  const gaSteps = await s.evalJs(`[...document.querySelectorAll('dialog.copy-check ol.copy-steps li')].map(li => (li.querySelector('strong') ? '*' : '') + li.textContent)`);
+  console.log('  Grad Admin dialog steps:', JSON.stringify(gaSteps.map((t) => t.slice(0, 70))));
+  if (gaSteps.length !== 4 || !gaSteps[1].startsWith('*Attach your ORIGINAL transcripts') || !gaSteps[2].includes('cse-degree-audit-phd.json') || !/^Send it\./.test(gaSteps[3])) throw new Error('Grad Admin dialog steps: ' + JSON.stringify(gaSteps));
+  const gaLead = await s.evalJs(`document.querySelector('dialog.copy-check .copy-lead strong')?.textContent ?? ''`);
+  if (!/copied to your clipboard\.$|blocked the clipboard\.$/.test(gaLead)) throw new Error('Grad Admin dialog must lead with the copied-to-clipboard line: ' + gaLead);
+  const gaText = await s.evalJs(`document.querySelector('dialog.copy-check textarea').value`);
+  if (!gaText.includes('(You may edit anything above this line)') || !gaText.includes('(DO NOT MODIFY ANYTHING BELOW THIS LINE)') || !gaText.includes('MET — CUMULATIVE GPA OF AT LEAST 3.0 (§2.2)')) throw new Error('Grad Admin text must carry the markers and the met-requirement tables: ' + gaText.slice(0, 300));
+  await s.shot('grad-admin-dialog');
+  await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
+  await s.waitFor(`!document.querySelector('dialog.copy-check')`);
+
   // The rule on the output side (2026-09-03): clicking a § chip reveals the
   // handbook sentence the verdict is checked against.
   await s.evalJs(`document.querySelector('button.cite').click()`);

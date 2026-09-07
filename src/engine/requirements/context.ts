@@ -1,7 +1,7 @@
 // Shared context handed to every requirement builder, plus small helpers used
 // across the §3 and §4 modules.
 import type { Parameters, Rules } from '../../data/types.ts';
-import type { AllocationResult, ClassifiedCourse } from '../allocate.ts';
+import type { AllocationResult, ClassifiedCourse, CourseAllocation } from '../allocate.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
 import type { DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
@@ -52,6 +52,8 @@ export function thresholdRow(args: {
   unit?: string;
   provisionalCourses?: string[];
   extraDetail?: string[];
+  /** The courses whose definite credits count here (processing request, 2026-09-06). */
+  satisfiedBy?: string[];
 }): RequirementResult {
   const { sums, required } = args;
   const status = thresholdStatus(sums, required);
@@ -75,7 +77,18 @@ export function thresholdRow(args: {
     status,
     ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },
+    ...(args.satisfiedBy && args.satisfiedBy.length > 0 ? { satisfiedBy: args.satisfiedBy } : {}),
   };
+}
+
+/** The ids of the courses whose DEFINITE credits (passed, no approval
+ * pending) count toward a pool, by `pick` (e.g. the regular-pool credits) —
+ * what the processing request tables as "which courses meet this
+ * requirement" (DGS request 2026-09-06 evening). */
+export function countedCourseIds(ctx: Ctx, pick: (p: CourseAllocation) => number): string[] {
+  return ctx.alloc.perCourse
+    .filter((p) => pick(p) > 0 && p.course.tier === 'definite' && !p.course.superseded)
+    .map((p) => p.course.entry.courseId);
 }
 
 /** Cap row: caps are enforced by the engine, so the row reports usage and names

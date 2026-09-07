@@ -34,7 +34,7 @@ export const CONTACTS: Contact[] = [
     role: 'Graduate Program Administrator (Grad Admin)',
     name: 'Cari White',
     email: 'csalmons@nd.edu',
-    scope: 'logistics, paperwork, processing — and everything else',
+    scope: 'processing and the official record: transfer credit, forms, the MSCSE along the way — and everything else',
   },
 ];
 
@@ -61,8 +61,10 @@ export function applyContactOverrides(params: Parameters): void {
 /** The DGS — the address error reports and feedback go to. */
 export const DGS: Contact = CONTACTS[0]!;
 
-/** The Graduate Program Administrator ("Grad Admin", DGS 2026-09-06) — course review requests MUST be
- * emailed to the DGS AND this address (DGS policy, 2026-09-03). */
+/** The Graduate Program Administrator ("Grad Admin", DGS 2026-09-06). Two people, two jobs
+ * (DGS 2026-09-06 evening): the DGS decides eligibility — the review request goes to the DGS
+ * alone — and the Grad Admin processes what has been decided: the processing request goes here,
+ * with the DGS in cc. */
 export const GRAD_ADMIN: Contact = CONTACTS.find((c) => c.role.startsWith('Graduate Program Administrator'))!;
 
 /** A mailto link showing the address itself. */

@@ -58,6 +58,12 @@ day too (its "How the app reads it" cell now names `data/sheet-urls.json` and in
 ExternalCourses in the publish list) — nothing sheet-side is open. The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
+Since 2026-09-06 the ExternalCourses tab's `satisfies_core_area` also accepts `none` ("decided: no core
+area" — it stops a core-sounding title from staying in the review request); blank still means not
+decided yet, and a course with a blank-verdict row stays in the request (`data/README.md`). When two
+rows name the same university + course, the LAST row wins (DGS 2026-09-06 — a corrected row pasted
+below an old one takes effect; the diagnostics still warn so the older row can be deleted).
+
 One-time setup for the external-transcripts feature — DONE 2026-09-02: the **ExternalCourses**
 tab exists in the rules sheet (header row in `data/README.md`; sample rows in
 `data/external.sample.csv`), is published to the web as CSV, and its URL is in

@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import type { Rules } from '../data/types.ts';
 import { allocate, classify, type CapSpec } from './allocate.ts';
-import { normalizeEntryTerm, termLabel } from './term.ts';
+import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
 import type { AuditReport, RequirementResult, Student } from './types.ts';
 import type { Ctx } from './requirements/context.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
@@ -103,6 +103,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   if (normalized) {
     warnings.push(
       `You entered in a summer session — semester counting starts with ${termLabel(entry)} (decision Q17c).`,
+    );
+  }
+  // The bachelor's award term (2026-09-06) must precede the entry term — a
+  // later or equal one would file the whole record as pre-graduate.
+  if (student.bachelorsAwarded !== undefined && compareTerm(student.bachelorsAwarded, entry) >= 0) {
+    warnings.push(
+      `Your bachelor’s degree is set as awarded in ${termLabel(student.bachelorsAwarded)}, which is not before your entry term (${termLabel(entry)}) — check both under Your standing; courses from another university dated up to the award term are not counted as graduate coursework (§5.2).`,
     );
   }
 

@@ -169,6 +169,8 @@ function bannerPages() {
 // A COMBINED transcript (2026-09-05): the student's Notre Dame B.S. (two
 // undergraduate terms, the degree awarded) precedes the Ph.D. terms — the
 // entry term must be read as Fall 2026, the first graduate-level term.
+// (2026-09-06: the B.S. is dated 2021, before the Purdue M.S. of the external fixture (2023–24),
+// so the §5.2 graduate-status rule does not fire on those rows in the e2e run.)
 const ND = [
   'University of Notre Dame',
   'Unofficial Academic Transcript',
@@ -176,17 +178,17 @@ const ND = [
   'Name : Jane Q. Student',
   'Degrees Awarded',
   'Bachelor of Science',
-  'Degree Date: May 18, 2026',
+  'Degree Date: May 16, 2021',
   '',
   'TRANSFER CREDIT ACCEPTED BY INSTITUTION',
   '202010: Purdue University',
   'CS 50300 GR Operating Systems A 3.000 12.000',
   '',
   'INSTITUTION CREDIT',
-  'Fall Semester 2024',
+  'Fall Semester 2020',
   'CSE 30321 UG Computer Architecture A 3.000 12.000',
   'MATH 10550 UG Calculus I A 4.000 16.000',
-  'Spring Semester 2025',
+  'Spring Semester 2021',
   'CSE 20110 UG Discrete Mathematics B+ 3.000 9.999',
   'Fall Semester 2026',
   'CSE 60641 GR Graduate Operating Systems A 3.000 12.000',

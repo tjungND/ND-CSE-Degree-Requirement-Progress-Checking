@@ -18,12 +18,19 @@ const nd = (courseId: string, season: 'fall' | 'spring', year: number, extra: Pa
 });
 
 describe('prior Notre Dame coursework', () => {
-  it('level: the registered level decides, the course number is the fallback', () => {
-    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 60641', registeredLevel: 'undergraduate' }), 'bachelors', 'a graduate course taken as an undergraduate');
-    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 30321', registeredLevel: 'graduate' }), 'masters');
-    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 30321' }), 'bachelors');
-    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 60641' }), 'masters');
-    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 50502' }), 'masters', '5xxxx is unknown → graduate, i.e. §5.2 applies');
+  it('level: the registered level decides; then the bachelor’s award term (2026-09-06); the course number last', () => {
+    const fall23 = { season: 'fall', year: 2023 } as const;
+    const spring24 = { season: 'spring', year: 2024 } as const;
+    const fall24 = { season: 'fall', year: 2024 } as const;
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 60641', registeredLevel: 'undergraduate', term: fall23 }), 'bachelors', 'a graduate course taken as an undergraduate');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 30321', registeredLevel: 'graduate', term: fall23 }), 'masters');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 60641', registeredLevel: 'graduate', term: spring24 }, spring24), 'masters', 'the registration label stays — the engine withholds the credit');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 60641', term: fall23 }, spring24), 'bachelors', 'no label: dated before the award');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 60641', term: spring24 }, spring24), 'bachelors', 'the award term itself counts as before');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 30321', term: fall24 }, spring24), 'masters', 'no label: dated after the award');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 30321', term: fall23 }), 'bachelors', 'no label, no award term: the number');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 60641', term: fall23 }), 'masters');
+    assert.equal(priorNdDegreeLevel({ courseId: 'CSE 50502', term: fall23 }), 'masters', '5xxxx is unknown → graduate, i.e. §5.2 applies');
   });
 
   it('re-files courses both ways when the entry term moves; other institutions are untouched', () => {
@@ -60,6 +67,15 @@ describe('prior Notre Dame coursework', () => {
     assert.deepEqual(reclassifyNotreDameCourses(student), { toPrior: 4, toProgram: 0 });
     assert.equal(student.courses.find((c) => c.courseId === 'CSE 60111')?.degreeLevel, 'masters');
     assert.equal(student.courses.find((c) => c.courseId === 'CSE 60321')?.degreeLevel, 'masters', 'no registered level → by number');
+
+    // With a bachelor's award term (2026-09-06), an unlabelled row follows it, a labelled one keeps its label.
+    student.entryTerm = { season: 'fall', year: 2023 };
+    reclassifyNotreDameCourses(student); // everything back into the program
+    student.bachelorsAwarded = { season: 'spring', year: 2025 };
+    student.entryTerm = { season: 'fall', year: 2025 };
+    assert.deepEqual(reclassifyNotreDameCourses(student), { toPrior: 4, toProgram: 0 });
+    assert.equal(student.courses.find((c) => c.courseId === 'CSE 60111')?.degreeLevel, 'masters', 'registered graduate: the label stays');
+    assert.equal(student.courses.find((c) => c.courseId === 'CSE 60321')?.degreeLevel, 'bachelors', 'no registered level → the award term, not the number');
   });
 });
 
@@ -78,6 +94,18 @@ describe('entry-term flag in saved files', () => {
     const malformed = validateStudent({ ...file.student, entryTermInferred: { how: 'x', alternative: { term: 'Fall 2026' } } });
     assert.deepEqual(malformed.entryTermInferred, { how: 'x' });
     assert.equal(validateStudent({ ...file.student, entryTermInferred: 'assumed' }).entryTermInferred, undefined);
+  });
+
+  it('keeps a valid bachelorsAwarded (and its flag) and drops malformed ones (2026-09-06)', () => {
+    const base = { ...emptyStudent(), bachelorsAwarded: { season: 'spring', year: 2024 }, bachelorsAwardedInferred: { how: 'the Bachelor of Science awarded 2024-05-18 on your Notre Dame transcript' } };
+    const s = validateStudent(JSON.parse(JSON.stringify(base)));
+    assert.deepEqual(s.bachelorsAwarded, { season: 'spring', year: 2024 });
+    assert.deepEqual(s.bachelorsAwardedInferred, { how: 'the Bachelor of Science awarded 2024-05-18 on your Notre Dame transcript' });
+    const malformed = validateStudent({ ...JSON.parse(JSON.stringify(base)), bachelorsAwarded: 'Spring 2024' });
+    assert.equal(malformed.bachelorsAwarded, undefined);
+    assert.equal(malformed.bachelorsAwardedInferred, undefined, 'the flag never survives without the term');
+    assert.equal(validateStudent({ ...JSON.parse(JSON.stringify(base)), bachelorsAwardedInferred: 'yes' }).bachelorsAwardedInferred, undefined);
+    assert.equal(validateStudent(JSON.parse(JSON.stringify(emptyStudent()))).bachelorsAwarded, undefined);
   });
 
   it('keeps a valid registeredLevel and drops a malformed one', () => {

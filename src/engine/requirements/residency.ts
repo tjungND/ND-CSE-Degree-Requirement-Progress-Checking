@@ -39,3 +39,20 @@ export function fullTimeTermRecords(ctx: Ctx): { term: Term; fullTime: boolean; 
       fullTime: overrides.has(termIndex(rec.term)) || (floor !== undefined && rec.credits >= floor),
     }));
 }
+
+/** The semesters of the longest run of consecutive full-time fall/spring
+ * terms — what satisfies the residency rows, for the processing request
+ * (2026-09-06 evening). Mirrors maxConsecutiveFullTime() in term.ts. */
+export function longestFullTimeRun(records: { term: Term; fullTime: boolean }[]): Term[] {
+  const seq = (t: Term) => t.year * 2 + (t.season === 'fall' ? 1 : 0);
+  const byseq = new Map<number, Term>();
+  for (const r of records) if (r.fullTime && r.term.season !== 'summer') byseq.set(seq(r.term), r.term);
+  let best: Term[] = [];
+  for (const [k, term] of byseq) {
+    if (byseq.has(k - 1)) continue; // not the start of a run
+    const run = [term];
+    while (byseq.has(k + run.length)) run.push(byseq.get(k + run.length)!);
+    if (run.length > best.length) best = run;
+  }
+  return best;
+}

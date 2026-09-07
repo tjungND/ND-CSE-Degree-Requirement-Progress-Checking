@@ -40,6 +40,16 @@ function validInferred(v: unknown): Student['entryTermInferred'] {
   return { how: f['how'] };
 }
 
+/** "Bachelor's degree awarded" (2026-09-06): a term when well-formed, else
+ * unknown; its inferred-from-a-transcript flag never survives without it. */
+function validBachelors(v: unknown): Student['entryTerm'] | undefined {
+  return validTerm(v) ? { season: v.season, year: v.year } : undefined;
+}
+function validBachelorsInferred(v: unknown, term: Student['entryTerm'] | undefined): Student['bachelorsAwardedInferred'] {
+  const f = v as Record<string, unknown> | undefined;
+  return term && f && typeof f === 'object' && typeof f['how'] === 'string' ? { how: f['how'] } : undefined;
+}
+
 /** Structural check for imported files — plain-English error on mismatch. */
 export function validateStudent(data: unknown): Student {
   const d = data as Partial<Student> & { state?: unknown };
@@ -87,11 +97,15 @@ export function validateStudent(data: unknown): Student {
     gs && typeof gs === 'object' && (gs['basis'] === 'transcript-graduate' || gs['basis'] === 'program-only')
       ? (gs as Student['gpaSource'])
       : undefined;
+  const raw = d as Record<string, unknown>;
+  const bachelorsAwarded = validBachelors(raw['bachelorsAwarded']);
   return {
     ...emptyStudent(),
     ...d,
     gpaSource,
-    entryTermInferred: validInferred((d as Record<string, unknown>)['entryTermInferred']),
+    entryTermInferred: validInferred(raw['entryTermInferred']),
+    bachelorsAwarded,
+    bachelorsAwardedInferred: validBachelorsInferred(raw['bachelorsAwardedInferred'], bachelorsAwarded),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},
     courses: d.courses,

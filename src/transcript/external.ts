@@ -4,6 +4,7 @@
 // added without their review, and unmatched grades must be chosen by hand.
 // System-generated PDFs are read exactly; a PDF with no text layer is offered
 // the opt-in English-only OCR instead (decision 2026-09-02; src/transcript/ocr.ts).
+import { shortenAfterFirst } from '../ui/first-mention.ts';
 import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
@@ -66,6 +67,14 @@ export interface ExternalParseResult {
  * positive evidence. */
 const CONFER_RE = /conferr|awarded|granted|complet/i;
 const NOT_COMPLETE_RE = /incomplete|not\s+complet/i;
+/** A line that carries a degree's date (DGS request 2026-09-06, late evening:
+ * use the conferral OR completion date to pre-fill "Bachelor's degree
+ * awarded"): "Degree Date:", "Degree Completion Date:", "Conferral Date:",
+ * "Date Conferred:", "Graduation Date:", "Awarded:", "Completed on". */
+const DEGREE_DATE_LINE_RE =
+  /degree\s+(?:completion\s+|conferral\s+|award(?:ed)?\s+)?date|\bconferr|\bawarded\b|\bgranted\b|completion\s+date|completed\s+on|date\s+(?:of\s+)?(?:completion|conferral|graduation|award)|graduation\s+date|\bgraduated\b/i;
+/** A dated line that is a forecast, never an award. */
+const NOT_YET_RE = /expected|anticipated|projected|sought|in\s+progress|pending/i;
 const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy/i;
 
 const LETTER_GRADE_RE = /^(A|A-|B\+|B|B-|C\+|C|C-|D\+?|D-?|F)$/;
@@ -355,6 +364,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   let blockLevel: Level | undefined;
   let retroLevel: Level | undefined;
   let bachelorsConferredOn: string | undefined;
+  let recentDegreeDate: { date: string; at: number } | undefined; // a dated "Degree Completion Date:" line, in case the degree name follows
   const rowLevels: (Level | undefined)[] = [];
   // Degrees (2026-09-05): a "Degrees Awarded" block makes the degree lines
   // under it conferred even without an award word on the line itself (USC,
@@ -406,15 +416,28 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const conferredHere = namesDegree && (CONFER_RE.test(flat) || degreeBlock > 0) && !NOT_COMPLETE_RE.test(flat);
     if (degreeBlock > 0 && !leadCode(flat)) degreeBlock -= 1;
     if (conferredHere && GRAD_DEGREE_RE.test(flat)) blockConferredGrad = true;
-    if (conferredHere && /\bbachelor/i.test(flat) && bachelorsConferredOn === undefined) {
-      // The date may sit on the same line or on a "Degree Date:" / "Confer
-      // Date:" / "Awarded:" line within the next few lines.
-      bachelorsConferredOn = dateOnLine(flat);
-      for (let k = 1; k <= 4 && bachelorsConferredOn === undefined; k++) {
+    // A dated degree line without a degree name ("Degree Completion Date:
+    // 05/17/2024") is remembered: the degree name may follow it.
+    if (!namesDegree && DEGREE_DATE_LINE_RE.test(flat) && !NOT_YET_RE.test(flat)) {
+      const d = dateOnLine(flat);
+      if (d !== undefined) recentDegreeDate = { date: d, at: lineIndex };
+    }
+    if (namesDegree && /\bbachelor/i.test(flat) && !NOT_COMPLETE_RE.test(flat) && bachelorsConferredOn === undefined) {
+      // The bachelor's date (2026-09-05; widened 2026-09-06, late evening):
+      // on the degree line itself when it says conferred/awarded (or sits in a
+      // degrees-awarded block); else on a labelled line within the next six
+      // ("Degree Date:", "Degree Completion Date:", "Conferral Date:", "Date
+      // Conferred:", "Graduation Date:", "Awarded:") — stopping at a course
+      // row or at the NEXT degree's name, so a master's date is never taken;
+      // else on such a line up to two lines before the name. A forecast
+      // ("Expected graduation: May 2027") never counts.
+      if (conferredHere) bachelorsConferredOn = dateOnLine(flat);
+      for (let k = 1; k <= 6 && bachelorsConferredOn === undefined; k++) {
         const later = lines[lineIndex + k];
-        if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim())) break;
-        if (/degree\s+date|confer|awarded|graduat/i.test(later)) bachelorsConferredOn = dateOnLine(later);
+        if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim()) || /\b(master|doctor|ph\.?\s?d)\b/i.test(later)) break;
+        if (DEGREE_DATE_LINE_RE.test(later) && !NOT_YET_RE.test(later)) bachelorsConferredOn = dateOnLine(later);
       }
+      if (bachelorsConferredOn === undefined && recentDegreeDate !== undefined && lineIndex - recentDegreeDate.at <= 2) bachelorsConferredOn = recentDegreeDate.date;
     }
     if (flat.length < 6) continue;
     // The course code is expected at the start of the row (or right after a
@@ -555,7 +578,7 @@ function buildReviewRequest(opts: {
   detailHeaders: readonly string[];
   /** Detail rows grouped per transcript, each group a table under its heading. */
   detailGroups: readonly { heading: string; rows: readonly (readonly string[])[] }[];
-}): { text: string; html: string } {
+}): { text: string; html: string; subject: string } {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const greeting = 'Dear DGS,';
   const sections = opts.sections.filter((s) => s.rows.length > 0);
@@ -565,9 +588,9 @@ function buildReviewRequest(opts: {
   // machine-readable half (tables + details) below it. Both halves are
   // marked at the line (DGS wording, 2026-09-03 and 2026-09-06): the student
   // may reword the email, but must leave the tables intact.
-  const editable = '(You may edit anything above this line)';
-  const marker = '(DO NOT MODIFY ANYTHING BELOW THIS LINE)';
-  const divider = '-'.repeat(64);
+  const editable = EDITABLE_MARKER;
+  const marker = DO_NOT_MODIFY_MARKER;
+  const divider = MARKER_DIVIDER;
   const text =
     `Subject: ${opts.subject}\n\n${greeting}\n\n${opts.intro}\n\n` +
     opts.context.map((c) => `${c}\n`).join('') +
@@ -597,8 +620,17 @@ function buildReviewRequest(opts: {
           `</table>`,
       )
       .join('');
-  return { text, html };
+  // The subject travels with the flavours (the copy dialog shows it, 2026-09-06 evening);
+  // "Oral Candidacy Exam (OCE)" in full once per flavour, then "OCE".
+  return { text: shortenAfterFirst(text), html: shortenAfterFirst(html), subject: opts.subject };
 }
+
+/** The markers every copied request carries (DGS wording 2026-09-03 / 2026-09-06):
+ * students reword only their own half; the tables below stay machine-readable.
+ * Shared with the Grad Admin's processing request (src/ui/grad-admin-request.ts). */
+export const EDITABLE_MARKER = '(You may edit anything above this line)';
+export const DO_NOT_MODIFY_MARKER = '(DO NOT MODIFY ANYTHING BELOW THIS LINE)';
+export const MARKER_DIVIDER = '-'.repeat(64);
 
 /** One pending course in the combined review request (2026-09-03: ONE request
  * covers everything). `unlisted` marks courses that need a NEW sheet row —
@@ -625,14 +657,17 @@ export function buildCombinedReviewRequest(opts: {
   priorStudy: string;
   nd: readonly PendingReviewCourse[];
   external: readonly PendingReviewCourse[];
-}): { text: string; html: string } {
+}): { text: string; html: string; subject: string } {
   const detail = (c: PendingReviewCourse): string[] => [c.courseId, c.title ?? '', String(c.credits), c.grade, c.termText, c.reason];
   // Group the external courses per transcript (slot + university), so the
   // details read the way the student uploaded them — one table per group.
   const groups: { heading: string; rows: string[][] }[] = [];
   if (opts.nd.length > 0) groups.push({ heading: 'Notre Dame:', rows: opts.nd.map(detail) });
   for (const c of opts.external) {
-    const heading = `${c.slotLabel ?? 'Entered by hand'} — ${(c.institution ?? 'university not given').toUpperCase()}:`;
+    // The institution as the student's record has it — no upper-casing (DGS
+    // 2026-09-06, late evening: keep what the transcript prints; the rules
+    // match names case-insensitively anyway).
+    const heading = `${c.slotLabel ?? 'Entered by hand'} — ${c.institution ?? 'university not given'}:`;
     let g = groups.find((x) => x.heading === heading);
     if (!g) {
       g = { heading, rows: [] };
@@ -657,7 +692,7 @@ export function buildCombinedReviewRequest(opts: {
       },
       {
         rowsIntro: 'This is the table that can be imported to the DGS’s rules sheet — ExternalCourses tab:',
-        rows: opts.external.filter((c) => c.unlisted).map((c) => [(c.institution ?? '').toUpperCase(), c.courseId, c.title ?? '']),
+        rows: opts.external.filter((c) => c.unlisted).map((c) => [c.institution ?? '', c.courseId, c.title ?? '']),
       },
     ],
     detailsTitle: 'Course details:',

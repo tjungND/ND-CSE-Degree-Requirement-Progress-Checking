@@ -23,8 +23,8 @@ import {
 } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, joinedDetail, missingParamDetail, thresholdRow } from './context.ts';
-import { fullTimeTermRecords } from './residency.ts';
+import { capRow, joinedDetail, missingParamDetail, thresholdRow, countedCourseIds } from './context.ts';
+import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
 
 const COURSEWORK = 'Coursework — §4.2';
 const TIME = 'Residence and time — §4.3';
@@ -47,6 +47,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: '60 total credits of courses and research',
       sums: ctx.alloc.total,
+      satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
       required: ctx.params.number('phd_total_credits_min'),
       requiredKey: 'phd_total_credits_min',
       section: '§4.2',
@@ -64,6 +65,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: '24 credit hours of regular courses at the 60000 level or higher',
       sums: ctx.alloc.regular,
+      satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
       required: ctx.params.number('phd_regular_credits_min'),
       requiredKey: 'phd_regular_credits_min',
       section: '§4.2',
@@ -120,6 +122,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: 'At least 9 credits taken at Notre Dame',
       sums: ctx.alloc.ndRegular,
+      satisfiedBy: countedCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       required: ctx.params.number('phd_nd_credits_min'),
       requiredKey: 'phd_nd_credits_min',
       section: '§4.2',
@@ -152,6 +155,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
   const wanted = ctx.params.courseList('phd_seminar_courses');
   let status: Status;
   const parts: string[] = [];
+  const satisfied: string[] = [];
   if (wanted === undefined) {
     status = 'cannot_evaluate';
     parts.push(missingParamDetail('phd_seminar_courses'));
@@ -160,6 +164,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
       const entries = ctx.classified.filter((c) => !c.superseded && c.entry.courseId === id);
       const passed = entries.some((c) => isPassed(c.entry.grade));
       const ip = entries.some((c) => isInProgress(c.entry.grade));
+      if (passed) satisfied.push(id);
       parts.push(`${id}: ${passed ? 'done' : ip ? 'in progress' : 'not yet'}`);
       return passed ? 'met' : ip ? 'in_progress' : 'unmet';
     });
@@ -179,6 +184,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
     title: '2 credits of Research Seminar in year one',
     status,
     ...joinedDetail(parts),
+    ...(satisfied.length > 0 ? { satisfiedBy: satisfied } : {}),
     citation: { section: '§4.2', quote },
   };
 }
@@ -227,7 +233,7 @@ function transferRow(ctx: Ctx): RequirementResult {
       const unreviewed = pending.filter((c) => !c.external);
       if (preApproved.length > 0) {
         parts.push(
-          `Pre-approved in the DGS’s external-course rules: ${preApproved.map((c) => c.entry.courseId).join(', ')} — send the credit-transfer request to the Grad Admin`,
+          `Pre-approved in the DGS’s external-course rules: ${preApproved.map((c) => c.entry.courseId).join(', ')} — send the Grad Admin the processing request`,
         );
       }
       if (unreviewed.length > 0) {
@@ -237,8 +243,11 @@ function transferRow(ctx: Ctx): RequirementResult {
       }
     }
   }
+  // The counted transfer courses — what the processing request tables (2026-09-06).
+  const transferSatisfied = countedCourseIds(ctx, (p) => (p.course.caps.includes('transfer') ? p.countedRegular : 0));
   return {
     id: 'phd.transfer',
+    ...(transferSatisfied.length > 0 ? { satisfiedBy: transferSatisfied } : {}),
     group: COURSEWORK,
     title: 'Transfer credit from a prior M.S.',
     status,
@@ -256,14 +265,17 @@ function residencyRow(ctx: Ctx): RequirementResult {
   const floor = ctx.params.number('fulltime_credits_min');
   let status: Status;
   let detail: string;
+  let satisfied: string[] = [];
   if (required === undefined || floor === undefined) {
     status = 'cannot_evaluate';
     detail = missingParamDetail(required === undefined ? 'phd_residency_semesters' : 'fulltime_credits_min');
   } else {
-    const run = maxConsecutiveFullTime(fullTimeTermRecords(ctx));
+    const records = fullTimeTermRecords(ctx);
+    const run = maxConsecutiveFullTime(records);
     if (run >= required) {
       status = 'met';
       detail = `${run} consecutive full-time semesters (summers excluded, §4.3).`;
+      satisfied = longestFullTimeRun(records).map((t) => termLabel(t));
     } else {
       status = 'in_progress';
       detail = `Longest consecutive full-time run so far: ${run} of ${required} semesters.`;
@@ -275,6 +287,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
     title: 'Four consecutive full-time semesters of residence',
     status,
     detail,
+    ...(satisfied.length > 0 ? { satisfiedBy: satisfied } : {}),
     citation: { section: '§4.3', quote },
   };
 }
@@ -328,7 +341,7 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): Requirem
     'Students must complete all three components of the qualifier requirement within four (4) semesters of starting; the DGS may extend the deadline on a case-by-case basis.';
   const semesters = ctx.params.number('qualifier_deadline_semesters');
   let status = combineAll(children.map((c) => c.status));
-  const parts: string[] = ['Three components: core knowledge (§4.4.1), category specialization (§4.4.2), research (§4.4.3)'];
+  const parts: string[] = ['Three components: core knowledge (§4.4.1 — one card per core area below), category specialization (§4.4.2), research (§4.4.3)'];
   let deadline: RequirementResult['deadline'];
   if (semesters === undefined) {
     status = 'cannot_evaluate';
@@ -339,7 +352,7 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): Requirem
     if (status === 'met') {
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
       if (!ctx.student.milestones.qualifierFormFiled) {
-        parts.push('Remember to notify the CSE DGS office by filing the qualifier form (§4.4)');
+        parts.push('Remember to file the qualifier completion form with the Grad Admin (§4.4)');
       }
     } else if (ctx.today > date && !ctx.student.attestations.qualifierExtensionGranted) {
       // Decision Q17b: a deadline past with the work incomplete is unmet, even
@@ -355,7 +368,7 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): Requirem
   return {
     id: 'phd.qualifier',
     group: QUALIFIER,
-    title: 'Qualifying examination — all three components',
+    title: 'Qualifying examination — all components', // "all components", not "all three": five cards sit under it (DGS 2026-09-06)
     status,
     ...joinedDetail(parts),
     deadline,
@@ -432,6 +445,8 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       status,
       detail,
       citation: { section: '§4.4.1', quote },
+      // The course id alone (the detail may add "(Purdue University)" etc.).
+      ...(status === 'met' ? { satisfiedBy: [(done ?? confirmed)!.replace(/ \(.*\)$/, '')] } : {}),
     };
   });
 }
@@ -527,6 +542,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     title: 'Three specialization courses from three distinct groups, each B or higher',
     status,
     ...joinedDetail(parts),
+    ...(status === 'met' ? { satisfiedBy: [...def.assignment.keys()] } : {}),
     citation: { section: '§4.4.2', quote },
   };
 }
@@ -684,7 +700,7 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
     detail = missingParamDetail(reqReg === undefined ? 'ms_regular_credits_min' : 'ms_project_credits_min');
   } else if (passed && doneReg >= reqReg && doneRes >= reqRes) {
     status = 'met';
-    detail = `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — ask the Grad Admin about receiving the MSCSE (§4.5).`;
+    detail = `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — the Grad Admin processes the MSCSE award; it is in the processing request (§4.5).`;
   } else if (passed) {
     status = 'in_progress';
     detail = `${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame.`;

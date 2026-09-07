@@ -14,10 +14,12 @@ import { NOTRE_DAME, findExternalRule, isNotreDameInstitution } from '../data/ex
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import type { Rules } from '../data/types.ts';
 import { GRADES } from '../engine/grades.ts';
-import { termIndex, termLabel } from '../engine/term.ts';
+import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, Grade, Season, Student, Term } from '../engine/types.ts';
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
+import { canonicalUniversityName } from './university-name.ts';
+import { writeClipboard } from './copy-dialog.ts';
 import { parseTranscript } from '../transcript/parse.ts';
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 
@@ -27,18 +29,7 @@ import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
  * pastes into Sheets as cells. Falls back to plain text where ClipboardItem
  * is unsupported. Used by the "Ask the DGS to review" card in app.ts. */
 export function copyReviewRequest(built: { text: string; html: string }): Promise<void> {
-  return (async () => {
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/plain': new Blob([built.text], { type: 'text/plain' }),
-          'text/html': new Blob([built.html], { type: 'text/html' }),
-        }),
-      ]);
-    } catch {
-      await navigator.clipboard.writeText(built.text);
-    }
-  })();
+  return writeClipboard(built); // the writer lives with the dialog since 2026-09-06 (copy-dialog.ts)
 }
 
 export type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
@@ -69,7 +60,7 @@ interface PreviewRow {
    * date on the transcript; `term` — the two-year rule below (a combined
    * transcript without markers); `slot` — nothing said, the row's level is
    * the slot's. */
-  levelSource: 'transcript' | 'term' | 'slot';
+  levelSource: 'transcript' | 'term' | 'slot' | 'award';
   /** Left out by the relevance filter (an undergraduate row that cannot
    * matter) but kept visible, unticked, on a MIXED-level transcript so the
    * student can still tick it or change its level (2026-09-05). */
@@ -101,6 +92,17 @@ interface ExternalPreview {
    * of the record — from `graduateFrom` to `latest` — were marked Graduate,
    * earlier ones Undergraduate. The preview explains this and asks for a check. */
   termPrefill?: { graduateFrom: Term; latest: Term };
+  /** A dated bachelor's conferral on the transcript (2026-09-06): pre-fills
+   * the preview's "Bachelor's degree awarded" control. */
+  bachelorsConferredOn?: string;
+  /** The bachelor's award term shown in the preview (DGS 2026-09-06 evening):
+   * pre-filled from the conferral date, editable, REQUIRED for a combined
+   * bachelor's + master's record in the Master's row (`bachelorsRequired`).
+   * Written to the student record on add; `bachelorsSource` says whether the
+   * student touched it. */
+  bachelorsAwarded?: Term;
+  bachelorsRequired?: boolean;
+  bachelorsSource?: 'transcript' | 'student';
   /** The university name came from the transcript (2026-09-06): shown, not
    * editable — the DGS's rules key on the name the transcript prints. */
   universityFromTranscript?: boolean;
@@ -108,6 +110,41 @@ interface ExternalPreview {
    * earlier Notre Dame degree. The preview reminds the student that the
    * Notre Dame row handles a transcript that also holds the current program. */
   notreDame?: boolean;
+}
+
+/** The preview's "Bachelor's degree awarded" (DGS 2026-09-06 evening): in the
+ * Master's row a COMBINED record — rows of both levels, a bachelor's conferral
+ * line, or the two-year rule firing — makes the term required; the conferral
+ * date pre-fills it. Other rows: pre-filled when the transcript dates the
+ * degree, never required. */
+function bachelorsForPreview(
+  slot: DegreeLevel,
+  mixed: boolean,
+  conferredOn: string | undefined,
+  twoYearRule: boolean,
+): Pick<ExternalPreview, 'bachelorsAwarded' | 'bachelorsRequired' | 'bachelorsSource'> {
+  const awarded = conferredOn !== undefined ? termOfDate(conferredOn) : undefined;
+  const combined = slot === 'masters' && (mixed || conferredOn !== undefined || twoYearRule);
+  return {
+    ...(awarded ? { bachelorsAwarded: awarded, bachelorsSource: 'transcript' as const } : {}),
+    ...(combined ? { bachelorsRequired: true } : {}),
+  };
+}
+
+/** Re-fill every dated row's level by the bachelor's award term the student
+ * set (2026-09-06 evening): in or before it → undergraduate, later →
+ * graduate; the relevance filter then decides the ticks as on import. */
+function relevelByAward(p: ExternalPreview, rules: Rules): void {
+  const award = p.bachelorsAwarded;
+  if (award === undefined) return;
+  for (const r of p.rows) {
+    if (r.year === undefined) continue;
+    r.level = termIndex({ season: r.season, year: r.year }) <= termIndex(award) ? 'undergraduate' : 'graduate';
+    r.levelSource = 'award';
+    r.include = r.level === 'graduate' || isRelevantRow(p.university, rules, r);
+    r.irrelevant = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r) ? true : undefined;
+  }
+  p.mixedLevels = new Set(p.rows.map((r) => r.level)).size > 1 || undefined;
 }
 
 /** The level a row is treated at: its own when the transcript said, else the slot's. */
@@ -143,8 +180,10 @@ export interface ExternalCardArgs {
   rules: Rules;
   update: (fn: (s: Student) => void) => void;
   toast: (msg: string) => void;
-  /** A toast with one action button (Undo) — app.ts supplies it. */
-  toastWithAction?: (msg: string, actionLabel: string, action: () => void) => void;
+  /** A toast with one action button (Undo) — app.ts supplies it; `ttlMs`
+   * lengthens the window (20 s for a transcript-wide removal), `focusKey`
+   * names the control to focus after the Undo's render. */
+  toastWithAction?: (msg: string, actionLabel: string, action: () => void, opts?: { ttlMs?: number; focusKey?: string }) => void;
   render: () => void;
   /** One transcript at a time (2026-09-03): true while ANY preview is open,
    * disabling every import button until it is confirmed or cancelled. */
@@ -220,7 +259,7 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
       el('strong', {}, 'One transcript for both your BS and MS'),
       ' (a 4+1 / 5+1 program, or both degrees at one university)? Import it ',
       el('strong', {}, 'once, in the Previous Master’s Transcript row'),
-      '. Each course’s level (undergraduate or graduate) is read from it and shown in a “Taken as” column you can correct before adding. The Undergraduate row works too — never import the same PDF twice.',
+      '. Whether you took each course as an undergraduate or as a graduate student is read from it and shown in a “Taken as” column you can correct before adding — your status at the time, not the course’s level. The Undergraduate row works too — never import the same PDF twice.',
     ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
@@ -278,11 +317,14 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
           }));
         const levels = new Set(ndRows.map((r) => r.level));
         const kept = keepRelevantRows(NOTRE_DAME, rules, ndRows, levels.size > 1);
+        const ndBachelors = nd.degreesAwarded.find((d) => d.level === 'bachelors' && d.date !== undefined)?.date;
         preview = {
           slot: slot.level,
           university: NOTRE_DAME,
           universityFromTranscript: true,
           conferred: nd.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd'),
+          bachelorsConferredOn: ndBachelors,
+          ...bachelorsForPreview(slot.level, levels.size > 1, ndBachelors, false),
           rows: kept.rows,
           omitted: kept.omitted,
           transferSkipped: nd.courses.filter((c) => c.origin === 'transfer').length || undefined,
@@ -315,11 +357,14 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       const termPrefill = prefillLevelsByTerm(mapped, slot.level);
       const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
       const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed);
+      const bachelors = bachelorsForPreview(slot.level, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined);
       preview = {
         slot: slot.level,
         university: parsed.university ?? '',
         universityFromTranscript: (parsed.university ?? '') !== '',
         conferred: parsed.degreeConferred,
+        bachelorsConferredOn: parsed.bachelorsConferredOn,
+        ...bachelors,
         rows: kept.rows,
         omitted: kept.omitted,
         transferSkipped: parsed.transferRowsSkipped,
@@ -358,7 +403,8 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
           onclick: () => {
             // Undo instead of a confirm dialog (usability review 2026-09-05,
             // item 25): everything removed can be put back with one click.
-            const removed = student.courses.filter((c) => c.origin === 'transfer' && c.degreeLevel === slot.level);
+            // Index-preserving (2026-09-06 evening): Undo puts every row back where it was.
+            const removed = student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.origin === 'transfer' && c.degreeLevel === slot.level);
             const priorBefore = { priorMs: student.priorMs, inferred: student.priorMsInferred };
             update((s) => {
               s.courses = s.courses.filter((c) => !(c.origin === 'transfer' && c.degreeLevel === slot.level));
@@ -372,12 +418,16 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
                 s.priorMsInferred = undefined;
               }
             });
-            args.toastWithAction?.(`${removed.length} ${slot.label} course${removed.length === 1 ? '' : 's'} removed.`, 'Undo', () =>
-              update((s) => {
-                s.courses.push(...removed);
-                s.priorMs = priorBefore.priorMs;
-                s.priorMsInferred = priorBefore.inferred;
-              }),
+            args.toastWithAction?.(
+              `${removed.length} ${slot.label} course${removed.length === 1 ? '' : 's'} removed.`,
+              'Undo',
+              () =>
+                update((s) => {
+                  for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
+                  s.priorMs = priorBefore.priorMs;
+                  s.priorMsInferred = priorBefore.inferred;
+                }),
+              { ttlMs: 20000, focusKey: `ext.remove.${slot.level}` },
             );
           },
         },
@@ -479,12 +529,15 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const termPrefill = prefillLevelsByTerm(mapped, slot);
                 const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
                 const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed);
+                const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined);
                 preview = {
                   slot,
                   university: parsed.university ?? '',
                   // OCR misreads names too — the field stays editable (2026-09-06).
                   fromOcr: true,
                   conferred: parsed.degreeConferred,
+                  bachelorsConferredOn: parsed.bachelorsConferredOn,
+                  ...bachelors,
                   rows: kept.rows,
                   omitted: kept.omitted,
                   transferSkipped: parsed.transferRowsSkipped,
@@ -534,6 +587,7 @@ function ocrProgressBlock(): HTMLElement {
 function levelNote(p: ExternalPreview): string {
   const fromTranscript = p.rows.filter((r) => r.levelSource === 'transcript').length;
   const byTerm = p.rows.filter((r) => r.levelSource === 'term').length;
+  const byAward = p.rows.filter((r) => r.levelSource === 'award').length;
   const parts: string[] = [];
   if (fromTranscript > 0) {
     parts.push(
@@ -542,12 +596,17 @@ function levelNote(p: ExternalPreview): string {
   }
   if (byTerm > 0 && p.termPrefill) {
     parts.push(
-      `${byTerm === p.rows.length ? 'every row' : `${byTerm} row${byTerm === 1 ? '' : 's'}`} by the two-year rule — the transcript does not label them, so courses from ${termLabel(p.termPrefill.graduateFrom)} on (the last two years of the record, ending ${termLabel(p.termPrefill.latest)}) are marked Graduate and earlier ones Undergraduate`,
+      `${byTerm === p.rows.length ? 'every row' : `${byTerm} row${byTerm === 1 ? '' : 's'}`} by the two-year rule — the transcript does not label them, so courses from ${termLabel(p.termPrefill.graduateFrom)} on (the last two years of the record, ending ${termLabel(p.termPrefill.latest)}) are marked “Grad student” and earlier ones “UG student”`,
     );
   }
-  const bySlot = p.rows.length - fromTranscript - byTerm;
+  if (byAward > 0 && p.bachelorsAwarded) {
+    parts.push(
+      `${byAward === p.rows.length ? 'every row' : `${byAward} row${byAward === 1 ? '' : 's'}`} by the bachelor’s award term you set (${termLabel(p.bachelorsAwarded)}) — dated in or before it → “UG student”, later → “Grad student”`,
+    );
+  }
+  const bySlot = p.rows.length - fromTranscript - byTerm - byAward;
   if (bySlot > 0) {
-    parts.push(`${bySlot === p.rows.length ? 'every row' : `${bySlot} row${bySlot === 1 ? '' : 's'}`} as ${p.slot === 'bachelors' ? 'Undergraduate' : 'Graduate'} because this is the ${DEGREE_SLOTS.find((sl) => sl.level === p.slot)!.label} row`);
+    parts.push(`${bySlot === p.rows.length ? 'every row' : `${bySlot} row${bySlot === 1 ? '' : 's'}`} as “${p.slot === 'bachelors' ? 'UG student' : 'Grad student'}” because this is the ${DEGREE_SLOTS.find((sl) => sl.level === p.slot)!.label} row`);
   }
   const text = parts.join('; ');
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
@@ -562,9 +621,14 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   // request 2026-09-06): the DGS's rules key on the name as printed. Only a
   // name the parser could not find (or an OCR guess) is typed by the student.
   const uniLocked = p.universityFromTranscript === true && !p.fromOcr;
-  const uniInput = el('input', { value: p.university, 'data-key': 'ext.preview.university', 'aria-describedby': 'ext-university-hint', ...(uniLocked ? { readonly: 'readonly', class: 'locked' } : {}) });
+  const uniInput = el('input', { value: p.university, list: 'known-universities', 'data-key': 'ext.preview.university', 'aria-describedby': 'ext-university-hint', ...(uniLocked ? { readonly: 'readonly', class: 'locked' } : {}) });
   if (!uniLocked) {
-    uniInput.addEventListener('change', () => (p.university = (uniInput as HTMLInputElement).value));
+    uniInput.addEventListener('change', () => {
+      // Title-Cased on leaving the box (DGS 2026-09-06 evening); matching ignores case.
+      const v = canonicalUniversityName((uniInput as HTMLInputElement).value);
+      (uniInput as HTMLInputElement).value = v;
+      p.university = v;
+    });
     uniInput.addEventListener('input', () => {
       if (previewError) {
         previewError = undefined;
@@ -601,7 +665,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             { class: 'hint warn mixed-note' },
             el('strong', {}, 'How “Taken as” was filled in: '),
             levelNote(p),
-            ' Please double-check every row before adding — rows taken as an undergraduate can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.',
+            ' “Taken as” is your status at the time, not the course’s level: a graduate-level course (for example a 500- or 600-level one) that you took before your bachelor’s degree was awarded was taken as an undergraduate student, so it counts as undergraduate coursework. Please double-check every row before adding — rows taken as an undergraduate student can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.',
           ),
         ]
       : p.slot === 'bachelors'
@@ -612,7 +676,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               `Undergraduate credits do not transfer (§5.2), so only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
             ),
           ]
-        : [el('p', { class: 'hint level-note' }, el('strong', {}, 'How “Taken as” was filled in: '), levelNote(p), ' Please double-check the column before adding.')]),
+        : [el('p', { class: 'hint level-note' }, el('strong', {}, 'How “Taken as” was filled in: '), levelNote(p), ' “Taken as” is your status at the time, not the course’s level. Please double-check the column before adding.')]),
     ...(p.transferSkipped
       ? [
           el(
@@ -627,9 +691,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       { class: 'hint', id: 'ext-university-hint' },
       uniLocked
         ? 'The university name and each course’s number, title, credits, grade and term are taken from your transcript as printed and cannot be edited here; only “Taken as” can be changed. Anything the parser could not read (a grade, credits or a year) must be filled in by hand — rows without a grade are not added.'
-        : 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it. Grades the parser could not read must be chosen by hand (rows without a grade are not added).',
+        : 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it (pick it from the list if it is there). Grades the parser could not read must be chosen by hand (rows without a grade are not added).',
     ),
     el('label', { class: 'field' }, el('span', { class: 'label' }, 'University'), uniInput),
+    ...(p.slot === 'masters' && (p.bachelorsRequired || p.bachelorsAwarded !== undefined) ? [bachelorsField(p, rules, render)] : []),
   );
   const table = el('table', { class: 'courses stack edit' });
   table.append(
@@ -643,7 +708,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       el('th', { scope: 'col' }, 'Grade'),
       el('th', { scope: 'col' }, 'Term'),
       el('th', { scope: 'col' }, 'Year'),
-      el('th', { scope: 'col', title: 'The level you were registered at when you took it — undergraduate rows can only satisfy §4.4.1 core knowledge; graduate rows may transfer (§5.2)' }, 'Taken as'),
+      // .level-head: the one header the compact preview shows (DGS 2026-09-07).
+      el('th', { scope: 'col', class: 'level-head', title: 'Your status when you took the course — not the course’s level. A graduate-level course taken before your bachelor’s degree was awarded still counts as undergraduate coursework: §4.4.1 core knowledge only, no transfer credit (§5.2).' }, 'Taken as'),
     ),
   );
   // Every control in a row names its row (usability review 2026-09-05, item
@@ -683,7 +749,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     // request 2026-09-06, second pass) — as printed on the transcript. A value
     // the parser could not read stays an input, or the row could never be
     // completed; OCR and hand-typed rows stay fully editable.
-    const lockedText = (cls: string, key: string, text: string): HTMLElement => el('span', { class: `${cls} locked`, 'data-key': `ext.row.${i}.${key}` }, text);
+    const lockedText = (cls: string, key: string, text: string | HTMLElement): HTMLElement => el('span', { class: `${cls} locked`, 'data-key': `ext.row.${i}.${key}` }, text);
     let crIn: HTMLElement;
     if (locked && r.credits !== undefined) crIn = lockedText('course-credits', 'credits', `${r.credits} cr`);
     else {
@@ -706,7 +772,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     let seasonSel: HTMLElement;
     let yearIn: HTMLElement | null;
     if (termLocked) {
-      seasonSel = lockedText('course-term', 'season', termLabel({ season: r.season, year: r.year! }));
+      // The short form in the cell, the full name as the tooltip (DGS 2026-09-07).
+      seasonSel = lockedText('course-term', 'season', el('abbr', { class: 'term', title: termLabel({ season: r.season, year: r.year! }) }, termShort({ season: r.season, year: r.year! })));
       yearIn = null;
     } else {
       seasonSel = el('select', { 'aria-label': `Semester for ${who()}`, 'data-key': `ext.row.${i}.season` });
@@ -722,10 +789,14 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     const levelSel = el('select', {
       class: 'row-level',
       'aria-label': `Taken as (level) for ${who()}`,
-      title: 'Taken as — the level you were registered at when you took it: undergraduate rows can only satisfy §4.4.1 core knowledge; graduate rows may transfer (§5.2)',
+      title: 'Taken as — your status when you took the course, not the course’s level: a graduate-level course taken before your bachelor’s degree was awarded counts as undergraduate coursework (§4.4.1 core knowledge only, no transfer credit — §5.2)',
       'data-key': `ext.row.${i}.level`,
     });
-    levelSel.append(option('undergraduate', 'Undergraduate', r.level === 'undergraduate'), option('graduate', 'Graduate', r.level === 'graduate'));
+    // "UG student" / "Grad student" (DGS 2026-09-06 late evening, shortened
+    // 2026-09-07): a bare "Undergraduate" next to a 500-level course read as
+    // the course's level and confused students; the word "student" says whose
+    // status it is.
+    levelSel.append(option('undergraduate', 'UG student', r.level === 'undergraduate'), option('graduate', 'Grad student', r.level === 'graduate'));
     levelSel.addEventListener('change', () => {
       r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level'];
       r.levelSource = 'slot'; // the student decided — no longer "by the rule"
@@ -810,6 +881,11 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               problem('Enter the university name — the DGS’s rules match courses by university + course id.', 'ext.preview.university');
               return;
             }
+            // A combined bachelor's + master's record needs the award term (DGS 2026-09-06 evening).
+            if (p.bachelorsRequired && p.bachelorsAwarded === undefined) {
+              problem('Enter the semester your bachelor’s degree was awarded — required for a combined bachelor’s + master’s transcript: courses dated in or before it count as undergraduate coursework (§5.2).', 'ext.preview.bachelors.year');
+              return;
+            }
             const ready = p.rows.filter((r) => r.include && r.courseId.trim() !== '' && r.grade !== '' && r.credits !== undefined && r.year !== undefined);
             const skipped = p.rows.filter((r) => r.include).length - ready.length;
             if (ready.length === 0) {
@@ -821,6 +897,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // closure, which TS's flow analysis can't see from the use below)
             let priorAutoSet = false as 'completed' | 'unfinished' | false;
             let graduateRows = 0;
+            let bachelorsSet: Term | undefined;
             update((s) => {
               for (const r of ready) {
                 const degreeLevel = degreeLevelFor(p.slot, r.level);
@@ -852,6 +929,17 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 s.priorMsInferred = true;
                 priorAutoSet = s.priorMs;
               }
+              // The bachelor's award term (2026-09-06): the transcript's dated
+              // conferral fills "Bachelor's degree awarded" while the student
+              // has not set it by hand.
+              // The preview's award term (2026-09-06 evening): a term the student
+              // set always applies; one read from the transcript fills the field
+              // while the student has not set it by hand.
+              if (p.bachelorsAwarded !== undefined && (p.bachelorsSource === 'student' || s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined)) {
+                s.bachelorsAwarded = { ...p.bachelorsAwarded };
+                s.bachelorsAwardedInferred = p.bachelorsSource === 'student' ? undefined : { how: `the bachelor’s degree conferred ${p.bachelorsConferredOn} on your ${university} transcript` };
+                bachelorsSet = s.bachelorsAwarded;
+              }
             });
             const matched = ready.filter((r) => findExternalRule(rules.external, university, r.courseId)).length;
             const undergraduateRows = ready.length - graduateRows;
@@ -868,7 +956,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the conferral line on your transcript — adjust it under Your standing if that’s wrong.'
                   : priorAutoSet === 'unfinished'
                     ? ' Prior graduate study was set to “Prior M.S., not completed” — no degree-conferral line was found on your transcript; pick “Completed prior M.S. or Ph.D.” under Your standing if you did earn the degree.'
-                    : ''),
+                    : '') +
+                (bachelorsSet ? ` “Bachelor’s degree awarded” was set to ${termLabel(bachelorsSet)} from the conferral date on your transcript — check it under Your standing.` : ''),
             );
           },
         },
@@ -880,3 +969,47 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   return box;
 }
 
+
+/** The preview's "Bachelor's degree awarded" control (DGS 2026-09-06 evening):
+ * season + year, pre-filled from the transcript's conferral date, required for
+ * a combined record. A change re-fills every row's "Taken as" by the term. */
+function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void): HTMLElement {
+  const yearInput = el('input', {
+    type: 'number',
+    min: '1970',
+    max: '2040',
+    'aria-label': 'Bachelor’s degree awarded — year',
+    'aria-describedby': 'ext-bachelors-hint',
+    'data-key': 'ext.preview.bachelors.year',
+    value: p.bachelorsAwarded ? String(p.bachelorsAwarded.year) : '',
+    ...(p.bachelorsRequired ? { required: 'required', 'aria-required': 'true' } : {}),
+  });
+  const seasonSel = el('select', { 'aria-label': 'Bachelor’s degree awarded — semester', 'data-key': 'ext.preview.bachelors.season' });
+  for (const se of ['fall', 'spring', 'summer'] as const) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), (p.bachelorsAwarded?.season ?? 'spring') === se));
+  const apply = (): void => {
+    const raw = (yearInput as HTMLInputElement).value;
+    const year = Number(raw);
+    p.bachelorsAwarded = raw !== '' && Number.isFinite(year) && year >= 1970 ? { season: (seasonSel as HTMLSelectElement).value as Season, year } : undefined;
+    p.bachelorsSource = 'student';
+    relevelByAward(p, rules);
+    previewError = undefined;
+    render();
+  };
+  yearInput.addEventListener('change', apply);
+  seasonSel.addEventListener('change', () => {
+    if ((yearInput as HTMLInputElement).value !== '') apply();
+  });
+  const hint =
+    p.bachelorsAwarded && p.bachelorsSource === 'transcript'
+      ? `Read from your transcript (bachelor’s degree conferred ${p.bachelorsConferredOn}) — check it. Courses dated in or before this term count as undergraduate coursework: no transfer credit, core knowledge only (§5.2, §4.4.1).`
+      : p.bachelorsRequired
+        ? 'Required for a combined bachelor’s + master’s record: enter the semester your bachelor’s degree was awarded. Courses dated in or before it count as undergraduate coursework — no transfer credit, core knowledge only (§5.2, §4.4.1); changing it re-fills “Taken as” for every row.'
+        : 'The semester your bachelor’s degree was awarded; courses dated in or before it count as undergraduate coursework (§5.2).';
+  return el(
+    'div',
+    { class: 'field bachelors-field' },
+    el('span', { class: 'label' }, `Bachelor’s degree awarded${p.bachelorsRequired ? ' (required for a combined transcript)' : ''}`),
+    el('div', { class: 'pair' }, seasonSel, yearInput),
+    el('p', { class: 'hint', id: 'ext-bachelors-hint' }, hint),
+  );
+}
