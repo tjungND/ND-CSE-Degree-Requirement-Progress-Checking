@@ -143,6 +143,22 @@ Known-pending (the app's diagnostics panel is the live truth):
   560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
   again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
   the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+- **Credits can be fractional** (DGS 2026-09-08). `credit_system` on ExternalCourses marks a
+  university as quarter-based; `universityCreditSystem` / `ndEquivalentCredits` in data/external.ts
+  resolve it (a fixed `nd_credits` still wins), and `classify` sets `effectiveCredits` plus
+  `creditsConverted`. The arithmetic keeps FULL precision — 9 quarter hours must total exactly 6
+  against the §5.2 cap — so never round in the engine; print through `formatCredits`
+  (src/engine/credits.ts), which is already wired into the threshold rows, the course line and the
+  processing request. A new credit figure shown to a student needs it too.
+- **Institution names are spelled out** (2026-09-08): `expandInstitutionAbbreviations` in
+  data/external.ts, applied to the parsed name, to hand-typed names, to the sheet's own names in the
+  datalist, and inside `normalizeUniversity` so matching is abbreviation-insensitive. Adding an
+  abbreviation means adding one row to `ABBREVIATIONS` — keep it conservative: a bare "Tech" is a
+  real name ("Georgia Tech"), and "St." is ambiguous.
+- **Parser fixes of 2026-09-08**: "ID" is a real subject (Georgia Tech industrial design) and is no
+  longer a stop-word — only "ID <number>" with no title is refused; the institution pattern accepts
+  "Inst. of Technology"; and `prefillLevelsByTerm` takes `bachelorsNamed` and does nothing without
+  it, so a three-year Master's is no longer split like a 4+1.
 - **Preview row layout and the bachelor's term** (`src/transcript/preview-layout.ts`, DOM-free, 2026-09-08).
   `rowIsCompact` — the one-line row is ONLY for a text-layer row whose credits, grade and year were
   all read; a row holding any input must keep the wrapping labelled layout, or `flex-wrap: nowrap`

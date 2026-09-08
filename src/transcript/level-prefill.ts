@@ -24,13 +24,24 @@ const earlierTerm = (a: Term, b: Term): Term => (laterTerm(a, b) === a ? b : a);
  * undergraduate student — a UG/GR column, a "Level" block, a dated bachelor's
  * conferral (`levelSource: 'transcript'` on any row) — that pre-fills the
  * column and this rule is not applied at all; rows it leaves unlabelled keep
- * the slot's level. Rows without a year keep the slot's level too. Returns
- * the window for the preview's explanation. */
+ * the slot's level. Rows without a year keep the slot's level too.
+ *
+ * And only when the transcript NAMES A BACHELOR'S DEGREE (DGS bug report
+ * 2026-09-08). Spanning more than two years is not evidence of a 4+1: a
+ * Master's can simply take three years, and a USC M.S. that did had its first
+ * year marked undergraduate. A record that never mentions a bachelor's degree
+ * has no undergraduate half to find, so the slot's level stands and the
+ * student is left to correct any row by hand — the app does not guess.
+ * Returns the window for the preview's explanation. */
 export function prefillLevelsByTerm(
   rows: { season: Season; year: number | undefined; level: Level; levelSource: LevelSource }[],
   slot: Slot,
+  /** The transcript names a bachelor's degree (dated or not). Without it the
+   * rule does not run at all (2026-09-08). */
+  bachelorsNamed = false,
 ): { graduateFrom: Term; latest: Term } | undefined {
   if (slot !== 'masters') return undefined;
+  if (!bachelorsNamed) return undefined; // no undergraduate degree on this record — nothing to split
   if (rows.some((r) => r.levelSource === 'transcript')) return undefined; // the transcript decides by itself
   const dated = rows.map(asTerm).filter((t): t is Term => t !== undefined);
   if (dated.length === 0) return undefined;

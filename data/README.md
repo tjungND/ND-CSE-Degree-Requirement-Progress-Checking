@@ -148,7 +148,8 @@ column order, ready to paste straight into the sheet.
 | `course_title` | text | for humans reading the sheet |
 | `satisfies_core_area` | a `core_area` code, `none`, or blank | §4.4.1 core area the course covers — a match makes the student's core row **met**. `none` = decided, no core area (a core-sounding title then stops appearing in the review request); blank = not decided yet (the course stays in the review request) |
 | `transferable` | `yes` / `no` / blank | §5.2: blank = not decided yet; `yes` still requires the student's formal request (DGS recommendation + Graduate School approval) |
-| `nd_credits` | number or blank | ND-equivalent credits (§5.2 pro-rata for quarter/ECTS systems); blank = credits as printed |
+| `nd_credits` | number or blank | A **fixed** Notre Dame credit value for this one course (§5.2 pro-rata). Overrides everything. Use it only when one number is right every time — it cannot describe a course that is worth 2 credits one term and 4 the next; `credit_system` handles those. Blank = credits as printed, unless `credit_system` says otherwise |
+| `credit_system` | `quarter` / `semester` / blank | The system this **university** awards in. `quarter` converts whatever the student's own transcript prints (× 2/3), so a course whose credits vary converts correctly every time. Set it on any one row of a university and it applies to every course from that university, listed here or not. Blank = credits count as printed |
 | `decided_on`, `notes` | text | for the record |
 
 Anything a student uploads that has NO row here shows "not yet reviewed by the

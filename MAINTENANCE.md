@@ -58,6 +58,12 @@ day too (its "How the app reads it" cell now names `data/sheet-urls.json` and in
 ExternalCourses in the publish list) — nothing sheet-side is open. The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
+Since 2026-09-08 the ExternalCourses tab has a `credit_system` column (`quarter` / `semester` /
+blank). Set it on any one row of a university and every course from that university converts from
+the credits printed on the student's transcript (quarter × 2/3, kept exactly) — the way to handle a
+course whose credits vary from term to term. `nd_credits` still means a FIXED value for one course
+and overrides the conversion.
+
 Since 2026-09-06 the ExternalCourses tab's `satisfies_core_area` also accepts `none` ("decided: no core
 area" — it stops a core-sounding title from staying in the review request); blank still means not
 decided yet, and a course with a blank-verdict row stays in the request (`data/README.md`). When two

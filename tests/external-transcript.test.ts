@@ -338,3 +338,53 @@ describe('bachelor’s conferral or completion date wording (2026-09-06, late ev
     assert.equal(parse(['Bachelor of Science', 'Master of Science — Conferred: May 10, 2025']).degreeConferred, true);
   });
 });
+
+// Georgia Tech (DGS bug report 2026-09-08): "ID" is Industrial Design, not an
+// identifier, and the header abbreviates the institute.
+describe('Georgia Tech: the "ID" subject and the abbreviated name (2026-09-08)', () => {
+  const GT = [
+    'Georgia Inst. of Technology',
+    'Office of the Registrar',
+    'Unofficial Transcript',
+    'Student: A. Yellowjacket',
+    '',
+    'Fall 2023',
+    'ID 4104    Industrial Design Studio           3.0   A',
+    'CS 6250    Computer Networks                  3.0   B+',
+    '',
+    'Spring 2024',
+    'ID 6202    Design Methods                     3.0   A-',
+    '',
+    'Cumulative GPA: 3.80',
+  ];
+
+  it('reads the institution even when it prints "Inst." for Institute, and spells it out', () => {
+    // The unofficial transcript abbreviates it; students, the DGS and the Grad
+    // Admin all read the real name (DGS 2026-09-08).
+    assert.equal(parseExternalTranscript(GT).university, 'Georgia Institute of Technology');
+  });
+
+  it('keeps ID courses instead of mistaking the subject for an identifier', () => {
+    const p = parseExternalTranscript(GT);
+    assert.deepEqual(
+      p.courses.map((c) => [c.courseId, c.title, c.credits, c.grade]),
+      [
+        ['ID 4104', 'Industrial Design Studio', 3, 'A'],
+        ['CS 6250', 'Computer Networks', 3, 'B+'],
+        ['ID 6202', 'Design Methods', 3, 'A-'],
+      ],
+    );
+  });
+
+  it('a record-number line is still not a course — no title after the number', () => {
+    const p = parseExternalTranscript([...GT.slice(0, 4), 'ID   123456', 'ID   4104', ...GT.slice(5)]);
+    const ids = p.courses.map((c) => c.courseId);
+    assert.deepEqual(ids, ['ID 4104', 'CS 6250', 'ID 6202'], 'the bare identifier lines are left out: ' + JSON.stringify(ids));
+  });
+
+  it('a Master’s-only record names no bachelor’s, so nothing marks it a 4+1', () => {
+    assert.equal(parseExternalTranscript(GT).bachelorsNamed, undefined);
+    const withBs = parseExternalTranscript([...GT, 'Bachelor of Science in Industrial Design']);
+    assert.equal(withBs.bachelorsNamed, true);
+  });
+});

@@ -7,8 +7,9 @@
 // uncapped and single-cap credits greedily (provably optimal by an exchange
 // argument), the rare multi-cap courses by exact search — never the prototype's
 // entry-order greedy, where re-sorting the course list changed the verdict.
+import { formatCredits } from './credits.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
-import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
+import { findExternalRule, isNotreDameInstitution, ndEquivalentCredits, universityCreditSystem } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
@@ -47,9 +48,14 @@ export interface ClassifiedCourse {
    * knowledge can still see a DGS-confirmed course). */
   external?: ExternalRule;
   /** Transfer-only: the DGS's ND-equivalent credit value (ExternalCourses
-   * nd_credits — §5.2 "pro-rata"); counting uses this instead of the credits
+   * nd_credits, or converted from the university's quarter system — §5.2
+   * "pro-rata"); counting uses this instead of the credits
    * printed on the transcript. */
   effectiveCredits?: number;
+  /** True when effectiveCredits came from converting the university's quarter
+   * hours rather than from a fixed nd_credits (2026-09-08) — the line says
+   * which, so a student can tell a conversion from the DGS's own figure. */
+  creditsConverted?: true;
 }
 
 /** The colour of a course's line (DGS request 2026-09-06 — "pending review
@@ -191,6 +197,8 @@ export function classify(student: Student, rules: Rules): {
       // The DGS's ExternalCourses ruling, when one exists. Attached to every
       // return path so §4.4.1 core knowledge sees it even when no credit counts.
       const external = findExternalRule(rules.external, c.institution ?? '', c.courseId);
+      // Set once per university in the sheet; applies to every course from it.
+      const creditSystem = universityCreditSystem(rules.external, c.institution);
       const extBase: ClassifiedCourse = { ...base, external };
       // Prior NOTRE DAME coursework (2026-09-05 — an earlier Notre Dame degree
       // on a combined transcript): the Courses tab already says which §4.4.1
@@ -294,8 +302,12 @@ export function classify(student: Student, rules: Rules): {
         pool: 'regular',
         caps: ['transfer'],
         tier: tierFor(grade, !attested),
-        // §5.2 "pro-rata" for non-semester systems: the DGS's ND-equivalent value wins.
-        effectiveCredits: external?.ndCredits,
+        // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
+        // this course wins; otherwise a quarter university's credits are
+        // converted from what the transcript prints (DGS 2026-09-08), which is
+        // the only thing that works when a course's credits vary by term.
+        effectiveCredits: ndEquivalentCredits(c.credits, external, creditSystem),
+        ...(external?.ndCredits === undefined && creditSystem === 'quarter' ? { creditsConverted: true as const } : {}),
         approvalPending: attested
           ? undefined
           : external?.transferable === true
@@ -576,9 +588,9 @@ function buildExplanation(
     const capWord = transferCandidate.capLimit !== undefined ? `${transferCandidate.capLimit}-credit ` : '';
     const fate =
       counted > 0 && excluded === 0
-        ? `would count toward ${poolName} (${counted} cr) if the DGS approves it`
+        ? `would count toward ${poolName} (${formatCredits(counted)} cr) if the DGS approves it`
         : counted > 0
-          ? `would count ${counted} of ${total} credits toward ${poolName} if the DGS approves it (the ${capWord}transfer cap limits the rest)`
+          ? `would count ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} if the DGS approves it (the ${capWord}transfer cap limits the rest)`
           : `counts only if the DGS picks it — the candidates together exceed the ${capWord}transfer cap`;
     const coreNote = /; (the same review can confirm|satisfies) [^;]*core-knowledge requirement[^;]*/.exec(cc.approvalPending ?? '')?.[0] ?? '';
     return {
@@ -609,13 +621,15 @@ function buildExplanation(
   if (counted > 0 && excluded > 0) {
     mark = cc.tier === 'definite' ? 'counts' : 'pending';
     parts.push(
-      `${lead.replace(/counts$/, 'count')} ${counted} of ${total} credits toward ${poolName}${tail}; ${excluded} not counted — ${excludedReason ?? ''}`,
+      `${lead.replace(/counts$/, 'count')} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName}${tail}; ${formatCredits(excluded)} not counted — ${excludedReason ?? ''}`,
     );
   } else if (counted > 0) {
     mark = cc.tier === 'definite' ? 'counts' : 'pending';
-    parts.push(`${lead} toward ${poolName} (${counted} cr)${tail}`);
+    parts.push(`${lead} toward ${poolName} (${formatCredits(counted)} cr)${tail}`);
     if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
-      parts.push(`counted as ${cc.effectiveCredits} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} per the DGS’s pro-rata value (transcript shows ${cc.entry.credits}; §5.2)`);
+      parts.push(
+        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? 'converted from the quarter system' : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
+      );
     }
     if (cc.caps.includes('fourk')) parts.push('uses the 40000-level allowance');
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');

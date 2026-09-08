@@ -344,11 +344,24 @@ export function parseExternalTab(
         `ExternalCourses row ${rowNum} (${university} ${courseId}): transferable must be 'yes', 'no' or blank (undecided) — got '${transferable}'. That cell is ignored.`);
     }
 
+    // nd_credits: a FIXED Notre Dame value for this one course. It cannot
+    // describe a course whose credits vary (2 to 4), which is what
+    // credit_system is for (DGS 2026-09-08); a value here still wins.
     const nd = cells['nd_credits'] ?? '';
     if (nd !== '') {
       const n = Number(nd);
       if (Number.isFinite(n) && n >= 0 && n <= 30) rule.ndCredits = n;
       else err(rowNum, 'nd_credits', `ExternalCourses row ${rowNum} (${university} ${courseId}): nd_credits '${nd}' is not a number between 0 and 30. That cell is ignored (credits as printed will count).`);
+    }
+
+    // credit_system: the university's own system. 'quarter' converts whatever
+    // the student's transcript prints, so a 2-to-4-credit course converts
+    // correctly every time (DGS 2026-09-08).
+    const system = (cells['credit_system'] ?? '').trim().toLowerCase();
+    if (system === 'quarter' || system === 'semester') rule.creditSystem = system;
+    else if (system !== '') {
+      err(rowNum, 'credit_system',
+        `ExternalCourses row ${rowNum} (${university} ${courseId}): credit_system must be 'quarter', 'semester' or blank — got '${system}'. That cell is ignored (credits count as printed).`);
     }
 
     // Two rows for the same university + course: the LAST row wins (DGS

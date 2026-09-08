@@ -41,6 +41,13 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   line no longer says "pending DGS review"; its card is "In progress" until the Grad Admin has processed it.
   Undergraduate wording: "Courses taken as an undergraduate student do not transfer, whether or not the
   course itself is a graduate course (§5.2)", and every undergraduate course line now carries that reason.
+  Institution names are spelled out everywhere a person reads them ("Georgia Inst. of Technology" →
+  "Georgia Institute of Technology"), and the sheet matches either spelling.
+  2026-09-08, second batch: "ID" courses (Georgia Tech industrial design) and "Georgia Inst. of
+  Technology" now parse; a Master's that took three years is no longer split as a 4+1 (the two-year
+  rule needs a bachelor's named on the transcript); and ExternalCourses gained `credit_system`
+  (quarter/semester) so quarter credits convert from the student's own transcript, exactly, with
+  `nd_credits` kept as a fixed per-course override.
   Two bugs the DGS found on 2026-09-08: a preview row whose year the parser missed was forced onto one
   line and spilled out of the card, cutting off "Taken as" (compact is now only for fully-read rows);
   and importing a Master's transcript reset a bachelor's term the student had entered (a hand-set term

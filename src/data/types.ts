@@ -29,7 +29,15 @@ export interface ExternalRule {
   title: string;
   satisfiesCoreArea?: string | null; // null = decided, no core area (`none` in the sheet, DGS 2026-09-06); undefined = blank, not decided yet
   transferable?: boolean;
+  /** A FIXED Notre Dame credit value for this one course, when the conversion
+   * below cannot express it. Overrides everything. */
   ndCredits?: number;
+  /** The credit system this university awards in (DGS 2026-09-08). 'quarter'
+   * converts the credits printed on the student's own transcript, which is the
+   * only thing that works for a course whose credits vary from term to term
+   * (2 to 4); a fixed `nd_credits` cannot. Set it on any row of a university
+   * and it applies to every course from that university. */
+  creditSystem?: 'quarter' | 'semester';
   decidedOn?: string;
   notes?: string;
   /** 1-based spreadsheet row, for diagnostics. */

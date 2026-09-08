@@ -4,6 +4,7 @@
 // added without their review, and unmatched grades must be chosen by hand.
 // System-generated PDFs are read exactly; a PDF with no text layer is offered
 // the opt-in English-only OCR instead (decision 2026-09-02; src/transcript/ocr.ts).
+import { expandInstitutionAbbreviations } from '../data/external.ts';
 import { shortenAfterFirst } from '../ui/first-mention.ts';
 import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
@@ -48,6 +49,12 @@ export interface ExternalParseResult {
   /** A bachelor's degree conferral with a date (2026-09-05): the boundary
    * between undergraduate and graduate rows on a combined transcript. */
   bachelorsConferredOn?: string;
+  /** A bachelor's degree is NAMED anywhere on the transcript, with or without
+   * a conferral date (2026-09-08). Without this there is no reason to think a
+   * record covers an undergraduate degree at all, so the two-year "Taken as"
+   * estimate must not run: a Master's that took three years is not a 4+1
+   * (DGS bug report — a USC M.S. had its first year marked undergraduate). */
+  bachelorsNamed?: true;
   /** True when rows of BOTH levels were found — the preview then shows the
    * per-row level for the student to check (2026-09-05). */
   mixedLevels?: true;
@@ -105,10 +112,13 @@ function asCredits(token: string): number | undefined {
 
 /** Guess the institution from the first page's header lines: the earliest
  * digit-free line that names a university-like body. */
+const expandName = (name: string | undefined): string | undefined => (name === undefined ? undefined : expandInstitutionAbbreviations(name));
+
 function guessUniversity(lines: string[]): string | undefined {
   // Strong words name an institution; "college" alone is weak (it also names a
   // division — "College of Science" — or a Banner field, "College : …").
-  const STRONG_RE = /universit|institute of technology|polytechnic|école|hochschule|universidad|università|universität|universiteit|대학교|大学/i;
+  // "Inst." is how Georgia Tech's transcript abbreviates it (DGS 2026-09-08).
+  const STRONG_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|école|hochschule|universidad|università|universität|universiteit|대학교|大学/i;
   const WEAK_RE = /college/i;
   const DIVISION_RE = /^(college|school|department|faculty|institute)\s+of\b|\bcollege of\b|^(program|college|major|degree)\s*:/i;
   /** Candidate name cells: each line split at column gaps (a merged two-column
@@ -189,7 +199,15 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // "cs 5321"), so common words that would then look like codes are refused:
   // term headers and summary lines such as "Fall 2023  GPA 3.85".
   const CODE_STOPWORDS_RE =
-    /^(FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|SUBTOTAL|AVERAGE|GPA|CGPA|SGPA|CUM|ROOM|ID|NO|NUM|NUMBER|CODE|TITLE|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|PASSED|CREDIT|CREDITS|HOUR|HOURS|UNIT|UNITS|POINT|POINTS|GRADE|GRADES|COURSE|SECTION|CHAPTER|LEVEL|CLASS|STUDENT|RECORD|GRADUATE|UNDERGRADUATE|ACADEMIC|DEGREE|PROGRAM|PLAN|COLLEGE|SCHOOL|CAMPUS|CATALOG|MAJOR|MINOR|DATE|PRINTED|ISSUED|STANDING|STATUS|VERSION)$/;
+    /^(FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|SUBTOTAL|AVERAGE|GPA|CGPA|SGPA|CUM|ROOM|NO|NUM|NUMBER|CODE|TITLE|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|PASSED|CREDIT|CREDITS|HOUR|HOURS|UNIT|UNITS|POINT|POINTS|GRADE|GRADES|COURSE|SECTION|CHAPTER|LEVEL|CLASS|STUDENT|RECORD|GRADUATE|UNDERGRADUATE|ACADEMIC|DEGREE|PROGRAM|PLAN|COLLEGE|SCHOOL|CAMPUS|CATALOG|MAJOR|MINOR|DATE|PRINTED|ISSUED|STANDING|STATUS|VERSION)$/;
+  // "ID" was refused as a code until 2026-09-08 (it reads as "identifier"),
+  // which dropped every Georgia Tech industrial-design course. It is a real
+  // subject, so only the shape that is genuinely an identifier is refused: a
+  // record number with no course title after it. A student id is long enough
+  // that the code pattern (2-5 digits) does not match it anyway.
+  const BARE_IDENTIFIER_RE = /^ID$/;
+  const looksLikeIdentifierLine = (subject: string, tokens: string[]): boolean =>
+    BARE_IDENTIFIER_RE.test(subject) && !tokens.some((tk) => /[A-Za-z]{3}/.test(tk));
   // A subject cell: "CS", "COMPSCI", "STATISTC", or a two-part code with a
   // space ("E E", "A A" at the University of Washington, 2026-09-05).
   const SUBJECT_RE = /^[A-Za-z]{2,10}$|^[A-Za-z]{1,4} [A-Za-z]{1,4}$/;
@@ -305,6 +323,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         .join('  ')
         .split(/\s+/)
         .filter((t) => t !== '');
+      if (looksLikeIdentifierLine(subject, tokens)) continue;
       return { code: `${subject} ${num[1]!.toUpperCase()}`, tokens };
     }
     for (const idx of [0, 1] as const) {
@@ -322,6 +341,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         .join('  ')
         .split(/\s+/)
         .filter((t) => t !== '');
+      if (looksLikeIdentifierLine(code.replace(/[^A-Z]/g, ''), tokens)) return undefined;
       return { code, tokens };
     }
     return undefined;
@@ -364,6 +384,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   let blockLevel: Level | undefined;
   let retroLevel: Level | undefined;
   let bachelorsConferredOn: string | undefined;
+  let bachelorsNamed = false; // a bachelor's is named at all — dated or not (2026-09-08)
   let recentDegreeDate: { date: string; at: number } | undefined; // a dated "Degree Completion Date:" line, in case the degree name follows
   const rowLevels: (Level | undefined)[] = [];
   // Degrees (2026-09-05): a "Degrees Awarded" block makes the degree lines
@@ -416,6 +437,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const conferredHere = namesDegree && (CONFER_RE.test(flat) || degreeBlock > 0) && !NOT_COMPLETE_RE.test(flat);
     if (degreeBlock > 0 && !leadCode(flat)) degreeBlock -= 1;
     if (conferredHere && GRAD_DEGREE_RE.test(flat)) blockConferredGrad = true;
+    // Named, not necessarily conferred: "Degree Sought: Bachelor of Science"
+    // still says this record covers an undergraduate degree.
+    if (namesDegree && /\bbachelor/i.test(flat)) bachelorsNamed = true;
     // A dated degree line without a degree name ("Degree Completion Date:
     // 05/17/2024") is remembered: the degree name may follow it.
     if (!namesDegree && DEGREE_DATE_LINE_RE.test(flat) && !NOT_YET_RE.test(flat)) {
@@ -536,9 +560,12 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   return {
     hasTextLayer: true,
     looksLikeNotreDame,
-    university: guessUniversity(lines),
+    // Spelled out for everyone who reads it (DGS 2026-09-08): the student,
+    // the DGS review request and the Grad Admin processing request.
+    university: expandName(guessUniversity(lines)),
     degreeConferred,
     bachelorsConferredOn,
+    ...(bachelorsNamed ? { bachelorsNamed: true as const } : {}),
     mixedLevels: levels.size > 1 ? true : undefined,
     transferRowsSkipped: transferRowsSkipped > 0 ? transferRowsSkipped : undefined,
     courses,

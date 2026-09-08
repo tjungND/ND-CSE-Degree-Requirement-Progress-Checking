@@ -17,6 +17,7 @@
 // — with the DGS in cc. Like the review request, the student's own words stay
 // above a marker line and the tables below it are not to be modified. Never
 // the word "audit" (the page is a self-check).
+import { formatCredits } from '../engine/credits.ts';
 import type { Rules } from '../data/types.ts';
 import { classify } from '../engine/allocate.ts';
 import { termLabel } from '../engine/term.ts';
@@ -111,7 +112,7 @@ function metTable(r: RequirementResult, student: Student): MetTable {
       columns: COURSE_COLUMNS,
       rows: ids.map((id) => {
         const c = byId.get(id)!;
-        return [c.courseId, c.title ?? '', String(c.credits), c.grade, termLabel(c.term), c.origin === 'nd' ? 'Notre Dame' : (c.institution ?? 'another university')];
+        return [c.courseId, c.title ?? '', formatCredits(c.credits), c.grade, termLabel(c.term), c.origin === 'nd' ? 'Notre Dame' : (c.institution ?? 'another university')];
       }),
     };
   }
@@ -223,7 +224,7 @@ export function gradAdminRequest(
     t.courseId,
     t.title ?? '',
     String(t.credits),
-    t.ndCredits !== undefined ? String(t.ndCredits) : '',
+    t.ndCredits !== undefined ? formatCredits(t.ndCredits) : '',
     t.grade,
     t.termText,
   ];

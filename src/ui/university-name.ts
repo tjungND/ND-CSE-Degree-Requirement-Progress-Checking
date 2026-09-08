@@ -5,7 +5,7 @@
 // against the DGS's rules ignores case, accents and punctuation anyway
 // (normalizeUniversity in src/data/external.ts), so the style is for the
 // student's eye and the coursework headings only. DOM-free.
-import { normalizeUniversity } from '../data/external.ts';
+import { expandInstitutionAbbreviations, normalizeUniversity } from '../data/external.ts';
 import type { ExternalRule } from '../data/types.ts';
 
 /** Words that stay lower-case inside a name when typed lower-case ("University
@@ -35,7 +35,7 @@ export function titleCaseUniversity(name: string): string {
  * Title-Cased (DGS 2026-09-06: Title Case for every hand-typed name, known to
  * the rules or not). An empty box stays empty. */
 export function canonicalUniversityName(typed: string): string {
-  return titleCaseUniversity(typed);
+  return titleCaseUniversity(expandInstitutionAbbreviations(typed));
 }
 
 /** The distinct universities of the ExternalCourses tab, Title-Cased for
@@ -45,7 +45,7 @@ export function knownUniversities(external: readonly ExternalRule[]): string[] {
   for (const r of external) {
     const key = normalizeUniversity(r.university);
     if (key === '' || byKey.has(key)) continue;
-    byKey.set(key, titleCaseUniversity(r.university.toLowerCase()));
+    byKey.set(key, titleCaseUniversity(expandInstitutionAbbreviations(r.university).toLowerCase()));
   }
   return [...byKey.values()].sort((a, b) => a.localeCompare(b));
 }

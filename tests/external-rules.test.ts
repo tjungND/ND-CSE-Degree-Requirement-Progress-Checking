@@ -44,7 +44,7 @@ const rules = buildRules(); // fixture ExternalCourses tab included
 
 describe('ExternalCourses parsing', () => {
   it('reads the fixture rows and skips the prose note row', () => {
-    assert.equal(rules.external.length, 5); // incl. the `none` row (2026-09-06)
+    assert.equal(rules.external.length, 6); // incl. the `none` row (2026-09-06) and the quarter-system row (2026-09-08)
     assert.equal(rules.issues.filter((i) => i.tab === 'ExternalCourses').length, 0);
   });
 
@@ -409,5 +409,59 @@ describe('the sign-off row names who must act (2026-09-07)', () => {
     const row = approvals(s);
     assert.equal(row.status, 'not_applicable');
     assert.equal(row.detail, 'No entered course that counts toward the degree is waiting on anyone.');
+  });
+});
+
+// Quarter-system universities (DGS 2026-09-08). nd_credits can only hold one
+// fixed number, which is useless for a course worth 2 credits one term and 4
+// the next; credit_system converts whatever the student's transcript prints.
+describe('credit_system: quarter hours become Notre Dame hours', () => {
+  const usc = (courseId: string, credits: number): Student =>
+    student([{ courseId, title: 'Analysis of Algorithms', credits, institution: 'University of Southern California', term: { season: 'fall', year: 2024 } }]);
+
+  it('reads the column, and rejects anything but quarter/semester/blank', () => {
+    const rule = rules.external.find((r) => r.courseId === 'CSCI 570')!;
+    assert.equal(rule.creditSystem, 'quarter');
+    assert.equal(rules.external.find((r) => r.courseId === 'CS 50300')?.creditSystem, undefined);
+    const issues: SheetIssue[] = [];
+    const parsed = parseExternalTab(
+      'university,course_id,transferable,credit_system\nX UNIVERSITY,CS 1,yes,trimester\n',
+      CORE,
+      issues,
+    );
+    assert.equal(parsed[0]?.creditSystem, undefined, 'a bad value is ignored, the row is kept');
+    assert.match(issues[0]?.message ?? '', /credit_system must be 'quarter', 'semester' or blank/);
+  });
+
+  it('converts the credits the transcript prints — the exact value, whatever the course is worth', () => {
+    const four = classify(usc('CSCI 570', 4), rules).classified[0]!;
+    assert.equal(four.effectiveCredits, 4 * (2 / 3));
+    assert.equal(four.creditsConverted, true);
+    // The same course at 2 credits in another term converts on its own terms —
+    // the thing a fixed nd_credits could never do.
+    assert.equal(classify(usc('CSCI 570', 2), rules).classified[0]?.effectiveCredits, 2 * (2 / 3));
+  });
+
+  it('applies to every course from that university, listed in the tab or not', () => {
+    const unlisted = classify(usc('CSCI 999', 4), rules).classified[0]!;
+    assert.equal(unlisted.effectiveCredits, 4 * (2 / 3), 'the university, not the row, carries the system');
+  });
+
+  it('a fixed nd_credits still wins over the conversion', () => {
+    const tsinghua = student([{ courseId: '30240233', credits: 4, institution: 'Tsinghua University', term: { season: 'fall', year: 2024 } }]);
+    const c = classify(tsinghua, rules).classified[0]!;
+    assert.equal(c.effectiveCredits, 2.5, 'the DGS’s own figure for that course');
+    assert.equal(c.creditsConverted, undefined);
+  });
+
+  it('a semester university is left alone', () => {
+    const purdue = classify(student([{ courseId: 'CS 50300', credits: 3 }]), rules).classified[0]!;
+    assert.equal(purdue.effectiveCredits, undefined, 'credits count as printed');
+  });
+
+  it('the student’s line says the credits were converted, and reads as a number', () => {
+    const l = audit(usc('CSCI 570', 4), rules, '2026-09-01').courseLines.find((c) => c.courseId === 'CSCI 570')!;
+    assert.match(l.text, /counted as 2\.67 ND credits converted from the quarter system \(transcript shows 4; §5\.2\)/);
+    assert.doesNotMatch(l.text, /2\.66666/);
   });
 });

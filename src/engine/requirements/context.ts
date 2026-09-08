@@ -1,5 +1,6 @@
 // Shared context handed to every requirement builder, plus small helpers used
 // across the §3 and §4 modules.
+import { formatCredits } from '../credits.ts';
 import type { Parameters, Rules } from '../../data/types.ts';
 import type { AllocationResult, ClassifiedCourse, CourseAllocation } from '../allocate.ts';
 import type { TierSums } from '../status.ts';
@@ -62,9 +63,11 @@ export function thresholdRow(args: {
   if (required === undefined) {
     parts.push(missingParamDetail(args.requiredKey));
   } else {
-    parts.push(`${sums.definite} of ${required} ${unit} complete`);
-    if (sums.in_progress > 0) parts.push(`${sums.in_progress} in progress`);
-    if (sums.provisional > 0) parts.push(`${sums.provisional} pending review/approval`);
+    // Credits can be fractional since quarter-system conversion (2026-09-08).
+    const n = (v: number) => (unit === 'credits' ? formatCredits(v) : String(v));
+    parts.push(`${n(sums.definite)} of ${required} ${unit} complete`);
+    if (sums.in_progress > 0) parts.push(`${n(sums.in_progress)} in progress`);
+    if (sums.provisional > 0) parts.push(`${n(sums.provisional)} pending review/approval`);
     if (status === 'needs_dgs_review' && args.provisionalCourses?.length) {
       parts.push(`meeting this depends on courses that still need review: ${args.provisionalCourses.join(', ')}`);
     }

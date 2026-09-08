@@ -8,12 +8,42 @@
 // with no matching row is NEVER guessed at; it stays "not yet reviewed".
 import type { ExternalRule } from './types.ts';
 
-/** "Univ. of Notre-Dame " → "univ of notre dame" (case, punctuation and
+/** Abbreviations transcripts use in an institution's name, spelled out (DGS
+ * 2026-09-08: "Georgia Inst. of Technology" is how Georgia Tech's UNOFFICIAL
+ * transcript prints it; students, the DGS and the Grad Admin should all read
+ * the real name). Applied for display AND inside `normalizeUniversity`, so a
+ * sheet row written either way still matches the transcript.
+ *
+ * Conservative on purpose. "Tech" is expanded only with its full stop —
+ * "Georgia Tech" is a name in its own right and must not become "Georgia
+ * Technology" — and "St." is left alone, since it is Saint in one name and
+ * State in another. */
+const ABBREVIATIONS: [RegExp, string][] = [
+  [/\binst\.?(?=\s|$)/gi, 'Institute'],
+  [/\buniv\.?(?=\s|$)/gi, 'University'],
+  [/\bcoll\.?(?=\s|$)/gi, 'College'],
+  [/\bpoly\.?(?=\s|$)/gi, 'Polytechnic'],
+  [/\bintl\.?(?=\s|$)/gi, 'International'],
+  [/\bnatl\.?(?=\s|$)/gi, 'National'],
+  [/\bengr\.?(?=\s|$)/gi, 'Engineering'],
+  [/\btech\.(?=\s|$)/gi, 'Technology'],
+  [/\bsci\.(?=\s|$)/gi, 'Science'],
+  [/\bagri\.(?=\s|$)/gi, 'Agricultural'],
+];
+
+/** An institution's name with those abbreviations spelled out. Everything else
+ * is left exactly as given — this is not a spell-checker. */
+export function expandInstitutionAbbreviations(name: string): string {
+  return ABBREVIATIONS.reduce((out, [re, word]) => out.replace(re, word), name).replace(/\s{2,}/g, ' ').trim();
+}
+
+/** "Univ. of Notre-Dame " → "university of notre dame" (abbreviations spelled
+ * out since 2026-09-08, then case, punctuation and
  * diacritics ignored; whitespace collapsed). Non-Latin letters are kept, but
  * the sheet convention (2026-09-03) is the university's name in CAPITAL
  * ENGLISH exactly as its transcripts print it. */
 export function normalizeUniversity(name: string): string {
-  return name
+  return expandInstitutionAbbreviations(name)
     .normalize('NFKD')
     .replace(/\p{M}+/gu, '') // strip the accents NFKD split off
     .toLowerCase()
@@ -52,4 +82,36 @@ export function findExternalRule(
   const id = normalizeCourseId(courseId);
   if (uni === '' || id === '') return undefined;
   return rules.find((r) => r.universityKey === uni && normalizeCourseId(r.courseId) === id);
+}
+
+/** Quarter hours → Notre Dame semester hours. The standard 2/3 ratio; the
+ * exact value is kept (DGS 2026-09-08), so three 4-credit quarter courses come
+ * to 8.00 and not to a rounded 7.5 that would cost the student half a credit
+ * against the §5.2 cap. Display rounds; the arithmetic does not. */
+export const QUARTER_TO_SEMESTER = 2 / 3;
+
+/** The credit system a university awards in, from ANY of its ExternalCourses
+ * rows (the DGS sets it once; it applies to every course from that university,
+ * listed or not). Undefined when no row says — credits then count as printed. */
+export function universityCreditSystem(
+  external: readonly { universityKey: string; creditSystem?: 'quarter' | 'semester' }[],
+  university: string | undefined,
+): 'quarter' | 'semester' | undefined {
+  if (university === undefined) return undefined;
+  const key = normalizeUniversity(university);
+  if (key === '') return undefined;
+  return external.find((r) => r.universityKey === key && r.creditSystem !== undefined)?.creditSystem;
+}
+
+/** What one course counts for at Notre Dame: the DGS's fixed value for this
+ * course when there is one, else the transcript's own credits converted from
+ * the university's system, else undefined (count them as printed). */
+export function ndEquivalentCredits(
+  printed: number,
+  rule: { ndCredits?: number } | undefined,
+  system: 'quarter' | 'semester' | undefined,
+): number | undefined {
+  if (rule?.ndCredits !== undefined) return rule.ndCredits;
+  if (system === 'quarter') return printed * QUARTER_TO_SEMESTER;
+  return undefined;
 }

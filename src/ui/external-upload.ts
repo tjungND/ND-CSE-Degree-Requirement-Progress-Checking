@@ -368,7 +368,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         level: c.level ?? slotDefaultLevel(slot.level),
         levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
       }));
-      const termPrefill = prefillLevelsByTerm(mapped, slot.level);
+      const termPrefill = prefillLevelsByTerm(mapped, slot.level, parsed.bachelorsNamed === true);
       const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
       const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed);
       const bachelors = bachelorsForPreview(slot.level, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
@@ -540,7 +540,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   level: c.level ?? slotDefaultLevel(slot),
                   levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
                 }));
-                const termPrefill = prefillLevelsByTerm(mapped, slot);
+                const termPrefill = prefillLevelsByTerm(mapped, slot, parsed.bachelorsNamed === true);
                 const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
                 const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed);
                 const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
