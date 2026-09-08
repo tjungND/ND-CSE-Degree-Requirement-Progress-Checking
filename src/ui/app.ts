@@ -227,9 +227,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   const srStatus = el('div', { class: 'visually-hidden', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' });
   document.body.append(srStatus);
 
-  function rememberFocus(): { key?: string; path?: number[]; selection?: [number, number]; x: number; y: number } {
+  function rememberFocus(): { key?: string; path?: number[]; selection?: [number, number]; x: number; y: number; open: string[]; expanded: string[] } {
     const active = document.activeElement as HTMLElement | null;
-    const memo: ReturnType<typeof rememberFocus> = { x: window.scrollX, y: window.scrollY };
+    // What the student had opened, so a keystroke elsewhere does not close it
+    // (2026-09-08): render() rebuilds the whole root, and used to restore focus
+    // to a § button whose quote had silently collapsed underneath it.
+    const memo: ReturnType<typeof rememberFocus> = {
+      x: window.scrollX,
+      y: window.scrollY,
+      open: [...root.querySelectorAll<HTMLDetailsElement>('details[data-key]')].filter((d) => d.open).map((d) => d.dataset['key'] ?? ''),
+      expanded: [...root.querySelectorAll<HTMLElement>('[aria-expanded="true"][data-key]')].map((b) => b.dataset['key'] ?? ''),
+    };
     if (!active || active === document.body || !root.contains(active)) return memo;
     memo.key = active.dataset['key'];
     if (!memo.key) {
@@ -247,6 +255,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   }
 
   function restoreFocus(memo: ReturnType<typeof rememberFocus>): void {
+    // Re-open first, so focus lands inside something that is actually visible.
+    for (const k of memo.open) {
+      const d = root.querySelector<HTMLDetailsElement>(`details[data-key="${CSS.escape(k)}"]`);
+      if (d) d.open = true;
+    }
+    for (const k of memo.expanded) {
+      const b = root.querySelector<HTMLElement>(`[data-key="${CSS.escape(k)}"][aria-expanded]`);
+      if (!b) continue;
+      b.setAttribute('aria-expanded', 'true');
+      const controls = b.getAttribute('aria-controls');
+      if (controls) document.getElementById(controls)?.classList.remove('hidden');
+    }
     const key = focusAfterRender ?? memo.key;
     focusAfterRender = undefined;
     let target: HTMLElement | null = null;
@@ -273,6 +293,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function render(): void {
     const memo = rememberFocus();
     const report = audit(student, rules, todayIso);
+    // Nothing entered yet: the report describes the degree, not the student
+    // (2026-09-08). Every row would otherwise read "Not yet" as if the student
+    // had failed thirteen checks they have not been asked about.
+    const untouched =
+      student.courses.length === 0 && Object.keys(student.milestones).length === 0 && student.gpa === undefined;
     clear(root);
     root.append(
       ...[
@@ -289,6 +314,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           { class: 'print-header' },
           `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS determines eligibility, the Grad Admin processes it.`,
         ),
+        // The example is saved like any other record, so say whose it is until
+        // the student clears it (2026-09-08).
+        student.isExample
+          ? el(
+              'div',
+              { class: 'card example-banner', role: 'note' },
+              el('strong', {}, 'This is the example student, not your record. '),
+              'Nothing here came from you. Clear it before entering your own coursework.',
+              el('div', { class: 'save-buttons' }, el('button', { class: 'btn', 'data-key': 'example.clear', onclick: clearAll }, 'Clear the example')),
+            )
+          : null,
         noticeStrip(),
         // The universities the ExternalCourses tab knows, for both University
         // boxes (manual course form, previous-transcript preview) — one
@@ -298,7 +334,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Phones and small tablets (2026-09-05, review item 2): the result
         // first, then the inputs, then the full report — plus a sticky score
         // bar with jump links (both hidden on wide screens by CSS).
-        renderSummary(report),
+        renderSummary(report, untouched),
         el(
           'div',
           { class: 'layout' },
@@ -320,7 +356,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             report.warnings.length > 0
               ? el('div', { class: 'warnings', role: 'note' }, ...report.warnings.map((w) => el('div', {}, `⚠ ${w}`)))
               : null,
-            renderReport(report),
+            renderReport(report, untouched),
           ),
         ),
         el(
@@ -412,7 +448,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function noticeStrip(): HTMLElement {
     const details = el(
       'details',
-      { class: 'notice-details' },
+      { class: 'notice-details', 'data-key': 'notice.details' },
       el('summary', {}, 'Details'),
       el(
         'p',
@@ -1066,7 +1102,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const button = (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string): HTMLButtonElement =>
       blocked ? inactiveButton(attrs, PREVIEW_OPEN_NOTE, toast, label) : el('button', attrs, label);
     const importButton = button(
-      { class: 'btn tiny', 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() },
+      { class: 'btn', 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() },
       imported.length > 0 ? 'Import again' : 'Import from PDF (alpha)',
     );
     const parts: (Node | string)[] = [
@@ -1541,6 +1577,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const group = (groupSel as HTMLSelectElement).value;
       if (group && !groupField.classList.contains('hidden')) entry.assignedGroup = group as CourseEntry['assignedGroup'];
       focusAfterRender = 'course.new.id'; // ready for the next course
+      // The form empties itself and the report headline often does not change,
+      // so without this the click had no visible effect at all (2026-09-08).
+      toast(`${id} added to your coursework.`);
       update((s) => void s.courses.push(entry));
     };
 
@@ -1894,7 +1933,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // 2026-09-05, item 19); warnings alone are the DGS's business and are
     // printed by `npm run sync-sheet`.
     if (!issues.some((i) => i.severity === 'error')) return el('div', {});
-    const details = el('details', { class: 'card diagnostics' });
+    const details = el('details', { class: 'card diagnostics', 'data-key': 'diagnostics' });
     details.append(
       el(
         'summary',
@@ -1968,10 +2007,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // ---------- example / clear ----------
 
   function loadExample(): void {
-    if (student.courses.length > 0 && !window.confirm('Replace what you have entered with the example student?')) return;
+    // Loading the example also switches the report to Ph.D. §4, which is a
+    // surprise for an M.S. student who pressed it to see what the tool does.
+    if (
+      (student.courses.length > 0 || student.program !== 'phd') &&
+      !window.confirm('Load the example Ph.D. student? This replaces what is on the page and switches the report to Ph.D. §4.')
+    ) {
+      return;
+    }
     cancelUndo(); // a stale Undo would splice old rows into the replaced record
     student = {
       schemaVersion: 1,
+      isExample: true,
       program: 'phd',
       entryTerm: { season: 'fall', year: 2026 },
       // The example is a complete record: the bachelor's term is required

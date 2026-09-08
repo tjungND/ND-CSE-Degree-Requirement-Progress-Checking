@@ -143,6 +143,15 @@ Known-pending (the app's diagnostics panel is the live truth):
   560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
   again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
   the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+- **Usability pass, 2026-09-08.** `renderReport(report, untouched)` / `renderSummary(report, untouched)`
+  and `dial(report, untouched)` carry the empty-state; `untouched` is computed once in `render()`.
+  `rememberFocus` now also records open `details[data-key]` and `[aria-expanded="true"][data-key]`
+  and `restoreFocus` re-opens them BEFORE focusing — any new disclosure needs a `data-key` to
+  survive a re-render. `Student.isExample` marks the demo record (stripped on file import).
+  Watch the CSS ordering trap that caused half of this: an `@media (max-width: 600px)` block placed
+  ABOVE the base rules it overrides loses at equal specificity — the phone block near the end of
+  style.css is the live one. The e2e now pins the first-visit headline, the folded list, the phone
+  touch targets, the one-column pill, the one-track course form and the surviving § quote.
 - **Credits can be fractional** (DGS 2026-09-08). `credit_system` on ExternalCourses marks a
   university as quarter-based; `universityCreditSystem` / `ndEquivalentCredits` in data/external.ts
   resolve it (a fixed `nd_credits` still wins), and `classify` sets `effectiveCredits` plus

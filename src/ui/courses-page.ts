@@ -572,6 +572,24 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el('th', { scope: 'col' }, 'Notes'),
     );
     const body = el('tbody', {});
+    // A filter that matches nothing used to render nothing, and silence reads
+    // as "this course does not count" — the opposite of the project's rule
+    // never to guess (2026-09-08).
+    if (list.length === 0) {
+      body.append(
+        el(
+          'tr',
+          { class: 'empty-row' },
+          el(
+            'td',
+            { colspan: '10' },
+            el('strong', {}, 'No course here matches these filters. '),
+            'A course that is not listed on this page has not been decided by the DGS — do not read its absence as “does not count”. ',
+            'The degree self-check tool prepares the review request that asks for a decision.',
+          ),
+        ),
+      );
+    }
     for (const r of list) {
       const pillCounts = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
       const catClass = !r.categoryGroup ? 'muted' : r.categoryGroup === 'ineligible' ? 'muted' : '';
@@ -624,7 +642,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     // header and cell, so the card layout on phones hides the same fields.
     const hidden = new Set(HIDDEN_COLUMNS[filters.view]);
     if (hidden.size > 0) {
-      for (const tr of [head, ...body.querySelectorAll('tr:not(.note-row)')]) {
+      for (const tr of [head, ...body.querySelectorAll('tr:not(.note-row):not(.empty-row)')]) {
         Array.from(tr.children).forEach((cell, i) => {
           if (hidden.has(i + 1)) cell.classList.add('col-hidden');
         });

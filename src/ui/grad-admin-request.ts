@@ -180,7 +180,9 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     qualifierFormDue,
     met,
     lines,
-    count: transfers.length + milestones.length + (qualifierFormDue ? 1 : 0) + (msAlongTheWay ? 1 : 0) + met.length,
+    // The met requirements are ONE line on the card, so they are one item in
+    // the chip (2026-09-08): "8 items" above two lines was never explainable.
+    count: transfers.length + milestones.length + (qualifierFormDue ? 1 : 0) + (msAlongTheWay ? 1 : 0) + (met.length > 0 ? 1 : 0),
   };
 }
 

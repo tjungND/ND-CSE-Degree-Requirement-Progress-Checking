@@ -92,12 +92,12 @@ button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor:
 .layout > * { min-width: 0; }
 .table-scroll.plain { overflow-x: auto; background: none; border: 0; border-radius: 0; }
 table.courses .counts select { max-width: 100%; }
+/* Phones — the rest of this block moved to the phone block far below (2026-09-08):
+   it sat BEFORE `.card` and `.course-form .row1`, so at equal specificity the
+   later base rules won and every rule here but `#app` was dead. The visible
+   cost was a 114 px Title box in the add-a-course form. */
 @media (max-width: 600px) {
   #app { padding: 12px 12px 48px; }
-  .card { padding: 12px; }
-  .course-form .row1 { grid-template-columns: minmax(0, 1fr); }
-  .external-slot .slot-label { min-width: 0; }
-  .masthead h1 { font-size: 23px; }
 }
 /* The report flows with the page (DGS request 2026-09-03): no inner
  * scrollbar — the whole column is visible by scrolling the page itself. */
@@ -219,6 +219,11 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .req-title { font-weight: 600; }
 .req-chips { margin: 3px 0; display: flex; gap: 8px; flex-wrap: wrap; }
 .cite { color: var(--gold-text); font-weight: 700; font-size: 12px; cursor: pointer; border: 0; background: none; padding: 2px 4px; margin-left: -4px; min-height: 24px; min-width: 24px; display: inline-flex; align-items: center; border-radius: 4px; font-family: inherit; } /* ≥24 px target (WCAG 2.5.8) */
+/* The § chip is a real disclosure, and looked exactly like the decorative gold
+   labels beside it (2026-09-08): a dashed underline and a caret say so. */
+.cite { border-bottom: 1px dashed currentColor; }
+.cite::after { content: ' \2304'; }
+.cite[aria-expanded="true"]::after { content: ' \2303'; }
 .cite[aria-expanded="true"] { background: #fff7e0; }
 .rule-quote { margin-top: 6px; font-size: 12px; font-style: italic; color: #55606e; border-left: 3px solid var(--gold); padding-left: 8px; }
 /* Deadlines in body-size type with a lead word, coloured by state (item 15). */
@@ -472,6 +477,11 @@ tr.ocr-low td { background: #fff7e0; }
 
 @media (max-width: 600px) {
   /* Phones. */
+  .card { padding: 12px; }
+  /* One field per line in the add-a-course form: at 390 px the two-column grid
+     left the Title box 114 px wide (2026-09-08). */
+  .course-form .row1 { grid-template-columns: minmax(0, 1fr); }
+  .external-slot .slot-label { min-width: 0; }
   .masthead h1 { font-size: 22px; }
   .masthead .contact-card { font-size: 12px; padding: 8px 10px 9px; }
   .masthead .contact-card li { margin: 3px 0; }
@@ -481,6 +491,11 @@ tr.ocr-low td { background: #fff7e0; }
   .masthead-tools > div:not(.tabs) { display: flex; gap: 6px; width: 100%; }
   .masthead-tools > div:not(.tabs) .btn { flex: 1 1 0; margin: 0; }
   .btn { min-height: 40px; }
+  /* A mis-tap on "Prior graduate study" silently changes the §5.2 caps, so the
+     radios and the approval checkboxes get a real touch target (2026-09-08). */
+  .radios { gap: 8px; }
+  .radios .radio, .attest { display: flex; align-items: flex-start; gap: 8px; min-height: 44px; padding: 4px 0; }
+  .radios input[type="radio"], .attest input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; flex: none; }
   .btn.tiny { min-height: 32px; }
   .save-buttons .btn { flex: 1 1 auto; }
   /* iOS Safari zooms the page when a focused control's text is smaller than 16 px. */
@@ -490,7 +505,12 @@ tr.ocr-low td { background: #fff7e0; }
   .external-slot .slot-label { display: block; margin-bottom: 4px; }
   .external-slot .slot-sep { display: none; }
   .external-slot .hint-inline { display: block; margin-top: 4px; }
-  .req-head { flex-wrap: wrap; }
+  /* The status pill parks flush right on the title's first line, so a reader
+     scanning six screens of rows finds it in one place (2026-09-08). `.pill`
+     is already nowrap, so the title is what must be allowed to shrink. */
+  .req-head { flex-wrap: nowrap; }
+  .req-head .req-title { min-width: 0; }
+  .req-head .pill { flex: none; }
   .scorehead { gap: 10px; }
   .dial { width: 64px; height: 64px; }
 

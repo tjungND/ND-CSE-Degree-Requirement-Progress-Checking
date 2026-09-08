@@ -139,6 +139,11 @@ export interface Student {
     undergraduateGpa?: number;
   };
   fullTimeTermOverrides?: Term[]; // decision Q8 residency override
+  /** Set only by "Load example" (2026-09-08). The record is saved like any
+   * other, so without a marker a student returning the next day cannot tell
+   * the demo from their own work. Never written by a transcript import, and
+   * stripped from a file the student loads. */
+  isExample?: true;
   courses: CourseEntry[];
   milestones: Milestones;
   attestations: Attestations;

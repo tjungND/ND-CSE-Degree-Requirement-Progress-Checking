@@ -158,6 +158,29 @@ async function checkPhone(s, page, readyExpr, width = 390) {
   );
   await s.shot(`${width < 600 ? 'phone' : 'tablet'}-${page}`);
   if (m.scrollW > m.clientW) throw new Error(`${page} at ${width} px scrolls sideways (${m.scrollW} > ${m.clientW}); widest: ${m.wide.join(', ')}`);
+  if (width < 600 && page === 'app') {
+    // Usability pass 2026-09-08: one field per line in the add-a-course form,
+    // a real touch target on every control that changes the record, and the
+    // status pill in ONE column down the report instead of five.
+    const phone = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+      const round = (n) => Math.round(n);
+      const small = [...document.querySelectorAll('[data-key^="import."], [data-key^="ext.import."], .radios .radio, .attest')]
+        .map((e) => ({ k: e.dataset.key ?? e.className, h: round(e.getBoundingClientRect().height) }))
+        .filter((x) => x.h > 0 && x.h < 40);
+      const row1 = document.querySelector('.course-form .row1');
+      return {
+        row1Tracks: row1 ? getComputedStyle(row1).gridTemplateColumns.split(' ').length : 0,
+        cardPad: getComputedStyle(document.querySelector('.card')).paddingLeft,
+        small,
+        pillRights: [...new Set([...document.querySelectorAll('.req-head .pill')].map((p) => round(p.getBoundingClientRect().right)))],
+      };
+    })())`));
+    console.log('  phone ergonomics:', JSON.stringify({ ...phone, pillRights: phone.pillRights.length }));
+    if (phone.row1Tracks !== 1) throw new Error(`the add-a-course form must be one field per line on a phone (${phone.row1Tracks} tracks)`);
+    if (phone.cardPad !== '12px') throw new Error('the phone card padding rule is dead again: ' + phone.cardPad);
+    if (phone.small.length > 0) throw new Error('touch targets under 40 px: ' + JSON.stringify(phone.small));
+    if (phone.pillRights.length > 1) throw new Error('the status pill must park in one column: ' + JSON.stringify(phone.pillRights));
+  }
   console.log(`  ${width < 600 ? 'phone' : 'tablet'} width (${width} px), ${page} page: no horizontal scrolling`);
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
   await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');

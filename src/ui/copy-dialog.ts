@@ -86,12 +86,12 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   // say plainly that the text below is what was copied.
   const lead = copied
     ? el('p', { class: 'copy-lead copied' }, el('strong', {}, '✓ The following message has been copied to your clipboard.'), ' Read it through — it is exactly what you will paste into the email.')
-    : el('p', { class: 'copy-lead blocked' }, el('strong', {}, 'The following message was NOT copied — your browser blocked the clipboard.'), ' Select it and copy it yourself (Ctrl/Cmd+A, then Ctrl/Cmd+C).');
+    : el('p', { class: 'copy-lead blocked' }, el('strong', {}, 'The following message was NOT copied — your browser blocked the clipboard.'), ' Select it and copy it yourself: on a phone, touch and hold the message, then Select All and Copy.');
   // Numbered steps (DGS request 2026-09-06 evening): what to do now, in order.
   const recipientText = `${r.role}${r.name ? ` (${r.name})` : ''}${r.cc ? `, with the ${r.cc.role} in cc` : ''}`;
   const first = copied
     ? `Paste the copied message into a new email to ${recipientText}. It is on your clipboard as text and as formatted HTML — the tables keep their shape in Gmail and Outlook.`
-    : `Your browser did not allow the page to write to the clipboard: click in the message above, select all (Ctrl/Cmd+A), copy (Ctrl/Cmd+C) and paste it into a new email to ${recipientText}.`;
+    : `Your browser did not allow the page to write to the clipboard: select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — then paste it into a new email to ${recipientText}.`;
   const steps = el(
     'ol',
     { class: 'copy-steps' },

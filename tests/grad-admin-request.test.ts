@@ -45,7 +45,10 @@ describe('processingItems', () => {
     assert.equal(items.advisorName, 'Prof. Example');
     assert.equal(items.msAlongTheWay, false, 'no M.S. coursework at Notre Dame yet');
     assert.ok(items.met.length >= 2, 'the GPA and the OCE rows are met');
-    assert.equal(items.count, 3 + items.met.length, 'transfer + two milestones + every met requirement (2026-09-06, late evening)');
+    // The met requirements are one LINE on the card, so they are one item in
+    // the chip (2026-09-08) — the chip and the card must agree.
+    assert.equal(items.count, 4, 'transfer + two milestones + the met-requirements line');
+    assert.equal(items.count, items.lines.length, 'the chip counts exactly what the card lists');
     assert.match(items.lines.at(-1)!, /^\d+ requirements met so far — the request lists each with the courses, semesters or dates that meet it, for the record$/);
     assert.match(items.lines[0]!, /^CS 50300 \(Purdue University\) — transfer credit pre-approved by the DGS, to be processed \(§5\.2\)$/);
     const headings = items.met.map((t) => t.heading);
@@ -122,8 +125,9 @@ describe('gradAdminRequest', () => {
     const bare = student({ courses: [], milestones: {}, attestations: {} });
     const built = build(bare);
     assert.doesNotMatch(built.text, /TRANSFER CREDIT|MSCSE ALONG THE WAY|QUALIFIER COMPLETION FORM/);
-    assert.equal(built.items.count, built.items.met.length, 'nothing but the met rows');
-    assert.ok(built.items.count >= 1, 'the met GPA row alone activates the Grad Admin button');
+    assert.equal(built.items.count, 1, 'nothing but the met-requirements line');
+    assert.equal(built.items.count, built.items.lines.length, 'the chip counts exactly what the card lists');
+    assert.ok(built.items.met.length >= 1, 'the met GPA row alone activates the Grad Admin button');
     // (the GPA row is met, so a "MET —" table still follows the marker)
     assert.match(built.text, /\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nMET — CUMULATIVE GPA/);
   });

@@ -86,6 +86,11 @@ export function rulesDateLine(
   if (override) return `The course rules here are effective as of ${formatYmdLong(override) ?? override}${tail}`;
   const at = formatDateLong(rules.rulesDate?.at);
   if (at && rules.rulesDate?.kind === 'known') return `The course rules here were last updated on ${at}${tail}`;
+  // "updated AFTER September 8, and up-to-date as of September 8" contradicts
+  // itself, and says so for the six hours after every sheet edit (2026-09-08).
+  // Only this branch collapses: for the saved copy, "last updated on X and
+  // up-to-date as of X" is a true and useful thing to say.
+  if (at && at === asOf) return `The course rules here are up-to-date as of ${asOf}.`;
   if (at) return `The course rules here were updated after ${at}${tail}`;
   return `The course rules here are those in effect for ${currentTermLabel}${tail}`;
 }

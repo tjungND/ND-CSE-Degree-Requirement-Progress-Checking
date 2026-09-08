@@ -41,6 +41,15 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   line no longer says "pending DGS review"; its card is "In progress" until the Grad Admin has processed it.
   Undergraduate wording: "Courses taken as an undergraduate student do not transfer, whether or not the
   course itself is a graduate course (§5.2)", and every undergraduate course line now carries that reason.
+  Usability pass 2026-09-08 (six reviews, 51 findings): twelve fixed — see the DECISIONS row. Still
+  open for the DGS, in rough value order: collapse the "Who to contact" card into a `<details>` on
+  phones (it costs 1.6 screens before "Transcripts — start here" on both pages); move the
+  `max-width: 900px` breakpoint to 1077 px and `1120px` to 1157 px (at 901 px the inputs column
+  collapses to 443 px, and 1121 px is genuinely narrower than 1120 px); deep links from an attention
+  row to the field that fixes it; a sticky column header on the course-rules table (needs a nested
+  scroll region — the Safari class that regressed on 2026-09-06); `inputmode` on the numeric fields;
+  a spoken expansion beside "FA26"; hiding the 363 "—" placeholder lines on the phone course cards;
+  and folding the Grad Admin card when it has nothing to process.
   Institution names are spelled out everywhere a person reads them ("Georgia Inst. of Technology" →
   "Georgia Institute of Technology"), and the sheet matches either spelling.
   2026-09-08, second batch: "ID" courses (Georgia Tech industrial design) and "Georgia Inst. of

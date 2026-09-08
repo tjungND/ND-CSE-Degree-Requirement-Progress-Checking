@@ -109,6 +109,9 @@ export function validateStudent(data: unknown): Student {
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},
     courses: d.courses,
+    // A file the student loads is THEIR record, whatever it was saved from
+    // (2026-09-08) — the example marker never rides in on an import.
+    isExample: undefined,
   } as Student;
 }
 

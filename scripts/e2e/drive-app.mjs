@@ -4,6 +4,24 @@ export async function driveApp(s, baseUrl) {
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl);
   await s.waitFor(`document.querySelectorAll('.req').length > 5`);
+  // A first visit describes the DEGREE, not a student who has failed thirteen
+  // checks they have not been asked about (2026-09-08): the headline says so
+  // and the "needs your attention" list is folded away, not gone.
+  const firstVisit = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const fold = document.querySelector('details.attention-fold');
+    return {
+      headline: document.querySelector('.scorehead .headline, .summary-mobile .headline')?.textContent ?? document.querySelector('.audit .headline')?.textContent ?? '',
+      folded: !!fold, open: fold ? fold.open : null,
+      summary: fold?.querySelector('summary')?.textContent ?? '',
+      attentionInside: !!fold?.querySelector('.attention'),
+      dialStroke: document.querySelector('.dial circle:nth-of-type(2)')?.getAttribute('stroke') ?? '',
+    };
+  })())`));
+  console.log('  first visit:', JSON.stringify(firstVisit));
+  if (!/^Getting started/.test(firstVisit.headline)) throw new Error('an untouched record must not lead with "0 of N met": ' + firstVisit.headline);
+  if (!firstVisit.folded || firstVisit.open !== false || !firstVisit.attentionInside) throw new Error('the attention list must be folded on a first visit: ' + JSON.stringify(firstVisit));
+  if (!/checks$/.test(firstVisit.summary)) throw new Error('the fold must name what it holds: ' + firstVisit.summary);
+  if (firstVisit.dialStroke === 'var(--bad)') throw new Error('an empty record must not paint the dial red');
   await s.shot('app-initial-phd');
   await checkSheetLink(s, 'app');
 
@@ -11,6 +29,35 @@ export async function driveApp(s, baseUrl) {
     `[...document.querySelectorAll('button')].find(b => b.textContent === 'Load example').click()`,
   );
   await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
+  // The example is saved like any other record, so it says whose it is until
+  // it is cleared (2026-09-08).
+  if (!(await s.evalJs(`!!document.querySelector('.example-banner')`))) throw new Error('the example record must announce itself');
+  if ((await s.evalJs(`document.querySelector('.dial circle:nth-of-type(2)')?.getAttribute('stroke')`)) === 'var(--bad)') {
+    throw new Error('a student who is simply not finished must not see a red dial');
+  }
+  // A disclosure the student opened survives the next edit (2026-09-08):
+  // render() rebuilds the DOM, and used to restore focus to a § button whose
+  // quote had silently collapsed underneath it. The edit is a harmless
+  // full-time-term tick, put back straight afterwards.
+  await s.evalJs(`document.querySelector('.cite[aria-expanded]')?.click()`);
+  await s.waitFor(`document.querySelector('.cite[aria-expanded="true"]')`);
+  const citeKey = await s.evalJs(`document.querySelector('.cite[aria-expanded="true"]')?.dataset?.key ?? ''`);
+  await s.evalJs(`document.querySelector('.ft-terms input[type="checkbox"]')?.click()`);
+  await s.waitFor(`document.querySelectorAll('.req').length > 5`);
+  const reopened = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const open = document.querySelector('.cite[aria-expanded="true"]');
+    if (!open) return null;
+    const quote = document.getElementById(open.getAttribute('aria-controls') ?? '');
+    return { key: open.dataset.key ?? '', quoteVisible: !!quote && !quote.classList.contains('hidden') };
+  })())`));
+  console.log('  disclosure after an edit:', JSON.stringify(reopened), '(opened:', citeKey + ')');
+  if (!reopened || reopened.key !== citeKey || reopened.quoteVisible !== true) {
+    throw new Error('an opened § quote must survive the next edit: ' + JSON.stringify(reopened));
+  }
+  await s.evalJs(`document.querySelector('.ft-terms input[type="checkbox"]')?.click()`); // put it back
+  await s.waitFor(`document.querySelectorAll('.req').length > 5`);
+  await s.evalJs(`document.querySelector('.cite[aria-expanded="true"]')?.click()`); // and close the quote again
+  await s.waitFor(`!document.querySelector('.cite[aria-expanded="true"]')`);
   await s.shot('app-example-phd');
 
   // "Oral Candidacy Exam (OCE)" in full once on the page (plus the glossary,

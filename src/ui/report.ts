@@ -16,7 +16,7 @@ const STATUS_LABEL: Record<Status, string> = {
   not_applicable: 'Does not apply',
 };
 
-function dial(report: AuditReport): HTMLElement {
+function dial(report: AuditReport, untouched = false): HTMLElement {
   const { met, scored } = report.summary;
   const pct = scored === 0 ? 0 : met / scored;
   const C = 2 * Math.PI * 32;
@@ -37,9 +37,13 @@ function dial(report: AuditReport): HTMLElement {
     c.setAttribute('class', cls);
   }
   arc.setAttribute('stroke-dasharray', `${C * pct} ${C}`);
+  // Red means something is WRONG, not "not finished yet" (2026-09-08). A Ph.D.
+  // does not cross half the checks until about year four, so the old
+  // pct > 0.5 test painted an on-track second-year student the same red as an
+  // overdue deadline — the mistake already corrected in the headline below.
   arc.setAttribute(
     'stroke',
-    pct === 1 ? 'var(--ok)' : pct > 0.5 ? 'var(--warn)' : 'var(--bad)',
+    pct === 1 ? 'var(--ok)' : report.requirements.some((r) => r.deadline?.state === 'overdue') ? 'var(--bad)' : 'var(--navy)',
   );
   const text = document.createElementNS(svgNs, 'text');
   text.setAttribute('x', '40');
@@ -61,11 +65,15 @@ function dial(report: AuditReport): HTMLElement {
   const parts = [`${met} of ${scored} met`];
   if (inProgress > 0) parts.push(`${inProgress} in progress`);
   if (open > 0) parts.push(`${open} not yet${needsReview > 0 ? ` (${needsReview} need${needsReview === 1 ? 's' : ''} a DGS decision)` : ''}`);
+  // "0 of 17 met" is a true but useless thing to tell someone who has entered
+  // nothing (2026-09-08): every row is open because the page is empty, not
+  // because anything is wrong. The old `scored === 0` branch could never fire —
+  // an empty Ph.D. record still scores 17 rows.
   const headline =
-    scored > 0 && remaining === 0
-      ? 'All automatically checkable items are currently satisfied'
-      : scored === 0
-        ? 'Getting started'
+    untouched
+      ? 'Getting started — add your coursework to see where you stand'
+      : scored > 0 && remaining === 0
+        ? 'All automatically checkable items are currently satisfied'
         : parts.join(' · ');
   return el(
     'div',
@@ -226,11 +234,11 @@ function courseListLink(r: RequirementResult): HTMLElement | undefined {
  * time at the TOP of the page on phones and small tablets, where the full
  * report sits below every input card (usability review 2026-09-05, item 2).
  * The links jump between the two halves of the page. */
-export function renderSummary(report: AuditReport): HTMLElement {
+export function renderSummary(report: AuditReport, untouched = false): HTMLElement {
   return el(
     'section',
     { class: 'summary-mobile', 'aria-label': 'Your result so far' },
-    dial(report),
+    dial(report, untouched),
     meters(report),
     el('a', { class: 'jump-link', href: '#report' }, 'See the full report ↓'),
   );
@@ -242,13 +250,34 @@ export function scoreLine(report: AuditReport): string {
   return scored === 0 ? 'No requirements scored yet' : `${met} of ${scored} met`;
 }
 
-export function renderReport(report: AuditReport): HTMLElement {
+export function renderReport(report: AuditReport, untouched = false): HTMLElement {
   const panel = el('section', { class: 'audit', 'aria-label': 'Audit report' });
+  // On a first visit every row is "Not yet" simply because nothing has been
+  // entered — thirteen red rows about a student who has typed nothing read as
+  // failure (2026-09-08). The list is still there, folded, and named for what
+  // it is: the requirements, not a to-do list.
+  const attention = attentionList(report);
+  const attentionBlock =
+    attention === null
+      ? []
+      : untouched
+        ? [
+            el(
+              'details',
+              { class: 'attention-fold', 'data-key': 'report.attention' },
+              el('summary', {}, `What this degree requires — ${report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable').length} checks`),
+              attention,
+            ),
+          ]
+        : [attention];
   panel.append(
     el('a', { class: 'jump-link back-link', href: '#main' }, '↑ Back to your inputs'),
-    dial(report),
+    dial(report, untouched),
     meters(report),
-    ...(attentionList(report) ? [attentionList(report)!] : []),
+    ...attentionBlock,
+    // The glossary defines words used a screen later, not nine thousand pixels
+    // later (2026-09-08); it is a closed <details>, so it costs about 30 px.
+    glossary(report.program),
   );
 
   const groups = new Map<string, RequirementResult[]>();
@@ -266,7 +295,6 @@ export function renderReport(report: AuditReport): HTMLElement {
       panel.append(card);
     }
   }
-  panel.append(glossary(report.program));
   return panel;
 }
 
@@ -276,14 +304,24 @@ export function renderReport(report: AuditReport): HTMLElement {
  * item 27). The handbook order of the cards below is kept: students look
  * things up by section. */
 function attentionList(report: AuditReport): HTMLElement | null {
-  const ORDER: Status[] = ['unmet', 'needs_dgs_review', 'cannot_evaluate'];
+  // Most actionable first (2026-09-08): a missing input the student can supply
+  // today, then a course waiting on the DGS, then what is simply not done yet.
+  // The old order put the one row a new student could act on 13th of 13.
+  const ORDER: Status[] = ['cannot_evaluate', 'needs_dgs_review', 'unmet'];
   const rows = report.requirements
     .filter((r) => !r.informational && ORDER.includes(r.status))
     .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   if (rows.length === 0) return null;
+  // Cut at a sentence when there is one inside 110 characters; otherwise at a
+  // word, with an ellipsis (2026-09-08 — the qualifier row's only full stops
+  // are inside "§4.4.1", so it used to break mid-word with no sign of it).
   const firstSentence = (text: string): string => {
     const m = /^(.{1,110}?[.!?])(\s|$)/.exec(text);
-    return (m ? m[1]! : text.slice(0, 110)).trim();
+    if (m) return m[1]!.trim();
+    if (text.length <= 110) return text.trim();
+    const cut = text.slice(0, 110);
+    const space = cut.lastIndexOf(' ');
+    return `${(space > 40 ? cut.slice(0, space) : cut).trim()}…`;
   };
   return el(
     'section',
@@ -335,7 +373,7 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
   ];
   return el(
     'details',
-    { class: 'glossary' },
+    { class: 'glossary', 'data-key': 'report.glossary' },
     el('summary', {}, 'Terms used here'),
     el(
       'dl',
