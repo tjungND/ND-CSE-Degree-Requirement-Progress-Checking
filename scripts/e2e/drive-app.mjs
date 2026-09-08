@@ -49,7 +49,10 @@ export async function driveApp(s, baseUrl) {
   const richest = feeds.rows.reduce((best, r) => (r.now.length > best.now.length ? r : best), { now: [], id: '' });
   console.log('  counts toward:', richest.id, JSON.stringify(richest.now.map((n) => n.t)));
   if (richest.now.length < 3) throw new Error('a course must name every requirement it feeds: ' + JSON.stringify(feeds.rows));
-  if (!richest.now.some((n) => /^Core knowledge: /.test(n.t))) throw new Error('the §4.4.1 area a course covers must be named: ' + JSON.stringify(richest.now));
+  if (!richest.now.some((n) => /^Core: /.test(n.t))) throw new Error('the §4.4.1 area a course covers must be named: ' + JSON.stringify(richest.now));
+  // Short names (DGS 2026-09-08): the full requirement title is the tooltip.
+  const longest = Math.max(...richest.now.map((n) => n.t.length));
+  if (longest > 32) throw new Error('a requirement name in the list is too long for the cell: ' + JSON.stringify(richest.now.map((n) => n.t)));
   if (feeds.linksResolve !== feeds.linkCount) throw new Error(`${feeds.linkCount - feeds.linksResolve} requirement links do not resolve`);
   if (!feeds.rows.some((r) => r.later.length > 0)) throw new Error('an in-progress course must say what it WILL count toward');
 

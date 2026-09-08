@@ -38,9 +38,9 @@ describe('what a course counts toward', () => {
       .map((c) => c.title);
     assert.ok(titles.length >= 3, `expected several requirements, got ${JSON.stringify(titles)}`);
     assert.ok(titles.some((t) => /total credits/.test(t)), JSON.stringify(titles));
-    assert.ok(titles.some((t) => /regular courses/.test(t)), JSON.stringify(titles));
-    assert.ok(titles.some((t) => /taken at Notre Dame/.test(t)), JSON.stringify(titles));
-    assert.ok(titles.some((t) => /^Core knowledge: /.test(t)), 'the §4.4.1 area the course covers: ' + JSON.stringify(titles));
+    assert.ok(titles.some((t) => /regular-course credits/.test(t)), JSON.stringify(titles));
+    assert.ok(titles.some((t) => /credits at Notre Dame/.test(t)), JSON.stringify(titles));
+    assert.ok(titles.some((t) => /^Core: /.test(t)), 'the §4.4.1 area the course covers: ' + JSON.stringify(titles));
   });
 
   it('a course still to be passed says what it WILL count toward', () => {
@@ -48,14 +48,14 @@ describe('what a course counts toward', () => {
     assert.equal(counts.filter((c) => c.when === 'now').length, 0, 'nothing counts yet');
     const later = counts.filter((c) => c.when === 'later').map((c) => c.title);
     assert.ok(later.some((t) => /total credits/.test(t)), JSON.stringify(later));
-    assert.ok(later.some((t) => /regular courses/.test(t)), JSON.stringify(later));
+    assert.ok(later.some((t) => /regular-course credits/.test(t)), JSON.stringify(later));
   });
 
   it('a seminar counts toward the seminar requirement and the total, not the regular-course credits', () => {
     const titles = countsFor(student([nd('CSE 63801', { credits: 1, grade: 'S' })]), 'CSE 63801').map((c) => c.title);
-    assert.ok(titles.some((t) => /Research Seminar/.test(t)), JSON.stringify(titles));
+    assert.ok(titles.some((t) => /Research seminar/i.test(t)), JSON.stringify(titles));
     assert.ok(titles.some((t) => /total credits/.test(t)), JSON.stringify(titles));
-    assert.ok(!titles.some((t) => /regular courses at the 60000/.test(t)), 'a seminar is not a regular course: ' + JSON.stringify(titles));
+    assert.ok(!titles.some((t) => /regular-course credits/.test(t)), 'a seminar is not a regular course: ' + JSON.stringify(titles));
   });
 
   it('a course that earns nothing lists nothing', () => {
@@ -82,5 +82,42 @@ describe('what a course counts toward', () => {
       for (const c of line.counts) assert.ok(entered.has(line.courseId), c.title);
       assert.ok(!line.counts.some((c) => /residence/i.test(c.title)), 'residency counts semesters, not courses');
     }
+  });
+});
+
+// The sheet may name SEVERAL specialization groups for one course (DGS
+// 2026-09-08): a course can then satisfy any one of them, not just one group
+// or all five, and the student picks which.
+describe('a course listed under several specialization groups', () => {
+  // The fixture sheet lists CSE 60427 under two groups (`hcc;dsai`).
+  const rule = (id: string) => rules.courses.get(id)?.[0];
+
+  it('the sheet cell is read as a list', () => {
+    assert.deepEqual(rule('CSE 60427')?.categoryGroups, ['hcc', 'dsai']);
+    assert.deepEqual(rule('CSE 60641')?.categoryGroups, ['sys'], 'one group still reads as a list of one');
+    assert.deepEqual(rule('CSE 60876')?.categoryGroups, ['any'], '`any` still means every group');
+    assert.equal(rule('CSE 40113')?.categoryIneligible, true);
+  });
+
+  it('offers only the groups the course is listed under, minus those another course covers', () => {
+    const s = student([
+      nd('CSE 60427', { title: 'Human-Centered Computing' }),
+      nd('CSE 60641', { title: 'Graduate Operating Systems' }),
+    ]);
+    const row = audit(s, rules, '2027-03-01').requirements.find((r) => r.id === 'phd.qualifier.categories');
+    const offered = row?.groupChoices?.['CSE 60427'] ?? [];
+    assert.ok(offered.includes('hcc') || offered.includes('dsai'), 'its own groups: ' + JSON.stringify(offered));
+    assert.ok(!offered.includes('arch') && !offered.includes('alg'), 'never a group it is not listed under: ' + JSON.stringify(offered));
+  });
+
+  it('a two-group course can fill either one, so it covers whichever is still open', () => {
+    const s = student([
+      nd('CSE 60427', { title: 'Human-Centered Computing' }),
+      nd('CSE 60641', { title: 'Graduate Operating Systems' }),
+      nd('CSE 60111', { title: 'Complexity and Algorithms' }),
+    ]);
+    const row = audit(s, rules, '2027-03-01').requirements.find((r) => r.id === 'phd.qualifier.categories');
+    assert.equal(row?.status, 'met', String(row?.detail));
+    assert.ok((row?.satisfiedBy ?? []).includes('CSE 60427'), JSON.stringify(row?.satisfiedBy));
   });
 });

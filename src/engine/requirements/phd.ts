@@ -46,6 +46,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       id: 'phd.credits.total',
       group: COURSEWORK,
       title: '60 total credits of courses and research',
+      shortTitle: '60 total credits',
       sums: ctx.alloc.total,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
       pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
@@ -65,6 +66,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       id: 'phd.credits.regular',
       group: COURSEWORK,
       title: '24 credit hours of regular courses at the 60000 level or higher',
+      shortTitle: '24 regular-course credits',
       sums: ctx.alloc.regular,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
       pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular),
@@ -123,6 +125,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       id: 'phd.credits.nd',
       group: COURSEWORK,
       title: 'At least 9 credits taken at Notre Dame',
+      shortTitle: '9 credits at Notre Dame',
       sums: ctx.alloc.ndRegular,
       pendingBy: pendingCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       satisfiedBy: countedCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
@@ -185,6 +188,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
     id: 'phd.seminar',
     group: COURSEWORK,
     title: '2 credits of Research Seminar in year one',
+    shortTitle: 'Research seminar (2 cr)',
     status,
     ...joinedDetail(parts),
     ...(satisfied.length > 0 ? { satisfiedBy: satisfied } : {}),
@@ -258,6 +262,7 @@ function transferRow(ctx: Ctx): RequirementResult {
     ...(transferSatisfied.length > 0 ? { satisfiedBy: transferSatisfied } : {}),
     group: COURSEWORK,
     title: 'Transfer credit from a prior M.S.',
+    shortTitle: 'Transfer credit (§5.2)',
     status,
     ...joinedDetail(parts),
     citation: { section: '§4.2, §5.2', quote },
@@ -450,6 +455,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,
       title: `Core knowledge: ${area.name}`,
+      shortTitle: `Core: ${area.name}`,
       status,
       detail,
       citation: { section: '§4.4.1', quote },
@@ -495,17 +501,20 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   const belowFloor: string[] = [];
   for (const c of ctx.classified) {
     if (c.superseded || c.entry.origin !== 'nd') continue;
-    const group = c.rule?.categoryGroup;
-    if (!group) continue;
-    // 'ineligible' (all 40000-level courses, per the DGS's sheet) can never
-    // satisfy §4.4.2 — and any group code not in the Categories list is not a
-    // candidate either (defensive: a stale sheet value must not inflate counts).
-    if (group !== 'any' && !allGroups.includes(group)) continue;
+    // The sheet may name one group, several, or `any` (DGS 2026-09-08).
+    // 'ineligible' and a blank cell are both "not a candidate"; a code the
+    // Categories tab does not list is dropped defensively, so a stale sheet
+    // value can never inflate the count.
+    const listed = c.rule?.categoryGroups;
+    if (!listed || listed.length === 0) continue;
+    const groups = listed.includes('any') ? allGroups : listed.filter((g) => allGroups.includes(g));
+    if (groups.length === 0) continue;
     const cand: GroupCandidate = {
       courseId: c.entry.courseId,
       title: c.rule?.title ?? c.entry.title ?? '',
-      groups: group === 'any' ? allGroups : [group],
-      pinned: group === 'any' ? c.entry.assignedGroup : undefined,
+      groups,
+      // The student's own choice applies whenever the course leaves one open.
+      pinned: groups.length > 1 ? c.entry.assignedGroup : undefined,
       sortKey: `${termIndex(c.entry.term)}|${c.entry.courseId}`,
     };
     if (isInProgress(c.entry.grade)) inProgress.push(cand);
@@ -557,7 +566,9 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     const coveredByOthers = new Set(
       [...combined.assignment.entries()].filter(([courseId]) => courseId !== cand.courseId).map(([, g]) => g),
     );
-    groupChoices[cand.courseId] = allGroups.filter((g) => !coveredByOthers.has(g));
+    // Only the groups this course is actually listed under (2026-09-08): a
+    // course named for two groups must never be offered the other three.
+    groupChoices[cand.courseId] = cand.groups.filter((g) => !coveredByOthers.has(g));
   }
 
   const stillPending = new Set(ctx.classified.filter((c) => c.tier !== 'definite' && !c.superseded).map((c) => c.entry.courseId));
@@ -568,6 +579,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     id: 'phd.qualifier.categories',
     group: QUALIFIER,
     title: 'Three specialization courses from three distinct groups, each B or higher',
+    shortTitle: 'Specialization (3 groups)',
     status,
     ...joinedDetail(parts),
     // The assigned courses, whether or not the row is complete (2026-09-08):

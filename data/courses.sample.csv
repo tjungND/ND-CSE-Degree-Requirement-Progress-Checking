@@ -1,7 +1,7 @@
 course_id,title,level,credit_min,credit_max,credits_default,course_type,counts_toward_mscse,counts_toward_phd,core_area,category_group,typically_offered,active,last_offered,effective_term,dgs_reviewed,notes
 CSE 60111,Complexity and Algorithms,6,3,3,3,regular,yes,yes,algorithms,alg,spring,yes,Spring 2026,Fall 2026,yes,§4.4.2 typical spring course
 CSE 60321,Advanced Computer Architecture,6,3,3,3,regular,yes,yes,architecture,arch,spring,yes,Spring 2026,Fall 2026,yes,§4.4.2 typical spring course
-CSE 60427,Human-Centered Computing Research,6,3,3,3,regular,yes,yes,,hcc,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
+CSE 60427,Human-Centered Computing Research,6,3,3,3,regular,yes,yes,,hcc;dsai,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
 CSE 60535,Graduate Computer Vision,6,3,3,3,regular,yes,yes,,dsai,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
 CSE 60641,Graduate Operating Systems,6,3,3,3,regular,yes,yes,os,sys,fall,yes,Fall 2026,Fall 2026,yes,§4.4.2 typical fall course
 CSE 60762,Custom System on Chip Design,6,3,3,3,regular,yes,yes,,arch,spring,yes,Spring 2026,Fall 2026,yes,§4.4.2 typical spring course

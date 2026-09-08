@@ -45,6 +45,8 @@ export function thresholdRow(args: {
   id: string;
   group: string;
   title: string;
+  /** Short name for lists that reference this row (2026-09-08). */
+  shortTitle?: string;
   sums: TierSums;
   required: number | undefined;
   requiredKey: string;
@@ -79,6 +81,7 @@ export function thresholdRow(args: {
     id: args.id,
     group: args.group,
     title: args.title,
+    ...(args.shortTitle ? { shortTitle: args.shortTitle } : {}),
     status,
     ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },

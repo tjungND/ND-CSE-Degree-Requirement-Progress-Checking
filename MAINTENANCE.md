@@ -58,6 +58,11 @@ day too (its "How the app reads it" cell now names `data/sheet-urls.json` and in
 ExternalCourses in the publish list) — nothing sheet-side is open. The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
+The Courses tab's `category_group` cell may name SEVERAL groups since 2026-09-08 — `hcc;dsai` means
+the course may fill either one and the student picks which. `any` still means every group and
+`ineligible` still means none. A typo in one code is reported and dropped; the other codes on the
+row keep working.
+
 Since 2026-09-08 the ExternalCourses tab has a `credit_system` column (`quarter` / `semester` /
 blank). Set it on any one row of a university and every course from that university converts from
 the credits printed on the student's transcript (quarter × 2/3, kept exactly) — the way to handle a

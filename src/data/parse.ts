@@ -64,6 +64,28 @@ function isBlankRow(cells: Record<string, string>): boolean {
 
 // ---------- Courses tab ----------
 
+/** The §4.4.2 groups a `category_group` cell names (DGS 2026-09-08). One code,
+ * several separated by `;` `,` `|` `/` or spaces, `any` for every group, or
+ * `ineligible`. Codes are validated later against the Categories tab, so this
+ * only splits and tidies; the raw cell is kept for the diagnostics. */
+export function categoryGroupsOf(cell: string | undefined): {
+  categoryGroups?: string[];
+  categoryIneligible?: true;
+  categoryGroupRaw?: string;
+} {
+  const raw = (cell ?? '').trim();
+  if (raw === '') return {};
+  const codes = raw
+    .split(/[;,|/\s]+/)
+    .map((c) => c.trim().toLowerCase())
+    .filter((c) => c !== '');
+  if (codes.includes('ineligible')) return { categoryIneligible: true, categoryGroupRaw: raw };
+  // `any` anywhere in the cell means every group — a course listed as "any"
+  // plus a code is still every group, and saying so is simpler than guessing.
+  if (codes.includes('any')) return { categoryGroups: ['any'], categoryGroupRaw: raw };
+  return { categoryGroups: [...new Set(codes)], categoryGroupRaw: raw };
+}
+
 export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[] {
   const tab = readTab(text, 'Courses', issues);
   const out: RuleCourse[] = [];
@@ -184,7 +206,7 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       countsTowardMscse,
       countsTowardPhd,
       coreArea: cells['core_area'] || undefined,
-      categoryGroup: cells['category_group'] || undefined,
+      ...categoryGroupsOf(cells['category_group']),
       typicallyOffered: cells['typically_offered'] || undefined,
       active: activeRaw !== 'no',
       effectiveTerm,

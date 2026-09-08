@@ -160,11 +160,22 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const countsLabel = (c: Counts | undefined): string => (c ? COUNTS_LABEL[c] : 'Not yet decided');
   const countsClass = (c: Counts | undefined): string => (c ? COUNTS_CLASS[c] : 'undecided');
   const coreLabel = (r: RuleCourse): string => (r.coreArea ? (coreName.get(r.coreArea) ?? r.coreArea) : '—');
+  const allGroupCodes = rules.categoryGroups.map((g) => g.code);
+  /** The groups a course may satisfy, in the Categories tab's order (DGS
+   * 2026-09-08 — a cell may name one, several, or `any`). */
+  const groupsOf = (r: RuleCourse): string[] => {
+    const listed = r.categoryGroups;
+    if (!listed || listed.length === 0) return [];
+    return listed.includes('any') ? allGroupCodes : allGroupCodes.filter((g) => listed.includes(g));
+  };
   const categoryLabel = (r: RuleCourse): string => {
-    if (!r.categoryGroup) return '—';
-    if (r.categoryGroup === 'any') return 'Any category (student picks)';
-    if (r.categoryGroup === 'ineligible') return 'Not eligible';
-    return groupName.get(r.categoryGroup) ?? r.categoryGroup;
+    if (r.categoryIneligible) return 'Not eligible';
+    const groups = groupsOf(r);
+    if (groups.length === 0) return '—';
+    if (groups.length === allGroupCodes.length) return 'Any category (student picks)';
+    const names = groups.map((g) => groupName.get(g) ?? g);
+    // Several groups: the student picks one of THESE (2026-09-08).
+    return names.length === 1 ? names[0]! : `${names.join(' or ')} (student picks)`;
   };
   const offeredLabel = (r: RuleCourse): string =>
     r.typicallyOffered ? (OFFERED_LABEL[r.typicallyOffered] ?? r.typicallyOffered) : '—';
@@ -200,9 +211,12 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       if (filters.program !== 'all' && !counts(r, filters.program)) return false;
       if (filters.core && r.coreArea !== filters.core) return false;
       if (filters.category) {
+        const groups = groupsOf(r);
+        // "Any category" means a course the student may place anywhere; a
+        // course listed under two groups matches either of them (2026-09-08).
         if (filters.category === 'any-listed') {
-          if (r.categoryGroup !== 'any') return false;
-        } else if (r.categoryGroup !== filters.category && r.categoryGroup !== 'any') return false;
+          if (groups.length !== allGroupCodes.length) return false;
+        } else if (!groups.includes(filters.category)) return false;
       }
       if (filters.type && r.courseType !== filters.type) return false;
       if (q && !squash(r.courseId).includes(qs) && !r.title.toLowerCase().includes(q)) return false;
@@ -221,7 +235,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         case 'core':
           return r.coreArea ? coreLabel(r) : '~';
         case 'category':
-          return r.categoryGroup && r.categoryGroup !== 'ineligible' ? categoryLabel(r) : '~';
+          return groupsOf(r).length > 0 ? categoryLabel(r) : '~';
         case 'offered':
           return r.typicallyOffered ? offeredLabel(r) : '~';
         case 'reviewed':
@@ -309,14 +323,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el('div', { class: 'ov-card' }, el('h3', {}, c.name), listFor((r) => r.coreArea === c.code)),
     );
     const groupCards = rules.categoryGroups.map((g) =>
-      el('div', { class: 'ov-card' }, el('h3', {}, g.name), listFor((r) => r.categoryGroup === g.code)),
+      // A course listed under several groups belongs in each of their cards.
+      el('div', { class: 'ov-card' }, el('h3', {}, g.name), listFor((r) => groupsOf(r).includes(g.code) && groupsOf(r).length < allGroupCodes.length)),
     );
     const anyCard = el(
       'div',
       { class: 'ov-card' },
       el('h3', {}, 'Listed under every category'),
       el('p', { class: 'muted small' }, 'The student picks which one category the course fills.'),
-      listFor((r) => r.categoryGroup === 'any'),
+      listFor((r) => groupsOf(r).length === allGroupCodes.length),
     );
     return el(
       'section',
@@ -592,7 +607,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     }
     for (const r of list) {
       const pillCounts = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
-      const catClass = !r.categoryGroup ? 'muted' : r.categoryGroup === 'ineligible' ? 'muted' : '';
+      const catClass = groupsOf(r).length === 0 ? 'muted' : '';
       // The DGS's notes were hover-only (a title tooltip — unreachable by
       // keyboard and touch; usability review 2026-09-05, item 24): now a
       // disclosure button opens a note row under the course.

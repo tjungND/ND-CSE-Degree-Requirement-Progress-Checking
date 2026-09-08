@@ -141,11 +141,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // not courses — the residency row lists SEMESTERS — are skipped by checking
   // against the record.
   const entered = new Set(student.courses.map((c) => c.courseId));
-  const feeds = new Map<string, { id: string; title: string; when: 'now' | 'later' }[]>();
+  const feeds = new Map<string, { id: string; title: string; long: string; when: 'now' | 'later' }[]>();
   const note = (courseId: string, row: RequirementResult, when: 'now' | 'later'): void => {
     if (!entered.has(courseId)) return;
     const list = feeds.get(courseId) ?? [];
-    if (!list.some((x) => x.id === row.id)) list.push({ id: row.id, title: row.title, when });
+    // The short name where there is one: a course's cell lists several of
+    // these side by side (2026-09-08). The full title stays for the tooltip.
+    if (!list.some((x) => x.id === row.id)) list.push({ id: row.id, title: row.shortTitle ?? row.title, long: row.title, when });
     feeds.set(courseId, list);
   };
   for (const r of rows) {

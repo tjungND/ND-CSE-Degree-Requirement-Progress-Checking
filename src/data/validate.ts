@@ -39,15 +39,22 @@ export function validateCourses(
       });
       c = { ...c, coreArea: undefined };
     }
-    if (c.categoryGroup && !groupCodes.has(c.categoryGroup)) {
-      issues.push({
-        severity: 'error',
-        tab: 'Courses',
-        row: c.sheetRow,
-        column: 'category_group',
-        message: `Courses row ${c.sheetRow} (${c.courseId}), column category_group: '${c.categoryGroup}' is not in the Categories tab's group list (${[...groupCodes].join(', ')}) — ignored.`,
-      });
-      c = { ...c, categoryGroup: undefined };
+    // A cell may now name several groups (DGS 2026-09-08): each code is
+    // checked on its own, the good ones are kept, and only the bad ones are
+    // reported — a typo in one code must not throw away the others.
+    if (c.categoryGroups && c.categoryGroups.length > 0) {
+      const bad = c.categoryGroups.filter((g) => !groupCodes.has(g));
+      if (bad.length > 0) {
+        issues.push({
+          severity: 'error',
+          tab: 'Courses',
+          row: c.sheetRow,
+          column: 'category_group',
+          message: `Courses row ${c.sheetRow} (${c.courseId}), column category_group: ${bad.map((g) => `'${g}'`).join(', ')} ${bad.length === 1 ? 'is' : 'are'} not in the Categories tab's group list (${[...groupCodes].join(', ')}) — ignored. A cell may name one group, several separated by ';', or 'any'.`,
+        });
+        const kept = c.categoryGroups.filter((g) => groupCodes.has(g));
+        c = { ...c, ...(kept.length > 0 ? { categoryGroups: kept } : { categoryGroups: undefined }) };
+      }
     }
 
     // Semantic sniff: a research/seminar-titled course typed 'regular' would

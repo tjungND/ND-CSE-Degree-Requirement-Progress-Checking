@@ -46,6 +46,16 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
 };
 const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
+/** The §4.4.2 groups a course may satisfy, in the Categories tab's own order
+ * (DGS 2026-09-08 — a sheet cell may name one group, several, or `any`).
+ * Empty when the course is ineligible or the DGS has not said. */
+function groupsOf(rule: { categoryGroups?: string[] }, rules: Rules): string[] {
+  const listed = rule.categoryGroups;
+  if (!listed || listed.length === 0) return [];
+  const all = rules.categoryGroups.map((g) => g.code);
+  return listed.includes('any') ? all : all.filter((g) => listed.includes(g));
+}
+
 
 export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): void {
   // Sheet-driven contacts (2026-09-04): must run before ANYTHING renders —
@@ -1544,10 +1554,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (rule) {
         titleInput.value = rule.title;
         creditsInput.value = String(rule.creditsDefault ?? rule.creditMin ?? 3);
-        const isAny = rule.categoryGroup === 'any';
-        groupField.classList.toggle('hidden', !(isAny && student.program === 'phd'));
-        if (isAny && student.program === 'phd') {
-          toast(`${id} is listed under every specialization group (§4.4.2) — pick whichever group you still need.`);
+        // A course may be listed under one group, several, or every group
+        // (DGS 2026-09-08): the picker appears whenever there is a choice.
+        const choices = groupsOf(rule, rules);
+        const choosable = choices.length > 1 && student.program === 'phd';
+        groupField.classList.toggle('hidden', !choosable);
+        if (choosable) {
+          toast(
+            choices.length === rules.categoryGroups.length
+              ? `${id} is listed under every specialization group (§4.4.2) — pick whichever group you still need.`
+              : `${id} is listed under ${choices.length} specialization groups (§4.4.2) — pick whichever you still need.`,
+          );
         }
       } else {
         groupField.classList.add('hidden');
@@ -1662,11 +1679,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         const list = el('div', { class: `counts-toward ${when}` }, el('span', { class: 'counts-toward-label' }, when === 'now' ? 'Counts toward: ' : 'Will count toward: '));
         rows.forEach((r, i) => {
           if (i > 0) list.append(el('span', { class: 'sep', 'aria-hidden': 'true' }, ' · '));
-          list.append(el('a', { class: 'req-link', href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` }, r.title));
+          // The short name in the list, the full requirement title on hover.
+          list.append(el('a', { class: 'req-link', href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}`, title: r.long }, r.title));
         });
         countsCell.append(list);
       }
-      if (rule?.categoryGroup === 'any' && student.program === 'phd') {
+      const rowChoices = rule ? groupsOf(rule, rules) : [];
+      if (rowChoices.length > 1 && student.program === 'phd') {
         const sel = el('select', {
           'aria-label': `Specialization group for ${c.courseId}`,
           'data-key': `course.${index}.group`,
@@ -1679,14 +1698,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Which group is worth picking depends on what the student's OTHER
         // courses already cover (DGS request 2026-09-08): the engine works
         // that out, and the options say so rather than leaving a bare list.
-        const helpful = new Set(groupChoices[c.courseId] ?? []);
+        // Only the groups this course is listed under (2026-09-08) — a course
+        // named for two groups must not offer the other three.
+        const helpful = new Set((groupChoices[c.courseId] ?? []).filter((g) => rowChoices.includes(g)));
         const groupName = (g: string) => rules.categoryGroups.find((x) => x.code === g)?.name ?? g;
         sel.append(option('', 'Assign group…', !c.assignedGroup));
         // Two headings rather than a note on each option: the closed dropdown
         // then shows the plain group name, and opening it shows which choices
         // would actually help (2026-09-08).
-        const needed = GROUP_CODES.filter((g) => helpful.has(g));
-        const covered = GROUP_CODES.filter((g) => !helpful.has(g));
+        const needed = rowChoices.filter((g) => helpful.has(g));
+        const covered = rowChoices.filter((g) => !helpful.has(g));
         if (needed.length > 0 && covered.length > 0) {
           const box = (label: string, codes: readonly string[]): HTMLElement => {
             const grp = el('optgroup', { label });
@@ -1695,7 +1716,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           };
           sel.append(box('Groups you still need', needed), box('Already covered by another course', covered));
         } else {
-          for (const g of GROUP_CODES) sel.append(option(g, groupName(g), c.assignedGroup === g));
+          for (const g of rowChoices) sel.append(option(g, groupName(g), c.assignedGroup === g));
         }
         countsCell.append(el('div', {}, sel));
         const names = [...helpful].map((g) => rules.categoryGroups.find((x) => x.code === g)?.name ?? g);

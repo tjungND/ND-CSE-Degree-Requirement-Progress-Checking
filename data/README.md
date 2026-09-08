@@ -41,7 +41,7 @@ policy columns are the DGS's.
 | `counts_toward_mscse` | `yes` \| `no` \| `dgs_approval` | `dgs_approval` → the app counts it provisionally and tells the student to get sign-off. |
 | `counts_toward_phd` | `yes` \| `no` \| `dgs_approval` | same |
 | `core_area` | `os` \| `algorithms` \| `architecture` \| blank | Which §4.4.1 core-knowledge area the course satisfies. |
-| `category_group` | `alg` \| `hcc` \| `arch` \| `dsai` \| `sys` \| `any` \| `ineligible` \| blank | Which §4.4.2 specialization group it belongs to. `any` = listed under all groups (the student picks one). `ineligible` = can never satisfy the category requirement — the DGS marks all 40000-level courses this way. Blank = not a category course. |
+| `category_group` | one or more of `alg` \| `hcc` \| `arch` \| `dsai` \| `sys`, or `any` \| `ineligible` \| blank | Which §4.4.2 specialization group(s) the course belongs to. **Several are allowed** (2026-09-08): separate them with a semicolon — `hcc;dsai` means the course may fill EITHER group and the student picks which, so it can be worth a choice of two or three groups and not only one or all five. `any` = every group; `ineligible` = it can never satisfy §4.4.2; blank = not decided. Commas, slashes or spaces work as separators too, and the codes are case-insensitive. |
 | `typically_offered` | `fall` \| `spring` \| `both` \| `varies` \| blank | Informational (planning hints). |
 | `active` | `yes` \| `no` | `yes` → shown in the student's course picker. `no` → hidden from the picker but still recognised when typed (old courses). |
 | `last_offered` | text | Last term listed in Banner (informational). |

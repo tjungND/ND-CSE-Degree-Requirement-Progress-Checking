@@ -200,6 +200,11 @@ export interface RequirementResult {
    * prose (DGS request 2026-09-06 evening). Only definite credits count
    * here (passed, no approval pending). Absent when nothing does yet. */
   satisfiedBy?: string[];
+  /** A short name for lists, where the full title is too long to read
+   * sideways (DGS 2026-09-08 — "24 credit hours of regular courses at the
+   * 60000 level or higher" swamped a course's "Counts toward" cell). The card
+   * itself always shows the full `title`; this is only for references to it. */
+  shortTitle?: string;
   /** §4.4.2 only (DGS request 2026-09-08). A course the sheet marks `any` can
    * satisfy ANY specialization group, so the student chooses — and the useful
    * choice depends on what their other courses already cover. Course id → the
@@ -224,7 +229,7 @@ export interface CourseLine {
    * Notre Dame, a §4.4.1 core area and a §4.4.2 specialization group — and the
    * sentence above names only the credit pool. `when` separates what it counts
    * toward now from what it will count toward once passed or approved. */
-  counts: { id: string; title: string; when: 'now' | 'later' }[];
+  counts: { id: string; title: string; long: string; when: 'now' | 'later' }[];
   /** How the page paints the line (2026-09-06): green (earns credit or a core
    * area now), amber (in progress, or counted only until an approval), red
    * (earns nothing). */

@@ -57,7 +57,18 @@ export interface RuleCourse {
   countsTowardMscse?: Counts; // blank → needs DGS review
   countsTowardPhd?: Counts;
   coreArea?: string; // validated against the Categories core list (§4.4.1)
-  categoryGroup?: string; // validated against the Categories groups + RESERVED_GROUP_CODES (§4.4.2)
+  /** §4.4.2: every specialization group this course may satisfy (DGS
+   * 2026-09-08 — the sheet's `category_group` cell may now name SEVERAL, so a
+   * course can be worth a choice of two or three groups and not only one or
+   * all five). `any` in the sheet expands to every group at parse time.
+   * Undefined = the DGS has not said; empty = explicitly not eligible, which
+   * `categoryIneligible` records so the two are never confused. */
+  categoryGroups?: string[];
+  /** The sheet said `ineligible`: this course can never satisfy §4.4.2. */
+  categoryIneligible?: true;
+  /** The cell exactly as the sheet holds it, for diagnostics and the course
+   * rules page's own label. */
+  categoryGroupRaw?: string;
   typicallyOffered?: string;
   active: boolean; // course-picker visibility only
   effectiveTerm?: Term;

@@ -41,6 +41,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   line no longer says "pending DGS review"; its card is "In progress" until the Grad Admin has processed it.
   Undergraduate wording: "Courses taken as an undergraduate student do not transfer, whether or not the
   course itself is a graduate course (§5.2)", and every undergraduate course line now carries that reason.
+  `category_group` may name several §4.4.2 groups (`hcc;dsai`), so a course can be worth a choice of
+  two or three and not only one or all five; both pages follow, and referenced requirement names are
+  short ("24 regular-course credits") with the full title on hover.
   Each course now lists every requirement it counts toward (and what it will count toward once
   passed), and a course that can fill any §4.4.2 group says which group is still needed.
   Usability pass 2026-09-08 (six reviews, 51 findings): twelve fixed — see the DECISIONS row. Still

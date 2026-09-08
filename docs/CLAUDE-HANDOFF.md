@@ -143,6 +143,14 @@ Known-pending (the app's diagnostics panel is the live truth):
   560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
   again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
   the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+- **§4.4.2 groups are a LIST** (2026-09-08). `RuleCourse.categoryGroups` holds every group a course
+  may fill (`any` kept verbatim and expanded where it is read); `categoryIneligible` distinguishes
+  "not eligible" from "not decided"; `categoryGroupRaw` keeps the cell for diagnostics.
+  `categoryGroupsOf` in data/parse.ts does the splitting. Both pages resolve the list through their
+  own small `groupsOf` helper, which orders it by the Categories tab — use it rather than reading
+  `categoryGroups` directly, or a course listed under two groups will be offered all five.
+- **Short names for referenced rows** (2026-09-08): `RequirementResult.shortTitle`, used by the
+  per-course "Counts toward" list and nothing else. A new row that can appear there wants one.
 - **What a course counts toward** (2026-09-08). `CourseLine.counts` is built in `audit()` from the
   rows' `satisfiedBy` (met) and `pendingBy` (in progress / provisional), read as an inverse index —
   a new requirement row needs only to fill those two fields to appear on its courses' lines, and
