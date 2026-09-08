@@ -9,6 +9,7 @@
 // rules say" block was removed as redundant, 2026-09-06); anything unruled is
 // picked up by app.ts's single "Ask the DGS to review" card (the page itself
 // transmits nothing — FERPA).
+import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
 import { NOTRE_DAME, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
@@ -122,13 +123,26 @@ function bachelorsForPreview(
   mixed: boolean,
   conferredOn: string | undefined,
   twoYearRule: boolean,
+  /** What the student has already set under Your standing BY HAND. It wins:
+   * importing a second transcript must not silently move a term the student
+   * chose (DGS bug 2026-09-07 — a Master's import reset the year entered after
+   * an undergraduate import). A term merely inferred from an earlier
+   * transcript does not win; this transcript's own conferral date may replace
+   * that, as before. */
+  handSet?: Term,
 ): Pick<ExternalPreview, 'bachelorsAwarded' | 'bachelorsRequired' | 'bachelorsSource'> {
-  const awarded = conferredOn !== undefined ? termOfDate(conferredOn) : undefined;
+  const chosen = bachelorsPrefill(handSet, conferredOn !== undefined ? termOfDate(conferredOn) : undefined);
   const combined = slot === 'masters' && (mixed || conferredOn !== undefined || twoYearRule);
   return {
-    ...(awarded ? { bachelorsAwarded: awarded, bachelorsSource: 'transcript' as const } : {}),
+    ...(chosen ? { bachelorsAwarded: chosen.term, bachelorsSource: chosen.source } : {}),
     ...(combined ? { bachelorsRequired: true } : {}),
   };
+}
+
+/** The bachelor's term the student set themselves, if any — undefined when it
+ * is unset or was only inferred from a transcript. */
+function handSetBachelors(student: Student): Term | undefined {
+  return student.bachelorsAwarded !== undefined && student.bachelorsAwardedInferred === undefined ? student.bachelorsAwarded : undefined;
 }
 
 /** Re-fill every dated row's level by the bachelor's award term the student
@@ -324,7 +338,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
           universityFromTranscript: true,
           conferred: nd.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd'),
           bachelorsConferredOn: ndBachelors,
-          ...bachelorsForPreview(slot.level, levels.size > 1, ndBachelors, false),
+          ...bachelorsForPreview(slot.level, levels.size > 1, ndBachelors, false, handSetBachelors(args.student)),
           rows: kept.rows,
           omitted: kept.omitted,
           transferSkipped: nd.courses.filter((c) => c.origin === 'transfer').length || undefined,
@@ -357,7 +371,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       const termPrefill = prefillLevelsByTerm(mapped, slot.level);
       const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
       const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed);
-      const bachelors = bachelorsForPreview(slot.level, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined);
+      const bachelors = bachelorsForPreview(slot.level, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
       preview = {
         slot: slot.level,
         university: parsed.university ?? '',
@@ -529,7 +543,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const termPrefill = prefillLevelsByTerm(mapped, slot);
                 const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
                 const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed);
-                const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined);
+                const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
                 preview = {
                   slot,
                   university: parsed.university ?? '',
@@ -769,6 +783,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     }
     // The term: one locked "Fall 2023" when the transcript gave both parts.
     const termLocked = locked && r.year !== undefined;
+    // One line only when nothing is left to fill in (DGS bug 2026-09-07): a
+    // text-layer row whose credits, grade or year the parser missed renders
+    // full-size controls, and the one-line form cannot wrap around them.
+    const compactRow = rowIsCompact({ locked, credits: r.credits, grade: r.grade, year: r.year });
     let seasonSel: HTMLElement;
     let yearIn: HTMLElement | null;
     if (termLocked) {
@@ -812,7 +830,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     const tr = el(
       'tr',
       {
-        class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : '', locked ? 'compact' : 'editable'].join(' ').trim(),
+        class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : '', compactRow ? 'compact' : 'editable'].join(' ').trim(),
         ...(blocked ? { title: BLOCKED_ROW_NOTE } : {}),
       },
       el(
@@ -898,6 +916,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             let priorAutoSet = false as 'completed' | 'unfinished' | false;
             let graduateRows = 0;
             let bachelorsSet: Term | undefined;
+            let bachelorsFromTranscript = false;
             update((s) => {
               for (const r of ready) {
                 const degreeLevel = degreeLevelFor(p.slot, r.level);
@@ -929,16 +948,21 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 s.priorMsInferred = true;
                 priorAutoSet = s.priorMs;
               }
-              // The bachelor's award term (2026-09-06): the transcript's dated
-              // conferral fills "Bachelor's degree awarded" while the student
-              // has not set it by hand.
-              // The preview's award term (2026-09-06 evening): a term the student
-              // set always applies; one read from the transcript fills the field
-              // while the student has not set it by hand.
+              // The bachelor's award term: a value the student gave — here or
+              // under Your standing — always applies; one read from this
+              // transcript fills the field only while the student has not set
+              // it by hand (2026-09-06). Since 2026-09-07 the preview is itself
+              // pre-filled from a hand-set term, so this usually writes back
+              // the same value: only a REAL change is announced, and only a
+              // term that truly came from the transcript is described that way.
               if (p.bachelorsAwarded !== undefined && (p.bachelorsSource === 'student' || s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined)) {
+                const changed = s.bachelorsAwarded === undefined || termIndex(s.bachelorsAwarded) !== termIndex(p.bachelorsAwarded);
                 s.bachelorsAwarded = { ...p.bachelorsAwarded };
                 s.bachelorsAwardedInferred = p.bachelorsSource === 'student' ? undefined : { how: `the bachelor’s degree conferred ${p.bachelorsConferredOn} on your ${university} transcript` };
-                bachelorsSet = s.bachelorsAwarded;
+                if (changed) {
+                  bachelorsSet = s.bachelorsAwarded;
+                  bachelorsFromTranscript = p.bachelorsSource === 'transcript';
+                }
               }
             });
             const matched = ready.filter((r) => findExternalRule(rules.external, university, r.courseId)).length;
@@ -957,7 +981,9 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   : priorAutoSet === 'unfinished'
                     ? ' Prior graduate study was set to “Prior M.S., not completed” — no degree-conferral line was found on your transcript; pick “Completed prior M.S. or Ph.D.” under Your standing if you did earn the degree.'
                     : '') +
-                (bachelorsSet ? ` “Bachelor’s degree awarded” was set to ${termLabel(bachelorsSet)} from the conferral date on your transcript — check it under Your standing.` : ''),
+                (bachelorsSet
+                  ? ` “Bachelor’s degree awarded” was set to ${termLabel(bachelorsSet)}${bachelorsFromTranscript ? ' from the conferral date on your transcript' : ''} — check it under Your standing.`
+                  : ''),
             );
           },
         },
@@ -1000,7 +1026,9 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void): H
     if ((yearInput as HTMLInputElement).value !== '') apply();
   });
   const hint =
-    p.bachelorsAwarded && p.bachelorsSource === 'transcript'
+    p.bachelorsAwarded && p.bachelorsSource === 'student'
+      ? `Taken from “Bachelor’s degree awarded” under Your standing — importing this transcript does not change it.${p.bachelorsConferredOn ? ` This transcript says a bachelor’s degree was conferred ${p.bachelorsConferredOn}; correct it here only if that is the right term.` : ''} Courses dated in or before it count as undergraduate coursework: no transfer credit, core knowledge only (§5.2, §4.4.1).`
+      : p.bachelorsAwarded && p.bachelorsSource === 'transcript'
       ? `Read from your transcript (bachelor’s degree conferred ${p.bachelorsConferredOn}) — check it. Courses dated in or before this term count as undergraduate coursework: no transfer credit, core knowledge only (§5.2, §4.4.1).`
       : p.bachelorsRequired
         ? 'Required for a combined bachelor’s + master’s record: enter the semester your bachelor’s degree was awarded. Courses dated in or before it count as undergraduate coursework — no transfer credit, core knowledge only (§5.2, §4.4.1); changing it re-fills “Taken as” for every row.'

@@ -41,6 +41,10 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   line no longer says "pending DGS review"; its card is "In progress" until the Grad Admin has processed it.
   Undergraduate wording: "Courses taken as an undergraduate student do not transfer, whether or not the
   course itself is a graduate course (§5.2)", and every undergraduate course line now carries that reason.
+  Two bugs the DGS found on 2026-09-08: a preview row whose year the parser missed was forced onto one
+  line and spilled out of the card, cutting off "Taken as" (compact is now only for fully-read rows);
+  and importing a Master's transcript reset a bachelor's term the student had entered (a hand-set term
+  now wins, and the preview says where its value came from).
   Today's date now comes from the site's own server (same-origin `Date` header) and is read in Notre
   Dame's time zone, established as the first step on the loading card; the device clock is the
   fallback and the card says when it was used.

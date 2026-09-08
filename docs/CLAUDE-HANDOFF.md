@@ -143,6 +143,13 @@ Known-pending (the app's diagnostics panel is the live truth):
   560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
   again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
   the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+- **Preview row layout and the bachelor's term** (`src/transcript/preview-layout.ts`, DOM-free, 2026-09-08).
+  `rowIsCompact` — the one-line row is ONLY for a text-layer row whose credits, grade and year were
+  all read; a row holding any input must keep the wrapping labelled layout, or `flex-wrap: nowrap`
+  pushes its controls out of the card (the "Taken as" dropdown sliced off, a sideways scrollbar).
+  `bachelorsPrefill(handSet, fromTranscript)` — a term the student set by hand beats a new
+  transcript's conferral date; an inferred one does not. Both are unit-tested; the e2e's combined
+  import now asserts the hand-set term survives, since step 3c sets one before it.
 - **Today's date comes from the server, in Notre Dame's zone** (DGS 2026-09-07). `src/data/clock.ts`:
   `notreDameDate/notreDameLabel` format any instant in `America/Indiana/Indianapolis`;
   `serverInstant(url, fetch, timeoutMs)` reads the `Date` header of a same-origin `HEAD` (`no-store`,

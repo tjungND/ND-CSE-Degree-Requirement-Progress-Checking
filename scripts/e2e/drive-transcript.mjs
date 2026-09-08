@@ -397,11 +397,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   console.log('  combined transcript rows:', JSON.stringify(combinedRows));
   const expectedCombined = ['CS 25100:undergraduate:on', 'CS 30700:undergraduate:off', 'CS 35400:undergraduate:on', 'CS 50300:graduate:on', 'CS 58000:graduate:on'];
   if (JSON.stringify(combinedRows) !== JSON.stringify(expectedCombined)) throw new Error('combined transcript levels/ticks wrong');
-  // A combined record makes "Bachelor's degree awarded" required in the preview, pre-filled from
-  // the conferral line (DGS 2026-09-06 evening): the fixture's B.S. is dated May 2024.
+  // A combined record makes "Bachelor's degree awarded" required in the preview. What it is
+  // pre-filled WITH depends on whether the student has already answered (DGS bug 2026-09-07):
+  // a term they set by hand — step 3c above set Spring 2021 — must survive this import, and the
+  // transcript's own conferral line (May 2024) must not overwrite it.
   const bsCtl = JSON.parse(await s.evalJs(`JSON.stringify((() => { const y = document.querySelector('[data-key="ext.preview.bachelors.year"]'); return { year: y?.value, required: y?.required, season: document.querySelector('[data-key="ext.preview.bachelors.season"]')?.value, hint: document.querySelector('#ext-bachelors-hint')?.textContent.slice(0, 70) }; })())`));
   console.log('  preview bachelor’s control:', JSON.stringify(bsCtl));
-  if (bsCtl.year !== '2024' || bsCtl.season !== 'spring' || bsCtl.required !== true || !bsCtl.hint.startsWith('Read from your transcript')) throw new Error('the combined preview must require and pre-fill the bachelor’s award term: ' + JSON.stringify(bsCtl));
+  if (bsCtl.year !== '2021' || bsCtl.season !== 'spring' || bsCtl.required !== true || !bsCtl.hint.startsWith('Taken from “Bachelor’s degree awarded” under Your standing')) throw new Error('the combined preview must keep the term the student set by hand: ' + JSON.stringify(bsCtl));
   await s.shot('combined-preview');
   // The compact (text-layer) rows at the two desktop widths the DGS checks in
   // Safari (2026-09-06): one line per course, the small columns aligned across

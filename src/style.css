@@ -588,7 +588,9 @@ tr.ocr-low td { background: #fff7e0; }
    course number) just pushes its own row's title a little. The title takes the
    rest and wraps inside its cell when it is long. */
 @container (min-width: 560px) and (max-width: 860px) {
-  .transcript-preview table.courses.stack.edit tr.compact { flex-wrap: nowrap; column-gap: 10px; }
+  /* nowrap is safe only for a row of short locked values plus the level
+     dropdown; a row still asking for a value must be free to wrap (2026-09-07). */
+  .transcript-preview table.courses.stack.edit tr.compact:not(:has(input:not([type='checkbox']))) { flex-wrap: nowrap; column-gap: 10px; }
   .transcript-preview table.courses.stack.edit tr.compact::before { content: none; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-course { flex: 0 0 auto; min-width: 96px; } /* "CS 25100" in bold */
   .transcript-preview table.courses.stack.edit tr.compact td.cell-title { flex: 1 1 0; min-width: 90px; }
