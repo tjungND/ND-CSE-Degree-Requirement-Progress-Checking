@@ -114,8 +114,9 @@ export interface Student {
    * graduate-level courses taken before earning the bachelor's degree do not
    * count."). §5.2 criterion 2 needs graduate student status, so a transfer
    * course dated in or before this term earns no credit whatever its number
-   * or registration level (classify() in allocate.ts). Optional: while it is
-   * unknown, each course's degreeLevel decides, as before. Set under "Your
+   * or registration level (classify() in allocate.ts). Optional in the TYPE
+   * only — the UI marks it required and audit() warns while it is unset
+   * (2026-09-07); while unknown, each course's degreeLevel decides. Set under "Your
    * standing", or filled in by a transcript import that finds a dated
    * bachelor's award (then bachelorsAwardedInferred says so). */
   bachelorsAwarded?: Term;

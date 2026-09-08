@@ -9,8 +9,8 @@ const app = document.querySelector<HTMLDivElement>('#app');
 if (app) {
   // The loading card (src/ui/loading.ts) shows progress and, on failure, suggests
   // reloading; it resolves with the live rules or the saved copy the student chose.
-  loadRulesWithCard(app, new Date().toISOString()).then((rules) => {
+  loadRulesWithCard(app, new Date().toISOString()).then(({ rules, today }) => {
     app.textContent = '';
-    renderCoursesPage(app, rules);
+    renderCoursesPage(app, rules, today);
   });
 }

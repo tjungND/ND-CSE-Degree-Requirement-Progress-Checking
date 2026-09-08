@@ -41,8 +41,14 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   line no longer says "pending DGS review"; its card is "In progress" until the Grad Admin has processed it.
   Undergraduate wording: "Courses taken as an undergraduate student do not transfer, whether or not the
   course itself is a graduate course (§5.2)", and every undergraduate course line now carries that reason.
+  Today's date now comes from the site's own server (same-origin `Date` header) and is read in Notre
+  Dame's time zone, established as the first step on the loading card; the device clock is the
+  fallback and the card says when it was used.
   Prior Notre Dame rows are re-levelled whenever the bachelor's award term changes, so importing the
-  transcript and setting that term now give the same result in either order.
+  transcript and setting that term now give the same result in either order. Standing card: the chip says
+  "current semester", the entry-term legend names the program, and "Bachelor's degree awarded" is required.
+  The sign-off row is "Courses still to be approved or processed", grouped by who must act, and says
+  "Needs DGS review" only when the DGS actually has a course to decide.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

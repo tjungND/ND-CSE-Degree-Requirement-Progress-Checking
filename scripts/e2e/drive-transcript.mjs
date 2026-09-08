@@ -41,7 +41,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const entryLine = await s.evalJs(`document.querySelector('.transcript-preview .entry-term-line')?.textContent ?? ''`);
   const entryTicked = await s.evalJs(`document.querySelector('.transcript-preview .use-entry-term')?.checked`);
   console.log('  entry-term line:', entryLine.slice(0, 120), '| ticked:', entryTicked);
-  if (!entryLine.includes('Set “Entered the program” to Fall 2026') || !entryLine.includes('first graduate-level term') || entryTicked !== true) {
+  if (!entryLine.includes('Set your entry term to Fall 2026') || !entryLine.includes('first graduate-level term') || entryTicked !== true) {
     throw new Error('the preview must offer the entry term read from the transcript, ticked');
   }
   const priorNote = await s.evalJs(`document.querySelector('.transcript-preview .prior-note')?.textContent ?? ''`);

@@ -9,10 +9,10 @@ const app = document.querySelector<HTMLDivElement>('#app');
 if (app) {
   // The loading card (src/ui/loading.ts) shows progress and, on failure, suggests
   // reloading; it resolves with the live rules or the saved copy the student chose.
-  loadRulesWithCard(app, new Date().toISOString()).then((rules) => {
+  loadRulesWithCard(app, new Date().toISOString()).then(({ rules, today }) => {
     app.textContent = '';
     try {
-      startApp(app, rules);
+      startApp(app, rules, today);
     } catch (err) {
       // Saved data from an old version (or a bad import) must never brick the
       // page — offer a way out instead of a blank screen.

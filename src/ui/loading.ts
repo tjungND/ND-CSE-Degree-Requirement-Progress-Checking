@@ -4,6 +4,7 @@
 // ~30-second budget and an elapsed counter. When the load fails the same card
 // explains why and suggests RELOADING first; the copy saved in the app is
 // offered as a second choice and is never shown automatically.
+import { deviceNow, notreDameNow, type NotreDameNow } from '../data/clock.ts';
 import {
   EXTERNAL_TAB_CONFIGURED,
   LOAD_BUDGET_MS,
@@ -20,10 +21,18 @@ import { clear, el } from './dom.ts';
 
 const BUDGET_S = LOAD_BUDGET_MS / 1000;
 
-/** Render the loading card into `root`, load the rules, and resolve with them:
- * the live rules, or the saved copy if the student chooses it after a failure.
+/** What the loading card establishes before the page renders: the rules, and
+ * the date the whole self-check runs against (DGS 2026-09-07). */
+export interface LoadedStart {
+  rules: Rules;
+  today: NotreDameNow;
+}
+
+/** Render the loading card into `root`, load the rules, and resolve with them
+ * and with today's date at Notre Dame: the live rules, or the saved copy if the
+ * student chooses it after a failure.
  * The caller clears `root` and renders the page when this resolves. */
-export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Rules> {
+export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<LoadedStart> {
   return new Promise((resolve) => {
     const spinner = () => el('span', { class: 'spin', 'aria-hidden': 'true' });
     const title = el('strong', {}, 'Loading the current course rules');
@@ -43,10 +52,11 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
       ...(EXTERNAL_TAB_CONFIGURED ? { external: makeStep('Reading the external-course rules') } : {}),
     };
     const steps = {
+      clock: makeStep('Checking today’s date at Notre Dame'),
       connect: makeStep('Connecting to the spreadsheet'),
       ...tabSteps,
       check: makeStep('Checking when the rules were last updated'),
-    } as { connect: Step; check: Step } & Partial<Record<TabName, Step>>;
+    } as { clock: Step; connect: Step; check: Step } & Partial<Record<TabName, Step>>;
     const setStep = (s: Step, state: 'pending' | 'active' | 'done' | 'failed', detail?: string) => {
       s.li.className = state;
       clear(s.dot);
@@ -71,6 +81,32 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
     clear(root);
     root.append(card);
     setStep(steps.connect, 'active');
+
+    // The date the whole self-check runs against (DGS 2026-09-07). Read from
+    // the server this page was served by — same origin, no student data, no
+    // third party — and shown in Notre Dame's own time zone, so a student
+    // abroad or with a wrong device clock still gets Notre Dame's calendar.
+    // The device clock is the fallback, and the card says when it was used.
+    let today: NotreDameNow = deviceNow();
+    setStep(steps.clock, 'active');
+    const clockReady = notreDameNow({ url: window.location.href })
+      .then((t) => {
+        today = t;
+      })
+      .catch(() => undefined)
+      .then(() => {
+        const caveat = !today.zoneOk
+          ? ' — this browser does not know Notre Dame’s time zone, so this device’s calendar was used'
+          : today.source === 'device'
+            ? ' — from this device’s clock; this site’s own server did not answer'
+            : '';
+        setStep(steps.clock, today.source === 'server' && today.zoneOk ? 'done' : 'failed', `${today.label}${caveat}`);
+      });
+    /** Resolve once the date is settled, so the page never renders against a
+     * clock that is still being checked. */
+    const finish = (rules: Rules): void => {
+      void clockReady.then(() => resolve({ rules, today }));
+    };
 
     const started = performance.now();
     const timer = window.setInterval(() => {
@@ -123,7 +159,7 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
       const reload = el('button', { class: 'btn primary', type: 'button', onclick: () => location.reload() }, 'Reload the page');
       const useSaved = el(
         'button',
-        { class: 'btn use-saved', type: 'button', onclick: () => resolve(rulesFromSnapshot()) },
+        { class: 'btn use-saved', type: 'button', onclick: () => finish(rulesFromSnapshot()) },
         `Continue with the copy saved on ${SNAPSHOT_SAVED_ON}`,
       );
       const savedNote = ' — it may be missing recent DGS edits.';
@@ -159,7 +195,7 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Ru
       (rules) => {
         stop();
         setStep(steps.check, 'done');
-        resolve(rules);
+        finish(rules);
       },
       (err) => fail(err),
     );

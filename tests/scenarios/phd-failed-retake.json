@@ -22,7 +22,7 @@
     "phd.credits.total": { "status": "unmet", "detailIncludes": ["0 of 60", "3 in progress"] },
     "phd.credits.regular": { "status": "unmet", "detailIncludes": ["0 of 24"] },
     "phd.seminar": { "status": "unmet" },
-    "shared.approvals": { "status": "needs_dgs_review", "detailIncludes": ["advisor approved your plan"] }
+    "shared.approvals": { "status": "in_progress", "detailIncludes": ["advisor approved your plan"] }
   },
   "expectCourseLines": {
     "CSE 60641": ["credits count once", "§4.4.2"],

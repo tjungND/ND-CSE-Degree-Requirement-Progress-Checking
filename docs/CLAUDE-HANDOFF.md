@@ -79,7 +79,7 @@ Known-pending (the app's diagnostics panel is the live truth):
     since the DGS's second pass that evening: a `transferable: yes` ruling does NOT restore it. `buildExplanation`'s mark regex: `; satisfies the` ⇒ counts, `; may still satisfy` ⇒
     pending (so excluded lines with a confirmed core area are green, not struck). audit.ts warns when
     the award term is not before the entry term. prior-nd.ts: registered level → award term → number.
-    UI: the standing card's third fieldset (data-keys `standing.bachelors.season/year`, blank year =
+    UI: the standing card's second fieldset (data-keys `standing.bachelors.season/year`, blank year =
     unknown, `.bachelors-note` in four variants); `bachelorsAwardFrom()` / `bachelorsMayBeSet()` /
     `bachelorsTermFor()` in app.ts fill it from the ND transcript's `degreesAwarded` (preview
     `.bachelors-line`, toast fragment) and `ExternalPreview.bachelorsConferredOn` from the external
@@ -143,6 +143,28 @@ Known-pending (the app's diagnostics panel is the live truth):
   560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
   again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
   the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+- **Today's date comes from the server, in Notre Dame's zone** (DGS 2026-09-07). `src/data/clock.ts`:
+  `notreDameDate/notreDameLabel` format any instant in `America/Indiana/Indianapolis`;
+  `serverInstant(url, fetch, timeoutMs)` reads the `Date` header of a same-origin `HEAD` (`no-store`,
+  `Age` added back, 2 s abort) and resolves `undefined` on any failure; `notreDameNow` prefers it and
+  falls back to `deviceNow`. `loadRulesWithCard` runs the probe beside the rules fetch, shows it as
+  the first step, and now resolves `{ rules, today }` — `startApp` and `renderCoursesPage` take that
+  date instead of calling `new Date()`, so nothing in the app reads the device calendar. Do NOT swap
+  this for a public time API: it would break the page's printed promise that nothing goes to a third
+  party. The fetch is injectable, so `tests/clock.test.ts` never touches the network.
+  Standing card and the sign-off row (DGS 2026-09-07): the heading chip reads "current semester: …"
+  (`currentSemesterChip`); the entry-term legend comes from `enteredProgramLabel()` and names the
+  program, so messages quote "your entry term" rather than the field's name (e2e pins the new
+  wording); "Bachelor's degree awarded" is required — legend "(required)", `required` attribute while
+  unset, always-amber hint, and an `audit()` warning once any course is entered. `approvalsRow` splits
+  its courses with `signOffActors(reason)` (dgs / advisor / gradAdmin, "pre-approved" → gradAdmin) and
+  is `needs_dgs_review` only when the DGS still has something to decide, else `in_progress`. The
+  groups are MUTUALLY EXCLUSIVE, keyed by the sorted actor list ("advisor,dgs" gets its own lead), so
+  no course is printed twice; `coursesNeedingDgsReview` is consulted as a second source, because a
+  pre-approved transfer whose §4.4.1 area is still blank is the Grad Admin's AND the DGS's. Splitting
+  one detail part into several broke `advisorSummary`, which counts items rather than courses — it
+  now de-duplicates before joining, and `tests/external-rules.test.ts` drives that path through a
+  real `audit()` (the advisor-summary fixtures are hand-built and did not catch it).
   `reclassifyNotreDameCourses` re-levels rows ALREADY filed as prior on every call (2026-09-07):
   the old `if (c.origin === 'transfer') continue` made the result depend on whether the award term
   was set before or after the import. Keep it order-independent — `tests/prior-nd.test.ts` pins it.
@@ -214,7 +236,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   path fallback covers the rest. The opening notice is a native `<dialog class="consent
   consent-overlay">` shown with `showModal()` (focus on Agree, Tab contained, page inert, Escape
   closes like Agree, focus lands on the h1 — `tabindex=-1`); cdp.mjs still clicks
-  `.consent-overlay button.btn`. Labels: fieldset+legend for "Entered the program" and the course
+  `.consent-overlay button.btn`. Labels: fieldset+legend for the entry term (program-dependent,
+  `enteredProgramLabel()`) and the course
   form's Term (`fieldset()` helper), visible "Course number (e.g. CSE 60641)" / "Title" labels
   instead of placeholders, `aria-pressed` on the program tabs (`role=group`), row-specific
   `aria-label`s in both preview tables ("Credits for CS 25100"), the specialization `<select>` in

@@ -1004,11 +1004,13 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void): H
       ? `Read from your transcript (bachelor’s degree conferred ${p.bachelorsConferredOn}) — check it. Courses dated in or before this term count as undergraduate coursework: no transfer credit, core knowledge only (§5.2, §4.4.1).`
       : p.bachelorsRequired
         ? 'Required for a combined bachelor’s + master’s record: enter the semester your bachelor’s degree was awarded. Courses dated in or before it count as undergraduate coursework — no transfer credit, core knowledge only (§5.2, §4.4.1); changing it re-fills “Taken as” for every row.'
-        : 'The semester your bachelor’s degree was awarded; courses dated in or before it count as undergraduate coursework (§5.2).';
+        : 'Required — the semester your bachelor’s degree was awarded; courses dated in or before it count as undergraduate coursework (§5.2).';
   return el(
     'div',
     { class: 'field bachelors-field' },
-    el('span', { class: 'label' }, `Bachelor’s degree awarded${p.bachelorsRequired ? ' (required for a combined transcript)' : ''}`),
+    // Required everywhere since 2026-09-07 (DGS); only the Add-blocking is
+    // specific to a combined bachelor's + master's record.
+    el('span', { class: 'label' }, 'Bachelor’s degree awarded (required)'),
     el('div', { class: 'pair' }, seasonSel, yearInput),
     el('p', { class: 'hint', id: 'ext-bachelors-hint' }, hint),
   );

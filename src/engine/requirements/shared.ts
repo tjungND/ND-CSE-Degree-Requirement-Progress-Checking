@@ -1,4 +1,5 @@
 // §2 requirements shared by both programs.
+import { coursesNeedingDgsReview } from '../review.ts';
 import { startOfTerm } from '../term.ts';
 import type { DetailPart, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
@@ -73,6 +74,23 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   };
 }
 
+/** Who still has to act on a course counted provisionally (DGS 2026-09-07:
+ * the row said "Needs DGS review" even when every course was pre-approved and
+ * only the Grad Admin had anything left to do, and when the only thing missing
+ * was the advisor's approval). The reason strings are written in allocate.ts:
+ * a "pre-approved" transfer is DECIDED and waiting to be processed, never a
+ * DGS decision; a non-CSE course needs the advisor AND the DGS, so it is
+ * listed under both. `advisorSummary` routes the same strings the same way —
+ * keep the two in step. */
+export type SignOffActor = 'dgs' | 'advisor' | 'gradAdmin';
+export function signOffActors(reason: string): SignOffActor[] {
+  if (/^pre-approved/i.test(reason)) return ['gradAdmin'];
+  const actors: SignOffActor[] = [];
+  if (/advisor/i.test(reason)) actors.push('advisor');
+  if (/DGS|rules sheet/i.test(reason)) actors.push('dgs');
+  return actors.length > 0 ? actors : ['dgs'];
+}
+
 /** Advisory row aggregating every course that still needs a human sign-off
  * (dgs_approval rows, unknown courses, free-text non-CSE, transfers). */
 export function approvalsRow(ctx: Ctx): RequirementResult {
@@ -81,15 +99,42 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   // advisor." — self-attested via the plan-of-study checkbox (decision Q21).
   const planUnconfirmed =
     ctx.student.courses.length > 0 && ctx.student.attestations.advisorApprovedPlan !== true;
-  const status = pending.length === 0 && !planUnconfirmed ? 'not_applicable' : 'needs_dgs_review';
+  // Group by WHO must act, so the row's status is honest: only a course the
+  // DGS has yet to decide makes this "Needs DGS review" (DGS 2026-09-07).
+  // The groups are MUTUALLY EXCLUSIVE — a course needing two people is listed
+  // once, under a lead naming both — so no course is printed twice.
+  // A pre-approved transfer whose §4.4.1 core area the DGS has not recorded is
+  // still in the review request (review.ts), so it belongs to the DGS too: the
+  // reason string alone cannot tell, hence the second source here.
+  const stillWithDgs = new Set(coursesNeedingDgsReview(ctx.student, ctx.rules).map((p) => p.course.entry.courseId));
+  const ACTOR_ORDER = ['advisor', 'dgs', 'gradAdmin'] as const;
+  const actorsOf = (c: (typeof pending)[number]): SignOffActor[] => {
+    const actors = new Set<SignOffActor>(signOffActors(c.approvalPending!));
+    if (stillWithDgs.has(c.entry.courseId)) actors.add('dgs');
+    return ACTOR_ORDER.filter((a) => actors.has(a));
+  };
+  const LEADS: Record<string, string> = {
+    dgs: 'The DGS has still to decide these — send the review request',
+    advisor: 'Your advisor has still to approve these',
+    gradAdmin: 'Already decided by the DGS — the Grad Admin has still to process these',
+    'advisor,dgs': 'Your advisor and the DGS must both approve these — send the review request',
+    'dgs,gradAdmin': 'The transfer is approved — the Grad Admin processes it, and the DGS has still to record the core-knowledge area',
+    'advisor,dgs,gradAdmin': 'Your advisor, the DGS and the Grad Admin each have something left to do with these',
+  };
+  const groups = new Map<string, typeof pending>();
+  for (const c of pending) {
+    const key = actorsOf(c).join(',');
+    groups.set(key, [...(groups.get(key) ?? []), c]);
+  }
+  const anyDgs = [...groups.keys()].some((key) => key.split(',').includes('dgs'));
+  const status = anyDgs ? 'needs_dgs_review' : groups.size > 0 || planUnconfirmed ? 'in_progress' : 'not_applicable';
   const parts: DetailPart[] = [];
-  if (pending.length > 0) {
-    // {lead, items} → the report renders one nested bullet per course
-    // (DGS request 2026-09-04); the prose flattens to the same sentence.
-    parts.push({
-      lead: 'These courses are counted provisionally until the sign-off happens',
-      items: pending.map((c) => `${c.entry.courseId} (${c.approvalPending})`),
-    });
+  // {lead, items} → the report renders one nested bullet per course
+  // (DGS request 2026-09-04); the prose flattens to the same sentence.
+  for (const key of ['dgs', 'advisor,dgs', 'advisor', 'dgs,gradAdmin', 'advisor,dgs,gradAdmin', 'gradAdmin']) {
+    const list = groups.get(key);
+    if (list === undefined || list.length === 0) continue;
+    parts.push({ lead: LEADS[key]!, items: list.map((c) => `${c.entry.courseId} (${c.approvalPending})`) });
   }
   if (planUnconfirmed) {
     parts.push(
@@ -97,11 +142,11 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     );
   }
   if (parts.length > 0) parts.push('The attestation checkboxes record approvals you already have');
-  const joined = parts.length === 0 ? { detail: 'No entered course needs a DGS decision.' } : joinedDetail(parts);
+  const joined = parts.length === 0 ? { detail: 'No entered course that counts toward the degree is waiting on anyone.' } : joinedDetail(parts);
   return {
     id: 'shared.approvals',
     group: 'Approvals',
-    title: 'Courses needing DGS or advisor sign-off',
+    title: 'Courses still to be approved or processed',
     status,
     informational: true,
     ...joined,

@@ -23,9 +23,9 @@ const report: AuditReport = {
     req('phd.cap.noncse', 'At most 9 credits at 6xxxx from outside CSE', 'needs_dgs_review', 'needs approval: MATH 60610.'),
     req('phd.transfer', 'Transfer credit from a prior M.S.', 'not_applicable', 'No prior M.S.'),
     {
-      ...req('shared.approvals', 'Courses needing DGS or advisor sign-off', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
+      ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
       informational: true,
-      detailParts: [{ lead: 'These courses are counted provisionally until the sign-off happens', items: ['MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2))'] }],
+      detailParts: [{ lead: 'Your advisor and the DGS must both approve these — send the review request', items: ['MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2))'] }],
     },
   ],
   courseLines: [{ courseId: 'CSE 60641', term: { season: 'fall', year: 2026 }, text: 'counts toward regular courses (3 cr)', mark: 'counts' }],
@@ -55,7 +55,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\.\n/);
     assert.match(text, /\n  \[NEEDS DGS REVIEW\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
     assert.doesNotMatch(text, /Transfer credit from a prior M\.S\./, '"does not apply" rows are left out');
-    assert.doesNotMatch(text, /\nAPPROVALS\n|Courses needing DGS or advisor sign-off/, 'the sign-off list feeds the to-do lists, not a section');
+    assert.doesNotMatch(text, /\nAPPROVALS\n|Courses still to be approved or processed/, 'the sign-off list feeds the to-do lists, not a section');
     assert.doesNotMatch(text, /CSE 60641|COURSES COUNTED/, 'no course list');
   });
 
@@ -157,10 +157,10 @@ describe('actionItems: the rest of the rules', () => {
         req('phd.dissertation.approval', 'Dissertation unanimously approved for defense by the readers', 'unmet', 'Not yet approved.', 'Dissertation and defense — §4.6–4.7', '§4.6'),
         req('phd.dissertation.defense', 'Dissertation defense passed', 'unmet', 'Not yet.', 'Dissertation and defense — §4.6–4.7', '§4.7'),
         {
-          ...req('shared.approvals', 'Courses needing DGS or advisor sign-off', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
+          ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
           informational: true,
           detailParts: [
-            { lead: 'These courses are counted provisionally until the sign-off happens', items: ['CS 51000 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))', 'CSE 60999 (not in the rules sheet — counted provisionally; needs DGS review)'] },
+            { lead: 'The DGS has still to decide these — send the review request', items: ['CS 51000 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))', 'CSE 60999 (not in the rules sheet — counted provisionally; needs DGS review)'] },
             'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the attestation below the milestones',
             'The attestation checkboxes record approvals you already have',
           ],
@@ -231,16 +231,16 @@ describe('actionItems: the rest of the rules', () => {
 describe('whyFor re-voices the engine detail for the advisor', () => {
   it('drops page instructions and "Talk to the DGS", keeps the facts as sentences', () => {
     const r: RequirementResult = {
-      ...req('shared.approvals', 'Courses needing DGS or advisor sign-off', 'needs_dgs_review'),
+      ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review'),
       detailParts: [
-        { lead: 'These courses are counted provisionally until the sign-off happens', items: ['MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2))'] },
+        { lead: 'Your advisor and the DGS must both approve these — send the review request', items: ['MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2))'] },
         'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the attestation below the milestones',
         'The attestation checkboxes record approvals you already have',
       ],
     };
     assert.equal(
       whyFor(r),
-      'These courses are counted provisionally until the sign-off happens: MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2)). Advisor approval of my plan of study (§3.2/§4.2) is not yet recorded.',
+      'My advisor and the DGS must both approve these — send the review request: MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2)). Advisor approval of my plan of study (§3.2/§4.2) is not yet recorded.',
     );
     assert.equal(whyFor(req('x', 'x', 'in_progress', 'No advisor entered — was expected by your first semester. Talk to the DGS.')), 'No advisor entered — was expected by my first semester.');
     assert.equal(whyFor(req('x', 'x', 'cannot_evaluate', "Cannot evaluate — the rules sheet is missing 'ms_regular_credits_min'. Ask the DGS to add it to the Parameters tab")), "Cannot evaluate — the rules sheet is missing 'ms_regular_credits_min'.");
@@ -284,7 +284,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
         { ...req('phd.qualifier', 'Qualifying examination — all components', 'met', 'Three components complete. Remember to file the qualifier completion form with the Grad Admin (§4.4)', 'Qualifying examination — §4.4', '§4.4') },
         { ...req('phd.msAlongTheWay', 'MSCSE awarded along the way', 'met', 'OCE passed 2029-04-01, with 24 regular course credits and 6 research credits completed at Notre Dame.', 'Oral Candidacy Exam (OCE) — §4.5', '§4.5'), informational: true },
         {
-          ...req('shared.approvals', 'Courses needing DGS or advisor sign-off', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
+          ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
           detailParts: [
             {
               lead: 'Courses pending approval',

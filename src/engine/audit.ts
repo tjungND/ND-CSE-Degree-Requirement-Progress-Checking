@@ -113,6 +113,14 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     );
   }
 
+  // Required, not optional (DGS 2026-09-07) — but only worth saying once the
+  // student has entered coursework for it to apply to.
+  if (student.bachelorsAwarded === undefined && student.courses.length > 0) {
+    warnings.push(
+      '“Bachelor’s degree awarded” is not set under Your standing. It is required: §5.2 counts a course as transfer credit only when it was taken after your bachelor’s degree was awarded, whether or not you also hold a graduate degree.',
+    );
+  }
+
   const rows: RequirementResult[] = [gpaRow(ctx), advisorRow(ctx)];
   rows.push(...(student.program === 'mscse' ? mscseRows(ctx) : phdRows(ctx)));
 

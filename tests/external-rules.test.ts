@@ -11,6 +11,8 @@ import { parseExternalTab } from '../src/data/parse.ts';
 import type { SheetIssue } from '../src/data/types.ts';
 import { audit } from '../src/engine/audit.ts';
 import { classify } from '../src/engine/allocate.ts';
+import { signOffActors } from '../src/engine/requirements/shared.ts';
+import { advisorSummary } from '../src/ui/advisor-summary.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
 
@@ -317,5 +319,95 @@ describe('graduate student status — §5.2 criterion 2 (DGS 2026-09-06)', () =>
   it('an award term that is not before the entry term is warned about', () => {
     const report = audit(withBachelors([], { season: 'fall', year: 2026 }), rules, '2026-09-01');
     assert.ok(report.warnings.some((w) => /not before your entry term \(Fall 2026\)/.test(w)), JSON.stringify(report.warnings));
+  });
+});
+
+// Who still has to act (DGS 2026-09-07). The row used to say "Needs DGS
+// review" whenever anything was outstanding — even when every course was
+// pre-approved and only the Grad Admin had work left, or when the only gap
+// was the advisor's plan-of-study approval.
+describe('the sign-off row names who must act (2026-09-07)', () => {
+  const withPlanApproved = (courses: Partial<CourseEntry>[]): Student => {
+    const s = student(courses);
+    s.attestations.advisorApprovedPlan = true; // isolate the course routing
+    return s;
+  };
+  const approvals = (s: Student) => audit(s, rules, '2026-09-01').requirements.find((r) => r.id === 'shared.approvals')!;
+
+  it('routes every reason string allocate.ts writes', () => {
+    assert.deepEqual(signOffActors('pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)'), ['gradAdmin']);
+    assert.deepEqual(signOffActors('transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)'), ['dgs']);
+    assert.deepEqual(signOffActors('transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)'), ['dgs']);
+    assert.deepEqual(signOffActors('not in the rules sheet — counted provisionally; needs DGS review'), ['dgs']);
+    assert.deepEqual(signOffActors('the rules sheet does not say whether it counts — needs DGS review'), ['dgs']);
+    // Both people, so the course is listed under both.
+    assert.deepEqual(signOffActors('non-CSE course — needs advisor + DGS approval (§3.2/§4.2)'), ['advisor', 'dgs']);
+    assert.deepEqual(signOffActors('needs advisor + DGS approval per the rules sheet'), ['advisor', 'dgs']);
+    assert.deepEqual(signOffActors('wording nobody anticipated'), ['dgs'], 'an unrecognised reason falls back to the DGS');
+  });
+
+  it('a pre-approved course is the Grad Admin’s to process, so the row is not "Needs DGS review"', () => {
+    const row = approvals(withPlanApproved([{ courseId: 'CS 50300' }]));
+    assert.equal(row.title, 'Courses still to be approved or processed');
+    assert.equal(row.status, 'in_progress', 'nothing is left for the DGS to decide');
+    assert.match(row.detail ?? '', /Already decided by the DGS — the Grad Admin has still to process these: CS 50300/);
+    assert.doesNotMatch(row.detail ?? '', /The DGS has still to decide/);
+  });
+
+  it('one unreviewed course puts the DGS back in the picture, under its own heading', () => {
+    const row = approvals(withPlanApproved([{ courseId: 'CS 50300' }, { courseId: 'CS 59900', title: 'Special Topics', term: { season: 'spring', year: 2025 } }]));
+    assert.equal(row.status, 'needs_dgs_review');
+    assert.match(row.detail ?? '', /The DGS has still to decide these — send the review request: CS 59900/);
+    assert.match(row.detail ?? '', /the Grad Admin has still to process these: CS 50300/);
+  });
+
+  it('an unticked plan of study alone is the advisor’s, not a DGS review', () => {
+    const s = student([{ courseId: 'CS 50300' }]);
+    s.attestations.transferApproved = true; // the course itself is settled
+    const row = approvals(s);
+    assert.equal(row.status, 'in_progress');
+    assert.match(row.detail ?? '', /advisor approved your plan of study/);
+    assert.doesNotMatch(row.detail ?? '', /The DGS has still to decide/);
+  });
+
+  // Regression (2026-09-07): splitting the row into per-actor groups made a
+  // course that needs BOTH the advisor and the DGS appear in two groups, and
+  // the summary the student emails named it twice in one sentence.
+  it('a course needing two people is named once — on screen and in the emailed summary', () => {
+    const s: Student = {
+      ...student([]),
+      courses: [{ courseId: 'MATH 60610', title: 'Real Analysis I', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' } as CourseEntry],
+    };
+    const report = audit(s, rules, '2027-03-01');
+    const row = report.requirements.find((r) => r.id === 'shared.approvals')!;
+    assert.match(row.detail ?? '', /Your advisor and the DGS must both approve these — send the review request/);
+    assert.equal((row.detail ?? '').split('MATH 60610').length - 1, 1, 'listed once on screen');
+    assert.equal(row.status, 'needs_dgs_review', 'the DGS is one of the two');
+
+    const built = advisorSummary(report, { todayIso: '2027-03-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 });
+    const line = built.text.split('\n').find((l) => /review request for/.test(l)) ?? '';
+    assert.equal(line.split('MATH 60610').length - 1, 1, `named once in the emailed summary, got: ${line}`);
+  });
+
+  // A DGS ruling can answer §5.2 and leave §4.4.1 blank: the transfer is the
+  // Grad Admin's to process, but the review request still asks about the core
+  // area, so the row must not claim the DGS is finished (2026-09-07).
+  it('a pre-approved transfer whose core area is undecided belongs to the DGS as well', () => {
+    const half = buildRules({ external: [{ university: 'PURDUE UNIVERSITY', course_id: 'CS 51400', course_title: 'Numerical Algorithms', satisfies_core_area: '', transferable: 'yes' }] });
+    const s = student([{ courseId: 'CS 51400', title: 'Numerical Algorithms', degreeLevel: 'masters' }]);
+    s.attestations.advisorApprovedPlan = true;
+    const row = audit(s, half, '2027-03-01').requirements.find((r) => r.id === 'shared.approvals')!;
+    assert.equal(row.status, 'needs_dgs_review', 'the DGS still has the core area to record');
+    assert.match(row.detail ?? '', /The transfer is approved — the Grad Admin processes it, and the DGS has still to record the core-knowledge area/);
+    assert.equal((row.detail ?? '').split('CS 51400').length - 1, 1, 'listed once');
+  });
+
+  it('nothing outstanding: the row does not apply', () => {
+    const s = student([{ courseId: 'CS 50300' }]);
+    s.attestations.transferApproved = true;
+    s.attestations.advisorApprovedPlan = true;
+    const row = approvals(s);
+    assert.equal(row.status, 'not_applicable');
+    assert.equal(row.detail, 'No entered course that counts toward the degree is waiting on anyone.');
   });
 });

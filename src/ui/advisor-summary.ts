@@ -360,11 +360,15 @@ export function actionItems(report: AuditReport): ActionItems {
       if (/DGS|review|rules sheet|transfer/i.test(reason)) out.dgs.push(`Decide on ${course} — ${reason}.`);
     }
   }
+  // One name per course: the approvals row lists a course under one lead, but
+  // a course can reach here from more than one part, and this sentence is the
+  // one the student emails (2026-09-07).
+  const once = (list: string[]) => [...new Set(list)].join(', ');
   if (pendingCourses.length > 0) {
-    out.student.push(`Send the DGS the review request for ${pendingCourses.join(', ')} (with my transcripts attached).`);
+    out.student.push(`Send the DGS the review request for ${once(pendingCourses)} (with my transcripts attached).`);
   }
   if (processingCourses.length > 0) {
-    out.student.push(`Send the Grad Admin the processing request for ${processingCourses.join(', ')} (with my transcripts attached).`);
+    out.student.push(`Send the Grad Admin the processing request for ${once(processingCourses)} (with my transcripts attached).`);
   }
 
   // Missing rules-sheet parameters: the DGS's tool to fix.

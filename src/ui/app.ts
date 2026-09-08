@@ -1,6 +1,7 @@
 // The student-facing app: standing form, course table with sheet-driven
 // autocomplete, milestone dates, attestations, and the live report.
 // All rule logic lives in src/engine/ — this file only collects input and renders.
+import type { NotreDameNow } from '../data/clock.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
@@ -46,7 +47,7 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
 const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
 
-export function startApp(root: HTMLElement, rules: Rules): void {
+export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): void {
   // Sheet-driven contacts (2026-09-04): must run before ANYTHING renders —
   // the consent notice below already shows the DGS's name and address.
   applyContactOverrides(rules.parameters);
@@ -103,10 +104,10 @@ export function startApp(root: HTMLElement, rules: Rules): void {
   }
 
   let student: Student = loadLocal() ?? emptyStudent();
-  // Local date, not UTC — an evening at Notre Dame must not audit as tomorrow.
-  const now = new Date();
-  const p2 = (n: number) => String(n).padStart(2, '0');
-  const todayIso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+  // Established on the loading card (DGS 2026-09-07): the date at Notre Dame,
+  // from the server this page came from when it answers, and read in Notre
+  // Dame's own zone either way — never the device's idea of the calendar.
+  const todayIso = today.iso;
   const fullTimeFloor = rules.parameters.number('fulltime_credits_min') ?? 9;
   let toastTimer: number | undefined;
   /** Parsed-transcript preview awaiting the student's confirmation. */
@@ -430,7 +431,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'p',
         { class: 'notice-full privacy' },
         el('strong', {}, 'Private by design. '),
-        'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing is uploaded, transmitted, or stored anywhere else. The page’s only network request is the read-only fetch of the public course rules.',
+        'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing is uploaded, transmitted, or stored anywhere else. The page makes two network requests, neither of which carries anything about you: the read-only fetch of the public course rules, and one request to this site’s own server to ask what time it is at Notre Dame.',
       ),
     );
     return el(
@@ -546,8 +547,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     }
     // Bachelor's degree awarded (DGS 2026-09-06): graduate-level courses dated
     // in or before this term earn no transfer credit — §5.2 needs graduate
-    // student status (allocate.ts). Optional: the year is the switch (empty =
-    // unknown), the semester defaults to spring (May commencement). A
+    // student status (allocate.ts). Required since 2026-09-07 (DGS), though
+    // the year is still the switch for the stored value (empty = unknown) and
+    // the semester defaults to spring (May commencement). A
     // transcript import fills it in when it finds a dated bachelor's award;
     // the note says so until the student touches either control.
     const awarded = student.bachelorsAwarded;
@@ -557,6 +559,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       max: '2040',
       'aria-label': 'Bachelor’s degree awarded — year',
       'data-key': 'standing.bachelors.year',
+      ...(awarded === undefined ? { required: 'required', 'aria-required': 'true' } : {}),
       value: awarded ? String(awarded.year) : '',
     });
     const bsSeason = el('select', { 'aria-label': 'Bachelor’s degree awarded — semester', 'data-key': 'standing.bachelors.season' });
@@ -576,25 +579,29 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     const bsInferred = student.bachelorsAwardedInferred;
     const bsNote = el(
       'p',
-      { class: `hint${bsInferred || (awarded === undefined && hasGraduateTransfers) ? ' warn' : ''} field-hint bachelors-note` },
+      // Required since 2026-09-07 (DGS): every student has a bachelor's
+      // degree, and §5.2 counts a course as transfer credit only if it was
+      // taken after that degree — so the term is needed whether or not the
+      // student also holds a graduate degree. An unset field always warns.
+      { class: `hint${bsInferred || awarded === undefined ? ' warn' : ''} field-hint bachelors-note` },
       awarded && bsInferred
         ? `${termLabel(awarded)} was read from your transcript (${bsInferred.how}). Check it — courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).`
         : awarded
           ? 'Courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).'
           : hasGraduateTransfers
-            ? 'Optional, but you have coursework from before Notre Dame: enter the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2); until it is set, every graduate-level course from before Notre Dame is taken as graduate coursework.'
-            : 'Optional — the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2), so set it if you have coursework from before Notre Dame.',
+            ? 'Required, and you already have coursework from before Notre Dame: enter the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2); until it is set, every graduate-level course from before Notre Dame is taken as graduate coursework.'
+            : 'Required — the semester your bachelor’s degree was awarded. Every student has one, whether or not they also hold a graduate degree, and §5.2 counts a course as transfer credit only when it was taken after it.',
     );
     const card = el(
       'section',
       { class: 'card' },
       el('h2', {}, el('span', { class: 'step-no' }, '2. '), 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
       // A fieldset with a legend (item 5): the two controls share one question.
-      fieldset('Entered the program', el('div', { class: 'pair' }, seasonSel, yearInput)),
+      fieldset(enteredProgramLabel(), el('div', { class: 'pair' }, seasonSel, yearInput)),
       // What this field drives (item 11) — the longer note takes over while
       // the term is inferred or assumed.
       entryNote ?? el('p', { class: 'hint field-hint' }, 'Every deadline and the residency count are counted from this term.'),
-      fieldset('Bachelor’s degree awarded (optional)', el('div', { class: 'pair' }, bsSeason, bsYear)),
+      fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
       bsNote,
       fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
       priorNote,
@@ -618,9 +625,19 @@ export function startApp(root: HTMLElement, rules: Rules): void {
     return card;
   }
 
+  // The chip beside "2. Your standing" is the semester we are in TODAY, not
+  // anything the student entered — it was a bare "Fall 2026" and read like the
+  // entry term (DGS 2026-09-07), so it now says what it is.
   function currentSemesterChip(): string {
-    const t = termOfDate(todayIso);
-    return `${termLabel(t)}`;
+    return `current semester: ${termLabel(termOfDate(todayIso))}`;
+  }
+
+  /** The entry-term question names the actual program and where it is (DGS
+   * 2026-09-07: "Entered the program" said neither). */
+  function enteredProgramLabel(): string {
+    return student.program === 'mscse'
+      ? 'Entered the M.S. in CSE program at Notre Dame in'
+      : 'Entered the Ph.D. program at Notre Dame CSE in';
   }
 
   function fullTimeTerms(): HTMLElement {
@@ -1189,7 +1206,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
           'label',
           { class: 'attest entry-term-line' },
           cb,
-          ` Set “Entered the program” to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. The residency count and every deadline are counted from this term; check it.`,
+          ` Set your entry term to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. The residency count and every deadline are counted from this term; check it.`,
         ),
       );
       if (tp.entryTerm.alternative) box.append(el('p', { class: 'hint warn' }, `Note: ${tp.entryTerm.alternative.why}.`));
@@ -1390,7 +1407,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
               render();
               toast(
                 `Added ${picked.length} course${picked.length === 1 ? '' : 's'} from the transcript` +
-                  (appliedEntry ? `; “Entered the program” set to ${termLabel(appliedEntry)} — check it under Your standing` : '') +
+                  (appliedEntry ? `; your entry term set to ${termLabel(appliedEntry)} — check it under Your standing` : '') +
                   (priorAdded > 0 ? `; ${priorAdded} filed as coursework from before you entered the program` : '') +
                   (priorSet === 'completed'
                     ? '; Prior graduate study set to “Completed prior M.S. or Ph.D.” from the degree awarded on your transcript'
@@ -1930,7 +1947,7 @@ export function startApp(root: HTMLElement, rules: Rules): void {
         'div',
         { class: 'legal-privacy' },
         el('strong', {}, 'Your data never leaves your device. '),
-        'Everything you enter — and any transcript PDF you upload — is processed locally in this browser and saved only on this computer. Nothing is transmitted to the University or to any third party (the page only reads the public course-rules sheet), so your FERPA-protected education records remain under your control.',
+        'Everything you enter — and any transcript PDF you upload — is processed locally in this browser and saved only on this computer. Nothing is transmitted to the University or to any third party (the page only reads the public course-rules sheet, and asks this site’s own server for the current date at Notre Dame), so your FERPA-protected education records remain under your control.',
       ),
       el(
         'div',
@@ -1957,6 +1974,9 @@ export function startApp(root: HTMLElement, rules: Rules): void {
       schemaVersion: 1,
       program: 'phd',
       entryTerm: { season: 'fall', year: 2026 },
+      // The example is a complete record: the bachelor's term is required
+      // (2026-09-07), so leaving it out made the demo warn about itself.
+      bachelorsAwarded: { season: 'spring', year: 2026 },
       priorMs: 'none',
       gpa: 3.5,
       courses: [

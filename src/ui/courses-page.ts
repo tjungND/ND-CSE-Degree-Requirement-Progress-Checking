@@ -5,6 +5,7 @@
 // typically offered, and whether the DGS has confirmed the row. Everything
 // shown comes from the Courses tab of the rules sheet (via the same loader as
 // the audit page); this file only presents it. No student data is involved.
+import type { NotreDameNow } from '../data/clock.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
@@ -122,11 +123,9 @@ function filtersToUrl(f: Filters, defaults: Filters): void {
   }
 }
 
-export function renderCoursesPage(root: HTMLElement, rules: Rules): void {
+export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreDameNow): void {
   applyContactOverrides(rules.parameters); // sheet-driven contacts (2026-09-04)
-  const today = new Date();
-  const p2 = (n: number) => String(n).padStart(2, '0');
-  const todayIso = `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`;
+  const todayIso = today.iso; // Notre Dame's date, settled on the loading card (2026-09-07)
   const currentTerm = termOfDate(todayIso);
 
   // One row per course: the rule in effect this term (older/newer versions are
