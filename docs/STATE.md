@@ -1,6 +1,6 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-06, ~21:00 UTC (the first Claude Code Desktop session on the DGS's Mac,
+Last updated: 2026-09-08 (the first Claude Code Desktop session on the DGS's Mac, still running,
 branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at ~15:00 UTC —
 see "Session protocol" in `CLAUDE.md`).
 
@@ -74,6 +74,16 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   "current semester", the entry-term legend names the program, and "Bachelor's degree awarded" is required.
   The sign-off row is "Courses still to be approved or processed", grouped by who must act, and says
   "Needs DGS review" only when the DGS actually has a course to decide.
+  Short forms in the dense places (ten spots the DGS approved from screenshots): the category names
+  through `src/engine/short-names.ts` (OS, Alg, Comp Arch, HCC, Arch, DS/AI, Sys/Soft), and
+  "Notre Dame" → "ND" as hand-edited literals, in the "Counts
+  toward" chips, the §4.4.2 row's lists, the group picker, the report's credit meters, the
+  previous-transcript preview notes, the coursework group headings and the "ND Unofficial Transcript"
+  row. Course titles, requirement card titles, handbook quotes, the glossary, the whole course-rules
+  page and every copied e-mail keep the full names — the DGS decided those three explicitly.
+  The course-rules page no longer carries "Listed under every category" as a sixth category: a course
+  the sheet marks `any` sits in each of the five real cards, and a note says a course listed under
+  several categories can fill only one of them.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

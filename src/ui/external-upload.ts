@@ -235,7 +235,7 @@ function isRelevantRow(university: string, rules: Rules, r: PreviewRow): boolean
 /** Why an undergraduate row that cannot matter is not selectable (DGS
  * request 2026-09-06): shown on hover and read to screen readers. */
 const BLOCKED_ROW_NOTE =
-  'Not selectable: this course is not related to the core-knowledge areas (Algorithms, Operating Systems, Computer Architecture — §4.4.1), and undergraduate credits do not transfer (§5.2), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
+  'Not selectable: this course is not related to the core-knowledge areas (Alg, OS, Comp Arch — §4.4.1), and undergraduate credits do not transfer (§5.2), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
 
 function keepRelevantRows(
   university: string,
@@ -345,7 +345,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
           mixedLevels: levels.size > 1,
           notreDame: true,
         };
-        if (ndRows.length === 0) previewError = 'This looks like a Notre Dame transcript, but no course lines could be read from it. Add the courses by hand below, and tell the DGS.';
+        if (ndRows.length === 0) previewError = 'This looks like an ND transcript, but no course lines could be read from it. Add the courses by hand below, and tell the DGS.';
         render();
         return;
       }
@@ -388,7 +388,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       if (mapped.length === 0) {
         previewError = 'No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand below (and please tell the DGS which university, so parsing can be improved).';
       } else if (kept.rows.length === 0) {
-        previewError = `All ${mapped.length} courses read from this transcript were left out — none matched the Algorithms / Operating Systems / Architecture core keywords, and none are in the DGS’s external-course rules. Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2); if a course belongs to a core area under a different title, add it by hand below.`;
+        previewError = `All ${mapped.length} courses read from this transcript were left out — none matched the Alg / OS / Comp Arch core keywords, and none are in the DGS’s external-course rules. Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2); if a course belongs to a core area under a different title, add it by hand below.`;
       }
       render();
     } catch {
@@ -522,7 +522,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const parsed = parseExternalTranscript(lines.map((l) => l.text), lines.map((l) => l.confidence));
                 ocrBusy = undefined;
                 if (parsed.looksLikeNotreDame) {
-                  importError = { slot, message: 'This looks like a Notre Dame transcript — use the “Notre Dame Unofficial Transcript” row above, with the digital PDF from insideND (not a scan).' };
+                  importError = { slot, message: 'This looks like an ND transcript — use the “ND Unofficial Transcript” row above, with the digital PDF from insideND (not a scan).' };
                   render();
                   document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
                   return;
@@ -668,7 +668,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           el(
             'p',
             { class: 'hint warn nd-prior-note' },
-            'This is a Notre Dame transcript, read as the record of an EARLIER Notre Dame degree. If it also holds your current program’s terms, cancel and use the “Notre Dame Unofficial Transcript” row instead — it separates the earlier degree from the program by your entry term.',
+            'This is an ND transcript, read as the record of an EARLIER ND degree. If it also holds your current program’s terms, cancel and use the “ND Unofficial Transcript” row instead — it separates the earlier degree from the program by your entry term.',
           ),
         ]
       : []),
@@ -687,7 +687,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             el(
               'p',
               { class: 'hint warn' },
-              `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), so only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
+              `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), so only courses relevant to the Alg, OS, and Comp Arch core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
             ),
           ]
         : [el('p', { class: 'hint level-note' }, el('strong', {}, 'How “Taken as” was filled in: '), levelNote(p), ' “Taken as” is your status at the time, not the course’s level. Please double-check the column before adding.')]),

@@ -7,6 +7,7 @@ import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import type { Rules } from '../data/types.ts';
 import { coursesNeedingDgsReview, type PendingDgsReview } from '../engine/review.ts';
+import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
@@ -792,7 +793,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // read from the same transcript — named for what it is.
       const priorNd = isNotreDameInstitution(e.c.institution);
       const heading = priorNd
-        ? `Notre Dame, before entering the program — ${e.c.degreeLevel === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
+        ? `ND, before entering the program — ${e.c.degreeLevel === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
         : `${e.c.institution ?? 'University not set'} — ${slot}`;
       let g = groups.find((x) => x.heading === heading);
       if (!g) {
@@ -834,10 +835,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       gpaNote,
       courseForm(),
-      el('h3', { class: 'subhead', id: 'nd-courses' }, 'Notre Dame'),
+      el('h3', { class: 'subhead', id: 'nd-courses' }, 'ND'),
       nd.length > 0
         ? courseTable(courseLines, nd)
-        : el('p', { class: 'empty' }, 'No Notre Dame courses yet. Import your transcript above, or add one here.'),
+        : el('p', { class: 'empty' }, 'No ND courses yet. Import your transcript above, or add one here.'),
       ...groups.flatMap((g) => [
         el('h3', { class: 'subhead' }, g.heading),
         g.bachelors
@@ -998,7 +999,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   let ndImportError: string | undefined;
 
   function transcriptUpload(blocked: boolean): HTMLElement {
-    const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: 'hidden', 'aria-label': 'Notre Dame unofficial transcript PDF' });
+    const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: 'hidden', 'aria-label': 'ND unofficial transcript PDF' });
     const fail = (message: string): void => {
       transcriptPreview = undefined;
       ndImportError = message;
@@ -1022,11 +1023,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         }
         const parsed = parseTranscript(lines);
         if (!parsed.isNotreDame) {
-          fail("Only Notre Dame's unofficial transcript is accepted here — for courses from other universities, use the Previous-Transcript rows below.");
+          fail("Only ND's unofficial transcript is accepted here — for courses from other universities, use the Previous-Transcript rows below.");
           return;
         }
         if (parsed.courses.length === 0) {
-          fail('This looks like a Notre Dame transcript, but no course lines could be read from it. Add your courses manually, and tell the DGS so the parser can be improved.');
+          fail('This looks like an ND transcript, but no course lines could be read from it. Add your courses manually, and tell the DGS so the parser can be improved.');
           return;
         }
         const duplicate = parsed.courses.map((c) =>
@@ -1121,7 +1122,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       imported.length > 0 ? 'Import again' : 'Import from PDF (alpha)',
     );
     const parts: (Node | string)[] = [
-      el('span', { class: 'slot-label' }, 'Notre Dame Unofficial Transcript'),
+      el('span', { class: 'slot-label' }, 'ND Unofficial Transcript'),
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
     ];
     if (imported.length > 0) {
@@ -1131,7 +1132,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         button(
           {
             class: 'btn tiny',
-            'aria-label': `Remove the ${n} course${n === 1 ? '' : 's'} imported from your Notre Dame transcript`,
+            'aria-label': `Remove the ${n} course${n === 1 ? '' : 's'} imported from your ND transcript`,
             'data-key': 'import.nd.remove',
             onclick: () => {
               // Index-preserving (2026-09-06 evening): Undo puts every row
@@ -1155,7 +1156,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 }
               });
               toastWithAction(
-                `${removed.length} course${removed.length === 1 ? '' : 's'} from your Notre Dame transcript removed${before.gpaSource !== undefined ? ', and the GPA it filled in' : ''}.`,
+                `${removed.length} course${removed.length === 1 ? '' : 's'} from your ND transcript removed${before.gpaSource !== undefined ? ', and the GPA it filled in' : ''}.`,
                 'Undo',
                 () =>
                   update((s) => {
@@ -1701,7 +1702,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Only the groups this course is listed under (2026-09-08) — a course
         // named for two groups must not offer the other three.
         const helpful = new Set((groupChoices[c.courseId] ?? []).filter((g) => rowChoices.includes(g)));
-        const groupName = (g: string) => rules.categoryGroups.find((x) => x.code === g)?.name ?? g;
+        // Short forms in this column (DGS 2026-09-08): the full names do not
+        // fit a dropdown beside a course, and the glossary keeps them in full.
+        const groupName = (g: string) => shortName(rules.categoryGroups.find((x) => x.code === g)?.name ?? g);
         sel.append(option('', 'Assign group…', !c.assignedGroup));
         // Two headings rather than a note on each option: the closed dropdown
         // then shows the plain group name, and opening it shows which choices
@@ -1719,7 +1722,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           for (const g of rowChoices) sel.append(option(g, groupName(g), c.assignedGroup === g));
         }
         countsCell.append(el('div', {}, sel));
-        const names = [...helpful].map((g) => rules.categoryGroups.find((x) => x.code === g)?.name ?? g);
+        const names = [...helpful].map(groupName);
         if (names.length > 0 && !(c.assignedGroup && helpful.has(c.assignedGroup))) {
           countsCell.append(
             el(
@@ -1779,7 +1782,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // The table scrolls inside its card on narrow screens instead of widening
     // the whole column (usability review 2026-09-05, item 1); the wrapper is
     // focusable so a keyboard user can scroll it (WCAG 2.1.1).
-    return el('div', { class: 'table-scroll plain', tabindex: '0', role: 'region', 'aria-label': `${entries[0]?.c.institution ?? 'Notre Dame'} course table (scrolls sideways on narrow screens)` }, table);
+    return el('div', { class: 'table-scroll plain', tabindex: '0', role: 'region', 'aria-label': `${entries[0]?.c.institution ?? 'ND'} course table (scrolls sideways on narrow screens)` }, table);
   }
 
   // ---------- milestones + attestations ----------

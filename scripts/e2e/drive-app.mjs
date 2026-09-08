@@ -259,6 +259,32 @@ export async function driveCourses(s, baseUrl) {
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
   await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
 
+  // Specialization categories (DGS 2026-09-08): "Listed under every category"
+  // is gone as a sixth category, a course listed under several categories
+  // stands in EACH of their cards, and the note above them says it can fill
+  // only one. A blank Specialization cell sorts LAST, not first.
+  const spec = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sel = document.querySelector('[data-key="filter.category"]');
+    const opts = [...sel.options].map((o) => o.value);
+    const cards = [...document.querySelectorAll('.overview .ov-grid')].pop();
+    const headings = [...cards.querySelectorAll('.ov-card h3')].map((h) => h.textContent.trim());
+    const inEvery = headings.every((_, i) => cards.querySelectorAll('.ov-card')[i].textContent.includes('CSE 60876'));
+    const note = [...document.querySelectorAll('.overview p')].map((p) => p.textContent).find((t) => /fill only/.test(t)) ?? '';
+    return { opts, headings, inEvery, note };
+  })())`));
+  if (spec.opts.includes('any-listed')) throw new Error('the "Listed under every category" filter value is still offered');
+  if (spec.headings.length !== 5) throw new Error('expected the five real specialization cards, got ' + JSON.stringify(spec.headings));
+  if (!spec.inEvery) throw new Error('a course listed under every category must appear in every card: ' + JSON.stringify(spec.headings));
+  if (!/never several/.test(spec.note)) throw new Error('the "fills only one category" note is missing: ' + spec.note);
+  console.log('  specialization cards:', spec.headings.join(', '), '— the flexible course is in each, with the "only one" note');
+  await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'category'; sel.dispatchEvent(new Event('change')); })()`);
+  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+  const firstSpec = await s.evalJs(`document.querySelector('table.course-rules tbody tr:not(.note-row) td[data-label^="Specialization"]')?.textContent.trim()`);
+  if (!firstSpec || firstSpec === '—') throw new Error('sorting by Specialization must put the rows WITH a category first, got: ' + JSON.stringify(firstSpec));
+  console.log('  sort by Specialization → first row is', JSON.stringify(firstSpec) + ', blanks last');
+  await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
+  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+
   // Filters live in the URL (2026-09-05, item 29) and a view picks the columns
   // (item 30): open a shared link, check what it selected, then change a
   // filter and check the address bar followed.

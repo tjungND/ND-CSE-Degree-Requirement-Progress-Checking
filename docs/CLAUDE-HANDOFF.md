@@ -151,6 +151,24 @@ Known-pending (the app's diagnostics panel is the live truth):
   `categoryGroups` directly, or a course listed under two groups will be offered all five.
 - **Short names for referenced rows** (2026-09-08): `RequirementResult.shortTitle`, used by the
   per-course "Counts toward" list and nothing else. A new row that can appear there wants one.
+- **Short forms of the category names** (2026-09-08): `src/engine/short-names.ts` `shortName()` is a
+  DISPLAY map (OS, Alg, Comp Arch, HCC, Arch, DS/AI, Sys/Soft), applied at exactly four call sites —
+  the §4.4.1 chip in `phd.ts`, the §4.4.2 row's two lists, and the group picker in `app.ts`. Do NOT
+  widen it: the DGS drew the line at course titles, requirement titles, handbook quotes, the
+  glossary, the course-rules page and the copied e-mails, all of which keep the full names. Its list
+  runs longest-first ("Computer Architecture" before "Architecture") and a name it does not know
+  passes through, so a category the DGS adds later is readable but not abbreviated. "Notre Dame" →
+  "ND" is NOT done by this function — those are hand-edited literals in `app.ts`, `report.ts`,
+  `external-upload.ts` and one `shortTitle` in `requirements/phd.ts`, because each one needed its article and its e2e pin moved with it, and
+  the masthead, the footer and the emails keep "Notre Dame" deliberately.
+- **The course-rules page has no "every category" category** (2026-09-08). A course the sheet marks
+  `any` is listed in EACH of the five §4.4.2 cards and matches each of them in the filter; the note
+  above the cards carries the "it can fill only one" rule, and the numbers in that note and in the
+  legend are read from the Parameters tab (`category_courses_required`,
+  `category_distinct_groups_required`, `category_min_grade`) — a missing one drops the numbers
+  rather than printing a guess. Do not re-add an `any-listed` filter value. While there: the table's
+  sort puts a blank cell LAST by returning `undefined` from `key()`; the old `'~'` sentinel did the
+  opposite, because `localeCompare` orders punctuation before letters.
 - **What a course counts toward** (2026-09-08). `CourseLine.counts` is built in `audit()` from the
   rows' `satisfiedBy` (met) and `pendingBy` (in progress / provisional), read as an inverse index —
   a new requirement row needs only to fill those two fields to appear on its courses' lines, and
@@ -750,8 +768,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   (overrides too); `allocate.ts` + `coreRows` let a prior ND course satisfy §4.4.1 through the
   Courses tab's core_area with no ExternalCourses ruling (line "a Notre Dame course listed in
   the course rules"); prior ND graduate courses are ordinary §5.2 transfers (rulings under
-  UNIVERSITY OF NOTRE DAME). The coursework card heads them "Notre Dame, before entering the
-  program — undergraduate/graduate coursework"; the Bachelor's/Master's slot rows show and
+  UNIVERSITY OF NOTRE DAME). The coursework card heads them "ND, before entering the
+  program — undergraduate/graduate coursework" (it read "Notre Dame" until 2026-09-08); the Bachelor's/Master's slot rows show and
   Remove them. `advisorSummary` added a DEADLINES block (date order, "counted from <entry
   term>") and "Due by <date>" / "overdue — was due by <date>" per requirement line, with a
   Deadline column in the HTML tables (the block went on 2026-09-06 — each line carries its own

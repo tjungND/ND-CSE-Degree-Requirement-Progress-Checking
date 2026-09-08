@@ -90,7 +90,7 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   const core = params.get('core');
   if (core && validCores.has(core)) f.core = core;
   const category = params.get('category');
-  if (category && (validCategories.has(category) || category === 'any-listed')) f.category = category;
+  if (category && validCategories.has(category)) f.category = category;
   const type = params.get('type');
   if (type && ['regular', 'seminar', 'research', 'independent', 'project'].includes(type)) f.type = type;
   if (params.get('retired') === '1') f.includeRetired = true;
@@ -161,6 +161,17 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const countsClass = (c: Counts | undefined): string => (c ? COUNTS_CLASS[c] : 'undecided');
   const coreLabel = (r: RuleCourse): string => (r.coreArea ? (coreName.get(r.coreArea) ?? r.coreArea) : '—');
   const allGroupCodes = rules.categoryGroups.map((g) => g.code);
+  // §4.4.2's numbers are DGS-tunable sheet parameters, so the two places that
+  // state them read the sheet (2026-09-08). A missing parameter drops the
+  // numbers rather than printing a guess — the page never invents policy.
+  const catCourses = rules.parameters.number('category_courses_required');
+  const catGroups = rules.parameters.number('category_distinct_groups_required');
+  const catFloor = rules.parameters.gradeLetter('category_min_grade');
+  // Without the § — each of the two places adds its own citation.
+  const catRule =
+    catCourses !== undefined && catGroups !== undefined && catFloor !== undefined
+      ? `${catCourses} courses from ${catGroups} different categories, each with a grade of ${catFloor} or higher, are required`
+      : 'courses from several different categories are required — the handbook has the exact numbers';
   /** The groups a course may satisfy, in the Categories tab's order (DGS
    * 2026-09-08 — a cell may name one, several, or `any`). */
   const groupsOf = (r: RuleCourse): string[] => {
@@ -172,10 +183,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     if (r.categoryIneligible) return 'Not eligible';
     const groups = groupsOf(r);
     if (groups.length === 0) return '—';
-    if (groups.length === allGroupCodes.length) return 'Any category (student picks)';
+    if (groups.length === allGroupCodes.length) return 'Any one category (student picks)';
     const names = groups.map((g) => groupName.get(g) ?? g);
     // Several groups: the student picks one of THESE (2026-09-08).
-    return names.length === 1 ? names[0]! : `${names.join(' or ')} (student picks)`;
+    return names.length === 1 ? names[0]! : `${names.join(' or ')} (student picks one)`;
   };
   const offeredLabel = (r: RuleCourse): string =>
     r.typicallyOffered ? (OFFERED_LABEL[r.typicallyOffered] ?? r.typicallyOffered) : '—';
@@ -211,18 +222,19 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       if (filters.program !== 'all' && !counts(r, filters.program)) return false;
       if (filters.core && r.coreArea !== filters.core) return false;
       if (filters.category) {
-        const groups = groupsOf(r);
-        // "Any category" means a course the student may place anywhere; a
-        // course listed under two groups matches either of them (2026-09-08).
-        if (filters.category === 'any-listed') {
-          if (groups.length !== allGroupCodes.length) return false;
-        } else if (!groups.includes(filters.category)) return false;
+        // A course listed under several groups matches each of them, and one
+        // listed under every group matches whichever is chosen (DGS
+        // 2026-09-08: there is no separate "every category" filter).
+        if (!groupsOf(r).includes(filters.category)) return false;
       }
       if (filters.type && r.courseType !== filters.type) return false;
       if (q && !squash(r.courseId).includes(qs) && !r.title.toLowerCase().includes(q)) return false;
       return true;
     });
-    const key = (r: RuleCourse): string => {
+    // A row with nothing in the sorted column belongs at the END. `undefined`
+    // says so; a '~' sentinel does NOT, because localeCompare orders
+    // punctuation BEFORE letters and put every blank row first (2026-09-08).
+    const key = (r: RuleCourse): string | undefined => {
       switch (filters.sort) {
         case 'title':
           return r.title.toLowerCase();
@@ -233,18 +245,25 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         case 'phd':
           return countsLabel(r.countsTowardPhd);
         case 'core':
-          return r.coreArea ? coreLabel(r) : '~';
+          return r.coreArea ? coreLabel(r) : undefined;
         case 'category':
-          return groupsOf(r).length > 0 ? categoryLabel(r) : '~';
+          return groupsOf(r).length > 0 || r.categoryIneligible ? categoryLabel(r) : undefined;
         case 'offered':
-          return r.typicallyOffered ? offeredLabel(r) : '~';
+          return r.typicallyOffered ? offeredLabel(r) : undefined;
         case 'reviewed':
           return r.dgsReviewed ? 'a' : 'b';
         default:
           return r.courseId;
       }
     };
-    list = list.sort((a, b) => key(a).localeCompare(key(b)) || a.courseId.localeCompare(b.courseId));
+    list = list.sort((a, b) => {
+      const ka = key(a);
+      const kb = key(b);
+      if (ka === undefined || kb === undefined) {
+        if (ka !== kb) return ka === undefined ? 1 : -1; // blanks last, in both directions
+      } else if (ka !== kb) return ka.localeCompare(kb);
+      return a.courseId.localeCompare(b.courseId);
+    });
     if (filters.desc) list.reverse();
     return list;
   }
@@ -322,16 +341,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     const coreCards = rules.coreAreas.map((c) =>
       el('div', { class: 'ov-card' }, el('h3', {}, c.name), listFor((r) => r.coreArea === c.code)),
     );
+    // A course listed under several groups — or under every group — belongs
+    // in each of their cards (DGS 2026-09-08). The note above the cards says
+    // that it can still fill only one of them.
     const groupCards = rules.categoryGroups.map((g) =>
-      // A course listed under several groups belongs in each of their cards.
-      el('div', { class: 'ov-card' }, el('h3', {}, g.name), listFor((r) => groupsOf(r).includes(g.code) && groupsOf(r).length < allGroupCodes.length)),
-    );
-    const anyCard = el(
-      'div',
-      { class: 'ov-card' },
-      el('h3', {}, 'Listed under every category'),
-      el('p', { class: 'muted small' }, 'The student picks which one category the course fills.'),
-      listFor((r) => groupsOf(r).length === allGroupCodes.length),
+      el('div', { class: 'ov-card' }, el('h3', {}, g.name), listFor((r) => groupsOf(r).includes(g.code))),
     );
     return el(
       'section',
@@ -358,7 +372,19 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       ),
       el('div', { class: 'ov-grid' }, ...coreCards),
       el('h3', { class: 'ov-sub' }, 'Specialization categories ', el('span', { class: 'cite' }, '§4.4.2')),
-      el('div', { class: 'ov-grid' }, ...groupCards, anyCard),
+      // §4.4.2 asks for three courses from three DISTINCT categories, so a
+      // course that appears in several cards is still worth only one of them
+      // (DGS 2026-09-08).
+      el(
+        'p',
+        { class: 'muted' },
+        `${catRule.charAt(0).toUpperCase()}${catRule.slice(1)} (§4.4.2). A course may be listed under more than one category, and it then appears in each of their cards below — but it can fill only `,
+        el('strong', {}, 'one'),
+        ' of them, never several. The student chooses which one when they enter the course in the ',
+        el('a', { href: './index.html' }, 'degree self-check tool'),
+        '.',
+      ),
+      el('div', { class: 'ov-grid' }, ...groupCards),
       el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are not shown here; tick "Include retired courses" in the table below to see them.'),
     );
   }
@@ -434,7 +460,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     });
     category.append(option('', 'Any specialization', filters.category === ''));
     for (const g of rules.categoryGroups) category.append(option(g.code, `Specialization: ${g.name}`, filters.category === g.code));
-    category.append(option('any-listed', 'Listed under every category', filters.category === 'any-listed'));
     const type = el('select', {
       'data-key': 'filter.type',
       onchange: (e) => {
@@ -721,7 +746,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
         li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'the DGS has not ruled on this course yet; ask before relying on it.'),
         li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.'),
-        li(el('strong', {}, 'Specialization'), 'the other course-based Qualifying Examination requirement (§4.4.2): Ph.D. students need three courses from three distinct specialization categories with a B or higher. "Not eligible" marks courses (all 40000-level) that can never satisfy it. Ph.D. students only — not part of any MSCSE requirement.'),
+        li(
+          el('strong', {}, 'Specialization'),
+          `the other course-based Qualifying Examination requirement (§4.4.2): ${catRule}. A course listed under more than one category can fill only one of them. "Not eligible" marks courses that can never satisfy it. Ph.D. students only — not part of any MSCSE requirement.`,
+        ),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
         li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.'),
         li(el('strong', {}, 'Notes'), 'the DGS’s notes on a course, and older rule versions — open with the Notes button on its row.'),

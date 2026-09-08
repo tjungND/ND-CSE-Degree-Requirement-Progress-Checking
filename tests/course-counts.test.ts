@@ -39,7 +39,9 @@ describe('what a course counts toward', () => {
     assert.ok(titles.length >= 3, `expected several requirements, got ${JSON.stringify(titles)}`);
     assert.ok(titles.some((t) => /total credits/.test(t)), JSON.stringify(titles));
     assert.ok(titles.some((t) => /regular-course credits/.test(t)), JSON.stringify(titles));
-    assert.ok(titles.some((t) => /credits at Notre Dame/.test(t)), JSON.stringify(titles));
+    // Short forms in this column (DGS 2026-09-08); the row's own title keeps
+    // "At least 9 credits taken at Notre Dame".
+    assert.ok(titles.some((t) => /credits at ND/.test(t)), JSON.stringify(titles));
     assert.ok(titles.some((t) => /^Core: /.test(t)), 'the §4.4.1 area the course covers: ' + JSON.stringify(titles));
   });
 

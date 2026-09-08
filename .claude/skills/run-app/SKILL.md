@@ -46,7 +46,7 @@ each in a fresh tab, in this order:
   tab, the rules-spreadsheet links; `driveCourses` (same file) — the public course-rules page:
   filters, the Notes disclosure, filters in the URL.
 - `drive-transcript.mjs` — uploads `tests/fixtures/other-transcript.pdf` (must be REJECTED with
-  the "Only Notre Dame's unofficial transcript…" message), then `tests/fixtures/nd-transcript.pdf`
+  the "Only ND's unofficial transcript…" message), then `tests/fixtures/nd-transcript.pdf`
   (a combined B.S.+Ph.D. record: entry term, prior coursework, GPA), then the previous-transcript
   slots: `external-transcript.pdf` (Master's), the scanned `external-transcript-scan.pdf`
   (Bachelor's, real OCR), `banner-transcript.pdf` (Ph.D.: a two-column Banner official transcript

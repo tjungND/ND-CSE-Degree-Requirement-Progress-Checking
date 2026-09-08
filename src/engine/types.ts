@@ -192,6 +192,12 @@ export interface RequirementResult {
    * plus enumerated items — rendered as a nested (two-layer) list. `detail`
    * stays the joined prose — the advisor summary and tests keep using it. */
   detailParts?: DetailPart[];
+  /** The same statements with the §4.4.1 / §4.4.2 names shortened, for the
+   * page only (DGS 2026-09-08). The report renders these when they are here;
+   * `detail` and `detailParts` stay FULL, so the messages copied for the
+   * advisor, the DGS and the Grad Admin — which re-voice them — keep the
+   * names spelled out, which is what the DGS asked for. */
+  shortDetailParts?: DetailPart[];
   deadline?: DeadlineInfo;
   citation: { section: string; quote: string };
   /** What satisfies the row right now — course ids for course-based rows,

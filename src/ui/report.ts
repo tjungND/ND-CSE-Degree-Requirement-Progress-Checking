@@ -105,7 +105,7 @@ function meters(report: AuditReport): HTMLElement {
         ]
       : [
           ['phd.credits.regular', 'Regular courses'],
-          ['phd.credits.nd', 'Credits at Notre Dame'],
+          ['phd.credits.nd', 'Credits at ND'],
           ['phd.credits.total', 'Total credits'],
         ];
   const box = el('div', { class: 'meters' });
@@ -180,7 +180,9 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // 2026-09-04); short or single-statement details stay prose. A {lead,
   // items} part renders as a nested two-layer list (one sub-bullet per item,
   // DGS request 2026-09-04). The advisor summary keeps the joined `detail`.
-  const parts = r.detailParts ?? [];
+  // Short §4.4.2 group names on the page, full ones in `detailParts` for the
+  // copied messages (DGS 2026-09-08).
+  const parts = r.shortDetailParts ?? r.detailParts ?? [];
   const structured = parts.some((p) => typeof p !== 'string');
   const detailNode =
     parts.length > 0 && (structured || (parts.length > 1 && r.detail.length > 120))

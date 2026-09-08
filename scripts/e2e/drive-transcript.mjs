@@ -14,7 +14,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // The rejection is a persistent inline message under the row (2026-09-05,
   // usability review item 6), not a vanishing toast — and it has focus.
   await s.waitFor(
-    `document.querySelector('.transcript-upload .import-error')?.textContent.includes("Only Notre Dame's unofficial transcript")`,
+    `document.querySelector('.transcript-upload .import-error')?.textContent.includes("Only ND's unofficial transcript")`,
   );
   if (await s.evalJs(`!!document.querySelector('.transcript-preview')`)) {
     throw new Error('preview must NOT appear for a non-ND transcript');
@@ -250,7 +250,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (!candidatesBack.every((l) => l.includes('candidate for transfer credit'))) throw new Error('back to 2021: the rows must be candidates again: ' + JSON.stringify(candidatesBack));
   if (!(await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`)).includes('Copy review request for 6 courses')) throw new Error('back to 2021: 6 courses expected in the request');
   console.log('  bachelor’s award Spring 2024 → all three Purdue rows excluded (§5.2 status), 5 in the request; back to 2021 → candidates again');
-  const priorNdLines = await groupLines('Notre Dame, before entering the program — undergraduate coursework');
+  const priorNdLines = await groupLines('ND, before entering the program — undergraduate coursework');
   if (!priorNdLines.some((l) => l.startsWith('CSE 30321') && l.includes('mark-pending') && l.includes('may satisfy the Computer Architecture core-knowledge requirement'))) {
     throw new Error('the prior Notre Dame undergraduate course should carry an amber "may satisfy" line: ' + JSON.stringify(priorNdLines));
   }
@@ -345,7 +345,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // left out with a note; the institution comes from the legend page.
   await s.setFileInput('.external-file-phd', bannerPdf);
   await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Ph.D. Transcript'))`);
-  const redirected = await s.evalJs(`[...document.querySelectorAll('.import-error, .hint.warn.nd-prior-note')].some(e => e.textContent.includes('looks like a Notre Dame transcript') || e.textContent.includes('is a Notre Dame transcript'))`);
+  const redirected = await s.evalJs(`[...document.querySelectorAll('.import-error, .hint.warn.nd-prior-note')].some(e => e.textContent.includes('looks like an ND transcript') || e.textContent.includes('is an ND transcript'))`);
   if (redirected) throw new Error('the Banner transcript was redirected to the ND row because of an nd.edu e-mail');
   const bannerUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   const bannerRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);
@@ -481,7 +481,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   if (!idsAfterRemove.includes('MATH 60610') || !idsAfterRemove.includes('CS 58000')) throw new Error('ND Remove must keep hand-typed and external rows');
   if (gpaAfterRemove !== '') throw new Error('ND Remove must clear the GPA the transcript filled in');
-  if (!removeToast.startsWith('6 courses from your Notre Dame transcript removed, and the GPA it filled in.')) throw new Error('ND Remove toast wrong: ' + removeToast.slice(0, 120));
+  if (!removeToast.startsWith('6 courses from your ND transcript removed, and the GPA it filled in.')) throw new Error('ND Remove toast wrong: ' + removeToast.slice(0, 120));
   const ndRowAfter = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
   if (!ndRowAfter.includes('Import from PDF (alpha)') || ndRowAfter.includes('from your transcript')) throw new Error('ND row after Remove: ' + ndRowAfter.slice(0, 120));
   await s.shot('nd-removed');

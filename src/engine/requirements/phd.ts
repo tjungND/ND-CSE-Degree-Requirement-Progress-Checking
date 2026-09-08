@@ -5,6 +5,7 @@ import { isNotreDameInstitution } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
 import { isInProgress, isPassed, meetsGradeFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
+import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus } from '../status.ts';
 import {
   addMonthsIso,
@@ -125,7 +126,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       id: 'phd.credits.nd',
       group: COURSEWORK,
       title: 'At least 9 credits taken at Notre Dame',
-      shortTitle: '9 credits at Notre Dame',
+      shortTitle: '9 credits at ND',
       sums: ctx.alloc.ndRegular,
       pendingBy: pendingCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       satisfiedBy: countedCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
@@ -455,7 +456,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,
       title: `Core knowledge: ${area.name}`,
-      shortTitle: `Core: ${area.name}`,
+      shortTitle: `Core: ${shortName(area.name)}`,
       status,
       detail,
       citation: { section: '§4.4.1', quote },
@@ -526,36 +527,51 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   const combined = matchDistinctGroups([...qualifying, ...inProgress], allGroups);
 
   let status: Status;
+  // Two versions of the same statements (DGS 2026-09-08): `parts` spells the
+  // group names out and is what the copied messages re-voice; `shortParts` is
+  // what the page shows. `add` keeps them in step — pass a short variant only
+  // where a group NAME appears, never for a course title.
   const parts: DetailPart[] = [];
+  const shortParts: DetailPart[] = [];
+  const add = (full: DetailPart, short?: DetailPart) => {
+    parts.push(full);
+    shortParts.push(short ?? full);
+  };
   if (def.distinctCount >= groupsReq && qualifying.length >= coursesReq) {
     status = 'met';
-    const lines = [...def.assignment.entries()].map(([courseId, g]) => {
+    const assignmentLine = (short: boolean) => ([courseId, g]: [string, string]) => {
       const cand = qualifying.find((q) => q.courseId === courseId);
       const isAny = (cand?.groups.length ?? 0) > 1;
-      return `${courseId}${cand?.title ? ` ${cand.title}` : ''} → ${groupName(g)}${isAny ? ' (flexible course — your assignment)' : ''}`;
-    });
-    parts.push({ lead: `${qualifying.length} qualifying courses covering ${def.distinctCount} distinct groups`, items: lines });
+      const name = short ? shortName(groupName(g)) : groupName(g);
+      return `${courseId}${cand?.title ? ` ${cand.title}` : ''} → ${name}${isAny ? ' (flexible course — your assignment)' : ''}`;
+    };
+    const lead = `${qualifying.length} qualifying courses covering ${def.distinctCount} distinct groups`;
+    const entries = [...def.assignment.entries()];
+    add({ lead, items: entries.map(assignmentLine(false)) }, { lead, items: entries.map(assignmentLine(true)) });
   } else if (combined.distinctCount >= groupsReq && qualifying.length + inProgress.length >= coursesReq) {
     status = 'in_progress';
-    parts.push(
+    add(
       `${qualifying.length} done (${def.distinctCount} distinct groups) with ${inProgress.length} in progress — on track for ${groupsReq} distinct groups`,
     );
   } else {
     status = 'unmet';
-    parts.push(
+    add(
       `${qualifying.length} qualifying course${qualifying.length === 1 ? '' : 's'} covering ${def.distinctCount} distinct group${def.distinctCount === 1 ? '' : 's'} — ${groupsReq} distinct groups and ${coursesReq} courses with a grade of ${floor} or higher are required`,
     );
     if (def.missingGroups.length > 0) {
-      parts.push(`still open: ${def.missingGroups.map(groupName).join(', ')}`);
+      add(
+        `still open: ${def.missingGroups.map(groupName).join(', ')}`,
+        `still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
+      );
     }
   }
   if (belowFloor.length > 0) {
-    parts.push(
+    add(
       `below the ${floor} floor: ${belowFloor.join(', ')} — you may retake the course to replace the grade or take another course (§4.4.2)`,
     );
   }
-  parts.push(...def.suggestions);
-  parts.push('The approved course list is on the course rules page');
+  for (const suggestion of def.suggestions) add(suggestion);
+  add('The approved course list is on the course rules page');
   // Which group each flexible course should be set to (DGS request
   // 2026-09-08): the ones no OTHER course of theirs already covers. Read off
   // the best matching over everything they have, so a suggestion is never one
@@ -582,6 +598,9 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     shortTitle: 'Specialization (3 groups)',
     status,
     ...joinedDetail(parts),
+    // Only when the two actually differ, so a row with no group name in it
+    // carries nothing extra.
+    ...(shortParts.some((p, i) => p !== parts[i]) ? { shortDetailParts: shortParts } : {}),
     // The assigned courses, whether or not the row is complete (2026-09-08):
     // each course's own line names this requirement, and a course that is
     // passed contributes now even while the requirement as a whole is not met.
