@@ -3,7 +3,7 @@
 import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm, termLabel } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, countedCourseIds, missingParamDetail, thresholdRow } from './context.ts';
+import { capRow, countedCourseIds, pendingCourseIds, missingParamDetail, thresholdRow } from './context.ts';
 import { fullTimeTermRecords } from './residency.ts';
 
 const COURSEWORK = 'Coursework — §3.2';
@@ -29,6 +29,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       title: '30 total credits of courses and research',
       sums: ctx.alloc.total,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
+      pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
       required: ctx.params.number('ms_total_credits_min'),
       requiredKey: 'ms_total_credits_min',
       section: '§3.2',
@@ -49,6 +50,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       title: '24 credit hours of regular courses',
       sums: ctx.alloc.regular,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
+      pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular),
       required: ctx.params.number('ms_regular_credits_min'),
       requiredKey: 'ms_regular_credits_min',
       section: '§3.2',
@@ -67,6 +69,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       title: '6 credit hours of M.S. project or thesis direction',
       sums: ctx.alloc.project,
       satisfiedBy: countedCourseIds(ctx, (p) => (p.course.pool === 'project' ? p.countedOther : 0)),
+      pendingBy: pendingCourseIds(ctx, (p) => (p.course.pool === 'project' ? p.countedOther : 0)),
       required: ctx.params.number('ms_project_credits_min'),
       requiredKey: 'ms_project_credits_min',
       section: '§3.2',

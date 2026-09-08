@@ -55,6 +55,8 @@ export function thresholdRow(args: {
   extraDetail?: string[];
   /** The courses whose definite credits count here (processing request, 2026-09-06). */
   satisfiedBy?: string[];
+  /** The courses whose credits will count here once passed/approved (2026-09-08). */
+  pendingBy?: string[];
 }): RequirementResult {
   const { sums, required } = args;
   const status = thresholdStatus(sums, required);
@@ -81,6 +83,7 @@ export function thresholdRow(args: {
     ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },
     ...(args.satisfiedBy && args.satisfiedBy.length > 0 ? { satisfiedBy: args.satisfiedBy } : {}),
+    ...(args.pendingBy && args.pendingBy.length > 0 ? { pendingBy: args.pendingBy } : {}),
   };
 }
 
@@ -91,6 +94,14 @@ export function thresholdRow(args: {
 export function countedCourseIds(ctx: Ctx, pick: (p: CourseAllocation) => number): string[] {
   return ctx.alloc.perCourse
     .filter((p) => pick(p) > 0 && p.course.tier === 'definite' && !p.course.superseded)
+    .map((p) => p.course.entry.courseId);
+}
+
+/** The same courses, but the ones still to be passed or approved (2026-09-08):
+ * what a student's course line means by "will count toward". */
+export function pendingCourseIds(ctx: Ctx, pick: (p: CourseAllocation) => number): string[] {
+  return ctx.alloc.perCourse
+    .filter((p) => pick(p) > 0 && p.course.tier !== 'definite' && !p.course.superseded)
     .map((p) => p.course.entry.courseId);
 }
 

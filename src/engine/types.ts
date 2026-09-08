@@ -200,12 +200,31 @@ export interface RequirementResult {
    * prose (DGS request 2026-09-06 evening). Only definite credits count
    * here (passed, no approval pending). Absent when nothing does yet. */
   satisfiedBy?: string[];
+  /** §4.4.2 only (DGS request 2026-09-08). A course the sheet marks `any` can
+   * satisfy ANY specialization group, so the student chooses — and the useful
+   * choice depends on what their other courses already cover. Course id → the
+   * groups that would add a distinct group they do not have yet. Empty for a
+   * course whose choice cannot help (every group is already covered). */
+  groupChoices?: Record<string, string[]>;
+  /** Courses that WILL count toward this row once they are passed or approved
+   * — the in-progress and provisional counterpart of `satisfiedBy`
+   * (DGS request 2026-09-08: a course's line should name every requirement it
+   * satisfies OR will satisfy). Never used by the emails, which report only
+   * what is already true. */
+  pendingBy?: string[];
 }
 
 export interface CourseLine {
   courseId: string;
   term: Term;
   text: string;
+  /** Every requirement row this course feeds, in report order (DGS request
+   * 2026-09-08). One course routinely serves several — a 60000-level course
+   * counts toward the total credits, the regular-course credits, the nine at
+   * Notre Dame, a §4.4.1 core area and a §4.4.2 specialization group — and the
+   * sentence above names only the credit pool. `when` separates what it counts
+   * toward now from what it will count toward once passed or approved. */
+  counts: { id: string; title: string; when: 'now' | 'later' }[];
   /** How the page paints the line (2026-09-06): green (earns credit or a core
    * area now), amber (in progress, or counted only until an approval), red
    * (earns nothing). */

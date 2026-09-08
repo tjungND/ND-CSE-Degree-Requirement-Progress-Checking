@@ -35,6 +35,43 @@ export async function driveApp(s, baseUrl) {
   if ((await s.evalJs(`document.querySelector('.dial circle:nth-of-type(2)')?.getAttribute('stroke')`)) === 'var(--bad)') {
     throw new Error('a student who is simply not finished must not see a red dial');
   }
+  // Every requirement a course feeds, under its credit sentence (2026-09-08):
+  // one course routinely serves several, and the sentence names only the pool.
+  const feeds = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const rows = [...document.querySelectorAll('table.courses tr')].map((tr) => ({
+      id: tr.querySelector('.cid')?.textContent ?? '',
+      now: [...tr.querySelectorAll('.counts-toward.now .req-link')].map((a) => ({ t: a.textContent, href: a.getAttribute('href') })),
+      later: [...tr.querySelectorAll('.counts-toward.later .req-link')].map((a) => a.textContent),
+    })).filter((r) => r.id);
+    const targets = rows.flatMap((r) => r.now.map((n) => n.href)).filter((h) => !!document.querySelector(h));
+    return { rows, linksResolve: targets.length, linkCount: rows.reduce((n, r) => n + r.now.length, 0) };
+  })())`));
+  const richest = feeds.rows.reduce((best, r) => (r.now.length > best.now.length ? r : best), { now: [], id: '' });
+  console.log('  counts toward:', richest.id, JSON.stringify(richest.now.map((n) => n.t)));
+  if (richest.now.length < 3) throw new Error('a course must name every requirement it feeds: ' + JSON.stringify(feeds.rows));
+  if (!richest.now.some((n) => /^Core knowledge: /.test(n.t))) throw new Error('the §4.4.1 area a course covers must be named: ' + JSON.stringify(richest.now));
+  if (feeds.linksResolve !== feeds.linkCount) throw new Error(`${feeds.linkCount - feeds.linksResolve} requirement links do not resolve`);
+  if (!feeds.rows.some((r) => r.later.length > 0)) throw new Error('an in-progress course must say what it WILL count toward');
+
+  // A course that can count for ANY specialization group says which group is
+  // worth choosing, from what the student's other courses already cover.
+  const groups = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sel = document.querySelector('table.courses select[data-key$=".group"]');
+    if (!sel) return null;
+    const tr = sel.closest('tr');
+    return {
+      labels: [...sel.querySelectorAll('optgroup')].map((g) => g.label),
+      needed: [...(sel.querySelector('optgroup')?.children ?? [])].map((o) => o.textContent),
+      covered: [...(sel.querySelectorAll('optgroup')[1]?.children ?? [])].map((o) => o.textContent),
+      hint: tr?.querySelector('.group-hint')?.textContent ?? null,
+    };
+  })())`));
+  console.log('  specialization choice:', JSON.stringify(groups));
+  if (!groups || groups.labels[0] !== 'Groups you still need' || groups.labels[1] !== 'Already covered by another course') {
+    throw new Error('a flexible course must sort its groups by what is still needed: ' + JSON.stringify(groups));
+  }
+  if (groups.needed.length === 0 || groups.covered.length === 0) throw new Error('the example should have both kinds: ' + JSON.stringify(groups));
+
   // A disclosure the student opened survives the next edit (2026-09-08):
   // render() rebuilds the DOM, and used to restore focus to a § button whose
   // quote had silently collapsed underneath it. The edit is a harmless

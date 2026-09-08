@@ -110,6 +110,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   const todayIso = today.iso;
   const fullTimeFloor = rules.parameters.number('fulltime_credits_min') ?? 9;
   let toastTimer: number | undefined;
+  /** §4.4.2 group suggestions for this render (2026-09-08): course id → the
+   * groups the student's other courses do not cover. Set in render(), read by
+   * the coursework table, which is built later in the same pass. */
+  let groupChoices: Record<string, string[]> = {};
   /** Parsed-transcript preview awaiting the student's confirmation. */
   let transcriptPreview:
     | {
@@ -298,6 +302,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // had failed thirteen checks they have not been asked about.
     const untouched =
       student.courses.length === 0 && Object.keys(student.milestones).length === 0 && student.gpa === undefined;
+    groupChoices = report.requirements.find((r) => r.id === 'phd.qualifier.categories')?.groupChoices ?? {};
     clear(root);
     root.append(
       ...[
@@ -732,7 +737,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return n === undefined ? 'a capped number of' : String(n);
   }
 
-  function coursesCard(courseLines: { courseId: string; term: Term; text: string; mark: CourseLine['mark'] }[]): HTMLElement {
+  function coursesCard(courseLines: CourseLine[]): HTMLElement {
     // The GPA lives here, next to the transcript import that prefills it
     // (moved from the standing card — DGS request, 2026-09-03).
     const gpaInput = el('input', {
@@ -1615,7 +1620,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // above each table carries the university and transcript, so the rows stay
   // uniform. The original index is kept so the delete/assign controls edit
   // the right entry.
-  function courseTable(courseLines: { courseId: string; term: Term; text: string; mark: CourseLine['mark'] }[], entries: { c: CourseEntry; index: number }[]): HTMLElement {
+  function courseTable(courseLines: CourseLine[], entries: { c: CourseEntry; index: number }[]): HTMLElement {
     const table = el('table', { class: 'courses stack' });
     table.append(
       el(
@@ -1648,6 +1653,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // red = earns nothing. A shape per colour, and a spoken word, so the
       // meaning does not rest on colour alone (WCAG 1.4.1).
       const countsCell = el('td', { class: 'counts cell-note' }, ...(line ? [statusMark(line.mark), line.text] : []));
+      // One course routinely serves several requirements, and the sentence
+      // above names only the credit pool (DGS request 2026-09-08). List the
+      // rest, each linking to its card, and say which are still conditional.
+      for (const when of ['now', 'later'] as const) {
+        const rows = (line?.counts ?? []).filter((x) => x.when === when);
+        if (rows.length === 0) continue;
+        const list = el('div', { class: `counts-toward ${when}` }, el('span', { class: 'counts-toward-label' }, when === 'now' ? 'Counts toward: ' : 'Will count toward: '));
+        rows.forEach((r, i) => {
+          if (i > 0) list.append(el('span', { class: 'sep', 'aria-hidden': 'true' }, ' · '));
+          list.append(el('a', { class: 'req-link', href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` }, r.title));
+        });
+        countsCell.append(list);
+      }
       if (rule?.categoryGroup === 'any' && student.program === 'phd') {
         const sel = el('select', {
           'aria-label': `Specialization group for ${c.courseId}`,
@@ -1658,11 +1676,42 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               s.courses[index]!.assignedGroup = (v || undefined) as CourseEntry['assignedGroup'];
             }),
         });
+        // Which group is worth picking depends on what the student's OTHER
+        // courses already cover (DGS request 2026-09-08): the engine works
+        // that out, and the options say so rather than leaving a bare list.
+        const helpful = new Set(groupChoices[c.courseId] ?? []);
+        const groupName = (g: string) => rules.categoryGroups.find((x) => x.code === g)?.name ?? g;
         sel.append(option('', 'Assign group…', !c.assignedGroup));
-        for (const g of GROUP_CODES) {
-          sel.append(option(g, rules.categoryGroups.find((x) => x.code === g)?.name ?? g, c.assignedGroup === g));
+        // Two headings rather than a note on each option: the closed dropdown
+        // then shows the plain group name, and opening it shows which choices
+        // would actually help (2026-09-08).
+        const needed = GROUP_CODES.filter((g) => helpful.has(g));
+        const covered = GROUP_CODES.filter((g) => !helpful.has(g));
+        if (needed.length > 0 && covered.length > 0) {
+          const box = (label: string, codes: readonly string[]): HTMLElement => {
+            const grp = el('optgroup', { label });
+            for (const g of codes) grp.append(option(g, groupName(g), c.assignedGroup === g));
+            return grp;
+          };
+          sel.append(box('Groups you still need', needed), box('Already covered by another course', covered));
+        } else {
+          for (const g of GROUP_CODES) sel.append(option(g, groupName(g), c.assignedGroup === g));
         }
         countsCell.append(el('div', {}, sel));
+        const names = [...helpful].map((g) => rules.categoryGroups.find((x) => x.code === g)?.name ?? g);
+        if (names.length > 0 && !(c.assignedGroup && helpful.has(c.assignedGroup))) {
+          countsCell.append(
+            el(
+              'div',
+              { class: 'group-hint' },
+              `This course can count for any group (§4.4.2). ${
+                names.length === 1
+                  ? `Choose ${names[0]} — it is the group your other courses do not cover.`
+                  : `Choose one your other courses do not cover: ${names.join(', ')}.`
+              }`,
+            ),
+          );
+        }
       }
       // Strike through only courses that count NOTHING — a course partly over
       // a cap still counts its allowed credits.

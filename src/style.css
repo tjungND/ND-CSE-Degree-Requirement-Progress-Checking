@@ -91,7 +91,17 @@ button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor:
 /* Nothing may widen the columns on a phone (WCAG 1.4.10 reflow; usability review 2026-09-05, item 1): wide tables scroll inside their card. */
 .layout > * { min-width: 0; }
 .table-scroll.plain { overflow-x: auto; background: none; border: 0; border-radius: 0; }
-table.courses .counts select { max-width: 100%; }
+/* The group dropdown sits under the requirement list now, so it needs its own
+   room: axe's target-size check failed in WebKit when they touched (2026-09-08). */
+table.courses .counts select { max-width: 100%; margin-top: 8px; min-height: 28px; }
+/* Every requirement a course feeds, under the credit sentence (2026-09-08).
+   Quiet enough not to compete with it, and each name links to its card. */
+.counts-toward { margin-top: 3px; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.counts-toward-label { font-weight: 600; }
+.counts-toward.later { color: var(--warn); }
+.group-hint { margin-top: 4px; font-size: 12.5px; line-height: 1.4; color: var(--warn); }
+.counts-toward .req-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; }
+.counts-toward .req-link:hover, .counts-toward .req-link:focus-visible { text-decoration-style: solid; }
 /* Phones — the rest of this block moved to the phone block far below (2026-09-08):
    it sat BEFORE `.card` and `.course-form .row1`, so at equal specificity the
    later base rules won and every rule here but `#app` was dead. The visible

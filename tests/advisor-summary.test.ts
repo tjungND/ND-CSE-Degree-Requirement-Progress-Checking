@@ -28,7 +28,7 @@ const report: AuditReport = {
       detailParts: [{ lead: 'Your advisor and the DGS must both approve these — send the review request', items: ['MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2))'] }],
     },
   ],
-  courseLines: [{ courseId: 'CSE 60641', term: { season: 'fall', year: 2026 }, text: 'counts toward regular courses (3 cr)', mark: 'counts' }],
+  courseLines: [{ courseId: 'CSE 60641', term: { season: 'fall', year: 2026 }, text: 'counts toward regular courses (3 cr)', mark: 'counts', counts: [] }],
   summary: { met: 1, scored: 4 },
   warnings: [],
 };

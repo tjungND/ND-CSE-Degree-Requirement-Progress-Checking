@@ -41,6 +41,8 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   line no longer says "pending DGS review"; its card is "In progress" until the Grad Admin has processed it.
   Undergraduate wording: "Courses taken as an undergraduate student do not transfer, whether or not the
   course itself is a graduate course (§5.2)", and every undergraduate course line now carries that reason.
+  Each course now lists every requirement it counts toward (and what it will count toward once
+  passed), and a course that can fill any §4.4.2 group says which group is still needed.
   Usability pass 2026-09-08 (six reviews, 51 findings): twelve fixed — see the DECISIONS row. Still
   open for the DGS, in rough value order: collapse the "Who to contact" card into a `<details>` on
   phones (it costs 1.6 screens before "Transcripts — start here" on both pages); move the

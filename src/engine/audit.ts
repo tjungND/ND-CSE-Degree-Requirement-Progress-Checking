@@ -134,11 +134,32 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const scored = rows.filter((r) => !r.informational && r.status !== 'not_applicable');
   const summary = { met: scored.filter((r) => r.status === 'met').length, scored: scored.length };
 
+  // Which requirements each course feeds (DGS request 2026-09-08). The rows
+  // already say which courses satisfy them (`satisfiedBy`, written for the
+  // processing request) and, since today, which will (`pendingBy`); this is
+  // simply that index read the other way round, in report order. Ids that are
+  // not courses — the residency row lists SEMESTERS — are skipped by checking
+  // against the record.
+  const entered = new Set(student.courses.map((c) => c.courseId));
+  const feeds = new Map<string, { id: string; title: string; when: 'now' | 'later' }[]>();
+  const note = (courseId: string, row: RequirementResult, when: 'now' | 'later'): void => {
+    if (!entered.has(courseId)) return;
+    const list = feeds.get(courseId) ?? [];
+    if (!list.some((x) => x.id === row.id)) list.push({ id: row.id, title: row.title, when });
+    feeds.set(courseId, list);
+  };
+  for (const r of rows) {
+    if (r.informational || r.status === 'not_applicable') continue;
+    for (const id of r.satisfiedBy ?? []) note(id, r, 'now');
+    for (const id of r.pendingBy ?? []) note(id, r, 'later');
+  }
+
   const courseLines = alloc.perCourse.map((p) => ({
     courseId: p.course.entry.courseId,
     term: p.course.entry.term,
     text: p.explanation,
     mark: p.mark,
+    counts: feeds.get(p.course.entry.courseId) ?? [],
   }));
 
   return {

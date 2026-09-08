@@ -143,6 +143,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   560–860 px compact preview the header row (`tr:first-child`, clipped for screen readers) is shown
   again for tables `:has(tr.compact)`, with only `th.level-head` ("Taken as") visible, 118 px like
   the dropdown; `checkCompactPreview` asserts exactly that header, aligned over the dropdown.
+- **What a course counts toward** (2026-09-08). `CourseLine.counts` is built in `audit()` from the
+  rows' `satisfiedBy` (met) and `pendingBy` (in progress / provisional), read as an inverse index —
+  a new requirement row needs only to fill those two fields to appear on its courses' lines, and
+  must NOT put non-course ids in them (residency lists semesters; the index drops ids that are not
+  in the record). `pendingCourseIds` is the tier-aware twin of `countedCourseIds`. The §4.4.2 row
+  also exposes `groupChoices` (course id → groups no other course covers) for the dropdown.
 - **Usability pass, 2026-09-08.** `renderReport(report, untouched)` / `renderSummary(report, untouched)`
   and `dial(report, untouched)` carry the empty-state; `untouched` is computed once in `render()`.
   `rememberFocus` now also records open `details[data-key]` and `[aria-expanded="true"][data-key]`

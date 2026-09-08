@@ -23,7 +23,7 @@ import {
 } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, joinedDetail, missingParamDetail, thresholdRow, countedCourseIds } from './context.ts';
+import { capRow, joinedDetail, missingParamDetail, thresholdRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
 
 const COURSEWORK = 'Coursework — §4.2';
@@ -48,6 +48,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       title: '60 total credits of courses and research',
       sums: ctx.alloc.total,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
+      pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
       required: ctx.params.number('phd_total_credits_min'),
       requiredKey: 'phd_total_credits_min',
       section: '§4.2',
@@ -66,6 +67,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       title: '24 credit hours of regular courses at the 60000 level or higher',
       sums: ctx.alloc.regular,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
+      pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular),
       required: ctx.params.number('phd_regular_credits_min'),
       requiredKey: 'phd_regular_credits_min',
       section: '§4.2',
@@ -122,6 +124,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: 'At least 9 credits taken at Notre Dame',
       sums: ctx.alloc.ndRegular,
+      pendingBy: pendingCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       satisfiedBy: countedCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       required: ctx.params.number('phd_nd_credits_min'),
       requiredKey: 'phd_nd_credits_min',
@@ -452,6 +455,9 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       citation: { section: '§4.4.1', quote },
       // The course id alone (the detail may add "(Purdue University)" etc.).
       ...(status === 'met' ? { satisfiedBy: [(done ?? confirmed)!.replace(/ \(.*\)$/, '')] } : {}),
+      // In progress, or waiting on the DGS: it will satisfy this area, and the
+      // course's own line says so (2026-09-08).
+      ...(status !== 'met' && (ip ?? pending) ? { pendingBy: [(ip ?? pending)!.replace(/ \(.*\)$/, '')] } : {}),
     };
   });
 }
@@ -541,13 +547,35 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   }
   parts.push(...def.suggestions);
   parts.push('The approved course list is on the course rules page');
+  // Which group each flexible course should be set to (DGS request
+  // 2026-09-08): the ones no OTHER course of theirs already covers. Read off
+  // the best matching over everything they have, so a suggestion is never one
+  // that another course is already filling.
+  const groupChoices: Record<string, string[]> = {};
+  for (const cand of [...qualifying, ...inProgress]) {
+    if (cand.groups.length <= 1) continue; // the sheet fixes this course's group
+    const coveredByOthers = new Set(
+      [...combined.assignment.entries()].filter(([courseId]) => courseId !== cand.courseId).map(([, g]) => g),
+    );
+    groupChoices[cand.courseId] = allGroups.filter((g) => !coveredByOthers.has(g));
+  }
+
+  const stillPending = new Set(ctx.classified.filter((c) => c.tier !== 'definite' && !c.superseded).map((c) => c.entry.courseId));
+  const assigned = [...def.assignment.keys()];
+  const assignedDone = assigned.filter((id) => !stillPending.has(id));
+  const assignedPending = assigned.filter((id) => stillPending.has(id));
   return {
     id: 'phd.qualifier.categories',
     group: QUALIFIER,
     title: 'Three specialization courses from three distinct groups, each B or higher',
     status,
     ...joinedDetail(parts),
-    ...(status === 'met' ? { satisfiedBy: [...def.assignment.keys()] } : {}),
+    // The assigned courses, whether or not the row is complete (2026-09-08):
+    // each course's own line names this requirement, and a course that is
+    // passed contributes now even while the requirement as a whole is not met.
+    ...(Object.keys(groupChoices).length > 0 ? { groupChoices } : {}),
+    ...(assignedDone.length > 0 ? { satisfiedBy: assignedDone } : {}),
+    ...(assignedPending.length > 0 ? { pendingBy: assignedPending } : {}),
     citation: { section: '§4.4.2', quote },
   };
 }
