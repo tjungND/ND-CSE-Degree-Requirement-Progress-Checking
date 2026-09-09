@@ -236,18 +236,15 @@ export async function driveCourses(s, baseUrl) {
   if (!(after > 0 && after < before)) throw new Error('core-area filter did not narrow the table');
   await s.shot('courses-filtered');
 
-  // The DGS's notes open from a Notes button on the row (2026-09-05, usability
-  // review item 24) — no longer a hover-only tooltip.
-  const notes = await s.evalJs(`(() => {
-    const b = document.querySelector('table.course-rules button.notes');
-    if (!b) return { present: false };
-    b.click();
-    const row = document.getElementById(b.getAttribute('aria-controls'));
-    return { present: true, expanded: b.getAttribute('aria-expanded'), shown: !!row && !row.classList.contains('hidden'), text: row?.textContent.slice(0, 60) };
-  })()`);
-  if (!notes.present) console.log('  (no course carries DGS notes in this rules snapshot — Notes disclosure not exercised)');
-  else if (notes.expanded !== 'true' || !notes.shown) throw new Error('Notes button did not open the note row: ' + JSON.stringify(notes));
-  else console.log('  Notes button opens the DGS note row:', notes.text);
+  // The DGS's notes are the DGS's (2026-09-09): no Notes column, no
+  // disclosure, and nothing on the page carries them.
+  const noNotes = JSON.parse(await s.evalJs(`JSON.stringify({
+    button: !!document.querySelector('table.course-rules button.notes'),
+    column: [...document.querySelectorAll('table.course-rules thead th')].some((th) => /notes/i.test(th.textContent ?? '')),
+    legend: /the DGS.s notes on a course/.test(document.body.textContent ?? ''),
+  })`));
+  if (noNotes.button || noNotes.column || noNotes.legend) throw new Error('the DGS notes are still reachable: ' + JSON.stringify(noNotes));
+  console.log('  no Notes column, button or legend entry — the DGS notes stay with the DGS');
   // Clear filters (item 26) drops the core-area filter set above…
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
   await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);

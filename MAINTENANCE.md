@@ -102,6 +102,15 @@ abbreviation, so a wrong guess can be corrected before the courses are added. Ad
 the same problem — and write the school's real name, since that is the key the ExternalCourses tab
 is matched on (matching ignores case).
 
+Since 2026-09-09 the ExternalCourses tab decides §5.2 transferability per PROGRAM: `transferable_PhD`
+and `transferable_MSCSE`, each taking `yes` / `no` / `dgs_approval` / `adgs_approval` / blank. The app
+reads whichever matches the student's own program, so the same course can be pre-approved for a
+Ph.D. student and need an approval for an MSCSE one. A sheet still carrying the single
+`transferable` column has it applied to both programs, so nothing breaks mid-rename. The two
+approval words are one case for now and both tell the student "needs DGS approval"; the sheet's own
+word is preserved in the parsed rule, so the MSCSE message can name the ADGS later without touching
+the sheet again.
+
 Since 2026-09-08 the ExternalCourses tab's `transferable` column takes a third value,
 `dgs_approval`, beside `yes` and `no`: the course is outside the usual CSE ground but can still
 transfer when it is relevant to a particular student's dissertation, so the DGS decides it one

@@ -51,7 +51,7 @@ describe('ExternalCourses parsing', () => {
   it('reports bad values in plain English and keeps the rest of the row', () => {
     const issues: SheetIssue[] = [];
     const rows = parseExternalTab(
-      'university,course_id,course_title,satisfies_core_area,transferable,nd_credits\n' +
+      'university,course_id,course_title,satisfies_core_area,transferable_PhD,nd_credits\n' +
         'Purdue University,CS 1,Good,os,yes,3\n' +
         'Purdue University,CS 2,Bad core,networking,yes,\n' +
         'Purdue University,CS 3,Bad transferable,os,maybe,\n' +
@@ -62,24 +62,24 @@ describe('ExternalCourses parsing', () => {
     );
     assert.equal(rows.length, 4); // the university-less row is skipped entirely
     assert.equal(rows[1]?.satisfiesCoreArea, undefined);
-    assert.equal(rows[2]?.transferable, undefined);
+    assert.equal(rows[2]?.transferablePhd, undefined);
     assert.equal(rows[3]?.ndCredits, undefined);
     assert.equal(issues.length, 4);
     for (const i of issues) assert.match(i.message, /ExternalCourses row \d/);
     assert.match(issues[0]!.message, /not one of the Categories tab/);
-    assert.match(issues[1]!.message, /'yes', 'no', 'dgs_approval' or blank/);
+    assert.match(issues[1]!.message, /'yes', 'no', 'dgs_approval', 'adgs_approval' or blank/);
     assert.match(issues[2]!.message, /not a number/);
   });
 
   it('warns on duplicate (university, course) pairs — the last row wins (DGS 2026-09-06)', () => {
     const issues: SheetIssue[] = [];
     const rows = parseExternalTab(
-      'university,course_id,transferable\nPURDUE UNIVERSITY,CS 1,yes\nPurdue-University,CS-1,no\n',
+      'university,course_id,transferable_PhD\nPURDUE UNIVERSITY,CS 1,yes\nPurdue-University,CS-1,no\n',
       CORE,
       issues,
     );
     assert.equal(rows.length, 1);
-    assert.equal(rows[0]?.transferable, 'no', 'the later row (transferable = no) replaces the earlier one');
+    assert.equal(rows[0]?.transferablePhd, 'no', 'the later row (transferable = no) replaces the earlier one');
     assert.equal(rows[0]?.sheetRow, 3);
     assert.match(issues[0]?.message ?? '', /the last row wins: row 3 replaces row 2/);
   });
@@ -87,7 +87,7 @@ describe('ExternalCourses parsing', () => {
   it('a leftover university_aliases column is ignored, with one gentle warning', () => {
     const issues: SheetIssue[] = [];
     const rows = parseExternalTab(
-      'university,university_aliases,course_id,transferable\nPURDUE UNIVERSITY,Purdue;PU,CS 1,yes\n',
+      'university,university_aliases,course_id,transferable_PhD\nPURDUE UNIVERSITY,Purdue;PU,CS 1,yes\n',
       CORE,
       issues,
     );
@@ -255,7 +255,7 @@ describe('what a DGS ruling changes in the engine', () => {
     const one = [{ courseId: 'STAT 51200', title: 'Applied Regression Analysis', term: { season: 'fall' as const, year: 2024 } }];
     const { classified } = classify(student(one), rules);
     assert.equal(classified[0]?.tier, 'provisional');
-    assert.match(classified[0]?.approvalPending ?? '', /^transfer — decided case by case by the DGS \(§5\.2\)/);
+    assert.match(classified[0]?.approvalPending ?? '', /^transfer — needs DGS approval \(§5\.2\)/);
     // The rule is EXPLAINED once, in the review card (DGS 2026-09-08); every
     // other surface states the fact and stops. No second person here either:
     // this string is copied verbatim into the advisor e-mail, which re-voices
@@ -273,7 +273,7 @@ describe('what a DGS ruling changes in the engine', () => {
 
     const transfer = report.requirements.find((r) => r.id === 'phd.transfer');
     assert.equal(transfer?.status, 'needs_dgs_review', 'the DGS still has this student’s case to decide');
-    assert.match(transfer?.detail ?? '', /Decided case by case by the DGS: STAT 51200\./);
+    assert.match(transfer?.detail ?? '', /Needs DGS approval: STAT 51200\./);
     assert.doesNotMatch(transfer?.detail ?? '', /research/, 'nor the transfer card');
     assert.doesNotMatch(transfer?.detail ?? '', /Pre-approved by the DGS/);
     assert.doesNotMatch(transfer?.detail ?? '', /Not yet reviewed by the DGS/, 'the DGS HAS reviewed the course — what is open is the student’s case');

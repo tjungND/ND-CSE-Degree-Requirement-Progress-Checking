@@ -6,7 +6,7 @@
 // on the name exactly as transcripts print it (the aliases column was retired
 // 2026-09-03), and course ids ignore spaces and hyphens — but a course
 // with no matching row is NEVER guessed at; it stays "not yet reviewed".
-import type { ExternalRule } from './types.ts';
+import type { ExternalRule, Transferable } from './types.ts';
 
 /** Abbreviations transcripts use in an institution's name, spelled out (DGS
  * 2026-09-08: "Georgia Inst. of Technology" is how Georgia Tech's UNOFFICIAL
@@ -62,6 +62,21 @@ export function normalizeUniversity(name: string): string {
  * ExternalCourses rulings for them live under this name (in the sheet's
  * capital-English convention: UNIVERSITY OF NOTRE DAME). */
 export const NOTRE_DAME = 'University of Notre Dame';
+
+/** The §5.2 ruling that applies to THIS student (DGS 2026-09-09: the sheet
+ * decides transferability separately for a Ph.D. and an MSCSE student). Always
+ * go through here — reading `transferablePhd` directly would apply a Ph.D.
+ * ruling to an MSCSE student. */
+export function transferableFor(rule: ExternalRule | undefined, program: 'phd' | 'mscse'): Transferable | undefined {
+  return program === 'phd' ? rule?.transferablePhd : rule?.transferableMscse;
+}
+
+/** Does this ruling mean "somebody has to approve it"? `dgs_approval` and
+ * `adgs_approval` are one case for now (DGS 2026-09-09), and both are told to
+ * the student as "needs DGS approval". */
+export function needsApproval(t: Transferable | undefined): boolean {
+  return t === 'dgs_approval' || t === 'adgs_approval';
+}
 
 /** True for any spelling of Notre Dame as an institution name. */
 export function isNotreDameInstitution(name: string | undefined): boolean {

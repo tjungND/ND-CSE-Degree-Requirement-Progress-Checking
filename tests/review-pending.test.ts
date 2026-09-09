@@ -78,17 +78,17 @@ describe('coursesNeedingDgsReview — courses from another university', () => {
   // argue it anywhere on the page.
   it('transferable = dgs_approval keeps the course in the request, without asking the student to justify it', () => {
     const s = student([purdue('STAT 51200', 'Applied Regression Analysis')]);
-    const caseRow = [row('STAT 51200', { transferable: 'dgs_approval', satisfies_core_area: 'none' })];
+    const caseRow = [row('STAT 51200', { transferable_PhD: 'dgs_approval', satisfies_core_area: 'none' })];
     assert.deepEqual(ids(s, caseRow), ['STAT 51200:decide'], 'it needs a DECISION, not a new sheet row');
     // No pronoun, and no instruction: this reason is a column of the e-mail
     // the student sends the DGS, so it must read the same way to both of them.
-    assert.equal(reasonOf(s, caseRow, 'STAT 51200'), 'transferability decided case by case (§5.2)');
+    assert.equal(reasonOf(s, caseRow, 'STAT 51200'), 'transfer needs DGS approval (§5.2)');
     // A core-sounding title with no core-area decision adds its half to the
     // same line rather than replacing it.
     const both = student([purdue('CS 50300', 'Operating Systems')]);
     assert.match(
-      reasonOf(both, [row('CS 50300', { transferable: 'dgs_approval' })], 'CS 50300')!,
-      /^transferability decided case by case \(§5\.2\), and no core area recorded/,
+      reasonOf(both, [row('CS 50300', { transferable_PhD: 'dgs_approval' })], 'CS 50300')!,
+      /^transfer needs DGS approval \(§5\.2\), and no core area recorded/,
     );
     // `yes` and `no` still close the transfer half.
     assert.deepEqual(ids(s, [row('STAT 51200', { transferable: 'yes', satisfies_core_area: 'none' })]), []);
@@ -104,16 +104,35 @@ describe('coursesNeedingDgsReview — courses from another university', () => {
   // The DGS types these words by hand into a spreadsheet cell.
   it('a hand-typed verdict forgives the separator and the capitals', () => {
     const s2 = student([purdue('STAT 51200', 'Applied Regression Analysis')]);
-    for (const typed of ['dgs_approval', 'DGS approval', 'dgs-approval', 'DGS_Approval']) {
-      const rules = buildRules({ external: [row('STAT 51200', { transferable: typed, satisfies_core_area: 'none' })] });
-      assert.equal(rules.external[0]?.transferable, 'dgs_approval', typed);
+    for (const typed of ['dgs_approval', 'DGS approval', 'dgs-approval', 'DGS_Approval', 'adgs_approval', 'ADGS approval']) {
+      const rules = buildRules({ external: [row('STAT 51200', { transferable_PhD: typed, satisfies_core_area: 'none' })] });
+      assert.match(rules.external[0]?.transferablePhd ?? '', /^a?dgs_approval$/, typed);
       assert.equal(rules.issues.filter((i) => i.tab === 'ExternalCourses').length, 0, typed);
       assert.equal(coursesNeedingDgsReview(s2, rules).length, 1, typed);
     }
     // A different word is still an error, and the cell is ignored.
-    const bad = buildRules({ external: [row('STAT 51200', { transferable: 'maybe' })] });
-    assert.equal(bad.external[0]?.transferable, undefined);
-    assert.match(bad.issues.find((i) => i.column === 'transferable')?.message ?? '', /'yes', 'no', 'dgs_approval' or blank/);
+    const bad = buildRules({ external: [row('STAT 51200', { transferable_PhD: 'maybe' })] });
+    assert.equal(bad.external[0]?.transferablePhd, undefined);
+    assert.match(bad.issues.find((i) => i.column === 'transferable_phd')?.message ?? '', /'yes', 'no', 'dgs_approval', 'adgs_approval' or blank/);
+  });
+
+  // Two columns since 2026-09-09: the ruling that applies depends on the
+  // student's own program, and a sheet still using the one `transferable`
+  // column fills both.
+  it('the Ph.D. and the MSCSE ruling are read separately', () => {
+    const split = [row('STAT 51200', { transferable_PhD: 'yes', transferable_MSCSE: 'adgs_approval', satisfies_core_area: 'none' })];
+    const phd = student([purdue('STAT 51200', 'Applied Regression Analysis')]);
+    const ms: Student = { ...phd, program: 'mscse' };
+    assert.deepEqual(ids(phd, split), [], 'pre-approved for a Ph.D. student');
+    assert.deepEqual(ids(ms, split), ['STAT 51200:decide'], 'the MSCSE side still needs an approval');
+    assert.equal(reasonOf(ms, split, 'STAT 51200'), 'transfer needs DGS approval (§5.2)');
+  });
+
+  it('the old single column still fills both programs', () => {
+    const oneColumn = [row('STAT 51200', { transferable: 'yes', satisfies_core_area: 'none' })];
+    const phd = student([purdue('STAT 51200', 'Applied Regression Analysis')]);
+    assert.deepEqual(ids(phd, oneColumn), []);
+    assert.deepEqual(ids({ ...phd, program: 'mscse' }, oneColumn), []);
   });
 
   it('the `none` value parses as a decision (null), a blank as undecided (undefined)', () => {

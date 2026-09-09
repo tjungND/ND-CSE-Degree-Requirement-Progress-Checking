@@ -5,16 +5,18 @@ import type { Term } from '../engine/types.ts';
 export type Counts = 'yes' | 'no' | 'dgs_approval';
 
 /** §5.2 transferability of one course at another university, as the
- * ExternalCourses tab's `transferable` column states it. `yes` = pre-approved
- * by the DGS, so only the Grad Admin's processing is left; `no` = ruled out;
- * `dgs_approval` = decided case by case (DGS 2026-09-08 — a course outside the
- * usual CSE ground that may still transfer when it serves the student's
- * research), so it stays in the review request until the DGS rules on that
- * student's case. Whether it does serve their research is settled between the
- * advisor and the DGS: nothing on the page asks the student to argue it, and
- * the request says only that the decision is open. A blank cell is undefined:
- * not looked at yet. */
-export type Transferable = 'yes' | 'no' | 'dgs_approval';
+ * ExternalCourses tab states it. `yes` = pre-approved, so only the Grad
+ * Admin's processing is left; `no` = ruled out; `dgs_approval` /
+ * `adgs_approval` = this one needs an approval, so it stays in the review
+ * request until it is given (DGS 2026-09-08, split 2026-09-09). A blank cell
+ * is undefined: not looked at yet.
+ *
+ * The two approval words are treated as ONE case for now (DGS 2026-09-09:
+ * "you can treat dgs_approval = adgs_approval"), and both are read as "DGS
+ * approval is needed". They are kept apart in the type rather than collapsed
+ * at parse time, so the day the DGS wants the MSCSE message to name the ADGS
+ * instead, the sheet's own word is still there to key on. */
+export type Transferable = 'yes' | 'no' | 'dgs_approval' | 'adgs_approval';
 
 /** category_group values that are valid on a Courses row but are NOT real
  * §4.4.2 specialization groups: 'any' = listed under every group (student
@@ -28,9 +30,9 @@ export type CourseType = 'regular' | 'seminar' | 'research' | 'independent' | 'p
 /** One row of the ExternalCourses tab: a course at ANOTHER university the DGS
  * has ruled on (docs/DECISIONS.md, 2026-09-01). `satisfiesCoreArea` says which
  * §4.4.1 core area the course covers (validated against the Categories core
- * list); `transferable` says whether its credits may transfer under §5.2 —
- * `yes`, `no`, or `dgs_approval` for a course decided case by case (undefined =
- * the DGS has not decided that part at all); `ndCredits` is the
+ * list); the two `transferable_*` columns say whether its credits may transfer
+ * under §5.2 — separately for a Ph.D. and an MSCSE student since 2026-09-09
+ * (undefined = that part is not decided for that program); `ndCredits` is the
  * Notre-Dame-equivalent credit value for non-semester systems — §5.2 "pro-rata"
  * (undefined = count the credits printed on the transcript). */
 export interface ExternalRule {
@@ -41,7 +43,13 @@ export interface ExternalRule {
   courseId: string;
   title: string;
   satisfiesCoreArea?: string | null; // null = decided, no core area (`none` in the sheet, DGS 2026-09-06); undefined = blank, not decided yet
-  transferable?: Transferable;
+  /** §5.2 transferability, decided per PROGRAM since 2026-09-09: the sheet's
+   * `transferable_PhD` and `transferable_MSCSE` columns. A sheet still using
+   * the single `transferable` column fills both. Read them through
+   * `transferableFor(rule, program)` — never directly, or a Ph.D. ruling will
+   * be applied to an MSCSE student. */
+  transferablePhd?: Transferable;
+  transferableMscse?: Transferable;
   /** A FIXED Notre Dame credit value for this one course, when the conversion
    * below cannot express it. Overrides everything. */
   ndCredits?: number;

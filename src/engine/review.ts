@@ -19,7 +19,7 @@
 // Dame or at their previous institution" — undergraduate or graduate — once
 // the DGS confirms the course. §5.2 criterion 5: "the transfer is recommended
 // by the DGS and approved by the Graduate School."
-import { isNotreDameInstitution } from '../data/external.ts';
+import { isNotreDameInstitution, needsApproval } from '../data/external.ts';
 import type { Rules } from '../data/types.ts';
 import { classify, type ClassifiedCourse } from './allocate.ts';
 import { CORE_TITLE_RE } from './core-title.ts';
@@ -79,21 +79,20 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
       // Ruled — or merely listed. Pending while transferability is undecided
       // (graduate rows the engine has not already excluded — bachelors never
       // transfers), and while a core-sounding title has no core-area decision.
-      const caseByCase = c.external.transferable === 'dgs_approval';
+      const caseByCase = needsApproval(c.transferable);
       // A student who has ticked "the DGS and the Graduate School approved my
       // transfer" is not waiting on a transferability decision — every other
       // surface already treats that attestation as closing the §5.2 question
       // (allocate.ts clears `approvalPending`, and the §5.2 row reads "met"),
       // and the card used to go on asking anyway (2026-09-08).
       const transferAttested = student.attestations.transferApproved === true;
-      const transferUndecided =
-        (c.external.transferable === undefined || caseByCase) && !bachelors && !transferAttested && c.ineligibleReason === undefined;
+      const transferUndecided = (c.transferable === undefined || caseByCase) && !bachelors && !transferAttested && c.ineligibleReason === undefined;
       const coreUndecided = c.external.satisfiesCoreArea === undefined && !coreDecidedByCoursesTab && coreTitle(c);
       if (!transferUndecided && !coreUndecided) continue;
       // Why the course is decided case by case — its relevance to the
       // student's research — is settled between the advisor and the DGS (DGS
       // 2026-09-08), so the student is told only that the decision is open.
-      const transferReason = caseByCase ? 'transferability decided case by case (§5.2)' : 'transferability not yet decided';
+      const transferReason = caseByCase ? 'transfer needs DGS approval (§5.2)' : 'transferability not yet decided';
       const reason =
         transferUndecided && coreUndecided
           ? `${transferReason}, and no core area recorded although the title suggests a §4.4.1 core area`

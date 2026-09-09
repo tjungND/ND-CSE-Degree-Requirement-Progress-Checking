@@ -232,9 +232,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     const c = program === 'mscse' ? r.countsTowardMscse : r.countsTowardPhd;
     return c === 'yes' || c === 'dgs_approval';
   };
+  /** What a course's own row can tell a reader beyond its columns. The DGS's
+   * `notes` are NOT part of it (DGS 2026-09-09): they are the DGS's working
+   * notes, and students should not read them. */
   const hoverText = (r: RuleCourse): string => {
     const parts: string[] = [];
-    if (r.notes) parts.push(r.notes);
     const versions = rules.courses.get(r.courseId) ?? [];
     if (versions.length > 1) {
       parts.push(
@@ -416,7 +418,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                 el(
                   'th',
                   { scope: 'row', class: 'course-id' },
-                  el('a', { href: `#${r.courseId.replace(' ', '-')}`, title: hoverText(r) || 'Jump to this course in the table' }, r.courseId),
+                  withCourseCard(el('a', { href: `#${r.courseId.replace(' ', '-')}` }, r.courseId), r),
                   r.dgsReviewed ? '' : ' *',
                 ),
                 el('td', { class: 'cell-title', 'data-label': 'Title' }, r.title),
@@ -502,11 +504,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   function overview(): HTMLElement {
     const live = rows.filter((r) => r.active);
     const item = (r: RuleCourse): HTMLElement =>
-      el(
-        'a',
-        { class: `ov-item${r.dgsReviewed ? '' : ' pending'}`, href: `#${r.courseId.replace(' ', '-')}`, title: hoverText(r) || 'Jump to this course in the table' },
-        el('span', { class: 'cid' }, r.courseId, r.dgsReviewed ? '' : ' *'),
-        el('span', { class: 'ctitle' }, r.title),
+      withCourseCard(
+        el(
+          'a',
+          { class: `ov-item${r.dgsReviewed ? '' : ' pending'}`, href: `#${r.courseId.replace(' ', '-')}` },
+          el('span', { class: 'cid' }, r.courseId, r.dgsReviewed ? '' : ' *'),
+          el('span', { class: 'ctitle' }, r.title),
+        ),
+        r,
       );
     const listFor = (pick: (r: RuleCourse) => boolean): HTMLElement => {
       const items = live.filter(pick);
@@ -564,6 +569,65 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are not shown here; tick "Include retired courses" in the table below to see them.'),
     );
   }
+
+  // ---------- the course card that follows the pointer ----------
+  //
+  // Hovering (or tabbing to) a course anywhere in the three card sections
+  // shows what the table row would say — the DGS asked for it on 2026-09-09,
+  // so a reader does not have to jump to the table and back. One element,
+  // moved and refilled, `position: fixed` so the schedule tables' scroll
+  // region cannot clip it, and never the DGS's notes.
+  const hoverCard = el('div', { class: 'course-pop', id: 'course-pop', role: 'tooltip', hidden: 'hidden' });
+  const popRow = (label: string, value: Node | string): HTMLElement =>
+    el('div', { class: 'pop-row' }, el('span', { class: 'pop-label' }, label), el('span', { class: 'pop-value' }, value));
+  const fillCard = (r: RuleCourse): void => {
+    clear(hoverCard);
+    const pill = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
+    hoverCard.append(
+      el('h4', {}, r.courseId, r.active ? '' : el('span', { class: 'pill retired' }, 'Retired')),
+      el('p', { class: 'pop-title' }, r.title),
+      popRow('Type', TYPE_LABEL[r.courseType]),
+      popRow('MSCSE degree credit', pill(r.countsTowardMscse)),
+      popRow('Ph.D. degree credit', pill(r.countsTowardPhd)),
+      popRow('Core knowledge (§4.4.1)', coreLabel(r)),
+      popRow('Specialization (§4.4.2)', categoryLabel(r)),
+      popRow('Typically offered', offeredLabel(r)),
+      popRow('DGS reviewed', r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending')),
+    );
+  };
+  const placeCard = (anchor: HTMLElement): void => {
+    const box = anchor.getBoundingClientRect();
+    hoverCard.hidden = false;
+    const card = hoverCard.getBoundingClientRect();
+    const gap = 8;
+    // Below the course by default; above it when there is no room below.
+    const top = box.bottom + gap + card.height > window.innerHeight && box.top - gap - card.height > 0 ? box.top - gap - card.height : box.bottom + gap;
+    const left = Math.max(gap, Math.min(box.left, window.innerWidth - card.width - gap));
+    hoverCard.style.top = `${Math.round(top)}px`;
+    hoverCard.style.left = `${Math.round(left)}px`;
+  };
+  const hideCard = (): void => {
+    hoverCard.hidden = true;
+    hoverCard.style.top = '-9999px';
+  };
+  /** Wire one course link to the card. Pointer AND keyboard, so tabbing
+   * through the cards shows the same thing a mouse does. */
+  const withCourseCard = (anchor: HTMLElement, r: RuleCourse): HTMLElement => {
+    const show = () => {
+      fillCard(r);
+      placeCard(anchor);
+      anchor.setAttribute('aria-describedby', 'course-pop');
+    };
+    const hide = () => {
+      hideCard();
+      anchor.removeAttribute('aria-describedby');
+    };
+    anchor.addEventListener('mouseenter', show);
+    anchor.addEventListener('focus', show);
+    anchor.addEventListener('mouseleave', hide);
+    anchor.addEventListener('blur', hide);
+    return anchor;
+  };
 
   /** Visible labels above every filter (usability review 2026-09-05, item 26)
    * — an aria-label alone told sighted users nothing once a value was chosen. */
@@ -733,10 +797,17 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       labelled('Specialization category', category, 'filter-category'),
       labelled('Course type', type, 'filter-type'),
       ...(scheduleKnown ? [labelled('On the schedule', offered, 'filter-offered')] : []),
-      el('label', { class: 'check' }, retired, ' Include retired courses'),
-      el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows'),
+      // The two switches and Clear share one line under the pickers, so the
+      // row reads as a grid of equal cells rather than a ragged wrap (DGS
+      // 2026-09-09).
+      el(
+        'div',
+        { class: 'switches' },
+        el('label', { class: 'check' }, retired, ' Include retired courses'),
+        el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows'),
+        clearButton,
+      ),
       el('div', { class: 'filter mobile-only' }, labelled('Sort by', sortSel, 'filter-sort'), el('label', { class: 'check' }, descBox, ' Descending')),
-      clearButton,
     );
   }
 
@@ -800,7 +871,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       th('category', 'Specialization', 'Ph.D. qualifying exam §4.4.2'),
       th('offered', 'Typically offered'),
       th('reviewed', 'DGS reviewed'),
-      el('th', { scope: 'col' }, 'Notes'),
     );
     const body = el('tbody', {});
     // A filter that matches nothing used to render nothing, and silence reads
@@ -813,7 +883,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           { class: 'empty-row' },
           el(
             'td',
-            { colspan: '10' },
+            { colspan: '9' },
             el('strong', {}, 'No course here matches these filters. '),
             'A course that is not listed on this page has not been decided by the DGS — do not read its absence as “does not count”. ',
             'The degree self-check tool prepares the review request that asks for a decision.',
@@ -824,29 +894,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     for (const r of list) {
       const pillCounts = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
       const catClass = groupsOf(r).length === 0 ? 'muted' : '';
-      // The DGS's notes were hover-only (a title tooltip — unreachable by
-      // keyboard and touch; usability review 2026-09-05, item 24): now a
-      // disclosure button opens a note row under the course.
-      const note = hoverText(r);
       const rowId = r.courseId.replace(' ', '-');
-      const noteRow = note ? el('tr', { class: 'note-row hidden', id: `${rowId}-notes` }, el('td', { colspan: '10' }, el('strong', {}, 'DGS notes: '), note)) : null;
-      const notesButton = note
-        ? el(
-            'button',
-            {
-              class: 'btn tiny notes',
-              'aria-label': `Notes for ${r.courseId}`,
-              'aria-expanded': 'false',
-              'aria-controls': `${rowId}-notes`,
-              'data-key': `notes.${rowId}`,
-              onclick: () => {
-                const open = noteRow!.classList.toggle('hidden') === false;
-                notesButton!.setAttribute('aria-expanded', open ? 'true' : 'false');
-              },
-            },
-            'Notes',
-          )
-        : null;
       body.append(
         el(
           'tr',
@@ -864,10 +912,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
             { 'data-label': 'DGS reviewed' },
             r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending'),
           ),
-          el('td', { class: 'notes-cell' }, notesButton ?? el('span', { class: 'muted no-notes' }, '—')),
         ),
       );
-      if (noteRow) body.append(noteRow);
     }
     // Column visibility for the chosen view (item 30): a class on each hidden
     // header and cell, so the card layout on phones hides the same fields.
@@ -951,7 +997,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
             ]
           : []),
         li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.'),
-        li(el('strong', {}, 'Notes'), 'the DGS’s notes on a course, and older rule versions — open with the Notes button on its row.'),
       ),
     );
     return el('div', { class: 'legend-block' }, key, details);
@@ -995,6 +1040,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   refreshTable();
   root.append(
     el('a', { class: 'skip-link', href: '#all-courses' }, 'Skip to the course list'),
+    hoverCard,
     masthead(),
     el(
       'main',

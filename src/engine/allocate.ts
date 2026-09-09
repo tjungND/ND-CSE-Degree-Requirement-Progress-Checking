@@ -9,8 +9,8 @@
 // entry-order greedy, where re-sorting the course list changed the verdict.
 import { formatCredits } from './credits.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
-import { findExternalRule, isNotreDameInstitution, ndEquivalentCredits, universityCreditSystem } from '../data/external.ts';
-import type { ExternalRule, RuleCourse, Rules } from '../data/types.ts';
+import { findExternalRule, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem } from '../data/external.ts';
+import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
@@ -47,6 +47,11 @@ export interface ClassifiedCourse {
    * exists (attached even when the course earns no credit, so §4.4.1 core
    * knowledge can still see a DGS-confirmed course). */
   external?: ExternalRule;
+  /** Transfer-only: the §5.2 ruling that applies to THIS student — the sheet
+   * decides transferability separately for a Ph.D. and an MSCSE student
+   * (2026-09-09). Resolved here, once, so nothing downstream has to know the
+   * student's program or which column to read. */
+  transferable?: Transferable;
   /** Transfer-only: the DGS's ND-equivalent credit value (ExternalCourses
    * nd_credits, or converted from the university's quarter system — §5.2
    * "pro-rata"); counting uses this instead of the credits
@@ -247,11 +252,12 @@ export function classify(student: Student, rules: Rules): {
           : suggested
             ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
             : '';
-      if (external?.transferable === 'no') {
+      const transferable = transferableFor(external, student.program);
+      if (transferable === 'no') {
         return {
           ...extBase,
           // The university as the student's record spells it (DGS 2026-09-06, late evening: no upper-cased sheet spelling in student-facing text).
-          ineligibleReason: `not counted — the DGS has ruled this ${c.institution ?? external.university} course non-transferable (external-course rules)${coreNote}`,
+          ineligibleReason: `not counted — the DGS has ruled this ${c.institution ?? external?.university} course non-transferable (external-course rules)${coreNote}`,
         };
       }
       // §5.2 (verbatim): "A student may transfer credits earned at another
@@ -299,6 +305,7 @@ export function classify(student: Student, rules: Rules): {
       const attested = attestations.transferApproved === true;
       return {
         ...extBase,
+        transferable,
         pool: 'regular',
         caps: ['transfer'],
         tier: tierFor(grade, !attested),
@@ -310,15 +317,14 @@ export function classify(student: Student, rules: Rules): {
         ...(external?.ndCredits === undefined && creditSystem === 'quarter' ? { creditsConverted: true as const } : {}),
         approvalPending: attested
           ? undefined
-          : external?.transferable === 'yes'
+          : transferable === 'yes'
             ? `pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)${coreNote}`
-            : // `dgs_approval` (DGS 2026-09-08): the DGS has looked at the
-              // course and ruled that it is decided one student at a time —
-              // outside the usual CSE ground, but transferable when it serves
-              // the student's dissertation. Unlike a blank cell, this is a
-              // decision; what is open is this student's case.
-              external?.transferable === 'dgs_approval'
-              ? `transfer — decided case by case by the DGS (§5.2)${coreNote}`
+            : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
+              // program 2026-09-09): the sheet has looked at the course and
+              // ruled that this one needs an approval. Unlike a blank cell,
+              // that IS a decision; what is open is this student's case.
+              needsApproval(transferable)
+              ? `transfer — needs DGS approval (§5.2)${coreNote}`
               : external
                 ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
                 : `transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
@@ -481,7 +487,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     // the allocator's choice of which candidates fill the cap is not a
     // verdict — its line says "candidate", never "over the cap".
     const transferCandidate =
-      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.external?.transferable !== 'yes'
+      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.transferable !== 'yes'
         ? { capLimit: caps.find((c) => c.id === 'transfer')?.limit }
         : undefined;
     allocations.set(cc, {

@@ -13,7 +13,7 @@ const CODE_RE = /^[a-z0-9_]+$/;
 
 const COURSE_TYPES: CourseType[] = ['regular', 'seminar', 'research', 'independent', 'project'];
 const COUNTS: Counts[] = ['yes', 'no', 'dgs_approval'];
-const TRANSFERABLE: Transferable[] = ['yes', 'no', 'dgs_approval'];
+const TRANSFERABLE: Transferable[] = ['yes', 'no', 'dgs_approval', 'adgs_approval'];
 
 /** A verdict cell as typed by a human into a spreadsheet. The DGS types these
  * by hand, so "DGS approval", "dgs-approval" and "DGS Approval" all mean
@@ -396,16 +396,24 @@ export function parseExternalTab(
       }
     }
 
-    // transferable: `yes` (pre-approved), `no` (ruled out), `dgs_approval`
-    // (decided case by case — DGS 2026-09-08, for a course outside the usual
-    // CSE ground that may still transfer when it serves the dissertation), or
-    // blank (not decided at all). The same three words the Courses tab uses.
-    const transferable = verdictWord(cells['transferable']);
-    if (TRANSFERABLE.includes(transferable as Transferable)) rule.transferable = transferable as Transferable;
-    else if (transferable !== '') {
-      err(rowNum, 'transferable',
-        `ExternalCourses row ${rowNum} (${university} ${courseId}): transferable must be ${TRANSFERABLE.map((t) => `'${t}'`).join(', ')} or blank (undecided) — got '${cells['transferable']}'. That cell is ignored.`);
-    }
+    // transferable_PhD / transferable_MSCSE (DGS 2026-09-09; one `transferable`
+    // column until then, and a sheet still using it fills both): `yes`
+    // (pre-approved), `no` (ruled out), `dgs_approval` or `adgs_approval` (this
+    // one needs an approval before it counts), or blank (not decided for that
+    // program).
+    const transferableOf = (column: string): Transferable | undefined => {
+      const v = verdictWord(cells[column]);
+      if (v === '') return undefined;
+      if (TRANSFERABLE.includes(v as Transferable)) return v as Transferable;
+      err(rowNum, column,
+        `ExternalCourses row ${rowNum} (${university} ${courseId}): ${column} must be ${TRANSFERABLE.map((t) => `'${t}'`).join(', ')} or blank (undecided) — got '${cells[column]}'. That cell is ignored.`);
+      return undefined;
+    };
+    const bothPrograms = transferableOf('transferable');
+    const transferablePhd = transferableOf('transferable_phd') ?? bothPrograms;
+    const transferableMscse = transferableOf('transferable_mscse') ?? bothPrograms;
+    if (transferablePhd !== undefined) rule.transferablePhd = transferablePhd;
+    if (transferableMscse !== undefined) rule.transferableMscse = transferableMscse;
 
     // nd_credits: a FIXED Notre Dame value for this one course. It cannot
     // describe a course whose credits vary (2 to 4), which is what

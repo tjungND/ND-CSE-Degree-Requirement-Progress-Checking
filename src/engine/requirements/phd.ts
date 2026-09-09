@@ -1,7 +1,7 @@
 // §4 — Requirements for the Doctor of Philosophy Degree.
 // Every builder quotes the handbook sentence it implements.
 import { resolveRuleRow } from '../../data/assemble.ts';
-import { isNotreDameInstitution } from '../../data/external.ts';
+import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
 import { isInProgress, isPassed, meetsGradeFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
@@ -233,12 +233,13 @@ function transferRow(ctx: Ctx): RequirementResult {
     // credit waits for the Grad Admin's processing, so the row is "in
     // progress", not "needs DGS review" (DGS 2026-09-07).
     const pending = transfers.filter((c) => !c.superseded && c.approvalPending);
-    const preApproved = pending.filter((c) => c.external?.transferable === 'yes');
-    // Ruled `dgs_approval` (DGS 2026-09-08): the DGS decides these one student
-    // at a time, so they are neither pre-approved nor unreviewed.
-    const caseByCase = pending.filter((c) => c.external?.transferable === 'dgs_approval');
+    const preApproved = pending.filter((c) => c.transferable === 'yes');
+    // Ruled `dgs_approval` / `adgs_approval`: the sheet says this one needs an
+    // approval, so it is neither pre-approved nor unreviewed (2026-09-08,
+    // split by program 2026-09-09).
+    const caseByCase = pending.filter((c) => needsApproval(c.transferable));
     const unreviewed = pending.filter((c) => !c.external);
-    const listedUndecided = pending.filter((c) => c.external && c.external.transferable === undefined);
+    const listedUndecided = pending.filter((c) => c.external && c.transferable === undefined);
     status = ctx.student.attestations.transferApproved ? 'met' : pending.length > 0 && preApproved.length === pending.length ? 'in_progress' : 'needs_dgs_review';
     parts.push(
       `${counted} of ${cap} transfer credits counted (§5.2 cap for a ${ctx.student.priorMs === 'completed' ? 'completed prior degree' : 'prior program that was not completed'})`,
@@ -255,7 +256,7 @@ function transferRow(ctx: Ctx): RequirementResult {
       }
       if (caseByCase.length > 0) {
         parts.push(
-          `Decided case by case by the DGS: ${caseByCase.map((c) => c.entry.courseId).join(', ')}`,
+          `Needs DGS approval: ${caseByCase.map((c) => c.entry.courseId).join(', ')}`,
         );
       }
       // A row whose transferable cell is blank is none of the three above, and
