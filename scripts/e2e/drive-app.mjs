@@ -259,6 +259,31 @@ export async function driveCourses(s, baseUrl) {
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
   await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
 
+  // The schedule filter (DGS 2026-09-09) appears only once the sheet's
+  // offered_now / offered_next columns say something, so the check adapts to
+  // whichever the live sheet currently is.
+  const sched = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sel = document.querySelector('[data-key="filter.offered"]');
+    return sel ? { present: true, options: [...sel.options].map((o) => o.value), labels: [...sel.options].map((o) => o.textContent) } : { present: false };
+  })())`));
+  if (!sched.present) {
+    console.log('  schedule filter: not shown — no course in the sheet carries offered_now/offered_next yet');
+  } else {
+    if (sched.options.join(',') !== ',now,next') throw new Error('schedule filter options: ' + JSON.stringify(sched.options));
+    if (!/Offered this semester \(/.test(sched.labels[1] ?? '') || !/Offered next semester \(/.test(sched.labels[2] ?? '')) {
+      throw new Error('the schedule options must name their semesters: ' + JSON.stringify(sched.labels));
+    }
+    const before = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
+    await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.offered"]'); sel.value = 'now'; sel.dispatchEvent(new Event('change')); })()`);
+    await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length !== ${before}`);
+    const after = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
+    if (!(after > 0 && after < before)) throw new Error(`the schedule filter did not narrow the table (${before} → ${after})`);
+    if (!/offered=now/.test(await s.evalJs(`window.location.search`))) throw new Error('the schedule filter must reach the address bar');
+    console.log(`  schedule filter: ${before} → ${after} rows offered this semester, and the URL carries it`);
+    await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
+    await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+  }
+
   // Specialization categories (DGS 2026-09-08): "Listed under every category"
   // is gone as a sixth category, a course listed under several categories
   // stands in EACH of their cards, and the note above them says it can fill

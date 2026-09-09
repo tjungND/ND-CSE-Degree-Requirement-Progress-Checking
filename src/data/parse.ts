@@ -206,6 +206,28 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       }
     }
 
+    // offered_now / offered_next (DGS 2026-09-09): is the course on the
+    // schedule this semester, and the next one? A blank cell is UNDEFINED —
+    // the sheet has not said — which the course-rules page treats as "not
+    // listed as offered", never as a promise that it is not.
+    const offeredOf = (column: 'offered_now' | 'offered_next'): boolean | undefined => {
+      const v = verdictWord(cells[column]);
+      if (v === '') return undefined;
+      if (v === 'yes') return true;
+      if (v === 'no') return false;
+      // Not `bad()`: that one says "Row skipped", and only this cell is.
+      issues.push({
+        severity: 'error',
+        tab: 'Courses',
+        row: rowNum,
+        column,
+        message: `Courses row ${rowNum} (${courseId}), column ${column}: '${cells[column] ?? ''}' is not 'yes', 'no' or blank. That cell is ignored — the course is not listed as offered.`,
+      });
+      return undefined;
+    };
+    const offeredNow = offeredOf('offered_now');
+    const offeredNext = offeredOf('offered_next');
+
     const levelFromId = Number(courseId.split(' ')[1]![0]);
     out.push({
       courseId,
@@ -220,6 +242,8 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       coreArea: cells['core_area'] || undefined,
       ...categoryGroupsOf(cells['category_group']),
       typicallyOffered: cells['typically_offered'] || undefined,
+      ...(offeredNow !== undefined ? { offeredNow } : {}),
+      ...(offeredNext !== undefined ? { offeredNext } : {}),
       active: activeRaw !== 'no',
       effectiveTerm,
       notes: cells['notes'] || undefined,

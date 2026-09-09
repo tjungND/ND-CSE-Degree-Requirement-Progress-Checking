@@ -83,6 +83,13 @@ export interface RuleCourse {
    * rules page's own label. */
   categoryGroupRaw?: string;
   typicallyOffered?: string;
+  /** Is the course on the schedule THIS semester, and the NEXT one (DGS
+   * 2026-09-09 — the `offered_now` and `offered_next` columns)? These say what
+   * the registrar's schedule says today, where `typicallyOffered` is a pattern
+   * from past years. Undefined means the cell is blank: the sheet does not
+   * say, which is not the same as "no". */
+  offeredNow?: boolean;
+  offeredNext?: boolean;
   active: boolean; // course-picker visibility only
   effectiveTerm?: Term;
   notes?: string;

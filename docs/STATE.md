@@ -74,6 +74,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   "current semester", the entry-term legend names the program, and "Bachelor's degree awarded" is required.
   The sign-off row is "Courses still to be approved or processed", grouped by who must act, and says
   "Needs DGS review" only when the DGS actually has a course to decide.
+  The Courses tab's `offered_now` / `offered_next` columns drive one filter on the course-rules
+  page, "On the schedule" (2026-09-09); no table column, and the control hides itself while the
+  sheet says nothing.
   The page is fluid: it fills the window at any width, both columns grow, and paragraphs keep a
   100-character measure (2026-09-09). The 1120/900/600 px breakpoints are unchanged.
   "Bachelor's degree awarded (required)" is on the Ph.D.-slot preview too, and its year box fits

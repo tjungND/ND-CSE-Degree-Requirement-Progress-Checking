@@ -8,6 +8,7 @@
 import type { NotreDameNow } from '../data/clock.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
+import type { Term } from '../engine/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
@@ -50,6 +51,9 @@ interface Filters {
   core: string; // '' = any
   category: string; // '' = any
   type: string; // '' = any
+  /** '' = any semester; 'now' = on this semester's schedule; 'next' = on the
+   * next one's (DGS 2026-09-09, the sheet's offered_now / offered_next). */
+  offered: '' | 'now' | 'next';
   includeRetired: boolean;
   confirmedOnly: boolean;
   sort: SortKey;
@@ -93,6 +97,8 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   if (category && validCategories.has(category)) f.category = category;
   const type = params.get('type');
   if (type && ['regular', 'seminar', 'research', 'independent', 'project'].includes(type)) f.type = type;
+  const offered = params.get('offered');
+  if (offered === 'now' || offered === 'next') f.offered = offered;
   if (params.get('retired') === '1') f.includeRetired = true;
   if (params.get('confirmed') === '1') f.confirmedOnly = true;
   const sort = params.get('sort');
@@ -110,6 +116,7 @@ function filtersToUrl(f: Filters, defaults: Filters): void {
   if (f.core !== defaults.core) params.set('core', f.core);
   if (f.category !== defaults.category) params.set('category', f.category);
   if (f.type !== defaults.type) params.set('type', f.type);
+  if (f.offered !== defaults.offered) params.set('offered', f.offered);
   if (f.includeRetired) params.set('retired', '1');
   if (f.confirmedOnly) params.set('confirmed', '1');
   if (f.sort !== defaults.sort) params.set('sort', f.sort);
@@ -127,6 +134,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   applyContactOverrides(rules.parameters); // sheet-driven contacts (2026-09-04)
   const todayIso = today.iso; // Notre Dame's date, settled on the loading card (2026-09-07)
   const currentTerm = termOfDate(todayIso);
+  // "Next semester" on a schedule is the next FALL or SPRING; summer is not a
+  // graduate teaching term, so a summer today looks ahead to the fall.
+  const nextTeachingTerm: Term =
+    currentTerm.season === 'fall'
+      ? { season: 'spring', year: currentTerm.year + 1 }
+      : currentTerm.season === 'spring'
+        ? { season: 'fall', year: currentTerm.year }
+        : { season: 'fall', year: currentTerm.year };
 
   // One row per course: the rule in effect this term (older/newer versions are
   // mentioned in the hover text so nothing is hidden).
@@ -147,6 +162,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     core: '',
     category: '',
     type: '',
+    offered: '',
     includeRetired: false,
     confirmedOnly: false,
     sort: 'course',
@@ -161,6 +177,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const countsClass = (c: Counts | undefined): string => (c ? COUNTS_CLASS[c] : 'undecided');
   const coreLabel = (r: RuleCourse): string => (r.coreArea ? (coreName.get(r.coreArea) ?? r.coreArea) : '—');
   const allGroupCodes = rules.categoryGroups.map((g) => g.code);
+  // Whether the DGS has filled the schedule columns in at all: with every cell
+  // blank the filter can only return nothing, so it is not shown (2026-09-09).
+  const scheduleKnown = rows.some((r) => r.offeredNow !== undefined || r.offeredNext !== undefined);
   // §4.4.2's numbers are DGS-tunable sheet parameters, so the two places that
   // state them read the sheet (2026-09-08). A missing parameter drops the
   // numbers rather than printing a guess — the page never invents policy.
@@ -228,6 +247,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         if (!groupsOf(r).includes(filters.category)) return false;
       }
       if (filters.type && r.courseType !== filters.type) return false;
+      // On the schedule this semester / next (DGS 2026-09-09). Only a `yes`
+      // qualifies: a blank cell means the sheet has not said, which is never
+      // read as a promise either way.
+      if (filters.offered === 'now' && r.offeredNow !== true) return false;
+      if (filters.offered === 'next' && r.offeredNext !== true) return false;
       if (q && !squash(r.courseId).includes(qs) && !r.title.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -398,7 +422,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const defaultFilters = (): Filters => ({ ...DEFAULTS });
   const filtersActive = (): boolean => {
     const d = defaultFilters();
-    return (['query', 'program', 'core', 'category', 'type', 'includeRetired', 'confirmedOnly', 'view'] as const).some((k) => filters[k] !== d[k]);
+    return (['query', 'program', 'core', 'category', 'type', 'offered', 'includeRetired', 'confirmedOnly', 'view'] as const).some((k) => filters[k] !== d[k]);
   };
   const filterHost = el('div', { class: 'filter-host' });
   let clearButton: HTMLElement | undefined;
@@ -469,6 +493,21 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     });
     type.append(option('', 'Any course type', filters.type === ''));
     for (const [code, label] of Object.entries(TYPE_LABEL)) type.append(option(code, label, filters.type === code));
+    // On the schedule now / next (DGS 2026-09-09). The control appears only
+    // once the sheet says something: with every cell blank it could only ever
+    // return nothing, and a filter that cannot work is worse than no filter.
+    const offered = el('select', {
+      'data-key': 'filter.offered',
+      onchange: (e) => {
+        filters.offered = (e.target as HTMLSelectElement).value as Filters['offered'];
+        refreshTable();
+      },
+    });
+    offered.append(
+      option('', 'Any semester', filters.offered === ''),
+      option('now', `Offered this semester (${termLabel(currentTerm)})`, filters.offered === 'now'),
+      option('next', `Offered next semester (${termLabel(nextTeachingTerm)})`, filters.offered === 'next'),
+    );
     const retired = el('input', {
       type: 'checkbox',
       'data-key': 'filter.retired',
@@ -542,6 +581,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       labelled('Core knowledge area', core, 'filter-core'),
       labelled('Specialization category', category, 'filter-category'),
       labelled('Course type', type, 'filter-type'),
+      ...(scheduleKnown ? [labelled('On the schedule', offered, 'filter-offered')] : []),
       el('label', { class: 'check' }, retired, ' Include retired courses'),
       el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows'),
       el('div', { class: 'filter mobile-only' }, labelled('Sort by', sortSel, 'filter-sort'), el('label', { class: 'check' }, descBox, ' Descending')),
@@ -751,6 +791,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           `the other course-based Qualifying Examination requirement (§4.4.2): ${catRule}. A course listed under more than one category can fill only one of them. "Not eligible" marks courses that can never satisfy it. Ph.D. students only — not part of any MSCSE requirement.`,
         ),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
+        ...(scheduleKnown
+          ? [
+              li(
+                el('strong', {}, 'On the schedule'),
+                `a filter rather than a column: it lists the courses the DGS has marked as running in ${termLabel(currentTerm)} or in ${termLabel(nextTeachingTerm)}. A course with nothing recorded is simply not listed — that is not a statement that it will not run. Unlike "Typically offered", which is a pattern from past years, this is the DGS's word on these two semesters.`,
+              ),
+            ]
+          : []),
         li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.'),
         li(el('strong', {}, 'Notes'), 'the DGS’s notes on a course, and older rule versions — open with the Notes button on its row.'),
       ),

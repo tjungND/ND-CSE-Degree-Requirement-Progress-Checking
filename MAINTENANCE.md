@@ -63,6 +63,14 @@ the course may fill either one and the student picks which. `any` still means ev
 `ineligible` still means none. A typo in one code is reported and dropped; the other codes on the
 row keep working.
 
+Since 2026-09-09 the Courses tab has `offered_now` and `offered_next` (`yes` / `no` / blank). They
+are the DGS's word on the current and next semester's schedule, where `typically_offered` is a
+pattern from past years. The course-rules page shows them as ONE filter, "On the schedule", with
+"Offered this semester" and "Offered next semester"; no column is added to the table, and nothing
+else in the app reads them. The filter appears only once at least one course carries a value, so
+the page never offers a control that could only return nothing. Fill the columns in each semester —
+a stale `yes` is worse than a blank, which honestly says nothing.
+
 Since 2026-09-08 a university whose transcript prints its name only in the letterhead IMAGE can
 still be recognised from an acronym in the text: `NAME_ONLY_IN_IMAGE` in
 `src/transcript/external.ts` holds one line per school ("JHU" → Johns Hopkins University, "UCSD" →

@@ -26,6 +26,61 @@ describe('csv parser', () => {
   });
 });
 
+// The Courses tab's `offered_now` / `offered_next` columns (DGS 2026-09-09):
+// is the course on the schedule this semester, and the next one? The
+// course-rules page filters by them; nothing else in the app reads them.
+describe('the schedule columns', () => {
+  const rules = buildRules();
+  const rule = (id: string) => rules.courses.get(id)?.[0];
+
+  it('reads yes and no, and leaves a blank cell undecided', () => {
+    assert.equal(rule('CSE 60111')?.offeredNow, true);
+    assert.equal(rule('CSE 60111')?.offeredNext, false);
+    assert.equal(rule('CSE 60641')?.offeredNow, true);
+    assert.equal(rule('CSE 60641')?.offeredNext, true);
+    assert.equal(rule('CSE 60321')?.offeredNow, false);
+    assert.equal(rule('CSE 60321')?.offeredNext, true);
+    // A blank cell is UNDEFINED, not false: the sheet has not said, which is
+    // never read as "this course will not run".
+    assert.equal(rule('CSE 63801')?.offeredNow, undefined);
+    assert.equal(rule('CSE 63801')?.offeredNext, undefined);
+  });
+
+  it('forgives the capitals a DGS types by hand', () => {
+    const texts = fixtureCsvTexts();
+    const courses = texts.courses.replace('Fall 2026,yes,no,yes,§4.4.2', 'Fall 2026,YES,No,yes,§4.4.2');
+    const r = rulesFromCsvTexts({ ...texts, courses }, meta);
+    assert.equal(r.courses.get('CSE 60111')?.[0]?.offeredNow, true);
+    assert.equal(r.courses.get('CSE 60111')?.[0]?.offeredNext, false);
+    assert.equal(r.issues.filter((i) => i.column?.startsWith('offered')).length, 0);
+  });
+
+  it('a value that is neither is reported, and only that cell is ignored', () => {
+    const texts = fixtureCsvTexts();
+    const courses = texts.courses.replace('Fall 2026,yes,no,yes,§4.4.2', 'Fall 2026,maybe,no,yes,§4.4.2');
+    const r = rulesFromCsvTexts({ ...texts, courses }, meta);
+    const issue = r.issues.find((i) => i.column === 'offered_now');
+    assert.ok(issue, 'expected an offered_now issue');
+    assert.match(issue.message, /'maybe' is not 'yes', 'no' or blank/);
+    assert.match(issue.message, /CSE 60111/);
+    assert.ok(r.courses.has('CSE 60111'), 'the row itself still loads');
+    assert.equal(r.courses.get('CSE 60111')?.[0]?.offeredNow, undefined);
+    assert.equal(r.courses.get('CSE 60111')?.[0]?.offeredNext, false, 'the other cell is unaffected');
+  });
+
+  it('a sheet without the columns at all still loads', () => {
+    const texts = fixtureCsvTexts();
+    const courses = texts.courses
+      .replace(',offered_now,offered_next,', ',')
+      .split('\n')
+      .map((line, i) => (i === 0 ? line : line.replace(/,(yes|no|),(yes|no|),(yes|no),/, ',$3,')))
+      .join('\n');
+    const r = rulesFromCsvTexts({ ...texts, courses }, meta);
+    assert.equal(r.issues.filter((i) => i.column?.startsWith('offered')).length, 0);
+    assert.equal(r.courses.get('CSE 60111')?.[0]?.offeredNow, undefined);
+  });
+});
+
 describe('sheet validation', () => {
   it('unknown enum value → row skipped with a plain-English message', () => {
     const texts = fixtureCsvTexts();

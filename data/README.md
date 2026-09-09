@@ -42,6 +42,8 @@ policy columns are the DGS's.
 | `counts_toward_phd` | `yes` \| `no` \| `dgs_approval` | same |
 | `core_area` | `os` \| `algorithms` \| `architecture` \| blank | Which §4.4.1 core-knowledge area the course satisfies. |
 | `category_group` | one or more of `alg` \| `hcc` \| `arch` \| `dsai` \| `sys`, or `any` \| `ineligible` \| blank | Which §4.4.2 specialization group(s) the course belongs to. **Several are allowed** (2026-09-08): separate them with a semicolon — `hcc;dsai` means the course may fill EITHER group and the student picks which, so it can be worth a choice of two or three groups and not only one or all five. `any` = every group; `ineligible` = it can never satisfy §4.4.2; blank = not decided. Commas, slashes or spaces work as separators too, and the codes are case-insensitive. |
+| `offered_now` | `yes` / `no` / blank | Is the course on the schedule THIS semester? The course-rules page turns this into a filter, "Offered this semester (Fall 2026)". Blank means the sheet does not say — the course is simply not listed there, which is not a statement that it will not run. No column is added to the table; nothing else in the app reads it |
+| `offered_next` | `yes` / `no` / blank | The same for the NEXT fall or spring |
 | `typically_offered` | `fall` \| `spring` \| `both` \| `varies` \| blank | Informational (planning hints). |
 | `active` | `yes` \| `no` | `yes` → shown in the student's course picker. `no` → hidden from the picker but still recognised when typed (old courses). |
 | `last_offered` | text | Last term listed in Banner (informational). |
