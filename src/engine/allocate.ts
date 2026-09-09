@@ -318,7 +318,7 @@ export function classify(student: Student, rules: Rules): {
               // the student's dissertation. Unlike a blank cell, this is a
               // decision; what is open is this student's case.
               external?.transferable === 'dgs_approval'
-              ? `transfer — decided case by case by the DGS: it can transfer when it is relevant to the research (§5.2)${coreNote}`
+              ? `transfer — decided case by case by the DGS (§5.2)${coreNote}`
               : external
                 ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
                 : `transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
@@ -482,13 +482,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     // verdict — its line says "candidate", never "over the cap".
     const transferCandidate =
       cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.external?.transferable !== 'yes'
-        ? {
-            capLimit: caps.find((c) => c.id === 'transfer')?.limit,
-            // `dgs_approval` in the ExternalCourses tab (DGS 2026-09-08): a
-            // candidate like any other, but the student is told what the DGS
-            // will be weighing.
-            caseByCase: cc.external?.transferable === 'dgs_approval',
-          }
+        ? { capLimit: caps.find((c) => c.id === 'transfer')?.limit }
         : undefined;
     allocations.set(cc, {
       course: cc,
@@ -577,7 +571,7 @@ function buildExplanation(
   counted: number,
   excluded: number,
   excludedReason?: string,
-  transferCandidate?: { capLimit: number | undefined; caseByCase?: boolean },
+  transferCandidate?: { capLimit: number | undefined },
 ): { explanation: string; mark: CourseMark } {
   const parts: string[] = [];
   const poolName =
@@ -606,11 +600,8 @@ function buildExplanation(
           ? `would count ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} if the DGS approves it (the ${capWord}transfer cap limits the rest)`
           : `counts only if the DGS picks it — the candidates together exceed the ${capWord}transfer cap`;
     const coreNote = /; (the same review can confirm|satisfies) [^;]*core-knowledge requirement[^;]*/.exec(cc.approvalPending ?? '')?.[0] ?? '';
-    const caseNote = transferCandidate.caseByCase
-      ? '; the DGS decides this one case by case — say how it relates to your research'
-      : '';
     return {
-      explanation: `pending DGS review — candidate for transfer credit (§5.2); ${fate}${caseNote}${coreNote}`,
+      explanation: `pending DGS review — candidate for transfer credit (§5.2); ${fate}${coreNote}`,
       mark: 'pending',
     };
   }

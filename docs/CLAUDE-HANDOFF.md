@@ -168,7 +168,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   means the DGS decides that course one student at a time; it must behave as a CANDIDATE
   everywhere, so `=== 'yes'` is the test for "pre-approved" and never `!== 'no'`. review.ts keeps
   such a course in the request (a decision about the course, not about the student), and the Grad
-  Admin's processing request must not pick it up without `attestations.transferApproved`.
+  Admin's processing request must not pick it up without `attestations.transferApproved`. The rule
+  is EXPLAINED in one place only — review.ts's reason, read in the card and in the e-mail the
+  student sends (DGS 2026-09-08). Do not add the explanation back to the course line, the sign-off
+  row or the §5.2 card; those state the fact and stop.
 - **The course-rules page has no "every category" category** (2026-09-08). A course the sheet marks
   `any` is listed in EACH of the five §4.4.2 cards and matches each of them in the filter; the note
   above the cards carries the "it can fill only one" rule, and the numbers in that note and in the

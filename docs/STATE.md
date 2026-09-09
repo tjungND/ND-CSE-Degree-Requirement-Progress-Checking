@@ -76,10 +76,11 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   "Needs DGS review" only when the DGS actually has a course to decide.
   ExternalCourses `transferable` takes `dgs_approval` beside `yes`/`no` (2026-09-08): a course
   outside the usual CSE ground that transfers when it serves the student's dissertation. It stays a
-  candidate — in the review request, out of the Grad Admin's processing request — and every surface
-  asks the student to say how the course relates to their research ("research", not "dissertation":
-  the same strings serve MSCSE students). The transfer card now also names the fourth kind of
-  pending course, a listed row whose cell is still blank, which it used to leave silent.
+  candidate — in the review request, out of the Grad Admin's processing request. The rule is
+  explained once, in the review card ("say how it relates to your research" — "research", not
+  "dissertation", since MSCSE students see the same string); everywhere else states the fact and
+  stops. The §5.2 card now also names the fourth kind of pending course, a listed row whose cell is
+  still blank, which it used to leave silent.
   Short forms in the dense places (ten spots the DGS approved from screenshots): the category names
   through `src/engine/short-names.ts` (OS, Alg, Comp Arch, HCC, Arch, DS/AI, Sys/Soft), and
   "Notre Dame" → "ND" as hand-edited literals, in the "Counts

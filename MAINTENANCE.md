@@ -67,9 +67,9 @@ Since 2026-09-08 the ExternalCourses tab's `transferable` column takes a third v
 `dgs_approval`, beside `yes` and `no`: the course is outside the usual CSE ground but can still
 transfer when it is relevant to a particular student's dissertation, so the DGS decides it one
 student at a time. The app treats such a course as a transfer CANDIDATE — it stays in the students'
-review request with a line telling them to say how the course relates to their dissertation, it is
-never pre-approved, and the Grad Admin's processing request ignores it until the student attests
-that the approval came through. Use `yes` for a course any student may transfer; use `dgs_approval`
+review request, which is the one place that asks them to say how the course relates to their
+research; it is never pre-approved, and the Grad Admin's processing request ignores it until the
+student attests that the approval came through. Use `yes` for a course any student may transfer; use `dgs_approval`
 when the answer depends on the student.
 
 Since 2026-09-08 the ExternalCourses tab has a `credit_system` column (`quarter` / `semester` /

@@ -251,30 +251,30 @@ describe('what a DGS ruling changes in the engine', () => {
   // decision about the COURSE and an open question about the STUDENT, so it
   // behaves like a candidate everywhere — never pre-approved, never processed
   // by the Grad Admin without the DGS's ruling — but says why.
-  it('transferable=dgs_approval → a candidate the DGS decides case by case, with the dissertation named', () => {
+  it('transferable=dgs_approval → a candidate, explained in ONE place and stated plainly everywhere else', () => {
     const one = [{ courseId: 'STAT 51200', title: 'Applied Regression Analysis', term: { season: 'fall' as const, year: 2024 } }];
     const { classified } = classify(student(one), rules);
     assert.equal(classified[0]?.tier, 'provisional');
-    assert.match(classified[0]?.approvalPending ?? '', /decided case by case by the DGS/);
-    assert.match(classified[0]?.approvalPending ?? '', /relevant to the research/);
-    // No second person: this string is copied verbatim into the advisor
-    // e-mail, which re-voices only the requirement details, not these.
-    assert.doesNotMatch(classified[0]?.approvalPending ?? '', /\byour\b/i);
-    // And no claim about the course's subject — a case-by-case course may have
-    // a confirmed §4.4.1 core area on the same line.
-    assert.doesNotMatch(classified[0]?.approvalPending ?? '', /outside the usual CSE ground/);
+    assert.match(classified[0]?.approvalPending ?? '', /^transfer — decided case by case by the DGS \(§5\.2\)/);
+    // The rule is EXPLAINED once, in the review card (DGS 2026-09-08); every
+    // other surface states the fact and stops. No second person here either:
+    // this string is copied verbatim into the advisor e-mail, which re-voices
+    // only the requirement details. And no claim about the course's subject —
+    // a case-by-case course may have a confirmed §4.4.1 core area beside it.
+    assert.doesNotMatch(classified[0]?.approvalPending ?? '', /\byour\b|research|outside the usual CSE ground/i);
     assert.doesNotMatch(classified[0]?.approvalPending ?? '', /^pre-approved/);
     assert.equal(classified[0]?.ineligibleReason, undefined, 'it is not ruled out — it can still transfer');
 
     const report = audit(student(one), rules, '2026-09-01');
     const line = report.courseLines.find((c) => c.courseId === 'STAT 51200')!;
     assert.ok(line.text.startsWith('pending DGS review — candidate for transfer credit (§5.2)'), line.text);
-    assert.match(line.text, /decides this one case by case — say how it relates to your research/, line.text);
+    assert.doesNotMatch(line.text, /case by case|research/, 'the course line is not where the rule is explained: ' + line.text);
     assert.equal(line.mark, 'pending');
 
     const transfer = report.requirements.find((r) => r.id === 'phd.transfer');
     assert.equal(transfer?.status, 'needs_dgs_review', 'the DGS still has this student’s case to decide');
-    assert.match(transfer?.detail ?? '', /The DGS decides these one student at a time: STAT 51200/);
+    assert.match(transfer?.detail ?? '', /Decided case by case by the DGS: STAT 51200\./);
+    assert.doesNotMatch(transfer?.detail ?? '', /research/, 'nor the transfer card');
     assert.doesNotMatch(transfer?.detail ?? '', /Pre-approved by the DGS/);
     assert.doesNotMatch(transfer?.detail ?? '', /Not yet reviewed by the DGS/, 'the DGS HAS reviewed the course — what is open is the student’s case');
 
@@ -300,7 +300,7 @@ describe('what a DGS ruling changes in the engine', () => {
     const listed = audit(student([{ courseId: 'IFT-2125', institution: 'Université de Montréal', term: { season: 'fall', year: 2024 } }]), rules, '2026-09-01');
     assert.match(
       listed.requirements.find((r) => r.id === 'phd.transfer')?.detail ?? '',
-      /Reviewed by the DGS, but transferability not yet decided: IFT-2125/,
+      /Reviewed by the DGS, but transferability not yet decided: IFT-2125\./,
     );
     const unreviewed = classify(student([{ courseId: 'CS 77777' }]), rules);
     assert.match(unreviewed.classified[0]?.approvalPending ?? '', /not yet reviewed by the DGS/);

@@ -255,14 +255,14 @@ function transferRow(ctx: Ctx): RequirementResult {
       }
       if (caseByCase.length > 0) {
         parts.push(
-          `The DGS decides these one student at a time: ${caseByCase.map((c) => c.entry.courseId).join(', ')} — able to transfer when relevant to your research; ask the DGS to review, saying how each one relates (§5.2)`,
+          `Decided case by case by the DGS: ${caseByCase.map((c) => c.entry.courseId).join(', ')}`,
         );
       }
       // A row whose transferable cell is blank is none of the three above, and
       // used to go unnamed here (found reviewing the dgs_approval change).
       if (listedUndecided.length > 0) {
         parts.push(
-          `Reviewed by the DGS, but transferability not yet decided: ${listedUndecided.map((c) => c.entry.courseId).join(', ')} — the review request asks for that decision`,
+          `Reviewed by the DGS, but transferability not yet decided: ${listedUndecided.map((c) => c.entry.courseId).join(', ')}`,
         );
       }
       if (unreviewed.length > 0) {

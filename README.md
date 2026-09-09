@@ -155,8 +155,8 @@ at a new row's `university` cell, then fill in your rulings: which core area eac
 satisfies (`satisfies_core_area`, if any), whether its credits can transfer
 (`transferable` — `yes` for a course any student may transfer, `no` for one that
 never transfers, `dgs_approval` for one you want to decide student by student,
-which keeps it in their review request and asks them to say how it serves their
-research), and — for quarter/ECTS systems — the ND-equivalent
+which keeps it in their review request, where they are asked to say how it
+serves their research), and — for quarter/ECTS systems — the ND-equivalent
 `nd_credits` (§5.2 pro-rata). The student's page
 updates within minutes; anything without a row honestly shows "not yet reviewed
 by the DGS". Bachelor's-level courses can satisfy core knowledge (§4.4.1) but

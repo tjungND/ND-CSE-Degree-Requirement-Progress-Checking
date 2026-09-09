@@ -91,7 +91,7 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
       const coreUndecided = c.external.satisfiesCoreArea === undefined && !coreDecidedByCoursesTab && coreTitle(c);
       if (!transferUndecided && !coreUndecided) continue;
       const transferReason = caseByCase
-        ? 'transferability decided case by case (§5.2) — it turns on the course’s relevance to the research'
+        ? 'transferability decided case by case (§5.2) — say how it relates to your research'
         : 'transferability not yet decided';
       const reason =
         transferUndecided && coreUndecided
