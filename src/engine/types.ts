@@ -126,6 +126,16 @@ export interface Student {
    * value, never a chosen one. Remove/Undo leave both alone (like the entry
    * term — a fact about the student, not about the import). */
   bachelorsAwardedInferred?: { how: string };
+  /** Set when the student ALREADY HOLDS a Notre Dame master's degree — the
+   * MSCSE earned before entering the Ph.D. program (DGS 2026-09-09). §4.5's
+   * "along the way" MSCSE is a degree they cannot earn a second time, so that
+   * row is left out of their report entirely rather than counting from zero
+   * toward a degree they hold. Presence is the fact; `term` is only for the
+   * wording and may be unknown. Read from the Notre Dame transcript's
+   * degree-conferral lines (then `inferred` says so, and the checkbox under
+   * Your standing corrects it). Says nothing about transfer credit: those
+   * courses are §5.2 candidates like any other prior graduate coursework. */
+  ndMasters?: { term?: Term; inferred?: { how: string } };
   gpa?: number; // self-reported cumulative (decision Q7)
   /** Where `gpa` came from when a Notre Dame transcript filled it in
    * (2026-09-05, combined-transcript bug report): the transcript's

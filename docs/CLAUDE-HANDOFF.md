@@ -1016,6 +1016,34 @@ Known-pending (the app's diagnostics panel is the live truth):
   `advisorApprovedPlan` only feeds the advisory approvals row. A CSE non-4xxxx `dgs_approval`
   course has no clearing checkbox by design (stays provisional).
 
+- **A Ph.D. student with an earlier NOTRE DAME degree** (2026-09-09; the DGS asked for the two
+  cases: ND bachelor's → Ph.D., and ND bachelor's → ND MSCSE → Ph.D.). Most of it was already
+  built on 2026-09-05 (see the prior-Notre-Dame-coursework entry above); this pass added the
+  policy the handbook does not state and fixed six defects that only these students hit.
+  - `Student.ndMasters` (`{ term?, inferred? }`, presence = the degree is held): set by the ND
+    import from a master's/Ph.D. conferral dated BEFORE the entry term — one dated after it is
+    §4.5's along-the-way award — and by the checkbox `standing.ndMasters`. When it is set,
+    `phdRows` does not push `msAlongTheWayRow` at all: the report has no §4.5 along-the-way row.
+    That is why the scenario runner grew `expectAbsent` (tests/scenarios.test.ts).
+  - `categoriesRow` (§4.4.2) now also counts a PRIOR NOTRE DAME course, but only when its §5.2
+    credit is actually transferred — `tier === 'definite'`, i.e. the student has recorded the
+    approval — and only when the allocator gave it credit (over the cap = no credit = no group).
+    Courses still waiting go in `awaitingTransfer`: named on the row, never counted, and the row
+    reads `needs_dgs_review` instead of `unmet` where the approval alone would complete it.
+  - `priorNdShape` (allocate.ts) gives a prior Notre Dame course its own Courses-tab verdict —
+    `course_type` → pool, `level`, `counts_toward_*` — on top of §5.2's `transfer` cap. Applied
+    only when `isNotreDameInstitution(c.institution)`: another university's course that happens
+    to share a Notre Dame number is not the same course, and the sheet describes ND's catalogue.
+  - `derivePriorMs` / `hasPriorGraduateStudy` (prior-nd.ts, pure): "Prior graduate study" now
+    follows the coursework instead of being decided once during an import. Called from `setEntry`,
+    from the bachelor's-term control and from the ND import. A prior ND graduate course dated in
+    or before the bachelor's award term is NOT prior graduate study (a 4+1 senior's §3.5 course).
+  - Below the 60000 level (DGS 2026-09-09): 40000- AND 50000-level CSE courses the sheet permits
+    share ONE six-credit cap (`fourk`). An unlisted 50000-level course still counts nothing
+    (decision Q19) — the permission has to come from the sheet. Cap wording changed accordingly.
+  - Two re-filing holes closed: the manual course form and the external-slot import both call
+    `reclassifyNotreDameCourses` now, as the ND import always did.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

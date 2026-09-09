@@ -19,6 +19,7 @@ import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, Grade, Season, Student, Term } from '../engine/types.ts';
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
+import { reclassifyNotreDameCourses } from './prior-nd.ts';
 import { canonicalUniversityName } from './university-name.ts';
 import { writeClipboard } from './copy-dialog.ts';
 import { parseTranscript } from '../transcript/parse.ts';
@@ -930,6 +931,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // (initializer cast: the assignment happens inside the update()
             // closure, which TS's flow analysis can't see from the use below)
             let priorAutoSet = false as 'completed' | 'unfinished' | false;
+            let refiledToProgram = 0;
             let graduateRows = 0;
             let bachelorsSet: Term | undefined;
             let bachelorsFromTranscript = false;
@@ -980,6 +982,16 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   bachelorsFromTranscript = p.bachelorsSource === 'transcript';
                 }
               }
+              // A Notre Dame transcript can land in one of these slots as the
+              // record of an EARLIER Notre Dame degree (2026-09-05), and such a
+              // transcript often carries the current program too. The entry
+              // term is what separates the two, so re-file by it here as the
+              // Notre Dame slot does — otherwise the student's in-program
+              // courses sit as §5.2 transfer candidates until they happen to
+              // touch a term field (2026-09-09).
+              if (isNotreDameInstitution(university)) {
+                refiledToProgram = reclassifyNotreDameCourses(s).toProgram;
+              }
             });
             const matched = ready.filter((r) => findExternalRule(rules.external, university, r.courseId)).length;
             const undergraduateRows = ready.length - graduateRows;
@@ -991,6 +1003,9 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 (p.mixedLevels ? ` (${undergraduateRows} undergraduate, ${graduateRows} graduate${p.termPrefill ? ', by the two-year rule where the transcript did not say' : ''})` : '') +
                 (matched > 0 ? ` — ${matched} already in the DGS’s external-course rules` : '') +
                 (skipped > 0 ? `; ${skipped} skipped (incomplete — missing a grade, credits or year)` : '') +
+                (refiledToProgram > 0
+                  ? `; ${refiledToProgram} of them are dated from your entry term on, so they are filed as this program's coursework, not as transfer credit`
+                  : '') +
                 '.' +
                 (priorAutoSet === 'completed'
                   ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the conferral line on your transcript — adjust it under Your standing if that’s wrong.'

@@ -979,7 +979,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         {},
         li(el('strong', {}, 'Type'), 'only regular courses count toward the 24 regular-course credits (§3.2, §4.2); seminars, research, independent study and project credits count toward the total only.'),
         li(el('span', { class: 'pill yes' }, 'Yes'), 'counts toward that degree.'),
-        li(el('span', { class: 'pill approval' }, 'With DGS approval'), 'counts only with the advisor’s and the DGS’s approval (for example CSE 40000-level courses, up to the 6-credit cap).'),
+        li(el('span', { class: 'pill approval' }, 'With DGS approval'), 'counts only with the advisor’s and the DGS’s approval (for example CSE courses below the 60000 level, which share one 6-credit cap however many the DGS approves).'),
         li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
         li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'the DGS has not ruled on this course yet; ask before relying on it.'),
         li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.'),

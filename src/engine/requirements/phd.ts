@@ -84,13 +84,18 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
 
   // §4.2: "Up to six (6) credits from CSE 4xxxx may be used to satisfy the
   // course requirement, subject to approval of the student's advisor and DGS."
+  // The handbook's allowance names the 40000 level; the DGS applies the SAME
+  // six credits to any CSE course below the 60000 level the rules sheet
+  // permits, 50000-level bridge courses included (2026-09-09): a sheet cell
+  // saying a course may count toward the degree is a permission, not an
+  // exemption from §4.2's other limits.
   rows.push(
     capRow({
       id: 'phd.cap.fourk',
       group: COURSEWORK,
-      title: 'At most 6 credits from CSE 4xxxx',
+      title: 'At most 6 credits from CSE courses below the 60000 level',
       capId: 'fourk',
-      capLabel: '40000-level cap credits',
+      capLabel: 'credits below the 60000 level',
       limitKey: 'phd_4xxxx_cse_credits_max',
       section: '§4.2',
       quote:
@@ -150,7 +155,11 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   rows.push(...qualifierChildren);
   rows.push(candidacyRow(ctx));
   rows.push(...dissertationRows(ctx));
-  rows.push(msAlongTheWayRow(ctx));
+  // §4.5's MSCSE cannot be earned twice. A Ph.D. student who already holds the
+  // Notre Dame MSCSE (their master's before this program) has no along-the-way
+  // row at all — showing it would offer them a degree they hold and count
+  // their credits from zero toward it (DGS 2026-09-09).
+  if (ctx.student.ndMasters === undefined) rows.push(msAlongTheWayRow(ctx));
   return rows;
 }
 
@@ -240,7 +249,19 @@ function transferRow(ctx: Ctx): RequirementResult {
     const caseByCase = pending.filter((c) => needsApproval(c.transferable));
     const unreviewed = pending.filter((c) => !c.external);
     const listedUndecided = pending.filter((c) => c.external && c.transferable === undefined);
-    status = ctx.student.attestations.transferApproved ? 'met' : pending.length > 0 && preApproved.length === pending.length ? 'in_progress' : 'needs_dgs_review';
+    // "Needs DGS review" only while the DGS actually has a course to decide
+    // (2026-09-09 — the sibling shared.approvals row already worked this way).
+    // With every entered course excluded on its own terms — taken before the
+    // bachelor's degree, below the B floor, outside the five-year window, or
+    // ruled non-transferable — there is nothing to ask for, and an amber row
+    // the student can never clear is worse than no row.
+    status = ctx.student.attestations.transferApproved
+      ? 'met'
+      : pending.length === 0
+        ? 'not_applicable'
+        : preApproved.length === pending.length
+          ? 'in_progress'
+          : 'needs_dgs_review';
     parts.push(
       `${counted} of ${cap} transfer credits counted (§5.2 cap for a ${ctx.student.priorMs === 'completed' ? 'completed prior degree' : 'prior program that was not completed'})`,
     );
@@ -248,6 +269,9 @@ function transferRow(ctx: Ctx): RequirementResult {
       (p) => p.course.entry.origin === 'transfer' && p.course.entry.degreeLevel !== 'bachelors' && p.excluded > 0,
     );
     for (const p of excluded) parts.push(`${p.course.entry.courseId}: ${p.excludedReason ?? 'not counted'}`);
+    if (status === 'not_applicable') {
+      parts.push('Nothing here needs a DGS decision — none of the courses you entered can transfer under §5.2, for the reasons on their lines');
+    }
     if (status !== 'met') {
       if (preApproved.length > 0) {
         parts.push(
@@ -517,8 +541,30 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   const qualifying: GroupCandidate[] = [];
   const inProgress: GroupCandidate[] = [];
   const belowFloor: string[] = [];
+  // A course taken in an EARLIER Notre Dame program (a prior MSCSE, a 4+1)
+  // whose §5.2 transfer credit is not approved yet — named, never counted
+  // (DGS 2026-09-09).
+  const awaitingTransfer: GroupCandidate[] = [];
+  const countedCredits = new Map<(typeof ctx.classified)[number], number>();
+  for (const p of ctx.alloc.perCourse) countedCredits.set(p.course, p.countedRegular + p.countedOther);
   for (const c of ctx.classified) {
-    if (c.superseded || c.entry.origin !== 'nd') continue;
+    if (c.superseded) continue;
+    // §4.4.2 names no institution and no term — unlike §4.4.1's "or have
+    // previously passed", it says only that the student must "take three
+    // category specialization courses … and pass them with a grade of B or
+    // higher". A course from an earlier Notre Dame program therefore counts
+    // once its credit actually transfers into the Ph.D. under §5.2, because
+    // the DGS's recommendation and the Graduate School's approval are what
+    // make it part of this degree (DGS 2026-09-09). Coursework from another
+    // university cannot reach this row at all: only the Courses tab carries
+    // §4.4.2 group tags, and it lists Notre Dame's courses.
+    let priorNd = false;
+    if (c.entry.origin !== 'nd') {
+      if (!isNotreDameInstitution(c.entry.institution)) continue;
+      if (!c.caps.includes('transfer')) continue; // excluded by §5.2 — not this degree's course
+      if ((countedCredits.get(c) ?? 0) <= 0) continue; // over the §5.2 cap: no credit transferred
+      priorNd = true;
+    }
     // The sheet may name one group, several, or `any` (DGS 2026-09-08).
     // 'ineligible' and a blank cell are both "not a candidate"; a code the
     // Categories tab does not list is dropped defensively, so a stale sheet
@@ -535,6 +581,14 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       pinned: groups.length > 1 ? c.entry.assignedGroup : undefined,
       sortKey: `${termIndex(c.entry.term)}|${c.entry.courseId}`,
     };
+    // A prior Notre Dame course counts only once the transfer is approved —
+    // `definite` is exactly that state (the student has recorded the DGS's
+    // recommendation and the Graduate School's approval). Before then it is
+    // named as waiting, so the student can see what the approval would buy.
+    if (priorNd && c.tier !== 'definite') {
+      if (meetsGradeFloor(c.entry.grade, floor as Grade)) awaitingTransfer.push(cand);
+      continue;
+    }
     if (isInProgress(c.entry.grade)) inProgress.push(cand);
     else if (meetsGradeFloor(c.entry.grade, floor as Grade)) qualifying.push(cand);
     else if (isPassed(c.entry.grade)) belowFloor.push(`${c.entry.courseId} (${c.entry.grade})`);
@@ -542,6 +596,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
 
   const def = matchDistinctGroups(qualifying, allGroups);
   const combined = matchDistinctGroups([...qualifying, ...inProgress], allGroups);
+  const withTransfers = matchDistinctGroups([...qualifying, ...inProgress, ...awaitingTransfer], allGroups);
 
   let status: Status;
   // Two versions of the same statements (DGS 2026-09-08): `parts` spells the
@@ -581,6 +636,24 @@ function categoriesRow(ctx: Ctx): RequirementResult {
         `still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
       );
     }
+  }
+  // Courses from an earlier Notre Dame program that would cover a group once
+  // their transfer is approved (DGS 2026-09-09). They never change a "met" —
+  // a requirement already satisfied needs nothing from them — but where they
+  // would complete the row, the row waits on the DGS rather than reading
+  // "unmet", so the student can see that the approval is what is missing.
+  if (awaitingTransfer.length > 0) {
+    const wouldFinish =
+      status !== 'met' &&
+      withTransfers.distinctCount >= groupsReq &&
+      qualifying.length + inProgress.length + awaitingTransfer.length >= coursesReq;
+    if (wouldFinish) status = 'needs_dgs_review';
+    const ids = awaitingTransfer.map((c) => c.courseId).join(', ');
+    add(
+      wouldFinish
+        ? `${ids} — taken in your earlier Notre Dame program — would complete this once the DGS recommends the §5.2 transfer and the Graduate School approves it; send the review request`
+        : `${ids} — taken in your earlier Notre Dame program — will count here once the §5.2 transfer is approved`,
+    );
   }
   if (belowFloor.length > 0) {
     add(

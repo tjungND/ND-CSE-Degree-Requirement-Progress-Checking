@@ -39,6 +39,47 @@ export function priorNdDegreeLevel(
   return levelFromNumber(c.courseId) === 'undergraduate' ? 'bachelors' : 'masters';
 }
 
+/** Prior GRADUATE coursework — the rows that mean "this student was in a
+ * graduate program before this one". A 4+1's senior-year course is not one of
+ * them: it is registered at the graduate level but was taken in or before the
+ * term the bachelor's degree was awarded, so it belongs to the undergraduate
+ * career (DGS 2026-09-06 on §5.2 criterion 2). Without this test a single
+ * GR-labelled senior course made the app announce a master's the student never
+ * started (2026-09-09). */
+export function hasPriorGraduateStudy(student: Student): boolean {
+  return student.courses.some((c) => {
+    if (c.origin !== 'transfer' || c.degreeLevel === 'bachelors' || c.degreeLevel === undefined) return false;
+    if (!isNotreDameCourse(c)) return true; // another university's graduate transcript
+    if (!isPriorNd(c, student.entryTerm)) return false;
+    const awarded = student.bachelorsAwarded;
+    return awarded === undefined || termIndex(c.term) > termIndex(awarded);
+  });
+}
+
+/** Keep "Prior graduate study" in step with the coursework (2026-09-09).
+ * The value is inferred on a transcript import; it also has to follow a later
+ * correction to the entry term or the bachelor's award term, which can turn
+ * program coursework into prior coursework and back. A value the student chose
+ * themselves is never touched — only the untouched default and a value this
+ * function or an import inferred. Returns true when it changed something. */
+export function derivePriorMs(student: Student): boolean {
+  if (student.priorMs !== 'none' && student.priorMsInferred !== true) return false; // their own answer
+  const before = student.priorMs;
+  if (hasPriorGraduateStudy(student)) {
+    // Notre Dame's own master's degree is a fact the transcript records; any
+    // other prior graduate coursework leaves "completed" to the student, with
+    // the standing card's warning asking for it.
+    if (student.priorMs === 'none') {
+      student.priorMs = student.ndMasters !== undefined ? 'completed' : 'unfinished';
+      student.priorMsInferred = true;
+    }
+  } else if (student.priorMsInferred === true) {
+    student.priorMs = 'none';
+    student.priorMsInferred = undefined;
+  }
+  return student.priorMs !== before;
+}
+
 /** True for a Notre Dame course — program coursework or prior coursework. */
 export function isNotreDameCourse(c: CourseEntry): boolean {
   return c.origin === 'nd' || (c.origin === 'transfer' && isNotreDameInstitution(c.institution));

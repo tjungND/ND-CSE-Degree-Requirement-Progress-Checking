@@ -18,6 +18,10 @@ export interface ScenarioFile {
   rules: { base: 'default'; patch?: RulesPatch };
   student: Student;
   expect: Record<string, { status: string; detailIncludes?: string[] }>;
+  /** Requirement ids that must NOT be in the report at all — a row the student
+   * is deliberately not shown (2026-09-09: §4.5's along-the-way MSCSE for a
+   * student who already holds it). */
+  expectAbsent?: string[];
   expectCourseLines?: Record<string, string[]>;
 }
 

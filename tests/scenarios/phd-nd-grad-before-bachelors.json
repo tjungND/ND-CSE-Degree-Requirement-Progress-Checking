@@ -1,31 +1,106 @@
 {
   "name": "phd-nd-grad-before-bachelors",
-  "description": "A Notre Dame 4+1: a senior-year course registered at the GRADUATE level (the transcript's GR column) in the term the B.S. was awarded still counts for §4.4.1 core knowledge through the Courses tab, but earns no §5.2 credit — graduate student status starts after the bachelor's degree (DGS 2026-09-06).",
+  "description": "A Notre Dame 4+1: a senior-year course registered at the GRADUATE level (the transcript's GR column) in the term the B.S. was awarded still counts for §4.4.1 core knowledge through the Courses tab, but earns no §5.2 credit — graduate student status starts after the bachelor's degree (DGS 2026-09-06). The transfer row is NOT APPLICABLE, not \"needs DGS review\": the one transfer course is excluded on its own terms, so the DGS has nothing to decide and the student has nothing to ask for (2026-09-09).",
   "today": "2025-09-04",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default"
+  },
   "student": {
     "schemaVersion": 1,
     "program": "phd",
-    "entryTerm": { "season": "fall", "year": 2024 },
-    "bachelorsAwarded": { "season": "spring", "year": 2024 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
     "priorMs": "none",
     "gpa": 3.7,
     "courses": [
-      { "courseId": "CSE 30321", "title": "Computer Architecture", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
-      { "courseId": "CSE 60641", "title": "Graduate Operating Systems", "credits": 3, "term": { "season": "spring", "year": 2024 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "masters", "registeredLevel": "graduate" },
-      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "nd", "registeredLevel": "graduate" },
-      { "courseId": "CSE 63801", "credits": 1, "term": { "season": "fall", "year": 2024 }, "grade": "S", "origin": "nd", "registeredLevel": "graduate" }
+      {
+        "courseId": "CSE 30321",
+        "title": "Computer Architecture",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "title": "Graduate Operating Systems",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "S",
+        "origin": "nd",
+        "registeredLevel": "graduate"
+      }
     ],
     "milestones": {},
     "attestations": {}
   },
   "expect": {
-    "phd.qualifier.core.os": { "status": "met", "detailIncludes": ["CSE 60641"] },
-    "phd.qualifier.core.algorithms": { "status": "met", "detailIncludes": ["CSE 60111"] },
-    "phd.transfer": { "status": "needs_dgs_review", "detailIncludes": ["0 of 6", "CSE 60641: not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"] }
+    "phd.qualifier.core.os": {
+      "status": "met",
+      "detailIncludes": [
+        "CSE 60641"
+      ]
+    },
+    "phd.qualifier.core.algorithms": {
+      "status": "met",
+      "detailIncludes": [
+        "CSE 60111"
+      ]
+    },
+    "phd.transfer": {
+      "status": "not_applicable",
+      "detailIncludes": [
+        "Nothing here needs a DGS decision",
+        "CSE 60641: not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"
+      ]
+    }
   },
   "expectCourseLines": {
-    "CSE 60641": ["not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)", "satisfies the Operating Systems core-knowledge requirement (§4.4.1) per the course rules"],
-    "CSE 30321": ["may satisfy the Computer Architecture core-knowledge requirement (§4.4.1) — pending DGS review"]
+    "CSE 60641": [
+      "not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)",
+      "satisfies the Operating Systems core-knowledge requirement (§4.4.1) per the course rules"
+    ],
+    "CSE 30321": [
+      "may satisfy the Computer Architecture core-knowledge requirement (§4.4.1) — pending DGS review"
+    ]
   }
 }

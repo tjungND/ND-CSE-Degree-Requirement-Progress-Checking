@@ -83,14 +83,16 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
 
   // §3.2: "Up to six (6) credits at the 40000 level may be used to satisfy the
   // course requirement." Per the DGS (2026-08-31): CSE 4xxxx only, counted
-  // inside the 24; non-CSE 40000-level courses do not count at all.
+  // inside the 24; non-CSE 40000-level courses do not count at all. The same
+  // six credits also carry any CSE 50000-level course the rules sheet permits
+  // (DGS 2026-09-09) — the sheet's permission does not lift §3.2's limit.
   rows.push(
     capRow({
       id: 'ms.cap.fourk',
       group: COURSEWORK,
-      title: 'At most 6 credits at the 40000 level',
+      title: 'At most 6 credits from CSE courses below the 60000 level',
       capId: 'fourk',
-      capLabel: '40000-level cap credits',
+      capLabel: 'credits below the 60000 level',
       limitKey: 'ms_4xxxx_credits_max',
       section: '§3.2',
       quote: 'Up to six (6) credits at the 40000 level may be used to satisfy the course requirement.',

@@ -50,6 +50,21 @@ function validBachelorsInferred(v: unknown, term: Student['entryTerm'] | undefin
   return term && f && typeof f === 'object' && typeof f['how'] === 'string' ? { how: f['how'] } : undefined;
 }
 
+/** An earlier Notre Dame master's degree (2026-09-09). Presence is the fact
+ * ("this student already holds the MSCSE"); the term is optional, since a
+ * student may tick the box without one. A malformed term is dropped rather
+ * than throwing — the fact still stands. */
+function validNdMasters(v: unknown): Student['ndMasters'] {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const term = validTerm(o['term']) ? { season: (o['term'] as Student['entryTerm']).season, year: (o['term'] as Student['entryTerm']).year } : undefined;
+  const inf = o['inferred'] as Record<string, unknown> | undefined;
+  return {
+    ...(term ? { term } : {}),
+    ...(inf && typeof inf === 'object' && typeof inf['how'] === 'string' ? { inferred: { how: inf['how'] } } : {}),
+  };
+}
+
 /** Structural check for imported files — plain-English error on mismatch. */
 export function validateStudent(data: unknown): Student {
   const d = data as Partial<Student> & { state?: unknown };
@@ -106,6 +121,7 @@ export function validateStudent(data: unknown): Student {
     entryTermInferred: validInferred(raw['entryTermInferred']),
     bachelorsAwarded,
     bachelorsAwardedInferred: validBachelorsInferred(raw['bachelorsAwardedInferred'], bachelorsAwarded),
+    ndMasters: validNdMasters(raw['ndMasters']),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},
     courses: d.courses,

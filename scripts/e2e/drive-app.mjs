@@ -111,6 +111,21 @@ export async function driveApp(s, baseUrl) {
   console.log('  OCE mentions — page (outside the glossary):', oce.page, '| glossary:', oce.glossary, '| short "OCE":', oce.short);
   if (oce.page !== 1 || oce.glossary !== 1 || oce.short < 3) throw new Error('OCE first-mention rule: ' + JSON.stringify(oce));
 
+  // A Ph.D. student who already holds Notre Dame's own master's (DGS
+  // 2026-09-09): §4.5 cannot award a degree twice, so ticking the box takes
+  // the along-the-way row out of the report entirely, and unticking brings it
+  // back. The example student is a Ph.D. student, so the box is on the page.
+  const msRow = () => `!!document.getElementById('req-phd-msAlongTheWay')`;
+  if (!(await s.evalJs(`document.querySelector('[data-key="standing.ndMasters"]') !== null`)))
+    throw new Error('the "I already hold the MSCSE from Notre Dame" box is missing from Your standing');
+  if ((await s.evalJs(msRow())) !== true) throw new Error('the §4.5 along-the-way row should be in the report before the box is ticked');
+  await s.evalJs(`document.querySelector('[data-key="standing.ndMasters"]').click()`);
+  await s.waitFor(`!document.getElementById('req-phd-msAlongTheWay')`);
+  const ndMsHint = await s.evalJs(`[...document.querySelectorAll('.card .hint')].some((p) => /already hold the MSCSE|degree you already hold/.test(p.textContent))`);
+  console.log('  already holds the MSCSE → the §4.5 along-the-way row is gone (hint shown:', ndMsHint + ')');
+  await s.evalJs(`document.querySelector('[data-key="standing.ndMasters"]').click()`); // put it back
+  await s.waitFor(`!!document.getElementById('req-phd-msAlongTheWay')`);
+
   // Manual course from another university (2026-09-06 evening): the University
   // box offers the ExternalCourses tab's universities and Title-Cases what is
   // typed; Level has two choices; the course lands under its heading.

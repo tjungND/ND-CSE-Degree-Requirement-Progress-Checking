@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
-import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from '../src/ui/prior-nd.ts';
+import { derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from '../src/ui/prior-nd.ts';
 import { emptyStudent, validateStudent } from '../src/ui/state.ts';
 
 const nd = (courseId: string, season: 'fall' | 'spring', year: number, extra: Partial<CourseEntry> = {}): CourseEntry => ({
@@ -170,5 +170,108 @@ describe('entry-term flag in saved files', () => {
     assert.equal(s.courses[0]?.fromNdTranscript, true);
     assert.equal(s.courses[1]?.fromNdTranscript, undefined);
     assert.equal(s.courses[2]?.fromNdTranscript, undefined);
+  });
+});
+
+// A Ph.D. student who did their MASTER'S at Notre Dame too (DGS 2026-09-09).
+// "Prior graduate study" drives the §5.2 cap (6 credits or 24), and it used to
+// be worked out only while a transcript was being imported — so a student who
+// imported one combined transcript and THEN corrected their entry term to the
+// Ph.D. start kept "none" and a 6-credit cap.
+describe('prior graduate study follows the coursework', () => {
+  const priorMasters = (courseId: string, season: 'fall' | 'spring', year: number): CourseEntry => ({
+    courseId,
+    credits: 3,
+    term: { season, year },
+    grade: 'A',
+    origin: 'transfer',
+    institution: 'University of Notre Dame',
+    degreeLevel: 'masters',
+    registeredLevel: 'graduate',
+  });
+
+  it('an entry-term correction that reveals a prior Notre Dame master\u2019s sets it', () => {
+    const s: Student = {
+      ...emptyStudent(),
+      program: 'phd',
+      entryTerm: { season: 'fall', year: 2022 }, // read as the MSCSE start
+      bachelorsAwarded: { season: 'spring', year: 2022 },
+      courses: [nd('CSE 60641', 'fall', 2022), nd('CSE 60111', 'spring', 2023), nd('CSE 63801', 'fall', 2024)],
+    };
+    assert.equal(s.priorMs, 'none');
+    s.entryTerm = { season: 'fall', year: 2024 }; // the student corrects it to the Ph.D. start
+    reclassifyNotreDameCourses(s);
+    assert.equal(derivePriorMs(s), true);
+    assert.equal(s.priorMs, 'unfinished', 'no degree is recorded, so the student is asked to confirm it');
+    assert.equal(s.priorMsInferred, true);
+  });
+
+  it('with the Notre Dame master\u2019s recorded it is "completed" — the 24-credit cap', () => {
+    const s: Student = {
+      ...emptyStudent(),
+      program: 'phd',
+      entryTerm: { season: 'fall', year: 2024 },
+      bachelorsAwarded: { season: 'spring', year: 2022 },
+      ndMasters: { term: { season: 'spring', year: 2024 } },
+      courses: [priorMasters('CSE 60641', 'fall', 2022)],
+    };
+    derivePriorMs(s);
+    assert.equal(s.priorMs, 'completed');
+  });
+
+  // A 4+1 senior takes 6xxxx courses in their last undergraduate year (§3.5).
+  // That is not a prior master's program, and saying so put "Prior M.S., not
+  // completed" into the emails of students who never had one.
+  it('a senior-year graduate course before the bachelor\u2019s degree is not prior graduate study', () => {
+    const s: Student = {
+      ...emptyStudent(),
+      program: 'phd',
+      entryTerm: { season: 'fall', year: 2024 },
+      bachelorsAwarded: { season: 'spring', year: 2024 },
+      courses: [priorMasters('CSE 60641', 'spring', 2024)],
+    };
+    assert.equal(hasPriorGraduateStudy(s), false);
+    assert.equal(derivePriorMs(s), false);
+    assert.equal(s.priorMs, 'none');
+    // ... but the same course a year later, after the degree, is.
+    s.courses[0]!.term = { season: 'fall', year: 2024 };
+    s.entryTerm = { season: 'fall', year: 2025 };
+    assert.equal(hasPriorGraduateStudy(s), true);
+  });
+
+  it('never overrules an answer the student gave themselves', () => {
+    const s: Student = {
+      ...emptyStudent(),
+      program: 'phd',
+      entryTerm: { season: 'fall', year: 2024 },
+      priorMs: 'completed', // chosen, not inferred
+      courses: [],
+    };
+    assert.equal(derivePriorMs(s), false);
+    assert.equal(s.priorMs, 'completed');
+  });
+
+  it('takes an INFERRED value back when the coursework it came from is gone', () => {
+    const s: Student = {
+      ...emptyStudent(),
+      program: 'phd',
+      entryTerm: { season: 'fall', year: 2024 },
+      priorMs: 'unfinished',
+      priorMsInferred: true,
+      courses: [],
+    };
+    assert.equal(derivePriorMs(s), true);
+    assert.equal(s.priorMs, 'none');
+    assert.equal(s.priorMsInferred, undefined);
+  });
+
+  it('keeps a Notre Dame master\u2019s through a saved file, and drops a malformed one', () => {
+    const base = { ...emptyStudent(), ndMasters: { term: { season: 'spring', year: 2024 }, inferred: { how: 'your Notre Dame transcript' } } };
+    const s = validateStudent(JSON.parse(JSON.stringify(base)));
+    assert.deepEqual(s.ndMasters, { term: { season: 'spring', year: 2024 }, inferred: { how: 'your Notre Dame transcript' } });
+    // Ticked by hand: no term, and it still means the degree is held.
+    assert.deepEqual(validateStudent({ ...JSON.parse(JSON.stringify(emptyStudent())), ndMasters: {} }).ndMasters, {});
+    assert.deepEqual(validateStudent({ ...JSON.parse(JSON.stringify(base)), ndMasters: { term: 'Spring 2024' } }).ndMasters, {});
+    assert.equal(validateStudent(JSON.parse(JSON.stringify(emptyStudent()))).ndMasters, undefined);
   });
 });

@@ -42,7 +42,10 @@ touching code and without the original author.
 2. Google Sheet **CSE-Degree-Checking-Rules** (renamed from CSE-Degree-Audit-Rules, 2026-09-05) — the DGS-editable data (tabs Courses, Parameters,
    Categories). Published-CSV URLs: `data/sheet-urls.json`. Schema: `data/README.md`.
 3. `docs/DECISIONS.md` — every interpretation decision already made, with dates and reasons.
-   Read it before re-deciding anything; append when a new call is made.
+   Read it before re-deciding anything; append when a new call is made. Its companion
+   `docs/HANDBOOK-REVISIONS.md` is the other direction: the questions the audit forced whose
+   answer belongs in the HANDBOOK, written for the graduate committee. Add to it whenever a
+   decision only papers over a gap in the handbook's own text.
 4. `docs/CLAUDE-HANDOFF.md` — engineering decisions, invariants, verification, recipes.
 
 (`reference/CSE-Degree-Audit.html` is the pre-build prototype, kept for history only — its rule

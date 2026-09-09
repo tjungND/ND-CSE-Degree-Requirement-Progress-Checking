@@ -145,6 +145,23 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
 3. The Courses tab keeps the FIRST of two rows with the same course_id + effective_term (the
    ExternalCourses tab now keeps the LAST, DGS 2026-09-06) — should the Courses tab follow?
 
+## Open items for the DGS
+
+4. `docs/HANDBOOK-REVISIONS.md` (new, 2026-09-09) lists the places where the answer belongs in the
+   handbook rather than in the app: §4.4.2's silence about when a specialization course may be taken,
+   the §4.2 / §5.2 disagreement about the five-year window, §4.5 and a student who already holds the
+   MSCSE, §3.5's senior-year 6xxxx courses against §5.2's graduate-status rule, and §4.2 and courses
+   below the 60000 level. For the CSE graduate committee; the §5.2 items may have to go to the
+   Graduate School.
+5. The Courses tab is now 321 rows, not 371 — the DGS deleted 50 courses on 2026-09-09 that "never
+   appear in the class list in any term from Summer 2005 to Fall 2026, including the 49xxx elective
+   placeholders, CSE 48100 and CSE 60801" (Changelog row 19; a CSV copy of the deleted rows was
+   kept), and set `active = no` on 169 courses last offered Fall 2021 or earlier (row 20). Nothing to
+   do; noted because a deleted row is normally the thing NOT to do — a student who took the course
+   would read "not in the rules sheet". These 50 were never taught, so no student can have taken one.
+   The committed `data/snapshot.json` lags the sheet by up to six hours, so a fetch and the snapshot
+   can disagree for a while; the deployed page always reads the live sheet.
+
 ## Open work (optional)
 
 - Parser samples: any transcript layout that misreads in practice → `npm run diagnose`, sanitize with

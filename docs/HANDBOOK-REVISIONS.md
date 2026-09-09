@@ -1,0 +1,145 @@
+# Handbook revisions suggested by the degree audit
+
+Started 2026-09-09, by the DGS (Taeho Jung), while making the self-check handle a Ph.D.
+student who earned an earlier Notre Dame degree.
+
+Building an audit that must decide every case forces questions the handbook does not answer.
+Where a question had to be answered to make the app work, the DGS answered it, and the answer
+is recorded in `docs/DECISIONS.md`. **This file is the other half: the places where the answer
+belongs in the handbook rather than in a spreadsheet or in code.** Each item says what the
+handbook says today, what the app now does, and the sentence that would settle it.
+
+Nothing here is a change to the handbook. It is a list for the next revision, for the CSE
+graduate committee and, where the Graduate School's own rules are involved, for them.
+
+---
+
+## 1. §4.4.2 — may a specialization course have been taken before the program?
+
+**Today.** §4.4.2 says: "Students are required to take three category specialization courses
+from three distinct groups and pass them with a grade of B or higher." It names no institution
+and no term. The neighbouring §4.4.1 does the opposite, explicitly: "All PhD students are
+required to pass (**or have previously passed**) an Operating Systems course, an Algorithms
+course, and a Computer Architecture course, **either at Notre Dame or at their previous
+institution**."
+
+**Why it comes up.** A student who earned the MSCSE at Notre Dame arrives having already passed
+three or more CSE 6xxxx courses that the department itself lists as category specialization
+courses.
+
+**What the app does (DGS, 2026-09-09).** Those courses count toward §4.4.2 once the credit
+actually transfers into the Ph.D. under §5.2 — that is, once the DGS has recommended the
+transfer and the Graduate School has approved it. Until then the report names them and counts
+none of them. Coursework from another university cannot count, because only Notre Dame's own
+course list carries the §4.4.2 group tags.
+
+**Suggested sentence.** In §4.4.2, after the first sentence: *"Courses taken before entering
+the Ph.D. program may satisfy this requirement only if their credits are transferred into the
+Ph.D. under Section 5.2."* Or, if the committee means the opposite: *"These three courses must
+be taken while enrolled in the Ph.D. program."* Either sentence ends the ambiguity; the
+contrast with §4.4.1 is currently the only evidence either way.
+
+---
+
+## 2. §4.2 and §5.2 disagree about the five-year window
+
+**Today.** Two sentences, both binding, do not say the same thing.
+
+- §5.2, criterion 3: credits transfer if "the courses were completed within a five-year period
+  prior to admission to a graduate degree program at Notre Dame **or while enrolled in a
+  graduate degree program at Notre Dame**".
+- §4.2: "Courses from a M.S. degree earned at Notre Dame or another institution **within the
+  last five years prior to admission** may be used to satisfy the course requirement."
+
+**Why it comes up.** A student who finished the Notre Dame MSCSE more than five years before
+entering the Ph.D. — a returning student, or one who worked in industry first. §5.2's second
+clause appears to admit their coursework; §4.2's clause appears to refuse it.
+
+**What the app does (DGS, 2026-09-09).** The five-year window applies to everyone, Notre Dame's
+own programs included: the stricter reading, chosen deliberately rather than letting the app
+pick the generous one.
+
+**Suggested revision.** Make the two sections agree. If §5.2's "or while enrolled" clause is
+meant to cover a Notre Dame student's own earlier program, §4.2's sentence should say so:
+*"Courses from a M.S. degree earned at Notre Dame, or from another institution within the last
+five years prior to admission, may be used…"*. If the five-year limit is meant to apply to
+everyone, §5.2's clause should be narrowed to say what it is for. The Graduate School owns
+§5.2's text, so this one may have to go to them.
+
+---
+
+## 3. §4.5 — the student who already holds the MSCSE
+
+**Today.** §4.5 says the candidacy exam "can be used by Ph.D. students to satisfy both the M.S.
+thesis requirement and the Ph.D. candidacy exam simultaneously, thus earning the MSCSE degree on
+successfully passing the candidacy exam." §3.1 notes that Ph.D. students "are also awarded an
+MSCSE degree". Neither contemplates a student who earned the MSCSE at Notre Dame first — which
+is the normal path out of the Integrated B.S. + M.S. programme in §3.5.
+
+**What the app does (DGS, 2026-09-09).** The along-the-way row is left out of that student's
+report entirely.
+
+**Suggested sentence.** In §4.5: *"A student who already holds the MSCSE from Notre Dame is not
+awarded it a second time."* Worth pairing with a note on what such a student's candidacy exam
+does have to satisfy, since the M.S. thesis requirement is already behind them.
+
+---
+
+## 4. §3.5 and §5.2 — the 4+1 student's senior-year graduate courses
+
+**Today.** §3.5 lets an Integrated B.S. + M.S. student take "one or two 3-credit CSE courses at
+the 6xxxx level" in the second semester of the junior year and the senior year and "count these
+both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE
+degree", plus further 6xxxx courses in the senior year not used for the B.S. But §5.2's
+criterion 2 requires that "the student had graduate student status when they took these
+courses".
+
+**Why it comes up.** Those senior-year courses are genuinely part of an awarded Notre Dame
+MSCSE. When that student goes on to the Ph.D., §5.2 appears to bar exactly the courses §3.5
+allowed.
+
+**What the app does (DGS, 2026-09-06).** The bachelor's award term decides: a course taken in or
+before the term the bachelor's degree was awarded earns no transfer credit toward the Ph.D.,
+whatever its number and however it was registered. It can still satisfy §4.4.1 core knowledge.
+
+**Suggested sentence.** In §5.2 or §3.5: *"Courses taken before the bachelor's degree was
+awarded, including 6xxxx courses taken under Section 3.5, do not carry transfer credit into a
+Notre Dame graduate program, whether or not they were counted toward the MSCSE."* If the
+department means the opposite, the exception has to be written down, because the Graduate
+School's own criterion is the obstacle.
+
+---
+
+## 5. §4.2 — courses below the 60000 level
+
+**Today.** §4.2 allows "Up to six (6) credits from CSE 4xxxx". It says nothing about the 50000
+level, where the §3.6 Transition to Computing bridge courses live (CSE 50501–50503).
+
+**What the app does (DGS, 2026-09-09).** A CSE course below the 60000 level counts only if the
+rules spreadsheet says it may, and then only inside the same six credits — 40000- and
+50000-level courses share one cap. A sheet entry is a permission, not an exemption.
+
+**Suggested sentence.** In §4.2: *"Up to six (6) credits from CSE courses below the 60000 level,
+including bridge courses, may be used to satisfy the course requirement, subject to approval of
+the student's advisor and the DGS."* §3.2 needs the matching change for the MSCSE.
+
+---
+
+## 6. Smaller wording points
+
+- **§4.4 "three components".** The qualifying examination has three components, but §4.4.1 alone
+  produces three separate requirements (one core area each), so students read "three" as
+  "three things to do" and count five. The audit calls the row "all components" for that reason.
+  A parenthesis in §4.4 would do it.
+- **§4.2's nine credits at Notre Dame.** "Regardless of any credits transferred, all Ph.D.
+  students must take at least nine (9) credits at Notre Dame" — for a student who did their
+  master's at Notre Dame, "at Notre Dame" has to mean "in the Ph.D. programme", which the
+  sentence does not say. The audit reads it that way.
+- **§5.2's timing rule.** "A request for credit transfer is considered only after a student has
+  completed one semester in a Notre Dame graduate degree program and before the semester in
+  which the graduate degree is conferred." The audit does not enforce this window, so a
+  first-semester student may be told to send the request early. Worth a line in the student
+  handbook about when to file rather than a change to §5.2.
+- **Where the transfer request goes.** §5.2 says "the Graduate Program Coordinator"; the
+  department calls the role the Graduate Program Administrator, and the app says "Grad Admin".
+  Worth making the title consistent.

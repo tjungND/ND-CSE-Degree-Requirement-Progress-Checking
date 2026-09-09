@@ -66,7 +66,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const capSpecs: CapSpec[] =
     student.program === 'mscse'
       ? [
-          { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: `${num('ms_4xxxx_credits_max') ?? '?'}-credit 40000-level cap`, section: '§3.2' },
+          { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: `${num('ms_4xxxx_credits_max') ?? '?'}-credit cap on courses below the 60000 level`, section: '§3.2' },
           { id: 'noncse', limit: num('ms_noncse_credits_max'), label: `${num('ms_noncse_credits_max') ?? '?'}-credit non-CSE cap`, section: '§3.2' },
           {
             id: 'transfer',
@@ -76,7 +76,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           },
         ]
       : [
-          { id: 'fourk', limit: num('phd_4xxxx_cse_credits_max'), label: `${num('phd_4xxxx_cse_credits_max') ?? '?'}-credit 40000-level cap`, section: '§4.2' },
+          { id: 'fourk', limit: num('phd_4xxxx_cse_credits_max'), label: `${num('phd_4xxxx_cse_credits_max') ?? '?'}-credit cap on courses below the 60000 level`, section: '§4.2' },
           { id: 'noncse', limit: num('phd_noncse_6xxxx_credits_max'), label: `${num('phd_noncse_6xxxx_credits_max') ?? '?'}-credit non-CSE cap`, section: '§4.2' },
           {
             id: 'transfer',

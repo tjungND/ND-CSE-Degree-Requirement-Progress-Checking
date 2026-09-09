@@ -18,7 +18,7 @@ import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURAC
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
-import { isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
+import { derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
 import { copyDialog } from './copy-dialog.ts';
@@ -515,6 +515,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         mutate(s);
         s.entryTermInferred = undefined;
         const moved = reclassifyNotreDameCourses(s);
+        // Re-filing can turn program coursework into an earlier degree's
+        // coursework, which changes the §5.2 cap: a student who corrects the
+        // entry term to their Ph.D. start has just told the app about a prior
+        // graduate program (2026-09-09 — the cap was staying at 6).
+        derivePriorMs(s);
         if (moved.toPrior + moved.toProgram > 0) {
           window.setTimeout(
             () =>
@@ -622,6 +627,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         s.bachelorsAwarded = (bsYear as HTMLInputElement).value !== '' && Number.isFinite(year) && year >= 1970 ? { season: (bsSeason as HTMLSelectElement).value as Season, year } : undefined;
         s.bachelorsAwardedInferred = undefined; // the student decided
         reclassifyNotreDameCourses(s); // prior Notre Dame rows without a registered level follow the award term
+        derivePriorMs(s); // a senior-year graduate course is not a prior master's (2026-09-09)
       });
     bsYear.addEventListener('change', setBachelors);
     bsSeason.addEventListener('change', () => {
@@ -644,6 +650,37 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             ? 'Required, and you already have coursework from before Notre Dame: enter the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2); until it is set, every graduate-level course from before Notre Dame is taken as graduate coursework.'
             : 'Required — the semester your bachelor’s degree was awarded. Every student has one, whether or not they also hold a graduate degree, and §5.2 counts a course as transfer credit only when it was taken after it.',
     );
+    // Already holds Notre Dame's own master's degree (DGS 2026-09-09). §4.5
+    // lets a Ph.D. student earn the MSCSE along the way; a student who earned
+    // it BEFORE this program cannot earn it again, so that row is left out of
+    // their report entirely (phd.ts). The Notre Dame transcript sets this from
+    // its degree-conferral lines; this box is how the student corrects it.
+    // Ph.D. only — the MSCSE audit has no along-the-way row to suppress.
+    const ndMs = student.ndMasters;
+    const ndMsBox = el('input', {
+      type: 'checkbox',
+      'data-key': 'standing.ndMasters',
+      onchange: (e) =>
+        update((s) => {
+          // The student decided: keep any term already read from the
+          // transcript for the wording, but drop the "inferred" flag.
+          s.ndMasters = (e.target as HTMLInputElement).checked ? { ...(s.ndMasters?.term ? { term: s.ndMasters.term } : {}) } : undefined;
+        }),
+    });
+    (ndMsBox as HTMLInputElement).checked = ndMs !== undefined;
+    const ndMsField = el(
+      'div',
+      { class: 'field' },
+      el('label', { class: 'check' }, ndMsBox, ' I already hold the MSCSE from Notre Dame'),
+      el(
+        'p',
+        { class: `hint field-hint${ndMs?.inferred ? ' warn' : ''}` },
+        ndMs?.inferred
+          ? `Ticked because ${ndMs.inferred.how}. Untick it if that is not right. The Ph.D. can award the MSCSE along the way (§4.5); a degree you already hold is not shown as something to earn. Your master's coursework is still transfer credit (§5.2) — that is the row above.`
+          : 'Tick this if you earned the MSCSE at Notre Dame before starting the Ph.D. The Ph.D. can award the MSCSE along the way (§4.5), and a degree you already hold is not shown as something to earn.',
+      ),
+    );
+
     const card = el(
       'section',
       { class: 'card' },
@@ -658,6 +695,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
       priorNote,
     );
+    if (student.program === 'phd') card.append(ndMsField);
 
     if (student.program === 'mscse') {
       const optGroup = radios(
@@ -847,7 +885,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               { class: 'hint' },
               `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here${g.hidden > 0 ? ` — ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown` : ''}.`,
             )
-          : g.entries.some(({ c }) => !isNotreDameInstitution(c.institution)) && hasTransferCandidate(g.entries)
+          : hasTransferCandidate(g.entries)
             ? el(
                 'p',
                 { class: 'hint' },
@@ -856,7 +894,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 // the cap — the lines below never rank the candidates. Said only
                 // above a group that still holds a candidate (a group whose only
                 // course the handbook rules out — grade, five-year window — would
-                // contradict it).
+                // contradict it). Coursework from an EARLIER NOTRE DAME degree
+                // gets the same paragraph (2026-09-09): §5.2's last sentence
+                // covers it — "These five requirements also apply to the
+                // transfer of credits earned in another program at Notre Dame"
+                // — and a student who never left Notre Dame is the one most
+                // likely to assume their own courses simply carry over.
                 `Transfer credit (§5.2) is decided by the DGS course by course — normally only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate; the review request below asks for those rulings. Once the DGS has ruled a course transferable, the Grad Admin processes the credit transfer — the processing request below the milestones covers it.`,
               )
             : null,
@@ -1403,6 +1446,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               let priorAdded = 0;
               let priorSet: Student['priorMs'] | undefined;
               let bachelorsSet: Term | undefined;
+              let ndMastersSet = false;
               update((s) => {
                 if (tp.useEntryTerm && tp.entryTerm) {
                   s.entryTerm = { ...tp.entryTerm.term };
@@ -1432,15 +1476,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 }
                 // Pre-entry Notre Dame courses → prior coursework (2026-09-05).
                 priorAdded = reclassifyNotreDameCourses(s).toPrior;
+                // A Notre Dame master's degree awarded BEFORE this program is
+                // one the student already holds (DGS 2026-09-09) — §4.5's
+                // along-the-way MSCSE is then not something to earn, and the
+                // report leaves that row out. A master's dated after the entry
+                // term is the along-the-way award itself, so the date decides;
+                // an undated conferral line leaves the checkbox to the student.
+                const heldMs = tp.degreesAwarded.find(
+                  (d) => (d.level === 'masters' || d.level === 'phd') && d.date !== undefined && termIndex(termOfDate(d.date)) < termIndex(s.entryTerm),
+                );
+                if (heldMs && (s.ndMasters === undefined || s.ndMasters.inferred)) {
+                  s.ndMasters = { term: termOfDate(heldMs.date!), inferred: { how: `your Notre Dame transcript shows the ${heldMs.name} awarded ${heldMs.date}` } };
+                  ndMastersSet = true;
+                }
                 // Prior GRADUATE coursework at Notre Dame sets "Prior graduate
                 // study" the way an uploaded Master's transcript does
                 // (2026-09-03 rule): completed when the transcript shows a
                 // graduate degree awarded, else "not completed" + the warning.
-                if (
-                  s.priorMs === 'none' &&
-                  s.courses.some((c) => isPriorNd(c, s.entryTerm) && c.degreeLevel === 'masters')
-                ) {
-                  const conferred = tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd');
+                if (s.priorMs === 'none' && hasPriorGraduateStudy(s)) {
+                  const conferred = heldMs !== undefined || tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd');
                   s.priorMs = conferred ? 'completed' : 'unfinished';
                   s.priorMsInferred = true;
                   priorSet = s.priorMs;
@@ -1467,6 +1521,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                       ? '; Prior graduate study set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it'
                       : '') +
                   (bachelorsSet ? `; “Bachelor’s degree awarded” set to ${termLabel(bachelorsSet)} from the degree on your transcript — check it under Your standing` : '') +
+                  (ndMastersSet ? '; ticked “I already hold the MSCSE from Notre Dame” from the degree on your transcript — the §4.5 along-the-way row is left out for you' : '') +
                   '.',
               );
             },
@@ -1600,10 +1655,24 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const group = (groupSel as HTMLSelectElement).value;
       if (group && !groupField.classList.contains('hidden')) entry.assignedGroup = group as CourseEntry['assignedGroup'];
       focusAfterRender = 'course.new.id'; // ready for the next course
+      // A Notre Dame course dated before the entry term is coursework from an
+      // earlier Notre Dame degree, whoever typed it (2026-09-09). The import
+      // path has always re-filed those; a hand-typed one used to stay program
+      // coursework for good, earning §4.2 credits, §4.3 residence and §4.4.2
+      // specialization it cannot earn.
+      let refiled = false;
+      update((s) => {
+        s.courses.push(entry);
+        refiled = reclassifyNotreDameCourses(s).toPrior > 0;
+        if (refiled) derivePriorMs(s);
+      });
       // The form empties itself and the report headline often does not change,
       // so without this the click had no visible effect at all (2026-09-08).
-      toast(`${id} added to your coursework.`);
-      update((s) => void s.courses.push(entry));
+      toast(
+        `${id} added to your coursework` +
+          (refiled ? ` — dated before ${termLabel(student.entryTerm)}, so it is filed as coursework from before you entered the program` : '') +
+          '.',
+      );
     };
 
     return el(
@@ -1894,7 +1963,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     card.append(
       el('p', { class: 'hint' }, 'Tick only what has actually been approved — this is a self-check; the DGS decides, and the Grad Admin holds the real record.'),
       attestation('My advisor approved my plan of study (§3.2/§4.2)', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
-      attestation('The DGS approved my 40000-level course(s) (§3.2/§4.2)', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
+      attestation('The DGS approved my course(s) below the 60000 level (§3.2/§4.2)', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
       attestation('The DGS approved my non-CSE course(s) (§3.2/§4.2)', a.dgsApprovedNonCse, (v, s) => (s.attestations.dgsApprovedNonCse = v)),
       attestation('My transfer credit was approved by the DGS and the Graduate School (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)),
     );

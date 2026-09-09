@@ -1,0 +1,30 @@
+{
+  "name": "phd-below-60000-cap",
+  "description": "DGS 2026-09-09: a rules-sheet cell saying a course may count toward the Ph.D. is a permission, not an exemption from §4.2's other limits. A 40000-level and a 50000-level course the sheet permits draw on the SAME six credits, and the fourth such course is over the cap. (An unlisted 50000-level course still counts nothing — decision Q19; the permission has to be in the sheet.)",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      { "courseId": "CSE 50110", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 40113", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 40567", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": { "dgsApproved4xxxx": true }
+  },
+  "expect": {
+    "phd.cap.fourk": { "status": "met", "detailIncludes": ["6 of the 6 credits below the 60000 level used", "CSE 40567: 3 credits not counted — over the cap"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] }
+  },
+  "expectCourseLines": {
+    "CSE 50110": ["counts toward"],
+    "CSE 40567": ["over the"]
+  }
+}

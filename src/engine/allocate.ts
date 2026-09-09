@@ -109,6 +109,47 @@ const levelOf = (course: CourseEntry, rule?: RuleCourse): number => {
   return m ? Number(m[1]) : NaN;
 };
 
+/** How an EARLIER NOTRE DAME course may count once it transfers in under §5.2
+ * (2026-09-09), read from its own Courses-tab row — the same reading classify()
+ * makes for a course taken in the program. Until this existed every transfer
+ * landed in the regular pool, so a prior Notre Dame research or thesis course
+ * counted toward §4.2's twenty-four REGULAR credits, which §4.2 excludes in as
+ * many words ("Research seminar, research credits, and other similar courses
+ * do not count as regular courses"), and a prior 40000-level course never
+ * touched §4.2's six-credit 4xxxx cap.
+ *
+ * Only Notre Dame's own courses are read this way: the Courses tab describes
+ * Notre Dame's catalogue, and a course from another university that happens to
+ * share a Notre Dame number is not the same course. */
+function priorNdShape(
+  courseId: string,
+  rule: RuleCourse,
+  program: Program,
+): { pool: Pool; caps: CapId[] } | { ineligibleReason: string } {
+  const counts = program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
+  const programName = program === 'mscse' ? 'MSCSE' : 'Ph.D.';
+  if (counts === 'no') {
+    return { ineligibleReason: `not counted — the rules sheet says this course does not count toward the ${programName}` };
+  }
+  const isCse = deptOf(courseId) === 'CSE';
+  switch (rule.courseType) {
+    case 'regular':
+      if (rule.level === 4 || rule.level === 5) {
+        return isCse
+          ? { pool: 'regular', caps: ['fourk'] }
+          : { ineligibleReason: `not counted — non-CSE ${rule.level}0000-level courses do not count (DGS decision 2026-08-31)` };
+      }
+      return { pool: 'regular', caps: isCse ? [] : ['noncse'] };
+    case 'project':
+      return { pool: 'project', caps: [] };
+    case 'seminar':
+      return { pool: 'seminar', caps: [] };
+    case 'research':
+    case 'independent':
+      return { pool: 'total_only', caps: [] };
+  }
+}
+
 function tierFor(grade: Grade, provisional: boolean): Tier {
   if (provisional) return 'provisional'; // worst uncertainty dominates
   if (isInProgress(grade)) return 'in_progress';
@@ -303,11 +344,19 @@ export function classify(student: Student, rules: Rules): {
         };
       }
       const attested = attestations.transferApproved === true;
+      // An earlier Notre Dame course keeps its own Courses-tab verdict on top
+      // of §5.2's (2026-09-09): the §5.2 cap says how MUCH may transfer, the
+      // sheet row says what the course IS — regular, project, research — and
+      // §4.2's level rules still apply to it.
+      const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, student.program) : undefined;
+      if (shape && 'ineligibleReason' in shape) {
+        return { ...extBase, transferable, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
+      }
       return {
         ...extBase,
         transferable,
-        pool: 'regular',
-        caps: ['transfer'],
+        pool: shape?.pool ?? 'regular',
+        caps: ['transfer', ...(shape?.caps ?? [])],
         tier: tierFor(grade, !attested),
         // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
         // this course wins; otherwise a quarter university's credits are
@@ -362,8 +411,12 @@ export function classify(student: Student, rules: Rules): {
         };
       }
       // Unknown CSE course: never silently counted or rejected (CLAUDE.md).
+      // A 50000-level course the sheet does not list stays out (decision Q19):
+      // the 2026-09-09 rule that lets a 50000-level course count inside §4.2's
+      // six-credit cap is about a course the DGS has PERMITTED in the sheet,
+      // and an unlisted one carries no such permission.
       if (level === 5) {
-        return { ...base, ineligibleReason: 'not counted — 50000-level courses do not count (decision Q19)' };
+        return { ...base, ineligibleReason: 'not counted — 50000-level courses do not count unless the rules sheet lists one (decision Q19)' };
       }
       const caps: CapId[] = level === 4 ? ['fourk'] : [];
       return {
@@ -400,18 +453,20 @@ export function classify(student: Student, rules: Rules): {
 
     switch (rule.courseType) {
       case 'regular': {
-        if (level === 4) {
+        // Below the 60000 level (DGS 2026-09-09, superseding decision Q19):
+        // a 40000- or 50000-level course counts only while the rules sheet
+        // says it may, and even then only within §4.2's six-credit cap —
+        // "the pre-approval only means they are pre-approved to count toward
+        // the Ph.D.; they are still subject to all other constraints". Both
+        // levels draw on the SAME six credits.
+        if (level === 4 || level === 5) {
           if (!isCse) {
             return {
               ...base,
-              ineligibleReason:
-                'not counted — non-CSE 40000-level courses do not count (DGS decision 2026-08-31)',
+              ineligibleReason: `not counted — non-CSE ${level}0000-level courses do not count (DGS decision 2026-08-31)`,
             };
           }
           return { ...base, pool: 'regular', caps: ['fourk'], tier: tierFor(grade, provisional), approvalPending };
-        }
-        if (level === 5) {
-          return { ...base, ineligibleReason: 'not counted — 50000-level courses do not count (decision Q19)' };
         }
         const caps: CapId[] = isCse ? [] : ['noncse'];
         return { ...base, pool: 'regular', caps, tier: tierFor(grade, provisional), approvalPending };

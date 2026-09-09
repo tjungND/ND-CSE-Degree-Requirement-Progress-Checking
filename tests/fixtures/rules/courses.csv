@@ -1,4 +1,5 @@
 course_id,title,level,credit_min,credit_max,credits_default,course_type,counts_toward_mscse,counts_toward_phd,core_area,category_group,typically_offered,active,last_offered,effective_term,offered_now,offered_next,dgs_reviewed,notes
+CSE 50110,Bridge Programming Foundations,5,3,3,3,regular,yes,yes,,,fall,yes,Fall 2026,Fall 2026,,,yes,"Fixture: a 50000-level bridge course the sheet permits — it counts, but inside §4.2's six-credit cap (DGS 2026-09-09)"
 CSE 60111,Complexity and Algorithms,6,3,3,3,regular,yes,yes,algorithms,alg,spring,yes,Spring 2026,Fall 2026,yes,no,yes,§4.4.2 typical spring course
 CSE 60321,Advanced Computer Architecture,6,3,3,3,regular,yes,yes,architecture,arch,spring,yes,Spring 2026,Fall 2026,no,yes,yes,§4.4.2 typical spring course
 CSE 60427,Human-Centered Computing Research,6,3,3,3,regular,yes,yes,,hcc;dsai,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course

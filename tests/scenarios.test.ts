@@ -43,6 +43,10 @@ describe('scenarios', () => {
         }
       }
 
+      for (const id of sc.expectAbsent ?? []) {
+        assert.ok(!byId.has(id), `requirement ${id} should not be in this report at all — got: ${byId.get(id)?.detail}`);
+      }
+
       for (const [courseId, subs] of Object.entries(sc.expectCourseLines ?? {})) {
         const lines = report.courseLines.filter((l) => l.courseId === courseId);
         assert.ok(lines.length > 0, `no course line for ${courseId}`);
