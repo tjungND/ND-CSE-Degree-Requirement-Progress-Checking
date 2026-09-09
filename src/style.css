@@ -671,6 +671,11 @@ tr.ocr-low td { background: #fff7e0; }
   .courses-page .table-scroll { overflow: visible; border: 0; background: none; }
   .courses-page .table-scroll:focus-visible { outline: none; }
   table.course-rules { min-width: 0; display: block; }
+  /* The schedule tables keep every course on one line at desk widths; on a
+     phone the same table is a stack of cards, so a title that cannot wrap runs
+     past the card and drags the whole page sideways (DGS 2026-09-09, iPhone).
+     Wrapping is the right behaviour once there are no columns to line up. */
+  .schedule-table td.cell-title, .schedule-table th[scope='col'] { white-space: normal; }
   table.course-rules thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   table.course-rules tbody { display: block; }
   table.course-rules tbody tr { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0 0 8px; }

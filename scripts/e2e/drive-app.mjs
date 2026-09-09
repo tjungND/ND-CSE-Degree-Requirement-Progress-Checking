@@ -219,19 +219,19 @@ async function checkSheetLink(s, page) {
 // the full table from the same rules, filters work, no student data involved.
 export async function driveCourses(s, baseUrl) {
   await s.open(new URL('courses.html', baseUrl).href);
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr').length > 10`);
+  await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`);
   await s.shot('courses-list');
   await checkSheetLink(s, 'courses');
   const count = await s.evalJs(`document.querySelector('.count')?.textContent`);
   console.log('  course list:', count);
   if (!/\d+ of \d+ courses/.test(count ?? '')) throw new Error('course list did not render');
   // (Note rows — the DGS's notes, opened per course since 2026-09-05 — are tbody rows too; count courses only.)
-  const before = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
+  const before = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
   await s.evalJs(
     `const sel=[...document.querySelectorAll('.filters select')].find(x=>[...x.options].some(o=>o.value==='algorithms')); sel.value='algorithms'; sel.dispatchEvent(new Event('change'))`,
   );
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length < ${before}`);
-  const after = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
+  await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length < ${before}`);
+  const after = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
   console.log(`  core-area filter: ${before} → ${after} rows`);
   if (!(after > 0 && after < before)) throw new Error('core-area filter did not narrow the table');
   await s.shot('courses-filtered');
@@ -239,22 +239,22 @@ export async function driveCourses(s, baseUrl) {
   // The DGS's notes are the DGS's (2026-09-09): no Notes column, no
   // disclosure, and nothing on the page carries them.
   const noNotes = JSON.parse(await s.evalJs(`JSON.stringify({
-    button: !!document.querySelector('table.course-rules button.notes'),
-    column: [...document.querySelectorAll('table.course-rules thead th')].some((th) => /notes/i.test(th.textContent ?? '')),
+    button: !!document.querySelector('.all-courses table.course-rules button.notes'),
+    column: [...document.querySelectorAll('.all-courses table.course-rules thead th')].some((th) => /notes/i.test(th.textContent ?? '')),
     legend: /the DGS.s notes on a course/.test(document.body.textContent ?? ''),
   })`));
   if (noNotes.button || noNotes.column || noNotes.legend) throw new Error('the DGS notes are still reachable: ' + JSON.stringify(noNotes));
   console.log('  no Notes column, button or legend entry — the DGS notes stay with the DGS');
   // Clear filters (item 26) drops the core-area filter set above…
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+  await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length > 10`);
   console.log('  Clear filters restores the full list');
   // …and search ignores spacing: "cse60641" finds CSE 60641.
   await s.evalJs(`const q = document.querySelector('[data-key="filter.search"]'); q.value = 'cse60641'; q.dispatchEvent(new Event('input'));`);
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length === 1`);
+  await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length === 1`);
   console.log('  search ignores spacing: "cse60641" → 1 row');
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+  await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length > 10`);
 
   // Two schedule cards (DGS 2026-09-09), which say "Not released yet." while
   // the sheet's offered_now / offered_next are blank rather than showing an
@@ -266,8 +266,9 @@ export async function driveCourses(s, baseUrl) {
     return {
       present: true,
       headings: cs.map((c) => c.querySelector('h3')?.textContent ?? ''),
-      bodies: cs.map((c) => (c.textContent ?? '').replace(c.querySelector('h3')?.textContent ?? '', '').trim().slice(0, 40)),
-      items: cs.map((c) => c.querySelectorAll('.ov-item').length),
+      bodies: cs.map((c) => (c.textContent ?? '').replace(c.querySelector('h3')?.textContent ?? '', '').trim().slice(0, 60)),
+      // The cards hold a table of courses since 2026-09-09, not a plain list.
+      items: cs.map((c) => c.querySelectorAll('tbody tr').length),
     };
   })())`));
   if (!cards.present) throw new Error('the two "On the schedule" cards are missing');
@@ -310,19 +311,24 @@ export async function driveCourses(s, baseUrl) {
   if (!sched.present) {
     console.log('  schedule filter: not shown — no course in the sheet carries offered_now/offered_next yet');
   } else {
-    if (sched.options.join(',') !== ',now,next') throw new Error('schedule filter options: ' + JSON.stringify(sched.options));
-    if (!/Offered this semester \(/.test(sched.labels[1] ?? '') || !/Offered next semester \(/.test(sched.labels[2] ?? '')) {
+    // A semester the sheet has not recorded is not offered as a choice, so the
+    // control may hold "now", "next" or both — never neither, or it would not
+    // be on the page at all.
+    if (sched.options[0] !== '' || sched.options.length < 2 || sched.options.slice(1).some((o) => o !== 'now' && o !== 'next')) {
+      throw new Error('schedule filter options: ' + JSON.stringify(sched.options));
+    }
+    if (!sched.labels.slice(1).every((l) => /Offered (this|next) semester \(/.test(l))) {
       throw new Error('the schedule options must name their semesters: ' + JSON.stringify(sched.labels));
     }
-    const before = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
+    const before = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
     await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.offered"]'); sel.value = 'now'; sel.dispatchEvent(new Event('change')); })()`);
-    await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length !== ${before}`);
-    const after = await s.evalJs(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length`);
+    await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length !== ${before}`);
+    const after = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
     if (!(after > 0 && after < before)) throw new Error(`the schedule filter did not narrow the table (${before} → ${after})`);
     if (!/offered=now/.test(await s.evalJs(`window.location.search`))) throw new Error('the schedule filter must reach the address bar');
     console.log(`  schedule filter: ${before} → ${after} rows offered this semester, and the URL carries it`);
     await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
-    await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+    await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length > 10`);
   }
 
   // Specialization categories (DGS 2026-09-08): "Listed under every category"
@@ -344,18 +350,18 @@ export async function driveCourses(s, baseUrl) {
   if (!/never several/.test(spec.note)) throw new Error('the "fills only one category" note is missing: ' + spec.note);
   console.log('  specialization cards:', spec.headings.join(', '), '— the flexible course is in each, with the "only one" note');
   await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'category'; sel.dispatchEvent(new Event('change')); })()`);
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
-  const firstSpec = await s.evalJs(`document.querySelector('table.course-rules tbody tr:not(.note-row) td[data-label^="Specialization"]')?.textContent.trim()`);
+  await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length > 10`);
+  const firstSpec = await s.evalJs(`document.querySelector('.all-courses table.course-rules tbody tr:not(.note-row) td[data-label^="Specialization"]')?.textContent.trim()`);
   if (!firstSpec || firstSpec === '—') throw new Error('sorting by Specialization must put the rows WITH a category first, got: ' + JSON.stringify(firstSpec));
   console.log('  sort by Specialization → first row is', JSON.stringify(firstSpec) + ', blanks last');
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
-  await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
+  await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length > 10`);
 
   // Filters live in the URL (2026-09-05, item 29) and a view picks the columns
   // (item 30): open a shared link, check what it selected, then change a
   // filter and check the address bar followed.
-  await s.open(new URL('courses.html?view=mscse&core=algorithms', baseUrl).href, 'table.course-rules');
-  const shared = JSON.parse(await s.evalJs(`JSON.stringify({ view: document.querySelector('[data-key="filter.view"]').value, core: document.querySelector('[data-key="filter.core"]').value, program: document.querySelector('[data-key="filter.program"]').value, hiddenHeaders: document.querySelectorAll('table.course-rules thead th.col-hidden').length, rows: document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length })`));
+  await s.open(new URL('courses.html?view=mscse&core=algorithms', baseUrl).href, '.all-courses table.course-rules');
+  const shared = JSON.parse(await s.evalJs(`JSON.stringify({ view: document.querySelector('[data-key="filter.view"]').value, core: document.querySelector('[data-key="filter.core"]').value, program: document.querySelector('[data-key="filter.program"]').value, hiddenHeaders: document.querySelectorAll('.all-courses table.course-rules thead th.col-hidden').length, rows: document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length })`));
   if (shared.view !== 'mscse' || shared.core !== 'algorithms') throw new Error('shared link did not select the view/filters: ' + JSON.stringify(shared));
   if (shared.hiddenHeaders !== 3) throw new Error('the M.S. view should hide 3 columns, hid ' + shared.hiddenHeaders);
   await s.evalJs(`(() => { const q = document.querySelector('[data-key="filter.search"]'); q.value = 'algorithms'; q.dispatchEvent(new Event('input')); })()`);

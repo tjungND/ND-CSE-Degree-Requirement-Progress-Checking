@@ -36,12 +36,12 @@ export async function driveA11y(s, baseUrl) {
   await checkMobilePieces(s, 'app');
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 390);
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 820);
-  await s.open(new URL('courses.html', baseUrl).href, 'table.course-rules');
+  await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
   await checkAxe(s, 'course-rules page');
   await checkMobilePieces(s, 'courses');
-  await checkPhone(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`, 390);
-  await checkPhone(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`, 820);
-  await checkWide(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`);
+  await checkPhone(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`, 390);
+  await checkPhone(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`, 820);
+  await checkWide(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`);
   await s.open(baseUrl, '.masthead h1');
   await checkWide(s, 'app', `document.querySelector('.layout')`);
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
@@ -70,11 +70,11 @@ async function checkMobilePieces(s, page) {
     if (await visible('[data-key="filter.sort"]')) throw new Error('the Sort control must be hidden on wide screens (headers sort there)');
     await at(390, true);
     if (!(await visible('[data-key="filter.sort"]'))) throw new Error('the Sort control must show on phones');
-    const card = await s.evalJs(`getComputedStyle(document.querySelector('table.course-rules tbody tr')).display`);
+    const card = await s.evalJs(`getComputedStyle(document.querySelector('.all-courses table.course-rules tbody tr')).display`);
     if (card !== 'block') throw new Error('course rows must render as cards on phones (got display: ' + card + ')');
     await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'title'; sel.dispatchEvent(new Event('change')); })()`);
-    const first = await s.evalJs(`document.querySelector('table.course-rules tbody tr th.course-id')?.textContent`);
-    const firstTitle = await s.evalJs(`document.querySelector('table.course-rules tbody tr td.cell-title')?.textContent`);
+    const first = await s.evalJs(`document.querySelector('.all-courses table.course-rules tbody tr th.course-id')?.textContent`);
+    const firstTitle = await s.evalJs(`document.querySelector('.all-courses table.course-rules tbody tr td.cell-title')?.textContent`);
     await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'course'; sel.dispatchEvent(new Event('change')); })()`);
     console.log(`  phone pieces on the course-rules page: cards, Sort control (by title → first card ${first} "${firstTitle}")`);
   }
@@ -196,6 +196,18 @@ async function checkPhone(s, page, readyExpr, width = 390) {
   );
   await s.shot(`${width < 600 ? 'phone' : 'tablet'}-${page}`);
   if (m.scrollW > m.clientW) throw new Error(`${page} at ${width} px scrolls sideways (${m.scrollW} > ${m.clientW}); widest: ${m.wide.join(', ')}`);
+  // The schedule tables keep a course on one line at desk widths. On a phone
+  // the same table is a stack of cards, and a title that cannot wrap runs past
+  // the card and drags the page sideways (DGS 2026-09-09, iPhone 14 Pro).
+  if (page === 'courses') {
+    // tbody only: the header row is visually hidden with the clip() pattern, so
+    // it keeps a wide geometry that nobody can see.
+    const spill = await s.evalJs(`JSON.stringify([...document.querySelectorAll('.schedule-table tbody td, .schedule-table tbody th')]
+      .filter((c) => { const card = c.closest('.ov-card'); return card && c.getBoundingClientRect().right > card.getBoundingClientRect().right + 1; })
+      .slice(0, 3).map((c) => (c.textContent || '').trim().slice(0, 40)))`);
+    const out = JSON.parse(spill);
+    if (out.length > 0) throw new Error(`a schedule cell runs past its card at ${width} px: ${out.join(' | ')}`);
+  }
   if (width < 600 && page === 'app') {
     // Usability pass 2026-09-08: one field per line in the add-a-course form,
     // a real touch target on every control that changes the record, and the
