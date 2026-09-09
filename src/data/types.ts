@@ -9,8 +9,11 @@ export type Counts = 'yes' | 'no' | 'dgs_approval';
  * by the DGS, so only the Grad Admin's processing is left; `no` = ruled out;
  * `dgs_approval` = decided case by case (DGS 2026-09-08 — a course outside the
  * usual CSE ground that may still transfer when it serves the student's
- * dissertation), so it stays in the review request until the DGS rules on that
- * student's case. A blank cell is undefined: not looked at yet. */
+ * research), so it stays in the review request until the DGS rules on that
+ * student's case. Whether it does serve their research is settled between the
+ * advisor and the DGS: nothing on the page asks the student to argue it, and
+ * the request says only that the decision is open. A blank cell is undefined:
+ * not looked at yet. */
 export type Transferable = 'yes' | 'no' | 'dgs_approval';
 
 /** category_group values that are valid on a Courses row but are NOT real

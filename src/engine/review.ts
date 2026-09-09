@@ -90,9 +90,10 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
         (c.external.transferable === undefined || caseByCase) && !bachelors && !transferAttested && c.ineligibleReason === undefined;
       const coreUndecided = c.external.satisfiesCoreArea === undefined && !coreDecidedByCoursesTab && coreTitle(c);
       if (!transferUndecided && !coreUndecided) continue;
-      const transferReason = caseByCase
-        ? 'transferability decided case by case (§5.2) — say how it relates to your research'
-        : 'transferability not yet decided';
+      // Why the course is decided case by case — its relevance to the
+      // student's research — is settled between the advisor and the DGS (DGS
+      // 2026-09-08), so the student is told only that the decision is open.
+      const transferReason = caseByCase ? 'transferability decided case by case (§5.2)' : 'transferability not yet decided';
       const reason =
         transferUndecided && coreUndecided
           ? `${transferReason}, and no core area recorded although the title suggests a §4.4.1 core area`

@@ -251,7 +251,7 @@ describe('what a DGS ruling changes in the engine', () => {
   // decision about the COURSE and an open question about the STUDENT, so it
   // behaves like a candidate everywhere — never pre-approved, never processed
   // by the Grad Admin without the DGS's ruling — but says why.
-  it('transferable=dgs_approval → a candidate, explained in ONE place and stated plainly everywhere else', () => {
+  it('transferable=dgs_approval → a candidate, stated plainly and never explained at the student', () => {
     const one = [{ courseId: 'STAT 51200', title: 'Applied Regression Analysis', term: { season: 'fall' as const, year: 2024 } }];
     const { classified } = classify(student(one), rules);
     assert.equal(classified[0]?.tier, 'provisional');
@@ -281,6 +281,11 @@ describe('what a DGS ruling changes in the engine', () => {
     // Who is asked to act. The advisor summary routes by the WORDING of the
     // pending reason, not by the sheet value, so a reworded string could
     // silently send this course to the Grad Admin — it must not.
+    // Nothing anywhere asks the student to make the case for the course: that
+    // is between the advisor and the DGS (2026-09-08).
+    for (const text of [line.text, transfer?.detail ?? '', classified[0]?.approvalPending ?? '']) {
+      assert.doesNotMatch(text, /research|say how/i, text);
+    }
     const todo = actionItems(report);
     assert.ok(todo.dgs.some((t) => t.includes('STAT 51200')), JSON.stringify(todo.dgs));
     assert.ok(!todo.gradAdmin.some((t) => t.includes('STAT 51200')), JSON.stringify(todo.gradAdmin));
