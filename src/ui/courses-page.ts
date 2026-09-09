@@ -9,7 +9,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import type { Term } from '../engine/types.ts';
-import { parseTermLabel, termLabel, termOfDate } from '../engine/term.ts';
+import { termLabel, termOfDate } from '../engine/term.ts';
 import { scheduleView } from './schedule-terms.ts';
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
@@ -138,7 +138,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // Which semesters the two schedule cards stand for, and whether the sheet's
   // columns still describe them — src/ui/schedule-terms.ts explains why the
   // page will not guess (DGS 2026-09-09).
-  const schedule = scheduleView(currentTerm, parseTermLabel(rules.parameters.raw.get('offered_semester')?.value.trim() ?? ''));
+  const schedule = scheduleView(currentTerm, rules.parameters.term('offered_semester'));
   const thisTeachingTerm = schedule.thisTerm;
   const nextTeachingTerm = schedule.nextTerm;
   const offeredIn =

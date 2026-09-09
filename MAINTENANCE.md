@@ -73,8 +73,8 @@ says "Not released yet." instead of showing an empty list, and the filter appear
 least one course carries a value.
 
 **Update `offered_semester` in the Parameters tab whenever you touch those two columns.** It names
-the semester `offered_now` was written for ("Fall 2026"), and it is what keeps a forgotten update
-from misleading anyone: the card headings come from today's date, so without it the page would show
+the semester `offered_now` was written for, as the code the pages print — `FA26`, `SP27` — and it
+is what keeps a forgotten update from misleading anyone: the card headings come from today's date, so without it the page would show
 last semester's courses under this semester's name. The page compares the two —
 
 | `offered_semester` says | what the page shows |

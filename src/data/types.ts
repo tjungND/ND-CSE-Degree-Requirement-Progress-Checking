@@ -112,6 +112,8 @@ export interface SheetIssue {
  * undefined (the engine then reports "cannot evaluate"), never a guess. */
 export interface Parameters {
   number(key: string): number | undefined;
+  /** A semester code — "FA26", "SP27" (DGS 2026-09-09). */
+  term(key: string): Term | undefined;
   gradeLetter(key: string): string | undefined;
   courseList(key: string): string[] | undefined;
   section(key: string): string | undefined;

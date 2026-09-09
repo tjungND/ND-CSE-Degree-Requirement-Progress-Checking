@@ -29,6 +29,20 @@ export function termShort(t: Term): string {
   return `${SEASON_CODE[t.season]}${String(t.year % 100).padStart(2, '0')}`;
 }
 
+/** A semester CODE as the pages print it — "FA26", "SP27", "SU26" — back to a
+ * Term (DGS 2026-09-09: the sheet takes the code, because "Fall 2026" invites
+ * typos that a four-character code does not). Forgiving about case, a space or
+ * a hyphen, and a four-digit year; the long form "Fall 2026" still works, so a
+ * cell written the old way keeps its meaning. Two digits mean the 21st
+ * century, which is the only century this app is for. */
+export function parseTermCode(s: string): Term | undefined {
+  const m = /^\s*(fa|sp|su)\s*[-\s]?\s*(\d{2}|\d{4})\s*$/i.exec(s);
+  if (!m || !m[1] || !m[2]) return parseTermLabel(s);
+  const season = ({ fa: 'fall', sp: 'spring', su: 'summer' } as const)[m[1].toLowerCase() as 'fa' | 'sp' | 'su'];
+  const digits = m[2];
+  return { season, year: digits.length === 2 ? 2000 + Number(digits) : Number(digits) };
+}
+
 /** "Fall 2026" → Term. Returns undefined for anything else. */
 export function parseTermLabel(s: string): Term | undefined {
   const m = /^\s*(spring|summer|fall)\s+(\d{4})\s*$/i.exec(s);

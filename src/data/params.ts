@@ -1,6 +1,7 @@
 // Typed accessors over the Parameters tab. A missing or malformed value returns
 // undefined AND records a SheetIssue; the engine turns undefined into
 // "cannot evaluate — rules sheet is missing <key>" (never a silent pass).
+import { parseTermCode } from '../engine/term.ts';
 import type { Parameters, SheetIssue } from './types.ts';
 import { DISPLAY_PARAMETER_KEYS, KNOWN_PARAMETER_KEYS } from './types.ts';
 
@@ -32,7 +33,9 @@ export function makeParameters(
   }
 
   const reported = new Set<string>();
-  const badValue = (key: string, want: string) => {
+  /** `consequence` names what the reader loses, since a display-only key does
+   * not make any requirement "cannot evaluate" (2026-09-09). */
+  const badValue = (key: string, want: string, consequence = 'the requirements that need it show "cannot evaluate"') => {
     if (reported.has(key)) return;
     reported.add(key);
     const entry = raw.get(key);
@@ -41,7 +44,7 @@ export function makeParameters(
       tab: 'Parameters',
       row: entry?.row,
       column: 'value',
-      message: `Parameters key '${key}': value '${entry?.value}' is not ${want} — the requirements that need it show "cannot evaluate".`,
+      message: `Parameters key '${key}': value '${entry?.value}' is not ${want} — ${consequence}.`,
     });
   };
 
@@ -63,6 +66,16 @@ export function makeParameters(
         return undefined;
       }
       return n;
+    },
+    term: (key) => {
+      const entry = raw.get(key);
+      if (!entry) return undefined;
+      const t = parseTermCode(entry.value);
+      if (t === undefined) {
+        badValue(key, "a semester code like 'FA26' or 'SP27'", 'the course-rules page shows "not released yet" instead of the schedule');
+        return undefined;
+      }
+      return t;
     },
     gradeLetter: (key) => {
       const entry = raw.get(key);

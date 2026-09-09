@@ -81,6 +81,43 @@ describe('the schedule columns', () => {
   });
 });
 
+// `offered_semester` names the semester the schedule columns were written for
+// (DGS 2026-09-09). It takes the same code the pages print, and a typo has to
+// be REPORTED — a silent "not released yet" would leave a DGS wondering why
+// their schedule never appeared.
+describe('the offered_semester parameter', () => {
+  const withParam = (value: string) => {
+    const texts = fixtureCsvTexts();
+    return rulesFromCsvTexts({ ...texts, parameters: `${texts.parameters.trimEnd()}\noffered_semester,${value},,which semester offered_now describes\n` }, meta);
+  };
+
+  it('reads the code, however a person types it', () => {
+    for (const typed of ['FA26', 'fa26', 'FA 26', 'Fall 2026']) {
+      const r = withParam(typed);
+      assert.deepEqual(r.parameters.term('offered_semester'), { season: 'fall', year: 2026 }, typed);
+      assert.equal(r.issues.filter((i) => i.message.includes('offered_semester')).length, 0, typed);
+    }
+  });
+
+  it('a typo is reported in plain English, naming the shape it wants', () => {
+    const r = withParam('Fal 26');
+    assert.equal(r.parameters.term('offered_semester'), undefined);
+    const issue = r.issues.find((i) => i.message.includes('offered_semester'));
+    assert.ok(issue, 'expected an issue');
+    assert.match(issue.message, /'Fal 26' is not a semester code like 'FA26' or 'SP27'/);
+    // And it says what the reader loses, not the engine's "cannot evaluate":
+    // this key feeds a page, not a requirement.
+    assert.match(issue.message, /not released yet/);
+    assert.doesNotMatch(issue.message, /cannot evaluate/);
+  });
+
+  it('the row being absent is not an error — the schedule cards simply stay quiet', () => {
+    const r = rulesFromCsvTexts(fixtureCsvTexts(), meta);
+    assert.equal(r.parameters.term('offered_semester'), undefined);
+    assert.equal(r.issues.filter((i) => i.message.includes('offered_semester')).length, 0);
+  });
+});
+
 describe('sheet validation', () => {
   it('unknown enum value → row skipped with a plain-English message', () => {
     const texts = fixtureCsvTexts();

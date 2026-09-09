@@ -30,4 +30,4 @@ candidacy_committee_additional_members_min,3,§4.5,beyond advisor/co-advisor
 gpa_min,3,§2.2,
 Every number the handbook states lives here so a future DGS can change it without touching code. Add rows freely; keep the key names stable because the app reads them by name.,,,
 rules_effective_date,2026-09-01,,OPTIONAL override — leave this row out and both pages date the rules automatically (see data/README.md); add it only to show a different date
-offered_semester,Fall 2026,,OPTIONAL but REQUIRED to show the schedule cards — the semester the Courses tab's offered_now column describes. Update it whenever you update those columns; without it the course-rules page says "not released yet" rather than risk naming the wrong semester
+offered_semester,FA26,,OPTIONAL but REQUIRED to show the schedule cards — the semester the Courses tab's offered_now column describes, as the code the pages print (FA26 / SP27 / SU26). Update it whenever you update those columns; without it the course-rules page says "not released yet" rather than risk naming the wrong semester
