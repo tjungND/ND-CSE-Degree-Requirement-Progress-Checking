@@ -2,7 +2,7 @@
 // columns, the old samples had 11, and the DGS may insert more — rows are read
 // by column name. Malformed cells produce plain-English SheetIssues; prose
 // "note rows" at the bottom of a tab are skipped silently.
-import { parseTermLabel } from '../engine/term.ts';
+import { parseTermCode } from '../engine/term.ts';
 import { parseCsv } from './csv.ts';
 import { normalizeUniversity } from './external.ts';
 import type { CourseType, Counts, ExternalRule, RuleCourse, SheetIssue, Transferable } from './types.ts';
@@ -194,14 +194,16 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
     let effectiveTerm = undefined;
     const termRaw = cells['effective_term'] ?? '';
     if (termRaw !== '') {
-      effectiveTerm = parseTermLabel(termRaw);
+      // Either spelling: "Fall 2026" as this column has always taken, or the
+      // code the rest of the sheet now uses, "FA26" (2026-09-09).
+      effectiveTerm = parseTermCode(termRaw);
       if (!effectiveTerm) {
         issues.push({
           severity: 'warning',
           tab: 'Courses',
           row: rowNum,
           column: 'effective_term',
-          message: `Courses row ${rowNum} (${courseId}), column effective_term: '${termRaw}' is not like 'Fall 2026' — treating the row as always in effect.`,
+          message: `Courses row ${rowNum} (${courseId}), column effective_term: '${termRaw}' is not like 'Fall 2026' or 'FA26' — treating the row as always in effect.`,
         });
       }
     }

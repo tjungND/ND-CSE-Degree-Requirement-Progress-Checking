@@ -100,6 +100,9 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   if (type && ['regular', 'seminar', 'research', 'independent', 'project'].includes(type)) f.type = type;
   const offered = params.get('offered');
   if (offered === 'now' || offered === 'next') f.offered = offered;
+  // NOTE: whether either value still MEANS anything depends on today's date
+  // and on the sheet's `offered_semester`; a link saved last semester is
+  // dropped below, where the answer is known (2026-09-09).
   if (params.get('retired') === '1') f.includeRetired = true;
   if (params.get('confirmed') === '1') f.confirmedOnly = true;
   const sort = params.get('sort');
@@ -185,6 +188,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // Whether the DGS has filled the schedule columns in at all: with every cell
   // blank the filter can only return nothing, so it is not shown (2026-09-09).
   const scheduleKnown = rows.some((r) => offeredIn('this')(r) !== undefined || offeredIn('next')(r) !== undefined);
+  // A shared link saved last semester may still carry ?offered=now. Whether
+  // that means anything depends on today and on the sheet, so it is dropped
+  // here rather than silently filtering the table to nothing while the control
+  // reads "Any semester" (2026-09-09).
+  if (filters.offered !== '' && !rows.some((r) => offeredIn(filters.offered === 'now' ? 'this' : 'next')(r) !== undefined)) {
+    filters.offered = '';
+  }
   // §4.4.2's numbers are DGS-tunable sheet parameters, so the two places that
   // state them read the sheet (2026-09-08). A missing parameter drops the
   // numbers rather than printing a guess — the page never invents policy.
@@ -416,11 +426,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           ),
         ),
       );
-    const card = (heading: string, offered: (r: RuleCourse) => boolean | undefined): HTMLElement => {
+    const card = (heading: string, term: Term, offered: (r: RuleCourse) => boolean | undefined): HTMLElement => {
       // "Released" means the DGS has said something about this semester at
       // all — a yes or a no. Until then the list is not empty, it is unknown.
       const said = rows.some((r) => offered(r) !== undefined);
-      const items = live.filter((r) => offered(r) === true);
+      // A course whose rule changes between the two semesters is shown as it
+      // will be in the semester the card is about — the table below is
+      // explicitly "the rule in effect this term", but a card headed Spring
+      // 2027 must not print Fall 2026's credit rules (2026-09-09).
+      const items = live.filter((r) => offered(r) === true).map((r) => resolveRuleRow(rules, r.courseId, term) ?? r);
       return el(
         'div',
         { class: 'ov-card' },
@@ -428,7 +442,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         !said
           ? el('p', { class: 'muted small' }, 'Not released yet.')
           : items.length === 0
-            ? el('span', { class: 'muted' }, 'No course is listed for this semester.')
+            ? // Named, not "this semester": the string is shared by both cards.
+              el('span', { class: 'muted' }, `No course is listed for ${termLabel(term)}.`)
             : miniTable(items, heading),
       );
     };
@@ -439,28 +454,39 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'p',
         { class: 'muted' },
-        'What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.',
+        `${schedule.age === 'one-behind' ? 'What the DGS last recorded as running, lined up with these two semesters' : 'What the DGS has recorded as running in these two semesters'}. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.`,
       ),
-      el('div', { class: 'ov-grid two' }, card(`Offered this semester — ${termLabel(thisTeachingTerm)}`, offeredIn('this')), card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, offeredIn('next'))),
-      // The sheet holds a schedule but does not say which semester it is for,
-      // or names one too old: nothing is shown, and the page says why rather
-      // than looking as though nothing has been scheduled (2026-09-09).
+      el(
+        'div',
+        { class: 'ov-grid two' },
+        card(`Offered this semester — ${termLabel(thisTeachingTerm)}`, thisTeachingTerm, offeredIn('this')),
+        card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, nextTeachingTerm, offeredIn('next')),
+      ),
+      // Nothing can be shown, and the page says WHICH of the reasons it is —
+      // the first version blamed a missing row that is often present
+      // (2026-09-09).
       ...(schedule.age === 'unusable' && rows.some((r) => r.offeredNow !== undefined || r.offeredNext !== undefined)
         ? [
             el(
               'p',
               { class: 'muted small' },
-              'The rules sheet has a schedule recorded but does not say which semester it belongs to, so it is not shown here rather than risk naming the wrong one.',
+              schedule.reason === 'summer'
+                ? `The rules sheet dates its schedule to ${termLabel(schedule.recordedFor!)}. Schedules here are kept for fall and spring, so it cannot be placed and is not shown.`
+                : schedule.reason === 'ahead'
+                  ? `The rules sheet dates its schedule to ${termLabel(schedule.recordedFor!)}, which has not arrived yet, so it is not shown under these two semesters.`
+                  : schedule.reason === 'stale'
+                    ? `The rules sheet dates its schedule to ${termLabel(schedule.recordedFor!)}, more than one semester ago, so it is not shown rather than named as though it were current.`
+                    : 'The rules sheet has a schedule recorded but does not say which semester it belongs to, so it is not shown here rather than risk naming the wrong one.',
               ...reportToDgs(' Please tell'),
             ),
           ]
         : []),
-      ...(schedule.age === 'one-behind'
+      ...(schedule.age === 'one-behind' && rows.some((r) => offeredIn('this')(r) !== undefined)
         ? [
             el(
               'p',
               { class: 'muted small' },
-              `The schedule in the rules sheet was recorded for the semester before this one. What it listed as the following semester is shown above as this one, and ${termLabel(nextTeachingTerm)} has not been recorded yet.`,
+              `The rules sheet's schedule was recorded for ${termLabel(schedule.recordedFor!)}. What it listed as the following semester is shown above as this one, and ${termLabel(nextTeachingTerm)} has not been recorded yet.`,
             ),
           ]
         : []),

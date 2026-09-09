@@ -169,10 +169,11 @@ export const DISPLAY_PARAMETER_KEYS = [
   'contact_adgs_email',
   'contact_grad_admin_name',
   'contact_grad_admin_email',
-  // Which semester the Courses tab's `offered_now` column describes, as a term
-  // label ("Fall 2026") — DGS 2026-09-09. Without it the course-rules page
-  // cannot tell a current schedule from last year's, so it says "not released
-  // yet" rather than showing stale courses under this semester's name.
+  // Which fall or spring the Courses tab's `offered_now` column describes, as
+  // the code the pages print ("FA26", "SP27") — DGS 2026-09-09. Without it the
+  // course-rules page cannot tell a current schedule from last year's, so it
+  // says "not released yet" rather than showing stale courses under this
+  // semester's name. A summer code cannot date a schedule and is refused.
   'offered_semester',
 ] as const;
 

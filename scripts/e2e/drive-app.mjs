@@ -290,14 +290,17 @@ export async function driveCourses(s, baseUrl) {
   // (DGS 2026-09-09): the headings come from today, the columns do not, so an
   // undated or stale schedule must say "Not released yet." rather than print
   // last semester's courses under this semester's name.
-  const dated = await s.evalJs(`(() => {
+  // A card may list courses ONLY when the page is not saying it cannot place
+  // the schedule. Every "cannot place it" sentence contains "is not shown", so
+  // the two states are mutually exclusive whichever of the four reasons it is.
+  const dated = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const sec = document.querySelector('.schedule-overview');
-    const note = [...sec.querySelectorAll('p')].map((p) => p.textContent ?? '').join(' ');
-    return JSON.stringify({ listed: [...sec.querySelectorAll('.ov-card')].some((c) => c.querySelector('tbody tr')), note: /does not say which semester|recorded for the semester before/.test(note) });
-  })()`);
-  const d = JSON.parse(dated);
-  if (d.listed && d.note && !/recorded for the semester before/.test(await s.evalJs(`document.querySelector('.schedule-overview').textContent`))) {
-    throw new Error('a schedule card lists courses while the page says the sheet is undated');
+    const text = sec.textContent ?? '';
+    return { listed: [...sec.querySelectorAll('.ov-card')].some((c) => c.querySelector('tbody tr')), refused: /is not shown/.test(text) };
+  })())`));
+  if (dated.listed && dated.refused) throw new Error('a schedule card lists courses while the page says the schedule cannot be placed');
+  if (!dated.listed && !dated.refused && !/Not released yet\./.test(await s.evalJs(`document.querySelector('.schedule-overview').textContent`))) {
+    throw new Error('the schedule cards show nothing and give no reason');
   }
 
   // The schedule filter (DGS 2026-09-09) appears only once the sheet's

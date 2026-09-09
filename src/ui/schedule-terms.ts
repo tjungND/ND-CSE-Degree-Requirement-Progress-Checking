@@ -36,6 +36,12 @@ export interface ScheduleView {
    * after. `unusable`: the sheet does not say which semester it describes, or
    * names one too old or not yet reached — nothing may be shown. */
   age: 'current' | 'one-behind' | 'unusable';
+  /** Why nothing can be shown, so the page can say which of the three it is
+   * rather than blaming a missing row that is present (2026-09-09). */
+  reason?: 'missing' | 'stale' | 'ahead' | 'summer';
+  /** What the sheet said, when it said something — so the page can quote it
+   * back instead of describing the problem in the abstract. */
+  recordedFor?: Term;
   /** Which sheet column, if any, fills each card. */
   source: { this?: 'offeredNow' | 'offeredNext'; next?: 'offeredNext' };
 }
@@ -49,11 +55,25 @@ const same = (a: Term | undefined, b: Term): boolean => a !== undefined && a.sea
 export function scheduleView(today: Term, recordedFor: Term | undefined): ScheduleView {
   const thisTerm = teachingTermOf(today);
   const nextTerm = afterTeachingTerm(thisTerm);
+  const dead = (reason: ScheduleView['reason']): ScheduleView => ({ thisTerm, nextTerm, age: 'unusable', reason, source: {}, ...(recordedFor ? { recordedFor } : {}) });
+  if (recordedFor === undefined) return dead('missing');
+  // A summer code is not a schedule this page can place: schedules are kept
+  // for fall and spring, and `afterTeachingTerm` would otherwise read "SU26"
+  // as one behind the coming fall and shift the columns on the strength of it
+  // (found reviewing this feature, 2026-09-09).
+  if (recordedFor.season === 'summer') return dead('summer');
   if (same(recordedFor, thisTerm)) {
-    return { thisTerm, nextTerm, age: 'current', source: { this: 'offeredNow', next: 'offeredNext' } };
+    return { thisTerm, nextTerm, age: 'current', recordedFor, source: { this: 'offeredNow', next: 'offeredNext' } };
   }
-  if (recordedFor !== undefined && same(afterTeachingTerm(recordedFor), thisTerm)) {
-    return { thisTerm, nextTerm, age: 'one-behind', source: { this: 'offeredNext' } };
+  if (same(afterTeachingTerm(recordedFor), thisTerm)) {
+    return { thisTerm, nextTerm, age: 'one-behind', recordedFor, source: { this: 'offeredNext' } };
   }
-  return { thisTerm, nextTerm, age: 'unusable', source: {} };
+  // Ahead of today, or two or more semesters behind.
+  return dead(compareTerms(recordedFor, thisTerm) > 0 ? 'ahead' : 'stale');
+}
+
+/** Fall/spring order: negative when `a` comes first. */
+function compareTerms(a: Term, b: Term): number {
+  const seq = (t: Term) => t.year * 2 + (t.season === 'fall' ? 1 : 0);
+  return seq(a) - seq(b);
 }

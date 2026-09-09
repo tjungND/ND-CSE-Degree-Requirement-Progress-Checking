@@ -82,6 +82,13 @@ app skip that row and report it.
 | `dgs_reviewed` | `yes` / `no` | `yes` shows the row as **Confirmed** on the public course-rules page; anything else shows **Pending**. The audit engine ignores it — an unreviewed `yes` in `counts_toward_*` still counts. |
 | `notes` | text | Shown to the student on hover. Cite the § when relevant. |
 
+`offered_now` and `offered_next` (`yes` / `no` / blank) say whether a course is on the schedule
+this semester and next; the course-rules page turns them into two cards at the top of the page.
+They come with one obligation: set the Parameters tab's `offered_semester` to the fall or spring
+`offered_now` describes, as the code the pages print (`FA26`, `SP27`), **in the same edit**. That
+is what stops a forgotten update from showing last semester's courses under this semester's name —
+without it, or with it out of date, the cards say "not released yet" instead of guessing.
+
 The other columns (`title`, `level`, `credit_min`, `credit_max`, `credits_default`,
 `typically_offered`, `last_offered`) are informational. `credits_default` is what the app
 pre-fills; leave it blank for variable-credit courses. Full schema: `data/README.md`.

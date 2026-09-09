@@ -161,6 +161,15 @@ Known-pending (the app's diagnostics panel is the live truth):
   "ND" is NOT done by this function — those are hand-edited literals in `app.ts`, `report.ts`,
   `external-upload.ts` and one `shortTitle` in `requirements/phd.ts`, because each one needed its article and its e2e pin moved with it, and
   the masthead, the footer and the emails keep "Notre Dame" deliberately.
+- **The schedule cards' staleness rule** (2026-09-09): `src/ui/schedule-terms.ts` is the whole of
+  it — DOM-free, with a test matrix. `offered_semester` (Parameters, a term CODE) says which fall or
+  spring the Courses tab's `offered_now` column describes; the page shows both columns only when it
+  names today's teaching term, shifts `offered_next` into the first card when it names the one
+  before, and otherwise shows nothing and says which of the four reasons it is. A summer code is
+  refused: `teachingTermOf` maps summer to the coming fall, so a summer value would read as one
+  behind and shift the columns on the strength of it. The parameter is read EAGERLY in
+  `assemble.ts` — the typed accessors only push their SheetIssue when something asks, and the only
+  asker is a page with no diagnostics panel.
 - **The page is fluid** (2026-09-09). `#app` has NO max-width — do not re-add one. `.layout` is
   `minmax(0, 1fr) minmax(480px, 30%)`, so both columns grow. What keeps a wide window readable is
   the reading measure on prose (`.card > p`, `.req-detail`, `.detail-list`, `.card .hint`), not a
