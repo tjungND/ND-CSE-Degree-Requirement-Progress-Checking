@@ -259,6 +259,34 @@ export async function driveCourses(s, baseUrl) {
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
   await s.waitFor(`document.querySelectorAll('table.course-rules tbody tr:not(.note-row)').length > 10`);
 
+  // Two schedule cards (DGS 2026-09-09), which say "Not released yet." while
+  // the sheet's offered_now / offered_next are blank rather than showing an
+  // empty list that would read as "nothing runs".
+  const cards = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sec = document.querySelector('.schedule-overview');
+    if (!sec) return { present: false };
+    const cs = [...sec.querySelectorAll('.ov-card')];
+    return {
+      present: true,
+      headings: cs.map((c) => c.querySelector('h3')?.textContent ?? ''),
+      bodies: cs.map((c) => (c.textContent ?? '').replace(c.querySelector('h3')?.textContent ?? '', '').trim().slice(0, 40)),
+      items: cs.map((c) => c.querySelectorAll('.ov-item').length),
+    };
+  })())`));
+  if (!cards.present) throw new Error('the two "On the schedule" cards are missing');
+  if (cards.headings.length !== 2) throw new Error('expected two schedule cards: ' + JSON.stringify(cards.headings));
+  if (!/^Offered this semester — /.test(cards.headings[0]) || !/^Offered next semester — /.test(cards.headings[1])) {
+    throw new Error('schedule card headings: ' + JSON.stringify(cards.headings));
+  }
+  for (let i = 0; i < 2; i++) {
+    // Either the sheet has spoken and the card lists courses (or says none is
+    // listed), or it has not and the card says so — never a bare empty card.
+    if (cards.items[i] === 0 && !/Not released yet\.|No course is listed/.test(cards.bodies[i])) {
+      throw new Error(`schedule card ${i + 1} is empty without saying why: ${JSON.stringify(cards.bodies[i])}`);
+    }
+  }
+  console.log('  schedule cards:', cards.headings.map((h, i) => `${h} (${cards.items[i] > 0 ? cards.items[i] + ' courses' : cards.bodies[i]})`).join(' | '));
+
   // The schedule filter (DGS 2026-09-09) appears only once the sheet's
   // offered_now / offered_next columns say something, so the check adapts to
   // whichever the live sheet currently is.

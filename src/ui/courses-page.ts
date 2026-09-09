@@ -347,6 +347,94 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   }
 
   /** Quick view: core areas and specialization categories with their courses. */
+  /** What is running this semester and next — two cards, from the Courses
+   * tab's `offered_now` / `offered_next` (DGS 2026-09-09). A column with no
+   * `yes` anywhere has not been published yet, and the card says so rather
+   * than showing an empty list, which would read as "nothing is offered". */
+  function scheduleSection(): HTMLElement {
+    const live = rows.filter((r) => r.active);
+    // Every attribute the table carries except the three the DGS left out
+    // (2026-09-09): "Typically offered" (a pattern from past years, which
+    // these cards supersede), "DGS reviewed" (the * beside a course id says
+    // it) and the notes (a per-row disclosure in the table below).
+    const pill = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
+    const miniTable = (items: RuleCourse[], label: string): HTMLElement =>
+      el(
+        'div',
+        { class: 'table-scroll plain', tabindex: '0', role: 'region', 'aria-label': `${label} (scrolls sideways on narrow screens)` },
+        el(
+          'table',
+          { class: 'course-rules schedule-table' },
+          el(
+            'thead',
+            {},
+            el(
+              'tr',
+              {},
+              el('th', { scope: 'col' }, 'Course'),
+              el('th', { scope: 'col' }, 'Title'),
+              el('th', { scope: 'col' }, 'Type'),
+              el('th', { scope: 'col', abbr: 'MSCSE degree credit' }, 'MSCSE'),
+              el('th', { scope: 'col', abbr: 'Ph.D. degree credit' }, 'Ph.D.'),
+              el('th', { scope: 'col', abbr: 'Core knowledge, Ph.D. qualifying exam §4.4.1' }, 'Core'),
+              el('th', { scope: 'col', abbr: 'Specialization, Ph.D. qualifying exam §4.4.2' }, 'Specialization'),
+            ),
+          ),
+          el(
+            'tbody',
+            {},
+            ...items.map((r) =>
+              el(
+                'tr',
+                {},
+                el(
+                  'th',
+                  { scope: 'row', class: 'course-id' },
+                  el('a', { href: `#${r.courseId.replace(' ', '-')}`, title: hoverText(r) || 'Jump to this course in the table' }, r.courseId),
+                  r.dgsReviewed ? '' : ' *',
+                ),
+                el('td', { class: 'cell-title', 'data-label': 'Title' }, r.title),
+                el('td', { 'data-label': 'Type' }, TYPE_LABEL[r.courseType]),
+                el('td', { 'data-label': 'MSCSE degree credit' }, pill(r.countsTowardMscse)),
+                el('td', { 'data-label': 'Ph.D. degree credit' }, pill(r.countsTowardPhd)),
+                el('td', { class: r.coreArea ? '' : 'muted', 'data-label': 'Core knowledge (§4.4.1)' }, coreLabel(r)),
+                el('td', { class: groupsOf(r).length === 0 && !r.categoryIneligible ? 'muted' : '', 'data-label': 'Specialization (§4.4.2)' }, categoryLabel(r)),
+              ),
+            ),
+          ),
+        ),
+      );
+    const card = (heading: string, offered: (r: RuleCourse) => boolean | undefined): HTMLElement => {
+      // "Released" means the DGS has said something about this semester at
+      // all — a yes or a no. Until then the list is not empty, it is unknown.
+      const said = rows.some((r) => offered(r) !== undefined);
+      const items = live.filter((r) => offered(r) === true);
+      return el(
+        'div',
+        { class: 'ov-card' },
+        el('h3', {}, heading),
+        !said
+          ? el('p', { class: 'muted small' }, 'Not released yet.')
+          : items.length === 0
+            ? el('span', { class: 'muted' }, 'No course is listed for this semester.')
+            : miniTable(items, heading),
+      );
+    };
+    return el(
+      'section',
+      { class: 'overview schedule-overview' },
+      el('h2', {}, 'On the schedule'),
+      el(
+        'p',
+        { class: 'muted' },
+        'What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.',
+      ),
+      el('div', { class: 'ov-grid two' }, card(`Offered this semester — ${termLabel(currentTerm)}`, (r) => r.offeredNow), card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, (r) => r.offeredNext)),
+      // The asterisk explains a mark that only appears beside a listed course.
+      ...(scheduleKnown ? [el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are never shown here.')] : []),
+    );
+  }
+
   function overview(): HTMLElement {
     const live = rows.filter((r) => r.active);
     const item = (r: RuleCourse): HTMLElement =>
@@ -849,6 +937,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'main',
       { id: 'main' },
       ...notices(),
+      scheduleSection(),
       overview(),
       el('section', { class: 'all-courses', id: 'all-courses', tabindex: '-1' }, el('h2', {}, 'All courses'), filterHost, legend(), tableHost),
     ),

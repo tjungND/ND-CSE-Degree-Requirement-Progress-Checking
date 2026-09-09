@@ -332,7 +332,18 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .courses-page .muted { color: var(--muted); }
 .courses-page .small { font-size: 12.5px; }
 .courses-page .sub a { color: inherit; text-decoration: underline; }
-.ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.ov-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+.ov-grid > .ov-card { flex: 0 1 auto; min-width: min(100%, 260px); max-width: 100%; } /* content width: a card left alone on a row must not stretch across it */
+/* The schedule cards hold a seven-column table, so they take the whole row
+   until the window can fit two of them side by side (2026-09-09). */
+.ov-grid.two > .ov-card { flex: 1 1 min(100%, 1100px); }
+.schedule-table { font-size: 13px; }
+.schedule-table th[scope='col'] { white-space: nowrap; }
+.schedule-table td.cell-title { white-space: nowrap; }
+/* One course, one line: the card grows to its longest course instead of
+   wrapping every title (DGS 2026-09-09). On a phone the cards are full width,
+   so the text has to wrap again — see the 600 px block. */
+.ov-item { white-space: nowrap; }
 .ov-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
 .ov-list { display: flex; flex-direction: column; gap: 3px; }
 .ov-item { display: flex; gap: 8px; align-items: baseline; text-decoration: none; color: var(--ink); font-size: 13px; line-height: 1.35; padding: 2px 6px; border-radius: 6px; }
@@ -516,6 +527,7 @@ tr.ocr-low td { background: #fff7e0; }
   /* iOS Safari zooms the page when a focused control's text is smaller than 16 px. */
   input, select, textarea, .external-card .transcript-preview input, .external-card .transcript-preview select { font-size: 16px; }
   .pair input { width: 96px; }
+  .ov-item { white-space: normal; } /* full-width cards on a phone: wrap rather than overflow */
   .external-slot { display: block; }
   .external-slot .slot-label { display: block; margin-bottom: 4px; }
   .external-slot .slot-sep { display: none; }

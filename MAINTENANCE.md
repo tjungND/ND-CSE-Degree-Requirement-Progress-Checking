@@ -65,10 +65,12 @@ row keep working.
 
 Since 2026-09-09 the Courses tab has `offered_now` and `offered_next` (`yes` / `no` / blank). They
 are the DGS's word on the current and next semester's schedule, where `typically_offered` is a
-pattern from past years. The course-rules page shows them as ONE filter, "On the schedule", with
-"Offered this semester" and "Offered next semester"; no column is added to the table, and nothing
-else in the app reads them. The filter appears only once at least one course carries a value, so
-the page never offers a control that could only return nothing. Fill the columns in each semester —
+pattern from past years. The course-rules page shows them as two CARDS at the top, "Offered this semester" and "Offered
+next semester", each listing its courses with every attribute the table carries except "Typically
+offered", "DGS reviewed" and the notes; there is also a filter on the table itself. No column is
+added to the table, and nothing else in the app reads them. A card whose column is entirely blank
+says "Not released yet." instead of showing an empty list, and the filter appears only once at
+least one course carries a value. Fill the columns in each semester —
 a stale `yes` is worse than a blank, which honestly says nothing.
 
 Since 2026-09-08 a university whose transcript prints its name only in the letterhead IMAGE can
