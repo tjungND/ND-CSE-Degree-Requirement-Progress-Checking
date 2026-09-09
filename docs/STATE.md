@@ -74,6 +74,14 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   "current semester", the entry-term legend names the program, and "Bachelor's degree awarded" is required.
   The sign-off row is "Courses still to be approved or processed", grouped by who must act, and says
   "Needs DGS review" only when the DGS actually has a course to decide.
+  "Bachelor's degree awarded (required)" is on the Ph.D.-slot preview too, and its year box fits
+  four digits beside the spinner (2026-09-09).
+  Johns Hopkins is recognised from "JHU" and UC San Diego from "UCSD" when the transcript shows the
+  name only as an image; the JHU dotted course code ("EN.601.433") is read, a page watermark no
+  longer supplies the name, and such a guess is editable in the preview (2026-09-08, 2026-09-09).
+  Three parser faults found while reviewing that: a degree heading on its own line did not open the
+  degree block (a completed Master's read as not completed, halving the §5.2 cap), a section number
+  was read as the credits, and a Winter or Intersession term inherited the previous season.
   ExternalCourses `transferable` takes `dgs_approval` beside `yes`/`no` (2026-09-08): a course
   outside the usual CSE ground that transfers when it serves the student's dissertation. It stays a
   candidate — in the review request, out of the Grad Admin's processing request. The rule is

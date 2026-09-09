@@ -6,6 +6,20 @@ import { describe, it } from 'node:test';
 import { canonicalUniversityName, knownUniversities, titleCaseUniversity } from '../src/ui/university-name.ts';
 import { buildRules } from './helpers.ts';
 
+// A sheet row and a parsed name must find each other however the article is
+// written: "The Johns Hopkins University" and "Johns Hopkins University" name
+// one school (2026-09-08).
+describe('a leading article is not part of the key', () => {
+  it('matches with or without "The"', () => {
+    assert.equal(normalizeUniversity('The Johns Hopkins University'), normalizeUniversity('Johns Hopkins University'));
+    assert.equal(normalizeUniversity('THE OHIO STATE UNIVERSITY'), normalizeUniversity('Ohio State University'));
+  });
+
+  it('an article inside the name is left alone', () => {
+    assert.equal(normalizeUniversity('University of the Pacific'), 'university of the pacific');
+  });
+});
+
 describe('titleCaseUniversity', () => {
   it('raises the first letter of each word and keeps the rest as typed', () => {
     assert.equal(titleCaseUniversity('purdue university'), 'Purdue University');

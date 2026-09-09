@@ -161,6 +161,16 @@ Known-pending (the app's diagnostics panel is the live truth):
   "ND" is NOT done by this function — those are hand-edited literals in `app.ts`, `report.ts`,
   `external-upload.ts` and one `shortTitle` in `requirements/phd.ts`, because each one needed its article and its e2e pin moved with it, and
   the masthead, the footer and the emails keep "Notre Dame" deliberately.
+- **A university named only in an image** (2026-09-08): `NAME_ONLY_IN_IMAGE` in
+  src/transcript/external.ts maps an acronym to a school's real name, tried ONLY after every
+  text-reading pass in `guessUniversity` has failed. Keep it that way — it is a fallback, not a
+  rule — and keep the patterns case-sensitive. Two entries: Johns Hopkins ("JHU", whose dotted code
+  "EN.601.433" is the second branch of `LEAD_CODE_RE`, which requires BOTH dots) and UC San Diego
+  ("UCSD"). `guessedUniversity` orders it: strong printed name, then the acronym, then the weak
+  "… College" pass — the acronym has to beat the weak pass, or a "DEGREES AWARDED BY OTHER
+  INSTITUTIONS" block names the transcript. A name from the table sets `universityGuessed`, which
+  leaves the preview's box EDITABLE; a name read as text stays locked. `plausible` also drops a
+  cell that is only a generic word ("UNIVERSITY") or that repeats one (a page watermark).
 - **`transferable` has three values** (2026-09-08): `Transferable = 'yes' | 'no' | 'dgs_approval'`
   in data/types.ts, replacing the old boolean — the compiler flags every comparison the change
   invalidated (allocate.ts three, phd.ts's transferRow, grad-admin-request.ts); `grep '\.transferable'`

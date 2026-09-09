@@ -339,6 +339,136 @@ describe('bachelor’s conferral or completion date wording (2026-09-06, late ev
   });
 });
 
+// Johns Hopkins (DGS 2026-09-08): the unofficial transcript shows the name in
+// the letterhead IMAGE, so the text never spells it out — but it does say
+// "JHU Degree and Date Conferred".
+describe('a university whose name is printed only as an image (2026-09-08)', () => {
+  const JHU = [
+    'Office of the University Registrar',
+    'Unofficial Transcript',
+    'Name: A. Blue Jay                     Student ID: 000000000',
+    'Program: Master of Science in Engineering, Computer Science',
+    'This unofficial transcript is provided for the student. It is not certified.',
+    'Grade scale: A 4.00  B 3.00  C 2.00  D 1.00  F 0.00. Credits are semester hours.',
+    'JHU Degree and Date Conferred: Master of Science in Engineering, 05/2025',
+    '',
+    'Fall 2023',
+    'EN.601.433   Intro Algorithms                    3.0   A',
+    'EN.601.418   Operating Systems                   3.0   B+',
+    '',
+    'Cumulative GPA: 3.70',
+    'Total credits earned: 30.0',
+    'End of unofficial transcript.',
+  ];
+
+  it('recognises the school from the acronym and records its real name', () => {
+    // The name the student, the DGS and the Grad Admin read, and the key the
+    // ExternalCourses tab is matched on.
+    assert.equal(parseExternalTranscript(JHU).university, 'Johns Hopkins University');
+  });
+
+  it('reads the dotted course code, and the two-cell layout of the same code', () => {
+    assert.deepEqual(
+      parseExternalTranscript(JHU).courses.map((c) => `${c.courseId} ${c.title} ${c.credits} ${c.grade}`),
+      ['EN.601.433 Intro Algorithms 3 A', 'EN.601.418 Operating Systems 3 B+'],
+    );
+    const twoCells = JHU.map((l) => l.replace(/^EN\.(\d{3})\./, 'EN   $1.'));
+    assert.deepEqual(parseExternalTranscript(twoCells).courses.map((c) => c.courseId), ['EN 601.433', 'EN 601.418']);
+  });
+
+  it('two dots are required, so a dotted word is not a course code', () => {
+    const notCourses = JHU.map((l) => l.replace('EN.601.433   Intro Algorithms', 'VOL.12   Something Printed Here').replace('EN.601.418   Operating Systems', 'MAY.2025   Conferred'));
+    assert.deepEqual(parseExternalTranscript(notCourses).courses, []);
+  });
+
+  it('a name printed as TEXT always wins — the acronym is only a last resort', () => {
+    assert.equal(parseExternalTranscript(['Purdue University', ...JHU]).university, 'Purdue University');
+  });
+
+  it('the acronym must be capitals, so a lower-case look-alike renames nothing', () => {
+    const lower = JHU.map((l) => l.replace('JHU Degree and Date Conferred', 'Jhu, Chen-Wei — Degree and Date Conferred'));
+    assert.equal(parseExternalTranscript(lower).university, undefined);
+  });
+
+  it('a name worked out from an acronym is marked as a guess, so the preview lets it be corrected', () => {
+    assert.equal(parseExternalTranscript(JHU).universityGuessed, true);
+    assert.equal(parseExternalTranscript(['Purdue University', ...JHU]).universityGuessed, undefined, 'a name read as text is not a guess');
+  });
+
+  it('the degree heading on a line of its own opens the degree block', () => {
+    // "JHU Degree and Date Conferred" with the values BELOW it — the
+    // column-gap test alone missed it, and the M.S. then read as not
+    // completed, which halves the §5.2 cap (2026-09-08).
+    const heading = JHU.map((l) =>
+      l.startsWith('JHU Degree') ? 'JHU Degree and Date Conferred' : l,
+    );
+    heading.splice(heading.indexOf('JHU Degree and Date Conferred') + 1, 0, 'Master of Science in Engineering        05/2025');
+    assert.equal(parseExternalTranscript(heading).degreeConferred, true);
+  });
+
+  it('a section number between the code and the title is not read as the credits', () => {
+    const withSections = JHU.map((l) => l.replace(/^(EN\.\d{3}\.\d{3})   /, '$1   01   '));
+    assert.deepEqual(parseExternalTranscript(withSections).courses.map((c) => c.credits), [3, 3]);
+  });
+});
+
+// UC San Diego (DGS 2026-09-09): the logo is an image, the page is tiled with
+// a "UNIVERSITY OF CALIFORNIA, SAN DIEGO" watermark whose fragments the parser
+// read as the name, and another school's degree is listed above UCSD's own.
+describe('a transcript whose watermark looks like its name (2026-09-09)', () => {
+  const UCSD = [
+    'UNIVERSITY OF CALIFORNIA, SAN DIEGO • UNIVERSITY OF CALIFORNIA, SAN DIEGO • UNIVERSITY OF CALIFORNIA, SAN DIEGO',
+    'TRANSCRIPT OF ACADEMIC RECORD',
+    'UNIVERSITY   OF CALIFORNIA, SAN DIE',
+    'UNIVERSITY.',
+    '--DEGREES AWARDED BY OTHER INSTITUTIONS---',
+    'BS        06/24        College in China Peoples Republic',
+    'STUDENT LEVEL          :  Graduate',
+    'COLLEGE                :  Graduate Division',
+    'DEPARTMENT(S)          :  Computer Science & Engineering',
+    'MAJOR(S)               :  Computer Science',
+    '------------UCSD DEGREES AWARDED-----------',
+    'AWARD:      Master of Science          CONFERRED: 03/21/26',
+    'TERM:       Winter Qtr 2026',
+    '',
+    'FALL QTR 2024',
+    'CSE 202    Algorithm Design and Analysis        4.00   A',
+    'CSE 221    Operating Systems                    4.00   B+',
+    '',
+    'WINTER QTR 2025',
+    'CSE 240A   Principles of Computer Architecture  4.00   A-',
+    '',
+    'TERM CREDITS PASSED : 8.00     TERM GPA : 3.70',
+    '----------------------End of Transcript----------------------',
+  ];
+
+  it('names the school from its own abbreviation, not from the watermark', () => {
+    const r = parseExternalTranscript(UCSD);
+    assert.equal(r.university, 'University of California, San Diego');
+    assert.equal(r.universityGuessed, true, 'a guess, so the student can correct it');
+  });
+
+  it('a generic fragment is never a name on its own', () => {
+    // "UNIVERSITY", and the tiled watermark line, used to be the answer.
+    const watermarkOnly = UCSD.filter((l) => !/UCSD|OTHER INSTITUTIONS|College in China/.test(l));
+    assert.equal(parseExternalTranscript(watermarkOnly).university, undefined);
+  });
+
+  it('the degree block of ANOTHER institution does not name this transcript', () => {
+    assert.doesNotMatch(parseExternalTranscript(UCSD).university ?? '', /China/);
+  });
+
+  it('reads the courses, and puts a Winter quarter in spring rather than the term before it', () => {
+    // Winter and Johns Hopkins' Intersession used to inherit the previous
+    // header's season, dating a January course months late — and the term is
+    // locked on a text-layer import, so the student could not fix it.
+    assert.deepEqual(
+      parseExternalTranscript(UCSD).courses.map((c) => `${c.courseId} ${c.season} ${c.year}`),
+      ['CSE 202 fall 2024', 'CSE 221 fall 2024', 'CSE 240A spring 2025'],
+    );
+  });
+});
+
 // Georgia Tech (DGS bug report 2026-09-08): "ID" is Industrial Design, not an
 // identifier, and the header abbreviates the institute.
 describe('Georgia Tech: the "ID" subject and the abbreviated name (2026-09-08)', () => {

@@ -443,7 +443,8 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .external-card .transcript-preview .course-title.locked { color: var(--ink); }
 .external-card .transcript-preview input.locked { background: #f1f3f5; color: var(--ink); cursor: default; }
 .external-card .transcript-preview input[type="number"][max="30"] { width: 46px; }
-.external-card .transcript-preview input[type="number"][max="2040"] { width: 58px; }
+.external-card .transcript-preview input[type="number"][max="2040"] { width: 66px; } /* 4 digits AND the spinner: at 58px the last digit sat under the arrows (DGS 2026-09-09) */
+.external-card .transcript-preview .bachelors-field input[type="number"] { width: 88px; } /* not in a table column, so it can breathe */
 .external-card .transcript-preview select { max-width: 74px; }
 .external-card .transcript-preview select.row-level { max-width: 118px; } /* Taken as: "UG student" / "Grad student" (DGS 2026-09-07) */
 abbr.term { text-decoration: underline dotted; text-decoration-color: var(--line); cursor: help; } /* "FA26" in a table cell; the full name is the tooltip (DGS 2026-09-07) */

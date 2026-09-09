@@ -42,6 +42,10 @@ export interface ExternalParseResult {
   looksLikeNotreDame: boolean;
   /** Best guess at the institution's name, from the header lines. */
   university?: string;
+  /** The name came from an ACRONYM, not from a name printed in the text
+   * (2026-09-08). Weaker evidence, so the preview leaves the box editable
+   * instead of locking it the way a printed name is locked. */
+  universityGuessed?: true;
   /** POSITIVE evidence only (2026-09-03): a line that both names a graduate
    * degree and says conferred/awarded/granted. Absence stays undefined — the
    * app never guesses whether a degree was completed. */
@@ -104,17 +108,56 @@ function mapGrade(token: string): Grade | undefined {
  * decimals — Banner and PeopleSoft print "3.000", 2026-09-05). */
 function asCredits(token: string): number | undefined {
   if (!/^\d{1,2}(?:[.,]\d{1,3})?$/.test(token)) return undefined;
+  if (/^0\d$/.test(token)) return undefined; // "01" is a section number, not 1 credit
   const n = Number(token.replace(',', '.'));
   // 0 is a real value (zero-credit seminars, internships — "0.00 S"), kept
   // since 2026-09-05 so such rows do not come back with blank credits.
   return n >= 0 && n <= 30 ? n : undefined;
 }
 
+/** Institutions whose transcript prints its NAME only as an image, but whose
+ * text carries an unmistakable acronym (DGS 2026-09-08: Johns Hopkins prints
+ * the name in a logo, and the text says "JHU Degree and Date Conferred").
+ *
+ * This is the last thing tried, so a transcript that spells its name out
+ * always wins — the acronym never overrides a name the parser can read. The
+ * pattern is CASE-SENSITIVE: transcripts print these acronyms in capitals, and
+ * requiring capitals keeps a lower-case look-alike (a surname, a web address
+ * inside a course title) from renaming the whole transcript.
+ *
+ * The value is the institution's real name, because that is what the student,
+ * the DGS and the Grad Admin read, and what the ExternalCourses tab is keyed
+ * on. Add a row here when another school turns up with the same problem. */
+const NAME_ONLY_IN_IMAGE: readonly (readonly [RegExp, string])[] = [
+  [/\bJHU\b/, 'Johns Hopkins University'],
+  // UC San Diego prints the logo as an image and abbreviates itself in the
+  // text ("---UCSD DEGREES AWARDED---", DGS 2026-09-09).
+  [/\bUCSD\b/, 'University of California, San Diego'],
+];
+
+/** The institution and how sure we are of it: a name read from the text is
+ * taken as printed; a name recovered from an acronym is only a suggestion, so
+ * the preview lets the student correct it (2026-09-08). */
+function guessedUniversity(lines: string[]): { university?: string; universityGuessed?: true } {
+  // A name printed in the text wins — but only a STRONG one. The acronym of a
+  // school that hides its name in an image beats a weak "… College" match,
+  // because that match is as likely to come from a block naming somebody else
+  // (UC San Diego lists "DEGREES AWARDED BY OTHER INSTITUTIONS" — DGS
+  // 2026-09-09).
+  const strong = expandName(guessUniversity(lines, false));
+  if (strong !== undefined) return { university: strong };
+  for (const [re, name] of NAME_ONLY_IN_IMAGE) {
+    if (lines.some((line) => re.test(line))) return { university: name, universityGuessed: true };
+  }
+  const weak = expandName(guessUniversity(lines, true));
+  return weak === undefined ? {} : { university: weak };
+}
+
 /** Guess the institution from the first page's header lines: the earliest
  * digit-free line that names a university-like body. */
 const expandName = (name: string | undefined): string | undefined => (name === undefined ? undefined : expandInstitutionAbbreviations(name));
 
-function guessUniversity(lines: string[]): string | undefined {
+function guessUniversity(lines: string[], weak: boolean): string | undefined {
   // Strong words name an institution; "college" alone is weak (it also names a
   // division — "College of Science" — or a Banner field, "College : …").
   // "Inst." is how Georgia Tech's transcript abbreviates it (DGS 2026-09-08).
@@ -126,8 +169,16 @@ function guessUniversity(lines: string[]): string | undefined {
   // A sentence that merely mentions a university ("This official university
   // transcript is certified to be a …") is not a name (2026-09-05).
   const SENTENCE_RE = /\b(this|is|are|was|were|has|have|to be|certified|issued|printed|member of|does not|registrar|provost|dean)\b/i;
+  // "UNIVERSITY" on its own names nobody. UC San Diego's transcript tiles
+  // "UNIVERSITY OF CALIFORNIA, SAN DIEGO •" across the page as a watermark,
+  // and the text layer breaks it into fragments — one of which was read as the
+  // institution (DGS 2026-09-09).
+  const GENERIC_ONLY_RE = /^(the\s+)?(universit(y|e|à|ä|ies)|college|institute|school|campus)(\s+of)?[.,]?$/i;
+  // The same watermark, unbroken: the word appears more than once on the line.
+  const REPEATED_RE = /universit[^\s]*[\s\S]*universit/i;
   const clean = (c: string) => c.replace(/\s{2,}/g, ' ').trim();
-  const plausible = (c: string) => c.length >= 4 && c.length <= 80 && !/\d{3,}/.test(c) && !DIVISION_RE.test(c) && !SENTENCE_RE.test(c);
+  const plausible = (c: string) =>
+    c.length >= 4 && c.length <= 80 && !/\d{3,}/.test(c) && !DIVISION_RE.test(c) && !SENTENCE_RE.test(c) && !GENERIC_ONLY_RE.test(c) && !REPEATED_RE.test(c);
   /** Candidate name cells: the whole line first when it is a short,
    * digit-free name spaced out across the page ("UNIVERSITY   OF   SOUTHERN
    * CALIFORNIA", 2026-09-05), then each cell at a column gap (a merged
@@ -148,24 +199,27 @@ function guessUniversity(lines: string[]): string | undefined {
       .replace(/[,\s—–-]*(the\s+)?office of the (university\s+)?registrar\s*$/i, '')
       .replace(/[\s—–-]*(unofficial|official)?\s*(student|academic)?\s*(records?|transcripts?|copy)\s*$/i, '')
       .replace(/[\s—–-]*(course\s+numbering|grade\s+scale|grading\s+(system|scale)|transcript\s+(guide|key|legend))\s*$/i, '')
-      .replace(/^[\s?•·*|,-]+|[\s?•·*|,-]+$/g, '')
+      .replace(/^[\s?•·*|,.-]+|[\s?•·*|,.-]+$/g, '')
       .trim();
     return stripped; // empty when the cell was only record words ("Office of the University Registrar")
   };
   // Header first (the first 30 lines), then the rest of the document: Banner
   // official transcripts name the institution only on the legend page
   // (2026-09-05), so the header may hold nothing but divisions and programs.
-  const passes: [string[], RegExp][] = [
-    [lines.slice(0, 30), STRONG_RE],
-    [lines, STRONG_RE],
-    [lines.slice(0, 30), WEAK_RE],
-  ];
+  const passes: [string[], RegExp][] = weak
+    ? [[lines.slice(0, 30), WEAK_RE]]
+    : [
+        [lines.slice(0, 30), STRONG_RE],
+        [lines, STRONG_RE],
+      ];
   for (const [scope, re] of passes) {
     for (const line of scope) {
       for (const cell of cells(line)) {
         if (!re.test(cell)) continue;
         const name = stripRecordWords(cell);
-        if (name !== '' && (re.test(name) || WEAK_RE.test(name))) return name;
+        // Stripping the record words can leave a generic remainder
+        // ("University Registrar" → "University"), which names nobody.
+        if (name !== '' && !GENERIC_ONLY_RE.test(name) && (re.test(name) || WEAK_RE.test(name))) return name;
       }
     }
   }
@@ -186,7 +240,13 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   let currentYear: number | undefined;
   let currentSeason: Season | undefined;
   const seasonOf = (text: string): Season | undefined =>
-    /\b(fall|autumn)\b/i.test(text) ? 'fall' : /\bspring\b/i.test(text) ? 'spring' : /\bsummer\b/i.test(text) ? 'summer' : undefined;
+    /\b(fall|autumn)\b/i.test(text)
+      ? 'fall'
+      : /\b(spring|winter|intersession)\b/i.test(text)
+        ? 'spring'
+        : /\bsummer\b/i.test(text)
+          ? 'summer'
+          : undefined;
   // Course numbers: 2–5 digits, an optional dotted part (Johns Hopkins
   // "601.226"), up to three trailing letters (Buffalo "106LEC", Western
   // "3331A"); or an all-digit id ("30240233").
@@ -194,7 +254,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // Subjects run 2–10 letters: "CS", "COMPSCI", "STATISTC", "ENGLWRIT" (UMass
   // prints 7- and 8-letter subjects, DGS bug report 2026-09-06 — the earlier
   // cap of 6 dropped every such course).
-  const LEAD_CODE_RE = /^([A-Z]{2,10}[- ]?\d{2,5}(?:\.\d{1,3})?[A-Z]{0,3}|\d{5,10})\b[.:]?\s*(.*)$/;
+  // The second branch is Johns Hopkins' dotted code, "EN.601.433" — division,
+  // department, course (DGS 2026-09-08). Both dots are REQUIRED, so loosening
+  // the ordinary separator to a full stop (which would turn "VOL.12" and
+  // "MAY.2025" into course codes) is not needed.
+  const LEAD_CODE_RE = /^([A-Z]{2,10}[- ]?\d{2,5}(?:\.\d{1,3})?[A-Z]{0,3}|[A-Z]{2,4}\.\d{2,5}\.\d{1,3}[A-Z]{0,3}|\d{5,10})\b[.:]?\s*(.*)$/;
   // Codes are matched case-insensitively (2026-09-04 — some registrars print
   // "cs 5321"), so common words that would then look like codes are refused:
   // term headers and summary lines such as "Fall 2023  GPA 3.85".
@@ -430,7 +494,14 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // Degrees awarded.
     if (/^[\s*-]*degrees?\s+(awarded|conferred|earned)\b/i.test(flat) && !/\b(bachelor|master|doctor)/i.test(flat)) {
       degreeBlock = 6;
-    } else if (/degree\b.*\b(conferred|awarded)\b/i.test(flat) && !/\b(bachelor|master|doctor)/i.test(flat) && flat.split(/\s{2,}/).length >= 2) {
+    } else if (
+      /degree\b.*\b(conferred|awarded)\b/i.test(flat) &&
+      !/\b(bachelor|master|doctor)/i.test(flat) &&
+      // Either laid out in columns, or a heading and nothing else on the line
+      // (Johns Hopkins prints "JHU Degree and Date Conferred" as one run,
+      // 2026-09-08).
+      (flat.split(/\s{2,}/).length >= 2 || /^[^:]*\bdegree\b[^:]*\b(conferred|awarded)\b\s*:?\s*$/i.test(flat))
+    ) {
       degreeBlock = 2; // a table header: the values follow on the next line(s)
     }
     const namesDegree = /\b(bachelor|master|doctor|ph\.?\s?d)\b/i.test(flat) && !/\bsought\b|\bexpected\b|\bcandidate\b|\bcurrent program\b/i.test(flat);
@@ -562,7 +633,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     looksLikeNotreDame,
     // Spelled out for everyone who reads it (DGS 2026-09-08): the student,
     // the DGS review request and the Grad Admin processing request.
-    university: expandName(guessUniversity(lines)),
+    ...guessedUniversity(lines),
     degreeConferred,
     bachelorsConferredOn,
     ...(bachelorsNamed ? { bachelorsNamed: true as const } : {}),

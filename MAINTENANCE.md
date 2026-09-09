@@ -63,6 +63,15 @@ the course may fill either one and the student picks which. `any` still means ev
 `ineligible` still means none. A typo in one code is reported and dropped; the other codes on the
 row keep working.
 
+Since 2026-09-08 a university whose transcript prints its name only in the letterhead IMAGE can
+still be recognised from an acronym in the text: `NAME_ONLY_IN_IMAGE` in
+`src/transcript/external.ts` holds one line per school ("JHU" → Johns Hopkins University, "UCSD" →
+University of California, San Diego), tried when nothing in the text names a university outright.
+The student sees the name pre-filled but editable, with a note saying it was worked out from an
+abbreviation, so a wrong guess can be corrected before the courses are added. Add a line there if another school turns up with
+the same problem — and write the school's real name, since that is the key the ExternalCourses tab
+is matched on (matching ignores case).
+
 Since 2026-09-08 the ExternalCourses tab's `transferable` column takes a third value,
 `dgs_approval`, beside `yes` and `no`: the course is outside the usual CSE ground but can still
 transfer when it is relevant to a particular student's dissertation, so the DGS decides it one

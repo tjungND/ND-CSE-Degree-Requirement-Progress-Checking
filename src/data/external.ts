@@ -48,7 +48,10 @@ export function normalizeUniversity(name: string): string {
     .replace(/\p{M}+/gu, '') // strip the accents NFKD split off
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim();
+    .trim()
+    // "The Johns Hopkins University" and "Johns Hopkins University" are one
+    // school; a sheet row written either way must match (2026-09-08).
+    .replace(/^the /, '');
 }
 
 /** The institution name given to Notre Dame coursework taken BEFORE the entry

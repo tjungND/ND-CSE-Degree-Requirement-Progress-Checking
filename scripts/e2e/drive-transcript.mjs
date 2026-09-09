@@ -446,6 +446,20 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => (tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent) + ':' + tr.querySelector('select.row-level').value)`,
   );
   const ndTransferNote = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview .hint.warn')].map(e => e.textContent).join(' | ')`);
+  // "Bachelor's degree awarded (required)" belongs on the Ph.D.-slot preview
+  // too (DGS 2026-09-09): the award term decides which of these courses were
+  // taken with graduate student status. Its year box must fit four digits AND
+  // the spinner — at 58 px the last digit sat under the arrows.
+  const bach = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const f = document.querySelector('.external-card .transcript-preview .bachelors-field');
+    if (!f) return { present: false };
+    const y = f.querySelector('input[type="number"]');
+    return { present: true, label: f.querySelector('.label')?.textContent, w: Math.round(y.getBoundingClientRect().width), clientW: y.clientWidth, scrollW: y.scrollWidth };
+  })())`));
+  if (!bach.present) throw new Error('the Ph.D.-slot preview must show the bachelor’s award term');
+  if (!/Bachelor.s degree awarded \(required\)/.test(bach.label ?? '')) throw new Error('bachelor’s field label: ' + bach.label);
+  if (bach.clientW < 70) throw new Error('the year box is too narrow for four digits and the spinner: ' + JSON.stringify(bach));
+  console.log('  Ph.D. slot shows the bachelor’s award term; its year box is', bach.w + 'px');
   console.log('  ND transcript in the Ph.D. slot:', ndUni, '|', JSON.stringify(ndSlotRows));
   if (ndUni !== 'University of Notre Dame') throw new Error('a Notre Dame transcript in a previous slot must be filed under University of Notre Dame: ' + ndUni);
   if (ndSlotRows.length !== 8 || !ndSlotRows.includes('CSE 30321:undergraduate') || !ndSlotRows.includes('CSE 60641:graduate')) {

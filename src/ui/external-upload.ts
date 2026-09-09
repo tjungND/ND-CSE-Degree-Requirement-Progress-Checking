@@ -107,6 +107,8 @@ interface ExternalPreview {
   /** The university name came from the transcript (2026-09-06): shown, not
    * editable — the DGS's rules key on the name the transcript prints. */
   universityFromTranscript?: boolean;
+  /** The name was recovered from an acronym, not read as text (2026-09-08). */
+  universityGuessed?: true;
   /** A Notre Dame transcript in a previous-degree slot (2026-09-05): an
    * earlier Notre Dame degree. The preview reminds the student that the
    * Notre Dame row handles a transcript that also holds the current program. */
@@ -375,7 +377,10 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       preview = {
         slot: slot.level,
         university: parsed.university ?? '',
-        universityFromTranscript: (parsed.university ?? '') !== '',
+        // A name read from the transcript is locked; one recovered from an
+        // acronym is pre-filled and editable (2026-09-08).
+        universityFromTranscript: (parsed.university ?? '') !== '' && parsed.universityGuessed !== true,
+        universityGuessed: parsed.universityGuessed,
         conferred: parsed.degreeConferred,
         bachelorsConferredOn: parsed.bachelorsConferredOn,
         ...bachelors,
@@ -705,10 +710,21 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       { class: 'hint', id: 'ext-university-hint' },
       uniLocked
         ? 'The university name and each course’s number, title, credits, grade and term are taken from your transcript as printed and cannot be edited here; only “Taken as” can be changed. Anything the parser could not read (a grade, credits or a year) must be filled in by hand — rows without a grade are not added.'
-        : 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it (pick it from the list if it is there). Grades the parser could not read must be chosen by hand (rows without a grade are not added).',
+        : p.universityGuessed
+          ? // The name is nowhere in this transcript's text — it was worked out
+            // from an abbreviation (2026-09-08). Say so, since the student is
+            // the only one who can tell whether it is right.
+            'This transcript does not print its university’s name as text, so the name above was worked out from an abbreviation in it — check it, and correct it if it is wrong. Grades the parser could not read must be chosen by hand (rows without a grade are not added).'
+          : 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it (pick it from the list if it is there). Grades the parser could not read must be chosen by hand (rows without a grade are not added).',
     ),
     el('label', { class: 'field' }, el('span', { class: 'label' }, 'University'), uniInput),
-    ...(p.slot === 'masters' && (p.bachelorsRequired || p.bachelorsAwarded !== undefined) ? [bachelorsField(p, rules, render)] : []),
+    // On every graduate-slot preview, whether or not this transcript says
+    // anything about the bachelor's (DGS 2026-09-09: also on the prior Ph.D.
+    // upload). The term decides which of these courses were taken with
+    // graduate student status, so §5.2 needs it here as much as on a Master's
+    // transcript; the bachelor's slot is the degree itself and reads its own
+    // conferral date.
+    ...(p.slot !== 'bachelors' ? [bachelorsField(p, rules, render)] : []),
   );
   const table = el('table', { class: 'courses stack edit' });
   table.append(
