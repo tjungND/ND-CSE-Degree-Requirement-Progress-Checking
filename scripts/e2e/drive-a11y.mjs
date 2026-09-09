@@ -41,6 +41,9 @@ export async function driveA11y(s, baseUrl) {
   await checkMobilePieces(s, 'courses');
   await checkPhone(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`, 390);
   await checkPhone(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`, 820);
+  await checkWide(s, 'courses', `document.querySelectorAll('table.course-rules tbody tr').length > 10`);
+  await s.open(baseUrl, '.masthead h1');
+  await checkWide(s, 'app', `document.querySelector('.layout')`);
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
 }
 
@@ -154,6 +157,30 @@ async function checkFocusPreserved(s) {
 }
 
 // 3. No sideways scrolling at a phone (390) or tablet-portrait (820) width.
+// 3b. The page FILLS a wide window (DGS 2026-09-09): it used to stop at
+// 1240 px and centre, leaving a monitor half empty. Both columns grow with it.
+async function checkWide(s, page, readyExpr, width = 2200) {
+  await s.send('Emulation.setDeviceMetricsOverride', { width, height: 1200, deviceScaleFactor: 1, mobile: false, screenWidth: width, screenHeight: 1200 });
+  await s.waitFor(readyExpr);
+  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 250)))');
+  const m = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const app = document.getElementById('app');
+    const lay = document.querySelector('.layout');
+    return {
+      app: Math.round(app.getBoundingClientRect().width),
+      cols: lay ? getComputedStyle(lay).gridTemplateColumns.split(' ').map((c) => Math.round(parseFloat(c))) : [],
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  })())`));
+  // Padding is 20 px a side, so a fluid page is within 40 px of the window.
+  if (m.app < width - 44) throw new Error(`${page} at ${width} px does not fill the window: #app is ${m.app} px`);
+  if (m.overflow > 0) throw new Error(`${page} at ${width} px scrolls sideways`);
+  if (page === 'app' && !(m.cols.length === 2 && m.cols[1] > 480)) {
+    throw new Error('the inputs column must grow with the window, not stay at its minimum: ' + JSON.stringify(m.cols));
+  }
+  console.log(`  ${page} fills a ${width} px window (#app ${m.app} px${m.cols.length === 2 ? `, columns ${m.cols.join(' + ')}` : ''})`);
+}
+
 async function checkPhone(s, page, readyExpr, width = 390) {
   const height = width < 600 ? 844 : 1180;
   await s.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true, screenWidth: width, screenHeight: height });

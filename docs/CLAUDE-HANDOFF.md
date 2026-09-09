@@ -161,6 +161,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   "ND" is NOT done by this function — those are hand-edited literals in `app.ts`, `report.ts`,
   `external-upload.ts` and one `shortTitle` in `requirements/phd.ts`, because each one needed its article and its e2e pin moved with it, and
   the masthead, the footer and the emails keep "Notre Dame" deliberately.
+- **The page is fluid** (2026-09-09). `#app` has NO max-width — do not re-add one. `.layout` is
+  `minmax(0, 1fr) minmax(480px, 30%)`, so both columns grow. What keeps a wide window readable is
+  the reading measure on prose (`.card > p`, `.req-detail`, `.detail-list`, `.card .hint`), not a
+  cap on the page. `checkWide` in scripts/e2e/drive-a11y.mjs fails if either page stops filling a
+  2200 px window.
 - **A university named only in an image** (2026-09-08): `NAME_ONLY_IN_IMAGE` in
   src/transcript/external.ts maps an acronym to a school's real name, tried ONLY after every
   text-reading pass in `guessUniversity` has failed. Keep it that way — it is a fallback, not a

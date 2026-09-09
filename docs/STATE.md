@@ -74,6 +74,8 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   "current semester", the entry-term legend names the program, and "Bachelor's degree awarded" is required.
   The sign-off row is "Courses still to be approved or processed", grouped by who must act, and says
   "Needs DGS review" only when the DGS actually has a course to decide.
+  The page is fluid: it fills the window at any width, both columns grow, and paragraphs keep a
+  100-character measure (2026-09-09). The 1120/900/600 px breakpoints are unchanged.
   "Bachelor's degree awarded (required)" is on the Ph.D.-slot preview too, and its year box fits
   four digits beside the spinner (2026-09-09).
   Johns Hopkins is recognised from "JHU" and UC San Diego from "UCSD" when the transcript shows the

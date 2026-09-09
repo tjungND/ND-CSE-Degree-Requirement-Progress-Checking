@@ -23,7 +23,7 @@ body {
   color: var(--ink);
   background: var(--bg);
 }
-#app { max-width: 1240px; margin: 0 auto; padding: 20px 20px 60px; }
+#app { margin: 0 auto; padding: 20px 20px 60px; } /* fluid: the page fills the window at any width (DGS 2026-09-09); paragraphs keep their own reading measure below */
 
 /* masthead */
 .masthead {
@@ -85,11 +85,15 @@ button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor:
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
 
 /* layout */
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 480px; gap: 18px; align-items: start; } /* minmax(0,…) — a wide preview table scrolls inside its card instead of widening the column (2026-09-05) */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(480px, 30%); gap: 18px; align-items: start; } /* minmax(0,…) — a wide preview table scrolls inside its card instead of widening the column (2026-09-05) */
 @media (max-width: 1120px) { .layout { grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); } } /* tablets in landscape keep two columns */
 @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } } /* tablets in portrait and phones: one column */
 /* Nothing may widen the columns on a phone (WCAG 1.4.10 reflow; usability review 2026-09-05, item 1): wide tables scroll inside their card. */
 .layout > * { min-width: 0; }
+/* A card fills its column, but a paragraph inside it keeps a reading measure
+   (2026-09-09): on a wide monitor the tables and lists use the room and the
+   sentences do not run to 200 characters. */
+.card > p, .req-detail, .req .detail-list, .card .hint, .card .empty { max-width: 100ch; }
 .table-scroll.plain { overflow-x: auto; background: none; border: 0; border-radius: 0; }
 /* The group dropdown sits under the requirement list now, so it needs its own
    room: axe's target-size check failed in WebKit when they touched (2026-09-08). */
