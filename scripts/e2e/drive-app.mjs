@@ -286,6 +286,19 @@ export async function driveCourses(s, baseUrl) {
     }
   }
   console.log('  schedule cards:', cards.headings.map((h, i) => `${h} (${cards.items[i] > 0 ? cards.items[i] + ' courses' : cards.bodies[i]})`).join(' | '));
+  // A card may only ever list courses under a semester the sheet has dated
+  // (DGS 2026-09-09): the headings come from today, the columns do not, so an
+  // undated or stale schedule must say "Not released yet." rather than print
+  // last semester's courses under this semester's name.
+  const dated = await s.evalJs(`(() => {
+    const sec = document.querySelector('.schedule-overview');
+    const note = [...sec.querySelectorAll('p')].map((p) => p.textContent ?? '').join(' ');
+    return JSON.stringify({ listed: [...sec.querySelectorAll('.ov-card')].some((c) => c.querySelector('tbody tr')), note: /does not say which semester|recorded for the semester before/.test(note) });
+  })()`);
+  const d = JSON.parse(dated);
+  if (d.listed && d.note && !/recorded for the semester before/.test(await s.evalJs(`document.querySelector('.schedule-overview').textContent`))) {
+    throw new Error('a schedule card lists courses while the page says the sheet is undated');
+  }
 
   // The schedule filter (DGS 2026-09-09) appears only once the sheet's
   // offered_now / offered_next columns say something, so the check adapts to

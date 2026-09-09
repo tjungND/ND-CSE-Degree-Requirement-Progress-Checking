@@ -70,7 +70,21 @@ next semester", each listing its courses with every attribute the table carries 
 offered", "DGS reviewed" and the notes; there is also a filter on the table itself. No column is
 added to the table, and nothing else in the app reads them. A card whose column is entirely blank
 says "Not released yet." instead of showing an empty list, and the filter appears only once at
-least one course carries a value. Fill the columns in each semester —
+least one course carries a value.
+
+**Update `offered_semester` in the Parameters tab whenever you touch those two columns.** It names
+the semester `offered_now` was written for ("Fall 2026"), and it is what keeps a forgotten update
+from misleading anyone: the card headings come from today's date, so without it the page would show
+last semester's courses under this semester's name. The page compares the two —
+
+| `offered_semester` says | what the page shows |
+|---|---|
+| this semester | both columns as recorded |
+| the semester BEFORE this one | what was recorded as "next" becomes "this semester"; next says "Not released yet." |
+| nothing, something older, or a semester not yet reached | both say "Not released yet.", with a line explaining why |
+
+So the worst that a late update can do is show less than it could, never something false. Two
+semesters of neglect and the cards go quiet. Fill the columns in each semester —
 a stale `yes` is worse than a blank, which honestly says nothing.
 
 Since 2026-09-08 a university whose transcript prints its name only in the letterhead IMAGE can

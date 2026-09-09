@@ -9,7 +9,8 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import type { Term } from '../engine/types.ts';
-import { termLabel, termOfDate } from '../engine/term.ts';
+import { parseTermLabel, termLabel, termOfDate } from '../engine/term.ts';
+import { scheduleView } from './schedule-terms.ts';
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 import { handbookLink, rulesDateLine } from './handbook.ts';
@@ -134,14 +135,18 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   applyContactOverrides(rules.parameters); // sheet-driven contacts (2026-09-04)
   const todayIso = today.iso; // Notre Dame's date, settled on the loading card (2026-09-07)
   const currentTerm = termOfDate(todayIso);
-  // "Next semester" on a schedule is the next FALL or SPRING; summer is not a
-  // graduate teaching term, so a summer today looks ahead to the fall.
-  const nextTeachingTerm: Term =
-    currentTerm.season === 'fall'
-      ? { season: 'spring', year: currentTerm.year + 1 }
-      : currentTerm.season === 'spring'
-        ? { season: 'fall', year: currentTerm.year }
-        : { season: 'fall', year: currentTerm.year };
+  // Which semesters the two schedule cards stand for, and whether the sheet's
+  // columns still describe them — src/ui/schedule-terms.ts explains why the
+  // page will not guess (DGS 2026-09-09).
+  const schedule = scheduleView(currentTerm, parseTermLabel(rules.parameters.raw.get('offered_semester')?.value.trim() ?? ''));
+  const thisTeachingTerm = schedule.thisTerm;
+  const nextTeachingTerm = schedule.nextTerm;
+  const offeredIn =
+    (which: 'this' | 'next') =>
+    (r: RuleCourse): boolean | undefined => {
+      const column = which === 'this' ? schedule.source.this : schedule.source.next;
+      return column === undefined ? undefined : column === 'offeredNow' ? r.offeredNow : r.offeredNext;
+    };
 
   // One row per course: the rule in effect this term (older/newer versions are
   // mentioned in the hover text so nothing is hidden).
@@ -179,7 +184,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const allGroupCodes = rules.categoryGroups.map((g) => g.code);
   // Whether the DGS has filled the schedule columns in at all: with every cell
   // blank the filter can only return nothing, so it is not shown (2026-09-09).
-  const scheduleKnown = rows.some((r) => r.offeredNow !== undefined || r.offeredNext !== undefined);
+  const scheduleKnown = rows.some((r) => offeredIn('this')(r) !== undefined || offeredIn('next')(r) !== undefined);
   // §4.4.2's numbers are DGS-tunable sheet parameters, so the two places that
   // state them read the sheet (2026-09-08). A missing parameter drops the
   // numbers rather than printing a guess — the page never invents policy.
@@ -250,8 +255,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // On the schedule this semester / next (DGS 2026-09-09). Only a `yes`
       // qualifies: a blank cell means the sheet has not said, which is never
       // read as a promise either way.
-      if (filters.offered === 'now' && r.offeredNow !== true) return false;
-      if (filters.offered === 'next' && r.offeredNext !== true) return false;
+      if (filters.offered === 'now' && offeredIn('this')(r) !== true) return false;
+      if (filters.offered === 'next' && offeredIn('next')(r) !== true) return false;
       if (q && !squash(r.courseId).includes(qs) && !r.title.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -358,6 +363,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     // these cards supersede), "DGS reviewed" (the * beside a course id says
     // it) and the notes (a per-row disclosure in the table below).
     const pill = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
+    /** A column header with its explanation under the name, in the small type
+     * the main table uses; `abbr` gives a screen reader the long form. */
+    const colHead = (label: string, sub: string, full: string): HTMLElement =>
+      el('th', { scope: 'col', abbr: full }, label, el('span', { class: 'th-sub' }, sub));
     const miniTable = (items: RuleCourse[], label: string): HTMLElement =>
       el(
         'div',
@@ -374,10 +383,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
               el('th', { scope: 'col' }, 'Course'),
               el('th', { scope: 'col' }, 'Title'),
               el('th', { scope: 'col' }, 'Type'),
-              el('th', { scope: 'col', abbr: 'MSCSE degree credit' }, 'MSCSE'),
-              el('th', { scope: 'col', abbr: 'Ph.D. degree credit' }, 'Ph.D.'),
-              el('th', { scope: 'col', abbr: 'Core knowledge, Ph.D. qualifying exam §4.4.1' }, 'Core'),
-              el('th', { scope: 'col', abbr: 'Specialization, Ph.D. qualifying exam §4.4.2' }, 'Specialization'),
+              // Each column says what it is under its own name (DGS
+              // 2026-09-09), so "Ph.D." (degree credit) is not mistaken for
+              // the two qualifier groupings beside it.
+              colHead('MSCSE', 'degree credit', 'MSCSE degree credit'),
+              colHead('Ph.D.', 'degree credit', 'Ph.D. degree credit'),
+              colHead('Core', 'Ph.D. Qual. §4.4.1', 'Core knowledge — Ph.D. Qualifying Examination §4.4.1'),
+              colHead('Specialization', 'Ph.D. Qual. §4.4.2', 'Specialization — Ph.D. Qualifying Examination §4.4.2'),
             ),
           ),
           el(
@@ -427,9 +439,31 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'p',
         { class: 'muted' },
-        'What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule. The last two columns, Core and Specialization, are Ph.D. Qualifying Examination groupings (§4.4.1 and §4.4.2) — MSCSE students can ignore them.',
+        'What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.',
       ),
-      el('div', { class: 'ov-grid two' }, card(`Offered this semester — ${termLabel(currentTerm)}`, (r) => r.offeredNow), card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, (r) => r.offeredNext)),
+      el('div', { class: 'ov-grid two' }, card(`Offered this semester — ${termLabel(thisTeachingTerm)}`, offeredIn('this')), card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, offeredIn('next'))),
+      // The sheet holds a schedule but does not say which semester it is for,
+      // or names one too old: nothing is shown, and the page says why rather
+      // than looking as though nothing has been scheduled (2026-09-09).
+      ...(schedule.age === 'unusable' && rows.some((r) => r.offeredNow !== undefined || r.offeredNext !== undefined)
+        ? [
+            el(
+              'p',
+              { class: 'muted small' },
+              'The rules sheet has a schedule recorded but does not say which semester it belongs to, so it is not shown here rather than risk naming the wrong one.',
+              ...reportToDgs(' Please tell'),
+            ),
+          ]
+        : []),
+      ...(schedule.age === 'one-behind'
+        ? [
+            el(
+              'p',
+              { class: 'muted small' },
+              `The schedule in the rules sheet was recorded for the semester before this one. What it listed as the following semester is shown above as this one, and ${termLabel(nextTeachingTerm)} has not been recorded yet.`,
+            ),
+          ]
+        : []),
       // The asterisk explains a mark that only appears beside a listed course.
       ...(scheduleKnown ? [el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are never shown here.')] : []),
     );
@@ -591,11 +625,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         refreshTable();
       },
     });
-    offered.append(
-      option('', 'Any semester', filters.offered === ''),
-      option('now', `Offered this semester (${termLabel(currentTerm)})`, filters.offered === 'now'),
-      option('next', `Offered next semester (${termLabel(nextTeachingTerm)})`, filters.offered === 'next'),
-    );
+    offered.append(option('', 'Any semester', filters.offered === ''));
+    // Only a semester the sheet has actually recorded is offered as a choice.
+    if (rows.some((r) => offeredIn('this')(r) !== undefined)) offered.append(option('now', `Offered this semester (${termLabel(thisTeachingTerm)})`, filters.offered === 'now'));
+    if (rows.some((r) => offeredIn('next')(r) !== undefined)) offered.append(option('next', `Offered next semester (${termLabel(nextTeachingTerm)})`, filters.offered === 'next'));
     const retired = el('input', {
       type: 'checkbox',
       'data-key': 'filter.retired',
@@ -883,7 +916,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           ? [
               li(
                 el('strong', {}, 'On the schedule'),
-                `a filter rather than a column: it lists the courses the DGS has marked as running in ${termLabel(currentTerm)} or in ${termLabel(nextTeachingTerm)}. A course with nothing recorded is simply not listed — that is not a statement that it will not run. Unlike "Typically offered", which is a pattern from past years, this is the DGS's word on these two semesters.`,
+                `a filter rather than a column: it lists the courses the DGS has marked as running in ${termLabel(thisTeachingTerm)} or in ${termLabel(nextTeachingTerm)}. A course with nothing recorded is simply not listed — that is not a statement that it will not run. Unlike "Typically offered", which is a pattern from past years, this is the DGS's word on these two semesters.`,
               ),
             ]
           : []),

@@ -167,6 +167,11 @@ export const DISPLAY_PARAMETER_KEYS = [
   'contact_adgs_email',
   'contact_grad_admin_name',
   'contact_grad_admin_email',
+  // Which semester the Courses tab's `offered_now` column describes, as a term
+  // label ("Fall 2026") — DGS 2026-09-09. Without it the course-rules page
+  // cannot tell a current schedule from last year's, so it says "not released
+  // yet" rather than showing stale courses under this semester's name.
+  'offered_semester',
 ] as const;
 
 /** Parameter keys the app reads. Anything else in the sheet is ignored with a
