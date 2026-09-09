@@ -427,7 +427,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'p',
         { class: 'muted' },
-        'What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.',
+        'What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule. The last two columns, Core and Specialization, are Ph.D. Qualifying Examination groupings (§4.4.1 and §4.4.2) — MSCSE students can ignore them.',
       ),
       el('div', { class: 'ov-grid two' }, card(`Offered this semester — ${termLabel(currentTerm)}`, (r) => r.offeredNow), card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, (r) => r.offeredNext)),
       // The asterisk explains a mark that only appears beside a listed course.
