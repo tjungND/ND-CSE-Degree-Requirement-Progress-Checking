@@ -12,7 +12,7 @@ import type { SheetIssue } from '../src/data/types.ts';
 import { audit } from '../src/engine/audit.ts';
 import { classify } from '../src/engine/allocate.ts';
 import { signOffActors } from '../src/engine/requirements/shared.ts';
-import { advisorSummary } from '../src/ui/advisor-summary.ts';
+import { actionItems, advisorSummary } from '../src/ui/advisor-summary.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
 
@@ -44,7 +44,7 @@ const rules = buildRules(); // fixture ExternalCourses tab included
 
 describe('ExternalCourses parsing', () => {
   it('reads the fixture rows and skips the prose note row', () => {
-    assert.equal(rules.external.length, 6); // incl. the `none` row (2026-09-06) and the quarter-system row (2026-09-08)
+    assert.equal(rules.external.length, 7); // incl. the `none` row (2026-09-06), the quarter-system row and the `dgs_approval` row (2026-09-08)
     assert.equal(rules.issues.filter((i) => i.tab === 'ExternalCourses').length, 0);
   });
 
@@ -67,7 +67,7 @@ describe('ExternalCourses parsing', () => {
     assert.equal(issues.length, 4);
     for (const i of issues) assert.match(i.message, /ExternalCourses row \d/);
     assert.match(issues[0]!.message, /not one of the Categories tab/);
-    assert.match(issues[1]!.message, /'yes', 'no' or blank/);
+    assert.match(issues[1]!.message, /'yes', 'no', 'dgs_approval' or blank/);
     assert.match(issues[2]!.message, /not a number/);
   });
 
@@ -79,7 +79,7 @@ describe('ExternalCourses parsing', () => {
       issues,
     );
     assert.equal(rows.length, 1);
-    assert.equal(rows[0]?.transferable, false, 'the later row (transferable = no) replaces the earlier one');
+    assert.equal(rows[0]?.transferable, 'no', 'the later row (transferable = no) replaces the earlier one');
     assert.equal(rows[0]?.sheetRow, 3);
     assert.match(issues[0]?.message ?? '', /the last row wins: row 3 replaces row 2/);
   });
@@ -246,9 +246,62 @@ describe('what a DGS ruling changes in the engine', () => {
     assert.equal(mixed.requirements.find((r) => r.id === 'phd.transfer')?.status, 'needs_dgs_review');
   });
 
+  // The DGS's third value (2026-09-08): a course outside the usual CSE ground
+  // that can still transfer when it serves the student's dissertation. It is a
+  // decision about the COURSE and an open question about the STUDENT, so it
+  // behaves like a candidate everywhere — never pre-approved, never processed
+  // by the Grad Admin without the DGS's ruling — but says why.
+  it('transferable=dgs_approval → a candidate the DGS decides case by case, with the dissertation named', () => {
+    const one = [{ courseId: 'STAT 51200', title: 'Applied Regression Analysis', term: { season: 'fall' as const, year: 2024 } }];
+    const { classified } = classify(student(one), rules);
+    assert.equal(classified[0]?.tier, 'provisional');
+    assert.match(classified[0]?.approvalPending ?? '', /decided case by case by the DGS/);
+    assert.match(classified[0]?.approvalPending ?? '', /relevant to the research/);
+    // No second person: this string is copied verbatim into the advisor
+    // e-mail, which re-voices only the requirement details, not these.
+    assert.doesNotMatch(classified[0]?.approvalPending ?? '', /\byour\b/i);
+    // And no claim about the course's subject — a case-by-case course may have
+    // a confirmed §4.4.1 core area on the same line.
+    assert.doesNotMatch(classified[0]?.approvalPending ?? '', /outside the usual CSE ground/);
+    assert.doesNotMatch(classified[0]?.approvalPending ?? '', /^pre-approved/);
+    assert.equal(classified[0]?.ineligibleReason, undefined, 'it is not ruled out — it can still transfer');
+
+    const report = audit(student(one), rules, '2026-09-01');
+    const line = report.courseLines.find((c) => c.courseId === 'STAT 51200')!;
+    assert.ok(line.text.startsWith('pending DGS review — candidate for transfer credit (§5.2)'), line.text);
+    assert.match(line.text, /decides this one case by case — say how it relates to your research/, line.text);
+    assert.equal(line.mark, 'pending');
+
+    const transfer = report.requirements.find((r) => r.id === 'phd.transfer');
+    assert.equal(transfer?.status, 'needs_dgs_review', 'the DGS still has this student’s case to decide');
+    assert.match(transfer?.detail ?? '', /The DGS decides these one student at a time: STAT 51200/);
+    assert.doesNotMatch(transfer?.detail ?? '', /Pre-approved by the DGS/);
+    assert.doesNotMatch(transfer?.detail ?? '', /Not yet reviewed by the DGS/, 'the DGS HAS reviewed the course — what is open is the student’s case');
+
+    // Who is asked to act. The advisor summary routes by the WORDING of the
+    // pending reason, not by the sheet value, so a reworded string could
+    // silently send this course to the Grad Admin — it must not.
+    const todo = actionItems(report);
+    assert.ok(todo.dgs.some((t) => t.includes('STAT 51200')), JSON.stringify(todo.dgs));
+    assert.ok(!todo.gradAdmin.some((t) => t.includes('STAT 51200')), JSON.stringify(todo.gradAdmin));
+    assert.ok(todo.student.some((t) => /Send the DGS the review request/.test(t) && t.includes('STAT 51200')), JSON.stringify(todo.student));
+    // And the approvals row files it under the DGS, not the Grad Admin.
+    const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
+    assert.equal(approvals?.status, 'needs_dgs_review');
+    const lead = (approvals?.detailParts ?? []).find((pt) => typeof pt !== 'string' && pt.items.some((i) => i.startsWith('STAT 51200')));
+    assert.match(typeof lead === 'string' ? lead : (lead?.lead ?? ''), /The DGS has still to decide these/);
+  });
+
   it('transferable undecided vs not reviewed at all — different pending messages', () => {
     const undecided = classify(student([{ courseId: 'IFT-2125', institution: 'Université de Montréal', term: { season: 'fall', year: 2024 } }]), rules);
     assert.match(undecided.classified[0]?.approvalPending ?? '', /transferability is not yet decided/);
+    // The transfer card names all four kinds of pending course; a listed row
+    // with a blank cell used to be the one it left silent (2026-09-08).
+    const listed = audit(student([{ courseId: 'IFT-2125', institution: 'Université de Montréal', term: { season: 'fall', year: 2024 } }]), rules, '2026-09-01');
+    assert.match(
+      listed.requirements.find((r) => r.id === 'phd.transfer')?.detail ?? '',
+      /Reviewed by the DGS, but transferability not yet decided: IFT-2125/,
+    );
     const unreviewed = classify(student([{ courseId: 'CS 77777' }]), rules);
     assert.match(unreviewed.classified[0]?.approvalPending ?? '', /not yet reviewed by the DGS/);
     const report = audit(student([{ courseId: 'CS 77777' }]), rules, '2026-09-01');

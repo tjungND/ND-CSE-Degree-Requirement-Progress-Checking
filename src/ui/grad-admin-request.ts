@@ -138,7 +138,10 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
         c.entry.degreeLevel !== 'bachelors' &&
         !c.superseded &&
         c.pool !== 'none' && // the §5.2 floors the engine applies (grade, window, the bachelor's award term) are final
-        (c.external?.transferable === true || attested),
+        // `dgs_approval` is NOT processable: the DGS has still to rule on
+        // this student's case (2026-09-08). Only `yes`, or the student's
+        // attestation that the approval came through, reaches the Grad Admin.
+        (c.external?.transferable === 'yes' || attested),
     )
     .map((c) => ({
       courseId: c.entry.courseId,

@@ -5,7 +5,7 @@
 import { parseTermLabel } from '../engine/term.ts';
 import { parseCsv } from './csv.ts';
 import { normalizeUniversity } from './external.ts';
-import type { CourseType, Counts, ExternalRule, RuleCourse, SheetIssue } from './types.ts';
+import type { CourseType, Counts, ExternalRule, RuleCourse, SheetIssue, Transferable } from './types.ts';
 import { RESERVED_GROUP_CODES } from './types.ts';
 
 const COURSE_ID_RE = /^[A-Z]{2,5} \d{5}$/;
@@ -13,6 +13,17 @@ const CODE_RE = /^[a-z0-9_]+$/;
 
 const COURSE_TYPES: CourseType[] = ['regular', 'seminar', 'research', 'independent', 'project'];
 const COUNTS: Counts[] = ['yes', 'no', 'dgs_approval'];
+const TRANSFERABLE: Transferable[] = ['yes', 'no', 'dgs_approval'];
+
+/** A verdict cell as typed by a human into a spreadsheet. The DGS types these
+ * by hand, so "DGS approval", "dgs-approval" and "DGS Approval" all mean
+ * `dgs_approval` (2026-09-08 — a rejected cell reads as "not decided", which is
+ * safe but silently loses the ruling the DGS thought they had recorded). Case
+ * and the separator are all that is forgiven; a different word is still an
+ * error the diagnostics report. */
+function verdictWord(cell: string | undefined): string {
+  return (cell ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
 
 interface Tab {
   header: string[];
@@ -149,10 +160,11 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
     }
 
     const countsOf = (column: string): Counts | undefined | null => {
-      const v = cells[column] ?? '';
-      if (v === '') return undefined; // blank → the app says "needs DGS review"
+      const raw = cells[column] ?? '';
+      if (raw === '') return undefined; // blank → the app says "needs DGS review"
+      const v = verdictWord(raw);
       if (!COUNTS.includes(v as Counts)) {
-        bad(column, v, COUNTS.join('|'));
+        bad(column, raw, COUNTS.join('|'));
         return null;
       }
       return v as Counts;
@@ -358,12 +370,15 @@ export function parseExternalTab(
       }
     }
 
-    const transferable = (cells['transferable'] ?? '').toLowerCase();
-    if (transferable === 'yes') rule.transferable = true;
-    else if (transferable === 'no') rule.transferable = false;
+    // transferable: `yes` (pre-approved), `no` (ruled out), `dgs_approval`
+    // (decided case by case — DGS 2026-09-08, for a course outside the usual
+    // CSE ground that may still transfer when it serves the dissertation), or
+    // blank (not decided at all). The same three words the Courses tab uses.
+    const transferable = verdictWord(cells['transferable']);
+    if (TRANSFERABLE.includes(transferable as Transferable)) rule.transferable = transferable as Transferable;
     else if (transferable !== '') {
       err(rowNum, 'transferable',
-        `ExternalCourses row ${rowNum} (${university} ${courseId}): transferable must be 'yes', 'no' or blank (undecided) — got '${transferable}'. That cell is ignored.`);
+        `ExternalCourses row ${rowNum} (${university} ${courseId}): transferable must be ${TRANSFERABLE.map((t) => `'${t}'`).join(', ')} or blank (undecided) — got '${cells['transferable']}'. That cell is ignored.`);
     }
 
     // nd_credits: a FIXED Notre Dame value for this one course. It cannot

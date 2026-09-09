@@ -37,6 +37,20 @@ const opts = { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Comp
 const build = (s: Student) => gradAdminRequest(audit(s, rules, opts.todayIso), s, rules, opts);
 
 describe('processingItems', () => {
+  // `dgs_approval` (DGS 2026-09-08): the DGS has ruled on the COURSE but not on
+  // this student, so the Grad Admin has nothing to process until they do.
+  it('a course the DGS decides case by case is not processable until the student attests the approval', () => {
+    const withCase = student({ courses: [purdue('STAT 51200', 'Applied Regression Analysis')] });
+    const items = processingItems(audit(withCase, rules, opts.todayIso), withCase, rules);
+    assert.deepEqual(items.transfers.map((t) => t.courseId), [], 'nothing for the Grad Admin yet');
+    assert.doesNotMatch(build(withCase).text, /STAT 51200/, 'and it stays out of the processing request');
+    // Once the DGS's approval has come through and the student says so, it is
+    // processed like any other approved transfer.
+    const attested = { ...withCase, attestations: { transferApproved: true } };
+    const after = processingItems(audit(attested, rules, opts.todayIso), attested, rules);
+    assert.deepEqual(after.transfers.map((t) => `${t.courseId}:${t.state}`), ['STAT 51200:approved']);
+  });
+
   it('lists the pre-approved transfer, the milestone dates, every met requirement, and the count; unruled and denied courses never appear', () => {
     const s = student();
     const items = processingItems(audit(s, rules, opts.todayIso), s, rules);

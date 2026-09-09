@@ -129,7 +129,10 @@ async function checkFocusPreserved(s) {
   // moves the selection to the next radio, which fires change → re-render.
   await s.evalJs(`document.querySelector('[data-key="standing.prior.none"]').focus()`);
   await key(s, 'ArrowDown', 'ArrowDown', 40);
-  await pause(200);
+  // Wait for the re-render the change triggers, rather than guessing at it:
+  // a fixed pause raced it about once in three runs (2026-09-08).
+  await s.waitFor(`document.querySelector('[data-key="standing.prior.unfinished"]')?.checked === true`);
+  await pause(100);
   const a = JSON.parse(await s.evalJs(`JSON.stringify({ checked: document.querySelector('[data-key="standing.prior.unfinished"]').checked, focused: document.activeElement?.dataset?.key })`));
   if (!a.checked) throw new Error('focus check: ArrowDown did not move the radio selection');
   if (a.focused !== 'standing.prior.unfinished') throw new Error('focus check: focus left the radio after the change — now on ' + a.focused);
@@ -137,6 +140,9 @@ async function checkFocusPreserved(s) {
   const next = await s.evalJs(`document.activeElement?.dataset?.key ?? document.activeElement?.tagName`);
   if (next?.startsWith('standing.prior') || next === 'BODY') throw new Error('focus check: Tab after the change did not move on — ' + next);
   // A checkbox: focus then click (the page re-renders), focus must stay put.
+  // (The click itself is synchronous through evalJs, so there is nothing to
+  // wait FOR here — unlike the radio above, whose key event arrives
+  // asynchronously. The pause stays.)
   await s.evalJs(`const cb = document.querySelector('[data-key^="attest."]'); cb.focus(); cb.click();`);
   await pause(150);
   const cbKey = await s.evalJs(`document.activeElement?.dataset?.key ?? ''`);

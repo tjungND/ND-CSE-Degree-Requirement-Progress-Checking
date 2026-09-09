@@ -63,6 +63,15 @@ the course may fill either one and the student picks which. `any` still means ev
 `ineligible` still means none. A typo in one code is reported and dropped; the other codes on the
 row keep working.
 
+Since 2026-09-08 the ExternalCourses tab's `transferable` column takes a third value,
+`dgs_approval`, beside `yes` and `no`: the course is outside the usual CSE ground but can still
+transfer when it is relevant to a particular student's dissertation, so the DGS decides it one
+student at a time. The app treats such a course as a transfer CANDIDATE — it stays in the students'
+review request with a line telling them to say how the course relates to their dissertation, it is
+never pre-approved, and the Grad Admin's processing request ignores it until the student attests
+that the approval came through. Use `yes` for a course any student may transfer; use `dgs_approval`
+when the answer depends on the student.
+
 Since 2026-09-08 the ExternalCourses tab has a `credit_system` column (`quarter` / `semester` /
 blank). Set it on any one row of a university and every course from that university converts from
 the credits printed on the student's transcript (quarter × 2/3, kept exactly) — the way to handle a

@@ -233,8 +233,12 @@ function transferRow(ctx: Ctx): RequirementResult {
     // credit waits for the Grad Admin's processing, so the row is "in
     // progress", not "needs DGS review" (DGS 2026-09-07).
     const pending = transfers.filter((c) => !c.superseded && c.approvalPending);
-    const preApproved = pending.filter((c) => c.external?.transferable === true);
+    const preApproved = pending.filter((c) => c.external?.transferable === 'yes');
+    // Ruled `dgs_approval` (DGS 2026-09-08): the DGS decides these one student
+    // at a time, so they are neither pre-approved nor unreviewed.
+    const caseByCase = pending.filter((c) => c.external?.transferable === 'dgs_approval');
     const unreviewed = pending.filter((c) => !c.external);
+    const listedUndecided = pending.filter((c) => c.external && c.external.transferable === undefined);
     status = ctx.student.attestations.transferApproved ? 'met' : pending.length > 0 && preApproved.length === pending.length ? 'in_progress' : 'needs_dgs_review';
     parts.push(
       `${counted} of ${cap} transfer credits counted (§5.2 cap for a ${ctx.student.priorMs === 'completed' ? 'completed prior degree' : 'prior program that was not completed'})`,
@@ -247,6 +251,18 @@ function transferRow(ctx: Ctx): RequirementResult {
       if (preApproved.length > 0) {
         parts.push(
           `Pre-approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')} — final once the Grad Admin has processed the transfer; send the Grad Admin the processing request (§5.2)`,
+        );
+      }
+      if (caseByCase.length > 0) {
+        parts.push(
+          `The DGS decides these one student at a time: ${caseByCase.map((c) => c.entry.courseId).join(', ')} — able to transfer when relevant to your research; ask the DGS to review, saying how each one relates (§5.2)`,
+        );
+      }
+      // A row whose transferable cell is blank is none of the three above, and
+      // used to go unnamed here (found reviewing the dgs_approval change).
+      if (listedUndecided.length > 0) {
+        parts.push(
+          `Reviewed by the DGS, but transferability not yet decided: ${listedUndecided.map((c) => c.entry.courseId).join(', ')} — the review request asks for that decision`,
         );
       }
       if (unreviewed.length > 0) {

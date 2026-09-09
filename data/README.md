@@ -147,7 +147,7 @@ column order, ready to paste straight into the sheet.
 | `course_id` | text | as printed there ("CS 50300", "30240233"); spaces/hyphens don't matter |
 | `course_title` | text | for humans reading the sheet |
 | `satisfies_core_area` | a `core_area` code, `none`, or blank | §4.4.1 core area the course covers — a match makes the student's core row **met**. `none` = decided, no core area (a core-sounding title then stops appearing in the review request); blank = not decided yet (the course stays in the review request) |
-| `transferable` | `yes` / `no` / blank | §5.2: blank = not decided yet; `yes` still requires the student's formal request (DGS recommendation + Graduate School approval) |
+| `transferable` | `yes` / `no` / `dgs_approval` / blank | §5.2. `yes` = pre-approved for every student, though each one still makes the formal request (DGS recommendation + Graduate School approval). `no` = never transfers. `dgs_approval` = decided **one student at a time** — a course outside the usual CSE ground that can still transfer when it is relevant to that student's dissertation; the app keeps it in the review request and tells the student to say how it relates. Blank = not looked at yet |
 | `nd_credits` | number or blank | A **fixed** Notre Dame credit value for this one course (§5.2 pro-rata). Overrides everything. Use it only when one number is right every time — it cannot describe a course that is worth 2 credits one term and 4 the next; `credit_system` handles those. Blank = credits as printed, unless `credit_system` says otherwise |
 | `credit_system` | `quarter` / `semester` / blank | The system this **university** awards in. `quarter` converts whatever the student's own transcript prints (× 2/3), so a course whose credits vary converts correctly every time. Set it on any one row of a university and it applies to every course from that university, listed here or not. Blank = credits count as printed |
 | `decided_on`, `notes` | text | for the record |
@@ -169,7 +169,9 @@ pre-approving the §5.2 transfer of a prior Notre Dame graduate course
 one): the **last** row wins — it replaces the earlier one — and the diagnostics warn so the older
 row can be deleted (DGS decision 2026-09-06). Blank verdict cells mean "not decided yet"; the
 course stays in the students' review request until `transferable` and, for a core-sounding title,
-`satisfies_core_area` (a core area or `none`) are filled in.
+`satisfies_core_area` (a core area or `none`) are filled in. A `dgs_approval` row is a decision
+about the COURSE, not about the student, so it keeps the course in the review request — that is the
+point of the value: the DGS wants to see each student's case for it.
 
 **One-time setup:** create the tab, publish it to the web as
 CSV (File → Share → Publish to web → ExternalCourses → CSV) and paste the URL

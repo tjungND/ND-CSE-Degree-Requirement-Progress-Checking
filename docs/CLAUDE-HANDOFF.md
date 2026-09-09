@@ -161,6 +161,14 @@ Known-pending (the app's diagnostics panel is the live truth):
   "ND" is NOT done by this function — those are hand-edited literals in `app.ts`, `report.ts`,
   `external-upload.ts` and one `shortTitle` in `requirements/phd.ts`, because each one needed its article and its e2e pin moved with it, and
   the masthead, the footer and the emails keep "Notre Dame" deliberately.
+- **`transferable` has three values** (2026-09-08): `Transferable = 'yes' | 'no' | 'dgs_approval'`
+  in data/types.ts, replacing the old boolean — the compiler flags every comparison the change
+  invalidated (allocate.ts three, phd.ts's transferRow, grad-admin-request.ts); `grep '\.transferable'`
+  for the full list, review.ts included. `dgs_approval`
+  means the DGS decides that course one student at a time; it must behave as a CANDIDATE
+  everywhere, so `=== 'yes'` is the test for "pre-approved" and never `!== 'no'`. review.ts keeps
+  such a course in the request (a decision about the course, not about the student), and the Grad
+  Admin's processing request must not pick it up without `attestations.transferApproved`.
 - **The course-rules page has no "every category" category** (2026-09-08). A course the sheet marks
   `any` is listed in EACH of the five §4.4.2 cards and matches each of them in the filter; the note
   above the cards carries the "it can fill only one" rule, and the numbers in that note and in the
@@ -422,7 +430,8 @@ Known-pending (the app's diagnostics panel is the live truth):
     the "Taken as" change handler sets `levelSource = 'slot'`, ticks a row that became relevant,
     and re-renders; `selectAll` skips blocked rows.
   - `src/engine/allocate.ts` `take()`: `transferCandidate` = caps include 'transfer' AND tier
-    provisional AND origin transfer AND `external?.transferable !== true` → `buildExplanation`'s
+    provisional AND origin transfer AND `external?.transferable !== 'yes'` (a string union since
+    2026-09-08 — `!== true` would now be ALWAYS true) → `buildExplanation`'s
     candidate branch ("pending DGS review — candidate for transfer credit (§5.2); would count
     toward … if the DGS approves it" / partial / "counts only if the DGS picks it — the candidates
     together exceed the N-credit transfer cap"), mark `pending` even over the cap. Allocation math
@@ -923,8 +932,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   `degreeLevel`. The DGS's rulings live in the optional ExternalCourses tab (parse:
   `parseExternalTab`; match: `src/data/external.ts` — the normalized university name alone (aliases retired 2026-09-03; capital-English-as-printed convention), ids ignore
   spaces/hyphens). Engine: Bachelor's never transfers but still satisfies
-  §4.4.1; sheet-confirmed core → met; transferable yes/no/blank → pre-approved wording / excluded
-  with the ruling named / "not yet decided"; nd_credits replaces transcript credits (§5.2
+  §4.4.1; sheet-confirmed core → met; transferable yes / no / dgs_approval / blank → pre-approved
+  wording / excluded with the ruling named / candidate decided case by case / "not yet decided"; nd_credits replaces transcript credits (§5.2
   pro-rata) — all in `classify()` (the `external` field rides on ClassifiedCourse so core sees
   DGS rulings even for zero-credit courses). Per-course verdicts render in the Transcripts card
   (`verdictsBlock`); everything still needing a DGS decision — ND courses that are unknown,

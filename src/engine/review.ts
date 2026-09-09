@@ -5,7 +5,11 @@
 // The DGS's rulings for courses from other universities live in the
 // ExternalCourses tab. A row there is a DECISION only where its cells say
 // something: `transferable` (yes / no) decides the §5.2 part, and
-// `satisfies_core_area` (a core area, or `none`) decides the §4.4.1 part. A
+// `satisfies_core_area` (a core area, or `none`) decides the §4.4.1 part.
+// `transferable = dgs_approval` (DGS 2026-09-08) is a decision about the
+// COURSE — outside the usual CSE ground, transferable when it serves the
+// dissertation — but not about this student, so such a course stays in the
+// request until the DGS has ruled on their case. A
 // row pasted straight from the review request — both cells still blank — is
 // not a decision yet, and the course stays in the request. (The card used to
 // treat any row as "ruled" and dropped such courses for good — the DGS's
@@ -75,14 +79,25 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
       // Ruled — or merely listed. Pending while transferability is undecided
       // (graduate rows the engine has not already excluded — bachelors never
       // transfers), and while a core-sounding title has no core-area decision.
-      const transferUndecided = c.external.transferable === undefined && !bachelors && c.ineligibleReason === undefined;
+      const caseByCase = c.external.transferable === 'dgs_approval';
+      // A student who has ticked "the DGS and the Graduate School approved my
+      // transfer" is not waiting on a transferability decision — every other
+      // surface already treats that attestation as closing the §5.2 question
+      // (allocate.ts clears `approvalPending`, and the §5.2 row reads "met"),
+      // and the card used to go on asking anyway (2026-09-08).
+      const transferAttested = student.attestations.transferApproved === true;
+      const transferUndecided =
+        (c.external.transferable === undefined || caseByCase) && !bachelors && !transferAttested && c.ineligibleReason === undefined;
       const coreUndecided = c.external.satisfiesCoreArea === undefined && !coreDecidedByCoursesTab && coreTitle(c);
       if (!transferUndecided && !coreUndecided) continue;
+      const transferReason = caseByCase
+        ? 'transferability decided case by case (§5.2) — it turns on the course’s relevance to the research'
+        : 'transferability not yet decided';
       const reason =
         transferUndecided && coreUndecided
-          ? 'transferability not yet decided, and no core area recorded although the title suggests a §4.4.1 core area'
+          ? `${transferReason}, and no core area recorded although the title suggests a §4.4.1 core area`
           : transferUndecided
-            ? 'transferability not yet decided'
+            ? transferReason
             : 'reviewed by the DGS, but no core area recorded — the title suggests a §4.4.1 core area';
       (fromNotreDame ? priorNd : external).push({ course: c, kind: fromNotreDame ? 'priorNd' : 'external', reason, unlisted: false });
       continue;

@@ -4,6 +4,15 @@ import type { Term } from '../engine/types.ts';
 
 export type Counts = 'yes' | 'no' | 'dgs_approval';
 
+/** §5.2 transferability of one course at another university, as the
+ * ExternalCourses tab's `transferable` column states it. `yes` = pre-approved
+ * by the DGS, so only the Grad Admin's processing is left; `no` = ruled out;
+ * `dgs_approval` = decided case by case (DGS 2026-09-08 — a course outside the
+ * usual CSE ground that may still transfer when it serves the student's
+ * dissertation), so it stays in the review request until the DGS rules on that
+ * student's case. A blank cell is undefined: not looked at yet. */
+export type Transferable = 'yes' | 'no' | 'dgs_approval';
+
 /** category_group values that are valid on a Courses row but are NOT real
  * §4.4.2 specialization groups: 'any' = listed under every group (student
  * picks), 'ineligible' = can never satisfy the category requirement (the DGS
@@ -16,8 +25,9 @@ export type CourseType = 'regular' | 'seminar' | 'research' | 'independent' | 'p
 /** One row of the ExternalCourses tab: a course at ANOTHER university the DGS
  * has ruled on (docs/DECISIONS.md, 2026-09-01). `satisfiesCoreArea` says which
  * §4.4.1 core area the course covers (validated against the Categories core
- * list); `transferable` says whether its credits may transfer under §5.2
- * (undefined = the DGS has not decided that part); `ndCredits` is the
+ * list); `transferable` says whether its credits may transfer under §5.2 —
+ * `yes`, `no`, or `dgs_approval` for a course decided case by case (undefined =
+ * the DGS has not decided that part at all); `ndCredits` is the
  * Notre-Dame-equivalent credit value for non-semester systems — §5.2 "pro-rata"
  * (undefined = count the credits printed on the transcript). */
 export interface ExternalRule {
@@ -28,7 +38,7 @@ export interface ExternalRule {
   courseId: string;
   title: string;
   satisfiesCoreArea?: string | null; // null = decided, no core area (`none` in the sheet, DGS 2026-09-06); undefined = blank, not decided yet
-  transferable?: boolean;
+  transferable?: Transferable;
   /** A FIXED Notre Dame credit value for this one course, when the conversion
    * below cannot express it. Overrides everything. */
   ndCredits?: number;

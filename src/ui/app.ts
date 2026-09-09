@@ -857,7 +857,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 // above a group that still holds a candidate (a group whose only
                 // course the handbook rules out — grade, five-year window — would
                 // contradict it).
-                `Transfer credit (§5.2) is decided by the DGS course by course — only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate; the review request below asks for those rulings. Once the DGS has ruled a course transferable, the Grad Admin processes the credit transfer — the processing request below the milestones covers it.`,
+                `Transfer credit (§5.2) is decided by the DGS course by course — normally only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate; the review request below asks for those rulings. Once the DGS has ruled a course transferable, the Grad Admin processes the credit transfer — the processing request below the milestones covers it.`,
               )
             : null,
         g.entries.length > 0
