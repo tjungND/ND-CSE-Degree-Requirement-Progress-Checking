@@ -101,7 +101,7 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   const offered = params.get('offered');
   if (offered === 'now' || offered === 'next') f.offered = offered;
   // NOTE: whether either value still MEANS anything depends on today's date
-  // and on the sheet's `offered_semester`; a link saved last semester is
+  // and on the sheet's `current_semester`; a link saved last semester is
   // dropped below, where the answer is known (2026-09-09).
   if (params.get('retired') === '1') f.includeRetired = true;
   if (params.get('confirmed') === '1') f.confirmedOnly = true;
@@ -141,7 +141,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // Which semesters the two schedule cards stand for, and whether the sheet's
   // columns still describe them — src/ui/schedule-terms.ts explains why the
   // page will not guess (DGS 2026-09-09).
-  const schedule = scheduleView(currentTerm, rules.parameters.term('offered_semester'));
+  // `current_semester` — the semester the sheet as a whole is current for. The
+  // narrower `offered_semester` it replaced on 2026-09-09 is still read, so a
+  // sheet that has not been renamed keeps working.
+  const semesterKey = rules.parameters.has('current_semester') ? 'current_semester' : 'offered_semester';
+  const schedule = scheduleView(currentTerm, rules.parameters.has(semesterKey) ? rules.parameters.term(semesterKey) : undefined);
   const thisTeachingTerm = schedule.thisTerm;
   const nextTeachingTerm = schedule.nextTerm;
   const offeredIn =

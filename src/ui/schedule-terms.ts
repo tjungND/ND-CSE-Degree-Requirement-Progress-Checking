@@ -6,8 +6,9 @@
 // columns are static. A DGS who does not update them the week a semester turns
 // over would have the page print last semester's courses under this
 // semester's name — students misled by a page that looks authoritative. The
-// sheet therefore also carries `offered_semester`, the term the `offered_now`
-// column was written for, and this decides what may honestly be shown.
+// sheet therefore also carries `current_semester`, the term the sheet as a
+// whole is current for — so `offered_now` describes it and `offered_next` the
+// one after — and that is what decides what may honestly be shown.
 //
 // DOM-free so the rule has a test matrix (tests/schedule-terms.test.ts).
 import type { Season, Term } from '../engine/types.ts';
@@ -49,7 +50,7 @@ export interface ScheduleView {
 const same = (a: Term | undefined, b: Term): boolean => a !== undefined && a.season === b.season && a.year === b.year;
 
 /** What the two cards may show, given today and the term the sheet says its
- * schedule was written for. A missing or unreadable `offered_semester` is
+ * schedule was written for. A missing or unreadable `current_semester` is
  * `unusable` on purpose: the page never guesses which semester a list belongs
  * to, exactly as it never guesses a requirement. */
 export function scheduleView(today: Term, recordedFor: Term | undefined): ScheduleView {

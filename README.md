@@ -84,10 +84,12 @@ app skip that row and report it.
 
 `offered_now` and `offered_next` (`yes` / `no` / blank) say whether a course is on the schedule
 this semester and next; the course-rules page turns them into two cards at the top of the page.
-They come with one obligation: set the Parameters tab's `offered_semester` to the fall or spring
-`offered_now` describes, as the code the pages print (`FA26`, `SP27`), **in the same edit**. That
-is what stops a forgotten update from showing last semester's courses under this semester's name —
-without it, or with it out of date, the cards say "not released yet" instead of guessing.
+They are read against the Parameters tab's `current_semester`, the semester the whole sheet is
+current for, written as the code the pages print (`FA26`, `SP27`). That stamp is what stops a
+forgotten update from showing last semester's courses under this semester's name: without it, or
+with it out of date, the cards say "not released yet" instead of guessing. **Whenever you move
+`current_semester` forward, check these two columns** — the page reads them as describing that
+semester and the next.
 
 The other columns (`title`, `level`, `credit_min`, `credit_max`, `credits_default`,
 `typically_offered`, `last_offered`) are informational. `credits_default` is what the app

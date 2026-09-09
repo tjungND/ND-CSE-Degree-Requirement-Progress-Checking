@@ -81,28 +81,29 @@ describe('the schedule columns', () => {
   });
 });
 
-// `offered_semester` names the semester the schedule columns were written for
-// (DGS 2026-09-09). It takes the same code the pages print, and a typo has to
+// `current_semester` names the semester the sheet as a whole is current for
+// (DGS 2026-09-09), and is what the course-rules page reads the schedule
+// columns against. It takes the same code the pages print, and a typo has to
 // be REPORTED — a silent "not released yet" would leave a DGS wondering why
 // their schedule never appeared.
-describe('the offered_semester parameter', () => {
-  const withParam = (value: string) => {
+describe('the current_semester parameter', () => {
+  const withParam = (value: string, key = 'current_semester') => {
     const texts = fixtureCsvTexts();
-    return rulesFromCsvTexts({ ...texts, parameters: `${texts.parameters.trimEnd()}\noffered_semester,${value},,which semester offered_now describes\n` }, meta);
+    return rulesFromCsvTexts({ ...texts, parameters: `${texts.parameters.trimEnd()}\n${key},${value},,the semester this sheet is current for\n` }, meta);
   };
 
   it('reads the code, however a person types it', () => {
     for (const typed of ['FA26', 'fa26', 'FA 26', 'Fall 2026']) {
       const r = withParam(typed);
-      assert.deepEqual(r.parameters.term('offered_semester'), { season: 'fall', year: 2026 }, typed);
-      assert.equal(r.issues.filter((i) => i.message.includes('offered_semester')).length, 0, typed);
+      assert.deepEqual(r.parameters.term('current_semester'), { season: 'fall', year: 2026 }, typed);
+      assert.equal(r.issues.filter((i) => i.message.includes('semester')).length, 0, typed);
     }
   });
 
   it('a typo is reported in plain English, naming the shape it wants', () => {
     const r = withParam('Fal 26');
-    assert.equal(r.parameters.term('offered_semester'), undefined);
-    const issue = r.issues.find((i) => i.message.includes('offered_semester'));
+    assert.equal(r.parameters.term('current_semester'), undefined);
+    const issue = r.issues.find((i) => i.message.includes('current_semester'));
     assert.ok(issue, 'expected an issue');
     assert.match(issue.message, /'Fal 26' is not a semester code like 'FA26' or 'SP27'/);
     // And it says what the reader loses, not the engine's "cannot evaluate":
@@ -113,8 +114,30 @@ describe('the offered_semester parameter', () => {
 
   it('the row being absent is not an error — the schedule cards simply stay quiet', () => {
     const r = rulesFromCsvTexts(fixtureCsvTexts(), meta);
-    assert.equal(r.parameters.term('offered_semester'), undefined);
-    assert.equal(r.issues.filter((i) => i.message.includes('offered_semester')).length, 0);
+    assert.equal(r.parameters.has('current_semester'), false);
+    assert.equal(r.issues.filter((i) => i.message.includes('semester')).length, 0);
+  });
+
+  it('a summer code is refused, because the schedule is kept for fall and spring', () => {
+    const r = withParam('SU26');
+    const issue = r.issues.find((i) => i.message.includes('current_semester'));
+    assert.ok(issue, 'expected an issue');
+    assert.match(issue.message, /summer code cannot date it/);
+    assert.match(issue.message, /FA26, SP27/);
+  });
+
+  // The key was called `offered_semester` for a few hours before the DGS
+  // generalised it. A sheet that has not been renamed must keep working.
+  it('the old name still reads, and the new one wins where both exist', () => {
+    const old = withParam('SP27', 'offered_semester');
+    assert.deepEqual(old.parameters.term('offered_semester'), { season: 'spring', year: 2027 });
+    assert.equal(old.issues.filter((i) => i.severity === 'warning' && i.message.includes('offered_semester')).length, 0, 'not an unknown key');
+    const texts = fixtureCsvTexts();
+    const both = rulesFromCsvTexts(
+      { ...texts, parameters: `${texts.parameters.trimEnd()}\noffered_semester,SP27,,old name\ncurrent_semester,FA26,,new name\n` },
+      meta,
+    );
+    assert.deepEqual(both.parameters.term('current_semester'), { season: 'fall', year: 2026 });
   });
 });
 

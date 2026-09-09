@@ -162,8 +162,9 @@ Known-pending (the app's diagnostics panel is the live truth):
   `external-upload.ts` and one `shortTitle` in `requirements/phd.ts`, because each one needed its article and its e2e pin moved with it, and
   the masthead, the footer and the emails keep "Notre Dame" deliberately.
 - **The schedule cards' staleness rule** (2026-09-09): `src/ui/schedule-terms.ts` is the whole of
-  it — DOM-free, with a test matrix. `offered_semester` (Parameters, a term CODE) says which fall or
-  spring the Courses tab's `offered_now` column describes; the page shows both columns only when it
+  it — DOM-free, with a test matrix. `current_semester` (Parameters, a term CODE; the old name
+  `offered_semester` is still read) says which fall or spring the sheet is current for, and the
+  Courses tab's `offered_now` column is read as describing it; the page shows both columns only when it
   names today's teaching term, shifts `offered_next` into the first card when it names the one
   before, and otherwise shows nothing and says which of the four reasons it is. A summer code is
   refused: `teachingTermOf` maps summer to the coming fall, so a summer value would read as one

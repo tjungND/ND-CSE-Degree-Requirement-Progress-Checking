@@ -27,19 +27,19 @@ export function rulesFromCsvTexts(
   const courses = validateCourses(rawCourses, coreAreas, categoryGroups, issues);
   const parameters = makeParameters(parseParametersTab(texts.parameters, issues), issues);
   // The typed accessors report a bad value only when something ASKS for it,
-  // and `offered_semester` is asked for by the course-rules page alone — which
+  // and the semester stamp is asked for by the course-rules page alone — which
   // shows no diagnostics. So it is read here, where every reader of the sheet
   // gets the issue: the self-check page's diagnostics card and the six-hourly
   // `npm run sync-sheet` (found reviewing the schedule feature, 2026-09-09).
-  const offeredSemester = parameters.term('offered_semester');
-  if (offeredSemester?.season === 'summer') {
+  const semesterKey = parameters.has('current_semester') ? 'current_semester' : 'offered_semester';
+  const currentSemester = parameters.has(semesterKey) ? parameters.term(semesterKey) : undefined;
+  if (currentSemester?.season === 'summer') {
     issues.push({
       severity: 'error',
       tab: 'Parameters',
-      row: parameters.raw.get('offered_semester')?.row,
+      row: parameters.raw.get(semesterKey)?.row,
       column: 'value',
-      message:
-        "Parameters key 'offered_semester': schedules are kept for fall and spring, so a summer code cannot date one — write the fall or the spring the offered_now column describes (FA26, SP27). The course-rules page shows \"not released yet\" until it does.",
+      message: `Parameters key '${semesterKey}': the course schedule is kept for fall and spring, so a summer code cannot date it — write the fall or the spring the sheet is current for (FA26, SP27). The course-rules page shows "not released yet" until it does.`,
     });
   }
 

@@ -169,11 +169,22 @@ export const DISPLAY_PARAMETER_KEYS = [
   'contact_adgs_email',
   'contact_grad_admin_name',
   'contact_grad_admin_email',
-  // Which fall or spring the Courses tab's `offered_now` column describes, as
-  // the code the pages print ("FA26", "SP27") — DGS 2026-09-09. Without it the
-  // course-rules page cannot tell a current schedule from last year's, so it
-  // says "not released yet" rather than showing stale courses under this
-  // semester's name. A summer code cannot date a schedule and is refused.
+  // The semester the sheet as a whole is current for, as the code the pages
+  // print ("FA26", "SP27") — DGS 2026-09-09, generalised from the narrower
+  // `offered_semester` the same day. It is what the course-rules page reads
+  // the Courses tab's `offered_now` / `offered_next` columns against: without
+  // it the page cannot tell a current schedule from last year's, so it says
+  // "not released yet" rather than showing stale courses under this semester's
+  // name. A summer code cannot date a schedule and is refused.
+  //
+  // NOTE for whoever bumps it: the schedule columns are read as describing THIS
+  // semester and the next. Moving this stamp forward without revisiting them
+  // republishes an old schedule under a new semester's name — the one thing
+  // the key exists to prevent.
+  'current_semester',
+  // The name it had for a few hours on 2026-09-09. Still read, so a sheet that
+  // has not been renamed keeps working; `current_semester` wins where both
+  // exist. Delete this once no sheet uses it.
   'offered_semester',
 ] as const;
 
