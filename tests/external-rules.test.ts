@@ -134,6 +134,42 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     ],
   });
 
+  // A student may take the same course several times — a master's project or
+  // thesis credit — and every attempt used to become its own paste-ready row,
+  // which is how the sheet collected duplicates that shadow each other (DGS
+  // 2026-09-09, seeing eight duplicated pairs in the live tab).
+  it('the paste-ready rows are one per course, while the details keep every attempt', () => {
+    const twice = buildCombinedReviewRequest({
+      priorStudy: 'Completed prior M.S. or Ph.D.',
+      nd: [
+        { courseId: 'CSE 63900', title: 'Master Project', credits: 3, grade: 'S', termText: 'Fall 2026', reason: 'not in the course rules yet', unlisted: true },
+        { courseId: 'CSE 63900', title: 'Master Project', credits: 3, grade: 'S', termText: 'Spring 2027', reason: 'not in the course rules yet', unlisted: true },
+      ],
+      external: [
+        // The sheet matches ids without spaces and hyphens, so these are one
+        // course and must not become two rows.
+        { institution: 'Purdue University', courseId: 'CS 59800', title: 'Thesis', credits: 3, grade: 'A', termText: 'Fall 2023', reason: 'not yet reviewed by the DGS', unlisted: true },
+        { institution: 'PURDUE UNIVERSITY', courseId: 'CS-59800', title: 'Thesis', credits: 3, grade: 'A', termText: 'Spring 2024', reason: 'not yet reviewed by the DGS', unlisted: true },
+      ],
+    });
+    // Between one table's heading and the next: the paste-ready rows alone.
+    const between = (from: string, to: string): string => twice.text.slice(twice.text.indexOf(from) + from.length, twice.text.indexOf(to));
+    const coursesTab = between('rules sheet — Courses tab:', 'rules sheet — ExternalCourses tab:');
+    const externalTab = between('rules sheet — ExternalCourses tab:', 'Course details:');
+    assert.equal((coursesTab.match(/CSE 63900/g) ?? []).length, 1, 'one Courses-tab row for the repeated course: ' + coursesTab);
+    assert.equal((externalTab.match(/CS[- ]59800/g) ?? []).length, 1, 'one ExternalCourses row, whichever way the id is spaced: ' + externalTab);
+    assert.match(twice.text, /one row per course — a course taken more than once is listed once here/);
+    // The details are the evidence: both terms are still there.
+    assert.match(twice.text, /Fall 2026/);
+    assert.match(twice.text, /Spring 2027/);
+    assert.match(twice.text, /Fall 2023/);
+    assert.match(twice.text, /Spring 2024/);
+  });
+
+  it('says nothing about repeats when there are none', () => {
+    assert.doesNotMatch(built.text, /one row per course/);
+  });
+
   it('is one email to the DGS (2026-09-06: not the Grad Admin), says self-check (not audit), and carries prior graduate study', () => {
     assert.match(built.text, /^Subject: Course review request/);
     assert.match(built.text, /Dear DGS,\n/);

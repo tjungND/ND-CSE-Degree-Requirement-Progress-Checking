@@ -4,7 +4,7 @@
 // added without their review, and unmatched grades must be chosen by hand.
 // System-generated PDFs are read exactly; a PDF with no text layer is offered
 // the opt-in English-only OCR instead (decision 2026-09-02; src/transcript/ocr.ts).
-import { expandInstitutionAbbreviations } from '../data/external.ts';
+import { expandInstitutionAbbreviations, normalizeCourseId, normalizeUniversity } from '../data/external.ts';
 import { shortenAfterFirst } from '../ui/first-mention.ts';
 import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
@@ -750,6 +750,34 @@ export interface PendingReviewCourse extends ReviewRequestCourse {
  * (DGS wording, 2026-09-03), with "(You may edit anything above this line)"
  * above the divider (2026-09-06), so students reword only their own half and
  * leave the machine-readable parts intact. */
+/** One paste-ready row per COURSE, not per attempt (DGS 2026-09-09). A student
+ * may take the same course several times — a master's project or thesis credit
+ * — and every attempt used to become its own row, which is how the
+ * ExternalCourses tab collected duplicates that shadow each other (the last
+ * row wins). The course DETAILS below still list every attempt: that is the
+ * evidence the DGS is being asked to weigh, and the repetition is visible
+ * there. Keyed the way the sheet itself matches, so "CS-591" and "CS 591" at
+ * one university count as the same course. */
+function oncePerCourse(courses: readonly PendingReviewCourse[], keyOf: (c: PendingReviewCourse) => string): PendingReviewCourse[] {
+  const seen = new Set<string>();
+  const out: PendingReviewCourse[] = [];
+  for (const c of courses) {
+    if (!c.unlisted) continue;
+    const key = keyOf(c);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out;
+}
+
+/** Said only when a repeat was actually folded away, so the DGS knows why the
+ * table is shorter than the details below it. */
+const repeatNote = (kept: readonly PendingReviewCourse[], all: readonly PendingReviewCourse[]): string =>
+  all.filter((c) => c.unlisted).length > kept.length
+    ? ' (one row per course — a course taken more than once is listed once here, and once per term in the details below)'
+    : '';
+
 export function buildCombinedReviewRequest(opts: {
   /** The "Prior graduate study" choice, as its dropdown label. */
   priorStudy: string;
@@ -757,6 +785,9 @@ export function buildCombinedReviewRequest(opts: {
   external: readonly PendingReviewCourse[];
 }): { text: string; html: string; subject: string } {
   const detail = (c: PendingReviewCourse): string[] => [c.courseId, c.title ?? '', String(c.credits), c.grade, c.termText, c.reason];
+  // One row per course for the sheet; every attempt still shown in the details.
+  const ndRows = oncePerCourse(opts.nd, (c) => normalizeCourseId(c.courseId));
+  const extRows = oncePerCourse(opts.external, (c) => `${normalizeUniversity(c.institution ?? '')}|${normalizeCourseId(c.courseId)}`);
   // Group the external courses per transcript (slot + university), so the
   // details read the way the student uploaded them — one table per group.
   const groups: { heading: string; rows: string[][] }[] = [];
@@ -785,12 +816,12 @@ export function buildCombinedReviewRequest(opts: {
     ],
     sections: [
       {
-        rowsIntro: 'This is the table that can be imported to the DGS’s rules sheet — Courses tab:',
-        rows: opts.nd.filter((c) => c.unlisted).map((c) => [c.courseId, c.title ?? '']),
+        rowsIntro: `This is the table that can be imported to the DGS’s rules sheet — Courses tab:${repeatNote(ndRows, opts.nd)}`,
+        rows: ndRows.map((c) => [c.courseId, c.title ?? '']),
       },
       {
-        rowsIntro: 'This is the table that can be imported to the DGS’s rules sheet — ExternalCourses tab:',
-        rows: opts.external.filter((c) => c.unlisted).map((c) => [c.institution ?? '', c.courseId, c.title ?? '']),
+        rowsIntro: `This is the table that can be imported to the DGS’s rules sheet — ExternalCourses tab:${repeatNote(extRows, opts.external)}`,
+        rows: extRows.map((c) => [c.institution ?? '', c.courseId, c.title ?? '']),
       },
     ],
     detailsTitle: 'Course details:',

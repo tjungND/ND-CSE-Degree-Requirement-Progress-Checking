@@ -102,6 +102,12 @@ abbreviation, so a wrong guess can be corrected before the courses are added. Ad
 the same problem — and write the school's real name, since that is the key the ExternalCourses tab
 is matched on (matching ignores case).
 
+Since 2026-09-09 a student's review request emits ONE paste-ready row per course, not per attempt:
+a course taken several times (a master's project, thesis credits) used to become several identical
+rows, and since the last row wins, earlier rulings were shadowed by later blank ones. The course
+details in the same email still list every attempt. If the tab already holds duplicates, the
+diagnostics list them — keep the row you want and delete the rest.
+
 Since 2026-09-09 the ExternalCourses tab decides §5.2 transferability per PROGRAM: `transferable_PhD`
 and `transferable_MSCSE`, each taking `yes` / `no` / `dgs_approval` / `adgs_approval` / blank. The app
 reads whichever matches the student's own program, so the same course can be pre-approved for a
