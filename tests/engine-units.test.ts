@@ -395,3 +395,63 @@ describe('is a transferred course a CSE course?', () => {
     assert.deepEqual(buildRules().parameters.codeList('cse_subject_codes'), ['CS', 'CSCI', 'COMPSCI', 'CSE', 'CMSC', 'EECS', 'CSYE']);
   });
 });
+
+// Transition to Computing bridge courses for a Ph.D. student (§3.6). The
+// handbook writes §3.6 for the MSCSE — "CSE 50xxx courses are preparatory and
+// do not count toward the MSCSE degree requirements in §3.1-3.5" — and says
+// nothing about a Ph.D. student required to take them; the sheet decides,
+// course by course (DGS 2026-09-03 for CSE 50502).
+describe('50000-level bridge courses', () => {
+  const bridgeStudent = (attestations: Student['attestations'] = {}): Student => ({
+    schemaVersion: 1,
+    program: 'phd',
+    entryTerm: { season: 'fall', year: 2026 },
+    bachelorsAwarded: { season: 'spring', year: 2026 },
+    priorMs: 'none',
+    gpa: 3.5,
+    courses: [{ courseId: 'CSE 50120', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }],
+    milestones: {},
+    attestations,
+  });
+
+  // The checkbox was renamed to "courses below the 60000 level" when the DGS
+  // put both levels under one cap (2026-09-09), but it still only cleared
+  // level 4 — so the one bridge course the sheet permits could never be
+  // approved, and stayed amber and in the review request for good.
+  it('the below-60000 approval checkbox clears a 50000-level course', () => {
+    const before = audit(bridgeStudent(), buildRules(), '2027-06-01');
+    assert.equal(before.requirements.find((r) => r.id === 'phd.credits.regular')?.status, 'unmet');
+    assert.match(before.courseLines.find((l) => l.courseId === 'CSE 50120')!.text, /needs advisor \+ DGS approval/);
+
+    const after = audit(bridgeStudent({ dgsApproved4xxxx: true }), buildRules(), '2027-06-01');
+    const line = after.courseLines.find((l) => l.courseId === 'CSE 50120');
+    assert.equal(line?.mark, 'counts');
+    assert.match(line!.text, /^counts toward regular courses \(3 cr\)/);
+    assert.match(after.requirements.find((r) => r.id === 'phd.credits.regular')!.detail, /3 of 24/);
+    assert.equal(coursesNeedingDgsReview(bridgeStudent({ dgsApproved4xxxx: true }), buildRules()).length, 0);
+  });
+
+  // The line names the course's OWN level: the cap covers both, and a bridge
+  // course was telling the student it used "the 40000-level allowance".
+  it('the allowance line names the level the course is at', () => {
+    const after = audit(bridgeStudent({ dgsApproved4xxxx: true }), buildRules(), '2027-06-01');
+    assert.match(after.courseLines.find((l) => l.courseId === 'CSE 50120')!.text, /uses the 50000-level allowance \(6 credits, §4\.2\)/);
+  });
+
+  // §3.6.1 for the MSCSE, straight from the sheet's counts_toward_mscse = no.
+  it('the same course counts nothing toward the MSCSE', () => {
+    const ms = audit({ ...bridgeStudent({ dgsApproved4xxxx: true }), program: 'mscse' }, buildRules(), '2027-06-01');
+    assert.match(ms.courseLines.find((l) => l.courseId === 'CSE 50120')!.text, /does not count toward the MSCSE/);
+    assert.match(ms.requirements.find((r) => r.id === 'ms.credits.total')!.detail, /0 of 30/);
+  });
+
+  // §4.3 residence counts REGISTERED credits, not credits that count toward
+  // the degree — a bridge semester is still a full-time semester.
+  it('a bridge semester still counts toward residence', () => {
+    const s = bridgeStudent();
+    s.courses = ['CSE 50120', 'CSE 60641', 'CSE 60111'].map((courseId) => ({
+      courseId, credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' as const,
+    }));
+    assert.match(audit(s, buildRules(), '2027-06-01').requirements.find((r) => r.id === 'phd.residency')!.detail, /1 of 4 semesters/);
+  });
+});

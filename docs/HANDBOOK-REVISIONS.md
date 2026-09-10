@@ -125,7 +125,33 @@ the student's advisor and the DGS."* §3.2 needs the matching change for the MSC
 
 ---
 
-## 6. Smaller wording points
+## 6. §3.6 — the Ph.D. student on the Transition to Computing track
+
+**Today.** §3.6 defines the bridge courses as "a set of bridge courses for students admitted to
+the **MSCSE** who require additional background", and §3.6.1 requires twelve concurrent credits —
+three CSE 50xxx courses plus a CSE 60xxx Integrative Computing Studio — adding that "CSE 50xxx
+courses are preparatory and do not count toward the **MSCSE** degree requirements in §3.1–3.5".
+Every sentence is about the MSCSE. §4 says nothing about bridge courses at all.
+
+**Why it comes up.** The DGS requires some Ph.D. students to take them (2026-09-10). The handbook
+neither authorises that nor says what those credits do toward the Ph.D.
+
+**What the app does.** Whatever the rules spreadsheet says, course by course: today CSE 50502 may
+count toward the Ph.D. with the DGS's approval, inside §4.2's six-credit allowance for courses
+below the 60000 level, and CSE 50501 and CSE 50503 count nothing. None of the three counts toward
+the Graduate School's sixty credits of "courses and research", so a student who has just finished a
+required twelve-credit bridge year reads "0 of 60 credits complete".
+
+**Suggested sentences.** In §3.6, after the first paragraph: *"The DGS may also require a student
+admitted to the Ph.D. program to complete the Transition to Computing courses."* And in §3.6.1,
+alongside the sentence about the MSCSE: *"For a Ph.D. student, CSE 50xxx credits count toward the
+sixty credits required by the Graduate School but not toward the twenty-four credit hours of
+regular courses in §4.2."* — or whatever the department decides those credits do; the app can
+express either answer, but only once someone has decided. Worth saying too whether the bridge year
+extends the §4.4 four-semester qualifier deadline, which today rests on the DGS granting an
+extension case by case.
+
+## 7. Smaller wording points
 
 - **§4.4 "three components".** The qualifying examination has three components, but §4.4.1 alone
   produces three separate requirements (one core area each), so students read "three" as

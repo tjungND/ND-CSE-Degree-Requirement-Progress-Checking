@@ -440,7 +440,7 @@ export function classify(student: Student, rules: Rules): {
       // six-credit cap is about a course the DGS has PERMITTED in the sheet,
       // and an unlisted one carries no such permission.
       if (level === 5) {
-        return { ...base, ineligibleReason: 'not counted — 50000-level courses do not count unless the rules sheet lists one (decision Q19)' };
+        return { ...base, ineligibleReason: 'not counted — a 50000-level course counts only if the DGS has listed it in the course rules (§4.2)' };
       }
       const caps: CapId[] = level === 4 ? ['fourk'] : [];
       return {
@@ -459,11 +459,18 @@ export function classify(student: Student, rules: Rules): {
       return { ...base, ineligibleReason: `the rules sheet says it does not count toward the ${programName}` };
     }
     // A sheet-listed dgs_approval course is cleared by the matching attestation:
-    // 40000-level → the 4xxxx checkbox; non-CSE → the non-CSE checkbox. A CSE
-    // course above the 40000 level flagged dgs_approval has no checkbox — it
-    // stays provisional and the approvals row explains.
+    // BELOW the 60000 level → the "courses below the 60000 level" checkbox;
+    // non-CSE → the non-CSE checkbox. A CSE course at 60000 or above flagged
+    // dgs_approval has no checkbox — it stays provisional and the approvals
+    // row explains.
+    //
+    // The checkbox covered level 4 alone until 2026-09-09, when the DGS put
+    // 40000- and 50000-level courses under one six-credit cap. The cap moved
+    // and this did not, so the one bridge course the sheet permits for a Ph.D.
+    // (CSE 50502, `dgs_approval`) could never be cleared: it stayed amber and
+    // stayed in the review request whatever the student ticked.
     const approvalAttested =
-      (level === 4 && attestations.dgsApproved4xxxx === true) ||
+      ((level === 4 || level === 5) && attestations.dgsApproved4xxxx === true) ||
       (!isCse && attestations.dgsApprovedNonCse === true);
     const approvalPending =
       counts === undefined
@@ -742,7 +749,13 @@ function buildExplanation(
         `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? 'converted from the quarter system' : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
       );
     }
-    if (cc.caps.includes('fourk')) parts.push('uses the 40000-level allowance');
+    // The cap covers both levels below 60000 since 2026-09-09, so the line
+    // must name the course's OWN level: a 50000-level bridge course was
+    // telling the student it "uses the 40000-level allowance".
+    if (cc.caps.includes('fourk')) {
+      const level = levelOf(cc.entry, cc.rule);
+      parts.push(`uses the ${Number.isFinite(level) ? `${level}0000-level` : 'below-60000'} allowance (6 credits, §4.2)`);
+    }
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved
     // lead says "as transfer credit"); say it once.

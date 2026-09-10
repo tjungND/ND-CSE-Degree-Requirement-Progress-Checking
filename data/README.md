@@ -34,7 +34,7 @@ policy columns are the DGS's.
 |---|---|---|
 | `course_id` | e.g. `CSE 60641` | Department code, space, five digits. Primary key. |
 | `title` | text | Shown in the autocomplete. |
-| `level` | 4–9 | First digit of the number (informational). |
+| `level` | 4–9 | First digit of the number. **Not informational** — the app reads this cell in preference to the number itself, and it decides whether a course is refused outright (50000-level, unless the row permits it), whether it draws on §4.2's six-credit allowance for courses below the 60000 level, and whether a non-CSE course counts at all. A mistyped level silently changes the audit. |
 | `credit_min`, `credit_max` | numbers | Banner credit range (informational). |
 | `credits_default` | number or blank | What the app pre-fills; blank for variable-credit courses, the student enters the transcript value. |
 | `course_type` | `regular` \| `seminar` \| `research` \| `independent` \| `project` | Only `regular` counts toward the 24 regular-course credits (§3.2, §4.2). |
