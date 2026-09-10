@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-grad-before-bachelors",
-  "description": "A Notre Dame 4+1: a senior-year course registered at the GRADUATE level (the transcript's GR column) in the term the B.S. was awarded still counts for §4.4.1 core knowledge through the Courses tab, but earns no §5.2 credit — graduate student status starts after the bachelor's degree (DGS 2026-09-06). The transfer row is NOT APPLICABLE, not \"needs DGS review\": the one transfer course is excluded on its own terms, so the DGS has nothing to decide and the student has nothing to ask for (2026-09-09).",
+  "description": "A Notre Dame 4+1: a senior-year course registered at the GRADUATE level (the transcript's GR column) in the term the B.S. was awarded counts for §4.4.1 core knowledge through the Courses tab, and since 2026-09-10 it is also a §5.2 transfer candidate — §3.5 lets one or two such courses count toward the MSCSE, and the DGS rules they may follow the student into our own Ph.D. up to that allowance. It still needs the DGS's recommendation like any transfer, so the §5.2 row asks for one. An UNDERGRADUATE-registered course from the same years earns nothing: §3.5's allowance is for 6xxxx courses.",
   "today": "2025-09-04",
   "rules": {
     "base": "default"
@@ -87,20 +87,17 @@
       ]
     },
     "phd.transfer": {
-      "status": "not_applicable",
+      "status": "needs_dgs_review",
       "detailIncludes": [
-        "Nothing here needs a DGS decision",
-        "CSE 60641: not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"
+        "3 of 6 transfer credits counted",
+        "Not yet reviewed by the DGS: CSE 60641"
       ]
     }
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)",
-      "satisfies the Operating Systems core-knowledge requirement (§4.4.1) per the course rules"
-    ],
-    "CSE 30321": [
-      "may satisfy the Computer Architecture core-knowledge requirement (§4.4.1) — pending DGS review"
+      "candidate for transfer credit (§5.2)",
+      "satisfies the Operating Systems core-knowledge requirement (§4.4.1)"
     ]
   }
 }

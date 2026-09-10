@@ -2,7 +2,7 @@
 // across the §3 and §4 modules.
 import { formatCredits } from '../credits.ts';
 import type { Parameters, Rules } from '../../data/types.ts';
-import type { AllocationResult, ClassifiedCourse, CourseAllocation } from '../allocate.ts';
+import type { AllocationResult, CapId, ClassifiedCourse, CourseAllocation } from '../allocate.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
 import type { DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
@@ -114,7 +114,7 @@ export function capRow(args: {
   id: string;
   group: string;
   title: string;
-  capId: 'fourk' | 'noncse' | 'transfer';
+  capId: CapId;
   capLabel: string;
   limitKey: string;
   section: string;

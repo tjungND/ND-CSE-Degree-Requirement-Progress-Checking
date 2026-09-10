@@ -511,3 +511,55 @@ describe('§3.5 / §3.6 track notes', () => {
     assert.deepEqual(audit(s, rules, '2027-06-01').tracks.map((t) => t.section), ['§3.6', '§3.5']);
   });
 });
+
+// §3.5's allowance, and where it stops (DGS 2026-09-10). It reverses the
+// 2026-09-06 rule for NOTRE DAME's own 4+1 courses only: §5.2 criterion 2
+// still bars every other course taken before the bachelor's degree.
+describe('§3.5 allowance boundaries', () => {
+  const rules = buildRules();
+  const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
+    schemaVersion: 1,
+    program: 'phd',
+    entryTerm: { season: 'fall', year: 2026 },
+    bachelorsAwarded: { season: 'spring', year: 2026 },
+    priorMs: 'completed',
+    gpa: 3.8,
+    courses,
+    milestones: {},
+    attestations: { transferApproved: true },
+    ...over,
+  });
+  const before = (courseId: string, institution = 'University of Notre Dame'): CourseEntry => ({
+    courseId, credits: 3, term: { season: 'fall', year: 2025 }, grade: 'A', origin: 'transfer',
+    institution, degreeLevel: 'masters', registeredLevel: 'graduate',
+  });
+  const lineFor = (s: Student, id: string) => audit(s, rules, '2027-06-01').courseLines.find((l) => l.courseId === id)!.text;
+
+  it('a Notre Dame 6xxxx course from before the degree transfers', () => {
+    assert.match(lineFor(student([before('CSE 60641')]), 'CSE 60641'), /counts toward regular courses/);
+  });
+
+  it('the same course from ANOTHER university does not — §5.2 criterion 2 stands', () => {
+    assert.match(lineFor(student([before('CS 50300', 'Purdue University')]), 'CS 50300'), /taken before your bachelor’s degree was awarded/);
+  });
+
+  it('a non-CSE Notre Dame course does not — §3.5 is about CSE courses', () => {
+    assert.match(lineFor(student([before('MATH 60610')]), 'MATH 60610'), /taken before your bachelor’s degree was awarded/);
+  });
+
+  it('a 40000-level Notre Dame course does not — §3.5 says 6xxxx', () => {
+    assert.match(lineFor(student([before('CSE 40113')]), 'CSE 40113'), /taken as an undergraduate student|taken before your bachelor’s degree/);
+  });
+
+  it('an MSCSE student is unaffected — §3.5 already counts those toward their own degree', () => {
+    const ms = student([before('CSE 60641')], { program: 'mscse' });
+    assert.match(lineFor(ms, 'CSE 60641'), /taken before your bachelor’s degree was awarded/);
+  });
+
+  it('the allowance is a credit cap, and the row appears only for a student who has one', () => {
+    const one = audit(student([before('CSE 60641')]), rules, '2027-06-01');
+    assert.equal(one.requirements.find((r) => r.id === 'phd.cap.seniorgrad')?.status, 'met');
+    const none = audit(student([{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }]), rules, '2027-06-01');
+    assert.equal(none.requirements.find((r) => r.id === 'phd.cap.seniorgrad'), undefined);
+  });
+});

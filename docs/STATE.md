@@ -161,22 +161,12 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
    would read "not in the rules sheet". These 50 were never taught, so no student can have taken one.
    The committed `data/snapshot.json` lags the sheet by up to six hours, so a fetch and the snapshot
    can disagree for a while; the deployed page always reads the live sheet.
-6. Two questions the 4+1 check raised (2026-09-10), both following from decisions already made, both
-   possibly not what the DGS intended in combination:
-   (a) A §3.5 senior-year course can NEVER count toward §4.4.2. §4.4.2 counts a prior Notre Dame
-   course once its §5.2 credit transfers (2026-09-09), and a course dated in or before the
-   bachelor's award term can never transfer (2026-09-06, absolute). So a 4+1 student whose
-   specialization-tagged courses are all §3.5 senior-year ones reads "0 qualifying courses covering
-   0 distinct groups" with no route — verified by running it. Those are the courses the department
-   itself counted toward the MSCSE.
-   (b) For a single Notre Dame transcript covering all three careers with NO admit-term line, the
-   entry term defaults to the §3.5 senior-year course's term — two years early, and the generous
-   direction (the whole MSCSE then reads as program coursework). The right reading is offered as
-   the `alternative` on the standing card, and since 2026-09-10 correcting the term repairs
-   everything that hangs on it (the master's, the §5.2 cap, the §4.5 row). Real Banner transcripts
-   normally print an admit term, in which case the default is correct; nobody has checked one, and
-   nobody should open a real transcript to find out (FERPA) — ask a student to confirm, or check
-   the fixture generator.
+6. Both 4+1 questions were answered on 2026-09-10 and built (DECISIONS rows of that date): §3.5's
+   one or two senior-year 6xxxx courses transfer into our own Ph.D. up to `phd_senior_grad_credits_max`,
+   and a 4+1 transcript's entry term is the term after the last degree it awards. What is left for the
+   DGS is upward, not inward: §5.2 criterion 2 belongs to the Graduate School, and the department is
+   now counting on a transfer that criterion appears to forbid — docs/HANDBOOK-REVISIONS.md §4 is
+   written for that conversation.
 
 ## Open work (optional)
 

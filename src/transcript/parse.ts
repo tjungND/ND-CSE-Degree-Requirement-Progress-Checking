@@ -523,10 +523,31 @@ export function inferEntryTerm(args: {
 
   if (gradTerms.length > 0) {
     const marked = gradTerms.filter((t) => newStudentTerms.has(termIndex(t)));
+    // A 4+1 leaves a signature no other record has: graduate-level terms that
+    // begin BEFORE the bachelor's degree was awarded. §3.5's courses are taken
+    // in the junior and senior years, so "the first graduate-level term" is
+    // not the start of any graduate program — it is the student's third year
+    // of college. For that shape the entry term is the first graduate term
+    // after the LAST degree the transcript awards (DGS 2026-09-10: "for
+    // students who have finished the 4+1 program at CSE ND, if the student
+    // advances to our own PhD, the entry term is when they start the PhD").
+    // The same rule serves a 4+1 still in the MSCSE: their last degree is the
+    // bachelor's, and the term after it is the master's year.
+    const dated = degreesAwarded.filter((d) => d.date !== undefined).sort((a, b) => (a.date! < b.date! ? -1 : 1));
+    const bachelors = dated.find((d) => d.level === 'bachelors');
+    const last = dated[dated.length - 1];
+    const startedBeforeTheDegree =
+      bachelors !== undefined && gradTerms[0] !== undefined && termIndex(gradTerms[0]) <= termIndex(termOfDate(bachelors.date!));
+    const afterLastDegree = last !== undefined ? gradTerms.filter((t) => termIndex(t) > termIndex(termOfDate(last.date!))) : [];
     const chosen =
       marked.length > 0
         ? { term: marked[marked.length - 1]!, how: 'the term your transcript marks as your admission at the graduate level' }
-        : { term: gradTerms[0]!, how: 'the first graduate-level term on your transcript' };
+        : startedBeforeTheDegree && afterLastDegree.length > 0
+          ? {
+              term: afterLastDegree[0]!,
+              how: `the first term after your ${last!.name} was awarded — your transcript has graduate-level courses from before your bachelor's degree, which is the 4+1 pattern (§3.5)`,
+            }
+          : { term: gradTerms[0]!, how: 'the first graduate-level term on your transcript' };
     // A degree awarded after the chosen term, with graduate-level terms
     // continuing past it, supports the other reading.
     let alternative: EntryTermInference['alternative'];
@@ -551,12 +572,12 @@ export function inferEntryTerm(args: {
   }
 
   // No graduate-level rows: after the last awarded degree, else the earliest term.
-  const dated = degreesAwarded.filter((d) => d.date !== undefined).sort((a, b) => (a.date! < b.date! ? -1 : 1));
-  const last = dated[dated.length - 1];
-  if (last) {
-    const awardTerm = termOfDate(last.date!);
+  const datedDegrees = degreesAwarded.filter((d) => d.date !== undefined).sort((a, b) => (a.date! < b.date! ? -1 : 1));
+  const lastDegree = datedDegrees[datedDegrees.length - 1];
+  if (lastDegree) {
+    const awardTerm = termOfDate(lastDegree.date!);
     const after = allTerms.filter((t) => termIndex(t) > termIndex(awardTerm));
-    if (after.length > 0) return { term: after[0]!, how: `the first term after your ${last.name} was awarded` };
+    if (after.length > 0) return { term: after[0]!, how: `the first term after your ${lastDegree.name} was awarded` };
   }
   return { term: allTerms[0]!, how: 'the earliest term on your transcript' };
 }

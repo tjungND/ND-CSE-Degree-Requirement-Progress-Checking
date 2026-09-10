@@ -227,6 +227,13 @@ export const KNOWN_PARAMETER_KEYS = [
   'phd_seminar_courses',
   'phd_4xxxx_cse_credits_max',
   'phd_noncse_6xxxx_credits_max',
+  // §3.5: "one or two 3-credit CSE courses at the 6xxxx level" taken in the
+  // junior/senior year of the Integrated B.S. + M.S. The DGS rules
+  // (2026-09-10) that those may transfer into our own Ph.D. even though they
+  // predate the bachelor's degree — up to this many credits. Notre Dame's own
+  // 4+1 courses only; §5.2 criterion 2 still bars everything else taken
+  // before the degree.
+  'phd_senior_grad_credits_max',
   'phd_transfer_window_years',
   'phd_transfer_completed_ms_credits_max',
   'phd_residency_semesters',

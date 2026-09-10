@@ -266,6 +266,48 @@ describe('combined transcript: entry term, levels and degrees (2026-09-05)', () 
     assert.match(p.entryTerm?.alternative?.why ?? '', /entry term is Fall 2026/);
   });
 
+  // A 4+1 leaves a signature nothing else does: graduate-level terms that begin
+  // BEFORE the bachelor's degree. "The first graduate-level term" is then the
+  // student's third year of college, not the start of any graduate program
+  // (DGS 2026-09-10: "if the student advances to our own PhD, the entry term
+  // is when they start the PhD").
+  it('a 4+1 transcript starts the program after the LAST degree it awards', () => {
+    const p = parseTranscript([
+      'UNIVERSITY OF NOTRE DAME',
+      'Unofficial Academic Transcript',
+      'DEGREE AWARDED Bachelor of Science  Degree Date: 05/18/2025',
+      'DEGREE AWARDED Master of Science  Degree Date: 05/17/2026',
+      'Term: Fall Semester 2024',
+      'CSE 60641 GR Graduate Operating Systems A 3.000 12.000',
+      'Term: Spring Semester 2025',
+      'CSE 60111 GR Complexity and Algorithms A 3.000 12.000',
+      'Term: Fall Semester 2025',
+      'CSE 60321 GR Advanced Computer Architecture A 3.000 12.000',
+      'Term: Fall Semester 2026',
+      'CSE 63801 GR Research Seminar I A 1.000 4.000',
+    ]);
+    assert.deepEqual(p.entryTerm?.term, { season: 'fall', year: 2026 }, 'the Ph.D. starts after the master\u2019s, not in the junior year');
+    assert.match(p.entryTerm?.how ?? '', /4\+1 pattern/);
+  });
+
+  // The MSCSE earned ALONG THE WAY (§4.5) looks similar — a master's awarded
+  // with graduate terms after it — but its graduate terms all start after the
+  // bachelor's degree, so the earlier reading is still the right one.
+  it('a master\u2019s earned along the way does not move the entry term', () => {
+    const p = parseTranscript([
+      'UNIVERSITY OF NOTRE DAME',
+      'Unofficial Academic Transcript',
+      'DEGREE AWARDED Bachelor of Science  Degree Date: 05/18/2022',
+      'DEGREE AWARDED Master of Science  Degree Date: 05/17/2026',
+      'Term: Fall Semester 2024',
+      'CSE 60641 GR Graduate Operating Systems A 3.000 12.000',
+      'Term: Fall Semester 2026',
+      'CSE 63801 GR Research Seminar I A 1.000 4.000',
+    ]);
+    assert.deepEqual(p.entryTerm?.term, { season: 'fall', year: 2024 });
+    assert.deepEqual(p.entryTerm?.alternative?.term, { season: 'fall', year: 2026 }, 'the other reading is still offered');
+  });
+
   it('without level markers, uses the course number and the term after the last awarded degree', () => {
     const official = parseTranscript([
       'UNIVERSITY OF NOTRE DAME NOTRE DAME, INDIANA 46556',

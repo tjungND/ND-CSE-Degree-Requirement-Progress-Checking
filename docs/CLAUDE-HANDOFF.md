@@ -1067,6 +1067,22 @@ Known-pending (the app's diagnostics panel is the live truth):
   they are on. e2e: drive-app.mjs adds CSE 50501 and asserts the note, its position and its absence
   for the example student.
 
+- **§3.5's allowance** (DGS 2026-09-10, revising 2026-09-06 for Notre Dame's own 4+1 only). A Notre
+  Dame CSE 6xxxx course taken in or before the bachelor's award term is a §5.2 transfer candidate
+  again, capped by `phd_senior_grad_credits_max` (6) on top of §5.2's own cap — cap id `seniorgrad`,
+  row `phd.cap.seniorgrad`, which is pushed only when a student has such a course. The guard is
+  narrow on purpose: Notre Dame institution, CSE department, level ≥ 6, Ph.D. program. Everything
+  else keeps the absolute award-term rule. Which courses fill it is the DGS's order, not the
+  allocator's default: `ClassifiedCourse.priority` is 2 for a course carrying both a §4.4.1 core
+  area and a §4.4.2 group, 1 for either, and `allocate` sorts by it (stably, so every course with
+  priority 0 keeps the old (term, id) order).
+- **A 4+1's entry term** (DGS 2026-09-10). `inferEntryTerm` gained a rule between the "Student Type:
+  New" marker and "the first graduate-level term": when a dated BACHELOR'S award exists and the
+  first graduate-level term is at or before it — graduate coursework that began before the student
+  was a graduate student, which is the 4+1 signature — the entry term is the first graduate term
+  after the LAST dated degree. An along-the-way MSCSE (§4.5) does not match, since its graduate
+  terms all start after the bachelor's degree, and its `alternative` is unchanged.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

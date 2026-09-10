@@ -41,6 +41,7 @@ export const REQUIREMENT_IDS = [
   'phd.credits.nd',
   'phd.seminar',
   'phd.cap.fourk',
+  'phd.cap.seniorgrad',
   'phd.cap.noncse',
   'phd.transfer',
   'phd.residency',
@@ -91,6 +92,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
             limit: num(student.priorMs === 'completed' ? 'phd_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max'),
             label: 'transfer-credit cap',
             section: '§5.2',
+          },
+          // §3.5's own allowance, inside §5.2's cap (DGS 2026-09-10).
+          {
+            id: 'seniorgrad',
+            limit: num('phd_senior_grad_credits_max'),
+            label: capLabel(num('phd_senior_grad_credits_max'), 'allowance for 6xxxx courses taken before your bachelor’s degree'),
+            section: '§3.5',
           },
         ];
 
