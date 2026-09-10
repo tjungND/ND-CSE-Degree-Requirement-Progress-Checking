@@ -32,6 +32,7 @@ export const REQUIREMENT_IDS = [
   'ms.credits.project',
   'ms.cap.fourk',
   'ms.cap.noncse',
+  'ms.cap.sharedbs',
   'ms.residency',
   'ms.timeLimit',
   'ms.thesis.defense',
@@ -76,6 +77,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       ? [
           { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: capLabel(num('ms_4xxxx_credits_max'), 'cap on courses below the 60000 level'), section: '§3.2' },
           { id: 'noncse', limit: num('ms_noncse_credits_max'), label: capLabel(num('ms_noncse_credits_max'), 'non-CSE cap'), section: '§3.2' },
+          // §3.5's limit on coursework shared with the bachelor's (2026-09-10).
+          {
+            id: 'sharedbs',
+            limit: num('ms_bs_double_count_credits_max'),
+            label: capLabel(num('ms_bs_double_count_credits_max'), 'allowance for coursework your bachelor’s degree also used'),
+            section: '§3.5',
+          },
           {
             id: 'transfer',
             limit: num(student.priorMs === 'completed' ? 'ms_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max'),

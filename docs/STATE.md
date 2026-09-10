@@ -4,32 +4,23 @@ Last updated: 2026-09-08 (the first Claude Code Desktop session on the DGS's Mac
 branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at ~15:00 UTC —
 see "Session protocol" in `CLAUDE.md`).
 
-## ⚠ OPEN WITH THE GRADUATE SCHOOL — raise this with the DGS every session until it is closed
+## Answered by the Graduate School (2026-09-10, evening) — closed
 
-**Asked 2026-09-10, still open.** Does §5.2 criterion 2 — "the student had graduate student status
-when they took these courses" — bar a Notre Dame 4+1 student's §3.5 junior/senior-year 6xxxx courses
-from transferring into our own Ph.D.? §3.5 counts those courses toward the MSCSE; criterion 2 belongs
-to the Graduate School, not to the department, so the department cannot settle it alone. The DGS is
-inquiring.
+The question the DGS put to them: does §5.2 criterion 2 bar a 4+1 student's §3.5 coursework from
+following them into the Ph.D.? Their answer went much further than the question, and the app now
+implements it (DECISIONS row of that date):
 
-**What the app does meanwhile** (DGS 2026-09-10, evening): the strict reading. No credit earned
-before the bachelor's degree transfers. Those courses still satisfy BOTH qualifier components —
-§4.4.1 core knowledge and §4.4.2 specialization — since neither is credit. Only fifth-year
-(post-B.S.) coursework brings credit.
+- **60000-level and above taken as an undergraduate counts toward the Ph.D. in full**, "even those
+  above and beyond the usual 24 allowed for transfer" — so it is not transfer credit at all and never
+  touches §5.2's cap.
+- **Below the 60000 level**, up to six credits, inside §4.2's own allowance.
+- **The one hard limit:** no course counts toward three degrees. A course already spent on the B.S.
+  and the MSCSE counts nothing in the Ph.D.
+- **On the MSCSE side**, coursework shared with the bachelor's is capped at six credits (§3.5).
 
-**When the answer comes:** if the Graduate School allows it, the allowance is already written and
-tested — `git show 00d971d` restores the `seniorgrad` cap, the `phd_senior_grad_credits_max`
-parameter, the DGS's fill order (courses covering more of the qualifier first) and its scenarios.
-If they refuse, delete this section, leave the code as it is, and say so in
-`docs/HANDBOOK-REVISIONS.md` §4 — which is written for exactly this conversation.
-
-**Say this to the DGS at the start of a session until they say it is resolved.**
-
-**One sheet edit is still owed** (2026-09-10: the browser could not deliver keystrokes to the Sheets
-grid). The Changelog has no row for the reversal — the DGS has the text and can paste it, or the next
-session with a working browser should add it. The Parameters row `phd_senior_grad_credits_max` was
-LEFT in place deliberately and is parked in `DISPLAY_PARAMETER_KEYS`, so it raises no warning and its
-value survives for the day the allowance comes back.
+The app cannot know which degrees a course was spent on, so it asks the student, per course — and
+only where the answer can change something: Notre Dame undergraduate coursework, for a student who
+holds a Notre Dame master's. Nothing counts until they answer.
 
 ## Deployed
 

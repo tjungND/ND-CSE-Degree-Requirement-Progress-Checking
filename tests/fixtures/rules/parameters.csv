@@ -4,6 +4,7 @@ ms_regular_credits_min,24,§3.2,
 ms_project_credits_min,6,§3.2,CSE 68901 / 68902
 ms_4xxxx_credits_max,6,§3.2,CSE 4xxxx only (DGS decision 2026-08-31)
 ms_noncse_credits_max,9,§3.2,
+ms_bs_double_count_credits_max,6,§3.5,How much of an MSCSE student's coursework may also have counted toward their bachelor's degree — §3.5's two 40000-level courses or their 6xxxx equivalent (DGS 2026-09-10). The Ph.D. has no equivalent cap; its limit is that no course counts toward all three degrees.
 ms_time_limit_years,5,§3.3,
 ms_thesis_readers_min,2,§3.4,thesis option only
 ms_transfer_completed_ms_credits_max,9,§5.2,completed prior M.S./Ph.D.

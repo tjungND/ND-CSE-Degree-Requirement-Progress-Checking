@@ -18,7 +18,7 @@ import { ZERO_SUMS } from './status.ts';
 import { compareTerm, normalizeEntryTerm, shiftTermYears, termIndex, termLabel } from './term.ts';
 import type { CourseEntry, Grade, Program, Student } from './types.ts';
 
-export type CapId = 'fourk' | 'noncse' | 'transfer';
+export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs';
 
 export interface CapSpec {
   id: CapId;
@@ -268,6 +268,106 @@ export function classify(student: Student, rules: Rules): {
       // student's status when they took the course, not the course's level, so
       // a graduate-numbered course taken before the bachelor's says so on its
       // own line rather than leaving it to the group heading.
+      const suggested = external === undefined && ndCoreArea === undefined ? coreTitleSuggestion(c.title) : undefined;
+      // A DGS-confirmed core area is said on the line itself (2026-09-06 —
+      // the separate "What the DGS's rules say" block is gone).
+      const coreNote = external?.satisfiesCoreArea
+        ? `; satisfies the ${areaName(external.satisfiesCoreArea)} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
+        : ndCoreArea
+          ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
+          : suggested
+            ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
+            : '';
+      // NOTRE DAME COURSEWORK TAKEN AS AN UNDERGRADUATE — the Graduate School's
+      // answer, through the DGS (2026-09-10, evening), which settles the
+      // question §5.2 criterion 2 raised and goes well past it:
+      //
+      //   "Any 60000-level and above coursework taken as an undergraduate, not
+      //   being used to fulfill undergraduate degree requirements can be used
+      //   to satisfy both the master's and the PhD. Notably, such credits are
+      //   counted towards the PhD, even those above and beyond the usual 24
+      //   allowed for transfer. The only hard constraint is that the same
+      //   course's credits cannot count towards three degrees (BS, MSCSE, PhD)
+      //   at the same time. … up to two 40000-level courses taken by ND
+      //   undergraduates can count towards both BS and MSCSE. … up to 6 credits
+      //   from 40xxx courses can count towards PhD."
+      //
+      // So this coursework is NOT §5.2 transfer credit at all — it never
+      // touches the transfer cap. A 6xxxx course counts in full whether or not
+      // the B.S. used it (DGS 2026-09-10: uncapped); a course below the 60000
+      // level counts inside §4.2's own six-credit allowance, the same six a
+      // course taken in the program would use. The one bar is a course already
+      // spent on two degrees.
+      const awardedTerm = student.bachelorsAwarded;
+      const asUndergraduate =
+        c.degreeLevel === 'bachelors' || (awardedTerm !== undefined && compareTerm(c.term, awardedTerm) <= 0);
+      // Only coursework that could actually count comes down this path. A
+      // 20000-level course, or a non-CSE course below the 60000 level, counts
+      // nothing at any answer, so it keeps the line it has always had — which
+      // leads with the one thing it CAN do, demonstrate a §4.4.1 core area,
+      // and tells the student to send the review request.
+      const undergradLevelEarly = levelOf(c, rule);
+      const eligibleUndergradLevel =
+        undergradLevelEarly >= 6 ||
+        (deptOf(c.courseId) === 'CSE' && (undergradLevelEarly === 4 || (undergradLevelEarly === 5 && rule !== undefined)));
+      if (asUndergraduate && eligibleUndergradLevel && isNotreDameInstitution(c.institution)) {
+        const spent = c.countedToward;
+        // A Ph.D. student with no Notre Dame master's cannot have a course
+        // that already counted twice, so they are never asked.
+        const couldHaveCountedTwice = student.program !== 'phd' || student.ndMasters !== undefined;
+        const shape = rule ? priorNdShape(c.courseId, rule, student.program) : undefined;
+        if (shape && 'ineligibleReason' in shape) {
+          return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
+        }
+        // The level rules are the degree's, not the transcript's: this
+        // coursework counts the way the same course would if it were taken in
+        // the program. Below the 60000 level that means §4.2's six-credit
+        // allowance and nothing under the 40000 level at all — an
+        // undergraduate transcript is full of 1xxxx and 2xxxx courses, and
+        // without this they filled that allowance.
+        const undergradLevel = undergradLevelEarly;
+        // Only now, when the course could actually count, is the student asked
+        // anything: no course may count toward three degrees, so the answer
+        // decides it. A 20000-level course counts nothing at any answer, and
+        // asking about it would be noise on every undergraduate transcript.
+        // The three-degree bar is the PH.D.'s: a course already spent on the
+        // bachelor's and the master's cannot be spent a third time. For an
+        // MSCSE student "both" is not a bar at all — it describes the
+        // double-counting §3.5 allows, and the cap below is what limits it.
+        if (spent === 'both' && student.program === 'phd') {
+          return {
+            ...extBase,
+            ineligibleReason: `not counted — you have told us this course already counted toward your bachelor’s degree AND your master’s, and no course may count toward three degrees${coreNote}`,
+          };
+        }
+        if (spent === undefined && couldHaveCountedTwice) {
+          return {
+            ...extBase,
+            ineligibleReason: `not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, so the answer decides whether it counts here${coreNote}`,
+          };
+        }
+        // 60000 and above: in full, and outside every cap the app has — the
+        // Graduate School put these beyond §5.2's twenty-four in as many words.
+        const belowSixty = undergradLevel < 6;
+        const provisional = rule === undefined; // not in the rules sheet: counted, but the DGS is asked
+        // §3.5 lets an MSCSE student count coursework their bachelor's degree
+        // already used, up to six credits in all — "an ND 4+1 student can have
+        // up to 6 credits (whether 40xxx or 60xxx courses) counted towards
+        // both degrees" (DGS 2026-09-10). The Ph.D. has no such cap: what it
+        // has is the three-degree bar above.
+        const sharedWithBachelors: CapId[] =
+          student.program === 'mscse' && (spent === 'bs' || spent === 'both') ? ['sharedbs'] : [];
+        return {
+          ...extBase,
+          pool: shape?.pool ?? 'regular',
+          caps: [
+            ...sharedWithBachelors,
+            ...(belowSixty ? ['fourk' as CapId, ...(shape?.caps ?? []).filter((id) => id !== 'fourk')] : (shape?.caps ?? []).filter((id) => id !== 'fourk')),
+          ],
+          tier: tierFor(grade, provisional),
+          ...(rule === undefined ? { unknown: true as const, approvalPending: 'not in the rules sheet — counted provisionally; needs DGS review' } : {}),
+        };
+      }
       if (c.degreeLevel === 'bachelors') {
         const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
         const suggested = coreTitleSuggestion(c.title);
@@ -287,16 +387,6 @@ export function classify(student: Student, rules: Rules): {
       // thing a prior course can earn — an unreviewed course whose title
       // matches the core keywords may satisfy §4.4.1 core knowledge after the
       // DGS's review, and its line says so. (A DGS-ruled course is decided.)
-      const suggested = external === undefined && ndCoreArea === undefined ? coreTitleSuggestion(c.title) : undefined;
-      // A DGS-confirmed core area is said on the line itself (2026-09-06 —
-      // the separate "What the DGS's rules say" block is gone).
-      const coreNote = external?.satisfiesCoreArea
-        ? `; satisfies the ${areaName(external.satisfiesCoreArea)} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
-        : ndCoreArea
-          ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
-          : suggested
-            ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
-            : '';
       const transferable = transferableFor(external, student.program);
       if (transferable === 'no') {
         return {
@@ -329,17 +419,6 @@ export function classify(student: Student, rules: Rules): {
       const awarded = student.bachelorsAwarded;
       const beforeBachelors = awarded !== undefined && compareTerm(c.term, awarded) <= 0;
       const whenTaken = awarded !== undefined && compareTerm(c.term, awarded) === 0 ? 'in the term' : 'before';
-      // §5.2 criterion 2, strictly, while the department's question sits with
-      // the Graduate School (DGS 2026-09-10, evening): NO credit earned before
-      // the bachelor's degree transfers — not even §3.5's junior/senior-year
-      // 6xxxx courses, which the department counts toward the MSCSE. The
-      // allowance built earlier the same day is withdrawn until the Graduate
-      // School answers, because criterion 2 is their sentence, not ours.
-      //
-      // Those courses are NOT worthless here: they still satisfy §4.4.1 core
-      // knowledge and, since this ruling, the §4.4.2 specialization
-      // requirement — neither of which is credit (phd.ts). What they cannot do
-      // is bring credit into the degree.
       if (beforeBachelors) {
         return {
           ...extBase,
@@ -583,7 +662,13 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     if (cc.entry.origin === 'nd' && (cc.rule?.courseType === 'research' || cc.rule?.courseType === 'project')) {
       sums.ndResearch[cc.tier] += counted; // §4.5 along-the-way (DGS 2026-09-04)
     }
-    if (cc.entry.origin === 'transfer') sums.transfer[cc.tier] += counted;
+    // §5.2's running total counts only what §5.2's cap governs. Notre Dame
+    // coursework taken as an undergraduate is filed as 'transfer' (it is not
+    // this program's coursework) but is NOT transfer credit: the Graduate
+    // School put it "above and beyond the usual 24" (2026-09-10). Counting it
+    // here made the §5.2 row read "6 of 6 transfer credits counted" for a
+    // student with no transfer credit at all.
+    if (cc.entry.origin === 'transfer' && cc.caps.includes('transfer')) sums.transfer[cc.tier] += counted;
 
     const excludedReason = unknownCap
       ? `the rules sheet does not say what the ${capLabel(unknownCap)} is, so this course cannot be counted yet — ask the DGS to fill it in (${caps.find((c) => c.id === unknownCap)?.section ?? ''})`
@@ -778,7 +863,15 @@ function buildExplanation(
     // …and so does a graduate course excluded for §5.2 reasons (the award
     // term, the window, the grade floor, a DGS "no") whose line carries a
     // core note: confirmed → green, keyword → amber (2026-09-06 evening).
-    mark = /^satisfies|; satisfies the /.test(reason) ? 'counts' : /^may satisfy|; may still satisfy /.test(reason) ? 'pending' : 'excluded';
+    // A course whose fate waits on the student's own answer is amber, whatever
+    // else its line says: green would tell them it is settled (2026-09-10).
+    mark = /^not counted yet/.test(reason)
+      ? 'pending'
+      : /^satisfies|; satisfies the /.test(reason)
+        ? 'counts'
+        : /^may satisfy|; may still satisfy /.test(reason)
+          ? 'pending'
+          : 'excluded';
     parts.push(/not counted|not relevant|superseded|failed|^satisfies|^may satisfy/.test(reason) ? reason : `not counted — ${reason}`);
     // A course that earns nothing anyway does not need the approval note —
     // the review request still lists it (DGS 2026-09-06: the old suffix read

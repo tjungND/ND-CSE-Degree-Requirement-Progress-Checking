@@ -512,61 +512,77 @@ describe('§3.5 / §3.6 track notes', () => {
   });
 });
 
-// §3.5's courses under the STRICT reading of §5.2 (DGS 2026-09-10, evening,
-// while the department's question sits with the Graduate School): no credit
-// earned before the bachelor's degree transfers, but those courses still
-// satisfy both components of the qualifier — neither of which is credit.
-describe('§3.5 courses: no credit, both qualifier components', () => {
+// Notre Dame coursework taken as an UNDERGRADUATE, under the Graduate School's
+// answer (through the DGS, 2026-09-10 evening): 60000-level and above counts
+// toward the Ph.D. in full — "even those above and beyond the usual 24 allowed
+// for transfer" — below it inside §4.2's six credits, and no course may count
+// toward three degrees.
+describe('undergraduate Notre Dame coursework', () => {
   const rules = buildRules();
   const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
     schemaVersion: 1,
     program: 'phd',
     entryTerm: { season: 'fall', year: 2026 },
-    bachelorsAwarded: { season: 'spring', year: 2026 },
-    priorMs: 'completed',
+    bachelorsAwarded: { season: 'spring', year: 2025 },
+    priorMs: 'none',
     gpa: 3.8,
     courses,
     milestones: {},
-    attestations: { transferApproved: true },
+    attestations: {},
     ...over,
   });
-  const before = (courseId: string, institution = 'University of Notre Dame'): CourseEntry => ({
-    courseId, credits: 3, term: { season: 'fall', year: 2025 }, grade: 'A', origin: 'transfer',
-    institution, degreeLevel: 'masters', registeredLevel: 'graduate',
+  const ug = (courseId: string, countedToward?: CourseEntry['countedToward'], institution = 'University of Notre Dame'): CourseEntry => ({
+    courseId, credits: 3, term: { season: 'fall', year: 2024 }, grade: 'A', origin: 'transfer',
+    institution, degreeLevel: 'bachelors', registeredLevel: 'undergraduate', countedToward,
   });
+  const held = { ndMasters: { term: { season: 'spring' as const, year: 2026 } }, priorMs: 'completed' as const };
   const report = (s: Student) => audit(s, rules, '2027-06-01');
   const lineFor = (s: Student, id: string) => report(s).courseLines.find((l) => l.courseId === id)!.text;
+  const detail = (s: Student, id: string) => report(s).requirements.find((r) => r.id === id)!.detail;
 
-  it('brings no credit into the degree', () => {
-    const s = student([before('CSE 60641')]);
-    assert.match(lineFor(s, 'CSE 60641'), /not counted — taken before your bachelor’s degree was awarded/);
-    assert.match(report(s).requirements.find((r) => r.id === 'phd.credits.regular')!.detail, /0 of 24/);
-    assert.match(report(s).requirements.find((r) => r.id === 'phd.credits.total')!.detail, /0 of 60/);
+  it('a 60000-level course counts in full, and outside the §5.2 cap', () => {
+    const s = student([ug('CSE 60641'), ug('CSE 60111')]);
+    assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses \(3 cr\)/);
+    assert.match(detail(s, 'phd.credits.regular'), /6 of 24/);
+    assert.match(detail(s, 'phd.credits.total'), /6 of 60/);
+    assert.match(detail(s, 'phd.transfer'), /No transfer courses entered/, 'this is not transfer credit');
   });
 
-  it('satisfies §4.4.1 core knowledge', () => {
-    const row = report(student([before('CSE 60641')])).requirements.find((r) => r.id === 'phd.qualifier.core.os');
-    assert.equal(row?.status, 'met');
-    assert.match(row!.detail, /CSE 60641/);
+  it('below the 60000 level it draws on §4.2’s six credits; below 40000 it counts nothing', () => {
+    const s = student([ug('CSE 40113'), ug('CSE 40567'), ug('CSE 40875'), ug('CSE 20110')]);
+    assert.match(detail(s, 'phd.cap.fourk'), /6 of the 6 credits below the 60000 level used/);
+    assert.match(lineFor(s, 'CSE 20110'), /taken as an undergraduate student — no transfer credit/, 'a course that cannot count at any answer keeps the line it always had');
   });
 
-  it('satisfies §4.4.2 specialization — three of them meet the requirement outright', () => {
-    const s = student([before('CSE 60641'), before('CSE 60111'), before('CSE 60321')]);
-    const row = report(s).requirements.find((r) => r.id === 'phd.qualifier.categories');
-    assert.equal(row?.status, 'met');
-    assert.match(row!.detail, /3 distinct groups/);
-    assert.match(report(s).requirements.find((r) => r.id === 'phd.credits.regular')!.detail, /0 of 24/, 'and still no credit');
+  it('a student with no Notre Dame master’s is never asked — nothing of theirs can have counted twice', () => {
+    assert.match(lineFor(student([ug('CSE 60641')]), 'CSE 60641'), /^counts toward/);
   });
 
-  it('a course from ANOTHER university taken before the degree does neither', () => {
-    const s = student([before('CS 50300', 'Purdue University')]);
-    assert.match(lineFor(s, 'CS 50300'), /taken before your bachelor’s degree was awarded/);
-    assert.equal(report(s).requirements.find((r) => r.id === 'phd.qualifier.categories')?.status, 'unmet');
+  it('a student who HOLDS the MSCSE is asked, and nothing counts until they answer', () => {
+    const s = student([ug('CSE 60641')], held);
+    assert.match(lineFor(s, 'CSE 60641'), /^not counted yet — say which degrees/);
+    assert.equal(report(s).courseLines.find((l) => l.courseId === 'CSE 60641')?.mark, 'pending', 'amber: it waits on them, not on us');
+    assert.match(detail(s, 'phd.credits.regular'), /0 of 24/);
   });
 
-  it('a fifth-year Notre Dame course still transfers, as §5.2’s last sentence allows', () => {
-    const after: CourseEntry = { ...before('CSE 60641'), term: { season: 'fall', year: 2026 } };
-    const s = student([after], { entryTerm: { season: 'fall', year: 2027 } });
-    assert.match(lineFor(s, 'CSE 60641'), /counts toward regular courses/);
+  it('“both” is the one answer that stops it — no course counts toward three degrees', () => {
+    const both = student([ug('CSE 60641', 'both')], held);
+    assert.match(lineFor(both, 'CSE 60641'), /already counted toward your bachelor’s degree AND your master’s/);
+    assert.match(detail(both, 'phd.credits.regular'), /0 of 24/);
+    for (const answer of ['bs', 'mscse', 'neither'] as const) {
+      const s = student([ug('CSE 60641', answer)], held);
+      assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses/, `answer ${answer} should count`);
+    }
+  });
+
+  it('§4.4.1 and §4.4.2 come with the credit', () => {
+    const s = student([ug('CSE 60641'), ug('CSE 60111'), ug('CSE 60321')]);
+    assert.equal(report(s).requirements.find((r) => r.id === 'phd.qualifier.core.os')?.status, 'met');
+    assert.match(detail(s, 'phd.qualifier.categories'), /3 distinct groups/);
+  });
+
+  it('a course from ANOTHER university taken before the degree is untouched by any of this', () => {
+    const s = student([ug('CS 50300', undefined, 'Purdue University')]);
+    assert.match(lineFor(s, 'CS 50300'), /taken as an undergraduate student — no transfer credit \(§5\.2\)/);
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-grad-before-bachelors",
-  "description": "A Notre Dame 4+1: a senior-year course registered at the GRADUATE level (the transcript's GR column) in the term the B.S. was awarded. §5.2 criterion 2 is read strictly while the department's question sits with the Graduate School (DGS 2026-09-10, evening): no credit earned before the bachelor's degree transfers, not even §3.5's junior/senior-year 6xxxx courses. They are not worthless here — they satisfy BOTH qualifier components, §4.4.1 core knowledge and §4.4.2 specialization, neither of which is credit. With only one such course the §4.4.2 row is still short, and the §5.2 row is NOT APPLICABLE — the course is excluded on its own terms, so the DGS has nothing to decide and the student has nothing to ask for (2026-09-09).",
+  "description": "A Notre Dame 4+1's senior-year course, registered at the GRADUATE level in the term the B.S. was awarded. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. This student holds no Notre Dame master's, so nothing of theirs can have counted toward two degrees and the app never asks: the 60000-level courses simply count. The 30000-level one counts nothing at any answer, so it is not asked about either.",
   "today": "2025-09-04",
   "rules": {
     "base": "default"
@@ -74,6 +74,18 @@
     "attestations": {}
   },
   "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 24"
+      ]
+    },
+    "phd.transfer": {
+      "status": "not_applicable",
+      "detailIncludes": [
+        "No transfer courses entered"
+      ]
+    },
     "phd.qualifier.core.os": {
       "status": "met",
       "detailIncludes": [
@@ -85,25 +97,15 @@
       "detailIncludes": [
         "CSE 60111"
       ]
-    },
-    "phd.transfer": {
-      "status": "not_applicable",
-      "detailIncludes": [
-        "Nothing here needs a DGS decision",
-        "CSE 60641: not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"
-      ]
-    },
-    "phd.qualifier.categories": {
-      "status": "unmet",
-      "detailIncludes": [
-        "2 qualifying courses covering 2 distinct groups"
-      ]
     }
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "taken in the term your bachelor’s degree was awarded",
-      "satisfies the Operating Systems core-knowledge requirement (§4.4.1)"
+      "counts toward regular courses (3 cr)"
+    ],
+    "CSE 30321": [
+      "may satisfy the Computer Architecture core-knowledge requirement (§4.4.1)",
+      "no transfer credit"
     ]
   }
 }

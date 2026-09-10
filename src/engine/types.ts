@@ -61,6 +61,22 @@ export interface CourseEntry {
   claimedCoreArea?: CoreArea;
   /** Only meaningful when the rules sheet says category_group = 'any' (decision Q2). */
   assignedGroup?: CategoryGroup;
+  /** Which degrees this course's credits have ALREADY been counted toward —
+   * asked of the student, per course, for Notre Dame coursework taken in or
+   * before the term their bachelor's degree was awarded (Graduate School via
+   * the DGS, 2026-09-10 evening).
+   *
+   * The Graduate School's answer: 60000-level and above taken as an
+   * undergraduate counts toward the master's AND the Ph.D., beyond §5.2's
+   * twenty-four; up to six credits of 40000-level B.S. coursework counts
+   * toward the Ph.D.; and the one hard limit is that no course may count
+   * toward all three degrees. So what the audit needs from the student is
+   * simply which degrees each such course has been spent on.
+   *
+   * `undefined` = not answered, and nothing is counted on a guess. A Ph.D.
+   * student who holds no Notre Dame master's is never asked: with two degrees
+   * in play, no course of theirs can already have counted toward two. */
+  countedToward?: 'bs' | 'mscse' | 'both' | 'neither';
 }
 
 /** ISO dates (YYYY-MM-DD), all optional — milestones are dates, not checkboxes. */

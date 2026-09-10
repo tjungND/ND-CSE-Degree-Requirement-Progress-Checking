@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-bachelors-then-phd",
-  "description": "A Ph.D. student who did their bachelor's at Notre Dame and entered the Ph.D. straight after, WITH the bachelor's award term set — the state every such student is in since that field became required (2026-09-07). §5.2 criterion 2 is read strictly while the department's question sits with the Graduate School (DGS 2026-09-10, evening): no credit earned before the bachelor's degree transfers, not even §3.5's junior/senior-year 6xxxx courses. They are not worthless here — they satisfy BOTH qualifier components, §4.4.1 core knowledge and §4.4.2 specialization, neither of which is credit. Both of their pre-degree Notre Dame courses therefore cover a §4.4.1 area and a §4.4.2 group while bringing no credit, and the §5.2 row has nothing to ask the DGS for.",
+  "description": "A Ph.D. student who did their bachelor's at Notre Dame and entered the Ph.D. straight after. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. With no master's behind them the app asks nothing, and their undergraduate 60000-level coursework counts in full — including toward §4.4.2, which it meets outright here.",
   "today": "2026-09-09",
   "rules": {
     "base": "default"
@@ -80,11 +80,16 @@
     "attestations": {}
   },
   "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "9 of 24"
+      ]
+    },
     "phd.transfer": {
       "status": "not_applicable",
       "detailIncludes": [
-        "Nothing here needs a DGS decision",
-        "CSE 60111: not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"
+        "No transfer courses entered"
       ]
     },
     "phd.qualifier.core.os": {
@@ -93,41 +98,19 @@
         "CSE 60641"
       ]
     },
-    "phd.qualifier.core.algorithms": {
-      "status": "met",
-      "detailIncludes": [
-        "CSE 60111"
-      ]
-    },
-    "phd.qualifier.core.architecture": {
-      "status": "met",
-      "detailIncludes": [
-        "CSE 60321"
-      ]
-    },
     "phd.qualifier.categories": {
       "status": "met",
       "detailIncludes": [
         "3 distinct groups"
       ]
-    },
-    "phd.credits.nd": {
-      "status": "unmet",
-      "detailIncludes": [
-        "3 of 9"
-      ]
-    },
-    "phd.msAlongTheWay": {
-      "status": "not_applicable"
     }
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "satisfies the Operating Systems core-knowledge requirement (§4.4.1)",
-      "no transfer credit"
+      "counts toward regular courses (3 cr)"
     ],
     "CSE 60111": [
-      "taken in the term your bachelor’s degree was awarded"
+      "counts toward regular courses (3 cr)"
     ]
   }
 }

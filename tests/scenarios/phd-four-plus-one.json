@@ -1,6 +1,6 @@
 {
   "name": "phd-four-plus-one",
-  "description": "A Ph.D. student who came through Notre Dame's own 4+1 (§3.5 Integrated B.S. + M.S.), which is three careers on one transcript. §5.2 criterion 2 is read strictly while the department's question sits with the Graduate School (DGS 2026-09-10, evening): no credit earned before the bachelor's degree transfers, not even §3.5's junior/senior-year 6xxxx courses. They are not worthless here — they satisfy BOTH qualifier components, §4.4.1 core knowledge and §4.4.2 specialization, neither of which is credit. So the two §3.5 courses here cover Operating Systems and Algorithms and a §4.4.2 group each, while only the fifth-year MSCSE courses bring credit. The M.S. thesis-direction credits keep the Courses tab's verdict, the §4.5 along-the-way row is absent — they already hold the MSCSE — and §4.2's nine credits at Notre Dame stand at zero, because every credit they have is transferred.",
+  "description": "A Ph.D. student who came through Notre Dame's own 4+1 — three careers on one transcript, and the case the three-degree limit is written for. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. This student HOLDS the MSCSE, so each undergraduate course is asked about and counts nothing until answered: here none has been, so the two §3.5 courses and the 40000-level one wait, amber, while the fifth-year MSCSE coursework transfers under §5.2 as usual. The courses still satisfy §4.4.1 and §4.4.2 meanwhile — neither is credit.",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -146,8 +146,19 @@
     "phd.transfer": {
       "status": "met",
       "detailIncludes": [
-        "9 of 24 transfer credits counted",
-        "CSE 60641: not counted — taken before your bachelor’s degree was awarded"
+        "9 of 24 transfer credits counted"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "9 of 24"
+      ]
+    },
+    "phd.qualifier.categories": {
+      "status": "met",
+      "detailIncludes": [
+        "4 distinct groups"
       ]
     },
     "phd.qualifier.core.os": {
@@ -156,36 +167,10 @@
         "CSE 60641"
       ]
     },
-    "phd.qualifier.core.algorithms": {
-      "status": "met",
-      "detailIncludes": [
-        "CSE 60111"
-      ]
-    },
-    "phd.qualifier.core.architecture": {
-      "status": "met",
-      "detailIncludes": [
-        "CSE 60321"
-      ]
-    },
-    "phd.qualifier.categories": {
-      "status": "met",
-      "detailIncludes": [
-        "4 distinct groups",
-        "CSE 60641",
-        "CSE 60111"
-      ]
-    },
     "phd.credits.nd": {
       "status": "unmet",
       "detailIncludes": [
         "0 of 9"
-      ]
-    },
-    "phd.credits.regular": {
-      "status": "unmet",
-      "detailIncludes": [
-        "9 of 24"
       ]
     }
   },
@@ -197,11 +182,7 @@
   ],
   "expectCourseLines": {
     "CSE 60641": [
-      "taken before your bachelor’s degree was awarded (Spring 2025)",
-      "satisfies the Operating Systems core-knowledge requirement (§4.4.1)"
-    ],
-    "CSE 60111": [
-      "taken in the term your bachelor’s degree was awarded (Spring 2025)"
+      "not counted yet — say which degrees this course has already counted toward"
     ],
     "CSE 60321": [
       "counts toward regular courses (3 cr)",

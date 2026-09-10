@@ -98,25 +98,33 @@ courses".
 MSCSE. When that student goes on to the Ph.D., §5.2 appears to bar exactly the courses §3.5
 allowed.
 
-**What the app does (DGS, 2026-09-10, evening).** The strict reading of §5.2, while the department's
-question sits with the Graduate School: no credit earned before the bachelor's degree transfers, not
-even §3.5's own courses. They still satisfy BOTH components of the qualifying examination — §4.4.1
-core knowledge and §4.4.2 specialization — because neither is credit. Only fifth-year (post-B.S.)
-coursework brings credit in.
+**ANSWERED by the Graduate School (through the DGS, 2026-09-10, evening) — and the answer is much
+broader than the question.** Verbatim: *"Any 60000-level and above coursework taken as an
+undergraduate, not being used to fulfill undergraduate degree requirements can be used to satisfy
+both the master's and the PhD. Notably, such credits are counted towards the PhD, even those above
+and beyond the usual 24 allowed for transfer. The only hard constraint is that the same course's
+credits cannot count towards three degrees (BS, MSCSE, PhD) at the same time. … up to two 40000-level
+courses taken by ND undergraduates can count towards both BS and MSCSE. … an ND 4+1 student can have
+up to 6 credits (whether 40xxx or 60xxx courses) counted towards both degrees. … up to 6 credits from
+40xxx courses can count towards PhD."*
 
-**⚠ THIS IS THE LIVE QUESTION.** The DGS asked the Graduate School on 2026-09-10 whether criterion 2
-bars §3.5's courses. It is their sentence, not the department's, so the department cannot settle it —
-and it decides whether a 4+1 student arrives with six credits or none. Everything else in this file
-can wait for the next handbook revision; this one is waiting on an answer.
+So §5.2 criterion 2 does not bar this coursework, and the credits do not pass through §5.2 at all.
+The app implements it.
 
-**Suggested sentence, if the Graduate School allows it.** In §3.5, after the sentence about counting
-toward the MSCSE: *"Where such a student continues into a Notre Dame graduate program, those courses
-may be transferred under Section 5.2 notwithstanding the requirement of graduate student status in
-that section."* **If they refuse**, the department should write down what those courses DO carry, so
-no 4+1 student expects credit that cannot come: *"Courses taken before the bachelor's degree was
-awarded, including 6xxxx courses taken under Section 3.5, do not carry transfer credit into a Notre
-Dame graduate program, but may satisfy the core-knowledge and category-specialization components of
-the qualifying examination in Section 4.4."*
+**What the handbook should now say**, because none of this is in it:
+
+- In §3.5 or §4.2: *"Coursework at the 60000 level or above taken while an undergraduate at Notre
+  Dame may be counted toward both the MSCSE and the Ph.D., in addition to the transfer credit allowed
+  by Section 5.2. Up to six credits of 40000-level coursework taken as an undergraduate may count
+  toward the Ph.D. course requirement."*
+- And the constraint, which belongs somewhere prominent: *"No course's credits may count toward three
+  degrees. A course counted toward both the bachelor's degree and the MSCSE cannot also be counted
+  toward the Ph.D."*
+- In §3.5, the department's own limit: *"At most six credits may be counted toward both the bachelor's
+  degree and the MSCSE."*
+
+Until those sentences exist, this file is the only written record of a rule that decides how much
+credit every 4+1 student arrives with.
 
 ---
 

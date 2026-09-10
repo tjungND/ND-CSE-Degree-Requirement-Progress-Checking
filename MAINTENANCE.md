@@ -108,12 +108,19 @@ rows, and since the last row wins, earlier rulings were shadowed by later blank 
 details in the same email still list every attempt. If the tab already holds duplicates, the
 diagnostics list them — keep the row you want and delete the rest.
 
-A Notre Dame 4+1 student's §3.5 courses — the 6xxxx courses taken in the junior/senior year, before
-the bachelor's degree — bring NO credit into the Ph.D. (§5.2 criterion 2 asks for graduate student
-status, and that is the Graduate School's sentence). They do satisfy both components of the
-qualifying examination, §4.4.1 core knowledge and §4.4.2 specialization, since neither is credit.
-Only fifth-year coursework transfers. **This is open with the Graduate School** — see the top of
-`docs/STATE.md`; if they allow the transfer, the allowance is already written and tested.
+Notre Dame coursework a student took as an UNDERGRADUATE counts toward their graduate degrees
+(Graduate School, 2026-09-10): 60000-level and above in full — beyond §5.2's twenty-four, and not
+transfer credit at all — and below that up to six credits, inside §4.2's own allowance. Nothing below
+the 40000 level counts, and neither does a non-CSE course below 60000. The one hard limit: no course
+counts toward three degrees, so a course a student spent on both their B.S. and their MSCSE counts
+nothing in the Ph.D.
+
+The app cannot know which degrees a course was spent on, so it asks the student, per course, in the
+coursework table — and only where the answer changes something: their own Notre Dame undergraduate
+coursework, and only if they hold a Notre Dame master's. Until they answer, the course counts nothing
+and says so. Their answers are on the self-check page and in the review request, so you can correct
+one that looks wrong. On the MSCSE side, coursework shared with the bachelor's is capped at
+`ms_bs_double_count_credits_max` (6 credits, §3.5).
 
 Since 2026-09-09 the app can tell a CSE course from a non-CSE one on ANOTHER university's
 transcript, which is what §4.2's nine-credit limit on courses "taken from a department other than

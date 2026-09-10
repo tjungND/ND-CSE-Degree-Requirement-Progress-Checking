@@ -1823,6 +1823,50 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           );
         }
       }
+      // Which degrees this course has already been counted toward (Graduate
+      // School via the DGS, 2026-09-10 evening). Asked only where the answer
+      // can change anything: Notre Dame coursework the student took as an
+      // undergraduate, and only when they could already have spent it on two
+      // degrees — a Ph.D. student with no Notre Dame master's is never asked,
+      // because with two degrees in play nothing can have counted toward two.
+      const awardTerm = student.bachelorsAwarded;
+      const asUndergraduate =
+        isNotreDameInstitution(c.institution) &&
+        (c.degreeLevel === 'bachelors' || (awardTerm !== undefined && termIndex(c.term) <= termIndex(awardTerm)));
+      const couldHaveCountedTwice = student.program !== 'phd' || student.ndMasters !== undefined;
+      if (asUndergraduate && couldHaveCountedTwice) {
+        const sel = el('select', {
+          'aria-label': `Which degrees ${c.courseId} has already counted toward`,
+          'data-key': `course.${index}.countedToward`,
+          onchange: (e) =>
+            update((s) => {
+              const v = (e.target as HTMLSelectElement).value;
+              s.courses[index]!.countedToward = (v || undefined) as CourseEntry['countedToward'];
+            }),
+        });
+        // "Both" is the only answer that stops the course counting here: no
+        // course may count toward three degrees. The others differ for the
+        // MSCSE audit, which caps coursework shared with the bachelor's.
+        for (const [value, label] of [
+          ['', 'Already counted toward…'],
+          ['neither', 'Neither — it was extra'],
+          ['bs', 'My bachelor’s degree'],
+          ['mscse', 'My MSCSE'],
+          ['both', 'Both my bachelor’s and my MSCSE'],
+        ] as const) {
+          sel.append(option(value, label, (c.countedToward ?? '') === value));
+        }
+        countsCell.append(el('div', {}, sel));
+        if (c.countedToward === undefined) {
+          countsCell.append(
+            el(
+              'div',
+              { class: 'group-hint' },
+              'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it — unless it has already counted toward both your bachelor’s and your MSCSE. No course may count toward three degrees, so this answer decides it.',
+            ),
+          );
+        }
+      }
       // Strike through only courses that count NOTHING — a course partly over
       // a cap still counts its allowed credits.
       const countsNothing = line?.mark === 'excluded';

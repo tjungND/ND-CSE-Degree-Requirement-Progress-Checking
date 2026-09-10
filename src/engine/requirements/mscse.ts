@@ -100,6 +100,26 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
     }),
   );
 
+  // §3.5, through the DGS (2026-09-10): "an ND 4+1 student can have up to 6
+  // credits (whether 40xxx or 60xxx courses) counted towards both degrees."
+  // The row appears only for a student who has such a course.
+  if (ctx.classified.some((c) => c.caps.includes('sharedbs'))) {
+    rows.push(
+      capRow({
+        id: 'ms.cap.sharedbs',
+        group: COURSEWORK,
+        title: 'At most 6 credits shared with your bachelor\u2019s degree',
+        capId: 'sharedbs',
+        capLabel: 'credits your bachelor\u2019s degree also used',
+        limitKey: 'ms_bs_double_count_credits_max',
+        section: '\u00a73.5',
+        quote:
+          'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE courses at the 6xxxx level, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree.',
+        ctx,
+      }),
+    );
+  }
+
   // §3.2: "Up to nine (9) credits taken from a department other than CSE may be
   // used to satisfy the course requirement, subject to approval by the advisor
   // and the DGS."

@@ -229,6 +229,12 @@ export const KNOWN_PARAMETER_KEYS = [
   'ms_project_credits_min',
   'ms_4xxxx_credits_max',
   'ms_noncse_credits_max',
+  // §3.5, through the DGS (2026-09-10): "an ND 4+1 student can have up to 6
+  // credits (whether 40xxx or 60xxx courses) counted towards both degrees" —
+  // how much of an MSCSE student's coursework may also have counted toward
+  // their bachelor's. The Ph.D. has no equivalent: its limit is that no course
+  // may count toward all three degrees.
+  'ms_bs_double_count_credits_max',
   'ms_time_limit_years',
   'ms_thesis_readers_min',
   'ms_transfer_completed_ms_credits_max',

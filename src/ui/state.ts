@@ -128,6 +128,14 @@ export function validateStudent(data: unknown): Student {
     gs && typeof gs === 'object' && (gs['basis'] === 'transcript-graduate' || gs['basis'] === 'program-only')
       ? (gs as Student['gpaSource'])
       : undefined;
+  // Which degrees a course has already counted toward (2026-09-10). A value
+  // the app does not know is dropped, never thrown on — an unanswered course
+  // simply counts nothing until the student answers.
+  const COUNTED_TOWARD = ['bs', 'mscse', 'both', 'neither'];
+  for (const c of d.courses ?? []) {
+    const row = c as unknown as Record<string, unknown>;
+    if (row['countedToward'] !== undefined && !COUNTED_TOWARD.includes(row['countedToward'] as string)) delete row['countedToward'];
+  }
   const raw = d as Record<string, unknown>;
   const bachelorsAwarded = validBachelors(raw['bachelorsAwarded']);
   return {

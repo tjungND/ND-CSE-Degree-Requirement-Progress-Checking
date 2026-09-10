@@ -218,8 +218,15 @@ function transferRow(ctx: Ctx): RequirementResult {
   // Undergraduate courses are invisible here (DGS request 2026-09-04): they
   // can never transfer (§5.2), so this card neither lists nor counts them —
   // their core-knowledge role shows on the coursework list and the core rows.
+  // …and neither is Notre Dame coursework taken as an undergraduate, which
+  // counts toward the degree without being transfer credit (2026-09-10): it
+  // has no 'transfer' cap, and listing it here would ask the DGS to decide a
+  // transfer nobody is requesting.
   const transfers = ctx.classified.filter(
-    (c) => c.entry.origin === 'transfer' && c.entry.degreeLevel !== 'bachelors',
+    (c) =>
+      c.entry.origin === 'transfer' &&
+      c.entry.degreeLevel !== 'bachelors' &&
+      (c.caps.includes('transfer') || c.pool === 'none'),
   );
   const capKey =
     ctx.student.priorMs === 'completed'
