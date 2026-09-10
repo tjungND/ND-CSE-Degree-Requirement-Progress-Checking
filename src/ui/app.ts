@@ -18,7 +18,7 @@ import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURAC
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
-import { derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
+import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
 import { copyDialog } from './copy-dialog.ts';
@@ -519,6 +519,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // coursework, which changes the §5.2 cap: a student who corrects the
         // entry term to their Ph.D. start has just told the app about a prior
         // graduate program (2026-09-09 — the cap was staying at 6).
+        // Whether their Notre Dame master's was earned BEFORE this program or
+        // along the way turns on the same term, so it is re-read first and the
+        // cap follows it (2026-09-10 — a 4+1 correcting the term got 6).
+        deriveNdMasters(s);
         derivePriorMs(s);
         if (moved.toPrior + moved.toProgram > 0) {
           window.setTimeout(
@@ -665,6 +669,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           // The student decided: keep any term already read from the
           // transcript for the wording, but drop the "inferred" flag.
           s.ndMasters = (e.target as HTMLInputElement).checked ? { ...(s.ndMasters?.term ? { term: s.ndMasters.term } : {}) } : undefined;
+          // The §5.2 cap depends on this answer — 24 credits for a completed
+          // prior degree, 6 for an unfinished one. Ticking the box used to
+          // take the §4.5 row away and leave the cap at 6 (2026-09-10).
+          derivePriorMs(s);
         }),
     });
     (ndMsBox as HTMLInputElement).checked = ndMs !== undefined;
@@ -1482,23 +1490,27 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 // report leaves that row out. A master's dated after the entry
                 // term is the along-the-way award itself, so the date decides;
                 // an undated conferral line leaves the checkbox to the student.
-                const heldMs = tp.degreesAwarded.find(
-                  (d) => (d.level === 'masters' || d.level === 'phd') && d.date !== undefined && termIndex(termOfDate(d.date)) < termIndex(s.entryTerm),
-                );
-                if (heldMs && (s.ndMasters === undefined || s.ndMasters.inferred)) {
-                  s.ndMasters = { term: termOfDate(heldMs.date!), inferred: { how: `your Notre Dame transcript shows the ${heldMs.name} awarded ${heldMs.date}` } };
-                  ndMastersSet = true;
-                }
+                // Kept on the record so the reading can be made again when the
+                // entry term changes — which for a 4+1 it usually does.
+                s.ndDegrees = tp.degreesAwarded
+                  .filter((d) => d.date !== undefined && d.level !== 'other')
+                  .map((d) => ({ level: d.level as 'bachelors' | 'masters' | 'phd', date: d.date! }));
+                deriveNdMasters(s);
+                ndMastersSet = s.ndMasters !== undefined;
                 // Prior GRADUATE coursework at Notre Dame sets "Prior graduate
                 // study" the way an uploaded Master's transcript does
                 // (2026-09-03 rule): completed when the transcript shows a
                 // graduate degree awarded, else "not completed" + the warning.
-                if (s.priorMs === 'none' && hasPriorGraduateStudy(s)) {
-                  const conferred = heldMs !== undefined || tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd');
-                  s.priorMs = conferred ? 'completed' : 'unfinished';
+                // derivePriorMs carries the Notre Dame master's; an UNDATED
+                // conferral line still counts as "completed" here, since it
+                // says the degree exists even where it cannot be placed.
+                const before = s.priorMs;
+                if (s.priorMs === 'none' && s.ndMasters === undefined && hasPriorGraduateStudy(s) && tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd')) {
+                  s.priorMs = 'completed';
                   s.priorMsInferred = true;
-                  priorSet = s.priorMs;
                 }
+                derivePriorMs(s);
+                if (s.priorMs !== before) priorSet = s.priorMs;
                 if (tp.gpaChoice === 'transcript' && tp.gpa !== undefined) {
                   s.gpa = tp.gpa;
                   s.gpaSource = { basis: 'transcript-graduate', programGpa: tp.programGpa, undergraduateGpa: tp.undergraduateGpa };

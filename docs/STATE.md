@@ -172,9 +172,11 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
    (b) For a single Notre Dame transcript covering all three careers with NO admit-term line, the
    entry term defaults to the §3.5 senior-year course's term — two years early, and the generous
    direction (the whole MSCSE then reads as program coursework). The right reading is offered as
-   the `alternative` on the standing card. Real Banner transcripts normally print an admit term, in
-   which case the default is correct; nobody has checked one, and nobody should open a real
-   transcript to find out (FERPA) — ask a student to confirm, or check the fixture generator.
+   the `alternative` on the standing card, and since 2026-09-10 correcting the term repairs
+   everything that hangs on it (the master's, the §5.2 cap, the §4.5 row). Real Banner transcripts
+   normally print an admit term, in which case the default is correct; nobody has checked one, and
+   nobody should open a real transcript to find out (FERPA) — ask a student to confirm, or check
+   the fixture generator.
 
 ## Open work (optional)
 

@@ -65,6 +65,22 @@ function validNdMasters(v: unknown): Student['ndMasters'] {
   };
 }
 
+/** The Notre Dame transcript's dated degree conferrals (2026-09-10). Malformed
+ * entries are dropped, not thrown on: they are a convenience for re-reading
+ * ndMasters, never the student's own answer. */
+function validNdDegrees(v: unknown): Student['ndDegrees'] {
+  if (!Array.isArray(v)) return undefined;
+  const out = v.flatMap((raw) => {
+    const d = raw as Record<string, unknown> | undefined;
+    const level = d?.['level'];
+    const date = d?.['date'];
+    return d && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && (level === 'bachelors' || level === 'masters' || level === 'phd')
+      ? [{ level: level as 'bachelors' | 'masters' | 'phd', date }]
+      : [];
+  });
+  return out.length > 0 ? out : undefined;
+}
+
 /** Structural check for imported files — plain-English error on mismatch. */
 export function validateStudent(data: unknown): Student {
   const d = data as Partial<Student> & { state?: unknown };
@@ -122,6 +138,7 @@ export function validateStudent(data: unknown): Student {
     bachelorsAwarded,
     bachelorsAwardedInferred: validBachelorsInferred(raw['bachelorsAwardedInferred'], bachelorsAwarded),
     ndMasters: validNdMasters(raw['ndMasters']),
+    ndDegrees: validNdDegrees(raw['ndDegrees']),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},
     courses: d.courses,

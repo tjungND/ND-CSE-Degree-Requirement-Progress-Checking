@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
-import { derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from '../src/ui/prior-nd.ts';
+import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from '../src/ui/prior-nd.ts';
 import { emptyStudent, validateStudent } from '../src/ui/state.ts';
 
 const nd = (courseId: string, season: 'fall' | 'spring', year: number, extra: Partial<CourseEntry> = {}): CourseEntry => ({
@@ -273,5 +273,74 @@ describe('prior graduate study follows the coursework', () => {
     assert.deepEqual(validateStudent({ ...JSON.parse(JSON.stringify(emptyStudent())), ndMasters: {} }).ndMasters, {});
     assert.deepEqual(validateStudent({ ...JSON.parse(JSON.stringify(base)), ndMasters: { term: 'Spring 2024' } }).ndMasters, {});
     assert.equal(validateStudent(JSON.parse(JSON.stringify(emptyStudent()))).ndMasters, undefined);
+  });
+});
+
+// The 4+1 as the app actually meets it (2026-09-10). One Notre Dame transcript
+// holds the B.S., the §3.5 senior-year courses, the MSCSE and the Ph.D., and
+// the import reads the entry term as the FIRST graduate term — the §3.5
+// course, two years early. Everything that turns on the entry term has to be
+// worked out again when the student corrects it, or a student who holds the
+// MSCSE gets an "unfinished prior M.S." and a 6-credit §5.2 cap instead of 24.
+describe('a 4+1 correcting the entry term', () => {
+  const grad = (courseId: string, season: 'fall' | 'spring', year: number): CourseEntry => ({
+    courseId, credits: 3, term: { season, year }, grade: 'A', origin: 'nd', registeredLevel: 'graduate',
+  });
+  const fourPlusOne = (): Student => ({
+    ...emptyStudent(),
+    program: 'phd',
+    entryTerm: { season: 'fall', year: 2024 }, // as the import reads it: the §3.5 senior-year term
+    bachelorsAwarded: { season: 'spring', year: 2025 },
+    ndDegrees: [
+      { level: 'bachelors', date: '2025-05-18' },
+      { level: 'masters', date: '2026-05-17' },
+    ],
+    courses: [grad('CSE 60641', 'fall', 2024), grad('CSE 60321', 'fall', 2025), grad('CSE 63801', 'fall', 2026)],
+  });
+
+  it('at import the master’s is not yet "already held" — it is dated after the term just read', () => {
+    const s = fourPlusOne();
+    deriveNdMasters(s);
+    assert.equal(s.ndMasters, undefined, 'Spring 2026 is not before Fall 2024');
+  });
+
+  it('correcting the entry term re-reads the degree, and the cap follows it', () => {
+    const s = fourPlusOne();
+    deriveNdMasters(s);
+    derivePriorMs(s);
+    s.entryTerm = { season: 'fall', year: 2026 }; // the student corrects it
+    reclassifyNotreDameCourses(s);
+    deriveNdMasters(s);
+    derivePriorMs(s);
+    assert.deepEqual(s.ndMasters?.term, { season: 'spring', year: 2026 });
+    assert.equal(s.priorMs, 'completed', 'a completed prior degree — the §5.2 cap is 24, not 6');
+  });
+
+  it('an inferred "unfinished" is upgraded once the Notre Dame master’s is known', () => {
+    const s: Student = { ...fourPlusOne(), entryTerm: { season: 'fall', year: 2026 }, priorMs: 'unfinished', priorMsInferred: true, ndDegrees: undefined };
+    reclassifyNotreDameCourses(s);
+    derivePriorMs(s);
+    assert.equal(s.priorMs, 'unfinished', 'nothing yet says the degree was finished');
+    s.ndMasters = {}; // the student ticks "I already hold the MSCSE from Notre Dame"
+    derivePriorMs(s);
+    assert.equal(s.priorMs, 'completed');
+  });
+
+  it('a master’s awarded DURING the program is §4.5’s, not one already held', () => {
+    const s: Student = { ...fourPlusOne(), entryTerm: { season: 'fall', year: 2024 }, ndDegrees: [{ level: 'masters', date: '2027-05-16' }] };
+    deriveNdMasters(s);
+    assert.equal(s.ndMasters, undefined);
+  });
+
+  it('a value the student set by hand is never re-read', () => {
+    const s: Student = { ...fourPlusOne(), entryTerm: { season: 'fall', year: 2024 }, ndMasters: {} };
+    assert.equal(deriveNdMasters(s), false);
+    assert.deepEqual(s.ndMasters, {}, 'their tick stands, whatever the transcript says');
+  });
+
+  it('keeps the transcript’s degree list through a saved file, and drops malformed entries', () => {
+    const base = { ...emptyStudent(), ndDegrees: [{ level: 'masters', date: '2026-05-17' }, { level: 'other', date: '2026-05-17' }, { level: 'masters', date: 'May 2026' }] };
+    assert.deepEqual(validateStudent(JSON.parse(JSON.stringify(base))).ndDegrees, [{ level: 'masters', date: '2026-05-17' }]);
+    assert.equal(validateStudent(JSON.parse(JSON.stringify(emptyStudent()))).ndDegrees, undefined);
   });
 });

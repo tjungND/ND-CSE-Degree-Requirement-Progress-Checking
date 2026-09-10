@@ -18,7 +18,7 @@
 // The sort is redone whenever the entry term changes, so correcting the
 // dropdown re-files the courses without a re-import. Pure functions — no DOM.
 import { NOTRE_DAME, isNotreDameInstitution } from '../data/external.ts';
-import { termIndex } from '../engine/term.ts';
+import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Student, Term } from '../engine/types.ts';
 import { levelFromNumber } from '../transcript/parse.ts';
 
@@ -56,6 +56,37 @@ export function hasPriorGraduateStudy(student: Student): boolean {
   });
 }
 
+/** Does the student already hold a Notre Dame master's — worked out again from
+ * the transcript's own degree lines and the CURRENT entry term (2026-09-10).
+ * A master's conferred BEFORE the entry term is one they already held; one
+ * conferred after it is §4.5's along-the-way award, earned inside this program.
+ *
+ * Re-derived on every entry-term change, because that term is what the reading
+ * turns on and it is the value a 4+1's transcript makes hardest to read: the
+ * import first sees the §3.5 senior-year course as the start of the program,
+ * two years early, and the student corrects it afterwards. Deciding this once
+ * at import left them holding an MSCSE the app did not know about.
+ *
+ * Fills the field only while it is empty or still an import's own reading —
+ * the same rule the bachelor's award term follows (2026-09-06). */
+export function deriveNdMasters(student: Student): boolean {
+  if (student.ndMasters !== undefined && student.ndMasters.inferred === undefined) return false; // their own answer
+  const held = (student.ndDegrees ?? []).find(
+    (d) => (d.level === 'masters' || d.level === 'phd') && termIndex(termOfDate(d.date)) < termIndex(student.entryTerm),
+  );
+  const before = student.ndMasters?.term;
+  if (held === undefined) {
+    if (student.ndMasters === undefined) return false;
+    delete student.ndMasters;
+    return true;
+  }
+  student.ndMasters = {
+    term: termOfDate(held.date),
+    inferred: { how: `your Notre Dame transcript shows a graduate degree awarded ${held.date}, before ${termLabel(student.entryTerm)}` },
+  };
+  return before === undefined || termIndex(before) !== termIndex(student.ndMasters.term!);
+}
+
 /** Keep "Prior graduate study" in step with the coursework (2026-09-09).
  * The value is inferred on a transcript import; it also has to follow a later
  * correction to the entry term or the bachelor's award term, which can turn
@@ -69,8 +100,17 @@ export function derivePriorMs(student: Student): boolean {
     // Notre Dame's own master's degree is a fact the transcript records; any
     // other prior graduate coursework leaves "completed" to the student, with
     // the standing card's warning asking for it.
-    if (student.priorMs === 'none') {
-      student.priorMs = student.ndMasters !== undefined ? 'completed' : 'unfinished';
+    //
+    // "completed" is applied whenever the Notre Dame master's is known, not
+    // only from the untouched default: the fact often arrives AFTER this ran
+    // once — the student corrects the entry term, or ticks the box — and an
+    // inferred "unfinished" left standing halves the §5.2 cap from 24 to 6
+    // for a student whose degree the transcript records (2026-09-10).
+    if (student.ndMasters !== undefined) {
+      student.priorMs = 'completed';
+      student.priorMsInferred = true;
+    } else if (student.priorMs === 'none') {
+      student.priorMs = 'unfinished';
       student.priorMsInferred = true;
     }
   } else if (student.priorMsInferred === true) {

@@ -137,6 +137,14 @@ export interface Student {
    * Your standing corrects it). Says nothing about transfer credit: those
    * courses are §5.2 candidates like any other prior graduate coursework. */
   ndMasters?: { term?: Term; inferred?: { how: string } };
+  /** The DATED degree conferrals on the Notre Dame transcript, kept so the
+   * fact above can be worked out AGAIN when the entry term changes (2026-09-10).
+   * Whether a master's was earned "before this program" or along the way is a
+   * question about the entry term, and on a 4+1's transcript the entry term is
+   * exactly what the import is least sure of — so deciding it once, at import,
+   * against a term the student then corrects is how a student who holds the
+   * MSCSE ended up with a 6-credit transfer cap instead of 24. */
+  ndDegrees?: { level: 'bachelors' | 'masters' | 'phd'; date: string }[];
   gpa?: number; // self-reported cumulative (decision Q7)
   /** Where `gpa` came from when a Notre Dame transcript filled it in
    * (2026-09-05, combined-transcript bug report): the transcript's
