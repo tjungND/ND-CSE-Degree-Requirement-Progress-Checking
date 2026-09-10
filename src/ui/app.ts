@@ -1734,7 +1734,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('div', { class: 'cid' }, c.courseId),
         el('div', { class: 'ctitle' }, c.title ?? rule?.title ?? ''),
       );
-      if (rule?.notes) nameCell.title = rule.notes;
+      // The sheet's `notes` are the DGS's working notes and students do not
+      // see them (DGS 2026-09-09) — the course-rules page dropped them that
+      // day, and this tooltip was missed. It was the more misleading of the
+      // two: a Ph.D. student hovering a bridge course was shown a note about
+      // the MSCSE ("§3.6 — transition (bridge) courses do not count toward the
+      // MSCSE"), which is true and about someone else's degree (2026-09-10).
       // The line's colour (DGS request 2026-09-06): green = earns credit or a
       // core area now, amber = in progress or counted only until an approval,
       // red = earns nothing. A shape per colour, and a spoken word, so the

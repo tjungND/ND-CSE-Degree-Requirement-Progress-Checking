@@ -211,6 +211,11 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 
 /* audit panel */
 .warnings { background: #fbeedd; border: 1px solid #e5c391; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; font-size: 13px; color: #6b4d10; }
+/* §3.5 / §3.6 track note (2026-09-10). Informational, not a warning: the
+   amber .warnings box says "something is wrong with your entry", and neither
+   of these is. Navy on a tint of it, and it sits above the dial. */
+.track-note { background: #eef2f8; border-left: 3px solid var(--navy); border-radius: 6px; padding: 9px 12px; margin-bottom: 10px; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.track-note strong { color: var(--navy); }
 .audit { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
 .scorehead { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; }
 .dial { width: 76px; height: 76px; flex: none; }

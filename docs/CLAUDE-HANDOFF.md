@@ -1057,6 +1057,16 @@ Known-pending (the app's diagnostics panel is the live truth):
   Dame's own earlier courses keep being decided by `deptOf === 'CSE'`. On the live sheet today: 55
   of 88 rows are CSE by code, 18 are ECE (the DGS's call, row by row), 15 others fall outside.
 
+- **§3.5 / §3.6 track notes** (2026-09-10; promised 2026-08-31 and never built). `src/engine/tracks.ts`
+  (pure) recognises the two tracks this audit does not model from the coursework itself — §3.6 from a
+  50000-level CSE course, §3.5 from a graduate-level Notre Dame course dated in or before
+  `bachelorsAwarded` — and returns a program-specific note, since the handbook says different things
+  to an MSCSE and a Ph.D. student about the same course. `AuditReport.tracks` carries them;
+  `renderReport` puts them ABOVE the dial as `.track-note`, deliberately not in the amber `.warnings`
+  box: no verdict changes and nothing is wrong with the record. Nothing asks the student which track
+  they are on. e2e: drive-app.mjs adds CSE 50501 and asserts the note, its position and its absence
+  for the example student.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

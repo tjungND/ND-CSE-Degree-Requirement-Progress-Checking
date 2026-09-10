@@ -3,6 +3,7 @@
 // argument so tests are deterministic.
 import type { Rules } from '../data/types.ts';
 import { allocate, classify, type CapSpec } from './allocate.ts';
+import { specialTracks } from './tracks.ts';
 import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
 import type { AuditReport, RequirementResult, Student } from './types.ts';
 import type { Ctx } from './requirements/context.ts';
@@ -177,5 +178,6 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     courseLines,
     summary,
     warnings: [...warnings, ...alloc.warnings],
+    tracks: specialTracks(student, classified),
   };
 }

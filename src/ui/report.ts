@@ -272,8 +272,24 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
             ),
           ]
         : [attention];
+  // §3.5 / §3.6 tracks this audit does not model (2026-09-10, promised
+  // 2026-08-31). Above the dial, because the number under the dial means
+  // something different once you know a required bridge year counts toward
+  // almost nothing. Deliberately NOT a warning: nothing is wrong, and the
+  // note changes no verdict — it names what the page cannot decide.
+  const trackNotes = report.tracks.map((t) =>
+    el(
+      'div',
+      { class: 'track-note', role: 'note' },
+      el('strong', {}, `${t.title} (${t.section})`),
+      ' ',
+      t.text,
+    ),
+  );
+
   panel.append(
     el('a', { class: 'jump-link back-link', href: '#main' }, '↑ Back to your inputs'),
+    ...trackNotes,
     dial(report, untouched),
     meters(report),
     ...attentionBlock,

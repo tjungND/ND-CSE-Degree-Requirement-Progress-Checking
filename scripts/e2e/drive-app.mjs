@@ -151,6 +151,28 @@ export async function driveApp(s, baseUrl) {
   await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CS 53000').querySelector('button.remove').click()`);
   await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CS 53000')`);
 
+  // §3.6 Transition to Computing (2026-09-10, promised 2026-08-31): a student
+  // who enters a 50000-level bridge course is told the audit does not model
+  // their track and sent to the DGS — above the dial, and NOT in the amber
+  // warnings box, because nothing is wrong.
+  if (await s.evalJs(`document.querySelectorAll('.track-note').length > 0`)) throw new Error('the example student is on no special track — no note should show');
+  await s.evalJs(`(() => { const o = document.querySelector('[data-key="course.new.origin"]'); o.value = 'nd'; o.dispatchEvent(new Event('change')); const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CSE 50501'; id.dispatchEvent(new Event('change')); document.querySelector('[data-key="course.new.add"]').click(); })()`);
+  await s.waitFor(`document.querySelectorAll('.track-note').length === 1`);
+  const track = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const n = document.querySelector('.track-note');
+    const dial = document.querySelector('.audit .dial') ?? document.querySelector('.audit .scorehead'); // the REPORT's dial — renderSummary draws one higher up the page
+    return { text: n.textContent, beforeDial: !!(dial && (n.compareDocumentPosition(dial) & Node.DOCUMENT_POSITION_FOLLOWING)), inWarnings: !!n.closest('.warnings') };
+  })())`));
+  console.log('  §3.6 note:', JSON.stringify(track.text.slice(0, 96)));
+  if (!/Transition to Computing \(§3\.6\)/.test(track.text)) throw new Error('the §3.6 note must name the track and its section: ' + track.text);
+  if (!/DGS/.test(track.text)) throw new Error('the §3.6 note must send the student to the DGS: ' + track.text);
+  if (!track.beforeDial) throw new Error('the track note belongs above the dial — the score means something different once you read it');
+  if (track.inWarnings) throw new Error('the track note is not a warning: nothing is wrong with the record');
+  await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card, .audit')].find(c => c.querySelector('.track-note')); c.id = 'shot-track'; })()`);
+  await s.shotElement('track-note', '#shot-track');
+  await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CSE 50501').querySelector('button.remove').click()`);
+  await s.waitFor(`document.querySelectorAll('.track-note').length === 0`);
+
   // Coursework table: the term cell shows the short form with the full name as its tooltip (DGS 2026-09-07).
   const termCell = await s.evalJs(`(() => { const a = document.querySelector('table.courses td[data-label="Term"] abbr.term'); return a ? a.textContent + '|' + a.title : ''; })()`);
   console.log('  coursework term cell:', termCell);

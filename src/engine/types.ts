@@ -1,5 +1,6 @@
 // Student-side data model. See docs/DECISIONS.md for every interpretation choice.
 // The engine is pure: audit(student, rules, today) — no DOM, no fetch, no Date.now().
+import type { SpecialTrack } from './tracks.ts';
 
 export type Program = 'mscse' | 'phd';
 
@@ -259,4 +260,9 @@ export interface AuditReport {
   /** met / scored, where n/a and informational rows are excluded from both. */
   summary: { met: number; scored: number };
   warnings: string[];
+  /** §3.5 / §3.6 tracks this audit does not model, recognised from the
+   * student's own coursework (2026-09-10, promised 2026-08-31). Not warnings:
+   * nothing is wrong, and no verdict changes — the note names what the page
+   * cannot decide and sends the student to the DGS. */
+  tracks: SpecialTrack[];
 }

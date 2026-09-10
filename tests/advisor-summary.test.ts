@@ -30,7 +30,7 @@ const report: AuditReport = {
   ],
   courseLines: [{ courseId: 'CSE 60641', term: { season: 'fall', year: 2026 }, text: 'counts toward regular courses (3 cr)', mark: 'counts', counts: [] }],
   summary: { met: 1, scored: 4 },
-  warnings: [],
+  warnings: [], tracks: [],
 };
 
 const opts = { todayIso: '2026-09-04', entryTerm: 'Fall 2026', priorStudy: 'No prior graduate degree', gpa: 3.5 };
@@ -168,7 +168,7 @@ describe('actionItems: the rest of the rules', () => {
       ],
       courseLines: [],
       summary: { met: 1, scored: 10 },
-      warnings: [],
+      warnings: [], tracks: [],
     };
     const todo = actionItems(r);
     assert.deepEqual(todo.student, [
@@ -194,7 +194,7 @@ describe('actionItems: the rest of the rules', () => {
     const early = { ...r, requirements: r.requirements.map((x) => (x.id === 'phd.candidacy' ? { ...x, status: 'in_progress' as const, detail: '' } : x)) };
     assert.ok(!actionItems(early).student.some((s) => /dissertation/i.test(s)));
     // Empty lists say so in the email.
-    const { text } = advisorSummary({ program: 'mscse', requirements: [req('shared.gpa', 'Cumulative GPA of at least 3.0', 'met', 'ok', 'Basic requirements — §2.2–2.3', '§2.2')], courseLines: [], summary: { met: 1, scored: 1 }, warnings: [] }, opts);
+    const { text } = advisorSummary({ program: 'mscse', requirements: [req('shared.gpa', 'Cumulative GPA of at least 3.0', 'met', 'ok', 'Basic requirements — §2.2–2.3', '§2.2')], courseLines: [], summary: { met: 1, scored: 1 }, warnings: [], tracks: [] }, opts);
     assert.match(text, /\nWHAT I NEED TO DO\n- Nothing at the moment\.\n\nWHAT I NEED FROM YOU, MY ADVISOR\n- Nothing at the moment\.\n\nWHAT THE DGS NEEDS TO DO\n- Nothing at the moment\.\n\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Nothing at the moment\.\n/);
     assert.match(text, /^Subject: Degree self-check — M\.S\. in CSE, entered Fall 2026 — all checked requirements met\n/);
   });
@@ -210,7 +210,7 @@ describe('actionItems: the rest of the rules', () => {
       ],
       courseLines: [],
       summary: { met: 0, scored: 4 },
-      warnings: [],
+      warnings: [], tracks: [],
     };
     const todo = actionItems(r);
     assert.deepEqual(todo.student, [
@@ -298,7 +298,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
       ],
       courseLines: [],
       summary: { met: 2, scored: 3 },
-      warnings: [],
+      warnings: [], tracks: [],
     };
     const todo = actionItems(r);
     assert.deepEqual(todo.gradAdmin, [

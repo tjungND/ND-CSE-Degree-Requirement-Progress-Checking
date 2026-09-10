@@ -10,6 +10,8 @@ import { audit } from '../src/engine/audit.ts';
 import { matchDistinctGroups } from '../src/engine/matching.ts';
 import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import { isCseCourse, subjectCode } from '../src/data/external.ts';
+import { specialTracks } from '../src/engine/tracks.ts';
+import { classify } from '../src/engine/allocate.ts';
 import { combineAll, deadlineStatus, thresholdStatus } from '../src/engine/status.ts';
 import {
   maxConsecutiveFullTime,
@@ -453,5 +455,59 @@ describe('50000-level bridge courses', () => {
       courseId, credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' as const,
     }));
     assert.match(audit(s, buildRules(), '2027-06-01').requirements.find((r) => r.id === 'phd.residency')!.detail, /1 of 4 semesters/);
+  });
+});
+
+// The two tracks this audit does not model (§3.5, §3.6). Promised 2026-08-31
+// ("students on those tracks see a clearly-worded 'talk to the DGS' note"),
+// built 2026-09-10. Recognised from the coursework, never asked for.
+describe('§3.5 / §3.6 track notes', () => {
+  const rules = buildRules();
+  const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
+    schemaVersion: 1,
+    program: 'phd',
+    entryTerm: { season: 'fall', year: 2026 },
+    bachelorsAwarded: { season: 'spring', year: 2026 },
+    priorMs: 'none',
+    gpa: 3.5,
+    courses,
+    milestones: {},
+    attestations: {},
+    ...over,
+  });
+  const course = (courseId: string, year = 2026, season: 'fall' | 'spring' = 'fall'): CourseEntry => ({
+    courseId, credits: 3, term: { season, year }, grade: 'A', origin: 'nd',
+  });
+  const tracksOf = (s: Student) => specialTracks(s, classify(s, rules).classified);
+
+  it('a bridge course raises the §3.6 note, and says something different to each program', () => {
+    const phd = tracksOf(student([course('CSE 50120')]));
+    assert.deepEqual(phd.map((t) => t.id), ['transition']);
+    assert.match(phd[0]!.text, /ask them/i);
+    const ms = tracksOf(student([course('CSE 50120')], { program: 'mscse' }));
+    assert.match(ms[0]!.text, /do not count toward the MSCSE degree requirements/);
+  });
+
+  it('an unlisted 50000-level CSE course raises it too — the sheet need not know the course', () => {
+    assert.deepEqual(tracksOf(student([course('CSE 59999')])).map((t) => t.id), ['transition']);
+  });
+
+  it('ordinary coursework raises nothing', () => {
+    assert.deepEqual(tracksOf(student([course('CSE 60641'), course('CSE 40113')])), []);
+  });
+
+  it('a graduate course taken before the bachelor’s degree raises the §3.5 note', () => {
+    const s = student([course('CSE 60641', 2026, 'spring')]); // awarded Spring 2026
+    assert.deepEqual(tracksOf(s).map((t) => t.id), ['integrated']);
+    // A year later, after the degree, it is ordinary coursework.
+    assert.deepEqual(tracksOf(student([course('CSE 60641', 2027, 'spring')])), []);
+    // And with no award term recorded the app says nothing rather than guessing.
+    assert.deepEqual(tracksOf(student([course('CSE 60641', 2026, 'spring')], { bachelorsAwarded: undefined })), []);
+  });
+
+  it('both at once — a 4+1 who then needs bridge courses', () => {
+    const s = student([course('CSE 60641', 2026, 'spring'), course('CSE 50120')]);
+    assert.deepEqual(tracksOf(s).map((t) => t.id), ['transition', 'integrated']);
+    assert.deepEqual(audit(s, rules, '2027-06-01').tracks.map((t) => t.section), ['§3.6', '§3.5']);
   });
 });
