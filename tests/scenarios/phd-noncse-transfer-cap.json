@@ -1,0 +1,46 @@
+{
+  "name": "phd-noncse-transfer-cap",
+  "description": "§4.2 caps credits 'taken from a department other than CSE' at nine wherever they were taken, and another university's transcript spells the department every way there is (DGS 2026-09-09: 'CompSci, CompS, CS, CE, ECE, CSYE etc. all can mean CSE in fact'). The sheet decides: the Parameters key cse_subject_codes settles the unambiguous codes, and an ExternalCourses is_cse cell settles one course the code cannot — here ECE, which is a computing department at this university. So CS and the ruled ECE course are CSE; INFO, MENG and TELE share the nine credits and the last of them is over the cap.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "parameters": { "cse_subject_codes": "CS; CSCI; COMPSCI; CSYE" },
+      "external": [
+        { "university": "PURDUE UNIVERSITY", "course_id": "CS 50300", "course_title": "Operating Systems", "satisfies_core_area": "os", "transferable_PhD": "yes", "transferable_MSCSE": "yes" },
+        { "university": "PURDUE UNIVERSITY", "course_id": "ECE 60146", "course_title": "Deep Learning", "transferable_PhD": "yes", "transferable_MSCSE": "yes", "is_cse": "yes" },
+        { "university": "PURDUE UNIVERSITY", "course_id": "INFO 51000", "course_title": "Information Systems", "transferable_PhD": "yes", "transferable_MSCSE": "yes" },
+        { "university": "PURDUE UNIVERSITY", "course_id": "MENG 50100", "course_title": "Engineering Management", "transferable_PhD": "yes", "transferable_MSCSE": "yes" },
+        { "university": "PURDUE UNIVERSITY", "course_id": "TELE 52000", "course_title": "Telecommunications", "transferable_PhD": "yes", "transferable_MSCSE": "yes" }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2020 },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "courses": [
+      { "courseId": "CS 50300", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "ECE 60146", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "INFO 51000", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "MENG 50100", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "TELE 52000", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": { "transferApproved": true }
+  },
+  "expect": {
+    "phd.cap.noncse": { "status": "met", "detailIncludes": ["9 of the 9 non-CSE cap credits used"] },
+    "phd.transfer": { "status": "met", "detailIncludes": ["transfer credits counted"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["18 of 24"] }
+  },
+  "expectCourseLines": {
+    "CS 50300": ["counts toward regular courses (3 cr)"],
+    "ECE 60146": ["counts toward regular courses (3 cr)"],
+    "INFO 51000": ["uses the non-CSE allowance"]
+  }
+}

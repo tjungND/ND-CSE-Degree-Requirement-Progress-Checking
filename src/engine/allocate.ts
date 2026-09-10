@@ -9,7 +9,7 @@
 // entry-order greedy, where re-sorting the course list changed the verdict.
 import { formatCredits } from './credits.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
-import { findExternalRule, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem } from '../data/external.ts';
+import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
@@ -164,6 +164,10 @@ export function classify(student: Student, rules: Rules): {
 } {
   const warnings: string[] = [];
   const { program, attestations } = student;
+  // Which subject codes mean "CSE" on another university's transcript
+  // (2026-09-09). undefined = the sheet has no list, and no transferred course
+  // is placed inside or outside CSE.
+  const cseSubjectCodes = rules.parameters.codeList('cse_subject_codes');
   const entry = normalizeEntryTerm(student.entryTerm).term;
   const params = rules.parameters;
   const transferFloor = params.gradeLetter('transfer_min_grade');
@@ -352,11 +356,23 @@ export function classify(student: Student, rules: Rules): {
       if (shape && 'ineligibleReason' in shape) {
         return { ...extBase, transferable, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
       }
+      // §4.2 caps credits "taken from a department other than CSE" at nine,
+      // wherever they were taken — and a transcript from elsewhere spells the
+      // department every way there is (DGS 2026-09-09: "CompSci, CompS, CS,
+      // CE, ECE, CSYE etc. all can mean CSE in fact"). The sheet decides: the
+      // `cse_subject_codes` list, or an `is_cse` cell for a course the code
+      // cannot settle. A course the sheet says nothing about is left out of
+      // the allowance entirely rather than guessed at, so nothing changes for
+      // a student until the DGS has answered. Notre Dame's own earlier
+      // courses are decided by their own subject, as they always were.
+      const fromNd = isNotreDameInstitution(c.institution);
+      const isCse = fromNd ? deptOf(c.courseId) === 'CSE' : isCseCourse(c.courseId, external, cseSubjectCodes);
+      const nonCseCap: CapId[] = isCse === false && !(shape?.caps ?? []).includes('noncse') ? ['noncse'] : [];
       return {
         ...extBase,
         transferable,
         pool: shape?.pool ?? 'regular',
-        caps: ['transfer', ...(shape?.caps ?? [])],
+        caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap],
         tier: tierFor(grade, !attested),
         // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
         // this course wins; otherwise a quarter university's credits are

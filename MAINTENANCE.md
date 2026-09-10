@@ -108,6 +108,15 @@ rows, and since the last row wins, earlier rulings were shadowed by later blank 
 details in the same email still list every attempt. If the tab already holds duplicates, the
 diagnostics list them — keep the row you want and delete the rest.
 
+Since 2026-09-09 the app can tell a CSE course from a non-CSE one on ANOTHER university's
+transcript, which is what §4.2's nine-credit limit on courses "taken from a department other than
+CSE" needs. Two places say so, and both are yours: the Parameters key `cse_subject_codes` lists the
+subject codes that mean CSE (`CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE`), and an ExternalCourses
+row's `is_cse` cell (`yes` / `no`) settles one course the code cannot — `ECE` is computing at one
+school and circuits at another. A code the list does not name counts against the nine credits. If
+you delete the parameter, no transferred course is placed inside or outside CSE and the allowance
+stops applying to transfers altogether — which is exactly how the app behaved before this existed.
+
 Since 2026-09-09 the ExternalCourses tab decides §5.2 transferability per PROGRAM: `transferable_PhD`
 and `transferable_MSCSE`, each taking `yes` / `no` / `dgs_approval` / `adgs_approval` / blank. The app
 reads whichever matches the student's own program, so the same course can be pre-approved for a

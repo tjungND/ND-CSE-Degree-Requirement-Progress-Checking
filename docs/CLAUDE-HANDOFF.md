@@ -1044,6 +1044,19 @@ Known-pending (the app's diagnostics panel is the live truth):
   - Two re-filing holes closed: the manual course form and the external-slot import both call
     `reclassifyNotreDameCourses` now, as the ND import always did.
 
+- **Is a transferred course a CSE course?** (2026-09-09; DGS: "CompSci, CompS, CS, CE, ECE, CSYE
+  etc. all can mean CSE in fact".) §4.2 caps credits "taken from a department other than CSE" at
+  nine wherever they were taken, and the app had no way to tell the department on a transcript it
+  did not write, so transfers escaped the cap entirely. Now the SHEET says, in two places:
+  `cse_subject_codes` (Parameters) lists the codes that mean CSE, and `is_cse` (ExternalCourses,
+  yes/no/blank) settles one course the code cannot — it WINS over the list. `isCseCourse()` in
+  src/data/external.ts is the only place that decides; `subjectCode()` normalises "CompSci 537" →
+  "COMPSCI". A code the list does not name is OUTSIDE CSE (its silence is an answer), but a MISSING
+  or BLANK parameter is no answer at all — `codeList` returns undefined for both, and classify()
+  then leaves the allowance off every transferred course, exactly as before this existed. Notre
+  Dame's own earlier courses keep being decided by `deptOf === 'CSE'`. On the live sheet today: 55
+  of 88 rows are CSE by code, 18 are ECE (the DGS's call, row by row), 15 others fall outside.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

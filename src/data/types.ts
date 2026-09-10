@@ -59,6 +59,15 @@ export interface ExternalRule {
    * (2 to 4); a fixed `nd_credits` cannot. Set it on any row of a university
    * and it applies to every course from that university. */
   creditSystem?: 'quarter' | 'semester';
+  /** Is this a CSE course, for §4.2's nine-credit allowance for courses "taken
+   * from a department other than CSE"? (DGS 2026-09-09.) Other universities
+   * name the department every way there is — CS, CompSci, CSCI, CSYE, ECE, CE
+   * — and several of those mean CSE at one school and not at another, which no
+   * app can settle on its own. `cse_subject_codes` in the Parameters tab
+   * settles the unambiguous codes; this cell is the DGS's ruling for a course
+   * the code cannot settle, and it wins. Undefined = the sheet has not said,
+   * and the allowance is not applied to the course at all. */
+  isCse?: boolean;
   decidedOn?: string;
   notes?: string;
   /** 1-based spreadsheet row, for diagnostics. */
@@ -124,6 +133,10 @@ export interface Parameters {
   term(key: string): Term | undefined;
   gradeLetter(key: string): string | undefined;
   courseList(key: string): string[] | undefined;
+  /** A list of SUBJECT codes, upper-cased ("CS; CSCI" → ['CS','CSCI']).
+   * undefined = the key is missing OR its cell is blank — either way the
+   * sheet has not said, and nothing is decided from it. */
+  codeList(key: string): string[] | undefined;
   section(key: string): string | undefined;
   has(key: string): boolean;
   raw: ReadonlyMap<string, { value: string; section: string; row: number }>;
@@ -229,4 +242,12 @@ export const KNOWN_PARAMETER_KEYS = [
   'candidacy_deadline_semester',
   'candidacy_committee_additional_members_min',
   'gpa_min',
+  // The subject codes that mean "a CSE course" on ANOTHER university's
+  // transcript (DGS 2026-09-09): "CS; CSCI; COMPSCI; CSYE". §4.2 caps credits
+  // "taken from a department other than CSE" at nine, and until this existed
+  // the app could not tell one department from another on a transcript it did
+  // not write. A code the list does not name is treated as outside CSE — say
+  // otherwise in an ExternalCourses row's `is_cse` cell, which wins. Notre
+  // Dame's own courses are decided by their own subject, never by this list.
+  'cse_subject_codes',
 ] as const;

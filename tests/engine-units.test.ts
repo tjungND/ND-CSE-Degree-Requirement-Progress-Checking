@@ -9,6 +9,7 @@ import { allocate, type CapSpec, type ClassifiedCourse } from '../src/engine/all
 import { audit } from '../src/engine/audit.ts';
 import { matchDistinctGroups } from '../src/engine/matching.ts';
 import { coursesNeedingDgsReview } from '../src/engine/review.ts';
+import { isCseCourse, subjectCode } from '../src/data/external.ts';
 import { combineAll, deadlineStatus, thresholdStatus } from '../src/engine/status.ts';
 import {
   maxConsecutiveFullTime,
@@ -348,5 +349,49 @@ describe('non-CSE courses', () => {
     assert.ok(partial, 'one course should be partly over the 9-credit cap');
     assert.match(partial!.text, /^counts 1 of 4 credits toward regular courses/);
     assert.match(partial!.text, /3 not counted — over the 9-credit non-CSE cap \(§4\.2\)/);
+  });
+});
+
+// Which transferred courses are CSE (DGS 2026-09-09). §4.2 caps credits "taken
+// from a department other than CSE" at nine, and another university's
+// transcript names the department every way there is — CS, CompSci, CSCI,
+// CSYE, ECE, CE — several of which mean CSE at one school and not at another.
+describe('is a transferred course a CSE course?', () => {
+  const rule = (isCse?: boolean) => ({ university: 'X', universityKey: 'x', courseId: 'ECE 60146', title: '', sheetRow: 2, ...(isCse === undefined ? {} : { isCse }) });
+  const codes = ['CS', 'CSCI', 'COMPSCI', 'CSYE'];
+
+  it('reads the subject code however it is punctuated or cased', () => {
+    assert.equal(subjectCode('CompSci 537'), 'COMPSCI');
+    assert.equal(subjectCode('CS-503'), 'CS');
+    assert.equal(subjectCode('csye 6200'), 'CSYE');
+    assert.equal(subjectCode('60610'), '');
+  });
+
+  it('the sheet\u2019s code list decides, and a code it does not name is outside CSE', () => {
+    assert.equal(isCseCourse('CS 50300', undefined, codes), true);
+    assert.equal(isCseCourse('CompSci 537', undefined, codes), true);
+    assert.equal(isCseCourse('ECE 60146', undefined, codes), false);
+    assert.equal(isCseCourse('MENG 50100', undefined, codes), false);
+  });
+
+  it('a per-course is_cse ruling wins over the list, both ways', () => {
+    assert.equal(isCseCourse('ECE 60146', rule(true), codes), true, 'this ECE department teaches computing');
+    assert.equal(isCseCourse('CS 59000', rule(false), codes), false, 'and a CS-coded course need not be one');
+  });
+
+  // Without the list the app knows nothing about departments elsewhere, and
+  // says so by leaving the allowance off the course — never by guessing.
+  it('no list in the sheet means no answer at all', () => {
+    assert.equal(isCseCourse('ECE 60146', undefined, undefined), undefined);
+    assert.equal(isCseCourse('ECE 60146', rule(true), undefined), true, 'a ruling still stands on its own');
+  });
+
+  // A blank cell must not read as "no code means CSE" — that would put every
+  // transferred course inside the nine-credit allowance on an empty cell.
+  it('a blank cse_subject_codes cell reads as no answer, not as an empty list', () => {
+    const rules = buildRules({ parameters: { cse_subject_codes: '' } });
+    assert.equal(rules.parameters.codeList('cse_subject_codes'), undefined);
+    assert.equal(rules.parameters.codeList('nope'), undefined);
+    assert.deepEqual(buildRules().parameters.codeList('cse_subject_codes'), ['CS', 'CSCI', 'COMPSCI', 'CSE', 'CMSC', 'EECS', 'CSYE']);
   });
 });

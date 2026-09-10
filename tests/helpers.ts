@@ -102,7 +102,7 @@ export function applyPatch(
   if (patch.external) {
     // `transferable` is the pre-2026-09-09 single column, kept so the tests can
     // still exercise a sheet that has not been split.
-    const header = ['university', 'university_aliases', 'course_id', 'course_title', 'satisfies_core_area', 'transferable', 'transferable_PhD', 'transferable_MSCSE', 'nd_credits', 'decided_on', 'notes'];
+    const header = ['university', 'university_aliases', 'course_id', 'course_title', 'satisfies_core_area', 'transferable', 'transferable_PhD', 'transferable_MSCSE', 'is_cse', 'credit_system', 'nd_credits', 'decided_on', 'notes'];
     external = serializeCsv([header, ...patch.external.map((row) => header.map((h) => row[h] ?? ''))]);
   }
   return { courses, parameters, categories: texts.categories, ...(external !== undefined ? { external } : {}) };

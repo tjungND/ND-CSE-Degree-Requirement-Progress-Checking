@@ -78,6 +78,38 @@ export function needsApproval(t: Transferable | undefined): boolean {
   return t === 'dgs_approval' || t === 'adgs_approval';
 }
 
+/** The subject code of a course id — "CompSci 537" → "COMPSCI". Everything
+ * before the first space, upper-cased and stripped of punctuation, so
+ * "CS-503" and "CS 503" answer the same. */
+export function subjectCode(courseId: string): string {
+  return (courseId.split(' ')[0] ?? '').toUpperCase().replace(/[^A-Z]/g, '');
+}
+
+/** Is a course from ANOTHER university a CSE course, for §4.2's nine-credit
+ * allowance for courses "taken from a department other than CSE"? (DGS
+ * 2026-09-09.)
+ *
+ *   1. the ExternalCourses row's `is_cse` cell, when the DGS has filled it —
+ *      the only thing that can settle a code like ECE, which means computing
+ *      at one university and circuits at another;
+ *   2. otherwise the Parameters tab's `cse_subject_codes` list;
+ *   3. `undefined` when the sheet has no list at all — the app then says
+ *      nothing about the course's department and the allowance is not applied.
+ *
+ * A code the list does not name is OUTSIDE CSE, not "unknown": the list is
+ * where the DGS says which codes mean CSE, so its silence is an answer. The
+ * course's line says which of the two decided it, so a wrong answer is
+ * visible and correctable rather than silent. */
+export function isCseCourse(
+  courseId: string,
+  rule: ExternalRule | undefined,
+  cseSubjectCodes: string[] | undefined,
+): boolean | undefined {
+  if (rule?.isCse !== undefined) return rule.isCse;
+  if (cseSubjectCodes === undefined) return undefined;
+  return cseSubjectCodes.includes(subjectCode(courseId));
+}
+
 /** True for any spelling of Notre Dame as an institution name. */
 export function isNotreDameInstitution(name: string | undefined): boolean {
   return name !== undefined && /\bnotre\s*dame\b/i.test(name);

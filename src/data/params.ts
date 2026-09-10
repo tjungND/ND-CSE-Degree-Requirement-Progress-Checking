@@ -12,12 +12,21 @@ export function makeParameters(
   const known = new Set<string>(KNOWN_PARAMETER_KEYS);
   const display = new Set<string>(DISPLAY_PARAMETER_KEYS);
 
+  // What a missing key actually costs. The general answer is "the requirement
+  // cannot be evaluated"; a key whose absence does something else says so,
+  // rather than sending the DGS looking for a row that never turns amber
+  // (2026-09-09).
+  const MISSING_CONSEQUENCE: Record<string, string> = {
+    cse_subject_codes:
+      'no course transferred from another university is placed inside or outside CSE, so §4.2’s nine-credit limit on courses "taken from a department other than CSE" is not applied to transfer credit at all',
+  };
   for (const key of known) {
     if (!raw.has(key)) {
+      const consequence = MISSING_CONSEQUENCE[key] ?? 'every requirement that needs it will show "cannot evaluate"';
       issues.push({
         severity: 'error',
         tab: 'Parameters',
-        message: `The Parameters tab is missing the key '${key}' — every requirement that needs it will show "cannot evaluate" until it is added.`,
+        message: `The Parameters tab is missing the key '${key}' — ${consequence} until it is added.`,
       });
     }
   }
@@ -86,6 +95,22 @@ export function makeParameters(
         return undefined;
       }
       return v;
+    },
+    // A list of SUBJECT codes — "CS; CSCI; COMPSCI" (2026-09-09). Forgiving
+    // about the separator (; , /) and about case, like the Courses tab's
+    // category_group cell. A BLANK cell reads the same as a missing key —
+    // undefined, "the sheet has not said" — never as an empty list: an empty
+    // list would mean "no subject code anywhere means CSE", which would put
+    // every transferred course inside the non-CSE allowance on the strength
+    // of an empty cell.
+    codeList: (key) => {
+      const entry = raw.get(key);
+      if (!entry) return undefined;
+      const list = entry.value
+        .split(/[;,/]/)
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) => s !== '');
+      return list.length > 0 ? list : undefined;
     },
     courseList: (key) => {
       const entry = raw.get(key);
