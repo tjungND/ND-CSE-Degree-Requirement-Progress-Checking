@@ -71,7 +71,7 @@ export function specialTracks(student: Student, classified: ClassifiedCourse[]):
       section: '§3.5',
       title: 'Integrated B.S. + M.S.',
       text: phd
-        ? 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. §3.5 lets an Integrated B.S. + M.S. student count one or two of those toward the MSCSE, and the DGS allows the same courses to follow you into this program — so up to that allowance they are transfer credit here too, and can cover a §4.4.2 specialization group. Like any transfer they need the DGS’s recommendation and the Graduate School’s approval, and this page does not model your track: ask the DGS.'
+        ? 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. §3.5 lets an Integrated B.S. + M.S. student count one or two of those toward the MSCSE, but §5.2 asks for graduate student status before a course can bring credit into this program — so this page counts them toward the qualifying examination, both core knowledge (§4.4.1) and specialization (§4.4.2), and toward no credit. The department is asking the Graduate School whether that credit can follow you here; the DGS will know where that stands, so ask them.'
         : 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. §3.5 allows that for an Integrated B.S. + M.S. student, with the instructor’s and the DGS’s approval, but this page cannot check those approvals and does not count the courses toward the MSCSE. Ask the DGS to confirm which of them count.',
     });
   }

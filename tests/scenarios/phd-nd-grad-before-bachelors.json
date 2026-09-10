@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-grad-before-bachelors",
-  "description": "A Notre Dame 4+1: a senior-year course registered at the GRADUATE level (the transcript's GR column) in the term the B.S. was awarded counts for §4.4.1 core knowledge through the Courses tab, and since 2026-09-10 it is also a §5.2 transfer candidate — §3.5 lets one or two such courses count toward the MSCSE, and the DGS rules they may follow the student into our own Ph.D. up to that allowance. It still needs the DGS's recommendation like any transfer, so the §5.2 row asks for one. An UNDERGRADUATE-registered course from the same years earns nothing: §3.5's allowance is for 6xxxx courses.",
+  "description": "A Notre Dame 4+1: a senior-year course registered at the GRADUATE level (the transcript's GR column) in the term the B.S. was awarded. §5.2 criterion 2 is read strictly while the department's question sits with the Graduate School (DGS 2026-09-10, evening): no credit earned before the bachelor's degree transfers, not even §3.5's junior/senior-year 6xxxx courses. They are not worthless here — they satisfy BOTH qualifier components, §4.4.1 core knowledge and §4.4.2 specialization, neither of which is credit. With only one such course the §4.4.2 row is still short, and the §5.2 row is NOT APPLICABLE — the course is excluded on its own terms, so the DGS has nothing to decide and the student has nothing to ask for (2026-09-09).",
   "today": "2025-09-04",
   "rules": {
     "base": "default"
@@ -87,16 +87,22 @@
       ]
     },
     "phd.transfer": {
-      "status": "needs_dgs_review",
+      "status": "not_applicable",
       "detailIncludes": [
-        "3 of 6 transfer credits counted",
-        "Not yet reviewed by the DGS: CSE 60641"
+        "Nothing here needs a DGS decision",
+        "CSE 60641: not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"
+      ]
+    },
+    "phd.qualifier.categories": {
+      "status": "unmet",
+      "detailIncludes": [
+        "2 qualifying courses covering 2 distinct groups"
       ]
     }
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "candidate for transfer credit (§5.2)",
+      "taken in the term your bachelor’s degree was awarded",
       "satisfies the Operating Systems core-knowledge requirement (§4.4.1)"
     ]
   }

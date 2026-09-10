@@ -175,6 +175,16 @@ export interface RulesDate {
 
 /** Display-only parameter keys: read by the pages, never by the engine. Missing
  * is allowed (nothing shows, no warning); present → shown as given. */
+// PARKED: a key the sheet carries that the engine does not read today.
+// `phd_senior_grad_credits_max` was added and withdrawn on 2026-09-10, when the
+// DGS took the §5.2 question to the Graduate School: until they answer, no
+// credit earned before the bachelor's degree transfers, so there is no
+// allowance to size. The row stays in the Parameters tab with the DGS's value
+// (6 = §3.5's two 3-credit courses), listed here so it raises no "the app does
+// not know this key" warning, and the engine will read it again the day the
+// allowance comes back. Delete both if the Graduate School refuses.
+const PARKED_PARAMETER_KEYS = ['phd_senior_grad_credits_max'] as const;
+
 export const DISPLAY_PARAMETER_KEYS = [
   // Optional override for the dated line on both pages (YYYY-MM-DD or free
   // text) → "Rules effective as of …". Without it the pages print the date the
@@ -207,6 +217,7 @@ export const DISPLAY_PARAMETER_KEYS = [
   // has not been renamed keeps working; `current_semester` wins where both
   // exist. Delete this once no sheet uses it.
   'offered_semester',
+  ...PARKED_PARAMETER_KEYS,
 ] as const;
 
 /** Parameter keys the app reads. Anything else in the sheet is ignored with a
@@ -227,13 +238,6 @@ export const KNOWN_PARAMETER_KEYS = [
   'phd_seminar_courses',
   'phd_4xxxx_cse_credits_max',
   'phd_noncse_6xxxx_credits_max',
-  // §3.5: "one or two 3-credit CSE courses at the 6xxxx level" taken in the
-  // junior/senior year of the Integrated B.S. + M.S. The DGS rules
-  // (2026-09-10) that those may transfer into our own Ph.D. even though they
-  // predate the bachelor's degree — up to this many credits. Notre Dame's own
-  // 4+1 courses only; §5.2 criterion 2 still bars everything else taken
-  // before the degree.
-  'phd_senior_grad_credits_max',
   'phd_transfer_window_years',
   'phd_transfer_completed_ms_credits_max',
   'phd_residency_semesters',

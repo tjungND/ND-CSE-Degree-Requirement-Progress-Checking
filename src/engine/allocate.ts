@@ -18,7 +18,7 @@ import { ZERO_SUMS } from './status.ts';
 import { compareTerm, normalizeEntryTerm, shiftTermYears, termIndex, termLabel } from './term.ts';
 import type { CourseEntry, Grade, Program, Student } from './types.ts';
 
-export type CapId = 'fourk' | 'noncse' | 'transfer' | 'seniorgrad';
+export type CapId = 'fourk' | 'noncse' | 'transfer';
 
 export interface CapSpec {
   id: CapId;
@@ -61,14 +61,6 @@ export interface ClassifiedCourse {
    * hours rather than from a fixed nd_credits (2026-09-08) — the line says
    * which, so a student can tell a conversion from the DGS's own figure. */
   creditsConverted?: true;
-  /** Which courses should fill a cap FIRST (DGS 2026-09-10, for §3.5's
-   * two-course allowance: "prioritize courses that can satisfy the qualifier
-   * examination requirements … prioritize the courses that will satisfy more
-   * requirements"). 2 = the course carries both a §4.4.1 core area and a
-   * §4.4.2 group, 1 = one of them, 0 = neither. Zero everywhere else, so the
-   * allocator's long-standing (tier, term, course id) order is untouched for
-   * every course that does not compete for that allowance. */
-  priority?: number;
 }
 
 /** The colour of a course's line (DGS request 2026-09-06 — "pending review
@@ -337,27 +329,18 @@ export function classify(student: Student, rules: Rules): {
       const awarded = student.bachelorsAwarded;
       const beforeBachelors = awarded !== undefined && compareTerm(c.term, awarded) <= 0;
       const whenTaken = awarded !== undefined && compareTerm(c.term, awarded) === 0 ? 'in the term' : 'before';
-      // §3.5, the Integrated B.S. + M.S.: "students … may, over the second
-      // semester of their junior year and their senior year, take one or two
-      // 3-credit CSE courses at the 6xxxx level, and count these both as
-      // undergraduate CSE electives/Tech electives and as course requirements
-      // for the MSCSE degree." The DGS rules (2026-09-10) that those courses
-      // may also transfer into our own Ph.D. — up to the allowance — and so
-      // may satisfy the §4.4.2 specialization requirement, which they could
-      // never do while they earned no credit.
+      // §5.2 criterion 2, strictly, while the department's question sits with
+      // the Graduate School (DGS 2026-09-10, evening): NO credit earned before
+      // the bachelor's degree transfers — not even §3.5's junior/senior-year
+      // 6xxxx courses, which the department counts toward the MSCSE. The
+      // allowance built earlier the same day is withdrawn until the Graduate
+      // School answers, because criterion 2 is their sentence, not ours.
       //
-      // This SUPERSEDES the 2026-09-06 ruling for Notre Dame's own 4+1 courses
-      // only. Everywhere else the bachelor's award term is still absolute:
-      // §5.2 criterion 2 wants graduate student status, and §3.5 is about this
-      // department's own program, not about a graduate course somebody took
-      // elsewhere before their bachelor's degree.
-      const seniorGradAllowance =
-        beforeBachelors &&
-        isNotreDameInstitution(c.institution) &&
-        deptOf(c.courseId) === 'CSE' &&
-        levelOf(c, rule) >= 6 &&
-        student.program === 'phd';
-      if (beforeBachelors && !seniorGradAllowance) {
+      // Those courses are NOT worthless here: they still satisfy §4.4.1 core
+      // knowledge and, since this ruling, the §4.4.2 specialization
+      // requirement — neither of which is credit (phd.ts). What they cannot do
+      // is bring credit into the degree.
+      if (beforeBachelors) {
         return {
           ...extBase,
           ineligibleReason: `not counted — taken ${whenTaken} your bachelor’s degree was awarded (${termLabel(awarded!)}), so not as a graduate student (§5.2)${coreNote}`,
@@ -396,20 +379,11 @@ export function classify(student: Student, rules: Rules): {
       const fromNd = isNotreDameInstitution(c.institution);
       const isCse = fromNd ? deptOf(c.courseId) === 'CSE' : isCseCourse(c.courseId, external, cseSubjectCodes);
       const nonCseCap: CapId[] = isCse === false && !(shape?.caps ?? []).includes('noncse') ? ['noncse'] : [];
-      // §3.5's own allowance, on top of §5.2's cap: how much may transfer, and
-      // how much of it may come from before the bachelor's degree.
-      const seniorCap: CapId[] = seniorGradAllowance ? ['seniorgrad'] : [];
-      // Which of them fills that allowance first (DGS 2026-09-10).
-      const qualifierValue = seniorGradAllowance
-        ? (rule?.coreArea !== undefined ? 1 : 0) +
-          ((rule?.categoryGroups ?? []).filter((g) => g !== 'ineligible').length > 0 ? 1 : 0)
-        : 0;
       return {
         ...extBase,
         transferable,
         pool: shape?.pool ?? 'regular',
-        caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap, ...seniorCap],
-        ...(qualifierValue > 0 ? { priority: qualifierValue } : {}),
+        caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap],
         tier: tierFor(grade, !attested),
         // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
         // this course wins; otherwise a quarter university's credits are
@@ -635,14 +609,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
   };
 
   for (const tier of TIER_ORDER) {
-    // Highest priority first, and stable — every course that does not compete
-    // for §3.5's allowance has priority 0, so this is the same (term, course
-    // id) order the allocator has always used (DGS 2026-09-10).
-    const inTier = classified
-      .filter((c) => c.tier === tier && c.pool !== 'none')
-      .map((c, i) => ({ c, i }))
-      .sort((a, b) => (b.c.priority ?? 0) - (a.c.priority ?? 0) || a.i - b.i)
-      .map(({ c }) => c);
+    const inTier = classified.filter((c) => c.tier === tier && c.pool !== 'none');
     const singles = inTier.filter((c) => c.caps.length <= 1);
     const multis = inTier.filter((c) => c.caps.length > 1);
 

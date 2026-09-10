@@ -98,25 +98,25 @@ courses".
 MSCSE. When that student goes on to the Ph.D., §5.2 appears to bar exactly the courses §3.5
 allowed.
 
-**What the app does (DGS, 2026-09-10, revising 2026-09-06).** §3.5's allowance follows the student
-into our own Ph.D.: one or two of those 6xxxx courses — six credits — may transfer, count toward
-§4.2's twenty-four regular credits and the Graduate School's sixty, and satisfy a §4.4.2
-specialization group. They still need the DGS's recommendation like any §5.2 transfer. Everywhere
-else the bachelor's award term is still absolute: a graduate course taken before the degree at
-another university earns nothing, because §5.2 criterion 2 is the obstacle and §3.5 is about this
-department's own program.
+**What the app does (DGS, 2026-09-10, evening).** The strict reading of §5.2, while the department's
+question sits with the Graduate School: no credit earned before the bachelor's degree transfers, not
+even §3.5's own courses. They still satisfy BOTH components of the qualifying examination — §4.4.1
+core knowledge and §4.4.2 specialization — because neither is credit. Only fifth-year (post-B.S.)
+coursework brings credit in.
 
-**This is the item that most needs the handbook's own words**, because the department is now doing
-something §5.2 criterion 2 appears to forbid, and criterion 2 belongs to the Graduate School. An
-individual transfer request could be questioned at their end.
+**⚠ THIS IS THE LIVE QUESTION.** The DGS asked the Graduate School on 2026-09-10 whether criterion 2
+bars §3.5's courses. It is their sentence, not the department's, so the department cannot settle it —
+and it decides whether a 4+1 student arrives with six credits or none. Everything else in this file
+can wait for the next handbook revision; this one is waiting on an answer.
 
-**Suggested sentence.** In §3.5, after the sentence about counting toward the MSCSE: *"Where such a
-student continues into a Notre Dame graduate program, those courses may be transferred under
-Section 5.2 notwithstanding the requirement of graduate student status in that section."* If the
-Graduate School will not have it, the opposite sentence is the one to write, and the department
-should stop counting on the transfer: *"Courses taken before the bachelor's degree was awarded,
-including 6xxxx courses taken under Section 3.5, do not carry transfer credit into a Notre Dame
-graduate program, whether or not they were counted toward the MSCSE."*
+**Suggested sentence, if the Graduate School allows it.** In §3.5, after the sentence about counting
+toward the MSCSE: *"Where such a student continues into a Notre Dame graduate program, those courses
+may be transferred under Section 5.2 notwithstanding the requirement of graduate student status in
+that section."* **If they refuse**, the department should write down what those courses DO carry, so
+no 4+1 student expects credit that cannot come: *"Courses taken before the bachelor's degree was
+awarded, including 6xxxx courses taken under Section 3.5, do not carry transfer credit into a Notre
+Dame graduate program, but may satisfy the core-knowledge and category-specialization components of
+the qualifying examination in Section 4.4."*
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-bachelors-then-phd",
-  "description": "A Ph.D. student who did their bachelor's at Notre Dame and entered the Ph.D. straight after, WITH the bachelor's award term set — the state every such student is in since that field became required (2026-09-07). Their Notre Dame undergraduate courses satisfy §4.4.1 core knowledge through the Courses tab, with no ExternalCourses ruling needed. The 60000-level course taken in the senior year is a §3.5 course and, since 2026-09-10, a transfer candidate up to §3.5's allowance — so the §5.2 row asks the DGS for a recommendation rather than reporting nothing to decide.",
+  "description": "A Ph.D. student who did their bachelor's at Notre Dame and entered the Ph.D. straight after, WITH the bachelor's award term set — the state every such student is in since that field became required (2026-09-07). §5.2 criterion 2 is read strictly while the department's question sits with the Graduate School (DGS 2026-09-10, evening): no credit earned before the bachelor's degree transfers, not even §3.5's junior/senior-year 6xxxx courses. They are not worthless here — they satisfy BOTH qualifier components, §4.4.1 core knowledge and §4.4.2 specialization, neither of which is credit. Both of their pre-degree Notre Dame courses therefore cover a §4.4.1 area and a §4.4.2 group while bringing no credit, and the §5.2 row has nothing to ask the DGS for.",
   "today": "2026-09-09",
   "rules": {
     "base": "default"
@@ -81,10 +81,10 @@
   },
   "expect": {
     "phd.transfer": {
-      "status": "needs_dgs_review",
+      "status": "not_applicable",
       "detailIncludes": [
-        "3 of 6 transfer credits counted",
-        "Not yet reviewed by the DGS: CSE 60111"
+        "Nothing here needs a DGS decision",
+        "CSE 60111: not counted — taken in the term your bachelor’s degree was awarded (Spring 2024)"
       ]
     },
     "phd.qualifier.core.os": {
@@ -106,9 +106,9 @@
       ]
     },
     "phd.qualifier.categories": {
-      "status": "unmet",
+      "status": "met",
       "detailIncludes": [
-        "1 qualifying course covering 1 distinct group"
+        "3 distinct groups"
       ]
     },
     "phd.credits.nd": {
@@ -127,7 +127,7 @@
       "no transfer credit"
     ],
     "CSE 60111": [
-      "candidate for transfer credit (§5.2)"
+      "taken in the term your bachelor’s degree was awarded"
     ]
   }
 }

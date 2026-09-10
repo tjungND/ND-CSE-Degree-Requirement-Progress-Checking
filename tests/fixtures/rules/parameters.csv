@@ -14,7 +14,6 @@ phd_seminar_courses,"CSE 63801, CSE 63802",§4.2,required in year one
 phd_4xxxx_cse_credits_max,6,§4.2,
 phd_noncse_6xxxx_credits_max,9,§4.2,
 phd_transfer_window_years,5,§4.2,prior M.S. coursework
-phd_senior_grad_credits_max,6,§3.5,"§3.5's one or two 3-credit 6xxxx courses from the junior/senior year of the 4+1. They may transfer into the Ph.D. up to this many credits, even though they predate the bachelor's degree (DGS 2026-09-10). Notre Dame's own courses only."
 phd_transfer_completed_ms_credits_max,24,§5.2,completed prior M.S./Ph.D.
 phd_residency_semesters,4,§4.3,"consecutive, full-time, excluding summer"
 phd_time_limit_years,8,§4.3,

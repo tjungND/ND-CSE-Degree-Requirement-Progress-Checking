@@ -108,13 +108,12 @@ rows, and since the last row wins, earlier rulings were shadowed by later blank 
 details in the same email still list every attempt. If the tab already holds duplicates, the
 diagnostics list them — keep the row you want and delete the rest.
 
-Since 2026-09-10 a Notre Dame 4+1 student's §3.5 courses — the one or two 6xxxx courses taken in the
-junior/senior year, before the bachelor's degree — may transfer into our own Ph.D., up to
-`phd_senior_grad_credits_max` credits (6). They still need your recommendation like any §5.2
-transfer, and they count inside §5.2's overall cap. This is for Notre Dame's own 4+1 only: a
-graduate course taken before the bachelor's degree anywhere else still earns nothing, because §5.2
-criterion 2 asks for graduate student status. Where a student has more §3.5 courses than the
-allowance, the ones that satisfy more of the qualifier fill it first.
+A Notre Dame 4+1 student's §3.5 courses — the 6xxxx courses taken in the junior/senior year, before
+the bachelor's degree — bring NO credit into the Ph.D. (§5.2 criterion 2 asks for graduate student
+status, and that is the Graduate School's sentence). They do satisfy both components of the
+qualifying examination, §4.4.1 core knowledge and §4.4.2 specialization, since neither is credit.
+Only fifth-year coursework transfers. **This is open with the Graduate School** — see the top of
+`docs/STATE.md`; if they allow the transfer, the allowance is already written and tested.
 
 Since 2026-09-09 the app can tell a CSE course from a non-CSE one on ANOTHER university's
 transcript, which is what §4.2's nine-credit limit on courses "taken from a department other than

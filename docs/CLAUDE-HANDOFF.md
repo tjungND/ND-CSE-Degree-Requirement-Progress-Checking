@@ -1067,15 +1067,16 @@ Known-pending (the app's diagnostics panel is the live truth):
   they are on. e2e: drive-app.mjs adds CSE 50501 and asserts the note, its position and its absence
   for the example student.
 
-- **§3.5's allowance** (DGS 2026-09-10, revising 2026-09-06 for Notre Dame's own 4+1 only). A Notre
-  Dame CSE 6xxxx course taken in or before the bachelor's award term is a §5.2 transfer candidate
-  again, capped by `phd_senior_grad_credits_max` (6) on top of §5.2's own cap — cap id `seniorgrad`,
-  row `phd.cap.seniorgrad`, which is pushed only when a student has such a course. The guard is
-  narrow on purpose: Notre Dame institution, CSE department, level ≥ 6, Ph.D. program. Everything
-  else keeps the absolute award-term rule. Which courses fill it is the DGS's order, not the
-  allocator's default: `ClassifiedCourse.priority` is 2 for a course carrying both a §4.4.1 core
-  area and a §4.4.2 group, 1 for either, and `allocate` sorts by it (stably, so every course with
-  priority 0 keeps the old (term, id) order).
+- **§3.5's courses** (DGS 2026-09-10, evening — the morning's allowance was withdrawn the same day).
+  §5.2 criterion 2 is read strictly while the department's question sits with the GRADUATE SCHOOL:
+  a course taken in or before the bachelor's award term brings no credit, exactly as on 2026-09-06.
+  What is NEW is that such a course now satisfies §4.4.2 as well as §4.4.1 — `categoriesRow` lets a
+  prior Notre Dame course through without the credit test when it predates the award term, since
+  neither qualifier component is credit. The withdrawn machinery (cap `seniorgrad`, parameter
+  `phd_senior_grad_credits_max`, row `phd.cap.seniorgrad`, `ClassifiedCourse.priority` and the
+  allocator's sort by it) is restorable from the commit "§3.5's courses follow the student into the
+  Ph.D." if the Graduate School allows it. The open question is at the TOP of docs/STATE.md and the
+  DGS asked to be reminded of it every session.
 - **A 4+1's entry term** (DGS 2026-09-10). `inferEntryTerm` gained a rule between the "Student Type:
   New" marker and "the first graduate-level term": when a dated BACHELOR'S award exists and the
   first graduate-level term is at or before it — graduate coursework that began before the student

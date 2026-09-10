@@ -10,6 +10,7 @@ import { combineAll, deadlineStatus } from '../status.ts';
 import {
   addMonthsIso,
   addYearsIso,
+  compareTerm,
   deadlineTerm,
   deadlineTermLabel,
   dueTermPhrase,
@@ -103,31 +104,6 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       ctx,
     }),
   );
-
-  // §3.5: "students in the integrated B.S. + M.S. program may, over the second
-  // semester of their junior year and their senior year, take one or two
-  // 3-credit CSE courses at the 6xxxx level, and count these both as
-  // undergraduate CSE electives/Tech electives and as course requirements for
-  // the MSCSE degree." The DGS rules (2026-09-10) that those may follow the
-  // student into our own Ph.D., up to the same allowance, even though they
-  // predate the bachelor's degree. The row appears only for a student who has
-  // such a course — everyone else has nothing to say about it.
-  if (ctx.classified.some((c) => c.caps.includes('seniorgrad'))) {
-    rows.push(
-      capRow({
-        id: 'phd.cap.seniorgrad',
-        group: COURSEWORK,
-        title: 'At most 6 credits from 6xxxx courses taken before your bachelor\u2019s degree',
-        capId: 'seniorgrad',
-        capLabel: 'credits from before your bachelor\u2019s degree',
-        limitKey: 'phd_senior_grad_credits_max',
-        section: '\u00a73.5',
-        quote:
-          'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE courses at the 6xxxx level, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree.',
-        ctx,
-      }),
-    );
-  }
 
   // §4.2: "Up to nine (9) credits at the 6xxxx level taken from a department
   // other than CSE may be used to satisfy the course requirement, subject to
@@ -586,9 +562,20 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     let priorNd = false;
     if (c.entry.origin !== 'nd') {
       if (!isNotreDameInstitution(c.entry.institution)) continue;
-      if (!c.caps.includes('transfer')) continue; // excluded by §5.2 — not this degree's course
-      if ((countedCredits.get(c) ?? 0) <= 0) continue; // over the §5.2 cap: no credit transferred
-      priorNd = true;
+      // A course taken BEFORE the bachelor's degree — §3.5's junior/senior-year
+      // 6xxxx courses — brings no credit into the Ph.D. while §5.2 criterion 2
+      // is read strictly, but it still counts here (DGS 2026-09-10, evening:
+      // "they can still be used to satisfy the core knowledge and
+      // specialization category requirements in the qualifying exam
+      // requirement"). §4.4.2 asks the student to have taken and passed the
+      // course, and neither component of the qualifier is credit.
+      const awarded = ctx.student.bachelorsAwarded;
+      const beforeBachelors = awarded !== undefined && compareTerm(c.entry.term, awarded) <= 0;
+      if (!beforeBachelors) {
+        if (!c.caps.includes('transfer')) continue; // excluded by §5.2 — not this degree's course
+        if ((countedCredits.get(c) ?? 0) <= 0) continue; // over the §5.2 cap: no credit transferred
+      }
+      priorNd = !beforeBachelors;
     }
     // The sheet may name one group, several, or `any` (DGS 2026-09-08).
     // 'ineligible' and a blank cell are both "not a candidate"; a code the
