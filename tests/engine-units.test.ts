@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { allocate, type CapSpec, type ClassifiedCourse } from '../src/engine/allocate.ts';
 import { audit } from '../src/engine/audit.ts';
 import { matchDistinctGroups } from '../src/engine/matching.ts';
+import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import { combineAll, deadlineStatus, thresholdStatus } from '../src/engine/status.ts';
 import {
   maxConsecutiveFullTime,
@@ -272,5 +273,80 @@ describe('deadline chips read as semesters (2026-09-05)', () => {
     const cand = report.requirements.find((r) => r.id === 'phd.candidacy');
     assert.equal(cand?.deadline?.state, 'overdue');
     assert.match(cand?.deadline?.label ?? '', /^Overdue — the deadline was the end of (Spring|Fall) \d{4} — semester 8 \(approximate\)$/);
+  });
+});
+
+// Non-CSE courses for a Ph.D. student (§4.2: "Up to nine (9) credits at the
+// 6xxxx level taken from a department other than CSE may be used to satisfy
+// the course requirement, subject to approval of the student's advisor and
+// DGS."). Three defects found on 2026-09-09 while checking that path.
+describe('non-CSE courses', () => {
+  const nonCseStudent = (courses: CourseEntry[], attestations: Student['attestations'] = {}): Student => ({
+    schemaVersion: 1,
+    program: 'phd',
+    entryTerm: { season: 'fall', year: 2026 },
+    bachelorsAwarded: { season: 'spring', year: 2026 },
+    priorMs: 'none',
+    gpa: 3.6,
+    courses,
+    milestones: {},
+    attestations,
+  });
+  const course = (courseId: string, title: string, credits = 3): CourseEntry => ({
+    courseId,
+    title,
+    credits,
+    term: { season: 'fall', year: 2026 },
+    grade: 'A',
+    origin: 'nd',
+  });
+
+  // §4.4.1 puts no department limit on a core course ("an Operating Systems
+  // course, an Algorithms course, and a Computer Architecture course, either
+  // at Notre Dame or at their previous institution"), and Notre Dame's own
+  // architecture course may well be EE's. The core row keys its "pending
+  // review" path off `unknown`, which the non-CSE branch never set — so the
+  // student was told "No Computer Architecture course yet" while holding one.
+  it('an unlisted non-CSE course with a core-area title reaches §4.4.1', () => {
+    const report = audit(nonCseStudent([course('EE 60566', 'Advanced Computer Architecture')]), buildRules(), '2027-06-01');
+    const row = report.requirements.find((r) => r.id === 'phd.qualifier.core.architecture');
+    assert.equal(row?.status, 'needs_dgs_review');
+    assert.match(row!.detail, /Pending review: EE 60566/);
+    assert.match(row!.detail, /Computer Architecture/);
+  });
+
+  it('the same course is in the review request, named as both unlisted and needing approval', () => {
+    const s = nonCseStudent([course('EE 60566', 'Advanced Computer Architecture')]);
+    const pending = coursesNeedingDgsReview(s, buildRules());
+    assert.equal(pending.length, 1);
+    assert.equal(pending[0]!.unlisted, true, 'it needs a new Courses-tab row');
+    assert.match(pending[0]!.reason, /not in the course rules yet/);
+    assert.match(pending[0]!.reason, /non-CSE course/);
+  });
+
+  // CLAUDE.md: "A missing parameter renders 'cannot evaluate', never a
+  // default." The allocator's room was `limit ?? 0`, so a cap the sheet does
+  // not give read as ZERO: the cap row said "cannot evaluate" while every
+  // non-CSE course was painted red "over the ?-credit non-CSE cap".
+  it('a cap the Parameters tab is missing is unknown, not zero', () => {
+    const rules = buildRules({ parameters: { phd_noncse_6xxxx_credits_max: null } });
+    const report = audit(nonCseStudent([course('MATH 60610', 'Applied Mathematics')], { dgsApprovedNonCse: true }), rules, '2027-06-01');
+    assert.equal(report.requirements.find((r) => r.id === 'phd.cap.noncse')?.status, 'cannot_evaluate');
+    const line = report.courseLines.find((l) => l.courseId === 'MATH 60610');
+    assert.equal(line?.mark, 'pending', 'amber, not a red "over the cap"');
+    assert.doesNotMatch(line!.text, /over the/);
+    assert.match(line!.text, /does not say what the non-CSE cap is/);
+    assert.match(line!.text, /ask the DGS/);
+  });
+
+  // "counts" is third-person; only "would count" / "will count" take the bare
+  // verb. A passed course partly over a cap read "count 1 of 4 credits".
+  it('a passed course partly over the cap keeps its verb', () => {
+    const courses = [course('MATH 60610', 'A', 4), course('ACMS 60842', 'B', 4), course('EE 60566', 'C', 4)];
+    const report = audit(nonCseStudent(courses, { dgsApprovedNonCse: true }), buildRules(), '2027-06-01');
+    const partial = report.courseLines.find((l) => /of 4 credits/.test(l.text));
+    assert.ok(partial, 'one course should be partly over the 9-credit cap');
+    assert.match(partial!.text, /^counts 1 of 4 credits toward regular courses/);
+    assert.match(partial!.text, /3 not counted — over the 9-credit non-CSE cap \(§4\.2\)/);
   });
 });

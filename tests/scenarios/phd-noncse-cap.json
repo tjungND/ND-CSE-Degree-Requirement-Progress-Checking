@@ -1,0 +1,33 @@
+{
+  "name": "phd-noncse-cap",
+  "description": "A Ph.D. student with four non-CSE courses — §4.2 allows nine credits from outside CSE, so the fourth is over the cap and the report names it. The §4.4.1 core row picks up the EE architecture course by its title even though the Courses tab does not list it: §4.4.1 puts no department limit on a core course (2026-09-09). Until 2026-09-09 the Ph.D. side of the non-CSE cap had no scenario at all; only the MSCSE's §3.2 cap did.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "MATH 60610", "title": "Basic Real Analysis", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "ACMS 60842", "title": "Statistical Learning", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "EE 60566", "title": "Advanced Computer Architecture", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "PSY 60119", "title": "Cognition", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": { "dgsApprovedNonCse": true }
+  },
+  "expect": {
+    "phd.cap.noncse": { "status": "met", "detailIncludes": ["9 of the 9 non-CSE cap credits used", "PSY 60119: 3 credits not counted — over the cap"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["12 of 24"] },
+    "phd.qualifier.core.architecture": { "status": "needs_dgs_review", "detailIncludes": ["Pending review: EE 60566"] },
+    "phd.qualifier.core.os": { "status": "met", "detailIncludes": ["CSE 60641"] }
+  },
+  "expectCourseLines": {
+    "MATH 60610": ["counts toward regular courses (3 cr)", "uses the non-CSE allowance"],
+    "PSY 60119": ["not counted — over the 9-credit non-CSE cap (§4.2)"]
+  }
+}

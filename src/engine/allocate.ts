@@ -405,6 +405,14 @@ export function classify(student: Student, rules: Rules): {
           pool: 'regular',
           caps: ['noncse'],
           tier: tierFor(grade, !attested),
+          // Not in the Courses tab, same as an unlisted CSE course below
+          // (2026-09-09). §4.4.1 core knowledge reads this flag to offer the
+          // DGS a course whose TITLE names a core area, and it was set only on
+          // the CSE branch — so "EE 60566 Advanced Computer Architecture"
+          // could never become a core-knowledge candidate while the same
+          // course from another university, and an unlisted CSE course, both
+          // could. §4.4.1 puts no department limit on the course.
+          unknown: true,
           approvalPending: attested
             ? undefined
             : 'non-CSE course — needs advisor + DGS approval (§3.2/§4.2)',
@@ -512,9 +520,19 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
 
   const allocations = new Map<ClassifiedCourse, CourseAllocation>();
 
+  /** A cap the Parameters tab does not give a limit for. Its courses are not
+   * counted — nothing may be granted on a guess — but they are not "over the
+   * cap" either: the app cannot tell, and says so (CLAUDE.md: "A missing
+   * parameter renders 'cannot evaluate', never a default"). Before this the
+   * room was `limit ?? 0`, so a missing cap silently read as zero and painted
+   * every affected course red (2026-09-09). */
+  const missingLimitCap = (cc: ClassifiedCourse): CapId | undefined =>
+    cc.caps.find((id) => caps.find((c) => c.id === id)?.limit === undefined);
+
   const take = (cc: ClassifiedCourse, amount: number) => {
     const credits = cc.effectiveCredits ?? cc.entry.credits;
-    const counted = Math.min(credits, amount);
+    const unknownCap = missingLimitCap(cc);
+    const counted = unknownCap ? 0 : Math.min(credits, amount);
     const excluded = credits - counted;
     for (const capId of cc.caps) {
       capRoom.set(capId, (capRoom.get(capId) ?? 0) - counted);
@@ -533,8 +551,9 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     }
     if (cc.entry.origin === 'transfer') sums.transfer[cc.tier] += counted;
 
-    const excludedReason =
-      excluded > 0 && cc.caps.length > 0
+    const excludedReason = unknownCap
+      ? `the rules sheet does not say what the ${capLabel(unknownCap)} is, so this course cannot be counted yet — ask the DGS to fill it in (${caps.find((c) => c.id === unknownCap)?.section ?? ''})`
+      : excluded > 0 && cc.caps.length > 0
         ? `over the ${cc.caps.map(capLabel).join(' and ')} (${caps.find((c) => c.id === cc.caps[0])?.section ?? ''})`
         : undefined;
     // An UNREVIEWED transfer course is a candidate, whatever the cap did with
@@ -551,7 +570,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       countedOther: isRegular ? 0 : counted,
       excluded,
       excludedReason,
-      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate),
+      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined),
     });
   };
 
@@ -633,8 +652,12 @@ function buildExplanation(
   excluded: number,
   excludedReason?: string,
   transferCandidate?: { capLimit: number | undefined },
+  /** A cap this course draws on whose limit the Parameters tab is missing:
+   * amber and honest, never the red "over the cap" (2026-09-09). */
+  capLimitMissing?: boolean,
 ): { explanation: string; mark: CourseMark } {
   const parts: string[] = [];
+  if (capLimitMissing) return { explanation: excludedReason ?? 'cannot be counted yet — a cap is missing from the rules sheet', mark: 'pending' };
   const poolName =
     cc.pool === 'regular'
       ? 'regular courses'
@@ -688,8 +711,12 @@ function buildExplanation(
   let mark: CourseMark;
   if (counted > 0 && excluded > 0) {
     mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    // Every conditional lead already ends in the bare "count" ("would count",
+    // "will count"); only the definite lead is "counts", and the rewrite that
+    // used to sit here hit exactly that one, so a passed course partly over a
+    // cap read "count 1 of 4 credits toward regular courses" (2026-09-09).
     parts.push(
-      `${lead.replace(/counts$/, 'count')} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName}${tail}; ${formatCredits(excluded)} not counted — ${excludedReason ?? ''}`,
+      `${lead} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName}${tail}; ${formatCredits(excluded)} not counted — ${excludedReason ?? ''}`,
     );
   } else if (counted > 0) {
     mark = cc.tier === 'definite' ? 'counts' : 'pending';

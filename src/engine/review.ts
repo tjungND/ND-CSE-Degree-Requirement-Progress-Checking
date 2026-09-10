@@ -61,7 +61,17 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
         nd.push({
           course: c,
           kind: 'nd',
-          reason: c.unknown === true ? 'not in the course rules yet' : (c.approvalPending ?? 'needs DGS review'),
+          // Both facts when both are true (2026-09-09): a non-CSE course has
+          // no Courses-tab row AND §4.2 makes its allowance "subject to
+          // approval of the student's advisor and DGS". The unlisted-CSE
+          // note already says it is missing from the sheet, so it is not
+          // repeated there.
+          reason:
+            c.unknown === true
+              ? c.approvalPending !== undefined && !/not in the rules sheet/.test(c.approvalPending)
+                ? `not in the course rules yet; ${c.approvalPending}`
+                : 'not in the course rules yet'
+              : (c.approvalPending ?? 'needs DGS review'),
           unlisted: c.rule === undefined,
         });
       }

@@ -56,6 +56,13 @@ export const REQUIREMENT_IDS = [
   'phd.msAlongTheWay',
 ] as const;
 
+/** "6-credit non-CSE cap" — or just "non-CSE cap" when the Parameters tab has
+ * no value for it, since "?-credit" reads like a typo in the sentence that
+ * then tells the student the sheet is missing it (2026-09-09). */
+function capLabel(limit: number | undefined, name: string): string {
+  return limit === undefined ? name : `${limit}-credit ${name}`;
+}
+
 export function audit(student: Student, rules: Rules, today: string): AuditReport {
   const params = rules.parameters;
   const { term: entry, normalized } = normalizeEntryTerm(student.entryTerm);
@@ -66,8 +73,8 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const capSpecs: CapSpec[] =
     student.program === 'mscse'
       ? [
-          { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: `${num('ms_4xxxx_credits_max') ?? '?'}-credit cap on courses below the 60000 level`, section: '§3.2' },
-          { id: 'noncse', limit: num('ms_noncse_credits_max'), label: `${num('ms_noncse_credits_max') ?? '?'}-credit non-CSE cap`, section: '§3.2' },
+          { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: capLabel(num('ms_4xxxx_credits_max'), 'cap on courses below the 60000 level'), section: '§3.2' },
+          { id: 'noncse', limit: num('ms_noncse_credits_max'), label: capLabel(num('ms_noncse_credits_max'), 'non-CSE cap'), section: '§3.2' },
           {
             id: 'transfer',
             limit: num(student.priorMs === 'completed' ? 'ms_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max'),
@@ -76,8 +83,8 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           },
         ]
       : [
-          { id: 'fourk', limit: num('phd_4xxxx_cse_credits_max'), label: `${num('phd_4xxxx_cse_credits_max') ?? '?'}-credit cap on courses below the 60000 level`, section: '§4.2' },
-          { id: 'noncse', limit: num('phd_noncse_6xxxx_credits_max'), label: `${num('phd_noncse_6xxxx_credits_max') ?? '?'}-credit non-CSE cap`, section: '§4.2' },
+          { id: 'fourk', limit: num('phd_4xxxx_cse_credits_max'), label: capLabel(num('phd_4xxxx_cse_credits_max'), 'cap on courses below the 60000 level'), section: '§4.2' },
+          { id: 'noncse', limit: num('phd_noncse_6xxxx_credits_max'), label: capLabel(num('phd_noncse_6xxxx_credits_max'), 'non-CSE cap'), section: '§4.2' },
           {
             id: 'transfer',
             limit: num(student.priorMs === 'completed' ? 'phd_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max'),
