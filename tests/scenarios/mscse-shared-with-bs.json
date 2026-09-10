@@ -21,7 +21,7 @@
     "attestations": {}
   },
   "expect": {
-    "ms.cap.sharedbs": { "status": "met", "detailIncludes": ["6 of the 6 credits your bachelor’s degree also used"] },
+    "ms.cap.sharedbs": { "status": "met", "detailIncludes": ["6 of the 6 credits shared with your bachelor’s degree used"] },
     "ms.credits.regular": { "status": "unmet", "detailIncludes": ["12 of 24"] }
   },
   "expectCourseLines": {

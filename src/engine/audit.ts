@@ -81,7 +81,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           {
             id: 'sharedbs',
             limit: num('ms_bs_double_count_credits_max'),
-            label: capLabel(num('ms_bs_double_count_credits_max'), 'allowance for coursework your bachelor’s degree also used'),
+            label: capLabel(num('ms_bs_double_count_credits_max'), 'allowance for coursework shared with your bachelor’s degree'),
             section: '§3.5',
           },
           {

@@ -110,7 +110,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
         group: COURSEWORK,
         title: 'At most 6 credits shared with your bachelor\u2019s degree',
         capId: 'sharedbs',
-        capLabel: 'credits your bachelor\u2019s degree also used',
+        capLabel: 'credits shared with your bachelor\u2019s degree',
         limitKey: 'ms_bs_double_count_credits_max',
         section: '\u00a73.5',
         quote:
