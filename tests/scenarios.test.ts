@@ -43,6 +43,10 @@ describe('scenarios', () => {
         }
       }
 
+      if (sc.expectTracks !== undefined) {
+        assert.deepEqual(report.tracks.map((t) => t.section), sc.expectTracks);
+      }
+
       for (const id of sc.expectAbsent ?? []) {
         assert.ok(!byId.has(id), `requirement ${id} should not be in this report at all — got: ${byId.get(id)?.detail}`);
       }

@@ -18,6 +18,8 @@ export interface ScenarioFile {
   rules: { base: 'default'; patch?: RulesPatch };
   student: Student;
   expect: Record<string, { status: string; detailIncludes?: string[] }>;
+  /** The §3.5 / §3.6 track notes the report must carry, by section (2026-09-10). */
+  expectTracks?: string[];
   /** Requirement ids that must NOT be in the report at all — a row the student
    * is deliberately not shown (2026-09-09: §4.5's along-the-way MSCSE for a
    * student who already holds it). */
