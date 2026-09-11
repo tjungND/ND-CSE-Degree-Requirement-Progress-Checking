@@ -122,6 +122,15 @@ The app implements it.
   toward the Ph.D."*
 - In §3.5, the department's own limit: *"At most six credits may be counted toward both the bachelor's
   degree and the MSCSE."*
+- And the WINDOW's edges, which §3.5 leaves to the reader (DGS 2026-09-11): its sentence names "the
+  second semester of the junior year and the senior year", which the app reads as the three
+  fall/spring semesters ending with the term the bachelor's degree was awarded. Two cases the
+  sentence does not decide — a student who graduates in December, whose three semesters end in the
+  fall, and a course taken in the summer between the junior and senior years (the app counts it).
+  Worth a clause: *"…in the second semester of the junior year and the senior year, counted as the
+  three semesters preceding the conferral of the bachelor's degree."* Note also that the window is
+  the MSCSE's alone: the Graduate School's rule for the Ph.D. names no term, so the same course can
+  be outside §3.5 for the master's and inside the Ph.D.'s allowance.
 - And the approval, which only the rules spreadsheet records today (2026-09-11): the Courses tab marks
   almost every 40000-level course `counts_toward_mscse = dgs_approval`, so the app counts such a course
   toward the MSCSE only provisionally and keeps it in the review request until the student records the

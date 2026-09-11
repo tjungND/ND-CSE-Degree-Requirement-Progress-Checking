@@ -15,7 +15,7 @@ import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
-import { compareTerm, normalizeEntryTerm, shiftTermYears, termIndex, termLabel } from './term.ts';
+import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel } from './term.ts';
 import type { Attestations, CourseEntry, Grade, Program, Student } from './types.ts';
 
 export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs';
@@ -369,6 +369,41 @@ export function classify(student: Student, rules: Rules): {
         // undergraduate transcript is full of 1xxxx and 2xxxx courses, and
         // without this they filled that allowance.
         const undergradLevel = undergradLevelEarly;
+        // §3.5's WINDOW, for the MSCSE only (DGS 2026-09-11, correcting the
+        // day's earlier reading): "Students in the Integrated B.S. + M.S.
+        // program may take one or two 3-credit CSE courses at the 6xxxx level
+        // in the second semester of the junior year and the senior year" — so
+        // a graduate course taken EARLIER than that is not §3.5 coursework and
+        // counts toward nothing here. DGS: "60xxx courses taken in junior year
+        // 1st semester should not count toward MSCSE. Only courses taken in
+        // 2nd semester of junior year and both semesters in senior year should
+        // count."
+        //
+        // Those three terms are the three fall/spring semesters ending with
+        // the one the bachelor's degree was awarded in, so the award term is
+        // what places a course in the student's academic years — and without
+        // it nothing can be placed at all. The Ph.D. has no such window: the
+        // Graduate School's answer (2026-09-10) speaks of "coursework taken as
+        // an undergraduate" with no term in it.
+        //
+        // The window is §3.5's shape, not a tunable, so it lives here rather
+        // than in the Parameters tab; the three-semester span is the
+        // handbook's sentence translated.
+        if (student.program === 'mscse' && undergradLevel >= 6) {
+          if (awardedTerm === undefined) {
+            return {
+              ...extBase,
+              ineligibleReason:
+                'not counted yet — set the semester your bachelor’s degree was awarded, under Your standing. §3.5 counts graduate coursework from the second semester of your junior year onward, and this page cannot tell which year this course was in until it knows when you graduated',
+            };
+          }
+          if (semesterNumber(awardedTerm, c.term) < -1) {
+            return {
+              ...extBase,
+              ineligibleReason: `not counted — taken before the second semester of your junior year, which is where §3.5 begins: it lets an Integrated B.S. + M.S. student count graduate courses from that semester and the senior year (your bachelor’s degree was awarded ${termLabel(awardedTerm)})`,
+            };
+          }
+        }
         // Only now, when the course could actually count, is the student asked
         // anything: no course may count toward three degrees, so the answer
         // decides it. A 20000-level course counts nothing at any answer, and

@@ -146,6 +146,10 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   Guarded by tests/mscse-no-qualifier.test.ts (engine, review request and both e-mails — with a
   clause that fails if the Ph.D. ever stops matching, so the guard cannot go vacuous) and by step 11
   of scripts/e2e/drive-transcript.mjs (the whole rendered page, and an external transcript preview).
+  And §3.5's window, the same evening: for an MSCSE student a 60000-level course taken as an
+  undergraduate counts only from the second semester of the junior year on — the three fall/spring
+  semesters ending with the bachelor's award term. The Ph.D. keeps every term, and 40000-level
+  coursework has no window; both are deliberate (DECISIONS row of 2026-09-11, fourth).
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

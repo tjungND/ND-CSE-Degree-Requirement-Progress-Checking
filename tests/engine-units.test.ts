@@ -610,6 +610,41 @@ describe('undergraduate Notre Dame coursework', () => {
     });
   });
 
+  // §3.5's window (DGS 2026-09-11, correcting the same day): "Only courses
+  // taken in 2nd semester of junior year and both semesters in senior year
+  // should count" toward the MSCSE — the three fall/spring semesters ending
+  // with the one the bachelor's degree was awarded in. The Ph.D. has no such
+  // window; the Graduate School's answer names no term.
+  describe('§3.5’s window on graduate coursework taken as an undergraduate', () => {
+    const awarded = { season: 'spring' as const, year: 2026 };
+    const at = (season: 'fall' | 'spring' | 'summer', year: number, program: Student['program'] = 'mscse') =>
+      lineFor(
+        student([{ ...ug('CSE 60641', 'neither'), term: { season, year } }], { program, bachelorsAwarded: awarded, ...(program === 'phd' ? held : {}) }),
+        'CSE 60641',
+      );
+    it('the senior year and the second semester of the junior year count', () => {
+      assert.match(at('spring', 2026), /^counts toward regular courses \(3 cr\)/); // senior, 2nd
+      assert.match(at('fall', 2025), /^counts toward regular courses \(3 cr\)/); // senior, 1st
+      assert.match(at('spring', 2025), /^counts toward regular courses \(3 cr\)/); // junior, 2nd
+    });
+    it('the first semester of the junior year, and anything earlier, does not', () => {
+      assert.match(at('fall', 2024), /^not counted — taken before the second semester of your junior year/);
+      assert.match(at('fall', 2022), /^not counted — taken before the second semester of your junior year/);
+    });
+    it('the Ph.D. keeps every term — the Graduate School names none', () => {
+      assert.match(at('fall', 2024, 'phd'), /^counts toward regular courses \(3 cr\)/);
+      assert.match(at('fall', 2022, 'phd'), /^counts toward regular courses \(3 cr\)/);
+    });
+    it('without the award term the window cannot be applied, and the page says so', () => {
+      const s = student([{ ...ug('CSE 60641', 'neither'), term: { season: 'spring', year: 2025 } }], { program: 'mscse', bachelorsAwarded: undefined });
+      assert.match(lineFor(s, 'CSE 60641'), /^not counted yet — set the semester your bachelor’s degree was awarded/);
+    });
+    it('a 40000-level course has no window — its allowance is §3.2’s, and §3.5’s double count names no term', () => {
+      const s = student([{ ...ug('CSE 40113', 'bs'), term: { season: 'fall', year: 2022 } }], { program: 'mscse', bachelorsAwarded: awarded, attestations: { dgsApproved4xxxx: true } });
+      assert.match(lineFor(s, 'CSE 40113'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance/);
+    });
+  });
+
   // The three places that decide whether a row is worth showing — the preview,
   // the coursework table and the report — ask the engine, not their own copy
   // of the level rules (2026-09-11).
