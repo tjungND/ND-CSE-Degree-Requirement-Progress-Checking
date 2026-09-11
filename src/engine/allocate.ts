@@ -166,6 +166,8 @@ function priorNdShape(
           : 'needs advisor + DGS approval per the rules sheet'
         : undefined;
   const shape = (pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
+  // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
+  if (program === 'mscse' && MS_PROJECT_COURSE_IDS.includes(courseId)) return shape('project', []);
   switch (rule.courseType) {
     case 'regular':
       if (rule.level === 4 || rule.level === 5) {
@@ -183,6 +185,20 @@ function priorNdShape(
       return shape('total_only', []);
   }
 }
+
+/** §3.2 names the M.S. project and thesis-direction courses by NUMBER — "six
+ * (6) credit hours of Masters project (CSE 68902) or Masters thesis direction
+ * (CSE 68901)" — so for the MSCSE the course id decides, not the Courses tab's
+ * `course_type` cell (DGS 2026-09-11: "change the rule so that students can
+ * take 6 credits of CSE 68902 or 6 credits of CSE 68901. Ignore the course
+ * type."). The live sheet types CSE 68901 as `research`, which put every
+ * thesis-option student's credits in the total-only pool and left §3.2's six
+ * credits reading "0 of 6" while the row told them to register for it.
+ *
+ * Six credits of either course satisfies the row, and so does a mix of the
+ * two. The Ph.D. is untouched: §3.2 is the master's section, and a Ph.D.
+ * student's thesis-direction credits are research credits. */
+const MS_PROJECT_COURSE_IDS = ['CSE 68901', 'CSE 68902'];
 
 function tierFor(grade: Grade, provisional: boolean): Tier {
   if (provisional) return 'provisional'; // worst uncertainty dominates
@@ -259,6 +275,17 @@ export function classify(student: Student, rules: Rules): {
       warnings.push(`${c.courseId}: credits '${String(c.credits)}' is not a number — the course is not counted. Fix the entry.`);
       return { ...base, ineligibleReason: 'not counted — the credit value is missing or not a number' };
     }
+    // Zero credits is allowed — a transcript's credit-hours column can come
+    // through blank, and refusing the row would lose the course — but it is
+    // never silent (DGS 2026-09-11: "allow 0 credits for courses with grades,
+    // but show a warning message"). Until today the line read a bare "not
+    // counted", with no reason, no warning and nothing pointing at the
+    // credits field. The course keeps its place in the table and earns
+    // nothing, which is what 0 credits means.
+    if (c.credits === 0) {
+      warnings.push(`${c.courseId} is entered with 0 credits, so it counts toward nothing. Check the credit hours on your transcript and correct the row.`);
+      return { ...base, ineligibleReason: 'not counted — entered with 0 credits; check the credit hours on your transcript' };
+    }
 
     if (supersededSet.has(c)) {
       const countedAttempt = byId.get(c.courseId)?.find((a) => !supersededSet.has(a));
@@ -266,9 +293,16 @@ export function classify(student: Student, rules: Rules): {
       return {
         ...base,
         superseded: true,
+        // When the counted attempt is in ANOTHER term, naming that term says
+        // which row survived. When it is in the SAME term — what a course
+        // typed by hand and then imported again produces — naming the term
+        // identifies neither row, so say what actually happened instead
+        // (2026-09-11).
         ineligibleReason: countedIsLater
           ? `superseded by the ${termLabel(countedAttempt.term)} retake — credits count once, and the retake grade replaces this one (§4.4.2)`
-          : `credits count once (§4.4.2) — the ${countedAttempt ? termLabel(countedAttempt.term) : 'other'} attempt of this course is the one counted`,
+          : countedAttempt && compareTerm(countedAttempt.term, c.term) === 0
+            ? `entered twice for ${termLabel(c.term)} — credits count once (§4.4.2), so this duplicate row counts nothing. Remove it if it is not a second registration`
+            : `credits count once (§4.4.2) — the ${countedAttempt ? termLabel(countedAttempt.term) : 'other'} attempt of this course is the one counted`,
       };
     }
 
@@ -677,6 +711,10 @@ export function classify(student: Student, rules: Rules): {
             : 'needs advisor + DGS approval per the rules sheet'
           : undefined;
     const provisional = approvalPending !== undefined;
+
+    if (program === 'mscse' && MS_PROJECT_COURSE_IDS.includes(c.courseId)) {
+      return { ...base, pool: 'project', caps: [], tier: tierFor(grade, provisional), approvalPending };
+    }
 
     switch (rule.courseType) {
       case 'regular': {

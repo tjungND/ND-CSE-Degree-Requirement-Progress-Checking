@@ -1,0 +1,31 @@
+{
+  "name": "mscse-thesis-direction",
+  "description": "The thesis option's own registration, CSE 68901, satisfies §3.2's six project/thesis credits. §3.2 names both courses by number — \"six (6) credit hours of Masters project (CSE 68902) or Masters thesis direction (CSE 68901)\" — so for the MSCSE the ID decides and the Courses tab's course_type cell does not (DGS 2026-09-11: \"Ignore the course type\"). The fixture types CSE 68901 as `research`, mirroring the live sheet, which is exactly the cell that used to leave every thesis student reading \"0 of 6\" beside a row telling them to register for CSE 68901. A mix of the two ids counts too.",
+  "today": "2028-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "thesis",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 68901", "title": "M.S. Thesis Direction", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "S", "origin": "nd" },
+      { "courseId": "CSE 68902", "title": "M.S. Project", "credits": 3, "term": { "season": "spring", "year": 2028 }, "grade": "S", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.project": { "status": "met", "detailIncludes": ["6 of 6 credits complete"] },
+    "ms.credits.total": { "status": "unmet", "detailIncludes": ["9 of 30"] },
+    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24"] }
+  },
+  "expectCourseLines": {
+    "CSE 68901": ["counts toward the project/thesis requirement (3 cr)"],
+    "CSE 68902": ["counts toward the project/thesis requirement (3 cr)"]
+  }
+}

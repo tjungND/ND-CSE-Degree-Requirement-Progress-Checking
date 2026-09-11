@@ -50,6 +50,19 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **§3.2's two project courses are decided by ID, not by `course_type`** (2026-09-11).
+  `MS_PROJECT_COURSE_IDS` in allocate.ts puts CSE 68901 and CSE 68902 in the `project` pool for an
+  MSCSE student whatever the Courses tab says, because §3.2's own sentence names both numbers. The
+  live sheet types CSE 68901 as `research`, which meant every thesis-option student read "0 of 6"
+  beside a row telling them to register for it — and no test caught it, because the fixture typed
+  the same course `project`. **The fixture now mirrors the sheet on that cell**, so
+  `mscse-thesis-complete.json` and `mscse-thesis-direction.json` pass only while this rule holds.
+  If you ever make the id list a Parameters key, keep the two ids as the fallback.
+- **A fixture that disagrees with the live sheet hides bugs.** That is how the CSE 68901 defect
+  survived. When a scenario turns on a sheet CELL (a `course_type`, a `counts_toward_*`, a level),
+  check `data/snapshot.json` and make `tests/fixtures/rules/courses.csv` say the same thing, or the
+  suite is testing a sheet nobody has.
+
 - **§4.4 is the Ph.D.'s, and the MSCSE must never hear about it** (DGS 2026-09-11). Core knowledge
   (§4.4.1) and category specialization (§4.4.2) are components of the qualifying examination, which
   the MSCSE does not have. Every surface that mentions either is gated on `student.program === 'phd'`

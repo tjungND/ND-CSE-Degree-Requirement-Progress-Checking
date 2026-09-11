@@ -151,6 +151,47 @@ export async function driveApp(s, baseUrl) {
   await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CS 53000').querySelector('button.remove').click()`);
   await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CS 53000')`);
 
+  // A course entered with 0 credits (DGS 2026-09-11): allowed, because a
+  // transcript's credit-hours column can come through blank and refusing the
+  // row would lose the course — but never silently. The student is asked
+  // first, the safe answer has focus, and Escape cancels.
+  await s.evalJs(`(() => {
+    const o = document.querySelector('[data-key="course.new.origin"]'); o.value = 'nd'; o.dispatchEvent(new Event('change'));
+    const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CSE 60567'; id.dispatchEvent(new Event('change'));
+    const cr = document.querySelector('[data-key="course.new.credits"]'); cr.value = '0'; cr.dispatchEvent(new Event('change'));
+    document.querySelector('[data-key="course.new.add"]').click();
+  })()`);
+  await s.waitFor(`!!document.querySelector('dialog.confirm-check')`);
+  const zero = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const d = document.querySelector('dialog.confirm-check');
+    return { title: d.querySelector('h2').textContent, body: d.querySelector('p').textContent,
+      buttons: [...d.querySelectorAll('button')].map(b => b.textContent),
+      focused: document.activeElement?.dataset?.key ?? '' };
+  })())`));
+  console.log('  0-credit check:', JSON.stringify(zero.title), '| focus on', zero.focused, '|', JSON.stringify(zero.buttons));
+  if (!/CSE 60567 is entered with 0 credits/.test(zero.title)) throw new Error('the 0-credit dialog must name the course: ' + zero.title);
+  if (!/counts toward nothing/.test(zero.body)) throw new Error('the 0-credit dialog must say what 0 credits means: ' + zero.body);
+  if (zero.focused !== 'confirm.no') throw new Error('the safe answer must have focus, not the one that adds the course: ' + zero.focused);
+  await s.shotElement('zero-credit-check', 'dialog.confirm-check .consent-box');
+  await s.evalJs(`document.querySelector('[data-key="confirm.no"]').click()`);
+  await s.waitFor(`!document.querySelector('dialog.confirm-check')`);
+  if (await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 60567')`)) {
+    throw new Error('cancelling the 0-credit check must not add the course');
+  }
+  // …and confirming adds it, with a line and a warning that say why it counts nothing.
+  await s.evalJs(`document.querySelector('[data-key="course.new.add"]').click()`);
+  await s.waitFor(`!!document.querySelector('dialog.confirm-check')`);
+  await s.evalJs(`document.querySelector('[data-key="confirm.yes"]').click()`);
+  await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 60567')`);
+  const zeroLine = await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CSE 60567')?.textContent ?? ''`);
+  const zeroWarn = await s.evalJs(`document.querySelector('.warnings')?.textContent ?? ''`);
+  if (!/entered with 0 credits; check the credit hours on your transcript/.test(zeroLine)) throw new Error('the 0-credit line must say why: ' + zeroLine.slice(0, 160));
+  if (!/CSE 60567 is entered with 0 credits/.test(zeroWarn)) throw new Error('a 0-credit course must also raise a warning: ' + zeroWarn.slice(0, 200));
+  console.log('  0-credit course added after confirming — line and warning both explain it');
+  await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CSE 60567').querySelector('button.remove').click()`);
+  await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 60567')`);
+  await s.evalJs(`(() => { const cr = document.querySelector('[data-key="course.new.credits"]'); cr.value = '3'; cr.dispatchEvent(new Event('change')); })()`);
+
   // §3.6 Transition to Computing (2026-09-10, promised 2026-08-31): a student
   // who enters a 50000-level bridge course is told the audit does not model
   // their track and sent to the DGS — above the dial, and NOT in the amber

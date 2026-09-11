@@ -22,7 +22,7 @@ import { statusMark } from './marks.ts';
 import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
-import { copyDialog } from './copy-dialog.ts';
+import { confirmDialog, copyDialog } from './copy-dialog.ts';
 import { gradAdminRequest, selfCheckFileName } from './grad-admin-request.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, scoreLine } from './report.ts';
@@ -1679,7 +1679,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       }
     });
 
-    const add = () => {
+    const add = async () => {
       const id = idInput.value.toUpperCase().replace(/\s+/g, ' ').trim();
       if (!id) {
         // A persistent error next to the field, not a vanishing toast (item 6).
@@ -1706,6 +1706,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       }
       const group = (groupSel as HTMLSelectElement).value;
       if (group && !groupField.classList.contains('hidden')) entry.assignedGroup = group as CourseEntry['assignedGroup'];
+      // A course worth no credits counts toward nothing, and a 0 in this box is
+      // nearly always a slip or a blank credit-hours column on a transcript. It
+      // is allowed — losing the course would be worse — but not without being
+      // asked (DGS 2026-09-11).
+      if (entry.credits === 0) {
+        const yes = await confirmDialog({
+          title: `${id} is entered with 0 credits`,
+          body: [
+            'A course with no credits counts toward nothing — not the 30 total credits, not the regular-course credits, not any cap. It will appear in your coursework with a line saying so.',
+            'Your transcript prints the credit hours beside each course. If this one has a value, cancel and type it in the Credits box.',
+          ],
+          confirmLabel: 'Add it with 0 credits',
+          cancelLabel: 'Go back and fix the credits',
+          returnFocusKey: 'course.new.credits',
+        });
+        if (!yes) return;
+      }
       focusAfterRender = 'course.new.id'; // ready for the next course
       // A Notre Dame course dated before the entry term is coursework from an
       // earlier Notre Dame degree, whoever typed it (2026-09-09). The import

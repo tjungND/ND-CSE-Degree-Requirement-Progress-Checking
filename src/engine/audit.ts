@@ -33,6 +33,7 @@ export const REQUIREMENT_IDS = [
   'ms.cap.fourk',
   'ms.cap.noncse',
   'ms.cap.sharedbs',
+  'ms.transfer',
   'ms.residency',
   'ms.timeLimit',
   'ms.thesis.defense',

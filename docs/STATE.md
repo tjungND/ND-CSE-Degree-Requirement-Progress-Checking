@@ -150,6 +150,17 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   undergraduate counts only from the second semester of the junior year on — the three fall/spring
   semesters ending with the bachelor's award term. The Ph.D. keeps every term, and 40000-level
   coursework has no window; both are deliberate (DECISIONS row of 2026-09-11, fourth).
+  Then sixty-eight invented MSCSE corner cases (8 families: the ND 4+1, arrivals from other
+  universities, a gap year, non-CSE and EE Notre Dame bachelor's degrees, a prior M.S. in another
+  field, transcript shapes, arithmetic boundaries) were run through the engine against the published
+  sheet. Four defects came out and all four are fixed (DECISIONS row of 2026-09-11, fifth): CSE 68901
+  never satisfied §3.2's six project/thesis credits because the sheet types it `research` — the two
+  course IDs now decide the project pool for the MSCSE, whatever the cell says; a 0-credit course is
+  allowed but warned about and confirmed before it is added; the MSCSE gained the §5.2 transfer row
+  the Ph.D. always had (`ms.transfer`, shared builder in requirements/transfer.ts); and two sentences
+  were fixed — a met row no longer tells the student what to register for, and a same-term duplicate
+  no longer identifies itself by the term both rows share. The fixture CSV now mirrors the live sheet
+  for CSE 68901, so the thesis scenario passes only because of the new rule.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

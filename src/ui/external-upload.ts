@@ -22,7 +22,7 @@ import type { ExternalCourseCandidate } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
 import { reclassifyNotreDameCourses } from './prior-nd.ts';
 import { canonicalUniversityName } from './university-name.ts';
-import { writeClipboard } from './copy-dialog.ts';
+import { confirmDialog, writeClipboard } from './copy-dialog.ts';
 import { parseTranscript } from '../transcript/parse.ts';
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 
@@ -963,7 +963,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
         {
           class: 'btn primary',
           'data-key': 'ext.preview.add',
-          onclick: () => {
+          onclick: async () => {
             const university = p.university.trim();
             // Problems stay on screen, next to what needs fixing (item 6).
             const problem = (message: string, focusKey: string): void => {
@@ -987,6 +987,24 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               return;
             }
             previewError = undefined;
+            // A row whose credit-hours column came through blank is saved as 0
+            // and counts toward nothing. The student is asked before it is
+            // added, naming the rows (DGS 2026-09-11) — allowed, never silent.
+            const zeroRows = ready.filter((r) => r.credits === 0);
+            if (zeroRows.length > 0) {
+              const which = zeroRows.map((r) => r.courseId.trim()).join(', ');
+              const yes = await confirmDialog({
+                title: `${zeroRows.length === 1 ? 'One course has' : `${zeroRows.length} courses have`} 0 credits`,
+                body: [
+                  `${which} ${zeroRows.length === 1 ? 'is' : 'are'} about to be added with 0 credits, which counts toward nothing — not the total credits, not the regular-course credits, not any cap.`,
+                  'That usually means the credit-hours column could not be read. Cancel, type the credits from your transcript into those rows, and add them again.',
+                ],
+                confirmLabel: 'Add them anyway',
+                cancelLabel: 'Go back and fix the credits',
+                returnFocusKey: 'ext.preview.add',
+              });
+              if (!yes) return;
+            }
             // (initializer cast: the assignment happens inside the update()
             // closure, which TS's flow analysis can't see from the use below)
             let priorAutoSet = false as 'completed' | 'unfinished' | false;

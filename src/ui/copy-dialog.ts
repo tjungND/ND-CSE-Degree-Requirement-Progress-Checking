@@ -122,3 +122,51 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
     (preview as HTMLTextAreaElement).select();
   }
 }
+
+/** A yes/no check before something the student probably did not mean — today
+ * only the 0-credit course (DGS 2026-09-11: "show a warning message and
+ * double-check with the students when they attempt to add 0-credit courses").
+ * The same native <dialog> as the copy check: focus trapped, Escape cancels,
+ * focus returns to the control that opened it. Resolves true only on the
+ * confirm button, so a dismissed dialog never adds anything. */
+export function confirmDialog(opts: {
+  title: string;
+  body: string[];
+  confirmLabel: string;
+  cancelLabel?: string;
+  returnFocusKey: string;
+}): Promise<boolean> {
+  return new Promise((resolve) => {
+    let answer = false;
+    const confirm = el('button', { class: 'btn primary', 'data-key': 'confirm.yes' }, opts.confirmLabel);
+    const cancel = el('button', { class: 'btn', 'data-key': 'confirm.no' }, opts.cancelLabel ?? 'Cancel');
+    const dialog = el(
+      'dialog',
+      { class: 'consent confirm-check', 'aria-labelledby': 'confirm-title' },
+      el(
+        'div',
+        { class: 'consent-box' },
+        el('h2', { id: 'confirm-title' }, opts.title),
+        ...opts.body.map((t) => el('p', {}, t)),
+        el('div', { class: 'save-buttons' }, confirm, cancel),
+      ),
+    );
+    const close = (): void => {
+      if (dialog.open) dialog.close();
+      dialog.remove();
+      const opener = document.querySelector<HTMLElement>(`[data-key="${CSS.escape(opts.returnFocusKey)}"]`);
+      (opener ?? document.querySelector<HTMLElement>('.masthead h1'))?.focus();
+      resolve(answer);
+    };
+    confirm.addEventListener('click', () => {
+      answer = true;
+      close();
+    });
+    cancel.addEventListener('click', close);
+    dialog.addEventListener('close', close); // Escape cancels
+    document.body.append(dialog);
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+    cancel.focus(); // the safe default has focus
+  });
+}

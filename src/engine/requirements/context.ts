@@ -76,7 +76,11 @@ export function thresholdRow(args: {
       parts.push(`meeting this depends on courses that still need review: ${args.provisionalCourses.join(', ')}`);
     }
   }
-  parts.push(...(args.extraDetail ?? []));
+  // Advice about what to register for belongs to a row that is not yet met:
+  // a finished student was still being told "Register for CSE 68902 (project)
+  // or CSE 68901 (thesis direction)" beside their own completed six credits
+  // (2026-09-11).
+  if (status !== 'met') parts.push(...(args.extraDetail ?? []));
   return {
     id: args.id,
     group: args.group,

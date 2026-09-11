@@ -15,7 +15,7 @@ CSE 60999,Topics in Computing,6,3,3,3,regular,,,,,varies,yes,Fall 2026,Fall 2026
 CSE 63801,Research Seminar I,6,1,1,1,seminar,no,yes,,,fall,yes,Fall 2026,Fall 2026,,,yes,§4.2 — required of Ph.D. students in year one
 CSE 63802,Research Seminar II,6,1,1,1,seminar,no,yes,,,spring,yes,Spring 2026,Fall 2026,,,yes,§4.2 — required of Ph.D. students in year one
 CSE 66998,Special Studies,6,1,6,3,independent,no,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,Fixture: a 6xxxx course whose counts_toward_* = no must be honored (prototype bug)
-CSE 68901,M.S. Thesis Direction,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,§3.2 — thesis direction credits
+CSE 68901,M.S. Thesis Direction,6,1,6,3,research,yes,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,"§3.2 — thesis direction credits. course_type mirrors the LIVE sheet (research), so the fixture pins the 2026-09-11 rule that §3.2's two ids decide the project pool whatever this cell says."
 CSE 68902,M.S. Project,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,§3.2 — project credits
 CSE 98900,Research and Dissertation,9,1,15,9,research,no,yes,,,both,yes,Fall 2026,Fall 2026,,,yes,Ph.D. research credits — count toward the 60 total only
 CSE 40113,Design/Analysis of Algorithms,4,3,3,3,regular,dgs_approval,dgs_approval,,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval

@@ -5,6 +5,7 @@ import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { capRow, countedCourseIds, pendingCourseIds, missingParamDetail, thresholdRow } from './context.ts';
 import { fullTimeTermRecords } from './residency.ts';
+import { transferRow } from './transfer.ts';
 
 const COURSEWORK = 'Coursework — §3.2';
 const TIME = 'Residence and time — §3.3';
@@ -78,6 +79,19 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       section: '§3.2',
       quote: REGULAR_QUOTE,
       extraDetail: ['Register for CSE 68902 (project) or CSE 68901 (thesis direction)'],
+    }),
+  );
+
+  // §5.2's cap on credit brought in from an earlier program — nine credits
+  // with a completed master's, six with one that was not finished. The cap was
+  // always enforced; this row is what says so (DGS 2026-09-11), and it is the
+  // Ph.D.'s own row with the master's parameter key.
+  rows.push(
+    transferRow(ctx, {
+      id: 'ms.transfer',
+      group: COURSEWORK,
+      capKeyCompleted: 'ms_transfer_completed_ms_credits_max',
+      section: '§3.2, §5.2',
     }),
   );
 

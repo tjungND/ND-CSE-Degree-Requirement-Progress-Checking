@@ -1,0 +1,26 @@
+{
+  "name": "mscse-zero-credit-course",
+  "description": "A course whose credit-hours column came through blank and was saved as 0. Zero is allowed — refusing the row would lose a course the student passed — but it is never silent (DGS 2026-09-11: \"allow 0 credits for courses with grades, but show a warning message\"). Until then the line read a bare \"not counted\", with no reason, no warning and nothing pointing at the credits field.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "courses": [
+      { "courseId": "CSE 60567", "title": "Computer Security", "credits": 0, "term": { "season": "fall", "year": 2026 }, "grade": "B+", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24"] }
+  },
+  "expectCourseLines": {
+    "CSE 60567": ["not counted — entered with 0 credits; check the credit hours on your transcript"]
+  }
+}
