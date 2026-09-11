@@ -267,16 +267,26 @@ function keepRelevantRows(
  * and external courses together. */
 export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | null)[] {
   return [
-    // Where a COMBINED transcript goes (DGS request 2026-09-05: make it easy
-    // to notice): one PDF covering both a BS and an MS is imported once, in
-    // the Master's row; each row's level is read and shown for correction.
+    // A bachelor's and a master's from ONE university arrive in two shapes, and
+    // the student has to be told which they have before they can file it
+    // (DGS 2026-09-05, rewritten 2026-09-11 — Notre Dame's own 4+1 issues two
+    // separate transcripts, one per career, and other universities do the
+    // same, so "one combined PDF" is not the common case it was written as).
+    // Two transcripts: one row each. One PDF covering both: the Master's row,
+    // once, with each course's "Taken as" level read from it.
     el(
       'div',
       { class: 'combined-note', role: 'note' },
-      el('strong', {}, 'One transcript for both your BS and MS'),
-      ' (a 4+1 / 5+1 program, or both degrees at one university)? Import it ',
-      el('strong', {}, 'once, in the Previous Master’s Transcript row'),
-      '. Whether you took each course as an undergraduate or as a graduate student is read from it and shown in a “Taken as” column you can correct before adding — your status at the time, not the course’s level. The Undergraduate row works too — never import the same PDF twice.',
+      el('strong', {}, 'A bachelor’s and a master’s from the same university'),
+      ' — a 4+1 or 5+1 program, Notre Dame’s included — comes as either two transcripts or one. ',
+      el('strong', {}, 'Two transcripts:'),
+      ' upload each in its own row, the bachelor’s in the Undergraduate row and the master’s in the Master’s row. ',
+      el('strong', {}, 'One transcript covering both degrees:'),
+      ' upload it once, in the ',
+      el('strong', {}, 'Previous Master’s Transcript'),
+      ' row — never the same PDF twice. Either way, whether you took each course as an undergraduate or as a graduate student is read from the transcript and shown in a “Taken as” column you can correct before adding: it is your status at the time, not the course’s level, and it decides what the course can count toward.',
+      el('br'),
+      'Notre Dame’s own transcripts belong in these rows too, for a degree you have already finished. The ND row above is for the program you are in now.',
     ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,

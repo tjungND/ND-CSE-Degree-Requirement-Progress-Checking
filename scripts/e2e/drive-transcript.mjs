@@ -155,6 +155,18 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'review.copy') throw new Error('focus must return to the copy button after OK');
   console.log('  copy dialog names the DGS, shows subject and message; OK closes it, focus back on the button');
 
+  // The guidance above the four rows (DGS 2026-09-11): a bachelor's and a
+  // master's from one university arrive as TWO transcripts as often as one —
+  // Notre Dame's own 4+1 issues two — so the note has to name both shapes and
+  // say where each goes before the student picks a file.
+  const combined = await s.evalJs(`document.querySelector('.combined-note')?.textContent ?? ''`);
+  for (const needed of ['Two transcripts:', 'One transcript covering both degrees:', 'Previous Master’s Transcript', 'Notre Dame’s own transcripts belong in these rows']) {
+    if (!combined.includes(needed)) throw new Error('the transcript-shape note must say ' + JSON.stringify(needed) + ' — got: ' + combined);
+  }
+  console.log('  transcript-shape note covers two transcripts, one combined, and where ND’s own go');
+  await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card')].find(c => c.querySelector('h2')?.textContent.includes('Transcripts')); if (c) c.id = 'shot-transcripts'; })()`);
+  await s.shotElement('transcript-shapes', '#shot-transcripts');
+
   // 3) External transcript (Master's slot) → editable preview → add → verdicts.
   await s.setFileInput('.external-file-masters', externalPdf);
   await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Master’s Transcript'))`);
