@@ -70,9 +70,14 @@ export function specialTracks(student: Student, classified: ClassifiedCourse[]):
       id: 'integrated',
       section: '§3.5',
       title: 'Integrated B.S. + M.S.',
+      // Rewritten 2026-09-11: both notes described the rule the app followed
+      // BEFORE the Graduate School answered (2026-09-10) — "counts toward no
+      // credit", "does not count the courses toward the MSCSE". It counts them
+      // now, so the note that sits above the report had to stop contradicting
+      // the lines below it.
       text: phd
-        ? 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. §3.5 lets an Integrated B.S. + M.S. student count one or two of those toward the MSCSE, but §5.2 asks for graduate student status before a course can bring credit into this program — so this page counts them toward the qualifying examination, both core knowledge (§4.4.1) and specialization (§4.4.2), and toward no credit. The department is asking the Graduate School whether that credit can follow you here; the DGS will know where that stands, so ask them.'
-        : 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. §3.5 allows that for an Integrated B.S. + M.S. student, with the instructor’s and the DGS’s approval, but this page cannot check those approvals and does not count the courses toward the MSCSE. Ask the DGS to confirm which of them count.',
+        ? 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. The Graduate School has confirmed that 60000-level coursework you took as an undergraduate and did not use for your bachelor’s degree comes with you: it counts here in full, on top of the credits §5.2 lets you transfer, and up to 6 credits of coursework below that level may count inside §4.2’s allowance. No course may count toward three degrees, so this page asks, next to each course, which degrees it has already counted toward — and the DGS still decides anything the course rules leave open.'
+        : 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. §3.5 allows that for an Integrated B.S. + M.S. student, with the instructor’s and the DGS’s approval. This page counts such coursework as the course rules say — 60000-level courses in full, CSE courses below that inside §3.2’s allowance — with at most 6 credits in all shared with your bachelor’s degree (§3.5). Anything that still needs an approval is counted only provisionally and listed in the review request below, so ask the DGS to confirm it.',
     });
   }
 

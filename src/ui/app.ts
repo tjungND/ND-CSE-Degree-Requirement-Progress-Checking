@@ -5,6 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
+import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
 import { coursesNeedingDgsReview, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
@@ -830,7 +831,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // then one section per (university, transcript) in first-seen order.
     const all = student.courses.map((c, index) => ({ c, index }));
     const nd = all.filter(({ c }) => c.origin === 'nd');
-    const groups: { heading: string; bachelors: boolean; entries: { c: CourseEntry; index: number }[]; hidden: number }[] = [];
+    const groups: { heading: string; bachelors: boolean; nd: boolean; entries: { c: CourseEntry; index: number }[]; hidden: number }[] = [];
     for (const e of all.filter(({ c }) => c.origin === 'transfer')) {
       const slot = e.c.degreeLevel
         ? (DEGREE_SLOTS.find((sl) => sl.level === e.c.degreeLevel)?.label ?? e.c.degreeLevel)
@@ -843,7 +844,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : `${e.c.institution ?? 'University not set'} — ${slot}`;
       let g = groups.find((x) => x.heading === heading);
       if (!g) {
-        g = { heading, bachelors: e.c.degreeLevel === 'bachelors', entries: [], hidden: 0 };
+        g = { heading, bachelors: e.c.degreeLevel === 'bachelors', nd: priorNd, entries: [], hidden: 0 };
         groups.push(g);
       }
       // Undergraduate courses (DGS request 2026-09-04): only the ones that can
@@ -851,11 +852,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // the DGS has already ruled on, or (Notre Dame) a course the Courses tab
       // tags with a core area. The rest stay in the saved data but out of the
       // way (undergraduate credits never transfer, §5.2).
+      //
+      // Notre Dame's own undergraduate coursework can do more than demonstrate
+      // a core area (2026-09-11): 60000-level courses count in full and CSE
+      // courses below that may count inside the degree's allowance, so those
+      // rows are listed too — hiding one hid a course the report was counting.
       if (
         g.bachelors &&
         !CORE_TITLE_RE.test(e.c.title ?? '') &&
         !findExternalRule(rules.external, e.c.institution ?? '', e.c.courseId) &&
-        !(priorNd && resolveRuleRow(rules, e.c.courseId, e.c.term)?.coreArea)
+        !(priorNd && resolveRuleRow(rules, e.c.courseId, e.c.term)?.coreArea) &&
+        !(priorNd && priorNdUndergraduateCanCount(e.c, resolveRuleRow(rules, e.c.courseId, e.c.term), student.program))
       ) {
         g.hidden += 1;
         continue;
@@ -891,7 +898,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           ? el(
               'p',
               { class: 'hint' },
-              `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here${g.hidden > 0 ? ` — ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown` : ''}.`,
+              (g.nd
+                ? `Notre Dame coursework you took as an undergraduate is listed here when it can count toward this degree — 60000-level courses, CSE courses below that inside the allowance your degree allows, and anything relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1). Say next to each course which degrees it has already counted toward; the report then says what each one does.`
+                : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`) +
+              `${g.hidden > 0 ? ` ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown.` : ''}`,
             )
           : hasTransferCandidate(g.entries)
             ? el(
@@ -1173,7 +1183,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       imported.length > 0 ? 'Import again' : 'Import from PDF (alpha)',
     );
     const parts: (Node | string)[] = [
-      el('span', { class: 'slot-label' }, 'ND Unofficial Transcript'),
+      // Named for the program the student picked at the top (DGS 2026-09-11):
+      // an ND 4+1 student has several Notre Dame transcripts, and "ND
+      // Unofficial Transcript" did not say which one this row wants.
+      el('span', { class: 'slot-label' }, student.program === 'mscse' ? 'ND Unofficial MSCSE Transcript' : 'ND Unofficial Ph.D. Transcript'),
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
     ];
     if (imported.length > 0) {
@@ -1847,13 +1860,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // "Both" is the only answer that stops the course counting here: no
         // course may count toward three degrees. The others differ for the
         // MSCSE audit, which caps coursework shared with the bachelor's.
-        for (const [value, label] of [
-          ['', 'Already counted toward…'],
-          ['neither', 'Neither — it was extra'],
-          ['bs', 'My bachelor’s degree'],
-          ['mscse', 'My MSCSE'],
-          ['both', 'Both my bachelor’s and my MSCSE'],
-        ] as const) {
+        //
+        // A student still working on the MSCSE has only two degrees in play —
+        // nothing can have counted toward the degree they are doing now — so
+        // they are offered only the two answers that can be true (2026-09-11).
+        const choices =
+          student.program === 'mscse'
+            ? ([
+                ['', 'Already counted toward…'],
+                ['neither', 'Neither — it was extra'],
+                ['bs', 'My bachelor’s degree'],
+              ] as const)
+            : ([
+                ['', 'Already counted toward…'],
+                ['neither', 'Neither — it was extra'],
+                ['bs', 'My bachelor’s degree'],
+                ['mscse', 'My MSCSE'],
+                ['both', 'Both my bachelor’s and my MSCSE'],
+              ] as const);
+        for (const [value, label] of choices) {
           sel.append(option(value, label, (c.countedToward ?? '') === value));
         }
         countsCell.append(el('div', {}, sel));
@@ -1862,7 +1887,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             el(
               'div',
               { class: 'group-hint' },
-              'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it — unless it has already counted toward both your bachelor’s and your MSCSE. No course may count toward three degrees, so this answer decides it.',
+              student.program === 'mscse'
+                ? 'Notre Dame coursework you took as an undergraduate can count toward the MSCSE — 60000-level in full, and up to 6 credits below it. At most 6 credits may count toward both this degree and your bachelor’s (§3.5), so this answer decides which allowance the course uses. Most 40000-level courses still need your advisor’s and the DGS’s approval, so they are listed in the review request.'
+                : 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it — unless it has already counted toward both your bachelor’s and your MSCSE. No course may count toward three degrees, so this answer decides it.',
             ),
           );
         }

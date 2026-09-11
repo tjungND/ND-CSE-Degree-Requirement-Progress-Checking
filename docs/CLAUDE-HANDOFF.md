@@ -50,6 +50,24 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **One predicate decides whether a prior Notre Dame undergraduate course is worth showing**
+  (2026-09-11). `priorNdUndergraduateCanCount(course, rule, program)` is exported from
+  `src/engine/allocate.ts` and used by the transcript preview (`isRelevantRow`), the coursework
+  table's hide rule in `src/ui/app.ts`, and — through the engine's own classification — the report.
+  Before it, each surface carried its own "only a §4.4.1 core-keyword title matters" test, written
+  when undergraduate coursework could do nothing else. After the Graduate School's 2026-09-10 answer
+  it can count, and the copies silently dropped courses the engine was counting: a 40000-level CSE
+  course read from the transcript never reached the preview, and one added by hand was counted by
+  the report while invisible in the table. If you add a fourth surface, ask the predicate.
+- **`dgs_approval` means the same thing wherever the course was taken** (2026-09-11).
+  `priorNdShape()` reads `counts_toward_mscse` / `counts_toward_phd` for prior Notre Dame coursework
+  exactly as `classify()` does for a course taken in the program: `dgs_approval` → counted
+  provisionally with `approvalPending`, cleared by the same attestation checkbox, and listed by
+  `coursesNeedingDgsReview` (which now also lists an undergraduate row carrying `approvalPending`,
+  not just a core-keyword title). This is what makes the DGS's "they MAY count, subject to all other
+  constraints" true of an MSCSE student's 40000-level undergraduate coursework — nearly every such
+  row in the live sheet says `dgs_approval` for the MSCSE.
+
 - **The DGS batch of 2026-09-06 (evening): items 1–6 plus the OCE short form.** Mechanics, file by
   file, with the decisions in DECISIONS rows of that evening:
   - `src/engine/review.ts` `coursesNeedingDgsReview(student, rules)` is THE rule for which courses

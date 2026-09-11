@@ -205,6 +205,35 @@ const ND = [
   'CSE 60876 GR Research Methods 3.000',
 ];
 
+// An ND UNDERGRADUATE transcript on its own (2026-09-11): Notre Dame's 4+1
+// issues two transcripts, one per career, so an MSCSE student's bachelor's
+// record arrives by itself in the Previous Undergraduate row. It carries the
+// three shapes that have to be told apart: coursework too low to count at all
+// (MATH 10550, CSE 20110), 40000-level CSE courses that MAY count inside the
+// allowance once the DGS approves, and a senior-year 60000-level course.
+const ND_UNDERGRAD = [
+  'University of Notre Dame',
+  'Unofficial Academic Transcript',
+  'This is not an official transcript.',
+  'Name : Jane Q. Student',
+  'Degrees Awarded',
+  'Bachelor of Science',
+  'Degree Date: May 17, 2026',
+  '',
+  'INSTITUTION CREDIT',
+  'Fall Semester 2024',
+  'MATH 10550 UG Calculus I A 4.000 16.000',
+  'CSE 20110 UG Discrete Mathematics A 3.000 12.000',
+  'Spring Semester 2025',
+  'CSE 40113 UG Design/Analysis of Algorithms A 3.000 12.000',
+  'Fall Semester 2025',
+  'CSE 40166 UG Computer Graphics A- 3.000 11.001',
+  'CSE 60641 UG Graduate Operating Systems A 3.000 12.000',
+  '',
+  'TRANSCRIPT TOTALS (UNDERGRADUATE)',
+  'Overall: 16.000 16.000 16.000 16.000 60.000 3.750',
+];
+
 const OTHER = [
   'Purdue University',
   'Unofficial Academic Transcript',
@@ -259,6 +288,7 @@ const COMBINED = [
 ];
 
 writeFileSync(join(here, 'nd-transcript.pdf'), makePdf(ND));
+writeFileSync(join(here, 'nd-undergrad-transcript.pdf'), makePdf(ND_UNDERGRAD));
 writeFileSync(join(here, 'combined-transcript.pdf'), makePdf(COMBINED));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));

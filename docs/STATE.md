@@ -1,6 +1,6 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-08 (the first Claude Code Desktop session on the DGS's Mac, still running,
+Last updated: 2026-09-11 (the first Claude Code Desktop session on the DGS's Mac, still running,
 branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at ~15:00 UTC —
 see "Session protocol" in `CLAUDE.md`).
 
@@ -123,6 +123,19 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   The course-rules page no longer carries "Listed under every category" as a sixth category: a course
   the sheet marks `any` sits in each of the five real cards, and a note says a course listed under
   several categories can fill only one of them.
+  2026-09-11: the Notre Dame upload row is named for the tab the student picked — "ND Unofficial
+  MSCSE Transcript" / "ND Unofficial Ph.D. Transcript" (`ndRowLabel()`); the note above the four
+  rows covers both 4+1 transcript shapes; and an MSCSE student's own undergraduate transcript is
+  handled end to end. Its 40000-level CSE courses MAY count (DGS: "they 'may' count, subject to all
+  other constraints, so they should be listed … for further decisions & review"), so they are
+  offered in the preview, asked about — the MSCSE's question is about two degrees, not three —
+  counted only provisionally inside §3.2's allowance and §3.5's shared six credits, and listed in
+  the review request until the "DGS approved my course(s) below the 60000 level" attestation is
+  ticked. `priorNdShape()` reads the sheet's `dgs_approval` for prior Notre Dame coursework in BOTH
+  programs now. Three surfaces (preview, coursework table, review card) each had their own copy of
+  "can this undergraduate row matter?" and all three hid coursework the report was counting; they
+  share one engine predicate, `priorNdUndergraduateCanCount()`. The §3.5 track note, which still
+  described the rule the Graduate School replaced on 2026-09-10, was rewritten for both programs.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.
@@ -179,12 +192,15 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
    would read "not in the rules sheet". These 50 were never taught, so no student can have taken one.
    The committed `data/snapshot.json` lags the sheet by up to six hours, so a fetch and the snapshot
    can disagree for a while; the deployed page always reads the live sheet.
-6. Both 4+1 questions were answered on 2026-09-10 and built (DECISIONS rows of that date): §3.5's
-   one or two senior-year 6xxxx courses transfer into our own Ph.D. up to `phd_senior_grad_credits_max`,
-   and a 4+1 transcript's entry term is the term after the last degree it awards. What is left for the
-   DGS is upward, not inward: §5.2 criterion 2 belongs to the Graduate School, and the department is
-   now counting on a transfer that criterion appears to forbid — docs/HANDBOOK-REVISIONS.md §4 is
-   written for that conversation.
+6. The 4+1 questions are settled (DECISIONS rows of 2026-09-10 and 2026-09-11): the Graduate School's
+   own answer replaced the department's reading — undergraduate Notre Dame coursework is not §5.2
+   transfer credit at all — and a 4+1 transcript's entry term is the term after the last degree it
+   awards. `phd_senior_grad_credits_max` was withdrawn with the reversal and is parked in the sheet.
+   Nothing is open upward any more; what is left is the HANDBOOK's silence, in
+   docs/HANDBOOK-REVISIONS.md §4, which now carries the Graduate School's wording verbatim and the
+   three sentences the handbook needs. Add to it, when §3.2 is next revised, that a 40000-level
+   course counted toward the MSCSE needs the advisor's and the DGS's approval — the app enforces it
+   from the sheet's `counts_toward_mscse = dgs_approval`, and the handbook says nothing.
 
 ## Open work (optional)
 

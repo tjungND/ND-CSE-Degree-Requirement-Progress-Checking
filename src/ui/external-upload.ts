@@ -13,10 +13,11 @@ import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts'
 import { resolveRuleRow } from '../data/assemble.ts';
 import { NOTRE_DAME, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
+import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
 import { GRADES } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
-import type { CourseEntry, Grade, Season, Student, Term } from '../engine/types.ts';
+import type { CourseEntry, Grade, Program, Season, Student, Term } from '../engine/types.ts';
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
 import { reclassifyNotreDameCourses } from './prior-nd.ts';
@@ -35,6 +36,13 @@ export function copyReviewRequest(built: { text: string; html: string }): Promis
 }
 
 export type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
+/** What the Notre Dame row is called, which depends on the program the student
+ * picked at the top (DGS 2026-09-11). A 4+1 student holds several Notre Dame
+ * transcripts; the row wants the one for the program they are in now. */
+export function ndRowLabel(student: Student): string {
+  return student.program === 'mscse' ? 'ND Unofficial MSCSE Transcript' : 'ND Unofficial Ph.D. Transcript';
+}
+
 export const DEGREE_SLOTS: { level: DegreeLevel; label: string }[] = [
   { level: 'bachelors', label: 'Previous Undergraduate Transcript' },
   { level: 'masters', label: 'Previous Master’s Transcript' },
@@ -151,15 +159,15 @@ function handSetBachelors(student: Student): Term | undefined {
 /** Re-fill every dated row's level by the bachelor's award term the student
  * set (2026-09-06 evening): in or before it → undergraduate, later →
  * graduate; the relevance filter then decides the ticks as on import. */
-function relevelByAward(p: ExternalPreview, rules: Rules): void {
+function relevelByAward(p: ExternalPreview, rules: Rules, program: Program): void {
   const award = p.bachelorsAwarded;
   if (award === undefined) return;
   for (const r of p.rows) {
     if (r.year === undefined) continue;
     r.level = termIndex({ season: r.season, year: r.year }) <= termIndex(award) ? 'undergraduate' : 'graduate';
     r.levelSource = 'award';
-    r.include = r.level === 'graduate' || isRelevantRow(p.university, rules, r);
-    r.irrelevant = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r) ? true : undefined;
+    r.include = r.level === 'graduate' || isRelevantRow(p.university, rules, r, program);
+    r.irrelevant = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, program) ? true : undefined;
   }
   p.mixedLevels = new Set(p.rows.map((r) => r.level)).size > 1 || undefined;
 }
@@ -226,13 +234,16 @@ export function importsBusy(): boolean {
  * undergraduate rows only for §4.4.1 core knowledge — a core-keyword title, a
  * DGS ruling, or (Notre Dame) a Courses-tab core area. Re-evaluated whenever
  * the student changes a row's "Taken as" (2026-09-06). */
-function isRelevantRow(university: string, rules: Rules, r: PreviewRow): boolean {
-  return (
-    r.level === 'graduate' ||
-    CORE_TITLE_RE.test(r.title) ||
-    findExternalRule(rules.external, university, r.courseId) !== undefined ||
-    (isNotreDameInstitution(university) && r.year !== undefined && resolveRuleRow(rules, r.courseId, { season: r.season, year: r.year })?.coreArea !== undefined)
-  );
+function isRelevantRow(university: string, rules: Rules, r: PreviewRow, program: Program): boolean {
+  if (r.level === 'graduate' || CORE_TITLE_RE.test(r.title) || findExternalRule(rules.external, university, r.courseId) !== undefined) return true;
+  if (!isNotreDameInstitution(university) || r.year === undefined) return false;
+  const rule = resolveRuleRow(rules, r.courseId, { season: r.season, year: r.year });
+  // Notre Dame's own undergraduate coursework can do more than demonstrate a
+  // core area: 60000-level courses count in full, and a CSE course below that
+  // may count inside §3.2's / §4.2's allowance (DGS 2026-09-11 — "they may
+  // count, subject to all other constraints, so they should be listed"). The
+  // engine decides which, so the row is offered and the report rules on it.
+  return rule?.coreArea !== undefined || priorNdUndergraduateCanCount({ courseId: r.courseId, credits: r.credits ?? 0, term: { season: r.season, year: r.year }, grade: 'A' } as CourseEntry, rule, program);
 }
 
 /** Why an undergraduate row that cannot matter is not selectable (DGS
@@ -240,13 +251,19 @@ function isRelevantRow(university: string, rules: Rules, r: PreviewRow): boolean
 const BLOCKED_ROW_NOTE =
   'Not selectable: this course is not related to the core-knowledge areas (Alg, OS, Comp Arch — §4.4.1), and undergraduate credits do not transfer (§5.2), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
 
+/** Notre Dame's own undergraduate coursework is blocked for a different
+ * reason: it is not the transfer rule that stops it but the level (2026-09-11). */
+const BLOCKED_ND_ROW_NOTE =
+  'Not selectable: this course is below the level your degree can count (60000 and above in full, CSE courses below it inside the allowance) and it is not related to the core-knowledge areas (Alg, OS, Comp Arch — §4.4.1), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
+
 function keepRelevantRows(
   university: string,
   rules: Rules,
   rows: PreviewRow[],
   mixed: boolean,
+  program: Program,
 ): { rows: PreviewRow[]; omitted: number } {
-  const relevant = (r: PreviewRow) => isRelevantRow(university, rules, r);
+  const relevant = (r: PreviewRow) => isRelevantRow(university, rules, r, program);
   if (mixed) {
     for (const r of rows) {
       if (!relevant(r)) {
@@ -343,7 +360,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
             levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
           }));
         const levels = new Set(ndRows.map((r) => r.level));
-        const kept = keepRelevantRows(NOTRE_DAME, rules, ndRows, levels.size > 1);
+        const kept = keepRelevantRows(NOTRE_DAME, rules, ndRows, levels.size > 1, args.student.program);
         const ndBachelors = nd.degreesAwarded.find((d) => d.level === 'bachelors' && d.date !== undefined)?.date;
         preview = {
           slot: slot.level,
@@ -383,7 +400,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       }));
       const termPrefill = prefillLevelsByTerm(mapped, slot.level, parsed.bachelorsNamed === true);
       const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
-      const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed);
+      const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed, args.student.program);
       const bachelors = bachelorsForPreview(slot.level, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
       preview = {
         slot: slot.level,
@@ -501,7 +518,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
  * system-generated PDFs stay the encouraged path; OCR is approximate,
  * ENGLISH-ONLY, and never runs without the student choosing it. */
 function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
-  const { render } = args;
+  const { render, student } = args;
   const scan = pendingScan!;
   return el(
     'div',
@@ -538,7 +555,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const parsed = parseExternalTranscript(lines.map((l) => l.text), lines.map((l) => l.confidence));
                 ocrBusy = undefined;
                 if (parsed.looksLikeNotreDame) {
-                  importError = { slot, message: 'This looks like an ND transcript — use the “ND Unofficial Transcript” row above, with the digital PDF from insideND (not a scan).' };
+                  importError = { slot, message: `This looks like an ND transcript — use the “${ndRowLabel(student)}” row above, with the digital PDF from insideND (not a scan).` };
                   render();
                   document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
                   return;
@@ -558,7 +575,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 }));
                 const termPrefill = prefillLevelsByTerm(mapped, slot, parsed.bachelorsNamed === true);
                 const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
-                const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed);
+                const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed, args.student.program);
                 const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
                 preview = {
                   slot,
@@ -643,7 +660,7 @@ function levelNote(p: ExternalPreview): string {
 }
 
 function previewBlock(args: ExternalCardArgs): HTMLElement {
-  const { rules, update, toast, render } = args;
+  const { rules, update, toast, render, student } = args;
   const p = preview!;
   const slotLabel = DEGREE_SLOTS.find((s) => s.level === p.slot)!.label;
   const box = el('div', { class: 'transcript-preview' });
@@ -684,7 +701,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           el(
             'p',
             { class: 'hint warn nd-prior-note' },
-            'This is an ND transcript, read as the record of an EARLIER ND degree. If it also holds your current program’s terms, cancel and use the “ND Unofficial Transcript” row instead — it separates the earlier degree from the program by your entry term.',
+            `This is an ND transcript, read as the record of an EARLIER ND degree. If it also holds your current program’s terms, cancel and use the “${ndRowLabel(student)}” row instead — it separates the earlier degree from the program by your entry term.`,
           ),
         ]
       : []),
@@ -695,7 +712,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             { class: 'hint warn mixed-note' },
             el('strong', {}, 'How “Taken as” was filled in: '),
             levelNote(p),
-            ' “Taken as” is your status at the time, not the course’s level: a graduate-level course (for example a 500- or 600-level one) that you took before your bachelor’s degree was awarded was taken as an undergraduate student, so it counts as undergraduate coursework. Please double-check every row before adding — rows taken as an undergraduate student can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.',
+            ' “Taken as” is your status at the time, not the course’s level: a graduate-level course (for example a 500- or 600-level one) that you took before your bachelor’s degree was awarded was taken as an undergraduate student, so it counts as undergraduate coursework. Please double-check every row before adding — ',
+            p.notreDame
+              ? 'rows taken as an undergraduate student at Notre Dame may still count toward your degree — 60000-level coursework in full, and CSE courses below it inside the allowance your degree allows — so they are offered ticked, and the report says course by course what each one does; the ones that can count nothing at all start unticked. Rows taken as a graduate student are §5.2 transfer candidates.'
+              : 'rows taken as an undergraduate student can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.',
           ),
         ]
       : p.slot === 'bachelors'
@@ -735,7 +755,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     // graduate student status, so §5.2 needs it here as much as on a Master's
     // transcript; the bachelor's slot is the degree itself and reads its own
     // conferral date.
-    ...(p.slot !== 'bachelors' ? [bachelorsField(p, rules, render)] : []),
+    ...(p.slot !== 'bachelors' ? [bachelorsField(p, rules, render, student.program)] : []),
   );
   const table = el('table', { class: 'courses stack edit' });
   table.append(
@@ -755,19 +775,20 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   );
   // Every control in a row names its row (usability review 2026-09-05, item
   // 5): a screen reader says "Credits for CS 25100", not just "spin button".
+  const blockedNote = p.notreDame === true ? BLOCKED_ND_ROW_NOTE : BLOCKED_ROW_NOTE;
   const rowEls = p.rows.map((r, i) => {
     const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
     // An undergraduate row that cannot matter is not selectable (DGS request
     // 2026-09-06): the box is disabled and the row explains why on hover; a
     // change of "Taken as" re-renders, so the box follows the level.
-    const blocked = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r);
+    const blocked = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, student.program);
     if (blocked) r.include = false;
     const noteId = `ext-row-${i}-note`;
     const cb = el('input', {
       type: 'checkbox',
       'aria-label': `Add ${who()}`,
       'data-key': `ext.row.${i}.include`,
-      ...(blocked ? { disabled: 'disabled', 'aria-describedby': noteId, title: BLOCKED_ROW_NOTE } : {}),
+      ...(blocked ? { disabled: 'disabled', 'aria-describedby': noteId, title: blockedNote } : {}),
       onchange: (e) => {
         r.include = (e.target as HTMLInputElement).checked;
         render(); // the Add button's count follows (item 13)
@@ -847,7 +868,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       r.levelSource = 'slot'; // the student decided — no longer "by the rule"
       // A row that becomes relevant is offered ticked, like every other
       // relevant row; one that becomes irrelevant is unticked and locked.
-      if (!(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r))) r.include = true;
+      if (!(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, student.program))) r.include = true;
       render();
     });
     // A locked (text-layer) row is COMPACT (DGS request 2026-09-06, second
@@ -858,14 +879,14 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       'tr',
       {
         class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : '', compactRow ? 'compact' : 'editable'].join(' ').trim(),
-        ...(blocked ? { title: BLOCKED_ROW_NOTE } : {}),
+        ...(blocked ? { title: blockedNote } : {}),
       },
       el(
         'td',
         { class: 'cell-check' },
         r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null,
         cb,
-        blocked ? el('span', { id: noteId, class: 'visually-hidden' }, BLOCKED_ROW_NOTE) : null,
+        blocked ? el('span', { id: noteId, class: 'visually-hidden' }, blockedNote) : null,
       ),
       el('td', { class: 'cell-course', 'data-label': 'Course id' }, idIn),
       // (The greyed row + disabled box are the visible cue; the reason is the
@@ -881,7 +902,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   });
   table.append(...rowEls);
   const selectAll = (on: boolean) => {
-    for (const r of p.rows) r.include = on && !(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r));
+    for (const r of p.rows) r.include = on && !(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, student.program));
     render();
   };
   box.append(
@@ -1040,7 +1061,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
 /** The preview's "Bachelor's degree awarded" control (DGS 2026-09-06 evening):
  * season + year, pre-filled from the transcript's conferral date, required for
  * a combined record. A change re-fills every row's "Taken as" by the term. */
-function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void): HTMLElement {
+function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, program: Program): HTMLElement {
   const yearInput = el('input', {
     type: 'number',
     min: '1970',
@@ -1058,7 +1079,7 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void): H
     const year = Number(raw);
     p.bachelorsAwarded = raw !== '' && Number.isFinite(year) && year >= 1970 ? { season: (seasonSel as HTMLSelectElement).value as Season, year } : undefined;
     p.bachelorsSource = 'student';
-    relevelByAward(p, rules);
+    relevelByAward(p, rules, program);
     previewError = undefined;
     render();
   };

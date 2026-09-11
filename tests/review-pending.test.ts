@@ -170,4 +170,28 @@ describe('coursesNeedingDgsReview — Notre Dame coursework', () => {
     assert.deepEqual(pending.map((p) => `${p.course.entry.courseId}:${p.kind}:${p.unlisted ? 'new-row' : 'decide'}`), ['CSE 30321:priorNd:new-row']);
     assert.match(pending[0]!.reason, /taken at Notre Dame before entering the program \(undergraduate\) — not in the course rules yet/);
   });
+
+  // DGS 2026-09-11: "they 'may' count, subject to all other constraints, so
+  // they should be listed when a MSCSE uploads an ND undergrad transcript for
+  // further decisions & review." The sheet's `dgs_approval` is what makes them
+  // a "may"; the ticked attestation is what settles it.
+  it('an MSCSE student’s own 40000-level undergraduate coursework is listed until the approval exists', () => {
+    const ug = (courseId: string, title: string): CourseEntry =>
+      nd(courseId, title, { origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', term: { season: 'fall', year: 2025 }, countedToward: 'bs' });
+    const ms = (attested: boolean): Student => ({
+      schemaVersion: 1,
+      program: 'mscse',
+      entryTerm: { season: 'fall', year: 2026 },
+      bachelorsAwarded: { season: 'spring', year: 2026 },
+      priorMs: 'none',
+      courses: [ug('CSE 40875', 'Statistical Computing'), ug('CSE 40437', 'Social Sensing'), ug('CSE 20110', 'Discrete Mathematics')],
+      milestones: {},
+      attestations: attested ? { dgsApproved4xxxx: true } : {},
+    });
+    const pending = coursesNeedingDgsReview(ms(false), buildRules());
+    // CSE 40437 is `no` in the sheet and CSE 20110 too low to count: neither is a decision to make.
+    assert.deepEqual(pending.map((p) => `${p.course.entry.courseId}:${p.kind}:${p.unlisted ? 'new-row' : 'decide'}`), ['CSE 40875:priorNd:decide']);
+    assert.match(pending[0]!.reason, /may count toward the MSCSE \(§3\.2\) inside the allowance for courses below the 60000 level — needs advisor \+ DGS approval/);
+    assert.deepEqual(coursesNeedingDgsReview(ms(true), buildRules()), []);
+  });
 });

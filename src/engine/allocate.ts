@@ -16,7 +16,7 @@ import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
 import { compareTerm, normalizeEntryTerm, shiftTermYears, termIndex, termLabel } from './term.ts';
-import type { CourseEntry, Grade, Program, Student } from './types.ts';
+import type { Attestations, CourseEntry, Grade, Program, Student } from './types.ts';
 
 export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs';
 
@@ -109,6 +109,20 @@ const levelOf = (course: CourseEntry, rule?: RuleCourse): number => {
   return m ? Number(m[1]) : NaN;
 };
 
+/** Could this Notre Dame course, taken as an undergraduate, count toward the
+ * degree being audited? The transcript preview has to decide whether a row is
+ * worth showing before the engine ever sees it, and the answer must be the
+ * engine's own — the level floor below, plus the sheet's "does not count"
+ * (2026-09-11). It says "could", not "does": the answer to the "already
+ * counted toward…" question and the caps decide the rest. */
+export function priorNdUndergraduateCanCount(course: CourseEntry, rule: RuleCourse | undefined, program: Program): boolean {
+  const level = levelOf(course, rule);
+  const eligible = level >= 6 || (deptOf(course.courseId) === 'CSE' && (level === 4 || (level === 5 && rule !== undefined)));
+  if (!eligible) return false;
+  if (rule === undefined) return true; // not in the sheet: counted provisionally, and the DGS is asked
+  return (program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd) !== 'no';
+}
+
 /** How an EARLIER NOTRE DAME course may count once it transfers in under §5.2
  * (2026-09-09), read from its own Courses-tab row — the same reading classify()
  * makes for a course taken in the program. Until this existed every transfer
@@ -125,28 +139,48 @@ function priorNdShape(
   courseId: string,
   rule: RuleCourse,
   program: Program,
-): { pool: Pool; caps: CapId[] } | { ineligibleReason: string } {
+  attestations: Attestations,
+): { pool: Pool; caps: CapId[]; approvalPending?: string } | { ineligibleReason: string } {
   const counts = program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
   const programName = program === 'mscse' ? 'MSCSE' : 'Ph.D.';
   if (counts === 'no') {
     return { ineligibleReason: `not counted — the rules sheet says this course does not count toward the ${programName}` };
   }
   const isCse = deptOf(courseId) === 'CSE';
+  // The sheet row's verdict is read the same way for a course taken before
+  // the program as for one taken in it (DGS 2026-09-11): `dgs_approval` is a
+  // decision about the COURSE, not about this student, so the course counts
+  // provisionally and stays in the review request until the approval exists.
+  // Nearly every 40000-level row says `dgs_approval` for the MSCSE, which is
+  // what makes an earlier Notre Dame undergraduate 40000-level course
+  // something that MAY count — listed, never counted silently.
+  const approvalAttested =
+    ((rule.level === 4 || rule.level === 5) && attestations.dgsApproved4xxxx === true) ||
+    (!isCse && attestations.dgsApprovedNonCse === true);
+  const approvalPending =
+    counts === undefined
+      ? 'the rules sheet does not say whether it counts — needs DGS review'
+      : counts === 'dgs_approval'
+        ? approvalAttested
+          ? undefined
+          : 'needs advisor + DGS approval per the rules sheet'
+        : undefined;
+  const shape = (pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
   switch (rule.courseType) {
     case 'regular':
       if (rule.level === 4 || rule.level === 5) {
         return isCse
-          ? { pool: 'regular', caps: ['fourk'] }
+          ? shape('regular', ['fourk'])
           : { ineligibleReason: `not counted — non-CSE ${rule.level}0000-level courses do not count (DGS decision 2026-08-31)` };
       }
-      return { pool: 'regular', caps: isCse ? [] : ['noncse'] };
+      return shape('regular', isCse ? [] : ['noncse']);
     case 'project':
-      return { pool: 'project', caps: [] };
+      return shape('project', []);
     case 'seminar':
-      return { pool: 'seminar', caps: [] };
+      return shape('seminar', []);
     case 'research':
     case 'independent':
-      return { pool: 'total_only', caps: [] };
+      return shape('total_only', []);
   }
 }
 
@@ -315,7 +349,7 @@ export function classify(student: Student, rules: Rules): {
         // A Ph.D. student with no Notre Dame master's cannot have a course
         // that already counted twice, so they are never asked.
         const couldHaveCountedTwice = student.program !== 'phd' || student.ndMasters !== undefined;
-        const shape = rule ? priorNdShape(c.courseId, rule, student.program) : undefined;
+        const shape = rule ? priorNdShape(c.courseId, rule, student.program, attestations) : undefined;
         if (shape && 'ineligibleReason' in shape) {
           return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
         }
@@ -340,16 +374,34 @@ export function classify(student: Student, rules: Rules): {
             ineligibleReason: `not counted — you have told us this course already counted toward your bachelor’s degree AND your master’s, and no course may count toward three degrees${coreNote}`,
           };
         }
+        // An MSCSE student is asked the same question about a 40000-level
+        // course on their own undergraduate transcript. "Up to two 40000-level
+        // courses taken by ND undergraduates can count towards both BS and
+        // MSCSE" is a MAY, not a must (DGS 2026-09-11): the answer decides
+        // which allowance the course draws on — §3.2's alone if the bachelor's
+        // degree never used it, §3.5's shared six credits as well if it did —
+        // and the sheet row decides whether it needs an approval on top.
         if (spent === undefined && couldHaveCountedTwice) {
+          // The Ph.D. asks about three degrees; the MSCSE student has only two
+          // in play, and what their answer decides is which allowance the
+          // course draws on — §3.5's shared six credits, or §3.2's alone.
           return {
             ...extBase,
-            ineligibleReason: `not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, so the answer decides whether it counts here${coreNote}`,
+            ineligibleReason:
+              student.program === 'mscse'
+                ? `not counted yet — say whether your bachelor’s degree already used this course, next to the course. At most 6 credits may count toward both degrees (§3.5), so the answer decides how this one counts${coreNote}`
+                : `not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, so the answer decides whether it counts here${coreNote}`,
           };
         }
         // 60000 and above: in full, and outside every cap the app has — the
         // Graduate School put these beyond §5.2's twenty-four in as many words.
         const belowSixty = undergradLevel < 6;
-        const provisional = rule === undefined; // not in the rules sheet: counted, but the DGS is asked
+        // Counted, but the DGS is asked: not in the rules sheet at all, or in
+        // it with a verdict that names an approval this student has not
+        // attested (2026-09-11) — "they may count, subject to all other
+        // constraints, so they should be listed for further decisions".
+        const shapeApproval = shape !== undefined && !('ineligibleReason' in shape) ? shape.approvalPending : undefined;
+        const provisional = rule === undefined || shapeApproval !== undefined;
         // §3.5 lets an MSCSE student count coursework their bachelor's degree
         // already used, up to six credits in all — "an ND 4+1 student can have
         // up to 6 credits (whether 40xxx or 60xxx courses) counted towards
@@ -365,7 +417,11 @@ export function classify(student: Student, rules: Rules): {
             ...(belowSixty ? ['fourk' as CapId, ...(shape?.caps ?? []).filter((id) => id !== 'fourk')] : (shape?.caps ?? []).filter((id) => id !== 'fourk')),
           ],
           tier: tierFor(grade, provisional),
-          ...(rule === undefined ? { unknown: true as const, approvalPending: 'not in the rules sheet — counted provisionally; needs DGS review' } : {}),
+          ...(rule === undefined
+            ? { unknown: true as const, approvalPending: 'not in the rules sheet — counted provisionally; needs DGS review' }
+            : shapeApproval !== undefined
+              ? { approvalPending: shapeApproval }
+              : {}),
         };
       }
       if (c.degreeLevel === 'bachelors') {
@@ -442,7 +498,7 @@ export function classify(student: Student, rules: Rules): {
       // of §5.2's (2026-09-09): the §5.2 cap says how MUCH may transfer, the
       // sheet row says what the course IS — regular, project, research — and
       // §4.2's level rules still apply to it.
-      const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, student.program) : undefined;
+      const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, student.program, attestations) : undefined;
       if (shape && 'ineligibleReason' in shape) {
         return { ...extBase, transferable, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
       }
@@ -689,7 +745,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       countedOther: isRegular ? 0 : counted,
       excluded,
       excludedReason,
-      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined),
+      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined, caps.find((c) => c.id === 'fourk')),
     });
   };
 
@@ -774,6 +830,10 @@ function buildExplanation(
   /** A cap this course draws on whose limit the Parameters tab is missing:
    * amber and honest, never the red "over the cap" (2026-09-09). */
   capLimitMissing?: boolean,
+  /** The cap on courses below the 60000 level, so the line can name its own
+   * degree's § and credit limit (§3.2's for the MSCSE, §4.2's for the
+   * Ph.D. — 2026-09-11). */
+  fourkCap?: CapSpec,
 ): { explanation: string; mark: CourseMark } {
   const parts: string[] = [];
   if (capLimitMissing) return { explanation: excludedReason ?? 'cannot be counted yet — a cap is missing from the rules sheet', mark: 'pending' };
@@ -850,7 +910,13 @@ function buildExplanation(
     // telling the student it "uses the 40000-level allowance".
     if (cc.caps.includes('fourk')) {
       const level = levelOf(cc.entry, cc.rule);
-      parts.push(`uses the ${Number.isFinite(level) ? `${level}0000-level` : 'below-60000'} allowance (6 credits, §4.2)`);
+      // The § is the degree's: §3.2 for the MSCSE, §4.2 for the Ph.D. Both it
+      // and the number of credits come from the cap the audit built, so the
+      // line cannot drift from the Parameters tab (2026-09-11).
+      const limit = fourkCap?.limit !== undefined ? `${formatCredits(fourkCap.limit)} credits, ` : '';
+      parts.push(
+        `uses the ${Number.isFinite(level) ? `${level}0000-level` : 'below-60000'} allowance (${limit}${fourkCap?.section ?? '§4.2'})`,
+      );
     }
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved

@@ -122,6 +122,12 @@ The app implements it.
   toward the Ph.D."*
 - In §3.5, the department's own limit: *"At most six credits may be counted toward both the bachelor's
   degree and the MSCSE."*
+- And the approval, which only the rules spreadsheet records today (2026-09-11): the Courses tab marks
+  almost every 40000-level course `counts_toward_mscse = dgs_approval`, so the app counts such a course
+  toward the MSCSE only provisionally and keeps it in the review request until the student records the
+  approval. §3.2 should say so in its own words: *"A 40000-level course counts toward the MSCSE course
+  requirement only with the approval of the student's advisor and the DGS."* The handbook currently
+  leaves the reader to infer it from §3.2's silence.
 
 Until those sentences exist, this file is the only written record of a rule that decides how much
 credit every 4+1 student arrives with.

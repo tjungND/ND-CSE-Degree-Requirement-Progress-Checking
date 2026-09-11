@@ -5,11 +5,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { allocate, type CapSpec, type ClassifiedCourse } from '../src/engine/allocate.ts';
+import { allocate, priorNdUndergraduateCanCount, type CapSpec, type ClassifiedCourse } from '../src/engine/allocate.ts';
 import { audit } from '../src/engine/audit.ts';
 import { matchDistinctGroups } from '../src/engine/matching.ts';
 import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import { isCseCourse, subjectCode } from '../src/data/external.ts';
+import { resolveRuleRow } from '../src/data/assemble.ts';
 import { specialTracks } from '../src/engine/tracks.ts';
 import { classify } from '../src/engine/allocate.ts';
 import { combineAll, deadlineStatus, thresholdStatus } from '../src/engine/status.ts';
@@ -584,5 +585,51 @@ describe('undergraduate Notre Dame coursework', () => {
   it('a course from ANOTHER university taken before the degree is untouched by any of this', () => {
     const s = student([ug('CS 50300', undefined, 'Purdue University')]);
     assert.match(lineFor(s, 'CS 50300'), /taken as an undergraduate student — no transfer credit \(§5\.2\)/);
+  });
+
+  // The MSCSE side of the same transcript (DGS 2026-09-11). The question a
+  // student in the MSCSE can actually answer is about two degrees, not three,
+  // and a 40000-level course of theirs MAY count — listed for the DGS, never
+  // counted silently, and citing §3.2 rather than the Ph.D.'s §4.2.
+  describe('an MSCSE student’s own undergraduate transcript', () => {
+    const ms = (courses: CourseEntry[], over: Partial<Student> = {}) =>
+      student(courses, { program: 'mscse', bachelorsAwarded: { season: 'spring', year: 2026 }, ...over });
+    it('asks about two degrees, not three', () => {
+      assert.match(lineFor(ms([ug('CSE 40113')]), 'CSE 40113'), /^not counted yet — say whether your bachelor’s degree already used this course/);
+      assert.match(lineFor(student([ug('CSE 40113')], held), 'CSE 40113'), /^not counted yet — say which degrees this course has already counted toward/);
+    });
+    it('counts a 40000-level course only provisionally, inside §3.2’s allowance and §3.5’s shared six', () => {
+      const s = ms([ug('CSE 40113', 'bs'), ug('CSE 40567', 'bs')]);
+      assert.match(lineFor(s, 'CSE 40113'), /^pending DGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); needs advisor \+ DGS approval/);
+      assert.match(detail(s, 'ms.cap.sharedbs'), /6 of the 6 credits shared with your bachelor’s degree used/);
+      assert.match(detail(s, 'ms.credits.regular'), /0 of 24 credits complete\. 6 pending review\/approval/);
+    });
+    it('the attestation the student ticks is what makes it count', () => {
+      const s = ms([ug('CSE 40113', 'bs')], { attestations: { dgsApproved4xxxx: true } });
+      assert.match(lineFor(s, 'CSE 40113'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\)$/);
+    });
+  });
+
+  // The three places that decide whether a row is worth showing — the preview,
+  // the coursework table and the report — ask the engine, not their own copy
+  // of the level rules (2026-09-11).
+  describe('priorNdUndergraduateCanCount', () => {
+    const can = (courseId: string, program: Student['program'] = 'mscse') =>
+      priorNdUndergraduateCanCount(ug(courseId), resolveRuleRow(rules, courseId, { season: 'fall', year: 2024 }), program);
+    it('a CSE course at or above the 40000 level can; a lower one cannot', () => {
+      assert.equal(can('CSE 40113'), true);
+      assert.equal(can('CSE 60641'), true);
+      assert.equal(can('CSE 20110'), false);
+      assert.equal(can('MATH 10550'), false);
+    });
+    it('the sheet’s "no" is final, per program', () => {
+      assert.equal(can('CSE 40437'), false); // no for both degrees
+      assert.equal(can('CSE 50120', 'mscse'), false); // no for the MSCSE
+      assert.equal(can('CSE 50120', 'phd'), true); // dgs_approval for the Ph.D.
+    });
+    it('a course missing from the sheet can still count, provisionally', () => {
+      assert.equal(can('CSE 69999'), true);
+      assert.equal(can('MATH 60610'), true);
+    });
   });
 });

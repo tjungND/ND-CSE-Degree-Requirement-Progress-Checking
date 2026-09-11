@@ -121,7 +121,14 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
     // the bachelor's degree), a core-keyword title still belongs in the
     // request, because §4.4.1 core knowledge has no such restrictions.
     const keyword = !coreDecidedByCoursesTab && coreTitle(c);
-    const pending = bachelors ? keyword : c.ineligibleReason === undefined || keyword;
+    // A Notre Dame course taken as an undergraduate that MAY count toward the
+    // degree being audited — the 40000-level courses §3.2/§4.2 allow, whose
+    // sheet row asks for the advisor's and the DGS's approval — is counted
+    // provisionally and belongs in the request (DGS 2026-09-11: "they may
+    // count, subject to all other constraints, so they should be listed …
+    // for further decisions & review").
+    const needsApprovalOnTop = c.approvalPending !== undefined && c.ineligibleReason === undefined;
+    const pending = (bachelors ? keyword : c.ineligibleReason === undefined || keyword) || needsApprovalOnTop;
     if (!pending) continue;
     if (fromNotreDame) {
       // Asked about as a NOTRE DAME course — a row for the Courses tab when
@@ -132,7 +139,11 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
         kind: 'priorNd',
         reason:
           `taken at Notre Dame before entering the program (${bachelors ? 'undergraduate' : 'graduate'}) — ` +
-          (c.rule === undefined ? 'not in the course rules yet; does it cover a §4.4.1 core area?' : 'transfer credit needs a DGS recommendation (§5.2)'),
+          (c.rule === undefined
+            ? 'not in the course rules yet; does it cover a §4.4.1 core area?'
+            : bachelors && needsApprovalOnTop
+              ? `may count toward the ${student.program === 'mscse' ? 'MSCSE (§3.2)' : 'Ph.D. (§4.2)'} inside the allowance for courses below the 60000 level — ${c.approvalPending}`
+              : 'transfer credit needs a DGS recommendation (§5.2)'),
         unlisted: c.rule === undefined,
       });
     } else {

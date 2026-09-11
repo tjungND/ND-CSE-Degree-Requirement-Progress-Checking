@@ -4,7 +4,7 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf) {
+export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf) {
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -529,6 +529,86 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (dgsAfterUndo !== dgsBefore) throw new Error('the review card must come back exactly as it was: ' + dgsAfterUndo.slice(0, 120));
   if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'import.nd.remove') throw new Error('focus must land on the Remove button after Undo');
   console.log('  ND transcript removed (rows + GPA) and restored with Undo — same order, same review card, Undo survived a re-render');
+
+  // 10) The MSCSE side of the same card (DGS 2026-09-11). Notre Dame's 4+1
+  //     issues two transcripts, so an MSCSE student's own bachelor's record
+  //     arrives by itself in the Previous Undergraduate row. Its 40000-level
+  //     CSE courses MAY count — "subject to all other constraints" — so they
+  //     must be OFFERED, not dropped, and must end up in the review request
+  //     rather than counted silently. The Notre Dame row is named for the
+  //     program the student picked at the top.
+  await s.evalJs(`localStorage.clear()`);
+  await s.open(baseUrl, '.transcript-upload');
+  await s.evalJs(`document.querySelector('[data-key="program.mscse"]').click()`);
+  await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('ND Unofficial MSCSE Transcript')`);
+  const phdLabel = await s.evalJs(`(() => { document.querySelector('[data-key="program.phd"]').click(); return document.querySelector('.transcript-upload')?.textContent ?? ''; })()`);
+  if (!phdLabel.includes('ND Unofficial Ph.D. Transcript')) throw new Error('the Ph.D. tab must name the row "ND Unofficial Ph.D. Transcript": ' + phdLabel.slice(0, 120));
+  await s.evalJs(`document.querySelector('[data-key="program.mscse"]').click()`);
+  await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('ND Unofficial MSCSE Transcript')`);
+  console.log('  the Notre Dame row follows the program tab: MSCSE → "ND Unofficial MSCSE Transcript", Ph.D. → "ND Unofficial Ph.D. Transcript"');
+
+  await s.setFileInput('.external-file-bachelors', ndUgPdf);
+  await s.waitFor(`document.querySelector('.external-card .transcript-preview table tr:nth-child(2)')`);
+  const ugRows = await s.evalJs(
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => (tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent) + ':' + (tr.querySelector('.cell-check input').checked ? 'ticked' : 'unticked'))`,
+  );
+  console.log('  ND undergraduate transcript in the Undergraduate row:', JSON.stringify(ugRows));
+  // The 40000-level courses are the point: before today CSE 40166 (no core
+  // keyword in its title) was dropped from the preview altogether.
+  for (const want of ['CSE 40113:ticked', 'CSE 40166:ticked', 'CSE 60641:ticked']) {
+    if (!ugRows.includes(want)) throw new Error('the preview must offer ' + want + ': ' + JSON.stringify(ugRows));
+  }
+  if (ugRows.some((r) => /^(MATH 10550|CSE 20110)/.test(r))) throw new Error('coursework that can count nothing must stay out: ' + JSON.stringify(ugRows));
+  await s.shot('nd-undergrad-preview');
+  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked/.test(b.textContent)).click()`);
+  await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent).includes('CSE 40166')`);
+
+  // Nothing counts until the student says whether the bachelor's degree used
+  // the course — and then it is pending the DGS, not counted.
+  const lineOf = (id) => `[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}')?.textContent ?? ''`;
+  const beforeAnswer = await s.evalJs(lineOf('CSE 40113'));
+  if (!/not counted yet — say whether your bachelor’s degree already used this course/.test(beforeAnswer)) {
+    throw new Error('an MSCSE student must be asked the two-degree question: ' + beforeAnswer.slice(0, 200));
+  }
+  const choices = await s.evalJs(
+    `[...document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]')][0] ? [...[...document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]')][0].options].map(o => o.textContent).join(' | ') : ''`,
+  );
+  if (/MSCSE/.test(choices)) throw new Error('an MSCSE student must not be offered answers about the degree they are doing now: ' + choices);
+  console.log('  “Already counted toward…” offers:', choices);
+  // The two 40000-level courses were used by the bachelor's degree; the
+  // senior-year 60000-level one was extra (§3.5's own case).
+  const answer = (id, value) =>
+    s.evalJs(
+      `(() => { const tr = [...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}'); const sel = tr.querySelector('select[data-key$=".countedToward"]'); sel.value = '${value}'; sel.dispatchEvent(new Event('change')); return sel.value; })()`,
+    );
+  await answer('CSE 40113', 'bs');
+  await answer('CSE 40166', 'bs');
+  await answer('CSE 60641', 'neither');
+  await s.waitFor(`/pending DGS review/.test(${lineOf('CSE 40113')})`);
+  const after40113 = await s.evalJs(lineOf('CSE 40113'));
+  const after40166 = await s.evalJs(lineOf('CSE 40166'));
+  console.log('  CSE 40113:', after40113.replace(/\s+/g, ' ').slice(0, 190));
+  console.log('  CSE 40166:', after40166.replace(/\s+/g, ' ').slice(0, 190));
+  for (const [id, text] of [['CSE 40113', after40113], ['CSE 40166', after40166]]) {
+    if (!/pending DGS review — would count toward regular courses \(3 cr\) once approved/.test(text)) throw new Error(id + ' must be counted only provisionally: ' + text.slice(0, 200));
+    if (!/uses the 40000-level allowance \(6 credits, §3\.2\)/.test(text)) throw new Error(id + ' must cite the MSCSE allowance: ' + text.slice(0, 200));
+  }
+  const after60641 = await s.evalJs(lineOf('CSE 60641'));
+  console.log('  CSE 60641:', after60641.replace(/\s+/g, ' ').slice(0, 190));
+  // §3.5's senior-year graduate course the bachelor's degree did not use:
+  // counted in full, inside no allowance at all (Graduate School, 2026-09-10).
+  if (!/counts toward regular courses \(3 cr\)/.test(after60641) || /allowance/.test(after60641)) {
+    throw new Error('a 60000-level senior-year course must count in full: ' + after60641.slice(0, 200));
+  }
+  const dgsCard = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
+  for (const id of ['CSE 40113', 'CSE 40166']) {
+    if (!dgsCard.includes(id)) throw new Error(id + ' must be listed for the DGS: ' + dgsCard.slice(0, 300));
+  }
+  if (!/may count toward the MSCSE \(§3\.2\) inside the allowance for courses below the 60000 level/.test(dgsCard)) {
+    throw new Error('the review card must say what the 40000-level courses may do: ' + dgsCard.slice(0, 400));
+  }
+  await s.shot('mscse-prior-undergrad');
+  console.log('  MSCSE + ND undergraduate transcript: 40000-level courses offered, asked about, counted provisionally and listed for the DGS');
 }
 
 // The Master's-slot preview of a text-layer transcript at a given window width
