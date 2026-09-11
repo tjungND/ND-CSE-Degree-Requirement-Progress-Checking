@@ -161,6 +161,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   were fixed — a met row no longer tells the student what to register for, and a same-term duplicate
   no longer identifies itself by the term both rows share. The fixture CSV now mirrors the live sheet
   for CSE 68901, so the thesis scenario passes only because of the new rule.
+  And §5.2's five-year window now binds the MSCSE as well as the Ph.D. — new Parameters key
+  `ms_transfer_window_years` = 5, added to the live sheet (Changelog row 33) and to the fixture, the
+  sample CSV and data/README.md. Until then the check did not run for a master's student at all.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

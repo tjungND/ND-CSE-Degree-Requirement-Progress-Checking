@@ -66,6 +66,7 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `ms_noncse_credits_max` | 9 | §3.2 | |
 | `ms_time_limit_years` | 5 | §3.3 | |
 | `ms_thesis_readers_min` | 2 | §3.4 | thesis option only |
+| `ms_transfer_window_years` | 5 | §3.2 | prior graduate coursework — §5.2's five-year window applies to the MSCSE too (DGS 2026-09-11) |
 | `phd_regular_credits_min` | 24 | §4.2 | 60000-level or higher |
 | `phd_total_credits_min` | 60 | §4.2 | "The graduate school requires a total of sixty (60) credits of courses and research for the Ph.D." |
 | `phd_seminar_courses` | `CSE 63801, CSE 63802` | §4.2 | required in year one |

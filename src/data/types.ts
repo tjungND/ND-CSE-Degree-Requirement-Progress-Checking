@@ -238,6 +238,7 @@ export const KNOWN_PARAMETER_KEYS = [
   'ms_time_limit_years',
   'ms_thesis_readers_min',
   'ms_transfer_completed_ms_credits_max',
+  'ms_transfer_window_years',
   'phd_total_credits_min',
   'phd_regular_credits_min',
   'phd_nd_credits_min',

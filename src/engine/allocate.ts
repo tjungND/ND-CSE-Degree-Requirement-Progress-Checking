@@ -221,7 +221,13 @@ export function classify(student: Student, rules: Rules): {
   const entry = normalizeEntryTerm(student.entryTerm).term;
   const params = rules.parameters;
   const transferFloor = params.gradeLetter('transfer_min_grade');
-  const windowYears = params.number('phd_transfer_window_years');
+  // §5.2 criterion 3's five-year window belongs to both degrees (DGS
+  // 2026-09-11: "The five-year transfer window apply to MSCSE as well").
+  // Until today only the Ph.D. had a key, so an MSCSE student's decade-old
+  // coursework was never refused on age — the check simply did not run for
+  // them. One key per degree, because the Graduate School may yet distinguish
+  // them and the sheet is where that belongs.
+  const windowYears = params.number(program === 'mscse' ? 'ms_transfer_window_years' : 'phd_transfer_window_years');
 
   const sorted = [...student.courses].sort(
     (a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId),
