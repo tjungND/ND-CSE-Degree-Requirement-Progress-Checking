@@ -303,15 +303,24 @@ export function classify(student: Student, rules: Rules): {
       // a graduate-numbered course taken before the bachelor's says so on its
       // own line rather than leaving it to the group heading.
       const suggested = external === undefined && ndCoreArea === undefined ? coreTitleSuggestion(c.title) : undefined;
+      // §4.4.1 core knowledge and §4.4.2 specialization are the Ph.D.
+      // qualifying examination's, and the MSCSE has no qualifier at all — so
+      // an MSCSE student is told nothing about either (DGS 2026-09-11:
+      // "anything related to them should not be shown to current MSCSE
+      // students"). The note is the one place a core area reached a course
+      // line, and it is empty for them.
+      const qualifierApplies = program === 'phd';
       // A DGS-confirmed core area is said on the line itself (2026-09-06 —
       // the separate "What the DGS's rules say" block is gone).
-      const coreNote = external?.satisfiesCoreArea
-        ? `; satisfies the ${areaName(external.satisfiesCoreArea)} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
-        : ndCoreArea
-          ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
-          : suggested
-            ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
-            : '';
+      const coreNote = !qualifierApplies
+        ? ''
+        : external?.satisfiesCoreArea
+          ? `; satisfies the ${areaName(external.satisfiesCoreArea)} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
+          : ndCoreArea
+            ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
+            : suggested
+              ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
+              : '';
       // NOTRE DAME COURSEWORK TAKEN AS AN UNDERGRADUATE — the Graduate School's
       // answer, through the DGS (2026-09-10, evening), which settles the
       // question §5.2 criterion 2 raised and goes well past it:
@@ -428,6 +437,12 @@ export function classify(student: Student, rules: Rules): {
         const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
         const suggested = coreTitleSuggestion(c.title);
         const ugNote = '; taken as an undergraduate student — no transfer credit (§5.2)';
+        // For an MSCSE student there is no §4.4.1 to demonstrate: an
+        // undergraduate course from another university can do nothing here,
+        // and saying so once is the whole line (DGS 2026-09-11).
+        if (!qualifierApplies) {
+          return { ...extBase, ineligibleReason: `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)` };
+        }
         return {
           ...extBase,
           ineligibleReason: confirmedArea

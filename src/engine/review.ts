@@ -47,7 +47,12 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
   const nd: PendingDgsReview[] = [];
   const priorNd: PendingDgsReview[] = [];
   const external: PendingDgsReview[] = [];
-  const coreTitle = (c: ClassifiedCourse) => CORE_TITLE_RE.test(c.entry.title ?? '');
+  // §4.4.1 core knowledge belongs to the Ph.D. qualifying examination, which
+  // the MSCSE does not have — so for an MSCSE student a core-sounding title is
+  // not a reason to ask the DGS anything, and no line here names §4.4.1
+  // (DGS 2026-09-11).
+  const qualifierApplies = student.program === 'phd';
+  const coreTitle = (c: ClassifiedCourse) => qualifierApplies && CORE_TITLE_RE.test(c.entry.title ?? '');
 
   for (const c of classified) {
     if (c.superseded) continue;
@@ -140,7 +145,9 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
         reason:
           `taken at Notre Dame before entering the program (${bachelors ? 'undergraduate' : 'graduate'}) — ` +
           (c.rule === undefined
-            ? 'not in the course rules yet; does it cover a §4.4.1 core area?'
+            ? qualifierApplies
+              ? 'not in the course rules yet; does it cover a §4.4.1 core area?'
+              : 'not in the course rules yet'
             : bachelors && needsApprovalOnTop
               ? `may count toward the ${student.program === 'mscse' ? 'MSCSE (§3.2)' : 'Ph.D. (§4.2)'} inside the allowance for courses below the 60000 level — ${c.approvalPending}`
               : 'transfer credit needs a DGS recommendation (§5.2)'),

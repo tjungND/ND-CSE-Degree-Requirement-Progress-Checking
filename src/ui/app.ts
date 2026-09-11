@@ -563,7 +563,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           inferred.how === 'assumed'
             ? `${termLabel(student.entryTerm)} is assumed — set the semester you entered the program. `
             : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
-          'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the Oral Candidacy Exam (OCE) by the eighth semester (§4.5) — are counted from this term.',
+          student.program === 'phd'
+            ? 'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the Oral Candidacy Exam (OCE) by the eighth semester (§4.5) — are counted from this term.'
+            : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
       : null;
@@ -857,11 +859,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // a core area (2026-09-11): 60000-level courses count in full and CSE
       // courses below that may count inside the degree's allowance, so those
       // rows are listed too — hiding one hid a course the report was counting.
+      // §4.4.1 is the Ph.D. qualifier's; an MSCSE student has no core-knowledge
+      // requirement, so a core-sounding title is not a reason to list an
+      // undergraduate course for them (DGS 2026-09-11).
+      const qualifierApplies = student.program === 'phd';
       if (
         g.bachelors &&
-        !CORE_TITLE_RE.test(e.c.title ?? '') &&
-        !findExternalRule(rules.external, e.c.institution ?? '', e.c.courseId) &&
-        !(priorNd && resolveRuleRow(rules, e.c.courseId, e.c.term)?.coreArea) &&
+        !(qualifierApplies && CORE_TITLE_RE.test(e.c.title ?? '')) &&
+        !(qualifierApplies && findExternalRule(rules.external, e.c.institution ?? '', e.c.courseId)) &&
+        !(qualifierApplies && priorNd && resolveRuleRow(rules, e.c.courseId, e.c.term)?.coreArea) &&
         !(priorNd && priorNdUndergraduateCanCount(e.c, resolveRuleRow(rules, e.c.courseId, e.c.term), student.program))
       ) {
         g.hidden += 1;
@@ -899,8 +905,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               'p',
               { class: 'hint' },
               (g.nd
-                ? `Notre Dame coursework you took as an undergraduate is listed here when it can count toward this degree — 60000-level courses, CSE courses below that inside the allowance your degree allows, and anything relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1). Say next to each course which degrees it has already counted toward; the report then says what each one does.`
-                : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`) +
+                ? `Notre Dame coursework you took as an undergraduate is listed here when it can count toward this degree — 60000-level courses, CSE courses below that inside the allowance your degree allows${student.program === 'phd' ? ', and anything relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1)' : ''}. Say next to each course which degrees it has already counted toward; the report then says what each one does.`
+                : student.program === 'phd'
+                  ? `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`
+                  : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), and they satisfy nothing else in the MSCSE — so none of them is listed here`) +
               `${g.hidden > 0 ? ` ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown.` : ''}`,
             )
           : hasTransferCandidate(g.entries)
@@ -923,7 +931,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             : null,
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
-          : el('p', { class: 'empty' }, 'No core-area-relevant courses on this transcript.'),
+          : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),
       ]),
     );
     return card;
@@ -1099,18 +1107,28 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // The entry term read from the transcript (2026-09-05) is applied
         // unless the student unticks it in the preview. Pre-entry Notre Dame
         // courses become prior coursework; pre-entry UNDERGRADUATE courses
-        // that cannot matter (no core-area title, no ruling, no Courses-tab
-        // core area) start unticked, like the external undergraduate import.
+        // that cannot matter start unticked, like the external undergraduate
+        // import. "Cannot matter" is the engine's answer since 2026-09-11 —
+        // undergraduate Notre Dame coursework can COUNT now, not only
+        // demonstrate a §4.4.1 core area — and §4.4.1 itself is the Ph.D.
+        // qualifier's, so it is no reason to tick anything for an MSCSE
+        // student.
         const entry = parsed.entryTerm?.term ?? student.entryTerm;
         const bsTerm = bachelorsTermFor(parsed.degreesAwarded);
+        const qualifierApplies = student.program === 'phd';
         const irrelevantPrior = parsed.courses.map(
           (c) =>
             c.origin === 'nd' &&
             termIndex(c.term) < termIndex(entry) &&
             priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bsTerm) === 'bachelors' &&
-            !CORE_TITLE_RE.test(c.title ?? '') &&
-            !resolveRuleRow(rules, c.courseId, c.term)?.coreArea &&
-            !findExternalRule(rules.external, 'University of Notre Dame', c.courseId),
+            !priorNdUndergraduateCanCount(
+              { courseId: c.courseId, credits: c.credits, term: c.term, grade: c.grade, origin: 'transfer' },
+              resolveRuleRow(rules, c.courseId, c.term),
+              student.program,
+            ) &&
+            !(qualifierApplies && CORE_TITLE_RE.test(c.title ?? '')) &&
+            !(qualifierApplies && resolveRuleRow(rules, c.courseId, c.term)?.coreArea) &&
+            !(qualifierApplies && findExternalRule(rules.external, 'University of Notre Dame', c.courseId)),
         );
         // The GPA (combined-transcript bug report 2026-09-05): the transcript's
         // GRADUATE-level cumulative figure, never the undergraduate one; and
@@ -1344,7 +1362,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'p',
           { class: 'hint prior-note' },
-          `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} will be filed as coursework from before you entered the program: no residency, credit or specialization counts, but a core-knowledge course still counts (§4.4.1), and graduate courses may transfer under §5.2. Undergraduate courses that cannot matter start unticked.`,
+          student.program === 'phd'
+            ? `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} will be filed as coursework from before you entered the program: no residency counts, but a core-knowledge course still counts (§4.4.1), Notre Dame coursework you took as an undergraduate can still count toward the credits (§4.2), and graduate courses from elsewhere may transfer under §5.2. Undergraduate courses that cannot matter start unticked.`
+            : `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} will be filed as coursework from before you entered the program: no residency counts, but Notre Dame coursework you took as an undergraduate can still count toward the credits (§3.2), and graduate courses from elsewhere may transfer under §5.2. Undergraduate courses that cannot matter start unticked.`,
         ),
       );
     }
@@ -1602,7 +1622,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // "… student" (DGS 2026-09-06, late evening): the choice is the student's
     // status at the time, never the course's level.
     levelSel.append(option('', 'Grad student — after your bachelor’s degree was awarded (§5.2 transfer candidate)', true));
-    levelSel.append(option('bachelors', 'UG student — before your bachelor’s degree was awarded (core knowledge only, no transfer credit)'));
+    levelSel.append(
+      option(
+        'bachelors',
+        student.program === 'phd'
+          ? 'UG student — before your bachelor’s degree was awarded (core knowledge only, no transfer credit)'
+          : 'UG student — before your bachelor’s degree was awarded (no transfer credit)',
+      ),
+    );
     const groupSel = el('select', { 'data-key': 'course.new.group' });
     groupSel.append(option('', 'Assign a specialization group…'));
     for (const g of rules.categoryGroups) groupSel.append(option(g.code, `Count as: ${g.name}`));
@@ -1996,7 +2023,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'The DGS decides eligibility by the course rules — that is what the review request above asks for. The Grad Admin (',
         `${GRAD_ADMIN.name}, `,
         mailto(GRAD_ADMIN.email),
-        ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§3.4, §4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
+        student.program === 'phd'
+          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§3.4, §4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.'
+          : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
       ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line' }, text)),
       n === 0 ? el('p', { class: 'hint' }, 'Nothing to process yet.') : null,

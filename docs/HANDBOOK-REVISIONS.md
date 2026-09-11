@@ -193,3 +193,25 @@ extension case by case.
 - **Where the transfer request goes.** §5.2 says "the Graduate Program Coordinator"; the
   department calls the role the Graduate Program Administrator, and the app says "Grad Admin".
   Worth making the title consistent.
+
+---
+
+## 8. §4.2's six credits: credits, or two courses?
+
+**Today.** §4.2 allows "Up to six (6) credits from CSE 4xxxx". The Graduate School's 2026-09-10
+answer to the department used both units in one breath — "up to **two** 40000-level courses … up to
+**6 credits**" — which are the same thing only while every such course is worth three credits.
+
+**Why it comes up.** The Courses tab is not all 3-credit rows. Among CSE courses below the 60000
+level that may count toward the Ph.D.: CSE 40151 and CSE 40152 are 1.5 credits, CSE 40881 and
+CSE 40986 are 1 credit, CSE 44622 and CSE 40322 are 4, CSE 44793 is 5. So six credits can be
+**four or more courses**, and a single 4- or 5-credit course is split — three of its credits count
+and the rest do not.
+
+**What the app does.** Six credits, the handbook's own unit (`phd_4xxxx_cse_credits_max`,
+`ms_4xxxx_credits_max`), at credit granularity.
+
+**Suggested sentence.** Whichever the committee means, say it once: *"At most six credits, and at
+most two courses, from CSE courses below the 60000 level may count toward the course requirement."*
+— or drop the course count from the Graduate School's phrasing and keep credits alone. The app can
+express either; a second Parameters key would carry the course limit.

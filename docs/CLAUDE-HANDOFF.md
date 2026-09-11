@@ -50,6 +50,18 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **§4.4 is the Ph.D.'s, and the MSCSE must never hear about it** (DGS 2026-09-11). Core knowledge
+  (§4.4.1) and category specialization (§4.4.2) are components of the qualifying examination, which
+  the MSCSE does not have. Every surface that mentions either is gated on `student.program === 'phd'`
+  — `coreNote` in allocate.ts, `coreTitle` in review.ts, `isRelevantRow` in external-upload.ts, the
+  coursework table's hide rule and `irrelevantPrior` in app.ts, and a dozen notes and tooltips. The
+  rule is easy to break by adding one string, so it is pinned TWICE: `tests/mscse-no-qualifier.test.ts`
+  greps every requirement field, course line, warning, track note, review-request reason and both
+  e-mails for `/§4.4|core.knowledge|core area|specialization|qualifying examination|qualifier/i`, and
+  step 11 of the transcript e2e greps the rendered page and a preview. Both also assert the Ph.D.
+  still matches, so the guard cannot pass by hiding everything. When you add a student-facing string,
+  ask which degree it is true of.
+
 - **One predicate decides whether a prior Notre Dame undergraduate course is worth showing**
   (2026-09-11). `priorNdUndergraduateCanCount(course, rule, program)` is exported from
   `src/engine/allocate.ts` and used by the transcript preview (`isRelevantRow`), the coursework

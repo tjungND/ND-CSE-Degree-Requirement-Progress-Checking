@@ -609,6 +609,36 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   await s.shot('mscse-prior-undergrad');
   console.log('  MSCSE + ND undergraduate transcript: 40000-level courses offered, asked about, counted provisionally and listed for the DGS');
+
+  // 11) The MSCSE has no qualifying examination, so nothing about §4.4.1 core
+  //     knowledge or §4.4.2 specialization may reach a student on this tab
+  //     (DGS 2026-09-11). Asserted over the whole page, and over the preview
+  //     of an external transcript — where the undergraduate notes used to say
+  //     "core knowledge only" whichever degree the student was in.
+  const FORBIDDEN = /§4\.4(\.[123])?|core.knowledge|core area|core-area|core keyword|specialization|qualifying examination|qualifier/i;
+  const pageText = await s.evalJs(`document.querySelector('#app').innerText`);
+  const offending = pageText.split('\n').filter((line) => FORBIDDEN.test(line));
+  if (offending.length > 0) throw new Error('the MSCSE tab must not mention the qualifying examination:\n  ' + offending.slice(0, 6).join('\n  '));
+  console.log('  MSCSE tab: no §4.4.1 / §4.4.2 anywhere on the page (' + pageText.length + ' characters checked)');
+
+  await s.setFileInput('.external-file-masters', combinedPdf);
+  await s.waitFor(`document.querySelector('.external-card .transcript-preview table tr:nth-child(2)')`);
+  const previewText = await s.evalJs(
+    `(() => { const b = document.querySelector('.external-card .transcript-preview'); return b.innerText + ' || ' + [...b.querySelectorAll('[title]')].map(e => e.title).join(' || '); })()`,
+  );
+  const previewOffending = previewText.split(/\n|\|\|/).filter((line) => FORBIDDEN.test(line));
+  if (previewOffending.length > 0) throw new Error('the MSCSE preview must not mention the qualifying examination:\n  ' + previewOffending.slice(0, 6).join('\n  '));
+  const ugOffered = await s.evalJs(
+    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => (tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent) + ':' + (tr.querySelector('.cell-check input').checked ? 'ticked' : 'unticked') + ':' + tr.querySelector('select.row-level').value)`,
+  );
+  console.log('  MSCSE + a combined external transcript:', JSON.stringify(ugOffered));
+  // CS 35400 "Operating Systems" is undergraduate on that transcript: a core
+  // keyword is no reason to offer it to an MSCSE student.
+  if (ugOffered.some((r) => /^CS 35400/.test(r) && /:ticked/.test(r))) throw new Error('an undergraduate row must not be offered to an MSCSE student: ' + JSON.stringify(ugOffered));
+  await s.shot('mscse-external-preview');
+  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
+  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
+  console.log('  MSCSE preview: undergraduate rows are not offered on a core-sounding title, and no note names the qualifier');
 }
 
 // The Master's-slot preview of a text-layer transcript at a given window width

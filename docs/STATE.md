@@ -136,6 +136,16 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   "can this undergraduate row matter?" and all three hid coursework the report was counting; they
   share one engine predicate, `priorNdUndergraduateCanCount()`. The §3.5 track note, which still
   described the rule the Graduate School replaced on 2026-09-10, was rewritten for both programs.
+  Also 2026-09-11: the MSCSE tab says nothing about the Ph.D. qualifying examination. §4.4.1 core
+  knowledge and §4.4.2 specialization are §4.4's, and the MSCSE has no §4.4 — so for an MSCSE
+  student the course lines carry no core note, the review request asks no core question, a
+  core-sounding TITLE no longer keeps an undergraduate row in the preview or the coursework table,
+  and every note that explained undergraduate coursework by what §4.4.1 allows has an MSCSE
+  wording. The sweep also caught two Ph.D.-only paragraphs an MSCSE student was being shown: the
+  Grad Admin card's list of forms, and the entry-term hint's deadlines (§4.3, §4.4, §4.4.3, §4.5).
+  Guarded by tests/mscse-no-qualifier.test.ts (engine, review request and both e-mails — with a
+  clause that fails if the Ph.D. ever stops matching, so the guard cannot go vacuous) and by step 11
+  of scripts/e2e/drive-transcript.mjs (the whole rendered page, and an external transcript preview).
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

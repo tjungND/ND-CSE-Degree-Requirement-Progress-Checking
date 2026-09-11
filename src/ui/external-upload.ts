@@ -235,7 +235,11 @@ export function importsBusy(): boolean {
  * DGS ruling, or (Notre Dame) a Courses-tab core area. Re-evaluated whenever
  * the student changes a row's "Taken as" (2026-09-06). */
 function isRelevantRow(university: string, rules: Rules, r: PreviewRow, program: Program): boolean {
-  if (r.level === 'graduate' || CORE_TITLE_RE.test(r.title) || findExternalRule(rules.external, university, r.courseId) !== undefined) return true;
+  if (r.level === 'graduate') return true;
+  // Everything else an undergraduate row could do is the Ph.D. qualifying
+  // examination's §4.4.1, which the MSCSE does not have (DGS 2026-09-11).
+  const qualifier = program === 'phd';
+  if (qualifier && (CORE_TITLE_RE.test(r.title) || findExternalRule(rules.external, university, r.courseId) !== undefined)) return true;
   if (!isNotreDameInstitution(university) || r.year === undefined) return false;
   const rule = resolveRuleRow(rules, r.courseId, { season: r.season, year: r.year });
   // Notre Dame's own undergraduate coursework can do more than demonstrate a
@@ -243,7 +247,7 @@ function isRelevantRow(university: string, rules: Rules, r: PreviewRow, program:
   // may count inside §3.2's / §4.2's allowance (DGS 2026-09-11 — "they may
   // count, subject to all other constraints, so they should be listed"). The
   // engine decides which, so the row is offered and the report rules on it.
-  return rule?.coreArea !== undefined || priorNdUndergraduateCanCount({ courseId: r.courseId, credits: r.credits ?? 0, term: { season: r.season, year: r.year }, grade: 'A' } as CourseEntry, rule, program);
+  return (qualifier && rule?.coreArea !== undefined) || priorNdUndergraduateCanCount({ courseId: r.courseId, credits: r.credits ?? 0, term: { season: r.season, year: r.year }, grade: 'A' } as CourseEntry, rule, program);
 }
 
 /** Why an undergraduate row that cannot matter is not selectable (DGS
@@ -252,9 +256,24 @@ const BLOCKED_ROW_NOTE =
   'Not selectable: this course is not related to the core-knowledge areas (Alg, OS, Comp Arch — §4.4.1), and undergraduate credits do not transfer (§5.2), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
 
 /** Notre Dame's own undergraduate coursework is blocked for a different
- * reason: it is not the transfer rule that stops it but the level (2026-09-11). */
+ * reason: it is not the transfer rule that stops it but the level (2026-09-11).
+ * And an MSCSE student is told nothing about §4.4.1 core knowledge, which
+ * belongs to the Ph.D. qualifying examination (DGS 2026-09-11). */
 const BLOCKED_ND_ROW_NOTE =
   'Not selectable: this course is below the level your degree can count (60000 and above in full, CSE courses below it inside the allowance) and it is not related to the core-knowledge areas (Alg, OS, Comp Arch — §4.4.1), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
+
+const BLOCKED_MS_ROW_NOTE =
+  'Not selectable: undergraduate credits do not transfer (§5.2), so there is nothing this course can count toward in the MSCSE. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
+
+const BLOCKED_MS_ND_ROW_NOTE =
+  'Not selectable: this course is below the level the MSCSE can count — 60000-level coursework counts in full, and CSE courses below that inside §3.2’s allowance. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
+
+/** Which "why is this row locked?" note the preview shows, by transcript and
+ * by degree. */
+function blockedRowNote(notreDame: boolean, program: Program): string {
+  if (program === 'mscse') return notreDame ? BLOCKED_MS_ND_ROW_NOTE : BLOCKED_MS_ROW_NOTE;
+  return notreDame ? BLOCKED_ND_ROW_NOTE : BLOCKED_ROW_NOTE;
+}
 
 function keepRelevantRows(
   university: string,
@@ -421,7 +440,10 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       if (mapped.length === 0) {
         previewError = 'No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand below (and please tell the DGS which university, so parsing can be improved).';
       } else if (kept.rows.length === 0) {
-        previewError = `All ${mapped.length} courses read from this transcript were left out — none matched the Alg / OS / Comp Arch core keywords, and none are in the DGS’s external-course rules. Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2); if a course belongs to a core area under a different title, add it by hand below.`;
+        previewError =
+          args.student.program === 'phd'
+            ? `All ${mapped.length} courses read from this transcript were left out — none matched the Alg / OS / Comp Arch core keywords, and none are in the DGS’s external-course rules. Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2); if a course belongs to a core area under a different title, add it by hand below.`
+            : `All ${mapped.length} courses read from this transcript were left out: every one of them was taken as an undergraduate student, and undergraduate credits do not transfer (§5.2), whether or not the course itself is a graduate course. If you took any of them after your bachelor’s degree was awarded, add it by hand below and set “Taken as” to Grad student.`;
       }
       render();
     } catch {
@@ -715,7 +737,9 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             ' “Taken as” is your status at the time, not the course’s level: a graduate-level course (for example a 500- or 600-level one) that you took before your bachelor’s degree was awarded was taken as an undergraduate student, so it counts as undergraduate coursework. Please double-check every row before adding — ',
             p.notreDame
               ? 'rows taken as an undergraduate student at Notre Dame may still count toward your degree — 60000-level coursework in full, and CSE courses below it inside the allowance your degree allows — so they are offered ticked, and the report says course by course what each one does; the ones that can count nothing at all start unticked. Rows taken as a graduate student are §5.2 transfer candidates.'
-              : 'rows taken as an undergraduate student can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.',
+              : student.program === 'phd'
+                ? 'rows taken as an undergraduate student can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.'
+                : 'rows taken as an undergraduate student bring no transfer credit (§5.2) and satisfy nothing else in the MSCSE, so they are not offered; rows taken as a graduate student are §5.2 transfer candidates.',
           ),
         ]
       : p.slot === 'bachelors'
@@ -723,7 +747,11 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             el(
               'p',
               { class: 'hint warn' },
-              `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), so only courses relevant to the Alg, OS, and Comp Arch core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
+              `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), so ${
+                student.program === 'phd'
+                  ? 'only courses relevant to the Alg, OS, and Comp Arch core-knowledge areas (§4.4.1) — or already reviewed by the DGS — are shown and added'
+                  : 'only Notre Dame coursework that can still count toward the MSCSE is shown and added'
+              }${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
             ),
           ]
         : [el('p', { class: 'hint level-note' }, el('strong', {}, 'How “Taken as” was filled in: '), levelNote(p), ' “Taken as” is your status at the time, not the course’s level. Please double-check the column before adding.')]),
@@ -770,12 +798,12 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       el('th', { scope: 'col' }, 'Term'),
       el('th', { scope: 'col' }, 'Year'),
       // .level-head: the one header the compact preview shows (DGS 2026-09-07).
-      el('th', { scope: 'col', class: 'level-head', title: 'Your status when you took the course — not the course’s level. A graduate-level course taken before your bachelor’s degree was awarded still counts as undergraduate coursework: §4.4.1 core knowledge only, no transfer credit (§5.2).' }, 'Taken as'),
+      el('th', { scope: 'col', class: 'level-head', title: `Your status when you took the course — not the course’s level. A graduate-level course taken before your bachelor’s degree was awarded still counts as undergraduate coursework${student.program === 'phd' ? ': §4.4.1 core knowledge only, no transfer credit (§5.2).' : ', which brings no transfer credit (§5.2).'}` }, 'Taken as'),
     ),
   );
   // Every control in a row names its row (usability review 2026-09-05, item
   // 5): a screen reader says "Credits for CS 25100", not just "spin button".
-  const blockedNote = p.notreDame === true ? BLOCKED_ND_ROW_NOTE : BLOCKED_ROW_NOTE;
+  const blockedNote = blockedRowNote(p.notreDame === true, student.program);
   const rowEls = p.rows.map((r, i) => {
     const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
     // An undergraduate row that cannot matter is not selectable (DGS request
@@ -855,7 +883,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     const levelSel = el('select', {
       class: 'row-level',
       'aria-label': `Taken as (level) for ${who()}`,
-      title: 'Taken as — your status when you took the course, not the course’s level: a graduate-level course taken before your bachelor’s degree was awarded counts as undergraduate coursework (§4.4.1 core knowledge only, no transfer credit — §5.2)',
+      title: `Taken as — your status when you took the course, not the course’s level: a graduate-level course taken before your bachelor’s degree was awarded counts as undergraduate coursework${student.program === 'phd' ? ' (§4.4.1 core knowledge only, no transfer credit — §5.2)' : ' (no transfer credit — §5.2)'}`,
       'data-key': `ext.row.${i}.level`,
     });
     // "UG student" / "Grad student" (DGS 2026-09-06 late evening, shortened
@@ -1087,13 +1115,17 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, pr
   seasonSel.addEventListener('change', () => {
     if ((yearInput as HTMLInputElement).value !== '') apply();
   });
+  // What undergraduate coursework can still do, by degree: for a Ph.D.
+  // student §4.4.1 core knowledge; for an MSCSE student nothing at all,
+  // because the qualifying examination is not theirs (DGS 2026-09-11).
+  const ugTail = program === 'phd' ? ': no transfer credit, core knowledge only (§5.2, §4.4.1).' : ', which brings no transfer credit (§5.2).';
   const hint =
     p.bachelorsAwarded && p.bachelorsSource === 'student'
-      ? `Taken from “Bachelor’s degree awarded” under Your standing — importing this transcript does not change it.${p.bachelorsConferredOn ? ` This transcript says a bachelor’s degree was conferred ${p.bachelorsConferredOn}; correct it here only if that is the right term.` : ''} Courses dated in or before it count as undergraduate coursework: no transfer credit, core knowledge only (§5.2, §4.4.1).`
+      ? `Taken from “Bachelor’s degree awarded” under Your standing — importing this transcript does not change it.${p.bachelorsConferredOn ? ` This transcript says a bachelor’s degree was conferred ${p.bachelorsConferredOn}; correct it here only if that is the right term.` : ''} Courses dated in or before it count as undergraduate coursework${ugTail}`
       : p.bachelorsAwarded && p.bachelorsSource === 'transcript'
-      ? `Read from your transcript (bachelor’s degree conferred ${p.bachelorsConferredOn}) — check it. Courses dated in or before this term count as undergraduate coursework: no transfer credit, core knowledge only (§5.2, §4.4.1).`
+      ? `Read from your transcript (bachelor’s degree conferred ${p.bachelorsConferredOn}) — check it. Courses dated in or before this term count as undergraduate coursework${ugTail}`
       : p.bachelorsRequired
-        ? 'Required for a combined bachelor’s + master’s record: enter the semester your bachelor’s degree was awarded. Courses dated in or before it count as undergraduate coursework — no transfer credit, core knowledge only (§5.2, §4.4.1); changing it re-fills “Taken as” for every row.'
+        ? `Required for a combined bachelor’s + master’s record: enter the semester your bachelor’s degree was awarded. Courses dated in or before it count as undergraduate coursework${ugTail.replace(/\.$/, '')}; changing it re-fills “Taken as” for every row.`
         : 'Required — the semester your bachelor’s degree was awarded; courses dated in or before it count as undergraduate coursework (§5.2).';
   return el(
     'div',
