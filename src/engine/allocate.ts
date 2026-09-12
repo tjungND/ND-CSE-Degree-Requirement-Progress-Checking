@@ -1174,7 +1174,10 @@ function buildExplanation(
     const checkboxNote = /your “transfer approved” checkbox cannot apply to it yet/.test(cc.approvalPending ?? '') ? '; your “transfer approved” checkbox cannot apply to it yet — the DGS has not reviewed this course' : '';
     const creditNote = /; credits shown as your transcript prints them[^;]*/.exec(cc.approvalPending ?? '')?.[0] ?? '';
     return {
-      explanation: `pending DGS review — candidate for transfer credit (§5.2); ${fate}${checkboxNote}${creditNote}${coreNote}`,
+      // A Notre Dame course here is one from the student's EARLIER Notre Dame
+      // program (red-team wording table, 2026-09-12): say so, since its
+      // "Where" cell reads Taken at Notre Dame.
+      explanation: `pending DGS review — candidate for transfer credit${isNotreDameInstitution(cc.entry.institution) ? ' from your earlier Notre Dame program' : ''} (§5.2); ${fate}${checkboxNote}${creditNote}${coreNote}`,
       mark: 'pending',
     };
   }

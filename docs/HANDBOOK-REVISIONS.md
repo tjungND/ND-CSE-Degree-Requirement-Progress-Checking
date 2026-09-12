@@ -199,6 +199,13 @@ program is deemed to begin in the following fall semester for every deadline in 
 
 ## 7. Smaller wording points
 
+- **§3.2 has no 60000-level floor in its own text** (red-team review, 2026-09-12). The app refuses an
+  unlisted MSCSE course below the 60000 level and refuses non-CSE 40000-level courses, citing §3.2 —
+  but the floor sentence exists only in §4.2 (Ph.D.), and §3.2's allowance ("up to six (6) credits at
+  the 40000 level") names no department. The DGS confirmed both readings are the department's intent
+  (2026-09-12: "caused by ambiguity in the handbook itself"). The fix belongs in §3.2: state the
+  floor, and say whether the 40000-level allowance is CSE-only.
+
 - **§4.4 "three components".** The qualifying examination has three components, but §4.4.1 alone
   produces three separate requirements (one core area each), so students read "three" as
   "three things to do" and count five. The audit calls the row "all components" for that reason.

@@ -525,7 +525,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
-      button({ class: 'btn', 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF (alpha)'),
+      button({ class: 'btn', 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF'),
       fileInput,
     );
   }

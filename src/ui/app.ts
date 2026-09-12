@@ -1308,7 +1308,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       blocked ? inactiveButton(attrs, PREVIEW_OPEN_NOTE, toast, label) : el('button', attrs, label);
     const importButton = button(
       { class: 'btn', 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() },
-      imported.length > 0 ? 'Import again' : 'Import from PDF (alpha)',
+      imported.length > 0 ? 'Import again' : 'Import from PDF',
     );
     const parts: (Node | string)[] = [
       // Named for the program the student picked at the top (DGS 2026-09-11):
@@ -2381,10 +2381,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         handbookLink(),
         '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Eligibility is determined by the DGS; processing and the official record are the Grad Admin’s — confirm with them before you rely on it.',
       ),
+      // One statement of the alpha status in the footer, not two (red-team
+      // wording table, 2026-09-12): the opening dialog and the banner already
+      // said it; BETA_NOTICE carries "not an official degree audit".
       el(
         'div',
         { class: 'legal-beta' },
-        el('strong', {}, 'Alpha version under testing. '),
         BETA_NOTICE,
         ' ',
         el('strong', {}, RULES_ACCURACY_NOTICE),

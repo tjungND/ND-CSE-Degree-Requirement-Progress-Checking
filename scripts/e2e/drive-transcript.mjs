@@ -518,7 +518,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (gpaAfterRemove !== '') throw new Error('ND Remove must clear the GPA the transcript filled in');
   if (!removeToast.startsWith('6 courses from your ND transcript removed, and the GPA it filled in.')) throw new Error('ND Remove toast wrong: ' + removeToast.slice(0, 120));
   const ndRowAfter = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
-  if (!ndRowAfter.includes('Import from PDF (alpha)') || ndRowAfter.includes('from your transcript')) throw new Error('ND row after Remove: ' + ndRowAfter.slice(0, 120));
+  if (!ndRowAfter.includes('Import from PDF') || ndRowAfter.includes('from your transcript')) throw new Error('ND row after Remove: ' + ndRowAfter.slice(0, 120));
   await s.shot('nd-removed');
   if ((await s.evalJs(`document.querySelector('[data-key="standing.bachelors.year"]')?.value`)) !== '2021') throw new Error('Remove must leave the bachelor’s award term alone');
   // The Undo must survive a re-render (2026-09-06 evening: it used to die with

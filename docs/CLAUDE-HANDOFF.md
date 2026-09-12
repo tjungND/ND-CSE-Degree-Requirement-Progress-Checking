@@ -726,7 +726,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   "License" line, the feedback sentence in the beta banner + footer, and the `.untested-note`
   under the transcript-upload button. The beta banner also states in bold that every verdict is
   computed from the published course rules (linking to `courses.html`). Update `contacts.ts` at every DGS handoff;
-  the untested note was RETIRED 2026-09-03 (the import buttons carry the version tag — "(alpha)" since 2026-09-04 — and the
+  the untested note was RETIRED 2026-09-03 (the import buttons carried "(alpha)" from 2026-09-04 to 2026-09-12, when the red-team review found five repeats of one fact; the opening dialog, the banner and the footer say it now — and the
   page-level privacy banner sits right under the beta notice); real-ND-transcript testing is
   still worth doing (by a human, locally — FERPA: never paste a student's transcript into an AI tool).
 - **Public course-rules page** (`courses.html`, 2026-09-01, DGS request): `src/ui/courses-page.ts`

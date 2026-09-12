@@ -144,7 +144,8 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     id: opts.id,
     ...(transferSatisfied.length > 0 ? { satisfiedBy: transferSatisfied } : {}),
     group: opts.group,
-    title: 'Transfer credit from a prior M.S.',
+    // The same row governs prior Ph.D. coursework (red-team wording table, 2026-09-12).
+    title: 'Transfer credit from prior graduate study',
     shortTitle: 'Transfer credit (§5.2)',
     status,
     ...joinedDetail(parts),

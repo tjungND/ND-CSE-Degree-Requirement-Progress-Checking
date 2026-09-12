@@ -69,7 +69,11 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     thresholdRow({
       id: 'phd.credits.regular',
       group: COURSEWORK,
-      title: '24 credit hours of regular courses at the 60000 level or higher',
+      // The title names the allowance the department reads into the next
+      // sentence (red-team wording table, DGS 2026-09-12): a student planning
+      // from the title alone should not plan against a floor the app does not
+      // enforce.
+      title: '24 credit hours of regular courses (60000 level or higher; up to 6 approved CSE 4xxxx credits may count inside them)',
       shortTitle: '24 regular-course credits',
       sums: ctx.alloc.regular,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),

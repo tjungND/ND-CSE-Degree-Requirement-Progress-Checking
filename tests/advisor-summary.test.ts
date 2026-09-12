@@ -21,7 +21,7 @@ const report: AuditReport = {
     req('phd.credits.total', '60 total credits of courses & research', 'unmet', '14 of 60 credits complete. 9 in progress.'),
     req('phd.credits.regular', '24 credit hours of regular courses', 'in_progress', '12 of 24 credits complete. 3 in progress.'),
     req('phd.cap.noncse', 'At most 9 credits at 6xxxx from outside CSE', 'needs_dgs_review', 'needs approval: MATH 60610.'),
-    req('phd.transfer', 'Transfer credit from a prior M.S.', 'not_applicable', 'No prior M.S.'),
+    req('phd.transfer', 'Transfer credit from prior graduate study', 'not_applicable', 'No prior M.S.'),
     {
       ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
       informational: true,
@@ -54,7 +54,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.match(text, /\n  \[NOT YET\] 60 total credits of courses & research \(§4\.2\) — 14 of 60 credits complete\. 9 in progress\.\n/);
     assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\.\n/);
     assert.match(text, /\n  \[NEEDS DGS REVIEW\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
-    assert.doesNotMatch(text, /Transfer credit from a prior M\.S\./, '"does not apply" rows are left out');
+    assert.doesNotMatch(text, /Transfer credit from prior graduate study/, '"does not apply" rows are left out');
     assert.doesNotMatch(text, /\nAPPROVALS\n|Courses still to be approved or processed/, 'the sign-off list feeds the to-do lists, not a section');
     assert.doesNotMatch(text, /CSE 60641|COURSES COUNTED/, 'no course list');
   });
@@ -68,7 +68,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.ok(html.includes(`<td>${red}NOT YET</span></td><td>${red}60 total credits of courses &amp; research</span></td><td>§4.2</td><td>14 of 60 credits complete. 9 in progress.</td>`));
     assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td>`));
     assert.ok(html.includes(`<td>${amber}NEEDS DGS REVIEW</span></td>`));
-    assert.doesNotMatch(html, /Transfer credit from a prior M\.S\./);
+    assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });
 
   it('to-do lists follow the sections and end the email before the notices', () => {
