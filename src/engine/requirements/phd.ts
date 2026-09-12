@@ -4,7 +4,7 @@ import { formatCredits } from '../credits.ts';
 import { resolveRuleRow } from '../../data/assemble.ts';
 import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
-import { isInProgress, isPassed, meetsGradeFloor } from '../grades.ts';
+import { isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
 import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus } from '../status.ts';
@@ -190,7 +190,10 @@ function seminarRow(ctx: Ctx): RequirementResult {
   } else {
     const states = wanted.map((id) => {
       const entries = ctx.classified.filter((c) => !c.superseded && c.entry.courseId === id);
-      const passed = entries.some((c) => isPassed(c.entry.grade));
+      // §4.2 names this a credit requirement (2 credits), so a passed grade
+      // below C does not satisfy it either (Academic Code §4.3, DGS decision
+      // 2026-09-12) — unlike §4.4.1 core knowledge, which only asks "passed".
+      const passed = entries.some((c) => passesCreditFloor(c.entry.grade) && isPassed(c.entry.grade));
       const ip = entries.some((c) => isInProgress(c.entry.grade));
       if (passed) satisfied.push(id);
       parts.push(`${id}: ${passed ? 'done' : ip ? 'in progress' : 'not yet'}`);

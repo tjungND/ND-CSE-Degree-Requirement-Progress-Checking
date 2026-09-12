@@ -21,7 +21,8 @@
   },
   "expect": {
     "phd.cap.fourk": { "status": "met", "detailIncludes": ["6", "not counted"] },
-    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] }
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] },
+    "phd.credits.total": { "status": "unmet", "detailIncludes": ["9 of 60"] }
   },
   "expectCourseLines": {
     "CSE 40567": ["not counted", "cap"],

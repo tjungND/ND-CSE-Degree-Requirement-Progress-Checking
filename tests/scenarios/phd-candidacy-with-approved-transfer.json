@@ -1,0 +1,41 @@
+{
+  "name": "phd-candidacy-with-approved-transfer",
+  "description": "§4.5 conditions candidacy readiness on the 24 regular-course credits being complete (or in progress), drawn from ctx.alloc.regular — which is origin-agnostic. A DGS-pre-approved §5.2 transfer course (Purdue CS 50300, ruled transferable in the ExternalCourses tab, ticked 'transfer approved') supplies the last 3 of 24, and candidacy reads met.",
+  "today": "2028-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2025 },
+    "priorMs": "unfinished",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "spring", "year": 2028 }, "grade": "A", "origin": "nd" },
+      {
+        "courseId": "CS 50300",
+        "title": "Operating Systems (Purdue)",
+        "credits": 3,
+        "term": { "season": "fall", "year": 2025 },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University"
+      }
+    ],
+    "milestones": { "candidacyPassed": "2028-05-01" },
+    "attestations": { "transferApproved": true }
+  },
+  "expect": {
+    "phd.credits.regular": { "status": "met", "detailIncludes": ["24 of 24"] },
+    "phd.candidacy": { "status": "met", "detailIncludes": ["Oral Candidacy Exam (OCE) passed"] }
+  },
+  "expectCourseLines": {
+    "CS 50300": ["counts toward regular courses"]
+  }
+}

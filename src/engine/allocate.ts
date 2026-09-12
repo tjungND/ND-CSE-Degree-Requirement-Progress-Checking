@@ -13,7 +13,7 @@ import { approverToken, needsCourseApproval } from './decider.ts';
 import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactorKey, creditSystemFactorLabel } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
-import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
+import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
 import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel } from './term.ts';
@@ -281,13 +281,21 @@ export function classify(student: Student, rules: Rules): {
     // Only a course that can count toward the MSCSE at all is worth a share of
     // the six — a 40000-level row the sheet marks `no` would otherwise take a
     // slot from one that counts.
-    const undergrad = (c: CourseEntry) =>
-      c.origin === 'transfer' &&
-      isNotreDameInstitution(c.institution) &&
-      (c.degreeLevel === 'bachelors' || (awarded !== undefined && compareTerm(c.term, awarded) <= 0)) &&
-      GRADES.includes(c.grade) &&
-      isPassed(c.grade) &&
-      priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), 'mscse');
+    const undergrad = (c: CourseEntry) => {
+      if (c.origin !== 'transfer' || !isNotreDameInstitution(c.institution)) return false;
+      if (!(c.degreeLevel === 'bachelors' || (awarded !== undefined && compareTerm(c.term, awarded) <= 0))) return false;
+      if (!GRADES.includes(c.grade) || !passesCreditFloor(c.grade)) return false;
+      const rule = resolveRuleRow(rules, c.courseId, c.term);
+      if (!priorNdUndergraduateCanCount(c, rule, 'mscse')) return false;
+      // §3.5 (Sept-2026 revision draft): "3-credit CSE REGULAR courses at the
+      // 60000 level or higher, and count these both as undergraduate CSE
+      // electives/Tech electives and as course requirements for the MSCSE
+      // degree" — a project/research/seminar/independent-study course does
+      // not draw on the shared bachelor's-and-MSCSE credit, even if it is
+      // otherwise eligible (DGS decision 2026-09-12). An unlisted course
+      // keeps the benefit of the doubt, as elsewhere in this file.
+      return rule === undefined || rule.courseType === 'regular';
+    };
     const lvl = (c: CourseEntry) => levelOf(c, resolveRuleRow(rules, c.courseId, c.term));
     const points = (c: CourseEntry) => GRADE_POINTS[c.grade] ?? 0;
     const fourk = student.courses
@@ -512,6 +520,17 @@ export function classify(student: Student, rules: Rules): {
             ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} credit only for a student who was in the Integrated B.S. + M.S. (4+1) program${student.integratedBsMs === false ? '' : '; if you were, say so under Your standing'}${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules, and its §4.4.2 group` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
           };
         }
+        // A master's project or thesis must be earned while enrolled in the
+        // MSCSE program (§3.4: "...Masters thesis direction (CSE 68901)
+        // earned at Notre Dame"; DGS decision 2026-09-12) — a 4+1 student
+        // cannot pick it up as an undergraduate elective, mirroring the rule
+        // below against a TRANSFERRED project/thesis course.
+        if (student.program === 'mscse' && shape && !('ineligibleReason' in shape) && shape.pool === 'project') {
+          return {
+            ...extBase,
+            ineligibleReason: `not counted — a master’s project or thesis is not a regular course and must be earned while enrolled in the MSCSE program, not as an undergraduate (§3.4)${coreNote}`,
+          };
+        }
         // The level rules are the degree's, not the transcript's: this
         // coursework counts the way the same course would if it were taken in
         // the program. Below the 60000 level that means §4.2's six-credit
@@ -723,18 +742,21 @@ export function classify(student: Student, rules: Rules): {
       // sheet row says what the course IS — regular, project, research — and
       // §4.2's level rules still apply to it.
       const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, student.program, attestations) : undefined;
-      // A master's project or thesis does not transfer into the Ph.D. (DGS
+      // A master's project or thesis does not transfer into EITHER degree (DGS
       // 2026-09-11: "Master's project is not a regular course. It cannot be
-      // transferred, so it should not count toward PhD."). Until today a prior
-      // Notre Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
+      // transferred, so it should not count toward PhD." — and §3.4's own
+      // "(CSE 68901) earned at Notre Dame", DGS decision 2026-09-12, reads the
+      // same way for the MSCSE: it must be earned in the program, not
+      // transferred in from an earlier one). Until 2026-09-11 a prior Notre
+      // Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
       // report, "counts toward the project/thesis requirement". Said before
       // the sheet's own verdict, because it holds whatever the row says.
       const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || MS_PROJECT_COURSE_IDS.includes(canonicalCourseId(c.courseId));
-      if (student.program === 'phd' && isProject) {
+      if (isProject) {
         return {
           ...extBase,
           transferable,
-          ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the Ph.D. (§5.2)${coreNote}`,
+          ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the ${student.program === 'phd' ? 'Ph.D. (§5.2)' : 'MSCSE (§3.4, §5.2)'}${coreNote}`,
         };
       }
       if (shape && 'ineligibleReason' in shape) {
@@ -1047,7 +1069,10 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     // first (2026-09-11): the choice is "best grade first", and the term
     // order below would otherwise hand §3.2's six credits to a weaker course
     // taken earlier, leaving the chosen one "over the cap".
-    const inTier = classified.filter((c) => c.tier === tier && c.pool !== 'none');
+    // A passed grade below C never fills a cap or counts toward a sum
+    // (passesCreditFloor — DGS decision 2026-09-12, Academic Code §4.3): such
+    // a course still falls through to the "ineligible courses" loop below.
+    const inTier = classified.filter((c) => c.tier === tier && c.pool !== 'none' && passesCreditFloor(c.entry.grade));
     const chosen = inTier.filter((c) => c.bsShare === 'both');
     const singles = inTier.filter((c) => c.bsShare !== 'both' && c.caps.length <= 1);
     const multis = inTier.filter((c) => c.bsShare !== 'both' && c.caps.length > 1);
@@ -1072,16 +1097,23 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     }
   }
 
-  // Ineligible courses still get a line.
+  // Ineligible courses still get a line — pool === 'none', or a passed grade
+  // below the credit floor (DGS decision 2026-09-12, Academic Code §4.3): the
+  // course still satisfies §4.4.1 core knowledge via isPassed() (unaffected,
+  // read straight off ctx.classified), just no credit-hour requirement.
   for (const cc of classified) {
-    if (cc.pool !== 'none') continue;
+    if (cc.pool !== 'none' && passesCreditFloor(cc.entry.grade)) continue;
+    const belowCreditFloor = cc.pool !== 'none';
+    const reason = belowCreditFloor
+      ? 'a passed grade below C does not count toward any credit-hour requirement (Academic Code §4.3)'
+      : cc.ineligibleReason;
     allocations.set(cc, {
       course: cc,
       countedRegular: 0,
       countedOther: 0,
       excluded: cc.entry.credits,
-      excludedReason: cc.ineligibleReason,
-      ...buildExplanation(cc, 0, cc.entry.credits, cc.ineligibleReason),
+      excludedReason: reason,
+      ...buildExplanation(cc, 0, cc.entry.credits, reason),
     });
   }
 

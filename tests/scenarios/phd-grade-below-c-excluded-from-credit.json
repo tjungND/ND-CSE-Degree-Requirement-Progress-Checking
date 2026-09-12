@@ -1,0 +1,27 @@
+{
+  "name": "phd-grade-below-c-excluded-from-credit",
+  "description": "Grad School Academic Code §4.3 (DGS decision 2026-09-12): a passed grade below C does not count toward any credit-hour requirement, even though it still satisfies §4.4.1 core knowledge (which asks only whether the course was passed). CSE 60641, C-, still satisfies the Operating Systems core-knowledge row but contributes none of its 3 credits to the 24 regular-course credits.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.2,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "C-", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24"] },
+    "phd.credits.total": { "status": "unmet", "detailIncludes": ["3 of 60"] },
+    "phd.qualifier.core.os": { "status": "met", "detailIncludes": ["Satisfied by CSE 60641"] }
+  },
+  "expectCourseLines": {
+    "CSE 60641": ["not counted", "a passed grade below C does not count toward any credit-hour requirement"]
+  }
+}
