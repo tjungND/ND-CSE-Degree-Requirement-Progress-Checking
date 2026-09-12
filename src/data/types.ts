@@ -2,7 +2,10 @@
 // Schema of record: the live sheet "CSE-Degree-Checking-Rules" (see data/README.md).
 import type { Term } from '../engine/types.ts';
 
-export type Counts = 'yes' | 'no' | 'dgs_approval';
+/** `adgs_approval` beside `dgs_approval` (DGS 2026-09-12): the cell names WHO
+ * signs off, so a future DGS can move a course's authority back without a code
+ * change. */
+export type Counts = 'yes' | 'no' | 'dgs_approval' | 'adgs_approval';
 
 /** §5.2 transferability of one course at another university, as the
  * ExternalCourses tab states it. `yes` = pre-approved, so only the Grad

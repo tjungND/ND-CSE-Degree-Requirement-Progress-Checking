@@ -12,7 +12,7 @@ const COURSE_ID_RE = /^[A-Z]{2,5} \d{5}$/;
 const CODE_RE = /^[a-z0-9_]+$/;
 
 const COURSE_TYPES: CourseType[] = ['regular', 'seminar', 'research', 'independent', 'project'];
-const COUNTS: Counts[] = ['yes', 'no', 'dgs_approval'];
+const COUNTS: Counts[] = ['yes', 'no', 'dgs_approval', 'adgs_approval'];
 const TRANSFERABLE: Transferable[] = ['yes', 'no', 'dgs_approval', 'adgs_approval'];
 
 /** A verdict cell as typed by a human into a spreadsheet. The DGS types these

@@ -9,6 +9,7 @@
 // entry-order greedy, where re-sorting the course list changed the verdict.
 import { formatCredits } from './credits.ts';
 import { canonicalCourseId, isIncompleteCourseId, resolveRuleRow } from '../data/assemble.ts';
+import { approverToken, needsCourseApproval } from './decider.ts';
 import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
@@ -170,10 +171,10 @@ function priorNdShape(
   const approvalPending =
     counts === undefined
       ? 'the rules sheet does not say whether it counts — needs DGS review'
-      : counts === 'dgs_approval'
+      : needsCourseApproval(counts)
         ? approvalAttested
           ? undefined
-          : 'needs advisor + DGS approval per the rules sheet'
+          : `needs advisor + ${approverToken(counts)} approval per the rules sheet`
         : undefined;
   const shape = (pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
   // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
@@ -826,10 +827,10 @@ export function classify(student: Student, rules: Rules): {
     const approvalPending =
       counts === undefined
         ? 'the rules sheet does not say whether it counts — needs DGS review'
-        : counts === 'dgs_approval'
+        : needsCourseApproval(counts)
           ? approvalAttested
             ? undefined
-            : 'needs advisor + DGS approval per the rules sheet'
+            : `needs advisor + ${approverToken(counts)} approval per the rules sheet`
           : undefined;
     const provisional = approvalPending !== undefined;
 

@@ -200,7 +200,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
                 ),
           ),
         )
-      : el('div', { class: 'req-detail' }, r.detail);
+      : el('div', { class: 'req-detail', 'data-keep-dgs': '' }, r.detail);
   return el(
     'div',
     { class: `req s-${r.status}`, id: `req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` },
@@ -280,7 +280,7 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
   const trackNotes = report.tracks.map((t) =>
     el(
       'div',
-      { class: 'track-note', role: 'note' },
+      { class: 'track-note', role: 'note', 'data-keep-dgs': '' },
       el('strong', {}, `${t.title} (${t.section})`),
       ' ',
       t.text,
@@ -355,7 +355,7 @@ function attentionList(report: AuditReport): HTMLElement | null {
           el('a', { href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` }, r.title),
           el('span', { class: `pill s-${r.status} small` }, STATUS_LABEL[r.status]),
           r.deadline && r.deadline.state === 'overdue' ? el('span', { class: 'attention-overdue' }, ' — deadline passed') : null,
-          el('span', { class: 'attention-next' }, ` ${firstSentence(r.detail)}`),
+          el('span', { class: 'attention-next', 'data-keep-dgs': '' }, ` ${firstSentence(r.detail)}`),
         ),
       ),
     ),

@@ -21,9 +21,10 @@ import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 const COUNTS_LABEL: Record<Counts, string> = {
   yes: 'Yes',
   no: 'No',
-  dgs_approval: 'With approval', // the DGS's for the Ph.D. column, the ADGS's for the MSCSE column (2026-09-11)
+  dgs_approval: 'With DGS approval',
+  adgs_approval: 'With ADGS approval', // the sheet names the reviewer per course (2026-09-12)
 };
-const COUNTS_CLASS: Record<Counts, string> = { yes: 'yes', no: 'no', dgs_approval: 'approval' };
+const COUNTS_CLASS: Record<Counts, string> = { yes: 'yes', no: 'no', dgs_approval: 'approval', adgs_approval: 'approval' };
 
 const TYPE_LABEL: Record<CourseType, string> = {
   regular: 'Regular course',
@@ -230,7 +231,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     r.typicallyOffered ? (OFFERED_LABEL[r.typicallyOffered] ?? r.typicallyOffered) : '—';
   const counts = (r: RuleCourse, program: 'mscse' | 'phd'): boolean => {
     const c = program === 'mscse' ? r.countsTowardMscse : r.countsTowardPhd;
-    return c === 'yes' || c === 'dgs_approval';
+    return c === 'yes' || c === 'dgs_approval' || c === 'adgs_approval';
   };
   /** What a course's own row can tell a reader beyond its columns. The DGS's
    * `notes` are NOT part of it (DGS 2026-09-09): they are the DGS's working
@@ -962,8 +963,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'Key: ',
       el('span', { class: 'pill yes' }, 'Yes'),
       ' counts · ',
-      el('span', { class: 'pill approval' }, 'With approval'),
-      ' counts only with the advisor’s approval and the ADGS’s (MSCSE) or the DGS’s (Ph.D.) · ',
+      el('span', { class: 'pill approval' }, 'With DGS approval'),
+      ' / ',
+      el('span', { class: 'pill approval' }, 'With ADGS approval'),
+      ' counts only with the advisor’s approval and the named reviewer’s · ',
       el('span', { class: 'pill no' }, 'No'),
       ' does not count · ',
       el('span', { class: 'pill undecided' }, 'Not yet decided'),
@@ -979,7 +982,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         {},
         li(el('strong', {}, 'Type'), 'only regular courses count toward the 24 regular-course credits (§3.2, §4.2); seminars, research, independent study and project credits count toward the total only.'),
         li(el('span', { class: 'pill yes' }, 'Yes'), 'counts toward that degree.'),
-        li(el('span', { class: 'pill approval' }, 'With approval'), 'counts only with the advisor’s approval and — for the MSCSE column — the ADGS’s, or — for the Ph.D. column — the DGS’s (for example CSE courses below the 60000 level, which share one 6-credit cap however many the DGS approves).'),
+        li(el('span', {}, el('span', { class: 'pill approval' }, 'With DGS approval'), ' / ', el('span', { class: 'pill approval' }, 'With ADGS approval')), 'counts only with the advisor’s approval and the named reviewer’s — the sheet says who, course by course (for example CSE courses below the 60000 level, which share one 6-credit cap however many the DGS approves).'),
         li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
         li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'no ruling on this course yet; ask the ADGS (MSCSE) or the DGS (Ph.D.) before relying on it.'),
         li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.'),

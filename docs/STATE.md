@@ -172,6 +172,8 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   wording fixes; and the rulings: nine regular credits at ND, §4.4.2 satisfied by any ND course,
   the transfer checkbox settling only reviewed courses, a master's project never transferring, and
   summer entry read as the following fall.
+  2026-09-12: the Courses tab's `adgs_approval` value names the reviewer per course (the parser was
+  skipping those rows — the vanished 40xxx courses); the program default covers the rest.
   2026-09-12: the ADGS decides everything for MSCSE students. One boundary rewrite
   (`decisionWording`, `applyDeciderRule`) turns every standalone “DGS” into “ADGS” on the MSCSE
   tab — engine text, page, both e-mails — and the review request goes to adingler@nd.edu; the

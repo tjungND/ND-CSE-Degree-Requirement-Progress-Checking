@@ -372,7 +372,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             'div',
             { class: 'audit-col', id: 'report', tabindex: '-1', 'aria-label': 'Your report' },
             report.warnings.length > 0
-              ? el('div', { class: 'warnings', role: 'note' }, ...report.warnings.map((w) => el('div', {}, `⚠ ${w}`)))
+              ? el('div', { class: 'warnings', role: 'note', 'data-keep-dgs': '' }, ...report.warnings.map((w) => el('div', {}, `⚠ ${w}`)))
               : null,
             renderReport(report, untouched),
           ),
@@ -1020,7 +1020,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const where = (p: PendingDgsReview): string =>
       p.kind === 'nd' ? 'Notre Dame' : p.kind === 'priorNd' ? 'Notre Dame, before entry' : (p.course.entry.institution ?? 'other university');
     const line = (courseId: string, where: string | undefined, reason: string) =>
-      el('div', { class: 'review-line' }, el('span', { class: 'cid' }, courseId), `${where ? ` (${where})` : ''} — ${reason}`);
+      el('div', { class: 'review-line', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, courseId), `${where ? ` (${where})` : ''} — ${reason}`);
     return el(
       'div',
       { class: 'card dgs-review' },
@@ -1819,7 +1819,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // core area now, amber = in progress or counted only until an approval,
       // red = earns nothing. A shape per colour, and a spoken word, so the
       // meaning does not rest on colour alone (WCAG 1.4.1).
-      const countsCell = el('td', { class: 'counts cell-note' }, ...(line ? [statusMark(line.mark), line.text] : []));
+      const countsCell = el('td', { class: 'counts cell-note', 'data-keep-dgs': '' }, ...(line ? [statusMark(line.mark), line.text] : []));
       // One course routinely serves several requirements, and the sentence
       // above names only the credit pool (DGS request 2026-09-08). List the
       // rest, each linking to its card, and say which are still conditional.
@@ -2055,7 +2055,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.'
           : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
       ),
-      ...built.items.lines.map((text) => el('div', { class: 'review-line' }, text)),
+      ...built.items.lines.map((text) => el('div', { class: 'review-line', 'data-keep-dgs': '' }, text)),
       n === 0 ? el('p', { class: 'hint' }, 'Nothing to process yet.') : null,
       el('div', { class: 'save-buttons' }, button),
     );

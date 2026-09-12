@@ -16,7 +16,22 @@ export function deciderTitle(program: Program): 'DGS' | 'ADGS' {
 
 /** Rewrite a student-facing sentence for the degree's decider. */
 export function decisionWording(program: Program, text: string): string {
-  return program === 'mscse' ? text.replace(/\bDGS\b/g, 'ADGS') : text;
+  const byProgram = program === 'mscse' ? text.replace(/\bDGS\b/g, 'ADGS') : text;
+  // A reviewer the rules sheet named for one course (`adgs_approval` /
+  // `dgs_approval`, 2026-09-12) arrives as a token and wins over the
+  // program's default: the sheet says who, per course.
+  return byProgram.replace(/\{\{(A?DGS)\}\}/g, '$1');
+}
+
+/** Does this Courses-tab value ask for a sign-off? */
+export function needsCourseApproval(counts: string | undefined): boolean {
+  return counts === 'dgs_approval' || counts === 'adgs_approval';
+}
+
+/** The reviewer a Courses-tab value names, as a token `decisionWording` unwraps
+ * — so a `dgs_approval` course on the MSCSE tab still says DGS. */
+export function approverToken(counts: string | undefined): string {
+  return counts === 'adgs_approval' ? '{{ADGS}}' : '{{DGS}}';
 }
 
 /** The same, over any string-bearing value (detail parts nest). */
