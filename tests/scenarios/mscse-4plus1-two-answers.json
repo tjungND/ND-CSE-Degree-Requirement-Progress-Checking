@@ -1,0 +1,144 @@
+{
+  "name": "mscse-4plus1-two-answers",
+  "description": "A 4+1 student’s senior-year 60xxx courses have two answers only (DGS 2026-09-11): “count only to MSCSE or count to both BS & MSCSE, subject to the 6-credit limit” — “‘count to neither’ or no answer are not options”. Two courses answered ‘both’ fill §3.5’s six shared credits; a third ‘both’ is over that cap and counts nothing; a course answered ‘MSCSE only’ counts in full and touches no cap; an unanswered course counts nothing and says what to choose. Records saved under the old answers still load: ‘bs’ reads as both, ‘neither’ as MSCSE only.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "title": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "both"
+      },
+      {
+        "courseId": "CSE 60111",
+        "title": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "both"
+      },
+      {
+        "courseId": "CSE 60321",
+        "title": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "both"
+      },
+      {
+        "courseId": "CSE 60770",
+        "title": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "mscse"
+      },
+      {
+        "courseId": "CSE 60535",
+        "title": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60868",
+        "title": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "neither"
+      }
+    ]
+  },
+  "expect": {
+    "ms.cap.sharedbs": {
+      "status": "met",
+      "detailIncludes": [
+        "6 of the 6 credits shared with your bachelor’s degree used",
+        "CSE 60321: 3 credits not counted — over the cap"
+      ]
+    },
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "12 of 24"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60321": [
+      "not counted — over the 6-credit allowance for coursework shared with your bachelor’s degree (§3.5)"
+    ],
+    "CSE 60770": [
+      "counts toward regular courses (3 cr)"
+    ],
+    "CSE 60868": [
+      "counts toward regular courses (3 cr)"
+    ],
+    "CSE 60535": [
+      "not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both"
+    ]
+  }
+}

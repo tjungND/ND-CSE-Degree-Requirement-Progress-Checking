@@ -1911,9 +1911,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         const choices =
           student.program === 'mscse'
             ? ([
-                ['', 'Already counted toward…'],
-                ['neither', 'Neither — it was extra'],
-                ['bs', 'My bachelor’s degree'],
+                // Two answers only (DGS 2026-09-11): the course counts toward the
+                // MSCSE alone, or toward both degrees inside §3.5's six credits.
+                // Nothing counts until one is chosen.
+                ['', 'Choose…'],
+                ['mscse', 'Only my MSCSE'],
+                ['both', 'Both my bachelor’s degree and my MSCSE'],
               ] as const)
             : ([
                 ['', 'Already counted toward…'],
@@ -1932,7 +1935,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               'div',
               { class: 'group-hint' },
               student.program === 'mscse'
-                ? 'Notre Dame coursework you took as an undergraduate can count toward the MSCSE — 60000-level in full, and up to 6 credits below it. At most 6 credits may count toward both this degree and your bachelor’s (§3.5), so this answer decides which allowance the course uses. Most 40000-level courses still need your advisor’s and the DGS’s approval, so they are listed in the review request.'
+                ? 'Choose one: this course counts only toward your MSCSE, or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5) — once two 3-credit courses are shared, the rest can only count toward the MSCSE. Nothing counts until you choose. Most 40000-level courses also need your advisor’s and the DGS’s approval, so they are listed in the review request.'
                 : 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it — unless it has already counted toward both your bachelor’s and your MSCSE. No course may count toward three degrees, so this answer decides it.',
             ),
           );

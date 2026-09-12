@@ -600,7 +600,7 @@ describe('undergraduate Notre Dame coursework', () => {
     const ms = (courses: CourseEntry[], over: Partial<Student> = {}) =>
       student(courses, { program: 'mscse', bachelorsAwarded: { season: 'spring', year: 2026 }, ...over });
     it('asks about two degrees, not three', () => {
-      assert.match(lineFor(ms([ug('CSE 40113')]), 'CSE 40113'), /^not counted yet — say whether your bachelor’s degree already used this course/);
+      assert.match(lineFor(ms([ug('CSE 40113')]), 'CSE 40113'), /^not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both/);
       assert.match(lineFor(student([ug('CSE 40113')], held), 'CSE 40113'), /^not counted yet — say which degrees this course has already counted toward/);
     });
     it('counts a 40000-level course only provisionally, inside §3.2’s allowance and §3.5’s shared six', () => {

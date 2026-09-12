@@ -567,13 +567,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // the course — and then it is pending the DGS, not counted.
   const lineOf = (id) => `[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}')?.textContent ?? ''`;
   const beforeAnswer = await s.evalJs(lineOf('CSE 40113'));
-  if (!/not counted yet — say whether your bachelor’s degree already used this course/.test(beforeAnswer)) {
+  if (!/not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both/.test(beforeAnswer)) {
     throw new Error('an MSCSE student must be asked the two-degree question: ' + beforeAnswer.slice(0, 200));
   }
   const choices = await s.evalJs(
     `[...document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]')][0] ? [...[...document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]')][0].options].map(o => o.textContent).join(' | ') : ''`,
   );
-  if (/MSCSE/.test(choices)) throw new Error('an MSCSE student must not be offered answers about the degree they are doing now: ' + choices);
+  if (!/Only my MSCSE/.test(choices) || !/Both my bachelor’s degree and my MSCSE/.test(choices) || /Neither/.test(choices)) throw new Error('an MSCSE student must be offered exactly the two answers: ' + choices);
   console.log('  “Already counted toward…” offers:', choices);
   // The two 40000-level courses were used by the bachelor's degree; the
   // senior-year 60000-level one was extra (§3.5's own case).
@@ -581,9 +581,9 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     s.evalJs(
       `(() => { const tr = [...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}'); const sel = tr.querySelector('select[data-key$=".countedToward"]'); sel.value = '${value}'; sel.dispatchEvent(new Event('change')); return sel.value; })()`,
     );
-  await answer('CSE 40113', 'bs');
-  await answer('CSE 40166', 'bs');
-  await answer('CSE 60641', 'neither');
+  await answer('CSE 40113', 'both');
+  await answer('CSE 40166', 'both');
+  await answer('CSE 60641', 'mscse');
   await s.waitFor(`/pending DGS review/.test(${lineOf('CSE 40113')})`);
   const after40113 = await s.evalJs(lineOf('CSE 40113'));
   const after40166 = await s.evalJs(lineOf('CSE 40166'));

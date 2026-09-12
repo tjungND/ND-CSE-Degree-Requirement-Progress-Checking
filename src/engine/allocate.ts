@@ -410,7 +410,18 @@ export function classify(student: Student, rules: Rules): {
         undergradLevelEarly >= 6 ||
         (deptOf(c.courseId) === 'CSE' && (undergradLevelEarly === 4 || (undergradLevelEarly === 5 && rule !== undefined)));
       if (asUndergraduate && eligibleUndergradLevel && isNotreDameInstitution(c.institution)) {
-        const spent = c.countedToward;
+        // For an MSCSE student the question has TWO answers (DGS 2026-09-11):
+        // the course counted only toward the MSCSE, or toward both the
+        // bachelor's and the MSCSE — "'count to neither' or no answer are not
+        // options". Records saved under the earlier four-way question are
+        // read the same way: 'bs' meant the bachelor's used it (→ both), and
+        // 'neither' meant it did not (→ MSCSE only).
+        const spent =
+          student.program === 'mscse' && c.countedToward === 'bs'
+            ? 'both'
+            : student.program === 'mscse' && c.countedToward === 'neither'
+              ? 'mscse'
+              : c.countedToward;
         // A Ph.D. student with no Notre Dame master's cannot have a course
         // that already counted twice, so they are never asked.
         const couldHaveCountedTwice = student.program !== 'phd' || student.ndMasters !== undefined;
@@ -489,7 +500,7 @@ export function classify(student: Student, rules: Rules): {
             ...extBase,
             ineligibleReason:
               student.program === 'mscse'
-                ? `not counted yet — say whether your bachelor’s degree already used this course, next to the course. At most 6 credits may count toward both degrees (§3.5), so the answer decides how this one counts${coreNote}`
+                ? `not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5), so the answer decides how this one counts${coreNote}`
                 : `not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, so the answer decides whether it counts here${coreNote}`,
           };
         }
@@ -517,7 +528,7 @@ export function classify(student: Student, rules: Rules): {
         // both degrees" (DGS 2026-09-10). The Ph.D. has no such cap: what it
         // has is the three-degree bar above.
         const sharedWithBachelors: CapId[] =
-          student.program === 'mscse' && (spent === 'bs' || spent === 'both') ? ['sharedbs'] : [];
+          student.program === 'mscse' && spent === 'both' ? ['sharedbs'] : [];
         return {
           ...extBase,
           pool: shape?.pool ?? 'regular',
