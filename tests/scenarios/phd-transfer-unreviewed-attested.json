@@ -1,0 +1,71 @@
+{
+  "name": "phd-transfer-unreviewed-attested",
+  "description": "The student's own “transfer approved” checkbox cannot clear a course the DGS has never reviewed (DGS 2026-09-11: “Do not let never-reviewed courses count even with the checkbox checked”). Two Purdue courses with no ExternalCourses row stay pending with the checkbox ticked; the row says why, and says “0 counted, 6 pending” rather than counting them. A university with no row has no credit system on record, and the line says the credits are shown as printed.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {
+      "transferApproved": true
+    },
+    "courses": [
+      {
+        "courseId": "CS 51000",
+        "title": "Data Mining",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CS 52000",
+        "title": "Computational Methods",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "0 of 24 transfer credits counted",
+        "6 more pending review",
+        "Not yet reviewed by the DGS: CS 51000, CS 52000"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CS 51000": [
+      "candidate for transfer credit (§5.2)",
+      "your “transfer approved” checkbox cannot apply to it yet",
+      "credits shown as your transcript prints them"
+    ]
+  }
+}

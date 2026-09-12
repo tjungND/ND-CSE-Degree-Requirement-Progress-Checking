@@ -130,8 +130,7 @@
     "phd.transfer": {
       "status": "met",
       "detailIncludes": [
-        "9 of 24 transfer credits counted",
-        "CSE 68901: not counted — the rules sheet says this course does not count toward the Ph.D."
+        "9 of 24 transfer credits counted"
       ]
     },
     "phd.qualifier.core.architecture": {
@@ -170,7 +169,7 @@
       "taken as an undergraduate student — no transfer credit (§5.2)"
     ],
     "CSE 68901": [
-      "does not count toward the Ph.D."
+      "not counted — a master’s project or thesis is not a regular course and does not transfer into the Ph.D. (§5.2)"
     ]
   }
 }

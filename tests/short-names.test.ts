@@ -74,7 +74,7 @@ describe('where the short forms are used, and where they are not', () => {
     const chips = report.courseLines.flatMap((l) => l.counts.map((c) => c.title));
     assert.ok(chips.includes('Core: OS'), JSON.stringify(chips));
     assert.ok(chips.includes('Core: Comp Arch'), JSON.stringify(chips));
-    assert.ok(chips.includes('9 credits at ND'), JSON.stringify(chips));
+    assert.ok(chips.includes('9 regular credits at ND'), JSON.stringify(chips));
     assert.ok(!chips.some((c) => /Notre Dame|Operating Systems|Computer Architecture/.test(c)), JSON.stringify(chips));
   });
 
@@ -84,7 +84,7 @@ describe('where the short forms are used, and where they are not', () => {
   });
 
   it('the requirement titles and the handbook quotes keep the full names', () => {
-    assert.equal(row('phd.credits.nd')?.title, 'At least 9 credits taken at Notre Dame');
+    assert.equal(row('phd.credits.nd')?.title, 'At least 9 credits of regular courses taken at Notre Dame');
     assert.match(row('phd.credits.nd')?.citation?.quote ?? '', /Notre Dame/);
     const core = report.requirements.find((r) => r.id.startsWith('phd.qualifier.core.'));
     assert.match(core?.title ?? '', /Operating Systems|Algorithms|Computer Architecture/, String(core?.title));

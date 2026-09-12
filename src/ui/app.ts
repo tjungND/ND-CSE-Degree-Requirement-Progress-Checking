@@ -2,7 +2,7 @@
 // autocomplete, milestone dates, attestations, and the live report.
 // All rule logic lives in src/engine/ — this file only collects input and renders.
 import type { NotreDameNow } from '../data/clock.ts';
-import { resolveRuleRow } from '../data/assemble.ts';
+import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
@@ -1655,7 +1655,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     };
     idInput.addEventListener('input', clearIdError);
     idInput.addEventListener('change', () => {
-      const id = idInput.value.toUpperCase().replace(/\s+/g, ' ').trim();
+      const id = canonicalCourseId(idInput.value);
       idInput.value = id;
       const term: Term = { season: (seasonSel as HTMLSelectElement).value as Season, year: Number(yearInput.value) };
       const rule = resolveRuleRow(rules, id, term);
@@ -1680,7 +1680,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     });
 
     const add = async () => {
-      const id = idInput.value.toUpperCase().replace(/\s+/g, ' ').trim();
+      const id = canonicalCourseId(idInput.value);
       if (!id) {
         // A persistent error next to the field, not a vanishing toast (item 6).
         idError.textContent = 'Enter a course number, such as CSE 60641.';

@@ -1,0 +1,122 @@
+{
+  "name": "phd-residency-ignores-rejected-rows",
+  "description": "Residency counts registered credits from rows the audit accepts as registrations (DGS 2026-09-11). A withdrawn ‘W’ row and an exact same-term duplicate both read “not counted” on their lines and used to add their credits to the semester anyway, making two six-credit semesters full-time. The incomplete id “CSE 6xxxx” is a number the student has not finished typing: warned about, never counted; “cse60641” is CSE 60641.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "title": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "title": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "title": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "W",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60884",
+        "title": "CSE 60884",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60884",
+        "title": "CSE 60884",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "cse60321",
+        "title": "cse60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 6xxxx",
+        "title": "CSE 6xxxx",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.residency": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "0 of 4 semesters"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 6xxxx": [
+      "not counted — the course number is incomplete"
+    ],
+    "cse60321": [
+      "counts toward regular courses (3 cr)"
+    ],
+    "CSE 60884": [
+      "entered twice for Fall 2026 — credits count once"
+    ]
+  }
+}

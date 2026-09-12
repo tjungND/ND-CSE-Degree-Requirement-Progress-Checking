@@ -133,6 +133,17 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
     // count, subject to all other constraints, so they should be listed …
     // for further decisions & review").
     const needsApprovalOnTop = c.approvalPending !== undefined && c.ineligibleReason === undefined;
+    // A prior Notre Dame course the Courses tab lists is a course the DGS has
+    // reviewed; once the student records the DGS's recommendation and the
+    // Graduate School's approval there is nothing left to ask (2026-09-11 —
+    // the guard used to cover only ExternalCourses rulings, so a student who
+    // did the MSCSE here was asked to request a recommendation already
+    // given). And a course that counts WITHOUT being transfer credit — Notre
+    // Dame coursework taken as an undergraduate, which never draws the
+    // transfer cap — is not a §5.2 request at all.
+    const transferSettled = fromNotreDame && c.rule !== undefined && student.attestations.transferApproved === true && c.approvalPending === undefined;
+    const notTransferCredit = fromNotreDame && !c.caps.includes('transfer') && c.ineligibleReason === undefined && c.approvalPending === undefined;
+    if (transferSettled || notTransferCredit) continue;
     const pending = (bachelors ? keyword : c.ineligibleReason === undefined || keyword) || needsApprovalOnTop;
     if (!pending) continue;
     if (fromNotreDame) {

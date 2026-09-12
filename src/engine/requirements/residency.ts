@@ -18,7 +18,14 @@ export function fullTimeTermRecords(ctx: Ctx): { term: Term; fullTime: boolean; 
   const floor = ctx.params.number('fulltime_credits_min');
   const entryIndex = termIndex(ctx.student.entryTerm);
   const byTerm = new Map<number, { term: Term; credits: number }>();
-  for (const c of ctx.student.courses) {
+  // Registered credits come from rows the audit accepts as registrations
+  // (2026-09-11): a duplicate entry of the same course, or a row whose grade
+  // the app does not recognise (a 'W' that came through the import), used to
+  // add its credits here while its own line said "not counted" — turning a
+  // six-credit semester into a full-time one.
+  for (const cc of ctx.classified) {
+    const c = cc.entry;
+    if (cc.superseded || cc.unrecognizedGrade) continue;
     if (c.origin !== 'nd' || termIndex(c.term) < entryIndex) continue;
     const key = termIndex(c.term);
     const rec = byTerm.get(key) ?? { term: c.term, credits: 0 };

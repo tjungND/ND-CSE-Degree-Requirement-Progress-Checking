@@ -75,12 +75,29 @@ export function rulesFromCsvTexts(
  * past courses); if none matches — every live row currently says Fall 2026 —
  * the EARLIEST row applies retroactively, so students' older courses still
  * resolve. Rows without an effective_term are always in effect. */
+/** "cse60641", "CSE60641", " cse  60641 " → "CSE 60641": the shape the Courses
+ * tab uses. Every lookup and every department test goes through this, so a
+ * hand-typed or OCR-read id reaches the same row as the printed one (DGS
+ * 2026-09-11: "let app ignore the case and space"). Ids that are not a
+ * subject plus a number are only upper-cased and space-collapsed. */
+export function canonicalCourseId(courseId: string): string {
+  const flat = courseId.toUpperCase().replace(/\s+/g, ' ').trim();
+  const m = /^([A-Z]{2,6})\s*(\d[\dX]{3,5})$/i.exec(flat.replace(/\s+/g, ''));
+  return m ? `${m[1]} ${m[2]}` : flat;
+}
+
+/** A course number with placeholder letters — "CSE 6xxxx", "CSE 60xxx" — is a
+ * number the student has not finished typing, not a course (2026-09-11). */
+export function isIncompleteCourseId(courseId: string): boolean {
+  return /^[A-Z]{2,6}\s+\d*X+\d*$/i.test(canonicalCourseId(courseId)) || /\d[X]+|[X]+\d/i.test(canonicalCourseId(courseId).split(' ')[1] ?? '');
+}
+
 export function resolveRuleRow(
   rules: Rules,
   courseId: string,
   term: Term | undefined,
 ): RuleCourse | undefined {
-  const list = rules.courses.get(courseId);
+  const list = rules.courses.get(canonicalCourseId(courseId));
   if (!list || list.length === 0) return undefined;
   if (!term) return list[list.length - 1];
   let best: RuleCourse | undefined;

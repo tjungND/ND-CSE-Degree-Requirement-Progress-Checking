@@ -10,7 +10,7 @@
 // picked up by app.ts's single "Ask the DGS to review" card (the page itself
 // transmits nothing — FERPA).
 import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
-import { resolveRuleRow } from '../data/assemble.ts';
+import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { NOTRE_DAME, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
@@ -1017,7 +1017,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 const degreeLevel = degreeLevelFor(p.slot, r.level);
                 if (degreeLevel !== 'bachelors') graduateRows += 1;
                 s.courses.push({
-                  courseId: r.courseId.trim(),
+                  courseId: canonicalCourseId(r.courseId),
                   title: r.title.trim() || undefined,
                   credits: r.credits!,
                   term: { season: r.season, year: r.year! },

@@ -184,6 +184,19 @@ express either answer, but only once someone has decided. Worth saying too wheth
 extends the §4.4 four-semester qualifier deadline, which today rests on the DGS granting an
 extension case by case.
 
+## 9. §4.4.3's eighteen months for a summer entrant
+
+**Today.** §4.4.3 counts "18 months" from entering the program; §4.2's semester counts start, by
+the department's own convention (decision Q17c), with the fall for a student admitted in a summer
+session. The app runs the 18-month clock from that fall too (DGS 2026-09-11: "PhD students entering
+in the summer semester is considered entering in the subsequent fall semester"), which for a June
+entrant is about ten weeks later than the words "18 months" read.
+
+**Suggested sentence.** In §4.4.3 or §2.1: *"For a student first enrolled in a summer session, the
+program is deemed to begin in the following fall semester for every deadline in this handbook."*
+
+---
+
 ## 7. Smaller wording points
 
 - **§4.4 "three components".** The qualifying examination has three components, but §4.4.1 alone

@@ -1,0 +1,106 @@
+{
+  "name": "phd-ee-undergrad-noncse-cap",
+  "description": "An EE Notre Dame bachelor's straight into the Ph.D.: twelve credits of EE 60xxx taken as an undergraduate. Such coursework counts without being transfer credit (2026-09-10), but it is still “from a department other than CSE” — so it draws §4.2's nine-credit non-CSE allowance and needs the same advisor + DGS approval as a non-CSE course taken in the program (DGS 2026-09-11; until then it touched no cap and no checkbox). The fourth course is over the cap, and the line names the cap that bound.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "EE 60531",
+        "title": "EE 60531",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "EE 60533",
+        "title": "EE 60533",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "EE 60535",
+        "title": "EE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "EE 60537",
+        "title": "EE 60537",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      }
+    ]
+  },
+  "expect": {
+    "phd.cap.noncse": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "9 of the 9 non-CSE cap credits used",
+        "3 credits not counted — over the cap"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "9 pending review/approval"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "EE 60531": [
+      "uses the non-CSE allowance",
+      "non-CSE course — needs advisor + DGS approval"
+    ],
+    "EE 60537": [
+      "not counted — over the 9-credit non-CSE cap (§4.2)"
+    ]
+  }
+}

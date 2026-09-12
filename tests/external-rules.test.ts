@@ -401,12 +401,15 @@ describe('graduate student status — §5.2 criterion 2 (DGS 2026-09-06)', () =>
     assert.match(after.approvalPending ?? '', /^pre-approved/);
   });
 
-  it('marks: a confirmed core area stays green, a keyword title amber, anything else red', () => {
+  // 2026-09-11: a line that says "not counted" is never green, whatever core
+  // area it also earns — that fact has its own §4.4.1 row. Keyword titles stay
+  // amber (a review could still confirm them).
+  it('marks: a "not counted" line is red even with a confirmed core area; a keyword title amber', () => {
     const confirmed = line(withBachelors([{ courseId: 'IFT-2125', title: 'Introduction à l’algorithmique', institution: 'Université de Montréal', term: { season: 'fall', year: 2023 } }]), 'IFT-2125')!;
     assert.match(confirmed.text, /^not counted — taken before/);
     assert.match(confirmed.text, /confirmed by the DGS/);
-    assert.equal(confirmed.mark, 'counts');
-    assert.equal(line(withBachelors([{ courseId: 'CS 51000', title: 'Algorithms', term: { season: 'fall', year: 2023 } }]), 'CS 51000')!.mark, 'pending');
+    assert.equal(confirmed.mark, 'excluded');
+    assert.equal(line(withBachelors([{ courseId: 'CS 51000', title: 'Algorithms', term: { season: 'fall', year: 2023 } }]), 'CS 51000')!.mark, 'excluded');
     assert.equal(line(withBachelors([{ courseId: 'CS 52300', title: 'Compilers', term: { season: 'fall', year: 2023 } }]), 'CS 52300')!.mark, 'excluded');
   });
 

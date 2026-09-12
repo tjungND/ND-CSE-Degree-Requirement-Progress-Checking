@@ -12,6 +12,7 @@ import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { audit, REQUIREMENT_IDS } from '../src/engine/audit.ts';
+import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import { buildRules, type ScenarioFile } from './helpers.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -47,6 +48,11 @@ describe('scenarios', () => {
         assert.deepEqual(report.tracks.map((t) => t.section), sc.expectTracks);
       }
 
+      // `expectReviewEmpty`: the DGS review request has nothing to ask (2026-09-11).
+      if (sc.expectReviewEmpty === true) {
+        const pending = coursesNeedingDgsReview(sc.student, rules);
+        assert.deepEqual(pending.map((p) => `${p.course.entry.courseId} — ${p.reason}`), [], 'the review request must be empty');
+      }
       for (const id of sc.expectAbsent ?? []) {
         assert.ok(!byId.has(id), `requirement ${id} should not be in this report at all — got: ${byId.get(id)?.detail}`);
       }

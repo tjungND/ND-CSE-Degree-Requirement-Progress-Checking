@@ -7,6 +7,7 @@
 // MSCSE student submits a prior transcript"). The caps themselves live in the
 // Parameters tab, one key per degree and prior-degree state.
 import { needsApproval } from '../../data/external.ts';
+import { compareTerm } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { joinedDetail, missingParamDetail, countedCourseIds } from './context.ts';
@@ -46,8 +47,11 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     status = 'cannot_evaluate';
     parts.push(missingParamDetail(capKey));
   } else {
-    const counted =
-      ctx.alloc.transfer.definite + ctx.alloc.transfer.in_progress + ctx.alloc.transfer.provisional;
+    // "Counted" means counted: provisional credit is said separately, so a
+    // row whose every course is still pending no longer reads "24 of 24
+    // transfer credits counted" (2026-09-11).
+    const counted = ctx.alloc.transfer.definite + ctx.alloc.transfer.in_progress;
+    const provisional = ctx.alloc.transfer.provisional;
     // Split the pending courses by what the DGS's ExternalCourses tab says,
     // so the student knows exactly what to do next (2026-09-01). Ruled
     // transferable already → nothing is left for the DGS to decide: the
@@ -67,19 +71,42 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // bachelor's degree, below the B floor, outside the five-year window, or
     // ruled non-transferable — there is nothing to ask for, and an amber row
     // the student can never clear is worse than no row.
-    status = ctx.student.attestations.transferApproved
-      ? 'met'
-      : pending.length === 0
-        ? 'not_applicable'
+    // The attestation makes the row "met" only when it has settled every
+    // course: a never-reviewed course stays pending whatever is ticked
+    // (2026-09-11), and the row must say so rather than read met beside it.
+    status = pending.length === 0
+      ? ctx.student.attestations.transferApproved
+        ? 'met'
+        : 'not_applicable'
         : preApproved.length === pending.length
           ? 'in_progress'
           : 'needs_dgs_review';
-    parts.push(
-      `${counted} of ${cap} transfer credits counted (§5.2 cap for a ${ctx.student.priorMs === 'completed' ? 'completed prior degree' : 'prior program that was not completed'})`,
-    );
-    const excluded = ctx.alloc.perCourse.filter(
-      (p) => p.course.entry.origin === 'transfer' && p.course.entry.degreeLevel !== 'bachelors' && p.excluded > 0,
-    );
+    // The cap's name says whose cap it is. A student with no prior graduate
+    // program at all is under the smaller cap too, but is not "a prior program
+    // that was not completed" (2026-09-11).
+    const capFor =
+      ctx.student.priorMs === 'completed'
+        ? 'a completed prior degree'
+        : ctx.student.priorMs === 'unfinished'
+          ? 'a prior program that was not completed'
+          : 'a student with no prior graduate degree';
+    parts.push(`${counted} of ${cap} transfer credits counted (§5.2 cap for ${capFor})${provisional > 0 ? `; ${provisional} more pending review` : ''}`);
+    // Only courses under §5.2's own cap belong on this row: Notre Dame
+    // coursework taken as an undergraduate is filed as 'transfer' but is not
+    // transfer credit (2026-09-10), and its lines used to be repeated here.
+    const awarded = ctx.student.bachelorsAwarded;
+    const excluded = ctx.alloc.perCourse.filter((p) => {
+      const e = p.course.entry;
+      if (e.origin !== 'transfer' || e.degreeLevel === 'bachelors' || p.excluded <= 0) return false;
+      // Notre Dame coursework taken in or before the bachelor's award term went
+      // down the undergraduate path, not §5.2's.
+      if (awarded !== undefined && /notre\s*dame/i.test(e.institution ?? '') && compareTerm(e.term, awarded) <= 0) return false;
+      // An unreviewed candidate the allocator happened to leave outside the
+      // cap is not "over the cap" — the DGS decides which candidates transfer
+      // (2026-09-06); the line already says "candidate", and so does this row.
+      if (p.course.tier === 'provisional' && p.course.transferable !== 'yes' && p.course.caps.includes('transfer') && p.course.ineligibleReason === undefined) return false;
+      return true;
+    });
     for (const p of excluded) parts.push(`${p.course.entry.courseId}: ${p.excludedReason ?? 'not counted'}`);
     if (status === 'not_applicable') {
       parts.push('Nothing here needs a DGS decision — none of the courses you entered can transfer under §5.2, for the reasons on their lines');

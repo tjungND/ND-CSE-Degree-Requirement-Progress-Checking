@@ -24,6 +24,8 @@ export interface ScenarioFile {
    * is deliberately not shown (2026-09-09: §4.5's along-the-way MSCSE for a
    * student who already holds it). */
   expectAbsent?: string[];
+  /** The DGS review request must have nothing to ask (2026-09-11). */
+  expectReviewEmpty?: boolean;
   expectCourseLines?: Record<string, string[]>;
 }
 

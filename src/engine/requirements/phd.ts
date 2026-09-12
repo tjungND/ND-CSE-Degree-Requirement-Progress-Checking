@@ -132,8 +132,11 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     thresholdRow({
       id: 'phd.credits.nd',
       group: COURSEWORK,
-      title: 'At least 9 credits taken at Notre Dame',
-      shortTitle: '9 credits at ND',
+      // Regular-course credits only (DGS 2026-09-11: "the 9 credits at ND
+      // should be regular classes") — research and seminar credits taken at
+      // Notre Dame do not satisfy this, and the title says so.
+      title: 'At least 9 credits of regular courses taken at Notre Dame',
+      shortTitle: '9 regular credits at ND',
       sums: ctx.alloc.ndRegular,
       pendingBy: pendingCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       satisfiedBy: countedCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
@@ -313,6 +316,11 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): Requirem
       // The deadline chip carries the when (2026-09-03).
       parts.push(`Overdue — talk to the DGS`);
       deadline = { date, approx: true, state: 'overdue', label: `Overdue — was due by the end of ${termLabel(term)} (approximate)` };
+    } else if (ctx.today > date) {
+      // Past the four semesters, with the DGS's extension recorded (2026-09-11):
+      // the chip said "Due by … — upcoming" for a date already gone.
+      deadline = { date, approx: true, state: 'upcoming', label: `Was due by the end of ${termLabel(term)} — extended by the DGS` };
+      parts.push('Deadline extended by the DGS — confirm the new date with the DGS');
     } else {
       deadline = { date, approx: true, state: 'upcoming', label: `Due by the end of ${termLabel(term)} (approximate)` };
     }
@@ -465,13 +473,15 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       // specialization category requirements in the qualifying exam
       // requirement"). §4.4.2 asks the student to have taken and passed the
       // course, and neither component of the qualifier is credit.
-      const awarded = ctx.student.bachelorsAwarded;
-      const beforeBachelors = awarded !== undefined && compareTerm(c.entry.term, awarded) <= 0;
-      if (!beforeBachelors) {
-        if (!c.caps.includes('transfer')) continue; // excluded by §5.2 — not this degree's course
-        if ((countedCredits.get(c) ?? 0) <= 0) continue; // over the §5.2 cap: no credit transferred
-      }
-      priorNd = !beforeBachelors;
+      // …and since 2026-09-11 that reading covers ALL Notre Dame coursework,
+      // whenever it was taken (DGS: "4.4.2 is satisfied by the courses taken
+      // at ND (whether during BS, MSCSE, or PhD) even though the courses do
+      // not count towards the credit requirements of PhD"). A prior Notre
+      // Dame course no longer waits for its §5.2 transfer, is not dropped for
+      // falling over the §5.2 cap, and is not dropped for being outside the
+      // five-year window or below the transfer grade floor — §4.4.2 has its
+      // own grade floor, applied below like everyone else's.
+      priorNd = false;
     }
     // The sheet may name one group, several, or `any` (DGS 2026-09-08).
     // 'ineligible' and a blank cell are both "not a candidate"; a code the

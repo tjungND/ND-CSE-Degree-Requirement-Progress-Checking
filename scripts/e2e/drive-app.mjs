@@ -151,6 +151,14 @@ export async function driveApp(s, baseUrl) {
   await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CS 53000').querySelector('button.remove').click()`);
   await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CS 53000')`);
 
+  // Course ids are read case- and space-insensitively (DGS 2026-09-11): a
+  // hand-typed "cse60641" is the sheet's CSE 60641, not a non-CSE course.
+  await s.evalJs(`(() => { const o = document.querySelector('[data-key="course.new.origin"]'); o.value = 'nd'; o.dispatchEvent(new Event('change')); const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'cse60641'; id.dispatchEvent(new Event('change')); })()`);
+  const canon = await s.evalJs(`document.querySelector('[data-key="course.new.id"]').value + ' | ' + document.querySelector('[data-key="course.new.title"]').value`);
+  console.log('  “cse60641” typed →', canon);
+  if (!/^CSE 60641 \| .+/.test(canon)) throw new Error('a lower-case, unspaced id must resolve to the sheet row: ' + canon);
+  await s.evalJs(`(() => { const id = document.querySelector('[data-key="course.new.id"]'); id.value = ''; id.dispatchEvent(new Event('change')); })()`);
+
   // A course entered with 0 credits (DGS 2026-09-11): allowed, because a
   // transcript's credit-hours column can come through blank and refusing the
   // row would lose the course — but never silently. The student is asked

@@ -50,6 +50,20 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **Course ids go through `canonicalCourseId()`** (src/data/assemble.ts, 2026-09-11) before every
+  sheet lookup and every department test, and on entry in the manual form and the preview — so
+  "cse60641" is CSE 60641. `isIncompleteCourseId()` catches placeholder numbers ("CSE 6xxxx"): a
+  warning, never a count. If you add a new place that reads `courseId`, canonicalise first.
+- **"Reviewed" is the gate the transfer checkbox opens** (2026-09-11): an ExternalCourses row with
+  `transferable` set, or a Notre Dame course the Courses tab lists. `attestations.transferApproved`
+  clears nothing else — the DGS ruled that a student's own checkbox must not make a never-reviewed
+  course count. The same notion decides whether review.ts stops asking.
+- **§4.4.2 no longer waits for §5.2** (2026-09-11): every Notre Dame course counts toward the
+  specialization row whatever happened to its credit. The `awaitingTransfer` machinery in
+  `categoriesRow` is now unreachable for prior ND courses and can be removed when convenient.
+- **Residency reads `ctx.classified`, not `student.courses`** (2026-09-11) — superseded duplicates
+  and rows with an unrecognised grade are not registrations.
+
 - **§3.2's two project courses are decided by ID, not by `course_type`** (2026-09-11).
   `MS_PROJECT_COURSE_IDS` in allocate.ts puts CSE 68901 and CSE 68902 in the `project` pool for an
   MSCSE student whatever the Courses tab says, because §3.2's own sentence names both numbers. The

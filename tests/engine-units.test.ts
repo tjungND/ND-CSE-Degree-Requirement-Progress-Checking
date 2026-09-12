@@ -232,7 +232,11 @@ describe('residency from the entry term (2026-09-05)', () => {
   it('ignores Notre Dame terms and overrides dated before the entry term', async () => {
     const { fullTimeTermRecords } = await import('../src/engine/requirements/residency.ts');
     const rules = buildRules();
-    const nd = (season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: 'CSE 60641', credits: 9, term: { season, year }, grade: 'A', origin: 'nd' });
+    // Distinct ids: the same course four times would be a retake chain, and
+    // residency now reads the classified list, where superseded rows are not
+    // registrations (2026-09-11).
+    const ids = ['CSE 60641', 'CSE 60111', 'CSE 60321', 'CSE 60535'];
+    const nd = (season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: ids.shift()!, credits: 9, term: { season, year }, grade: 'A', origin: 'nd' });
     const student: Student = {
       schemaVersion: 1,
       program: 'phd',
@@ -243,7 +247,8 @@ describe('residency from the entry term (2026-09-05)', () => {
       milestones: {},
       attestations: {},
     };
-    const ctx = { student, rules, params: rules.parameters } as unknown as Parameters<typeof fullTimeTermRecords>[0];
+    const { classify } = await import('../src/engine/allocate.ts');
+    const ctx = { student, rules, params: rules.parameters, classified: classify(student, rules).classified } as unknown as Parameters<typeof fullTimeTermRecords>[0];
     const records = fullTimeTermRecords(ctx);
     assert.deepEqual(
       records.map((r) => `${r.term.season} ${r.term.year}${r.fullTime ? ' ft' : ''}`),

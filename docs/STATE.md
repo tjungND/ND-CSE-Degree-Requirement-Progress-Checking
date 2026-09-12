@@ -164,6 +164,14 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   And §5.2's five-year window now binds the MSCSE as well as the Ph.D. — new Parameters key
   `ms_transfer_window_years` = 5, added to the live sheet (Changelog row 33) and to the fixture, the
   sample CSV and data/README.md. Until then the check did not run for a master's student at all.
+  Then sixty-eight invented Ph.D. students (the same eight-family shape as the MSCSE run): seven
+  defects fixed and five §4 readings ruled (DECISIONS rows of 2026-09-11, seventh and eighth) — the
+  review request honouring a recorded transfer approval, the non-CSE cap on undergraduate ND
+  coursework, residency reading the classified list, case-/space-insensitive course ids, the
+  over-cap line naming the binding cap, quarter credits flagged until the DGS's row exists, a set of
+  wording fixes; and the rulings: nine regular credits at ND, §4.4.2 satisfied by any ND course,
+  the transfer checkbox settling only reviewed courses, a master's project never transferring, and
+  summer entry read as the following fall.
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

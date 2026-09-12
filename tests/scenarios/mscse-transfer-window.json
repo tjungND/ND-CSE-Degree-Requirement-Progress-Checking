@@ -2,28 +2,87 @@
   "name": "mscse-transfer-window",
   "description": "§5.2 criterion 3 — \"the courses were completed within a five-year period prior to admission\" — applies to the MSCSE as well as the Ph.D. (DGS 2026-09-11). Until then only `phd_transfer_window_years` existed, so an MSCSE student's decade-old coursework was never refused on age: the check simply did not run for them. This student entered Fall 2026 with a completed master's; the 2019 course is outside the window and the 2023 one is inside it.",
   "today": "2027-06-01",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default"
+  },
   "student": {
     "schemaVersion": 1,
     "program": "mscse",
-    "entryTerm": { "season": "fall", "year": 2026 },
-    "bachelorsAwarded": { "season": "spring", "year": 2017 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2017
+    },
     "priorMs": "completed",
     "gpa": 3.7,
     "courses": [
-      { "courseId": "CS 51000", "title": "Data Mining", "credits": 3, "term": { "season": "fall", "year": 2019 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
-      { "courseId": "CS 52000", "title": "Computational Methods", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "A", "origin": "transfer", "institution": "Purdue University", "degreeLevel": "masters" },
-      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+      {
+        "courseId": "CS 51000",
+        "title": "Data Mining",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2019
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CS 52000",
+        "title": "Computational Methods",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
     ],
     "milestones": {},
-    "attestations": { "transferApproved": true }
+    "attestations": {
+      "transferApproved": true
+    }
   },
   "expect": {
-    "ms.transfer": { "status": "met", "detailIncludes": ["3 of 9 transfer credits counted", "CS 51000"] },
-    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["6 of 24"] }
+    "ms.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "0 of 9 transfer credits counted",
+        "3 more pending review"
+      ]
+    },
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24 credits complete",
+        "3 pending review/approval"
+      ]
+    }
   },
   "expectCourseLines": {
-    "CS 51000": ["not counted — completed outside the 5-year window before admission (five-year window, §5.2)"],
-    "CS 52000": ["counts toward regular courses (3 cr)", "transfer credit (§5.2)"]
+    "CS 51000": [
+      "not counted — completed outside the 5-year window before admission (five-year window, §5.2)"
+    ],
+    "CS 52000": [
+      "pending DGS review — candidate for transfer credit (§5.2)"
+    ]
   }
 }

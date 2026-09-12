@@ -1,0 +1,118 @@
+{
+  "name": "phd-nd-masters-transfer-approved",
+  "description": "A student who did the MSCSE at Notre Dame and has recorded the DGS's recommendation and the Graduate School's approval. The §5.2 row is met and the review request must be EMPTY — until 2026-09-11 it still asked for a recommendation the DGS had already given, because the attestation guard covered only ExternalCourses rulings and Notre Dame's own courses never have one. A prior CSE 68902 (master's project) does not transfer at all (DGS 2026-09-11) and does not appear in the request either. And §4.4.2 is satisfied by the Notre Dame courses whether or not their credit transferred.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {
+      "transferApproved": true
+    },
+    "ndMasters": {
+      "term": {
+        "season": "spring",
+        "year": 2026
+      }
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "title": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 60111",
+        "title": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 60321",
+        "title": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 68902",
+        "title": "CSE 68902",
+        "credits": 6,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 60770",
+        "title": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "met",
+      "detailIncludes": [
+        "9 of 24 transfer credits counted"
+      ]
+    },
+    "phd.qualifier.categories": {
+      "status": "met"
+    }
+  },
+  "expectCourseLines": {
+    "CSE 68902": [
+      "not counted — a master’s project or thesis is not a regular course and does not transfer into the Ph.D. (§5.2)"
+    ]
+  },
+  "expectReviewEmpty": true
+}
