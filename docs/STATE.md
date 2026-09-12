@@ -1,8 +1,34 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-11 (the first Claude Code Desktop session on the DGS's Mac, still running,
-branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at ~15:00 UTC —
-see "Session protocol" in `CLAUDE.md`).
+Last updated: 2026-09-12 (this session, branch `claude/degree-logic-review-ce45ab`, still running;
+the first Claude Code Desktop session's branch `claude/setup-handoff-review-c38220` — see 2026-09-11
+below — has since merged).
+
+2026-09-12: a deep-review session, asked to check the engine against the documents in the DGS's
+separate rules folder (outside the repo) — a September revision draft of the CSE handbook, the
+Grad School's Academic Code, the DGS Handbook, and the 4+1 guidance memo. None of the four is
+promoted into docs/ yet; docs/CSE-Graduate-Handbook-July2026.pdf stays the coded-against source of
+truth (**remind the DGS, next time he says the handbook has been revised, that this still needs a
+docs/DECISIONS.md / docs/HANDBOOK-REVISIONS.md entry and the PDF swapped in**). A 20-agent workflow
+diffed the two handbooks line by line and extracted the other two documents, then paired a
+code-mapping check against every finding with an independent adversarial re-check before reporting.
+Three findings, all approved and shipped (`6477ca0`): the Academic Code §4.3 grade floor (a passed
+grade below C no longer counts toward any credit-hour requirement, though it still satisfies §4.4.1
+core knowledge — `grades.ts:passesCreditFloor()`); §3.4's new "…earned at Notre Dame" (a master's
+project/thesis now fails to transfer into the MSCSE the same way it already failed to transfer into
+the Ph.D., on both the ordinary §5.2 path and a 4+1's asUndergraduate path); and §3.5's new "…CSE
+REGULAR courses…" (the bachelor's-and-MSCSE shared-credit selection now requires
+`courseType === 'regular'`). A fourth finding — §4.5/§4.7's "second failure results in forfeiture of
+degree eligibility," untracked by the engine — is recorded as explicitly deferred: candidacy and
+defense outcomes are handled outside the app. Six new test fixtures, one edited assertion.
+Also fixed (`0a15566`), flagged by the DGS mid-session from a separate red-team report: the "Ask the
+DGS to review" card's copy button read "Copy review request for 0 courses" when the only pending
+item was F8's plain-language note (no course line at all) — the button and the header chip now share
+one phrase (`review.ts:reviewRequestSummary()`).
+
+Last updated before this: 2026-09-11 (the first Claude Code Desktop session on the DGS's Mac, still
+running, branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at
+~15:00 UTC — see "Session protocol" in `CLAUDE.md`).
 
 ## Answered by the Graduate School (2026-09-10, evening) — closed
 
