@@ -59,6 +59,9 @@ export interface ExternalParseResult {
    * a Notre Dame semester hour (§5.2 pro-rata) unless the DGS's row says
    * otherwise. Absent = no such word; nothing is assumed. */
   quarterSystem?: true;
+  /** The transcript says its terms are TRIMESTERS (red-team F6, 2026-09-12):
+   * the same two tests, with the word trimester. */
+  trimesterSystem?: true;
   /** A bachelor's degree is NAMED anywhere on the transcript, with or without
    * a conferral date (2026-09-08). Without this there is no reason to think a
    * record covers an undergraduate degree at all, so the two-year "Taken as"
@@ -643,8 +646,15 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     lines.some((l) => /\b(quarter|qtr)\s+(units?|hours?|hrs?|credits?)\b/i.test(l))
       ? (true as const)
       : undefined;
+  const trimesterSystem =
+    !quarterSystem &&
+    (lines.some((l) => /\b(fall|spring|summer|autumn|winter)\s+(trimester|tri)\b/i.test(l) && YEAR_RE.test(l)) ||
+      lines.some((l) => /\btrimester\s+(units?|hours?|hrs?|credits?)\b/i.test(l)))
+      ? (true as const)
+      : undefined;
   return {
     ...(quarterSystem ? { quarterSystem } : {}),
+    ...(trimesterSystem ? { trimesterSystem } : {}),
     hasTextLayer: true,
     looksLikeNotreDame,
     // Spelled out for everyone who reads it (DGS 2026-09-08): the student,

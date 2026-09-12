@@ -1,0 +1,68 @@
+{
+  "name": "phd-trimester-from-transcript",
+  "description": "Red-team F6 (2026-09-12): §5.2 names trimester credits beside quarter credits as pro-rata transfers, and the app converted only quarters. A transcript that announced trimester terms records creditSystem = 'trimester' on each row and the engine converts at 0.88 (the Graduate School's factor): a 4-credit course counts 3.52 Notre Dame credits, the line saying which system and factor.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CS 501",
+        "title": "Principles of DBMS",
+        "credits": 4,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Old Harbour University",
+        "degreeLevel": "masters",
+        "creditSystem": "trimester"
+      },
+      {
+        "courseId": "CS 502",
+        "title": "Machine Learning",
+        "credits": 4,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Old Harbour University",
+        "degreeLevel": "masters",
+        "creditSystem": "trimester"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "7.04 more pending review"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CS 501": [
+      "candidate for transfer credit (§5.2)",
+      "would count toward regular courses (3.52 cr)"
+    ]
+  }
+}

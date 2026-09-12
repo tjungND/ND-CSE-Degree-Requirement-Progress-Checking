@@ -139,14 +139,27 @@ export function findExternalRule(
  * to 8.00 and not to a rounded 7.5 that would cost the student half a credit
  * against the §5.2 cap. Display rounds; the arithmetic does not. */
 export const QUARTER_TO_SEMESTER = 2 / 3;
+/** Trimester hours → semester hours (red-team F6, 2026-09-12): §5.2 names
+ * "trimester and quarter-hour credits" together as pro-rata transfers, and
+ * the Graduate School's table puts trimester credits at ×0.88. */
+export const TRIMESTER_TO_SEMESTER = 0.88;
+export type CreditSystem = 'quarter' | 'semester' | 'trimester';
+/** The pro-rata factor for a system, 1 for semester or unknown. */
+export function creditSystemFactor(system: CreditSystem | undefined): number {
+  return system === 'quarter' ? QUARTER_TO_SEMESTER : system === 'trimester' ? TRIMESTER_TO_SEMESTER : 1;
+}
+/** How the factor is printed on a course line ("2/3", "0.88"). */
+export function creditSystemFactorLabel(system: CreditSystem | undefined): string {
+  return system === 'quarter' ? '2/3' : system === 'trimester' ? '0.88' : '1';
+}
 
 /** The credit system a university awards in, from ANY of its ExternalCourses
  * rows (the DGS sets it once; it applies to every course from that university,
  * listed or not). Undefined when no row says — credits then count as printed. */
 export function universityCreditSystem(
-  external: readonly { universityKey: string; creditSystem?: 'quarter' | 'semester' }[],
+  external: readonly { universityKey: string; creditSystem?: CreditSystem }[],
   university: string | undefined,
-): 'quarter' | 'semester' | undefined {
+): CreditSystem | undefined {
   if (university === undefined) return undefined;
   const key = normalizeUniversity(university);
   if (key === '') return undefined;
@@ -159,9 +172,9 @@ export function universityCreditSystem(
 export function ndEquivalentCredits(
   printed: number,
   rule: { ndCredits?: number } | undefined,
-  system: 'quarter' | 'semester' | undefined,
+  system: CreditSystem | undefined,
 ): number | undefined {
   if (rule?.ndCredits !== undefined) return rule.ndCredits;
-  if (system === 'quarter') return printed * QUARTER_TO_SEMESTER;
+  if (system === 'quarter' || system === 'trimester') return printed * creditSystemFactor(system);
   return undefined;
 }

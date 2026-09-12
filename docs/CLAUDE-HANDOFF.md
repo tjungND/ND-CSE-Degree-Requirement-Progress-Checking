@@ -1157,6 +1157,15 @@ Known-pending (the app's diagnostics panel is the live truth):
   phd-qualifier-needs-nine-nd-credits, mscse-undecided-project-inferred, mscse-undecided-either-route;
   e2e pins both toasts (drive-app: un-assign CSE 60876; drive-transcript: add CSE 68902 undecided).
   `detailExcludes` in a scenario's `expect` asserts a phrase is absent.
+- **The §5.2 box is conditional** (F5, 2026-09-12). `classify()` marks each transfer row
+  `reviewed` (an ExternalCourses verdict, or a Courses-tab row for a Notre Dame course); app.ts
+  renders the checkbox only when some reviewed transfer course exists and always renders the
+  `.attest-note` rule beside it when any transfer course exists. Old saved files with
+  `transferApproved` still load; with nothing reviewed the value simply has no control.
+- **Credit systems** (F6, 2026-09-12): `CreditSystem` in data/external.ts is
+  quarter | semester | trimester with `creditSystemFactor`/`creditSystemFactorLabel`; the parser
+  sets `quarterSystem` or `trimesterSystem`; the preview keeps `p.creditSystem` and the select
+  `ext.preview.creditsystem`; the classified course carries `convertedFrom` for the line.
 
 ## Invariants — keep these true
 

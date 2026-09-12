@@ -516,18 +516,20 @@ describe('credit_system: quarter hours become Notre Dame hours', () => {
   const usc = (courseId: string, credits: number): Student =>
     student([{ courseId, title: 'Analysis of Algorithms', credits, institution: 'University of Southern California', term: { season: 'fall', year: 2024 } }]);
 
-  it('reads the column, and rejects anything but quarter/semester/blank', () => {
+  it('reads the column, and rejects anything but quarter/trimester/semester/blank', () => {
     const rule = rules.external.find((r) => r.courseId === 'CSCI 570')!;
     assert.equal(rule.creditSystem, 'quarter');
     assert.equal(rules.external.find((r) => r.courseId === 'CS 50300')?.creditSystem, undefined);
+    // `trimester` is a value since 2026-09-12 (red-team F6).
+    assert.equal(parseExternalTab('university,course_id,transferable,credit_system\nX UNIVERSITY,CS 1,yes,trimester\n', CORE, [])[0]?.creditSystem, 'trimester');
     const issues: SheetIssue[] = [];
     const parsed = parseExternalTab(
-      'university,course_id,transferable,credit_system\nX UNIVERSITY,CS 1,yes,trimester\n',
+      'university,course_id,transferable,credit_system\nX UNIVERSITY,CS 1,yes,fortnight\n',
       CORE,
       issues,
     );
     assert.equal(parsed[0]?.creditSystem, undefined, 'a bad value is ignored, the row is kept');
-    assert.match(issues[0]?.message ?? '', /credit_system must be 'quarter', 'semester' or blank/);
+    assert.match(issues[0]?.message ?? '', /credit_system must be 'quarter', 'trimester', 'semester' or blank/);
   });
 
   it('converts the credits the transcript prints — the exact value, whatever the course is worth', () => {

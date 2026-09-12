@@ -10,7 +10,7 @@
 import { formatCredits } from './credits.ts';
 import { canonicalCourseId, isIncompleteCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { approverToken, needsCourseApproval } from './decider.ts';
-import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem } from '../data/external.ts';
+import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactorLabel } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
@@ -47,6 +47,12 @@ export interface ClassifiedCourse {
   /** Who said the credits were quarter hours: the DGS's ExternalCourses row,
    * or the transcript's own term headers (2026-09-11). */
   creditSystemSource?: 'sheet' | 'transcript';
+  /** Transfer rows only (F5, 2026-09-12): the DGS has reviewed this course —
+   * an ExternalCourses verdict, or a Courses-tab row for a Notre Dame course —
+   * so the §5.2 checkbox can settle it. */
+  reviewed?: boolean;
+  /** Which non-semester system the credits were converted from (F6, 2026-09-12). */
+  convertedFrom?: 'quarter' | 'trimester';
   /** MSCSE only: how a Notre Dame course taken as an undergraduate is applied
    * — to both degrees (inside §3.5's shared credits) or to the MSCSE alone.
    * Chosen by the app, never by the student (DGS 2026-09-11). */
@@ -707,7 +713,7 @@ export function classify(student: Student, rules: Rules): {
       // (2026-09-11).
       const creditSystemNote =
         external === undefined && creditSystem === undefined && !isNotreDameInstitution(c.institution)
-          ? '; credits shown as your transcript prints them — if your university uses quarters, the DGS’s ruling converts them (§5.2 pro-rata)'
+          ? '; credits shown as your transcript prints them — if your university uses quarters or trimesters, the DGS’s ruling converts them (§5.2 pro-rata)'
           : '';
       // §4.2 caps credits "taken from a department other than CSE" at nine,
       // wherever they were taken — and a transcript from elsewhere spells the
@@ -723,6 +729,7 @@ export function classify(student: Student, rules: Rules): {
       const nonCseCap: CapId[] = isCse === false && !(shape?.caps ?? []).includes('noncse') ? ['noncse'] : [];
       return {
         ...extBase,
+        reviewed,
         transferable,
         pool: shape?.pool ?? 'regular',
         caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap],
@@ -732,8 +739,8 @@ export function classify(student: Student, rules: Rules): {
         // converted from what the transcript prints (DGS 2026-09-08), which is
         // the only thing that works when a course's credits vary by term.
         effectiveCredits: ndEquivalentCredits(c.credits, external, creditSystem),
-        ...(external?.ndCredits === undefined && creditSystem === 'quarter'
-          ? { creditsConverted: true as const, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
+        ...(external?.ndCredits === undefined && (creditSystem === 'quarter' || creditSystem === 'trimester')
+          ? { creditsConverted: true as const, convertedFrom: creditSystem, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
           : {}),
         approvalPending: attested
           ? undefined
@@ -747,7 +754,7 @@ export function classify(student: Student, rules: Rules): {
               ? `transfer — needs DGS approval (§5.2)${coreNote}`
               : external
                 ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
-                : `transfer — not yet reviewed by the DGS${attestedButUnreviewed ? ', so your “transfer approved” checkbox cannot apply to it yet' : ''}; needs DGS + Graduate School approval (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
+                : `transfer — not yet reviewed by the DGS${attestedButUnreviewed ? ', so your “transfer approved” checkbox cannot apply to it yet' : ''}; an external course counts only once the DGS has explicitly approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
       };
     }
 
@@ -1159,7 +1166,7 @@ function buildExplanation(
     parts.push(`${lead} toward ${poolName} (${formatCredits(counted)} cr)${tail}`);
     if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
       parts.push(
-        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the quarter system at 2/3${cc.creditSystemSource === 'transcript' ? ' — your transcript says quarter terms; the DGS’s ruling for the university can correct this' : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
+        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the ${cc.convertedFrom ?? 'quarter'} system at ${creditSystemFactorLabel(cc.convertedFrom ?? 'quarter')}${cc.creditSystemSource === 'transcript' ? ` — your transcript says ${cc.convertedFrom ?? 'quarter'} terms; the DGS’s ruling for the university can correct this` : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
       );
     }
     // The cap covers both levels below 60000 since 2026-09-09, so the line

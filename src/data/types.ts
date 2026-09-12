@@ -61,7 +61,7 @@ export interface ExternalRule {
    * only thing that works for a course whose credits vary from term to term
    * (2 to 4); a fixed `nd_credits` cannot. Set it on any row of a university
    * and it applies to every course from that university. */
-  creditSystem?: 'quarter' | 'semester';
+  creditSystem?: 'quarter' | 'semester' | 'trimester';
   /** Is this a CSE course, for §4.2's nine-credit allowance for courses "taken
    * from a department other than CSE"? (DGS 2026-09-09.) Other universities
    * name the department every way there is — CS, CompSci, CSCI, CSYE, ECE, CE

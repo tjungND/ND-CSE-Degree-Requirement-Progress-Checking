@@ -443,10 +443,10 @@ export function parseExternalTab(
     // the student's transcript prints, so a 2-to-4-credit course converts
     // correctly every time (DGS 2026-09-08).
     const system = (cells['credit_system'] ?? '').trim().toLowerCase();
-    if (system === 'quarter' || system === 'semester') rule.creditSystem = system;
+    if (system === 'quarter' || system === 'semester' || system === 'trimester') rule.creditSystem = system;
     else if (system !== '') {
       err(rowNum, 'credit_system',
-        `ExternalCourses row ${rowNum} (${university} ${courseId}): credit_system must be 'quarter', 'semester' or blank — got '${system}'. That cell is ignored (credits count as printed).`);
+        `ExternalCourses row ${rowNum} (${university} ${courseId}): credit_system must be 'quarter', 'trimester', 'semester' or blank — got '${system}'. That cell is ignored (credits count as printed).`);
     }
 
     // Two rows for the same university + course: the LAST row wins (DGS

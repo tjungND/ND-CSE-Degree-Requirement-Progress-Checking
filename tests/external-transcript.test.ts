@@ -204,6 +204,12 @@ describe('quarter-system detection (2026-09-11)', () => {
   it('a "Quarter Units" heading is enough on its own', () => {
     assert.equal(parseExternalTranscript(['Stanford University', ...HEAD, 'Fall 2023', 'Course   Title   Quarter Units   Grade', 'CS 229   Machine Learning   3   A']).quarterSystem, true);
   });
+  it('a trimester transcript is read the same way (red-team F6, 2026-09-12)', () => {
+    const r = parseExternalTranscript(['Old Harbour University', ...HEAD, 'Fall Trimester 2023', 'CS 501   Algorithms   4.0   A']);
+    assert.equal(r.trimesterSystem, true);
+    assert.equal(r.quarterSystem, undefined);
+    assert.equal(parseExternalTranscript(['Old Harbour University', ...HEAD, 'Fall 2023', 'Course   Title   Trimester Hours   Grade', 'CS 501   Algorithms   4   A']).trimesterSystem, true);
+  });
   it('a semester transcript, or a lone Winter session, says nothing', () => {
     assert.equal(parseExternalTranscript(['Purdue University', ...HEAD, 'Fall 2023', 'CS 50300   Operating Systems   3.0   A']).quarterSystem, undefined);
     assert.equal(parseExternalTranscript(['Purdue University', ...HEAD, 'Winter 2024', 'CS 50300   Operating Systems   3.0   A']).quarterSystem, undefined);

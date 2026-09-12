@@ -98,7 +98,9 @@ describe('coursesNeedingDgsReview — courses from another university', () => {
     // DGS to decide the same course (2026-09-08).
     const attested = { ...s, attestations: { transferApproved: true } };
     assert.deepEqual(ids(attested, caseRow), []);
-    assert.deepEqual(ids(attested, [row('STAT 51200')]), [], 'the same for a row whose cell is blank');
+    // …but a listed row whose cell is BLANK is not a decision, so the box
+    // cannot close it (ruling 2026-09-11; red-team F5, 2026-09-12).
+    assert.deepEqual(ids(attested, [row('STAT 51200')]), ['STAT 51200:decide'], 'a blank cell stays asked whatever is ticked');
   });
 
   // The DGS types these words by hand into a spreadsheet cell.

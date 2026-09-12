@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
+import { classify, priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
 import { coursesNeedingDgsReview, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
@@ -2167,8 +2167,35 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       attestation('My advisor approved my plan of study (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
       attestation('The DGS approved my course(s) below the 60000 level (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
       attestation('The DGS approved my non-CSE course(s) (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApprovedNonCse, (v, s) => (s.attestations.dgsApprovedNonCse = v)),
-      attestation('My transfer credit was approved by the DGS and the Graduate School (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)),
     );
+    // §5.2 (DGS 2026-09-12, red-team F5): an external course counts only once
+    // the DGS has EXPLICITLY approved it. The checkbox records that approval
+    // (and the Graduate School's processing) for courses the DGS has
+    // reviewed — a `yes` or a "needs approval" verdict in the rules sheet.
+    // It is shown only when it can settle something: with no reviewed
+    // transfer course it is a dead control, so the explanation stands alone.
+    {
+      const transfers = classify(student, rules).classified.filter(
+        (c) => c.entry.origin === 'transfer' && c.entry.degreeLevel !== 'bachelors' && !c.superseded && c.caps.includes('transfer'),
+      );
+      const reviewed = transfers.filter((c) => c.reviewed === true);
+      const unreviewed = transfers.filter((c) => c.reviewed !== true).map((c) => c.entry.courseId);
+      if (reviewed.length > 0) {
+        card.append(attestation('The DGS explicitly approved my transfer credit and the Graduate School has processed it (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)));
+      }
+      if (transfers.length > 0) {
+        card.append(
+          el(
+            'p',
+            { class: 'hint attest-note', 'data-key': 'attest.transfer.note' },
+            'An external course never counts without the DGS’s explicit approval (§5.2): a course the rules sheet marks transferable is approved and waits for the Grad Admin to process it; one the sheet marks “needs approval” waits for the DGS’s decision on your case; one the sheet does not list cannot count until the DGS has reviewed it.',
+            unreviewed.length > 0
+              ? ` Not reviewed yet: ${unreviewed.join(', ')} — ${reviewed.length > 0 ? 'the checkbox cannot settle ' + (unreviewed.length === 1 ? 'it' : 'them') + '; ' : ''}send the review request from the “Ask the DGS to review” card.`
+              : '',
+          ),
+        );
+      }
+    }
     if (student.program === 'phd') {
       card.append(
         attestation('The DGS extended my qualifier deadline (§4.4)', a.qualifierExtensionGranted, (v, s) => (s.attestations.qualifierExtensionGranted = v)),

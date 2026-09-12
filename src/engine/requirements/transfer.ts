@@ -132,7 +132,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
       }
       if (unreviewed.length > 0) {
         parts.push(
-          `Not yet reviewed by the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} — the transcripts card has a copy-ready request to email`,
+          `Not yet reviewed by the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} — the transcripts card has a copy-ready request to email${ctx.student.attestations.transferApproved ? '; your “transfer approved” checkbox cannot settle a course until it has a row in the rules sheet' : ''}`,
         );
       }
     }

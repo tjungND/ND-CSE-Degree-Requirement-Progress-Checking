@@ -151,7 +151,7 @@ and the DGS (DGS 2026-09-08). Use `yes` for a course any student may transfer; u
 when the answer depends on the student.
 
 Since 2026-09-08 the ExternalCourses tab has a `credit_system` column (`quarter` / `semester` /
-blank). Set it on any one row of a university and every course from that university converts from
+blank; `trimester` since 2026-09-12, × 0.88). Set it on any one row of a university and every course from that university converts from
 the credits printed on the student's transcript (quarter × 2/3, kept exactly) — the way to handle a
 course whose credits vary from term to term. `nd_credits` still means a FIXED value for one course
 and overrides the conversion.

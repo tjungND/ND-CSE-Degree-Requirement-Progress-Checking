@@ -81,7 +81,7 @@ export interface CourseEntry {
    * (2026-09-11 — "Fall Quarter 2023", "Quarter Units"). Read at import,
    * correctable in the preview. A `credit_system` cell in the DGS's
    * ExternalCourses tab for the university always wins over it. */
-  creditSystem?: 'quarter' | 'semester';
+  creditSystem?: 'quarter' | 'semester' | 'trimester';
 }
 
 /** ISO dates (YYYY-MM-DD), all optional — milestones are dates, not checkboxes. */

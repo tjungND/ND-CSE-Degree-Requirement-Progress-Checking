@@ -221,6 +221,15 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   const purdueLines = await groupLines('Purdue University — Previous Master’s Transcript');
   console.log('  Purdue transfer lines:', JSON.stringify(purdueLines));
+  // §5.2 explicit approval (DGS 2026-09-12, red-team F5): with a transfer
+  // course on the record the rule is stated beside the approvals, and the
+  // checkbox appears only when a reviewed course exists for it to settle.
+  {
+    const attest = JSON.parse(await s.evalJs(`JSON.stringify({ note: document.querySelector('[data-key="attest.transfer.note"]')?.textContent ?? '', box: !!document.querySelector('[data-key^="attest.the-dgs-explicitly-approved"]') })`));
+    if (!/never counts without the DGS’s explicit approval \(§5\.2\)/.test(attest.note)) throw new Error('the §5.2 rule must be stated beside the approvals: ' + attest.note.slice(0, 120));
+    if (attest.box === (/the checkbox cannot settle/.test(attest.note) === false && /Not reviewed yet/.test(attest.note))) throw new Error('the §5.2 checkbox must appear exactly when a reviewed transfer course exists: ' + JSON.stringify(attest));
+    console.log('  §5.2 rule stated; checkbox ' + (attest.box ? 'shown (a reviewed course exists)' : 'hidden (nothing reviewed yet)'));
+  }
   const candidates = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('pending DGS review — candidate for transfer credit (§5.2)'));
   const wouldCount = candidates.filter((l) => l.includes('would count toward regular courses'));
   if (purdueLines.length !== 3 || candidates.length !== 3 || wouldCount.length < 2) {

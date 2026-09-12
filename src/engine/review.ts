@@ -102,7 +102,10 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
       // (allocate.ts clears `approvalPending`, and the §5.2 row reads "met"),
       // and the card used to go on asking anyway (2026-09-08).
       const transferAttested = student.attestations.transferApproved === true;
-      const transferUndecided = (c.transferable === undefined || caseByCase) && !bachelors && !transferAttested && c.ineligibleReason === undefined;
+      // …but only for a course the DGS has reviewed (a verdict in the sheet):
+      // a listed row with a BLANK verdict stays pending whatever is ticked
+      // (2026-09-11 ruling; red-team F5, 2026-09-12).
+      const transferUndecided = (c.transferable === undefined || (caseByCase && !transferAttested)) && !bachelors && c.ineligibleReason === undefined;
       const coreUndecided = c.external.satisfiesCoreArea === undefined && !coreDecidedByCoursesTab && coreTitle(c);
       if (!transferUndecided && !coreUndecided) continue;
       // Why the course is decided case by case — its relevance to the
