@@ -1,35 +1,136 @@
 {
   "name": "mscse-prior-nd-undergrad-4xxxx",
-  "description": "An MSCSE student who uploads the Notre Dame undergraduate transcript from their own B.S. (the 4+1 issues one transcript per career). The DGS, 2026-09-11: up to two 40000-level courses MAY count toward the MSCSE — \"subject to all other constraints, so they should be listed … for further decisions & review\" — so each one is counted only provisionally, cites §3.2's allowance rather than the Ph.D.'s §4.2, draws on §3.5's six credits shared with the bachelor's degree, and stays in the DGS review request until the approval exists. A 40000-level course the sheet blocks outright counts nothing whatever the student answers, and a course below the 40000 level never reaches the allowance at all. Nothing here names §4.4.1 or §4.4.2: the qualifying examination is the Ph.D.’s (DGS 2026-09-11).",
+  "description": "An MSCSE student who uploads the Notre Dame undergraduate transcript from their own B.S. (the 4+1 issues one transcript per career). The DGS, 2026-09-11: up to two 40000-level courses MAY count toward the MSCSE — \"subject to all other constraints, so they should be listed … for further decisions & review\" — so each one is counted only provisionally, cites §3.2's allowance rather than the Ph.D.'s §4.2, draws on §3.5's six credits shared with the bachelor's degree, and stays in the DGS review request until the approval exists. A 40000-level course the sheet blocks outright counts nothing whatever the student answers, and a course below the 40000 level never reaches the allowance at all. Nothing here names §4.4.1 or §4.4.2: the qualifying examination is the Ph.D.’s (DGS 2026-09-11). Since the same day's later ruling the student is not asked: the app applies the top two 40000-level courses to both degrees and says so on the line.",
   "today": "2027-06-01",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default"
+  },
   "student": {
     "schemaVersion": 1,
     "program": "mscse",
-    "entryTerm": { "season": "fall", "year": 2026 },
-    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
     "priorMs": "none",
     "gpa": 3.7,
     "courses": [
-      { "courseId": "CSE 40113", "title": "Design/Analysis of Algorithms", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate", "countedToward": "bs" },
-      { "courseId": "CSE 40567", "title": "Computer Security", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate", "countedToward": "bs" },
-      { "courseId": "CSE 40437", "title": "Social Sensing", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate", "countedToward": "neither" },
-      { "courseId": "CSE 20110", "title": "Discrete Mathematics", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate" },
-      { "courseId": "CSE 60868", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+      {
+        "courseId": "CSE 40113",
+        "title": "Design/Analysis of Algorithms",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "bs"
+      },
+      {
+        "courseId": "CSE 40567",
+        "title": "Computer Security",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "bs"
+      },
+      {
+        "courseId": "CSE 40437",
+        "title": "Social Sensing",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "neither"
+      },
+      {
+        "courseId": "CSE 20110",
+        "title": "Discrete Mathematics",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
     ],
     "milestones": {},
     "attestations": {}
   },
   "expect": {
-    "ms.cap.fourk": { "status": "met", "detailIncludes": ["6 of the 6 credits below the 60000 level used", "needs approval: CSE 40113, CSE 40567"] },
-    "ms.cap.sharedbs": { "status": "met", "detailIncludes": ["6 of the 6 credits shared with your bachelor’s degree used"] },
-    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24 credits complete", "6 pending review/approval"] }
+    "ms.cap.fourk": {
+      "status": "met",
+      "detailIncludes": [
+        "6 of the 6 credits below the 60000 level used",
+        "needs approval: CSE 40113, CSE 40567"
+      ]
+    },
+    "ms.cap.sharedbs": {
+      "status": "met",
+      "detailIncludes": [
+        "6 of the 6 credits shared with your bachelor’s degree used"
+      ]
+    },
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24 credits complete",
+        "6 pending review/approval"
+      ]
+    }
   },
   "expectCourseLines": {
-    "CSE 40113": ["pending DGS review — would count toward regular courses (3 cr) once approved", "uses the 40000-level allowance (6 credits, §3.2)", "needs advisor + DGS approval per the rules sheet"],
-    "CSE 40567": ["uses the 40000-level allowance (6 credits, §3.2)"],
-    "CSE 40437": ["not counted — the rules sheet says this course does not count toward the MSCSE"],
-    "CSE 20110": ["not counted — taken as an undergraduate student, so it brings no transfer credit"],
-    "CSE 60868": ["counts toward regular courses (3 cr)"]
+    "CSE 40113": [
+      "pending DGS review — would count toward regular courses (3 cr) once approved",
+      "uses the 40000-level allowance (6 credits, §3.2)",
+      "will apply to both your bachelor’s degree and your MSCSE"
+    ],
+    "CSE 40567": [
+      "uses the 40000-level allowance (6 credits, §3.2)"
+    ],
+    "CSE 40437": [
+      "not counted — the rules sheet says this course does not count toward the MSCSE"
+    ],
+    "CSE 20110": [
+      "not counted — taken as an undergraduate student, so it brings no transfer credit"
+    ],
+    "CSE 60868": [
+      "counts toward regular courses (3 cr)"
+    ]
   }
 }

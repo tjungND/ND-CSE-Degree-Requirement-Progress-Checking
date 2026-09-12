@@ -12,7 +12,7 @@ import { canonicalCourseId, isIncompleteCourseId, resolveRuleRow } from '../data
 import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
-import { GRADES, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
+import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
 import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel } from './term.ts';
@@ -43,6 +43,10 @@ export interface ClassifiedCourse {
   approvalPending?: string;
   unknown?: boolean;
   superseded?: boolean;
+  /** MSCSE only: how a Notre Dame course taken as an undergraduate is applied
+   * — to both degrees (inside §3.5's shared credits) or to the MSCSE alone.
+   * Chosen by the app, never by the student (DGS 2026-09-11). */
+  bsShare?: 'both' | 'mscse';
   /** The grade is not one the app knows (a 'W' from an import): the row is
    * not a registration the residency count may use (2026-09-11). */
   unrecognizedGrade?: boolean;
@@ -237,6 +241,44 @@ export function classify(student: Student, rules: Rules): {
       warnings.push(`${c.courseId}: no university is recorded for this course — the DGS cannot look it up without one. Edit the row and add the university.`);
     }
   }
+  // THE 4+1's SHARED CREDITS, chosen by the app (DGS 2026-09-11): "let the
+  // top two CSE 40xxx courses count towards both BS and MSCSE. Do not let
+  // students choose what counts to what … When the transcript has 60xxx
+  // courses, try to save them for the graduate degree." So §3.5's shared
+  // allowance is filled from the student's 40000-level CSE courses first —
+  // best grade first, then earliest — and only if those do not fill it from
+  // 60000-level courses inside §3.5's window, earliest first. Everything else
+  // applies to the MSCSE alone. The student is told which is which.
+  const bsShared = new Set<CourseEntry>();
+  if (program === 'mscse') {
+    const limit = params.number('ms_bs_double_count_credits_max') ?? 0;
+    const awarded = student.bachelorsAwarded;
+    // Only a course that can count toward the MSCSE at all is worth a share of
+    // the six — a 40000-level row the sheet marks `no` would otherwise take a
+    // slot from one that counts.
+    const undergrad = (c: CourseEntry) =>
+      c.origin === 'transfer' &&
+      isNotreDameInstitution(c.institution) &&
+      (c.degreeLevel === 'bachelors' || (awarded !== undefined && compareTerm(c.term, awarded) <= 0)) &&
+      GRADES.includes(c.grade) &&
+      isPassed(c.grade) &&
+      priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), 'mscse');
+    const lvl = (c: CourseEntry) => levelOf(c, resolveRuleRow(rules, c.courseId, c.term));
+    const points = (c: CourseEntry) => GRADE_POINTS[c.grade] ?? 0;
+    const fourk = student.courses
+      .filter((c) => undergrad(c) && deptOf(c.courseId) === 'CSE' && lvl(c) === 4)
+      .sort((a, b) => points(b) - points(a) || compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId));
+    const sixk = student.courses
+      .filter((c) => undergrad(c) && lvl(c) >= 6 && (awarded === undefined || semesterNumber(awarded, c.term) >= -1))
+      .sort((a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId));
+    let used = 0;
+    for (const c of [...fourk, ...sixk]) {
+      if (used + c.credits > limit) continue;
+      bsShared.add(c);
+      used += c.credits;
+    }
+  }
+
   const sorted = [...student.courses].sort(
     (a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId),
   );
@@ -416,15 +458,12 @@ export function classify(student: Student, rules: Rules): {
         // options". Records saved under the earlier four-way question are
         // read the same way: 'bs' meant the bachelor's used it (→ both), and
         // 'neither' meant it did not (→ MSCSE only).
-        const spent =
-          student.program === 'mscse' && c.countedToward === 'bs'
-            ? 'both'
-            : student.program === 'mscse' && c.countedToward === 'neither'
-              ? 'mscse'
-              : c.countedToward;
+        // The MSCSE never asks: the app decides which courses are shared with
+        // the bachelor's degree (bsShared, above) and says so on the line.
+        const spent = student.program === 'mscse' ? (bsShared.has(c) ? 'both' : 'mscse') : c.countedToward;
         // A Ph.D. student with no Notre Dame master's cannot have a course
         // that already counted twice, so they are never asked.
-        const couldHaveCountedTwice = student.program !== 'phd' || student.ndMasters !== undefined;
+        const couldHaveCountedTwice = student.program === 'phd' && student.ndMasters !== undefined;
         const shape = rule ? priorNdShape(c.courseId, rule, student.program, attestations) : undefined;
         if (shape && 'ineligibleReason' in shape) {
           return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
@@ -531,6 +570,7 @@ export function classify(student: Student, rules: Rules): {
           student.program === 'mscse' && spent === 'both' ? ['sharedbs'] : [];
         return {
           ...extBase,
+          ...(student.program === 'mscse' ? { bsShare: spent as 'both' | 'mscse' } : {}),
           pool: shape?.pool ?? 'regular',
           caps: [
             ...sharedWithBachelors,
@@ -919,10 +959,19 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
   };
 
   for (const tier of TIER_ORDER) {
+    // The courses the app chose to apply to both degrees fill their caps
+    // first (2026-09-11): the choice is "best grade first", and the term
+    // order below would otherwise hand §3.2's six credits to a weaker course
+    // taken earlier, leaving the chosen one "over the cap".
     const inTier = classified.filter((c) => c.tier === tier && c.pool !== 'none');
-    const singles = inTier.filter((c) => c.caps.length <= 1);
-    const multis = inTier.filter((c) => c.caps.length > 1);
+    const chosen = inTier.filter((c) => c.bsShare === 'both');
+    const singles = inTier.filter((c) => c.bsShare !== 'both' && c.caps.length <= 1);
+    const multis = inTier.filter((c) => c.bsShare !== 'both' && c.caps.length > 1);
 
+    for (const cc of chosen) {
+      const room = cc.caps.length === 0 ? Infinity : Math.min(...cc.caps.map((id) => Math.max(0, capRoom.get(id) ?? 0)));
+      take(cc, room);
+    }
     for (const cc of singles) {
       const room = cc.caps.length === 0 ? Infinity : Math.max(0, capRoom.get(cc.caps[0]!) ?? 0);
       take(cc, room);
@@ -1094,6 +1143,11 @@ function buildExplanation(
       );
     }
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
+    // What the course WILL apply to — said in those words (DGS 2026-09-11:
+    // "clear enough for students to know that courses WILL apply to both BS &
+    // MSCSE or WILL apply to only MSCSE, instead of 'already counted'").
+    if (cc.bsShare === 'both') parts.push('will apply to both your bachelor’s degree and your MSCSE — one of the courses chosen for §3.5’s shared credits');
+    else if (cc.bsShare === 'mscse') parts.push('will apply to your MSCSE only');
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved
     // lead says "as transfer credit"); say it once.
     if (cc.caps.includes('transfer') && !preApproved && !/^transfer/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');

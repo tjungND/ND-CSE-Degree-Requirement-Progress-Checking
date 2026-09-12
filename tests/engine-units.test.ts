@@ -599,54 +599,32 @@ describe('undergraduate Notre Dame coursework', () => {
   describe('an MSCSE student’s own undergraduate transcript', () => {
     const ms = (courses: CourseEntry[], over: Partial<Student> = {}) =>
       student(courses, { program: 'mscse', bachelorsAwarded: { season: 'spring', year: 2026 }, ...over });
-    it('asks about two degrees, not three', () => {
-      assert.match(lineFor(ms([ug('CSE 40113')]), 'CSE 40113'), /^not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both/);
+    // DGS 2026-09-11: the student is never asked; the app applies the top two
+    // 40000-level CSE courses to both degrees, saves 60000-level coursework for
+    // the MSCSE, and says on each line what it WILL apply to.
+    it('never asks — the Ph.D. holder of an ND master’s still is', () => {
+      assert.doesNotMatch(lineFor(ms([ug('CSE 40113')]), 'CSE 40113'), /not counted yet/);
       assert.match(lineFor(student([ug('CSE 40113')], held), 'CSE 40113'), /^not counted yet — say which degrees this course has already counted toward/);
     });
-    it('counts a 40000-level course only provisionally, inside §3.2’s allowance and §3.5’s shared six', () => {
-      const s = ms([ug('CSE 40113', 'bs'), ug('CSE 40567', 'bs')]);
-      assert.match(lineFor(s, 'CSE 40113'), /^pending DGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); needs advisor \+ DGS approval/);
+    it('the two best 40000-level courses apply to both degrees; a third, and every 60000-level course, to the MSCSE only', () => {
+      const senior = { season: 'fall' as const, year: 2025 };
+      const s = ms([{ ...ug('CSE 40113'), grade: 'A' }, { ...ug('CSE 40567'), grade: 'B' }, { ...ug('CSE 40875'), grade: 'A-' }, { ...ug('CSE 60641'), term: senior }, { ...ug('CSE 60111'), term: senior }], { attestations: { dgsApproved4xxxx: true } });
+      assert.match(lineFor(s, 'CSE 40113'), /will apply to both your bachelor’s degree and your MSCSE/);
+      assert.match(lineFor(s, 'CSE 40875'), /will apply to both your bachelor’s degree and your MSCSE/); // A- beats B
+      assert.match(lineFor(s, 'CSE 40567'), /^not counted — over the 6-credit cap on courses below the 60000 level \(§3\.2\)/); // the B: third 40xxx, over §3.2's six
+      assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses \(3 cr\); will apply to your MSCSE only$/);
       assert.match(detail(s, 'ms.cap.sharedbs'), /6 of the 6 credits shared with your bachelor’s degree used/);
-      assert.match(detail(s, 'ms.credits.regular'), /0 of 24 credits complete\. 6 pending review\/approval/);
     });
-    it('the attestation the student ticks is what makes it count', () => {
-      const s = ms([ug('CSE 40113', 'bs')], { attestations: { dgsApproved4xxxx: true } });
-      assert.match(lineFor(s, 'CSE 40113'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\)$/);
+    it('with no 40000-level course the shared credits come from 60000-level coursework, earliest first', () => {
+      const s = ms([{ ...ug('CSE 60641'), term: { season: 'fall', year: 2025 } }, { ...ug('CSE 60111'), term: { season: 'spring', year: 2026 } }, { ...ug('CSE 60321'), term: { season: 'spring', year: 2026 } }]);
+      assert.match(lineFor(s, 'CSE 60641'), /will apply to both/);
+      assert.match(lineFor(s, 'CSE 60111'), /will apply to both/);
+      assert.match(lineFor(s, 'CSE 60321'), /will apply to your MSCSE only/);
     });
-  });
-
-  // §3.5's window (DGS 2026-09-11, correcting the same day): "Only courses
-  // taken in 2nd semester of junior year and both semesters in senior year
-  // should count" toward the MSCSE — the three fall/spring semesters ending
-  // with the one the bachelor's degree was awarded in. The Ph.D. has no such
-  // window; the Graduate School's answer names no term.
-  describe('§3.5’s window on graduate coursework taken as an undergraduate', () => {
-    const awarded = { season: 'spring' as const, year: 2026 };
-    const at = (season: 'fall' | 'spring' | 'summer', year: number, program: Student['program'] = 'mscse') =>
-      lineFor(
-        student([{ ...ug('CSE 60641', 'neither'), term: { season, year } }], { program, bachelorsAwarded: awarded, ...(program === 'phd' ? held : {}) }),
-        'CSE 60641',
-      );
-    it('the senior year and the second semester of the junior year count', () => {
-      assert.match(at('spring', 2026), /^counts toward regular courses \(3 cr\)/); // senior, 2nd
-      assert.match(at('fall', 2025), /^counts toward regular courses \(3 cr\)/); // senior, 1st
-      assert.match(at('spring', 2025), /^counts toward regular courses \(3 cr\)/); // junior, 2nd
-    });
-    it('the first semester of the junior year, and anything earlier, does not', () => {
-      assert.match(at('fall', 2024), /^not counted — taken before the second semester of your junior year/);
-      assert.match(at('fall', 2022), /^not counted — taken before the second semester of your junior year/);
-    });
-    it('the Ph.D. keeps every term — the Graduate School names none', () => {
-      assert.match(at('fall', 2024, 'phd'), /^counts toward regular courses \(3 cr\)/);
-      assert.match(at('fall', 2022, 'phd'), /^counts toward regular courses \(3 cr\)/);
-    });
-    it('without the award term the window cannot be applied, and the page says so', () => {
-      const s = student([{ ...ug('CSE 60641', 'neither'), term: { season: 'spring', year: 2025 } }], { program: 'mscse', bachelorsAwarded: undefined });
-      assert.match(lineFor(s, 'CSE 60641'), /^not counted yet — set the semester your bachelor’s degree was awarded/);
-    });
-    it('a 40000-level course has no window — its allowance is §3.2’s, and §3.5’s double count names no term', () => {
-      const s = student([{ ...ug('CSE 40113', 'bs'), term: { season: 'fall', year: 2022 } }], { program: 'mscse', bachelorsAwarded: awarded, attestations: { dgsApproved4xxxx: true } });
-      assert.match(lineFor(s, 'CSE 40113'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance/);
+    it('a 40000-level course is still provisional until the DGS approval is ticked', () => {
+      const s = ms([ug('CSE 40113')]);
+      assert.match(lineFor(s, 'CSE 40113'), /^pending DGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
+      assert.match(lineFor(ms([ug('CSE 40113')], { attestations: { dgsApproved4xxxx: true } }), 'CSE 40113'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
     });
   });
 

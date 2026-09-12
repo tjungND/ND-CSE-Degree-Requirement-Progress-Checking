@@ -563,27 +563,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked/.test(b.textContent)).click()`);
   await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent).includes('CSE 40166')`);
 
-  // Nothing counts until the student says whether the bachelor's degree used
-  // the course — and then it is pending the DGS, not counted.
+  // The student is never asked (DGS 2026-09-11): the app applies the two
+  // 40000-level CSE courses to both degrees and saves the 60000-level one for
+  // the MSCSE, and every line says which. No dropdown exists on this tab.
   const lineOf = (id) => `[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}')?.textContent ?? ''`;
-  const beforeAnswer = await s.evalJs(lineOf('CSE 40113'));
-  if (!/not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both/.test(beforeAnswer)) {
-    throw new Error('an MSCSE student must be asked the two-degree question: ' + beforeAnswer.slice(0, 200));
-  }
-  const choices = await s.evalJs(
-    `[...document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]')][0] ? [...[...document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]')][0].options].map(o => o.textContent).join(' | ') : ''`,
-  );
-  if (!/Only my MSCSE/.test(choices) || !/Both my bachelor’s degree and my MSCSE/.test(choices) || /Neither/.test(choices)) throw new Error('an MSCSE student must be offered exactly the two answers: ' + choices);
-  console.log('  “Already counted toward…” offers:', choices);
-  // The two 40000-level courses were used by the bachelor's degree; the
-  // senior-year 60000-level one was extra (§3.5's own case).
-  const answer = (id, value) =>
-    s.evalJs(
-      `(() => { const tr = [...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}'); const sel = tr.querySelector('select[data-key$=".countedToward"]'); sel.value = '${value}'; sel.dispatchEvent(new Event('change')); return sel.value; })()`,
-    );
-  await answer('CSE 40113', 'both');
-  await answer('CSE 40166', 'both');
-  await answer('CSE 60641', 'mscse');
+  if (await s.evalJs(`document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]').length`)) throw new Error('the MSCSE tab must not ask which degrees a course counted toward');
   await s.waitFor(`/pending DGS review/.test(${lineOf('CSE 40113')})`);
   const after40113 = await s.evalJs(lineOf('CSE 40113'));
   const after40166 = await s.evalJs(lineOf('CSE 40166'));
@@ -595,10 +579,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   const after60641 = await s.evalJs(lineOf('CSE 60641'));
   console.log('  CSE 60641:', after60641.replace(/\s+/g, ' ').slice(0, 190));
-  // §3.5's senior-year graduate course the bachelor's degree did not use:
-  // counted in full, inside no allowance at all (Graduate School, 2026-09-10).
-  if (!/counts toward regular courses \(3 cr\)/.test(after60641) || /allowance/.test(after60641)) {
-    throw new Error('a 60000-level senior-year course must count in full: ' + after60641.slice(0, 200));
+  // §3.5's senior-year graduate course: saved for the graduate degree and
+  // said so; the two 40000-level courses are the ones applied to both.
+  if (!/counts toward regular courses \(3 cr\)/.test(after60641) || !/will apply to your MSCSE only/.test(after60641)) {
+    throw new Error('a 60000-level senior-year course must count in full, for the MSCSE only: ' + after60641.slice(0, 200));
+  }
+  for (const [id, text] of [['CSE 40113', after40113], ['CSE 40166', after40166]]) {
+    if (!/will apply to both your bachelor’s degree and your MSCSE/.test(text)) throw new Error(id + ' must say it applies to both degrees: ' + text.slice(0, 200));
   }
   const dgsCard = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
   for (const id of ['CSE 40113', 'CSE 40166']) {

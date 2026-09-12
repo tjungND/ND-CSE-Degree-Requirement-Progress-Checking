@@ -172,8 +172,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   wording fixes; and the rulings: nine regular credits at ND, §4.4.2 satisfied by any ND course,
   the transfer checkbox settling only reviewed courses, a master's project never transferring, and
   summer entry read as the following fall.
-  And the 4+1 question on the MSCSE tab has two answers now — “Only my MSCSE” or “Both my bachelor's
-  degree and my MSCSE” — with nothing counting until one is chosen (DECISIONS row, ninth).
+  And on the MSCSE tab the 4+1 question is gone: the app applies the top two 40000-level CSE
+  courses to both degrees (best grade first), saves 60000-level coursework for the MSCSE, and each
+  line says what it WILL apply to (DECISIONS row, tenth — superseding the ninth).
 - `58044dc` docs: the session protocol for Claude Code Desktop (one session, Claude commits, the
   DGS merges and pushes); `4a346db` rules-sheet snapshot (the sheet changed 2026-09-06);
   `a7a2669`, `1f16935` docs: STATE.md, WORDING-REVIEW.md, `.claude/worktrees/` ignored.

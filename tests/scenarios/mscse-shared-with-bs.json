@@ -1,31 +1,124 @@
 {
   "name": "mscse-shared-with-bs",
-  "description": "An MSCSE student who came up through Notre Dame's own 4+1. §3.5 lets coursework their bachelor's degree already used count toward the MSCSE as well — \"an ND 4+1 student can have up to 6 credits (whether 40xxx or 60xxx courses) counted towards both degrees\" (DGS 2026-09-10) — so the third such course is over that allowance. A course their B.S. did NOT use is not shared with anything and does not draw on it. \"Both\" is an ordinary answer here, unlike in a Ph.D. audit, where it would mean a third degree.",
+  "description": "An MSCSE student who came up through Notre Dame's own 4+1, with four undergraduate 60000-level courses and no 40000-level ones. §3.5 lets at most six credits apply to both degrees, and the app chooses which (DGS 2026-09-11) — 60000-level coursework earliest first when there is no 40000-level course to prefer — so the two Fall 2025 courses apply to both, the two Spring 2026 courses to the MSCSE only, and all four count toward the 24. countedToward values from older records are ignored.",
   "today": "2027-06-01",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default"
+  },
   "student": {
     "schemaVersion": 1,
     "program": "mscse",
-    "entryTerm": { "season": "fall", "year": 2026 },
-    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
     "priorMs": "none",
     "gpa": 3.7,
     "courses": [
-      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate", "countedToward": "both" },
-      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate", "countedToward": "bs" },
-      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate", "countedToward": "bs" },
-      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "transfer", "institution": "University of Notre Dame", "degreeLevel": "bachelors", "registeredLevel": "undergraduate", "countedToward": "neither" },
-      { "courseId": "CSE 60868", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "both"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "bs"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "bs"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate",
+        "countedToward": "neither"
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
     ],
     "milestones": {},
     "attestations": {}
   },
   "expect": {
-    "ms.cap.sharedbs": { "status": "met", "detailIncludes": ["6 of the 6 credits shared with your bachelor’s degree used"] },
-    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["12 of 24"] }
+    "ms.cap.sharedbs": {
+      "status": "met",
+      "detailIncludes": [
+        "6 of the 6 credits shared with your bachelor’s degree used"
+      ]
+    },
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "15 of 24"
+      ]
+    }
   },
   "expectCourseLines": {
-    "CSE 60770": ["counts toward regular courses (3 cr)"],
-    "CSE 60868": ["counts toward regular courses (3 cr)"]
+    "CSE 60641": [
+      "will apply to both"
+    ],
+    "CSE 60111": [
+      "will apply to both"
+    ],
+    "CSE 60321": [
+      "will apply to your MSCSE only"
+    ],
+    "CSE 60770": [
+      "counts toward regular courses (3 cr)",
+      "will apply to your MSCSE only"
+    ],
+    "CSE 60868": [
+      "counts toward regular courses (3 cr)"
+    ]
   }
 }

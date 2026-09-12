@@ -905,7 +905,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               'p',
               { class: 'hint' },
               (g.nd
-                ? `Notre Dame coursework you took as an undergraduate is listed here when it can count toward this degree — 60000-level courses, CSE courses below that inside the allowance your degree allows${student.program === 'phd' ? ', and anything relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1)' : ''}. Say next to each course which degrees it has already counted toward; the report then says what each one does.`
+                ? student.program === 'phd'
+                  ? `Notre Dame coursework you took as an undergraduate is listed here when it can count toward this degree — 60000-level courses, CSE courses below that inside the allowance your degree allows, and anything relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1). Say next to each course which degrees it has already counted toward; the report then says what each one does.`
+                  : `Notre Dame coursework you took as an undergraduate is listed here when it can count toward the MSCSE — 60000-level courses in full, CSE courses below that inside §3.2’s allowance. Up to 6 credits may apply to both your bachelor’s degree and your MSCSE (§3.5): this page chose them for you — your 40000-level CSE courses first, best grade first, saving 60000-level coursework for the graduate degree — and each line says whether the course will apply to both degrees or to your MSCSE only.`
                 : student.program === 'phd'
                   ? `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`
                   : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), and they satisfy nothing else in the MSCSE — so none of them is listed here`) +
@@ -1890,7 +1892,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const asUndergraduate =
         isNotreDameInstitution(c.institution) &&
         (c.degreeLevel === 'bachelors' || (awardTerm !== undefined && termIndex(c.term) <= termIndex(awardTerm)));
-      const couldHaveCountedTwice = student.program !== 'phd' || student.ndMasters !== undefined;
+      // The MSCSE is never asked (DGS 2026-09-11): the app chooses which courses
+      // apply to both degrees and each line says so.
+      const couldHaveCountedTwice = student.program === 'phd' && student.ndMasters !== undefined;
       if (asUndergraduate && couldHaveCountedTwice) {
         const sel = el('select', {
           'aria-label': `Which degrees ${c.courseId} has already counted toward`,

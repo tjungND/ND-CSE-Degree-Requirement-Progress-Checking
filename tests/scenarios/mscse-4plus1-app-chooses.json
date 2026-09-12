@@ -1,6 +1,6 @@
 {
-  "name": "mscse-4plus1-two-answers",
-  "description": "A 4+1 student’s senior-year 60xxx courses have two answers only (DGS 2026-09-11): “count only to MSCSE or count to both BS & MSCSE, subject to the 6-credit limit” — “‘count to neither’ or no answer are not options”. Two courses answered ‘both’ fill §3.5’s six shared credits; a third ‘both’ is over that cap and counts nothing; a course answered ‘MSCSE only’ counts in full and touches no cap; an unanswered course counts nothing and says what to choose. Records saved under the old answers still load: ‘bs’ reads as both, ‘neither’ as MSCSE only.",
+  "name": "mscse-4plus1-app-chooses",
+  "description": "A 4+1 student's undergraduate coursework is applied by the APP, never chosen by the student (DGS 2026-09-11): “let the top two CSE 40xxx courses count towards both BS and MSCSE … When the transcript has 60xxx courses, try to save them for the graduate degree.” This record has no 40000-level course, so §3.5's six shared credits are filled from the 60000-level courses, earliest first: the two Spring 2025 / Fall 2025 courses apply to both degrees, every later one to the MSCSE only, and any countedToward value saved earlier is ignored. Each line says what the course WILL apply to.",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -33,8 +33,7 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "undergraduate",
-        "countedToward": "both"
+        "registeredLevel": "undergraduate"
       },
       {
         "courseId": "CSE 60111",
@@ -48,8 +47,7 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "undergraduate",
-        "countedToward": "both"
+        "registeredLevel": "undergraduate"
       },
       {
         "courseId": "CSE 60321",
@@ -63,8 +61,7 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "undergraduate",
-        "countedToward": "both"
+        "registeredLevel": "undergraduate"
       },
       {
         "courseId": "CSE 60770",
@@ -78,8 +75,7 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "undergraduate",
-        "countedToward": "mscse"
+        "registeredLevel": "undergraduate"
       },
       {
         "courseId": "CSE 60535",
@@ -107,8 +103,7 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "undergraduate",
-        "countedToward": "neither"
+        "registeredLevel": "undergraduate"
       }
     ]
   },
@@ -116,29 +111,29 @@
     "ms.cap.sharedbs": {
       "status": "met",
       "detailIncludes": [
-        "6 of the 6 credits shared with your bachelor’s degree used",
-        "CSE 60321: 3 credits not counted — over the cap"
+        "6 of the 6 credits shared with your bachelor’s degree used"
       ]
     },
     "ms.credits.regular": {
       "status": "unmet",
       "detailIncludes": [
-        "12 of 24"
+        "18 of 24"
       ]
     }
   },
   "expectCourseLines": {
+    "CSE 60641": [
+      "will apply to both your bachelor’s degree and your MSCSE"
+    ],
+    "CSE 60111": [
+      "will apply to both your bachelor’s degree and your MSCSE"
+    ],
     "CSE 60321": [
-      "not counted — over the 6-credit allowance for coursework shared with your bachelor’s degree (§3.5)"
-    ],
-    "CSE 60770": [
-      "counts toward regular courses (3 cr)"
-    ],
-    "CSE 60868": [
-      "counts toward regular courses (3 cr)"
+      "counts toward regular courses (3 cr)",
+      "will apply to your MSCSE only"
     ],
     "CSE 60535": [
-      "not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both"
+      "will apply to your MSCSE only"
     ]
   }
 }
