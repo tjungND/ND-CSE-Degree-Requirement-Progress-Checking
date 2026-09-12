@@ -152,7 +152,8 @@ when the answer depends on the student.
 
 Since 2026-09-08 the ExternalCourses tab has a `credit_system` column (`quarter` / `semester` /
 blank; `trimester` since 2026-09-12, × 0.88). Set it on any one row of a university and every course from that university converts from
-the credits printed on the student's transcript (quarter × 2/3, kept exactly) — the way to handle a
+the credits printed on the student's transcript (by the Parameters tab's `quarter_credit_factor` /
+`trimester_credit_factor`, since 2026-09-12; enter `=2/3` for quarters so the ratio is exact) — the way to handle a
 course whose credits vary from term to term. `nd_credits` still means a FIXED value for one course
 and overrides the conversion.
 

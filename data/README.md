@@ -66,6 +66,8 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `ms_noncse_credits_max` | 9 | §3.2 | |
 | `ms_time_limit_years` | 5 | §3.3 | |
 | `ms_thesis_readers_min` | 2 | §3.4 | thesis option only |
+| `quarter_credit_factor` | =2/3 | §5.2 | quarter hours → semester hours (pro-rata). Enter `=2/3`, not 0.67, so nine quarter hours are exactly six (DGS 2026-09-08); the app prints it as 0.67 |
+| `trimester_credit_factor` | 0.88 | §5.2 | trimester hours → semester hours (pro-rata; the Graduate School's factor) |
 | `ms_transfer_window_years` | 5 | §3.2 | prior graduate coursework — §5.2's five-year window applies to the MSCSE too (DGS 2026-09-11) |
 | `phd_regular_credits_min` | 24 | §4.2 | 60000-level or higher |
 | `phd_total_credits_min` | 60 | §4.2 | "The graduate school requires a total of sixty (60) credits of courses and research for the Ph.D." |
@@ -158,7 +160,7 @@ column order, ready to paste straight into the sheet.
 | `transferable_MSCSE` | the same four values, or blank | The same question for an **MSCSE** student, answered separately (2026-09-09). The app reads whichever column matches the student's own program. The two approval words mean the same thing for now and both read as "needs DGS approval"; the sheet's own word is kept, so the MSCSE message can name the ADGS later without another sheet change |
 | `is_cse` | `yes` / `no` / blank | Is this a **CSE course**, for §4.2's nine-credit allowance for courses "taken from a department other than CSE"? Fill it in only where the subject code cannot settle it — `ECE` is a computing department at one university and a circuits department at another. Blank = the `cse_subject_codes` parameter decides; this cell wins over it (2026-09-09) |
 | `nd_credits` | number or blank | A **fixed** Notre Dame credit value for this one course (§5.2 pro-rata). Overrides everything. Use it only when one number is right every time — it cannot describe a course that is worth 2 credits one term and 4 the next; `credit_system` handles those. Blank = credits as printed, unless `credit_system` says otherwise |
-| `credit_system` | `quarter` / `trimester` / `semester` / blank | The system this **university** awards in. `quarter` converts whatever the student's own transcript prints (× 2/3), `trimester` × 0.88 (the Graduate School's pro-rata factors, §5.2), so a course whose credits vary converts correctly every time. Set it on any one row of a university and it applies to every course from that university, listed here or not. Blank = credits count as printed |
+| `credit_system` | `quarter` / `trimester` / `semester` / blank | The system this **university** awards in. `quarter` / `trimester` convert whatever the student's own transcript prints by the Parameters tab's `quarter_credit_factor` / `trimester_credit_factor` (§5.2 pro-rata), so a course whose credits vary converts correctly every time. Set it on any one row of a university and it applies to every course from that university, listed here or not. Blank = credits count as printed |
 | `decided_on`, `notes` | text | for the record |
 
 Anything a student uploads that has NO row here shows "not yet reviewed by the

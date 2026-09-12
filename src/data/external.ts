@@ -134,23 +134,20 @@ export function findExternalRule(
   return rules.find((r) => r.universityKey === uni && normalizeCourseId(r.courseId) === id);
 }
 
-/** Quarter hours → Notre Dame semester hours. The standard 2/3 ratio; the
- * exact value is kept (DGS 2026-09-08), so three 4-credit quarter courses come
- * to 8.00 and not to a rounded 7.5 that would cost the student half a credit
- * against the §5.2 cap. Display rounds; the arithmetic does not. */
-export const QUARTER_TO_SEMESTER = 2 / 3;
-/** Trimester hours → semester hours (red-team F6, 2026-09-12): §5.2 names
- * "trimester and quarter-hour credits" together as pro-rata transfers, and
- * the Graduate School's table puts trimester credits at ×0.88. */
-export const TRIMESTER_TO_SEMESTER = 0.88;
+/** §5.2: "Credits not earned on the semester system, such as trimester and
+ * quarter-hour credits, will be transferred on a pro-rata basis." The factors
+ * live on the sheet's Parameters tab (DGS 2026-09-12 — until then 2/3 and
+ * 0.88 were constants here): `quarter_credit_factor` (enter `=2/3`, so nine
+ * quarter hours are exactly six — DGS 2026-09-08) and
+ * `trimester_credit_factor`. Display rounds; the arithmetic does not. */
 export type CreditSystem = 'quarter' | 'semester' | 'trimester';
-/** The pro-rata factor for a system, 1 for semester or unknown. */
-export function creditSystemFactor(system: CreditSystem | undefined): number {
-  return system === 'quarter' ? QUARTER_TO_SEMESTER : system === 'trimester' ? TRIMESTER_TO_SEMESTER : 1;
+/** The Parameters key that holds a system's factor; undefined for semester. */
+export function creditSystemFactorKey(system: CreditSystem | undefined): 'quarter_credit_factor' | 'trimester_credit_factor' | undefined {
+  return system === 'quarter' ? 'quarter_credit_factor' : system === 'trimester' ? 'trimester_credit_factor' : undefined;
 }
-/** How the factor is printed on a course line ("2/3", "0.88"). */
-export function creditSystemFactorLabel(system: CreditSystem | undefined): string {
-  return system === 'quarter' ? '2/3' : system === 'trimester' ? '0.88' : '1';
+/** How a factor is printed on a course line: two decimals ("0.67", "0.88"). */
+export function creditSystemFactorLabel(factor: number): string {
+  return factor.toFixed(2);
 }
 
 /** The credit system a university awards in, from ANY of its ExternalCourses
@@ -173,8 +170,11 @@ export function ndEquivalentCredits(
   printed: number,
   rule: { ndCredits?: number } | undefined,
   system: CreditSystem | undefined,
+  /** The sheet's factor for `system`; undefined = the key is missing, so no
+   * conversion is possible (the caller says so rather than guessing). */
+  factor: number | undefined,
 ): number | undefined {
   if (rule?.ndCredits !== undefined) return rule.ndCredits;
-  if (system === 'quarter' || system === 'trimester') return printed * creditSystemFactor(system);
+  if ((system === 'quarter' || system === 'trimester') && factor !== undefined) return printed * factor;
   return undefined;
 }

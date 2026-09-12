@@ -534,16 +534,19 @@ describe('credit_system: quarter hours become Notre Dame hours', () => {
 
   it('converts the credits the transcript prints — the exact value, whatever the course is worth', () => {
     const four = classify(usc('CSCI 570', 4), rules).classified[0]!;
-    assert.equal(four.effectiveCredits, 4 * (2 / 3));
+    // The factor is the sheet's `quarter_credit_factor` (2026-09-12) — the
+    // fixture holds =2/3 as Google publishes it, 0.666666667.
+    assert.ok(Math.abs((four.effectiveCredits ?? 0) - 4 * (2 / 3)) < 1e-6);
     assert.equal(four.creditsConverted, true);
+    assert.equal(four.conversionFactor, 0.666666667);
     // The same course at 2 credits in another term converts on its own terms —
     // the thing a fixed nd_credits could never do.
-    assert.equal(classify(usc('CSCI 570', 2), rules).classified[0]?.effectiveCredits, 2 * (2 / 3));
+    assert.ok(Math.abs((classify(usc('CSCI 570', 2), rules).classified[0]?.effectiveCredits ?? 0) - 2 * (2 / 3)) < 1e-6);
   });
 
   it('applies to every course from that university, listed in the tab or not', () => {
     const unlisted = classify(usc('CSCI 999', 4), rules).classified[0]!;
-    assert.equal(unlisted.effectiveCredits, 4 * (2 / 3), 'the university, not the row, carries the system');
+    assert.ok(Math.abs((unlisted.effectiveCredits ?? 0) - 4 * (2 / 3)) < 1e-6, 'the university, not the row, carries the system');
   });
 
   it('a fixed nd_credits still wins over the conversion', () => {
@@ -560,7 +563,16 @@ describe('credit_system: quarter hours become Notre Dame hours', () => {
 
   it('the student’s line says the credits were converted, and reads as a number', () => {
     const l = audit(usc('CSCI 570', 4), rules, '2026-09-01').courseLines.find((c) => c.courseId === 'CSCI 570')!;
-    assert.match(l.text, /counted as 2\.67 ND credits converted from the quarter system at 2\/3 \(transcript shows 4; §5\.2\)/);
+    assert.match(l.text, /counted as 2\.67 ND credits converted from the quarter system at 0\.67 \(transcript shows 4; §5\.2\)/);
     assert.doesNotMatch(l.text, /2\.66666/);
+  });
+
+  it('with the factor missing from the sheet, credits stay as printed and the line names the key (2026-09-12)', () => {
+    const noFactor = buildRules({ parameters: { quarter_credit_factor: null } });
+    const c = classify(usc('CSCI 570', 4), noFactor).classified[0]!;
+    assert.equal(c.effectiveCredits, undefined);
+    assert.equal(c.conversionMissingKey, 'quarter_credit_factor');
+    const l = audit(usc('CSCI 570', 4), noFactor, '2026-09-01').courseLines.find((x) => x.courseId === 'CSCI 570')!;
+    assert.match(l.text, /cannot convert from the quarter system: the rules sheet is missing 'quarter_credit_factor'/);
   });
 });

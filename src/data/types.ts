@@ -242,6 +242,10 @@ export const KNOWN_PARAMETER_KEYS = [
   'ms_thesis_readers_min',
   'ms_transfer_completed_ms_credits_max',
   'ms_transfer_window_years',
+  // §5.2 pro-rata factors for credits "not earned on the semester system" —
+  // on the sheet, not in code (DGS 2026-09-12). Enter `=2/3` for quarters.
+  'quarter_credit_factor',
+  'trimester_credit_factor',
   'phd_total_credits_min',
   'phd_regular_credits_min',
   'phd_nd_credits_min',

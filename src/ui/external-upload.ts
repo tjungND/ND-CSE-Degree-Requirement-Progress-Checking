@@ -750,11 +750,21 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // credits, a trimester's 3.52; the DGS's row for the university
             // overrides whatever is chosen.
             const detected = p.creditSystem === 'quarter' || p.creditSystem === 'trimester';
+            // The factors come from the sheet's Parameters tab (DGS 2026-09-12).
+            const factorOf = (sys: 'quarter' | 'trimester') => args.rules.parameters.number(`${sys}_credit_factor`);
+            const at = (sys: 'quarter' | 'trimester') => {
+              const f = factorOf(sys);
+              return f === undefined ? 'factor not in the rules sheet yet' : `converted at ${f.toFixed(2)}`;
+            };
+            const example = (sys: 'quarter' | 'trimester') => {
+              const f = factorOf(sys);
+              return f === undefined ? 'cannot be converted until the DGS adds the factor' : `a 4-credit course counts ${(4 * f).toFixed(2)} Notre Dame credits`;
+            };
             const sel = el('select', { 'data-key': 'ext.preview.creditsystem' });
             for (const [value, label] of [
               ['semester', 'Semester hours — counted as printed'],
-              ['quarter', 'Quarter hours — converted at 2/3'],
-              ['trimester', 'Trimester hours — converted at 0.88'],
+              ['quarter', `Quarter hours — ${at('quarter')}`],
+              ['trimester', `Trimester hours — ${at('trimester')}`],
             ] as const) {
               const o = el('option', { value }, label);
               if ((p.creditSystem ?? 'semester') === value) o.setAttribute('selected', 'selected');
@@ -770,7 +780,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               { class: `hint ${detected ? 'warn' : ''} quarter-note` },
               el('label', {}, 'Credit system on this transcript: ', sel),
               detected
-                ? ` — read from its term headers. Its credits will be converted (a 4-credit course counts ${p.creditSystem === 'quarter' ? '2.67' : '3.52'} Notre Dame credits, §5.2 pro-rata). Change this if the parser misread; the DGS’s ruling for the university overrides it either way.`
+                ? ` — read from its term headers. Its credits will be converted (${example(p.creditSystem === 'quarter' ? 'quarter' : 'trimester')}, §5.2 pro-rata). Change this if the parser misread; the DGS’s ruling for the university overrides it either way.`
                 : ' — change this if your university counts in quarter or trimester hours and the parser did not notice; credits are then converted pro-rata (§5.2).',
             );
           })(),
