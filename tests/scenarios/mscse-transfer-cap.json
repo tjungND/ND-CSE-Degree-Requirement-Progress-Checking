@@ -1,6 +1,6 @@
 {
   "name": "mscse-transfer-cap",
-  "description": "An MSCSE student with a completed master's from another university brings twelve credits and may transfer nine (§5.2). The cap was always enforced — the fourth course is refused — but until 2026-09-11 no row said what the cap was, so the student could only find it by going over it. The row is the Ph.D.'s own, with the master's parameter key: ms_transfer_completed_ms_credits_max (9), or transfer_unfinished_ms_credits_max (6) when the prior degree was not finished. Since 2026-09-11 the student’s own “transfer approved” checkbox cannot clear a course the DGS has never reviewed — these Purdue courses have no ExternalCourses row — so the credits are pending, not counted, and the row says so in those words.",
+  "description": "An MSCSE student with a completed master's from another university brings twelve credits and may transfer nine (§5.2). The cap was always enforced — the fourth course is refused — but until 2026-09-11 no row said what the cap was, so the student could only find it by going over it. The row is the Ph.D.'s own, with the master's parameter key: ms_transfer_completed_ms_credits_max (9), or transfer_unfinished_ms_credits_max (6) when the prior degree was not finished. Since 2026-09-11 the student’s own “transfer approved” checkbox cannot clear a course the DGS has never reviewed — these Purdue courses have no ExternalCourses row — so the credits are pending, not counted, and the row says so in those words. (Wording: the ADGS decides for MSCSE students — 2026-09-11.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -93,7 +93,7 @@
       "detailIncludes": [
         "0 of 9 transfer credits counted",
         "9 more pending review",
-        "Not yet reviewed by the DGS"
+        "Not yet reviewed by the ADGS"
       ]
     },
     "ms.credits.regular": {
@@ -106,7 +106,7 @@
   },
   "expectCourseLines": {
     "CS 51000": [
-      "pending DGS review — candidate for transfer credit (§5.2)",
+      "pending ADGS review — candidate for transfer credit (§5.2)",
       "your “transfer approved” checkbox cannot apply to it yet"
     ]
   }

@@ -161,6 +161,12 @@ export async function driveApp(s, baseUrl) {
     const leaks = lines.filter((l) => !allowed(l));
     if (leaks.length) throw new Error('the Ph.D. tab cites §3 where it need not:\n  ' + leaks.slice(0, 6).join('\n  '));
     console.log('  Ph.D. tab: §3 appears only where necessary (' + lines.length + ' line(s), all allowed)');
+    // …and the decider is the DGS: "ADGS" appears only in the contact card (DGS 2026-09-11).
+    const adgs = (await s.evalJs(`(() => { const c = document.querySelector('#app').cloneNode(true); c.querySelectorAll('.contact-card, details.glossary').forEach(e => e.remove()); return c.textContent; })()`));
+    if (/ADGS/.test(adgs)) throw new Error('the Ph.D. tab must not send the student to the ADGS');
+    const reviewHead = await s.evalJs(`document.querySelector('.dgs-review h2')?.textContent ?? ''`);
+    if (reviewHead && !/Ask the DGS to review/.test(reviewHead)) throw new Error('the review card must address the DGS on the Ph.D. tab: ' + reviewHead);
+    console.log('  Ph.D. tab: every decision goes to the DGS');
   }
 
   // Course ids are read case- and space-insensitively (DGS 2026-09-11): a

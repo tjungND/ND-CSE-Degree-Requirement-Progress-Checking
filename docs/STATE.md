@@ -172,6 +172,11 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   wording fixes; and the rulings: nine regular credits at ND, §4.4.2 satisfied by any ND course,
   the transfer checkbox settling only reviewed courses, a master's project never transferring, and
   summer entry read as the following fall.
+  2026-09-12: the ADGS decides everything for MSCSE students. One boundary rewrite
+  (`decisionWording`, `applyDeciderRule`) turns every standalone “DGS” into “ADGS” on the MSCSE
+  tab — engine text, page, both e-mails — and the review request goes to adingler@nd.edu; the
+  Ph.D. is untouched. The course-rules page says whose approval per column; the sheet keeps
+  `dgs_approval` (README row explains it means the ADGS in the MSCSE column).
   The mirror rule too: the Ph.D. tab cites §3 only in the §3.5/§3.6 notes and the along-the-way row
   (the e2e sweeps for it).
   The Previous Undergraduate row refuses a transcript with ungraded courses (a completed bachelor's

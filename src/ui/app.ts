@@ -16,11 +16,12 @@ import type { CourseEntry, CourseLine, Season, Student, Term } from '../engine/t
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
-import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
+import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
+import { deciderTitle } from '../engine/decider.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
-import { applyFirstMentionRule } from './first-mention.ts';
+import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
 import { confirmDialog, copyDialog } from './copy-dialog.ts';
 import { gradAdminRequest, selfCheckFileName } from './grad-admin-request.ts';
@@ -390,6 +391,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // "Oral Candidacy Exam (OCE)" in full once, then "OCE" (DGS 2026-09-06
     // evening) — text nodes only, in document order, before focus is restored.
     applyFirstMentionRule(root);
+    applyDeciderRule(root, student.program); // DGS → ADGS for an MSCSE student (2026-09-11)
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
     // so a keystroke in a title field does not chatter.
@@ -1022,13 +1024,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'card dgs-review' },
-      el('h2', {}, 'Ask the DGS to review ', el('span', { class: 'chip-note' }, `${n} course${n === 1 ? '' : 's'}`)),
+      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, `${n} course${n === 1 ? '' : 's'}`)),
       el(
         'p',
         { class: 'hint' },
         el('strong', {}, 'Decisions are made only by email: '),
-        'copy the review request and send it to the DGS (',
-        mailto(DGS.email),
+        `copy the review request and send it to the ${deciderTitle(student.program)} (`,
+        mailto(deciderContact(student.program).email),
         '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing. The DGS decides eligibility only; once a course is decided, having it processed is a separate request — see the processing card below the milestones.',
       ),
       ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
@@ -1046,7 +1048,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq });
                 return copyDialog({
                   what: 'Review request',
-                  recipient: { role: DGS.role, name: DGS.name, email: DGS.email },
+                  recipient: { role: deciderContact(student.program).role, name: deciderContact(student.program).name, email: deciderContact(student.program).email },
                   subject: built.subject,
                   text: built.text,
                   html: built.html,
@@ -2024,7 +2026,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 exportFile(student);
                 void copyDialog({
                   what: 'Processing request',
-                  recipient: { role: GRAD_ADMIN.role, name: GRAD_ADMIN.name, email: GRAD_ADMIN.email, cc: { role: DGS.role, name: DGS.name, email: DGS.email } },
+                  recipient: { role: GRAD_ADMIN.role, name: GRAD_ADMIN.name, email: GRAD_ADMIN.email, cc: { role: deciderContact(student.program).role, name: deciderContact(student.program).name, email: deciderContact(student.program).email } },
                   subject: built.subject,
                   text: built.text,
                   html: built.html,

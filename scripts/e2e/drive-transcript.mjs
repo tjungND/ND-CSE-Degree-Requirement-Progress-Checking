@@ -575,13 +575,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // the MSCSE, and every line says which. No dropdown exists on this tab.
   const lineOf = (id) => `[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}')?.textContent ?? ''`;
   if (await s.evalJs(`document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]').length`)) throw new Error('the MSCSE tab must not ask which degrees a course counted toward');
-  await s.waitFor(`/pending DGS review/.test(${lineOf('CSE 40113')})`);
+  await s.waitFor(`/pending ADGS review/.test(${lineOf('CSE 40113')})`);
   const after40113 = await s.evalJs(lineOf('CSE 40113'));
   const after40166 = await s.evalJs(lineOf('CSE 40166'));
   console.log('  CSE 40113:', after40113.replace(/\s+/g, ' ').slice(0, 190));
   console.log('  CSE 40166:', after40166.replace(/\s+/g, ' ').slice(0, 190));
   for (const [id, text] of [['CSE 40113', after40113], ['CSE 40166', after40166]]) {
-    if (!/pending DGS review — would count toward regular courses \(3 cr\) once approved/.test(text)) throw new Error(id + ' must be counted only provisionally: ' + text.slice(0, 200));
+    if (!/pending ADGS review — would count toward regular courses \(3 cr\) once approved/.test(text)) throw new Error(id + ' must be counted only provisionally: ' + text.slice(0, 200));
     if (!/uses the 40000-level allowance \(6 credits, §3\.2\)/.test(text)) throw new Error(id + ' must cite the MSCSE allowance: ' + text.slice(0, 200));
   }
   const after60641 = await s.evalJs(lineOf('CSE 60641'));
@@ -616,6 +616,14 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const offending = pageText.split('\n').filter((line) => FORBIDDEN.test(line));
   if (offending.length > 0) throw new Error('the MSCSE tab must not mention the qualifying examination:\n  ' + offending.slice(0, 6).join('\n  '));
   console.log('  MSCSE tab: no §4.4.1 / §4.4.2 anywhere on the page (' + pageText.length + ' characters checked)');
+  // …and the decider is the ADGS (DGS 2026-09-11): outside the contact card,
+  // the notices, the glossary and the footer, "DGS" alone must not appear.
+  const dgsLines = (await s.evalJs(`(() => { const c = document.querySelector('#app').cloneNode(true); c.querySelectorAll('.contact-card, .notice-line, .notice-details, details.glossary, .print-header, footer, .tabs').forEach(e => e.remove()); return c.textContent; })()`))
+    .split(/[.!?]\s|\n/).map((l) => l.trim()).filter((l) => /\bDGS\b/.test(l));
+  if (dgsLines.length) throw new Error('the MSCSE tab must send the student to the ADGS, not the DGS:\n  ' + dgsLines.slice(0, 6).join('\n  '));
+  const reviewHead = await s.evalJs(`document.querySelector('.dgs-review h2')?.textContent ?? ''`);
+  if (!/Ask the ADGS to review/.test(reviewHead)) throw new Error('the review card must address the ADGS on the MSCSE tab: ' + reviewHead);
+  console.log('  MSCSE tab: every decision goes to the ADGS — no standalone "DGS" outside the contact card, notices, glossary and footer');
 
   await s.setFileInput('.external-file-masters', combinedPdf);
   await s.waitFor(`document.querySelector('.external-card .transcript-preview table tr:nth-child(2)')`);

@@ -22,6 +22,7 @@
 import { isNotreDameInstitution, needsApproval } from '../data/external.ts';
 import type { Rules } from '../data/types.ts';
 import { classify, type ClassifiedCourse } from './allocate.ts';
+import { decisionWording } from './decider.ts';
 import { CORE_TITLE_RE } from './core-title.ts';
 import type { Student } from './types.ts';
 
@@ -177,5 +178,6 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
       });
     }
   }
-  return [...nd, ...priorNd, ...external];
+  // Said for the degree's decider (2026-09-11): the ADGS for an MSCSE student.
+  return [...nd, ...priorNd, ...external].map((p) => ({ ...p, reason: decisionWording(student.program, p.reason) }));
 }

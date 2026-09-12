@@ -125,7 +125,7 @@ describe('coursesNeedingDgsReview — courses from another university', () => {
     const ms: Student = { ...phd, program: 'mscse' };
     assert.deepEqual(ids(phd, split), [], 'pre-approved for a Ph.D. student');
     assert.deepEqual(ids(ms, split), ['STAT 51200:decide'], 'the MSCSE side still needs an approval');
-    assert.equal(reasonOf(ms, split, 'STAT 51200'), 'transfer needs DGS approval (§5.2)');
+    assert.equal(reasonOf(ms, split, 'STAT 51200'), 'transfer needs ADGS approval (§5.2)'); // the ADGS decides for the MSCSE (2026-09-11)
   });
 
   it('the old single column still fills both programs', () => {
@@ -191,7 +191,7 @@ describe('coursesNeedingDgsReview — Notre Dame coursework', () => {
     const pending = coursesNeedingDgsReview(ms(false), buildRules());
     // CSE 40437 is `no` in the sheet and CSE 20110 too low to count: neither is a decision to make.
     assert.deepEqual(pending.map((p) => `${p.course.entry.courseId}:${p.kind}:${p.unlisted ? 'new-row' : 'decide'}`), ['CSE 40875:priorNd:decide']);
-    assert.match(pending[0]!.reason, /may count toward the MSCSE \(§3\.2\) inside the allowance for courses below the 60000 level — needs advisor \+ DGS approval/);
+    assert.match(pending[0]!.reason, /may count toward the MSCSE \(§3\.2\) inside the allowance for courses below the 60000 level — needs advisor \+ ADGS approval/); // the ADGS decides for the MSCSE (2026-09-11)
     assert.deepEqual(coursesNeedingDgsReview(ms(true), buildRules()), []);
   });
 });

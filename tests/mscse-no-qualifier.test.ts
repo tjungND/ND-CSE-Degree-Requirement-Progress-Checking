@@ -55,6 +55,37 @@ const student = (program: Student['program']): Student => ({
 
 const offending = (strings: string[]): string[] => strings.filter((t) => FORBIDDEN.test(t));
 
+// DGS 2026-09-11: "the ADGS will make decisions in the approval chain of MSCSE
+// students … ADGS decides them for MSCSE students, and DGS decides them for
+// PhD students." So an MSCSE student is never sent to "the DGS".
+describe('the MSCSE is sent to the ADGS, never the DGS', () => {
+  const DGS_ALONE = /\bDGS\b/;
+  const ms = student('mscse');
+  const report = audit(ms, rules, '2027-06-01');
+  it('no requirement detail, course line, warning, track note or review reason says "DGS"', () => {
+    const texts = [
+      ...report.requirements.flatMap((r) => [r.title, r.detail, ...(r.detailParts ?? []).map((d) => JSON.stringify(d))]),
+      ...report.courseLines.map((l) => l.text),
+      ...(report.warnings ?? []),
+      ...(report.tracks ?? []).map((t) => t.text),
+      ...coursesNeedingDgsReview(ms, rules).map((p) => p.reason),
+    ];
+    assert.deepEqual(texts.filter((t) => DGS_ALONE.test(t)), []);
+    assert.ok(texts.some((t) => /ADGS/.test(t)), 'the ADGS must actually be named somewhere for this record');
+  });
+  it('neither e-mail says "DGS"', () => {
+    const advisor = advisorSummary(report, opts);
+    const admin = gradAdminRequest(report, ms, rules, opts);
+    assert.deepEqual([advisor.subject, advisor.text, admin.subject, admin.text, ...admin.items.lines].filter((t) => DGS_ALONE.test(t)), []);
+  });
+  it('the Ph.D. still says "DGS", and never "ADGS"', () => {
+    const phd = audit(student('phd'), rules, '2027-06-01');
+    const texts = [...phd.requirements.map((r) => r.detail), ...phd.courseLines.map((l) => l.text)];
+    assert.ok(texts.some((t) => DGS_ALONE.test(t)));
+    assert.deepEqual(texts.filter((t) => /ADGS/.test(t)), []);
+  });
+});
+
 describe('the MSCSE never hears about the Ph.D. qualifying examination', () => {
   const ms = student('mscse');
   const report = audit(ms, rules, '2027-06-01');

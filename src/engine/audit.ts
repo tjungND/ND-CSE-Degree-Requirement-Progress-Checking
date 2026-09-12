@@ -4,6 +4,7 @@
 import type { Rules } from '../data/types.ts';
 import { allocate, classify, type CapSpec } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
+import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
 import type { AuditReport, RequirementResult, Student } from './types.ts';
 import type { Ctx } from './requirements/context.ts';
@@ -181,12 +182,16 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     counts: feeds.get(p.course.entry.courseId) ?? [],
   }));
 
+  // The degree's decider, said once at the boundary (2026-09-11): for an
+  // MSCSE student every "DGS" in what follows is the ADGS. Handbook quotes
+  // (`citation`) are left as written.
+  const p = student.program;
   return {
-    program: student.program,
-    requirements: rows,
-    courseLines,
+    program: p,
+    requirements: rows.map((r) => decisionWordingDeep(p, r)),
+    courseLines: courseLines.map((l) => ({ ...l, text: decisionWording(p, l.text) })),
     summary,
-    warnings: [...warnings, ...alloc.warnings],
-    tracks: specialTracks(student, classified),
+    warnings: [...warnings, ...alloc.warnings].map((w) => decisionWording(p, w)),
+    tracks: specialTracks(student, classified).map((t) => ({ ...t, text: decisionWording(p, t.text) })),
   };
 }

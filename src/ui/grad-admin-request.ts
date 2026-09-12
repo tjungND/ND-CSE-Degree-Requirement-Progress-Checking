@@ -24,6 +24,7 @@ import { termLabel } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, Milestones, RequirementResult, Student } from '../engine/types.ts';
 import { DO_NOT_MODIFY_MARKER, EDITABLE_MARKER, MARKER_DIVIDER } from '../transcript/external.ts';
 import { shortenAfterFirst } from './first-mention.ts';
+import { decisionWording } from '../engine/decider.ts';
 import { formatYmdLong } from './handbook.ts';
 
 export interface MilestoneField {
@@ -291,5 +292,6 @@ export function gradAdminRequest(
     `<p>${esc(closing)}</p>`;
 
   // "Oral Candidacy Exam (OCE)" once per flavour, then "OCE" (2026-09-06 evening).
-  return { subject, text: shortenAfterFirst(text), html: shortenAfterFirst(html), items };
+  const p = student.program;
+  return { subject: decisionWording(p, subject), text: decisionWording(p, shortenAfterFirst(text)), html: decisionWording(p, shortenAfterFirst(html)), items: { ...items, lines: items.lines.map((l) => decisionWording(p, l)) } };
 }

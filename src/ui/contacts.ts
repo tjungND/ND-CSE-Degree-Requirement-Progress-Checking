@@ -22,13 +22,13 @@ export const CONTACTS: Contact[] = [
     role: 'Director of Graduate Studies (DGS)',
     name: 'Taeho Jung',
     email: 'tjung@nd.edu',
-    scope: 'Ph.D. policies and the graduate program in general',
+    scope: 'decides every requirement for Ph.D. students; the graduate program in general',
   },
   {
     role: 'Assistant DGS (ADGS)',
     name: 'Aaron Dingler',
     email: 'adingler@nd.edu',
-    scope: 'MSCSE policies',
+    scope: 'decides every requirement for MSCSE students — course approvals, transfer credit, the review requests on this page',
   },
   {
     role: 'Graduate Program Administrator (Grad Admin)',
@@ -60,6 +60,12 @@ export function applyContactOverrides(params: Parameters): void {
 
 /** The DGS — the address error reports and feedback go to. */
 export const DGS: Contact = CONTACTS[0]!;
+export const ADGS: Contact = CONTACTS[1]!;
+/** Who decides for this degree (DGS 2026-09-11): the ADGS for MSCSE students,
+ * the DGS for Ph.D. students — every review request goes to that person. */
+export function deciderContact(program: 'mscse' | 'phd'): Contact {
+  return program === 'mscse' ? ADGS : DGS;
+}
 
 /** The Graduate Program Administrator ("Grad Admin", DGS 2026-09-06). Two people, two jobs
  * (DGS 2026-09-06 evening): the DGS decides eligibility — the review request goes to the DGS

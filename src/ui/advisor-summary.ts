@@ -17,6 +17,7 @@
 import type { AuditReport, DetailPart, RequirementResult, Status } from '../engine/types.ts';
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
+import { decisionWording } from '../engine/decider.ts';
 import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
 
 export interface AdvisorSummaryOptions {
@@ -156,7 +157,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     (deadlineNote ? `<p>${esc(deadlineNote)}</p>` : '') +
     `<p>${esc(statusNote)}</p><p>Thank you!</p>`;
   // "Oral Candidacy Exam (OCE)" once per flavour, then "OCE" (2026-09-06 evening).
-  return { text: shortenAfterFirst(text), html: shortenAfterFirst(html), subject };
+  return { text: decisionWording(report.program, shortenAfterFirst(text)), html: decisionWording(report.program, shortenAfterFirst(html)), subject: decisionWording(report.program, subject) };
 }
 
 function esc(s: string): string {

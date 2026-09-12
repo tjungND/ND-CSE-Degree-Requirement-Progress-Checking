@@ -623,7 +623,7 @@ describe('undergraduate Notre Dame coursework', () => {
     });
     it('a 40000-level course is still provisional until the DGS approval is ticked', () => {
       const s = ms([ug('CSE 40113')]);
-      assert.match(lineFor(s, 'CSE 40113'), /^pending DGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
+      assert.match(lineFor(s, 'CSE 40113'), /^pending ADGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/); // the ADGS decides for the MSCSE (2026-09-11)
       assert.match(lineFor(ms([ug('CSE 40113')], { attestations: { dgsApproved4xxxx: true } }), 'CSE 40113'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
     });
   });

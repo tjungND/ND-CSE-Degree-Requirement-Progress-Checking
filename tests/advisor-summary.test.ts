@@ -195,7 +195,7 @@ describe('actionItems: the rest of the rules', () => {
     assert.ok(!actionItems(early).student.some((s) => /dissertation/i.test(s)));
     // Empty lists say so in the email.
     const { text } = advisorSummary({ program: 'mscse', requirements: [req('shared.gpa', 'Cumulative GPA of at least 3.0', 'met', 'ok', 'Basic requirements — §2.2–2.3', '§2.2')], courseLines: [], summary: { met: 1, scored: 1 }, warnings: [], tracks: [] }, opts);
-    assert.match(text, /\nWHAT I NEED TO DO\n- Nothing at the moment\.\n\nWHAT I NEED FROM YOU, MY ADVISOR\n- Nothing at the moment\.\n\nWHAT THE DGS NEEDS TO DO\n- Nothing at the moment\.\n\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Nothing at the moment\.\n/);
+    assert.match(text, /\nWHAT I NEED TO DO\n- Nothing at the moment\.\n\nWHAT I NEED FROM YOU, MY ADVISOR\n- Nothing at the moment\.\n\nWHAT THE ADGS NEEDS TO DO\n- Nothing at the moment\.\n\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Nothing at the moment\.\n/);
     assert.match(text, /^Subject: Degree self-check — M\.S\. in CSE, entered Fall 2026 — all checked requirements met\n/);
   });
 

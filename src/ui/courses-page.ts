@@ -21,7 +21,7 @@ import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 const COUNTS_LABEL: Record<Counts, string> = {
   yes: 'Yes',
   no: 'No',
-  dgs_approval: 'With DGS approval',
+  dgs_approval: 'With approval', // the DGS's for the Ph.D. column, the ADGS's for the MSCSE column (2026-09-11)
 };
 const COUNTS_CLASS: Record<Counts, string> = { yes: 'yes', no: 'no', dgs_approval: 'approval' };
 
@@ -962,8 +962,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'Key: ',
       el('span', { class: 'pill yes' }, 'Yes'),
       ' counts · ',
-      el('span', { class: 'pill approval' }, 'With DGS approval'),
-      ' counts only with approval · ',
+      el('span', { class: 'pill approval' }, 'With approval'),
+      ' counts only with the advisor’s approval and the ADGS’s (MSCSE) or the DGS’s (Ph.D.) · ',
       el('span', { class: 'pill no' }, 'No'),
       ' does not count · ',
       el('span', { class: 'pill undecided' }, 'Not yet decided'),
@@ -979,9 +979,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         {},
         li(el('strong', {}, 'Type'), 'only regular courses count toward the 24 regular-course credits (§3.2, §4.2); seminars, research, independent study and project credits count toward the total only.'),
         li(el('span', { class: 'pill yes' }, 'Yes'), 'counts toward that degree.'),
-        li(el('span', { class: 'pill approval' }, 'With DGS approval'), 'counts only with the advisor’s and the DGS’s approval (for example CSE courses below the 60000 level, which share one 6-credit cap however many the DGS approves).'),
+        li(el('span', { class: 'pill approval' }, 'With approval'), 'counts only with the advisor’s approval and — for the MSCSE column — the ADGS’s, or — for the Ph.D. column — the DGS’s (for example CSE courses below the 60000 level, which share one 6-credit cap however many the DGS approves).'),
         li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
-        li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'the DGS has not ruled on this course yet; ask before relying on it.'),
+        li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'no ruling on this course yet; ask the ADGS (MSCSE) or the DGS (Ph.D.) before relying on it.'),
         li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.'),
         li(
           el('strong', {}, 'Specialization'),

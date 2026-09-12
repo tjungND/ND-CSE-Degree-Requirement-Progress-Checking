@@ -11,7 +11,7 @@ const STATUS_LABEL: Record<Status, string> = {
   met: 'Met',
   in_progress: 'In progress',
   unmet: 'Not yet',
-  needs_dgs_review: 'Needs DGS review',
+  needs_dgs_review: 'Needs DGS review', // rewritten to ADGS for an MSCSE student by the page pass
   cannot_evaluate: 'Cannot evaluate',
   not_applicable: 'Does not apply',
 };
@@ -386,7 +386,9 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
           ['Project or thesis', 'Six credits of Master’s project (CSE 68902) or Master’s thesis direction (CSE 68901), in addition to the 24 regular-course credits.', '§3.2, §3.4'],
           ['Transfer credit', 'Graduate courses from another program may count toward the course requirement within the handbook’s caps, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
         ] as [string, string, string][])),
-    ['DGS', 'The Director of Graduate Studies — the faculty member who determines, by the handbook and the course rules, whether each requirement here is satisfied. Processing is not the DGS’s job (see Grad Admin).', '§1'],
+    ...(program === 'mscse'
+      ? ([['ADGS', 'The Assistant Director of Graduate Studies — the faculty member who decides, by the handbook and the course rules, every requirement for MSCSE students: course approvals, transfer credit, the review requests on this page. Processing is not the ADGS’s job (see Grad Admin).', '§1']] as [string, string, string][])
+      : ([['DGS', 'The Director of Graduate Studies — the faculty member who determines, by the handbook and the course rules, whether each requirement here is satisfied. Processing is not the DGS’s job (see Grad Admin).', '§1']] as [string, string, string][])),
     [
       'Grad Admin',
       program === 'phd'
