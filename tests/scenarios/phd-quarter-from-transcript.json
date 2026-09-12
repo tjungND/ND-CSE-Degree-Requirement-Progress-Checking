@@ -1,0 +1,74 @@
+{
+  "name": "phd-quarter-from-transcript",
+  "description": "A university with no ExternalCourses row, whose transcript announced quarter terms: the import records creditSystem = 'quarter' on each row, and the engine converts at 2/3 (§5.2 pro-rata) — a 4-credit course counts 2.67 Notre Dame credits — saying on the line that the transcript is the source and that the DGS's ruling can correct it (DGS 2026-09-11). The courses are unreviewed, so they stay pending; the conversion shows in the pending arithmetic.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 544",
+        "title": "Principles of DBMS",
+        "credits": 4,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Washington",
+        "degreeLevel": "masters",
+        "creditSystem": "quarter"
+      },
+      {
+        "courseId": "CSE 546",
+        "title": "Machine Learning",
+        "credits": 4,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Washington",
+        "degreeLevel": "masters",
+        "creditSystem": "quarter"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "5.33 more pending review"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "5.33 pending review/approval"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 544": [
+      "candidate for transfer credit (§5.2)",
+      "would count toward regular courses (2.67 cr)"
+    ]
+  }
+}

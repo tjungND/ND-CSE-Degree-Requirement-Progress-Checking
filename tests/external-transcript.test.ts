@@ -189,6 +189,27 @@ describe('external transcript parsing', () => {
   });
 });
 
+// The transcript's own word for its terms (DGS 2026-09-11: "Can you tell from
+// the transcript whether a university is on a quarter system?"). A term header
+// or a credits heading that says quarter; nothing weaker.
+describe('quarter-system detection (2026-09-11)', () => {
+  // Padded past the 200-character floor below which a PDF is treated as scanned.
+  const HEAD = ['Office of the University Registrar', 'This is an unofficial transcript produced for the student named below and may not be released to any third party without consent.', 'Student: (name withheld)   Program: Master of Science, Computer Science'];
+  const uw = ['University of Washington', ...HEAD, 'Autumn Quarter 2023', 'CSE 544   Principles of DBMS   4.0   A', 'Winter Quarter 2024', 'CSE 546   Machine Learning   4.0   A-'];
+  it('reads "Autumn Quarter 2023" as a quarter system, and the courses still parse', () => {
+    const r = parseExternalTranscript(uw);
+    assert.equal(r.quarterSystem, true);
+    assert.equal(r.courses.length, 2);
+  });
+  it('a "Quarter Units" heading is enough on its own', () => {
+    assert.equal(parseExternalTranscript(['Stanford University', ...HEAD, 'Fall 2023', 'Course   Title   Quarter Units   Grade', 'CS 229   Machine Learning   3   A']).quarterSystem, true);
+  });
+  it('a semester transcript, or a lone Winter session, says nothing', () => {
+    assert.equal(parseExternalTranscript(['Purdue University', ...HEAD, 'Fall 2023', 'CS 50300   Operating Systems   3.0   A']).quarterSystem, undefined);
+    assert.equal(parseExternalTranscript(['Purdue University', ...HEAD, 'Winter 2024', 'CS 50300   Operating Systems   3.0   A']).quarterSystem, undefined);
+  });
+});
+
 describe('OCR confidence flags', () => {
   it('flags rows whose source line read below the floor; leaves confident rows unflagged', () => {
     const lines = [

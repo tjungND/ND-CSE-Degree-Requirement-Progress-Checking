@@ -558,7 +558,7 @@ describe('credit_system: quarter hours become Notre Dame hours', () => {
 
   it('the student’s line says the credits were converted, and reads as a number', () => {
     const l = audit(usc('CSCI 570', 4), rules, '2026-09-01').courseLines.find((c) => c.courseId === 'CSCI 570')!;
-    assert.match(l.text, /counted as 2\.67 ND credits converted from the quarter system \(transcript shows 4; §5\.2\)/);
+    assert.match(l.text, /counted as 2\.67 ND credits converted from the quarter system at 2\/3 \(transcript shows 4; §5\.2\)/);
     assert.doesNotMatch(l.text, /2\.66666/);
   });
 });

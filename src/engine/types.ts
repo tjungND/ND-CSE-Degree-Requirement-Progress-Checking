@@ -77,6 +77,11 @@ export interface CourseEntry {
    * student who holds no Notre Dame master's is never asked: with two degrees
    * in play, no course of theirs can already have counted toward two. */
   countedToward?: 'bs' | 'mscse' | 'both' | 'neither';
+  /** transfer-only: the credit system the TRANSCRIPT itself announced
+   * (2026-09-11 — "Fall Quarter 2023", "Quarter Units"). Read at import,
+   * correctable in the preview. A `credit_system` cell in the DGS's
+   * ExternalCourses tab for the university always wins over it. */
+  creditSystem?: 'quarter' | 'semester';
 }
 
 /** ISO dates (YYYY-MM-DD), all optional — milestones are dates, not checkboxes. */

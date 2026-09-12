@@ -53,6 +53,12 @@ export interface ExternalParseResult {
   /** A bachelor's degree conferral with a date (2026-09-05): the boundary
    * between undergraduate and graduate rows on a combined transcript. */
   bachelorsConferredOn?: string;
+  /** The transcript says its terms are QUARTERS (2026-09-11): a term header
+   * such as "Fall Quarter 2023" / "Autumn Qtr 2023", or a "Quarter Units" /
+   * "Quarter Hours" heading. Its credits are then quarter hours, worth 2/3 of
+   * a Notre Dame semester hour (§5.2 pro-rata) unless the DGS's row says
+   * otherwise. Absent = no such word; nothing is assumed. */
+  quarterSystem?: true;
   /** A bachelor's degree is NAMED anywhere on the transcript, with or without
    * a conferral date (2026-09-08). Without this there is no reason to think a
    * record covers an undergraduate degree at all, so the two-year "Taken as"
@@ -628,7 +634,17 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const levels = new Set(courses.map((c) => c.level).filter((l) => l !== undefined));
   const degreeConferred =
     blockConferredGrad || lines.some((l) => CONFER_RE.test(l) && GRAD_DEGREE_RE.test(l) && !NOT_COMPLETE_RE.test(l)) || undefined;
+  // Quarter system (2026-09-11): the word "quarter" in a term header ("Fall
+  // Quarter 2023", "Autumn Qtr 2023 Graduate") or in a credits heading
+  // ("Quarter Units", "Qtr Hrs"). Nothing weaker — a lone "Winter" term can be
+  // a January session on a semester calendar.
+  const quarterSystem =
+    lines.some((l) => /\b(fall|spring|summer|autumn|winter)\s+(quarter|qtr)\b/i.test(l) && YEAR_RE.test(l)) ||
+    lines.some((l) => /\b(quarter|qtr)\s+(units?|hours?|hrs?|credits?)\b/i.test(l))
+      ? (true as const)
+      : undefined;
   return {
+    ...(quarterSystem ? { quarterSystem } : {}),
     hasTextLayer: true,
     looksLikeNotreDame,
     // Spelled out for everyone who reads it (DGS 2026-09-08): the student,

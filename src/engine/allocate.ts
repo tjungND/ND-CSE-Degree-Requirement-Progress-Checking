@@ -43,6 +43,9 @@ export interface ClassifiedCourse {
   approvalPending?: string;
   unknown?: boolean;
   superseded?: boolean;
+  /** Who said the credits were quarter hours: the DGS's ExternalCourses row,
+   * or the transcript's own term headers (2026-09-11). */
+  creditSystemSource?: 'sheet' | 'transcript';
   /** MSCSE only: how a Notre Dame course taken as an undergraduate is applied
    * — to both degrees (inside §3.5's shared credits) or to the MSCSE alone.
    * Chosen by the app, never by the student (DGS 2026-09-11). */
@@ -380,7 +383,10 @@ export function classify(student: Student, rules: Rules): {
       // return path so §4.4.1 core knowledge sees it even when no credit counts.
       const external = findExternalRule(rules.external, c.institution ?? '', c.courseId);
       // Set once per university in the sheet; applies to every course from it.
-      const creditSystem = universityCreditSystem(rules.external, c.institution);
+      // The DGS's row for the university decides the credit system; failing
+      // that, what the transcript itself announced at import (2026-09-11).
+      const sheetCreditSystem = universityCreditSystem(rules.external, c.institution);
+      const creditSystem = sheetCreditSystem ?? c.creditSystem;
       const extBase: ClassifiedCourse = { ...base, external };
       // Prior NOTRE DAME coursework (2026-09-05 — an earlier Notre Dame degree
       // on a combined transcript): the Courses tab already says which §4.4.1
@@ -722,7 +728,9 @@ export function classify(student: Student, rules: Rules): {
         // converted from what the transcript prints (DGS 2026-09-08), which is
         // the only thing that works when a course's credits vary by term.
         effectiveCredits: ndEquivalentCredits(c.credits, external, creditSystem),
-        ...(external?.ndCredits === undefined && creditSystem === 'quarter' ? { creditsConverted: true as const } : {}),
+        ...(external?.ndCredits === undefined && creditSystem === 'quarter'
+          ? { creditsConverted: true as const, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
+          : {}),
         approvalPending: attested
           ? undefined
           : transferable === 'yes'
@@ -1126,7 +1134,7 @@ function buildExplanation(
     parts.push(`${lead} toward ${poolName} (${formatCredits(counted)} cr)${tail}`);
     if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
       parts.push(
-        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? 'converted from the quarter system' : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
+        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the quarter system at 2/3${cc.creditSystemSource === 'transcript' ? ' — your transcript says quarter terms; the DGS’s ruling for the university can correct this' : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
       );
     }
     // The cap covers both levels below 60000 since 2026-09-09, so the line

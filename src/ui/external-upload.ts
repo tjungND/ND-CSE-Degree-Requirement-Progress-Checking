@@ -122,6 +122,9 @@ interface ExternalPreview {
    * earlier Notre Dame degree. The preview reminds the student that the
    * Notre Dame row handles a transcript that also holds the current program. */
   notreDame?: boolean;
+  /** The transcript announced quarter terms (2026-09-11); the student can
+   * untick it in the preview if the parser misread. */
+  quarterSystem?: boolean;
 }
 
 /** The preview's "Bachelor's degree awarded" (DGS 2026-09-06 evening): in the
@@ -429,6 +432,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         universityFromTranscript: (parsed.university ?? '') !== '' && parsed.universityGuessed !== true,
         universityGuessed: parsed.universityGuessed,
         conferred: parsed.degreeConferred,
+        quarterSystem: parsed.quarterSystem,
         bachelorsConferredOn: parsed.bachelorsConferredOn,
         ...bachelors,
         rows: kept.rows,
@@ -605,6 +609,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   // OCR misreads names too — the field stays editable (2026-09-06).
                   fromOcr: true,
                   conferred: parsed.degreeConferred,
+                  quarterSystem: parsed.quarterSystem,
                   bachelorsConferredOn: parsed.bachelorsConferredOn,
                   ...bachelors,
                   rows: kept.rows,
@@ -716,6 +721,26 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             el('strong', {}, 'Read by OCR from a scan — approximate. English transcripts only. '),
             'Check every field against your transcript before adding; rows marked ⚠ were hard to read.',
           ),
+        ]
+      : []),
+    ...(p.quarterSystem !== undefined || (!p.notreDame && !p.fromOcr)
+      ? [
+          (() => {
+            // The credit system, read from the transcript and correctable
+            // here (2026-09-11): a quarter transcript's 4 credits are 2.67
+            // Notre Dame credits (§5.2 pro-rata), and the DGS's row for the
+            // university overrides whatever is ticked.
+            const cb = el('input', { type: 'checkbox', 'data-key': 'ext.preview.quarter', ...(p.quarterSystem ? { checked: 'checked' } : {}) });
+            cb.addEventListener('change', () => { p.quarterSystem = (cb as HTMLInputElement).checked; render(); });
+            return el(
+              'p',
+              { class: `hint ${p.quarterSystem ? 'warn' : ''} quarter-note` },
+              el('label', {}, cb, ' This transcript is on the quarter system'),
+              p.quarterSystem
+                ? ' — read from its term headers. Its credits will be converted at 2/3 (a 4-credit course counts 2.67 Notre Dame credits, §5.2 pro-rata). Untick this if the parser misread; the DGS’s ruling for the university overrides it either way.'
+                : ' — tick this if your university counts in quarter hours and the parser did not notice; credits are then converted at 2/3 (§5.2 pro-rata).',
+            );
+          })(),
         ]
       : []),
     ...(p.notreDame
@@ -1028,6 +1053,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   // Notre Dame rows keep their registered level so a later
                   // entry-term change can re-file them (prior-nd.ts).
                   registeredLevel: isNotreDameInstitution(university) ? r.level : undefined,
+                  ...(p.quarterSystem && !isNotreDameInstitution(university) ? { creditSystem: 'quarter' as const } : {}),
                 });
               }
               // "Prior graduate study" from the transcript (2026-09-03): a

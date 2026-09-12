@@ -172,6 +172,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   wording fixes; and the rulings: nine regular credits at ND, §4.4.2 satisfied by any ND course,
   the transfer checkbox settling only reviewed courses, a master's project never transferring, and
   summer entry read as the following fall.
+  The transcript's own “Quarter” in a term header now sets the credit system: the preview shows it
+  as a checkbox, rows carry `creditSystem`, and credits convert at 2/3 unless the DGS's
+  `credit_system` cell says otherwise (DECISIONS row, twelfth).
   And on the MSCSE tab the 4+1 question is gone: the app applies the top two 40000-level CSE
   courses to both degrees (best grade first), saves 60000-level coursework for the MSCSE, and each
   line says what it WILL apply to (DECISIONS row, tenth — superseding the ninth).

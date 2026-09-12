@@ -7,6 +7,7 @@
 // MSCSE student submits a prior transcript"). The caps themselves live in the
 // Parameters tab, one key per degree and prior-degree state.
 import { needsApproval } from '../../data/external.ts';
+import { formatCredits } from '../credits.ts';
 import { compareTerm } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
@@ -90,7 +91,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         : ctx.student.priorMs === 'unfinished'
           ? 'a prior program that was not completed'
           : 'a student with no prior graduate degree';
-    parts.push(`${counted} of ${cap} transfer credits counted (§5.2 cap for ${capFor})${provisional > 0 ? `; ${provisional} more pending review` : ''}`);
+    parts.push(`${formatCredits(counted)} of ${cap} transfer credits counted (§5.2 cap for ${capFor})${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`);
     // Only courses under §5.2's own cap belong on this row: Notre Dame
     // coursework taken as an undergraduate is filed as 'transfer' but is not
     // transfer credit (2026-09-10), and its lines used to be repeated here.
