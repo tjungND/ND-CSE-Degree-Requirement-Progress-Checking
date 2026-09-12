@@ -1,6 +1,7 @@
 // The engine's only entry point: audit(student, rules, today) → AuditReport.
 // Pure by contract (CLAUDE.md): no DOM, no fetch, no Date.now() — "today" is an
 // argument so tests are deterministic.
+import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
 import { allocate, classify, type CapSpec } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
@@ -117,6 +118,12 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     params,
     warnings,
   };
+  const reviewFlags: string[] = [];
+  const ugFlag = undergraduateGraduateCourseworkFlagFor(classified, student);
+  if (ugFlag) {
+    reviewFlags.push(ugFlag);
+    warnings.push(`${ugFlag} This is included in the review request.`);
+  }
 
   if (normalized) {
     warnings.push(
@@ -187,6 +194,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // (`citation`) are left as written.
   const p = student.program;
   return {
+    reviewFlags,
     program: p,
     requirements: rows.map((r) => decisionWordingDeep(p, r)),
     courseLines: courseLines.map((l) => ({ ...l, text: decisionWording(p, l.text) })),

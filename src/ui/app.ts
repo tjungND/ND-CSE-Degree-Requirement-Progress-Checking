@@ -7,7 +7,7 @@ import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { classify, priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
-import { coursesNeedingDgsReview, type PendingDgsReview } from '../engine/review.ts';
+import { coursesNeedingDgsReview, undergraduateGraduateCourseworkFlag, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
@@ -1096,7 +1096,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // pins it); this card only lists them and builds the copy-ready request.
     const pending = coursesNeedingDgsReview(student, rules);
     const n = pending.length;
-    if (n === 0) return null;
+    // Notes that are not about one course (2026-09-12): a 4+1 with many
+    // undergraduate graduate-level courses counted.
+    const flags = undergraduateGraduateCourseworkFlag(student, rules);
+    const notes = flags ? [flags] : [];
+    if (n === 0 && notes.length === 0) return null;
     const request = (p: PendingDgsReview) => ({
       courseId: p.course.entry.courseId,
       title: p.course.entry.title ?? p.course.rule?.title,
@@ -1125,7 +1129,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'card dgs-review' },
-      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, `${n} course${n === 1 ? '' : 's'}`)),
+      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, n > 0 ? `${n} course${n === 1 ? '' : 's'}${notes.length > 0 ? ' and a note' : ''}` : 'a note')),
       el(
         'p',
         { class: 'hint' },
@@ -1135,6 +1139,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing. The DGS decides eligibility only; once a course is decided, having it processed is a separate request — see the processing card below the milestones.',
       ),
       ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
+      ...notes.map((t) => el('div', { class: 'review-line review-note', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, 'Note'), ` — ${t}`)),
       el(
         'div',
         { class: 'save-buttons' },
@@ -1146,7 +1151,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             onclick: () => {
               // Copy, then the check-before-you-send dialog (DGS request 2026-09-06 evening).
               void import('../transcript/external.ts').then(({ buildCombinedReviewRequest }) => {
-                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq });
+                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes });
                 return copyDialog({
                   what: 'Review request',
                   recipient: { role: deciderContact(student.program).role, name: deciderContact(student.program).name, email: deciderContact(student.program).email },

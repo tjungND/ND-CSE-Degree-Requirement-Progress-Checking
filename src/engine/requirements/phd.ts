@@ -1,5 +1,6 @@
 // §4 — Requirements for the Doctor of Philosophy Degree.
 // Every builder quotes the handbook sentence it implements.
+import { formatCredits } from '../credits.ts';
 import { resolveRuleRow } from '../../data/assemble.ts';
 import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
@@ -708,11 +709,34 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     // The deadline chip carries the when; policy (coursework-before-exam,
     // committee make-up) lives behind the § chip (2026-09-03).
     parts.push(`Overdue — talk to the DGS`);
+  // The exam's two conditions (red-team F8, DGS 2026-09-12). §4.5: "All
+  // coursework for the Ph.D. must be completed (or in progress the same
+  // semester) before the candidacy exam can be taken." §2.2: "Continuation in
+  // a CSE graduate degree program, admission to degree candidacy, and
+  // graduation require maintenance of at least a 3.0 (B) cumulative GPA."
+  // A date entered while either is unmet is not a met row: it goes to the DGS.
+  const regularMin = ctx.params.number('phd_regular_credits_min');
+  const regularDone = ctx.alloc.regular.definite + ctx.alloc.regular.in_progress;
+  const courseworkShort = regularMin !== undefined && regularDone < regularMin;
+  const gpaMin = ctx.params.number('gpa_min');
+  const gpaShort = gpaMin !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < gpaMin;
+  const conditions: string[] = [];
+  if (courseworkShort) conditions.push(`§4.5 requires all Ph.D. coursework completed or in progress the same semester (you show ${formatCredits(regularDone)} of ${regularMin} regular credits)`);
+  if (gpaShort) conditions.push(`§2.2 requires a ${gpaMin!.toFixed(1)} cumulative GPA for admission to candidacy (yours is ${ctx.student.gpa!.toFixed(2)})`);
+  let status = r.status;
+  if (conditions.length > 0) {
+    if (ctx.student.milestones.candidacyPassed !== undefined) {
+      status = status === 'met' ? 'needs_dgs_review' : status;
+      parts.push(`but ${conditions.join(', and ')} — confirm with the DGS that the exam could be taken`);
+    } else {
+      parts.push(`Not yet available: ${conditions.join(', and ')}`);
+    }
+  }
   return {
     id: 'phd.candidacy',
     group: CANDIDACY,
     title: 'Oral Candidacy Exam (OCE) passed',
-    status: r.status,
+    status,
     ...(parts.length > 0 ? joinedDetail(parts) : { detail: '' }),
     deadline: r.deadline,
     citation: { section: '§4.5', quote },

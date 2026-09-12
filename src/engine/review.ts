@@ -19,6 +19,7 @@
 // Dame or at their previous institution" — undergraduate or graduate — once
 // the DGS confirms the course. §5.2 criterion 5: "the transfer is recommended
 // by the DGS and approved by the Graduate School."
+import { termIndex } from './term.ts';
 import { isNotreDameInstitution, needsApproval } from '../data/external.ts';
 import type { Rules } from '../data/types.ts';
 import { classify, type ClassifiedCourse } from './allocate.ts';
@@ -43,6 +44,36 @@ export interface PendingDgsReview {
 /** The courses the review request asks the DGS about, in the order the
  * request lists them: Notre Dame program coursework, Notre Dame coursework
  * from before entry, then other universities. */
+/** A 4+1's undergraduate graduate-level coursework, when there is a lot of it
+ * (DGS 2026-09-12, red-team F8 item 1, answer (c)). §3.5 speaks of "one or
+ * two 3-credit CSE courses at the 6xxxx level"; the app presumes any further
+ * such course was saved for the graduate degree rather than ask every student
+ * about a rare case — so when more than two are counted, the DGS is told to
+ * confirm the bachelor's degree did not use them. Returned as one sentence
+ * for the warnings and the review request; undefined when nothing to flag. */
+export function undergraduateGraduateCourseworkFlag(student: Student, rules: Rules): string | undefined {
+  const { classified } = classify(student, rules);
+  return undergraduateGraduateCourseworkFlagFor(classified, student);
+}
+export function undergraduateGraduateCourseworkFlagFor(classified: readonly ClassifiedCourse[], student: Student): string | undefined {
+  const awarded = student.bachelorsAwarded;
+  if (awarded === undefined) return undefined;
+  const counted = classified.filter(
+    (c) =>
+      c.entry.origin === 'transfer' &&
+      isNotreDameInstitution(c.entry.institution) &&
+      !c.superseded &&
+      c.ineligibleReason === undefined &&
+      c.pool !== 'none' &&
+      termIndex(c.entry.term) <= termIndex(awarded) &&
+      /(\d)\d{4}\b/.test(c.entry.courseId) &&
+      Number(/(\d)\d{4}\b/.exec(c.entry.courseId)![1]) >= 6,
+  );
+  if (counted.length <= 2) return undefined;
+  const ids = counted.map((c) => c.entry.courseId).join(', ');
+  return `${counted.length} graduate-level courses taken as an undergraduate are counted toward the ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} (${ids}). §3.5 speaks of one or two; the self-check presumes the extra ones were not used by the bachelor’s degree — the DGS should confirm that against the undergraduate record.`;
+}
+
 export function coursesNeedingDgsReview(student: Student, rules: Rules): PendingDgsReview[] {
   const { classified } = classify(student, rules);
   const nd: PendingDgsReview[] = [];

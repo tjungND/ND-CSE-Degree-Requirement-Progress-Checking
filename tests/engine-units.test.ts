@@ -664,3 +664,34 @@ describe('undergraduate Notre Dame coursework', () => {
     });
   });
 });
+
+// Red-team F8 (DGS 2026-09-12): no course below the 40000 level earns graduate
+// credit, and a 4+1 with many undergraduate graduate-level courses is flagged
+// for the DGS rather than asked.
+describe('below the 40000 level, and the 4+1 flag (F8, 2026-09-12)', () => {
+  const rules = buildRules();
+  const base = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
+    schemaVersion: 1, program: 'phd', entryTerm: { season: 'fall', year: 2026 }, bachelorsAwarded: { season: 'spring', year: 2026 }, priorMs: 'none', gpa: 3.8,
+    courses, milestones: {}, attestations: {}, ...over,
+  });
+  it('an unlisted CSE 30124 or CSE 10101 typed as program coursework is refused, not counted provisionally', () => {
+    const r = audit(base([{ courseId: 'CSE 30124', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }, { courseId: 'CSE 10101', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }]), rules, '2027-06-01');
+    for (const id of ['CSE 30124', 'CSE 10101']) {
+      const l = r.courseLines.find((c) => c.courseId === id)!;
+      assert.match(l.text, /^not counted — below the 40000 level; no course under 40000 earns graduate credit \(§4\.2\)/, id);
+    }
+    assert.match(r.requirements.find((q) => q.id === 'phd.credits.regular')!.detail, /0 of 24/);
+  });
+  it('a 4+1 with three or more counted undergraduate 6xxxx courses is flagged for the DGS; two are not', () => {
+    const ug = (id: string, season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: id, credits: 3, term: { season, year }, grade: 'A', origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'graduate' });
+    const two = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026)], { integratedBsMs: true }), rules, '2027-06-01');
+    assert.deepEqual(two.reviewFlags ?? [], []);
+    const three = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026), ug('CSE 60321', 'spring', 2026)], { integratedBsMs: true }), rules, '2027-06-01');
+    assert.equal(three.reviewFlags?.length, 1);
+    assert.match(three.reviewFlags![0]!, /^3 graduate-level courses taken as an undergraduate are counted toward the Ph\.D\. \(CSE 60641, CSE 60111, CSE 60321\)\. §3\.5 speaks of one or two/);
+    assert.ok(three.warnings.some((w) => /included in the review request/.test(w)));
+    // A regular bachelor's counts none of them, so nothing is flagged.
+    const plain = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026), ug('CSE 60321', 'spring', 2026)]), rules, '2027-06-01');
+    assert.deepEqual(plain.reviewFlags ?? [], []);
+  });
+});

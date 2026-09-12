@@ -28,7 +28,16 @@ const student = (extra: Partial<Student> = {}): Student => ({
   entryTerm: { season: 'fall', year: 2026 },
   priorMs: 'completed',
   gpa: 3.5,
-  courses: [purdue('CS 50300', 'Operating Systems'), purdue('CS 59000', 'Special Topics'), purdue('CS 77777', 'Unruled Topics')],
+  courses: [
+    purdue('CS 50300', 'Operating Systems'),
+    purdue('CS 59000', 'Special Topics'),
+    purdue('CS 77777', 'Unruled Topics'),
+    // The candidacy exam needs the coursework complete or in progress (§4.5,
+    // enforced since 2026-09-12): eight regular courses at Notre Dame.
+    ...['CSE 60641', 'CSE 60111', 'CSE 60321', 'CSE 60427', 'CSE 60535', 'CSE 60762', 'CSE 60770', 'CSE 60876'].map((courseId, i) => ({
+      courseId, credits: 3, term: { season: (i % 2 === 0 ? 'fall' : 'spring') as 'fall' | 'spring', year: 2026 + Math.floor(i / 2) + (i % 2) }, grade: 'A' as const, origin: 'nd' as const,
+    })),
+  ],
   milestones: { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example', candidacyPassed: '2029-04-01' },
   attestations: {},
   ...extra,

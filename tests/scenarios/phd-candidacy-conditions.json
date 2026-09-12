@@ -1,0 +1,45 @@
+{
+  "name": "phd-candidacy-conditions",
+  "description": "Red-team F8 (DGS 2026-09-12): a candidacy date entered with 3 of 24 regular credits and a 2.40 GPA. §4.5: \"All coursework for the Ph.D. must be completed (or in progress the same semester) before the candidacy exam can be taken\"; §2.2: \"admission to degree candidacy … require[s] … at least a 3.0 (B) cumulative GPA\". The row used to read Met with neither condition mentioned; now it goes to the DGS and names both.",
+  "today": "2028-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 2.4,
+    "milestones": {
+      "candidacyPassed": "2028-04-01"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.candidacy": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Oral Candidacy Exam (OCE) passed 2028-04-01",
+        "§4.5 requires all Ph.D. coursework completed or in progress the same semester (you show 3 of 24 regular credits)",
+        "§2.2 requires a 3.0 cumulative GPA for admission to candidacy (yours is 2.40)",
+        "confirm with the DGS"
+      ]
+    }
+  }
+}

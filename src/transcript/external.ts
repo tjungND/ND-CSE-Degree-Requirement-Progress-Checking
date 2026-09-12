@@ -809,6 +809,8 @@ export function buildCombinedReviewRequest(opts: {
   priorStudy: string;
   nd: readonly PendingReviewCourse[];
   external: readonly PendingReviewCourse[];
+  /** Notes for the DGS that are not about one course (2026-09-12). */
+  notes?: readonly string[];
 }): { text: string; html: string; subject: string } {
   const detail = (c: PendingReviewCourse): string[] => [c.courseId, c.title ?? '', String(c.credits), c.grade, c.termText, c.reason];
   // One row per course for the sheet; every attempt still shown in the details.
@@ -839,6 +841,7 @@ export function buildCombinedReviewRequest(opts: {
       // (No second full stop after a label that ends in one — "…or Ph.D.".)
       `Prior graduate study: ${opts.priorStudy}${opts.priorStudy.endsWith('.') ? '' : '.'}`,
       'My transcripts (Bachelor’s / Master’s / Ph.D., whichever apply) are attached to this email.',
+      ...(opts.notes ?? []).map((n) => `Please also check: ${n}`),
     ],
     sections: [
       {

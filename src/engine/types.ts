@@ -303,6 +303,9 @@ export interface AuditReport {
   /** met / scored, where n/a and informational rows are excluded from both. */
   summary: { met: number; scored: number };
   warnings: string[];
+  /** Notes for the DGS that are not about one course (2026-09-12): copied
+   * into the review request and shown in its card. */
+  reviewFlags?: string[];
   /** §3.5 / §3.6 tracks this audit does not model, recognised from the
    * student's own coursework (2026-09-10, promised 2026-08-31). Not warnings:
    * nothing is wrong, and no verdict changes — the note names what the page

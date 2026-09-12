@@ -1175,6 +1175,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   bachelor's degree; the radio lives in the standing card. `notTransferCredit` on a classified
   course keeps such rows (and F7's pre-entry course with no prior program) off the §5.2 row.
 
+- **`report.reviewFlags`** (2026-09-12): notes for the DGS that are not about one course. Today one
+  source — `undergraduateGraduateCourseworkFlag` (more than two counted undergraduate 6xxxx
+  courses). The review card shows them as "Note —" lines and keeps its button active for them;
+  `buildCombinedReviewRequest({ notes })` prints each as "Please also check: …" in the context.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

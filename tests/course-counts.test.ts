@@ -61,11 +61,13 @@ describe('what a course counts toward', () => {
   });
 
   it('a course that earns nothing lists nothing', () => {
-    // 50000-level CSE courses do not count (decision Q19); an unlisted 1xxxx
-    // course is a different case — it is counted provisionally pending review,
-    // and its line correctly says what it WOULD then feed.
+    // 50000-level CSE courses do not count (decision Q19), and since
+    // 2026-09-12 (red-team F8) neither does anything below the 40000 level;
+    // an unlisted 6xxxx course is a different case — it is counted
+    // provisionally pending review, and its line says what it WOULD feed.
     assert.deepEqual(countsFor(student([nd('CSE 50001')]), 'CSE 50001'), []);
-    const unlisted = countsFor(student([nd('CSE 10001')]), 'CSE 10001');
+    assert.deepEqual(countsFor(student([nd('CSE 10001')]), 'CSE 10001'), []);
+    const unlisted = countsFor(student([nd('CSE 69999')]), 'CSE 69999');
     assert.ok(unlisted.length > 0 && unlisted.every((c) => c.when === 'later'), 'provisional, so everything is conditional: ' + JSON.stringify(unlisted));
   });
 

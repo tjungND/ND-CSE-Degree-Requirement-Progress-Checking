@@ -848,6 +848,14 @@ export function classify(student: Student, rules: Rules): {
       if (level === 5) {
         return { ...base, ineligibleReason: 'not counted — a 50000-level course counts only if the DGS has listed it in the course rules (§4.2)' };
       }
+      // No course below the 40000 level earns graduate credit (red-team F8,
+      // DGS 2026-09-12): §3.2/§4.2 reach down only to "the 40000 level", and
+      // an unlisted CSE 30124 or CSE 10101 used to fall through as
+      // "counted provisionally". A number the pattern cannot read (NaN) is
+      // still an unknown course, not a refused one.
+      if (level < 4) {
+        return { ...base, ineligibleReason: `not counted — below the 40000 level; no course under 40000 earns graduate credit (${program === 'mscse' ? '§3.2' : '§4.2'})` };
+      }
       const caps: CapId[] = level === 4 ? ['fourk'] : [];
       return {
         ...base,
