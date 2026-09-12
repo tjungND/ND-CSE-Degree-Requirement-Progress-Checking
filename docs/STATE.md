@@ -124,7 +124,7 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   the sheet marks `any` sits in each of the five real cards, and a note says a course listed under
   several categories can fill only one of them.
   2026-09-11: the Notre Dame upload row is named for the tab the student picked — "ND Unofficial
-  MSCSE Transcript" / "ND Unofficial Ph.D. Transcript" (`ndRowLabel()`); the note above the four
+  MSCSE Transcript" / "ND Unofficial Ph.D. Transcript" (`ndRowLabel()`; "Current ND Unofficial …" since later that day); the note above the four
   rows covers both 4+1 transcript shapes; and an MSCSE student's own undergraduate transcript is
   handled end to end. Its 40000-level CSE courses MAY count (DGS: "they 'may' count, subject to all
   other constraints, so they should be listed … for further decisions & review"), so they are

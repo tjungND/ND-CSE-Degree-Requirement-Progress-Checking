@@ -540,12 +540,12 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`document.querySelector('[data-key="program.mscse"]').click()`);
-  await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('ND Unofficial MSCSE Transcript')`);
+  await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`);
   const phdLabel = await s.evalJs(`(() => { document.querySelector('[data-key="program.phd"]').click(); return document.querySelector('.transcript-upload')?.textContent ?? ''; })()`);
-  if (!phdLabel.includes('ND Unofficial Ph.D. Transcript')) throw new Error('the Ph.D. tab must name the row "ND Unofficial Ph.D. Transcript": ' + phdLabel.slice(0, 120));
+  if (!phdLabel.includes('Current ND Unofficial Ph.D. Transcript')) throw new Error('the Ph.D. tab must name the row "ND Unofficial Ph.D. Transcript": ' + phdLabel.slice(0, 120));
   await s.evalJs(`document.querySelector('[data-key="program.mscse"]').click()`);
-  await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('ND Unofficial MSCSE Transcript')`);
-  console.log('  the Notre Dame row follows the program tab: MSCSE → "ND Unofficial MSCSE Transcript", Ph.D. → "ND Unofficial Ph.D. Transcript"');
+  await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`);
+  console.log('  the Notre Dame row follows the program tab: MSCSE → "Current ND Unofficial MSCSE Transcript", Ph.D. → "Current ND Unofficial Ph.D. Transcript"');
 
   // A transcript still in progress is not a bachelor's record (DGS 2026-09-11):
   // the combined ND fixture has a "Courses in progress" block, so in this row

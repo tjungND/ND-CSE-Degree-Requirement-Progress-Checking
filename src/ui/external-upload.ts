@@ -40,7 +40,9 @@ export type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
  * picked at the top (DGS 2026-09-11). A 4+1 student holds several Notre Dame
  * transcripts; the row wants the one for the program they are in now. */
 export function ndRowLabel(student: Student): string {
-  return student.program === 'mscse' ? 'ND Unofficial MSCSE Transcript' : 'ND Unofficial Ph.D. Transcript';
+  // "Current" (DGS 2026-09-11): this row is for the program the student is in
+  // now; earlier Notre Dame degrees go in the previous-transcript rows below.
+  return student.program === 'mscse' ? 'Current ND Unofficial MSCSE Transcript' : 'Current ND Unofficial Ph.D. Transcript';
 }
 
 export const DEGREE_SLOTS: { level: DegreeLevel; label: string }[] = [

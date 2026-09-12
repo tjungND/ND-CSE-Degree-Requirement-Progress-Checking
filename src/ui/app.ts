@@ -17,7 +17,7 @@ import { parseTranscript, type DegreeAwarded, type EntryTermInference, type Pars
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
-import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
+import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyFirstMentionRule } from './first-mention.ts';
@@ -1206,7 +1206,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Named for the program the student picked at the top (DGS 2026-09-11):
       // an ND 4+1 student has several Notre Dame transcripts, and "ND
       // Unofficial Transcript" did not say which one this row wants.
-      el('span', { class: 'slot-label' }, student.program === 'mscse' ? 'ND Unofficial MSCSE Transcript' : 'ND Unofficial Ph.D. Transcript'),
+      el('span', { class: 'slot-label' }, ndRowLabel(student)),
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
     ];
     if (imported.length > 0) {
