@@ -390,7 +390,7 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
     [
       'Grad Admin',
       program === 'phd'
-        ? 'The Graduate Program Administrator: processes what the DGS has decided and keeps the official record — transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§3.4, §4.5–4.7), the MSCSE along the way (§4.5). Requests go by email; this page sends nothing.'
+        ? 'The Graduate Program Administrator: processes what the DGS has decided and keeps the official record — transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5). Requests go by email; this page sends nothing.'
         : 'The Graduate Program Administrator: processes what the DGS has decided and keeps the official record — transfer credit (§5.2), and the exam and defense forms (§3.4). Requests go by email; this page sends nothing.',
       '§5.2',
     ],

@@ -753,7 +753,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     if (terms.size === 0) return el('div', {});
     // A fieldset whose legend is the question (item 5); a term counted
     // automatically is stated as text, not as a disabled ticked box (item 11).
-    const box = el('fieldset', { class: 'ft-terms' }, el('legend', { class: 'label' }, 'Full-time terms (for residency, §3.3/§4.3)'));
+    const box = el('fieldset', { class: 'ft-terms' }, el('legend', { class: 'label' }, `Full-time terms (for residency, ${student.program === 'mscse' ? '§3.3' : '§4.3'})`));
     const byTermCredits = new Map<number, number>();
     for (const c of student.courses) {
       if (c.origin !== 'nd' || termIndex(c.term) < entryIndex) continue;
@@ -2050,7 +2050,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         `${GRAD_ADMIN.name}, `,
         mailto(GRAD_ADMIN.email),
         student.program === 'phd'
-          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§3.4, §4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.'
+          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.'
           : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
       ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line' }, text)),

@@ -151,6 +151,18 @@ export async function driveApp(s, baseUrl) {
   await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CS 53000').querySelector('button.remove').click()`);
   await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CS 53000')`);
 
+  // The Ph.D. tab cites §3 only where it must (DGS 2026-09-11): the §3.5 track
+  // note, and the MSCSE-along-the-way row, which is §3.2's degree. Anything
+  // else citing §3 on this page is a leak.
+  {
+    const tabs = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('.tabs button')].map(b => b.textContent.trim()))`));
+    const lines = (await s.evalJs(`document.querySelector('#app').innerText`)).split('\n').map((l) => l.trim()).filter((l) => /§3(\.\d)*\b/.test(l) && !tabs.includes(l));
+    const allowed = (l) => /§3\.5/.test(l) || /along the way/i.test(l) || /Sections 3 and 4|Section 3 of the/.test(l) === false && /MSCSE/.test(l) && /§3\.2/.test(l);
+    const leaks = lines.filter((l) => !allowed(l));
+    if (leaks.length) throw new Error('the Ph.D. tab cites §3 where it need not:\n  ' + leaks.slice(0, 6).join('\n  '));
+    console.log('  Ph.D. tab: §3 appears only where necessary (' + lines.length + ' line(s), all allowed)');
+  }
+
   // Course ids are read case- and space-insensitively (DGS 2026-09-11): a
   // hand-typed "cse60641" is the sheet's CSE 60641, not a non-CSE course.
   await s.evalJs(`(() => { const o = document.querySelector('[data-key="course.new.origin"]'); o.value = 'nd'; o.dispatchEvent(new Event('change')); const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'cse60641'; id.dispatchEvent(new Event('change')); })()`);
