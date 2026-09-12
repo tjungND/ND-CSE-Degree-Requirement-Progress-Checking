@@ -21,6 +21,12 @@ export interface MatchResult {
   missingGroups: string[];
   /** Non-empty when ignoring a pin would cover more groups. */
   suggestions: string[];
+  /** True when the student's pins were set aside because a different
+   * assignment covers more groups (2026-09-12: a pick is a preference). */
+  pinsIgnored: boolean;
+  /** The coverage-maximising assignment, pins ignored: courseId → group. What
+   * the page pre-fills for a flexible course (2026-09-12). */
+  bestAssignment: Map<string, string>;
 }
 
 export function matchDistinctGroups(candidates: GroupCandidate[], allGroups: string[]): MatchResult {
@@ -49,21 +55,28 @@ export function matchDistinctGroups(candidates: GroupCandidate[], allGroups: str
 
   const pinned = run(true);
   const free = run(false);
-  const chosen = pinned.size >= free.size ? pinned : pinned; // pins are respected either way
+  // A pin is honoured while it costs nothing; when a different assignment
+  // covers more groups, the matcher takes that one (DGS 2026-09-12 — the
+  // red-team's F2: a legitimate pick turned a met row into "Not yet"). The
+  // page pre-fills the pins from `bestAssignment` and says so.
+  const pinsIgnored = free.size > pinned.size;
+  const chosen = pinsIgnored ? free : pinned;
 
   const assignment = new Map<string, string>();
   for (const [group, cand] of chosen) assignment.set(cand.courseId, group);
+  const bestAssignment = new Map<string, string>();
+  for (const [group, cand] of free) bestAssignment.set(cand.courseId, group);
   const covered = new Set(chosen.keys());
   const suggestions: string[] = [];
-  if (free.size > pinned.size) {
-    suggestions.push(
-      'a different group assignment for your flexible course(s) would cover more distinct groups — try changing the assigned group',
-    );
+  if (pinsIgnored) {
+    suggestions.push('the group assignment of your flexible course(s) was chosen to cover the most groups — the page set it for you, and you can change it next to the course');
   }
   return {
     distinctCount: chosen.size,
     assignment,
     missingGroups: allGroups.filter((g) => !covered.has(g)),
     suggestions,
+    pinsIgnored,
+    bestAssignment,
   };
 }

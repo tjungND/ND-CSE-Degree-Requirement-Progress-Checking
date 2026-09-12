@@ -174,6 +174,11 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   summer entry read as the following fall.
   2026-09-12: the Courses tab's `adgs_approval` value names the reviewer per course (the parser was
   skipping those rows — the vanished 40xxx courses); the program default covers the rest.
+  2026-09-12 (third): the red-team page's F1–F4 — over-cap non-CSE credit counts toward the total,
+  a group pin is a preference (the matcher covers the most groups and the page pre-fills the
+  group), nine regular ND credits condition the §4.4 umbrella, the §3.4 route is read off the
+  record and both rows are alternatives while undecided — plus the general rule: choices the
+  record can settle are pre-filled with a toast (`autoSelect`). F5–F8 and the wording table remain.
   2026-09-12: the ADGS decides everything for MSCSE students. One boundary rewrite
   (`decisionWording`, `applyDeciderRule`) turns every standalone “DGS” into “ADGS” on the MSCSE
   tab — engine text, page, both e-mails — and the review request goes to adingler@nd.edu; the

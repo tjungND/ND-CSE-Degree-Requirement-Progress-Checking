@@ -547,6 +547,28 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`);
   console.log('  the Notre Dame row follows the program tab: MSCSE → "Current ND Unofficial MSCSE Transcript", Ph.D. → "Current ND Unofficial Ph.D. Transcript"');
 
+  // The §3.4 route is read off the record (DGS 2026-09-12, red-team F4): a
+  // Master's project course added while "Undecided" sets the option to
+  // project, with a toast, and the thesis rows leave the report.
+  {
+    await s.evalJs(`(() => {
+      const o = document.querySelector('[data-key="course.new.origin"]'); o.value = 'nd'; o.dispatchEvent(new Event('change'));
+      const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CSE 68902'; id.dispatchEvent(new Event('change'));
+      const cr = document.querySelector('[data-key="course.new.credits"]'); cr.value = '3'; cr.dispatchEvent(new Event('change')); // the live sheet has no default credits for it
+      document.querySelector('[data-key="course.new.add"]').click();
+    })()`);
+    await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 68902')`);
+    await s.waitFor(`document.querySelector('[data-key="standing.msOption.project"]')?.checked === true`);
+    const optToast = await s.evalJs(`document.querySelector('.toast.auto-notice')?.textContent ?? ''`);
+    if (!/set to “M.S. project” from your record/.test(optToast)) throw new Error('pre-filling the option must be announced: ' + optToast);
+    const thesisRow = await s.evalJs(`!![...document.querySelectorAll('#report *')].find(e => /Thesis defense/.test(e.textContent ?? '') && e.children.length === 0)`);
+    if (thesisRow) throw new Error('with the project route read off the record the thesis-defense row must not show');
+    console.log('  CSE 68902 added while undecided → option pre-filled to project (toast shown), thesis rows gone');
+    await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CSE 68902').querySelector('button.remove').click()`);
+    await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 68902')`);
+    await s.evalJs(`document.querySelector('[data-key="standing.msOption.undecided"]').click()`);
+  }
+
   // A transcript still in progress is not a bachelor's record (DGS 2026-09-11):
   // the combined ND fixture has a "Courses in progress" block, so in this row
   // it is refused with the message, and no preview opens.

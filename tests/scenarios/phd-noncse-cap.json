@@ -21,13 +21,13 @@
     "attestations": { "dgsApprovedNonCse": true }
   },
   "expect": {
-    "phd.cap.noncse": { "status": "met", "detailIncludes": ["9 of the 9 non-CSE cap credits used", "PSY 60119: 3 credits not counted — over the cap"] },
+    "phd.cap.noncse": { "status": "met", "detailIncludes": ["9 of the 9 non-CSE cap credits used", "PSY 60119: 3 credits over the cap — count toward the total-credit requirement only"] },
     "phd.credits.regular": { "status": "unmet", "detailIncludes": ["12 of 24"] },
     "phd.qualifier.core.architecture": { "status": "needs_dgs_review", "detailIncludes": ["Pending review: EE 60566"] },
     "phd.qualifier.core.os": { "status": "met", "detailIncludes": ["CSE 60641"] }
   },
   "expectCourseLines": {
     "MATH 60610": ["counts toward regular courses (3 cr)", "uses the non-CSE allowance"],
-    "PSY 60119": ["not counted — over the 9-credit non-CSE cap (§4.2)"]
+    "PSY 60119": ["toward the total-credit requirement only", "over the 9-credit non-CSE cap (§4.2)", "not the total"]
   }
 }

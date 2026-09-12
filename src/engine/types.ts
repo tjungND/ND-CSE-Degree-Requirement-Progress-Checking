@@ -251,6 +251,10 @@ export interface RequirementResult {
    * 60000 level or higher" swamped a course's "Counts toward" cell). The card
    * itself always shows the full `title`; this is only for references to it. */
   shortTitle?: string;
+  /** §4.4.2 only (2026-09-12): the coverage-maximising group for each
+   * flexible course, courseId → group code, so the page can pre-fill the
+   * student's pick rather than let a pick strand the course. */
+  groupAssignments?: Record<string, string>;
   /** §4.4.2 only (DGS request 2026-09-08). A course the sheet marks `any` can
    * satisfy ANY specialization group, so the student chooses — and the useful
    * choice depends on what their other courses already cover. Course id → the

@@ -134,8 +134,14 @@ export function capRow(args: {
     (c) => !c.superseded && (c.caps.includes(args.capId) || false),
   );
   const excludedLines = args.ctx.alloc.perCourse
-    .filter((p) => p.course.caps.includes(args.capId) && p.excluded > 0)
-    .map((p) => `${p.course.entry.courseId}: ${p.excluded} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — over the cap`);
+    .filter((p) => p.course.caps.includes(args.capId) && (p.excluded > 0 || (p.overCapToTotal ?? 0) > 0))
+    .map((p) =>
+      p.excluded > 0
+        ? `${p.course.entry.courseId}: ${p.excluded} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — over the cap`
+        : // The non-CSE allowance limits regular-course credit only (F1,
+          // 2026-09-12): what it refuses still counts toward the total.
+          `${p.course.entry.courseId}: ${p.overCapToTotal} ${p.overCapToTotal === 1 ? 'credit' : 'credits'} over the cap — count toward the total-credit requirement only`,
+    );
 
   let status: Status;
   const parts: string[] = [];

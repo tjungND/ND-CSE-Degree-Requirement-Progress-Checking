@@ -87,6 +87,9 @@ export interface CourseAllocation {
   countedOther: number; // project / seminar / total_only credits
   excluded: number;
   excludedReason?: string;
+  /** Credits the non-CSE allowance refused that still count toward the
+   * total-credit requirement (F1, 2026-09-12) — part of `countedOther`. */
+  overCapToTotal?: number;
   explanation: string; // the per-course line shown to the student
   mark: CourseMark;
 }
@@ -924,6 +927,18 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       cc.pool === 'regular' ? sums.regular : cc.pool === 'project' ? sums.project : cc.pool === 'seminar' ? sums.seminar : sums.totalOnly;
     target[cc.tier] += counted;
     sums.total[cc.tier] += counted;
+    // §4.2 / §3.2 scope the non-CSE allowance to "the course requirement":
+    // "Up to nine (9) credits … may be used to satisfy the course
+    // requirement." A credit that allowance refuses is still a passed
+    // graduate credit toward the Graduate School's total of courses and
+    // research (F1, 2026-09-12 — superseding the 2026-08-31 default for this
+    // one cap; the below-60000 allowance still refuses outright).
+    const boundCaps = excluded > 0 ? cc.caps.filter((id) => (capRoom.get(id) ?? Infinity) <= 0) : [];
+    const spillsToTotal = excluded > 0 && !unknownCap && boundCaps.length > 0 && boundCaps.every((id) => id === 'noncse');
+    if (spillsToTotal) {
+      sums.totalOnly[cc.tier] += excluded;
+      sums.total[cc.tier] += excluded;
+    }
     if (isRegular && cc.entry.origin === 'nd') sums.ndRegular[cc.tier] += counted;
     if (cc.entry.origin === 'nd' && (cc.rule?.courseType === 'research' || cc.rule?.courseType === 'project')) {
       sums.ndResearch[cc.tier] += counted; // §4.5 along-the-way (DGS 2026-09-04)
@@ -960,10 +975,11 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     allocations.set(cc, {
       course: cc,
       countedRegular: isRegular ? counted : 0,
-      countedOther: isRegular ? 0 : counted,
-      excluded,
+      countedOther: (isRegular ? 0 : counted) + (spillsToTotal ? excluded : 0),
+      excluded: spillsToTotal ? 0 : excluded,
+      ...(spillsToTotal ? { overCapToTotal: excluded } : {}),
       excludedReason,
-      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined, caps.find((c) => c.id === 'fourk')),
+      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined, caps.find((c) => c.id === 'fourk'), spillsToTotal),
     });
   };
 
@@ -1061,6 +1077,8 @@ function buildExplanation(
    * degree's § and credit limit (§3.2's for the MSCSE, §4.2's for the
    * Ph.D. — 2026-09-11). */
   fourkCap?: CapSpec,
+  /** The refused credits still count toward the total (the non-CSE cap, F1). */
+  spillsToTotal = false,
 ): { explanation: string; mark: CourseMark } {
   const parts: string[] = [];
   if (capLimitMissing) return { explanation: excludedReason ?? 'cannot be counted yet — a cap is missing from the rules sheet', mark: 'pending' };
@@ -1121,6 +1139,12 @@ function buildExplanation(
         ? ' when passed'
         : '';
   let mark: CourseMark;
+  if (spillsToTotal) {
+    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    const how = counted > 0 ? `${lead} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} and ${formatCredits(excluded)} toward the total-credit requirement only${tail}` : `${lead} toward the total-credit requirement only (${formatCredits(excluded)} cr)${tail}`;
+    parts.push(`${how} — ${excludedReason ?? 'over the non-CSE cap'} — the allowance limits regular-course credit, not the total`);
+    return { explanation: parts.join('; '), mark };
+  }
   if (counted > 0 && excluded > 0) {
     mark = cc.tier === 'definite' ? 'counts' : 'pending';
     // Every conditional lead already ends in the bare "count" ("would count",

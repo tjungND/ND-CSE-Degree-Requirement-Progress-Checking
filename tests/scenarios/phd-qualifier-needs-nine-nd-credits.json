@@ -1,0 +1,91 @@
+{
+  "name": "phd-qualifier-needs-nine-nd-credits",
+  "description": "Red-team F3 (2026-09-12): every §4.4 component is met — Operating Systems and its group by a Notre Dame undergraduate course (any ND course satisfies §4.4.1/§4.4.2, ruling 9a of 2026-09-11, without earning credit) — but only six regular credits were taken at Notre Dame in the program. §4.2 conditions the qualifying examination on nine regular ND credits, so the umbrella reads unmet with that reason and no “file the form” reminder.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.8,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2026-09-01",
+      "researchQualifierPassed": "2027-05-01"
+    },
+    "attestations": {
+      "advisorApprovedPlan": true
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    }
+  },
+  "expect": {
+    "phd.qualifier.core.os": {
+      "status": "met"
+    },
+    "phd.qualifier.categories": {
+      "status": "met"
+    },
+    "phd.qualifier.research": {
+      "status": "met"
+    },
+    "phd.credits.nd": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 9"
+      ]
+    },
+    "phd.qualifier": {
+      "status": "unmet",
+      "detailIncludes": [
+        "nine credits of regular courses taken at Notre Dame",
+        "cannot be completed until then"
+      ],
+      "detailExcludes": [
+        "file the qualifier completion form"
+      ]
+    }
+  }
+}

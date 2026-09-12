@@ -232,10 +232,30 @@ export function msTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResu
   };
 }
 
+/** Which §3.4 route the record itself shows (2026-09-12): a Master's project
+ * course or an accepted project report → project; thesis direction, a
+ * readers' approval or a defense → thesis; both or neither → undefined. The
+ * page pre-fills "Project or thesis option" from this and says so; the
+ * student's own choice always wins. */
+export function inferMsOption(student: Ctx['student']): 'project' | 'thesis' | undefined {
+  const m = student.milestones;
+  const ids = new Set(student.courses.map((c) => c.courseId.toUpperCase().replace(/\s+/g, ' ')));
+  const project = ids.has('CSE 68902') || m.projectReportAccepted !== undefined;
+  const thesis = ids.has('CSE 68901') || m.thesisDefensePassed !== undefined || m.thesisApprovedByReaders !== undefined;
+  if (project && !thesis) return 'project';
+  if (thesis && !project) return 'thesis';
+  return undefined;
+}
+
 function optionRows(ctx: Ctx): RequirementResult[] {
   const rows: RequirementResult[] = [];
-  const option = ctx.student.msOption ?? 'undecided';
+  const chosen = ctx.student.msOption ?? 'undecided';
+  const option = chosen === 'undecided' ? (inferMsOption(ctx.student) ?? 'undecided') : chosen;
   const m = ctx.student.milestones;
+  // While no route is chosen or visible, the two rows are ALTERNATIVES (§3.4:
+  // "in one of two ways"): either finished satisfies both (F4, 2026-09-12).
+  const eitherDone = option === 'undecided' && (m.thesisDefensePassed !== undefined || m.projectReportAccepted !== undefined);
+  const alternative = option === 'undecided' ? ' Either route satisfies §3.4 — pick yours under Your standing.' : '';
 
   if (option === 'thesis' || option === 'undecided') {
     // §3.4: "Upon acceptance of the thesis by the thesis defense examination
@@ -246,12 +266,12 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     const readers = ctx.params.number('ms_thesis_readers_min');
     let status: Status;
     let detail: string;
-    if (m.thesisDefensePassed) {
+    if (m.thesisDefensePassed || eitherDone) {
       status = 'met';
-      detail = `Thesis defense passed ${m.thesisDefensePassed}${m.thesisApprovedByReaders ? ` (thesis approved by the readers ${m.thesisApprovedByReaders})` : ''}.`;
+      detail = m.thesisDefensePassed ? `Thesis defense passed ${m.thesisDefensePassed}${m.thesisApprovedByReaders ? ` (thesis approved by the readers ${m.thesisApprovedByReaders})` : ''}.` : `Not needed — the project route is complete (project report accepted ${m.projectReportAccepted}).${alternative}`;
     } else {
       status = 'unmet';
-      detail = `Not yet passed.`;
+      detail = `Not yet passed.${alternative}`;
       const min = ctx.params.number('gpa_min');
       if (min !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < min) {
         detail += ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`;
@@ -276,10 +296,12 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       id: 'ms.project.report',
       group: PROJECT_THESIS,
       title: 'Project report accepted by the advisor (project option)',
-      status: m.projectReportAccepted ? 'met' : 'unmet',
+      status: m.projectReportAccepted || eitherDone ? 'met' : 'unmet',
       detail: m.projectReportAccepted
         ? `Project report accepted ${m.projectReportAccepted}.`
-        : 'Not yet: the written project report and deliverables must be accepted and approved by your advisor (§3.4).',
+        : eitherDone
+          ? `Not needed — the thesis route is complete (defense passed ${m.thesisDefensePassed}).${alternative}`
+          : `Not yet: the written project report and deliverables must be accepted and approved by your advisor (§3.4).${alternative}`,
       citation: { section: '§3.4', quote },
     });
   }

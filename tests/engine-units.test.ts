@@ -121,7 +121,7 @@ describe('distinct-group matching', () => {
     assert.equal(r.assignment.get('RM') !== 'alg', true, 'RM must not waste itself on alg');
   });
 
-  it('a suboptimal pin is honored but flagged', () => {
+  it('a suboptimal pin is set aside for the assignment that covers more (F2, 2026-09-12)', () => {
     const r = matchDistinctGroups(
       [
         { courseId: 'A', title: '', groups: ['alg'], sortKey: '1' },
@@ -129,7 +129,9 @@ describe('distinct-group matching', () => {
       ],
       groups,
     );
-    assert.equal(r.distinctCount, 1, 'pin forces both onto alg');
+    assert.equal(r.distinctCount, 2, 'the pin is a preference — the matcher covers two groups');
+    assert.equal(r.pinsIgnored, true);
+    assert.notEqual(r.bestAssignment.get('RM'), 'alg');
     assert.ok(r.suggestions.length > 0);
   });
 });
@@ -355,8 +357,8 @@ describe('non-CSE courses', () => {
     const report = audit(nonCseStudent(courses, { dgsApprovedNonCse: true }), buildRules(), '2027-06-01');
     const partial = report.courseLines.find((l) => /of 4 credits/.test(l.text));
     assert.ok(partial, 'one course should be partly over the 9-credit cap');
-    assert.match(partial!.text, /^counts 1 of 4 credits toward regular courses/);
-    assert.match(partial!.text, /3 not counted — over the 9-credit non-CSE cap \(§4\.2\)/);
+    assert.match(partial!.text, /^counts 1 of 4 credits toward regular courses and 3 toward the total-credit requirement only/);
+    assert.match(partial!.text, /over the 9-credit non-CSE cap \(§4\.2\) — the allowance limits regular-course credit, not the total/);
   });
 });
 

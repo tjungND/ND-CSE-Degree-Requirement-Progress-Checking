@@ -156,7 +156,9 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     categoriesRow(ctx),
     researchQualifierRow(ctx),
   ];
-  rows.push(qualifierUmbrellaRow(ctx, qualifierChildren));
+  // §4.2 conditions the qualifier on nine regular credits at Notre Dame (F3,
+  // 2026-09-12): the umbrella cannot read "met" while that row is not.
+  rows.push(qualifierUmbrellaRow(ctx, qualifierChildren, rows.find((r) => r.id === 'phd.credits.nd')));
   rows.push(...qualifierChildren);
   rows.push(candidacyRow(ctx));
   rows.push(...dissertationRows(ctx));
@@ -291,12 +293,15 @@ export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementRes
 /** §4.4: "Students must complete all three components of the qualiﬁer
  * requirement within four (4) semesters of starting; the DGS may extend the
  * deadline on a case-by-case basis." */
-function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[]): RequirementResult {
+function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits?: RequirementResult): RequirementResult {
   const quote =
     'Students must complete all three components of the qualifier requirement within four (4) semesters of starting; the DGS may extend the deadline on a case-by-case basis.';
   const semesters = ctx.params.number('qualifier_deadline_semesters');
-  let status = combineAll(children.map((c) => c.status));
+  let status = combineAll([...children.map((c) => c.status), ...(ndCredits ? [ndCredits.status] : [])]);
   const parts: string[] = ['Three components: core knowledge (§4.4.1 — one card per core area below), category specialization (§4.4.2), research (§4.4.3)'];
+  if (ndCredits && ndCredits.status !== 'met') {
+    parts.push(`§4.2 also conditions the examination on at least nine credits of regular courses taken at Notre Dame — not met yet (${ndCredits.detail.split('.')[0]}), so it cannot be completed until then`);
+  }
   let deadline: RequirementResult['deadline'];
   if (semesters === undefined) {
     status = 'cannot_evaluate';
@@ -512,6 +517,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     else if (isPassed(c.entry.grade)) belowFloor.push(`${c.entry.courseId} (${c.entry.grade})`);
   }
 
+  const flexible = new Set([...qualifying, ...inProgress].filter((c) => c.groups.length > 1).map((c) => c.courseId));
   const def = matchDistinctGroups(qualifying, allGroups);
   const combined = matchDistinctGroups([...qualifying, ...inProgress], allGroups);
   const withTransfers = matchDistinctGroups([...qualifying, ...inProgress, ...awaitingTransfer], allGroups);
@@ -613,6 +619,11 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     // each course's own line names this requirement, and a course that is
     // passed contributes now even while the requirement as a whole is not met.
     ...(Object.keys(groupChoices).length > 0 ? { groupChoices } : {}),
+    // The coverage-maximising pick per flexible course (F2, 2026-09-12) — the
+    // page pre-fills an unset group from it and tells the student.
+    // Read off the matching over passed AND in-progress courses (like
+    // `groupChoices`), so a course still being taken is placed too.
+    ...(flexible.size > 0 ? { groupAssignments: Object.fromEntries([...withTransfers.bestAssignment].filter(([id]) => flexible.has(id))) } : {}),
     ...(assignedDone.length > 0 ? { satisfiedBy: assignedDone } : {}),
     ...(assignedPending.length > 0 ? { pendingBy: assignedPending } : {}),
     citation: { section: '§4.4.2', quote },

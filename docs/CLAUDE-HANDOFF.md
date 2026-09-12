@@ -1144,6 +1144,19 @@ Known-pending (the app's diagnostics panel is the live truth):
   was a graduate student, which is the 4+1 signature — the entry term is the first graduate term
   after the LAST dated degree. An along-the-way MSCSE (§4.5) does not match, since its graduate
   terms all start after the bachelor's degree, and its `alternative` is unchanged.
+- **Choices the page makes for the student** (DGS 2026-09-12, red-team F1–F4). `autoSelect` in
+  `app.ts` runs at the top of every render: an UNSET §4.4.2 group is filled from the categories
+  row's `groupAssignments` (the coverage-maximising matching, in-progress courses included), and an
+  "Undecided" §3.4 route from `inferMsOption` (mscse.ts); when it changed anything it saves,
+  re-audits and toasts once (12 s). Only blanks are filled — a student's pick is never overwritten,
+  so there is no render loop. In the engine, `matchDistinctGroups` treats a pin as a preference
+  (`pinsIgnored`/`bestAssignment`); the qualifier umbrella takes the `phd.credits.nd` row as a
+  condition; `allocate.ts` sends credit refused only by the `noncse` cap to the total
+  (`overCapToTotal`), which `capRow` in context.ts reports as "over the cap — count toward the
+  total-credit requirement only". Scenarios: phd-group-pin-is-a-preference,
+  phd-qualifier-needs-nine-nd-credits, mscse-undecided-project-inferred, mscse-undecided-either-route;
+  e2e pins both toasts (drive-app: un-assign CSE 60876; drive-transcript: add CSE 68902 undecided).
+  `detailExcludes` in a scenario's `expect` asserts a phrase is absent.
 
 ## Invariants — keep these true
 

@@ -21,10 +21,10 @@
     "attestations": { "dgsApprovedNonCse": true }
   },
   "expect": {
-    "ms.cap.noncse": { "status": "met", "detailIncludes": ["PHYS 60050", "not counted"] },
+    "ms.cap.noncse": { "status": "met", "detailIncludes": ["PHYS 60050", "over the cap — count toward the total-credit requirement only"] },
     "ms.credits.regular": { "status": "unmet", "detailIncludes": ["12 of 24"] }
   },
   "expectCourseLines": {
-    "PHYS 60050": ["not counted", "9-credit"]
+    "PHYS 60050": ["toward the total-credit requirement only", "9-credit"]
   }
 }

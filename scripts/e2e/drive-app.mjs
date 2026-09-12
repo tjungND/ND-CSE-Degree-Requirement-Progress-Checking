@@ -169,6 +169,20 @@ export async function driveApp(s, baseUrl) {
     console.log('  Ph.D. tab: every decision goes to the DGS');
   }
 
+  // A choice the page can make for the student, it makes (DGS 2026-09-12,
+  // red-team F2): un-assign the example's flexible course and the page
+  // re-assigns it to the group that covers the most, saying so in a toast.
+  {
+    const rowIndex = await s.evalJs(`[...document.querySelectorAll('table.courses tr')].findIndex(tr => tr.querySelector('.cid')?.textContent === 'CSE 60876') - 1`);
+    await s.evalJs(`(() => { const sel = document.querySelector('[data-key="course.${rowIndex}.group"]'); sel.value = ''; sel.dispatchEvent(new Event('change')); })()`);
+    await s.waitFor(`document.querySelector('[data-key="course.${rowIndex}.group"]')?.value !== ''`);
+    const refilled = await s.evalJs(`document.querySelector('[data-key="course.${rowIndex}.group"]').value`);
+    const autoToast = await s.evalJs(`document.querySelector('.toast.auto-notice')?.textContent ?? ''`);
+    if (!/chosen automatically to cover the most distinct groups/.test(autoToast)) throw new Error('un-assigning a flexible course must be re-filled with a notice: ' + autoToast);
+    if (!/CSE 60876 →/.test(autoToast)) throw new Error('the notice must name the course and group: ' + autoToast);
+    console.log('  flexible course re-assigned automatically → ' + refilled + ' (toast shown)');
+  }
+
   // Course ids are read case- and space-insensitively (DGS 2026-09-11): a
   // hand-typed "cse60641" is the sheet's CSE 60641, not a non-CSE course.
   await s.evalJs(`(() => { const o = document.querySelector('[data-key="course.new.origin"]'); o.value = 'nd'; o.dispatchEvent(new Event('change')); const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'cse60641'; id.dispatchEvent(new Event('change')); })()`);

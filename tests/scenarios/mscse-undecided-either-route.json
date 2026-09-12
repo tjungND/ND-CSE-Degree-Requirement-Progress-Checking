@@ -1,0 +1,22 @@
+{
+  "name": "mscse-undecided-either-route",
+  "description": "Red-team F4 (2026-09-12): no route chosen and nothing on the record to read it from, so both §3.4 rows are shown — as ALTERNATIVES. Each says the other route also satisfies §3.4 and points at the standing card.",
+  "today": "2027-01-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.4,
+    "courses": [
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.thesis.defense": { "status": "unmet", "detailIncludes": ["Either route satisfies §3.4"] },
+    "ms.project.report": { "status": "unmet", "detailIncludes": ["Either route satisfies §3.4"] }
+  }
+}

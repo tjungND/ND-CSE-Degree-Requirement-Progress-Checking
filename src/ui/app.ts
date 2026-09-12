@@ -18,6 +18,7 @@ import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
 import { deciderTitle } from '../engine/decider.ts';
+import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
@@ -183,6 +184,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (plainToast === t) plainToast = undefined;
     }, 4000);
   };
+  /** A notice that a choice was made for the student (2026-09-12): its own
+   * slot, so the plain toast that follows the same action ("… added to your
+   * coursework") does not replace it. Stays 12 s. */
+  let noticeToast: HTMLElement | undefined;
+  const notice = (msg: string): void => {
+    noticeToast?.remove();
+    const t = el('div', { class: 'toast show auto-notice' }, msg);
+    noticeToast = t;
+    toastStack.prepend(t);
+    window.setTimeout(() => {
+      t.remove();
+      if (noticeToast === t) noticeToast = undefined;
+    }, 12000);
+  };
   const undoToasts = new Map<HTMLElement, number>();
   const cancelUndo = (): void => {
     for (const [t, timer] of undoToasts) {
@@ -307,9 +322,51 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     window.scrollTo(memo.x, memo.y);
   }
 
+  /** Choices the page makes for the student (DGS 2026-09-12): whenever the
+   * record itself shows the best answer, fill it in, say so in a toast, and
+   * leave the control for the student to change. Only an UNSET choice is
+   * filled, so a student's own pick is never overwritten. Returns the notices
+   * to show — a non-empty list means the record changed and must be re-audited. */
+  function autoSelect(report: ReturnType<typeof audit>): string[] {
+    const notices: string[] = [];
+    if (student.program === 'mscse' && (student.msOption ?? 'undecided') === 'undecided') {
+      const inferred = inferMsOption(student);
+      if (inferred) {
+        student.msOption = inferred;
+        notices.push(
+          inferred === 'project'
+            ? 'Project or thesis option set to “M.S. project” from your record (a Master’s project course or an accepted project report). Change it under Your standing if that is wrong.'
+            : 'Project or thesis option set to “M.S. thesis” from your record (thesis direction, readers’ approval or a defense). Change it under Your standing if that is wrong.',
+        );
+      }
+    }
+    if (student.program === 'phd') {
+      const best = report.requirements.find((r) => r.id === 'phd.qualifier.categories')?.groupAssignments ?? {};
+      const filled: string[] = [];
+      for (const c of student.courses) {
+        const group = best[c.courseId];
+        if (!group || c.assignedGroup) continue;
+        c.assignedGroup = group as CourseEntry['assignedGroup'];
+        filled.push(`${c.courseId} → ${shortName(rules.categoryGroups.find((x) => x.code === group)?.name ?? group)}`);
+      }
+      if (filled.length > 0) {
+        notices.push(
+          `Specialization group chosen automatically to cover the most distinct groups (§4.4.2): ${filled.join('; ')}. You can change it next to the course.`,
+        );
+      }
+    }
+    return notices;
+  }
+
   function render(): void {
     const memo = rememberFocus();
-    const report = audit(student, rules, todayIso);
+    let report = audit(student, rules, todayIso);
+    const autoNotices = autoSelect(report);
+    if (autoNotices.length > 0) {
+      saveLocal(student);
+      report = audit(student, rules, todayIso);
+      notice(autoNotices.join(' '));
+    }
     // Nothing entered yet: the report describes the degree, not the student
     // (2026-09-08). Every row would otherwise read "Not yet" as if the student
     // had failed thirteen checks they have not been asked about.

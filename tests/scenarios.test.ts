@@ -42,6 +42,11 @@ describe('scenarios', () => {
             `detail of ${id} should mention "${sub}" — got: ${row.detail}`,
           );
         }
+        // `detailExcludes` (2026-09-12): a reminder or hint that must NOT be
+        // shown in this state (e.g. "file the form" while §4.2 blocks the qualifier).
+        for (const sub of exp.detailExcludes ?? []) {
+          assert.ok(!row.detail.includes(sub), `detail of ${id} must not mention "${sub}" — got: ${row.detail}`);
+        }
       }
 
       if (sc.expectTracks !== undefined) {
