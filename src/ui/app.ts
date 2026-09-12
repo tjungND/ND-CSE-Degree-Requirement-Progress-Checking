@@ -7,7 +7,7 @@ import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { classify, priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
-import { coursesNeedingDgsReview, undergraduateGraduateCourseworkFlag, type PendingDgsReview } from '../engine/review.ts';
+import { coursesNeedingDgsReview, reviewRequestSummary, undergraduateGraduateCourseworkFlag, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
@@ -1101,6 +1101,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const flags = undergraduateGraduateCourseworkFlag(student, rules);
     const notes = flags ? [flags] : [];
     if (n === 0 && notes.length === 0) return null;
+    const what = reviewRequestSummary(n, notes.length > 0);
     const request = (p: PendingDgsReview) => ({
       courseId: p.course.entry.courseId,
       title: p.course.entry.title ?? p.course.rule?.title,
@@ -1129,7 +1130,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'card dgs-review' },
-      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, n > 0 ? `${n} course${n === 1 ? '' : 's'}${notes.length > 0 ? ' and a note' : ''}` : 'a note')),
+      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, what)),
       el(
         'p',
         { class: 'hint' },
@@ -1164,7 +1165,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               });
             },
           },
-          `Copy review request for ${n} course${n === 1 ? '' : 's'}`,
+          `Copy review request for ${what}`,
         ),
       ),
     );

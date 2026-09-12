@@ -41,6 +41,16 @@ export interface PendingDgsReview {
   unlisted: boolean;
 }
 
+/** What the "Ask the DGS to review" card's chip and its copy button both say
+ * is pending — one phrase, shared, so the two can never drift apart (2026-09-12
+ * bug: the button counted courses alone, so a review that was only a note —
+ * no pending course at all — read "Copy review request for 0 courses"
+ * instead of naming the note). */
+export function reviewRequestSummary(courseCount: number, hasNote: boolean): string {
+  if (courseCount > 0) return `${courseCount} course${courseCount === 1 ? '' : 's'}${hasNote ? ' and a note' : ''}`;
+  return 'a note';
+}
+
 /** The courses the review request asks the DGS about, in the order the
  * request lists them: Notre Dame program coursework, Notre Dame coursework
  * from before entry, then other universities. */

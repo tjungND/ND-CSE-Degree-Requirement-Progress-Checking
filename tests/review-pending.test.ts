@@ -3,9 +3,18 @@
 // ExternalCourses tab is a decision only where its cells say something.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { coursesNeedingDgsReview } from '../src/engine/review.ts';
+import { coursesNeedingDgsReview, reviewRequestSummary } from '../src/engine/review.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
+
+describe('reviewRequestSummary — the card chip and its copy button', () => {
+  it('names courses, courses and a note, or (2026-09-12 bug) just a note — never "0 courses"', () => {
+    assert.equal(reviewRequestSummary(3, false), '3 courses');
+    assert.equal(reviewRequestSummary(1, false), '1 course');
+    assert.equal(reviewRequestSummary(2, true), '2 courses and a note');
+    assert.equal(reviewRequestSummary(0, true), 'a note');
+  });
+});
 
 type Row = Record<string, string>;
 const row = (course_id: string, extra: Row = {}): Row => ({ university: 'PURDUE UNIVERSITY', course_id, course_title: 'x', ...extra });
