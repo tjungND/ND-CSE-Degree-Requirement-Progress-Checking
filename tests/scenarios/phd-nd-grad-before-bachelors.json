@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-grad-before-bachelors",
-  "description": "A Notre Dame 4+1's senior-year course, registered at the GRADUATE level in the term the B.S. was awarded. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. This student holds no Notre Dame master's, so nothing of theirs can have counted toward two degrees and the app never asks: the 60000-level courses simply count. The 30000-level one counts nothing at any answer, so it is not asked about either.",
+  "description": "A Notre Dame 4+1's senior-year course, registered at the GRADUATE level in the term the B.S. was awarded. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. This student holds no Notre Dame master's, so nothing of theirs can have counted toward two degrees and the app never asks: the 60000-level courses simply count. The 30000-level one counts nothing at any answer, so it is not asked about either. (integratedBsMs: true since 2026-09-12 — only a 4+1's undergraduate 60000-level coursework earns credit.)",
   "today": "2025-09-04",
   "rules": {
     "base": "default"
@@ -71,7 +71,8 @@
       }
     ],
     "milestones": {},
-    "attestations": {}
+    "attestations": {},
+    "integratedBsMs": true
   },
   "expect": {
     "phd.credits.regular": {

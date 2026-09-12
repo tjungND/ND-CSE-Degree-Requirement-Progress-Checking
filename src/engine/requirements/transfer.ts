@@ -32,6 +32,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     (c) =>
       c.entry.origin === 'transfer' &&
       c.entry.degreeLevel !== 'bachelors' &&
+      c.notTransferCredit !== true &&
       (c.caps.includes('transfer') || c.pool === 'none'),
   );
   const capKey =

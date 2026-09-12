@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-undergrad-before-entry",
-  "description": "Combined Notre Dame transcript (bug report 2026-09-05): eight undergraduate semesters before the Ph.D. entry term (Fall 2024). The pre-entry courses are filed as prior Notre Dame coursework (origin transfer, institution University of Notre Dame, level bachelors): they earn no residence, no credits and no specialization, but a Courses-tab core course passed as an undergraduate satisfies §4.4.1 without an ExternalCourses ruling, and an unlisted undergraduate course with a core-area title is pending review. Residence counts the two program semesters only; every deadline is counted from Fall 2024. Since 2026-09-10 their undergraduate 60000-level Notre Dame coursework COUNTS toward the Ph.D. — the Graduate School put it beyond §5.2's twenty-four — while everything below the 40000 level still counts nothing. This student holds no master's, so nothing can have counted toward two degrees and the app asks them nothing.",
+  "description": "Combined Notre Dame transcript (bug report 2026-09-05): eight undergraduate semesters before the Ph.D. entry term (Fall 2024). The pre-entry courses are filed as prior Notre Dame coursework (origin transfer, institution University of Notre Dame, level bachelors): they earn no residence, no credits and no specialization, but a Courses-tab core course passed as an undergraduate satisfies §4.4.1 without an ExternalCourses ruling, and an unlisted undergraduate course with a core-area title is pending review. Residence counts the two program semesters only; every deadline is counted from Fall 2024. Since 2026-09-10 their undergraduate 60000-level Notre Dame coursework COUNTS toward the Ph.D. — the Graduate School put it beyond §5.2's twenty-four — while everything below the 40000 level still counts nothing. This student holds no master's, so nothing can have counted toward two degrees and the app asks them nothing. Since 2026-09-12 the 60000-level course taken as an undergraduate earns no credit either (a regular bachelor's, not a 4+1) — §4.4.1 still sees it.",
   "today": "2025-09-04",
   "rules": {
     "base": "default"
@@ -254,7 +254,7 @@
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "counts toward regular courses (3 cr)"
+      "not counted — a 60000-level course taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program"
     ],
     "CSE 10001": [
       "taken as an undergraduate student — no transfer credit (§5.2)"

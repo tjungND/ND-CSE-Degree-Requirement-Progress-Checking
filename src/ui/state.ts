@@ -146,6 +146,10 @@ export function validateStudent(data: unknown): Student {
     bachelorsAwarded,
     bachelorsAwardedInferred: validBachelorsInferred(raw['bachelorsAwardedInferred'], bachelorsAwarded),
     ndMasters: validNdMasters(raw['ndMasters']),
+    ...(typeof raw['integratedBsMs'] === 'boolean' ? { integratedBsMs: raw['integratedBsMs'] as boolean } : {}),
+    ...(typeof raw['integratedBsMs'] === 'boolean' && raw['integratedBsMsInferred'] && typeof (raw['integratedBsMsInferred'] as Record<string, unknown>)['how'] === 'string'
+      ? { integratedBsMsInferred: { how: (raw['integratedBsMsInferred'] as { how: string }).how } }
+      : {}),
     ndDegrees: validNdDegrees(raw['ndDegrees']),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},

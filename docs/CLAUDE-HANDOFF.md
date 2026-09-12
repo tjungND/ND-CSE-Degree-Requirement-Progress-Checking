@@ -1169,6 +1169,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   sets `quarterSystem` or `trimesterSystem`; the preview keeps `p.creditSystem` and the select
   `ext.preview.creditsystem`; the classified course carries `convertedFrom` for the line.
 
+- **Only a 4+1's undergraduate graduate-level coursework earns credit** (DGS 2026-09-12, F7).
+  `student.integratedBsMs` gates the undergraduate branch of `classify()` for 60000-level courses;
+  `autoSelect` in app.ts infers it from a graduate-registered Notre Dame row dated inside the
+  bachelor's degree; the radio lives in the standing card. `notTransferCredit` on a classified
+  course keeps such rows (and F7's pre-entry course with no prior program) off the §5.2 row.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

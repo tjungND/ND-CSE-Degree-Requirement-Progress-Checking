@@ -158,6 +158,16 @@ export interface Student {
    * Your standing corrects it). Says nothing about transfer credit: those
    * courses are §5.2 candidates like any other prior graduate coursework. */
   ndMasters?: { term?: Term; inferred?: { how: string } };
+  /** Was the student in Notre Dame's Integrated B.S. + M.S. (4+1) program
+   * (DGS 2026-09-12, red-team F7)? Only then does a 60000-level course taken
+   * as an undergraduate earn MSCSE/Ph.D. credit (§3.5; the Graduate School's
+   * 2026-09-10 answer). Unanswered = not a 4+1: no credit, and the line says
+   * how to change that. A plain bachelor's course still demonstrates §4.4.1
+   * core knowledge and a §4.4.2 group for a Ph.D. student. */
+  integratedBsMs?: boolean;
+  /** Set while integratedBsMs was read off the transcript (graduate-registered
+   * coursework dated inside the bachelor's degree); cleared when the student answers. */
+  integratedBsMsInferred?: { how: string };
   /** The DATED degree conferrals on the Notre Dame transcript, kept so the
    * fact above can be worked out AGAIN when the entry term changes (2026-09-10).
    * Whether a master's was earned "before this program" or along the way is a

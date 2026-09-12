@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-bachelors-then-phd",
-  "description": "A Ph.D. student who did their bachelor's at Notre Dame and entered the Ph.D. straight after. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. With no master's behind them the app asks nothing, and their undergraduate 60000-level coursework counts in full — including toward §4.4.2, which it meets outright here.",
+  "description": "A Ph.D. student who did a REGULAR bachelor's at Notre Dame (not the 4+1) and entered the Ph.D. straight after. DGS 2026-09-12 (red-team F7): \"If the student was just a BS (not 4+1 BS/MS integration), the 60xxx courses taken as an undergrad student do not count toward credits of MSCSE or PhD. They may qualify for the core knowledge and specialization category requirements of PhD students even without credit transfer.\" So the undergraduate CSE 60641 / CSE 60111 earn no credit — the lines say why and how a 4+1 would answer — while §4.4.1 core knowledge and the §4.4.2 groups are still satisfied by them (any Notre Dame course, 2026-09-11). Until 2026-09-12 this fixture counted them in full under the Graduate School's 2026-09-10 answer, which the DGS has now narrowed to the Integrated program.",
   "today": "2026-09-09",
   "rules": {
     "base": "default"
@@ -83,7 +83,7 @@
     "phd.credits.regular": {
       "status": "unmet",
       "detailIncludes": [
-        "9 of 24"
+        "3 of 24"
       ]
     },
     "phd.transfer": {
@@ -107,10 +107,12 @@
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "counts toward regular courses (3 cr)"
+      "not counted — a 60000-level course taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program",
+      "say so under Your standing",
+      "still satisfies the Operating Systems core-knowledge requirement"
     ],
     "CSE 60111": [
-      "counts toward regular courses (3 cr)"
+      "not counted — a 60000-level course taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program"
     ]
   }
 }

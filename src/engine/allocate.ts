@@ -51,6 +51,11 @@ export interface ClassifiedCourse {
    * an ExternalCourses verdict, or a Courses-tab row for a Notre Dame course —
    * so the §5.2 checkbox can settle it. */
   reviewed?: boolean;
+  /** Notre Dame coursework that is not §5.2 transfer credit even though it
+   * earns nothing (a regular bachelor's 60000-level course; a pre-entry
+   * course with no prior program on record — 2026-09-12): the transfer row
+   * neither lists nor counts it. */
+  notTransferCredit?: true;
   /** Which non-semester system the credits were converted from (F6, 2026-09-12). */
   convertedFrom?: 'quarter' | 'trimester';
   /** The sheet's factor used for that conversion (DGS 2026-09-12: on the sheet). */
@@ -493,6 +498,20 @@ export function classify(student: Student, rules: Rules): {
         if (shape && 'ineligibleReason' in shape) {
           return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
         }
+        // ONLY A 4+1's graduate coursework earns credit (DGS 2026-09-12,
+        // red-team F7): "If the student was just a BS (not 4+1 BS/MS
+        // integration), the 60xxx courses taken as an undergrad student do
+        // not count toward credits of MSCSE or PhD. They may qualify for the
+        // core knowledge and specialization category requirements of PhD
+        // students even without credit transfer." The 40000-level allowance
+        // (§3.2/§4.2's "up to two") is the degree's own and is not touched.
+        if (undergradLevelEarly >= 6 && student.integratedBsMs !== true) {
+          return {
+            ...extBase,
+            notTransferCredit: true,
+            ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} credit only for a student who was in the Integrated B.S. + M.S. (4+1) program${student.integratedBsMs === false ? '' : '; if you were, say so under Your standing'}${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules, and its §4.4.2 group` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
+          };
+        }
         // The level rules are the degree's, not the transcript's: this
         // coursework counts the way the same course would if it were taken in
         // the program. Below the 60000 level that means §4.2's six-credit
@@ -608,6 +627,20 @@ export function classify(student: Student, rules: Rules): {
             : shapeApproval !== undefined
               ? { approvalPending: shapeApproval }
               : {}),
+        };
+      }
+      // A NOTRE DAME graduate course dated before the entry term, for a student
+      // whose record shows no prior graduate program (red-team F7, 2026-09-12):
+      // §5.2 governs another university's work or another Notre Dame program,
+      // and neither is on this record — nearly always the entry term is wrong
+      // (it defaults to the coming fall). No transfer row is opened; the line
+      // says what to check. §4.4.1/§4.4.2 still see the course (any ND course
+      // does, 2026-09-11).
+      if (isNotreDameInstitution(c.institution) && c.degreeLevel !== 'bachelors' && student.priorMs === 'none' && student.ndMasters === undefined) {
+        return {
+          ...extBase,
+          notTransferCredit: true,
+          ineligibleReason: `not counted — dated before your entry term (${termLabel(entry)}), but your record shows no prior graduate program, so it is not §5.2 transfer credit either: check the entry term under Your standing (it starts out as the coming fall), or set “Prior graduate study” if you were in another graduate program${coreNote}`,
         };
       }
       if (c.degreeLevel === 'bachelors') {

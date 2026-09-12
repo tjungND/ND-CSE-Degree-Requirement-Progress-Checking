@@ -615,6 +615,18 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     if (!/pending ADGS review — would count toward regular courses \(3 cr\) once approved/.test(text)) throw new Error(id + ' must be counted only provisionally: ' + text.slice(0, 200));
     if (!/uses the 40000-level allowance \(6 credits, §3\.2\)/.test(text)) throw new Error(id + ' must cite the MSCSE allowance: ' + text.slice(0, 200));
   }
+  // Only a 4+1's undergraduate 60000-level course earns credit (DGS
+  // 2026-09-12, red-team F7). This fixture registers CSE 60641 at the
+  // undergraduate level, so nothing marks the student as a 4+1: the standing
+  // card asks, the course earns nothing until answered, and "Yes" counts it.
+  const before60641 = await s.evalJs(lineOf('CSE 60641'));
+  if (!/earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program; if you were, say so under Your standing/.test(before60641)) {
+    throw new Error('unanswered 4+1: the 60000-level undergraduate course must earn nothing and say why: ' + before60641.slice(0, 220));
+  }
+  if (!(await s.evalJs(`!!document.querySelector('[data-key="standing.integratedBsMs.yes"]')`))) throw new Error('the standing card must ask about the Integrated B.S. + M.S. program');
+  await s.evalJs(`document.querySelector('[data-key="standing.integratedBsMs.yes"]').click()`);
+  await s.waitFor(`/counts toward regular courses/.test(${lineOf('CSE 60641')})`);
+  console.log('  4+1 asked; answered Yes → the senior-year 60000-level course counts');
   const after60641 = await s.evalJs(lineOf('CSE 60641'));
   console.log('  CSE 60641:', after60641.replace(/\s+/g, ' ').slice(0, 190));
   // §3.5's senior-year graduate course: saved for the graduate degree and

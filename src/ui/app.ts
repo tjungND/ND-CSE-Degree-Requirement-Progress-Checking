@@ -21,7 +21,7 @@ import { deciderTitle } from '../engine/decider.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
 import { statusMark } from './marks.ts';
-import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
+import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isNotreDameCourse, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
 import { confirmDialog, copyDialog } from './copy-dialog.ts';
@@ -338,6 +338,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             ? 'Project or thesis option set to “M.S. project” from your record (a Master’s project course or an accepted project report). Change it under Your standing if that is wrong.'
             : 'Project or thesis option set to “M.S. thesis” from your record (thesis direction, readers’ approval or a defense). Change it under Your standing if that is wrong.',
         );
+      }
+    }
+    // 4+1 read off the transcript (F7, 2026-09-12): Notre Dame coursework
+    // registered at the GRADUATE level yet dated inside the bachelor's degree
+    // is the Integrated program's signature — a regular bachelor's registers
+    // its 60000-level electives as undergraduate rows.
+    if (student.integratedBsMs === undefined && student.bachelorsAwarded !== undefined) {
+      const signature = student.courses.find(
+        (c) => isNotreDameCourse(c) && c.registeredLevel === 'graduate' && termIndex(c.term) <= termIndex(student.bachelorsAwarded!),
+      );
+      if (signature) {
+        student.integratedBsMs = true;
+        student.integratedBsMsInferred = { how: `your Notre Dame transcript, which registers ${signature.courseId} at the graduate level inside your bachelor’s degree` };
+        notices.push('Integrated B.S. + M.S. (4+1) set to “Yes” — your Notre Dame transcript registers graduate-level coursework inside your bachelor’s degree. Change it under Your standing if that is wrong.');
       }
     }
     if (student.program === 'phd') {
@@ -766,6 +780,36 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       priorNote,
     );
     if (student.program === 'phd') card.append(ndMsField);
+    // Integrated B.S. + M.S. (4+1)? Asked only when the record has Notre Dame
+    // coursework from before the entry term (DGS 2026-09-12, red-team F7):
+    // a 60000-level course taken as an undergraduate earns credit only then.
+    if (student.courses.some((c) => isNotreDameCourse(c) && isPriorNd(c, student.entryTerm))) {
+      const fourPlusOne = radios(
+        'standing.integratedBsMs',
+        [
+          ['yes', 'Yes — Integrated B.S. + M.S. (4+1)'],
+          ['no', 'No — a regular bachelor’s'],
+        ],
+        student.integratedBsMs === true ? 'yes' : student.integratedBsMs === false ? 'no' : '',
+        (value) =>
+          update((s) => {
+            s.integratedBsMs = value === 'yes';
+            s.integratedBsMsInferred = undefined; // the student decided
+          }),
+      );
+      card.append(
+        fieldset('Were you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)', fourPlusOne),
+        el(
+          'p',
+          { class: `hint ${student.integratedBsMs === undefined ? 'warn' : ''} fourplusone-note` },
+          student.integratedBsMsInferred
+            ? `Set to “Yes” from ${student.integratedBsMsInferred.how}. Change it if that is wrong.`
+            : student.integratedBsMs === undefined
+              ? 'Not answered: your 60000-level courses from before the entry term earn no credit until you answer. A 4+1’s graduate coursework counts (§3.5); a regular bachelor’s does not, though it can still satisfy §4.4.1 core knowledge and a §4.4.2 group for the Ph.D.'
+              : 'Decides whether 60000-level courses taken as an undergraduate earn MSCSE/Ph.D. credit (§3.5).',
+        ),
+      );
+    }
 
     if (student.program === 'mscse') {
       const optGroup = radios(

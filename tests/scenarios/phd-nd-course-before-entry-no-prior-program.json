@@ -1,0 +1,61 @@
+{
+  "name": "phd-nd-course-before-entry-no-prior-program",
+  "description": "Red-team F7 (2026-09-12): a Notre Dame course dated before the entry term, for a student whose standing says “No prior graduate degree” and whose record has no Notre Dame master's. Until today it was routed through §5.2 as unfinished-master's transfer credit — a row against a program the student said they never had, reachable by accident because the entry term starts out as the coming fall. Now no transfer row opens: the line says the course is dated before the entry term with no prior program on record, and what to check. §4.4.1 still sees the course.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters",
+        "registeredLevel": "graduate"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "not_applicable",
+      "detailIncludes": [
+        "No transfer courses entered"
+      ]
+    },
+    "phd.qualifier.core.os": {
+      "status": "met",
+      "detailIncludes": [
+        "CSE 60641 (Notre Dame, before entering the program)"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "0 of 24"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "not counted — dated before your entry term (Fall 2026), but your record shows no prior graduate program",
+      "check the entry term under Your standing"
+    ]
+  }
+}

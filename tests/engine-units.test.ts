@@ -530,6 +530,7 @@ describe('undergraduate Notre Dame coursework', () => {
   const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
     schemaVersion: 1,
     program: 'phd',
+    integratedBsMs: true, // a 4+1 unless a test says otherwise (DGS 2026-09-12)
     entryTerm: { season: 'fall', year: 2026 },
     bachelorsAwarded: { season: 'spring', year: 2025 },
     priorMs: 'none',
@@ -554,6 +555,16 @@ describe('undergraduate Notre Dame coursework', () => {
     assert.match(detail(s, 'phd.credits.regular'), /6 of 24/);
     assert.match(detail(s, 'phd.credits.total'), /6 of 60/);
     assert.match(detail(s, 'phd.transfer'), /No transfer courses entered/, 'this is not transfer credit');
+  });
+
+  it('a regular bachelor’s (not a 4+1) earns no credit for the same course, which still serves §4.4.1 and §4.4.2 (DGS 2026-09-12, F7)', () => {
+    const s = student([ug('CSE 60641'), ug('CSE 60111')], { integratedBsMs: undefined });
+    assert.match(lineFor(s, 'CSE 60641'), /^not counted — a 60000-level course taken as an undergraduate earns Ph\.D\. credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program; if you were, say so under Your standing; it still satisfies the Operating Systems core-knowledge requirement/);
+    assert.match(detail(s, 'phd.credits.regular'), /0 of 24/);
+    assert.match(detail(s, 'phd.qualifier.core.os'), /Satisfied by CSE 60641 \(Notre Dame, before entering the program\)/);
+    assert.match(detail(s, 'phd.qualifier.categories'), /2 qualifying courses covering 2 distinct groups/);
+    const answeredNo = student([ug('CSE 60641')], { integratedBsMs: false });
+    assert.doesNotMatch(lineFor(answeredNo, 'CSE 60641'), /say so under Your standing/, 'an answered "No" is not nagged');
   });
 
   it('below the 60000 level it draws on §4.2’s six credits; below 40000 it counts nothing', () => {

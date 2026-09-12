@@ -174,6 +174,9 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   summer entry read as the following fall.
   2026-09-12: the Courses tab's `adgs_approval` value names the reviewer per course (the parser was
   skipping those rows — the vanished 40xxx courses); the program default covers the rest.
+  2026-09-12 (sixth): F7 — only a 4+1's undergraduate 60000-level coursework earns credit
+  (`integratedBsMs`, asked/pre-filled under Your standing); a pre-entry ND course with no prior
+  program opens no §5.2 row. F8 and the wording table remain.
   2026-09-12 (fifth): the §5.2 pro-rata factors are sheet parameters (`quarter_credit_factor`,
   `trimester_credit_factor`; live rows 42–43).
   2026-09-12 (fourth): F5 (the §5.2 box shown only when it can act, the explicit-approval rule

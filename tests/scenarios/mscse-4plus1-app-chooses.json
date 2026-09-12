@@ -1,6 +1,6 @@
 {
   "name": "mscse-4plus1-app-chooses",
-  "description": "A 4+1 student's undergraduate coursework is applied by the APP, never chosen by the student (DGS 2026-09-11): “let the top two CSE 40xxx courses count towards both BS and MSCSE … When the transcript has 60xxx courses, try to save them for the graduate degree.” This record has no 40000-level course, so §3.5's six shared credits are filled from the 60000-level courses, earliest first: the two Spring 2025 / Fall 2025 courses apply to both degrees, every later one to the MSCSE only, and any countedToward value saved earlier is ignored. Each line says what the course WILL apply to.",
+  "description": "A 4+1 student's undergraduate coursework is applied by the APP, never chosen by the student (DGS 2026-09-11): “let the top two CSE 40xxx courses count towards both BS and MSCSE … When the transcript has 60xxx courses, try to save them for the graduate degree.” This record has no 40000-level course, so §3.5's six shared credits are filled from the 60000-level courses, earliest first: the two Spring 2025 / Fall 2025 courses apply to both degrees, every later one to the MSCSE only, and any countedToward value saved earlier is ignored. Each line says what the course WILL apply to. (integratedBsMs: true since 2026-09-12 — only a 4+1's undergraduate 60000-level coursework earns credit.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -105,7 +105,8 @@
         "degreeLevel": "bachelors",
         "registeredLevel": "undergraduate"
       }
-    ]
+    ],
+    "integratedBsMs": true
   },
   "expect": {
     "ms.cap.sharedbs": {

@@ -1,6 +1,6 @@
 {
   "name": "phd-ee-undergrad-noncse-cap",
-  "description": "An EE Notre Dame bachelor's straight into the Ph.D.: twelve credits of EE 60xxx taken as an undergraduate. Such coursework counts without being transfer credit (2026-09-10), but it is still “from a department other than CSE” — so it draws §4.2's nine-credit non-CSE allowance and needs the same advisor + DGS approval as a non-CSE course taken in the program (DGS 2026-09-11; until then it touched no cap and no checkbox). The fourth course is over the cap, and the line names the cap that bound.",
+  "description": "An EE Notre Dame bachelor's straight into the Ph.D.: twelve credits of EE 60xxx taken as an undergraduate. Such coursework counts without being transfer credit (2026-09-10), but it is still “from a department other than CSE” — so it draws §4.2's nine-credit non-CSE allowance and needs the same advisor + DGS approval as a non-CSE course taken in the program (DGS 2026-09-11; until then it touched no cap and no checkbox). The fourth course is over the cap, and the line names the cap that bound. (integratedBsMs: true since 2026-09-12 — a regular bachelor's undergraduate 60000-level coursework earns no credit at all; see phd-nd-bachelors-then-phd.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -77,7 +77,8 @@
         "degreeLevel": "bachelors",
         "registeredLevel": "undergraduate"
       }
-    ]
+    ],
+    "integratedBsMs": true
   },
   "expect": {
     "phd.cap.noncse": {
