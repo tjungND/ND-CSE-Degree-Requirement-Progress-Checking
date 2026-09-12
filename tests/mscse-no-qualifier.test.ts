@@ -16,7 +16,9 @@ import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
 
-const FORBIDDEN = /§4\.4(\.[123])?|core.knowledge|core area|core-area|core keyword|specialization|qualifying examination|qualifier/i;
+// Widened 2026-09-11: nothing on the MSCSE tab may cite ANY part of §4 — the
+// approvals row was citing §3.2/§4.2/§5.2 to a master's student.
+const FORBIDDEN = /§4(\.\d)*\b|core.knowledge|core area|core-area|core keyword|specialization|qualifying examination|qualifier/i;
 
 const rules = buildRules();
 const opts = { todayIso: '2027-06-01', entryTerm: 'Fall 2026', priorStudy: 'No prior graduate degree', gpa: 3.7 };

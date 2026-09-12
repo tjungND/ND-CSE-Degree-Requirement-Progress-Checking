@@ -547,6 +547,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('ND Unofficial MSCSE Transcript')`);
   console.log('  the Notre Dame row follows the program tab: MSCSE → "ND Unofficial MSCSE Transcript", Ph.D. → "ND Unofficial Ph.D. Transcript"');
 
+  // A transcript still in progress is not a bachelor's record (DGS 2026-09-11):
+  // the combined ND fixture has a "Courses in progress" block, so in this row
+  // it is refused with the message, and no preview opens.
+  await s.setFileInput('.external-file-bachelors', ndPdf);
+  await s.waitFor(`document.querySelector('[data-key="ext.error.bachelors"]')?.textContent.includes('A completed bachelor’s transcript is required')`);
+  if (await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`)) throw new Error('an in-progress undergraduate transcript must not open a preview');
+  console.log('  in-progress undergraduate transcript refused: ' + (await s.evalJs(`document.querySelector('[data-key="ext.error.bachelors"]').textContent`)).slice(0, 90));
   await s.setFileInput('.external-file-bachelors', ndUgPdf);
   await s.waitFor(`document.querySelector('.external-card .transcript-preview table tr:nth-child(2)')`);
   const ugRows = await s.evalJs(
@@ -602,8 +609,10 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   //     (DGS 2026-09-11). Asserted over the whole page, and over the preview
   //     of an external transcript — where the undergraduate notes used to say
   //     "core knowledge only" whichever degree the student was in.
-  const FORBIDDEN = /§4\.4(\.[123])?|core.knowledge|core area|core-area|core keyword|specialization|qualifying examination|qualifier/i;
-  const pageText = await s.evalJs(`document.querySelector('#app').innerText`);
+  const FORBIDDEN = /§4(\.\d)*\b|core.knowledge|core area|core-area|core keyword|specialization|qualifying examination|qualifier/i;
+  // The program tabs are the one place "Ph.D. §4" belongs on this page.
+  const tabLabels = await s.evalJs(`JSON.stringify([...document.querySelectorAll('.tabs button')].map(b => b.textContent.trim()))`);
+  const pageText = (await s.evalJs(`document.querySelector('#app').innerText`)).split('\n').filter((line) => !JSON.parse(tabLabels).includes(line.trim())).join('\n');
   const offending = pageText.split('\n').filter((line) => FORBIDDEN.test(line));
   if (offending.length > 0) throw new Error('the MSCSE tab must not mention the qualifying examination:\n  ' + offending.slice(0, 6).join('\n  '));
   console.log('  MSCSE tab: no §4.4.1 / §4.4.2 anywhere on the page (' + pageText.length + ' characters checked)');

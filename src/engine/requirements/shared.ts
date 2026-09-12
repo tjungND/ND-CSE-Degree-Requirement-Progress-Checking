@@ -138,7 +138,7 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   }
   if (planUnconfirmed) {
     parts.push(
-      'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the attestation below the milestones',
+      `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the attestation below the milestones`,
     );
   }
   if (parts.length > 0) parts.push('The attestation checkboxes record approvals you already have');
@@ -151,7 +151,8 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     informational: true,
     ...joined,
     citation: {
-      section: '§3.2/§4.2/§5.2',
+      // The degree's own section only (DGS 2026-09-11: no §4 on the MSCSE tab).
+      section: ctx.student.program === 'mscse' ? '§3.2/§5.2' : '§4.2/§5.2',
       quote: 'All courses taken by a student must have the approval of their advisor.',
     },
   };

@@ -1770,7 +1770,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         labelWrap('Grade', gradeSel),
         labelWrap('Where', originSel),
       ),
-      el('div', { class: 'row3' }, institutionField, levelField, groupField, el('button', { class: 'btn primary', 'data-key': 'course.new.add', onclick: add }, 'Add course')),
+      // The §4.4.2 group picker exists only for the Ph.D. (2026-09-11: the
+      // hidden field still put "§4.4.2" on the MSCSE page).
+      el('div', { class: 'row3' }, institutionField, levelField, student.program === 'phd' ? groupField : null, el('button', { class: 'btn primary', 'data-key': 'course.new.add', onclick: add }, 'Add course')),
     );
   }
 
@@ -2103,9 +2105,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     card.append(el('h2', { class: 'mt' }, 'Approvals you already have'));
     card.append(
       el('p', { class: 'hint' }, 'Tick only what has actually been approved — this is a self-check; the DGS decides, and the Grad Admin holds the real record.'),
-      attestation('My advisor approved my plan of study (§3.2/§4.2)', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
-      attestation('The DGS approved my course(s) below the 60000 level (§3.2/§4.2)', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
-      attestation('The DGS approved my non-CSE course(s) (§3.2/§4.2)', a.dgsApprovedNonCse, (v, s) => (s.attestations.dgsApprovedNonCse = v)),
+      attestation('My advisor approved my plan of study (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
+      attestation('The DGS approved my course(s) below the 60000 level (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
+      attestation('The DGS approved my non-CSE course(s) (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApprovedNonCse, (v, s) => (s.attestations.dgsApprovedNonCse = v)),
       attestation('My transfer credit was approved by the DGS and the Graduate School (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)),
     );
     if (student.program === 'phd') {
@@ -2240,7 +2242,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'div',
         {},
         el('strong', {}, 'This is a self-check, not an official audit. '),
-        'It applies Sections 3 and 4 of the ',
+        student.program === 'mscse' ? 'It applies Section 3 of the ' : 'It applies Section 4 of the ',
         handbookLink(),
         '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Eligibility is determined by the DGS; processing and the official record are the Grad Admin’s — confirm with them before you rely on it.',
       ),

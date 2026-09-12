@@ -182,7 +182,7 @@ describe('actionItems: the rest of the rules', () => {
       'Defend the dissertation (§4.7).',
       'Send the DGS the review request for CS 51000, CSE 60999 (with my transcripts attached).',
     ]);
-    assert.deepEqual(todo.advisor, ['Approve my plan of study (§3.2/§4.2).']);
+    assert.deepEqual(todo.advisor, ['Approve my plan of study (§4.2).']); // the degree's own section only (2026-09-11)
     assert.deepEqual(todo.dgs, [
       'Confirm the Operating Systems core-knowledge course named in the review request (§4.4.1).',
       'Decide on CS 51000 — transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2).',

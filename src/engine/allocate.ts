@@ -560,7 +560,7 @@ export function classify(student: Student, rules: Rules): {
         // then twelve credits of EE 60xxx touched no cap and no checkbox).
         const unlistedNonCse = rule === undefined && deptOf(c.courseId) !== 'CSE';
         const nonCseApproval =
-          unlistedNonCse && attestations.dgsApprovedNonCse !== true ? 'non-CSE course — needs advisor + DGS approval (§3.2/§4.2)' : undefined;
+          unlistedNonCse && attestations.dgsApprovedNonCse !== true ? `non-CSE course — needs advisor + DGS approval (${program === 'mscse' ? '§3.2' : '§4.2'})` : undefined;
         // Counted, but the DGS is asked: not in the rules sheet at all, or in
         // it with a verdict that names an approval this student has not
         // attested (2026-09-11) — "they may count, subject to all other
@@ -763,7 +763,7 @@ export function classify(student: Student, rules: Rules): {
         if (!(level >= 6)) {
           return {
             ...base,
-            ineligibleReason: 'not counted — below the 60000 level (§3.2/§4.2; DGS decision 2026-08-31)',
+            ineligibleReason: `not counted — below the 60000 level (${program === 'mscse' ? '§3.2' : '§4.2'}; DGS decision 2026-08-31)`,
           };
         }
         const attested = attestations.dgsApprovedNonCse === true;
@@ -782,7 +782,7 @@ export function classify(student: Student, rules: Rules): {
           unknown: true,
           approvalPending: attested
             ? undefined
-            : 'non-CSE course — needs advisor + DGS approval (§3.2/§4.2)',
+            : `non-CSE course — needs advisor + DGS approval (${program === 'mscse' ? '§3.2' : '§4.2'})`,
         };
       }
       // Unknown CSE course: never silently counted or rejected (CLAUDE.md).

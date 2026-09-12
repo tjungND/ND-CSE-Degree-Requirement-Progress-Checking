@@ -341,7 +341,7 @@ export function actionItems(report: AuditReport): ActionItems {
   const processingCourses: string[] = [];
   for (const part of approvals?.detailParts ?? []) {
     if (typeof part === 'string') {
-      if (/plan of study/.test(part)) out.advisor.push('Approve my plan of study (§3.2/§4.2).');
+      if (/plan of study/.test(part)) out.advisor.push(`Approve my plan of study (${report.program === 'mscse' ? '§3.2' : '§4.2'}).`);
       continue;
     }
     for (const item of part.items) {

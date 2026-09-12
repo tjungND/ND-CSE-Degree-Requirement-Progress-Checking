@@ -172,6 +172,8 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   wording fixes; and the rulings: nine regular credits at ND, §4.4.2 satisfied by any ND course,
   the transfer checkbox settling only reviewed courses, a master's project never transferring, and
   summer entry read as the following fall.
+  The Previous Undergraduate row refuses a transcript with ungraded courses (a completed bachelor's
+  is required), and nothing on the MSCSE tab cites any part of §4 (the guards forbid it).
   The transcript's own “Quarter” in a term header now sets the credit system: the preview shows it
   as a checkbox, rows carry `creditSystem`, and credits convert at 2/3 unless the DGS's
   `credit_system` cell says otherwise (DECISIONS row, twelfth).
