@@ -789,6 +789,17 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
     min !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < min
       ? ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`
       : '';
+  // §4.3: "Failure to complete all requirements for the Ph.D. degree within
+  // eight (8) years results in forfeiture of degree eligibility." The defense
+  // is the last of those requirements, so a defense dated after the limit
+  // cannot simply read "met" (red-team 2026-09-13): these two rows were plain
+  // booleans with no date logic at all, unlike every other milestone row in
+  // this file, so a dissertation defended years past the limit reported "met"
+  // — and, because the time-limit row asks only whether the other rows are
+  // met, it agreed: "All requirements are complete within the 8-year limit."
+  const years = ctx.params.number('phd_time_limit_years');
+  const limitDate = years === undefined ? undefined : addYearsIso(startOfTerm(ctx.entry).date, years);
+  const lateDefense = limitDate !== undefined && m.defensePassed !== undefined && m.defensePassed > limitDate;
   return [
     // §4.6: "Only a dissertation, which has been unanimously approved for
     // defense by the readers, may be defended."
@@ -810,9 +821,11 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       id: 'phd.dissertation.defense',
       group: DISSERTATION,
       title: 'Dissertation defense passed',
-      status: m.defensePassed ? 'met' : 'unmet',
+      status: m.defensePassed ? (lateDefense ? 'needs_dgs_review' : 'met') : 'unmet',
       detail: m.defensePassed
-        ? `Defense passed ${m.defensePassed}. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
+        ? lateDefense
+          ? `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). §4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
+          : `Defense passed ${m.defensePassed}. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
         : `Not yet: three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`,
       citation: {
         section: '§4.7',
