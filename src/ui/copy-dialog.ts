@@ -54,6 +54,28 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
   }
 }
 
+/** A mailto: link for the recipient (DGS request 2026-09-13): the default
+ * email app opens with To, Cc and Subject filled in — and the message itself
+ * when the address stays short enough for every client to take it whole.
+ * Outlook for Windows truncates a mailto: at about 2 000 characters, and a
+ * silently cut-off request is worse than a paste; above that the body is a
+ * one-line reminder that the full message is on the clipboard. Only ever
+ * built when an address is known — the advisor's is not. */
+export const MAILTO_BODY_LIMIT = 1800;
+export function mailtoHref(r: CopyRecipient, subject: string, text: string, copied: boolean): string | undefined {
+  if (!r.email) return undefined;
+  const body = encodeURIComponent(text);
+  const fallback = copied
+    ? 'The message is on my clipboard — pasting it here.\n\n'
+    : 'Pasting the message from the self-check page here.\n\n';
+  const params = [
+    ...(r.cc ? [`cc=${encodeURIComponent(r.cc.email)}`] : []),
+    `subject=${encodeURIComponent(subject)}`,
+    `body=${body.length <= MAILTO_BODY_LIMIT ? body : encodeURIComponent(fallback)}`,
+  ];
+  return `mailto:${encodeURIComponent(r.email)}?${params.join('&')}`;
+}
+
 /** Copy, then show the dialog — with the "copy it yourself" variant when the
  * clipboard was refused (the message is then focused and selected, so Cmd+C
  * works at once). */
@@ -69,7 +91,12 @@ export async function copyDialog(opts: CopyDialogOptions): Promise<void> {
 
 function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   const r = opts.recipient;
-  const ok = el('button', { class: 'btn primary', 'data-key': 'copy.ok' }, 'OK');
+  const ok = el('button', { class: 'btn', 'data-key': 'copy.ok' }, 'OK');
+  // "Open in my email app" (DGS 2026-09-13): a mailto: link styled as the
+  // primary button, so the address, the cc and the subject are never retyped.
+  const href = mailtoHref(r, opts.subject, opts.text, copied);
+  const bodyIncluded = href !== undefined && encodeURIComponent(opts.text).length <= MAILTO_BODY_LIMIT;
+  const openMail = href ? el('a', { class: 'btn primary', 'data-key': 'copy.email', href, target: '_blank', rel: 'noopener' }, 'Open in my email app') : null;
   const preview = el('textarea', { class: 'copy-preview', readonly: 'readonly', 'aria-label': 'The copied message', spellcheck: 'false' });
   (preview as HTMLTextAreaElement).value = opts.text;
   const title = copied ? `${opts.what} copied — check it before you send` : `${opts.what} — copy it yourself (the clipboard was blocked)`;
@@ -89,9 +116,13 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
     : el('p', { class: 'copy-lead blocked' }, el('strong', {}, 'The following message was NOT copied — your browser blocked the clipboard.'), ' Select it and copy it yourself: on a phone, touch and hold the message, then Select All and Copy.');
   // Numbered steps (DGS request 2026-09-06 evening): what to do now, in order.
   const recipientText = `${r.role}${r.name ? ` (${r.name})` : ''}${r.cc ? `, with the ${r.cc.role} in cc` : ''}`;
-  const first = copied
-    ? `Paste the copied message into a new email to ${recipientText}. It is on your clipboard as text and as formatted HTML — the tables keep their shape in Gmail and Outlook.`
-    : `Your browser did not allow the page to write to the clipboard: select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — then paste it into a new email to ${recipientText}.`;
+  const first = openMail
+    ? copied
+      ? `Click “Open in my email app”: a new email to ${recipientText} opens with the address${r.cc ? ', the cc' : ''} and the subject filled in${bodyIncluded ? ' and the message in it' : ''}. ${bodyIncluded ? 'If your email app shows it as plain text, paste the copied version instead — it carries formatted tables.' : 'Then paste the copied message into it — it is on your clipboard as text and as formatted HTML, so the tables keep their shape in Gmail and Outlook.'} (Or paste it into any new email yourself.)`
+      : `Click “Open in my email app”: a new email to ${recipientText} opens with the address${r.cc ? ', the cc' : ''} and the subject filled in. Your browser did not allow the page to write to the clipboard, so select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — and paste it into that email.`
+    : copied
+      ? `Paste the copied message into a new email to ${recipientText}. It is on your clipboard as text and as formatted HTML — the tables keep their shape in Gmail and Outlook.`
+      : `Your browser did not allow the page to write to the clipboard: select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — then paste it into a new email to ${recipientText}.`;
   const steps = el(
     'ol',
     { class: 'copy-steps' },
@@ -103,7 +134,7 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   const dialog = el(
     'dialog',
     { class: 'consent copy-check', 'aria-labelledby': 'copy-check-title' },
-    el('div', { class: 'consent-box copy-box' }, el('h2', { id: 'copy-check-title' }, title), to, cc, subject, lead, preview, steps, note, el('div', { class: 'save-buttons' }, ok)),
+    el('div', { class: 'consent-box copy-box' }, el('h2', { id: 'copy-check-title' }, title), to, cc, subject, lead, preview, steps, note, el('div', { class: 'save-buttons' }, openMail, ok)),
   );
   const close = (): void => {
     if (dialog.open) dialog.close();
@@ -116,7 +147,7 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   document.body.append(dialog);
   if (typeof dialog.showModal === 'function') dialog.showModal();
   else dialog.setAttribute('open', '');
-  if (copied) ok.focus();
+  if (copied) (openMail ?? ok).focus();
   else {
     preview.focus();
     (preview as HTMLTextAreaElement).select();

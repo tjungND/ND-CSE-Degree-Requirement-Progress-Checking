@@ -272,6 +272,13 @@ export async function driveApp(s, baseUrl) {
   const gaSteps = await s.evalJs(`[...document.querySelectorAll('dialog.copy-check ol.copy-steps li')].map(li => (li.querySelector('strong') ? '*' : '') + li.textContent)`);
   console.log('  Grad Admin dialog steps:', JSON.stringify(gaSteps.map((t) => t.slice(0, 70))));
   if (gaSteps.length !== 4 || !gaSteps[1].startsWith('*Attach your ORIGINAL transcripts') || !gaSteps[2].includes('cse-degree-audit-phd.json') || !/^Send it\./.test(gaSteps[3])) throw new Error('Grad Admin dialog steps: ' + JSON.stringify(gaSteps));
+  // "Open in my email app" (DGS 2026-09-13): a mailto: to the Grad Admin with
+  // the DGS in cc and the subject; the body is the message itself only while
+  // the address stays short enough for every client.
+  const gaMail = await s.evalJs(`document.querySelector('dialog.copy-check [data-key="copy.email"]')?.getAttribute('href') ?? ''`);
+  if (!/^mailto:csalmons%40nd\.edu\?cc=tjung%40nd\.edu&subject=Processing%20request/.test(gaMail)) throw new Error('the Grad Admin dialog must open the email app with To, Cc and Subject: ' + gaMail.slice(0, 120));
+  if (!/&body=/.test(gaMail)) throw new Error('the mailto must carry a body');
+  console.log('  Grad Admin dialog: "Open in my email app" → ' + decodeURIComponent(gaMail.slice(0, 80)) + '…');
   const gaLead = await s.evalJs(`document.querySelector('dialog.copy-check .copy-lead strong')?.textContent ?? ''`);
   if (!/copied to your clipboard\.$|blocked the clipboard\.$/.test(gaLead)) throw new Error('Grad Admin dialog must lead with the copied-to-clipboard line: ' + gaLead);
   const gaText = await s.evalJs(`document.querySelector('dialog.copy-check textarea').value`);

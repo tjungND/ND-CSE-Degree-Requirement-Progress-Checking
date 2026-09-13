@@ -136,6 +136,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // name and address, the subject, the message; OK closes it, focus returns.
   await s.evalJs(`document.querySelector('[data-key="review.copy"]').click()`);
   await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
+  {
+    const mail = await s.evalJs(`document.querySelector('dialog.copy-check [data-key="copy.email"]')?.getAttribute('href') ?? ''`);
+    if (!/^mailto:tjung%40nd\.edu\?subject=Course%20review%20request/.test(mail)) throw new Error('the review dialog must open the email app addressed to the DGS with the subject: ' + mail.slice(0, 100));
+    console.log('  review dialog: "Open in my email app" addressed to the DGS');
+  }
   const dlg = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const d = document.querySelector('dialog.copy-check');
     const dgs = [...document.querySelectorAll('.contact-card li')].find(li => li.textContent.startsWith('Director of Graduate Studies'));
