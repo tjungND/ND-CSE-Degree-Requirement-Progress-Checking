@@ -116,10 +116,15 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
     : el('p', { class: 'copy-lead blocked' }, el('strong', {}, 'The following message was NOT copied — your browser blocked the clipboard.'), ' Select it and copy it yourself: on a phone, touch and hold the message, then Select All and Copy.');
   // Numbered steps (DGS request 2026-09-06 evening): what to do now, in order.
   const recipientText = `${r.role}${r.name ? ` (${r.name})` : ''}${r.cc ? `, with the ${r.cc.role} in cc` : ''}`;
+  // One short step when the email app can be opened (DGS 2026-09-13: "just
+  // 'Click open in my email app'"); the paste instructions only when it
+  // cannot, or when the clipboard was blocked.
   const first = openMail
     ? copied
-      ? `Click “Open in my email app”: a new email to ${recipientText} opens with the address${r.cc ? ', the cc' : ''} and the subject filled in${bodyIncluded ? ' and the message in it' : ''}. ${bodyIncluded ? 'If your email app shows it as plain text, paste the copied version instead — it carries formatted tables.' : 'Then paste the copied message into it — it is on your clipboard as text and as formatted HTML, so the tables keep their shape in Gmail and Outlook.'} (Or paste it into any new email yourself.)`
-      : `Click “Open in my email app”: a new email to ${recipientText} opens with the address${r.cc ? ', the cc' : ''} and the subject filled in. Your browser did not allow the page to write to the clipboard, so select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — and paste it into that email.`
+      ? bodyIncluded
+        ? 'Click “Open in my email app”.'
+        : 'Click “Open in my email app”, then paste the copied message into the email.'
+      : 'Click “Open in my email app”, then select the whole message above, copy it (on a phone: touch and hold, Select All, Copy) and paste it into the email.'
     : copied
       ? `Paste the copied message into a new email to ${recipientText}. It is on your clipboard as text and as formatted HTML — the tables keep their shape in Gmail and Outlook.`
       : `Your browser did not allow the page to write to the clipboard: select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — then paste it into a new email to ${recipientText}.`;
