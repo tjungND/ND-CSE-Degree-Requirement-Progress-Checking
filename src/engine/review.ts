@@ -81,7 +81,15 @@ export function undergraduateGraduateCourseworkFlagFor(classified: readonly Clas
   );
   if (counted.length <= 2) return undefined;
   const ids = counted.map((c) => c.entry.courseId).join(', ');
-  return `${counted.length} graduate-level courses taken as an undergraduate are counted toward the ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} (${ids}). §3.5 speaks of one or two; the self-check presumes the extra ones were not used by the bachelor’s degree — the DGS should confirm that against the undergraduate record.`;
+  // Worded for the degree's decider HERE, at the one place the sentence is
+  // built (red-team 2026-09-13): the review card calls this function directly,
+  // so a sentence rewritten only on audit()'s warnings path reached an MSCSE
+  // student — on the page and in the e-mail they are told to send — still
+  // naming the DGS, who does not decide for them.
+  return decisionWording(
+    student.program,
+    `${counted.length} graduate-level courses taken as an undergraduate are counted toward the ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} (${ids}). §3.5 speaks of one or two; the self-check presumes the extra ones were not used by the bachelor’s degree — the DGS should confirm that against the undergraduate record.`,
+  );
 }
 
 export function coursesNeedingDgsReview(student: Student, rules: Rules): PendingDgsReview[] {

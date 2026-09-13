@@ -14,13 +14,28 @@ export function deciderTitle(program: Program): 'DGS' | 'ADGS' {
   return program === 'mscse' ? 'ADGS' : 'DGS';
 }
 
-/** Rewrite a student-facing sentence for the degree's decider. */
+/** Rewrite a student-facing sentence for the degree's decider.
+ *
+ * A reviewer the rules sheet named for one course (`adgs_approval` /
+ * `dgs_approval`, 2026-09-12) arrives as a token and WINS over the program's
+ * default: the sheet says who, per course. So the program-level rewrite is
+ * applied only to the text BETWEEN tokens, and each token is then unwrapped
+ * exactly as the sheet wrote it. Doing it the other way round silently
+ * defeated the override (red-team 2026-09-13): the blanket `\bDGS\b` matches
+ * INSIDE "{{DGS}}" — a brace is a word boundary — so a `dgs_approval` course
+ * on the MSCSE tab became "{{ADGS}}" before the unwrap ever ran, and every
+ * per-course reviewer collapsed to the program default. */
 export function decisionWording(program: Program, text: string): string {
-  const byProgram = program === 'mscse' ? text.replace(/\bDGS\b/g, 'ADGS') : text;
-  // A reviewer the rules sheet named for one course (`adgs_approval` /
-  // `dgs_approval`, 2026-09-12) arrives as a token and wins over the
-  // program's default: the sheet says who, per course.
-  return byProgram.replace(/\{\{(A?DGS)\}\}/g, '$1');
+  return text
+    .split(/(\{\{A?DGS\}\})/g)
+    .map((part, i) =>
+      i % 2 === 1
+        ? part.replace(/\{\{(A?DGS)\}\}/, '$1')
+        : program === 'mscse'
+          ? part.replace(/\bDGS\b/g, 'ADGS')
+          : part,
+    )
+    .join('');
 }
 
 /** Does this Courses-tab value ask for a sign-off? */
@@ -34,9 +49,16 @@ export function approverToken(counts: string | undefined): string {
   return counts === 'adgs_approval' ? '{{ADGS}}' : '{{DGS}}';
 }
 
-/** The same, over any string-bearing value (detail parts nest). */
+/** The same, over any string-bearing value (detail parts nest).
+ *
+ * Runs for EVERY program, not just the MSCSE (red-team 2026-09-13): the
+ * program gate belongs inside decisionWording, which applies the DGS→ADGS
+ * rewrite only for an MSCSE student but must always unwrap the sheet's
+ * per-course token. Returning early for a Ph.D. student left the requirement
+ * rows carrying a literal, unresolved "{{DGS}}" — braces and all — on screen,
+ * while courseLines/warnings/tracks (which call decisionWording directly) read
+ * correctly. */
 export function decisionWordingDeep<T>(program: Program, value: T): T {
-  if (program !== 'mscse') return value;
   if (typeof value === 'string') return decisionWording(program, value) as T;
   if (Array.isArray(value)) return value.map((v) => decisionWordingDeep(program, v)) as T;
   if (value && typeof value === 'object') {
