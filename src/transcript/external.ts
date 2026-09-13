@@ -9,6 +9,7 @@ import { shortenAfterFirst } from '../ui/first-mention.ts';
 import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
+import { resolveCampus } from './campus.ts';
 import { dateOnLine } from './parse.ts';
 
 export interface ExternalCourseCandidate {
@@ -46,6 +47,11 @@ export interface ExternalParseResult {
    * (2026-09-08). Weaker evidence, so the preview leaves the box editable
    * instead of locking it the way a printed name is locked. */
   universityGuessed?: true;
+  /** The printed name is a multi-campus SYSTEM (DGS 2026-09-12): the campus
+   * read from the record when it could be (`university` then holds the
+   * campus's full name), else `campusSystem` alone — the student must choose. */
+  campusSystem?: string;
+  campus?: string;
   /** POSITIVE evidence only (2026-09-03): a line that both names a graduate
    * degree and says conferred/awarded/granted. Absence stays undefined — the
    * app never guesses whether a degree was completed. */
@@ -187,6 +193,20 @@ function watermarkName(lines: string[]): string | undefined {
     .replace(/(^|[\s-])([a-zà-ÿ])/g, (m, sep: string, ch: string) => sep + ch.toUpperCase())
     .replace(/\b(Of|The|And|At|De|Da|Di|Du|Von|Van|Der|Del|La|Le)\b/g, (w) => w.toLowerCase())
     .replace(/^([a-z])/, (ch) => ch.toUpperCase());
+}
+
+/** Resolve a multi-campus system's campus (DGS 2026-09-12): the full campus
+ * name when the record says which campus, else the system name plus
+ * `campusSystem` so the preview asks. */
+function withCampus(
+  guess: { university?: string; universityGuessed?: true },
+  lines: string[],
+): { university?: string; universityGuessed?: true; campusSystem?: string; campus?: string } {
+  const r = resolveCampus(guess.university, lines);
+  if (r.system === undefined) return guess;
+  // An acronym-recovered name stays a guess even once the campus is known.
+  if (r.campus !== undefined) return { ...guess, university: r.campus.full, campusSystem: r.system.system, campus: r.campus.name };
+  return { ...guess, university: r.system.system, campusSystem: r.system.system };
 }
 
 function guessedUniversity(lines: string[]): { university?: string; universityGuessed?: true } {
@@ -705,7 +725,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     looksLikeNotreDame,
     // Spelled out for everyone who reads it (DGS 2026-09-08): the student,
     // the DGS review request and the Grad Admin processing request.
-    ...guessedUniversity(lines),
+    ...withCampus(guessedUniversity(lines), lines),
     degreeConferred,
     bachelorsConferredOn,
     ...(bachelorsNamed ? { bachelorsNamed: true as const } : {}),

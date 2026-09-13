@@ -174,6 +174,8 @@ push; the DGS pushes every commit himself. Recent commits, newest first:
   summer entry read as the following fall.
   2026-09-12: the Courses tab's `adgs_approval` value names the reviewer per course (the parser was
   skipping those rows — the vanished 40xxx courses); the program default covers the rest.
+  2026-09-12 (tenth): multi-campus systems — the campus is a required, pre-filled choice in the
+  preview (`src/transcript/campus.ts`).
   2026-09-12 (ninth): UC San Diego's tiled watermark now names the school in full (`watermarkName`).
   2026-09-12 (eighth): the wording table — everything fixed except the two §3.2 citations the DGS
   kept (handbook ambiguity, HANDBOOK-REVISIONS §7). The red-team page is closed.

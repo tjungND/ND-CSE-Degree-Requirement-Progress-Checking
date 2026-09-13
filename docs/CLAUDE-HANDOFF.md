@@ -1180,6 +1180,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   courses). The review card shows them as "Note —" lines and keeps its button active for them;
   `buildCombinedReviewRequest({ notes })` prints each as "Please also check: …" in the context.
 
+- **Multi-campus systems** (2026-09-12): `src/transcript/campus.ts` lists the systems whose bare
+  name is ambiguous; `withCampus` in the parser sets `campusSystem`/`campus`; the preview's
+  `ext.preview.campus` select is required and writes the campus's full name into `p.university`.
+  Do not add a school whose bare name means its flagship — the picker would fire on every
+  Purdue transcript.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

@@ -4,7 +4,7 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf) {
+export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf) {
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -546,6 +546,29 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   //     must be OFFERED, not dropped, and must end up in the review request
   //     rather than counted silently. The Notre Dame row is named for the
   //     program the student picked at the top.
+  // A multi-campus system (DGS 2026-09-12): the transcript prints only
+  // "UNIVERSITY OF CALIFORNIA", so the preview asks which campus, refuses
+  // to add until one is chosen, and files the courses under the campus.
+  {
+    await s.evalJs(`localStorage.clear()`);
+    await s.open(baseUrl, '.transcript-upload');
+    await s.setFileInput('.external-file-masters', ucPdf);
+    await s.waitFor(`!!document.querySelector('[data-key="ext.preview.campus"]')`);
+    const before = JSON.parse(await s.evalJs(`JSON.stringify({ uni: document.querySelector('[data-key="ext.preview.university"]').value, chosen: document.querySelector('[data-key="ext.preview.campus"]').value, note: document.querySelector('.campus-note')?.textContent ?? '', options: [...document.querySelectorAll('[data-key="ext.preview.campus"] option')].map(o => o.textContent) })`));
+    if (before.uni !== 'University of California' || before.chosen !== '') throw new Error('the system name alone must not pass as the university: ' + JSON.stringify(before));
+    if (!/names only the University of California system/.test(before.note)) throw new Error('the campus hint must say why it is asked: ' + before.note);
+    if (!before.options.includes('University of California, San Diego') || !before.options.includes('University of California, Berkeley')) throw new Error('the campus list is incomplete: ' + JSON.stringify(before.options));
+    await s.evalJs(`document.querySelector('[data-key="ext.preview.add"]').click()`);
+    await s.waitFor(`/Choose the University of California campus/.test(document.querySelector('.external-card .import-error')?.textContent ?? '')`);
+    console.log('  UC system transcript: campus required — Add refused with a reason');
+    await s.evalJs(`(() => { const sel = document.querySelector('[data-key="ext.preview.campus"]'); sel.value = 'San Diego'; sel.dispatchEvent(new Event('change')); })()`);
+    await s.waitFor(`document.querySelector('[data-key="ext.preview.university"]')?.value === 'University of California, San Diego'`);
+    await s.evalJs(`document.querySelector('[data-key="ext.preview.add"]').click()`);
+    await s.waitFor(`[...document.querySelectorAll('h3.subhead')].some(h => h.textContent.includes('University of California, San Diego'))`);
+    console.log('  campus chosen → courses filed under "University of California, San Diego"');
+    await s.shot('uc-campus-picker');
+  }
+
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`document.querySelector('[data-key="program.mscse"]').click()`);
