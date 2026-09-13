@@ -1,0 +1,29 @@
+{
+  "name": "phd-unlisted-core-title-any-level",
+  "description": "Red-team 2026-09-13: §4.4.1 puts no level rule on a core-knowledge course (\"either at Notre Dame or at their previous institution\"), but an unlisted Notre Dame course at the 50000 level or below 40000 was invisible to it — those two branches earn no credit and, in saying so, never set the `unknown` flag §4.4.1 reads to offer the DGS a title-matching course. The same title at 60000 or 40000 was offered. Credit is unchanged: both courses still count nothing.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      { "courseId": "CSE 50999", "title": "Operating Systems Foundations", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "B", "origin": "nd" },
+      { "courseId": "CSE 20999", "title": "Introduction to Algorithms", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "B", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.core.os": { "status": "needs_dgs_review", "detailIncludes": ["CSE 50999"] },
+    "phd.qualifier.core.algorithms": { "status": "needs_dgs_review", "detailIncludes": ["CSE 20999"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["0 of 24"] },
+    "phd.credits.total": { "status": "unmet", "detailIncludes": ["0 of 60"] }
+  },
+  "expectCourseLines": {
+    "CSE 50999": ["not counted", "50000-level course counts only if"],
+    "CSE 20999": ["not counted", "below the 40000 level"]
+  }
+}

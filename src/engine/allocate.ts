@@ -867,8 +867,16 @@ export function classify(student: Student, rules: Rules): {
       // the 2026-09-09 rule that lets a 50000-level course count inside §4.2's
       // six-credit cap is about a course the DGS has PERMITTED in the sheet,
       // and an unlisted one carries no such permission.
+      // `unknown` is the KNOWLEDGE-side flag, not the credit-side one (red-team
+      // 2026-09-13): §4.4.1 core knowledge reads it to offer the DGS a course
+      // whose TITLE names a core area, and §4.4.1 has no level rule at all
+      // ("either at Notre Dame or at their previous institution"). These two
+      // level branches earn no CREDIT, which is what their reason says — but
+      // they are still unlisted courses, so leaving the flag off made an
+      // unlisted CSE 50999 "Operating Systems Foundations" invisible to the
+      // core row while the same title at 60000 or 40000 was offered for review.
       if (level === 5) {
-        return { ...base, ineligibleReason: 'not counted — a 50000-level course counts only if the DGS has listed it in the course rules (§4.2)' };
+        return { ...base, unknown: true, ineligibleReason: 'not counted — a 50000-level course counts only if the DGS has listed it in the course rules (§4.2)' };
       }
       // No course below the 40000 level earns graduate credit (red-team F8,
       // DGS 2026-09-12): §3.2/§4.2 reach down only to "the 40000 level", and
@@ -876,7 +884,7 @@ export function classify(student: Student, rules: Rules): {
       // "counted provisionally". A number the pattern cannot read (NaN) is
       // still an unknown course, not a refused one.
       if (level < 4) {
-        return { ...base, ineligibleReason: `not counted — below the 40000 level; no course under 40000 earns graduate credit (${program === 'mscse' ? '§3.2' : '§4.2'})` };
+        return { ...base, unknown: true, ineligibleReason: `not counted — below the 40000 level; no course under 40000 earns graduate credit (${program === 'mscse' ? '§3.2' : '§4.2'})` };
       }
       const caps: CapId[] = level === 4 ? ['fourk'] : [];
       return {
