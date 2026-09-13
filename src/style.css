@@ -188,10 +188,14 @@ table.courses .cid { font-weight: 600; white-space: nowrap; }
 table.courses .ctitle { color: var(--muted); font-size: 12.5px; }
 table.courses .counts { color: var(--muted); font-size: 12.5px; max-width: 260px; }
 table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey); }
-/* Per-course status marks (2026-09-06): green ✓ counts, amber ● pending, red ✕ does not count —
-   a different shape per colour so the meaning survives without colour (WCAG 1.4.1). */
+/* Per-course status marks (2026-09-06; four states since 2026-09-13): green ✓ counts,
+   blue ◐ in progress, amber ● pending approval, red ✕ does not count — a different shape
+   per colour so the meaning survives without colour (WCAG 1.4.1). "In progress" and
+   "pending approval" shared the amber ● until the DGS asked for them to be told apart:
+   one is the student taking a course, the other is waiting on someone's signature. */
 .mark { display: inline-block; font-weight: 700; margin-right: 0.35em; line-height: 1; }
 .mark-counts { color: var(--ok); }
+.mark-in_progress { color: var(--info); }
 .mark-pending { color: var(--warn); }
 .mark-excluded { color: var(--bad); }
 .empty { color: var(--muted); font-style: italic; }

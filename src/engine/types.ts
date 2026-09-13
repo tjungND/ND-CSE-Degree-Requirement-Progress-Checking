@@ -290,10 +290,12 @@ export interface CourseLine {
    * sentence above names only the credit pool. `when` separates what it counts
    * toward now from what it will count toward once passed or approved. */
   counts: { id: string; title: string; long: string; when: 'now' | 'later' }[];
-  /** How the page paints the line (2026-09-06): green (earns credit or a core
-   * area now), amber (in progress, or counted only until an approval), red
-   * (earns nothing). */
-  mark: 'counts' | 'pending' | 'excluded';
+  /** How the page paints the line (2026-09-06; split four ways 2026-09-13):
+   * green (earns credit or a core area now), blue (in progress — credit once
+   * it is passed), amber (counted only until an advisor/DGS approval), red
+   * (earns nothing). "Taken", "in progress" and "pending approval" were one
+   * amber mark until the DGS asked for them to be told apart. */
+  mark: 'counts' | 'in_progress' | 'pending' | 'excluded';
 }
 
 export interface AuditReport {

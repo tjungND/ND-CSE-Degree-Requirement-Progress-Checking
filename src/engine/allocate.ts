@@ -92,10 +92,16 @@ export interface ClassifiedCourse {
 
 /** The colour of a course's line (DGS request 2026-09-06 — "pending review
  * amber, counts after review green, does not count red"): `counts` = credit
- * (or a §4.4.1 core area) is earned now; `pending` = in progress, or counted
- * only provisionally until an advisor/DGS approval; `excluded` = earns
- * nothing (over a cap, failed, ineligible, not relevant). */
-export type CourseMark = 'counts' | 'pending' | 'excluded';
+ * (or a §4.4.1 core area) is earned now; `in_progress` = taken now, credit
+ * once it is passed; `pending` = counted only provisionally until an
+ * advisor/DGS approval; `excluded` = earns nothing (over a cap, failed,
+ * ineligible, not relevant).
+ *
+ * `in_progress` and `pending` were one amber mark until 2026-09-13, when the
+ * DGS asked for the three states to be told apart: a course being TAKEN and a
+ * course waiting on someone's signature are different things to a student
+ * reading their own report, and only one of them is theirs to act on. */
+export type CourseMark = 'counts' | 'in_progress' | 'pending' | 'excluded';
 
 export interface CourseAllocation {
   course: ClassifiedCourse;
@@ -1209,6 +1215,12 @@ function bestMultiOrder(
  * count … when passed", amber; a definite credit "counts toward …", green;
  * a credit that earns nothing "not counted — …", red. The mark is what the
  * page paints; the words carry the same fact for print and copies. */
+/** The three live states a counted course can be in (DGS 2026-09-13): earned,
+ * being taken now, or waiting on an approval. They were one amber mark until
+ * then. */
+const markForTier = (tier: Tier): CourseMark =>
+  tier === 'definite' ? 'counts' : tier === 'in_progress' ? 'in_progress' : 'pending';
+
 function buildExplanation(
   cc: ClassifiedCourse,
   counted: number,
@@ -1288,13 +1300,13 @@ function buildExplanation(
         : '';
   let mark: CourseMark;
   if (spillsToTotal) {
-    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    mark = markForTier(cc.tier);
     const how = counted > 0 ? `${lead} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} and ${formatCredits(excluded)} toward the total-credit requirement only${tail}` : `${lead} toward the total-credit requirement only (${formatCredits(excluded)} cr)${tail}`;
     parts.push(`${how} — ${excludedReason ?? 'over the non-CSE cap'} — the allowance limits regular-course credit, not the total`);
     return { explanation: parts.join('; '), mark };
   }
   if (counted > 0 && excluded > 0) {
-    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    mark = markForTier(cc.tier);
     // Every conditional lead already ends in the bare "count" ("would count",
     // "will count"); only the definite lead is "counts", and the rewrite that
     // used to sit here hit exactly that one, so a passed course partly over a
@@ -1303,7 +1315,7 @@ function buildExplanation(
       `${lead} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName}${tail}; ${formatCredits(excluded)} not counted — ${excludedReason ?? ''}`,
     );
   } else if (counted > 0) {
-    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    mark = markForTier(cc.tier);
     parts.push(`${lead} toward ${poolName} (${formatCredits(counted)} cr)${tail}`);
     if (cc.conversionMissingKey !== undefined) {
       parts.push(`credits shown as your transcript prints them — cannot convert from the ${cc.convertedFrom ?? (cc.conversionMissingKey.startsWith('quarter') ? 'quarter' : 'trimester')} system: the rules sheet is missing '${cc.conversionMissingKey}' (§5.2 pro-rata); ask the DGS to add it to the Parameters tab`);
