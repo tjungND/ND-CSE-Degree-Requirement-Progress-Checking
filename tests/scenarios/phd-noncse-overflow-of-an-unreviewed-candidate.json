@@ -1,0 +1,28 @@
+{
+  "name": "phd-noncse-overflow-of-an-unreviewed-candidate",
+  "description": "Red-team 2026-09-13: F1 (2026-09-12) lets credit the non-CSE allowance refuses still count toward the 60-credit total — but that is about a SETTLED credit, not about an unreviewed §5.2 candidate whose place in the record the DGS has not ruled on yet (2026-09-06: \"every graduate course here is a candidate … until the DGS has ruled\", and the allocator \"never ranks the candidates\"). Four unreviewed 3-credit non-CSE transfer courses used to make the total read \"12 pending\" while the fourth course's own line said \"counts only if the DGS picks it\".",
+  "today": "2027-06-01",
+  "rules": { "base": "default", "patch": { "external": [] } },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2022 },
+    "priorMs": "completed",
+    "gpa": 3.5,
+    "courses": [
+      { "courseId": "MATH 60111", "title": "Analysis I", "credits": 3, "term": { "season": "fall", "year": 2023 }, "grade": "B", "origin": "transfer", "institution": "Some Other University", "degreeLevel": "masters" },
+      { "courseId": "MATH 60222", "title": "Analysis II", "credits": 3, "term": { "season": "spring", "year": 2024 }, "grade": "B", "origin": "transfer", "institution": "Some Other University", "degreeLevel": "masters" },
+      { "courseId": "MATH 60333", "title": "Topology", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "B", "origin": "transfer", "institution": "Some Other University", "degreeLevel": "masters" },
+      { "courseId": "MATH 60444", "title": "Geometry", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "B", "origin": "transfer", "institution": "Some Other University", "degreeLevel": "masters" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.credits.total": { "status": "unmet", "detailIncludes": ["9 pending"], "detailExcludes": ["12 pending"] }
+  },
+  "expectCourseLines": {
+    "MATH 60444": ["counts only if the DGS picks it"]
+  }
+}

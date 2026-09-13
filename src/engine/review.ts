@@ -25,6 +25,7 @@ import type { Rules } from '../data/types.ts';
 import { classify, type ClassifiedCourse } from './allocate.ts';
 import { decisionWording } from './decider.ts';
 import { CORE_TITLE_RE } from './core-title.ts';
+import { passesCreditFloor } from './grades.ts';
 import type { Student } from './types.ts';
 
 export interface PendingDgsReview {
@@ -39,6 +40,16 @@ export interface PendingDgsReview {
    * not), or no ExternalCourses row. A course with a row needs a decision in
    * that row, not another row. */
   unlisted: boolean;
+}
+
+/** What the "Ask the DGS to review" card's chip and its copy button both say
+ * is pending — one phrase, shared, so the two can never drift apart (2026-09-12
+ * bug: the button counted courses alone, so a review that was only a note —
+ * no pending course at all — read "Copy review request for 0 courses"
+ * instead of naming the note). */
+export function reviewRequestSummary(courseCount: number, hasNote: boolean): string {
+  if (courseCount > 0) return `${courseCount} course${courseCount === 1 ? '' : 's'}${hasNote ? ' and a note' : ''}`;
+  return 'a note';
 }
 
 /** The courses the review request asks the DGS about, in the order the
@@ -71,7 +82,15 @@ export function undergraduateGraduateCourseworkFlagFor(classified: readonly Clas
   );
   if (counted.length <= 2) return undefined;
   const ids = counted.map((c) => c.entry.courseId).join(', ');
-  return `${counted.length} graduate-level courses taken as an undergraduate are counted toward the ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} (${ids}). §3.5 speaks of one or two; the self-check presumes the extra ones were not used by the bachelor’s degree — the DGS should confirm that against the undergraduate record.`;
+  // Worded for the degree's decider HERE, at the one place the sentence is
+  // built (red-team 2026-09-13): the review card calls this function directly,
+  // so a sentence rewritten only on audit()'s warnings path reached an MSCSE
+  // student — on the page and in the e-mail they are told to send — still
+  // naming the DGS, who does not decide for them.
+  return decisionWording(
+    student.program,
+    `${counted.length} graduate-level courses taken as an undergraduate are counted toward the ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} (${ids}). §3.5 speaks of one or two; the self-check presumes the extra ones were not used by the bachelor’s degree — the DGS should confirm that against the undergraduate record.`,
+  );
 }
 
 export function coursesNeedingDgsReview(student: Student, rules: Rules): PendingDgsReview[] {
@@ -94,6 +113,14 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
     // a row that needs an approval the student has not attested
     // (dgs_approval, non-CSE, a blank verdict).
     if (c.entry.origin === 'nd') {
+      // Nothing is asked when no possible answer changes the report (DGS
+      // 2026-09-13). A passed grade below C earns no credit (Academic Code
+      // §4.3) and cannot clear §4.4.2's B floor either, so the only thing left
+      // a DGS ruling could add is a §4.4.1 core area — and only for a Ph.D.
+      // student, on a course the sheet does not list, whose title names an
+      // area. Otherwise the DGS was being asked to approve something inert.
+      const couldStillEarnACoreArea = qualifierApplies && c.unknown === true && coreTitle(c);
+      if (!passesCreditFloor(c.entry.grade) && !couldStillEarnACoreArea) continue;
       if (c.unknown === true || c.approvalPending !== undefined) {
         nd.push({
           course: c,

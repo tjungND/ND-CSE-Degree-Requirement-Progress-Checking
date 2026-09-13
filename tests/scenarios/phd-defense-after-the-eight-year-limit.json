@@ -1,0 +1,36 @@
+{
+  "name": "phd-defense-after-the-eight-year-limit",
+  "description": "Red-team 2026-09-13: §4.3 — \"Failure to complete all requirements for the Ph.D. degree within eight (8) years results in forfeiture of degree eligibility.\" A student who entered Fall 2026 and defended in January 2036 used to read \"met\" on the defense row AND \"All requirements are complete within the 8-year limit\" on the time-limit row, because the dissertation rows were plain booleans with no date logic and the time-limit row asks only whether the other rows are met. The defense now goes to the DGS, and the time-limit row follows.",
+  "today": "2036-02-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {
+      "researchQualifierPassed": "2027-11-01",
+      "candidacyPassed": "2030-04-01",
+      "dissertationApprovedForDefense": "2035-11-01",
+      "defensePassed": "2036-01-15"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.dissertation.defense": {
+      "status": "needs_dgs_review",
+      "detailIncludes": ["after the 8-year limit", "forfeiture of degree eligibility"]
+    },
+    "phd.timeLimit": {
+      "status": "unmet",
+      "detailIncludes": ["Overdue"],
+      "detailExcludes": ["All requirements are complete"]
+    }
+  }
+}

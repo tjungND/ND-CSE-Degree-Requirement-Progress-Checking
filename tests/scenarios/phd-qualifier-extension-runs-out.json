@@ -1,0 +1,20 @@
+{
+  "name": "phd-qualifier-extension-runs-out",
+  "description": "DGS 2026-09-13: a §4.4 qualifier extension is granted ONE additional semester at a time. The old boolean forgave lateness with no time bound at all, so a research qualifier years past its deadline still read \"due soon\" against the original date, forever. Entry Fall 2026 puts the 18-month mark at mid-Spring 2028; the extension runs to the end of Fall 2028; by mid-2029 the row is overdue again.",
+  "today": "2029-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [],
+    "milestones": {},
+    "attestations": { "qualifierExtensionGranted": true }
+  },
+  "expect": {
+    "phd.qualifier.research": { "status": "unmet", "detailIncludes": ["Overdue"] },
+    "phd.qualifier": { "status": "unmet", "detailIncludes": ["Overdue"] }
+  }
+}

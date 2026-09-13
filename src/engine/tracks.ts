@@ -14,6 +14,7 @@
 // note does is name the thing the page cannot decide, and send them to the one
 // person who can.
 import type { ClassifiedCourse } from './allocate.ts';
+import { isNotreDameInstitution } from '../data/external.ts';
 import { compareTerm } from './term.ts';
 import type { Student } from './types.ts';
 
@@ -72,7 +73,13 @@ export function specialTracks(student: Student, classified: ClassifiedCourse[]):
       (c) =>
         levelOf(c) >= 6 &&
         compareTerm(c.entry.term, awarded) <= 0 &&
-        (c.entry.origin === 'nd' || c.entry.institution === undefined || /notre\s*dame/i.test(c.entry.institution)),
+        // The one canonical test (red-team 2026-09-13): this used to carry its
+        // own regex AND treat a blank institution as Notre Dame, so the note
+        // promised a course "counts here in full" while the course line and the
+        // credit totals — which go through isNotreDameInstitution — said it
+        // counted nothing. A transfer row with no university named is not
+        // known to be Notre Dame, so the note stays quiet.
+        (c.entry.origin === 'nd' || isNotreDameInstitution(c.entry.institution)),
     )
   ) {
     notes.push({

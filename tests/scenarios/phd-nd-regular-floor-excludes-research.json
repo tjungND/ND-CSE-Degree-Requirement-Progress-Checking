@@ -1,0 +1,25 @@
+{
+  "name": "phd-nd-regular-floor-excludes-research",
+  "description": "The §4.2 'at least 9 credits of regular courses at Notre Dame' floor (DGS 2026-09-11) does not credit research or seminar courses, however much of either the student has: 6 ND regular credits plus 11 ND research/seminar credits still reads 6 of 9, unmet.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 63801", "credits": 1, "term": { "season": "fall", "year": 2026 }, "grade": "S", "origin": "nd" },
+      { "courseId": "CSE 63802", "credits": 1, "term": { "season": "spring", "year": 2027 }, "grade": "S", "origin": "nd" },
+      { "courseId": "CSE 98900", "credits": 9, "term": { "season": "spring", "year": 2027 }, "grade": "S", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.credits.nd": { "status": "unmet", "detailIncludes": ["6 of 9"] }
+  }
+}

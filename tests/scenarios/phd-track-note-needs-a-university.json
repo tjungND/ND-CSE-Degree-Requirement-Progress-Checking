@@ -1,0 +1,31 @@
+{
+  "name": "phd-track-note-needs-a-university",
+  "description": "Red-team 2026-09-13: the §3.5 track note used to treat a transfer row with NO university named as Notre Dame coursework, so it told the student the course \"counts here in full\" while the course line and the credit totals — which go through isNotreDameInstitution — counted nothing. The note now uses the same test the engine does, so it stays quiet on a row whose university is blank (the manual course form does not require one).",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2025 },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "integratedBsMs": true,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": { "season": "fall", "year": 2024 },
+        "grade": "A",
+        "origin": "transfer",
+        "degreeLevel": "bachelors"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expectTracks": [],
+  "expect": {
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["0 of 24"] }
+  }
+}

@@ -13,10 +13,10 @@ import { approverToken, needsCourseApproval } from './decider.ts';
 import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactorKey, creditSystemFactorLabel } from '../data/external.ts';
 import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
-import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
+import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
-import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel } from './term.ts';
+import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel, termOfDate } from './term.ts';
 import type { Attestations, CourseEntry, Grade, Program, Student } from './types.ts';
 
 export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs';
@@ -92,10 +92,16 @@ export interface ClassifiedCourse {
 
 /** The colour of a course's line (DGS request 2026-09-06 — "pending review
  * amber, counts after review green, does not count red"): `counts` = credit
- * (or a §4.4.1 core area) is earned now; `pending` = in progress, or counted
- * only provisionally until an advisor/DGS approval; `excluded` = earns
- * nothing (over a cap, failed, ineligible, not relevant). */
-export type CourseMark = 'counts' | 'pending' | 'excluded';
+ * (or a §4.4.1 core area) is earned now; `in_progress` = taken now, credit
+ * once it is passed; `pending` = counted only provisionally until an
+ * advisor/DGS approval; `excluded` = earns nothing (over a cap, failed,
+ * ineligible, not relevant).
+ *
+ * `in_progress` and `pending` were one amber mark until 2026-09-13, when the
+ * DGS asked for the three states to be told apart: a course being TAKEN and a
+ * course waiting on someone's signature are different things to a student
+ * reading their own report, and only one of them is theirs to act on. */
+export type CourseMark = 'counts' | 'in_progress' | 'pending' | 'excluded';
 
 export interface CourseAllocation {
   course: ClassifiedCourse;
@@ -238,7 +244,7 @@ function tierFor(grade: Grade, provisional: boolean): Tier {
 
 /** Classify every course. Returns classified courses in a stable order
  * (term, then course id, then input order) — the allocator's fill order. */
-export function classify(student: Student, rules: Rules): {
+export function classify(student: Student, rules: Rules, today?: string): {
   classified: ClassifiedCourse[];
   warnings: string[];
 } {
@@ -265,6 +271,32 @@ export function classify(student: Student, rules: Rules): {
     if (c.origin === 'transfer' && !(c.institution ?? '').trim()) {
       warnings.push(`${c.courseId}: no university is recorded for this course — the DGS cannot look it up without one. Edit the row and add the university.`);
     }
+    // A course dated after today with a final grade (DGS 2026-09-13: "yes, but
+    // get a warning"). It still counts as entered — the app takes the
+    // student's word for their own record — but nobody sits a course that has
+    // not happened yet, so the likeliest cause is a mistyped year.
+    if (today !== undefined && !isInProgress(c.grade) && GRADES.includes(c.grade) && compareTerm(c.term, termOfDate(today)) > 0) {
+      warnings.push(
+        `${c.courseId} is dated ${termLabel(c.term)}, which is after ${termLabel(termOfDate(today))} — it is still counted, but check the term: a final grade for a semester that has not happened yet is usually a typo.`,
+      );
+    }
+  }
+  // The same course id twice in the SAME term from different origins (DGS
+  // 2026-09-13: "yes, should get a warning"). Credit is NOT de-duplicated —
+  // ids may legitimately collide across universities (2026-08-31) — but
+  // nobody sits the same course at two institutions in one term, so this is
+  // almost always one course entered twice (an import plus a hand-added row),
+  // and every other suspect-entry path in this file says something.
+  const sameTerm = new Map<string, CourseEntry[]>();
+  for (const c of student.courses) {
+    const key = `${canonicalCourseId(c.courseId)}|${termIndex(c.term)}`;
+    sameTerm.set(key, [...(sameTerm.get(key) ?? []), c]);
+  }
+  for (const group of sameTerm.values()) {
+    if (group.length < 2 || group.every((c) => c.origin === 'nd')) continue; // all-ND duplicates: the retake rule below already says it
+    warnings.push(
+      `${group[0]!.courseId} is entered ${group.length} times for ${termLabel(group[0]!.term)}, under different origins (${[...new Set(group.map((c) => (c.origin === 'nd' ? 'Notre Dame' : (c.institution ?? 'another university'))))].join(' and ')}). Each row is counted separately — if it is one course, remove the duplicate.`,
+    );
   }
   // THE 4+1's SHARED CREDITS, chosen by the app (DGS 2026-09-11): "let the
   // top two CSE 40xxx courses count towards both BS and MSCSE. Do not let
@@ -281,13 +313,21 @@ export function classify(student: Student, rules: Rules): {
     // Only a course that can count toward the MSCSE at all is worth a share of
     // the six — a 40000-level row the sheet marks `no` would otherwise take a
     // slot from one that counts.
-    const undergrad = (c: CourseEntry) =>
-      c.origin === 'transfer' &&
-      isNotreDameInstitution(c.institution) &&
-      (c.degreeLevel === 'bachelors' || (awarded !== undefined && compareTerm(c.term, awarded) <= 0)) &&
-      GRADES.includes(c.grade) &&
-      isPassed(c.grade) &&
-      priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), 'mscse');
+    const undergrad = (c: CourseEntry) => {
+      if (c.origin !== 'transfer' || !isNotreDameInstitution(c.institution)) return false;
+      if (!(c.degreeLevel === 'bachelors' || (awarded !== undefined && compareTerm(c.term, awarded) <= 0))) return false;
+      if (!GRADES.includes(c.grade) || !passesCreditFloor(c.grade)) return false;
+      const rule = resolveRuleRow(rules, c.courseId, c.term);
+      if (!priorNdUndergraduateCanCount(c, rule, 'mscse')) return false;
+      // §3.5 (Sept-2026 revision draft): "3-credit CSE REGULAR courses at the
+      // 60000 level or higher, and count these both as undergraduate CSE
+      // electives/Tech electives and as course requirements for the MSCSE
+      // degree" — a project/research/seminar/independent-study course does
+      // not draw on the shared bachelor's-and-MSCSE credit, even if it is
+      // otherwise eligible (DGS decision 2026-09-12). An unlisted course
+      // keeps the benefit of the doubt, as elsewhere in this file.
+      return rule === undefined || rule.courseType === 'regular';
+    };
     const lvl = (c: CourseEntry) => levelOf(c, resolveRuleRow(rules, c.courseId, c.term));
     const points = (c: CourseEntry) => GRADE_POINTS[c.grade] ?? 0;
     const fourk = student.courses
@@ -330,9 +370,18 @@ export function classify(student: Student, rules: Rules): {
     if (attempts.length < 2) continue;
     const passing = attempts.filter((a) => isPassed(a.grade));
     const inProgress = attempts.filter((a) => isInProgress(a.grade));
+    const lastPassing = passing[passing.length - 1];
+    // A LIVE retake wins over a passed attempt that earns no credit — C- or D
+    // since the 2026-09-12 floor (red-team 2026-09-13). The student is sitting
+    // the course again for exactly the credit that grade cannot give, which is
+    // the same reason the next branch prefers a live retake to a failed
+    // attempt; deciding this on isPassed alone let the C- stay "the one
+    // counted" and threw the in-progress credit away with it, which also
+    // starved §4.5's candidacy-readiness gate. Between two FINAL grades the
+    // §4.4.2 rule is unchanged: the retake grade replaces, whatever it is.
     const counted =
-      passing.length > 0
-        ? passing[passing.length - 1]!
+      lastPassing !== undefined && (passesCreditFloor(lastPassing.grade) || inProgress.length === 0)
+        ? lastPassing
         : inProgress.length > 0
           ? inProgress[inProgress.length - 1]!
           : attempts[attempts.length - 1]!; // all failed → last one (earns nothing anyway)
@@ -510,6 +559,17 @@ export function classify(student: Student, rules: Rules): {
             ...extBase,
             notTransferCredit: true,
             ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} credit only for a student who was in the Integrated B.S. + M.S. (4+1) program${student.integratedBsMs === false ? '' : '; if you were, say so under Your standing'}${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules, and its §4.4.2 group` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
+          };
+        }
+        // A master's project or thesis must be earned while enrolled in the
+        // MSCSE program (§3.4: "...Masters thesis direction (CSE 68901)
+        // earned at Notre Dame"; DGS decision 2026-09-12) — a 4+1 student
+        // cannot pick it up as an undergraduate elective, mirroring the rule
+        // below against a TRANSFERRED project/thesis course.
+        if (student.program === 'mscse' && shape && !('ineligibleReason' in shape) && shape.pool === 'project') {
+          return {
+            ...extBase,
+            ineligibleReason: `not counted — a master’s project or thesis is not a regular course and must be earned while enrolled in the MSCSE program, not as an undergraduate (§3.4)${coreNote}`,
           };
         }
         // The level rules are the degree's, not the transcript's: this
@@ -723,18 +783,21 @@ export function classify(student: Student, rules: Rules): {
       // sheet row says what the course IS — regular, project, research — and
       // §4.2's level rules still apply to it.
       const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, student.program, attestations) : undefined;
-      // A master's project or thesis does not transfer into the Ph.D. (DGS
+      // A master's project or thesis does not transfer into EITHER degree (DGS
       // 2026-09-11: "Master's project is not a regular course. It cannot be
-      // transferred, so it should not count toward PhD."). Until today a prior
-      // Notre Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
+      // transferred, so it should not count toward PhD." — and §3.4's own
+      // "(CSE 68901) earned at Notre Dame", DGS decision 2026-09-12, reads the
+      // same way for the MSCSE: it must be earned in the program, not
+      // transferred in from an earlier one). Until 2026-09-11 a prior Notre
+      // Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
       // report, "counts toward the project/thesis requirement". Said before
       // the sheet's own verdict, because it holds whatever the row says.
       const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || MS_PROJECT_COURSE_IDS.includes(canonicalCourseId(c.courseId));
-      if (student.program === 'phd' && isProject) {
+      if (isProject) {
         return {
           ...extBase,
           transferable,
-          ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the Ph.D. (§5.2)${coreNote}`,
+          ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the ${student.program === 'phd' ? 'Ph.D. (§5.2)' : 'MSCSE (§3.4, §5.2)'}${coreNote}`,
         };
       }
       if (shape && 'ineligibleReason' in shape) {
@@ -845,8 +908,16 @@ export function classify(student: Student, rules: Rules): {
       // the 2026-09-09 rule that lets a 50000-level course count inside §4.2's
       // six-credit cap is about a course the DGS has PERMITTED in the sheet,
       // and an unlisted one carries no such permission.
+      // `unknown` is the KNOWLEDGE-side flag, not the credit-side one (red-team
+      // 2026-09-13): §4.4.1 core knowledge reads it to offer the DGS a course
+      // whose TITLE names a core area, and §4.4.1 has no level rule at all
+      // ("either at Notre Dame or at their previous institution"). These two
+      // level branches earn no CREDIT, which is what their reason says — but
+      // they are still unlisted courses, so leaving the flag off made an
+      // unlisted CSE 50999 "Operating Systems Foundations" invisible to the
+      // core row while the same title at 60000 or 40000 was offered for review.
       if (level === 5) {
-        return { ...base, ineligibleReason: 'not counted — a 50000-level course counts only if the DGS has listed it in the course rules (§4.2)' };
+        return { ...base, unknown: true, ineligibleReason: 'not counted — a 50000-level course counts only if the DGS has listed it in the course rules (§4.2)' };
       }
       // No course below the 40000 level earns graduate credit (red-team F8,
       // DGS 2026-09-12): §3.2/§4.2 reach down only to "the 40000 level", and
@@ -854,7 +925,7 @@ export function classify(student: Student, rules: Rules): {
       // "counted provisionally". A number the pattern cannot read (NaN) is
       // still an unknown course, not a refused one.
       if (level < 4) {
-        return { ...base, ineligibleReason: `not counted — below the 40000 level; no course under 40000 earns graduate credit (${program === 'mscse' ? '§3.2' : '§4.2'})` };
+        return { ...base, unknown: true, ineligibleReason: `not counted — below the 40000 level; no course under 40000 earns graduate credit (${program === 'mscse' ? '§3.2' : '§4.2'})` };
       }
       const caps: CapId[] = level === 4 ? ['fourk'] : [];
       return {
@@ -993,7 +1064,18 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     // research (F1, 2026-09-12 — superseding the 2026-08-31 default for this
     // one cap; the below-60000 allowance still refuses outright).
     const boundCaps = excluded > 0 ? cc.caps.filter((id) => (capRoom.get(id) ?? Infinity) <= 0) : [];
-    const spillsToTotal = excluded > 0 && !unknownCap && boundCaps.length > 0 && boundCaps.every((id) => id === 'noncse');
+    // …but an UNREVIEWED §5.2 candidate has no standing in any total yet (DGS
+    // 2026-09-06: "every graduate course here is a candidate … until the DGS
+    // has ruled", and the allocator "never ranks the candidates"). F1 is about
+    // a settled credit the allowance refuses, not about a course whose place
+    // in the record is still an open question — spilling a candidate's
+    // over-cap credits into the total made the report contradict itself
+    // (red-team 2026-09-13): the course's own line said "counts only if the
+    // DGS picks it" while the 60-credit row had already counted it as pending.
+    const unreviewedCandidate =
+      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.transferable !== 'yes';
+    const spillsToTotal =
+      excluded > 0 && !unknownCap && !unreviewedCandidate && boundCaps.length > 0 && boundCaps.every((id) => id === 'noncse');
     if (spillsToTotal) {
       sums.totalOnly[cc.tier] += excluded;
       sums.total[cc.tier] += excluded;
@@ -1047,7 +1129,10 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     // first (2026-09-11): the choice is "best grade first", and the term
     // order below would otherwise hand §3.2's six credits to a weaker course
     // taken earlier, leaving the chosen one "over the cap".
-    const inTier = classified.filter((c) => c.tier === tier && c.pool !== 'none');
+    // A passed grade below C never fills a cap or counts toward a sum
+    // (passesCreditFloor — DGS decision 2026-09-12, Academic Code §4.3): such
+    // a course still falls through to the "ineligible courses" loop below.
+    const inTier = classified.filter((c) => c.tier === tier && c.pool !== 'none' && passesCreditFloor(c.entry.grade));
     const chosen = inTier.filter((c) => c.bsShare === 'both');
     const singles = inTier.filter((c) => c.bsShare !== 'both' && c.caps.length <= 1);
     const multis = inTier.filter((c) => c.bsShare !== 'both' && c.caps.length > 1);
@@ -1072,16 +1157,23 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     }
   }
 
-  // Ineligible courses still get a line.
+  // Ineligible courses still get a line — pool === 'none', or a passed grade
+  // below the credit floor (DGS decision 2026-09-12, Academic Code §4.3): the
+  // course still satisfies §4.4.1 core knowledge via isPassed() (unaffected,
+  // read straight off ctx.classified), just no credit-hour requirement.
   for (const cc of classified) {
-    if (cc.pool !== 'none') continue;
+    if (cc.pool !== 'none' && passesCreditFloor(cc.entry.grade)) continue;
+    const belowCreditFloor = cc.pool !== 'none';
+    const reason = belowCreditFloor
+      ? 'a passed grade below C does not count toward any credit-hour requirement (Academic Code §4.3)'
+      : cc.ineligibleReason;
     allocations.set(cc, {
       course: cc,
       countedRegular: 0,
       countedOther: 0,
       excluded: cc.entry.credits,
-      excludedReason: cc.ineligibleReason,
-      ...buildExplanation(cc, 0, cc.entry.credits, cc.ineligibleReason),
+      excludedReason: reason,
+      ...buildExplanation(cc, 0, cc.entry.credits, reason),
     });
   }
 
@@ -1123,6 +1215,12 @@ function bestMultiOrder(
  * count … when passed", amber; a definite credit "counts toward …", green;
  * a credit that earns nothing "not counted — …", red. The mark is what the
  * page paints; the words carry the same fact for print and copies. */
+/** The three live states a counted course can be in (DGS 2026-09-13): earned,
+ * being taken now, or waiting on an approval. They were one amber mark until
+ * then. */
+const markForTier = (tier: Tier): CourseMark =>
+  tier === 'definite' ? 'counts' : tier === 'in_progress' ? 'in_progress' : 'pending';
+
 function buildExplanation(
   cc: ClassifiedCourse,
   counted: number,
@@ -1202,13 +1300,13 @@ function buildExplanation(
         : '';
   let mark: CourseMark;
   if (spillsToTotal) {
-    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    mark = markForTier(cc.tier);
     const how = counted > 0 ? `${lead} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} and ${formatCredits(excluded)} toward the total-credit requirement only${tail}` : `${lead} toward the total-credit requirement only (${formatCredits(excluded)} cr)${tail}`;
     parts.push(`${how} — ${excludedReason ?? 'over the non-CSE cap'} — the allowance limits regular-course credit, not the total`);
     return { explanation: parts.join('; '), mark };
   }
   if (counted > 0 && excluded > 0) {
-    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    mark = markForTier(cc.tier);
     // Every conditional lead already ends in the bare "count" ("would count",
     // "will count"); only the definite lead is "counts", and the rewrite that
     // used to sit here hit exactly that one, so a passed course partly over a
@@ -1217,7 +1315,7 @@ function buildExplanation(
       `${lead} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName}${tail}; ${formatCredits(excluded)} not counted — ${excludedReason ?? ''}`,
     );
   } else if (counted > 0) {
-    mark = cc.tier === 'definite' ? 'counts' : 'pending';
+    mark = markForTier(cc.tier);
     parts.push(`${lead} toward ${poolName} (${formatCredits(counted)} cr)${tail}`);
     if (cc.conversionMissingKey !== undefined) {
       parts.push(`credits shown as your transcript prints them — cannot convert from the ${cc.convertedFrom ?? (cc.conversionMissingKey.startsWith('quarter') ? 'quarter' : 'trimester')} system: the rules sheet is missing '${cc.conversionMissingKey}' (§5.2 pro-rata); ask the DGS to add it to the Parameters tab`);

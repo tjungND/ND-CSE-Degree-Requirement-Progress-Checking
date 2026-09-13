@@ -135,12 +135,17 @@ export function capRow(args: {
   );
   const excludedLines = args.ctx.alloc.perCourse
     .filter((p) => p.course.caps.includes(args.capId) && (p.excluded > 0 || (p.overCapToTotal ?? 0) > 0))
+    // Every number a student reads goes through formatCredits (credits.ts:
+    // "never scientific notation, never '2.6666666666666665'"). These three
+    // were raw (red-team 2026-09-13): one ordinary quarter-system transfer
+    // course, converted by the sheet's own pro-rata factor, printed
+    // "2.666666668 of the 9 non-CSE cap credits used".
     .map((p) =>
       p.excluded > 0
-        ? `${p.course.entry.courseId}: ${p.excluded} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — over the cap`
+        ? `${p.course.entry.courseId}: ${formatCredits(p.excluded)} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — over the cap`
         : // The non-CSE allowance limits regular-course credit only (F1,
           // 2026-09-12): what it refuses still counts toward the total.
-          `${p.course.entry.courseId}: ${p.overCapToTotal} ${p.overCapToTotal === 1 ? 'credit' : 'credits'} over the cap — count toward the total-credit requirement only`,
+          `${p.course.entry.courseId}: ${formatCredits(p.overCapToTotal ?? 0)} ${p.overCapToTotal === 1 ? 'credit' : 'credits'} over the cap — count toward the total-credit requirement only`,
     );
 
   let status: Status;
@@ -154,7 +159,7 @@ export function capRow(args: {
   } else {
     const pending = relevant.filter((c) => c.approvalPending);
     status = args.approvalDriven && pending.length > 0 ? 'needs_dgs_review' : 'met';
-    parts.push(`${usage.used} of the ${usage.limit} ${args.capLabel} used`);
+    parts.push(`${formatCredits(usage.used)} of the ${formatCredits(usage.limit)} ${args.capLabel} used`);
     if (pending.length > 0) {
       parts.push(`needs approval: ${pending.map((c) => c.entry.courseId).join(', ')}`);
     }

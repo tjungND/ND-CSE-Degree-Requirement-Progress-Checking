@@ -1,0 +1,27 @@
+{
+  "name": "mscse-noncse-below-60000",
+  "description": "An MSCSE student's non-CSE courses below the 60000 level count nothing, whatever the exact level: a 40000-level one under its own message, a 50000-level one under §3.2's floor (DGS decision 2026-08-31) — the same level rules the Ph.D. side already had a fixture for (phd-4xxxx-overuse.json), now pinned for the MSCSE too.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      { "courseId": "PSY 45210", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "MATH 55110", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24"] }
+  },
+  "expectCourseLines": {
+    "PSY 45210": ["not counted", "non-CSE 40000-level"],
+    "MATH 55110": ["not counted", "below the 60000 level"]
+  }
+}

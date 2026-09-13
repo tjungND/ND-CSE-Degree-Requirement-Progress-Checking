@@ -1,5 +1,11 @@
-// Grade scale and floors. DGS decisions 2026-08-31: only passed courses earn
-// credit (pass = any non-failing final grade: A…D or S; F/U/IP earn nothing yet);
+// Grade scale and floors. DGS decision 2026-08-31: only passed courses earn
+// credit at all (pass = any non-failing final grade: A…D or S; F/U/IP earn
+// nothing yet). DGS decision 2026-09-12, reading the Grad School Academic
+// Code §4.3 ("Grades of C- and D ... will not be accepted for completion of
+// graduate degree requirements, specific required coursework, and/or total
+// credit hours"): a passed grade below C still satisfies §4.4.1's "passed"
+// wording (core knowledge), but no longer counts toward any credit-hour
+// requirement — see passesCreditFloor() below.
 // S satisfies the §4.4.2 "B or higher" floor (S/U courses have no letter grade).
 import type { Grade } from './types.ts';
 
@@ -37,4 +43,13 @@ export function meetsGradeFloor(grade: Grade, floor: Grade): boolean {
   const need = GRADE_POINTS[floor];
   if (got === undefined || need === undefined) return false;
   return got >= need;
+}
+
+/** Does `grade` clear the credit-hour floor (DGS decision 2026-09-12, Academic
+ * Code §4.3) — stricter than merely passing: C- and D no longer count toward
+ * any credit-hour requirement. An in-progress grade is not yet final, so it is
+ * never excluded by this floor — whether it will count is decided once it is
+ * graded. */
+export function passesCreditFloor(grade: Grade): boolean {
+  return isInProgress(grade) || meetsGradeFloor(grade, 'C');
 }

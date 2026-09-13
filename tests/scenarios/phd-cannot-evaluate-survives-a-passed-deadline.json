@@ -1,0 +1,28 @@
+{
+  "name": "phd-cannot-evaluate-survives-a-passed-deadline",
+  "description": "Red-team 2026-09-13: a blank rules-sheet cell is not a missed deadline. This student passed all three core areas and the research qualifier and has the nine ND regular credits — the ONLY thing unresolved is that `category_courses_required` is missing from the Parameters tab, so §4.4.2 cannot be evaluated. Both deadline overrides used to bulldoze that into \"unmet — Overdue, talk to the DGS\" (and, on the time-limit row, into an alarming \"the 8-year limit passed\" forfeiture message for a student who had in fact finished). CLAUDE.md: a missing parameter renders \"cannot evaluate\", never a default.",
+  "today": "2026-09-13",
+  "rules": {
+    "base": "default",
+    "patch": { "parameters": { "category_courses_required": null } }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2016 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2016 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "spring", "year": 2017 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2017 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": { "researchQualifierPassed": "2018-01-15" },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.categories": { "status": "cannot_evaluate", "detailIncludes": ["category_courses_required"] },
+    "phd.qualifier": { "status": "cannot_evaluate", "detailIncludes": ["cannot be evaluated until the rules sheet is complete"], "detailExcludes": ["Overdue — talk to the DGS"] },
+    "phd.timeLimit": { "status": "cannot_evaluate", "detailIncludes": ["cannot be evaluated until the rules sheet is complete"], "detailExcludes": ["Overdue"] }
+  }
+}

@@ -4,7 +4,7 @@ import { formatCredits } from '../credits.ts';
 import { resolveRuleRow } from '../../data/assemble.ts';
 import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
-import { isInProgress, isPassed, meetsGradeFloor } from '../grades.ts';
+import { isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
 import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus } from '../status.ts';
@@ -15,6 +15,7 @@ import {
   deadlineTerm,
   deadlineTermLabel,
   dueTermPhrase,
+  endOfNextSemester,
   endOfTerm,
   maxConsecutiveFullTime,
   nthSemester,
@@ -150,6 +151,18 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       section: '§4.2',
       quote:
         'Regardless of any credits transferred, all Ph.D. students must take at least nine (9) credits at Notre Dame in order to satisfy the qualifying examination described in section 4.4.',
+      // Notre Dame coursework from BEFORE this program — a 4+1's undergraduate
+      // 60000-level courses, or an earlier Notre Dame degree — counts toward
+      // the 60 and the 24 but not toward these nine (DGS 2026-09-13: "it does
+      // not count towards the nine new credits that need to be earned at Notre
+      // Dame during the degree program"). Said out loud only when the student
+      // actually has such coursework, so a shortfall does not read as a
+      // data-entry problem they could fix.
+      extraDetail: ctx.classified.some(
+        (c) => c.entry.origin === 'transfer' && isNotreDameInstitution(c.entry.institution) && c.pool === 'regular' && c.ineligibleReason === undefined,
+      )
+        ? ['Notre Dame coursework from before this program — a 4+1’s undergraduate courses, or an earlier Notre Dame degree — counts toward the 60 and the 24, but not here: these nine are the credits earned in the Ph.D. itself (DGS 2026-09-13)']
+        : undefined,
     }),
   );
 
@@ -190,7 +203,10 @@ function seminarRow(ctx: Ctx): RequirementResult {
   } else {
     const states = wanted.map((id) => {
       const entries = ctx.classified.filter((c) => !c.superseded && c.entry.courseId === id);
-      const passed = entries.some((c) => isPassed(c.entry.grade));
+      // §4.2 names this a credit requirement (2 credits), so a passed grade
+      // below C does not satisfy it either (Academic Code §4.3, DGS decision
+      // 2026-09-12) — unlike §4.4.1 core knowledge, which only asks "passed".
+      const passed = entries.some((c) => passesCreditFloor(c.entry.grade) && isPassed(c.entry.grade));
       const ip = entries.some((c) => isInProgress(c.entry.grade));
       if (passed) satisfied.push(id);
       parts.push(`${id}: ${passed ? 'done' : ip ? 'in progress' : 'not yet'}`);
@@ -256,7 +272,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
 
 /** §4.3: "Failure to complete all requirements for the Ph.D. degree within
  * eight (8) years results in forfeiture of degree eligibility." */
-export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResult {
+export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the Ph.D. degree within eight (8) years results in forfeiture of degree eligibility.';
   const years = ctx.params.number('phd_time_limit_years');
@@ -270,10 +286,17 @@ export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementRes
     // Shown as a semester, never a date (DGS request 2026-09-05): eight years
     // from the entry term's start is the start of a term.
     const date = addYearsIso(startOfTerm(ctx.entry).date, years);
-    if (othersAllMet) {
+    if (others.allMet) {
       status = 'met';
       detail = `All requirements are complete within the ${years}-year limit.`;
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
+    } else if (ctx.today > date && others.anyCannotEvaluate) {
+      // A missing rules-sheet value is not a missed deadline (red-team
+      // 2026-09-13): a student who has finished everything used to read
+      // "Overdue — forfeiture" because one unrelated parameter was blank.
+      status = 'cannot_evaluate';
+      detail = `The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value.`;
+      deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date) {
       status = 'unmet';
       detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
@@ -314,23 +337,41 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
   } else {
     const term = nthSemester(ctx.entry, semesters);
     const date = endOfTerm(term).date;
+    // §4.4's extension is ONE additional semester (DGS 2026-09-13) — the term
+    // after the four, not an open-ended waiver. Once that semester is over the
+    // row goes overdue like any other.
+    const extendedTerm = ctx.student.attestations.qualifierExtensionGranted ? nthSemester(ctx.entry, semesters + 1) : undefined;
+    const effectiveDate = extendedTerm ? endOfTerm(extendedTerm).date : date;
     if (status === 'met') {
-      deadline = { date, approx: true, state: 'done', label: 'Complete' };
+      deadline = { date: effectiveDate, approx: true, state: 'done', label: 'Complete' };
       if (!ctx.student.milestones.qualifierFormFiled) {
         parts.push('Remember to file the qualifier completion form with the Grad Admin (§4.4)');
       }
-    } else if (ctx.today > date && !ctx.student.attestations.qualifierExtensionGranted) {
+    } else if (ctx.today > effectiveDate) {
       // Decision Q17b: a deadline past with the work incomplete is unmet, even
       // when a component is still in progress (matching deadlineStatus()).
-      status = 'unmet';
-      // The deadline chip carries the when (2026-09-03).
-      parts.push(`Overdue — talk to the DGS`);
-      deadline = { date, approx: true, state: 'overdue', label: `Overdue — was due by the end of ${termLabel(term)} (approximate)` };
-    } else if (ctx.today > date) {
-      // Past the four semesters, with the DGS's extension recorded (2026-09-11):
-      // the chip said "Due by … — upcoming" for a date already gone.
-      deadline = { date, approx: true, state: 'upcoming', label: `Was due by the end of ${termLabel(term)} — extended by the DGS` };
-      parts.push('Deadline extended by the DGS — confirm the new date with the DGS');
+      // A deadline cannot make a MISSING PARAMETER into a missed requirement,
+      // though (red-team 2026-09-13): "cannot evaluate" survives the override,
+      // so a blank rules-sheet cell never reads as "overdue — forfeiture".
+      const overdueLabel = extendedTerm
+        ? `Overdue — the DGS’s one-semester extension ran out at the end of ${termLabel(extendedTerm)} (approximate)`
+        : `Overdue — was due by the end of ${termLabel(term)} (approximate)`;
+      if (status === 'cannot_evaluate') {
+        parts.push(`The deadline (${extendedTerm ? `the DGS’s extension, the end of ${termLabel(extendedTerm)}` : `the end of ${termLabel(term)}`}) has passed, but a component above cannot be evaluated until the rules sheet is complete — so this row cannot be judged either`);
+      } else {
+        status = 'unmet';
+        // The deadline chip carries the when (2026-09-03).
+        parts.push(`Overdue — talk to the DGS`);
+      }
+      deadline = { date: effectiveDate, approx: true, state: 'overdue', label: overdueLabel };
+    } else if (extendedTerm) {
+      deadline = {
+        date: effectiveDate,
+        approx: true,
+        state: 'upcoming',
+        label: `Due by the end of ${termLabel(extendedTerm)} — the DGS’s one-semester extension (approximate)`,
+      };
+      parts.push(`Deadline extended by one semester by the DGS — now the end of ${termLabel(extendedTerm)}; a further extension is the DGS’s to grant`);
     } else {
       deadline = { date, approx: true, state: 'upcoming', label: `Due by the end of ${termLabel(term)} (approximate)` };
     }
@@ -653,6 +694,9 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     };
   }
   const date = addMonthsIso(startOfTerm(ctx.entry).date, months);
+  // §4.4's extension is one additional semester (DGS 2026-09-13) — here, the
+  // end of the term after the one the 18-month mark falls in.
+  const extendedDate = ctx.student.attestations.qualifierExtensionGranted ? endOfNextSemester(date) : undefined;
   const r = deadlineStatus({
     doneOn: ctx.student.milestones.researchQualifierPassed,
     deadline: { date, approx: true },
@@ -660,11 +704,14 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     // A semester, not a date (DGS request 2026-09-05): 18 months after a fall
     // entry lands in the middle of the second spring — "mid-Spring 2028".
     deadlineLabel: `${deadlineTerm(date).when === 'during' ? `mid-${termLabel(deadlineTerm(date).term)}` : deadlineTermLabel(date)} — ${months} months after entry`,
-    extensionGranted: ctx.student.attestations.qualifierExtensionGranted,
+    extension: extendedDate ? { date: extendedDate, label: deadlineTermLabel(extendedDate) } : undefined,
   });
   const detail =
     r.status === 'met'
-      ? `Research qualifier passed ${ctx.student.milestones.researchQualifierPassed}.`
+      ? // A pass inside the DGS's extension is met, and says so: the record
+        // keeps how late it was rather than reading like an on-time pass
+        // (DGS 2026-09-13).
+        `Research qualifier passed ${ctx.student.milestones.researchQualifierPassed}${r.lateNote ? ` — ${r.lateNote}` : ''}.`
       : r.status === 'needs_dgs_review'
         ? `Passed ${ctx.student.milestones.researchQualifierPassed}, ${r.lateNote}.`
         : r.status === 'unmet'
@@ -754,6 +801,17 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
     min !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < min
       ? ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`
       : '';
+  // §4.3: "Failure to complete all requirements for the Ph.D. degree within
+  // eight (8) years results in forfeiture of degree eligibility." The defense
+  // is the last of those requirements, so a defense dated after the limit
+  // cannot simply read "met" (red-team 2026-09-13): these two rows were plain
+  // booleans with no date logic at all, unlike every other milestone row in
+  // this file, so a dissertation defended years past the limit reported "met"
+  // — and, because the time-limit row asks only whether the other rows are
+  // met, it agreed: "All requirements are complete within the 8-year limit."
+  const years = ctx.params.number('phd_time_limit_years');
+  const limitDate = years === undefined ? undefined : addYearsIso(startOfTerm(ctx.entry).date, years);
+  const lateDefense = limitDate !== undefined && m.defensePassed !== undefined && m.defensePassed > limitDate;
   return [
     // §4.6: "Only a dissertation, which has been unanimously approved for
     // defense by the readers, may be defended."
@@ -775,9 +833,11 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       id: 'phd.dissertation.defense',
       group: DISSERTATION,
       title: 'Dissertation defense passed',
-      status: m.defensePassed ? 'met' : 'unmet',
+      status: m.defensePassed ? (lateDefense ? 'needs_dgs_review' : 'met') : 'unmet',
       detail: m.defensePassed
-        ? `Defense passed ${m.defensePassed}. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
+        ? lateDefense
+          ? `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). §4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
+          : `Defense passed ${m.defensePassed}. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
         : `Not yet: three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`,
       citation: {
         section: '§4.7',

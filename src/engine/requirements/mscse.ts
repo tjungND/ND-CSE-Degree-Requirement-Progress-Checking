@@ -194,7 +194,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
 
 /** §3.3: "Failure to complete all requirements for the M.S. degree within
  * 5 years results in forfeiture of degree eligibility." */
-export function msTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResult {
+export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the M.S. degree within 5 years results in forfeiture of degree eligibility.';
   const years = ctx.params.number('ms_time_limit_years');
@@ -206,10 +206,16 @@ export function msTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResu
     detail = missingParamDetail('ms_time_limit_years');
   } else {
     const date = addYearsIso(startOfTerm(ctx.entry).date, years);
-    if (othersAllMet) {
+    if (others.allMet) {
       status = 'met';
       detail = `All requirements are complete within the ${years}-year limit.`;
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
+    } else if (ctx.today > date && others.anyCannotEvaluate) {
+      // A missing rules-sheet value is not a missed deadline (red-team
+      // 2026-09-13) — the Ph.D. row carries the same guard.
+      status = 'cannot_evaluate';
+      detail = `The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value.`;
+      deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date) {
       status = 'unmet';
       detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;

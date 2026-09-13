@@ -1,0 +1,33 @@
+{
+  "name": "mscse-thesis-does-not-transfer",
+  "description": "§3.4 (Sept-2026 revision draft): 'Masters thesis direction (CSE 68901) earned at Notre Dame' — a CSE 68902 credit carried over from an earlier, unfinished Notre Dame enrollment is a master's project/thesis credit and does not transfer into a fresh MSCSE (DGS decision 2026-09-12, mirroring the existing Ph.D. rule). Only the 3 credits of CSE 68901 registered fresh, in this program, count toward §3.4's six.",
+  "today": "2027-12-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2023 },
+    "priorMs": "unfinished",
+    "gpa": 3.4,
+    "courses": [
+      {
+        "courseId": "CSE 68902",
+        "credits": 3,
+        "term": { "season": "fall", "year": 2024 },
+        "grade": "S",
+        "origin": "transfer",
+        "institution": "University of Notre Dame"
+      },
+      { "courseId": "CSE 68901", "credits": 3, "term": { "season": "fall", "year": 2027 }, "grade": "S", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.project": { "status": "unmet", "detailIncludes": ["3 of 6"] }
+  },
+  "expectCourseLines": {
+    "CSE 68902": ["not counted", "does not transfer into the MSCSE"]
+  }
+}

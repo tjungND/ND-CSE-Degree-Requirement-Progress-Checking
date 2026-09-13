@@ -1,8 +1,60 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-11 (the first Claude Code Desktop session on the DGS's Mac, still running,
-branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at ~15:00 UTC —
-see "Session protocol" in `CLAUDE.md`).
+Last updated: 2026-09-13 (this session, branch `claude/degree-logic-review-ce45ab`, still running;
+the first Claude Code Desktop session's branch `claude/setup-handoff-review-c38220` — see 2026-09-11
+below — has since merged).
+
+2026-09-13: a red-team pass over the engine, weighted to the Ph.D. side at the DGS's request. Forty
+agents ran 108 invented Ph.D. scenarios through the real engine (not code-reading — every finding was
+reproduced by executing `audit()`), then re-checked each other adversarially; a completeness critic
+opened a second round on four gaps it could ground in the code. Thirteen confirmed bugs and eight
+open questions came out; the DGS ruled on all eight (DECISIONS rows of this date) and everything is
+fixed. The bugs, by area: **institution matching** — `isNotreDameInstitution` refused any hyphenated
+spelling ("Notre-Dame"), silently zeroing a 4+1's credit and dropping their coursework out of the
+review request, and two ad hoc copies of the same regex (transfer.ts, tracks.ts) drifted from it, one
+of them also reading a BLANK university as Notre Dame so the §3.5 note promised credit the report did
+not give; **ADGS/DGS wording** — literal `{{DGS}}` braces reached a Ph.D. student's screen, the
+blanket rewrite defeated the per-course override the sheet is meant to carry, and the F8 §3.5 note
+said "DGS" to MSCSE students on the page and in the e-mail they send; **§4.4.1** — an unlisted course
+at the 50000 level or below 40000 was invisible to core knowledge, because two credit-side branches
+never set the flag the knowledge side reads; **deadlines** — a granted extension had no time bound
+(now one semester, the DGS's ruling), a dissertation defended years past the 8-year limit read "met"
+on both its own row and the time-limit row, and a blank rules-sheet cell plus a passed deadline
+produced "Overdue — forfeiture" for a student who had finished everything; **credit** — an unreviewed
+§5.2 candidate's over-cap credits inflated the 60-credit total against that course's own line, cap
+rows printed raw floating-point ("2.666666668 of the 9"), and a C- beat its own live retake in the
+§4.4.2 tie-break, throwing the in-progress credit away. The DGS's eight rulings added: warnings for a
+cross-origin same-term duplicate and for a future-dated final grade; a review request that stops
+asking about courses no ruling can change; the one-semester extension; the confirmation that a 4+1's
+pre-entry ND coursework does NOT count toward §4.2's nine credits "earned at Notre Dame during the
+degree program" (the nine-credit row now says so); and four-way course marks — green ✓ counts, blue ◐
+in progress, amber ● pending approval, red ✕ does not count.
+
+2026-09-12: a deep-review session, asked to check the engine against the documents in the DGS's
+separate rules folder (outside the repo) — a September revision draft of the CSE handbook, the
+Grad School's Academic Code, the DGS Handbook, and the 4+1 guidance memo. None of the four is
+promoted into docs/ yet; docs/CSE-Graduate-Handbook-July2026.pdf stays the coded-against source of
+truth (**remind the DGS, next time he says the handbook has been revised, that this still needs a
+docs/DECISIONS.md / docs/HANDBOOK-REVISIONS.md entry and the PDF swapped in**). A 20-agent workflow
+diffed the two handbooks line by line and extracted the other two documents, then paired a
+code-mapping check against every finding with an independent adversarial re-check before reporting.
+Three findings, all approved and shipped (`6477ca0`): the Academic Code §4.3 grade floor (a passed
+grade below C no longer counts toward any credit-hour requirement, though it still satisfies §4.4.1
+core knowledge — `grades.ts:passesCreditFloor()`); §3.4's new "…earned at Notre Dame" (a master's
+project/thesis now fails to transfer into the MSCSE the same way it already failed to transfer into
+the Ph.D., on both the ordinary §5.2 path and a 4+1's asUndergraduate path); and §3.5's new "…CSE
+REGULAR courses…" (the bachelor's-and-MSCSE shared-credit selection now requires
+`courseType === 'regular'`). A fourth finding — §4.5/§4.7's "second failure results in forfeiture of
+degree eligibility," untracked by the engine — is recorded as explicitly deferred: candidacy and
+defense outcomes are handled outside the app. Six new test fixtures, one edited assertion.
+Also fixed (`0a15566`), flagged by the DGS mid-session from a separate red-team report: the "Ask the
+DGS to review" card's copy button read "Copy review request for 0 courses" when the only pending
+item was F8's plain-language note (no course line at all) — the button and the header chip now share
+one phrase (`review.ts:reviewRequestSummary()`).
+
+Last updated before this: 2026-09-11 (the first Claude Code Desktop session on the DGS's Mac, still
+running, branch `claude/setup-handoff-review-c38220`; the Cowork session that ran Sep 4–6 ended at
+~15:00 UTC — see "Session protocol" in `CLAUDE.md`).
 
 ## Answered by the Graduate School (2026-09-10, evening) — closed
 
@@ -25,10 +77,11 @@ holds a Notre Dame master's. Nothing counts until they answer.
 ## Deployed
 
 `origin/main` on GitHub deploys to https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
-(self-check) and `/courses.html` (course rules). Everything below `58044dc` is live or awaiting the DGS's
-push; the DGS pushes every commit himself. Recent commits, newest first:
+(self-check) and `/courses.html` (course rules). Everything described below is merged and live as of
+`fb77d20` (2026-09-13); the DGS pushes every commit himself, so a branch named here is history, not a
+queue. Recent commits, newest first:
 
-- branch `claude/setup-handoff-review-c38220` (this session, awaiting the DGS's merge-and-push):
+- branch `claude/setup-handoff-review-c38220` (merged):
   Safari's engine in the e2e run — `E2E_BROWSER=webkit npm run e2e` (Playwright's WebKit build, the
   same four drivers, screenshots in `.e2e-out/webkit/`); the one-line preview rows keyed on the
   recorded 560 px (they were keyed on 600 px, so 1100 px windows showed two-line rows);

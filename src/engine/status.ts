@@ -56,49 +56,74 @@ export function combineAll(children: Status[]): Status {
 
 /** Milestone-with-deadline semantics (decisions Q17b, Q22):
  *  done before the deadline → met; done after → needs DGS review;
- *  not done, deadline ahead → in progress; not done, deadline past → unmet. */
+ *  not done, deadline ahead → in progress; not done, deadline past → unmet.
+ *
+ * An extension the DGS granted under §4.4 ("the DGS may extend the deadline on
+ * a case-by-case basis") is ONE ADDITIONAL SEMESTER (DGS 2026-09-13), passed
+ * in as the extended deadline itself rather than as a bare "forgive it" flag.
+ * The old boolean had no time bound at all: a research qualifier five years
+ * past its deadline still read "due soon" against the original date, forever,
+ * and a pass years late was indistinguishable from one two weeks late. Every
+ * comparison below is against the extended date when there is one, so the
+ * extension runs out on schedule and the wording keeps the trace. */
 export function deadlineStatus(args: {
   doneOn?: string; // ISO date the milestone happened, if it did
   deadline: { date: string; approx: boolean };
   today: string;
   deadlineLabel: string; // human phrase, e.g. "the end of Spring 2030" — a semester, never a date (2026-09-05)
-  extensionGranted?: boolean; // §4.4 "the DGS may extend the deadline"
+  extension?: { date: string; label: string };
   dueSoonDays?: number;
 }): { status: Status; deadline: DeadlineInfo; lateNote?: string } {
-  const { doneOn, deadline, today, deadlineLabel, extensionGranted } = args;
+  const { doneOn, deadline, today, deadlineLabel, extension } = args;
   const approxSuffix = deadline.approx ? ' (approximate)' : '';
+  const effectiveDate = extension?.date ?? deadline.date;
   if (doneOn) {
-    if (doneOn <= deadline.date || extensionGranted) {
+    if (doneOn <= deadline.date) {
       return {
         status: 'met',
         deadline: { ...deadline, state: 'done', label: `Done ${doneOn}` },
       };
     }
+    if (extension && doneOn <= extension.date) {
+      return {
+        status: 'met',
+        deadline: { ...deadline, state: 'done', label: `Done ${doneOn} — within the DGS’s one-semester extension` },
+        lateNote: `completed after ${deadlineLabel}${approxSuffix}, within the one-semester extension the DGS granted (${extension.label})`,
+      };
+    }
     return {
       status: 'needs_dgs_review',
-      deadline: { ...deadline, state: 'done', label: `Done ${doneOn} — after ${deadlineLabel}` },
-      lateNote: `completed after ${deadlineLabel}${approxSuffix} — confirm the DGS extended the deadline`,
+      deadline: { ...deadline, state: 'done', label: `Done ${doneOn} — after ${extension ? extension.label : deadlineLabel}` },
+      lateNote: extension
+        ? `completed after ${extension.label}${approxSuffix} — later than the one-semester extension allows; confirm with the DGS`
+        : `completed after ${deadlineLabel}${approxSuffix} — confirm the DGS extended the deadline`,
     };
   }
-  if (today > deadline.date && !extensionGranted) {
+  if (today > effectiveDate) {
     return {
       status: 'unmet',
       deadline: {
         ...deadline,
+        date: effectiveDate,
         state: 'overdue',
-        label: `Overdue — the deadline was ${deadlineLabel}${approxSuffix}`,
+        label: extension
+          ? `Overdue — the DGS’s one-semester extension ran out at ${extension.label}${approxSuffix}`
+          : `Overdue — the deadline was ${deadlineLabel}${approxSuffix}`,
       },
     };
   }
   const dueSoonDays = args.dueSoonDays ?? 120;
-  const msLeft = Date.parse(deadline.date) - Date.parse(today);
+  const msLeft = Date.parse(effectiveDate) - Date.parse(today);
   const soon = msLeft <= dueSoonDays * 24 * 3600 * 1000;
   return {
     status: 'in_progress',
     deadline: {
       ...deadline,
+      date: effectiveDate,
       state: soon ? 'due_soon' : 'upcoming',
-      label: `Due by ${deadlineLabel}${approxSuffix}`,
+      label: extension
+        ? `Due by ${extension.label}${approxSuffix} — the DGS’s one-semester extension of ${deadlineLabel}`
+        : `Due by ${deadlineLabel}${approxSuffix}`,
     },
   };
 }

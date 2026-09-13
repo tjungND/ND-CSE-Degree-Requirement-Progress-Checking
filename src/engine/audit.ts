@@ -72,7 +72,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const params = rules.parameters;
   const { term: entry, normalized } = normalizeEntryTerm(student.entryTerm);
 
-  const { classified, warnings } = classify(student, rules);
+  const { classified, warnings } = classify(student, rules, today);
 
   const num = (key: string) => params.number(key);
   const capSpecs: CapSpec[] =
@@ -149,11 +149,16 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const rows: RequirementResult[] = [gpaRow(ctx), advisorRow(ctx)];
   rows.push(...(student.program === 'mscse' ? mscseRows(ctx) : phdRows(ctx)));
 
-  // The time-limit row is "met" only when everything else already is.
-  const othersAllMet = rows
-    .filter((r) => !r.informational && r.status !== 'not_applicable')
-    .every((r) => r.status === 'met');
-  rows.push(student.program === 'mscse' ? msTimeLimitRow(ctx, othersAllMet) : phdTimeLimitRow(ctx, othersAllMet));
+  // The time-limit row is "met" only when everything else already is — and it
+  // must be able to tell "not finished" from "cannot be judged yet" (red-team
+  // 2026-09-13): a blank rules-sheet cell elsewhere used to make a student who
+  // had finished everything read "Overdue — the 8-year limit passed".
+  const otherRows = rows.filter((r) => !r.informational && r.status !== 'not_applicable');
+  const others = {
+    allMet: otherRows.every((r) => r.status === 'met'),
+    anyCannotEvaluate: otherRows.some((r) => r.status === 'cannot_evaluate'),
+  };
+  rows.push(student.program === 'mscse' ? msTimeLimitRow(ctx, others) : phdTimeLimitRow(ctx, others));
   rows.push(approvalsRow(ctx));
 
   const scored = rows.filter((r) => !r.informational && r.status !== 'not_applicable');

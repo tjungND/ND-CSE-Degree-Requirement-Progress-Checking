@@ -1,0 +1,44 @@
+{
+  "name": "mscse-4plus1-research-course-not-shared",
+  "description": "§3.5 (Sept-2026 revision draft): 'one or two 3-credit CSE REGULAR courses at the 60000 level or higher' — a 4+1 student's undergraduate CSE 60641 (a regular course) draws the shared bachelor's-and-MSCSE credit as usual, but their CSE 68901 (M.S. Thesis Direction, course_type research) does not: it is not a regular course, and (DGS 2026-09-12) a master's project or thesis must be earned while enrolled in the MSCSE, not picked up as an undergraduate elective.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": { "season": "fall", "year": 2025 },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors"
+      },
+      {
+        "courseId": "CSE 68901",
+        "credits": 3,
+        "term": { "season": "fall", "year": 2025 },
+        "grade": "S",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors"
+      }
+    ],
+    "milestones": {},
+    "attestations": {},
+    "integratedBsMs": true
+  },
+  "expect": {
+    "ms.credits.project": { "status": "unmet", "detailIncludes": ["0 of 6"] }
+  },
+  "expectCourseLines": {
+    "CSE 60641": ["will apply to both"],
+    "CSE 68901": ["not counted", "must be earned while enrolled in the MSCSE program"]
+  }
+}
