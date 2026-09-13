@@ -1,6 +1,6 @@
 // Hand-typed university names: Title Case and the known-universities list
 // (DGS request 2026-09-06 evening). src/ui/university-name.ts.
-import { expandInstitutionAbbreviations, normalizeUniversity } from '../src/data/external.ts';
+import { expandInstitutionAbbreviations, isNotreDameInstitution, normalizeUniversity } from '../src/data/external.ts';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { canonicalUniversityName, knownUniversities, titleCaseUniversity } from '../src/ui/university-name.ts';
@@ -85,5 +85,30 @@ describe('spelling out abbreviations in an institution name', () => {
 
   it('a name typed by hand is spelled out and Title-Cased', () => {
     assert.equal(canonicalUniversityName('georgia inst. of technology'), 'Georgia Institute of Technology');
+  });
+});
+
+describe('recognizing Notre Dame however the name is written (red-team 2026-09-13)', () => {
+  it('accepts the spellings a transcript or a student actually produces', () => {
+    for (const name of [
+      'University of Notre Dame',
+      'UNIVERSITY OF NOTRE DAME',
+      'Notre-Dame',
+      'University of Notre-Dame',
+      'Univ. of Notre Dame',
+      'notre dame',
+      '  Notre  Dame  ',
+      'ND',
+      'nd',
+    ]) {
+      assert.equal(isNotreDameInstitution(name), true, `${name} should read as Notre Dame`);
+    }
+  });
+
+  it('does not swallow another school, and an unnamed university is not Notre Dame', () => {
+    for (const name of ['ND State University', 'North Dakota State University', 'Purdue University', 'NDSU']) {
+      assert.equal(isNotreDameInstitution(name), false, `${name} must not read as Notre Dame`);
+    }
+    assert.equal(isNotreDameInstitution(undefined), false);
   });
 });

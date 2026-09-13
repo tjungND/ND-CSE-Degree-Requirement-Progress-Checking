@@ -110,9 +110,24 @@ export function isCseCourse(
   return cseSubjectCodes.includes(subjectCode(courseId));
 }
 
-/** True for any spelling of Notre Dame as an institution name. */
+/** True for any spelling of Notre Dame as an institution name.
+ *
+ * Goes through normalizeUniversity() — the same folding every OTHER
+ * institution comparison in this file uses — so hyphens, full stops and the
+ * abbreviations a transcript (or a student typing the name by hand) may carry
+ * are gone before the comparison: "Notre-Dame" and "Univ. of Notre Dame" are
+ * the same school as "University of Notre Dame". The old regex read `\s*`
+ * between the two words, so every hyphenated spelling silently failed — which
+ * zeroed a 4+1's credit, dropped their coursework out of the DGS review
+ * request, and refused it as a §5.2 transfer it never was (red-team 2026-09-13).
+ *
+ * A bare "ND" is accepted only when it is the WHOLE name: a student typing
+ * just those two letters into this app can only mean Notre Dame, while
+ * "ND State University" is a different school and must not match. */
 export function isNotreDameInstitution(name: string | undefined): boolean {
-  return name !== undefined && /\bnotre\s*dame\b/i.test(name);
+  if (name === undefined) return false;
+  const normalized = normalizeUniversity(name);
+  return /\bnotre dame\b/.test(normalized) || normalized === 'nd';
 }
 
 /** "cs-5321" / "CS 5321" / "cs5321" → "CS5321". */

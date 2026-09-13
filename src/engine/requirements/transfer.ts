@@ -6,7 +6,7 @@
 // 2026-09-11: "add a row to show how many credits may be transferred if a
 // MSCSE student submits a prior transcript"). The caps themselves live in the
 // Parameters tab, one key per degree and prior-degree state.
-import { needsApproval } from '../../data/external.ts';
+import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { formatCredits } from '../credits.ts';
 import { compareTerm } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
@@ -102,7 +102,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
       if (e.origin !== 'transfer' || e.degreeLevel === 'bachelors' || p.excluded <= 0) return false;
       // Notre Dame coursework taken in or before the bachelor's award term went
       // down the undergraduate path, not §5.2's.
-      if (awarded !== undefined && /notre\s*dame/i.test(e.institution ?? '') && compareTerm(e.term, awarded) <= 0) return false;
+      if (awarded !== undefined && isNotreDameInstitution(e.institution) && compareTerm(e.term, awarded) <= 0) return false;
       // An unreviewed candidate the allocator happened to leave outside the
       // cap is not "over the cap" — the DGS decides which candidates transfer
       // (2026-09-06); the line already says "candidate", and so does this row.
