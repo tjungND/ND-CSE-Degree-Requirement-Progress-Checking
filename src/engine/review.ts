@@ -25,6 +25,7 @@ import type { Rules } from '../data/types.ts';
 import { classify, type ClassifiedCourse } from './allocate.ts';
 import { decisionWording } from './decider.ts';
 import { CORE_TITLE_RE } from './core-title.ts';
+import { passesCreditFloor } from './grades.ts';
 import type { Student } from './types.ts';
 
 export interface PendingDgsReview {
@@ -112,6 +113,14 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
     // a row that needs an approval the student has not attested
     // (dgs_approval, non-CSE, a blank verdict).
     if (c.entry.origin === 'nd') {
+      // Nothing is asked when no possible answer changes the report (DGS
+      // 2026-09-13). A passed grade below C earns no credit (Academic Code
+      // §4.3) and cannot clear §4.4.2's B floor either, so the only thing left
+      // a DGS ruling could add is a §4.4.1 core area — and only for a Ph.D.
+      // student, on a course the sheet does not list, whose title names an
+      // area. Otherwise the DGS was being asked to approve something inert.
+      const couldStillEarnACoreArea = qualifierApplies && c.unknown === true && coreTitle(c);
+      if (!passesCreditFloor(c.entry.grade) && !couldStillEarnACoreArea) continue;
       if (c.unknown === true || c.approvalPending !== undefined) {
         nd.push({
           course: c,

@@ -206,3 +206,44 @@ describe('coursesNeedingDgsReview — Notre Dame coursework', () => {
     assert.deepEqual(coursesNeedingDgsReview(ms(true), buildRules()), []);
   });
 });
+
+// Nothing is asked when no possible answer changes the report (DGS 2026-09-13,
+// answering a red-team pass). A passed grade below C earns no credit (Academic
+// Code §4.3) and cannot clear §4.4.2's B floor, so a DGS ruling can only still
+// add a §4.4.1 core area — for a Ph.D. student, on an unlisted course whose
+// title names an area.
+describe('the review request skips a course no ruling can help', () => {
+  const rules = buildRules();
+  const nd = (courseId: string, grade: CourseEntry['grade'], title?: string): Student => ({
+    schemaVersion: 1,
+    program: 'phd',
+    entryTerm: { season: 'fall', year: 2026 },
+    priorMs: 'none',
+    courses: [{ courseId, title, credits: 3, term: { season: 'fall', year: 2026 }, grade, origin: 'nd' }],
+    milestones: {},
+    attestations: {},
+  });
+  const asked = (s: Student) => coursesNeedingDgsReview(s, rules).map((p) => p.course.entry.courseId);
+
+  it('a listed dgs_approval course with a D is not asked about — approval could add nothing', () => {
+    assert.deepEqual(asked(nd('CSE 40113', 'D')), []);
+    // The same course with a countable grade is still asked about.
+    assert.deepEqual(asked(nd('CSE 40113', 'B')), ['CSE 40113']);
+  });
+
+  it('a C- whose core area the sheet already gives is not asked about either', () => {
+    // CSE 50120 is tagged core_area=algorithms, so §4.4.1 is already satisfied
+    // without any ruling; credit is foreclosed by the grade.
+    assert.deepEqual(asked(nd('CSE 50120', 'C-')), []);
+  });
+
+  it('an UNLISTED C- whose title names a core area is still asked about', () => {
+    assert.deepEqual(asked(nd('CSE 61234', 'C-', 'Operating Systems Design')), ['CSE 61234']);
+    assert.deepEqual(asked(nd('CSE 61234', 'C-', 'Databases')), []);
+  });
+
+  it('for an MSCSE student there is no §4.4.1 to save it, so a C- is never asked about', () => {
+    const ms: Student = { ...nd('CSE 61234', 'C-', 'Operating Systems Design'), program: 'mscse' };
+    assert.deepEqual(asked(ms), []);
+  });
+});
