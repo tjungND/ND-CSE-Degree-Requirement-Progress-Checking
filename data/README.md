@@ -66,8 +66,8 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `ms_noncse_credits_max` | 9 | §3.2 | |
 | `ms_time_limit_years` | 5 | §3.3 | |
 | `ms_thesis_readers_min` | 2 | §3.4 | thesis option only |
-| `quarter_credit_factor` | =2/3 | §5.2 | quarter hours → semester hours (pro-rata). Enter `=2/3`, not 0.67, so nine quarter hours are exactly six (DGS 2026-09-08); the app prints it as 0.67 |
-| `trimester_credit_factor` | 0.88 | §5.2 | trimester hours → semester hours (pro-rata; the Graduate School's factor) |
+| `quarter_credit_factor` | 0.66 | §5.2 | quarter hours → semester hours — the DGS Handbook's §5.2 pro-rata table (quarter × .66; DGS 2026-09-12) |
+| `trimester_credit_factor` | 0.88 | §5.2 | trimester hours → semester hours — the same table (trimester × .88) |
 | `ms_transfer_window_years` | 5 | §3.2 | prior graduate coursework — §5.2's five-year window applies to the MSCSE too (DGS 2026-09-11) |
 | `phd_regular_credits_min` | 24 | §4.2 | 60000-level or higher |
 | `phd_total_credits_min` | 60 | §4.2 | "The graduate school requires a total of sixty (60) credits of courses and research for the Ph.D." |

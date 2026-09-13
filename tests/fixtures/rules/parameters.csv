@@ -14,8 +14,8 @@ phd_nd_credits_min,9,§4.2,at least nine credits at Notre Dame
 phd_seminar_courses,"CSE 63801, CSE 63802",§4.2,required in year one
 phd_4xxxx_cse_credits_max,6,§4.2,
 phd_noncse_6xxxx_credits_max,9,§4.2,
-quarter_credit_factor,0.666666667,§5.2,"Quarter hours → semester hours (§5.2 pro-rata). Enter =2/3 in the cell so nine quarter hours are exactly six"
-trimester_credit_factor,0.88,§5.2,Trimester hours → semester hours (§5.2 pro-rata; the Graduate School's factor)
+quarter_credit_factor,0.66,§5.2,"Quarter hours → semester hours: the DGS Handbook's §5.2 pro-rata table (quarter × .66)"
+trimester_credit_factor,0.88,§5.2,"Trimester hours → semester hours: the DGS Handbook's §5.2 pro-rata table (trimester × .88)"
 ms_transfer_window_years,5,§3.2,prior M.S. coursework (the §5.2 five-year window applies to the MSCSE too — DGS 2026-09-11)
 phd_transfer_window_years,5,§4.2,prior M.S. coursework
 phd_transfer_completed_ms_credits_max,24,§5.2,completed prior M.S./Ph.D.

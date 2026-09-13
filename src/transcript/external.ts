@@ -61,7 +61,7 @@ export interface ExternalParseResult {
   bachelorsConferredOn?: string;
   /** The transcript says its terms are QUARTERS (2026-09-11): a term header
    * such as "Fall Quarter 2023" / "Autumn Qtr 2023", or a "Quarter Units" /
-   * "Quarter Hours" heading. Its credits are then quarter hours, worth 2/3 of
+   * "Quarter Hours" heading. Its credits are then quarter hours, worth a fraction (the sheet’s `quarter_credit_factor`, 0.66) of
    * a Notre Dame semester hour (§5.2 pro-rata) unless the DGS's row says
    * otherwise. Absent = no such word; nothing is assumed. */
   quarterSystem?: true;

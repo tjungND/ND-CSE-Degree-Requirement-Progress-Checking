@@ -137,9 +137,9 @@ export function findExternalRule(
 /** §5.2: "Credits not earned on the semester system, such as trimester and
  * quarter-hour credits, will be transferred on a pro-rata basis." The factors
  * live on the sheet's Parameters tab (DGS 2026-09-12 — until then 2/3 and
- * 0.88 were constants here): `quarter_credit_factor` (enter `=2/3`, so nine
- * quarter hours are exactly six — DGS 2026-09-08) and
- * `trimester_credit_factor`. Display rounds; the arithmetic does not. */
+ * 0.88 were constants here): `quarter_credit_factor` and
+ * `trimester_credit_factor` — 0.66 and 0.88, the DGS Handbook's own §5.2
+ * pro-rata table (DGS 2026-09-12, superseding the exact 2/3 of 2026-09-08). */
 export type CreditSystem = 'quarter' | 'semester' | 'trimester';
 /** The Parameters key that holds a system's factor; undefined for semester. */
 export function creditSystemFactorKey(system: CreditSystem | undefined): 'quarter_credit_factor' | 'trimester_credit_factor' | undefined {
