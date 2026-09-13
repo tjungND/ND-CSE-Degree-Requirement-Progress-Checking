@@ -77,10 +77,11 @@ holds a Notre Dame master's. Nothing counts until they answer.
 ## Deployed
 
 `origin/main` on GitHub deploys to https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
-(self-check) and `/courses.html` (course rules). Everything below `58044dc` is live or awaiting the DGS's
-push; the DGS pushes every commit himself. Recent commits, newest first:
+(self-check) and `/courses.html` (course rules). Everything described below is merged and live as of
+`fb77d20` (2026-09-13); the DGS pushes every commit himself, so a branch named here is history, not a
+queue. Recent commits, newest first:
 
-- branch `claude/setup-handoff-review-c38220` (this session, awaiting the DGS's merge-and-push):
+- branch `claude/setup-handoff-review-c38220` (merged):
   Safari's engine in the e2e run — `E2E_BROWSER=webkit npm run e2e` (Playwright's WebKit build, the
   same four drivers, screenshots in `.e2e-out/webkit/`); the one-line preview rows keyed on the
   recorded 560 px (they were keyed on 600 px, so 1100 px windows showed two-line rows);
