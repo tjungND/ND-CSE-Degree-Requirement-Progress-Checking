@@ -16,7 +16,7 @@ import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
-import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel } from './term.ts';
+import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel, termOfDate } from './term.ts';
 import type { Attestations, CourseEntry, Grade, Program, Student } from './types.ts';
 
 export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs';
@@ -238,7 +238,7 @@ function tierFor(grade: Grade, provisional: boolean): Tier {
 
 /** Classify every course. Returns classified courses in a stable order
  * (term, then course id, then input order) — the allocator's fill order. */
-export function classify(student: Student, rules: Rules): {
+export function classify(student: Student, rules: Rules, today?: string): {
   classified: ClassifiedCourse[];
   warnings: string[];
 } {
@@ -265,6 +265,32 @@ export function classify(student: Student, rules: Rules): {
     if (c.origin === 'transfer' && !(c.institution ?? '').trim()) {
       warnings.push(`${c.courseId}: no university is recorded for this course — the DGS cannot look it up without one. Edit the row and add the university.`);
     }
+    // A course dated after today with a final grade (DGS 2026-09-13: "yes, but
+    // get a warning"). It still counts as entered — the app takes the
+    // student's word for their own record — but nobody sits a course that has
+    // not happened yet, so the likeliest cause is a mistyped year.
+    if (today !== undefined && !isInProgress(c.grade) && GRADES.includes(c.grade) && compareTerm(c.term, termOfDate(today)) > 0) {
+      warnings.push(
+        `${c.courseId} is dated ${termLabel(c.term)}, which is after ${termLabel(termOfDate(today))} — it is still counted, but check the term: a final grade for a semester that has not happened yet is usually a typo.`,
+      );
+    }
+  }
+  // The same course id twice in the SAME term from different origins (DGS
+  // 2026-09-13: "yes, should get a warning"). Credit is NOT de-duplicated —
+  // ids may legitimately collide across universities (2026-08-31) — but
+  // nobody sits the same course at two institutions in one term, so this is
+  // almost always one course entered twice (an import plus a hand-added row),
+  // and every other suspect-entry path in this file says something.
+  const sameTerm = new Map<string, CourseEntry[]>();
+  for (const c of student.courses) {
+    const key = `${canonicalCourseId(c.courseId)}|${termIndex(c.term)}`;
+    sameTerm.set(key, [...(sameTerm.get(key) ?? []), c]);
+  }
+  for (const group of sameTerm.values()) {
+    if (group.length < 2 || group.every((c) => c.origin === 'nd')) continue; // all-ND duplicates: the retake rule below already says it
+    warnings.push(
+      `${group[0]!.courseId} is entered ${group.length} times for ${termLabel(group[0]!.term)}, under different origins (${[...new Set(group.map((c) => (c.origin === 'nd' ? 'Notre Dame' : (c.institution ?? 'another university'))))].join(' and ')}). Each row is counted separately — if it is one course, remove the duplicate.`,
+    );
   }
   // THE 4+1's SHARED CREDITS, chosen by the app (DGS 2026-09-11): "let the
   // top two CSE 40xxx courses count towards both BS and MSCSE. Do not let
@@ -1032,7 +1058,18 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     // research (F1, 2026-09-12 — superseding the 2026-08-31 default for this
     // one cap; the below-60000 allowance still refuses outright).
     const boundCaps = excluded > 0 ? cc.caps.filter((id) => (capRoom.get(id) ?? Infinity) <= 0) : [];
-    const spillsToTotal = excluded > 0 && !unknownCap && boundCaps.length > 0 && boundCaps.every((id) => id === 'noncse');
+    // …but an UNREVIEWED §5.2 candidate has no standing in any total yet (DGS
+    // 2026-09-06: "every graduate course here is a candidate … until the DGS
+    // has ruled", and the allocator "never ranks the candidates"). F1 is about
+    // a settled credit the allowance refuses, not about a course whose place
+    // in the record is still an open question — spilling a candidate's
+    // over-cap credits into the total made the report contradict itself
+    // (red-team 2026-09-13): the course's own line said "counts only if the
+    // DGS picks it" while the 60-credit row had already counted it as pending.
+    const unreviewedCandidate =
+      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.transferable !== 'yes';
+    const spillsToTotal =
+      excluded > 0 && !unknownCap && !unreviewedCandidate && boundCaps.length > 0 && boundCaps.every((id) => id === 'noncse');
     if (spillsToTotal) {
       sums.totalOnly[cc.tier] += excluded;
       sums.total[cc.tier] += excluded;

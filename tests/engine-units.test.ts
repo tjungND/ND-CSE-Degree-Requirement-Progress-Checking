@@ -744,3 +744,81 @@ describe('below the 40000 level, and the 4+1 flag (F8, 2026-09-12)', () => {
     assert.deepEqual(plain.reviewFlags ?? [], []);
   });
 });
+
+// Two entries the app counts as given but will not stay silent about (DGS
+// 2026-09-13, answering a red-team pass): the same course twice in one term
+// from different origins, and a final grade for a semester still in the future.
+describe('suspect course entries the report warns about', () => {
+  const rules = buildRules();
+  const base = (courses: CourseEntry[]): Student => ({
+    schemaVersion: 1,
+    program: 'phd',
+    entryTerm: { season: 'fall', year: 2026 },
+    priorMs: 'completed',
+    bachelorsAwarded: { season: 'spring', year: 2022 },
+    gpa: 3.5,
+    courses,
+    milestones: {},
+    attestations: { transferApproved: true },
+  });
+
+  it('the same course id in one term from two origins is flagged, and both rows still count', () => {
+    const report = audit(
+      base([
+        { courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' },
+        {
+          courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A',
+          origin: 'transfer', institution: 'Purdue University', degreeLevel: 'masters',
+        },
+      ]),
+      rules,
+      '2027-06-01',
+    );
+    assert.ok(
+      report.warnings.some((w) => /entered 2 times for Fall 2026, under different origins/.test(w)),
+      JSON.stringify(report.warnings),
+    );
+    // Credit is NOT de-duplicated across origins (2026-08-31) — the warning is
+    // the whole change. The Notre Dame row counts now; the unreviewed transfer
+    // row is pending the DGS, and both are there.
+    assert.match(
+      report.requirements.find((r) => r.id === 'phd.credits.regular')!.detail,
+      /3 of 24 credits complete\. 3 pending/,
+    );
+  });
+
+  it('two Notre Dame rows in one term keep the retake wording, without the new origins line', () => {
+    const report = audit(
+      base([
+        { courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' },
+        { courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' },
+      ]),
+      rules,
+      '2027-06-01',
+    );
+    assert.ok(report.warnings.some((w) => /its credits count once/.test(w)), JSON.stringify(report.warnings));
+    assert.ok(!report.warnings.some((w) => /different origins/.test(w)), JSON.stringify(report.warnings));
+  });
+
+  it('a final grade dated after today is counted, and says to check the term', () => {
+    const report = audit(
+      base([{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2030 }, grade: 'A', origin: 'nd' }]),
+      rules,
+      '2027-06-01',
+    );
+    assert.ok(
+      report.warnings.some((w) => /dated Fall 2030, which is after Summer 2027/.test(w)),
+      JSON.stringify(report.warnings),
+    );
+    assert.match(report.requirements.find((r) => r.id === 'phd.credits.regular')!.detail, /3 of 24/);
+  });
+
+  it('an in-progress course in a future term is normal registration, not a warning', () => {
+    const report = audit(
+      base([{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2027 }, grade: 'IP', origin: 'nd' }]),
+      rules,
+      '2027-06-01',
+    );
+    assert.ok(!report.warnings.some((w) => /check the term/.test(w)), JSON.stringify(report.warnings));
+  });
+});

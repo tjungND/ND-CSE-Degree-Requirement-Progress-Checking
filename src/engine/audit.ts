@@ -72,7 +72,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const params = rules.parameters;
   const { term: entry, normalized } = normalizeEntryTerm(student.entryTerm);
 
-  const { classified, warnings } = classify(student, rules);
+  const { classified, warnings } = classify(student, rules, today);
 
   const num = (key: string) => params.number(key);
   const capSpecs: CapSpec[] =
