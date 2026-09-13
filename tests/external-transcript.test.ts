@@ -469,6 +469,32 @@ describe('a transcript whose watermark looks like its name (2026-09-09)', () => 
     '----------------------End of Transcript----------------------',
   ];
 
+  // The 2026 co-curricular / transcript layout (DGS 2026-09-12): the tiles
+  // carry no comma, the margin cuts one to "UNIVERSITY OF CALIFORNIA", and no
+  // "UCSD" appears anywhere — the name has to be read from the tiling itself.
+  it('reads the full name from the tiled watermark, never a margin fragment of it (2026-09-12)', () => {
+    const tiles = [
+      'UNIVERSITY OF CALIFORNIA SAN DIEGO • UNIVERSITY OF CALIFORNIA SAN DIEGO • UNIVERSITY OF',
+      'CALIFORNIA SAN DIEGO • UNIVERSITY OF CALIFORNIA SAN DIEGO • UNIVERSITY OF CALIFORNIA SAN',
+      'DIEGO • UNIVERSITY OF CALIFORNIA SAN DIEGO • UNIVERSITY OF CALIFORNIA SAN DIEGO •',
+      'UNIVERSITY OF CALIFORNIA',
+      'Student ID: (withheld)',
+      'STUDENT LEVEL          :  Graduate',
+      'FALL QTR 2024',
+      'CSE 202    Algorithm Design and Analysis        4.00   A',
+      'WINTER QTR 2025',
+      'CSE 240A   Principles of Computer Architecture  4.00   A-',
+      'TERM CREDITS PASSED : 8.00     TERM GPA : 3.70',
+    ];
+    const r = parseExternalTranscript(tiles);
+    assert.equal(r.university, 'University of California, San Diego');
+    assert.equal(r.universityGuessed, undefined, 'read from the page, not recovered from an acronym');
+    assert.equal(r.courses.length, 2);
+    // An unknown school's tiling is Title-Cased as printed.
+    const other = tiles.map((l) => l.replace(/UNIVERSITY OF CALIFORNIA SAN DIEGO/g, 'STATE UNIVERSITY OF EXAMPLE').replace(/UNIVERSITY OF CALIFORNIA$/, 'STATE UNIVERSITY OF'));
+    assert.equal(parseExternalTranscript(other).university, 'State University of Example');
+  });
+
   it('names the school from its own abbreviation, not from the watermark', () => {
     const r = parseExternalTranscript(UCSD);
     assert.equal(r.university, 'University of California, San Diego');

@@ -9,6 +9,7 @@ import { shortenAfterFirst } from '../ui/first-mention.ts';
 import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
+import { resolveCampus } from './campus.ts';
 import { dateOnLine } from './parse.ts';
 
 export interface ExternalCourseCandidate {
@@ -46,6 +47,11 @@ export interface ExternalParseResult {
    * (2026-09-08). Weaker evidence, so the preview leaves the box editable
    * instead of locking it the way a printed name is locked. */
   universityGuessed?: true;
+  /** The printed name is a multi-campus SYSTEM (DGS 2026-09-12): the campus
+   * read from the record when it could be (`university` then holds the
+   * campus's full name), else `campusSystem` alone — the student must choose. */
+  campusSystem?: string;
+  campus?: string;
   /** POSITIVE evidence only (2026-09-03): a line that both names a graduate
    * degree and says conferred/awarded/granted. Absence stays undefined — the
    * app never guesses whether a degree was completed. */
@@ -147,7 +153,67 @@ const NAME_ONLY_IN_IMAGE: readonly (readonly [RegExp, string])[] = [
 /** The institution and how sure we are of it: a name read from the text is
  * taken as printed; a name recovered from an acronym is only a suggestion, so
  * the preview lets the student correct it (2026-09-08). */
+/** The name a WATERMARK spells out (DGS 2026-09-12). UC San Diego tiles
+ * "UNIVERSITY OF CALIFORNIA SAN DIEGO • UNIVERSITY OF CALIFORNIA SAN DIEGO •
+ * …" across every page; the text layer breaks the tiles at the margins and at
+ * column gaps, and a fragment such as "UNIVERSITY OF CALIFORNIA" is itself a
+ * perfectly good-looking name — which is what the parser returned. But a
+ * phrase repeated on one line with a separator, on several lines, IS the
+ * institution's name in full: read it from the tiles rather than from any
+ * fragment. Undefined when no line repeats a university-like phrase. */
+function watermarkName(lines: string[]): string | undefined {
+  const STRONG_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|universidad|università|universität|universiteit/i;
+  const seen = new Map<string, { count: number; text: string }>();
+  for (const line of lines) {
+    const parts = line.split(/\s*[•·|]\s*/).map((c) => c.replace(/\s+/g, ' ').trim());
+    const counts = new Map<string, string>();
+    const perLine = new Map<string, number>();
+    for (const c of parts) {
+      if (c.length < 8 || c.length > 80 || /\d/.test(c) || !STRONG_RE.test(c)) continue;
+      const key = normalizeUniversity(c);
+      if (key === '') continue;
+      counts.set(key, c);
+      perLine.set(key, (perLine.get(key) ?? 0) + 1);
+    }
+    for (const [key, n] of perLine) {
+      if (n < 2) continue; // repeated on the SAME line — the tiling, not a header
+      const e = seen.get(key) ?? { count: 0, text: counts.get(key)! };
+      e.count += 1;
+      seen.set(key, e);
+    }
+  }
+  const best = [...seen.values()].filter((e) => e.count >= 2).sort((a, b) => b.count - a.count)[0];
+  if (best === undefined) return undefined;
+  // A school this file already knows by its acronym keeps its canonical
+  // spelling (the ExternalCourses tab is keyed on it); otherwise Title Case.
+  const known = NAME_ONLY_IN_IMAGE.find(([, name]) => normalizeUniversity(name) === normalizeUniversity(best.text));
+  if (known) return known[1];
+  return best.text
+    .toLowerCase()
+    .replace(/(^|[\s-])([a-zà-ÿ])/g, (m, sep: string, ch: string) => sep + ch.toUpperCase())
+    .replace(/\b(Of|The|And|At|De|Da|Di|Du|Von|Van|Der|Del|La|Le)\b/g, (w) => w.toLowerCase())
+    .replace(/^([a-z])/, (ch) => ch.toUpperCase());
+}
+
+/** Resolve a multi-campus system's campus (DGS 2026-09-12): the full campus
+ * name when the record says which campus, else the system name plus
+ * `campusSystem` so the preview asks. */
+function withCampus(
+  guess: { university?: string; universityGuessed?: true },
+  lines: string[],
+): { university?: string; universityGuessed?: true; campusSystem?: string; campus?: string } {
+  const r = resolveCampus(guess.university, lines);
+  if (r.system === undefined) return guess;
+  // An acronym-recovered name stays a guess even once the campus is known.
+  if (r.campus !== undefined) return { ...guess, university: r.campus.full, campusSystem: r.system.system, campus: r.campus.name };
+  return { ...guess, university: r.system.system, campusSystem: r.system.system };
+}
+
 function guessedUniversity(lines: string[]): { university?: string; universityGuessed?: true } {
+  // The watermark, when there is one, spells the name in full and beats any
+  // fragment of itself (DGS 2026-09-12).
+  const tiled = watermarkName(lines);
+  if (tiled !== undefined) return { university: expandInstitutionAbbreviations(tiled) };
   // A name printed in the text wins — but only a STRONG one. The acronym of a
   // school that hides its name in an image beats a weak "… College" match,
   // because that match is as likely to come from a block naming somebody else
@@ -659,7 +725,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     looksLikeNotreDame,
     // Spelled out for everyone who reads it (DGS 2026-09-08): the student,
     // the DGS review request and the Grad Admin processing request.
-    ...guessedUniversity(lines),
+    ...withCampus(guessedUniversity(lines), lines),
     degreeConferred,
     bachelorsConferredOn,
     ...(bachelorsNamed ? { bachelorsNamed: true as const } : {}),

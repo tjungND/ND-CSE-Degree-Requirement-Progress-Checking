@@ -265,6 +265,25 @@ const EXTERNAL = [
 // same-institution case): the bachelor's conferral line splits the rows into
 // undergraduate (before it) and graduate (after it); the M.S. conferral makes
 // the graduate rows a completed prior degree.
+// A multi-campus system whose transcript prints only the system's name (DGS
+// 2026-09-12): the logo naming the campus is an image. The preview must ask
+// which campus before the courses are added.
+const UC_SYSTEM = [
+  'UNIVERSITY OF CALIFORNIA',
+  'Office of the Registrar',
+  'Unofficial Transcript',
+  'Student: Jane Q. Triton',
+  'Program: Master of Science, Computer Science',
+  '',
+  'Fall Quarter 2023',
+  'CSE 202   Algorithm Design and Analysis    4.0   A',
+  '',
+  'Winter Quarter 2024',
+  'CSE 221   Operating Systems                4.0   A-',
+  '',
+  'Cumulative GPA: 3.85',
+];
+
 const COMBINED = [
   'Purdue University',
   'Office of the Registrar',
@@ -292,6 +311,7 @@ writeFileSync(join(here, 'nd-undergrad-transcript.pdf'), makePdf(ND_UNDERGRAD));
 writeFileSync(join(here, 'combined-transcript.pdf'), makePdf(COMBINED));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
+writeFileSync(join(here, 'uc-system-transcript.pdf'), makePdf(UC_SYSTEM));
 writeFileSync(join(here, 'banner-transcript.pdf'), makePositionedPdf(bannerPages()));
 
 // The same transcript over a text watermark (2026-09-05: real UMass / Western

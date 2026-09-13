@@ -25,6 +25,7 @@ import { canonicalUniversityName } from './university-name.ts';
 import { confirmDialog, writeClipboard } from './copy-dialog.ts';
 import { parseTranscript } from '../transcript/parse.ts';
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
+import { campusQuestion, MULTI_CAMPUS_SYSTEMS } from '../transcript/campus.ts';
 
 /** Write a review request to the clipboard in BOTH flavors (2026-09-03):
  * text/plain keeps the tab-separated rows; text/html carries them as a real
@@ -120,6 +121,11 @@ interface ExternalPreview {
   universityFromTranscript?: boolean;
   /** The name was recovered from an acronym, not read as text (2026-09-08). */
   universityGuessed?: true;
+  /** A multi-campus system (DGS 2026-09-12): the campus must be chosen before
+   * the courses are added; pre-filled when the record named it. */
+  campusSystem?: string;
+  campus?: string;
+  campusFromTranscript?: boolean;
   /** A Notre Dame transcript in a previous-degree slot (2026-09-05): an
    * earlier Notre Dame degree. The preview reminds the student that the
    * Notre Dame row handles a transcript that also holds the current program. */
@@ -446,6 +452,9 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         // acronym is pre-filled and editable (2026-09-08).
         universityFromTranscript: (parsed.university ?? '') !== '' && parsed.universityGuessed !== true,
         universityGuessed: parsed.universityGuessed,
+        campusSystem: parsed.campusSystem,
+        campus: parsed.campus,
+        campusFromTranscript: parsed.campus !== undefined,
         conferred: parsed.degreeConferred,
         creditSystem: parsed.quarterSystem ? 'quarter' : parsed.trimesterSystem ? 'trimester' : undefined,
         bachelorsConferredOn: parsed.bachelorsConferredOn,
@@ -624,6 +633,9 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   university: parsed.university ?? '',
                   // OCR misreads names too — the field stays editable (2026-09-06).
                   fromOcr: true,
+                  campusSystem: parsed.campusSystem,
+                  campus: parsed.campus,
+                  campusFromTranscript: parsed.campus !== undefined,
                   conferred: parsed.degreeConferred,
                   creditSystem: parsed.quarterSystem ? 'quarter' : parsed.trimesterSystem ? 'trimester' : undefined,
                   bachelorsConferredOn: parsed.bachelorsConferredOn,
@@ -845,6 +857,37 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           : 'The university name is how the DGS’s rules find your courses — use the name as your transcript prints it (pick it from the list if it is there). Grades the parser could not read must be chosen by hand (rows without a grade are not added).',
     ),
     el('label', { class: 'field' }, el('span', { class: 'label' }, 'University'), uniInput),
+    // A multi-campus system (DGS 2026-09-12): "University of California" is
+    // ten schools, and the rules are keyed on the campus. Required — the
+    // Add button refuses until it is chosen; pre-filled when the record
+    // named the campus, and always correctable.
+    ...(() => {
+      const system = p.campusSystem ? MULTI_CAMPUS_SYSTEMS.find((s) => s.system === p.campusSystem) : undefined;
+      if (!system) return [];
+      const sel = el('select', { 'data-key': 'ext.preview.campus', 'aria-describedby': 'ext-campus-hint', required: 'required' });
+      sel.append(option('', 'Choose the campus…', p.campus === undefined));
+      for (const cp of system.campuses) sel.append(option(cp.name, cp.full, p.campus === cp.name));
+      sel.addEventListener('change', () => {
+        const chosen = system.campuses.find((cp) => cp.name === (sel as HTMLSelectElement).value);
+        p.campus = chosen?.name;
+        p.university = chosen ? chosen.full : system.system;
+        p.campusFromTranscript = false;
+        if (previewError) previewError = undefined;
+        render();
+      });
+      return [
+        el('label', { class: 'field campus-field' }, el('span', { class: 'label' }, `${campusQuestion(system)} (required)`), sel),
+        el(
+          'p',
+          { class: `hint ${p.campus === undefined ? 'warn' : ''} campus-note`, id: 'ext-campus-hint' },
+          p.campus === undefined
+            ? `Your transcript names only the ${system.system} system, and the course rules are keyed on the campus — choose yours before adding. It becomes the university name above.`
+            : p.campusFromTranscript
+              ? `Campus read from your transcript. Change it if that is wrong — the university name above follows it.`
+              : `The university name above follows this choice.`,
+        ),
+      ];
+    })(),
     // On every graduate-slot preview, whether or not this transcript says
     // anything about the bachelor's (DGS 2026-09-09: also on the prior Ph.D.
     // upload). The term decides which of these courses were taken with
@@ -1041,6 +1084,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             };
             if (university === '') {
               problem('Enter the university name — the DGS’s rules match courses by university + course id.', 'ext.preview.university');
+              return;
+            }
+            if (p.campusSystem !== undefined && p.campus === undefined) {
+              problem(`Choose the ${p.campusSystem} campus — the course rules are keyed on it, and “${p.campusSystem}” alone names several schools.`, 'ext.preview.campus');
               return;
             }
             // A combined bachelor's + master's record needs the award term (DGS 2026-09-06 evening).
