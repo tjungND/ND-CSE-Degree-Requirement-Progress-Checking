@@ -118,6 +118,14 @@ export function addYearsIso(iso: string, years: number): string {
   return addMonthsIso(iso, years * 12);
 }
 
+/** The last day of the fall/spring term AFTER the one `iso` falls in — "one
+ * additional semester" (DGS 2026-09-13: a §4.4 qualifier extension is granted
+ * one semester at a time). Summers are not semesters here, as everywhere else
+ * in this file, so a summer date extends to the coming fall. */
+export function endOfNextSemester(iso: string): string {
+  return endOfTerm(nthSemester(termOfDate(iso), 2)).date;
+}
+
 /** Shift a term by whole years (for the §5.2 five-year transfer window). */
 export function shiftTermYears(t: Term, years: number): Term {
   return { season: t.season, year: t.year + years };

@@ -15,6 +15,7 @@ import {
   deadlineTerm,
   deadlineTermLabel,
   dueTermPhrase,
+  endOfNextSemester,
   endOfTerm,
   maxConsecutiveFullTime,
   nthSemester,
@@ -259,7 +260,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
 
 /** §4.3: "Failure to complete all requirements for the Ph.D. degree within
  * eight (8) years results in forfeiture of degree eligibility." */
-export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementResult {
+export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the Ph.D. degree within eight (8) years results in forfeiture of degree eligibility.';
   const years = ctx.params.number('phd_time_limit_years');
@@ -273,10 +274,17 @@ export function phdTimeLimitRow(ctx: Ctx, othersAllMet: boolean): RequirementRes
     // Shown as a semester, never a date (DGS request 2026-09-05): eight years
     // from the entry term's start is the start of a term.
     const date = addYearsIso(startOfTerm(ctx.entry).date, years);
-    if (othersAllMet) {
+    if (others.allMet) {
       status = 'met';
       detail = `All requirements are complete within the ${years}-year limit.`;
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
+    } else if (ctx.today > date && others.anyCannotEvaluate) {
+      // A missing rules-sheet value is not a missed deadline (red-team
+      // 2026-09-13): a student who has finished everything used to read
+      // "Overdue — forfeiture" because one unrelated parameter was blank.
+      status = 'cannot_evaluate';
+      detail = `The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value.`;
+      deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date) {
       status = 'unmet';
       detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
@@ -317,23 +325,41 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
   } else {
     const term = nthSemester(ctx.entry, semesters);
     const date = endOfTerm(term).date;
+    // §4.4's extension is ONE additional semester (DGS 2026-09-13) — the term
+    // after the four, not an open-ended waiver. Once that semester is over the
+    // row goes overdue like any other.
+    const extendedTerm = ctx.student.attestations.qualifierExtensionGranted ? nthSemester(ctx.entry, semesters + 1) : undefined;
+    const effectiveDate = extendedTerm ? endOfTerm(extendedTerm).date : date;
     if (status === 'met') {
-      deadline = { date, approx: true, state: 'done', label: 'Complete' };
+      deadline = { date: effectiveDate, approx: true, state: 'done', label: 'Complete' };
       if (!ctx.student.milestones.qualifierFormFiled) {
         parts.push('Remember to file the qualifier completion form with the Grad Admin (§4.4)');
       }
-    } else if (ctx.today > date && !ctx.student.attestations.qualifierExtensionGranted) {
+    } else if (ctx.today > effectiveDate) {
       // Decision Q17b: a deadline past with the work incomplete is unmet, even
       // when a component is still in progress (matching deadlineStatus()).
-      status = 'unmet';
-      // The deadline chip carries the when (2026-09-03).
-      parts.push(`Overdue — talk to the DGS`);
-      deadline = { date, approx: true, state: 'overdue', label: `Overdue — was due by the end of ${termLabel(term)} (approximate)` };
-    } else if (ctx.today > date) {
-      // Past the four semesters, with the DGS's extension recorded (2026-09-11):
-      // the chip said "Due by … — upcoming" for a date already gone.
-      deadline = { date, approx: true, state: 'upcoming', label: `Was due by the end of ${termLabel(term)} — extended by the DGS` };
-      parts.push('Deadline extended by the DGS — confirm the new date with the DGS');
+      // A deadline cannot make a MISSING PARAMETER into a missed requirement,
+      // though (red-team 2026-09-13): "cannot evaluate" survives the override,
+      // so a blank rules-sheet cell never reads as "overdue — forfeiture".
+      const overdueLabel = extendedTerm
+        ? `Overdue — the DGS’s one-semester extension ran out at the end of ${termLabel(extendedTerm)} (approximate)`
+        : `Overdue — was due by the end of ${termLabel(term)} (approximate)`;
+      if (status === 'cannot_evaluate') {
+        parts.push(`The deadline (${extendedTerm ? `the DGS’s extension, the end of ${termLabel(extendedTerm)}` : `the end of ${termLabel(term)}`}) has passed, but a component above cannot be evaluated until the rules sheet is complete — so this row cannot be judged either`);
+      } else {
+        status = 'unmet';
+        // The deadline chip carries the when (2026-09-03).
+        parts.push(`Overdue — talk to the DGS`);
+      }
+      deadline = { date: effectiveDate, approx: true, state: 'overdue', label: overdueLabel };
+    } else if (extendedTerm) {
+      deadline = {
+        date: effectiveDate,
+        approx: true,
+        state: 'upcoming',
+        label: `Due by the end of ${termLabel(extendedTerm)} — the DGS’s one-semester extension (approximate)`,
+      };
+      parts.push(`Deadline extended by one semester by the DGS — now the end of ${termLabel(extendedTerm)}; a further extension is the DGS’s to grant`);
     } else {
       deadline = { date, approx: true, state: 'upcoming', label: `Due by the end of ${termLabel(term)} (approximate)` };
     }
@@ -656,6 +682,9 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     };
   }
   const date = addMonthsIso(startOfTerm(ctx.entry).date, months);
+  // §4.4's extension is one additional semester (DGS 2026-09-13) — here, the
+  // end of the term after the one the 18-month mark falls in.
+  const extendedDate = ctx.student.attestations.qualifierExtensionGranted ? endOfNextSemester(date) : undefined;
   const r = deadlineStatus({
     doneOn: ctx.student.milestones.researchQualifierPassed,
     deadline: { date, approx: true },
@@ -663,11 +692,14 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     // A semester, not a date (DGS request 2026-09-05): 18 months after a fall
     // entry lands in the middle of the second spring — "mid-Spring 2028".
     deadlineLabel: `${deadlineTerm(date).when === 'during' ? `mid-${termLabel(deadlineTerm(date).term)}` : deadlineTermLabel(date)} — ${months} months after entry`,
-    extensionGranted: ctx.student.attestations.qualifierExtensionGranted,
+    extension: extendedDate ? { date: extendedDate, label: deadlineTermLabel(extendedDate) } : undefined,
   });
   const detail =
     r.status === 'met'
-      ? `Research qualifier passed ${ctx.student.milestones.researchQualifierPassed}.`
+      ? // A pass inside the DGS's extension is met, and says so: the record
+        // keeps how late it was rather than reading like an on-time pass
+        // (DGS 2026-09-13).
+        `Research qualifier passed ${ctx.student.milestones.researchQualifierPassed}${r.lateNote ? ` — ${r.lateNote}` : ''}.`
       : r.status === 'needs_dgs_review'
         ? `Passed ${ctx.student.milestones.researchQualifierPassed}, ${r.lateNote}.`
         : r.status === 'unmet'

@@ -175,9 +175,58 @@ describe('status algebra', () => {
       deadline: { date: '2030-05-31', approx: true },
       today: '2030-10-01',
       deadlineLabel: 'the end of Spring 2030',
-      extensionGranted: true,
+      extension: { date: '2030-12-31', label: 'the end of Fall 2030' },
     });
     assert.equal(ext.status, 'met');
+  });
+
+  // The DGS grants a qualifier extension ONE SEMESTER at a time (2026-09-13).
+  // The old boolean forgave any lateness forever, so a milestone five years
+  // overdue still read "due soon" and a pass years late read as on-time.
+  describe('an extension is one additional semester, not a blanket waiver', () => {
+    const base = {
+      deadline: { date: '2030-05-31', approx: true },
+      deadlineLabel: 'the end of Spring 2030',
+      extension: { date: '2030-12-31', label: 'the end of Fall 2030' },
+    };
+
+    it('not done, inside the extension: in progress, and the chip names the new date', () => {
+      const r = deadlineStatus({ ...base, today: '2030-10-01' });
+      assert.equal(r.status, 'in_progress');
+      assert.equal(r.deadline.date, '2030-12-31');
+      assert.match(r.deadline.label, /one-semester extension/);
+    });
+
+    it('not done, PAST the extension: overdue again — the extension ran out', () => {
+      const r = deadlineStatus({ ...base, today: '2031-06-01' });
+      assert.equal(r.status, 'unmet');
+      assert.equal(r.deadline.state, 'overdue');
+      assert.match(r.deadline.label, /ran out/);
+      // Years later it still reads overdue, not a stale "due soon".
+      const muchLater = deadlineStatus({ ...base, today: '2035-01-01' });
+      assert.equal(muchLater.status, 'unmet');
+      assert.equal(muchLater.deadline.state, 'overdue');
+    });
+
+    it('done inside the extension: met, and the record keeps how late it was', () => {
+      const r = deadlineStatus({ ...base, doneOn: '2030-11-01', today: '2031-01-15' });
+      assert.equal(r.status, 'met');
+      assert.match(r.lateNote ?? '', /within the one-semester extension/);
+      assert.match(r.deadline.label, /within the DGS’s one-semester extension/);
+    });
+
+    it('done past the extension: back to needs DGS review', () => {
+      const r = deadlineStatus({ ...base, doneOn: '2031-09-01', today: '2031-10-01' });
+      assert.equal(r.status, 'needs_dgs_review');
+      assert.match(r.lateNote ?? '', /later than the one-semester extension allows/);
+    });
+
+    it('done on time is plain met, extension or no extension', () => {
+      const r = deadlineStatus({ ...base, doneOn: '2030-02-01', today: '2030-06-01' });
+      assert.equal(r.status, 'met');
+      assert.equal(r.lateNote, undefined);
+      assert.equal(r.deadline.label, 'Done 2030-02-01');
+    });
   });
 });
 
