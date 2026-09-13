@@ -1,0 +1,37 @@
+{
+  "name": "phd-4plus1-credit-is-not-nd-residency",
+  "description": "DGS 2026-09-13, closing a question the red-team pass raised twice and answered two ways: a 4+1's pre-entry Notre Dame coursework counts toward the Ph.D.'s 60 and 24 (F7, 2026-09-12) but NOT toward §4.2's \"at least nine (9) credits at Notre Dame\" — \"it does not count towards the nine new credits that need to be earned at Notre Dame during the degree program\". Here the 4+1 course adds 3 credits to the 24 while the nine-credit row counts only the 6 earned in the program, and the row says why.",
+  "today": "2027-06-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "integratedBsMs": true,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": { "season": "fall", "year": 2025 },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors"
+      },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] },
+    "phd.credits.nd": {
+      "status": "unmet",
+      "detailIncludes": ["6 of 9", "these nine are the credits earned in the Ph.D. itself"]
+    }
+  }
+}

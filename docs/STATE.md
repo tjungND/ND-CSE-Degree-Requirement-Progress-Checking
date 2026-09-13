@@ -1,8 +1,34 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-12 (this session, branch `claude/degree-logic-review-ce45ab`, still running;
+Last updated: 2026-09-13 (this session, branch `claude/degree-logic-review-ce45ab`, still running;
 the first Claude Code Desktop session's branch `claude/setup-handoff-review-c38220` — see 2026-09-11
 below — has since merged).
+
+2026-09-13: a red-team pass over the engine, weighted to the Ph.D. side at the DGS's request. Forty
+agents ran 108 invented Ph.D. scenarios through the real engine (not code-reading — every finding was
+reproduced by executing `audit()`), then re-checked each other adversarially; a completeness critic
+opened a second round on four gaps it could ground in the code. Thirteen confirmed bugs and eight
+open questions came out; the DGS ruled on all eight (DECISIONS rows of this date) and everything is
+fixed. The bugs, by area: **institution matching** — `isNotreDameInstitution` refused any hyphenated
+spelling ("Notre-Dame"), silently zeroing a 4+1's credit and dropping their coursework out of the
+review request, and two ad hoc copies of the same regex (transfer.ts, tracks.ts) drifted from it, one
+of them also reading a BLANK university as Notre Dame so the §3.5 note promised credit the report did
+not give; **ADGS/DGS wording** — literal `{{DGS}}` braces reached a Ph.D. student's screen, the
+blanket rewrite defeated the per-course override the sheet is meant to carry, and the F8 §3.5 note
+said "DGS" to MSCSE students on the page and in the e-mail they send; **§4.4.1** — an unlisted course
+at the 50000 level or below 40000 was invisible to core knowledge, because two credit-side branches
+never set the flag the knowledge side reads; **deadlines** — a granted extension had no time bound
+(now one semester, the DGS's ruling), a dissertation defended years past the 8-year limit read "met"
+on both its own row and the time-limit row, and a blank rules-sheet cell plus a passed deadline
+produced "Overdue — forfeiture" for a student who had finished everything; **credit** — an unreviewed
+§5.2 candidate's over-cap credits inflated the 60-credit total against that course's own line, cap
+rows printed raw floating-point ("2.666666668 of the 9"), and a C- beat its own live retake in the
+§4.4.2 tie-break, throwing the in-progress credit away. The DGS's eight rulings added: warnings for a
+cross-origin same-term duplicate and for a future-dated final grade; a review request that stops
+asking about courses no ruling can change; the one-semester extension; the confirmation that a 4+1's
+pre-entry ND coursework does NOT count toward §4.2's nine credits "earned at Notre Dame during the
+degree program" (the nine-credit row now says so); and four-way course marks — green ✓ counts, blue ◐
+in progress, amber ● pending approval, red ✕ does not count.
 
 2026-09-12: a deep-review session, asked to check the engine against the documents in the DGS's
 separate rules folder (outside the repo) — a September revision draft of the CSE handbook, the

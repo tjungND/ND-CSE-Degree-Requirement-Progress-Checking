@@ -151,6 +151,18 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       section: '§4.2',
       quote:
         'Regardless of any credits transferred, all Ph.D. students must take at least nine (9) credits at Notre Dame in order to satisfy the qualifying examination described in section 4.4.',
+      // Notre Dame coursework from BEFORE this program — a 4+1's undergraduate
+      // 60000-level courses, or an earlier Notre Dame degree — counts toward
+      // the 60 and the 24 but not toward these nine (DGS 2026-09-13: "it does
+      // not count towards the nine new credits that need to be earned at Notre
+      // Dame during the degree program"). Said out loud only when the student
+      // actually has such coursework, so a shortfall does not read as a
+      // data-entry problem they could fix.
+      extraDetail: ctx.classified.some(
+        (c) => c.entry.origin === 'transfer' && isNotreDameInstitution(c.entry.institution) && c.pool === 'regular' && c.ineligibleReason === undefined,
+      )
+        ? ['Notre Dame coursework from before this program — a 4+1’s undergraduate courses, or an earlier Notre Dame degree — counts toward the 60 and the 24, but not here: these nine are the credits earned in the Ph.D. itself (DGS 2026-09-13)']
+        : undefined,
     }),
   );
 
