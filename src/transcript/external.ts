@@ -147,7 +147,53 @@ const NAME_ONLY_IN_IMAGE: readonly (readonly [RegExp, string])[] = [
 /** The institution and how sure we are of it: a name read from the text is
  * taken as printed; a name recovered from an acronym is only a suggestion, so
  * the preview lets the student correct it (2026-09-08). */
+/** The name a WATERMARK spells out (DGS 2026-09-12). UC San Diego tiles
+ * "UNIVERSITY OF CALIFORNIA SAN DIEGO • UNIVERSITY OF CALIFORNIA SAN DIEGO •
+ * …" across every page; the text layer breaks the tiles at the margins and at
+ * column gaps, and a fragment such as "UNIVERSITY OF CALIFORNIA" is itself a
+ * perfectly good-looking name — which is what the parser returned. But a
+ * phrase repeated on one line with a separator, on several lines, IS the
+ * institution's name in full: read it from the tiles rather than from any
+ * fragment. Undefined when no line repeats a university-like phrase. */
+function watermarkName(lines: string[]): string | undefined {
+  const STRONG_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|universidad|università|universität|universiteit/i;
+  const seen = new Map<string, { count: number; text: string }>();
+  for (const line of lines) {
+    const parts = line.split(/\s*[•·|]\s*/).map((c) => c.replace(/\s+/g, ' ').trim());
+    const counts = new Map<string, string>();
+    const perLine = new Map<string, number>();
+    for (const c of parts) {
+      if (c.length < 8 || c.length > 80 || /\d/.test(c) || !STRONG_RE.test(c)) continue;
+      const key = normalizeUniversity(c);
+      if (key === '') continue;
+      counts.set(key, c);
+      perLine.set(key, (perLine.get(key) ?? 0) + 1);
+    }
+    for (const [key, n] of perLine) {
+      if (n < 2) continue; // repeated on the SAME line — the tiling, not a header
+      const e = seen.get(key) ?? { count: 0, text: counts.get(key)! };
+      e.count += 1;
+      seen.set(key, e);
+    }
+  }
+  const best = [...seen.values()].filter((e) => e.count >= 2).sort((a, b) => b.count - a.count)[0];
+  if (best === undefined) return undefined;
+  // A school this file already knows by its acronym keeps its canonical
+  // spelling (the ExternalCourses tab is keyed on it); otherwise Title Case.
+  const known = NAME_ONLY_IN_IMAGE.find(([, name]) => normalizeUniversity(name) === normalizeUniversity(best.text));
+  if (known) return known[1];
+  return best.text
+    .toLowerCase()
+    .replace(/(^|[\s-])([a-zà-ÿ])/g, (m, sep: string, ch: string) => sep + ch.toUpperCase())
+    .replace(/\b(Of|The|And|At|De|Da|Di|Du|Von|Van|Der|Del|La|Le)\b/g, (w) => w.toLowerCase())
+    .replace(/^([a-z])/, (ch) => ch.toUpperCase());
+}
+
 function guessedUniversity(lines: string[]): { university?: string; universityGuessed?: true } {
+  // The watermark, when there is one, spells the name in full and beats any
+  // fragment of itself (DGS 2026-09-12).
+  const tiled = watermarkName(lines);
+  if (tiled !== undefined) return { university: expandInstitutionAbbreviations(tiled) };
   // A name printed in the text wins — but only a STRONG one. The acronym of a
   // school that hides its name in an image beats a weak "… College" match,
   // because that match is as likely to come from a block naming somebody else
