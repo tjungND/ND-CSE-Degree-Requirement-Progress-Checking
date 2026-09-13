@@ -1,0 +1,26 @@
+{
+  "name": "phd-cminus-then-live-retake",
+  "description": "Red-team 2026-09-13: a student who earned a C- and is re-taking the course this semester. The §4.4.2 retake tie-break picked the last PASSING attempt, and a C- still counts as passed — so the C- stayed \"the one counted\", earned nothing under the 2026-09-12 credit floor, and the live retake was marked superseded, throwing its in-progress credit away (which also starved §4.5's candidacy-readiness gate). A live retake now wins over a passed attempt that earns no credit, exactly as it already did over a failed one.",
+  "today": "2027-03-01",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2026 },
+    "priorMs": "none",
+    "gpa": 3.1,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "C-", "origin": "nd" },
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "IP", "origin": "nd" }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.credits.total": { "status": "unmet", "detailIncludes": ["3 in progress"] },
+    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["3 in progress"] }
+  },
+  "expectCourseLines": {
+    "CSE 60641": ["in progress", "will count"]
+  }
+}

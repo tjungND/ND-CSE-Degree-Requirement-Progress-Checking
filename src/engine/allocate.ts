@@ -338,9 +338,18 @@ export function classify(student: Student, rules: Rules): {
     if (attempts.length < 2) continue;
     const passing = attempts.filter((a) => isPassed(a.grade));
     const inProgress = attempts.filter((a) => isInProgress(a.grade));
+    const lastPassing = passing[passing.length - 1];
+    // A LIVE retake wins over a passed attempt that earns no credit — C- or D
+    // since the 2026-09-12 floor (red-team 2026-09-13). The student is sitting
+    // the course again for exactly the credit that grade cannot give, which is
+    // the same reason the next branch prefers a live retake to a failed
+    // attempt; deciding this on isPassed alone let the C- stay "the one
+    // counted" and threw the in-progress credit away with it, which also
+    // starved §4.5's candidacy-readiness gate. Between two FINAL grades the
+    // §4.4.2 rule is unchanged: the retake grade replaces, whatever it is.
     const counted =
-      passing.length > 0
-        ? passing[passing.length - 1]!
+      lastPassing !== undefined && (passesCreditFloor(lastPassing.grade) || inProgress.length === 0)
+        ? lastPassing
         : inProgress.length > 0
           ? inProgress[inProgress.length - 1]!
           : attempts[attempts.length - 1]!; // all failed → last one (earns nothing anyway)
