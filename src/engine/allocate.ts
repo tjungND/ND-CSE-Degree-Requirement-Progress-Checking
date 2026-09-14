@@ -554,6 +554,18 @@ export function classify(student: Student, rules: Rules, today?: string): {
         // core knowledge and specialization category requirements of PhD
         // students even without credit transfer." The 40000-level allowance
         // (§3.2/§4.2's "up to two") is the degree's own and is not touched.
+        // §5.2's five-year window binds this coursework too (DGS 2026-09-14):
+        // a Notre Dame CSE 40000-level course taken more than five years
+        // before admission earns no credit — "they can still be used to
+        // satisfy the core knowledge requirements", which §4.4.1/§4.4.2
+        // read off any Notre Dame course regardless of credit.
+        if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
+          return {
+            ...extBase,
+            notTransferCredit: true,
+            ineligibleReason: `not counted — taken more than ${windowYears} years before admission (${termLabel(c.term)}; the ${windowYears}-year window of §5.2 applies to earlier Notre Dame coursework too)${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
+          };
+        }
         if (undergradLevelEarly >= 6 && student.integratedBsMs !== true) {
           return {
             ...extBase,

@@ -1,0 +1,71 @@
+{
+  "name": "phd-nd-4xxxx-outside-window",
+  "description": "DGS 2026-09-14: §5.2's five-year window binds Notre Dame's own CSE 40000-level coursework too. A Ph.D. student who entered Fall 2026 with a CSE 40113 (algorithms core) from Fall 2019 — more than five years before admission — earns no credit for it, while §4.4.1 still sees it; the same course from Fall 2022 would count (the 2026-09-10 rules).",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2020
+    },
+    "priorMs": "none",
+    "gpa": 3.8,
+    "milestones": {},
+    "attestations": {
+      "dgsApproved4xxxx": true
+    },
+    "courses": [
+      {
+        "courseId": "CSE 40113",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2019
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24"
+      ]
+    },
+    "phd.cap.fourk": {
+      "status": "not_applicable"
+    },
+    "phd.transfer": {
+      "status": "not_applicable"
+    }
+  },
+  "expectCourseLines": {
+    "CSE 40113": [
+      "not counted — taken more than 5 years before admission (Fall 2019",
+      "applies to earlier Notre Dame coursework too"
+    ]
+  }
+}
