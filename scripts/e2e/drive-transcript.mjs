@@ -231,9 +231,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // checkbox appears only when a reviewed course exists for it to settle.
   {
     const attest = JSON.parse(await s.evalJs(`JSON.stringify({ note: document.querySelector('[data-key="attest.transfer.note"]')?.textContent ?? '', box: !!document.querySelector('[data-key^="attest.the-dgs-explicitly-approved"]') })`));
-    if (!/never counts without the DGS’s explicit approval \(§5\.2\)/.test(attest.note)) throw new Error('the §5.2 rule must be stated beside the approvals: ' + attest.note.slice(0, 120));
-    if (attest.box === (/the checkbox cannot settle/.test(attest.note) === false && /Not reviewed yet/.test(attest.note))) throw new Error('the §5.2 checkbox must appear exactly when a reviewed transfer course exists: ' + JSON.stringify(attest));
-    console.log('  §5.2 rule stated; checkbox ' + (attest.box ? 'shown (a reviewed course exists)' : 'hidden (nothing reviewed yet)'));
+    // The rule is not restated here (DGS 2026-09-13); the note appears only
+    // beside a shown box, naming the courses it cannot settle.
+    if (!attest.box && attest.note !== '') throw new Error('no §5.2 box → no note: ' + attest.note.slice(0, 120));
+    if (attest.box && attest.note !== '' && !/^This box cannot settle .* — not reviewed yet/.test(attest.note)) throw new Error('the note names only what the box cannot settle: ' + attest.note.slice(0, 120));
+    console.log('  §5.2 checkbox ' + (attest.box ? 'shown (a reviewed course exists)' : 'hidden (nothing reviewed yet)') + (attest.note ? '; note: ' + attest.note.slice(0, 60) : ''));
   }
   const candidates = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('pending DGS review — candidate for transfer credit (§5.2)'));
   const wouldCount = candidates.filter((l) => l.includes('would count toward regular courses'));

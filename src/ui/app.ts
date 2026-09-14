@@ -2233,15 +2233,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (reviewed.length > 0) {
         card.append(attestation('The DGS explicitly approved my transfer credit and the Graduate School has processed it (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)));
       }
-      if (transfers.length > 0) {
+      // Only what the box cannot do (DGS 2026-09-13: the rule itself is
+      // obvious from the "Ask the DGS to review" card, so it is not repeated).
+      if (reviewed.length > 0 && unreviewed.length > 0) {
         card.append(
           el(
             'p',
             { class: 'hint attest-note', 'data-key': 'attest.transfer.note' },
-            'An external course never counts without the DGS’s explicit approval (§5.2): a course the rules sheet marks transferable is approved and waits for the Grad Admin to process it; one the sheet marks “needs approval” waits for the DGS’s decision on your case; one the sheet does not list cannot count until the DGS has reviewed it.',
-            unreviewed.length > 0
-              ? ` Not reviewed yet: ${unreviewed.join(', ')} — ${reviewed.length > 0 ? 'the checkbox cannot settle ' + (unreviewed.length === 1 ? 'it' : 'them') + '; ' : ''}send the review request from the “Ask the DGS to review” card.`
-              : '',
+            `This box cannot settle ${unreviewed.join(', ')} — not reviewed yet; send the review request from the “Ask the DGS to review” card.`,
           ),
         );
       }
