@@ -571,3 +571,37 @@ describe('Georgia Tech: the "ID" subject and the abbreviated name (2026-09-08)',
     assert.equal(withBs.bachelorsNamed, true);
   });
 });
+
+// UMass Amherst (DGS 2026-09-13): the degrees block at the END of the PDF,
+// "Degree(s) Awarded" with a parenthesis, and each degree as label/value lines
+// — "Degree Completed: Bachelor of Science" with a bare "Date:" beneath it.
+// The bachelor's date was not read; the master's date must not be taken for it.
+describe('a degrees block of label/value lines (UMass Amherst, 2026-09-13)', () => {
+  const HEAD = ['University of Massachusetts Amherst', 'Office of the University Registrar', 'This is an unofficial transcript produced for the student named below and may not be released to any third party without consent.', 'Student: (name withheld)'];
+  const lines = [
+    ...HEAD,
+    'Fall 2024',
+    'COMPSCI 611    Advanced Algorithms      3.00   A',
+    '------------------------------ Degree(s) Awarded ------------------------------',
+    'Degree Completed:                Bachelor of Science',
+    'Date:                            5/17/2024',
+    'Degree Honors:                   Cum Laude',
+    'Major:                           Major in Computer Science',
+    '',
+    'Degree Completed:                Master of Science',
+    'Date:                            5/16/2025',
+    'Major:                           Computer Science (MS)',
+    '---------------------------------No entries below this line---------------------------------',
+  ];
+  it('reads the bachelor\'s date from the "Date:" line under it, and sees the completed master\'s', () => {
+    const r = parseExternalTranscript(lines);
+    assert.equal(r.bachelorsConferredOn, '2024-05-17');
+    assert.equal(r.bachelorsNamed, true);
+    assert.equal(r.degreeConferred, true, 'the master\'s is completed');
+    assert.equal(r.courses.length, 1);
+  });
+  it('a "Date:" line is never taken without a completed-degree line above it', () => {
+    const noDegree = [...HEAD, 'Fall 2024', 'COMPSCI 611    Advanced Algorithms      3.00   A', 'Program: Bachelor of Science (sought)', 'Date:   5/17/2024'];
+    assert.equal(parseExternalTranscript(noDegree).bachelorsConferredOn, undefined);
+  });
+});

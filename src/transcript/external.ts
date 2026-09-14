@@ -567,7 +567,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const totalsLevel = LEVEL_TOTALS_RE.exec(flat);
     if (totalsLevel) retroLevel = levelWord(totalsLevel[1]!);
     // Degrees awarded.
-    if (/^[\s*-]*degrees?\s+(awarded|conferred|earned)\b/i.test(flat) && !/\b(bachelor|master|doctor)/i.test(flat)) {
+    // "Degree(s) Awarded" with the parenthesis is UMass Amherst's heading (DGS 2026-09-13).
+    if (/^[\s*-]*degree(?:s|\(s\))?\s+(awarded|conferred|earned)\b/i.test(flat) && !/\b(bachelor|master|doctor)/i.test(flat)) {
       degreeBlock = 6;
     } else if (
       /degree\b.*\b(conferred|awarded)\b/i.test(flat) &&
@@ -606,6 +607,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         const later = lines[lineIndex + k];
         if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim()) || /\b(master|doctor|ph\.?\s?d)\b/i.test(later)) break;
         if (DEGREE_DATE_LINE_RE.test(later) && !NOT_YET_RE.test(later)) bachelorsConferredOn = dateOnLine(later);
+        // A bare "Date:" right under "Degree Completed: Bachelor of Science"
+        // is that degree's date (UMass Amherst, DGS 2026-09-13) — but only
+        // when the degree line itself said completed/conferred/awarded, so a
+        // "Date:" elsewhere in a block is never mistaken for it.
+        else if (conferredHere && /^\s*date\s*:/i.test(later) && !NOT_YET_RE.test(later)) bachelorsConferredOn = dateOnLine(later);
       }
       if (bachelorsConferredOn === undefined && recentDegreeDate !== undefined && lineIndex - recentDegreeDate.at <= 2) bachelorsConferredOn = recentDegreeDate.date;
     }
