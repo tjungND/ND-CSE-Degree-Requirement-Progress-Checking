@@ -181,6 +181,15 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const extRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);
   console.log('  external preview rows:', extRows);
   if (extRows !== 3) throw new Error(`expected 3 parsed external courses, got ${extRows}`);
+  // Typing the award term in the preview updates "Your standing" at once
+  // (DGS 2026-09-13), and the preview keeps the value across that render.
+  // (Done here, on graduate-only rows, so the re-levelling it triggers
+  // changes nothing else.)
+  await s.evalJs(`(() => { const y = document.querySelector('[data-key="ext.preview.bachelors.year"]'); y.value = '2020'; y.dispatchEvent(new Event('change')); })()`);
+  await s.waitFor(`document.querySelector('[data-key="standing.bachelors.year"]')?.value === '2020' && document.querySelector('[data-key="ext.preview.bachelors.year"]')?.value === '2020'`);
+  await s.evalJs(`(() => { const y = document.querySelector('[data-key="ext.preview.bachelors.year"]'); y.value = '2021'; y.dispatchEvent(new Event('change')); })()`);
+  await s.waitFor(`document.querySelector('[data-key="standing.bachelors.year"]')?.value === '2021'`);
+  console.log('  preview award term → Your standing in real time (2020, then back to 2021)');
   // A text-layer import is COMPACT and locked (2026-09-06, second pass):
   // number, title, credits, grade and term as printed — only "Taken as" is a
   // control; and while the preview is open every transcript-row button is
@@ -435,7 +444,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // transcript's own conferral line (May 2024) must not overwrite it.
   const bsCtl = JSON.parse(await s.evalJs(`JSON.stringify((() => { const y = document.querySelector('[data-key="ext.preview.bachelors.year"]'); return { year: y?.value, required: y?.required, season: document.querySelector('[data-key="ext.preview.bachelors.season"]')?.value, hint: document.querySelector('#ext-bachelors-hint')?.textContent.slice(0, 70) }; })())`));
   console.log('  preview bachelor’s control:', JSON.stringify(bsCtl));
-  if (bsCtl.year !== '2021' || bsCtl.season !== 'spring' || bsCtl.required !== true || !bsCtl.hint.startsWith('Taken from “Bachelor’s degree awarded” under Your standing')) throw new Error('the combined preview must keep the term the student set by hand: ' + JSON.stringify(bsCtl));
+  if (bsCtl.year !== '2021' || bsCtl.season !== 'spring' || bsCtl.required !== true || !bsCtl.hint.startsWith('The same value as “Bachelor’s degree awarded” under Your standing')) throw new Error('the combined preview must keep the term the student set by hand: ' + JSON.stringify(bsCtl));
   await s.shot('combined-preview');
   // The compact (text-layer) rows at the two desktop widths the DGS checks in
   // Safari (2026-09-06): one line per course, the small columns aligned across

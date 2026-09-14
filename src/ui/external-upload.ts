@@ -894,7 +894,19 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     // graduate student status, so §5.2 needs it here as much as on a Master's
     // transcript; the bachelor's slot is the degree itself and reads its own
     // conferral date.
-    ...(p.slot !== 'bachelors' ? [bachelorsField(p, rules, render, student.program)] : []),
+    ...(p.slot !== 'bachelors'
+      ? [
+          bachelorsField(p, rules, render, student.program, (term) =>
+            // Kept in step with "Your standing" as the student types (DGS
+            // 2026-09-13): the record used to change only on Add, which
+            // looked like the entry had not taken.
+            update((s) => {
+              s.bachelorsAwarded = term;
+              s.bachelorsAwardedInferred = undefined;
+            }),
+          ),
+        ]
+      : []),
   );
   const table = el('table', { class: 'courses stack edit' });
   table.append(
@@ -1223,7 +1235,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
 /** The preview's "Bachelor's degree awarded" control (DGS 2026-09-06 evening):
  * season + year, pre-filled from the transcript's conferral date, required for
  * a combined record. A change re-fills every row's "Taken as" by the term. */
-function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, program: Program): HTMLElement {
+function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, program: Program, sync?: (term: Term | undefined) => void): HTMLElement {
   const yearInput = el('input', {
     type: 'number',
     min: '1970',
@@ -1243,7 +1255,9 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, pr
     p.bachelorsSource = 'student';
     relevelByAward(p, rules, program);
     previewError = undefined;
-    render();
+    // `sync` writes the record and renders the whole page (the preview with it).
+    if (sync) sync(p.bachelorsAwarded);
+    else render();
   };
   yearInput.addEventListener('change', apply);
   seasonSel.addEventListener('change', () => {
@@ -1255,7 +1269,7 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, pr
   const ugTail = program === 'phd' ? ': no transfer credit, core knowledge only (§5.2, §4.4.1).' : ', which brings no transfer credit (§5.2).';
   const hint =
     p.bachelorsAwarded && p.bachelorsSource === 'student'
-      ? `Taken from “Bachelor’s degree awarded” under Your standing — importing this transcript does not change it.${p.bachelorsConferredOn ? ` This transcript says a bachelor’s degree was conferred ${p.bachelorsConferredOn}; correct it here only if that is the right term.` : ''} Courses dated in or before it count as undergraduate coursework${ugTail}`
+      ? `The same value as “Bachelor’s degree awarded” under Your standing — changing it here changes it there.${p.bachelorsConferredOn ? ` This transcript says a bachelor’s degree was conferred ${p.bachelorsConferredOn}; correct it here only if that is the right term.` : ''} Courses dated in or before it count as undergraduate coursework${ugTail}`
       : p.bachelorsAwarded && p.bachelorsSource === 'transcript'
       ? `Read from your transcript (bachelor’s degree conferred ${p.bachelorsConferredOn}) — check it. Courses dated in or before this term count as undergraduate coursework${ugTail}`
       : p.bachelorsRequired
