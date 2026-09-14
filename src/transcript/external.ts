@@ -209,11 +209,43 @@ function withCampus(
   return { ...guess, university: r.system.system, campusSystem: r.system.system };
 }
 
+/** The institution that AWARDED the degree, when the "Degrees Awarded" block
+ * names one (DGS 2026-09-13). Indiana University's registrar prints "Indiana
+ * University Bloomington" in the header of every IU transcript — including
+ * an IUPUI student's, whose degree block then says "Indiana University Purdue
+ * University Indianapolis". The awarding school is the one the rules key on,
+ * so a university-like name inside the block (the longest, digit-free one,
+ * within ten lines of the heading) beats the header. A block headed "…by
+ * other institutions" (UC San Diego) names somebody else and is skipped. */
+function awardingInstitution(lines: string[]): string | undefined {
+  const STRONG_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|universidad|università|universität|universiteit/i;
+  const SENTENCE_RE = /\b(this|is|are|was|were|has|have|to be|certified|issued|printed|member of|does not|registrar|provost|dean)\b/i;
+  for (let i = 0; i < lines.length; i++) {
+    const flat = lines[i]!.replace(/\s+/g, ' ').trim();
+    if (!/^[\s*-]*degree(?:s|\(s\))?\s+(awarded|conferred|earned)\b/i.test(flat) || /other\s+institution/i.test(flat)) continue;
+    let best: string | undefined;
+    for (let k = 1; k <= 10 && i + k < lines.length; k++) {
+      const cand = lines[i + k]!
+        .replace(/\s+/g, ' ')
+        .replace(/\s+degree\s*$/i, '')
+        .trim();
+      if (cand.length < 8 || cand.length > 90 || /\d/.test(cand) || !STRONG_RE.test(cand) || SENTENCE_RE.test(cand) || /^(college|school|department|faculty|institute)\s+of\b/i.test(cand)) continue;
+      if (best === undefined || cand.length > best.length) best = cand;
+    }
+    if (best !== undefined) return best;
+  }
+  return undefined;
+}
+
 function guessedUniversity(lines: string[]): { university?: string; universityGuessed?: true } {
   // The watermark, when there is one, spells the name in full and beats any
   // fragment of itself (DGS 2026-09-12).
   const tiled = watermarkName(lines);
   if (tiled !== undefined) return { university: expandInstitutionAbbreviations(tiled) };
+  // The school that awarded the degree beats the registrar's header (DGS
+  // 2026-09-13: an IUPUI transcript is issued by IU Bloomington).
+  const awarding = awardingInstitution(lines);
+  if (awarding !== undefined) return { university: expandInstitutionAbbreviations(awarding) };
   // A name printed in the text wins — but only a STRONG one. The acronym of a
   // school that hides its name in an image beats a weak "… College" match,
   // because that match is as likely to come from a block naming somebody else

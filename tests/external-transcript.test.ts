@@ -605,3 +605,37 @@ describe('a degrees block of label/value lines (UMass Amherst, 2026-09-13)', () 
     assert.equal(parseExternalTranscript(noDegree).bachelorsConferredOn, undefined);
   });
 });
+
+// IUPUI (DGS 2026-09-13): Indiana University's registrar prints "Indiana
+// University Bloomington" in the header of every IU transcript; the degree
+// block names the school that awarded the degree. That one is the university.
+describe('the awarding institution beats the issuing header (IUPUI, 2026-09-13)', () => {
+  const lines = [
+    'Unofficial Transcripts   11/4/24, 9:19 PM',
+    'Student Unofficial Transcript',
+    'Indiana University Bloomington',
+    'Student ID :',
+    'Print Date : 11-04-2024',
+    '- - - - - Degrees Awarded - - - - -',
+    'Purdue University Degree',
+    'Indiana University Purdue University Indianapolis',
+    'School of Engineering and Technology',
+    'M. S. in Electrical & Computer Engineering',
+    'Degree GPA: 3.127',
+    'Degree Hours: 30.04',
+    'Major: Electrical and Computer Engineering',
+    'Non Thesis Option',
+    'This is an unofficial transcript produced for the student named above; it is not valid without the registrar seal and may not be released to a third party.',
+    'Fall 2022',
+    'ECE 60000   Advanced Topics   3.00   A',
+  ];
+  it('names IUPUI, not the Bloomington header', () => {
+    const r = parseExternalTranscript(lines);
+    assert.equal(r.university, 'Indiana University Purdue University Indianapolis');
+    assert.equal(r.universityGuessed, undefined);
+  });
+  it('a block "awarded by other institutions" never renames the transcript', () => {
+    const other = ['Purdue University', 'Office of the Registrar', 'This is an unofficial transcript produced for the student named below and may not be released to any third party without consent.', '--DEGREES AWARDED BY OTHER INSTITUTIONS---', 'Example State University', 'Fall 2023', 'CS 50300   Operating Systems   3.0   A'];
+    assert.equal(parseExternalTranscript(other).university, 'Purdue University');
+  });
+});
