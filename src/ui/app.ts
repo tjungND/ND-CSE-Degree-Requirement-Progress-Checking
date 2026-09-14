@@ -2236,7 +2236,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const reviewed = transfers.filter((c) => c.reviewed === true);
       const unreviewed = transfers.filter((c) => c.reviewed !== true).map((c) => c.entry.courseId);
       if (reviewed.length > 0) {
-        card.append(attestation('The DGS explicitly approved my transfer credit and the Graduate School has processed it (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)));
+        card.append(attestation('The DGS explicitly approved my transfer credit (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)));
       }
       // Only what the box cannot do (DGS 2026-09-13: the rule itself is
       // obvious from the "Ask the DGS to review" card, so it is not repeated).

@@ -167,7 +167,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const lines = [
     ...transfers.map(
       (t) =>
-        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${t.state === 'approved' ? 'approved by the DGS and the Graduate School (§5.2), please check it is recorded' : 'pre-approved by the DGS, to be processed (§5.2)'}`,
+        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${t.state === 'approved' ? 'approved by the DGS for my case (§5.2), to be processed' : 'pre-approved by the DGS, to be processed (§5.2)'}`,
     ),
     ...milestones.map((m) => `${m.label} ${m.date} (${m.section})`),
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
