@@ -23,9 +23,16 @@ describe('multi-campus systems', () => {
     assert.equal(resolveCampus('University of California', deep).campus, undefined);
   });
   it('schools whose bare name means the flagship are not systems', () => {
-    for (const name of ['Purdue University', 'University of Michigan', 'University of Washington', 'California State University', 'Notre Dame']) {
+    for (const name of ['Purdue University', 'University of Michigan', 'California State University', 'Notre Dame']) {
       assert.equal(resolveCampus(name).system, undefined, name);
     }
+  });
+  it('University of Washington asks unless the record names Seattle, Tacoma or Bothell (DGS 2026-09-13)', () => {
+    assert.equal(resolveCampus('University of Washington').campus, undefined);
+    assert.equal(resolveCampus('University of Washington').system?.system, 'University of Washington');
+    assert.equal(resolveCampus('University of Washington', ['UNIVERSITY OF WASHINGTON', 'Seattle, WA 98195']).campus?.full, 'University of Washington');
+    assert.equal(resolveCampus('University of Washington Tacoma').campus?.full, 'University of Washington Tacoma');
+    assert.equal(resolveCampus('University of Washington', ['UNIVERSITY OF WASHINGTON', 'Bothell Campus']).campus?.name, 'Bothell');
   });
   it('the parser carries the system and the campus', () => {
     const lines = ['UNIVERSITY OF CALIFORNIA', ...HEAD, 'Fall Quarter 2023', 'CSE 202   Algorithm Design and Analysis   4.0   A'];

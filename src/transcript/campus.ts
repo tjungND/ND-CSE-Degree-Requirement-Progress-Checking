@@ -6,7 +6,8 @@
 // pre-filled; when it cannot, the student MUST choose it before the courses
 // are added. Only systems whose bare name is genuinely ambiguous are listed —
 // "Purdue University" or "University of Michigan" alone means the flagship,
-// and asking would only be noise.
+// and asking would only be noise. (University of Washington is listed at the
+// DGS's request, 2026-09-13.)
 import { normalizeUniversity } from '../data/external.ts';
 
 export interface Campus {
@@ -40,6 +41,17 @@ export const MULTI_CAMPUS_SYSTEMS: readonly MultiCampusSystem[] = [
       c('San Francisco', 'University of California, San Francisco', /\bSan Francisco\b|\bUCSF\b/i),
       c('Santa Barbara', 'University of California, Santa Barbara', /\bSanta Barbara\b|\bUCSB\b/i),
       c('Santa Cruz', 'University of California, Santa Cruz', /\bSanta Cruz\b|\bUCSC\b/i),
+    ],
+  },
+  {
+    // DGS 2026-09-13: the bare name is Seattle's, but the Tacoma and Bothell
+    // transcripts print it too — so the campus is asked unless the record
+    // names one.
+    system: 'University of Washington',
+    campuses: [
+      c('Seattle', 'University of Washington', /\bSeattle\b|\bUW\s*Seattle\b/i),
+      c('Tacoma', 'University of Washington Tacoma', /\bTacoma\b|\bUWT\b/i),
+      c('Bothell', 'University of Washington Bothell', /\bBothell\b|\bUWB\b/i),
     ],
   },
   {

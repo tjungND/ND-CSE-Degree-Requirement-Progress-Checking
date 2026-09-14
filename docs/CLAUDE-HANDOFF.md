@@ -1184,7 +1184,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   name is ambiguous; `withCampus` in the parser sets `campusSystem`/`campus`; the preview's
   `ext.preview.campus` select is required and writes the campus's full name into `p.university`.
   Do not add a school whose bare name means its flagship — the picker would fire on every
-  Purdue transcript.
+  Purdue transcript (University of Washington is the DGS's deliberate exception, 2026-09-13).
 
 ## Invariants — keep these true
 
