@@ -779,7 +779,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
       priorNote,
     );
-    if (student.program === 'phd') card.append(ndMsField);
+    // Not shown once a master's transcript from ANOTHER university is on the
+    // record and nothing says the student holds Notre Dame's MSCSE (DGS
+    // 2026-09-13): their master's is that one, and the question would only
+    // confuse. A ticked or transcript-read answer keeps the box.
+    const otherMasters = student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel === 'masters' && !isNotreDameCourse(c));
+    if (student.program === 'phd' && (ndMs !== undefined || !otherMasters)) card.append(ndMsField);
     // Integrated B.S. + M.S. (4+1)? Asked only when the record has Notre Dame
     // coursework from before the entry term (DGS 2026-09-12, red-team F7):
     // a 60000-level course taken as an undergraduate earns credit only then.

@@ -226,6 +226,10 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   const purdueLines = await groupLines('Purdue University — Previous Master’s Transcript');
   console.log('  Purdue transfer lines:', JSON.stringify(purdueLines));
+  // With a master's transcript from another university on the record, the
+  // "I already hold the MSCSE from Notre Dame" box is not offered (DGS 2026-09-13).
+  if (await s.evalJs(`[...document.querySelectorAll('label.check')].some(l => /already hold the MSCSE from Notre Dame/.test(l.textContent))`)) throw new Error('the ND-MSCSE box must not show beside another university’s master’s transcript');
+  console.log('  ND-MSCSE box hidden while a Purdue master’s is on the record');
   // §5.2 explicit approval (DGS 2026-09-12, red-team F5): with a transfer
   // course on the record the rule is stated beside the approvals, and the
   // checkbox appears only when a reviewed course exists for it to settle.
