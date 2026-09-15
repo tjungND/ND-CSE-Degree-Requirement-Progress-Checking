@@ -413,8 +413,9 @@ in-browser PDF parsing · `tests/scenarios/*.json` — one student case per file
 interpretation ever made · `docs/CLAUDE-HANDOFF.md` — engineering decisions and recipes for AI
 sessions · `MAINTENANCE.md` — deeper technical notes and the list of one-time setup still pending ·
 `src/ui/handbook.ts` — handbook edition + PDF link · `src/ui/contacts.ts` — who to contact ·
-`CLAUDE.md` / `AGENTS.md` — the instructions AI agents read · `START-HERE.md`, `KICKOFF-PROMPT.md`,
-`reference/` — the original build-time starter kit, historical only.
+`CLAUDE.md` / `AGENTS.md` — the instructions AI agents read. (The build-time starter kit —
+`START-HERE.md`, `KICKOFF-PROMPT.md`, `reference/`, the seed spreadsheet and the Banner sweep — was
+removed on 2026-09-14 and lives in git history only.)
 
 Automation: every push to `main` runs the tests and redeploys GitHub Pages (`deploy` Action); every
 push or pull request runs `test`; every six hours `sync-sheet` checks the sheet and, when its

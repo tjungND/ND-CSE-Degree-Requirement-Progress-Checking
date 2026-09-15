@@ -48,10 +48,10 @@ touching code and without the original author.
    decision only papers over a gap in the handbook's own text.
 4. `docs/CLAUDE-HANDOFF.md` — engineering decisions, invariants, verification, recipes.
 
-(`reference/CSE-Degree-Audit.html` is the pre-build prototype, kept for history only — its rule
-logic is superseded and was found buggy; never treat it as truth. `START-HERE.md` and
-`KICKOFF-PROMPT.md` are the original starter-kit notes, also historical. `DGS-READ-THIS.md` was
-replaced by `README.md` on 2026-09-01.)
+(The build-time starter kit — the pre-build prototype `reference/CSE-Degree-Audit.html`, whose rule
+logic was superseded and found buggy, `START-HERE.md`, `KICKOFF-PROMPT.md`, the seed spreadsheet
+`CSE-Degree-Audit-Rules.xlsx` and the Banner sweep `cse_courses.csv` — was removed on 2026-09-14;
+it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 2026-09-01.)
 
 ## Architecture (as built)
 - Vite + TypeScript, vanilla UI, zero runtime dependencies except two lazily-loaded ones:

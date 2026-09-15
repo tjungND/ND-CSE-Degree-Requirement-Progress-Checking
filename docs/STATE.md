@@ -346,8 +346,8 @@ queue. Recent commits, newest first:
   per session, no wait for the load event after `Page.navigate`) before trusting a red run.
 - Link both pages from cse.nd.edu; remove the alpha banner when ready (the opening notice is separate).
 - Housekeeping: `.git/stale-locks/` and `.git/objects/*/tmp_obj_*` litter in the Mac clone came from the
-  Cowork VM (it could not delete files) — safe to remove; `START-HERE.md` / `KICKOFF-PROMPT.md` could
-  move to `docs/history/`.
+  Cowork VM (it could not delete files) — safe to remove. (The starter kit — `START-HERE.md`,
+  `KICKOFF-PROMPT.md`, `reference/`, the seed xlsx, `cse_courses.csv` — was removed 2026-09-14.)
 
 ## Working in Claude Code Desktop (the Code tab)
 

@@ -26,7 +26,7 @@ Edits appear in the published CSV within about five minutes. Students see them o
 ## Tabs
 
 ### Tab `Courses` — one row per course the app knows about
-Prefilled from the Banner sweep (`cse_courses.csv`, Aug 2026): every CSE 4xxxx–9xxxx catalog
+Prefilled from the Banner sweep (`cse_courses.csv`, Aug 2026 — removed from the repo 2026-09-14, in git history): every CSE 4xxxx–9xxxx catalog
 entry, latest version per course number (371 rows). Informational columns come from Banner;
 policy columns are the DGS's.
 
@@ -53,7 +53,7 @@ policy columns are the DGS's.
 
 A blank `counts_toward_*` on an active course makes the app say "needs DGS review" for that
 course. The earlier sheets ("CSE Course Catalog" and "CSE Degree Requirement Rules") are
-superseded by the Google Sheet CSE-Degree-Checking-Rules (built from `CSE-Degree-Audit-Rules.xlsx`, under its original name).
+superseded by the Google Sheet CSE-Degree-Checking-Rules (built from the seed spreadsheet `CSE-Degree-Audit-Rules.xlsx`, under its original name — removed from the repo 2026-09-14, in git history).
 The `*.sample.csv` files here show this exact schema in miniature (they double as the base rules
 for the test suite's fixtures in `tests/fixtures/rules/`).
 
