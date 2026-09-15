@@ -192,7 +192,10 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
     };
 
     let effectiveTerm = undefined;
-    const termRaw = cells['effective_term'] ?? '';
+    // `rules_effective_term` since 2026-09-14 (DGS: the old name did not say
+    // WHAT takes effect); the old header is still read so an un-renamed sheet
+    // keeps working.
+    const termRaw = cells['rules_effective_term'] ?? cells['effective_term'] ?? '';
     if (termRaw !== '') {
       // Either spelling: "Fall 2026" as this column has always taken, or the
       // code the rest of the sheet now uses, "FA26" (2026-09-09).
@@ -202,8 +205,8 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
           severity: 'warning',
           tab: 'Courses',
           row: rowNum,
-          column: 'effective_term',
-          message: `Courses row ${rowNum} (${courseId}), column effective_term: '${termRaw}' is not like 'Fall 2026' or 'FA26' — treating the row as always in effect.`,
+          column: 'rules_effective_term',
+          message: `Courses row ${rowNum} (${courseId}), column rules_effective_term: '${termRaw}' is not like 'Fall 2026' or 'FA26' — treating the row as always in effect.`,
         });
       }
     }

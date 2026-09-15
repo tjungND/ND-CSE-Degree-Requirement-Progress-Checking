@@ -78,7 +78,7 @@ app skip that row and report it.
 | `core_area` | `os` / `algorithms` / `architecture` / blank | Which §4.4.1 core-knowledge area the course satisfies. |
 | `category_group` | `alg` / `hcc` / `arch` / `dsai` / `sys` / `any` / `ineligible` / blank | Which §4.4.2 specialization group it belongs to. `any` = listed under every group, the student picks one (Research Methods). `ineligible` = can never satisfy the category requirement — all 40000-level courses are marked this way. |
 | `active` | `yes` / `no` | `no` hides a retired course from the student's picker but keeps it recognized for students who took it. |
-| `effective_term` | e.g. `Fall 2026` | First term this row applies. See A3. |
+| `rules_effective_term` | e.g. `Fall 2026` | First term this row applies. See A3. |
 | `dgs_reviewed` | `yes` / `no` | `yes` shows the row as **Confirmed** on the public course-rules page; anything else shows **Pending**. The audit engine ignores it — an unreviewed `yes` in `counts_toward_*` still counts. |
 | `notes` | text | Shown to the student on hover. Cite the § when relevant. |
 
@@ -103,7 +103,7 @@ pre-fills; leave it blank for variable-credit courses. Full schema: `data/README
    number); `credit_min` / `credit_max` / `credits_default` (3 / 3 / 3 for a normal course);
    `course_type`; `counts_toward_mscse` and `counts_toward_phd`; `core_area` and `category_group`
    if it qualifies, otherwise blank (`ineligible` for any 40000-level course); `active` = `yes`;
-   `effective_term` = the first term the course may be counted (for example `Fall 2026`);
+   `rules_effective_term` = the first term the course may be counted (for example `Fall 2026`);
    `dgs_reviewed` = `yes`; a short `notes` citing the §.
 4. Log it (A6) and verify (A7).
 
@@ -112,9 +112,9 @@ pre-fills; leave it blank for variable-credit courses. Full schema: `data/README
 Rules change from a term onward, and students who took the course earlier keep the old rule. So:
 
 1. **Do not edit the old row.** Copy it and paste the copy directly below.
-2. In the copy, change the policy columns and set `effective_term` to the first term the new rule
+2. In the copy, change the policy columns and set `rules_effective_term` to the first term the new rule
    applies.
-3. The app picks, for each course a student took, the newest row whose `effective_term` is not
+3. The app picks, for each course a student took, the newest row whose `rules_effective_term` is not
    after the term the student took it. If every row is later than the student's term, the oldest
    row applies.
 
@@ -355,7 +355,7 @@ Approve the commands it proposes (`npm test`, `npm run build`, …) when it asks
   Link*, pick Courses, Parameters, Categories in turn as *Comma-separated values*, copy the three
   URLs. Then: *"Replace the three URLs in data/sheet-urls.json with these, run npm run
   sync-sheet, and confirm the diagnostics are clean."*
-- **A number should apply only to new students.** *"Parameters have no effective_term. Plan how
+- **A number should apply only to new students.** *"Parameters have no rules_effective_term. Plan how
   to grandfather `<key>` by entry term, mirroring the Courses-row versioning, and tell me the
   sheet-schema change before implementing."* This one is nontrivial — expect a real discussion.
 - **Wording on the page.** *"Change the footer text to … . UI change only; run npm run e2e and

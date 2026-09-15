@@ -90,7 +90,7 @@ describe('last_offered dates the schedule columns', () => {
     const header = texts.courses.split('\n')[0]!;
     const cols = header.split(',');
     const mk = (lastOffered: string) => {
-      const cells = cols.map((c) => ({ course_id: 'CSE 69999', title: 'Test', level: '6', credit_min: '3', credit_max: '3', credits_default: '3', course_type: 'regular', counts_toward_mscse: 'yes', counts_toward_phd: 'yes', typically_offered: 'fall', active: 'yes', last_offered: lastOffered, effective_term: 'Fall 2026', offered_now: 'yes', dgs_reviewed: 'yes' } as Record<string, string>)[c] ?? '');
+      const cells = cols.map((c) => ({ course_id: 'CSE 69999', title: 'Test', level: '6', credit_min: '3', credit_max: '3', credits_default: '3', course_type: 'regular', counts_toward_mscse: 'yes', counts_toward_phd: 'yes', typically_offered: 'fall', active: 'yes', last_offered: lastOffered, rules_effective_term: 'Fall 2026', offered_now: 'yes', dgs_reviewed: 'yes' } as Record<string, string>)[c] ?? '');
       return rulesFromCsvTexts({ ...texts, courses: `${texts.courses.trimEnd()}\n${cells.map((v) => (v.includes(',') ? `"${v}"` : v)).join(',')}\n` }, meta);
     };
     assert.deepEqual(mk('Fall 2026').courses.get('CSE 69999')?.[0]?.lastOffered, { season: 'fall', year: 2026 });
@@ -157,12 +157,12 @@ describe('sheet validation', () => {
     assert.ok(report.warnings.some((w) => w.includes('credits')));
   });
 
-  it('duplicate course_id + effective_term → reported, first row wins', () => {
+  it('duplicate course_id + rules_effective_term → reported, first row wins', () => {
     const texts = fixtureCsvTexts();
     const dup =
       'CSE 60641,Graduate Operating Systems DUPLICATE,6,3,3,3,regular,yes,yes,os,sys,fall,yes,Fall 2026,Fall 2026,yes,\n';
     const rules = rulesFromCsvTexts({ ...texts, courses: texts.courses + dup }, meta);
-    assert.ok(rules.issues.some((i) => i.message.includes('same effective_term')));
+    assert.ok(rules.issues.some((i) => i.message.includes('same rules_effective_term')));
     assert.equal(rules.courses.get('CSE 60641')?.length, 1);
     assert.equal(rules.courses.get('CSE 60641')?.[0]?.title, 'Graduate Operating Systems');
   });

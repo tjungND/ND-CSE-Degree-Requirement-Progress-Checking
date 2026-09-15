@@ -23,7 +23,7 @@ export function validateCourses(
         severity: 'error',
         tab: 'Courses',
         row: c.sheetRow,
-        message: `Courses row ${c.sheetRow}: ${c.courseId} already has a row with the same effective_term — using the first one.`,
+        message: `Courses row ${c.sheetRow}: ${c.courseId} already has a row with the same rules_effective_term — using the first one.`,
       });
       continue;
     }

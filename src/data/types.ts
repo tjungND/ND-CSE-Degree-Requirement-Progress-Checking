@@ -78,7 +78,7 @@ export interface ExternalRule {
 }
 
 /** One row of the Courses tab (the same course_id may appear in several rows
- * with different effective_term values — see resolveRuleRow in assemble.ts). */
+ * with different rules_effective_term values — see resolveRuleRow in assemble.ts). */
 export interface RuleCourse {
   courseId: string;
   title: string;

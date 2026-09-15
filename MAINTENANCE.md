@@ -27,9 +27,9 @@ Open the Google Sheet **CSE-Degree-Checking-Rules** (named CSE-Degree-Audit-Rule
   qualifies; `any` means listed under every group and the student picks.
 - Retired course: set `active` to `no` (hides it from the picker; still recognized when typed,
   for students who took it years ago). Do not delete rows.
-- A rule *changes* from some term: **add a new row** with the later `effective_term` instead of
+- A rule *changes* from some term: **add a new row** with the later `rules_effective_term` instead of
   editing the old one. The app applies, per course a student took, the newest row whose
-  `effective_term` is not after that course's term (the oldest row applies retroactively).
+  `rules_effective_term` is not after that course's term (the oldest row applies retroactively).
 Students see edits on their next page load (~5 minutes for Google to republish).
 
 ### 2. A number in the handbook changes

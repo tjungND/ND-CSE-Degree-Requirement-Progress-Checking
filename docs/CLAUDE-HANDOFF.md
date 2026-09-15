@@ -688,7 +688,7 @@ Known-pending (the app's diagnostics panel is the live truth):
 - **§4.4.2 distinct groups** use Kuhn's bipartite matching (`matching.ts`) so an `any`-group
   course (Research Methods) lands on the group the student is missing; a student's pinned
   choice is honored and a suggestion is emitted if suboptimal.
-- **`effective_term` resolution**: newest Courses row not after the COURSE'S term; if every
+- **`rules_effective_term` resolution**: newest Courses row not after the COURSE'S term; if every
   row is later (all 371 live rows say Fall 2026), the OLDEST row applies retroactively —
   without that fallback every pre-2026 course would resolve to nothing.
 - **Reserved `category_group` codes**: `any` and `ineligible` (`RESERVED_GROUP_CODES` in
@@ -1236,5 +1236,5 @@ Known-pending (the app's diagnostics panel is the live truth):
   `external.ts` / `parse.ts`, then add invented lines of the same shape to the tests and, for a
   new layout, a positioned-run fixture in `tests/fixtures/make-transcript-pdfs.mjs` plus an e2e
   leg. If the DGS shares his OWN transcript, use it only in the scratchpad and delete it.
-- **"Grandfather a parameter change"**: Parameters have no effective_term — that's a real code
+- **"Grandfather a parameter change"**: Parameters have no rules_effective_term — that's a real code
   change (mirror the Courses-row versioning); warn the DGS it's nontrivial.

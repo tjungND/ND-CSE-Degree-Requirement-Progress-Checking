@@ -47,7 +47,7 @@ policy columns are the DGS's.
 | `typically_offered` | `fall` \| `spring` \| `both` \| `varies` \| blank | Informational (planning hints). |
 | `active` | `yes` \| `no` | `yes` → shown in the student's course picker. `no` → hidden from the picker but still recognised when typed (old courses). |
 | `last_offered` | text | Last term listed in Banner (informational). |
-| `effective_term` | e.g. `Fall 2026` or `FA26` | First term this row applies. Keep old rows; add a new row with a later `effective_term` when a rule changes. For each course a student took, the app applies the newest row whose `effective_term` is not after that course's term; if every row is later than the course (e.g. everything says Fall 2026 and the course was taken in 2024), the **oldest row applies retroactively**, so old coursework still resolves. |
+| `rules_effective_term` | e.g. `Fall 2026` or `FA26` | First term this row's RULES apply (renamed from `effective_term` 2026-09-14; the old header is still read). First term this row applies. Keep old rows; add a new row with a later `rules_effective_term` when a rule changes. For each course a student took, the app applies the newest row whose `rules_effective_term` is not after that course's term; if every row is later than the course (e.g. everything says Fall 2026 and the course was taken in 2024), the **oldest row applies retroactively**, so old coursework still resolves. |
 | `dgs_reviewed` | `yes` \| `no` | DGS's own checklist. Shown on the public course-rules page (`courses.html`) as Confirmed (`yes`) or Pending (anything else); the audit engine ignores it. |
 | `notes` | text | Free text shown to the student on hover. Cite the § when relevant. |
 
@@ -191,7 +191,7 @@ into `sheet-urls.json` as `external`. Until then the app runs without it.
 ## Validation the app must do on load
 - unknown value in an enumerated column → row is skipped and reported ("Courses row 14, column
   `course_type`: 'lecture' is not one of regular|seminar|research|independent|project")
-- duplicate `course_id` with the same `effective_term` → reported
+- duplicate `course_id` with the same `rules_effective_term` → reported
 - missing required parameter key → reported, and the requirement that needs it is shown as
   "cannot evaluate — rules sheet is missing `<key>`" rather than silently passing
 - a `core_area` or `category_group` value not in the `Categories` tab → reported

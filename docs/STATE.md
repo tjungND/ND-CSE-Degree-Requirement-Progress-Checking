@@ -303,7 +303,7 @@ queue. Recent commits, newest first:
 2. Two 2026-09-01 notices still say the rules are "exactly the rules the DGS and the Grad Admin use to
    determine requirement satisfaction" (handbook.ts RULES_ACCURACY_NOTICE, courses-page.ts) — under
    the two-roles split the DGS alone determines; keep or reword?
-3. The Courses tab keeps the FIRST of two rows with the same course_id + effective_term (the
+3. The Courses tab keeps the FIRST of two rows with the same course_id + rules_effective_term (the
    ExternalCourses tab now keeps the LAST, DGS 2026-09-06) — should the Courses tab follow?
 
 ## Open items for the DGS

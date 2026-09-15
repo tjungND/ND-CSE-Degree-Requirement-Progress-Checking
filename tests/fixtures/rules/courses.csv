@@ -1,4 +1,4 @@
-course_id,title,level,credit_min,credit_max,credits_default,course_type,counts_toward_mscse,counts_toward_phd,core_area,category_group,typically_offered,active,last_offered,effective_term,offered_now,offered_next,dgs_reviewed,notes
+course_id,title,level,credit_min,credit_max,credits_default,course_type,counts_toward_mscse,counts_toward_phd,core_area,category_group,typically_offered,active,last_offered,rules_effective_term,offered_now,offered_next,dgs_reviewed,notes
 CSE 50120,Bridge Data Structures,5,3,3,3,regular,no,dgs_approval,algorithms,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,"Fixture: the live shape of a Transition to Computing bridge course (CSE 50502) - no for the MSCSE, dgs_approval for the PhD, and a core area"
 CSE 50110,Bridge Programming Foundations,5,3,3,3,regular,yes,yes,,,fall,yes,Fall 2026,Fall 2026,,,yes,"Fixture: a 50000-level bridge course the sheet permits — it counts, but inside §4.2's six-credit cap (DGS 2026-09-09)"
 CSE 60111,Complexity and Algorithms,6,3,3,3,regular,yes,yes,algorithms,alg,spring,yes,Spring 2026,Fall 2026,yes,no,yes,§4.4.2 typical spring course
@@ -9,7 +9,7 @@ CSE 60641,Graduate Operating Systems,6,3,3,3,regular,yes,yes,os,sys,fall,yes,Fal
 CSE 60762,Custom System on Chip Design,6,3,3,3,regular,yes,yes,,arch,spring,yes,Spring 2026,Fall 2026,,,yes,§4.4.2 typical spring course
 CSE 60770,Secure Software Engineering,6,3,3,3,regular,yes,yes,,sys,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course
 CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,dsai,spring,yes,Spring 2026,Fall 2026,,,yes,"§4.4.2 typical spring course, dsai until Fall 2027"
-CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,alg,spring,yes,Spring 2026,Fall 2027,,,yes,Fixture: moved to the alg group from Fall 2027 (tests effective_term selection)
+CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,alg,spring,yes,Spring 2026,Fall 2027,,,yes,Fixture: moved to the alg group from Fall 2027 (tests rules_effective_term selection)
 CSE 60876,Research Methods,6,3,3,3,regular,yes,yes,,any,spring,yes,Spring 2026,Fall 2026,,,yes,Listed under all five groups in §4.4.2 — the student assigns it to whichever group they still need
 CSE 60999,Topics in Computing,6,3,3,3,regular,,,,,varies,yes,Fall 2026,Fall 2026,,,no,Fixture: blank counts_toward_* — the app must say needs DGS review
 CSE 63801,Research Seminar I,6,1,1,1,seminar,no,yes,,,fall,yes,Fall 2026,Fall 2026,,,yes,§4.2 — required of Ph.D. students in year one

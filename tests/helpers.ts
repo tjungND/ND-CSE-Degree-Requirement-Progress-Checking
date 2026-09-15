@@ -34,7 +34,7 @@ export interface RulesPatch {
   parameters?: Record<string, string | null>;
   courses?: {
     course_id: string;
-    effective_term?: string;
+    rules_effective_term?: string;
     set?: Record<string, string>;
     remove?: boolean;
   }[];
@@ -86,7 +86,7 @@ export function applyPatch(
     for (const op of patch.courses) {
       const matches = (r: string[]) =>
         r[col('course_id')] === op.course_id &&
-        (op.effective_term === undefined || r[col('effective_term')] === op.effective_term);
+        (op.rules_effective_term === undefined || r[col('rules_effective_term')] === op.rules_effective_term);
       if (op.remove) {
         body = body.filter((r) => !matches(r));
       } else if (op.set) {
