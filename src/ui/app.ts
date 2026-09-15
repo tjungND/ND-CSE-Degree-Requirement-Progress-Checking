@@ -2121,7 +2121,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function askGradAdminCard(report: ReturnType<typeof audit>): HTMLElement {
     const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
     const n = built.items.count;
-    const label = 'Copy processing request for the Grad Admin';
+    const label = 'Initiate the request';
     const attrs = { class: 'btn', 'data-key': 'gradadmin.copy' };
     const button =
       n === 0
@@ -2165,8 +2165,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         `${GRAD_ADMIN.name}, `,
         mailto(GRAD_ADMIN.email),
         student.program === 'phd'
-          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request; email it to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.'
-          : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Processing happens only by email: the button copies this request; email it to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
+          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc — attach your original transcripts. The page itself sends nothing.'
+          : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc — attach your original transcripts. The page itself sends nothing.',
       ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line', 'data-keep-dgs': '' }, text)),
       n === 0 ? el('p', { class: 'hint' }, 'Nothing to process yet.') : null,
