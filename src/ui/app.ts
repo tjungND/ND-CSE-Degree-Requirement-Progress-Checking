@@ -1062,13 +1062,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'card external-card' },
-      el('h2', {}, el('span', { class: 'step-no' }, '1. '), 'Transcripts ', el('span', { class: 'chip-note' }, 'start here')),
+      // "Start here" made prominent (DGS 2026-09-15): a filled badge in the
+      // heading and a bold callout line above the hint.
+      el('h2', {}, el('span', { class: 'step-no' }, '1. '), 'Transcripts ', el('span', { class: 'chip-start' }, 'Start here')),
+      el('p', { class: 'start-callout' }, el('strong', {}, 'Start here:'), ' import your transcripts, and most of the page below fills itself in.'),
       // Shorter sentences (usability review 2026-09-05, item 10): the same
       // facts, none over 25 words.
       el(
         'p',
         { class: 'hint' },
-        'Start here: import your transcripts, and most of the page below fills itself in. ',
         el('strong', {}, 'System-generated PDFs are read exactly.'),
         ' A scanned or photographed transcript can be read with built-in text recognition (OCR) — English only — after you agree. Everything is read on your own computer and nothing is uploaded, and you check every field before it is added.',
       ),

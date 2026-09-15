@@ -146,6 +146,11 @@ fieldset.field.inline { margin: 0; }
 .radios .radio { font-size: 14px; }
 .radios input[type="radio"] { margin: 0 4px 0 0; }
 .step-no { color: var(--gold-text); }
+/* "Start here" on the Transcripts card (DGS 2026-09-15): a filled badge in the heading and a
+   navy callout line, so the first step is the first thing a student sees. */
+.chip-start { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 3px 10px; border-radius: 999px; background: var(--navy); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.start-callout { margin: 0 0 8px; padding: 8px 12px; border-left: 4px solid var(--navy); background: #eef2f8; color: var(--navy); font-size: 15px; }
+.start-callout strong { text-transform: uppercase; letter-spacing: 0.04em; }
 .field-hint { margin: -4px 0 10px; }
 .select-links { margin: 8px 0 0; }
 .print-header { display: none; }
