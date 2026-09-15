@@ -40,7 +40,10 @@ export function applyDeciderRule(root: ParentNode, program: 'mscse' | 'phd'): vo
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const value = node.nodeValue;
     if (!value || !/\bDGS\b/.test(value)) continue;
-    if (node.parentElement?.closest('.contact-card, .notice-line, .notice-details, details.glossary, .print-header, footer, [data-keep-dgs], select, textarea, script, style')) continue;
+    // The notices and the footer are rewritten too since 2026-09-15 (DGS: the
+    // alpha notice names the ADGS on the MSCSE tab); the feedback address and
+    // the contact card keep "DGS" by `data-keep-dgs`.
+    if (node.parentElement?.closest('.contact-card, details.glossary, .print-header, [data-keep-dgs], select, textarea, script, style')) continue;
     nodes.push(node as Text);
   }
   for (const node of nodes) node.nodeValue = node.nodeValue!.replace(/\bDGS\b/g, 'ADGS');

@@ -268,10 +268,10 @@ export async function driveApp(s, baseUrl) {
   const gaDlg = JSON.parse(await s.evalJs(`JSON.stringify((() => { const d = document.querySelector('dialog.copy-check'); return { title: d.querySelector('h2').textContent, to: [...d.querySelectorAll('.copy-to')].map(p => p.textContent), subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 200) }; })())`));
   console.log('  Grad Admin dialog:', gaDlg.title, '|', JSON.stringify(gaDlg.to), '|', gaDlg.subject);
   if (!gaDlg.title.startsWith('Processing request') || !gaDlg.to[0].startsWith('To: Graduate Program Administrator') || !(gaDlg.to[1] ?? '').startsWith('Cc: Director of Graduate Studies') || !gaDlg.subject.startsWith('Subject: Processing request (degree self-check) — Ph.D., entered Fall 2026') || !gaDlg.text.includes('Dear Grad Admin,')) throw new Error('Grad Admin dialog: ' + JSON.stringify(gaDlg));
-  // Four numbered steps (2026-09-06 evening): paste, attach the ORIGINAL transcripts, attach the saved self-check file, send.
+  // Three numbered steps (2026-09-06 evening; the self-check-file step dropped 2026-09-15): open/paste, attach the ORIGINAL transcripts, send.
   const gaSteps = await s.evalJs(`[...document.querySelectorAll('dialog.copy-check ol.copy-steps li')].map(li => (li.querySelector('strong') ? '*' : '') + li.textContent)`);
   console.log('  Grad Admin dialog steps:', JSON.stringify(gaSteps.map((t) => t.slice(0, 70))));
-  if (gaSteps.length !== 4 || !gaSteps[1].startsWith('*Attach your ORIGINAL transcripts') || !gaSteps[2].includes('cse-degree-audit-phd.json') || !/^Send it\./.test(gaSteps[3])) throw new Error('Grad Admin dialog steps: ' + JSON.stringify(gaSteps));
+  if (gaSteps.length !== 3 || !gaSteps[1].startsWith('*Attach your ORIGINAL transcripts') || !/^Send it\./.test(gaSteps[2])) throw new Error('Grad Admin dialog steps: ' + JSON.stringify(gaSteps));
   // "Open in my email app" (DGS 2026-09-13): a mailto: to the Grad Admin with
   // the DGS in cc and the subject; the body is the message itself only while
   // the address stays short enough for every client.

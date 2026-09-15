@@ -25,7 +25,7 @@ import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isNotreDameCours
 import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
 import { confirmDialog, copyDialog } from './copy-dialog.ts';
-import { gradAdminRequest, selfCheckFileName } from './grad-admin-request.ts';
+import { gradAdminRequest } from './grad-admin-request.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, scoreLine } from './report.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
@@ -563,7 +563,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'banner beta notice-strip', role: 'note' },
-      el('p', { class: 'notice-line' }, el('strong', {}, 'Alpha — under testing. '), ALPHA_LINE, ' Feedback: ', mailto(DGS.email), '.'),
+      // The notice names the decider for THIS tab (ADGS on the MSCSE tab, DGS
+      // on the Ph.D. tab — DGS 2026-09-15) by the same rewrite as the rest of
+      // the page; the feedback address is the DGS's own and is kept as is.
+      el('p', { class: 'notice-line' }, el('strong', {}, 'Alpha — under testing. '), ALPHA_LINE, el('span', { 'data-keep-dgs': '' }, ' Feedback: ', mailto(DGS.email), ` (the DGS, Prof. ${DGS.name}, who maintains this page).`)),
       el('p', { class: 'notice-line privacy-line' }, el('strong', {}, 'Private by design. '), PRIVACY_LINE),
       details,
     );
@@ -2133,9 +2136,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             {
               ...attrs,
               onclick: () => {
-                // The self-check file goes with the request (DGS 2026-09-06
-                // evening): save it now, and the steps say to attach it.
-                exportFile(student);
+                // (The self-check file used to be saved and attached here,
+                // 2026-09-06 — dropped, DGS 2026-09-15: the request is the message.)
                 void copyDialog({
                   what: 'Processing request',
                   recipient: { role: GRAD_ADMIN.role, name: GRAD_ADMIN.name, email: GRAD_ADMIN.email, cc: { role: deciderContact(student.program).role, name: deciderContact(student.program).name, email: deciderContact(student.program).email } },
@@ -2144,7 +2146,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   html: built.html,
                   steps: [
                     { text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply).', emphasis: true },
-                    { text: `Attach the self-check file that was just saved to your downloads: ${selfCheckFileName(student.program)}. (If no download started, use “Save to a file” in the card “Your data stays in this browser”.)`, emphasis: true },
                   ],
                   returnFocusKey: 'gradadmin.copy',
                 });
@@ -2164,8 +2165,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         `${GRAD_ADMIN.name}, `,
         mailto(GRAD_ADMIN.email),
         student.program === 'phd'
-          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.'
-          : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Processing happens only by email: the button copies this request and saves your self-check file; email both to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
+          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Processing happens only by email: the button copies this request; email it to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.'
+          : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Processing happens only by email: the button copies this request; email it to the Grad Admin with the DGS in cc, and attach your original transcripts. The page itself sends nothing.',
       ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line', 'data-keep-dgs': '' }, text)),
       n === 0 ? el('p', { class: 'hint' }, 'Nothing to process yet.') : null,
