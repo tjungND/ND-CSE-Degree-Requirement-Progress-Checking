@@ -639,3 +639,14 @@ describe('the awarding institution beats the issuing header (IUPUI, 2026-09-13)'
     assert.equal(parseExternalTranscript(other).university, 'Purdue University');
   });
 });
+
+// "UNOFFICIAL University at Buffalo Transcript" (DGS 2026-09-14): the record
+// words on both sides are stripped, and the name in the middle survives.
+describe('a leading UNOFFICIAL is not part of the name (2026-09-14)', () => {
+  const HEAD = ['Office of the University Registrar', 'This is an unofficial transcript produced for the student named below and may not be released to any third party without consent.', 'Student: (name withheld)'];
+  it('strips it, with the trailing "Transcript"', () => {
+    const r = parseExternalTranscript(['UNOFFICIAL University at Buffalo Transcript', ...HEAD, 'Fall 2023', 'CSE 531   Analysis of Algorithms   3.00   A']);
+    assert.equal(r.university, 'University at Buffalo');
+    assert.equal(parseExternalTranscript(['Official Example University Transcript', ...HEAD, 'Fall 2023', 'CSE 531   Analysis of Algorithms   3.00   A']).university, 'Example University');
+  });
+});

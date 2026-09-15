@@ -302,6 +302,9 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
     // so the guess is the institution's name alone.
     const stripped = cell
       .replace(/^(unofficial|official)?\s*transcript\s*(of|from)?\s*/i, '')
+      // A bare leading "UNOFFICIAL" ("UNOFFICIAL University at Buffalo
+      // Transcript", DGS 2026-09-14).
+      .replace(/^(unofficial|official)\s+/i, '')
       .replace(/^(the\s+)?office of the (university\s+)?registrar[,\s-]*/i, '')
       .replace(/[,\s—–-]*(the\s+)?office of the (university\s+)?registrar\s*$/i, '')
       .replace(/[\s—–-]*(unofficial|official)?\s*(student|academic)?\s*(records?|transcripts?|copy)\s*$/i, '')
