@@ -121,7 +121,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // title joins the request for §4.4.1 review (DGS rule 2026-09-04) — and
   // the undergraduate CSE 30321 "Computer Architecture" taken before entry
   // (2026-09-05: prior Notre Dame coursework not in the Courses tab).
-  if (!ndReview.includes('Copy review request for 3 courses') || ndReview.includes('Grad Admin') || !ndReview.includes('send it to the DGS')) {
+  if (!ndReview.includes('Initiate the review request for 3 courses') || ndReview.includes('Grad Admin') || !ndReview.includes('email app to the DGS')) {
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
@@ -283,13 +283,13 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const bsNoteChosen = await s.evalJs(`document.querySelector('.bachelors-note')?.textContent ?? ''`);
   if (bsNoteChosen.includes('read from your transcript')) throw new Error('a hand-set award term is no longer "read from your transcript"');
   const reviewAfterRule = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
-  if (!reviewAfterRule.includes('Copy review request for 5 courses')) throw new Error('two excluded Purdue rows with core-sounding titles stay, one leaves — 5 expected: ' + reviewAfterRule.slice(0, 140));
+  if (!reviewAfterRule.includes('Initiate the review request for 5 courses')) throw new Error('two excluded Purdue rows with core-sounding titles stay, one leaves — 5 expected: ' + reviewAfterRule.slice(0, 140));
   await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card')].find(c => c.querySelector('h2')?.textContent.includes('Coursework')); c.id = 'shot-coursework'; })()`);
   await s.shotElement('bachelors-rule', '#shot-coursework');
   await setBachelorsYear('2021');
   const candidatesBack = await groupLines('Purdue University — Previous Master’s Transcript');
   if (!candidatesBack.every((l) => l.includes('candidate for transfer credit'))) throw new Error('back to 2021: the rows must be candidates again: ' + JSON.stringify(candidatesBack));
-  if (!(await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`)).includes('Copy review request for 6 courses')) throw new Error('back to 2021: 6 courses expected in the request');
+  if (!(await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`)).includes('Initiate the review request for 6 courses')) throw new Error('back to 2021: 6 courses expected in the request');
   console.log('  bachelor’s award Spring 2024 → all three Purdue rows excluded (§5.2 status), 5 in the request; back to 2021 → candidates again');
   const priorNdLines = await groupLines('ND, before entering the program — undergraduate coursework');
   if (!priorNdLines.some((l) => l.startsWith('CSE 30321') && l.includes('mark-pending') && l.includes('may satisfy the Computer Architecture core-knowledge requirement'))) {
@@ -297,7 +297,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   // ONE combined request: the 3 from 2b + the 3 external courses.
   const copyBtn = await s.evalJs(
-    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Copy review request for 6 courses'))`,
+    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Initiate the review request for 6 courses'))`,
   );
   if (!copyBtn) throw new Error('the combined review request button is missing/wrong');
   const transferDetail = await s.evalJs(
@@ -318,7 +318,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   await s.waitFor(`document.querySelector('.external-file-bachelors')`);
   const afterRemove = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
-  if (!afterRemove.includes('Copy review request for 5 courses')) throw new Error('removing the prior ND undergraduate course should leave 5 pending: ' + afterRemove.slice(0, 140));
+  if (!afterRemove.includes('Initiate the review request for 5 courses')) throw new Error('removing the prior ND undergraduate course should leave 5 pending: ' + afterRemove.slice(0, 140));
   console.log('  prior ND undergraduate course removed via the Bachelor’s slot (5 pending)');
 
   // 4) Scanned transcript (Bachelor's slot) → explicit OCR opt-in (English only)
@@ -374,7 +374,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // the two keyword-matching bachelors courses were added, and both join the
   // request — MATH + CS 50300 (2) + masters slot (3) + those two = 7 pending.
   const combined7 = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
-  if (!combined7.includes('Copy review request for 7 courses')) {
+  if (!combined7.includes('Initiate the review request for 7 courses')) {
     throw new Error('expected 7 pending after OCR (undergrad core-title rule): ' + combined7.slice(0, 140));
   }
   console.log('  undergrad core-title courses joined the review request (7 pending)');

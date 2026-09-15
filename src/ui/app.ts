@@ -1143,9 +1143,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'p',
         { class: 'hint' },
         el('strong', {}, 'Decisions are made only by email: '),
-        `copy the review request and send it to the ${deciderTitle(student.program)} (`,
+        `initiate the review request by clicking the button below — it opens the request for you to check and send from your own email app to the ${deciderTitle(student.program)} (`,
         mailto(deciderContact(student.program).email),
-        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. It includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing. The DGS decides eligibility only; once a course is decided, having it processed is a separate request — see the processing card below the milestones.',
+        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. The request includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing. The DGS decides eligibility only; once a course is decided, having it processed is a separate request — see the processing card below the milestones.',
       ),
       ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
       ...notes.map((t) => el('div', { class: 'review-line review-note', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, 'Note'), ` — ${t}`)),
@@ -1173,7 +1173,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               });
             },
           },
-          `Copy review request for ${what}`,
+          `Initiate the review request for ${what}`,
         ),
       ),
     );
