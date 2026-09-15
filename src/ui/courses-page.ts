@@ -10,7 +10,12 @@ import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import type { Term } from '../engine/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
-import { scheduleView } from './schedule-terms.ts';
+import { rowSchedule, scheduleTerms, type RowFreshness } from './schedule-terms.ts';
+
+/** The teaching semester before `t` (fall → the same year's spring; spring → last fall). */
+function afterTeachingTermBack(t: import('../engine/types.ts').Term): import('../engine/types.ts').Term {
+  return t.season === 'fall' ? { season: 'spring', year: t.year } : { season: 'fall', year: t.year - 1 };
+}
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 import { handbookLink, rulesDateLine } from './handbook.ts';
@@ -139,22 +144,23 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   applyContactOverrides(rules.parameters); // sheet-driven contacts (2026-09-04)
   const todayIso = today.iso; // Notre Dame's date, settled on the loading card (2026-09-07)
   const currentTerm = termOfDate(todayIso);
-  // Which semesters the two schedule cards stand for, and whether the sheet's
-  // columns still describe them — src/ui/schedule-terms.ts explains why the
-  // page will not guess (DGS 2026-09-09).
-  // `current_semester` — the semester the sheet as a whole is current for. The
-  // narrower `offered_semester` it replaced on 2026-09-09 is still read, so a
-  // sheet that has not been renamed keeps working.
-  const semesterKey = rules.parameters.has('current_semester') ? 'current_semester' : 'offered_semester';
-  const schedule = scheduleView(currentTerm, rules.parameters.has(semesterKey) ? rules.parameters.term(semesterKey) : undefined);
-  const thisTeachingTerm = schedule.thisTerm;
-  const nextTeachingTerm = schedule.nextTerm;
+  // Which semesters the two schedule cards stand for, and whether a row's
+  // columns still describe them — per row, by its own `last_offered`
+  // (DGS 2026-09-14); src/ui/schedule-terms.ts explains why the page will
+  // not guess.
+  const { thisTerm: thisTeachingTerm, nextTerm: nextTeachingTerm } = scheduleTerms(currentTerm);
   const offeredIn =
     (which: 'this' | 'next') =>
     (r: RuleCourse): boolean | undefined => {
-      const column = which === 'this' ? schedule.source.this : schedule.source.next;
-      return column === undefined ? undefined : column === 'offeredNow' ? r.offeredNow : r.offeredNext;
+      const rs = rowSchedule(currentTerm, r);
+      return which === 'this' ? rs.this : rs.next;
     };
+  /** Rows that say something in the schedule columns, by how fresh they are. */
+  const freshnessCounts = (): Record<RowFreshness, number> => {
+    const out: Record<RowFreshness, number> = { current: 0, 'one-behind': 0, stale: 0, undated: 0 };
+    for (const r of rows) if (r.offeredNow !== undefined || r.offeredNext !== undefined) out[rowSchedule(currentTerm, r).freshness] += 1;
+    return out;
+  };
 
   // One row per course: the rule in effect this term (older/newer versions are
   // mentioned in the hover text so nothing is hidden).
@@ -461,7 +467,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'p',
         { class: 'muted' },
-        `${schedule.age === 'one-behind' ? 'What the DGS last recorded as running, lined up with these two semesters' : 'What the DGS has recorded as running in these two semesters'}. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.`,
+        `What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.`,
       ),
       el(
         'div',
@@ -469,34 +475,17 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         card(`Offered this semester — ${termLabel(thisTeachingTerm)}`, thisTeachingTerm, offeredIn('this')),
         card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, nextTeachingTerm, offeredIn('next')),
       ),
-      // Nothing can be shown, and the page says WHICH of the reasons it is —
-      // the first version blamed a missing row that is often present
-      // (2026-09-09).
-      ...(schedule.age === 'unusable' && rows.some((r) => r.offeredNow !== undefined || r.offeredNext !== undefined)
-        ? [
-            el(
-              'p',
-              { class: 'muted small' },
-              schedule.reason === 'summer'
-                ? `The rules sheet dates its schedule to ${termLabel(schedule.recordedFor!)}. Schedules here are kept for fall and spring, so it cannot be placed and is not shown.`
-                : schedule.reason === 'ahead'
-                  ? `The rules sheet dates its schedule to ${termLabel(schedule.recordedFor!)}, which has not arrived yet, so it is not shown under these two semesters.`
-                  : schedule.reason === 'stale'
-                    ? `The rules sheet dates its schedule to ${termLabel(schedule.recordedFor!)}, more than one semester ago, so it is not shown rather than named as though it were current.`
-                    : 'The rules sheet has a schedule recorded but does not say which semester it belongs to, so it is not shown here rather than risk naming the wrong one.',
-              ...reportToDgs(' Please tell'),
-            ),
-          ]
-        : []),
-      ...(schedule.age === 'one-behind' && rows.some((r) => offeredIn('this')(r) !== undefined)
-        ? [
-            el(
-              'p',
-              { class: 'muted small' },
-              `The rules sheet's schedule was recorded for ${termLabel(schedule.recordedFor!)}. What it listed as the following semester is shown above as this one, and ${termLabel(nextTeachingTerm)} has not been recorded yet.`,
-            ),
-          ]
-        : []),
+      // What was left out and why (2026-09-14): rows whose `last_offered` is
+      // older than last semester, or unreadable, say nothing here — the page
+      // names how many, so a DGS sees a stale schedule instead of a quiet one.
+      ...(() => {
+        const n = freshnessCounts();
+        const parts: string[] = [];
+        if (n['one-behind'] > 0) parts.push(`${n['one-behind']} course${n['one-behind'] === 1 ? ' was' : 's were'} last updated for ${termLabel(afterTeachingTermBack(thisTeachingTerm))}: what ${n['one-behind'] === 1 ? 'it' : 'they'} recorded as the following semester is shown as this one, and nothing is known about ${termLabel(nextTeachingTerm)} for ${n['one-behind'] === 1 ? 'it' : 'them'}`);
+        if (n.stale > 0) parts.push(`${n.stale} course${n.stale === 1 ? '' : 's'} marked as offered ${n.stale === 1 ? 'was' : 'were'} last updated more than one semester ago (the Courses tab’s last_offered) and ${n.stale === 1 ? 'is' : 'are'} not shown rather than named as though current`);
+        if (n.undated > 0) parts.push(`${n.undated} course${n.undated === 1 ? '' : 's'} marked as offered ${n.undated === 1 ? 'has' : 'have'} no readable last_offered and ${n.undated === 1 ? 'is' : 'are'} not shown`);
+        return parts.length > 0 ? [el('p', { class: 'muted small' }, parts.join('. ') + '.', ...reportToDgs(' Please tell'))] : [];
+      })(),
       // The asterisk explains a mark that only appears beside a listed course.
       ...(scheduleKnown ? [el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are never shown here.')] : []),
     );

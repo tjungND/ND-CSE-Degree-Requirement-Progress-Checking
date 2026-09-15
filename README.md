@@ -84,12 +84,11 @@ app skip that row and report it.
 
 `offered_now` and `offered_next` (`yes` / `no` / blank) say whether a course is on the schedule
 this semester and next; the course-rules page turns them into two cards at the top of the page.
-They are read against the Parameters tab's `current_semester`, the semester the whole sheet is
-current for, written as the code the pages print (`FA26`, `SP27`). That stamp is what stops a
-forgotten update from showing last semester's courses under this semester's name: without it, or
-with it out of date, the cards say "not released yet" instead of guessing. **Whenever you move
-`current_semester` forward, check these two columns** — the page reads them as describing that
-semester and the next.
+Each row's `last_offered` dates them (since 2026-09-14): a row updated for this semester is read as
+written; one updated last semester has its `offered_next` shown as this semester; anything older is
+left out and counted in a "not shown" line. The current semester comes from Notre Dame's date, not
+from the sheet. **When you fill `offered_now` / `offered_next`, set `last_offered` to the semester
+you are describing** — that is what tells the page the row is current.
 
 The other columns (`title`, `level`, `credit_min`, `credit_max`, `credits_default`,
 `typically_offered`, `last_offered`) are informational. `credits_default` is what the app

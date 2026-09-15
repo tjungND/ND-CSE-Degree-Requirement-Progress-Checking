@@ -110,6 +110,11 @@ export interface RuleCourse {
    * say, which is not the same as "no". */
   offeredNow?: boolean;
   offeredNext?: boolean;
+  /** `last_offered` as a term ("Fall 2026"), when it reads as one. Since
+   * 2026-09-14 it dates the row's schedule columns: `offered_now` /
+   * `offered_next` are shown only when this is this semester or later (or the
+   * one before, when `offered_next` then means this semester). */
+  lastOffered?: Term;
   active: boolean; // course-picker visibility only
   effectiveTerm?: Term;
   notes?: string;
@@ -203,23 +208,9 @@ export const DISPLAY_PARAMETER_KEYS = [
   'contact_adgs_email',
   'contact_grad_admin_name',
   'contact_grad_admin_email',
-  // The semester the sheet as a whole is current for, as the code the pages
-  // print ("FA26", "SP27") — DGS 2026-09-09, generalised from the narrower
-  // `offered_semester` the same day. It is what the course-rules page reads
-  // the Courses tab's `offered_now` / `offered_next` columns against: without
-  // it the page cannot tell a current schedule from last year's, so it says
-  // "not released yet" rather than showing stale courses under this semester's
-  // name. A summer code cannot date a schedule and is refused.
-  //
-  // NOTE for whoever bumps it: the schedule columns are read as describing THIS
-  // semester and the next. Moving this stamp forward without revisiting them
-  // republishes an old schedule under a new semester's name — the one thing
-  // the key exists to prevent.
-  'current_semester',
-  // The name it had for a few hours on 2026-09-09. Still read, so a sheet that
-  // has not been renamed keeps working; `current_semester` wins where both
-  // exist. Delete this once no sheet uses it.
-  'offered_semester',
+  // `current_semester` / `offered_semester` were read here until 2026-09-14;
+  // the schedule is now dated per row by the Courses tab's `last_offered`
+  // (DGS). A sheet that still carries the row is not told anything.
   ...PARKED_PARAMETER_KEYS,
 ] as const;
 

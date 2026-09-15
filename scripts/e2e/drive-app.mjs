@@ -409,19 +409,16 @@ export async function driveCourses(s, baseUrl) {
     }
   }
   console.log('  schedule cards:', cards.headings.map((h, i) => `${h} (${cards.items[i] > 0 ? cards.items[i] + ' courses' : cards.bodies[i]})`).join(' | '));
-  // A card may only ever list courses under a semester the sheet has dated
-  // (DGS 2026-09-09): the headings come from today, the columns do not, so an
-  // undated or stale schedule must say "Not released yet." rather than print
-  // last semester's courses under this semester's name.
-  // A card may list courses ONLY when the page is not saying it cannot place
-  // the schedule. Every "cannot place it" sentence contains "is not shown", so
-  // the two states are mutually exclusive whichever of the four reasons it is.
+  // A card may only ever list courses under a semester the row itself has
+  // dated (DGS 2026-09-09; per row by `last_offered` since 2026-09-14): the
+  // headings come from today, the columns do not. Fresh rows are listed;
+  // stale or undated ones are left out and COUNTED in a "not shown" line, so
+  // the two can coexist — but nothing listed and no reason given never can.
   const dated = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const sec = document.querySelector('.schedule-overview');
     const text = sec.textContent ?? '';
-    return { listed: [...sec.querySelectorAll('.ov-card')].some((c) => c.querySelector('tbody tr')), refused: /is not shown/.test(text) };
+    return { listed: [...sec.querySelectorAll('.ov-card')].some((c) => c.querySelector('tbody tr')), refused: /not shown/.test(text) };
   })())`));
-  if (dated.listed && dated.refused) throw new Error('a schedule card lists courses while the page says the schedule cannot be placed');
   if (!dated.listed && !dated.refused && !/Not released yet\./.test(await s.evalJs(`document.querySelector('.schedule-overview').textContent`))) {
     throw new Error('the schedule cards show nothing and give no reason');
   }

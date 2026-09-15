@@ -227,6 +227,7 @@ queue. Recent commits, newest first:
   summer entry read as the following fall.
   2026-09-12: the Courses tab's `adgs_approval` value names the reviewer per course (the parser was
   skipping those rows — the vanished 40xxx courses); the program default covers the rest.
+  2026-09-14: schedule freshness per row by `last_offered`; `current_semester` retired.
   2026-09-13: copy dialogs open the email app (mailto: To/Cc/Subject, body when short).
   2026-09-12 (eleventh): quarter × .66, trimester × .88 — the DGS Handbook's table, on the sheet.
   2026-09-12 (tenth): multi-campus systems — the campus is a required, pre-filled choice in the

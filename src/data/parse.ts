@@ -229,6 +229,19 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
     };
     const offeredNow = offeredOf('offered_now');
     const offeredNext = offeredOf('offered_next');
+    // `last_offered` dates the two columns (DGS 2026-09-14). "Fall 2026" or
+    // "FA26"; anything else leaves the row undated, and a dated schedule
+    // column on an undated row is reported so the DGS sees why it is not shown.
+    const lastOffered = (cells['last_offered'] ?? '').trim() === '' ? undefined : parseTermCode(cells['last_offered']!);
+    if ((offeredNow !== undefined || offeredNext !== undefined) && lastOffered === undefined) {
+      issues.push({
+        severity: 'warning',
+        tab: 'Courses',
+        row: rowNum,
+        column: 'last_offered',
+        message: `Courses row ${rowNum} (${courseId}): offered_now / offered_next is set but last_offered ('${cells['last_offered'] ?? ''}') is not a term like 'Fall 2026'. The schedule columns are dated by last_offered, so this row is not shown on the schedule cards until it is.`,
+      });
+    }
 
     const levelFromId = Number(courseId.split(' ')[1]![0]);
     out.push({
@@ -246,6 +259,7 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       typicallyOffered: cells['typically_offered'] || undefined,
       ...(offeredNow !== undefined ? { offeredNow } : {}),
       ...(offeredNext !== undefined ? { offeredNext } : {}),
+      ...(lastOffered !== undefined ? { lastOffered } : {}),
       active: activeRaw !== 'no',
       effectiveTerm,
       notes: cells['notes'] || undefined,

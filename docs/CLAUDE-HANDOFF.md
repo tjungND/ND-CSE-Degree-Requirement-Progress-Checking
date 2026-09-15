@@ -218,16 +218,12 @@ Known-pending (the app's diagnostics panel is the live truth):
   "ND" is NOT done by this function — those are hand-edited literals in `app.ts`, `report.ts`,
   `external-upload.ts` and one `shortTitle` in `requirements/phd.ts`, because each one needed its article and its e2e pin moved with it, and
   the masthead, the footer and the emails keep "Notre Dame" deliberately.
-- **The schedule cards' staleness rule** (2026-09-09): `src/ui/schedule-terms.ts` is the whole of
-  it — DOM-free, with a test matrix. `current_semester` (Parameters, a term CODE; the old name
-  `offered_semester` is still read) says which fall or spring the sheet is current for, and the
-  Courses tab's `offered_now` column is read as describing it; the page shows both columns only when it
-  names today's teaching term, shifts `offered_next` into the first card when it names the one
-  before, and otherwise shows nothing and says which of the four reasons it is. A summer code is
-  refused: `teachingTermOf` maps summer to the coming fall, so a summer value would read as one
-  behind and shift the columns on the strength of it. The parameter is read EAGERLY in
-  `assemble.ts` — the typed accessors only push their SheetIssue when something asks, and the only
-  asker is a page with no diagnostics panel.
+- **The schedule cards' staleness rule** (2026-09-09; per row since 2026-09-14): `src/ui/schedule-terms.ts`
+  is the whole of it — DOM-free, with a test matrix. `rowSchedule(today, row)` reads a row's
+  `offered_now` / `offered_next` against its own `last_offered` (parsed into `RuleCourse.lastOffered`):
+  dated this teaching semester or later → both as written; dated the semester before → `offered_next`
+  becomes this semester; older or undated → nothing, and the page counts those rows in a "not shown"
+  line. `current_semester` / `offered_semester` are no longer read (the Parameters row is harmless).
 - **The page is fluid** (2026-09-09). `#app` has NO max-width — do not re-add one. `.layout` is
   `minmax(0, 1fr) minmax(480px, 30%)`, so both columns grow. What keeps a wide window readable is
   the reading measure on prose (`.card > p`, `.req-detail`, `.detail-list`, `.card .hint`), not a

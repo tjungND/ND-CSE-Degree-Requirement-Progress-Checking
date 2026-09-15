@@ -26,22 +26,8 @@ export function rulesFromCsvTexts(
   const rawCourses = parseCoursesTab(texts.courses, issues);
   const courses = validateCourses(rawCourses, coreAreas, categoryGroups, issues);
   const parameters = makeParameters(parseParametersTab(texts.parameters, issues), issues);
-  // The typed accessors report a bad value only when something ASKS for it,
-  // and the semester stamp is asked for by the course-rules page alone — which
-  // shows no diagnostics. So it is read here, where every reader of the sheet
-  // gets the issue: the self-check page's diagnostics card and the six-hourly
-  // `npm run sync-sheet` (found reviewing the schedule feature, 2026-09-09).
-  const semesterKey = parameters.has('current_semester') ? 'current_semester' : 'offered_semester';
-  const currentSemester = parameters.has(semesterKey) ? parameters.term(semesterKey) : undefined;
-  if (currentSemester?.season === 'summer') {
-    issues.push({
-      severity: 'error',
-      tab: 'Parameters',
-      row: parameters.raw.get(semesterKey)?.row,
-      column: 'value',
-      message: `Parameters key '${semesterKey}': the course schedule is kept for fall and spring, so a summer code cannot date it — write the fall or the spring the sheet is current for (FA26, SP27). The course-rules page shows "not released yet" until it does.`,
-    });
-  }
+  // (`current_semester` was validated here until 2026-09-14; the schedule is
+  // now dated per row by the Courses tab's `last_offered`.)
 
   const byId = new Map<string, RuleCourse[]>();
   for (const c of courses) {

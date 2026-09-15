@@ -81,63 +81,23 @@ describe('the schedule columns', () => {
   });
 });
 
-// `current_semester` names the semester the sheet as a whole is current for
-// (DGS 2026-09-09), and is what the course-rules page reads the schedule
-// columns against. It takes the same code the pages print, and a typo has to
-// be REPORTED — a silent "not released yet" would leave a DGS wondering why
-// their schedule never appeared.
-describe('the current_semester parameter', () => {
-  const withParam = (value: string, key = 'current_semester') => {
+// `last_offered` dates each row's schedule columns (DGS 2026-09-14; the
+// whole-sheet `current_semester` stamp is retired): it is parsed as a term,
+// and a row that says "offered" without a readable date is reported.
+describe('last_offered dates the schedule columns', () => {
+  it('parses "Fall 2026" and "FA26"; an unreadable value on an offered row is a warning', () => {
     const texts = fixtureCsvTexts();
-    return rulesFromCsvTexts({ ...texts, parameters: `${texts.parameters.trimEnd()}\n${key},${value},,the semester this sheet is current for\n` }, meta);
-  };
-
-  it('reads the code, however a person types it', () => {
-    for (const typed of ['FA26', 'fa26', 'FA 26', 'Fall 2026']) {
-      const r = withParam(typed);
-      assert.deepEqual(r.parameters.term('current_semester'), { season: 'fall', year: 2026 }, typed);
-      assert.equal(r.issues.filter((i) => i.message.includes('semester')).length, 0, typed);
-    }
-  });
-
-  it('a typo is reported in plain English, naming the shape it wants', () => {
-    const r = withParam('Fal 26');
-    assert.equal(r.parameters.term('current_semester'), undefined);
-    const issue = r.issues.find((i) => i.message.includes('current_semester'));
-    assert.ok(issue, 'expected an issue');
-    assert.match(issue.message, /'Fal 26' is not a semester code like 'FA26' or 'SP27'/);
-    // And it says what the reader loses, not the engine's "cannot evaluate":
-    // this key feeds a page, not a requirement.
-    assert.match(issue.message, /not released yet/);
-    assert.doesNotMatch(issue.message, /cannot evaluate/);
-  });
-
-  it('the row being absent is not an error — the schedule cards simply stay quiet', () => {
-    const r = rulesFromCsvTexts(fixtureCsvTexts(), meta);
-    assert.equal(r.parameters.has('current_semester'), false);
-    assert.equal(r.issues.filter((i) => i.message.includes('semester')).length, 0);
-  });
-
-  it('a summer code is refused, because the schedule is kept for fall and spring', () => {
-    const r = withParam('SU26');
-    const issue = r.issues.find((i) => i.message.includes('current_semester'));
-    assert.ok(issue, 'expected an issue');
-    assert.match(issue.message, /summer code cannot date it/);
-    assert.match(issue.message, /FA26, SP27/);
-  });
-
-  // The key was called `offered_semester` for a few hours before the DGS
-  // generalised it. A sheet that has not been renamed must keep working.
-  it('the old name still reads, and the new one wins where both exist', () => {
-    const old = withParam('SP27', 'offered_semester');
-    assert.deepEqual(old.parameters.term('offered_semester'), { season: 'spring', year: 2027 });
-    assert.equal(old.issues.filter((i) => i.severity === 'warning' && i.message.includes('offered_semester')).length, 0, 'not an unknown key');
-    const texts = fixtureCsvTexts();
-    const both = rulesFromCsvTexts(
-      { ...texts, parameters: `${texts.parameters.trimEnd()}\noffered_semester,SP27,,old name\ncurrent_semester,FA26,,new name\n` },
-      meta,
-    );
-    assert.deepEqual(both.parameters.term('current_semester'), { season: 'fall', year: 2026 });
+    const header = texts.courses.split('\n')[0]!;
+    const cols = header.split(',');
+    const mk = (lastOffered: string) => {
+      const cells = cols.map((c) => ({ course_id: 'CSE 69999', title: 'Test', level: '6', credit_min: '3', credit_max: '3', credits_default: '3', course_type: 'regular', counts_toward_mscse: 'yes', counts_toward_phd: 'yes', typically_offered: 'fall', active: 'yes', last_offered: lastOffered, effective_term: 'Fall 2026', offered_now: 'yes', dgs_reviewed: 'yes' } as Record<string, string>)[c] ?? '');
+      return rulesFromCsvTexts({ ...texts, courses: `${texts.courses.trimEnd()}\n${cells.map((v) => (v.includes(',') ? `"${v}"` : v)).join(',')}\n` }, meta);
+    };
+    assert.deepEqual(mk('Fall 2026').courses.get('CSE 69999')?.[0]?.lastOffered, { season: 'fall', year: 2026 });
+    assert.deepEqual(mk('FA26').courses.get('CSE 69999')?.[0]?.lastOffered, { season: 'fall', year: 2026 });
+    const bad = mk('sometime');
+    assert.equal(bad.courses.get('CSE 69999')?.[0]?.lastOffered, undefined);
+    assert.ok(bad.issues.some((i) => i.severity === 'warning' && /last_offered \('sometime'\) is not a term like 'Fall 2026'/.test(i.message)));
   });
 });
 

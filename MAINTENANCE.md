@@ -72,26 +72,20 @@ added to the table, and nothing else in the app reads them. A card whose column 
 says "Not released yet." instead of showing an empty list, and the filter appears only once at
 least one course carries a value.
 
-**`current_semester` in the Parameters tab is what dates them.** It names the semester the sheet as
-a whole is current for, as the code the pages print — `FA26` or `SP27`, fall or spring only — and it
-is what keeps a forgotten update from misleading anyone: the card headings come from today's date, so without it the page would show
-last semester's courses under this semester's name. The page compares the two —
+**Each row's `last_offered` is what dates them** (since 2026-09-14; until then one Parameters
+stamp, `current_semester`, dated the whole sheet — that key is no longer read and its row may go).
+The current semester comes from Notre Dame's date, so the card headings are always right; what the
+page has to know is whether a row's `offered_now` / `offered_next` were written for that semester:
 
-| `current_semester` says | what the page shows |
+| the row's `last_offered` is | what the page shows for that row |
 |---|---|
-| this semester | both columns as recorded |
-| the semester BEFORE this one | what was recorded as "next" becomes "this semester"; next says "Not released yet." |
-| nothing, something older, a summer, or a semester not yet reached | both say "Not released yet.", with a line naming which of those it is |
+| this semester, or later | both columns as recorded |
+| the semester BEFORE this one | what was recorded as "next" becomes "this semester"; nothing for next |
+| older, or not a term | nothing — and the page counts such rows in a "not shown" line |
 
-So the worst that a late update can do is show less than it could, never something false. Two
-semesters of neglect and the cards go quiet. Fill the columns in each semester —
-a stale `yes` is worse than a blank, which honestly says nothing.
-
-The one way to get this wrong is to move `current_semester` forward for some other reason — a credit
-correction, a new course — without revisiting `offered_now` and `offered_next`. The stamp then says
-the schedule is current when it is last semester's, which is the single thing the key exists to
-prevent. Treat the three cells as one edit. (The key was called `offered_semester` for a few hours
-on 2026-09-09; the old name is still read, so a sheet that has not been renamed keeps working.)
+So the worst that a late update can do is show less than it could, never something false. Fill the
+three cells together each semester — `offered_now`, `offered_next` and `last_offered` set to the
+semester you are describing — and a stale `yes` can never outlive its date.
 
 Since 2026-09-08 a university whose transcript prints its name only in the letterhead IMAGE can
 still be recognised from an acronym in the text: `NAME_ONLY_IN_IMAGE` in
