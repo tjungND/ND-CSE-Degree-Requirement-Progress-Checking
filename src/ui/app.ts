@@ -1073,12 +1073,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Unofficial transcripts read best (DGS observation 2026-09-05): the web /
       // self-service PDF is single-column and carries no watermark; official
       // ones (two columns, security bands) are read too, less reliably.
-      el(
-        'p',
-        { class: 'hint unofficial-note' },
-        el('strong', {}, 'Prefer unofficial transcripts'),
-        ' — the web (self-service) PDF from your university’s portal reads best: one column, no watermark. Official transcripts (two columns, security patterns, e-transcript covers) are read too; check their previews more carefully.',
-      ),
       busy
         ? el('p', { class: 'hint warn' }, 'One transcript at a time: confirm the open preview below (“Add …”) or cancel it before importing another PDF.')
         : null,
