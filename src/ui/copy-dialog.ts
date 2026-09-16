@@ -65,9 +65,11 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
 export const MAILTO_BODY_LIMIT = 1800;
 export function mailtoHref(r: CopyRecipient, subject: string, text: string, copied: boolean): string {
   const body = encodeURIComponent(text);
+  // The body when the message is too long for the link (DGS 2026-09-16: say
+  // plainly that it was auto-copied and that THIS text is to be replaced).
   const fallback = copied
-    ? 'The message is on my clipboard — pasting it here.\n\n'
-    : 'Pasting the message from the self-check page here.\n\n';
+    ? '[DELETE THIS LINE AND PASTE: the full message was automatically copied to your clipboard by the degree self-check page. Click here, select this text, and paste (Cmd+V on a Mac, Ctrl+V on Windows) to replace it with the message. Then attach your transcript PDFs and send.]\n\n'
+    : '[DELETE THIS LINE AND PASTE: copy the full message from the degree self-check page (select it and copy), then paste it here to replace this text. Then attach your transcript PDFs and send.]\n\n';
   const params = [
     ...(r.cc ? [`cc=${encodeURIComponent(r.cc.email)}`] : []),
     `subject=${encodeURIComponent(subject)}`,

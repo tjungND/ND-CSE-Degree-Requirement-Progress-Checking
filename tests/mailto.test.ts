@@ -15,8 +15,8 @@ describe('mailto: behind the copy dialog', () => {
     const long = 'x'.repeat(MAILTO_BODY_LIMIT + 1);
     const href = mailtoHref(dgs, 'S', long, true)!;
     assert.doesNotMatch(href, /xxxxxxxxxx/);
-    assert.match(decodeURIComponent(href), /The message is on my clipboard — pasting it here\./);
-    assert.match(decodeURIComponent(mailtoHref(dgs, 'S', long, false)!), /Pasting the message from the self-check page here\./);
+    assert.match(decodeURIComponent(href), /^mailto:tjung@nd\.edu\?subject=S&body=\[DELETE THIS LINE AND PASTE: the full message was automatically copied to your clipboard/);
+    assert.match(decodeURIComponent(mailtoHref(dgs, 'S', long, false)!), /\[DELETE THIS LINE AND PASTE: copy the full message from the degree self-check page/);
   });
   it('no address on file (the advisor): the link still opens the email app, To left empty (DGS 2026-09-15)', () => {
     assert.equal(mailtoHref({ role: 'Your advisor', name: 'Prof. Example' }, 'S', 'body', true), 'mailto:?subject=S&body=body');
