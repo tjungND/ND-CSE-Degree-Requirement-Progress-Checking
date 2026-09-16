@@ -373,8 +373,14 @@ export function isUnofficial(lines: readonly string[]): boolean {
 }
 const BACHELORS_IN_PROGRESS =
   'This undergraduate transcript is still in progress — it lists courses without a final grade. A completed bachelor’s transcript is required here: upload it again once the degree is finished and every course has a grade.';
-function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string }[]): boolean {
-  return slot === 'bachelors' && rows.some((r) => r.grade === '' || r.grade === 'IP');
+/** `degreeStated`: the transcript itself says the bachelor's degree was
+ * conferred ("Graduated on … with the degree of Bachelor …", a dated award
+ * line). Then a row without a readable grade is a parsing gap to fix in the
+ * preview, not an in-progress course — the transcript is complete (DGS
+ * 2026-09-16: a false "still in progress"). */
+export function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string }[], degreeStated = false): boolean {
+  if (slot !== 'bachelors' || degreeStated) return false;
+  return rows.some((r) => r.grade === '' || r.grade === 'IP');
 }
 
 function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCardArgs): HTMLElement {
@@ -421,7 +427,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
             level: c.level ?? slotDefaultLevel(slot.level),
             levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
           }));
-        if (undergraduateInProgress(slot.level, ndRows)) return fail(BACHELORS_IN_PROGRESS);
+        if (undergraduateInProgress(slot.level, ndRows, nd.degreesAwarded.some((d) => d.level === 'bachelors' && d.date !== undefined))) return fail(BACHELORS_IN_PROGRESS);
         const levels = new Set(ndRows.map((r) => r.level));
         const kept = keepRelevantRows(NOTRE_DAME, rules, ndRows, levels.size > 1, args.student.program);
         const ndBachelors = nd.degreesAwarded.find((d) => d.level === 'bachelors' && d.date !== undefined)?.date;
@@ -461,7 +467,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         level: c.level ?? slotDefaultLevel(slot.level),
         levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
       }));
-      if (undergraduateInProgress(slot.level, mapped)) return fail(BACHELORS_IN_PROGRESS);
+      if (undergraduateInProgress(slot.level, mapped, parsed.bachelorsConferredOn !== undefined)) return fail(BACHELORS_IN_PROGRESS);
       const termPrefill = prefillLevelsByTerm(mapped, slot.level, parsed.bachelorsNamed === true);
       const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
       const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed, args.student.program);
@@ -660,7 +666,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   level: c.level ?? slotDefaultLevel(slot),
                   levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
                 }));
-                if (undergraduateInProgress(slot, mapped)) { importError = { slot, message: BACHELORS_IN_PROGRESS }; render(); document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus(); return; }
+                if (undergraduateInProgress(slot, mapped, parsed.bachelorsConferredOn !== undefined)) { importError = { slot, message: BACHELORS_IN_PROGRESS }; render(); document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus(); return; }
                 const termPrefill = prefillLevelsByTerm(mapped, slot, parsed.bachelorsNamed === true);
                 const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
                 const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed, args.student.program);

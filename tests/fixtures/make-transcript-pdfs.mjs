@@ -233,6 +233,15 @@ const ND_UNDERGRAD = [
   'Overall: 16.000 16.000 16.000 16.000 60.000 3.750',
 ];
 
+// The same undergraduate record STILL IN PROGRESS (DGS 2026-09-16): no degree
+// awarded yet, a course without a grade — the Undergraduate slot refuses it.
+const ND_UNDERGRAD_IN_PROGRESS = ND_UNDERGRAD.filter((l) => !/^(Degrees Awarded|Bachelor of Science|Degree Date: May 17, 2026)$/.test(l)).concat([
+  '',
+  'COURSES IN PROGRESS',
+  'Spring Semester 2026',
+  'CSE 40113 UG Design/Analysis of Algorithms 3.000',
+]);
+
 const OTHER = [
   'Purdue University',
   'Unofficial Academic Transcript',
@@ -323,6 +332,7 @@ writeFileSync(join(here, 'nd-transcript.pdf'), makePdf(ND));
 // slot refuses anything marked unofficial), for the ND-in-a-previous-slot flow.
 writeFileSync(join(here, 'nd-official-transcript.pdf'), makePdf(ND.map((l) => (l === 'Unofficial Academic Transcript' ? 'Official Academic Transcript' : l)).filter((l) => l !== 'This is not an official transcript.')));
 writeFileSync(join(here, 'nd-undergrad-transcript.pdf'), makePdf(ND_UNDERGRAD));
+writeFileSync(join(here, 'nd-undergrad-in-progress-transcript.pdf'), makePdf(ND_UNDERGRAD_IN_PROGRESS));
 writeFileSync(join(here, 'combined-transcript.pdf'), makePdf(COMBINED));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));

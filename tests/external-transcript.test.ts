@@ -650,3 +650,14 @@ describe('a leading UNOFFICIAL is not part of the name (2026-09-14)', () => {
     assert.equal(parseExternalTranscript(['Official Example University Transcript', ...HEAD, 'Fall 2023', 'CSE 531   Analysis of Algorithms   3.00   A']).university, 'Example University');
   });
 });
+
+// "Graduated on 15 June 2020 with the degree of Bachelor of Science …" (DGS
+// 2026-09-16): a conferral in other words. Its date is the bachelor's date.
+describe('a "Graduated on … with the degree of Bachelor" line (2026-09-16)', () => {
+  const HEAD = ['Example University', 'Office of the Registrar', 'This is an official transcript issued for the student named below and may not be released to any third party without consent.', 'Student: (name withheld)'];
+  it('is read as the bachelor\'s conferral', () => {
+    const r = parseExternalTranscript([...HEAD, 'Graduated on 15 June 2020 with the degree of Bachelor of Science in Computer Science & Engineering Major in Computer Engineering under Registration No. 123456', 'Fall 2018', 'CSE 301   Data Structures   3.0   A']);
+    assert.equal(r.bachelorsConferredOn, '2020-06-15');
+    assert.equal(r.bachelorsNamed, true);
+  });
+});

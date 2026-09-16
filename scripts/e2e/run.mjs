@@ -132,12 +132,13 @@ try {
   const ucPdf = join(root, 'tests', 'fixtures', 'uc-system-transcript.pdf');
   const ndOfficialPdf = join(root, 'tests', 'fixtures', 'nd-official-transcript.pdf');
   const noLinesPdf = join(root, 'tests', 'fixtures', 'no-lines-transcript.pdf');
+  const ndUgInProgressPdf = join(root, 'tests', 'fixtures', 'nd-undergrad-in-progress-transcript.pdf');
 
   // E2E_ONLY=<substring> runs a single driver while iterating (e.g. E2E_ONLY=access).
   const only = process.env.E2E_ONLY;
   for (const [name, fn] of [
     ['app basics', (s) => driveApp(s, baseUrl)],
-    ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf, ndOfficialPdf, noLinesPdf)],
+    ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf, ndOfficialPdf, noLinesPdf, ndUgInProgressPdf)],
     ['course rules list', (s) => driveCourses(s, baseUrl)],
     ['accessibility and phone layout', (s) => driveA11y(s, baseUrl)],
   ].filter(([name]) => !only || name.includes(only))) {

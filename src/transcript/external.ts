@@ -91,7 +91,9 @@ export interface ExternalParseResult {
  * count as graduate-degree evidence. "complet" added 2026-09-04 — with the
  * negative guard below, so "Not completed"/"Incomplete" never reads as
  * positive evidence. */
-const CONFER_RE = /conferr|awarded|granted|complet/i;
+// "Graduated on 15 June 2020 with the degree of Bachelor of Science …" (DGS
+// 2026-09-16) is a conferral too.
+const CONFER_RE = /conferr|awarded|granted|complet|graduat/i;
 const NOT_COMPLETE_RE = /incomplete|not\s+complet/i;
 /** A line that carries a degree's date (DGS request 2026-09-06, late evening:
  * use the conferral OR completion date to pre-fill "Bachelor's degree
