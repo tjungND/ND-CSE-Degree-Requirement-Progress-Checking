@@ -356,8 +356,18 @@ function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
  * reject it"). Only the Notre Dame row takes the unofficial self-service PDF. */
 const OFFICIAL_REQUIRED =
   'This transcript is marked “unofficial”, and an OFFICIAL transcript is required for a previous degree. Request an official transcript from that university’s registrar (an official e-transcript PDF is fine) and import that instead.';
-function isUnofficial(lines: readonly string[]): boolean {
-  return lines.some((l) => /\bunofficial\b/i.test(l));
+/** "Unofficial" as a description of the TRANSCRIPT — a heading, a watermark
+ * word, "this is not an official transcript" — never a grade legend's "UW
+ * Unofficial Withdraw" (DGS 2026-09-16: a false rejection). */
+export function isUnofficial(lines: readonly string[]): boolean {
+  return lines.some((l) => {
+    const flat = l.replace(/\s+/g, ' ').trim();
+    if (/\bunofficial(ly)?\s+withdr/i.test(flat) || /\bwithdr/i.test(flat)) return false;
+    if (/\bnot\s+an?\s+official\s+(transcript|record|copy|document)/i.test(flat)) return true;
+    if (/\bunofficial\s+(academic\s+|student\s+|web\s+|copy\s+of\s+(the\s+)?)?(transcripts?|records?|copy|document)\b/i.test(flat)) return true;
+    // A bare "UNOFFICIAL" on its own line or as a stamp ("UNOFFICIAL University at Buffalo Transcript").
+    return /^\W*unofficial\W*$/i.test(flat) || /^\W*unofficial\b.*\btranscript\b/i.test(flat);
+  });
 }
 const BACHELORS_IN_PROGRESS =
   'This undergraduate transcript is still in progress — it lists courses without a final grade. A completed bachelor’s transcript is required here: upload it again once the degree is finished and every course has a grade.';

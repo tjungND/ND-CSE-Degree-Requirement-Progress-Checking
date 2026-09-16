@@ -657,13 +657,19 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // the MSCSE, and every line says which. No dropdown exists on this tab.
   const lineOf = (id) => `[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === '${id}')?.textContent ?? ''`;
   if (await s.evalJs(`document.querySelectorAll('[data-key^="course."][data-key$=".countedToward"]').length`)) throw new Error('the MSCSE tab must not ask which degrees a course counted toward');
-  await s.waitFor(`/pending ADGS review/.test(${lineOf('CSE 40113')})`);
+  // The LIVE sheet decides whether these two are `yes` (counted) or
+  // `adgs_approval` (counted provisionally, listed for the ADGS) for the
+  // MSCSE — the DGS changes such cells (2026-09-16: both became yes). The
+  // step accepts either verdict and pins what does not depend on it.
+  await s.waitFor(`/pending ADGS review|counts toward regular courses/.test(${lineOf('CSE 40113')})`);
   const after40113 = await s.evalJs(lineOf('CSE 40113'));
   const after40166 = await s.evalJs(lineOf('CSE 40166'));
   console.log('  CSE 40113:', after40113.replace(/\s+/g, ' ').slice(0, 190));
   console.log('  CSE 40166:', after40166.replace(/\s+/g, ' ').slice(0, 190));
+  const provisional = {};
   for (const [id, text] of [['CSE 40113', after40113], ['CSE 40166', after40166]]) {
-    if (!/pending ADGS review — would count toward regular courses \(3 cr\) once approved/.test(text)) throw new Error(id + ' must be counted only provisionally: ' + text.slice(0, 200));
+    provisional[id] = /pending ADGS review — would count toward regular courses \(3 cr\) once approved/.test(text);
+    if (!provisional[id] && !/counts toward regular courses \(3 cr\)/.test(text)) throw new Error(id + ' must be counted, provisionally or in full: ' + text.slice(0, 200));
     if (!/uses the 40000-level allowance \(6 credits, §3\.2\)/.test(text)) throw new Error(id + ' must cite the MSCSE allowance: ' + text.slice(0, 200));
   }
   // Only a 4+1's undergraduate 60000-level course earns credit (DGS
@@ -690,9 +696,10 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   const dgsCard = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
   for (const id of ['CSE 40113', 'CSE 40166']) {
-    if (!dgsCard.includes(id)) throw new Error(id + ' must be listed for the DGS: ' + dgsCard.slice(0, 300));
+    if (provisional[id] && !dgsCard.includes(id)) throw new Error(id + ' must be listed for the DGS: ' + dgsCard.slice(0, 300));
+    if (!provisional[id] && dgsCard.includes(id)) throw new Error(id + ' is counted by the sheet and must not be asked about: ' + dgsCard.slice(0, 300));
   }
-  if (!/may count toward the MSCSE \(§3\.2\) inside the allowance for courses below the 60000 level/.test(dgsCard)) {
+  if (Object.values(provisional).some(Boolean) && !/may count toward the MSCSE \(§3\.2\) inside the allowance for courses below the 60000 level/.test(dgsCard)) {
     throw new Error('the review card must say what the 40000-level courses may do: ' + dgsCard.slice(0, 400));
   }
   await s.shot('mscse-prior-undergrad');
@@ -716,7 +723,8 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
     .split(/[.!?]\s|\n/).map((l) => l.trim()).filter((l) => /\bDGS\b/.test(l));
   if (dgsLines.length) throw new Error('the MSCSE tab must send the student to the ADGS, not the DGS:\n  ' + dgsLines.slice(0, 6).join('\n  '));
   const reviewHead = await s.evalJs(`document.querySelector('.dgs-review h2')?.textContent ?? ''`);
-  if (!/Ask the ADGS to review/.test(reviewHead)) throw new Error('the review card must address the ADGS on the MSCSE tab: ' + reviewHead);
+  // No review card at all when the live sheet has settled every course (both 40xxx rows are `yes` since 2026-09-16); when there is one it addresses the ADGS.
+  if (reviewHead !== '' && !/Ask the ADGS to review/.test(reviewHead)) throw new Error('the review card must address the ADGS on the MSCSE tab: ' + reviewHead);
   console.log('  MSCSE tab: every decision goes to the ADGS — no standalone "DGS" outside the contact card, notices, glossary and footer');
 
   await s.setFileInput('.external-file-masters', combinedPdf);
