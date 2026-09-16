@@ -18,7 +18,7 @@ import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
-import { embedTargetAttrs, isEmbedded, openFullPageLink } from './embed.ts';
+import { embedTargetAttrs, isEmbedded, lastInteractionTop, openFullPageLink, placeInFrame } from './embed.ts';
 import { deciderTitle } from '../engine/decider.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
@@ -111,6 +111,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   agreeButton.addEventListener('click', closeConsent);
   consentDialog.addEventListener('close', closeConsent);
   document.body.append(consentDialog);
+  placeInFrame(consentDialog); // embed mode: at the top of the frame, not the middle of a tall page (DGS 2026-09-16)
   if (typeof consentDialog.showModal === 'function') {
     consentDialog.showModal();
     agreeButton.focus();
@@ -173,12 +174,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // per toast would not be announced).
   const toastStack = el('div', { class: 'toast-stack', role: 'status', 'aria-live': 'polite' });
   document.body.append(toastStack);
+  // Embedded, a fixed bottom stack would sit at the end of a tall frame: the
+  // stack goes just below where the student last acted instead (2026-09-16).
+  const placeToasts = (): void => {
+    if (!isEmbedded()) return;
+    toastStack.style.top = `${lastInteractionTop() + 48}px`;
+  };
   let plainToast: HTMLElement | undefined;
   let plainToastTimer: number | undefined;
   const toast = (msg: string): void => {
     plainToast?.remove();
     const t = el('div', { class: 'toast show' }, msg);
     plainToast = t;
+    placeToasts();
     toastStack.prepend(t);
     window.clearTimeout(plainToastTimer);
     plainToastTimer = window.setTimeout(() => {
@@ -194,6 +202,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     noticeToast?.remove();
     const t = el('div', { class: 'toast show auto-notice' }, msg);
     noticeToast = t;
+    placeToasts();
     toastStack.prepend(t);
     window.setTimeout(() => {
       t.remove();
@@ -240,6 +249,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         actionLabel,
       ),
     );
+    placeToasts();
     toastStack.prepend(t);
     undoToasts.set(t, window.setTimeout(dismiss, opts.ttlMs ?? 12000));
   };

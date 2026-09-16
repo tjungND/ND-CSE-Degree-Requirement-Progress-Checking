@@ -330,16 +330,19 @@ export async function driveApp(s, baseUrl) {
 }
 
 // E2E: ?embed=1 on the self-check tool (DGS 2026-09-16). The same chrome trim
-// as the course-rules page, plus the two things that are true only here: the
-// student is told where their saved work is going, and this page must NOT
-// broadcast its height — an auto-sized frame would put the consent dialog and
-// the toasts thousands of pixels from anything the reader can see.
+// as the course-rules page, plus what is true only here: the student is told
+// where their saved work is going, and — since later the same day — the page
+// broadcasts its height like the course-rules page, with the opening notice
+// placed at the top of the document rather than the middle of a tall frame.
 async function driveAppEmbed(s, baseUrl) {
   await s.open(new URL('?embed=1', baseUrl).href, '.masthead h1');
   const m = JSON.parse(
     await s.evalJs(`(async () => {
       const heights = [];
       document.addEventListener('nd-cse-audit:height', (e) => heights.push(e.detail.height));
+      // The page only reports a CHANGED height, and it finished growing before
+      // this listener existed — so change it: open the notice's Details.
+      document.querySelector('[data-key="notice.details"]')?.setAttribute('open', '');
       await new Promise((r) => setTimeout(r, 1200));
       return JSON.stringify({
         heights: heights.length,
@@ -352,6 +355,7 @@ async function driveAppEmbed(s, baseUrl) {
         privacy: !!document.querySelector('.legal-privacy'),
         exit: document.querySelector('footer.legal .embed-exit')?.getAttribute('target'),
         coursesTarget: document.querySelector('.masthead .sub a[href="./courses.html"]')?.getAttribute('target'),
+        stickyHidden: !document.querySelector('.sticky-score') || getComputedStyle(document.querySelector('.sticky-score')).display === 'none',
       });
     })()`),
   );
@@ -362,9 +366,10 @@ async function driveAppEmbed(s, baseUrl) {
   // The masthead's intro (and its course-rules link) is not rendered in embed mode since 2026-09-16 (DGS: no text at the top).
   if (m.exit !== '_top') throw new Error('a link would load a whole page inside the frame: ' + JSON.stringify(m));
   if (m.coursesTarget !== undefined) throw new Error('embed mode must not render the masthead intro: ' + JSON.stringify(m));
-  if (m.heights !== 0) throw new Error(`the self-check tool broadcast ${m.heights} height messages; it must not auto-resize its frame`);
+  if (m.heights === 0) throw new Error('the self-check tool must broadcast its height in embed mode (DGS 2026-09-16)');
+  if (!m.stickyHidden) throw new Error('the bottom score bar must be hidden in embed mode: ' + JSON.stringify(m));
   await s.shot('app-embed');
-  console.log('  ?embed=1 on the self-check tool → chrome trimmed, storage note shown, FERPA paragraph kept, no height broadcast');
+  console.log('  ?embed=1 on the self-check tool → chrome trimmed, storage note shown, FERPA paragraph kept, height broadcast, score bar hidden');
 
   await s.open(baseUrl, '.masthead h1');
   const back = JSON.parse(await s.evalJs(`JSON.stringify({ eyebrow: !!document.querySelector('.masthead .eyebrow'), embedClass: document.documentElement.classList.contains('embed'), storageNote: !!document.querySelector('.banner.embed-storage') })`));

@@ -772,6 +772,14 @@ html.embed .contact-card a { color: inherit; }
 html.embed .embed-exit-line { margin: 0 0 10px; }
 html.embed .embed-exit { font-weight: 700; color: var(--navy); text-decoration: underline; }
 html.embed .legal { max-width: none; }
+/* A content-height frame has no viewport of its own (DGS 2026-09-16, the
+   self-check tool resizes its frame too): dialogs sit at a document position
+   (`placeInFrame` sets top), toasts below the student's last interaction, and
+   the bottom score bar — which would stick to the end of the page — is hidden. */
+html.embed dialog.consent.in-frame { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; }
+html.embed .toast-stack { position: absolute; bottom: auto; }
+html.embed .sticky-score { display: none; }
+html.embed html, html.embed { scroll-padding-bottom: 0; }
 /* The self-check tool only: where its saved work is going (src/ui/app.ts). */
 html.embed .banner.embed-storage { margin: 12px 0 0; font-size: 13.5px; }
 /* The loading card is a centred 560 px box on a full page; in a frame that is

@@ -18,13 +18,14 @@
 //     (startHeightBroadcast below) so the frame grows to fit and there is no
 //     inner scrollbar and no trailing white space.
 //
-//   index.html — an APP. It trims the same chrome but does NOT broadcast its
-//     height: it keeps a fixed-height frame with its own scrollbar. An
+//   index.html — an APP. Since 2026-09-16 (DGS: "remove the scroll just like
+//     in the course rule page embed") it broadcasts its height too. An
 //     auto-sized frame is exactly as tall as its content, so `position: fixed`
-//     resolves against a viewport the size of the whole document — the opening
-//     consent dialog would centre itself thousands of pixels down, toasts
-//     would appear below the fold, and the sticky score would stick to
-//     nothing. A frame with its own viewport gives all of that back for free.
+//     resolves against a viewport the size of the whole document — which is
+//     why, in embed mode, the three dialogs are placed at the top of the
+//     document (the opening notice) or beside the control that opened them
+//     (`placeInFrame`), the toasts appear next to the student's last
+//     interaction (`lastInteractionTop`), and the sticky score bar is hidden.
 import { el } from './dom.ts';
 
 /** Message types and DOM event names — namespaced, so nothing else on a host page collides. */
@@ -215,6 +216,41 @@ function send(): void {
  * the page later are covered without anyone remembering to. The default action
  * is left alone: it still sets `:target` and moves focus, it simply has nothing
  * to scroll. */
+/** Where the student last acted, in document coordinates — the only place a
+ * pop-up can appear that is certain to be on screen in a frame the page cannot
+ * scroll (the parent's viewport is invisible to a cross-origin frame). */
+let lastInteractionTopPx = 0;
+export function trackInteractions(): void {
+  if (!isEmbedded()) return;
+  const note = (ev: Event) => {
+    const t = ev.target;
+    if (!(t instanceof Element)) return;
+    const r = t.getBoundingClientRect();
+    if (r.height === 0 && r.width === 0) return;
+    lastInteractionTopPx = Math.max(0, Math.round(r.top + window.scrollY));
+  };
+  document.addEventListener('pointerdown', note, true);
+  document.addEventListener('focusin', note, true);
+  document.addEventListener('change', note, true);
+}
+export function lastInteractionTop(): number {
+  return lastInteractionTopPx;
+}
+
+/** Position a modal <dialog> for a content-height frame: at the top of the
+ * document, or just above `anchor` (the control that opened it). Does nothing
+ * when the page is not embedded — the dialog then centres itself as usual. */
+export function placeInFrame(dialog: HTMLElement, anchor?: Element | null): void {
+  if (!isEmbedded()) return;
+  let top = 16;
+  if (anchor) {
+    const r = anchor.getBoundingClientRect();
+    top = Math.max(16, Math.round(r.top + window.scrollY) - 60);
+  }
+  dialog.classList.add('in-frame');
+  dialog.style.top = `${top}px`;
+}
+
 export function startAnchorScrollRelay(root: HTMLElement): void {
   if (!isEmbedded()) return;
   root.addEventListener('click', (ev) => {

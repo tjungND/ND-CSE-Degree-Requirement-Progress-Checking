@@ -12,6 +12,7 @@
 // the page cannot destroy it.
 import { mailto } from './contacts.ts';
 import { el } from './dom.ts';
+import { placeInFrame } from './embed.ts';
 
 export interface CopyRecipient {
   role: string;
@@ -154,6 +155,7 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   ok.addEventListener('click', close);
   dialog.addEventListener('close', close); // Escape
   document.body.append(dialog);
+  placeInFrame(dialog, document.querySelector(`[data-key="${CSS.escape(opts.returnFocusKey)}"]`)); // embed mode: beside the button (2026-09-16)
   if (typeof dialog.showModal === 'function') dialog.showModal();
   else dialog.setAttribute('open', '');
   if (copied) (openMail ?? ok).focus();
@@ -205,6 +207,7 @@ export function confirmDialog(opts: {
     cancel.addEventListener('click', close);
     dialog.addEventListener('close', close); // Escape cancels
     document.body.append(dialog);
+    placeInFrame(dialog, document.querySelector(`[data-key="${CSS.escape(opts.returnFocusKey)}"]`)); // embed mode (2026-09-16)
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
     cancel.focus(); // the safe default has focus

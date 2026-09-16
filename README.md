@@ -485,10 +485,10 @@ fixed height and `scrolling="yes"`**:
 [iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/?embed=1" width="100%" height="1400" scrolling="yes"]
 ```
 
-It is an application, not a document: it has an opening notice, pop-up messages and a floating
-score bar, all of which need a window of their own to sit in. A frame stretched to the full
-height of its content has no such window, so the tool keeps its own scrollbar and does not
-auto-resize. Do not add it to the E3 snippet's control.
+Since 2026-09-16 it resizes its frame just like the course-rules page (add it to the E3
+snippet's control the same way), so there is no inner scrollbar: the opening notice appears at
+the top of the frame, pop-up messages appear beside whatever the student just clicked, and the
+floating score bar is not shown.
 
 One caveat worth knowing before you link students to an embedded copy: a page inside a frame
 saves into the *frame's* storage, and Safari blocks that storage for embedded pages entirely.
