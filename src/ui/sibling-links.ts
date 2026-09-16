@@ -27,3 +27,12 @@ export function siblingLink(page: SiblingPage, search: string): SiblingLink {
   if (/^https?:\/\/[^\s]+$/i.test(raw)) return { href: raw, target: '_top' };
   return { href: RELATIVE[page] };
 }
+
+/** Anchor attributes for the sibling link, combining the two embed rules
+ * (both 2026-09-16): a host page named in the query string wins and opens in
+ * the top window; otherwise the relative sibling file, which in `?embed=1`
+ * mode also leaves the frame (`embedAttrs`, from embed.ts). */
+export function siblingAnchorAttrs(page: SiblingPage, search: string, embedAttrs: Record<string, string>): Record<string, string> {
+  const link = siblingLink(page, search);
+  return link.target ? { href: link.href, target: '_top', rel: 'noopener' } : { href: link.href, ...embedAttrs };
+}

@@ -4,9 +4,15 @@
 import './style.css';
 import { loadRulesWithCard } from './ui/loading.ts';
 import { startApp } from './ui/app.ts';
+import { markEmbedMode } from './ui/embed.ts';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (app) {
+  // ?embed=1 — the tool inside someone else's page (src/ui/embed.ts). Chrome
+  // only: this page deliberately does NOT broadcast its height, because the
+  // consent dialog, the toasts and the sticky score all need a frame with its
+  // own viewport. src/ui/embed.ts explains why at length.
+  markEmbedMode();
   // The loading card (src/ui/loading.ts) shows progress and, on failure, suggests
   // reloading; it resolves with the live rules or the saved copy the student chose.
   loadRulesWithCard(app, new Date().toISOString()).then(({ rules, today }) => {

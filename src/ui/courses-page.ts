@@ -18,7 +18,8 @@ function afterTeachingTermBack(t: import('../engine/types.ts').Term): import('..
 }
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
-import { SIBLING_PARAM, siblingLink } from './sibling-links.ts';
+import { SIBLING_PARAM, siblingAnchorAttrs } from './sibling-links.ts';
+import { embedTargetAttrs, isEmbedded, notifyEmbedHeight, openFullPageLink, startAnchorScrollRelay } from './embed.ts';
 import { handbookLink, rulesDateLine } from './handbook.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 
@@ -134,8 +135,12 @@ function filtersToUrl(f: Filters, defaults: Filters): void {
   if (f.sort !== defaults.sort) params.set('sort', f.sort);
   if (f.desc) params.set('desc', '1');
   if (f.view !== defaults.view) params.set('view', f.view);
-  // The embed's host-page URL (sibling-links.ts, 2026-09-16) is not a filter,
-  // but it lives in the same query string and must survive every rewrite.
+  // Embed mode is part of the address, not a filter: without this the first
+  // render would strip `?embed=1` from the frame's URL, and the next reload
+  // inside the frame would come back with the full page chrome (2026-09-16).
+  if (isEmbedded()) params.set('embed', '1');
+  // So is the embed's host-page URL (sibling-links.ts, 2026-09-16): it lives
+  // in the same query string and must survive every rewrite.
   const host = new URLSearchParams(window.location.search).get(SIBLING_PARAM['self-check']);
   if (host) params.set(SIBLING_PARAM['self-check'], host);
   const qs = params.toString();
@@ -329,14 +334,21 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // ---------- page pieces ----------
 
   function masthead(): HTMLElement {
+    // Embedded, the host page already carries the ND masthead and its own
+    // heading, so ours would be the second of each on one screen: the gold
+    // eyebrow goes, and the <h1> stays for screen readers and the document
+    // outline but is taken out of the visual page (DGS 2026-09-16). The
+    // "Who to contact" card moves to the end of the page — see the assembly
+    // below — because a right-hand column has nowhere to sit in a ~700 px frame.
+    const embed = isEmbedded();
     return el(
       'header',
       { class: 'masthead' },
       el(
         'div',
         { class: 'masthead-main' },
-        el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
-        el('h1', { tabindex: '-1' }, 'Graduate Course Rules'),
+        embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+        el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Course Rules'),
         el(
           'p',
           { class: 'sub' },
@@ -344,14 +356,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           'These mappings are set by the Graduate Studies Committee and the DGS under the ',
           handbookLink(),
           ', and they are what the DGS and the Grad Admin use to decide whether a student’s courses satisfy the degree requirements. The ',
-          el('a', { href: siblingLink('self-check', window.location.search).href, ...(siblingLink('self-check', window.location.search).target ? { target: '_top' } : {}) }, 'degree self-check tool'),
+          el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
           ' applies these same rules to your own coursework.',
         ),
         el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
         // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
         sheetSourceLine(),
       ),
-      contactCard(),
+      embed ? null : contactCard(),
     );
   }
 
@@ -544,7 +556,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         'The core-knowledge requirement can be met by the Notre Dame courses listed here ',
         el('strong', {}, 'or by prior coursework at a previous institution — undergraduate or graduate'),
         ' (§4.4.1: “either at Notre Dame or at their previous institution”). A course from a previous institution counts once the DGS has confirmed it; the ',
-        el('a', { href: siblingLink('self-check', window.location.search).href, ...(siblingLink('self-check', window.location.search).target ? { target: '_top' } : {}) }, 'degree self-check tool'),
+        el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
         ' prepares that review request from your imported transcripts.',
       ),
       el('div', { class: 'ov-grid' }, ...coreCards),
@@ -558,7 +570,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         `${catRule.charAt(0).toUpperCase()}${catRule.slice(1)} (§4.4.2). A course may be listed under more than one category, and it then appears in each of their cards below — but it can fill only `,
         el('strong', {}, 'one'),
         ' of them, never several. The student chooses which one when they enter the course in the ',
-        el('a', { href: siblingLink('self-check', window.location.search).href, ...(siblingLink('self-check', window.location.search).target ? { target: '_top' } : {}) }, 'degree self-check tool'),
+        el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
         '.',
       ),
       el('div', { class: 'ov-grid' }, ...groupCards),
@@ -822,6 +834,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     if (focused?.startsWith('sort.')) tableHost.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
     clearButton?.classList.toggle('hidden', !filtersActive());
     filtersToUrl(filters, DEFAULTS);
+    // Filtering 176 rows down to three changes the page height by thousands of
+    // pixels. The ResizeObserver in embed.ts sees it too; this just gets the
+    // message out on the same frame as the rebuild.
+    notifyEmbedHeight();
   }
 
   function table(): HTMLElement {
@@ -1001,18 +1017,29 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   }
 
   function footer(): HTMLElement {
+    // Embedded, the masthead's own source line already says where the data come
+    // from, and the host page carries the department's footer — so only the
+    // licence stays, under the way out of the frame. The licence is not
+    // optional chrome: it is the University's notice and travels with the page
+    // wherever the page goes (CLAUDE.md, "dual-licensed").
+    const embed = isEmbedded();
     return el(
       'footer',
       { class: 'legal' },
-      el(
-        'div',
-        {},
-        el('strong', {}, 'Source. '),
-        // Where the data come from and who can open the sheet (DGS, 2026-09-04;
-        // shortened the same day — the handbook link now sits inside the note).
-        ...sheetSourceNote('courses'),
-        ' Where this page and the handbook disagree, the handbook and the DGS decide.',
-      ),
+      embed
+        ? el('div', { class: 'embed-exit-line' }, openFullPageLink('Open the full course-rules page'), ' — the same list outside this page, with the ND heading and the contacts.')
+        : null,
+      embed
+        ? null
+        : el(
+            'div',
+            {},
+            el('strong', {}, 'Source. '),
+            // Where the data come from and who can open the sheet (DGS, 2026-09-04;
+            // shortened the same day — the handbook link now sits inside the note).
+            ...sheetSourceNote('courses'),
+            ' Where this page and the handbook disagree, the handbook and the DGS decide.',
+          ),
       el(
         'div',
         { class: 'legal-license' },
@@ -1036,6 +1063,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   root.classList.add('courses-page');
   filterHost.append(filterBar());
   refreshTable();
+  const embedded = isEmbedded();
   root.append(
     el('a', { class: 'skip-link', href: '#all-courses' }, 'Skip to the course list'),
     hoverCard,
@@ -1047,7 +1075,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       scheduleSection(),
       overview(),
       el('section', { class: 'all-courses', id: 'all-courses', tabindex: '-1' }, el('h2', {}, 'All courses'), filterHost, legend(), tableHost),
+      // "Who to contact" is a right-hand column on the full page; in a ~700 px
+      // frame there is no right-hand column, so it becomes the last block of
+      // the page instead of the first (DGS 2026-09-16).
+      embedded ? contactCard() : null,
     ),
     footer(),
   );
+  if (embedded) {
+    startAnchorScrollRelay(root); // #CSE-60641 links, in a frame that cannot scroll
+    notifyEmbedHeight();
+  }
 }

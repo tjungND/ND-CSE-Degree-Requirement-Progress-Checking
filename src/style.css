@@ -33,7 +33,7 @@ body {
 }
 .masthead-main { min-width: 0; }
 .masthead-tools { grid-column: 1 / -1; }
-@media (max-width: 900px) { .masthead { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .masthead { grid-template-columns: minmax(0, 1fr); } }
 .eyebrow { color: var(--gold-text); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .masthead h1 { margin: 2px 0 6px; color: var(--navy); font-size: 28px; }
 .masthead .sub { margin: 0; color: var(--muted); max-width: 70ch; }
@@ -358,8 +358,8 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .schedule-table th[scope='col'] { white-space: nowrap; }
 .schedule-table td.cell-title { white-space: nowrap; }
 /* One course, one line: the card grows to its longest course instead of
-   wrapping every title (DGS 2026-09-09). On a phone the cards are full width,
-   so the text has to wrap again — see the 600 px block. */
+   wrapping every title (DGS 2026-09-09). Once the cards are full width the text
+   has to wrap again — see the 860 px block. */
 .ov-item { white-space: nowrap; }
 .ov-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
 .ov-list { display: flex; flex-direction: column; gap: 3px; }
@@ -388,9 +388,6 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 details.legend { margin: 4px 0 8px; }
 details.legend summary { cursor: pointer; font-weight: 600; color: var(--navy); }
 table.course-rules tbody th { text-align: left; font-size: inherit; text-transform: none; letter-spacing: 0; color: inherit; background: none; position: static; border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; font-weight: 700; }
-table.course-rules .notes-cell { white-space: nowrap; }
-table.course-rules tr.note-row td { background: #fffdf5; color: var(--ink); font-size: 13px; border-bottom: 1px solid var(--line); }
-table.course-rules tr.note-row td strong { color: var(--navy); }
 .table-scroll:focus-visible { outline-offset: -3px; }
 .count { margin: 6px 0; }
 .table-scroll { overflow-x: auto; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 10px; } /* position: relative — so a visually-hidden (absolutely positioned) header label is clipped with the table instead of widening the page (2026-09-05) */
@@ -416,11 +413,17 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .legend li { margin: 4px 0; font-size: 13.5px; }
 .legend-key .pill { vertical-align: middle; }
 @media print {
-  .filters, .banner, .skip-link, .notes-cell, th:last-child { display: none; }
+  /* This block once also removed the Notes column — `.notes-cell` hid its cells
+     and `th:last-child` its header. The DGS's notes left this page on
+     2026-09-09, so `.notes-cell` matched nothing and `th:last-child` had moved
+     on to hiding the LAST header of every table here: "DGS reviewed" on the all
+     courses table, "Specialization" on each schedule card, both while the cells
+     under them still printed. Removed 2026-09-16; the e2e "course rules list"
+     driver now prints under emulated print media and checks that every column
+     keeps its heading. Do not reintroduce a bare `th:last-child`. */
+  .filters, .banner, .skip-link { display: none; }
   .table-scroll { border: 0; overflow: visible; }
   table.course-rules { min-width: 0; font-size: 11px; }
-  table.course-rules tr.note-row { display: table-row; }
-  table.course-rules tr.note-row.hidden { display: none !important; }
 }
 
 /* who-to-contact card, top right of every page (names live in src/ui/contacts.ts) */
@@ -431,6 +434,9 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .masthead .contact-card .role { font-weight: 700; color: var(--navy); }
 .masthead .contact-card .scope { display: block; color: var(--muted); font-size: 12px; }
 .masthead .contact-card a { color: inherit; }
+/* Printed, the card is text, not a boxed aside. Embed mode gets the same
+   treatment at the end of this file — it has to come AFTER the embed rules,
+   which carry equal specificity (2026-09-16). */
 @media print { .masthead .contact-card { border: 0; padding: 0; } }
 
 /* loading card (src/ui/loading.ts) */
@@ -520,9 +526,13 @@ tr.ocr-low td { background: #fff7e0; }
   .sticky-score a { color: #fff; text-decoration: underline; font-weight: 600; min-height: 24px; display: inline-flex; align-items: center; }
   .sticky-score a:focus-visible { outline-color: #fff; outline-offset: 1px; }
   html { scroll-padding-bottom: 64px; } /* a focused control is never hidden behind the bar (WCAG 2.4.11) */
-  #app { padding-bottom: 76px; }
+  /* Room for that bar — on the page that has one. courses.html never renders a
+     .sticky-score, so the rule was only adding 76 px of blank page to it; in a
+     frame sized to its content that blank is visible trailing white space
+     (2026-09-16). */
+  #app:not(.courses-page) { padding-bottom: 76px; }
   .toast-stack { bottom: 62px; }
-  .masthead { grid-template-columns: 1fr; }
+  .masthead { grid-template-columns: minmax(0, 1fr); } /* minmax, so a long address cannot widen the page */
 }
 
 @media (max-width: 600px) {
@@ -551,7 +561,6 @@ tr.ocr-low td { background: #fff7e0; }
   /* iOS Safari zooms the page when a focused control's text is smaller than 16 px. */
   input, select, textarea, .external-card .transcript-preview input, .external-card .transcript-preview select { font-size: 16px; }
   .pair input { width: 96px; }
-  .ov-item { white-space: normal; } /* full-width cards on a phone: wrap rather than overflow */
   .external-slot { display: block; }
   .external-slot .slot-label { display: block; margin-bottom: 4px; }
   .external-slot .slot-sep { display: none; }
@@ -694,19 +703,21 @@ tr.ocr-low td { background: #fff7e0; }
      past the card and drags the whole page sideways (DGS 2026-09-09, iPhone).
      Wrapping is the right behaviour once there are no columns to line up. */
   .schedule-table td.cell-title, .schedule-table th[scope='col'] { white-space: normal; }
+  /* The same bug in the overview cards, which had its wrap-back keyed to 600 px
+     while the card layout it pairs with starts here: between 601 and 860 px the
+     cards shrink (`min-width: min(100%, 260px)` overrides flex's automatic
+     minimum) while their one-line items do not, and the overflow drags the page
+     sideways. Found at the ~700 px of a WordPress content column, 2026-09-16. */
+  .ov-item { white-space: normal; }
   table.course-rules thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   table.course-rules tbody { display: block; }
   table.course-rules tbody tr { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0 0 8px; }
-  table.course-rules tbody tr.note-row { margin-top: -10px; border-top: 0; border-radius: 0 0 10px 10px; }
   table.course-rules tbody tr:hover td { background: none; }
   table.course-rules tbody tr:target { background: #fff7e0; }
   table.course-rules tbody th, table.course-rules tbody td { display: block; border: 0; padding: 2px 0; font-size: 14px; }
   table.course-rules tbody th.course-id { font-size: 16px; white-space: normal; }
   table.course-rules tbody td.cell-title { color: var(--muted); margin-bottom: 4px; }
   table.course-rules tbody td[data-label]::before { content: attr(data-label) ': '; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
-  table.course-rules tbody td.notes-cell { padding-top: 6px; white-space: normal; }
-  table.course-rules tbody td.notes-cell .no-notes { display: none; }
-  table.course-rules tbody tr.note-row td { background: none; }
   .courses-page .count { margin: 10px 0 4px; }
 }
 @media print { .summary-mobile, .sticky-score, .jump-link, .mobile-only { display: none !important; } }
@@ -726,3 +737,43 @@ tr.ocr-low td { background: #fff7e0; }
 .course-pop .pop-label { color: var(--grey); font-weight: 700; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .course-pop .pop-value { color: var(--ink); }
 @media (max-width: 600px) { .course-pop { display: none; } } /* no pointer to hover with */
+
+/* ---------- embed mode: ?embed=1, the pages inside someone else's page ----------
+   Turned on by src/ui/embed.ts, which puts `embed` on <html> before anything
+   renders, so the loading card is already trimmed and the frame never flashes
+   the full-page chrome. The host page (sites.nd.edu today) supplies the ND
+   masthead, the page heading and the site footer; everything here either
+   removes our duplicate of one of those or gives a moved block its styling
+   back. See README.md § "Embedding these pages in a WordPress page". */
+html.embed, html.embed body { background: transparent; } /* the host's page colour shows through, not our grey */
+/* No outer gutter: the frame already sits inside the host's content column, so
+   our 20 px would be the second helping. The bottom keeps a little air. */
+html.embed #app { padding: 0 0 10px; }
+@media (max-width: 600px) { html.embed #app { padding: 0 0 8px; } }
+/* The masthead is one column and loses its heavy navy rule — that rule reads as
+   the top of a page, and this is not the top of the page any more. */
+html.embed .masthead { display: block; padding: 0 0 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+html.embed .masthead .sub { max-width: none; }
+/* "Who to contact" moves to the end of the page (courses-page.ts / app.ts), so
+   its styling can no longer come from `.masthead .contact-card`. */
+html.embed .contact-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 12px; font-size: 13px; margin: 20px 0 0; }
+html.embed .contact-card h2 { margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+html.embed .contact-card ul { list-style: none; margin: 0; padding: 0; }
+html.embed .contact-card li { margin: 5px 0; line-height: 1.35; }
+html.embed .contact-card .role { font-weight: 700; color: var(--navy); }
+html.embed .contact-card .scope { display: block; color: var(--muted); font-size: 12px; }
+html.embed .contact-card a { color: inherit; }
+/* Same as the masthead card on paper: text, not a box. This must sit after the
+   rules above — `html.embed .contact-card` in a print block has exactly their
+   specificity, so only source order settles it, and an earlier copy lost
+   silently (measured 2026-09-16). */
+@media print { html.embed .contact-card { border: 0; padding: 0; } }
+/* The way out of the frame — the one link that must be easy to find. */
+html.embed .embed-exit-line { margin: 0 0 10px; }
+html.embed .embed-exit { font-weight: 700; color: var(--navy); text-decoration: underline; }
+html.embed .legal { max-width: none; }
+/* The self-check tool only: where its saved work is going (src/ui/app.ts). */
+html.embed .banner.embed-storage { margin: 12px 0 0; font-size: 13.5px; }
+/* The loading card is a centred 560 px box on a full page; in a frame that is
+   about to be sized to it, centring it leaves the frame's own margins doubled. */
+html.embed .load-card { margin: 12px auto; }

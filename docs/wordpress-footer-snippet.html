@@ -1,0 +1,69 @@
+<!--
+  ND CSE degree-audit / course-rules embed — the WordPress side.
+
+  WHERE THIS GOES
+  WordPress admin → Settings → Header and Footer (the "Head, Footer and Post
+  Injections" plugin, which a site Administrator can activate) → the field
+  "Before the closing </body> tag" → Save. Site-wide; it does nothing on pages
+  that hold no such iframe.
+
+  It cannot go in the page itself: on ND's WordPress multisite a site
+  Administrator does not have `unfiltered_html`, so KSES strips <script> (and
+  <iframe>, <style>, <form>…) out of post content when the page is saved.
+  Tested on sites.nd.edu, 2026-09-16.
+
+  WHAT IT DOES
+  The framed page reports its own height as it changes (the rules sheet takes a
+  few seconds to load, and every filter the reader touches changes the height).
+  This grows and shrinks the iframe to match, so there is no inner scrollbar and
+  no trailing white space. The second message is optional: it makes the page's
+  own "jump to CSE 60641" links work, by scrolling THIS window instead — a frame
+  sized to its own content has nothing to scroll.
+
+  IF YOU EVER MOVE THE REPOSITORY to another GitHub account, the page's address
+  changes and APP_ORIGIN below must change with it, or the height messages stop
+  being accepted and the frame freezes at its starting height.
+
+  The page-side half of this is src/ui/embed.ts in the repository:
+  https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
+-->
+<script>
+(function () {
+  // Only messages from the page itself are listened to. Both this and the
+  // contentWindow check below are required: without them any page on the
+  // internet could resize or scroll this one.
+  var APP_ORIGIN = 'https://tjungnd.github.io';
+  var MATCH = 'ND-CSE-Degree-Requirement-Progress-Checking';
+
+  function framesFrom(source) {
+    var out = [];
+    var frames = document.querySelectorAll('iframe[src*="' + MATCH + '"]');
+    for (var i = 0; i < frames.length; i++) {
+      if (frames[i].contentWindow === source) out.push(frames[i]);
+    }
+    return out;
+  }
+
+  window.addEventListener('message', function (e) {
+    if (e.origin !== APP_ORIGIN) return;
+    var d = e.data;
+    if (!d || typeof d !== 'object') return;
+    var targets = framesFrom(e.source);
+    if (!targets.length) return;
+
+    if (d.type === 'nd-cse-audit:height') {
+      var h = parseInt(d.height, 10);
+      if (!h || h < 200 || h > 100000) return;
+      for (var i = 0; i < targets.length; i++) targets[i].style.height = h + 'px';
+      return;
+    }
+
+    if (d.type === 'nd-cse-audit:scrollto') {
+      var off = parseInt(d.offset, 10);
+      if (isNaN(off) || off < 0 || off > 100000) return;
+      var top = targets[0].getBoundingClientRect().top + (window.pageYOffset || 0) + off - 20;
+      if (window.scrollTo) window.scrollTo({ top: top, behavior: 'smooth' });
+    }
+  }, false);
+})();
+</script>

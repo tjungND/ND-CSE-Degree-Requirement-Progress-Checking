@@ -3,7 +3,7 @@
 // iframe src names it; anything but an http(s) URL is ignored.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { siblingLink } from '../src/ui/sibling-links.ts';
+import { siblingAnchorAttrs, siblingLink } from '../src/ui/sibling-links.ts';
 
 describe('links between the two pages', () => {
   it('standalone: the sibling file next to this one', () => {
@@ -17,5 +17,11 @@ describe('links between the two pages', () => {
   it('only http(s) is honoured', () => {
     assert.deepEqual(siblingLink('course-rules', '?course_rules_url=javascript:alert(1)'), { href: './courses.html' });
     assert.deepEqual(siblingLink('self-check', '?self_check_url=data:text/html,hi'), { href: './index.html' });
+  });
+
+  it('anchor attributes combine both embed rules', () => {
+    assert.deepEqual(siblingAnchorAttrs('course-rules', '', {}), { href: './courses.html' });
+    assert.deepEqual(siblingAnchorAttrs('course-rules', '?embed=1', { target: '_top', rel: 'noopener' }), { href: './courses.html', target: '_top', rel: 'noopener' });
+    assert.deepEqual(siblingAnchorAttrs('course-rules', '?embed=1&course_rules_url=https://cse.nd.edu/rules/', { target: '_top', rel: 'noopener' }), { href: 'https://cse.nd.edu/rules/', target: '_top', rel: 'noopener' });
   });
 });

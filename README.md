@@ -10,7 +10,8 @@ cited on every line. It is a self-check, not an official audit.
 - **Public course-rules list:** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/courses.html
   — which courses count toward each degree, their core area and specialization category, when
   they are typically offered, and whether the DGS has confirmed the row. Generated live from the
-  same sheet; safe to link from cse.nd.edu and to send to students.
+  same sheet; safe to link from cse.nd.edu and to send to students, and embeddable in an ND
+  WordPress page with `?embed=1` (see below).
 - **Rules sheet (the DGS edits this):** Google Sheet **CSE-Degree-Checking-Rules** (renamed from CSE-Degree-Audit-Rules on 2026-09-05) —
   https://docs.google.com/spreadsheets/d/1C8zYQvLN3gsOpjQHR1RMKdekB1VC_nv9rwSJ_RQCxVA/edit
 - **Code:** this repository, https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
@@ -33,7 +34,8 @@ Google Sheet (you edit)  ──publish-to-web CSV──►  static web page (stu
 | Change which courses count, their tags, or a number in the handbook | **[Track A](#track-a--updating-the-rules-no-programming)** | Edit access to the Google Sheet. Nothing else — no GitHub, no code. |
 | Change what the app *does* (a new requirement, new handbook structure, UI, transcript parsing, a re-published sheet) | **[Track B](#track-b--changing-the-app-with-claude-code-or-codex)** | Access to this repository, Node.js, and an AI coding agent (Claude Code or Codex). |
 
-Both tracks share the [yearly routine](#the-yearly-routine-both-tracks), [where things
+Both tracks share the [yearly routine](#the-yearly-routine-both-tracks), [embedding the pages
+in a WordPress page](#embedding-these-pages-in-a-wordpress-page), [where things
 live](#where-things-live), the [handoff checklist](#handoff-checklist) and the three properties
 below.
 
@@ -402,6 +404,112 @@ follow them.
 3. **Log it** on the sheet's Changelog tab.
 4. Nothing else — the app picks the sheet up automatically.
 
+## Embedding these pages in a WordPress page
+
+Both pages can be dropped into a page on ND's WordPress (`sites.nd.edu`, and any other
+`nd.edu` site) so the course rules appear *inside* a departmental page instead of as a link
+away from it. Nothing is copied: the embedded page is the live page, still generated from the
+rules sheet, so a Track A edit reaches it within five minutes like everywhere else.
+
+**Never paste the app's HTML into a WordPress page.** It would freeze at the day you pasted it.
+
+### E1. The one thing to know about ND's WordPress
+
+A site Administrator on ND's multisite does **not** have the `unfiltered_html` permission, so
+WordPress strips `<iframe>`, `<script>` and `<style>` out of page content when you save. Tested
+on `sites.nd.edu`, 2026-09-16. That is why the page uses a **shortcode**, and why the resizing
+script goes in a plugin field rather than on the page. Do not ask ND to grant `unfiltered_html`
+— it is a security setting for the whole multisite, not for one page.
+
+### E2. Put the course rules on a page (2 minutes)
+
+Add a **Shortcode block** containing exactly this — the `?embed=1` is what matters:
+
+```
+[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/courses.html?embed=1" width="100%" height="1200" scrolling="yes"]
+```
+
+This needs the **`iframe` plugin by webvitaly**, which is already active on `sites.nd.edu`.
+
+`?embed=1` tells the page it is a guest: it drops its own ND masthead and page title (your
+WordPress page already has both), moves "Who to contact" to the bottom, removes its outer
+margins, and adds an "Open the full course-rules page ↗" link that escapes the frame. Without
+the parameter you get the whole standalone page inside your page, ND header and all.
+
+Stop here if you like — this already works. The `height="1200"` is a guess, so you get one
+inner scrollbar. E3 removes it.
+
+### E3. Make the frame size itself (5 minutes, optional but recommended)
+
+1. Activate the **"Head, Footer and Post Injections"** plugin (Plugins → Installed Plugins).
+2. Go to **Settings → Header and Footer**, find the field **"Before the closing `</body>`
+   tag"**, and paste the whole contents of
+   [`docs/wordpress-footer-snippet.html`](docs/wordpress-footer-snippet.html) into it. Save.
+3. Change the shortcode's `scrolling="yes"` to `scrolling="no"`.
+
+The embedded page now reports its own height as it changes — when the rules finish loading,
+and every time a reader filters the table — and the snippet grows and shrinks the frame to
+match. No inner scrollbar, no trailing white space. It also makes the page's own "jump to
+CSE 60641" links work, by scrolling *your* page instead.
+
+The snippet ignores any message that does not come from
+`https://tjungnd.github.io` and from the frame that sent it, so no other site can resize or
+scroll your page. **If the repository is ever transferred to another GitHub account** (handoff
+checklist, step 2) the page's address changes, and `APP_ORIGIN` at the top of the snippet must
+change with it — otherwise the frame silently stops resizing.
+
+### E4. On phones
+
+At a phone width the course table becomes one card per course, so the embedded page is very
+long — around 50 000 px for 117 courses — and it becomes part of your page's scroll. If that
+bothers you, hide the frame on small screens and show a link instead. This is CSS only, which
+*is* allowed on the page: **Appearance → Customize → Additional CSS**:
+
+```css
+@media (max-width: 700px) {
+  .iframe-class { display: none; }
+  .course-rules-link { display: block; }
+}
+@media (min-width: 701px) { .course-rules-link { display: none; } }
+```
+
+`.iframe-class` is the class the `iframe` plugin puts on every frame it makes; add a paragraph
+with the CSS class `course-rules-link` holding an ordinary link to the page.
+
+### E5. The self-check tool
+
+The same `?embed=1` works on the self-check tool, but it is embedded differently — **keep a
+fixed height and `scrolling="yes"`**:
+
+```
+[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/?embed=1" width="100%" height="1400" scrolling="yes"]
+```
+
+It is an application, not a document: it has an opening notice, pop-up messages and a floating
+score bar, all of which need a window of their own to sit in. A frame stretched to the full
+height of its content has no such window, so the tool keeps its own scrollbar and does not
+auto-resize. Do not add it to the E3 snippet's control.
+
+One caveat worth knowing before you link students to an embedded copy: a page inside a frame
+saves into the *frame's* storage, and Safari blocks that storage for embedded pages entirely.
+A student's entries may not come back. The embedded tool says so at the top and points at
+"Save my progress to a file" and at the full page — but linking students straight to the full
+page is the kinder option.
+
+### E6. Let the two WordPress pages link to each other (1 minute)
+
+Each page links to the other ("See the course rules page", "The degree self-check tool applies
+these same rules…"). In `?embed=1` mode those links leave the frame, but they would land on the
+bare app page — so name your two WordPress pages in the shortcode's `src` and the links go there
+instead, in the top window:
+
+```
+[iframe src="…/index.html?embed=1&course_rules_url=https://cse.nd.edu/<your-course-rules-page>/" …]
+[iframe src="…/courses.html?embed=1&self_check_url=https://cse.nd.edu/<your-self-check-page>/" …]
+```
+
+Only `http(s)` URLs are accepted; anything else in the query string is ignored (2026-09-16).
+
 ## Where things live
 
 `src/engine/` — rule engine, one pure function per requirement with the handbook sentence quoted
@@ -416,13 +524,6 @@ sessions · `MAINTENANCE.md` — deeper technical notes and the list of one-time
 `CLAUDE.md` / `AGENTS.md` — the instructions AI agents read. (The build-time starter kit —
 `START-HERE.md`, `KICKOFF-PROMPT.md`, `reference/`, the seed spreadsheet and the Banner sweep — was
 removed on 2026-09-14 and lives in git history only.)
-
-Embedding on cse.nd.edu (2026-09-16): each page links to the other. Inside an `<iframe>` a plain
-link would open the sibling app page *inside the frame*; name the WordPress host pages in the
-iframe `src` and the links go to them in the top window instead —
-`<iframe src="…/index.html?course_rules_url=https://cse.nd.edu/…/course-rules/">` on the
-self-check page and `<iframe src="…/courses.html?self_check_url=https://cse.nd.edu/…/self-check/">`
-on the course-rules page (http(s) URLs only; anything else is ignored).
 
 Automation: every push to `main` runs the tests and redeploys GitHub Pages (`deploy` Action); every
 push or pull request runs `test`; every six hours `sync-sheet` checks the sheet and, when its
@@ -441,7 +542,10 @@ tooling (details in `MAINTENANCE.md`).
    repository (*Settings → General → Transfer ownership*). A transfer changes the live URL to
    `https://<new-owner>.github.io/ND-CSE-Degree-Requirement-Progress-Checking/` — then re-enable
    *Settings → Pages → Source: GitHub Actions*, update the link or iframe on cse.nd.edu, and
-   update the URL at the top of this file.
+   update the URL at the top of this file. If a WordPress page embeds the course rules, update
+   the shortcode's address **and** `APP_ORIGIN` in the footer snippet (see
+   [Embedding these pages in a WordPress page](#embedding-these-pages-in-a-wordpress-page)) —
+   a stale origin makes the frame stop resizing without any visible error.
 3. **Update the people on the page:** names and e-mail addresses of the DGS, Assistant DGS and
    Graduate Program Administrator live in `src/ui/contacts.ts` (the footer, the feedback notes
    and the error-report address all read from it). Edit, commit, push — Track B, five minutes.

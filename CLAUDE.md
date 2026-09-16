@@ -72,7 +72,10 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
   report. All user-entered text rendered via `textContent`, never innerHTML. A second page,
   `courses.html` → `src/courses.ts` → `src/ui/courses-page.ts`, is the public course-rules list
   (read-only view of the Courses tab; no student data); both pages are built by Vite from
-  `vite.config.ts` `rollupOptions.input`.
+  `vite.config.ts` `rollupOptions.input`. `src/ui/embed.ts` is the `?embed=1` mode both pages
+  share — the page trimmed to sit in an ND WordPress iframe, and (courses.html only) the
+  height it broadcasts to the parent so the frame resizes; the allowlist of parent origins lives
+  there and nowhere else, and the page never listens for an incoming message.
 - `src/transcript/` — ND unofficial-transcript PDF → text → courses, all in-browser
   (`pdf.ts` + `layout.ts`: pdfjs runs → lines, reading two-column Banner pages column by
   column; `nd-markers.ts`: the shared "is this Notre Dame's transcript?" test; `parse.ts` also

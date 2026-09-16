@@ -1,3 +1,19 @@
+import { readFileSync } from 'node:fs';
+
+/** The WordPress-side listener, read out of the file the DGS copies and pastes
+ * (docs/wordpress-footer-snippet.html) so the tested text and the pasted text
+ * cannot drift apart. The prose above it mentions `<script>` as well — hence
+ * the LAST occurrence, and the sanity check. */
+function wordPressSnippetScript() {
+  const file = readFileSync(new URL('../../docs/wordpress-footer-snippet.html', import.meta.url), 'utf8');
+  const open = file.lastIndexOf('<script>');
+  const close = file.indexOf('</script>', open);
+  if (open < 0 || close < 0) throw new Error('docs/wordpress-footer-snippet.html has no <script> block');
+  const js = file.slice(open + '<script>'.length, close);
+  if (!js.includes('APP_ORIGIN') || js.includes('KSES')) throw new Error('extracted the wrong part of the WordPress snippet');
+  return js;
+}
+
 // E2E: the basic app flow — initial Ph.D. report, example student, M.S. tab.
 export async function driveApp(s, baseUrl) {
   await s.open(baseUrl);
@@ -309,6 +325,49 @@ export async function driveApp(s, baseUrl) {
   );
   console.log('  M.S. summary:', summary);
   if (!/\d+\/\d+/.test(summary ?? '')) throw new Error('score dial did not render');
+
+  await driveAppEmbed(s, baseUrl);
+}
+
+// E2E: ?embed=1 on the self-check tool (DGS 2026-09-16). The same chrome trim
+// as the course-rules page, plus the two things that are true only here: the
+// student is told where their saved work is going, and this page must NOT
+// broadcast its height — an auto-sized frame would put the consent dialog and
+// the toasts thousands of pixels from anything the reader can see.
+async function driveAppEmbed(s, baseUrl) {
+  await s.open(new URL('?embed=1', baseUrl).href, '.masthead h1');
+  const m = JSON.parse(
+    await s.evalJs(`(async () => {
+      const heights = [];
+      document.addEventListener('nd-cse-audit:height', (e) => heights.push(e.detail.height));
+      await new Promise((r) => setTimeout(r, 1200));
+      return JSON.stringify({
+        heights: heights.length,
+        eyebrow: !!document.querySelector('.masthead .eyebrow'),
+        h1Hidden: document.querySelector('.masthead h1')?.classList.contains('visually-hidden') === true,
+        embedClass: document.documentElement.classList.contains('embed'),
+        contactInMasthead: !!document.querySelector('.masthead .contact-card'),
+        contactInFooter: !!document.querySelector('footer.legal .contact-card'),
+        storageNote: !!document.querySelector('.banner.embed-storage'),
+        privacy: !!document.querySelector('.legal-privacy'),
+        exit: document.querySelector('footer.legal .embed-exit')?.getAttribute('target'),
+        coursesTarget: document.querySelector('.masthead .sub a[href="./courses.html"]')?.getAttribute('target'),
+      });
+    })()`),
+  );
+  if (m.eyebrow || !m.h1Hidden || !m.embedClass) throw new Error('the self-check tool did not trim its chrome in embed mode: ' + JSON.stringify(m));
+  if (m.contactInMasthead || !m.contactInFooter) throw new Error('"Who to contact" should move to the footer in embed mode: ' + JSON.stringify(m));
+  if (!m.storageNote) throw new Error('embed mode must tell the student their saved work lives in the frame');
+  if (!m.privacy) throw new Error('the FERPA paragraph must survive embed mode — it is the promise the page makes');
+  if (m.exit !== '_top' || m.coursesTarget !== '_top') throw new Error('a link would load a whole page inside the frame: ' + JSON.stringify(m));
+  if (m.heights !== 0) throw new Error(`the self-check tool broadcast ${m.heights} height messages; it must not auto-resize its frame`);
+  await s.shot('app-embed');
+  console.log('  ?embed=1 on the self-check tool → chrome trimmed, storage note shown, FERPA paragraph kept, no height broadcast');
+
+  await s.open(baseUrl, '.masthead h1');
+  const back = JSON.parse(await s.evalJs(`JSON.stringify({ eyebrow: !!document.querySelector('.masthead .eyebrow'), embedClass: document.documentElement.classList.contains('embed'), storageNote: !!document.querySelector('.banner.embed-storage') })`));
+  if (!back.eyebrow || back.embedClass || back.storageNote) throw new Error('the self-check tool without ?embed=1 is not the page it was: ' + JSON.stringify(back));
+  console.log('  the self-check tool without the parameter is unchanged');
 }
 
 // Both pages link the DGS's rules spreadsheet (2026-09-04): once in the masthead
@@ -502,4 +561,272 @@ export async function driveCourses(s, baseUrl) {
   const search = await s.evalJs(`window.location.search`);
   if (!/q=algorithms/.test(search) || !/view=mscse/.test(search)) throw new Error('the address bar did not follow the filters: ' + search);
   console.log(`  shared link → view/filters applied (${shared.rows} rows, 3 columns hidden); filters written back to the URL (${search})`);
+
+  await checkPrintColumns(s, baseUrl, '');
+  await checkPrintColumns(s, baseUrl, '?embed=1');
+  await driveCoursesEmbed(s, baseUrl);
+}
+
+// E2E: what a student actually gets when they print the course list
+// (2026-09-16). The print block used to carry `th:last-child { display: none }`
+// — written when the last column was the DGS's notes, which this page stopped
+// showing on 2026-09-09. Unscoped, it went on hiding the last HEADER of every
+// table on the page while the cells under it still printed: "DGS reviewed" on
+// the main table, "Specialization" on each schedule card. A printed column with
+// no heading is the bug this pins.
+async function checkPrintColumns(s, baseUrl, query) {
+  await s.open(new URL('courses.html' + query, baseUrl).href, '.all-courses table.course-rules');
+  await s.send('Emulation.setEmulatedMedia', { media: 'print' });
+  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)))');
+  const tables = JSON.parse(
+    await s.evalJs(`JSON.stringify([...document.querySelectorAll('table.course-rules')].map((t) => {
+      const shown = (e) => getComputedStyle(e).display !== 'none';
+      const heads = [...t.querySelectorAll('thead tr:last-child th')];
+      const row = t.querySelector('tbody tr:not(.empty-row)');
+      const cells = row ? [...row.children] : [];
+      const last = heads[heads.length - 1];
+      return {
+        table: t.classList.contains('schedule-table') ? 'schedule card' : 'all courses',
+        visibleHeaders: heads.filter(shown).length,
+        visibleCells: cells.filter(shown).length,
+        lastHeader: (last ? last.getAttribute('abbr') || last.textContent || '' : '').trim().slice(0, 28),
+        lastHeaderShown: last ? shown(last) : null,
+      };
+    }))`),
+  );
+  // The card is text on paper, not a boxed aside — on BOTH pages. Embed mode
+  // moves it out of the masthead and restyles it, which outranks a print rule
+  // scoped to `.masthead`; without the embed selector the framed page printed a
+  // bordered card (measured 2026-09-16).
+  const card = JSON.parse(
+    await s.evalJs(`(() => {
+      const c = document.querySelector('.contact-card');
+      if (!c) return JSON.stringify({ missing: true });
+      const cs = getComputedStyle(c);
+      return JSON.stringify({ border: cs.borderTopWidth, padding: cs.paddingTop });
+    })()`),
+  );
+  await s.send('Emulation.setEmulatedMedia', { media: '' });
+  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+  if (!tables.length) throw new Error('no course tables found under print media');
+  for (const t of tables) {
+    if (!t.lastHeaderShown) throw new Error(`printing hides the "${t.lastHeader}" header of the ${t.table} table while its cells still print`);
+    if (t.visibleHeaders !== t.visibleCells) {
+      throw new Error(`the ${t.table} table prints ${t.visibleCells} columns under ${t.visibleHeaders} headers`);
+    }
+  }
+  if (card.missing) throw new Error('the contact card is not on the page at all');
+  if (card.border !== '0px' || card.padding !== '0px') throw new Error(`the contact card prints as a box (border ${card.border}, padding ${card.padding})`);
+  console.log(`  printing courses.html${query || ' (plain)'}: ${tables.length} tables, every column keeps its heading (last: ${[...new Set(tables.map((t) => t.lastHeader))].join(', ')}); contact card unboxed`);
+}
+
+// E2E: ?embed=1 — the course-rules page inside someone else's page
+// (sites.nd.edu WordPress, DGS 2026-09-16). Four things have to hold: the
+// chrome the host already supplies is gone, the flag survives the page's own
+// URL rewriting, the height the page broadcasts tracks the content both up and
+// down, and a parent origin that is not on the allowlist is told nothing.
+async function driveCoursesEmbed(s, baseUrl) {
+  await s.open(new URL('courses.html?embed=1', baseUrl).href, '.all-courses table.course-rules');
+  const trimmed = JSON.parse(
+    await s.evalJs(`JSON.stringify({
+      eyebrow: !!document.querySelector('.masthead .eyebrow'),
+      h1Hidden: document.querySelector('.masthead h1')?.classList.contains('visually-hidden') === true,
+      h1Text: document.querySelector('.masthead h1')?.textContent,
+      embedClass: document.documentElement.classList.contains('embed'),
+      contactInMasthead: !!document.querySelector('.masthead .contact-card'),
+      contactAtEnd: !!document.querySelector('main .contact-card'),
+      exit: document.querySelector('.embed-exit')?.getAttribute('target'),
+      exitHref: document.querySelector('.embed-exit')?.getAttribute('href'),
+      selfCheckTarget: document.querySelector('.masthead .sub a[href="./index.html"]')?.getAttribute('target'),
+      rulesDate: /last updated|updated after|effective/i.test(document.querySelector('.masthead .effective')?.textContent ?? ''),
+      search: window.location.search,
+    })`),
+  );
+  if (trimmed.eyebrow) throw new Error('embed mode still renders the ND eyebrow — the host page already has one');
+  if (!trimmed.h1Hidden) throw new Error('embed mode should hide the <h1> visually, not keep it on screen');
+  if (!trimmed.h1Text) throw new Error('embed mode dropped the <h1> entirely — screen readers still need it');
+  if (!trimmed.embedClass) throw new Error('<html> did not get the `embed` class');
+  if (trimmed.contactInMasthead || !trimmed.contactAtEnd) throw new Error('"Who to contact" should move from the masthead to the end of the page: ' + JSON.stringify(trimmed));
+  if (trimmed.exit !== '_top') throw new Error('"Open the full page" must leave the frame (target="_top"), got ' + trimmed.exit);
+  if (/embed=1/.test(trimmed.exitHref ?? '')) throw new Error('"Open the full page" still carries embed=1: ' + trimmed.exitHref);
+  if (trimmed.selfCheckTarget !== '_top') throw new Error('the self-check link would load the whole app inside the frame');
+  if (!trimmed.rulesDate) throw new Error('embed mode dropped the "rules last updated" line, which must stay');
+  // The page rewrites its own URL from the filters on first render; embed=1 is
+  // not a filter and used to be dropped, which lost the mode on any reload.
+  if (!/embed=1/.test(trimmed.search)) throw new Error('embed=1 did not survive the filter URL rewrite: ' + trimmed.search);
+  console.log('  ?embed=1 → no ND eyebrow, <h1> for screen readers only, contacts at the end, exit link leaves the frame, flag kept in the URL');
+
+  // The height message, watched through the DOM event the sender also fires
+  // (src/ui/embed.ts) — same numbers the parent receives, observable without a
+  // parent frame. It must FALL when the table is filtered down: sizing a frame
+  // from scrollHeight instead would leave white space nothing could reclaim.
+  await s.evalJs(`(() => { window.__heights = []; document.addEventListener('nd-cse-audit:height', (e) => window.__heights.push(e.detail.height)); })()`);
+  await s.evalJs(`(() => { const q = document.querySelector('[data-key="filter.search"]'); q.value = 'cse60641'; q.dispatchEvent(new Event('input')); })()`);
+  await s.waitFor(`window.__heights.length > 0`);
+  const shrunk = JSON.parse(await s.evalJs(`JSON.stringify({ heights: window.__heights, docH: Math.ceil(document.documentElement.getBoundingClientRect().height) })`));
+  const reported = shrunk.heights[shrunk.heights.length - 1];
+  if (Math.abs(reported - shrunk.docH) > 8) throw new Error(`the broadcast height (${reported}) does not match the document (${shrunk.docH})`);
+  console.log(`  filtering to one row shrank the broadcast height to ${reported} px, matching the document`);
+
+  // The allowlist is the whole access control: a page framed by an origin that
+  // is not one of the three ND hosts is told nothing at all. The preview server
+  // (http://localhost:4273) is not on it, so framing the page from here must
+  // produce silence — if this ever starts passing messages, the targetOrigin
+  // has been loosened to '*'.
+  await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
+  const heard = JSON.parse(
+    await s.evalJs(`(async () => {
+      const got = [];
+      window.addEventListener('message', (e) => { if (e.data && typeof e.data === 'object' && String(e.data.type ?? '').startsWith('nd-cse-audit:')) got.push(e.data.type); });
+      const frame = document.createElement('iframe');
+      frame.style.cssText = 'width:700px;height:900px;border:0';
+      frame.src = 'courses.html?embed=1';
+      document.body.append(frame);
+      await new Promise((r) => frame.addEventListener('load', r, { once: true }));
+      // Long enough for the load, the rules fetch and the settling sends.
+      await new Promise((r) => setTimeout(r, 4000));
+      const inner = frame.contentDocument;
+      const out = { got, framedRows: inner.querySelectorAll('.all-courses table.course-rules tbody tr').length, framedEyebrow: !!inner.querySelector('.masthead .eyebrow') };
+      frame.remove();
+      return JSON.stringify(out);
+    })()`),
+  );
+  if (heard.framedRows < 10) throw new Error('the framed page did not render (' + heard.framedRows + ' rows) — the silence below would prove nothing');
+  if (heard.framedEyebrow) throw new Error('the framed page rendered the full-page chrome');
+  if (heard.got.length > 0) throw new Error('an origin that is NOT on the allowlist received ' + heard.got.join(', ') + ' — targetOrigin has been loosened');
+  console.log(`  a parent on an origin outside the allowlist receives nothing (frame rendered ${heard.framedRows} rows, 0 messages)`);
+
+  // What it WOULD have sent, and to whom. The frame is same-origin here, so its
+  // `window.parent` is this page: replacing this page's postMessage records
+  // every call the sender makes, targetOrigin and all, without the browser's
+  // origin check in the way. That is the only way to see the payloads — and it
+  // also pins the three ND origins at the point of the call, not just in the
+  // exported constant.
+  const sent = JSON.parse(
+    await s.evalJs(`(async () => {
+      window.__posted = [];
+      const original = window.postMessage;
+      window.postMessage = function (msg, origin) { window.__posted.push({ type: msg && msg.type, origin, msg }); };
+      try {
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'width:700px;height:900px;border:0';
+        frame.src = 'courses.html?embed=1';
+        document.body.append(frame);
+        await new Promise((r) => frame.addEventListener('load', r, { once: true }));
+        await new Promise((r) => setTimeout(r, 4000));
+        const inner = frame.contentDocument;
+        const chip = inner.querySelector('.ov-item[href^="#"]');
+        const chipHref = chip ? chip.getAttribute('href') : null;
+        if (chip) chip.click();
+        await new Promise((r) => setTimeout(r, 400));
+        const out = {
+          chipHref,
+          heightOrigins: [...new Set(window.__posted.filter((p) => p.type === 'nd-cse-audit:height').map((p) => p.origin))],
+          heights: window.__posted.filter((p) => p.type === 'nd-cse-audit:height').map((p) => p.msg.height),
+          scrolls: window.__posted.filter((p) => p.type === 'nd-cse-audit:scrollto').map((p) => p.msg.offset),
+          scrollOrigins: [...new Set(window.__posted.filter((p) => p.type === 'nd-cse-audit:scrollto').map((p) => p.origin))],
+          otherTypes: [...new Set(window.__posted.map((p) => p.type))].filter((t) => t !== 'nd-cse-audit:height' && t !== 'nd-cse-audit:scrollto'),
+        };
+        frame.remove();
+        return JSON.stringify(out);
+      } finally {
+        window.postMessage = original;
+      }
+    })()`),
+  );
+  const expected = ['https://sites.nd.edu', 'https://cse.nd.edu', 'https://www.nd.edu'];
+  if (JSON.stringify(sent.heightOrigins) !== JSON.stringify(expected)) throw new Error('height went to the wrong origins: ' + JSON.stringify(sent.heightOrigins));
+  if (!sent.heights.length) throw new Error('the framed page never reported a height');
+  if (sent.otherTypes.length) throw new Error('an unexpected message type was sent: ' + sent.otherTypes.join(', '));
+  // A frame sized to its own content cannot scroll, so the page's own
+  // "jump to CSE 60641" chips ask the parent to scroll instead.
+  if (!sent.chipHref) throw new Error('no overview chip to click — the scroll relay is untested');
+  // One click, one offset — addressed to each allowed origin in turn, exactly
+  // as the height is, because only the matching one is ever delivered.
+  if (sent.scrolls.length !== expected.length || new Set(sent.scrolls).size !== 1 || !(sent.scrolls[0] > 0)) {
+    throw new Error(`clicking ${sent.chipHref} should ask each allowed parent to scroll to one offset, got ${JSON.stringify(sent.scrolls)}`);
+  }
+  if (JSON.stringify(sent.scrollOrigins) !== JSON.stringify(expected)) throw new Error('the scroll request went to the wrong origins: ' + JSON.stringify(sent.scrollOrigins));
+  console.log(`  every message goes only to ${expected.join(', ')}; clicking ${sent.chipHref} asks the parent to scroll to ${sent.scrolls[0]} px`);
+
+  await driveWordPressSnippet(s, baseUrl);
+
+  // …and the plain page is unchanged (acceptance criterion 2).
+  const plain = JSON.parse(await s.evalJs(`JSON.stringify({ eyebrow: !!document.querySelector('.masthead .eyebrow'), h1Hidden: document.querySelector('.masthead h1')?.classList.contains('visually-hidden') === true, contactInMasthead: !!document.querySelector('.masthead .contact-card'), embedClass: document.documentElement.classList.contains('embed'), exit: !!document.querySelector('.embed-exit') })`));
+  if (!plain.eyebrow || plain.h1Hidden || !plain.contactInMasthead || plain.embedClass || plain.exit) {
+    throw new Error('courses.html without ?embed=1 is not the page it was: ' + JSON.stringify(plain));
+  }
+  console.log('  courses.html without the parameter is unchanged');
+}
+
+// E2E: the WordPress half — docs/wordpress-footer-snippet.html, the text the
+// DGS pastes into the "Head, Footer and Post Injections" footer field. Nothing
+// else tests it, and a mistake there is invisible (the frame just never
+// resizes). The script is run here with its APP_ORIGIN pointed at the preview
+// server, and then fed hand-made MessageEvents: one good, and four that must be
+// ignored. `new MessageEvent(...)` is the only way to control `origin` and
+// `source`, which is exactly what the two security checks read.
+async function driveWordPressSnippet(s, baseUrl) {
+  const origin = new URL(baseUrl).origin;
+  const script = wordPressSnippetScript().replace('https://tjungnd.github.io', origin);
+  await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
+  const r = JSON.parse(
+    await s.evalJs(`(async () => {
+      ${script}
+      const frame = document.createElement('iframe');
+      // The snippet finds its frames by the repository name in the src, which
+      // the preview server's flat path has not got; the parameter puts it there
+      // (the page ignores parameters it does not know).
+      frame.src = 'courses.html?embed=1&e2e=ND-CSE-Degree-Requirement-Progress-Checking';
+      frame.style.cssText = 'width:700px;height:900px;border:0';
+      document.body.append(frame);
+      await new Promise((r) => frame.addEventListener('load', r, { once: true }));
+      const other = document.createElement('iframe');
+      other.src = 'about:blank';
+      document.body.append(other);
+      await new Promise((r) => setTimeout(r, 200));
+
+      const fire = (data, o, src) => window.dispatchEvent(new MessageEvent('message', { data: data, origin: o, source: src }));
+      const height = (h) => ({ type: 'nd-cse-audit:height', height: h });
+      const reset = () => { frame.style.height = '900px'; };
+      const out = {};
+
+      reset(); fire(height(4321), ${JSON.stringify(origin)}, frame.contentWindow);
+      out.accepted = frame.style.height;
+      reset(); fire(height(4321), 'https://evil.example', frame.contentWindow);
+      out.wrongOrigin = frame.style.height;
+      reset(); fire(height(4321), ${JSON.stringify(origin)}, window);
+      out.wrongSource = frame.style.height;
+      reset(); fire(height(4321), ${JSON.stringify(origin)}, other.contentWindow);
+      out.otherFrame = frame.style.height;
+      reset(); fire(height(999999), ${JSON.stringify(origin)}, frame.contentWindow);
+      out.tooTall = frame.style.height;
+      reset(); fire(height(12), ${JSON.stringify(origin)}, frame.contentWindow);
+      out.tooShort = frame.style.height;
+      reset(); fire({ type: 'nd-cse-audit:somethingelse', height: 4321 }, ${JSON.stringify(origin)}, frame.contentWindow);
+      out.unknownType = frame.style.height;
+      reset(); fire('a plain string', ${JSON.stringify(origin)}, frame.contentWindow);
+      out.notAnObject = frame.style.height;
+
+      // …and the scroll request, which moves the window rather than the frame.
+      const realScrollTo = window.scrollTo;
+      const scrolls = [];
+      window.scrollTo = (opts) => { scrolls.push(Math.round(opts && opts.top)); };
+      fire({ type: 'nd-cse-audit:scrollto', offset: 500 }, ${JSON.stringify(origin)}, frame.contentWindow);
+      fire({ type: 'nd-cse-audit:scrollto', offset: 500 }, 'https://evil.example', frame.contentWindow);
+      fire({ type: 'nd-cse-audit:scrollto', offset: -5 }, ${JSON.stringify(origin)}, frame.contentWindow);
+      window.scrollTo = realScrollTo;
+      out.scrolls = scrolls;
+
+      frame.remove(); other.remove();
+      return JSON.stringify(out);
+    })()`),
+  );
+  if (r.accepted !== '4321px') throw new Error('the WordPress snippet ignored a valid height message: ' + JSON.stringify(r));
+  const mustIgnore = ['wrongOrigin', 'wrongSource', 'otherFrame', 'tooTall', 'tooShort', 'unknownType', 'notAnObject'];
+  for (const k of mustIgnore) {
+    if (r[k] !== '900px') throw new Error(`the WordPress snippet acted on a message it must ignore (${k} → ${r[k]})`);
+  }
+  if (r.scrolls.length !== 1) throw new Error('the snippet scrolled for a message it must ignore: ' + JSON.stringify(r.scrolls));
+  console.log(`  the WordPress snippet, run verbatim from docs/: accepts a good height (${r.accepted}), ignores ${mustIgnore.join(', ')}, scrolls once`);
 }
