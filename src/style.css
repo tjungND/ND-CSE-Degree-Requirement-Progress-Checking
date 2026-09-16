@@ -779,6 +779,9 @@ html.embed .legal { max-width: none; }
 html.embed dialog.consent.in-frame { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; }
 html.embed .toast-stack { position: absolute; bottom: auto; }
 html.embed .sticky-score { display: none; }
+/* `40vh` in a content-height frame is 40% of the whole document — a screenful of
+   empty textarea under a short summary (DGS 2026-09-16). A fixed height instead. */
+html.embed .copy-check .copy-preview { height: 320px; }
 html.embed html, html.embed { scroll-padding-bottom: 0; }
 /* The self-check tool only: where its saved work is going (src/ui/app.ts). */
 html.embed .banner.embed-storage { margin: 12px 0 0; font-size: 13.5px; }

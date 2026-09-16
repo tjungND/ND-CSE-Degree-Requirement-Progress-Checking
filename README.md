@@ -485,13 +485,19 @@ The same `?embed=1` works on the self-check tool, but it is embedded differently
 fixed height and `scrolling="yes"`**:
 
 ```
-[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/?embed=1" width="100%" height="1400" scrolling="yes"]
+[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/?embed=1" width="100%" height="1400" scrolling="yes" allow="clipboard-write"]
 ```
 
 Since 2026-09-16 it resizes its frame just like the course-rules page (add it to the E3
 snippet's control the same way), so there is no inner scrollbar: the opening notice appears at
 the top of the frame, pop-up messages appear beside whatever the student just clicked, and the
 floating score bar is not shown.
+
+`allow="clipboard-write"` is what lets the tool's copy buttons write to the clipboard from
+inside a frame: without it Chrome blocks the modern clipboard for a cross-origin frame and the
+tool falls back to a plain-text copy (the formatted tables are lost) or, failing that, asks the
+student to copy by hand (2026-09-16). If the iframe plugin drops the attribute, the fallbacks
+still work.
 
 One caveat worth knowing before you link students to an embedded copy: a page inside a frame
 saves into the *frame's* storage, and Safari blocks that storage for embedded pages entirely.

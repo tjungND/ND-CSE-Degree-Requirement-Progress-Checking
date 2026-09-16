@@ -50,9 +50,36 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
         'text/html': new Blob([built.html], { type: 'text/html' }),
       }),
     ]);
+    return;
   } catch {
-    await navigator.clipboard.writeText(built.text);
+    /* fall through */
   }
+  try {
+    await navigator.clipboard.writeText(built.text);
+    return;
+  } catch {
+    /* fall through */
+  }
+  // Inside a cross-origin <iframe> Chrome refuses the async clipboard unless
+  // the frame carries allow="clipboard-write" (DGS 2026-09-16). The legacy
+  // command still works there within the click that opened the dialog: select
+  // the plain text in a hidden textarea and copy it. Plain text only.
+  const ta = document.createElement('textarea');
+  ta.value = built.text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '-9999px';
+  document.body.append(ta);
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  ta.remove();
+  if (!ok) throw new Error('clipboard blocked');
 }
 
 /** A mailto: link for the recipient (DGS request 2026-09-13): the default
