@@ -505,22 +505,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         { class: 'masthead-main' },
         embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
         el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Degree Requirement Self-check Tool'),
-        el(
-          'p',
-          { class: 'sub' },
-          'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
-          handbookLink(),
-          '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
-          el('a', siblingAnchorAttrs('course-rules', window.location.search, embedTargetAttrs()), 'course rules page'),
-          '.',
-        ),
-        el(
-          'p',
-          { class: 'effective' },
-          rulesDateLine(rules, termLabel(termOfDate(todayIso)), todayIso),
-        ),
-        // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
-        sheetSourceLine(),
+        // Embedded, the WordPress page carries its own introduction: none of
+        // the masthead text is shown (DGS 2026-09-16, "get rid of the texts at
+        // the top"). The storage warning below stays — it is a safety note.
+        ...(embed
+          ? []
+          : [
+              el(
+                'p',
+                { class: 'sub' },
+                'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
+                handbookLink(),
+                '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
+                el('a', siblingAnchorAttrs('course-rules', window.location.search, embedTargetAttrs()), 'course rules page'),
+                '.',
+              ),
+              el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(termOfDate(todayIso)), todayIso)),
+              // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
+              sheetSourceLine(),
+            ]),
         // Framed, this tool is saving into the FRAME's storage, which is not the
         // same store as the tool opened on its own — and Safari blocks it for an
         // embedded page outright. The work is never lost (the file save always

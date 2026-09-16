@@ -359,7 +359,9 @@ async function driveAppEmbed(s, baseUrl) {
   if (m.contactInMasthead || !m.contactInFooter) throw new Error('"Who to contact" should move to the footer in embed mode: ' + JSON.stringify(m));
   if (!m.storageNote) throw new Error('embed mode must tell the student their saved work lives in the frame');
   if (!m.privacy) throw new Error('the FERPA paragraph must survive embed mode — it is the promise the page makes');
-  if (m.exit !== '_top' || m.coursesTarget !== '_top') throw new Error('a link would load a whole page inside the frame: ' + JSON.stringify(m));
+  // The masthead's intro (and its course-rules link) is not rendered in embed mode since 2026-09-16 (DGS: no text at the top).
+  if (m.exit !== '_top') throw new Error('a link would load a whole page inside the frame: ' + JSON.stringify(m));
+  if (m.coursesTarget !== undefined) throw new Error('embed mode must not render the masthead intro: ' + JSON.stringify(m));
   if (m.heights !== 0) throw new Error(`the self-check tool broadcast ${m.heights} height messages; it must not auto-resize its frame`);
   await s.shot('app-embed');
   console.log('  ?embed=1 on the self-check tool → chrome trimmed, storage note shown, FERPA paragraph kept, no height broadcast');
@@ -649,8 +651,9 @@ async function driveCoursesEmbed(s, baseUrl) {
   if (trimmed.contactInMasthead || !trimmed.contactAtEnd) throw new Error('"Who to contact" should move from the masthead to the end of the page: ' + JSON.stringify(trimmed));
   if (trimmed.exit !== '_top') throw new Error('"Open the full page" must leave the frame (target="_top"), got ' + trimmed.exit);
   if (/embed=1/.test(trimmed.exitHref ?? '')) throw new Error('"Open the full page" still carries embed=1: ' + trimmed.exitHref);
-  if (trimmed.selfCheckTarget !== '_top') throw new Error('the self-check link would load the whole app inside the frame');
-  if (!trimmed.rulesDate) throw new Error('embed mode dropped the "rules last updated" line, which must stay');
+  // The masthead's intro, its self-check link and the dated line are not rendered in embed mode since 2026-09-16 (DGS: no text at the top).
+  if (trimmed.selfCheckTarget !== undefined) throw new Error('embed mode must not render the masthead intro: ' + JSON.stringify(trimmed));
+  if (trimmed.rulesDate) throw new Error('embed mode must not render the dated line either (DGS 2026-09-16: no text at the top)');
   // The page rewrites its own URL from the filters on first render; embed=1 is
   // not a filter and used to be dropped, which lost the mode on any reload.
   if (!/embed=1/.test(trimmed.search)) throw new Error('embed=1 did not survive the filter URL rewrite: ' + trimmed.search);

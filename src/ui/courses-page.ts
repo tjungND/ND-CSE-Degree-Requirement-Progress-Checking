@@ -349,19 +349,26 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         { class: 'masthead-main' },
         embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
         el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Course Rules'),
-        el(
-          'p',
-          { class: 'sub' },
-          el('strong', {}, 'Official course rules. '),
-          'These mappings are set by the Graduate Studies Committee and the DGS under the ',
-          handbookLink(),
-          ', and they are what the DGS and the Grad Admin use to decide whether a student’s courses satisfy the degree requirements. The ',
-          el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
-          ' applies these same rules to your own coursework.',
-        ),
-        el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
-        // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
-        sheetSourceLine(),
+        // Embedded, the WordPress page carries its own introduction: none of
+        // the masthead text is shown (DGS 2026-09-16, "get rid of the texts at
+        // the top"); the contact card and the dated line live in the footer.
+        ...(embed
+          ? []
+          : [
+              el(
+                'p',
+                { class: 'sub' },
+                el('strong', {}, 'Official course rules. '),
+                'These mappings are set by the Graduate Studies Committee and the DGS under the ',
+                handbookLink(),
+                ', and they are what the DGS and the Grad Admin use to decide whether a student’s courses satisfy the degree requirements. The ',
+                el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
+                ' applies these same rules to your own coursework.',
+              ),
+              el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
+              // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
+              sheetSourceLine(),
+            ]),
       ),
       embed ? null : contactCard(),
     );
