@@ -208,7 +208,9 @@ let importError: { slot: DegreeLevel; message: string } | undefined;
 let previewError: string | undefined;
 /** A scan was uploaded and awaits the student's explicit OCR opt-in
  * (DGS decision 2026-09-02: never OCR without asking; English only). */
-let pendingScan: { slot: DegreeLevel; buffer: ArrayBuffer; filename: string } | undefined;
+/** `reason` 'no-lines' (DGS 2026-09-16): a text-layer PDF from which no
+ * course line could be read is offered OCR too, the same opt-in. */
+let pendingScan: { slot: DegreeLevel; buffer: ArrayBuffer; filename: string; reason?: 'scan' | 'no-lines' } | undefined;
 /** OCR in flight — drives the progress line. */
 let ocrBusy: { label: string; percent: number } | undefined;
 
@@ -485,7 +487,13 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         termPrefill,
       };
       if (mapped.length === 0) {
-        previewError = 'No course-like lines could be read from this PDF — its layout is new to the parser. You can still add the courses by hand below (and please tell the DGS which university, so parsing can be improved).';
+        // No course line in the text layer (DGS 2026-09-16): offer OCR — the
+        // text layer may be an image's stray caption, or a layout the parser
+        // cannot read that the OCR path can. Same opt-in as a scan.
+        preview = undefined;
+        pendingScan = { slot: slot.level, buffer, filename: file.name, reason: 'no-lines' };
+        render();
+        return;
       } else if (kept.rows.length === 0) {
         previewError =
           args.student.program === 'phd'
@@ -595,8 +603,12 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
     el(
       'p',
       {},
-      el('strong', {}, `“${scan.filename}” looks like a scanned or photographed transcript. `),
-      'A scan cannot be read exactly — the reliable route is a system-generated PDF from your university’s portal. You can instead try the built-in text recognition (OCR): ',
+      scan.reason === 'no-lines'
+        ? el('strong', {}, `No course-like lines could be read from “${scan.filename}” — its layout is new to the parser. `)
+        : el('strong', {}, `“${scan.filename}” looks like a scanned or photographed transcript. `),
+      scan.reason === 'no-lines'
+        ? 'You can try the built-in text recognition (OCR) on it instead, which reads the page as an image, or add the courses by hand below (and please tell the DGS which university, so parsing can be improved). OCR: '
+        : 'A scan cannot be read exactly — the reliable route is a system-generated PDF from your university’s portal. You can instead try the built-in text recognition (OCR): ',
       el('strong', {}, 'English-language transcripts only'),
       ', results are approximate, and you must check every field before adding. Either way the file never leaves your browser.',
     ),

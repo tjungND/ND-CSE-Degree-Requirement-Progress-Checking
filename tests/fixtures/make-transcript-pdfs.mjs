@@ -283,6 +283,19 @@ const UC_SYSTEM = [
   'Cumulative GPA: 3.85',
 ];
 
+// A text-layer PDF from which no course line can be read (DGS 2026-09-16: such
+// a file is offered OCR, like a scan).
+const NO_LINES = [
+  'Example State University',
+  'Office of the Registrar',
+  'Official Transcript',
+  'Program: Master of Science, Computer Science',
+  'Course listing continues on the attached page image.',
+  // Enough text to count as a text layer (the parser treats under 200 characters as a scan).
+  'This official transcript is issued by the Office of the Registrar and is valid only when it bears the registrar signature and the embossed seal of the university.',
+  'The grading scale, credit definitions and academic standing codes are described in the legend printed on the reverse of this page.',
+];
+
 const COMBINED = [
   'Purdue University',
   'Office of the Registrar',
@@ -314,6 +327,7 @@ writeFileSync(join(here, 'combined-transcript.pdf'), makePdf(COMBINED));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
 writeFileSync(join(here, 'uc-system-transcript.pdf'), makePdf(UC_SYSTEM));
+writeFileSync(join(here, 'no-lines-transcript.pdf'), makePdf(NO_LINES));
 writeFileSync(join(here, 'banner-transcript.pdf'), makePositionedPdf(bannerPages()));
 
 // The same transcript over a text watermark (2026-09-05: real UMass / Western

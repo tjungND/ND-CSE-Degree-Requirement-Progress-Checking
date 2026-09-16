@@ -4,7 +4,7 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf, ndOfficialPdf) {
+export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf, ndOfficialPdf, noLinesPdf) {
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -320,6 +320,16 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const afterRemove = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
   if (!afterRemove.includes('Initiate the review request for 5 courses')) throw new Error('removing the prior ND undergraduate course should leave 5 pending: ' + afterRemove.slice(0, 140));
   console.log('  prior ND undergraduate course removed via the Bachelor’s slot (5 pending)');
+
+  // 3d) A text-layer PDF with NO readable course line (DGS 2026-09-16) is
+  //     offered OCR, with its own lead sentence; Cancel leaves nothing behind.
+  await s.setFileInput('.external-file-phd', noLinesPdf);
+  await s.waitFor(`document.querySelector('.ocr-optin')`);
+  const noLines = await s.evalJs(`document.querySelector('.ocr-optin')?.textContent ?? ''`);
+  if (!/No course-like lines could be read from “no-lines-transcript\.pdf” — its layout is new to the parser/.test(noLines) || !/English-language transcripts only/.test(noLines)) throw new Error('a no-lines PDF must be offered OCR with its own reason: ' + noLines.slice(0, 160));
+  console.log('  text PDF with no course lines → OCR offered');
+  await s.evalJs(`document.querySelector('[data-key="ext.scan.cancel"]').click()`);
+  await s.waitFor(`!document.querySelector('.ocr-optin')`);
 
   // 4) Scanned transcript (Bachelor's slot) → explicit OCR opt-in (English only)
   //    → OCR in the browser (self-hosted WASM) → flagged preview → add.
