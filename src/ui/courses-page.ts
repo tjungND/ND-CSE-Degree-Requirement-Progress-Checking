@@ -29,7 +29,8 @@ const COUNTS_LABEL: Record<Counts, string> = {
   dgs_approval: 'With DGS approval',
   adgs_approval: 'With ADGS approval', // the sheet names the reviewer per course (2026-09-12)
 };
-const COUNTS_CLASS: Record<Counts, string> = { yes: 'yes', no: 'no', dgs_approval: 'approval', adgs_approval: 'approval' };
+// The two reviewers get two colours (DGS 2026-09-16): blue for the DGS, purple for the ADGS.
+const COUNTS_CLASS: Record<Counts, string> = { yes: 'yes', no: 'no', dgs_approval: 'approval', adgs_approval: 'approval-adgs' };
 
 const TYPE_LABEL: Record<CourseType, string> = {
   regular: 'Regular course',
@@ -954,7 +955,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       ' counts · ',
       el('span', { class: 'pill approval' }, 'With DGS approval'),
       ' / ',
-      el('span', { class: 'pill approval' }, 'With ADGS approval'),
+      el('span', { class: 'pill approval-adgs' }, 'With ADGS approval'),
       ' counts only with the advisor’s approval and the named reviewer’s · ',
       el('span', { class: 'pill no' }, 'No'),
       ' does not count · ',
