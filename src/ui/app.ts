@@ -15,6 +15,7 @@ import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, CourseLine, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
+import { siblingLink } from './sibling-links.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
 import { deciderTitle } from '../engine/decider.ts';
@@ -503,7 +504,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
           handbookLink(),
           '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
-          el('a', { href: './courses.html' }, 'course rules page'),
+          el('a', { href: siblingLink('course-rules', window.location.search).href, ...(siblingLink('course-rules', window.location.search).target ? { target: '_top' } : {}) }, 'course rules page'),
           '.',
         ),
         el(
@@ -548,7 +549,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ' ',
         el('strong', {}, RULES_ACCURACY_NOTICE),
         ' (See the ',
-        el('a', { href: './courses.html' }, 'course rules page'),
+        el('a', { href: siblingLink('course-rules', window.location.search).href, ...(siblingLink('course-rules', window.location.search).target ? { target: '_top' } : {}) }, 'course rules page'),
         '.) ',
         BETA_SCOPE_NOTICE,
         ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
@@ -2391,7 +2392,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ' ',
         BETA_SCOPE_NOTICE,
         ' (See the ',
-        el('a', { href: './courses.html' }, 'course rules page'),
+        el('a', { href: siblingLink('course-rules', window.location.search).href, ...(siblingLink('course-rules', window.location.search).target ? { target: '_top' } : {}) }, 'course rules page'),
         '.)',
         ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
       ),

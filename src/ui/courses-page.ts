@@ -18,6 +18,7 @@ function afterTeachingTermBack(t: import('../engine/types.ts').Term): import('..
 }
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
+import { SIBLING_PARAM, siblingLink } from './sibling-links.ts';
 import { handbookLink, rulesDateLine } from './handbook.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 
@@ -133,6 +134,10 @@ function filtersToUrl(f: Filters, defaults: Filters): void {
   if (f.sort !== defaults.sort) params.set('sort', f.sort);
   if (f.desc) params.set('desc', '1');
   if (f.view !== defaults.view) params.set('view', f.view);
+  // The embed's host-page URL (sibling-links.ts, 2026-09-16) is not a filter,
+  // but it lives in the same query string and must survive every rewrite.
+  const host = new URLSearchParams(window.location.search).get(SIBLING_PARAM['self-check']);
+  if (host) params.set(SIBLING_PARAM['self-check'], host);
   const qs = params.toString();
   try {
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
@@ -339,7 +344,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           'These mappings are set by the Graduate Studies Committee and the DGS under the ',
           handbookLink(),
           ', and they are what the DGS and the Grad Admin use to decide whether a student’s courses satisfy the degree requirements. The ',
-          el('a', { href: './index.html' }, 'degree self-check tool'),
+          el('a', { href: siblingLink('self-check', window.location.search).href, ...(siblingLink('self-check', window.location.search).target ? { target: '_top' } : {}) }, 'degree self-check tool'),
           ' applies these same rules to your own coursework.',
         ),
         el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
@@ -539,7 +544,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         'The core-knowledge requirement can be met by the Notre Dame courses listed here ',
         el('strong', {}, 'or by prior coursework at a previous institution — undergraduate or graduate'),
         ' (§4.4.1: “either at Notre Dame or at their previous institution”). A course from a previous institution counts once the DGS has confirmed it; the ',
-        el('a', { href: './index.html' }, 'degree self-check tool'),
+        el('a', { href: siblingLink('self-check', window.location.search).href, ...(siblingLink('self-check', window.location.search).target ? { target: '_top' } : {}) }, 'degree self-check tool'),
         ' prepares that review request from your imported transcripts.',
       ),
       el('div', { class: 'ov-grid' }, ...coreCards),
@@ -553,7 +558,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         `${catRule.charAt(0).toUpperCase()}${catRule.slice(1)} (§4.4.2). A course may be listed under more than one category, and it then appears in each of their cards below — but it can fill only `,
         el('strong', {}, 'one'),
         ' of them, never several. The student chooses which one when they enter the course in the ',
-        el('a', { href: './index.html' }, 'degree self-check tool'),
+        el('a', { href: siblingLink('self-check', window.location.search).href, ...(siblingLink('self-check', window.location.search).target ? { target: '_top' } : {}) }, 'degree self-check tool'),
         '.',
       ),
       el('div', { class: 'ov-grid' }, ...groupCards),

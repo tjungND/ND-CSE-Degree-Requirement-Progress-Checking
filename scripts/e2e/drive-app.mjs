@@ -381,6 +381,18 @@ export async function driveCourses(s, baseUrl) {
   await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
   await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length > 10`);
 
+  // Embedded links (DGS 2026-09-16): with the host page named in the query
+  // string, the cross-link goes there in the top window; without it, the
+  // sibling file.
+  {
+    await s.open(new URL('courses.html?self_check_url=https%3A%2F%2Fcse.nd.edu%2Fgraduate%2Fself-check%2F', baseUrl).href, '.all-courses table.course-rules');
+    const link = JSON.parse(await s.evalJs(`JSON.stringify((() => { const a = [...document.querySelectorAll('a')].find(a => /degree self-check tool/.test(a.textContent)); return { href: a?.getAttribute('href'), target: a?.getAttribute('target') }; })())`));
+    if (link.href !== 'https://cse.nd.edu/graduate/self-check/' || link.target !== '_top') throw new Error('embedded cross-link must go to the host page in the top window: ' + JSON.stringify(link));
+    await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
+    const plain = await s.evalJs(`[...document.querySelectorAll('a')].find(a => /degree self-check tool/.test(a.textContent))?.getAttribute('href')`);
+    if (plain !== './index.html') throw new Error('standalone cross-link must be the sibling file: ' + plain);
+    console.log('  cross-links: host page in the top window when named, sibling file otherwise');
+  }
   // Two schedule cards (DGS 2026-09-09), which say "Not released yet." while
   // the sheet's offered_now / offered_next are blank rather than showing an
   // empty list that would read as "nothing runs".

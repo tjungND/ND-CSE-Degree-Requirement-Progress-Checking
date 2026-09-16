@@ -417,6 +417,13 @@ sessions · `MAINTENANCE.md` — deeper technical notes and the list of one-time
 `START-HERE.md`, `KICKOFF-PROMPT.md`, `reference/`, the seed spreadsheet and the Banner sweep — was
 removed on 2026-09-14 and lives in git history only.)
 
+Embedding on cse.nd.edu (2026-09-16): each page links to the other. Inside an `<iframe>` a plain
+link would open the sibling app page *inside the frame*; name the WordPress host pages in the
+iframe `src` and the links go to them in the top window instead —
+`<iframe src="…/index.html?course_rules_url=https://cse.nd.edu/…/course-rules/">` on the
+self-check page and `<iframe src="…/courses.html?self_check_url=https://cse.nd.edu/…/self-check/">`
+on the course-rules page (http(s) URLs only; anything else is ignored).
+
 Automation: every push to `main` runs the tests and redeploys GitHub Pages (`deploy` Action); every
 push or pull request runs `test`; every six hours `sync-sheet` checks the sheet and, when its
 content has changed, commits the new `data/snapshot.json` and redeploys — that commit is also how
