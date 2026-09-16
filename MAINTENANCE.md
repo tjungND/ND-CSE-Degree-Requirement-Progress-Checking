@@ -192,7 +192,11 @@ last edit (see "Sync" below).
   runners at all, and the fallback is to run `npm run sync-sheet` on your own Mac and commit
   `data/snapshot.json` (the pages then date the rules from that commit).
 - **Deploy**: every push to `main` rebuilds and redeploys GitHub Pages (`deploy` Action).
-  One-time repo setting: Settings → Pages → Source: **GitHub Actions**.
+  One-time repo setting: Settings → Pages → Source: **GitHub Actions**. A WordPress page embedding
+  the course rules points at `…/courses.html?embed=1` and needs no separate deploy — it is the same
+  live page (README § "Embedding these pages in a WordPress page"). GitHub Pages sends no
+  `X-Frame-Options` or `frame-ancestors`, which is the only reason framing works at all; if a future
+  host ever adds either header, every embed breaks at once and the fix is on the host, not here.
 - **Tests**: `npm test` (60+ tests: one JSON scenario per student case in `tests/scenarios/`
   plus engine/loader/transcript units). `npm run build` type-checks and bundles. Both must pass
   before merging anything; `npm run e2e` additionally drives the built app in headless Chrome

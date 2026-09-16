@@ -734,9 +734,40 @@ Known-pending (the app's diagnostics panel is the live truth):
   hidden unless the visitor ticks "Include retired courses". `dgs_reviewed` is now parsed into
   `RuleCourse.dgsReviewed` for this page only — the engine still ignores it. E2E suite
   "course rules list" screenshots it and checks a filter. Add columns here, never new policy.
+  Since 2026-09-16 it also has an EMBED MODE (`?embed=1`) — see the embed bullet below.
   Its banner is the OFFICIAL wording (DGS, 2026-09-01): the mappings are set by the DGS with
   faculty input and are what the DGS and the Graduate Program Administrator use; it is not
   labelled beta (only the self-check tool is). It also says not every listed course is offered.
+- **Embed mode (`?embed=1`, 2026-09-16, DGS)** — `src/ui/embed.ts`, one module for both pages,
+  every non-obvious choice commented in place. The short version:
+  - The mode is an explicit parameter, never `window.self !== window.top`, so it can be linked,
+    bookmarked and tested with no frame around it.
+  - `filtersToUrl()` in `courses-page.ts` rebuilds the query string from the filters alone and
+    dropped `embed=1` on first render — it now re-adds it. Any future URL rewriting must too.
+  - **Height is `documentElement.getBoundingClientRect().height`, never `scrollHeight`.** Once
+    the parent has sized the frame to H, scrollHeight can never fall below H, so a frame sized
+    from it could only ever grow; the requirement is that filtering the table down reclaims the
+    space. Do not "fix" this by adding a `Math.max`.
+  - The coalescer uses rAF **and** a 100 ms timer. rAF alone sent nothing in a hidden tab and
+    latched the `pending` flag so nothing later was sent either — a WordPress page opened in a
+    background tab is exactly that case (measured 2026-09-16).
+  - `MAX_EMBED_HEIGHT` is 100 000 because 117 courses measure 42 290 px at a 700 px column (card
+    mode). The parent trusts the number and the frame does not scroll, so a cap under the real
+    content hides rows. Re-measure before lowering it.
+  - `EMBED_PARENT_ORIGINS` is the entire access control (`postMessage` targetOrigin, never `'*'`).
+    The page listens for NO incoming message, which is why there is no inbound attack surface;
+    keep it that way.
+  - **`index.html` must not broadcast its height.** A frame stretched to its content height has a
+    viewport the size of the whole document, so `position: fixed` stops meaning anything: the
+    consent dialog centres itself thousands of pixels down, toasts and `.sticky-score` land below
+    the fold. It keeps a fixed frame with its own scrollbar. If someone asks for auto-resize there,
+    the answer is a parent→child visible-rect protocol, not a height broadcast.
+  - The WordPress half is `docs/wordpress-footer-snippet.html` (copied verbatim by the DGS) and
+    README § "Embedding these pages in a WordPress page". The e2e extracts the snippet's `<script>`
+    from that file, so the tested thing and the pasted thing are the same text.
+  - Pinned by `tests/embed.test.ts` (DOM-free, the only CI-enforced half) and the embed legs in
+    `driveCourses` / `driveApp` / `driveA11y`, one of which proves a parent on an origin outside
+    the allowlist receives nothing.
 - **Dated line under each title** (`rulesDateLine()` in `src/ui/handbook.ts`, 2026-09-01):
   precedence (1) optional Parameters row `rules_effective_date` (a `DISPLAY_PARAMETER_KEYS`
   entry: known, optional, silent when missing, never an engine input) → "Rules effective as
@@ -1238,3 +1269,13 @@ Known-pending (the app's diagnostics panel is the live truth):
   leg. If the DGS shares his OWN transcript, use it only in the scratchpad and delete it.
 - **"Grandfather a parameter change"**: Parameters have no rules_effective_term — that's a real code
   change (mirror the Courses-row versioning); warn the DGS it's nontrivial.
+- **"Embed the course list in a WordPress page"**: it already works — point the DGS at README
+  § "Embedding these pages in a WordPress page" rather than writing code. `?embed=1` on either
+  page, the `iframe` shortcode (ND's multisite strips raw `<iframe>`/`<script>` from post
+  content, so never suggest a Custom HTML block), and `docs/wordpress-footer-snippet.html` in
+  the "Head, Footer and Post Injections" footer field for auto-resize. To allow a NEW host,
+  add its origin to `EMBED_PARENT_ORIGINS` in `src/ui/embed.ts` and to the assertion in
+  `tests/embed.test.ts` and the e2e's `expected` list — three places, on purpose. To change what
+  the embed hides, look for `isEmbedded()` in `courses-page.ts` / `app.ts` and the
+  `html.embed …` block at the end of `src/style.css`; re-run `npm run e2e` in BOTH engines and
+  look at `phone-courses-embed-360` / `tablet-courses-embed-700` / `-1100`.

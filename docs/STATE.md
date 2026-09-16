@@ -1,8 +1,39 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-13 (this session, branch `claude/degree-logic-review-ce45ab`, still running;
+Last updated: 2026-09-16 (this session, branch `claude/wordpress-embed-autoresize-db66da`, still running;
 the first Claude Code Desktop session's branch `claude/setup-handoff-review-c38220` — see 2026-09-11
 below — has since merged).
+
+2026-09-16: **embed mode (`?embed=1`) so both pages can sit inside a page on ND's WordPress**
+(`sites.nd.edu`), from a spec the DGS brought in from a Cowork session that had already tested the
+live site. The constraint that shapes everything: a site Administrator on ND's multisite has no
+`unfiltered_html`, so WordPress strips `<iframe>`, `<script>` and `<style>` out of post content —
+the page goes in through the active `iframe` shortcode plugin, and the resizing script through the
+"Head, Footer and Post Injections" plugin's footer field. `src/ui/embed.ts` is the whole page side:
+the mode is an explicit parameter (never sniffed from `window.top`), it trims the chrome the host
+already supplies, and on `courses.html` it broadcasts the page height so the frame grows and
+shrinks with the content. `index.html` takes the same trim but deliberately does NOT broadcast —
+a frame stretched to its content height has no viewport, so the consent dialog would centre itself
+thousands of pixels down and the toasts and sticky score would land below the fold; it keeps a
+fixed frame with its own scrollbar, and tells the student that an embedded page's saved work lives
+in the frame's storage (Safari blocks it entirely). Three things were found by measuring rather
+than reading: **`requestAnimationFrame` never runs in a hidden tab**, so the first coalescer sent
+nothing at all for a WordPress page opened in a background tab and latched `pending` so nothing
+later was sent either (now rAF *and* a 100 ms timer, whichever comes first, plus a
+`visibilitychange` re-measure); the spec's **20 000 px height cap would have hidden more than half
+the course list** (117 courses measure 42 290 px at a 700 px column, where the table becomes one
+card per course — the cap is now 100 000, and the parent trusts the number in a frame that cannot
+scroll); and the page's own `#CSE-60641` links are dead in a frame that cannot scroll, so there is
+a second, optional message asking the parent to scroll instead. Two pre-existing narrow-width
+defects came out of the same work and are fixed: `.ov-item { white-space: nowrap }` had its
+wrap-back keyed to 600 px while the card layout it pairs with starts at 860 px, so the overview
+cards dragged the page sideways anywhere in the 601–860 px band (exactly a WordPress content
+column), and `#app { padding-bottom: 76px }` was adding 76 px of blank page to `courses.html`,
+which never renders the `.sticky-score` bar it makes room for. Verified end to end against a fake
+WordPress host on a second origin using the snippet verbatim: frame grew 442 → 12 985 px, no inner
+scrollbar, no trailing space. `tests/embed.test.ts` (10 assertions, the CI-enforceable half) and
+new e2e legs in both engines, including one proving a parent origin outside the allowlist receives
+nothing at all.
 
 2026-09-13: a red-team pass over the engine, weighted to the Ph.D. side at the DGS's request. Forty
 agents ran 108 invented Ph.D. scenarios through the real engine (not code-reading — every finding was
@@ -345,6 +376,10 @@ queue. Recent commits, newest first:
   re-run (`E2E_ONLY=<name>`). Nothing in the page; look at cdp.mjs's session start (a fresh target
   per session, no wait for the load event after `Page.navigate`) before trusting a red run.
 - Link both pages from cse.nd.edu; remove the alpha banner when ready (the opening notice is separate).
+  Embedding is now supported as well (`?embed=1`) — README § "Embedding these pages in a WordPress page".
+- **Waiting on the DGS:** paste `docs/wordpress-footer-snippet.html` into sites.nd.edu → Settings → Header and
+  Footer (the plugin needs activating first), switch page 2960's shortcode to `?embed=1` with `scrolling="no"`,
+  and confirm it looks right on the real theme. Until then the fixed-height shortcode still works.
 - Housekeeping: `.git/stale-locks/` and `.git/objects/*/tmp_obj_*` litter in the Mac clone came from the
   Cowork VM (it could not delete files) — safe to remove. (The starter kit — `START-HERE.md`,
   `KICKOFF-PROMPT.md`, `reference/`, the seed xlsx, `cse_courses.csv` — was removed 2026-09-14.)

@@ -17,6 +17,7 @@ import { parseTranscript, type DegreeAwarded, type EntryTermInference, type Pars
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
+import { embedTargetAttrs, isEmbedded, openFullPageLink } from './embed.ts';
 import { deciderTitle } from '../engine/decider.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
@@ -489,21 +490,27 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         },
         label,
       );
+    // Embedded (?embed=1), the host page already carries the ND masthead and
+    // its own heading: the gold eyebrow goes and the <h1> stays only for screen
+    // readers and the document outline (DGS 2026-09-16, same treatment as the
+    // course-rules page). Everything else — the tabs, the tools, the notices,
+    // the whole FERPA footer — stays exactly as it is.
+    const embed = isEmbedded();
     return el(
       'header',
       { class: 'masthead' },
       el(
         'div',
         { class: 'masthead-main' },
-        el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
-        el('h1', { tabindex: '-1' }, 'Graduate Degree Requirement Self-check Tool'),
+        embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+        el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Degree Requirement Self-check Tool'),
         el(
           'p',
           { class: 'sub' },
           'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
           handbookLink(),
           '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
-          el('a', { href: './courses.html' }, 'course rules page'),
+          el('a', { href: './courses.html', ...embedTargetAttrs() }, 'course rules page'),
           '.',
         ),
         el(
@@ -513,8 +520,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ),
         // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
         sheetSourceLine(),
+        // Framed, this tool is saving into the FRAME's storage, which is not the
+        // same store as the tool opened on its own — and Safari blocks it for an
+        // embedded page outright. The work is never lost (the file save always
+        // works), but the student has to be told where it is going before they
+        // spend an hour on it (DGS 2026-09-16).
+        embed
+          ? el(
+              'p',
+              { class: 'banner embed-storage', role: 'note' },
+              el('strong', {}, 'You are using the tool inside another page. '),
+              'What you enter is saved by this embedded box only, and some browsers (Safari in particular) do not let an embedded page save anything at all — your entries may be gone when you come back. Use ',
+              el('strong', {}, '“Save my progress to a file”'),
+              ' to keep your work, or ',
+              openFullPageLink('open the full page'),
+              ' and work there instead.',
+            )
+          : null,
       ),
-      contactCard(),
+      embed ? null : contactCard(),
       el(
         'div',
         { class: 'masthead-tools' },
@@ -548,7 +572,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ' ',
         el('strong', {}, RULES_ACCURACY_NOTICE),
         ' (See the ',
-        el('a', { href: './courses.html' }, 'course rules page'),
+        el('a', { href: './courses.html', ...embedTargetAttrs() }, 'course rules page'),
         '.) ',
         BETA_SCOPE_NOTICE,
         ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
@@ -2391,7 +2415,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ' ',
         BETA_SCOPE_NOTICE,
         ' (See the ',
-        el('a', { href: './courses.html' }, 'course rules page'),
+        el('a', { href: './courses.html', ...embedTargetAttrs() }, 'course rules page'),
         '.)',
         ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
       ),
@@ -2420,6 +2444,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('a', { href: REPO_URL, target: '_blank', rel: 'noopener noreferrer' }, 'GitHub'),
         '.',
       ),
+      // Embedded, the way out of the frame — and, with the contact card moved
+      // off the top, the place the contacts now live (DGS 2026-09-16).
+      isEmbedded() ? el('div', { class: 'embed-exit-line' }, openFullPageLink('Open the full self-check page'), ' — the same tool in its own window.') : null,
+      isEmbedded() ? contactCard() : null,
     );
   }
 

@@ -42,6 +42,17 @@ export async function driveA11y(s, baseUrl) {
   await checkPhone(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`, 390);
   await checkPhone(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`, 820);
   await checkWide(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`);
+  // Embed mode (?embed=1, DGS 2026-09-16) at the three widths a WordPress
+  // content column actually takes: a phone, a laptop, and the widest the
+  // sites.nd.edu theme gives us (measured 1082 px on a 1568 px viewport).
+  // 700 px is the one that matters — it sits in the 601-860 px band where the
+  // overview cards used to overflow.
+  const coursesReady = `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`;
+  await s.open(new URL('courses.html?embed=1', baseUrl).href, '.all-courses table.course-rules');
+  await checkAxe(s, 'course-rules page, embed mode');
+  for (const width of [360, 700, 1100]) await checkPhone(s, `courses-embed-${width}`, coursesReady, width);
+  await s.open(new URL('?embed=1', baseUrl).href, '.masthead h1');
+  await checkAxe(s, 'self-check page, embed mode');
   await s.open(baseUrl, '.masthead h1');
   await checkWide(s, 'app', `document.querySelector('.layout')`);
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
@@ -202,7 +213,10 @@ async function checkPhone(s, page, readyExpr, width = 390) {
   // The schedule tables keep a course on one line at desk widths. On a phone
   // the same table is a stack of cards, and a title that cannot wrap runs past
   // the card and drags the page sideways (DGS 2026-09-09, iPhone 14 Pro).
-  if (page === 'courses') {
+  // Only below the 860 px card breakpoint: above it the table is a real table
+  // inside a horizontal scroller, where running past the card is what the
+  // scroller is FOR (2026-09-16).
+  if (page.startsWith('courses') && width <= 860) {
     // tbody only: the header row is visually hidden with the clip() pattern, so
     // it keeps a wide geometry that nobody can see.
     const spill = await s.evalJs(`JSON.stringify([...document.querySelectorAll('.schedule-table tbody td, .schedule-table tbody th')]
