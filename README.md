@@ -444,7 +444,10 @@ inner scrollbar. E3 removes it.
 1. Activate the **"Head, Footer and Post Injections"** plugin (Plugins → Installed Plugins).
 2. Go to **Settings → Header and Footer**, find the field **"Before the closing `</body>`
    tag"**, and paste the whole contents of
-   [`docs/wordpress-footer-snippet.html`](docs/wordpress-footer-snippet.html) into it. Save.
+   [`docs/wordpress-footer-snippet.html`](docs/wordpress-footer-snippet.html) into it. Leave the
+   field's **Mobile** checkbox unticked — ticking it means "use *separate* code on phones", and
+   the main field would then stop applying to them; the snippet is the same for every device.
+   Save.
 3. Change the shortcode's `scrolling="yes"` to `scrolling="no"`.
 
 The embedded page now reports its own height as it changes — when the rules finish loading,
