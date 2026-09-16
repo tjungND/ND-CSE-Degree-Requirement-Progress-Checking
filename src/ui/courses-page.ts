@@ -489,11 +489,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'section',
       { class: 'overview schedule-overview' },
       el('h2', {}, 'On the schedule'),
-      el(
-        'p',
-        { class: 'muted' },
-        `What the DGS has recorded as running in these two semesters. It is not the registrar’s class search — check there for times, seats and any late change. A course missing from a card is not listed as running; the “Typically offered” column in the table below is a pattern from past years, not this year’s schedule.`,
-      ),
+      // (The intro paragraph was removed at the DGS's request, 2026-09-16.)
       el(
         'div',
         { class: 'ov-grid two' },
@@ -511,8 +507,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         if (n.undated > 0) parts.push(`${n.undated} course${n.undated === 1 ? '' : 's'} marked as offered ${n.undated === 1 ? 'has' : 'have'} no readable last_offered and ${n.undated === 1 ? 'is' : 'are'} not shown`);
         return parts.length > 0 ? [el('p', { class: 'muted small' }, parts.join('. ') + '.', ...reportToDgs(' Please tell'))] : [];
       })(),
-      // The asterisk explains a mark that only appears beside a listed course.
-      ...(scheduleKnown ? [el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are never shown here.')] : []),
+      // (The "* Pending DGS confirmation" footnote was removed at the DGS's request, 2026-09-16.)
     );
   }
 
@@ -581,7 +576,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         '.',
       ),
       el('div', { class: 'ov-grid' }, ...groupCards),
-      el('p', { class: 'muted small' }, '* Pending DGS confirmation. Retired courses are not shown here; tick "Include retired courses" in the table below to see them.'),
+      // (The "* Pending DGS confirmation" footnote was removed at the DGS's request, 2026-09-16.)
     );
   }
 
