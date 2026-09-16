@@ -88,7 +88,9 @@ async function checkCopyDialog(s) {
   await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
   const to = await s.evalJs(`document.querySelector('dialog.copy-check .copy-to')?.textContent ?? ''`);
   if (!to.includes('Your advisor, Prof. Example')) throw new Error('copy dialog: the advisor by name — ' + to);
-  if (await s.evalJs(`!!document.querySelector('dialog.copy-check [data-key="copy.email"]')`)) throw new Error('the advisor has no address on file — no email-app button (DGS 2026-09-13)');
+  // The advisor has no address on file: the email-app link opens with To empty (DGS 2026-09-15).
+  const advMail = await s.evalJs(`document.querySelector('dialog.copy-check [data-key="copy.email"]')?.getAttribute('href') ?? ''`);
+  if (!/^mailto:\?subject=/.test(advMail)) throw new Error('the advisor dialog must open the email app with To left empty: ' + advMail.slice(0, 60));
   await s.evalJs(AXE_SOURCE + '; true');
   const result = JSON.parse(
     await s.evalJs(`axe.run(document.querySelector('dialog.copy-check'), { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] } }).then(r => JSON.stringify(r.violations.map(v => ({ id: v.id, impact: v.impact, count: v.nodes.length, first: v.nodes[0]?.target.join(' ') }))))`),

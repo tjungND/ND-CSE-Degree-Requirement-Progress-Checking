@@ -2341,7 +2341,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               });
             },
           },
-          'Copy summary for advisor',
+          'Send summary to advisor',
         ),
         el('button', { class: 'btn', 'data-key': 'save.print', onclick: () => window.print() }, 'Print'),
       ),

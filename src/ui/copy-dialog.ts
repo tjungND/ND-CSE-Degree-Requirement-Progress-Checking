@@ -59,11 +59,11 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
  * when the address stays short enough for every client to take it whole.
  * Outlook for Windows truncates a mailto: at about 2 000 characters, and a
  * silently cut-off request is worse than a paste; above that the body is a
- * one-line reminder that the full message is on the clipboard. Only ever
- * built when an address is known — the advisor's is not. */
+ * one-line reminder that the full message is on the clipboard. With no
+ * address on file (the advisor's, DGS 2026-09-15) the link still opens the
+ * email app — subject and body filled, the To field left for the student. */
 export const MAILTO_BODY_LIMIT = 1800;
-export function mailtoHref(r: CopyRecipient, subject: string, text: string, copied: boolean): string | undefined {
-  if (!r.email) return undefined;
+export function mailtoHref(r: CopyRecipient, subject: string, text: string, copied: boolean): string {
   const body = encodeURIComponent(text);
   const fallback = copied
     ? 'The message is on my clipboard — pasting it here.\n\n'
@@ -73,7 +73,7 @@ export function mailtoHref(r: CopyRecipient, subject: string, text: string, copi
     `subject=${encodeURIComponent(subject)}`,
     `body=${body.length <= MAILTO_BODY_LIMIT ? body : encodeURIComponent(fallback)}`,
   ];
-  return `mailto:${encodeURIComponent(r.email)}?${params.join('&')}`;
+  return `mailto:${r.email ? encodeURIComponent(r.email) : ''}?${params.join('&')}`;
 }
 
 /** Copy, then show the dialog — with the "copy it yourself" variant when the
@@ -95,8 +95,9 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   // "Open in my email app" (DGS 2026-09-13): a mailto: link styled as the
   // primary button, so the address, the cc and the subject are never retyped.
   const href = mailtoHref(r, opts.subject, opts.text, copied);
-  const bodyIncluded = href !== undefined && encodeURIComponent(opts.text).length <= MAILTO_BODY_LIMIT;
-  const openMail = href ? el('a', { class: 'btn primary', 'data-key': 'copy.email', href, target: '_blank', rel: 'noopener' }, 'Open in my email app') : null;
+  const bodyIncluded = encodeURIComponent(opts.text).length <= MAILTO_BODY_LIMIT;
+  const openMail = el('a', { class: 'btn primary', 'data-key': 'copy.email', href, target: '_blank', rel: 'noopener' }, 'Open in my email app');
+  const addressMissing = !r.email;
   const preview = el('textarea', { class: 'copy-preview', readonly: 'readonly', 'aria-label': 'The copied message', spellcheck: 'false' });
   (preview as HTMLTextAreaElement).value = opts.text;
   const title = copied ? `${opts.what} copied — check it before you send` : `${opts.what} — copy it yourself (the clipboard was blocked)`;
@@ -119,12 +120,13 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   // One short step when the email app can be opened (DGS 2026-09-13: "just
   // 'Click open in my email app'"); the paste instructions only when it
   // cannot, or when the clipboard was blocked.
+  const typeAddress = addressMissing ? ` and type your ${r.role.replace(/^your /i, '')}’s email address in the To field` : '';
   const first = openMail
     ? copied
       ? bodyIncluded
-        ? 'Click “Open in my email app”.'
-        : 'Click “Open in my email app”, then paste the copied message into the email.'
-      : 'Click “Open in my email app”, then select the whole message above, copy it (on a phone: touch and hold, Select All, Copy) and paste it into the email.'
+        ? `Click “Open in my email app”${typeAddress}.`
+        : `Click “Open in my email app”${typeAddress}, then paste the copied message into the email.`
+      : `Click “Open in my email app”${typeAddress}, then select the whole message above, copy it (on a phone: touch and hold, Select All, Copy) and paste it into the email.`
     : copied
       ? `Paste the copied message into a new email to ${recipientText}. It is on your clipboard as text and as formatted HTML — the tables keep their shape in Gmail and Outlook.`
       : `Your browser did not allow the page to write to the clipboard: select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — then paste it into a new email to ${recipientText}.`;

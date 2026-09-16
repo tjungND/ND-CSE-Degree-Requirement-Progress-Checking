@@ -1,4 +1,4 @@
-// The "Copy summary for advisor" email (src/ui/advisor-summary.ts), in the
+// The "Send summary to advisor" email (src/ui/advisor-summary.ts), in the
 // shape the DGS asked for on 2026-09-06: the requirements in handbook order,
 // one section per group, each row coloured by status (green met / amber in
 // progress or needs review / red not yet), with its why and deadline; then

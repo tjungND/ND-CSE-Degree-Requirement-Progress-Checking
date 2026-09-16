@@ -18,7 +18,7 @@ describe('mailto: behind the copy dialog', () => {
     assert.match(decodeURIComponent(href), /The message is on my clipboard — pasting it here\./);
     assert.match(decodeURIComponent(mailtoHref(dgs, 'S', long, false)!), /Pasting the message from the self-check page here\./);
   });
-  it('no address, no link — the advisor', () => {
-    assert.equal(mailtoHref({ role: 'Your advisor', name: 'Prof. Example' }, 'S', 'body', true), undefined);
+  it('no address on file (the advisor): the link still opens the email app, To left empty (DGS 2026-09-15)', () => {
+    assert.equal(mailtoHref({ role: 'Your advisor', name: 'Prof. Example' }, 'S', 'body', true), 'mailto:?subject=S&body=body');
   });
 });
