@@ -81,6 +81,11 @@ export async function openWebkitSession(context, outDir) {
         // equivalent in Playwright and the app's breakpoints are width-only.
         await page.setViewportSize({ width: params.width, height: params.height });
         return {};
+      case 'Emulation.setEmulatedMedia':
+        // Print-stylesheet checks. An empty/absent media restores the page's
+        // own, which is what the drivers pass to undo it.
+        await page.emulateMedia({ media: params.media ? params.media : null });
+        return {};
       case 'Input.dispatchKeyEvent':
         if (params.type === 'keyDown' || params.type === 'rawKeyDown') await page.keyboard.down(params.key);
         else if (params.type === 'keyUp') await page.keyboard.up(params.key);

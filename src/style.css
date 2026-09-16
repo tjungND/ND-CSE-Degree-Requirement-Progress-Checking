@@ -388,9 +388,6 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 details.legend { margin: 4px 0 8px; }
 details.legend summary { cursor: pointer; font-weight: 600; color: var(--navy); }
 table.course-rules tbody th { text-align: left; font-size: inherit; text-transform: none; letter-spacing: 0; color: inherit; background: none; position: static; border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; font-weight: 700; }
-table.course-rules .notes-cell { white-space: nowrap; }
-table.course-rules tr.note-row td { background: #fffdf5; color: var(--ink); font-size: 13px; border-bottom: 1px solid var(--line); }
-table.course-rules tr.note-row td strong { color: var(--navy); }
 .table-scroll:focus-visible { outline-offset: -3px; }
 .count { margin: 6px 0; }
 .table-scroll { overflow-x: auto; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 10px; } /* position: relative — so a visually-hidden (absolutely positioned) header label is clipped with the table instead of widening the page (2026-09-05) */
@@ -416,11 +413,17 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .legend li { margin: 4px 0; font-size: 13.5px; }
 .legend-key .pill { vertical-align: middle; }
 @media print {
-  .filters, .banner, .skip-link, .notes-cell, th:last-child { display: none; }
+  /* This block once also removed the Notes column — `.notes-cell` hid its cells
+     and `th:last-child` its header. The DGS's notes left this page on
+     2026-09-09, so `.notes-cell` matched nothing and `th:last-child` had moved
+     on to hiding the LAST header of every table here: "DGS reviewed" on the all
+     courses table, "Specialization" on each schedule card, both while the cells
+     under them still printed. Removed 2026-09-16; the e2e "course rules list"
+     driver now prints under emulated print media and checks that every column
+     keeps its heading. Do not reintroduce a bare `th:last-child`. */
+  .filters, .banner, .skip-link { display: none; }
   .table-scroll { border: 0; overflow: visible; }
   table.course-rules { min-width: 0; font-size: 11px; }
-  table.course-rules tr.note-row { display: table-row; }
-  table.course-rules tr.note-row.hidden { display: none !important; }
 }
 
 /* who-to-contact card, top right of every page (names live in src/ui/contacts.ts) */
@@ -431,6 +434,9 @@ table.course-rules .course-id .pill { margin-left: 6px; }
 .masthead .contact-card .role { font-weight: 700; color: var(--navy); }
 .masthead .contact-card .scope { display: block; color: var(--muted); font-size: 12px; }
 .masthead .contact-card a { color: inherit; }
+/* Printed, the card is text, not a boxed aside. Embed mode gets the same
+   treatment at the end of this file — it has to come AFTER the embed rules,
+   which carry equal specificity (2026-09-16). */
 @media print { .masthead .contact-card { border: 0; padding: 0; } }
 
 /* loading card (src/ui/loading.ts) */
@@ -706,16 +712,12 @@ tr.ocr-low td { background: #fff7e0; }
   table.course-rules thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   table.course-rules tbody { display: block; }
   table.course-rules tbody tr { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0 0 8px; }
-  table.course-rules tbody tr.note-row { margin-top: -10px; border-top: 0; border-radius: 0 0 10px 10px; }
   table.course-rules tbody tr:hover td { background: none; }
   table.course-rules tbody tr:target { background: #fff7e0; }
   table.course-rules tbody th, table.course-rules tbody td { display: block; border: 0; padding: 2px 0; font-size: 14px; }
   table.course-rules tbody th.course-id { font-size: 16px; white-space: normal; }
   table.course-rules tbody td.cell-title { color: var(--muted); margin-bottom: 4px; }
   table.course-rules tbody td[data-label]::before { content: attr(data-label) ': '; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
-  table.course-rules tbody td.notes-cell { padding-top: 6px; white-space: normal; }
-  table.course-rules tbody td.notes-cell .no-notes { display: none; }
-  table.course-rules tbody tr.note-row td { background: none; }
   .courses-page .count { margin: 10px 0 4px; }
 }
 @media print { .summary-mobile, .sticky-score, .jump-link, .mobile-only { display: none !important; } }
@@ -761,6 +763,11 @@ html.embed .contact-card li { margin: 5px 0; line-height: 1.35; }
 html.embed .contact-card .role { font-weight: 700; color: var(--navy); }
 html.embed .contact-card .scope { display: block; color: var(--muted); font-size: 12px; }
 html.embed .contact-card a { color: inherit; }
+/* Same as the masthead card on paper: text, not a box. This must sit after the
+   rules above — `html.embed .contact-card` in a print block has exactly their
+   specificity, so only source order settles it, and an earlier copy lost
+   silently (measured 2026-09-16). */
+@media print { html.embed .contact-card { border: 0; padding: 0; } }
 /* The way out of the frame — the one link that must be easy to find. */
 html.embed .embed-exit-line { margin: 0 0 10px; }
 html.embed .embed-exit { font-weight: 700; color: var(--navy); text-decoration: underline; }

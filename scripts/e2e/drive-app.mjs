@@ -550,7 +550,62 @@ export async function driveCourses(s, baseUrl) {
   if (!/q=algorithms/.test(search) || !/view=mscse/.test(search)) throw new Error('the address bar did not follow the filters: ' + search);
   console.log(`  shared link → view/filters applied (${shared.rows} rows, 3 columns hidden); filters written back to the URL (${search})`);
 
+  await checkPrintColumns(s, baseUrl, '');
+  await checkPrintColumns(s, baseUrl, '?embed=1');
   await driveCoursesEmbed(s, baseUrl);
+}
+
+// E2E: what a student actually gets when they print the course list
+// (2026-09-16). The print block used to carry `th:last-child { display: none }`
+// — written when the last column was the DGS's notes, which this page stopped
+// showing on 2026-09-09. Unscoped, it went on hiding the last HEADER of every
+// table on the page while the cells under it still printed: "DGS reviewed" on
+// the main table, "Specialization" on each schedule card. A printed column with
+// no heading is the bug this pins.
+async function checkPrintColumns(s, baseUrl, query) {
+  await s.open(new URL('courses.html' + query, baseUrl).href, '.all-courses table.course-rules');
+  await s.send('Emulation.setEmulatedMedia', { media: 'print' });
+  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)))');
+  const tables = JSON.parse(
+    await s.evalJs(`JSON.stringify([...document.querySelectorAll('table.course-rules')].map((t) => {
+      const shown = (e) => getComputedStyle(e).display !== 'none';
+      const heads = [...t.querySelectorAll('thead tr:last-child th')];
+      const row = t.querySelector('tbody tr:not(.empty-row)');
+      const cells = row ? [...row.children] : [];
+      const last = heads[heads.length - 1];
+      return {
+        table: t.classList.contains('schedule-table') ? 'schedule card' : 'all courses',
+        visibleHeaders: heads.filter(shown).length,
+        visibleCells: cells.filter(shown).length,
+        lastHeader: (last ? last.getAttribute('abbr') || last.textContent || '' : '').trim().slice(0, 28),
+        lastHeaderShown: last ? shown(last) : null,
+      };
+    }))`),
+  );
+  // The card is text on paper, not a boxed aside — on BOTH pages. Embed mode
+  // moves it out of the masthead and restyles it, which outranks a print rule
+  // scoped to `.masthead`; without the embed selector the framed page printed a
+  // bordered card (measured 2026-09-16).
+  const card = JSON.parse(
+    await s.evalJs(`(() => {
+      const c = document.querySelector('.contact-card');
+      if (!c) return JSON.stringify({ missing: true });
+      const cs = getComputedStyle(c);
+      return JSON.stringify({ border: cs.borderTopWidth, padding: cs.paddingTop });
+    })()`),
+  );
+  await s.send('Emulation.setEmulatedMedia', { media: '' });
+  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+  if (!tables.length) throw new Error('no course tables found under print media');
+  for (const t of tables) {
+    if (!t.lastHeaderShown) throw new Error(`printing hides the "${t.lastHeader}" header of the ${t.table} table while its cells still print`);
+    if (t.visibleHeaders !== t.visibleCells) {
+      throw new Error(`the ${t.table} table prints ${t.visibleCells} columns under ${t.visibleHeaders} headers`);
+    }
+  }
+  if (card.missing) throw new Error('the contact card is not on the page at all');
+  if (card.border !== '0px' || card.padding !== '0px') throw new Error(`the contact card prints as a box (border ${card.border}, padding ${card.padding})`);
+  console.log(`  printing courses.html${query || ' (plain)'}: ${tables.length} tables, every column keeps its heading (last: ${[...new Set(tables.map((t) => t.lastHeader))].join(', ')}); contact card unboxed`);
 }
 
 // E2E: ?embed=1 — the course-rules page inside someone else's page

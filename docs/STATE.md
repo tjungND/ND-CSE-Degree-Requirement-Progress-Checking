@@ -4,6 +4,28 @@ Last updated: 2026-09-16 (this session, branch `claude/wordpress-embed-autoresiz
 the first Claude Code Desktop session's branch `claude/setup-handoff-review-c38220` — see 2026-09-11
 below — has since merged).
 
+2026-09-16 (later): the courses.html **print stylesheet**, three defects found while mapping the
+page for the embed work and deliberately left out of that change. `th:last-child { display: none }`
+in the page's `@media print` block was written when the last column was the DGS's notes — it was
+half of a pair (`.notes-cell` hid the cells, `th:last-child` the header) that removed the Notes
+column from print. The notes left this page on 2026-09-09, so `.notes-cell` matched nothing and
+`th:last-child` had moved on to hiding the LAST header of every table here: "DGS reviewed" on the
+all-courses table and "Specialization" on each schedule card, while the cells under them still
+printed. It only shows on paper wider than the 860 px card breakpoint — A4 portrait prints as
+cards, where `thead` is clipped anyway, so it took a landscape PDF to see it. Both selectors are
+gone, along with the rest of the dead `tr.note-row` / `.notes-cell` rules in the base and 860 px
+blocks (nothing in `courses-page.ts` has generated a note row since 2026-09-09; the `:not(.note-row)`
+guards in the TS and the e2e are harmless and were left alone). The contact card was the third:
+printing strips its border and padding through `.masthead .contact-card`, which embed mode's
+`html.embed .contact-card` outranks, so a framed page printed a bordered card where the standalone
+page printed none — the print override now sits at the end of the file, after the embed rules,
+because the two selectors carry equal specificity and only source order settles it. Verified by
+printing to PDF before and after and by computed styles under emulated print media; the e2e
+"course rules list" driver now runs that check on both the plain and the embedded page, which
+needed a new `Emulation.setEmulatedMedia` translation in `scripts/e2e/webkit.mjs`. Still open and
+NOT fixed: on wide paper the course table runs past the right edge of the page — pre-existing,
+separate from these three, and a real fix means deciding which columns a printed page should drop.
+
 2026-09-16: **embed mode (`?embed=1`) so both pages can sit inside a page on ND's WordPress**
 (`sites.nd.edu`), from a spec the DGS brought in from a Cowork session that had already tested the
 live site. The constraint that shapes everything: a site Administrator on ND's multisite has no
