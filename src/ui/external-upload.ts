@@ -467,7 +467,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         level: c.level ?? slotDefaultLevel(slot.level),
         levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
       }));
-      if (undergraduateInProgress(slot.level, mapped, parsed.bachelorsConferredOn !== undefined)) return fail(BACHELORS_IN_PROGRESS);
+      if (undergraduateInProgress(slot.level, mapped, parsed.bachelorsConferred === true)) return fail(BACHELORS_IN_PROGRESS);
       const termPrefill = prefillLevelsByTerm(mapped, slot.level, parsed.bachelorsNamed === true);
       const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
       const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed, args.student.program);
@@ -666,7 +666,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   level: c.level ?? slotDefaultLevel(slot),
                   levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
                 }));
-                if (undergraduateInProgress(slot, mapped, parsed.bachelorsConferredOn !== undefined)) { importError = { slot, message: BACHELORS_IN_PROGRESS }; render(); document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus(); return; }
+                if (undergraduateInProgress(slot, mapped, parsed.bachelorsConferred === true)) { importError = { slot, message: BACHELORS_IN_PROGRESS }; render(); document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus(); return; }
                 const termPrefill = prefillLevelsByTerm(mapped, slot, parsed.bachelorsNamed === true);
                 const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
                 const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed, args.student.program);

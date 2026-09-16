@@ -59,6 +59,11 @@ export interface ExternalParseResult {
   /** A bachelor's degree conferral with a date (2026-09-05): the boundary
    * between undergraduate and graduate rows on a combined transcript. */
   bachelorsConferredOn?: string;
+  /** The transcript STATES the bachelor's was conferred ("Graduated on … with
+   * the degree of Bachelor …", a dated award line) even when its date could
+   * not be read — OCR garbles dates (DGS 2026-09-16). The record is complete;
+   * the term is then set by hand. */
+  bachelorsConferred?: true;
   /** The transcript says its terms are QUARTERS (2026-09-11): a term header
    * such as "Fall Quarter 2023" / "Autumn Qtr 2023", or a "Quarter Units" /
    * "Quarter Hours" heading. Its credits are then quarter hours, worth a fraction (the sheet’s `quarter_credit_factor`, 0.66) of
@@ -237,6 +242,23 @@ function awardingInstitution(lines: string[]): string | undefined {
     if (best !== undefined) return best;
   }
   return undefined;
+}
+
+/** A date read through OCR noise (DGS 2026-09-16): "Aprill//09, Z2025/l" is
+ * April 9, 2025 — the month by its first three letters, up to four stray
+ * characters between the parts, a stray letter glued to the year. Only used
+ * where a conferral is already established, so the looseness cannot invent
+ * a date elsewhere. */
+export function looseDateOnLine(line: string): string | undefined {
+  const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const m = /\b([A-Za-z]{3,10})[^A-Za-z0-9]{0,4}(\d{1,2})[^0-9]{0,4}[A-Za-z]?(\d{4})\b/.exec(line);
+  if (!m) return undefined;
+  const month = MONTHS.indexOf(m[1]!.slice(0, 3).toUpperCase()) + 1;
+  const day = Number(m[2]);
+  const year = Number(m[3]);
+  if (month === 0 || day < 1 || day > 31 || year < 1950 || year > 2049) return undefined;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${year}-${pad(month)}-${pad(day)}`;
 }
 
 function guessedUniversity(lines: string[]): { university?: string; universityGuessed?: true } {
@@ -560,6 +582,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   let blockLevel: Level | undefined;
   let retroLevel: Level | undefined;
   let bachelorsConferredOn: string | undefined;
+  let bachelorsConferred: true | undefined;
   let bachelorsNamed = false; // a bachelor's is named at all — dated or not (2026-09-08)
   let recentDegreeDate: { date: string; at: number } | undefined; // a dated "Degree Completion Date:" line, in case the degree name follows
   const rowLevels: (Level | undefined)[] = [];
@@ -639,7 +662,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // row or at the NEXT degree's name, so a master's date is never taken;
       // else on such a line up to two lines before the name. A forecast
       // ("Expected graduation: May 2027") never counts.
-      if (conferredHere) bachelorsConferredOn = dateOnLine(flat);
+      if (conferredHere) {
+        bachelorsConferred = true;
+        bachelorsConferredOn = dateOnLine(flat) ?? looseDateOnLine(flat);
+      }
       for (let k = 1; k <= 6 && bachelorsConferredOn === undefined; k++) {
         const later = lines[lineIndex + k];
         if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim()) || /\b(master|doctor|ph\.?\s?d)\b/i.test(later)) break;
@@ -771,6 +797,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     ...withCampus(guessedUniversity(lines), lines),
     degreeConferred,
     bachelorsConferredOn,
+    ...(bachelorsConferred || bachelorsConferredOn !== undefined ? { bachelorsConferred: true as const } : {}),
     ...(bachelorsNamed ? { bachelorsNamed: true as const } : {}),
     mixedLevels: levels.size > 1 ? true : undefined,
     transferRowsSkipped: transferRowsSkipped > 0 ? transferRowsSkipped : undefined,

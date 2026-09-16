@@ -4,7 +4,7 @@
 // transcripts are redirected to the ND uploader.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parseExternalTranscript } from '../src/transcript/external.ts';
+import { looseDateOnLine, parseExternalTranscript } from '../src/transcript/external.ts';
 
 const PURDUE = [
   'Purdue University',
@@ -659,5 +659,27 @@ describe('a "Graduated on … with the degree of Bachelor" line (2026-09-16)', (
     const r = parseExternalTranscript([...HEAD, 'Graduated on 15 June 2020 with the degree of Bachelor of Science in Computer Science & Engineering Major in Computer Engineering under Registration No. 123456', 'Fall 2018', 'CSE 301   Data Structures   3.0   A']);
     assert.equal(r.bachelorsConferredOn, '2020-06-15');
     assert.equal(r.bachelorsNamed, true);
+  });
+});
+
+// The same remark through OCR (DGS 2026-09-16, a scanned official transcript):
+// "Graduated on Aprill//09, Z2025/lwith the degree of Bachelor of ." — the
+// conferral is stated even though the date is garbled, and the date is read
+// through the noise.
+describe('a conferral read through OCR noise (2026-09-16)', () => {
+  const HEAD = ['Example University', 'Office of the Registrar', 'This is an official transcript issued for the student named below and may not be released to any third party without consent.', 'Course: Bachelor of Science in Computer Science & Engineering'];
+  it('is a stated conferral, with the date recovered', () => {
+    const r = parseExternalTranscript([...HEAD, '2022-2023, Spring COE3104 MICROPROCESSOR AND EMBEDDED SYSTEM 3 2.00', 'Remarks: Performance Summary:', 'Graduated on Aprill//09, Z2025/lwith the degree of Bachelor of . Credits Earned', 'iS nee &!|Engineering Major in\\Gomputer Engineering under 41H NE']);
+    assert.equal(r.bachelorsConferred, true);
+    assert.equal(r.bachelorsConferredOn, '2025-04-09');
+  });
+  it('stays a stated conferral when the date is beyond recovery', () => {
+    const r = parseExternalTranscript([...HEAD, 'Graduated on Ap#i% 0%, 2#25 with the degree of Bachelor of Science']);
+    assert.equal(r.bachelorsConferred, true);
+    assert.equal(r.bachelorsConferredOn, undefined);
+  });
+  it('the loose reader never invents a date from an ordinary sentence', () => {
+    assert.equal(looseDateOnLine('Computer Science 3 credits 2023'), undefined);
+    assert.equal(looseDateOnLine('Passed with 12 of 2024 points'), undefined);
   });
 });
