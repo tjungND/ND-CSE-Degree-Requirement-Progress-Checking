@@ -4,7 +4,7 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf) {
+export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf, ndOfficialPdf) {
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -480,7 +480,14 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   //    Notre Dame parser, filed under "University of Notre Dame", with the
   //    reminder that a transcript holding the current program belongs in the
   //    Notre Dame row.
+  //    Since 2026-09-15 a previous-degree slot takes OFFICIAL transcripts only
+  //    (DGS): the unofficial ND PDF is refused with the reason, the official one
+  //    is read as before.
   await s.setFileInput('.external-file-phd', ndPdf);
+  await s.waitFor(`document.querySelector('[data-key="ext.error.phd"]')?.textContent.includes('an OFFICIAL transcript is required for a previous degree')`);
+  if (await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`)) throw new Error('an unofficial transcript must not open a preview in a previous-degree slot');
+  console.log('  unofficial transcript in a previous-degree slot refused: ' + (await s.evalJs(`document.querySelector('[data-key="ext.error.phd"]').textContent`)).slice(0, 80));
+  await s.setFileInput('.external-file-phd', ndOfficialPdf);
   await s.waitFor(`document.querySelector('.external-card .transcript-preview .nd-prior-note')`);
   const ndUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   const ndSlotRows = await s.evalJs(
@@ -624,7 +631,8 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // A transcript still in progress is not a bachelor's record (DGS 2026-09-11):
   // the combined ND fixture has a "Courses in progress" block, so in this row
   // it is refused with the message, and no preview opens.
-  await s.setFileInput('.external-file-bachelors', ndPdf);
+  // (The OFFICIAL ND fixture, since 2026-09-15: an unofficial one is refused before the in-progress check runs.)
+  await s.setFileInput('.external-file-bachelors', ndOfficialPdf);
   await s.waitFor(`document.querySelector('[data-key="ext.error.bachelors"]')?.textContent.includes('A completed bachelor’s transcript is required')`);
   if (await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`)) throw new Error('an in-progress undergraduate transcript must not open a preview');
   console.log('  in-progress undergraduate transcript refused: ' + (await s.evalJs(`document.querySelector('[data-key="ext.error.bachelors"]').textContent`)).slice(0, 90));

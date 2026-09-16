@@ -806,7 +806,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   `dueTermPhrase` in term.ts turn an ISO deadline into "before Fall 2034" / "by the end of Spring
   2030" / "during Spring 2028"; every chip, detail and advisor-copy line uses them and no date is
   shown anywhere (tests pin the exact chip strings). `DeadlineInfo.date` is unchanged.
-- **Transcripts card notes** (2026-09-05, DGS): `.unofficial-note` (unofficial transcripts read
+- **Transcripts card notes** (2026-09-05, DGS; the unofficial-note removed 2026-09-15 — previous-degree slots now refuse anything marked unofficial, `isUnofficial` in external-upload.ts): `.unofficial-note` (unofficial transcripts read
   best) and `.combined-note` (a combined BS+MS PDF goes once into the Master's row) in app.ts /
   external-upload.ts.
 - **Sheet renamed** (2026-09-05, DGS): the rules sheet is CSE-Degree-Checking-Rules —

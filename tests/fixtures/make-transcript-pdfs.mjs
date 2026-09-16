@@ -213,8 +213,7 @@ const ND = [
 // allowance once the DGS approves, and a senior-year 60000-level course.
 const ND_UNDERGRAD = [
   'University of Notre Dame',
-  'Unofficial Academic Transcript',
-  'This is not an official transcript.',
+  'Official Academic Transcript',
   'Name : Jane Q. Student',
   'Degrees Awarded',
   'Bachelor of Science',
@@ -247,7 +246,7 @@ const OTHER = [
 const EXTERNAL = [
   'Purdue University',
   'Office of the Registrar',
-  'Unofficial Transcript',
+  'Official Transcript',
   'Student: John Q. Boilermaker',
   'Program: Master of Science, Computer Science',
   '',
@@ -271,7 +270,7 @@ const EXTERNAL = [
 const UC_SYSTEM = [
   'UNIVERSITY OF CALIFORNIA',
   'Office of the Registrar',
-  'Unofficial Transcript',
+  'Official Transcript',
   'Student: Jane Q. Triton',
   'Program: Master of Science, Computer Science',
   '',
@@ -287,7 +286,7 @@ const UC_SYSTEM = [
 const COMBINED = [
   'Purdue University',
   'Office of the Registrar',
-  'Unofficial Transcript',
+  'Official Transcript',
   'Student: Jane Q. Boilermaker',
   'Bachelor of Science in Computer Science — Conferred: May 11, 2024',
   'Master of Science in Computer Science — Conferred: May 10, 2025',
@@ -307,6 +306,9 @@ const COMBINED = [
 ];
 
 writeFileSync(join(here, 'nd-transcript.pdf'), makePdf(ND));
+// The same record as an OFFICIAL transcript (DGS 2026-09-15: a previous-degree
+// slot refuses anything marked unofficial), for the ND-in-a-previous-slot flow.
+writeFileSync(join(here, 'nd-official-transcript.pdf'), makePdf(ND.map((l) => (l === 'Unofficial Academic Transcript' ? 'Official Academic Transcript' : l)).filter((l) => l !== 'This is not an official transcript.')));
 writeFileSync(join(here, 'nd-undergrad-transcript.pdf'), makePdf(ND_UNDERGRAD));
 writeFileSync(join(here, 'combined-transcript.pdf'), makePdf(COMBINED));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));

@@ -351,6 +351,14 @@ function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
  * 2026-09-11: "when previous undergraduate transcript shows as in-progress,
  * reject the transcript and show a warning message that says a completed BS
  * transcript is required"). A row without a final grade is the tell. */
+/** A previous-degree transcript must be OFFICIAL (DGS 2026-09-15: "If the
+ * imported transcript has 'unofficial' anywhere, deem it unofficial and
+ * reject it"). Only the Notre Dame row takes the unofficial self-service PDF. */
+const OFFICIAL_REQUIRED =
+  'This transcript is marked “unofficial”, and an OFFICIAL transcript is required for a previous degree. Request an official transcript from that university’s registrar (an official e-transcript PDF is fine) and import that instead.';
+function isUnofficial(lines: readonly string[]): boolean {
+  return lines.some((l) => /\bunofficial\b/i.test(l));
+}
 const BACHELORS_IN_PROGRESS =
   'This undergraduate transcript is still in progress — it lists courses without a final grade. A completed bachelor’s transcript is required here: upload it again once the degree is finished and every course has a grade.';
 function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string }[]): boolean {
@@ -377,6 +385,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       // scan goes on to OCR (the student deciding) with the same file.
       const buffer = await file.arrayBuffer();
       const lines = await pdfToLines(buffer.slice(0));
+      if (isUnofficial(lines)) return fail(OFFICIAL_REQUIRED);
       const { parseExternalTranscript } = await import('../transcript/external.ts');
       // A NOTRE DAME transcript in a previous-degree slot (2026-09-05): the
       // record of an earlier Notre Dame degree (undergraduate at Notre Dame
@@ -604,6 +613,12 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const { parseExternalTranscript } = await import('../transcript/external.ts');
                 const parsed = parseExternalTranscript(lines.map((l) => l.text), lines.map((l) => l.confidence));
                 ocrBusy = undefined;
+                if (isUnofficial(lines.map((l) => l.text))) {
+                  importError = { slot, message: OFFICIAL_REQUIRED };
+                  render();
+                  document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
+                  return;
+                }
                 if (parsed.looksLikeNotreDame) {
                   importError = { slot, message: `This looks like an ND transcript — use the “${ndRowLabel(student)}” row above, with the digital PDF from insideND (not a scan).` };
                   render();

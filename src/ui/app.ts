@@ -997,11 +997,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'section',
       { class: 'card' },
       el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
-      el(
-        'p',
-        { class: 'hint' },
-        'Everything you have taken or are taking belongs here. Importing your transcripts above fills it in, non-CSE and other-university courses included; you can also add or fix courses by hand. Anything the course rules have not decided yet goes into the review request below.',
-      ),
+      // (The coursework card's intro sentence was removed on 2026-09-15 at the DGS's request.)
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       gpaNote,
       courseForm(),
