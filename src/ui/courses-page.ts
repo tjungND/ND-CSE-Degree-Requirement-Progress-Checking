@@ -1074,8 +1074,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'main',
       { id: 'main' },
       ...notices(),
-      scheduleSection(),
+      // Order (DGS 2026-09-16): the qualifying-examination courses first, then
+      // the schedule, then the full list.
       overview(),
+      scheduleSection(),
       el('section', { class: 'all-courses', id: 'all-courses', tabindex: '-1' }, el('h2', {}, 'All courses'), filterHost, legend(), tableHost),
       // "Who to contact" is a right-hand column on the full page; in a ~700 px
       // frame there is no right-hand column, so it becomes the last block of

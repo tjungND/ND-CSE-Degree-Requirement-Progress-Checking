@@ -538,7 +538,8 @@ export async function driveCourses(s, baseUrl) {
   const spec = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const sel = document.querySelector('[data-key="filter.category"]');
     const opts = [...sel.options].map((o) => o.value);
-    const cards = [...document.querySelectorAll('.overview .ov-grid')].pop();
+    // The specialization cards are the qualifier section's grid — by class, not by position (the sections were reordered 2026-09-16).
+    const cards = [...document.querySelectorAll('.overview:not(.schedule-overview) .ov-grid')].pop();
     const headings = [...cards.querySelectorAll('.ov-card h3')].map((h) => h.textContent.trim());
     const inEvery = headings.every((_, i) => cards.querySelectorAll('.ov-card')[i].textContent.includes('CSE 60876'));
     const note = [...document.querySelectorAll('.overview p')].map((p) => p.textContent).find((t) => /fill only/.test(t)) ?? '';
