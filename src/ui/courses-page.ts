@@ -415,7 +415,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
      * the main table uses; `abbr` gives a screen reader the long form. */
     const colHead = (label: string, sub: string, full: string): HTMLElement =>
       el('th', { scope: 'col', abbr: full }, label, el('span', { class: 'th-sub' }, sub));
-    const miniTable = (items: RuleCourse[], label: string): HTMLElement =>
+    /** The schedule row a qualifier card's link jumps to (DGS 2026-09-17):
+     * this semester's card first, else next semester's. */
+    const scheduleRowId = (r: RuleCourse, which: 'this' | 'next'): string => `sched-${which}-${r.courseId.replace(' ', '-')}`;
+    const miniTable = (items: RuleCourse[], label: string, which: 'this' | 'next'): HTMLElement =>
       el(
         'div',
         { class: 'table-scroll plain', tabindex: '0', role: 'region', 'aria-label': `${label} (scrolls sideways on narrow screens)` },
@@ -446,7 +449,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
             ...items.map((r) =>
               el(
                 'tr',
-                {},
+                { id: scheduleRowId(r, which) },
                 el(
                   'th',
                   { scope: 'row', class: 'course-id' },
@@ -464,7 +467,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           ),
         ),
       );
-    const card = (heading: string, term: Term, offered: (r: RuleCourse) => boolean | undefined): HTMLElement => {
+    const card = (heading: string, term: Term, offered: (r: RuleCourse) => boolean | undefined, which: 'this' | 'next'): HTMLElement => {
       // "Released" means the DGS has said something about this semester at
       // all — a yes or a no. Until then the list is not empty, it is unknown.
       const said = rows.some((r) => offered(r) !== undefined);
@@ -482,7 +485,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           : items.length === 0
             ? // Named, not "this semester": the string is shared by both cards.
               el('span', { class: 'muted' }, `No course is listed for ${termLabel(term)}.`)
-            : miniTable(items, heading),
+            : miniTable(items, heading, which),
       );
     };
     return el(
@@ -493,8 +496,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'div',
         { class: 'ov-grid two' },
-        card(`Offered this semester — ${termLabel(thisTeachingTerm)}`, thisTeachingTerm, offeredIn('this')),
-        card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, nextTeachingTerm, offeredIn('next')),
+        card(`Offered this semester — ${termLabel(thisTeachingTerm)}`, thisTeachingTerm, offeredIn('this'), 'this'),
+        card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, nextTeachingTerm, offeredIn('next'), 'next'),
       ),
       // What was left out and why (2026-09-14): rows whose `last_offered` is
       // older than last semester, or unreadable, say nothing here — the page
@@ -517,7 +520,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       withCourseCard(
         el(
           'a',
-          { class: `ov-item${r.dgsReviewed ? '' : ' pending'}`, href: `#${r.courseId.replace(' ', '-')}` },
+          // Offered this semester or next → the course's row on the schedule
+          // card; otherwise its row in All courses (DGS 2026-09-17).
+          { class: `ov-item${r.dgsReviewed ? '' : ' pending'}`, href: offeredIn('this')(r) === true ? `#sched-this-${r.courseId.replace(' ', '-')}` : offeredIn('next')(r) === true ? `#sched-next-${r.courseId.replace(' ', '-')}` : `#${r.courseId.replace(' ', '-')}` },
           el('span', { class: 'cid' }, r.courseId, r.dgsReviewed ? '' : ' *'),
           el('span', { class: 'ctitle' }, r.title),
         ),
@@ -602,6 +607,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       popRow('Core knowledge (§4.4.1)', coreLabel(r)),
       popRow('Specialization (§4.4.2)', categoryLabel(r)),
       popRow('Typically offered', offeredLabel(r)),
+      // The live schedule, both semesters (DGS 2026-09-17).
+      popRow(
+        `Offered ${termLabel(thisTeachingTerm)}`,
+        offeredIn('this')(r) === true ? el('span', { class: 'pill yes' }, 'Yes') : offeredIn('this')(r) === false ? el('span', { class: 'pill no' }, 'No') : el('span', { class: 'muted' }, 'Not released yet'),
+      ),
+      popRow(
+        `Offered ${termLabel(nextTeachingTerm)}`,
+        offeredIn('next')(r) === true ? el('span', { class: 'pill yes' }, 'Yes') : offeredIn('next')(r) === false ? el('span', { class: 'pill no' }, 'No') : el('span', { class: 'muted' }, 'Not released yet'),
+      ),
       popRow('DGS reviewed', r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending')),
     );
   };

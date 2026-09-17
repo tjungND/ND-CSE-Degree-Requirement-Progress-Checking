@@ -459,6 +459,25 @@ export async function driveCourses(s, baseUrl) {
     if (plain !== './index.html') throw new Error('standalone cross-link must be the sibling file: ' + plain);
     console.log('  cross-links: host page in the top window when named, sibling file otherwise');
   }
+  // Qualifier-card courses (DGS 2026-09-17): a course offered this semester
+  // links to its schedule row; one not offered links to its All-courses row;
+  // the hover card names both semesters.
+  {
+    const q = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+      const items = [...document.querySelectorAll('.overview:not(.schedule-overview) a.ov-item')];
+      const offered = items.find((a) => a.getAttribute('href').startsWith('#sched-'));
+      const other = items.find((a) => !a.getAttribute('href').startsWith('#sched-'));
+      const target = (a) => a && !!document.getElementById(a.getAttribute('href').slice(1));
+      return { n: items.length, offeredHref: offered?.getAttribute('href') ?? null, offeredTargetExists: target(offered), otherTargetExists: target(other) };
+    })())`));
+    if (q.n === 0) throw new Error('no qualifier-card courses rendered');
+    if (q.offeredHref && !q.offeredTargetExists) throw new Error('a qualifier link to the schedule must resolve: ' + q.offeredHref);
+    if (q.otherTargetExists === false) throw new Error('a qualifier link to All courses must resolve');
+    const hover = await s.evalJs(`(() => { const a = document.querySelector('.overview:not(.schedule-overview) a.ov-item'); a.dispatchEvent(new Event('mouseenter')); const t = document.querySelector('#course-pop').textContent; a.dispatchEvent(new Event('mouseleave')); return t; })()`);
+    if (!/Offered Fall \d{4}|Offered Spring \d{4}/.test(hover)) throw new Error('the hover card must show the offering status by semester: ' + hover.slice(0, 200));
+    console.log('  qualifier cards: links → schedule row when offered (' + (q.offeredHref ?? 'none offered') + '), else All courses; hover shows both semesters');
+  }
+
   // Two schedule cards (DGS 2026-09-09), which say "Not released yet." while
   // the sheet's offered_now / offered_next are blank rather than showing an
   // empty list that would read as "nothing runs".
