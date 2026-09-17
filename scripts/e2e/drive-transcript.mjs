@@ -490,13 +490,16 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   //    Notre Dame parser, filed under "University of Notre Dame", with the
   //    reminder that a transcript holding the current program belongs in the
   //    Notre Dame row.
-  //    Since 2026-09-15 a previous-degree slot takes OFFICIAL transcripts only
-  //    (DGS): the unofficial ND PDF is refused with the reason, the official one
-  //    is read as before.
+  //    An UNOFFICIAL transcript in a previous-degree slot is accepted with a
+  //    warning (DGS 2026-09-17; refused outright from 2026-09-15 to then): the
+  //    student may track progress with it, the reviewers will want the official one.
   await s.setFileInput('.external-file-phd', ndPdf);
-  await s.waitFor(`document.querySelector('[data-key="ext.error.phd"]')?.textContent.includes('an OFFICIAL transcript is required for a previous degree')`);
-  if (await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`)) throw new Error('an unofficial transcript must not open a preview in a previous-degree slot');
-  console.log('  unofficial transcript in a previous-degree slot refused: ' + (await s.evalJs(`document.querySelector('[data-key="ext.error.phd"]').textContent`)).slice(0, 80));
+  await s.waitFor(`document.querySelector('[data-key="ext.preview.unofficial"]')`);
+  const unofficialNote = await s.evalJs(`document.querySelector('[data-key="ext.preview.unofficial"]').textContent`);
+  if (!/marked “unofficial”.*will require an OFFICIAL transcript for review, approval and processing/.test(unofficialNote)) throw new Error('the unofficial-transcript warning is wrong: ' + unofficialNote.slice(0, 160));
+  console.log('  unofficial transcript in a previous-degree slot accepted with the warning');
+  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
+  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
   await s.setFileInput('.external-file-phd', ndOfficialPdf);
   await s.waitFor(`document.querySelector('.external-card .transcript-preview .nd-prior-note')`);
   const ndUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);

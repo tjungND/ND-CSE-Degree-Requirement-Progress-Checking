@@ -90,6 +90,9 @@ interface ExternalPreview {
   rows: PreviewRow[];
   /** Rows came from OCR of a scan — approximate; the preview says so. */
   fromOcr?: boolean;
+  /** The transcript is marked unofficial (2026-09-17): accepted, with a warning
+   * that the reviewers will require the official one. */
+  unofficial?: boolean;
   /** The transcript carries a graduate-degree conferral line (2026-09-03) —
    * used to set "Prior graduate study" when the student has not chosen. */
   conferred?: boolean;
@@ -356,8 +359,11 @@ function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
 /** A previous-degree transcript must be OFFICIAL (DGS 2026-09-15: "If the
  * imported transcript has 'unofficial' anywhere, deem it unofficial and
  * reject it"). Only the Notre Dame row takes the unofficial self-service PDF. */
-const OFFICIAL_REQUIRED =
-  'This transcript is marked “unofficial”, and an OFFICIAL transcript is required for a previous degree. Request an official transcript from that university’s registrar (an official e-transcript PDF is fine) and import that instead.';
+/** Accepted with a warning since 2026-09-17 (DGS): an unofficial transcript
+ * lets a student track their progress; the ADGS/DGS and the Grad Admin will
+ * ask for the official one. */
+const UNOFFICIAL_WARNING =
+  'This transcript is marked “unofficial”. You can use it here to track your progress, but the ADGS, the DGS and the Grad Admin will require an OFFICIAL transcript for review, approval and processing — request one from that university’s registrar (an official e-transcript PDF is fine) before you send any request.';
 /** "Unofficial" as a description of the TRANSCRIPT — a heading, a watermark
  * word, "this is not an official transcript" — never a grade legend's "UW
  * Unofficial Withdraw" (DGS 2026-09-16: a false rejection). */
@@ -403,7 +409,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       // scan goes on to OCR (the student deciding) with the same file.
       const buffer = await file.arrayBuffer();
       const lines = await pdfToLines(buffer.slice(0));
-      if (isUnofficial(lines)) return fail(OFFICIAL_REQUIRED);
+      const unofficial = isUnofficial(lines); // accepted with a warning on the preview (DGS 2026-09-17)
       const { parseExternalTranscript } = await import('../transcript/external.ts');
       // A NOTRE DAME transcript in a previous-degree slot (2026-09-05): the
       // record of an earlier Notre Dame degree (undergraduate at Notre Dame
@@ -432,6 +438,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         const kept = keepRelevantRows(NOTRE_DAME, rules, ndRows, levels.size > 1, args.student.program);
         const ndBachelors = nd.degreesAwarded.find((d) => d.level === 'bachelors' && d.date !== undefined)?.date;
         preview = {
+          ...(unofficial ? { unofficial: true } : {}),
           slot: slot.level,
           university: NOTRE_DAME,
           universityFromTranscript: true,
@@ -473,6 +480,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed, args.student.program);
       const bachelors = bachelorsForPreview(slot.level, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
       preview = {
+        ...(unofficial ? { unofficial: true } : {}),
         slot: slot.level,
         university: parsed.university ?? '',
         // A name read from the transcript is locked; one recovered from an
@@ -641,12 +649,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const { parseExternalTranscript } = await import('../transcript/external.ts');
                 const parsed = parseExternalTranscript(lines.map((l) => l.text), lines.map((l) => l.confidence));
                 ocrBusy = undefined;
-                if (isUnofficial(lines.map((l) => l.text))) {
-                  importError = { slot, message: OFFICIAL_REQUIRED };
-                  render();
-                  document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
-                  return;
-                }
+                const unofficial = isUnofficial(lines.map((l) => l.text)); // warned on the preview (DGS 2026-09-17)
                 if (parsed.looksLikeNotreDame) {
                   importError = { slot, message: `This looks like an ND transcript — use the “${ndRowLabel(student)}” row above, with the digital PDF from insideND (not a scan).` };
                   render();
@@ -672,6 +675,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed, args.student.program);
                 const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
                 preview = {
+                  ...(unofficial ? { unofficial: true } : {}),
                   slot,
                   university: parsed.university ?? '',
                   // OCR misreads names too — the field stays editable (2026-09-06).
@@ -841,6 +845,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           })(),
         ]
       : []),
+    ...(p.unofficial ? [el('p', { class: 'hint warn unofficial-note', 'data-key': 'ext.preview.unofficial' }, UNOFFICIAL_WARNING)] : []),
     ...(p.notreDame
       ? [
           el(
