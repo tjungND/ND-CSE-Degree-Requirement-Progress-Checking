@@ -1193,31 +1193,77 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
   return { perCourse, ...sums, capUsage, warnings: [] };
 }
 
+/** The processing order for the multi-cap courses that counts the most credits.
+ *
+ * Every order is still considered and the FIRST best one still wins, so the
+ * answer is exactly what enumerating the permutations gave — but the search is
+ * a depth-first walk with memoing and a bound instead of a materialised list of
+ * n! orders. The old version built every permutation up front: 10 courses is
+ * 3.6 million arrays, 11 is 40 million, and a student with eleven unreviewed
+ * prior-program courses (a transfer candidate that is also non-CSE draws on two
+ * caps, so it lands here) froze the page at load for minutes on end while the
+ * browser allocated them — a renderer pinned at ~200% CPU and Chrome's "Page
+ * Unresponsive" (DGS report 2026-09-16). The walk below visits each remaining
+ * set × cap-room state once.
+ *
+ * Why the result is unchanged: the credits a course takes depend only on the
+ * room left when its turn comes, so what an order is worth from here on depends
+ * only on (which courses are left, how much room each cap has) — never on how
+ * the prefix got there. Children are visited in array order, which is
+ * lexicographic permutation order, and a candidate replaces the best only when
+ * it counts STRICTLY more, so the first best order is the one that survives —
+ * and a branch whose optimistic bound cannot beat the best is skipped, which
+ * can never discard a strictly better order. */
 function bestMultiOrder(
   multis: ClassifiedCourse[],
   roomSnapshot: Map<CapId, number>,
 ): ClassifiedCourse[] {
-  const permutations = (arr: ClassifiedCourse[]): ClassifiedCourse[][] => {
-    if (arr.length <= 1) return [arr];
-    const out: ClassifiedCourse[][] = [];
-    arr.forEach((x, i) => {
-      for (const rest of permutations([...arr.slice(0, i), ...arr.slice(i + 1)])) out.push([x, ...rest]);
-    });
-    return out;
-  };
-  let best: { order: ClassifiedCourse[]; counted: number } | undefined;
-  for (const order of permutations(multis)) {
-    const room = new Map(roomSnapshot);
-    let counted = 0;
-    for (const cc of order) {
-      const avail = Math.min(...cc.caps.map((id) => Math.max(0, room.get(id) ?? 0)));
-      const c = Math.min(cc.effectiveCredits ?? cc.entry.credits, avail);
-      counted += c;
-      for (const id of cc.caps) room.set(id, (room.get(id) ?? 0) - c);
+  const n = multis.length;
+  if (n <= 1) return multis;
+  // Only the caps these courses actually draw on take part in the state.
+  const capIds = [...new Set(multis.flatMap((c) => c.caps))];
+  const creditsOf = (cc: ClassifiedCourse): number => cc.effectiveCredits ?? cc.entry.credits;
+  const startRooms = capIds.map((id) => Math.max(0, roomSnapshot.get(id) ?? 0));
+  const capIndex = new Map(capIds.map((id, k) => [id, k]));
+  const courseCaps = multis.map((cc) => cc.caps.map((id) => capIndex.get(id)!));
+
+  const memo = new Map<string, { counted: number; order: number[] }>();
+  /** Best counted credits obtainable from `remaining`, and the first order that
+   * gets there. `rooms` is this state's room per cap, in capIds order. */
+  const solve = (remaining: number[], rooms: number[]): { counted: number; order: number[] } => {
+    if (remaining.length === 0) return { counted: 0, order: [] };
+    const key = remaining.join(',') + '|' + rooms.join(',');
+    const hit = memo.get(key);
+    if (hit) return hit;
+    let best: { counted: number; order: number[] } | undefined;
+    // An optimistic ceiling for the whole state — no course can take more than
+    // its own credits, nor more than the smallest room it draws on.
+    const ceiling = remaining.reduce(
+      (sum, i) => sum + Math.min(creditsOf(multis[i]!), Math.min(...courseCaps[i]!.map((k) => rooms[k]!))),
+      0,
+    );
+    for (let p = 0; p < remaining.length; p++) {
+      const i = remaining[p]!;
+      const avail = Math.min(...courseCaps[i]!.map((k) => rooms[k]!));
+      const took = Math.min(creditsOf(multis[i]!), avail);
+      if (best && ceiling <= best.counted) break; // no child can strictly beat it
+      const nextRooms = rooms.slice();
+      for (const k of courseCaps[i]!) nextRooms[k] = nextRooms[k]! - took;
+      const sub = solve([...remaining.slice(0, p), ...remaining.slice(p + 1)], nextRooms);
+      const counted = took + sub.counted;
+      if (!best || counted > best.counted) best = { counted, order: [i, ...sub.order] };
     }
-    if (!best || counted > best.counted) best = { order, counted };
-  }
-  return best?.order ?? multis;
+    // No room anywhere: every remaining course counts zero, in array order.
+    const result = best ?? { counted: 0, order: [...remaining] };
+    memo.set(key, result);
+    return result;
+  };
+
+  const { order } = solve(
+    multis.map((_, i) => i),
+    startRooms,
+  );
+  return order.map((i) => multis[i]!);
 }
 
 /** The per-course line and its colour (DGS request 2026-09-06). A credit that

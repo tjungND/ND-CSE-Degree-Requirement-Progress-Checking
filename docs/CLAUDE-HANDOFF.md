@@ -1213,6 +1213,14 @@ Known-pending (the app's diagnostics panel is the live truth):
   Do not add a school whose bare name means its flagship — the picker would fire on every
   Purdue transcript (University of Washington is the DGS's deliberate exception, 2026-09-13).
 
+- **The multi-cap order search is memoized, not factorial** (hotfix 2026-09-16). `bestMultiOrder`
+  chooses the processing order for courses that draw on more than one cap; it used to enumerate
+  n! permutations and froze the page at ten-plus prior-program courses. It is now a depth-first
+  walk memoized on (remaining courses, cap rooms) with an optimistic bound; children in array order
+  and strict-improvement replacement keep the first-best order identical (verified over 30,000
+  random configurations). `tests/allocator-blowup.test.ts` fails in seconds if anyone brings the
+  enumeration back.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

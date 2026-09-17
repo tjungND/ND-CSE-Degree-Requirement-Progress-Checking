@@ -4,6 +4,12 @@ Last updated: 2026-09-16 (this session, branch `claude/wordpress-embed-autoresiz
 the first Claude Code Desktop session's branch `claude/setup-handoff-review-c38220` — see 2026-09-11
 below — has since merged).
 
+2026-09-16 (hotfix): `bestMultiOrder` in allocate.ts was factorial — a Ph.D. student importing a
+
+master's transcript of ten-plus courses (each `transfer`+`noncse`) froze the page at load. Now a
+
+memoized depth-first search with a bound; same first-best order; tests/allocator-blowup.test.ts.
+
 2026-09-16 (later): the courses.html **print stylesheet**, three defects found while mapping the
 page for the embed work and deliberately left out of that change. `th:last-child { display: none }`
 in the page's `@media print` block was written when the last column was the DGS's notes — it was
