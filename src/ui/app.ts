@@ -574,6 +574,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               ? el('div', { class: 'warnings', role: 'note', 'data-keep-dgs': '' }, ...report.warnings.map((w) => el('div', {}, `⚠ ${w}`)))
               : null,
             renderReport(report, untouched),
+            // Clear is at the top of the page, which is the wrong end for
+            // someone who has just finished reading their report on a shared
+            // machine (R7, 2026-09-18).
+            untouched
+              ? null
+              : el(
+                  'div',
+                  { class: 'card finish-card', role: 'note' },
+                  el('strong', {}, 'Finished on a shared computer? '),
+                  'Your record stays in this browser until you clear it — save it to a file first if you want to keep it.',
+                  el(
+                    'div',
+                    { class: 'save-buttons' },
+                    el('button', { class: 'btn', 'data-key': 'report.save', onclick: () => exportFile(student) }, 'Save to a file'),
+                    el('button', { class: 'btn', 'data-key': 'report.clear', onclick: clearAll }, 'Clear everything'),
+                  ),
+                ),
           ),
         ),
         el(
@@ -2562,6 +2579,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         { class: 'hint' },
         'Everything you enter — including any transcript PDF you upload — is processed and saved in this browser only, and never sent anywhere. To keep a copy or move to another device, save it as a file.',
       ),
+      // The other side of "it stays in this browser" (interface review R7,
+      // 2026-09-18): on a lab or library machine the record has no expiry, so
+      // the next person to open this page sees it. The page framed browser
+      // storage purely as a benefit.
+      el(
+        'p',
+        { class: 'hint warn' },
+        'On a shared or public computer, clear your record before you walk away: it stays in this browser until you do, with no expiry, and the next person to open this page on this machine would see it.',
+      ),
       el(
         'div',
         { class: 'save-buttons' },
@@ -2655,7 +2681,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'div',
         { class: 'legal-privacy' },
         el('strong', {}, 'Your data never leaves your device. '),
-        'Everything you enter — and any transcript PDF you upload — is processed locally in this browser and saved only on this computer. Nothing is transmitted to the University or to any third party (the page only reads the public course-rules sheet, and asks this site’s own server for the current date at Notre Dame), so your FERPA-protected education records remain under your control.',
+        // W-P1 (DGS 2026-09-18). The middle two sentences are his approved
+        // wording verbatim; the FERPA sentence stays, as he asked.
+        'Your coursework never leaves this browser: everything you enter — and any transcript PDF you upload — is processed here and saved only on this computer. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter. Your FERPA-protected education records remain under your control.',
       ),
       el(
         'div',

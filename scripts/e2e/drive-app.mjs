@@ -468,6 +468,29 @@ export async function driveApp(s, baseUrl) {
   console.log('  M.S. summary:', summary);
   if (!/\d+\/\d+/.test(summary ?? '')) throw new Error('score dial did not render');
 
+  // Privacy wording against measured behaviour, and Clear where someone who has
+  // finished reading actually is (interface review R6/R7, 2026-09-18).
+  const privacy = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const txt = document.body.textContent ?? '';
+    const card = document.querySelector('.finish-card');
+    if (card) card.id = 'shot-finish';
+    return {
+      overstated: /only network request|to any third party/.test(txt),
+      approved: /Your coursework never leaves this browser/.test(txt),
+      ferpa: /FERPA-protected education records remain under your control/.test(txt),
+      shared: /On a shared or public computer, clear your record before you walk away/.test(txt),
+      finishCard: card?.textContent ?? '',
+      clearAtEnd: !!document.querySelector('[data-key="report.clear"]'),
+      clearAtTop: !!document.querySelector('[data-key="tools.clear"]'),
+    };
+  })())`));
+  console.log('  privacy + shared computers:', JSON.stringify({ ...privacy, finishCard: privacy.finishCard.slice(0, 60) }));
+  if (privacy.overstated) throw new Error('the overstated privacy claims must be gone');
+  if (!privacy.approved || !privacy.ferpa) throw new Error('the approved wording and the FERPA sentence must both be there');
+  if (!privacy.shared) throw new Error('the shared-computer line must be in the save card');
+  if (!privacy.clearAtEnd || !privacy.clearAtTop) throw new Error('Clear must be reachable from BOTH ends: ' + JSON.stringify(privacy));
+  await s.shotElement('finish-card', '#shot-finish');
+
   // The example banner tells the truth about whose rows these are (interface
   // review R5, 2026-09-18). `isExample` used to be a flag on the whole record:
   // load the example, add one course of your own, and the banner still said

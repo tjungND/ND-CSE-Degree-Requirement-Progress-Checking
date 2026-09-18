@@ -48,8 +48,15 @@ export const COVERAGE_NOTICE =
  * paragraphs below, unchanged). Same facts, fewer words. */
 export const ALPHA_LINE =
   'Informational only, no warranty — every final decision rests with the Director of Graduate Studies (DGS). The course rules are accurate; only this tool’s application of them is still being tested.';
+// Measured, not assumed (interface review R6, 2026-09-18): one load makes FIVE
+// requests — four to docs.google.com, one per published sheet tab, and one HEAD
+// back to this site's own server for the date at Notre Dame. No student data is
+// in any of them, and that part of the old claim was true and verified; but
+// Google and GitHub each receive an IP, a user agent and a referrer, so "no
+// third party" was not accurate and "the page's only network request" was
+// singular for five. Wording approved by the DGS as W-P1.
 export const PRIVACY_LINE =
-  'Everything you enter — and any transcript PDF — stays in your own browser; nothing is uploaded. The page’s only network request is the read-only fetch of the public course rules.';
+  'Your coursework never leaves this browser. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter.';
 
 /** The sentences that follow RULES_ACCURACY_NOTICE — what the alpha label
  * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04; the

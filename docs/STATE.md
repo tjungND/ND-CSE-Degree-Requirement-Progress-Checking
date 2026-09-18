@@ -89,8 +89,16 @@ working through `docs/REVIEW-FIXES-2026-09-18.md`, the fix order from the 2026-0
   example filled in, but only where the student has not since changed them, since an edited value is
   theirs. With nothing of the example left, the banner and the flag both go. Undo covers it (20 s).
 
-Still to do from that work order: R6/R7 (privacy wording — W-P1 is answered, shared computers),
-B1–B9. R4 is closed by the DGS.
+- **R6/R7 — the privacy claim matches the measured behaviour, and shared computers are named**
+  (commit 5). Two strings overstated what the page does: “The page's only network request is the
+  read-only fetch of the public course rules” (singular, for five) and “Nothing is transmitted to the
+  University or to any third party” (Google and GitHub each get an IP, a user agent and a referrer).
+  Both now carry the DGS's approved W-P1 wording, the FERPA sentence stays, and `clock.ts`'s comment
+  no longer cites the old promise. R7: the save card says what browser-local storage costs on a lab
+  machine, and **Clear** is reachable from the END of the report as well as the top of the page,
+  beside “Save to a file” so nobody clears work they meant to keep.
+
+Still to do from that work order: B1–B9. R4 is closed by the DGS.
 
 2026-09-16 (hotfix): `bestMultiOrder` in allocate.ts was factorial — a Ph.D. student importing a
 

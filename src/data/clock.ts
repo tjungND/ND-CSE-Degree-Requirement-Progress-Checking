@@ -12,10 +12,12 @@
 // For (2) the page asks a server — but its OWN server, not a third party. The
 // HTTP `Date` header of any same-origin response is a server clock, and
 // CLAUDE.md allows same-origin loads of the app's own assets while forbidding
-// runtime calls to anyone else. So the page keeps its printed promise that
-// nothing is sent to the University or to any third party: this request goes
-// to the host the page was served from, carries no student data, and the only
-// thing read from the answer is what time it is. When it fails — offline, a
+// runtime calls to anyone else. So the page keeps its printed promise that the
+// services it contacts never see what the student enters (W-P1, 2026-09-18):
+// this request goes to the host the page was served from, carries no student
+// data, and the only thing read from the answer is what time it is. It is one
+// of the five requests a load makes — the other four are the sheet's tabs —
+// and the privacy wording counts it. When it fails — offline, a
 // file:// copy, a host that strips the header — the device clock is used and
 // the loading card says so, because a stated guess beats a silent one.
 //
