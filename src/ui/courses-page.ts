@@ -1056,6 +1056,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     );
   }
 
+  /** Set for the one render that follows a card link clearing the reader's
+   * filters, so the count line can say what just happened. */
+  let clearedFor: string | undefined;
   const tableHost = el('div', { class: 'table-host' });
   /** The result count is a live region created ONCE (a re-created region is
    * not announced): screen-reader users hear "18 of 176 courses shown" after
@@ -1201,7 +1204,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     if (filters.confirmedOnly) active.push('DGS-confirmed rows only');
     // "…toward the Ph.D.." — the label ends in its own full stop, so do not add a second.
     const viewSentence = filters.view === 'all' ? '' : ` View: ${viewLabel.charAt(0).toLowerCase()}${viewLabel.slice(1)}${viewLabel.endsWith('.') ? '' : '.'}`;
-    countLine.textContent = `${list.length} of ${shown} courses shown.${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
+    countLine.textContent = `${list.length} of ${shown} courses shown.${clearedFor ? ` Filters cleared to show ${clearedFor}.` : ''}${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
     return el(
       'div',
       {},
@@ -1385,7 +1388,12 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     Object.assign(filters, defaultFilters());
     clear(filterHost);
     filterHost.append(filterBar());
+    // Say so. This is the one click on the page that changes state by itself,
+    // and the count line comes back reading "117 of 117 courses shown" with the
+    // reader's filter gone and the Clear button hidden in the same instant.
+    clearedFor = id.replace(/^sched-(this|next)-/, '').replace('-', ' ');
     refreshTable();
+    clearedFor = undefined;
   });
 
   if (embedded) {

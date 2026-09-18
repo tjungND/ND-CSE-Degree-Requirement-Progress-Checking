@@ -824,7 +824,13 @@ tr.ocr-low td { background: #fff7e0; }
 .course-pop {
   position: fixed; top: -9999px; left: 0; z-index: 900; max-width: min(420px, calc(100vw - 24px));
   background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16); pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+  /* NOT pointer-events: none. WCAG 1.4.13 asks that content shown on hover be
+     hoverable, and courses-page.ts registers mouseenter/mouseleave on this card
+     with a 160 ms delayed close so a pointer can travel to it — listeners that
+     could never fire while this line was here (found in the trim review,
+     2026-09-18, the day the rest of that fix shipped). It also lets a reader
+     select the text in the card. */
 }
 .course-pop[hidden] { display: none; }
 .course-pop h4 { margin: 0; font-size: 17px; color: var(--ink); display: flex; gap: 8px; align-items: baseline; }
