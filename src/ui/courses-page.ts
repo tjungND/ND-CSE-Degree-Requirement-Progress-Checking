@@ -12,15 +12,15 @@ import type { Term } from '../engine/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
 import { rowSchedule, scheduleTerms, type RowFreshness } from './schedule-terms.ts';
 
-/** The teaching semester before `t` (fall → the same year's spring; spring → last fall). */
-function afterTeachingTermBack(t: import('../engine/types.ts').Term): import('../engine/types.ts').Term {
-  return t.season === 'fall' ? { season: 'spring', year: t.year } : { season: 'fall', year: t.year - 1 };
-}
+// (A local `afterTeachingTermBack` lived here until 2026-09-18 — a second copy
+// of schedule-terms.ts's own arithmetic, kept only for a sentence about
+// one-semester-behind rows that the DGS's `last_offered` ruling retired.)
 import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
-import { SIBLING_PARAM, siblingAnchorAttrs } from './sibling-links.ts';
-import { embedTargetAttrs, isEmbedded, notifyEmbedHeight, openFullPageLink, startAnchorScrollRelay } from './embed.ts';
-import { handbookLink, rulesDateLine } from './handbook.ts';
+import { SIBLING_PARAM, allowedHostPage, siblingAnchorAttrs } from './sibling-links.ts';
+import { embedTargetAttrs, isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnchorScrollRelay } from './embed.ts';
+import { formatYmdLong, handbookLink, rulesDateLine } from './handbook.ts';
+import { ndDateOnly } from '../data/rules-date.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 
 // ---------- labels (sheet codes → words students understand) ----------
@@ -82,7 +82,10 @@ const HIDDEN_COLUMNS: Record<View, number[]> = {
   all: [],
   mscse: [5, 6, 7], // Ph.D. credit, core knowledge, specialization
   phd: [4, 6, 7], // MSCSE credit, core knowledge, specialization
-  qualifier: [3, 4, 5, 8], // type, both degree-credit columns, typically offered
+  // The intro above the cards says degree credit is "answered in the table
+  // below", so the qualifier view must not be the one place it is hidden
+  // (review R-17, 2026-09-18). Only the type and the planning hint go.
+  qualifier: [3, 8], // type, typically offered
 };
 
 /** The filters as URL query parameters (item 29), so an advisor can send a
@@ -97,28 +100,38 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   } catch {
     return f;
   }
-  const q = params.get('q');
+  // Trimmed, so a link carrying only spaces does not open a page that says
+  // "Filters are active" over an apparently empty search box (review B-15).
+  const q = params.get('q')?.trim();
   if (q) f.query = q.slice(0, 80);
-  const program = params.get('program');
+  const program = params.get('program')?.toLowerCase();
   if (program === 'mscse' || program === 'phd') f.program = program;
-  const core = params.get('core');
+  // The sheet's own codes are case-insensitive everywhere else, so a link
+  // with ?core=OS must not quietly open the unfiltered list (review B-32).
+  const core = params.get('core')?.trim().toLowerCase();
   if (core && validCores.has(core)) f.core = core;
-  const category = params.get('category');
+  const category = params.get('category')?.trim().toLowerCase();
   if (category && validCategories.has(category)) f.category = category;
-  const type = params.get('type');
+  const type = params.get('type')?.trim().toLowerCase();
   if (type && ['regular', 'seminar', 'research', 'independent', 'project'].includes(type)) f.type = type;
   const offered = params.get('offered');
   if (offered === 'now' || offered === 'next') f.offered = offered;
   // NOTE: whether either value still MEANS anything depends on today's date
-  // and on the sheet's `current_semester`; a link saved last semester is
-  // dropped below, where the answer is known (2026-09-09).
+  // and on each row's own `last_offered` (the sheet-wide `current_semester`
+  // was retired on 2026-09-14); a link saved last semester is dropped below,
+  // where the answer is known.
   if (params.get('retired') === '1') f.includeRetired = true;
   if (params.get('confirmed') === '1') f.confirmedOnly = true;
-  const sort = params.get('sort');
+  const sort = params.get('sort')?.trim().toLowerCase();
   if (sort && ['course', 'title', 'type', 'mscse', 'phd', 'core', 'category', 'offered', 'reviewed'].includes(sort)) f.sort = sort as SortKey;
   if (params.get('desc') === '1') f.desc = true;
-  const view = params.get('view');
+  const view = params.get('view')?.trim().toLowerCase();
   if (view === 'all' || view === 'mscse' || view === 'phd' || view === 'qualifier') f.view = view;
+  // A link that asks for the M.S. view AND the Ph.D. program describes a page
+  // that cannot exist: the status line would name one degree over a list
+  // filtered by the other, with that degree's column hidden (review B-11).
+  // The view picks the columns, so it wins and the program follows it.
+  if ((f.view === 'mscse' || f.view === 'phd') && f.program !== 'all' && f.program !== f.view) f.program = f.view;
   return f;
 }
 
@@ -140,16 +153,33 @@ function filtersToUrl(f: Filters, defaults: Filters): void {
   // inside the frame would come back with the full page chrome (2026-09-16).
   if (isEmbedded()) params.set('embed', '1');
   // So is the embed's host-page URL (sibling-links.ts, 2026-09-16): it lives
-  // in the same query string and must survive every rewrite.
-  const host = new URLSearchParams(window.location.search).get(SIBLING_PARAM['self-check']);
-  if (host) params.set(SIBLING_PARAM['self-check'], host);
+  // in the same query string and must survive every rewrite — but only while
+  // it is a URL the page would actually honour, so a rejected value is not
+  // carried around the session in the address bar (review R-2, 2026-09-18).
+  const host = new URLSearchParams(window.location.search).get(SIBLING_PARAM['self-check'])?.trim();
+  if (host && allowedHostPage(host)) params.set(SIBLING_PARAM['self-check'], host);
   const qs = params.toString();
-  try {
-    window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
-  } catch {
-    /* file:// or a sandboxed page — the address bar just stays as it was */
-  }
+  // Safari's engine throttles history writes to about 100 in 10 seconds and
+  // then throws for the rest of the window: a reader typing steadily into the
+  // search box ran out, the address bar silently stopped following the page,
+  // and the link they then copied described a filter they had left behind
+  // (review B-33, 2026-09-18). Writing on a trailing 250 ms timer costs far
+  // fewer calls than there are keystrokes and lands on the value they stopped
+  // at; the catch keeps the failure harmless either way.
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(() => {
+    try {
+      // The path and fragment are read HERE, not when the write was queued:
+      // in the quarter-second in between the reader may have followed an
+      // in-page link, and writing the old address would silently drop the
+      // fragment they had just navigated to (caught by the e2e, 2026-09-18).
+      window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
+    } catch {
+      /* file://, a sandboxed page, or the throttle — the address bar just stays as it was */
+    }
+  }, 250);
 }
+let urlTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreDameNow): void {
   applyContactOverrides(rules.parameters); // sheet-driven contacts (2026-09-04)
@@ -162,16 +192,33 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const { thisTerm: thisTeachingTerm, nextTerm: nextTeachingTerm } = scheduleTerms(currentTerm);
   /** "Fall 2026" → "Fall '26", the tag on a qualifier-card course (2026-09-17). */
   const termShortLabel = (t: Term): string => `${t.season[0]!.toUpperCase()}${t.season.slice(1)} ’${String(t.year).slice(-2)}`;
+  /** In the summer neither fall/spring semester is running, so the cards name
+   * the one that is COMING (schedule-terms.ts). Calling it "this semester" in
+   * June told a reader that classes they cannot register for yet are under way
+   * (review R-18, 2026-09-18). */
+  const inSummer = currentTerm.season === 'summer';
+  const thisSemesterPhrase = inSummer ? 'this coming semester' : 'this semester';
+  const nextSemesterPhrase = inSummer ? 'the semester after' : 'next semester';
   const offeredIn =
     (which: 'this' | 'next') =>
     (r: RuleCourse): boolean | undefined => {
       const rs = rowSchedule(currentTerm, r);
       return which === 'this' ? rs.this : rs.next;
     };
-  /** Rows that say something in the schedule columns, by how fresh they are. */
-  const freshnessCounts = (): Record<RowFreshness, number> => {
-    const out: Record<RowFreshness, number> = { current: 0, 'one-behind': 0, stale: 0, undated: 0 };
-    for (const r of rows) if (r.offeredNow !== undefined || r.offeredNext !== undefined) out[rowSchedule(currentTerm, r).freshness] += 1;
+  /** Rows the page leaves OFF the schedule cards although their sheet cells
+   * say a course is offered, by the reason. Only `yes` cells count (review
+   * B-9, 2026-09-18): a row that says "no" is not being withheld, and a
+   * retired row is left out by `active`, which the note names separately. */
+  const freshnessCounts = (): Record<RowFreshness, number> & { retired: number } => {
+    const out = { current: 0, ahead: 0, stale: 0, undated: 0, retired: 0 };
+    for (const r of rows) {
+      if (r.offeredNow !== true && r.offeredNext !== true) continue;
+      if (!r.active) {
+        out.retired += 1;
+        continue;
+      }
+      out[rowSchedule(currentTerm, r).freshness] += 1;
+    }
     return out;
   };
 
@@ -238,10 +285,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     return allGroupCodes.filter((g) => listed.includes(g));
   };
   const categoryLabel = (r: RuleCourse): string => {
-    if (r.categoryIneligible) return 'Not eligible';
+    // Spelt out: in a column headed "Specialization" the two words alone
+    // were read as "not eligible for credit" (review R-17, 2026-09-18).
+    if (r.categoryIneligible) return 'No specialization category';
     const groups = groupsOf(r);
     if (groups.length === 0) return '—';
-    if (groups.length === allGroupCodes.length) return 'Any one category (student picks)';
+    // The self-check tool assigns a course listed under every group itself,
+    // to cover as many distinct groups as possible, and says so — it does not
+    // ask the student to choose (review B-25, 2026-09-18).
+    if (groups.length === allGroupCodes.length) return 'Any one category';
     const names = groups.map((g) => groupName.get(g) ?? g);
     // Several groups: the student picks one of THESE (2026-09-08).
     return names.length === 1 ? names[0]! : `${names.join(' or ')} (student picks one)`;
@@ -321,16 +373,21 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           return r.courseId;
       }
     };
-    list = list.sort((a, b) => {
-      const ka = key(a);
-      const kb = key(b);
-      if (ka === undefined || kb === undefined) {
-        if (ka !== kb) return ka === undefined ? 1 : -1; // blanks last, in both directions
-      } else if (ka !== kb) return ka.localeCompare(kb);
-      return a.courseId.localeCompare(b.courseId);
-    });
-    if (filters.desc) list.reverse();
-    return list;
+    // Blanks last in BOTH directions, which is what this comment claimed and
+    // the code did not: `reverse()` at the end turned the blank rows into the
+    // first thing a reader saw when they pressed a column a second time
+    // (review B-8, 2026-09-18). Sorting the filled rows in the chosen
+    // direction and then appending the blanks keeps "nothing recorded here" at
+    // the end, where it belongs, whichever way the column is sorted.
+    const dir = filters.desc ? -1 : 1;
+    const filled = list.filter((r) => key(r) !== undefined);
+    const blanks = list.filter((r) => key(r) === undefined);
+    const byKey = (a: RuleCourse, b: RuleCourse): number => {
+      const ka = key(a)!;
+      const kb = key(b)!;
+      return ka !== kb ? dir * ka.localeCompare(kb) : dir * a.courseId.localeCompare(b.courseId);
+    };
+    return [...filled.sort(byKey), ...blanks.sort((a, b) => dir * a.courseId.localeCompare(b.courseId))];
   }
 
   // ---------- page pieces ----------
@@ -393,8 +450,28 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       out.push(
         el(
           'div',
-          { class: 'banner' },
-          `You chose to continue with the copy of the rules saved on ${rules.syncedAt.slice(0, 10)} because the live spreadsheet could not be loaded — recent DGS edits may be missing. Reload the page to try the live spreadsheet again.`,
+          { class: 'banner snapshot' },
+          // Notre Dame's calendar date, the same spelling the loading card's
+          // button and the masthead use — it was the UTC slice here (R-22).
+          `You chose to continue with the copy of the rules saved on ${ndDateOnly(rules.syncedAt)} because the live spreadsheet could not be loaded — recent DGS edits may be missing. Reload the page to try the live spreadsheet again.`,
+        ),
+      );
+    }
+    // Every date on this page — the semester the cards name, the tags, "up-to-date
+    // as of" — is computed from one instant. The loading card says where that
+    // instant came from and is then wiped by the render, so a page built on a
+    // wrong device clock looked exactly like a correct one (review R-6,
+    // 2026-09-18). The banner appears only in the fallback cases.
+    if (today.source === 'device' || !today.zoneOk) {
+      out.push(
+        el(
+          'div',
+          { class: 'banner clock', role: 'note' },
+          el('strong', {}, 'Today’s date came from this device. '),
+          !today.zoneOk
+            ? 'This browser does not know Notre Dame’s time zone, so this device’s own calendar was used. '
+            : 'This site’s own server did not answer when the page asked what time it is, so this device’s clock was used. ',
+          `The page is reading today as ${formatYmdLong(todayIso.slice(0, 10)) ?? todayIso.slice(0, 10)}. If that is wrong, the semester named on the schedule cards is wrong too — check the device’s date and reload.`,
         ),
       );
     }
@@ -456,7 +533,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                   'th',
                   { scope: 'row', class: 'course-id' },
                   withCourseCard(el('a', { href: `#${r.courseId.replace(' ', '-')}` }, r.courseId), r),
-                  r.dgsReviewed ? '' : ' *',
+                  // Named, not an asterisk whose footnote no longer exists (R-10).
+                  r.dgsReviewed ? '' : el('span', { class: 'pill small pending', title: 'The DGS has not yet confirmed this row' }, 'Pending'),
                 ),
                 el('td', { class: 'cell-title', 'data-label': 'Title' }, r.title),
                 el('td', { 'data-label': 'Type' }, TYPE_LABEL[r.courseType]),
@@ -478,15 +556,27 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // explicitly "the rule in effect this term", but a card headed Spring
       // 2027 must not print Fall 2026's credit rules (2026-09-09).
       const items = live.filter((r) => offered(r) === true).map((r) => resolveRuleRow(rules, r.courseId, term) ?? r);
+      // How many rows actually answered for this semester. One row saying "no"
+      // used to turn the card into the flat "No course is listed for Spring
+      // 2027", which reads as a published, empty schedule (review R-9).
+      const answered = rows.filter((r) => offered(r) !== undefined).length;
       return el(
         'div',
         { class: 'ov-card' },
         el('h3', {}, heading),
         !said
-          ? el('p', { class: 'muted small' }, 'Not released yet.')
+          ? // Not the registrar's doing: the sheet has not been filled in for
+            // this semester yet (review R-14).
+            el('p', { class: 'muted small' }, `The rules sheet does not list ${termLabel(term)} yet.`)
           : items.length === 0
             ? // Named, not "this semester": the string is shared by both cards.
-              el('span', { class: 'muted' }, `No course is listed for ${termLabel(term)}.`)
+              el(
+                'span',
+                { class: 'muted' },
+                answered < 5
+                  ? `Only ${answered} course${answered === 1 ? ' has' : 's have'} been marked for ${termLabel(term)} so far, and ${answered === 1 ? 'it is' : 'none of them are'} being offered. The rest of the semester is not on the sheet yet.`
+                  : `No course is listed for ${termLabel(term)}.`,
+              )
             : miniTable(items, heading, which),
       );
     };
@@ -498,18 +588,29 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'div',
         { class: 'ov-grid two' },
-        card(`Offered this semester — ${termLabel(thisTeachingTerm)}`, thisTeachingTerm, offeredIn('this'), 'this'),
-        card(`Offered next semester — ${termLabel(nextTeachingTerm)}`, nextTeachingTerm, offeredIn('next'), 'next'),
+        card(`Offered ${thisSemesterPhrase} — ${termLabel(thisTeachingTerm)}`, thisTeachingTerm, offeredIn('this'), 'this'),
+        card(`Offered ${nextSemesterPhrase} — ${termLabel(nextTeachingTerm)}`, nextTeachingTerm, offeredIn('next'), 'next'),
       ),
-      // What was left out and why (2026-09-14): rows whose `last_offered` is
-      // older than last semester, or unreadable, say nothing here — the page
-      // names how many, so a DGS sees a stale schedule instead of a quiet one.
+      // What was left out and why. Each clause counts rows whose cells say a
+      // course IS offered and which the page still does not show, with the
+      // reason — so a DGS reading their own page sees a schedule that needs an
+      // edit instead of a quiet one (2026-09-14; rewritten 2026-09-18 for the
+      // DGS's ruling that `last_offered` is the last term a course ran).
       ...(() => {
         const n = freshnessCounts();
+        const s = (k: number) => (k === 1 ? '' : 's');
+        const is = (k: number) => (k === 1 ? 'is' : 'are');
         const parts: string[] = [];
-        if (n['one-behind'] > 0) parts.push(`${n['one-behind']} course${n['one-behind'] === 1 ? ' was' : 's were'} last updated for ${termLabel(afterTeachingTermBack(thisTeachingTerm))}: what ${n['one-behind'] === 1 ? 'it' : 'they'} recorded as the following semester is shown as this one, and nothing is known about ${termLabel(nextTeachingTerm)} for ${n['one-behind'] === 1 ? 'it' : 'them'}`);
-        if (n.stale > 0) parts.push(`${n.stale} course${n.stale === 1 ? '' : 's'} marked as offered ${n.stale === 1 ? 'was' : 'were'} last updated more than one semester ago (the Courses tab’s last_offered) and ${n.stale === 1 ? 'is' : 'are'} not shown rather than named as though current`);
-        if (n.undated > 0) parts.push(`${n.undated} course${n.undated === 1 ? '' : 's'} marked as offered ${n.undated === 1 ? 'has' : 'have'} no readable last_offered and ${n.undated === 1 ? 'is' : 'are'} not shown`);
+        if (n.stale > 0)
+          parts.push(
+            `${n.stale} course${s(n.stale)} marked as offered ${is(n.stale)} dated to an earlier semester in the Courses tab’s last_offered, so the two cells describe a schedule that has passed and ${is(n.stale)} not shown`,
+          );
+        if (n.ahead > 0)
+          parts.push(
+            `${n.ahead} course${s(n.ahead)} marked as offered ${is(n.ahead)} dated ahead of ${termLabel(thisTeachingTerm)} in last_offered — a course cannot last have been offered in a semester that has not happened — and ${is(n.ahead)} not shown`,
+          );
+        if (n.undated > 0) parts.push(`${n.undated} course${s(n.undated)} marked as offered ${n.undated === 1 ? 'has' : 'have'} no readable last_offered and ${is(n.undated)} not shown`);
+        if (n.retired > 0) parts.push(`${n.retired} course${s(n.retired)} marked as offered ${is(n.retired)} also marked retired (active = no) and ${is(n.retired)} not shown`);
         return parts.length > 0 ? [el('p', { class: 'muted small' }, parts.join('. ') + '.', ...reportToDgs(' Please tell'))] : [];
       })(),
       // (The "* Pending DGS confirmation" footnote was removed at the DGS's request, 2026-09-16.)
@@ -517,28 +618,61 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   }
 
   function overview(): HTMLElement {
-    const live = rows.filter((r) => r.active);
     const item = (r: RuleCourse): HTMLElement =>
       withCourseCard(
         el(
           'a',
           // Offered this semester or next → the course's row on the schedule
-          // card; otherwise its row in All courses (DGS 2026-09-17).
-          { class: `ov-item${r.dgsReviewed ? '' : ' pending'}`, href: offeredIn('this')(r) === true ? `#sched-this-${r.courseId.replace(' ', '-')}` : offeredIn('next')(r) === true ? `#sched-next-${r.courseId.replace(' ', '-')}` : `#${r.courseId.replace(' ', '-')}` },
-          el('span', { class: 'cid' }, r.courseId, r.dgsReviewed ? '' : ' *'),
+          // card; otherwise its row in All courses (DGS 2026-09-17). A retired
+          // course is never on a schedule card, and its All-courses row exists
+          // only while "Include retired courses" is ticked, so its link says so
+          // rather than pointing at a row that is not there (review B-10).
+          {
+            class: `ov-item${r.dgsReviewed ? '' : ' pending'}${r.active ? '' : ' is-retired'}`,
+            href: !r.active
+              ? `?retired=1#${r.courseId.replace(' ', '-')}`
+              : offeredIn('this')(r) === true
+                ? `#sched-this-${r.courseId.replace(' ', '-')}`
+                : offeredIn('next')(r) === true
+                  ? `#sched-next-${r.courseId.replace(' ', '-')}`
+                  : `#${r.courseId.replace(' ', '-')}`,
+          },
+          el('span', { class: 'cid' }, r.courseId),
           el('span', { class: 'ctitle' }, r.title),
+          // A bare asterisk meant nothing here: the footnote explaining it was
+          // removed on 2026-09-16 and the mark stayed (review R-10). The pill
+          // says what it is, and matches the table's own Pending pill.
+          ...(r.dgsReviewed ? [] : [el('span', { class: 'pill small pending', title: 'The DGS has not yet confirmed this row' }, 'Pending')]),
           // The live schedule, as two small tags (DGS 2026-09-17): this
           // semester in green, next semester in blue; nothing when not offered.
-          ...(offeredIn('this')(r) === true ? [el('span', { class: 'pill small sched-now', title: `Offered ${termLabel(thisTeachingTerm)}` }, termShortLabel(thisTeachingTerm))] : []),
-          ...(offeredIn('next')(r) === true ? [el('span', { class: 'pill small sched-next', title: `Offered ${termLabel(nextTeachingTerm)}` }, termShortLabel(nextTeachingTerm))] : []),
+          // The visible text is a short term ("Fall ’26"); the word "Offered"
+          // is carried for screen readers and for touch, which has no hover to
+          // reveal the title (review B-18, 2026-09-18).
+          ...(offeredIn('this')(r) === true
+            ? [el('span', { class: 'pill small sched-now', title: `Offered ${termLabel(thisTeachingTerm)}` }, el('span', { class: 'visually-hidden' }, 'Offered '), termShortLabel(thisTeachingTerm))]
+            : []),
+          ...(offeredIn('next')(r) === true
+            ? [el('span', { class: 'pill small sched-next', title: `Offered ${termLabel(nextTeachingTerm)}` }, el('span', { class: 'visually-hidden' }, 'Offered '), termShortLabel(nextTeachingTerm))]
+            : []),
+          // A retired course still counts for the students who took it (DGS
+          // 2026-09-18), so it is listed here — marked, so nobody plans to
+          // take it.
+          ...(r.active ? [] : [el('span', { class: 'pill small retired' }, 'Retired')]),
         ),
         r,
       );
+    /** The courses in one §4.4.1 area or §4.4.2 group.
+     *
+     * Retired courses are IN the cards since 2026-09-18 (DGS: "a retired
+     * course may belong in qualifying-exam cards if indeed listed"). They were
+     * hidden until then, which cost a student the fact that a course they had
+     * already passed satisfies the area — the audit engine has always counted
+     * it — and let a card read "No course assigned yet" while the sheet listed
+     * one (review B-3). Live courses first, then the retired ones. */
     const listFor = (pick: (r: RuleCourse) => boolean): HTMLElement => {
-      const items = live.filter(pick);
-      return items.length === 0
-        ? el('span', { class: 'muted' }, 'No course assigned yet.')
-        : el('div', { class: 'ov-list' }, ...items.map(item));
+      const matches = rows.filter(pick);
+      const items = [...matches.filter((r) => r.active), ...matches.filter((r) => !r.active)];
+      return items.length === 0 ? el('span', { class: 'muted' }, 'No course assigned yet.') : el('div', { class: 'ov-list' }, ...items.map(item));
     };
     const coreCards = rules.coreAreas.map((c) =>
       el('div', { class: 'ov-card' }, el('h3', {}, c.name), listFor((r) => r.coreArea === c.code)),
@@ -553,9 +687,24 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'section',
       { class: 'overview' },
       el('h2', {}, 'Ph.D. Qualifying Examination courses ', el('span', { class: 'cite' }, '§4.4')),
-      ...(rows.some((r) => offeredIn('this')(r) === true || offeredIn('next')(r) === true)
-        ? [el('p', { class: 'muted small sched-key' }, el('span', { class: 'pill small sched-now' }, termShortLabel(thisTeachingTerm)), ' offered this semester · ', el('span', { class: 'pill small sched-next' }, termShortLabel(nextTeachingTerm)), ' offered next semester')]
-        : []),
+      // The key names only the markers a reader can actually meet below
+      // (review R-8, 2026-09-18). It used to print both whenever EITHER
+      // semester had a tag, so with next semester's schedule unpublished — the
+      // state of the live sheet — it promised a "Spring ’27" marker that
+      // appeared on no course, which reads as "none of these run next spring".
+      ...(() => {
+        const anyNow = rows.some((r) => offeredIn('this')(r) === true);
+        const anyNext = rows.some((r) => offeredIn('next')(r) === true);
+        if (!anyNow && !anyNext) return [];
+        const bits: (string | Node)[] = [];
+        if (anyNow) bits.push(el('span', { class: 'pill small sched-now' }, termShortLabel(thisTeachingTerm)), ` offered ${thisSemesterPhrase}`);
+        if (anyNow && anyNext) bits.push(' · ');
+        if (anyNext) bits.push(el('span', { class: 'pill small sched-next' }, termShortLabel(nextTeachingTerm)), ` offered ${nextSemesterPhrase}`);
+        // Without the second half, say why it is missing rather than leaving
+        // its absence to be read as "nothing runs next semester".
+        if (anyNow && !anyNext) bits.push(`. ${termLabel(nextTeachingTerm)} is not on the sheet yet.`);
+        return [el('p', { class: 'muted small sched-key' }, ...bits)];
+      })(),
       el(
         'p',
         { class: 'muted' },
@@ -585,7 +734,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         { class: 'muted' },
         `${catRule.charAt(0).toUpperCase()}${catRule.slice(1)} (§4.4.2). A course may be listed under more than one category, and it then appears in each of their cards below — but it can fill only `,
         el('strong', {}, 'one'),
-        ' of them, never several. The student chooses which one when they enter the course in the ',
+        ' of them, never several. Which one is settled when the course is entered in the ',
         el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
         '.',
       ),
@@ -618,7 +767,19 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       popRow('Typically offered', offeredLabel(r)),
       popRow('DGS reviewed', r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending')),
     );
+    // What this row cannot say for itself: that the course has more than one
+    // rule version and which one is on screen, and that a retired course is
+    // still recognized. The sentence has existed since 2026-09-09 and was
+    // shown nowhere — `hoverText` lost its last call site in commit 2c18c8e,
+    // so a course whose rules change next term read "Yes" in the table while
+    // the Spring card read "No", with nothing to explain the difference
+    // (review B-1, 2026-09-18).
+    const note = hoverText(r);
+    if (note) hoverCard.append(el('p', { class: 'pop-note' }, note));
   };
+  /** The course the card is currently describing, so it can be re-placed when
+   * the page scrolls under it. */
+  let cardAnchor: HTMLElement | undefined;
   const placeCard = (anchor: HTMLElement): void => {
     const box = anchor.getBoundingClientRect();
     hoverCard.hidden = false;
@@ -633,22 +794,73 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const hideCard = (): void => {
     hoverCard.hidden = true;
     hoverCard.style.top = '-9999px';
+    cardAnchor = undefined;
   };
+  // The close that waits for a pointer travelling toward the card, and the two
+  // listeners that cancel it — on the card, once, not once per course link.
+  let leaveTimer: ReturnType<typeof setTimeout> | undefined;
+  const cancelHide = (): void => clearTimeout(leaveTimer);
+  const hideSoon = (hide: () => void): void => {
+    cancelHide();
+    leaveTimer = setTimeout(hide, 160);
+  };
+  hoverCard.addEventListener('mouseenter', cancelHide);
+  hoverCard.addEventListener('mouseleave', hideCard);
+  // Dismissable without moving the pointer or the focus (WCAG 1.4.13): Escape
+  // closes the card and leaves focus on the course link, so a keyboard reader
+  // can read the page under it and carry on tabbing from where they were.
+  document.addEventListener('keydown', (ev) => {
+    if ((ev as KeyboardEvent).key === 'Escape' && !hoverCard.hidden) {
+      cancelHide();
+      (document.activeElement as HTMLElement | null)?.removeAttribute('aria-describedby');
+      hideCard();
+    }
+  });
+  // A card placed against the viewport must follow the page under it.
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!hoverCard.hidden && cardAnchor) placeCard(cardAnchor);
+    },
+    { passive: true },
+  );
   /** Wire one course link to the card. Pointer AND keyboard, so tabbing
-   * through the cards shows the same thing a mouse does. */
+   * through the cards shows the same thing a mouse does.
+   *
+   * WCAG 2.1 SC 1.4.13 asks that content shown on hover or focus be
+   * dismissable without moving the pointer or the focus, and that the pointer
+   * be able to travel onto it. Neither held until 2026-09-18 (review B-5):
+   * Escape did nothing, and the 8 px gap plus `pointer-events: none` meant the
+   * card vanished the moment the pointer set out for it. The card now closes
+   * on Escape with focus left where it was, and survives a pointer that
+   * reaches it. */
   const withCourseCard = (anchor: HTMLElement, r: RuleCourse): HTMLElement => {
     const show = () => {
       fillCard(r);
+      cardAnchor = anchor;
       placeCard(anchor);
+      // Focus scrolls the link into view AFTER this handler runs, so a card
+      // placed now sits where the link used to be — off screen when Tab
+      // reaches a course below the fold (review B-6). One frame later the
+      // scrolling is done and the measurement is the real one.
+      requestAnimationFrame(() => {
+        if (!hoverCard.hidden && cardAnchor === anchor) placeCard(anchor);
+      });
       anchor.setAttribute('aria-describedby', 'course-pop');
     };
     const hide = () => {
       hideCard();
       anchor.removeAttribute('aria-describedby');
     };
-    anchor.addEventListener('mouseenter', show);
+    // A pointer that leaves the link may be on its way to the card (1.4.13),
+    // so the close waits a moment; the card's own listeners — registered once,
+    // below — cancel it.
+    anchor.addEventListener('mouseenter', () => {
+      cancelHide();
+      show();
+    });
     anchor.addEventListener('focus', show);
-    anchor.addEventListener('mouseleave', hide);
+    anchor.addEventListener('mouseleave', () => hideSoon(hide));
     anchor.addEventListener('blur', hide);
     return anchor;
   };
@@ -662,7 +874,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const defaultFilters = (): Filters => ({ ...DEFAULTS });
   const filtersActive = (): boolean => {
     const d = defaultFilters();
-    return (['query', 'program', 'core', 'category', 'type', 'offered', 'includeRetired', 'confirmedOnly', 'view'] as const).some((k) => filters[k] !== d[k]);
+    // The query counts only once it has a non-space character in it, so a
+    // search box holding two spaces does not claim to be filtering (B-15).
+    if (filters.query.trim() !== d.query.trim()) return true;
+    return (['program', 'core', 'category', 'type', 'offered', 'includeRetired', 'confirmedOnly', 'view'] as const).some((k) => filters[k] !== d[k]);
   };
   const filterHost = el('div', { class: 'filter-host' });
   let clearButton: HTMLElement | undefined;
@@ -698,6 +913,18 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'data-key': 'filter.program',
       onchange: (e) => {
         filters.program = (e.target as HTMLSelectElement).value as Filters['program'];
+        // Choosing the other degree here while a degree VIEW is showing would
+        // leave the status line naming one degree over the other degree's list
+        // with its column hidden (review B-11): the view follows the choice,
+        // and the bar is rebuilt so both controls read the same.
+        if ((filters.view === 'mscse' || filters.view === 'phd') && filters.program !== 'all' && filters.program !== filters.view) {
+          filters.view = filters.program;
+          clear(filterHost);
+          filterHost.append(filterBar());
+          refreshTable();
+          filterHost.querySelector<HTMLElement>('[data-key="filter.program"]')?.focus();
+          return;
+        }
         refreshTable();
       },
     });
@@ -745,8 +972,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     });
     offered.append(option('', 'Any semester', filters.offered === ''));
     // Only a semester the sheet has actually recorded is offered as a choice.
-    if (rows.some((r) => offeredIn('this')(r) !== undefined)) offered.append(option('now', `Offered this semester (${termLabel(thisTeachingTerm)})`, filters.offered === 'now'));
-    if (rows.some((r) => offeredIn('next')(r) !== undefined)) offered.append(option('next', `Offered next semester (${termLabel(nextTeachingTerm)})`, filters.offered === 'next'));
+    if (rows.some((r) => offeredIn('this')(r) !== undefined)) offered.append(option('now', `Offered ${thisSemesterPhrase} (${termLabel(thisTeachingTerm)})`, filters.offered === 'now'));
+    if (rows.some((r) => offeredIn('next')(r) !== undefined)) offered.append(option('next', `Offered ${nextSemesterPhrase} (${termLabel(nextTeachingTerm)})`, filters.offered === 'next'));
     const retired = el('input', {
       type: 'checkbox',
       'data-key': 'filter.retired',
@@ -905,6 +1132,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     // as "this course does not count" — the opposite of the project's rule
     // never to guess (2026-09-08).
     if (list.length === 0) {
+      // Three separate things a reader can be looking at, and the old single
+      // sentence answered only one of them (review B-20, 2026-09-18): a typo
+      // was told the course "has not been decided by the DGS", and a course
+      // hidden by the retired switch was described as undecided too.
       body.append(
         el(
           'tr',
@@ -913,15 +1144,18 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
             'td',
             { colspan: '9' },
             el('strong', {}, 'No course here matches these filters. '),
-            'A course that is not listed on this page has not been decided by the DGS — do not read its absence as “does not count”. ',
-            'The degree self-check tool prepares the review request that asks for a decision.',
+            ...(filters.query.trim() ? ['Check the spelling of “', filters.query.trim(), '” first — the search matches a course number or a word in the title. '] : []),
+            ...(!filters.includeRetired ? ['Retired courses are hidden until “Include retired courses” is ticked. '] : []),
+            'If the course is not on this page at all, the DGS has not ruled on it yet; that is not the same as “does not count”, and the degree self-check tool prepares the review request that asks for a ruling.',
           ),
         ),
       );
     }
     for (const r of list) {
       const pillCounts = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
-      const catClass = groupsOf(r).length === 0 ? 'muted' : '';
+      // "Not eligible" is a ruling, not a blank: it is printed in full ink on
+      // the schedule cards and was greyed out here (review B-14).
+      const catClass = groupsOf(r).length === 0 && !r.categoryIneligible ? 'muted' : '';
       const rowId = r.courseId.replace(' ', '-');
       body.append(
         el(
@@ -958,7 +1192,22 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     // read "m.s. (mscse)", found live 2026-09-06); its first letter is lowered
     // to sit inside the sentence.
     const viewLabel = VIEW_LABEL[filters.view];
-    countLine.textContent = `${list.length} of ${shown} courses shown.${filtersActive() ? ' Filters are active.' : ''}${filters.view !== 'all' ? ` View: ${viewLabel.charAt(0).toLowerCase()}${viewLabel.slice(1)}.` : ''}`;
+    // WHICH filters are active, not just that some are. On screen it saves a
+    // look up at the bar; on paper it is the only way to tell what the sheet
+    // of 18 courses in your hand is a list OF (review B-19, 2026-09-18).
+    const active: string[] = [];
+    if (filters.query.trim()) active.push(`search “${filters.query.trim()}”`);
+    if (filters.program !== 'all') active.push(filters.program === 'mscse' ? 'counts toward the MSCSE' : 'counts toward the Ph.D.');
+    if (filters.core) active.push(`core knowledge: ${coreName.get(filters.core) ?? filters.core}`);
+    if (filters.category) active.push(`specialization: ${groupName.get(filters.category) ?? filters.category}`);
+    if (filters.type) active.push(`type: ${TYPE_LABEL[filters.type as CourseType]}`);
+    if (filters.offered === 'now') active.push(`on the schedule for ${termLabel(thisTeachingTerm)}`);
+    if (filters.offered === 'next') active.push(`on the schedule for ${termLabel(nextTeachingTerm)}`);
+    if (filters.includeRetired) active.push('retired courses included');
+    if (filters.confirmedOnly) active.push('DGS-confirmed rows only');
+    // "…toward the Ph.D.." — the label ends in its own full stop, so do not add a second.
+    const viewSentence = filters.view === 'all' ? '' : ` View: ${viewLabel.charAt(0).toLowerCase()}${viewLabel.slice(1)}${viewLabel.endsWith('.') ? '' : '.'}`;
+    countLine.textContent = `${list.length} of ${shown} courses shown.${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
     return el(
       'div',
       {},
@@ -993,7 +1242,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el('span', { class: 'pill approval' }, 'With DGS approval'),
       ' / ',
       el('span', { class: 'pill approval-adgs' }, 'With ADGS approval'),
-      ' counts only with the advisor’s approval and the named reviewer’s · ',
+      ' counts once the advisor and the named reviewer approve it · ',
       el('span', { class: 'pill no' }, 'No'),
       ' does not count · ',
       el('span', { class: 'pill undecided' }, 'Not yet decided'),
@@ -1007,15 +1256,36 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'ul',
         {},
-        li(el('strong', {}, 'Type'), 'only regular courses count toward the 24 regular-course credits (§3.2, §4.2); seminars, research, independent study and project credits count toward the total only.'),
+        // "the total only" was not true of either degree (review B-24,
+        // 2026-09-18): §3.2 requires six credits of CSE 68901/68902 for the
+        // MSCSE and §4.2 requires the two research-seminar credits, so those
+        // are required credits of their own kind, not filler.
+        li(
+          el('strong', {}, 'Type'),
+          'only regular courses count toward the regular-course credits (§3.2, §4.2). Seminar, research, independent-study and project credits count toward the degree total instead — and some of them are required in their own right: the M.S. project or thesis credits (§3.2) and the first-year research seminars (§4.2).',
+        ),
         li(el('span', { class: 'pill yes' }, 'Yes'), 'counts toward that degree.'),
-        li(el('span', {}, el('span', { class: 'pill approval' }, 'With DGS approval'), ' / ', el('span', { class: 'pill approval' }, 'With ADGS approval')), 'counts only with the advisor’s approval and the named reviewer’s — the sheet says who, course by course (for example CSE courses below the 60000 level, which share one 6-credit cap however many the DGS approves).'),
+        // Two reviewers, two colours (DGS 2026-09-16) — and the ADGS pill here
+        // was painted in the DGS blue until 2026-09-18 (review B-13), so the
+        // one place that explains the colours was the one place they did not
+        // hold. Both come from COUNTS_CLASS now, which cannot drift again.
+        li(
+          el('span', {}, el('span', { class: `pill ${COUNTS_CLASS.dgs_approval}` }, COUNTS_LABEL.dgs_approval), ' / ', el('span', { class: `pill ${COUNTS_CLASS.adgs_approval}` }, COUNTS_LABEL.adgs_approval)),
+          'counts once the advisor approves it and the named reviewer does — the sheet says which of the two, course by course (for example CSE courses below the 60000 level, which share one 6-credit cap however many are approved).',
+        ),
         li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
         li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'no ruling on this course yet; ask the ADGS (MSCSE) or the DGS (Ph.D.) before relying on it.'),
-        li(el('strong', {}, 'Core knowledge'), 'a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area (Operating Systems, Algorithms, Computer Architecture) the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.'),
+        // The three area names come from the Categories tab, like the cards,
+        // the filter and the cells — they were a string literal here until
+        // 2026-09-18 (review B-35), so any edit to that tab left this sentence
+        // contradicting the rest of the page.
+        li(
+          el('strong', {}, 'Core knowledge'),
+          `a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area ${rules.coreAreas.length > 0 ? `(${rules.coreAreas.map((c) => c.name).join(', ')})` : '(none listed in the rules sheet yet)'} the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.`,
+        ),
         li(
           el('strong', {}, 'Specialization'),
-          `the other course-based Qualifying Examination requirement (§4.4.2): ${catRule}. A course listed under more than one category can fill only one of them. "Not eligible" marks courses that can never satisfy it. Ph.D. students only — not part of any MSCSE requirement.`,
+          `the other course-based Qualifying Examination requirement (§4.4.2): ${catRule}. A course listed under more than one category can fill only one of them. "No specialization category" marks courses that can never satisfy it — it says nothing about degree credit, which the two credit columns answer. Ph.D. students only — not part of any MSCSE requirement.`,
         ),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
         ...(scheduleKnown
@@ -1103,5 +1373,41 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   if (embedded) {
     startAnchorScrollRelay(root); // #CSE-60641 links, in a frame that cannot scroll
     notifyEmbedHeight();
+  }
+  // A link an advisor sent — courses.html#CSE-60641, or #sched-this-CSE-60641
+  // from the qualifier cards — is resolved by the browser while this page is
+  // still the loading card, so by the time the row exists the fragment has
+  // been forgotten and the reader lands on the masthead. Reproduced cold in a
+  // fresh browser; a second visit worked, which is why it went unnoticed
+  // (review B-7, 2026-09-18). Re-applying it here costs nothing when there is
+  // no fragment.
+  {
+    let done = false;
+    const applyHash = (): void => {
+      if (done) return;
+      let id = '';
+      try {
+        id = decodeURIComponent(window.location.hash.slice(1));
+      } catch {
+        id = window.location.hash.slice(1);
+      }
+      if (!id) {
+        done = true;
+        return;
+      }
+      const target = document.getElementById(id);
+      if (!target) return; // nothing by that name — a stale link, nothing to do
+      done = true;
+      if (embedded) postScrollTo(target); // the frame cannot scroll itself
+      else target.scrollIntoView({ block: 'start' });
+      // `:target` styling follows the address, which has not changed, so the
+      // row carries its own class to be highlighted the same way.
+      target.classList.add('deep-linked');
+    };
+    // Both clocks, as the height broadcast does (embed.ts): a frame callback
+    // is the right moment when the page is on screen, and does not run at all
+    // in a background tab or a throttled headless browser.
+    requestAnimationFrame(applyHash);
+    setTimeout(applyHash, 120);
   }
 }

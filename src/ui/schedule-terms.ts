@@ -35,7 +35,7 @@ function compareTeaching(a: Term, b: Term): number {
   return seq(a) - seq(b);
 }
 
-export type RowFreshness = 'current' | 'one-behind' | 'stale' | 'undated';
+export type RowFreshness = 'current' | 'ahead' | 'stale' | 'undated';
 
 export interface RowSchedule {
   /** What the row says about THIS semester's card: true/false as recorded,
@@ -47,24 +47,40 @@ export interface RowSchedule {
 }
 
 /** What one row may say about the two cards, given today and the row's
- * `last_offered`. `current`: last_offered is this teaching semester or later
- * (the DGS updated the row for this schedule), so both columns are read as
- * written. `one-behind`: last_offered is the semester before, so what the row
- * recorded as NEXT is this semester and nothing is known about the one after.
- * `stale` / `undated`: nothing may be shown — the page never guesses which
- * semester a yes belongs to, exactly as it never guesses a requirement. */
+ * `last_offered`.
+ *
+ * The DGS settled what the column means on 2026-09-18: **the last term this
+ * course was actually offered**. That single sentence decides this function.
+ * A course running this semester was, by definition, last offered this
+ * semester — so `last_offered` naming this semester is the DGS saying "these
+ * two cells describe the schedule I am looking at now", and both are read as
+ * written (`current`).
+ *
+ * Everything else says nothing about today:
+ *   `stale`  — dated an EARLIER semester. The row has not been touched since,
+ *              so its `offered_now` contradicts its own date and its
+ *              `offered_next` names a semester nobody can identify: "next"
+ *              after Spring 2026 is Fall 2026 to the page and Spring 2027 to
+ *              the DGS who wrote it. Until 2026-09-18 this case was shifted
+ *              forward one semester, which printed a green "Fall ’26" tag on a
+ *              spring-only course (review R-1).
+ *   `ahead`   — dated a LATER semester, which the DGS's definition makes
+ *              impossible: a course cannot last have been offered in a term
+ *              that has not happened. Reading such a row as current put its
+ *              `offered_now` under this semester's card and, after the
+ *              rollover, republished both columns a semester forward (R-7).
+ *   `undated` — no readable `last_offered` at all.
+ *
+ * In all three the page shows nothing and says how many rows it left out,
+ * exactly as it never guesses a requirement. */
 export function rowSchedule(today: Term, row: { lastOffered?: Term; offeredNow?: boolean; offeredNext?: boolean }): RowSchedule {
   const thisTerm = teachingTermOf(today);
   if (row.lastOffered === undefined) return { freshness: 'undated' };
-  const dated = teachingTermOf(row.lastOffered);
-  const cmp = compareTeaching(dated, thisTerm);
-  if (cmp >= 0) {
+  const cmp = compareTeaching(teachingTermOf(row.lastOffered), thisTerm);
+  if (cmp === 0) {
     return { freshness: 'current', ...(row.offeredNow !== undefined ? { this: row.offeredNow } : {}), ...(row.offeredNext !== undefined ? { next: row.offeredNext } : {}) };
   }
-  if (compareTeaching(afterTeachingTerm(dated), thisTerm) === 0) {
-    return { freshness: 'one-behind', ...(row.offeredNext !== undefined ? { this: row.offeredNext } : {}) };
-  }
-  return { freshness: 'stale' };
+  return { freshness: cmp > 0 ? 'ahead' : 'stale' };
 }
 
 /** The two cards' semesters for a date. */

@@ -36,7 +36,7 @@ describe('clampEmbedHeight', () => {
 
   it('caps the height, so a layout bug cannot ask for an absurd frame', () => {
     assert.equal(clampEmbedHeight(999_999), MAX_EMBED_HEIGHT);
-    assert.equal(MAX_EMBED_HEIGHT, 100000); // measured: 42,290 px at a 700 px column, 117 courses (2026-09-16)
+    assert.equal(MAX_EMBED_HEIGHT, 250000); // measured: ~96,000 px at a 700 px column with retired courses shown, 321 rows (review R-13, 2026-09-18)
   });
 
   it('says nothing rather than something meaningless', () => {

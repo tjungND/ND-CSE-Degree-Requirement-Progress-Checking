@@ -21,10 +21,32 @@ export interface SiblingLink {
 export const SIBLING_PARAM: Record<SiblingPage, string> = { 'self-check': 'self_check_url', 'course-rules': 'course_rules_url' };
 const RELATIVE: Record<SiblingPage, string> = { 'self-check': './index.html', 'course-rules': './courses.html' };
 
+/** Which hosts this parameter may name: Notre Dame, and nowhere else.
+ *
+ * The parameter exists so the two WordPress pages can link to each other
+ * instead of to the bare app, and those pages are always on an ND host. It
+ * accepted ANY http(s) URL until 2026-09-18 (review R-2), which made an
+ * official-looking page into a one-click hop to anywhere: the three links that
+ * read "degree self-check tool" carried the attacker's address, opened it in
+ * the top window, and the destination was never shown. A host allowlist costs
+ * the real use nothing. */
+export function allowedHostPage(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  // https only (an ND page is), no credentials in the URL — "https://nd.edu@evil.example"
+  // reads as nd.edu to a human and resolves to evil.example.
+  if (u.protocol !== 'https:' || u.username !== '' || u.password !== '') return false;
+  return u.hostname === 'nd.edu' || u.hostname.endsWith('.nd.edu');
+}
+
 /** The link for `page`, given this page's query string (`location.search`). */
 export function siblingLink(page: SiblingPage, search: string): SiblingLink {
   const raw = new URLSearchParams(search).get(SIBLING_PARAM[page])?.trim() ?? '';
-  if (/^https?:\/\/[^\s]+$/i.test(raw)) return { href: raw, target: '_top' };
+  if (allowedHostPage(raw)) return { href: raw, target: '_top' };
   return { href: RELATIVE[page] };
 }
 

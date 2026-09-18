@@ -10,6 +10,7 @@
 // Pure (no fetch, no DOM) so the browser loader, the sync script and the tests
 // share one definition of "same content".
 import type { CsvTexts } from './assemble.ts';
+import { ND_TIME_ZONE, notreDameDate } from './clock.ts';
 import type { RulesDate } from './types.ts';
 
 /** Same sheet content? Line endings and trailing whitespace are ignored so a
@@ -40,10 +41,38 @@ export function dateLiveRules(live: CsvTexts, snapshot: { syncedAt: string; csv:
   return { kind: sameCsvContent(live, snapshot.csv) ? 'known' : 'after', at: snapshot.syncedAt };
 }
 
-/** "September 1, 2026" in the reader's local time zone; undefined for bad input. */
+/** "September 1, 2026" as the calendar reads AT NOTRE DAME; undefined for bad
+ * input.
+ *
+ * The zone matters (review R-22, 2026-09-18): this formats an instant — the
+ * moment the sync last saw the current rules — while everything else the
+ * pages date ("up-to-date as of …", the semester, every deadline) is Notre
+ * Dame's calendar date. Formatted in the reader's own zone the two disagreed
+ * across midnight: a reader in Tokyo at 02:30 UTC read "last updated on
+ * September 17 … and are up-to-date as of September 16", and the 2026-09-08
+ * guard against exactly that contradiction compared a local-zone string with
+ * an ND-zone one and let it through. The sync itself runs at 00:17 UTC, so the
+ * DGS in Indiana met the same mismatch on the snapshots it writes overnight. */
 export function formatDateLong(iso: string | undefined): string | undefined {
   if (!iso) return undefined;
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return undefined;
-  return new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  try {
+    return new Date(t).toLocaleDateString('en-US', { timeZone: ND_TIME_ZONE, year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    // A runtime without the zone database: the device's own calendar, which is
+    // what this function did before the zone was passed at all.
+    return new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+}
+
+/** The same instant as YYYY-MM-DD at Notre Dame — the short spelling the
+ * loading card's button and the saved-copy banner use, so all three places
+ * name one day (review R-22). */
+export function ndDateOnly(iso: string): string {
+  try {
+    return notreDameDate(new Date(iso));
+  } catch {
+    return iso.slice(0, 10);
+  }
 }

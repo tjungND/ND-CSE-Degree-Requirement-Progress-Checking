@@ -75,18 +75,29 @@ least one course carries a value.
 
 **Each row's `last_offered` is what dates them** (since 2026-09-14; until then one Parameters
 stamp, `current_semester`, dated the whole sheet — that key is no longer read and its row may go).
-The current semester comes from Notre Dame's date, so the card headings are always right; what the
-page has to know is whether a row's `offered_now` / `offered_next` were written for that semester:
+`last_offered` means **the last term the course was actually offered** (DGS, 2026-09-18). The
+current semester comes from Notre Dame's date, so the card headings are always right; what the page
+has to know is whether a row's `offered_now` / `offered_next` were written for that semester, and
+the definition answers it: a course running now was last offered now.
 
 | the row's `last_offered` is | what the page shows for that row |
 |---|---|
-| this semester, or later | both columns as recorded |
-| the semester BEFORE this one | what was recorded as "next" becomes "this semester"; nothing for next |
-| older, or not a term | nothing — and the page counts such rows in a "not shown" line |
+| this semester | both columns as recorded |
+| an earlier semester | nothing — the row describes a schedule that has passed, and its "next" names a semester nobody can identify |
+| a later semester | nothing — a course cannot last have been offered in a term that has not happened; check the cell |
+| not a term, or blank | nothing |
 
-So the worst that a late update can do is show less than it could, never something false. Fill the
-three cells together each semester — `offered_now`, `offered_next` and `last_offered` set to the
-semester you are describing — and a stale `yes` can never outlive its date.
+Each of those "nothing" rows is counted, with its reason, in the line under the two cards, so a
+stale schedule is visible rather than quiet. The worst a late update can do is show less than it
+could, never something false. **Fill the three cells together each semester** — set `last_offered`
+to the semester you are describing at the same time as `offered_now` / `offered_next` — and a stale
+`yes` can never outlive its date.
+
+One consequence worth knowing (review R-1, 2026-09-18): a course that does NOT run this semester
+but is already timetabled for the next one cannot be shown on the "next semester" card, because
+its honest `last_offered` is some earlier term and the page has no way to tell a freshly written
+`offered_next` from one left over from last year. If that case matters, the sheet needs a separate
+"schedule last updated" column — a schema change, so ask the DGS first.
 
 Since 2026-09-08 a university whose transcript prints its name only in the letterhead IMAGE can
 still be recognised from an acronym in the text: `NAME_ONLY_IN_IMAGE` in

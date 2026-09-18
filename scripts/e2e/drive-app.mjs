@@ -693,6 +693,82 @@ export async function driveCourses(s, baseUrl) {
     const hover = await s.evalJs(`(() => { const a = document.querySelector('.overview:not(.schedule-overview) a.ov-item'); a.dispatchEvent(new Event('mouseenter')); const t = document.querySelector('#course-pop').textContent; a.dispatchEvent(new Event('mouseleave')); return t; })()`);
     if (/Offered (Fall|Spring) \d{4}/.test(hover)) throw new Error('the hover card must not show the offering status: ' + hover.slice(0, 200));
     console.log('  qualifier cards: links → schedule row when offered (' + (q.offeredHref ?? 'none offered') + '), else All courses; ' + tagged + ' semester tag(s)');
+
+    // The review of 2026-09-18, in the browser. Each of these was a defect the
+    // page shipped with: the key promising a marker no course carries (R-8),
+    // retired courses missing from the cards the engine still counts them for
+    // (B-3), the ADGS pill in the DGS colour inside the column guide (B-13),
+    // the rule-version note written and never shown (B-1), and blanks sorting
+    // to the top when a column is reversed (B-8).
+    const rv = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+      const key = document.querySelector('.sched-key');
+      const cards = [...document.querySelectorAll('.overview:not(.schedule-overview) .ov-card')];
+      const legend = document.querySelector('details.legend');
+      if (legend) legend.open = true;
+      const legendPills = [...document.querySelectorAll('details.legend li .pill')].map((p) => p.textContent.trim() + '=' + p.className);
+      return {
+        keyText: key?.textContent ?? '',
+        keyNowPills: key ? key.querySelectorAll('.sched-now').length : 0,
+        keyNextPills: key ? key.querySelectorAll('.sched-next').length : 0,
+        anyNextTag: document.querySelectorAll('.overview:not(.schedule-overview) .pill.sched-next').length,
+        retiredInCards: document.querySelectorAll('.overview:not(.schedule-overview) a.ov-item .pill.retired').length,
+        emptyCards: cards.filter((c) => /No course assigned yet/.test(c.textContent)).length,
+        adgsInLegend: legendPills.filter((x) => /^With ADGS approval=/.test(x)),
+        // A character class, not a backslash escape: inside this template
+        // literal \* would reach the page as a bare *, i.e. "zero or more spaces".
+        starMarks: (document.querySelector('.overview:not(.schedule-overview)').textContent.match(/ [*]/g) ?? []).length,
+        starContext: (document.querySelector('.overview:not(.schedule-overview)').textContent.match(/.{0,40} [*].{0,10}/g) ?? []).slice(0, 2),
+        citeCursor: getComputedStyle(document.querySelector('.courses-page .cite')).cursor,
+      };
+    })())`));
+    // The key must not advertise a semester with no tags anywhere on the page.
+    if (rv.keyNextPills > 0 && rv.anyNextTag === 0) throw new Error('the key promises a next-semester tag that no course carries: ' + rv.keyText);
+    if (rv.keyNowPills === 0 && rv.keyNextPills === 0 && /offered/.test(rv.keyText)) throw new Error('key line without pills: ' + rv.keyText);
+    if (rv.emptyCards > 0 && rv.retiredInCards === 0) {
+      throw new Error('a qualifier card says "No course assigned yet" while retired courses are hidden — they belong there (DGS 2026-09-18)');
+    }
+    if (rv.adgsInLegend.some((x) => /pill approval(?!-adgs)/.test(x))) throw new Error('the ADGS pill in the column guide is painted with the DGS class: ' + JSON.stringify(rv.adgsInLegend));
+    if (rv.starMarks > 0) throw new Error('the unexplained " *" marker is back in the qualifier cards: ' + JSON.stringify(rv.starContext));
+    if (rv.citeCursor === 'pointer') throw new Error('the § citations on this page are labels, not buttons — they must not offer a hand cursor');
+    console.log('  review 2026-09-18: key ' + JSON.stringify(rv.keyText.slice(0, 64)) + '; retired in cards ' + rv.retiredInCards + '; ADGS pill ' + JSON.stringify(rv.adgsInLegend));
+
+    // Blanks stay at the END when a column is reversed (B-8).
+    const blanks = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+      const read = () => [...document.querySelectorAll('.all-courses tbody tr')].map((tr) => tr.cells[5]?.textContent ?? '');
+      const press = () => document.querySelector('[data-key="sort.core"]').click();
+      press();
+      const asc = read();
+      press();
+      const desc = read();
+      press();
+      return { ascFirst: asc[0], ascLast: asc[asc.length - 1], descFirst: desc[0], descLast: desc[desc.length - 1] };
+    })())`));
+    if (blanks.descFirst === '—') throw new Error('descending sort put the blank rows first: ' + JSON.stringify(blanks));
+    if (blanks.ascFirst === '—') throw new Error('ascending sort put the blank rows first: ' + JSON.stringify(blanks));
+    console.log('  sort: blanks last in both directions (' + blanks.ascFirst + '…' + blanks.ascLast + ' / ' + blanks.descFirst + '…' + blanks.descLast + ')');
+
+    // A link someone was SENT, opened cold — the page has to re-apply the
+    // fragment itself, because the browser resolved it while this page was
+    // still the loading card (B-7).
+    const deep = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('.all-courses tbody tr')].slice(0, 1).map((tr) => tr.id))`));
+    if (deep[0]) {
+      // Leave this document first, so the fragment navigation is a real load —
+      // which is the case that was broken: a link someone was SENT. Opening
+      // `courses.html#x` from `courses.html` is a same-document scroll, and
+      // `:target` handles that one natively.
+      await s.open(baseUrl);
+      await s.open(new URL('courses.html#' + deep[0], baseUrl).href, '.all-courses table.course-rules');
+      // The page re-applies the fragment a frame (or 120 ms) after render, so
+      // wait for the mark rather than racing it.
+      await s.waitFor(`document.querySelector('.deep-linked')`, 5000).catch(() => {});
+      const landed = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+        const t = document.getElementById(${JSON.stringify(deep[0])});
+        return { id: ${JSON.stringify(deep[0])}, scrollY: Math.round(window.scrollY), marked: !!document.querySelector('.deep-linked'), rowExists: !!t, rowTop: t ? Math.round(t.getBoundingClientRect().top + window.scrollY) : null, nav: performance.getEntriesByType('navigation')[0]?.type, href: location.href, rows: document.querySelectorAll('.all-courses tbody tr').length };
+      })())`));
+      if (!landed.marked) throw new Error('a cold deep link did not mark its row: ' + JSON.stringify(landed));
+      console.log('  cold deep link #' + deep[0] + ' → scrollY ' + landed.scrollY + ', row highlighted');
+      await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
+    }
   }
 
   // Two schedule cards (DGS 2026-09-09), which say "Not released yet." while
@@ -718,7 +794,11 @@ export async function driveCourses(s, baseUrl) {
   for (let i = 0; i < 2; i++) {
     // Either the sheet has spoken and the card lists courses (or says none is
     // listed), or it has not and the card says so — never a bare empty card.
-    if (cards.items[i] === 0 && !/Not released yet\.|No course is listed/.test(cards.bodies[i])) {
+    // "Not released yet" became "The rules sheet does not list <term> yet" on
+    // 2026-09-18 (review R-14: the old phrasing blamed the registrar for a
+    // sheet nobody had filled in), and a card with only a handful of answers
+    // says how many rather than "no course is listed" (R-9).
+    if (cards.items[i] === 0 && !/does not list .* yet|No course is listed|marked for .* so far/.test(cards.bodies[i])) {
       throw new Error(`schedule card ${i + 1} is empty without saying why: ${JSON.stringify(cards.bodies[i])}`);
     }
   }
@@ -733,7 +813,7 @@ export async function driveCourses(s, baseUrl) {
     const text = sec.textContent ?? '';
     return { listed: [...sec.querySelectorAll('.ov-card')].some((c) => c.querySelector('tbody tr')), refused: /not shown/.test(text) };
   })())`));
-  if (!dated.listed && !dated.refused && !/Not released yet\./.test(await s.evalJs(`document.querySelector('.schedule-overview').textContent`))) {
+  if (!dated.listed && !dated.refused && !/does not list .* yet/.test(await s.evalJs(`document.querySelector('.schedule-overview').textContent`))) {
     throw new Error('the schedule cards show nothing and give no reason');
   }
 
@@ -761,6 +841,10 @@ export async function driveCourses(s, baseUrl) {
     await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length !== ${before}`);
     const after = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
     if (!(after > 0 && after < before)) throw new Error(`the schedule filter did not narrow the table (${before} → ${after})`);
+    // The address is written on a 250 ms trailing timer since 2026-09-18
+    // (review B-33: Safari throttles history writes and stopped following the
+    // page altogether), so wait for it rather than reading it in the same tick.
+    await s.waitFor(`/offered=now/.test(window.location.search)`, 3000).catch(() => {});
     if (!/offered=now/.test(await s.evalJs(`window.location.search`))) throw new Error('the schedule filter must reach the address bar');
     console.log(`  schedule filter: ${before} → ${after} rows offered this semester, and the URL carries it`);
     await s.evalJs(`document.querySelector('[data-key="filter.clear"]').click()`);
@@ -802,6 +886,7 @@ export async function driveCourses(s, baseUrl) {
   if (shared.view !== 'mscse' || shared.core !== 'algorithms') throw new Error('shared link did not select the view/filters: ' + JSON.stringify(shared));
   if (shared.hiddenHeaders !== 3) throw new Error('the M.S. view should hide 3 columns, hid ' + shared.hiddenHeaders);
   await s.evalJs(`(() => { const q = document.querySelector('[data-key="filter.search"]'); q.value = 'algorithms'; q.dispatchEvent(new Event('input')); })()`);
+  await s.waitFor(`/q=algorithms/.test(window.location.search)`, 3000).catch(() => {});
   const search = await s.evalJs(`window.location.search`);
   if (!/q=algorithms/.test(search) || !/view=mscse/.test(search)) throw new Error('the address bar did not follow the filters: ' + search);
   console.log(`  shared link → view/filters applied (${shared.rows} rows, 3 columns hidden); filters written back to the URL (${search})`);
@@ -928,8 +1013,15 @@ async function driveCoursesEmbed(s, baseUrl) {
       frame.src = 'courses.html?embed=1';
       document.body.append(frame);
       await new Promise((r) => frame.addEventListener('load', r, { once: true }));
-      // Long enough for the load, the rules fetch and the settling sends.
-      await new Promise((r) => setTimeout(r, 4000));
+      // Wait for the framed page to actually render rather than for a fixed
+      // four seconds: the inner page fetches the live sheet from Google, which
+      // occasionally takes longer than that and failed this check for reasons
+      // having nothing to do with what it tests (2026-09-18). Poll up to 25 s,
+      // then give the settling messages a moment of quiet.
+      const deadline = Date.now() + 25000;
+      const rows = () => frame.contentDocument?.querySelectorAll('.all-courses table.course-rules tbody tr').length ?? 0;
+      while (rows() < 10 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 1500));
       const inner = frame.contentDocument;
       const out = { got, framedRows: inner.querySelectorAll('.all-courses table.course-rules tbody tr').length, framedEyebrow: !!inner.querySelector('.masthead .eyebrow') };
       frame.remove();

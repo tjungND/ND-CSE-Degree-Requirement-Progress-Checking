@@ -86,14 +86,16 @@ app skip that row and report it.
 
 `offered_now` and `offered_next` (`yes` / `no` / blank) say whether a course is on the schedule
 this semester and next; the course-rules page turns them into two cards at the top of the page.
-Each row's `last_offered` dates them (since 2026-09-14): a row updated for this semester is read as
-written; one updated last semester has its `offered_next` shown as this semester; anything older is
-left out and counted in a "not shown" line. The current semester comes from Notre Dame's date, not
-from the sheet. **When you fill `offered_now` / `offered_next`, set `last_offered` to the semester
-you are describing** — that is what tells the page the row is current.
+Each row's `last_offered` — the last term the course was actually offered (DGS, 2026-09-18) —
+dates them: a row dated THIS semester is read as written, and a row dated any other semester shows
+nothing and is counted, with the reason, in a "not shown" line under the cards. The current
+semester comes from Notre Dame's date, not from the sheet. **When you fill `offered_now` /
+`offered_next`, set `last_offered` to the same semester in the same edit** — that is what tells the
+page the row is current.
 
 The other columns (`title`, `level`, `credit_min`, `credit_max`, `credits_default`,
-`typically_offered`, `last_offered`) are informational. `credits_default` is what the app
+`typically_offered`) are informational — `last_offered` is not: it dates the two schedule columns,
+as above. `credits_default` is what the app
 pre-fills; leave it blank for variable-credit courses. Full schema: `data/README.md`.
 
 ### A2. Add a new course

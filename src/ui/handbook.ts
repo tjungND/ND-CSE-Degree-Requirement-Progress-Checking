@@ -108,7 +108,15 @@ export function rulesDateLine(
 export function formatYmdLong(ymd: string): string | undefined {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
   if (!m) return undefined;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(year, month - 1, day);
   if (Number.isNaN(d.getTime())) return undefined;
+  // `new Date(2026, 8, 31)` is 1 October, silently — the constructor rolls an
+  // impossible day forward and never returns NaN for integers, so the DGS's
+  // typo "2026-09-31" printed "effective as of October 1, 2026" in the one
+  // sentence the page offers as its date of authority (review R-23,
+  // 2026-09-18). A date that did not survive the round trip is not a date;
+  // `rulesDateLine`'s `?? override` then prints the cell as the sheet wrote it.
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return undefined;
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }

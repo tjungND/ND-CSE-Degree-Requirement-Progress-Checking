@@ -5,9 +5,16 @@
 //
 // The concern this answers, in the DGS's words: if a DGS fails to update the
 // columns on time, "students will see past records, but the titles of the card
-// will be updated according to the page loading time". A row updated for this
-// semester is read as written; one updated last semester has its "next"
-// column read as this semester; anything older, or undated, shows nothing.
+// will be updated according to the page loading time".
+//
+// What `last_offered` MEANS was settled on 2026-09-18 (DGS: "the last time
+// this course was offered"), and that decides the matrix below. A course
+// running this semester was last offered this semester, so a row dated this
+// semester is the DGS describing the schedule now and both columns are read as
+// written. A row dated any other semester — earlier, or a term that has not
+// happened — describes a different schedule, or none, and shows nothing: the
+// one-semester-forward shift this file used to pin printed a green "Fall '26"
+// tag on a spring-only course (review R-1).
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Term } from '../src/engine/types.ts';
@@ -35,12 +42,16 @@ describe('what one row may say about the two cards', () => {
     assert.deepEqual(rowSchedule(fall(2026), row(fall(2026), true, false)), { freshness: 'current', this: true, next: false });
     assert.deepEqual(rowSchedule(fall(2026), row(fall(2026), true)), { freshness: 'current', this: true });
   });
-  it('updated for the semester before: what it recorded as next is this semester, and nothing about the one after', () => {
-    assert.deepEqual(rowSchedule(spring(2027), row(fall(2026), true, true)), { freshness: 'one-behind', this: true });
-    assert.deepEqual(rowSchedule(spring(2027), row(fall(2026), true)), { freshness: 'one-behind' });
+  it('dated the semester before: nothing, because "next" names a semester nobody can identify', () => {
+    // Written in Fall 2026, `offered_next` means Spring 2027 — but read in
+    // Spring 2027 the same cell would be shifted onto Spring 2027 itself, and
+    // a spring-only course marked this way surfaced as a FALL offering.
+    assert.deepEqual(rowSchedule(spring(2027), row(fall(2026), true, true)), { freshness: 'stale' });
+    assert.deepEqual(rowSchedule(spring(2027), row(fall(2026), true)), { freshness: 'stale' });
   });
-  it('dated ahead (the registrar already lists next semester): read as written', () => {
-    assert.deepEqual(rowSchedule(fall(2026), row(spring(2027), true, true)), { freshness: 'current', this: true, next: true });
+  it('dated ahead of today: nothing, because a course cannot last have been offered in the future', () => {
+    assert.deepEqual(rowSchedule(fall(2026), row(spring(2027), true, true)), { freshness: 'ahead' });
+    assert.deepEqual(rowSchedule(fall(2026), row(fall(2027), true)), { freshness: 'ahead' });
   });
   it('two or more semesters old, or undated: nothing, whatever the columns say', () => {
     assert.deepEqual(rowSchedule(fall(2026), row(fall(2025), true, true)), { freshness: 'stale' });
@@ -53,6 +64,11 @@ describe('what one row may say about the two cards', () => {
   });
   it('during the summer the row is read against the coming fall', () => {
     assert.deepEqual(rowSchedule(summer(2026), row(fall(2026), true)), { freshness: 'current', this: true });
-    assert.deepEqual(rowSchedule(summer(2026), row(spring(2026), false, true)), { freshness: 'one-behind', this: true });
+    assert.deepEqual(rowSchedule(summer(2026), row(spring(2026), false, true)), { freshness: 'stale' });
+  });
+  it('the live sheet keeps working: every offered row is dated this semester', () => {
+    // The 42 rows the DGS marks as offered all carry last_offered "Fall 2026",
+    // which is the `current` case — the rule change costs the live page nothing.
+    assert.deepEqual(rowSchedule(fall(2026), row(fall(2026), true, false)), { freshness: 'current', this: true, next: false });
   });
 });

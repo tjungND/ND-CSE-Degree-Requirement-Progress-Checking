@@ -28,7 +28,10 @@ export const CONTACTS: Contact[] = [
     role: 'Assistant DGS (ADGS)',
     name: 'Aaron Dingler',
     email: 'adingler@nd.edu',
-    scope: 'decides every requirement for MSCSE students — course approvals, transfer credit, the review requests on this page',
+    // "the review requests on this page" was written for the self-check tool
+    // and is also read on the course-rules page, which prepares no request
+    // (review R-16, 2026-09-18). The scope now names the work, not the page.
+    scope: 'decides every requirement for MSCSE students — course approvals, transfer credit, the review requests the self-check tool prepares',
   },
   {
     role: 'Graduate Program Administrator (Grad Admin)',
@@ -73,9 +76,22 @@ export function deciderContact(program: 'mscse' | 'phd'): Contact {
  * with the DGS in cc. */
 export const GRAD_ADMIN: Contact = CONTACTS.find((c) => c.role.startsWith('Graduate Program Administrator'))!;
 
-/** A mailto link showing the address itself. */
-export function mailto(email: string): HTMLAnchorElement {
-  return el('a', { href: `mailto:${email}` }, email);
+/** Does this look like an e-mail address the page can put in a `mailto:`?
+ * The six `contact_*` rows are typed into a spreadsheet, and whatever they
+ * hold became the href of every contact link (review R-20, 2026-09-18) — a
+ * stray space or a pasted "mailto:x@y" made a link that does nothing, and
+ * nothing in the app said so. One local part, one @, one dotted domain, no
+ * spaces and no colon (which is what would let a value carry its own scheme). */
+export function looksLikeEmail(value: string): boolean {
+  return /^[^\s:@]+@[^\s:@]+\.[^\s:@]{2,}$/.test(value.trim());
+}
+
+/** A mailto link showing the address itself. An address the sheet has mangled
+ * is shown as plain text rather than as a link that goes nowhere. */
+export function mailto(email: string): HTMLAnchorElement | HTMLElement {
+  const value = email.trim();
+  if (!looksLikeEmail(value)) return el('span', { class: 'bad-email', title: 'This address is not in the rules sheet in a usable form' }, value || '(no address in the rules sheet)');
+  return el('a', { href: `mailto:${value}` }, value);
 }
 
 /** "…please email the DGS (tjung@nd.edu)." — used under the disclaimer and the PDF upload. */

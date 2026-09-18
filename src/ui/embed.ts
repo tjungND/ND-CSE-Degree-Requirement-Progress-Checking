@@ -61,10 +61,16 @@ export const EMBED_PARENT_ORIGINS: readonly string[] = ['https://sites.nd.edu', 
  * Measured 2026-09-16, 117 courses: 12,985 px at the 1082 px sites.nd.edu
  * content column (the table), and 42,290 px at 700 px, where the table becomes
  * one card per course. The first draft's 20,000 truncated the narrow case at
- * less than half the list. 100,000 is a little over twice the worst measurement,
- * which leaves the course list room to grow and is still unmistakably "the
- * layout is broken" rather than "this page is long". */
-export const MAX_EMBED_HEIGHT = 100000;
+ * less than half the list.
+ *
+ * 100,000 looked like twice the worst case and was not (review R-13,
+ * 2026-09-18): with "Include retired courses" ticked the same 700 px frame
+ * measures ~96,000 px for all 321 rows, four per cent under the cap — and the
+ * sheet grows every year. 250,000 restores the headroom the number was chosen
+ * for while staying unmistakably "the layout is broken" rather than "this page
+ * is long"; a frame that tall would need a reader to scroll the host page for
+ * about two minutes. */
+export const MAX_EMBED_HEIGHT = 250000;
 
 /** Height changes smaller than this are noise — a sub-pixel reflow, a focus
  * ring, a scrollbar appearing — and are not worth a message. */
@@ -249,6 +255,17 @@ export function placeInFrame(dialog: HTMLElement, anchor?: Element | null): void
   }
   dialog.classList.add('in-frame');
   dialog.style.top = `${top}px`;
+}
+
+/** Ask the parent to bring `target` into view — the same message a click on an
+ * in-page link sends, for the case where nobody clicked: a link someone was
+ * sent, opened cold at `#CSE-60641` (review B-7, 2026-09-18). Does nothing
+ * outside embed mode, where the page can simply scroll itself. */
+export function postScrollTo(target: Element): void {
+  if (!isEmbedded()) return;
+  const raw = target.getBoundingClientRect().top + window.scrollY;
+  if (!Number.isFinite(raw)) return;
+  post({ type: SCROLL_MESSAGE, offset: Math.min(MAX_EMBED_HEIGHT, Math.max(0, Math.round(raw))) });
 }
 
 export function startAnchorScrollRelay(root: HTMLElement): void {

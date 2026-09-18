@@ -9,7 +9,7 @@
 import sheetUrls from '../../data/sheet-urls.json' with { type: 'json' }; // the attribute lets node's test runner import this file too
 import snapshot from '../../data/snapshot.json' with { type: 'json' };
 import { rulesFromCsvTexts, type CsvTexts } from './assemble.ts';
-import { dateLiveRules } from './rules-date.ts';
+import { dateLiveRules, ndDateOnly } from './rules-date.ts';
 import type { Rules } from './types.ts';
 
 /** Google's publish-to-web endpoint answers a tab in well under a second most
@@ -88,8 +88,11 @@ export class RulesLoadError extends Error {
   }
 }
 
-/** The day the bundled copy was saved (YYYY-MM-DD), for the page's messages. */
-export const SNAPSHOT_SAVED_ON = snapshot.syncedAt.slice(0, 10);
+/** The day the bundled copy was saved (YYYY-MM-DD) as the calendar reads at
+ * Notre Dame, for the page's messages — the same day the masthead's "last
+ * updated on …" names, which it was not while this took the UTC slice of the
+ * timestamp (review R-22, 2026-09-18). */
+export const SNAPSHOT_SAVED_ON = ndDateOnly(snapshot.syncedAt);
 
 /** Data rows in a CSV text: non-empty lines (a line of only commas is a blank
  * sheet row) minus the header. Good enough for "371 rows" on the loading card. */
@@ -112,7 +115,20 @@ async function requestOnce(tab: TabName, url: string, signal: AbortSignal): Prom
       cache: 'no-cache',
     });
     if (!res.ok) {
-      throw new RulesLoadError('http', tab, `Google answered with an error (HTTP ${res.status}) for ${TAB_LABELS[tab]}.`, true, res.status);
+      // A 5xx is Google having a bad minute and reloading is worth a try; a
+      // 4xx is an answer about this URL that will not change on a reload —
+      // the retry logic below already knew that (`isRetryable`), but the card
+      // was told every HTTP error was worth retrying (review B-21, 2026-09-18).
+      const worthRetrying = res.status >= 500;
+      throw new RulesLoadError(
+        'http',
+        tab,
+        worthRetrying
+          ? `Google answered with an error (HTTP ${res.status}) for ${TAB_LABELS[tab]}.`
+          : `Google refused to send ${TAB_LABELS[tab]} (HTTP ${res.status}) — the link in the app may no longer point at a published tab. Reloading will not help.`,
+        worthRetrying,
+        res.status,
+      );
     }
     text = await res.text();
   } catch (e) {
@@ -303,15 +319,35 @@ export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress
   const rules = rulesFromCsvTexts(live, { source: 'live', syncedAt: nowIso, rulesDate: dateLiveRules(live, snapshot) });
   // A tab that answered but holds no data (cleared by accident, or unpublished
   // on its own) is a failure to report, not "there are no courses".
+  // The Categories tab is two lists side by side and BOTH are load-bearing:
+  // the §4.4.2 groups and the §4.4.1 core areas. Only the groups were checked
+  // until 2026-09-18 (review B-37), so a Categories tab whose core half had
+  // been cleared loaded normally and the course-rules page rendered its "Core
+  // knowledge areas §4.4.1" heading and paragraph over an empty grid, with
+  // every Core cell reading "—": a Ph.D. student would read that no Notre Dame
+  // course satisfies any core area.
   const emptyTab: TabName | undefined =
-    rules.courses.size === 0 ? 'courses' : rules.parameters.raw.size === 0 ? 'parameters' : rules.categoryGroups.length === 0 ? 'categories' : undefined;
+    rules.courses.size === 0
+      ? 'courses'
+      : rules.parameters.raw.size === 0
+        ? 'parameters'
+        : rules.categoryGroups.length === 0 || rules.coreAreas.length === 0
+          ? 'categories'
+          : undefined;
   if (emptyTab) {
-    throw new RulesLoadError(
-      'empty',
-      emptyTab,
-      `The spreadsheet answered, but ${TAB_LABELS[emptyTab]} tab is empty — the DGS needs to check the sheet. Reloading will not help until then.`,
-      false,
-    );
+    // Which half is missing, when it is one half of the Categories tab — "the
+    // categories tab is empty" sends the DGS looking at a tab with rows in it.
+    const what =
+      emptyTab === 'categories' && rules.categoryGroups.length > 0
+        ? 'the categories tab has no core-knowledge areas (its core_area column)'
+        : emptyTab === 'categories' && rules.coreAreas.length > 0
+          ? 'the categories tab has no specialization groups (its category_group column)'
+          : // A tab that answered with rows the parser could not use at all reads
+            // differently from one that is genuinely blank (review R-15).
+            countCsvRows(emptyTab === 'courses' ? courses : emptyTab === 'parameters' ? parameters : categories) > 0
+            ? `${TAB_LABELS[emptyTab]} tab has rows, but not one of them could be read`
+            : `${TAB_LABELS[emptyTab]} tab is empty`;
+    throw new RulesLoadError('empty', emptyTab, `The spreadsheet answered, but ${what} — the DGS needs to check the sheet. Reloading will not help until then.`, false);
   }
   if (externalIssue !== undefined) {
     rules.issues.push({

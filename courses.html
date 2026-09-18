@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
+    <!-- The page is styled light only (src/style.css pins `color-scheme: light`),
+         so saying "light dark" here asked the browser for a dark form control
+         palette the page has no dark styling to sit on (review R-30, 2026-09-18). -->
+    <meta name="color-scheme" content="light" />
     <title>CSE Graduate Course Rules — which courses count</title>
     <meta
       name="description"
@@ -11,7 +14,28 @@
     />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- The whole page is built in the browser, so without JavaScript this
+           file is an empty box: no heading, no contact, nothing to say why
+           (review R-25, 2026-09-18). The renderer clears #app before it draws,
+           so this costs the working page nothing. Plain HTML on purpose — it
+           has to read correctly with no stylesheet either. -->
+      <noscript>
+        <h1>CSE Graduate Course Rules</h1>
+        <p>
+          <strong>This page needs JavaScript.</strong> The course list is built in your own browser from the Director of Graduate Studies' rules
+          spreadsheet — nothing about you is sent anywhere — so with scripts turned off there is nothing to show.
+        </p>
+        <p>
+          Turn JavaScript on for this site and reload, or ask for the current course rules directly:
+          <a href="mailto:tjung@nd.edu">tjung@nd.edu</a> (Prof. Taeho Jung, Director of Graduate Studies).
+        </p>
+        <p>
+          The requirements themselves are in the
+          <a href="https://cse.nd.edu/wp-content/uploads/sites/7/2026/07/CSE-Graduate-Handbook-July2026.pdf">CSE Graduate Studies Handbook (July 2026)</a>.
+        </p>
+      </noscript>
+    </div>
     <script type="module" src="./src/courses.ts"></script>
   </body>
 </html>

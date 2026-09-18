@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
+    <!-- Light only, as the stylesheet is (review R-30, 2026-09-18). -->
+    <meta name="color-scheme" content="light" />
     <title>ND CSE Degree Requirement Progress Checking</title>
     <meta
       name="description"
@@ -11,7 +12,25 @@
     />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Without JavaScript this file is an empty box (review R-25, 2026-09-18);
+           the renderer clears #app before it draws, so this costs nothing. -->
+      <noscript>
+        <h1>ND CSE Degree Requirement Progress Checking</h1>
+        <p>
+          <strong>This tool needs JavaScript.</strong> Everything it does — reading your transcript, checking it against the requirements — happens in
+          your own browser, so with scripts turned off there is nothing to run. Nothing you enter is ever uploaded.
+        </p>
+        <p>
+          Turn JavaScript on for this site and reload. Questions:
+          <a href="mailto:tjung@nd.edu">tjung@nd.edu</a> (Prof. Taeho Jung, Director of Graduate Studies).
+        </p>
+        <p>
+          The requirements themselves are in the
+          <a href="https://cse.nd.edu/wp-content/uploads/sites/7/2026/07/CSE-Graduate-Handbook-July2026.pdf">CSE Graduate Studies Handbook (July 2026)</a>.
+        </p>
+      </noscript>
+    </div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

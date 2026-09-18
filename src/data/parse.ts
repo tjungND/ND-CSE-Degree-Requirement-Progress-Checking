@@ -12,6 +12,8 @@ const COURSE_ID_RE = /^[A-Z]{2,5} \d{5}$/;
 const CODE_RE = /^[a-z0-9_]+$/;
 
 const COURSE_TYPES: CourseType[] = ['regular', 'seminar', 'research', 'independent', 'project'];
+/** The words the `typically_offered` column may hold (data/README.md). */
+const TYPICALLY_OFFERED = ['fall', 'spring', 'both', 'varies'];
 const COUNTS: Counts[] = ['yes', 'no', 'dgs_approval', 'adgs_approval'];
 const TRANSFERABLE: Transferable[] = ['yes', 'no', 'dgs_approval', 'adgs_approval'];
 
@@ -98,6 +100,25 @@ export function categoryGroupsOf(cell: string | undefined): {
   return { categoryGroups: [...new Set(codes)], categoryGroupRaw: raw };
 }
 
+/** The Courses columns the app reads. A header that is renamed or deleted used
+ * to leave every cell of that column blank with NO diagnostic (review R-4,
+ * 2026-09-18): renaming `counts_toward_phd` made all 117 live courses read
+ * "Not yet decided", renaming `active` brought 204 retired courses back as
+ * current, and nothing on either page said a column was missing. The cells are
+ * still read by name, so a sheet with EXTRA columns is fine and the order does
+ * not matter; only an expected name that is absent is reported. */
+const EXPECTED_COURSE_COLUMNS = [
+  'course_id',
+  'title',
+  'course_type',
+  'counts_toward_mscse',
+  'counts_toward_phd',
+  'core_area',
+  'category_group',
+  'active',
+  'dgs_reviewed',
+] as const;
+
 export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[] {
   const tab = readTab(text, 'Courses', issues);
   const out: RuleCourse[] = [];
@@ -108,6 +129,19 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       message: 'The Courses tab has no course_id column — is the right tab published?',
     });
     return out;
+  }
+  // `rules_effective_term` was renamed from `effective_term` on 2026-09-14 and
+  // both spellings are read, so it is checked as a pair rather than by name.
+  const missing = EXPECTED_COURSE_COLUMNS.filter((name) => !tab.header.includes(name));
+  if (!tab.header.includes('rules_effective_term') && !tab.header.includes('effective_term')) missing.push('rules_effective_term' as (typeof EXPECTED_COURSE_COLUMNS)[number]);
+  for (const name of missing) {
+    issues.push({
+      severity: 'error',
+      tab: 'Courses',
+      row: 1,
+      column: name,
+      message: `The Courses tab has no '${name}' column (the header row names: ${tab.header.filter((h) => h).join(', ')}). Every row is being read as if that cell were blank — rename the column back, or tell the DGS.`,
+    });
   }
   for (const [rowNum, cells] of tab.rows) {
     const courseId = (cells['course_id'] ?? '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -138,25 +172,32 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
 
     // A blank course_type must not silently become 'regular' (which counts
     // toward the 24 regular credits) — report it and skip the row.
+    // Case and separators are forgiven here as everywhere else (review R-5,
+    // 2026-09-18): 'Regular' typed into the sheet used to skip the row, so the
+    // course vanished from the public list while the DGS saw a filled-in cell.
     const typeRaw = cells['course_type'] ?? '';
+    const typeWord = verdictWord(typeRaw);
     if (typeRaw === '') {
       bad('course_type', '(blank)', COURSE_TYPES.join('|'));
       continue;
     }
-    if (!COURSE_TYPES.includes(typeRaw as CourseType)) {
+    if (!COURSE_TYPES.includes(typeWord as CourseType)) {
       bad('course_type', typeRaw, COURSE_TYPES.join('|'));
       continue;
     }
-    const courseType = typeRaw as CourseType;
+    const courseType = typeWord as CourseType;
 
-    const activeRaw = cells['active'] ?? '';
+    // Same for `active` (review R-5): 'No' was not 'no', so a course the DGS
+    // had just retired stayed live on the page — and the warning saying so is
+    // one this page never shows.
+    const activeRaw = verdictWord(cells['active']);
     if (activeRaw !== '' && activeRaw !== 'yes' && activeRaw !== 'no') {
       issues.push({
         severity: 'warning',
         tab: 'Courses',
         row: rowNum,
         column: 'active',
-        message: `Courses row ${rowNum} (${courseId}), column active: '${activeRaw}' is not yes|no — treating it as yes.`,
+        message: `Courses row ${rowNum} (${courseId}), column active: '${cells['active'] ?? ''}' is not yes|no — treating it as yes.`,
       });
     }
 
@@ -247,6 +288,25 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       });
     }
 
+    // `typically_offered` is printed verbatim in a column of its own and is a
+    // sort key, so an unexpected value passed straight through to the reader
+    // (review B-12, 2026-09-18) — including one that is a property of Object's
+    // prototype, which sorted the whole table into nothing. Known words are
+    // kept as written; anything else is reported and dropped, the same answer
+    // the page gives for a blank cell ("—").
+    const offeredRaw = (cells['typically_offered'] ?? '').trim();
+    const offeredWord = offeredRaw.toLowerCase();
+    const typicallyOffered = offeredRaw === '' ? undefined : TYPICALLY_OFFERED.includes(offeredWord) ? offeredWord : undefined;
+    if (offeredRaw !== '' && typicallyOffered === undefined) {
+      issues.push({
+        severity: 'warning',
+        tab: 'Courses',
+        row: rowNum,
+        column: 'typically_offered',
+        message: `Courses row ${rowNum} (${courseId}), column typically_offered: '${offeredRaw}' is not one of ${TYPICALLY_OFFERED.join('|')} — the cell is ignored and the course shows no typical semester.`,
+      });
+    }
+
     const levelFromId = Number(courseId.split(' ')[1]![0]);
     out.push({
       courseId,
@@ -260,7 +320,7 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       countsTowardPhd,
       coreArea: cells['core_area'] || undefined,
       ...categoryGroupsOf(cells['category_group']),
-      typicallyOffered: cells['typically_offered'] || undefined,
+      typicallyOffered,
       ...(offeredNow !== undefined ? { offeredNow } : {}),
       ...(offeredNext !== undefined ? { offeredNext } : {}),
       ...(lastOffered !== undefined ? { lastOffered } : {}),
@@ -359,6 +419,31 @@ export function parseCategoriesTab(
         column: 'category_group',
         message: `Categories row ${rowNum}, column category_group: '${group}' is not a lowercase code. Entry skipped.`,
       });
+    }
+  }
+  // Two different codes carrying the SAME name are two cards with one heading,
+  // two identical filter options and two identical "Specialization" labels,
+  // with nothing on the page to tell them apart (review B-38, 2026-09-18).
+  // The codes are distinct, so this is a naming slip rather than a broken
+  // sheet: both entries are kept and the diagnostics say which.
+  for (const [column, list] of [
+    ['core_area_name', coreAreas],
+    ['category_group_name', categoryGroups],
+  ] as const) {
+    const byName = new Map<string, string[]>();
+    for (const entry of list) {
+      const key = entry.name.trim().toLowerCase();
+      byName.set(key, [...(byName.get(key) ?? []), entry.code]);
+    }
+    for (const [name, codes] of byName) {
+      if (codes.length > 1) {
+        issues.push({
+          severity: 'warning',
+          tab: 'Categories',
+          column,
+          message: `Categories, column ${column}: ${codes.map((c) => `'${c}'`).join(' and ')} share the name '${name}'. Readers see two identical headings and two identical filter choices — give each one its own name.`,
+        });
+      }
     }
   }
   return { coreAreas, categoryGroups };
