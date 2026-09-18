@@ -156,6 +156,9 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Lo
       if (steps.connect.li.className !== 'done') setStep(steps.connect, e.kind === 'unreachable' ? 'failed' : 'done');
       if (e.kind === 'empty' && e.tab && tabSteps[e.tab]) setStep(tabSteps[e.tab]!, 'failed', '— empty');
 
+      // Google refused or vanished while this site's own server answered — a
+      // blocked host, not a broken connection (review R-29).
+      const blockedNotUnreachable = (e.kind === 'unreachable' || e.kind === 'timeout') && today.source === 'server';
       const reload = el('button', { class: 'btn primary', type: 'button', onclick: () => location.reload() }, 'Reload the page');
       const useSaved = el(
         'button',
@@ -170,20 +173,28 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Lo
           el(
             'p',
             {},
-            el('strong', {}, e.message + ' '),
-            e.retryable
-              ? e.kind === 'timeout'
-                ? `This is usually temporary — please reload the page to try again.`
-                : 'Please reload the page to try again.'
-              : 'Please let the DGS know.',
+            // The page has just proved the network works: the clock step asked
+            // this site's own server what time it is and got an answer. Telling
+            // that reader to check their connection sends them after the wrong
+            // thing, and "email the DGS if it keeps happening" is, for someone
+            // behind a network that blocks Google, every visit and nothing the
+            // DGS can fix (review R-29, 2026-09-18).
+            el('strong', {}, (blockedNotUnreachable ? 'Google did not answer, although the rest of this site loaded. ' : e.message + ' ') as string),
+            blockedNotUnreachable
+              ? 'Some networks — and some countries — block Google Sheets, which is where the course rules live. If that is where you are, the saved copy below is the way to read this page.'
+              : e.retryable
+                ? e.kind === 'timeout'
+                  ? `This is usually temporary — please reload the page to try again.`
+                  : 'Please reload the page to try again.'
+                : 'Please let the DGS know.',
           ),
-          e.retryable
+          e.retryable && !blockedNotUnreachable
             ? el('div', { class: 'load-actions' }, reload, el('span', { class: 'or' }, 'or'), useSaved, el('span', { class: 'load-note' }, savedNote))
             : el('div', { class: 'load-actions' }, useSaved, el('span', { class: 'load-note' }, savedNote), el('span', { class: 'or' }, 'or'), reload),
           el(
             'p',
             { class: 'load-note' },
-            e.retryable ? 'If this keeps happening, please email the DGS (' : 'Please email the DGS (',
+            blockedNotUnreachable ? 'If you are not on such a network, please email the DGS (' : e.retryable ? 'If this keeps happening, please email the DGS (' : 'Please email the DGS (',
             mailto(DGS.email),
             ').',
           ),
