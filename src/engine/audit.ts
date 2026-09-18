@@ -162,7 +162,15 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   rows.push(approvalsRow(ctx));
 
   const scored = rows.filter((r) => !r.informational && r.status !== 'not_applicable');
-  const summary = { met: scored.filter((r) => r.status === 'met').length, scored: scored.length };
+  // Conditional satisfaction gets its own number (interface review R2,
+  // 2026-09-18): the dashboard could not tell "satisfied, pending a signature"
+  // from "not satisfied", so it buried the first inside the second and
+  // mentioned it in a parenthetical.
+  const summary = {
+    met: scored.filter((r) => r.status === 'met').length,
+    conditional: scored.filter((r) => r.status === 'needs_dgs_review').length,
+    scored: scored.length,
+  };
 
   // Which requirements each course feeds (DGS request 2026-09-08). The rows
   // already say which courses satisfy them (`satisfiedBy`, written for the

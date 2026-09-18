@@ -249,6 +249,25 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .headline { font-size: 18px; font-weight: 700; color: var(--navy); }
 .subline { color: var(--muted); font-size: 13px; }
 
+/* Conditional satisfaction reads as its own band on the ring, in the same blue
+   as its pill (interface review R2, 2026-09-18). */
+.dial-arc-conditional { opacity: 0.75; }
+/* The key under the credit meters: what each band of the ring means, in words
+   and in colour, so the ring never has to be guessed at. */
+.status-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 2px; font-size: 12px; color: var(--muted); }
+.status-key .key-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.status-key .key-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
+.status-key .s-met { color: var(--ok); }
+.status-key .s-needs_dgs_review { color: var(--info); }
+.status-key .s-in_progress { color: var(--warn); }
+.status-key .s-unmet { color: var(--muted); }
+/* A detail line about something the student is LOSING (over-cap credits): not
+   the grey prose the rest of the detail is in. */
+.req-detail .detail-warn { color: #6b4d10; }
+.req-detail .detail-warn::marker { color: var(--warn); }
+/* The one pill whose wording overrides the status word, because "Conditionally
+   met" would promise a degree whose eligibility may be forfeit (W-CS2). */
+.pill.s-alarm { background: #fbeedd; color: #7a4a00; font-weight: 700; }
 .meters { margin: 6px 0 4px; }
 .meter { margin-bottom: 6px; }
 .meter-label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }

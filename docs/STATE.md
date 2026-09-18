@@ -70,8 +70,19 @@ working through `docs/REVIEW-FIXES-2026-09-18.md`, the fix order from the 2026-0
   group”; a course that belongs everywhere names all five, as the live sheet does. A leftover `any` is
   now reported as an undefined code and fills no group.
 
-Still to do from that work order: R2 (conditional satisfaction — the dashboard, the over-cap warning),
-R5 (the example banner), R6/R7 (privacy wording, shared computers), B1–B9. R4 is closed by the DGS.
+- **R2 — conditional satisfaction** (commit 3). The `needs_dgs_review` pill reads **“Conditionally
+  met”** (W-CS1), except on a dissertation defended past §4.3's limit, which reads **“Eligibility at
+  risk”** through a per-row `statusLabel` override — same status, same count, no new `Status` member
+  (W-CS2). Credits a cap DISCARDS are `{ warn }` detail parts rendered as their own amber line rather
+  than grey prose under a green pill; `detail` is untouched, so the copied messages and every fixture
+  read as before. The dashboard gained `summary.conditional`: its own band on the ring, its own count
+  in the headline (it was a parenthetical on “not yet”), its own place in the sticky bar, and a status
+  key under the credit meters. 2b was CONFIRMED, not rewritten — `thresholdStatus` was already right,
+  and `tests/conditional-satisfaction.test.ts` now pins the invariant across every scenario with
+  `ms.cap.fourk` as the one documented exception.
+
+Still to do from that work order: R5 (the example banner), R6/R7 (privacy wording — W-P1 is answered,
+shared computers), B1–B9. R4 is closed by the DGS.
 
 2026-09-16 (hotfix): `bestMultiOrder` in allocate.ts was factorial — a Ph.D. student importing a
 

@@ -30,7 +30,9 @@ export async function driveApp(s, baseUrl) {
       folded: !!fold, open: fold ? fold.open : null,
       summary: fold?.querySelector('summary')?.textContent ?? '',
       attentionInside: !!fold?.querySelector('.attention'),
-      dialStroke: document.querySelector('.dial circle:nth-of-type(2)')?.getAttribute('stroke') ?? '',
+      // By class, not nth-of-type: since 2026-09-18 the ring carries a SECOND
+      // arc for conditionally-met rows, drawn before this one.
+      dialStroke: document.querySelector('.dial .dial-arc:not(.dial-arc-conditional)')?.getAttribute('stroke') ?? '',
     };
   })())`));
   console.log('  first visit:', JSON.stringify(firstVisit));
@@ -48,7 +50,7 @@ export async function driveApp(s, baseUrl) {
   // The example is saved like any other record, so it says whose it is until
   // it is cleared (2026-09-08).
   if (!(await s.evalJs(`!!document.querySelector('.example-banner')`))) throw new Error('the example record must announce itself');
-  if ((await s.evalJs(`document.querySelector('.dial circle:nth-of-type(2)')?.getAttribute('stroke')`)) === 'var(--bad)') {
+  if ((await s.evalJs(`document.querySelector('.dial .dial-arc:not(.dial-arc-conditional)')?.getAttribute('stroke')`)) === 'var(--bad)') {
     throw new Error('a student who is simply not finished must not see a red dial');
   }
   // Every requirement a course feeds, under its credit sentence (2026-09-08):
@@ -324,6 +326,69 @@ export async function driveApp(s, baseUrl) {
     g.value = ${JSON.stringify(gpaBefore ?? '')};
     g.dispatchEvent(new Event('change'));
   })()`);
+
+  // Conditional satisfaction (interface review R2/W-CS1, 2026-09-18). A CSE
+  // 4xxxx course the LIVE rules sheet gates on the DGS's approval: the cap row
+  // must read "Conditionally met" rather than "Met", the ring must carry its
+  // own band, and the headline and the sticky bar must count it apart from
+  // "not yet" instead of burying it in a parenthetical.
+  const cond = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const id = document.querySelector('[data-key="course.new.id"]');
+    id.value = 'CSE 40243';
+    id.dispatchEvent(new Event('change'));
+    document.querySelector('[data-key="course.new.add"]').click();
+    const row = [...document.querySelectorAll('.req')].find((r) => /below the 60000 level/.test(r.querySelector('.req-title')?.textContent ?? ''));
+    return {
+      pill: row?.querySelector('.pill')?.textContent ?? '',
+      status: [...(row?.classList ?? [])].find((c) => c.startsWith('s-')) ?? '',
+      headline: document.querySelector('.audit .headline, .scorehead .headline')?.textContent ?? '',
+      sticky: document.querySelector('.sticky-score')?.textContent ?? '',
+      keyItems: [...document.querySelectorAll('.status-key .key-item')].map((k) => k.textContent),
+      condBand: document.querySelector('.dial .dial-arc-conditional')?.getAttribute('stroke-dasharray') ?? '',
+    };
+  })())`));
+  console.log('  conditional satisfaction:', JSON.stringify({ ...cond, headline: cond.headline.slice(0, 80) }));
+  if (cond.pill !== 'Conditionally met') throw new Error('the cap row must read "Conditionally met": ' + cond.pill);
+  if (cond.status !== 's-needs_dgs_review') throw new Error('…without changing the underlying status: ' + cond.status);
+  if (!/\d+ conditionally met/.test(cond.headline)) throw new Error('the headline must count it on its own: ' + cond.headline);
+  if (!/conditionally met/.test(cond.sticky)) throw new Error('the sticky bar must name it too: ' + cond.sticky);
+  if (!cond.keyItems.some((t) => /conditionally met/.test(t))) throw new Error('the status key must list it: ' + JSON.stringify(cond.keyItems));
+  if (!/^[1-9]/.test(cond.condBand)) throw new Error('the ring must carry a conditional band: ' + cond.condBand);
+  // The mobile summary is display:none at this width — take the visible one.
+  await s.evalJs(`(() => {
+    const n = [...document.querySelectorAll('.scorehead')].find((e) => e.getBoundingClientRect().width > 0);
+    if (n) n.id = 'shot-dash';
+  })()`);
+  await s.shotElement('dashboard-conditional', '#shot-dash');
+  // The over-cap warning is its own line, not grey prose under a green pill.
+  await s.evalJs(`(() => {
+    for (const [id, cr] of [['CSE 40567', '3'], ['CSE 40437', '3']]) {
+      const i = document.querySelector('[data-key="course.new.id"]');
+      i.value = id; i.dispatchEvent(new Event('change'));
+      const c = document.querySelector('[data-key="course.new.credits"]');
+      c.value = cr; c.dispatchEvent(new Event('change'));
+      document.querySelector('[data-key="course.new.add"]').click();
+    }
+  })()`);
+  const overCap = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const row = [...document.querySelectorAll('.req')].find((r) => /below the 60000 level/.test(r.querySelector('.req-title')?.textContent ?? ''));
+    if (row) row.id = 'shot-overcap';
+    return {
+      warn: [...(row?.querySelectorAll('.detail-warn') ?? [])].map((n) => n.textContent),
+      pill: row?.querySelector('.pill')?.textContent ?? '',
+    };
+  })())`));
+  console.log('  over-cap warning:', JSON.stringify(overCap));
+  if (overCap.warn.length === 0 || !/over the cap/.test(overCap.warn.join(' '))) {
+    throw new Error('credits the cap discards must be a warning line: ' + JSON.stringify(overCap));
+  }
+  await s.shotElement('over-cap-warning', '#shot-overcap');
+  for (const id of ['CSE 40243', 'CSE 40567', 'CSE 40437']) {
+    await s.evalJs(`(() => {
+      const tr = [...document.querySelectorAll('table.courses tr')].find((tr) => tr.querySelector('.cid')?.textContent === ${JSON.stringify(id)});
+      tr?.querySelector('button.remove')?.click();
+    })()`);
+  }
 
   // §3.6 Transition to Computing (2026-09-10, promised 2026-08-31): a student
   // who enters a 50000-level bridge course is told the audit does not model

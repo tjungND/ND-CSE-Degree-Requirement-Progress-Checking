@@ -345,6 +345,7 @@ export function actionItems(report: AuditReport): ActionItems {
       if (/plan of study/.test(part)) out.advisor.push(`Approve my plan of study (${report.program === 'mscse' ? '§3.2' : '§4.2'}).`);
       continue;
     }
+    if ('warn' in part) continue; // a warning is not a course to chase
     for (const item of part.items) {
       const m = /^(.+?) \((.+)\)$/.exec(item);
       const course = m ? m[1]! : item;
@@ -409,7 +410,7 @@ export function whyFor(r: RequirementResult, firstStatementOnly = false): string
 }
 
 function flatten(p: DetailPart): string {
-  return typeof p === 'string' ? p : `${p.lead}: ${p.items.join('; ')}`;
+  return typeof p === 'string' ? p : 'warn' in p ? p.warn : `${p.lead}: ${p.items.join('; ')}`;
 }
 
 /** Split prose into statements at ". " before a capital or digit, sparing the

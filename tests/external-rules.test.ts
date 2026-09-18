@@ -329,8 +329,10 @@ describe('what a DGS ruling changes in the engine', () => {
     // And the approvals row files it under the DGS, not the Grad Admin.
     const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
     assert.equal(approvals?.status, 'needs_dgs_review');
-    const lead = (approvals?.detailParts ?? []).find((pt) => typeof pt !== 'string' && pt.items.some((i) => i.startsWith('STAT 51200')));
-    assert.match(typeof lead === 'string' ? lead : (lead?.lead ?? ''), /The DGS has still to decide these/);
+    const lead = (approvals?.detailParts ?? []).find(
+      (pt) => typeof pt !== 'string' && 'items' in pt && pt.items.some((i) => i.startsWith('STAT 51200')),
+    );
+    assert.match(typeof lead === 'object' && 'lead' in lead ? lead.lead : '', /The DGS has still to decide these/);
   });
 
   it('transferable undecided vs not reviewed at all — different pending messages', () => {

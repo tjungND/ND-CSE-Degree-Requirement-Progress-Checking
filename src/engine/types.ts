@@ -225,16 +225,28 @@ export interface DeadlineInfo extends ApproxDate {
   label: string;
 }
 
-/** One statement of a requirement's detail: plain prose, or a lead sentence
- * with enumerated items (e.g. the per-course sign-off list) that the report
- * renders as a nested bullet list (DGS request 2026-09-04). */
-export type DetailPart = string | { lead: string; items: string[] };
+/** One statement of a requirement's detail: plain prose, a lead sentence with
+ * enumerated items (e.g. the per-course sign-off list) that the report renders
+ * as a nested bullet list (DGS request 2026-09-04), or a WARNING — something
+ * the student is losing, which must not read as ordinary body text under a
+ * green pill (interface review R2, 2026-09-18: three CSE 4xxxx courses against
+ * a six-credit cap printed "CSE 40554: 3 credits not counted — over the cap"
+ * in the same grey prose as everything else). `detail` is unchanged either
+ * way: a warning flattens to its own sentence, so the copied messages and the
+ * scenario fixtures keep reading as before. */
+export type DetailPart = string | { lead: string; items: string[] } | { warn: string };
 
 export interface RequirementResult {
   id: string;
   group: string; // display group heading, e.g. "Coursework — §4.2"
   title: string;
   status: Status;
+  /** Overrides the pill's WORDING for this row only — the status, the score and
+   * the dashboard counts are untouched (W-CS2, DGS 2026-09-18). One row uses
+   * it: a dissertation defended after §4.3's eight-year limit reads
+   * "Eligibility at risk", because the shared "Conditionally met" would promise
+   * a degree whose eligibility may be forfeit. */
+  statusLabel?: string;
   /** Informational rows (e.g. MSCSE-along-the-way) are excluded from the score. */
   informational?: boolean;
   detail: string;
@@ -305,7 +317,10 @@ export interface AuditReport {
   requirements: RequirementResult[];
   courseLines: CourseLine[];
   /** met / scored, where n/a and informational rows are excluded from both. */
-  summary: { met: number; scored: number };
+  /** `met` counts rows that are satisfied outright; `conditional` those
+   * satisfied except for an approval (W-CS1, 2026-09-18). They are disjoint,
+   * and both are inside `scored`. */
+  summary: { met: number; conditional: number; scored: number };
   warnings: string[];
   /** Notes for the DGS that are not about one course (2026-09-12): copied
    * into the review request and shown in its card. */

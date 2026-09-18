@@ -11,14 +11,22 @@ const STATUS_LABEL: Record<Status, string> = {
   met: 'Met',
   in_progress: 'In progress',
   unmet: 'Not yet',
-  needs_dgs_review: 'Needs DGS review', // rewritten to ADGS for an MSCSE student by the page pass
+  // "Conditionally met", not "Needs DGS review" (W-CS1, DGS 2026-09-18): the
+  // student's POSITION, not the errand. The sub-line still names who must
+  // approve, so nothing is lost by dropping the actor — and the pill no longer
+  // needs first-mention.ts's DGS→ADGS rewrite for an MSCSE student.
+  needs_dgs_review: 'Conditionally met',
   cannot_evaluate: 'Cannot evaluate',
   not_applicable: 'Does not apply',
 };
 
 function dial(report: AuditReport, untouched = false): HTMLElement {
-  const { met, scored } = report.summary;
+  const { met, conditional, scored } = report.summary;
   const pct = scored === 0 ? 0 : met / scored;
+  // Conditional satisfaction is its own band on the arc (R2, 2026-09-18), drawn
+  // from where the met band ends: a student can see at a glance how much of the
+  // ring is theirs outright and how much waits on a signature.
+  const condPct = scored === 0 ? 0 : conditional / scored;
   const C = 2 * Math.PI * 32;
   const svgNs = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNs, 'svg');
@@ -26,9 +34,11 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   svg.setAttribute('class', 'dial');
   svg.setAttribute('aria-hidden', 'true'); // decorative — the headline text carries the numbers (item 17)
   const track = document.createElementNS(svgNs, 'circle');
+  const condArc = document.createElementNS(svgNs, 'circle');
   const arc = document.createElementNS(svgNs, 'circle');
   for (const [c, cls] of [
     [track, 'dial-track'],
+    [condArc, 'dial-arc dial-arc-conditional'],
     [arc, 'dial-arc'],
   ] as const) {
     c.setAttribute('cx', '40');
@@ -45,13 +55,16 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
     'stroke',
     pct === 1 ? 'var(--ok)' : report.requirements.some((r) => r.deadline?.state === 'overdue') ? 'var(--bad)' : 'var(--navy)',
   );
+  condArc.setAttribute('stroke-dasharray', `${C * condPct} ${C}`);
+  condArc.setAttribute('stroke-dashoffset', `${-C * pct}`);
+  condArc.setAttribute('stroke', 'var(--info)');
   const text = document.createElementNS(svgNs, 'text');
   text.setAttribute('x', '40');
   text.setAttribute('y', '45');
   text.setAttribute('text-anchor', 'middle');
   text.setAttribute('class', 'dial-text');
   text.textContent = `${met}/${scored}`;
-  svg.append(track, arc, text);
+  svg.append(track, condArc, arc, text);
 
   // The headline counts what is met, in progress and still open instead of
   // "N to go", which read as bad news to a student on track (usability
@@ -60,11 +73,15 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   const remaining = scored - met;
   const scoredRows = report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
   const inProgress = scoredRows.filter((r) => r.status === 'in_progress').length;
-  const needsReview = scoredRows.filter((r) => r.status === 'needs_dgs_review').length;
-  const open = remaining - inProgress;
+  // Conditional satisfaction stands in the headline as its own count. It was a
+  // parenthetical on the "not yet" number — "6 not yet (2 need a DGS
+  // decision)" — which filed two conditionally satisfied requirements under
+  // things the student had not done (R2, 2026-09-18).
+  const open = remaining - inProgress - conditional;
   const parts = [`${met} of ${scored} met`];
+  if (conditional > 0) parts.push(`${conditional} conditionally met`);
   if (inProgress > 0) parts.push(`${inProgress} in progress`);
-  if (open > 0) parts.push(`${open} not yet${needsReview > 0 ? ` (${needsReview} need${needsReview === 1 ? 's' : ''} a DGS decision)` : ''}`);
+  if (open > 0) parts.push(`${open} not yet`);
   // "0 of 17 met" is a true but useless thing to tell someone who has entered
   // nothing (2026-09-08): every row is open because the page is empty, not
   // because anything is wrong. The old `scored === 0` branch could never fire —
@@ -131,11 +148,32 @@ function meters(report: AuditReport): HTMLElement {
       ),
     );
   }
+  // The status key (R2, 2026-09-18): the three states the dial's bands stand
+  // for, in words and in the same colours, so the ring is readable without
+  // hovering anything. Only the states this student actually has.
+  const { met, conditional, scored } = report.summary;
+  const inProgress = report.requirements.filter((r) => !r.informational && r.status === 'in_progress').length;
+  const notYet = scored - met - conditional - inProgress;
+  const key = el('div', { class: 'status-key' });
+  for (const [cls, n, label] of [
+    ['s-met', met, 'met'],
+    ['s-needs_dgs_review', conditional, 'conditionally met'],
+    ['s-in_progress', inProgress, 'in progress'],
+    ['s-unmet', notYet, 'not yet'],
+  ] as const) {
+    if (n <= 0) continue;
+    key.append(el('span', { class: `key-item ${cls}` }, el('i', { class: 'key-dot' }), `${n} ${label}`));
+  }
+  if (key.childElementCount > 0) box.append(key);
   return box;
 }
 
 function requirementCard(r: RequirementResult): HTMLElement {
-  const pill = el('span', { class: `pill s-${r.status}` }, STATUS_LABEL[r.status]);
+  // A row may override the WORDING without changing its status or its place in
+  // the counts (W-CS2): the §4.7 defense past §4.3's limit reads "Eligibility
+  // at risk", since "Conditionally met" would promise a degree that may be
+  // forfeit.
+  const pill = el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}` }, r.statusLabel ?? STATUS_LABEL[r.status]);
   // The rule itself, on the output side (DGS request 2026-09-03): clicking the
   // § chip reveals the handbook sentence this verdict is checked against. A
   // disclosure button (usability review 2026-09-05, item 24): its expanded
@@ -192,12 +230,16 @@ function requirementCard(r: RequirementResult): HTMLElement {
           ...parts.map((p) =>
             typeof p === 'string'
               ? el('li', {}, /[.!?]$/.test(p) ? p : `${p}.`)
-              : el(
-                  'li',
-                  {},
-                  `${p.lead}:`,
-                  el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, /[.!?]$/.test(i) ? i : `${i}.`))),
-                ),
+              : 'warn' in p
+                // Something the student is LOSING gets its own treatment, not
+                // the grey prose every other line is in (R2, 2026-09-18).
+                ? el('li', { class: 'detail-warn' }, /[.!?]$/.test(p.warn) ? p.warn : `${p.warn}.`)
+                : el(
+                    'li',
+                    {},
+                    `${p.lead}:`,
+                    el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, /[.!?]$/.test(i) ? i : `${i}.`))),
+                  ),
           ),
         )
       : el('div', { class: 'req-detail', 'data-keep-dgs': '' }, r.detail);
@@ -248,8 +290,11 @@ export function renderSummary(report: AuditReport, untouched = false): HTMLEleme
 
 /** One-line score for the sticky bar on narrow screens. */
 export function scoreLine(report: AuditReport): string {
-  const { met, scored } = report.summary;
-  return scored === 0 ? 'No requirements scored yet' : `${met} of ${scored} met`;
+  const { met, conditional, scored } = report.summary;
+  if (scored === 0) return 'No requirements scored yet';
+  // The sticky bar used to read "7 of 17 met" and hide the distinction
+  // entirely (R2, 2026-09-18).
+  return `${met} of ${scored} met${conditional > 0 ? ` · ${conditional} conditionally met` : ''}`;
 }
 
 export function renderReport(report: AuditReport, untouched = false): HTMLElement {

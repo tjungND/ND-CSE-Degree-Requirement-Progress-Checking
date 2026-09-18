@@ -30,7 +30,8 @@ export function missingParamDetail(key: string): string {
  * the prose and rendered as a nested list by the report. Single plain
  * statements stay plain text. */
 export function joinedDetail(parts: DetailPart[]): { detail: string; detailParts?: DetailPart[] } {
-  const flat = (p: DetailPart): string => (typeof p === 'string' ? p : `${p.lead}: ${p.items.join('; ')}`);
+  const flat = (p: DetailPart): string =>
+    typeof p === 'string' ? p : 'warn' in p ? p.warn : `${p.lead}: ${p.items.join('; ')}`;
   const structured = parts.some((p) => typeof p !== 'string');
   return {
     detail: parts.map(flat).join('. ') + (parts.length > 0 ? '.' : ''),
@@ -142,23 +143,28 @@ export function capRow(args: {
   const relevant = args.ctx.classified.filter(
     (c) => !c.superseded && (c.caps.includes(args.capId) || false),
   );
-  const excludedLines = args.ctx.alloc.perCourse
+  // Credits the cap DISCARDS. A row that loses a student credit must never
+  // present as an unqualified pass (interface review R2, 2026-09-18): these are
+  // emitted as warning parts, so the report gives them their own treatment
+  // instead of the grey prose they used to share with everything else.
+  const excludedLines: DetailPart[] = args.ctx.alloc.perCourse
     .filter((p) => p.course.caps.includes(args.capId) && (p.excluded > 0 || (p.overCapToTotal ?? 0) > 0))
     // Every number a student reads goes through formatCredits (credits.ts:
     // "never scientific notation, never '2.6666666666666665'"). These three
     // were raw (red-team 2026-09-13): one ordinary quarter-system transfer
     // course, converted by the sheet's own pro-rata factor, printed
     // "2.666666668 of the 9 non-CSE cap credits used".
-    .map((p) =>
-      p.excluded > 0
-        ? `${p.course.entry.courseId}: ${formatCredits(p.excluded)} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — over the cap`
-        : // The non-CSE allowance limits regular-course credit only (F1,
-          // 2026-09-12): what it refuses still counts toward the total.
-          `${p.course.entry.courseId}: ${formatCredits(p.overCapToTotal ?? 0)} ${p.overCapToTotal === 1 ? 'credit' : 'credits'} over the cap — count toward the total-credit requirement only`,
-    );
+    .map((p) => ({
+      warn:
+        p.excluded > 0
+          ? `${p.course.entry.courseId}: ${formatCredits(p.excluded)} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — over the cap`
+          : // The non-CSE allowance limits regular-course credit only (F1,
+            // 2026-09-12): what it refuses still counts toward the total.
+            `${p.course.entry.courseId}: ${formatCredits(p.overCapToTotal ?? 0)} ${p.overCapToTotal === 1 ? 'credit' : 'credits'} over the cap — count toward the total-credit requirement only`,
+    }));
 
   let status: Status;
-  const parts: string[] = [];
+  const parts: DetailPart[] = [];
   if (usage?.limit === undefined) {
     status = 'cannot_evaluate';
     parts.push(missingParamDetail(args.limitKey));

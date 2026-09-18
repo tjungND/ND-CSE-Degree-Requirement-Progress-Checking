@@ -846,6 +846,12 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       group: DISSERTATION,
       title: 'Dissertation defense passed',
       status: m.defensePassed ? (lateDefense ? 'needs_dgs_review' : 'met') : 'unmet',
+      // The one row that must NOT read "Conditionally met" (W-CS2, DGS
+      // 2026-09-18): §4.3 makes a defense past the limit a forfeiture of
+      // eligibility unless the Graduate School granted an extension, and the
+      // pill is what a student reads first. The status is unchanged, so the row
+      // still counts with the conditional ones on the dashboard.
+      ...(m.defensePassed && lateDefense ? { statusLabel: 'Eligibility at risk' } : {}),
       detail: m.defensePassed
         ? lateDefense
           ? `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). §4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
