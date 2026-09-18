@@ -308,9 +308,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     return allGroupCodes.filter((g) => listed.includes(g));
   };
   const categoryLabel = (r: RuleCourse): string => {
-    // Spelt out: in a column headed "Specialization" the two words alone
-    // were read as "not eligible for credit" (review R-17, 2026-09-18).
-    if (r.categoryIneligible) return 'No specialization category';
+    // "Ineligible", the DGS's own word (2026-09-18): a 40000- or 50000-level
+    // course is not a course with no category, it is one §4.4.2 rules out.
+    // (It read "Not eligible" until earlier the same day, then briefly "No
+    // specialization category" — review R-17, which was trying to stop the two
+    // words being read as "not eligible for credit". The legend entry carries
+    // that clarification instead; the cell says what the sheet says.)
+    if (r.categoryIneligible) return 'Ineligible';
     const groups = groupsOf(r);
     if (groups.length === 0) return '—';
     // The self-check tool assigns a course listed under every group itself,
@@ -1238,7 +1242,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     }
     for (const r of list) {
       const pillCounts = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
-      // "Not eligible" is a ruling, not a blank: it is printed in full ink on
+      // "Ineligible" is a ruling, not a blank: it is printed in full ink on
       // the schedule cards and was greyed out here (review B-14).
       const catClass = groupsOf(r).length === 0 && !r.categoryIneligible ? 'muted' : '';
       const rowId = r.courseId.replace(' ', '-');
@@ -1394,7 +1398,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         ),
         li(
           el('strong', {}, 'Specialization'),
-          `a Qualifying Examination requirement (§4.4.2), Ph.D. students only: ${catRule}. A course listed under more than one category can fill only one. "No specialization category" means the course can never satisfy §4.4.2; it says nothing about degree credit, which the credit columns answer.`,
+          `a Qualifying Examination requirement (§4.4.2), Ph.D. students only: ${catRule}. A course listed under more than one category can fill only one. "Ineligible" means §4.4.2 rules the course out; it says nothing about degree credit, which the credit columns answer.`,
         ),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
         ...(scheduleKnown
