@@ -1,5 +1,6 @@
 // §3 — Requirements for the Master of Science Degree (MSCSE).
 // Every builder quotes the handbook sentence it implements.
+import { usableGpa } from '../ranges.ts';
 import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm, termLabel } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
@@ -130,6 +131,10 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
         quote:
           'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE courses at the 6xxxx level, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree.',
         ctx,
+        // "With approval of the instructor and DGS" — §3.5's own first words,
+        // quoted on this card. A shared course still waiting on an approval no
+        // longer leaves the row reading Met (interface review R3, 2026-09-18).
+        approvalDriven: true,
       }),
     );
   }
@@ -279,7 +284,8 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       status = 'unmet';
       detail = `Not yet passed.${alternative}`;
       const min = ctx.params.number('gpa_min');
-      if (min !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < min) {
+      const defenseGpa = usableGpa(ctx.student.gpa); // R1: an off-scale figure gates nothing
+      if (min !== undefined && defenseGpa !== undefined && defenseGpa < min) {
         detail += ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`;
       }
     }

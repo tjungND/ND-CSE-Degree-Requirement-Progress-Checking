@@ -177,6 +177,22 @@ describe('sheet validation', () => {
     assert.equal(rules.courses.get('CSE 60641')?.[0]?.coreArea, undefined);
   });
 
+  // `any` — the old shorthand for "listed under every group" — was retired by
+  // the DGS on 2026-09-18: the live Categories tab defines no such group and
+  // no Courses cell uses it, because a course that belongs everywhere now names
+  // all five. A sheet that still says it must be TOLD, not quietly obeyed.
+  it("a leftover 'any' in category_group is reported, not honoured", () => {
+    const texts = fixtureCsvTexts();
+    const courses = texts.courses.replace('"alg, hcc, arch, dsai, sys"', 'any');
+    assert.notEqual(courses, texts.courses, 'the fixture must still have the five-group cell to replace');
+    const rules = rulesFromCsvTexts({ ...texts, courses }, meta);
+    const issue = rules.issues.find((i) => i.column === 'category_group' && i.message.includes("'any'"));
+    assert.ok(issue, 'a retired code must raise an issue: ' + rules.issues.map((i) => i.message).join(' | '));
+    assert.equal(issue.severity, 'error');
+    // …and the course fills no group at all, rather than every one of them.
+    assert.equal(rules.courses.get('CSE 60876')?.[0]?.categoryGroups, undefined);
+  });
+
   it('trailing prose note rows are skipped without issues', () => {
     const rules = rulesFromCsvTexts(fixtureCsvTexts(), meta);
     for (const i of rules.issues) {

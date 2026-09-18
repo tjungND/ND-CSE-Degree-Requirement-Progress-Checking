@@ -235,7 +235,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const groupsOf = (r: RuleCourse): string[] => {
     const listed = r.categoryGroups;
     if (!listed || listed.length === 0) return [];
-    return listed.includes('any') ? allGroupCodes : allGroupCodes.filter((g) => listed.includes(g));
+    return allGroupCodes.filter((g) => listed.includes(g));
   };
   const categoryLabel = (r: RuleCourse): string => {
     if (r.categoryIneligible) return 'Not eligible';

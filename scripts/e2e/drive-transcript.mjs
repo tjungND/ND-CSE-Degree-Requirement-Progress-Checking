@@ -89,7 +89,9 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   // The standing card now shows the term read from the transcript, flagged.
   const entryNote = await s.evalJs(`document.querySelector('.entry-note')?.textContent ?? ''`);
-  const entryYear = await s.evalJs(`document.querySelector('.card input[type=number][max="2040"]')?.value`);
+  // By data-key, not by max=2040: a year has no upper bound since the DGS's
+  // ruling of 2026-09-18, so the boxes carry no `max` attribute at all.
+  const entryYear = await s.evalJs(`document.querySelector('[data-key="standing.year"]')?.value`);
   console.log('  standing card entry term:', entryYear, '|', entryNote.slice(0, 100));
   if (entryYear !== '2026' || !entryNote.startsWith('Fall 2026 was read from your transcript')) {
     throw new Error('the standing card must show the transcript entry term, flagged as read from the transcript');
@@ -365,9 +367,11 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   const fixed = await s.evalJs(`(() => {
     let n = 0;
     for (const tr of [...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1)) {
-      const credits = tr.querySelector('input[type=number][max="30"]');
+      // Per-row boxes by data-key for the same reason (and the credits box's
+      // max is 15 since 2026-09-18, not 30).
+      const credits = tr.querySelector('input[data-key$=".credits"]');
       if (credits && credits.value === '') { credits.value = '3'; credits.dispatchEvent(new Event('change')); n++; }
-      const year = tr.querySelector('input[type=number][max="2040"]');
+      const year = tr.querySelector('input[data-key$=".year"]');
       if (year && year.value === '') { year.value = '2023'; year.dispatchEvent(new Event('change')); n++; }
     }
     return n;

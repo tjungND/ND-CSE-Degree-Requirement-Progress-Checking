@@ -1,29 +1,29 @@
 key,value,handbook_section,notes
-ms_total_credits_min,30,§3.2,
+ms_total_credits_min,30,§3.2,total credits of courses and research for the M.S.
 ms_regular_credits_min,24,§3.2,
 ms_project_credits_min,6,§3.2,CSE 68901 / 68902
-ms_4xxxx_credits_max,6,§3.2,CSE 4xxxx only (DGS decision 2026-08-31)
+ms_4xxxx_credits_max,6,§3.2,
 ms_noncse_credits_max,9,§3.2,
-ms_bs_double_count_credits_max,6,§3.5,How much of an MSCSE student's coursework may also have counted toward their bachelor's degree — §3.5's two 40000-level courses or their 6xxxx equivalent (DGS 2026-09-10). The Ph.D. has no equivalent cap; its limit is that no course counts toward all three degrees.
+ms_bs_double_count_credits_max,6,§3.5,"How much of an MSCSE student's coursework may ALSO have counted toward their bachelor's degree - 3.5's one or two 3-credit courses, or their 40000-level equivalent (Graduate School via the DGS, 2026-09-10). The PhD has no equivalent cap: its limit is that no course counts toward all three degrees."
 ms_time_limit_years,5,§3.3,
 ms_thesis_readers_min,2,§3.4,thesis option only
-ms_transfer_completed_ms_credits_max,9,§5.2,completed prior M.S./Ph.D.
-phd_total_credits_min,60,§4.2,
+ms_transfer_completed_ms_credits_max,9,§5.2,completed prior M.S./Ph.D. → to an ND M.S.
+phd_total_credits_min,60,§4.2,credits of courses and research
 phd_regular_credits_min,24,§4.2,60000-level or higher
-phd_nd_credits_min,9,§4.2,at least nine credits at Notre Dame
+phd_nd_credits_min,9,§4.2,at least nine credits at Notre Dame regardless of transfers
 phd_seminar_courses,"CSE 63801, CSE 63802",§4.2,required in year one
 phd_4xxxx_cse_credits_max,6,§4.2,
 phd_noncse_6xxxx_credits_max,9,§4.2,
-quarter_credit_factor,0.66,§5.2,"Quarter hours → semester hours: the DGS Handbook's §5.2 pro-rata table (quarter × .66)"
-trimester_credit_factor,0.88,§5.2,"Trimester hours → semester hours: the DGS Handbook's §5.2 pro-rata table (trimester × .88)"
-ms_transfer_window_years,5,§3.2,prior M.S. coursework (the §5.2 five-year window applies to the MSCSE too — DGS 2026-09-11)
+quarter_credit_factor,0.66,§5.2,"Quarter hours to semester hours. DGS Handbook 5.2 pro-rata table: quarter credit hours x .66 = semester credit hours (DGS 2026-09-12, replacing the earlier =2/3)."
+trimester_credit_factor,0.88,§5.2,Trimester hours to semester hours. DGS Handbook 5.2 pro-rata table: trimester credit hours x .88 = semester credit hours (DGS 2026-09-12).
+ms_transfer_window_years,5,§3.2,"prior graduate coursework. The five-year window in 5.2 (""completed within a five-year period prior to admission"") applies to the MSCSE as well as the PhD - DGS 2026-09-11. One key per degree so the two can differ if the Graduate School ever distinguishes them; the PhD's is phd_transfer_window_years."
 phd_transfer_window_years,5,§4.2,prior M.S. coursework
-phd_transfer_completed_ms_credits_max,24,§5.2,completed prior M.S./Ph.D.
+phd_transfer_completed_ms_credits_max,24,§5.2,completed prior M.S./Ph.D. → to an ND Ph.D.
 phd_residency_semesters,4,§4.3,"consecutive, full-time, excluding summer"
 phd_time_limit_years,8,§4.3,
-transfer_unfinished_ms_credits_max,6,§5.2,unfinished prior M.S.
-transfer_min_grade,B,§5.2,
-fulltime_credits_min,9,§2.1.2,
+transfer_unfinished_ms_credits_max,6,§5.2,unfinished prior M.S. → either program
+transfer_min_grade,B,§5.2,grade of B (3.0) or better required to transfer
+fulltime_credits_min,9,§2.1.2,full-time = at least nine credit hours per semester
 qualifier_deadline_semesters,4,§4.4,DGS may extend
 category_courses_required,3,§4.4.2,
 category_distinct_groups_required,3,§4.4.2,
@@ -32,5 +32,5 @@ research_qualifier_deadline_months,18,§4.4.3,
 candidacy_deadline_semester,8,§4.5,before the end of the eighth semester
 candidacy_committee_additional_members_min,3,§4.5,beyond advisor/co-advisor
 gpa_min,3,§2.2,
-cse_subject_codes,CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE,§4.2,Subject codes on ANOTHER university's transcript that mean a CSE course. Anything else counts against the nine-credit non-CSE allowance; an ExternalCourses is_cse cell overrides this list for one course.
+cse_subject_codes,CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE; ECE,§4.2,Subject codes that mean a CSE course on ANOTHER university's transcript. 4.2 caps credits from outside CSE at nine wherever they were taken. A code not listed here counts against those nine; an is_cse cell in ExternalCourses overrides this list for one course. Blank or missing = the app places no transferred course inside or outside CSE.
 Every number the handbook states lives here so a future DGS can change it without touching code. Add rows freely; keep the key names stable because the app reads them by name.,,,

@@ -24,7 +24,7 @@ Open the Google Sheet **CSE-Degree-Checking-Rules** (named CSE-Degree-Audit-Rule
 - New course: add a row. `counts_toward_mscse` / `counts_toward_phd` ∈ `yes | no | dgs_approval`
   (`dgs_approval` / `adgs_approval` = counts provisionally, the app tells the student to get sign-off; blank = the
   app says "needs DGS review"). Tag `core_area` (§4.4.1) and `category_group` (§4.4.2) if it
-  qualifies; `any` means listed under every group and the student picks.
+  qualifies; a course that belongs in every group names all five (`alg, hcc, arch, dsai, sys`).
 - Retired course: set `active` to `no` (hides it from the picker; still recognized when typed,
   for students who took it years ago). Do not delete rows.
 - A rule *changes* from some term: **add a new row** with the later `rules_effective_term` instead of
@@ -59,9 +59,10 @@ ExternalCourses in the publish list) — nothing sheet-side is open. The app's
 diagnostics panel (bottom of the input column) lists every sheet problem whenever it loads.
 
 The Courses tab's `category_group` cell may name SEVERAL groups since 2026-09-08 — `hcc;dsai` means
-the course may fill either one and the student picks which. `any` still means every group and
-`ineligible` still means none. A typo in one code is reported and dropped; the other codes on the
-row keep working.
+the course may fill either one and the student picks which; a course that belongs in every group
+names all five. `ineligible` still means none. A typo in one code is reported and dropped; the
+other codes on the row keep working. (`any`, the old shorthand for every group, was retired on
+2026-09-18 — a cell that still says it is reported as a code the Categories tab does not define.)
 
 Since 2026-09-09 the Courses tab has `offered_now` and `offered_next` (`yes` / `no` / blank). They
 are the DGS's word on the current and next semester's schedule, where `typically_offered` is a

@@ -244,3 +244,33 @@ and the rest do not.
 most two courses, from CSE courses below the 60000 level may count toward the course requirement."*
 — or drop the course count from the Graduate School's phrasing and keep credits alone. The app can
 express either; a second Parameters key would carry the course limit.
+
+---
+
+## 9. §3.5: whose approval, recorded where — and is the 6xxxx sharing staying?
+
+**Today.** §3.5 begins *"**With approval of the instructor and DGS**, students in the integrated
+B.S. + M.S. program may, over the second semester of their junior year and their senior year, take
+one or two 3-credit CSE courses at the 6xxxx level, and count these both as undergraduate CSE
+electives/Tech electives and as course requirements for the MSCSE degree."*
+
+**Why it comes up.** The 2026-09-18 interface review asked why the shared-credit row reads **Met**
+directly beneath that sentence. The answer is that §3.5's approval is about the **double-counting**
+— permission for one student's CSE 60641 to be paid for twice — while the only approval the app can
+see is the Courses tab's per-course verdict, which answers a different question: *may this course
+count toward the MSCSE at all?* For 123 of the live sheet's 129 CSE 6xxxx rows that answer is a
+plain `yes`, so the app has nothing to hold the row open with. Nothing anywhere records that an
+instructor and the DGS approved the sharing, and the DGS review request never asks.
+
+**What the app does.** Reports the row as satisfied once the credits fit inside the six, naming the
+courses. The DGS chose this on 2026-09-18 (decision A: leave it), because the sharing itself may be
+withdrawn from the handbook — see below.
+
+**What the committee needs to settle.**
+1. **Is §3.5's 6xxxx double-counting staying?** The DGS noted on 2026-09-18 that it may be dropped.
+   If it goes, this row goes with it and the question below is moot.
+2. **If it stays: who approves, and where is it written down?** "The instructor and DGS" is two
+   people and no record. Either name a form the Grad Admin files (which the app could then ask the
+   student to confirm, as it does for §3.2/§4.2 and §5.2), or say plainly that registering the
+   course in the junior/senior year IS the approval, in which case the sentence should not read as
+   a condition the student must separately obtain.

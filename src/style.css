@@ -163,7 +163,19 @@ fieldset.field.inline { margin: 0; }
 .import-error { flex-basis: 100%; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .import-warnings { background: #fff7e0; border: 1px solid #e8d48a; color: #6b5510; border-radius: 6px; padding: 6px 10px; margin: 6px 0 10px; font-size: 13px; }
 .import-warnings ul { margin: 4px 0 0; padding-left: 18px; }
-input[aria-invalid="true"] { border-color: var(--bad); }
+/* A refused value is visible without reading the message (interface review R1,
+   2026-09-18): a 1px border tint was the only mark a box had, and next to a
+   grey --line border it is barely a change. Two pixels of --bad (#a81e14 —
+   6.94:1 against the tinted field it encloses, 6.91:1 against the page, where
+   the ordinary --line border measures 1.36:1) plus that tint, and the message
+   below carries the same fact in words, so the state never rests on colour
+   alone. The .field-error text measures 6.26:1 on its own box; the page's
+   floor is 5.36:1. */
+input[aria-invalid="true"], select[aria-invalid="true"] {
+  border: 2px solid var(--bad);
+  background: #fef7f6;
+  padding: 6px 8px; /* keep the box the same size as its neighbours */
+}
 .gpa-choice .hint { margin: 2px 0 6px; }
 .gpa-option { display: block; }
 .gpa-note { margin-top: -6px; }

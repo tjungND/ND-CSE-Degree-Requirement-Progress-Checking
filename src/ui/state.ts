@@ -1,6 +1,7 @@
 // Student state: localStorage autosave plus explicit save-to-file / load-file
 // (DGS-requested, 2026-08-31) so a student can move between devices/browsers.
 // Nothing ever leaves the browser (CLAUDE.md).
+import { COURSE_CREDITS_RANGE, GPA_RANGE, inRange, rangeRefusal } from '../engine/ranges.ts';
 import type { Student } from '../engine/types.ts';
 
 const LS_KEY = 'cse-degree-audit/v1/student';
@@ -81,12 +82,25 @@ function validNdDegrees(v: unknown): Student['ndDegrees'] {
   return out.length > 0 ? out : undefined;
 }
 
-/** Structural check for imported files — plain-English error on mismatch. */
-export function validateStudent(data: unknown): Student {
+/** A value a saved record carried that the app will not keep: the field it
+ * belongs to (its `data-key` in the form), the text as it stood, and the
+ * sentence the student is shown. */
+export type Refusal = { key: string; text: string; message: string };
+
+/** Structural check for imported files — plain-English error on mismatch.
+ *
+ * `refusals` collects the values this file carried that the app will not keep
+ * but that are not worth refusing the whole record over (interface review R1,
+ * 2026-09-18): the caller shows each sentence to the student and puts the
+ * value back in its own field to be corrected. A file is the student's own
+ * work, so one impossible number drops out of it rather than taking the other
+ * ninety with it — and `loadLocal()` reads the same code, where throwing would
+ * silently discard everything already on the device. */
+export function validateStudent(data: unknown, refusals: Refusal[] = []): Student {
   const d = data as Partial<Student> & { state?: unknown };
   if (d && typeof d === 'object' && 'student' in (d as object)) {
     // accept { savedAt, student } wrapper from exportFile()
-    return validateStudent((d as { student: unknown }).student);
+    return validateStudent((d as { student: unknown }).student, refusals);
   }
   if (!d || typeof d !== 'object') throw new Error('This file is not a saved audit (not a JSON object).');
   if (d.schemaVersion !== 1) {
@@ -109,6 +123,21 @@ export function validateStudent(data: unknown): Student {
       throw new Error(`${where} has no course number.`);
     if (typeof e['credits'] !== 'number' || !Number.isFinite(e['credits']))
       throw new Error(`${where} (${String(e['courseId'])}) has no numeric credits value.`);
+    // Fifteen credits is the most any single course may be worth (DGS
+    // 2026-09-18), so a record carrying more than that — which the pre-R1
+    // build accepted, and which put "1005 pending review/approval" on the
+    // 60-credit row — is corrected on load rather than refused: the course
+    // stays, its credits go to 0, and the student is told. Zero is already the
+    // app's own "counts toward nothing" state, with its own warning on the
+    // course line, so the row says what is wrong where the student can fix it.
+    if (!inRange(e['credits'], COURSE_CREDITS_RANGE)) {
+      refusals.push({
+        key: `course.${String(e['courseId'])}.credits`,
+        text: String(e['credits']),
+        message: `${String(e['courseId'])}: ${rangeRefusal(e['credits'], COURSE_CREDITS_RANGE, 'loaded')} It is on your list with 0 credits until you enter them.`,
+      });
+      e['credits'] = 0;
+    }
     const term = e['term'] as Record<string, unknown> | undefined;
     if (!term || typeof term['year'] !== 'number' || !SEASONS.includes(term['season'] as never))
       throw new Error(`${where} (${String(e['courseId'])}) has no valid term.`);
@@ -122,12 +151,26 @@ export function validateStudent(data: unknown): Student {
     if (e['fromNdTranscript'] !== undefined && e['fromNdTranscript'] !== true)
       delete e['fromNdTranscript']; // likewise a hint (which rows the transcript import added)
   });
+  // The cumulative GPA is the one number in a file the engine reads straight
+  // through to a verdict, so it is range-checked here as well as in the form
+  // (R1, 2026-09-18): a hand-edited 35 used to render "35.00 meets the 3.0
+  // minimum", and a hand-edited "four point oh" threw on `.toFixed()`. An
+  // impossible figure is dropped and reported; the rest of the record loads.
+  const rawGpa = (d as Record<string, unknown>)['gpa'];
+  // `null` means "not entered", not a figure: an older file can carry one, and
+  // a null passed every `gpa !== undefined` test downstream and then threw on
+  // `.toFixed()` in the §4.5 candidacy gate. It becomes undefined, silently —
+  // nothing was refused, there was nothing there.
+  const hasGpa = rawGpa !== undefined && rawGpa !== null;
+  const gpaRefused = hasGpa && !inRange(rawGpa, GPA_RANGE);
+  if (gpaRefused) refusals.push({ key: 'courses.gpa', text: String(rawGpa), message: rangeRefusal(rawGpa, GPA_RANGE, 'loaded') });
+  const gpa = hasGpa && !gpaRefused ? (rawGpa as number) : undefined;
   // gpaSource (2026-09-05) is a display hint — drop a malformed one, keep the file.
   const gs = (d as Record<string, unknown>)['gpaSource'] as Record<string, unknown> | undefined;
   const gpaSource =
-    gs && typeof gs === 'object' && (gs['basis'] === 'transcript-graduate' || gs['basis'] === 'program-only')
-      ? (gs as Student['gpaSource'])
-      : undefined;
+    gpaRefused || !(gs && typeof gs === 'object' && (gs['basis'] === 'transcript-graduate' || gs['basis'] === 'program-only'))
+      ? undefined
+      : (gs as Student['gpaSource']);
   // Which degrees a course has already counted toward (2026-09-10). A value
   // the app does not know is dropped, never thrown on — an unanswered course
   // simply counts nothing until the student answers.
@@ -141,6 +184,7 @@ export function validateStudent(data: unknown): Student {
   return {
     ...emptyStudent(),
     ...d,
+    ...(gpa === undefined ? { gpa: undefined } : { gpa }),
     gpaSource,
     entryTermInferred: validInferred(raw['entryTermInferred']),
     bachelorsAwarded,
@@ -160,11 +204,11 @@ export function validateStudent(data: unknown): Student {
   } as Student;
 }
 
-export function loadLocal(): Student | undefined {
+export function loadLocal(refusals: Refusal[] = []): Student | undefined {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return undefined;
-    return validateStudent(JSON.parse(raw));
+    return validateStudent(JSON.parse(raw), refusals);
   } catch {
     return undefined; // corrupted local state → start fresh rather than crash
   }
@@ -196,6 +240,6 @@ export function exportFile(student: Student): void {
   URL.revokeObjectURL(a.href);
 }
 
-export function importFile(file: File): Promise<Student> {
-  return file.text().then((text) => validateStudent(JSON.parse(text)));
+export function importFile(file: File, refusals: Refusal[] = []): Promise<Student> {
+  return file.text().then((text) => validateStudent(JSON.parse(text), refusals));
 }

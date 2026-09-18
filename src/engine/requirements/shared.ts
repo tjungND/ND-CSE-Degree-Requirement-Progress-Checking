@@ -1,4 +1,5 @@
 // §2 requirements shared by both programs.
+import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../ranges.ts';
 import { coursesNeedingDgsReview } from '../review.ts';
 import { startOfTerm } from '../term.ts';
 import type { DetailPart, RequirementResult } from '../types.ts';
@@ -23,6 +24,14 @@ export function gpaRow(ctx: Ctx): RequirementResult {
   } else if (gpa === undefined) {
     status = 'cannot_evaluate';
     detail = `Enter your cumulative GPA from your transcript (transferred grades are not part of it, §5.2).`;
+  } else if (!inRange(gpa, GPA_RANGE)) {
+    // A figure off the 4.00 scale is not a low GPA and not a high one — it is
+    // no answer at all, so §2.2 cannot be checked (interface review R1,
+    // 2026-09-18). The form now refuses such a value before it is stored; this
+    // is the floor under a hand-edited save file, so the row can never read
+    // "35.00 meets the 3.0 minimum" with a green pill again.
+    status = 'cannot_evaluate';
+    detail = `Cumulative GPA ${formatValue(gpa, GPA_RANGE)} is outside the ${rangeSpan(GPA_RANGE)} range, so the §2.2 check cannot be made — correct it under Coursework.`;
   } else if (gpa >= min) {
     status = 'met';
     detail = `Cumulative GPA ${gpa.toFixed(2)} meets the ${min.toFixed(1)} minimum.`;

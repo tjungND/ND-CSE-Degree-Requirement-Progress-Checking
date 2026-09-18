@@ -7,7 +7,7 @@ CSE 60641,Graduate Operating Systems,6,3,3,3,regular,yes,yes,os,sys,fall,yes,Fal
 CSE 60762,Custom System on Chip Design,6,3,3,3,regular,yes,yes,,arch,spring,yes,Spring 2026,Fall 2026,,,yes,§4.4.2 typical spring course
 CSE 60770,Secure Software Engineering,6,3,3,3,regular,yes,yes,,sys,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course
 CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,dsai,spring,yes,Spring 2026,Fall 2026,,,yes,"§4.4.2 typical spring course, dsai until Fall 2027"
-CSE 60876,Research Methods,6,3,3,3,regular,yes,yes,,any,spring,yes,Spring 2026,Fall 2026,,,yes,Listed under all five groups in §4.4.2 — the student assigns it to whichever group they still need
+CSE 60876,Research Methods,6,3,3,3,regular,yes,yes,,"alg, hcc, arch, dsai, sys",spring,yes,Spring 2026,Fall 2026,,,yes,Listed under all five groups in §4.4.2 — the student assigns it to whichever group they still need
 CSE 63801,Research Seminar I,6,1,1,1,seminar,no,yes,,,fall,yes,Fall 2026,Fall 2026,,,yes,§4.2 — required of Ph.D. students in year one
 CSE 63802,Research Seminar II,6,1,1,1,seminar,no,yes,,,spring,yes,Spring 2026,Fall 2026,,,yes,§4.2 — required of Ph.D. students in year one
 CSE 68901,M.S. Thesis Direction,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,§3.2 — thesis direction credits

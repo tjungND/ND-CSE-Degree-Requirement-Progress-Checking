@@ -50,7 +50,7 @@ export function validateCourses(
           tab: 'Courses',
           row: c.sheetRow,
           column: 'category_group',
-          message: `Courses row ${c.sheetRow} (${c.courseId}), column category_group: ${bad.map((g) => `'${g}'`).join(', ')} ${bad.length === 1 ? 'is' : 'are'} not in the Categories tab's group list (${[...groupCodes].join(', ')}) — ignored. A cell may name one group, several separated by ';', or 'any'.`,
+          message: `Courses row ${c.sheetRow} (${c.courseId}), column category_group: ${bad.map((g) => `'${g}'`).join(', ')} ${bad.length === 1 ? 'is' : 'are'} not in the Categories tab's group list (${[...groupCodes].join(', ')}) — ignored. A cell may name one group, or several separated by ';'.`,
         });
         const kept = c.categoryGroups.filter((g) => groupCodes.has(g));
         c = { ...c, ...(kept.length > 0 ? { categoryGroups: kept } : { categoryGroups: undefined }) };

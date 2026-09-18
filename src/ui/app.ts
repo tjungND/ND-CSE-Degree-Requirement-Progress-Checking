@@ -20,6 +20,17 @@ import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURAC
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
 import { embedTargetAttrs, isEmbedded, lastInteractionTop, openFullPageLink, placeInFrame } from './embed.ts';
 import { deciderTitle } from '../engine/decider.ts';
+import {
+  BACHELORS_YEAR_RANGE,
+  COURSE_CREDITS_RANGE,
+  GPA_RANGE,
+  TERM_YEAR_RANGE,
+  type NumberRange,
+  formatValue,
+  inRange,
+  inputRefusal,
+  rangeSpan,
+} from '../engine/ranges.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
 import { statusMark } from './marks.ts';
@@ -32,6 +43,7 @@ import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, scoreLine } from './report.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 import {
+  type Refusal,
   clearLocal,
   emptyStudent,
   exportFile,
@@ -58,8 +70,11 @@ const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 function groupsOf(rule: { categoryGroups?: string[] }, rules: Rules): string[] {
   const listed = rule.categoryGroups;
   if (!listed || listed.length === 0) return [];
+  // In the Categories tab's own order, and only groups it actually defines —
+  // a course listed everywhere names all five (the `any` keyword was retired
+  // on 2026-09-18).
   const all = rules.categoryGroups.map((g) => g.code);
-  return listed.includes('any') ? all : all.filter((g) => listed.includes(g));
+  return all.filter((g) => listed.includes(g));
 }
 
 
@@ -120,7 +135,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     consentDialog.setAttribute('open', '');
   }
 
-  let student: Student = loadLocal() ?? emptyStudent();
+  /** What a saved record on this device carried that the app will not keep
+   * (R1, 2026-09-18) — shown once the page is up, and put back in the field
+   * it came from, so a figure that vanished is never unexplained. */
+  const loadRefusals: Refusal[] = [];
+  let student: Student = loadLocal(loadRefusals) ?? emptyStudent();
   // Established on the loading card (DGS 2026-09-07): the date at Notre Dame,
   // from the server this page came from when it answers, and read in Notre
   // Dame's own zone either way — never the device's idea of the calendar.
@@ -161,6 +180,101 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     saveLocal(student);
     render();
   };
+
+  // ---------- numbers the form refuses (interface review R1, 2026-09-18) ----------
+  //
+  // The `min`/`max` on every number box used to be decorative: nothing read
+  // `validity`, nothing clamped, and a GPA of 35 went to localStorage and came
+  // back as "Cumulative GPA 35.00 meets the 3.0 minimum" under a green Met
+  // pill. An impossible value is now refused ON COMMIT — the typed text stays
+  // in its field to be corrected, and `student` never sees it.
+  //
+  // render() rebuilds the page from the record on every change, so the refusal
+  // lives out here, by `data-key`, or the rebuild would quietly put the last
+  // good value back and drop the message.
+  const refusedValues = new Map<string, { text: string; message: string }>();
+  /** The `data-key`s a refusal can be shown back in — every box `rangedNumber`
+   * builds. A refusal for anything else is reported but has no field to sit in. */
+  const FORM_REFUSAL_KEYS = new Set(['courses.gpa', 'standing.year', 'standing.bachelors.year']);
+
+  /** A number a saved record or a transcript carried that the app will not
+   * keep lands in the SAME refused state as one typed into the box: shown back
+   * in its own field, marked invalid, with the sentence beside it. */
+  const applyRefusals = (refusals: Refusal[]): void => {
+    // Only the refusals that belong to a box on this page go back into one;
+    // the rest (a course's credits, which the coursework table shows as text)
+    // are told in their own toast and live on the course's own line.
+    for (const r of refusals) {
+      if (FORM_REFUSAL_KEYS.has(r.key)) refusedValues.set(r.key, { text: r.text, message: r.message });
+    }
+  };
+
+  /** A number input whose range is enforced, with its own persistent message
+   * (the `.field-error` pattern the course-number box has used since the
+   * 2026-09-05 usability review — item 6: a problem stays beside its field,
+   * it does not flash past in a toast).
+   *
+   * `commit` is called only with a value inside the range; an empty box
+   * commits `undefined` when `allowEmpty`, and is refused when it is not. */
+  function rangedNumber(opts: {
+    key: string;
+    range: NumberRange;
+    value: string;
+    allowEmpty: boolean;
+    attrs?: Record<string, string>;
+    commit: (value: number | undefined) => void;
+  }): { input: HTMLInputElement; error: HTMLElement } {
+    const errorId = `${opts.key.replace(/[^\w-]+/g, '-')}-error`;
+    const refused = refusedValues.get(opts.key);
+    const error = el('p', { class: 'field-error hidden', id: errorId, role: 'alert' });
+    const input = el('input', {
+      type: 'number',
+      min: String(opts.range.min),
+      // No `max` attribute where the range has no ceiling (years, DGS 2026-09-18).
+      ...(opts.range.max === undefined ? {} : { max: String(opts.range.max) }),
+      'data-key': opts.key,
+      ...(opts.attrs ?? {}),
+      value: refused ? refused.text : opts.value,
+    }) as HTMLInputElement;
+    const describedBy = opts.attrs?.['aria-describedby'];
+    const show = (message: string): void => {
+      error.textContent = message;
+      error.classList.remove('hidden');
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', describedBy ? `${errorId} ${describedBy}` : errorId);
+    };
+    const clear = (): void => {
+      error.textContent = '';
+      error.classList.add('hidden');
+      input.removeAttribute('aria-invalid');
+      if (describedBy) input.setAttribute('aria-describedby', describedBy);
+      else input.removeAttribute('aria-describedby');
+    };
+    if (refused) show(refused.message);
+    // Typing is not committing: the message stays until the student leaves the
+    // box with a value the app can keep, so it is still there to read.
+    input.addEventListener('change', () => {
+      const text = input.value.trim();
+      if (text === '' && opts.allowEmpty) {
+        refusedValues.delete(opts.key);
+        clear();
+        opts.commit(undefined);
+        return;
+      }
+      const n = Number(text);
+      if (text === '' || !inRange(n, opts.range)) {
+        const message = inputRefusal(input.value, opts.range);
+        refusedValues.set(opts.key, { text: input.value, message });
+        show(message);
+        toast(message); // the polite live region, so it is heard as well as seen
+        return; // NOT written to the record, and NOT saved
+      }
+      refusedValues.delete(opts.key);
+      clear();
+      opts.commit(n);
+    });
+    return { input, error };
+  }
 
   // Toasts live in a stack created once OUTSIDE the root (2026-09-06
   // evening). render() rebuilds the page on every change, and an Undo that
@@ -658,14 +772,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       onchange: (e) => setEntry((s) => void (s.entryTerm.season = (e.target as HTMLSelectElement).value as Season)),
     });
     for (const se of SEASONS) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), student.entryTerm.season === se));
-    const yearInput = el('input', {
-      type: 'number',
-      min: '2000',
-      max: '2040',
-      'aria-label': 'Entered the program — year',
-      'data-key': 'standing.year',
+    // The entry term is the hinge of every deadline in §4 (and §3.3's five
+    // years), so a year outside 2000–2040 is refused rather than ignored: the
+    // old handler fell back to the stored year and said nothing (R1).
+    const { input: yearInput, error: yearError } = rangedNumber({
+      key: 'standing.year',
+      range: TERM_YEAR_RANGE,
       value: String(student.entryTerm.year),
-      onchange: (e) => setEntry((s) => void (s.entryTerm.year = Number((e.target as HTMLInputElement).value) || s.entryTerm.year)),
+      allowEmpty: false, // a record always has an entry term
+      attrs: { 'aria-label': 'Entered the program — year' },
+      commit: (value) => setEntry((s) => void (s.entryTerm.year = value!)),
     });
     // While the term is a guess (fresh record) or a transcript reading, say so
     // — a wrong entry term silently shifts every deadline (bug report 2026-09-05).
@@ -731,28 +847,42 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // transcript import fills it in when it finds a dated bachelor's award;
     // the note says so until the student touches either control.
     const awarded = student.bachelorsAwarded;
-    const bsYear = el('input', {
-      type: 'number',
-      min: '1970',
-      max: '2040',
-      'aria-label': 'Bachelor’s degree awarded — year',
-      'data-key': 'standing.bachelors.year',
-      ...(awarded === undefined ? { required: 'required', 'aria-required': 'true' } : {}),
-      value: awarded ? String(awarded.year) : '',
-    });
     const bsSeason = el('select', { 'aria-label': 'Bachelor’s degree awarded — semester', 'data-key': 'standing.bachelors.season' });
     for (const se of SEASONS) bsSeason.append(option(se, se[0]!.toUpperCase() + se.slice(1), (awarded?.season ?? 'spring') === se));
-    const setBachelors = (): void =>
+    const setBachelors = (year: number | undefined): void =>
       update((s) => {
-        const year = Number((bsYear as HTMLInputElement).value);
-        s.bachelorsAwarded = (bsYear as HTMLInputElement).value !== '' && Number.isFinite(year) && year >= 1970 ? { season: (bsSeason as HTMLSelectElement).value as Season, year } : undefined;
+        s.bachelorsAwarded = year === undefined ? undefined : { season: (bsSeason as HTMLSelectElement).value as Season, year };
         s.bachelorsAwardedInferred = undefined; // the student decided
         reclassifyNotreDameCourses(s); // prior Notre Dame rows without a registered level follow the award term
         derivePriorMs(s); // a senior-year graduate course is not a prior master's (2026-09-09)
       });
-    bsYear.addEventListener('change', setBachelors);
+    // Empty still means "unknown" (2026-09-07); a year outside 1970–2040 no
+    // longer quietly means the same thing, since the old guard (`>= 1970`,
+    // no upper bound) accepted 9999 and dropped 1899 without a word (R1).
+    const { input: bsYear, error: bsYearError } = rangedNumber({
+      key: 'standing.bachelors.year',
+      range: BACHELORS_YEAR_RANGE,
+      value: awarded ? String(awarded.year) : '',
+      allowEmpty: true,
+      attrs: {
+        'aria-label': 'Bachelor’s degree awarded — year',
+        ...(awarded === undefined ? { required: 'required', 'aria-required': 'true' } : {}),
+      },
+      commit: setBachelors,
+    });
     bsSeason.addEventListener('change', () => {
-      if ((bsYear as HTMLInputElement).value !== '') setBachelors();
+      const text = (bsYear as HTMLInputElement).value;
+      const year = Number(text);
+      if (text === '') return; // no year yet: the award term stays unknown, as it always has
+      if (inRange(year, BACHELORS_YEAR_RANGE)) {
+        setBachelors(year);
+        return;
+      }
+      // The semester cannot be recorded without a year the app will keep, and
+      // a silent no-op would leave the select showing a term the record does
+      // not hold (R1, 2026-09-18): say which box is in the way.
+      const refused = refusedValues.get('standing.bachelors.year');
+      toast(refused ? refused.message : inputRefusal(text, BACHELORS_YEAR_RANGE));
     });
     const hasGraduateTransfers = student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel !== 'bachelors');
     const bsInferred = student.bachelorsAwardedInferred;
@@ -812,10 +942,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('h2', {}, el('span', { class: 'step-no' }, '2. '), 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
       // A fieldset with a legend (item 5): the two controls share one question.
       fieldset(enteredProgramLabel(), el('div', { class: 'pair' }, seasonSel, yearInput)),
+      yearError,
       // What this field drives (item 11) — the longer note takes over while
       // the term is inferred or assumed.
       entryNote ?? el('p', { class: 'hint field-hint' }, 'Every deadline and the residency count are counted from this term.'),
       fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
+      bsYearError,
       bsNote,
       fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
       priorNote,
@@ -949,20 +1081,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function coursesCard(courseLines: CourseLine[]): HTMLElement {
     // The GPA lives here, next to the transcript import that prefills it
     // (moved from the standing card — DGS request, 2026-09-03).
-    const gpaInput = el('input', {
-      type: 'number',
-      min: '0',
-      max: '4',
-      step: '0.01',
-      'data-key': 'courses.gpa',
+    const { input: gpaInput, error: gpaError } = rangedNumber({
+      key: 'courses.gpa',
+      range: GPA_RANGE,
       value: student.gpa === undefined ? '' : String(student.gpa),
-      onchange: (e) => {
-        const v = (e.target as HTMLInputElement).value;
+      allowEmpty: true, // the GPA is optional until it is entered; §2.2 then says so
+      attrs: { step: '0.01' },
+      commit: (value) =>
         update((s) => {
-          s.gpa = v === '' ? undefined : Number(v);
+          s.gpa = value;
           s.gpaSource = undefined; // typed by hand — no longer the transcript's figure
-        });
-      },
+        }),
     });
     // Which figure the GPA is (combined-transcript bug report 2026-09-05): a
     // Notre Dame transcript carries one cumulative GPA per level, and the
@@ -1037,6 +1166,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
       // (The coursework card's intro sentence was removed on 2026-09-15 at the DGS's request.)
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
+      gpaError,
       gpaNote,
       courseForm(),
       el('h3', { class: 'subhead', id: 'nd-courses' }, 'ND'),
@@ -1287,6 +1417,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // transcript's figure is the default — it is what the registrar and
         // the Graduate School compute; docs/DECISIONS.md 2026-09-05).
         const programGpa = gpaOfProgramCourses(parsed.courses, entry);
+        // A figure misread off the page is not offered at all (R1,
+        // 2026-09-18): the preview's GPA control is the one place a number
+        // the student never typed can reach §2.2, so a reading off the 4.00
+        // scale is dropped here and said in the preview's own warnings, where
+        // the rest of what the parser could not place is already listed.
+        const transcriptGpa = inRange(parsed.cumulativeGpa, GPA_RANGE) ? parsed.cumulativeGpa : undefined;
+        const gpaWarning =
+          parsed.cumulativeGpa !== undefined && transcriptGpa === undefined
+            ? [
+                `The cumulative GPA read from this transcript (${formatValue(parsed.cumulativeGpa, GPA_RANGE)}) is outside the ${rangeSpan(GPA_RANGE)} range, so it was not used — enter your GPA under Coursework.`,
+              ]
+            : [];
         const earlierGraduateWork = parsed.courses.some(
           (c) => c.origin === 'nd' && termIndex(c.term) < termIndex(entry) && c.level === 'graduate' && GRADE_POINTS[c.grade] !== undefined,
         );
@@ -1294,14 +1436,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           courses: parsed.courses,
           selected: parsed.courses.map((_, i) => !duplicate[i] && !irrelevantPrior[i]),
           duplicate,
-          gpa: parsed.cumulativeGpa,
-          undergraduateGpa: parsed.cumulativeGpaByLevel?.undergraduate,
-          programGpa: earlierGraduateWork ? programGpa : undefined,
-          gpaChoice: parsed.cumulativeGpa !== undefined ? 'transcript' : earlierGraduateWork && programGpa !== undefined ? 'program' : 'none',
+          gpa: transcriptGpa,
+          undergraduateGpa: inRange(parsed.cumulativeGpaByLevel?.undergraduate, GPA_RANGE) ? parsed.cumulativeGpaByLevel?.undergraduate : undefined,
+          programGpa: earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? programGpa : undefined,
+          gpaChoice: transcriptGpa !== undefined ? 'transcript' : earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? 'program' : 'none',
           entryTerm: parsed.entryTerm,
           useEntryTerm: parsed.entryTerm !== undefined,
           degreesAwarded: parsed.degreesAwarded,
-          warnings: parsed.warnings,
+          warnings: [...parsed.warnings, ...gpaWarning],
         };
         render();
       } catch {
@@ -1641,11 +1783,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 if (tp.useEntryTerm && tp.entryTerm) {
                   s.entryTerm = { ...tp.entryTerm.term };
                   s.entryTermInferred = { how: tp.entryTerm.how, alternative: tp.entryTerm.alternative };
+                  refusedValues.delete('standing.year'); // the transcript answered this box
                 }
+                // Likewise for the two boxes the import fills in below: a
+                // refusal left over from something typed earlier would show a
+                // rejected figure beside a row now reading the transcript's
+                // (R1, 2026-09-18).
+                if (tp.gpaChoice !== 'none') refusedValues.delete('courses.gpa');
                 // The bachelor's award term (2026-09-06), before the prior
                 // rows are filed — they follow it when unlabelled.
                 const bs = bachelorsAwardFrom(tp.degreesAwarded);
                 if (bs && bachelorsMayBeSet(s)) {
+                  refusedValues.delete('standing.bachelors.year');
                   s.bachelorsAwarded = bs.term;
                   s.bachelorsAwardedInferred = { how: `the ${bs.degree.name} awarded ${bs.degree.date} on your Notre Dame transcript` };
                   bachelorsSet = bs.term;
@@ -1743,10 +1892,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const idInput = el('input', { list: 'known-courses', class: 'course-id', id: 'new-course-id', 'data-key': 'course.new.id', 'aria-describedby': 'new-course-id-hint' });
     const idError = el('p', { class: 'field-error hidden', id: 'new-course-id-error', role: 'alert' });
     const titleInput = el('input', { class: 'course-title', 'data-key': 'course.new.title' });
-    const creditsInput = el('input', { type: 'number', min: '0', max: '15', step: '0.5', value: '3', 'data-key': 'course.new.credits' });
+    const creditsInput = el('input', {
+      type: 'number',
+      min: String(COURSE_CREDITS_RANGE.min),
+      max: String(COURSE_CREDITS_RANGE.max),
+      step: '0.5',
+      value: '3',
+      'data-key': 'course.new.credits',
+      id: 'new-course-credits',
+    });
+    const creditsError = el('p', { class: 'field-error hidden', id: 'new-course-credits-error', role: 'alert' });
     const seasonSel = el('select', { 'aria-label': 'Term — semester', 'data-key': 'course.new.season' });
     for (const se of SEASONS) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1)));
-    const yearInput = el('input', { type: 'number', min: '2000', max: '2040', 'aria-label': 'Term — year', 'data-key': 'course.new.year', value: String(new Date().getFullYear()) });
+    const yearInput = el('input', {
+      type: 'number',
+      min: String(TERM_YEAR_RANGE.min),
+      'aria-label': 'Term — year',
+      'data-key': 'course.new.year',
+      value: String(new Date().getFullYear()),
+    });
+    const termYearError = el('p', { class: 'field-error hidden', id: 'new-course-year-error', role: 'alert' });
     const gradeSel = el('select', { 'data-key': 'course.new.grade' });
     for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, g === 'IP'));
     const originSel = el('select', { 'data-key': 'course.new.origin' });
@@ -1828,6 +1993,28 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       }
     });
 
+    /** Refuse one out-of-range box in this form, the same way the course
+     * number is refused: the message stays beside the field, the course is not
+     * added, and nothing typed is lost (R1, 2026-09-18 — a course entered at
+     * 999 credits, in a box whose `max` is 15, used to be accepted and to put
+     * "1005 pending review/approval" on the 60-credit row). */
+    const refuseEntry = (input: HTMLElement, error: HTMLElement, message: string): void => {
+      error.textContent = message;
+      error.classList.remove('hidden');
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', error.id);
+      toast(message); // heard as well as seen (the polite live region)
+      input.focus();
+    };
+    const clearEntryError = (input: HTMLElement, error: HTMLElement): void => {
+      error.classList.add('hidden');
+      error.textContent = '';
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+    };
+    creditsInput.addEventListener('input', () => clearEntryError(creditsInput, creditsError));
+    yearInput.addEventListener('input', () => clearEntryError(yearInput, termYearError));
+
     const add = async () => {
       const id = canonicalCourseId(idInput.value);
       if (!id) {
@@ -1839,11 +2026,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         idInput.focus();
         return;
       }
+      const credits = Number((creditsInput as HTMLInputElement).value);
+      if (!inRange(credits, COURSE_CREDITS_RANGE)) {
+        refuseEntry(creditsInput, creditsError, inputRefusal((creditsInput as HTMLInputElement).value, COURSE_CREDITS_RANGE, 'added'));
+        return;
+      }
+      const termYear = Number((yearInput as HTMLInputElement).value);
+      if (!inRange(termYear, TERM_YEAR_RANGE)) {
+        refuseEntry(yearInput, termYearError, inputRefusal((yearInput as HTMLInputElement).value, TERM_YEAR_RANGE, 'added'));
+        return;
+      }
       const entry: CourseEntry = {
         courseId: id,
         title: titleInput.value || undefined,
-        credits: Number(creditsInput.value) || 0,
-        term: { season: (seasonSel as HTMLSelectElement).value as Season, year: Number(yearInput.value) || 2026 },
+        credits,
+        term: { season: (seasonSel as HTMLSelectElement).value as Season, year: termYear },
         grade: (gradeSel as HTMLSelectElement).value as CourseEntry['grade'],
         origin: (originSel as HTMLSelectElement).value as CourseEntry['origin'],
       };
@@ -1917,6 +2114,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         labelWrap('Grade', gradeSel),
         labelWrap('Where', originSel),
       ),
+      // Full width, under the row they belong to: the boxes in row2 are 72 px
+      // wide and a refusal sentence is not (R1, 2026-09-18).
+      creditsError,
+      termYearError,
       // The §4.4.2 group picker exists only for the Ph.D. (2026-09-11: the
       // hidden field still put "§4.4.2" on the MSCSE page).
       el('div', { class: 'row3' }, institutionField, levelField, student.program === 'phd' ? groupField : null, el('button', { class: 'btn primary', 'data-key': 'course.new.add', onclick: add }, 'Add course')),
@@ -2325,8 +2526,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const file = (fileInput as HTMLInputElement).files?.[0];
       if (!file) return;
       try {
-        const imported = await importFile(file);
+        const refusals: Refusal[] = [];
+        const imported = await importFile(file, refusals);
         cancelUndo();
+        refusedValues.clear(); // this file's own refusals replace the page's
         const previous = student;
         student = imported;
         try {
@@ -2337,7 +2540,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           throw renderErr;
         }
         saveLocal(student);
-        toast('Progress loaded.');
+        // A number the file carried that the app would not keep goes back into
+        // its own field, refused, rather than disappearing (R1, 2026-09-18).
+        if (refusals.length > 0) {
+          applyRefusals(refusals);
+          render();
+        }
+        toast(refusals.length > 0 ? `Progress loaded. ${refusals.map((r) => r.message).join(' ')}` : 'Progress loaded.');
       } catch (err) {
         toast(err instanceof Error ? err.message : 'That file could not be read.');
       }
@@ -2478,6 +2687,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       return;
     }
     cancelUndo(); // a stale Undo would splice old rows into the replaced record
+    refusedValues.clear(); // …and a stale refusal would mark a box the record no longer has
     student = {
       schemaVersion: 1,
       isExample: true,
@@ -2509,6 +2719,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function clearAll(): void {
     if (!window.confirm('Clear everything you have entered on this device?')) return;
     cancelUndo();
+    refusedValues.clear();
     student = emptyStudent();
     clearLocal();
     render();
@@ -2549,5 +2760,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el('fieldset', { class: `field${variant === 'inline' ? ' inline' : ''} group` }, el('legend', { class: 'label' }, legend), controls);
   }
 
+  // A record already on this device may carry a number an older build let
+  // through (R1, 2026-09-18): it is refused now, shown back in its field, and
+  // said out loud once the page is up — never dropped in silence.
+  if (loadRefusals.length > 0) applyRefusals(loadRefusals);
   render();
+  for (const r of loadRefusals) toast(r.message);
 }

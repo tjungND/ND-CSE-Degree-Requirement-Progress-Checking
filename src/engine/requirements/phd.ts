@@ -6,6 +6,7 @@ import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
 import { isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
+import { usableGpa } from '../ranges.ts';
 import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus } from '../status.ts';
 import {
@@ -109,6 +110,12 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       quote:
         "Up to six (6) credits from CSE 4xxxx may be used to satisfy the course requirement, subject to approval of the student's advisor and DGS.",
       ctx,
+      // "subject to approval of the student's advisor and DGS" — the sentence
+      // this row quotes to the student. The row used to read Met while naming
+      // the very courses awaiting that approval (interface review R3,
+      // 2026-09-18); it now reads as conditionally satisfied until they have
+      // it, exactly as the non-CSE cap below already did.
+      approvalDriven: true,
     }),
   );
 
@@ -540,7 +547,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     // value can never inflate the count.
     const listed = c.rule?.categoryGroups;
     if (!listed || listed.length === 0) continue;
-    const groups = listed.includes('any') ? allGroups : listed.filter((g) => allGroups.includes(g));
+    const groups = listed.filter((g) => allGroups.includes(g));
     if (groups.length === 0) continue;
     const cand: GroupCandidate = {
       courseId: c.entry.courseId,
@@ -770,10 +777,14 @@ function candidacyRow(ctx: Ctx): RequirementResult {
   const regularDone = ctx.alloc.regular.definite + ctx.alloc.regular.in_progress;
   const courseworkShort = regularMin !== undefined && regularDone < regularMin;
   const gpaMin = ctx.params.number('gpa_min');
-  const gpaShort = gpaMin !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < gpaMin;
+  // Through usableGpa: a figure off the 0.00–4.00 scale gates nothing and is
+  // quoted nowhere (R1, 2026-09-18) — the §2.2 row above has already said it
+  // cannot be checked, and this line used to throw on a null.
+  const candidacyGpa = usableGpa(ctx.student.gpa);
+  const gpaShort = gpaMin !== undefined && candidacyGpa !== undefined && candidacyGpa < gpaMin;
   const conditions: string[] = [];
   if (courseworkShort) conditions.push(`§4.5 requires all Ph.D. coursework completed or in progress the same semester (you show ${formatCredits(regularDone)} of ${regularMin} regular credits)`);
-  if (gpaShort) conditions.push(`§2.2 requires a ${gpaMin!.toFixed(1)} cumulative GPA for admission to candidacy (yours is ${ctx.student.gpa!.toFixed(2)})`);
+  if (gpaShort) conditions.push(`§2.2 requires a ${gpaMin!.toFixed(1)} cumulative GPA for admission to candidacy (yours is ${candidacyGpa!.toFixed(2)})`);
   let status = r.status;
   if (conditions.length > 0) {
     if (ctx.student.milestones.candidacyPassed !== undefined) {
@@ -797,8 +808,9 @@ function candidacyRow(ctx: Ctx): RequirementResult {
 function dissertationRows(ctx: Ctx): RequirementResult[] {
   const m = ctx.student.milestones;
   const min = ctx.params.number('gpa_min');
+  const defenseGpa = usableGpa(ctx.student.gpa); // R1: an off-scale figure gates nothing
   const gpaGate =
-    min !== undefined && ctx.student.gpa !== undefined && ctx.student.gpa < min
+    min !== undefined && defenseGpa !== undefined && defenseGpa < min
       ? ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`
       : '';
   // §4.3: "Failure to complete all requirements for the Ph.D. degree within

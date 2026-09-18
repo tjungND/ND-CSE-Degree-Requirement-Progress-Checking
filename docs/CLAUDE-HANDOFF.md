@@ -50,6 +50,21 @@ Known-pending (the app's diagnostics panel is the live truth):
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
+- **Every number box has a range and it is enforced** (src/engine/ranges.ts, 2026-09-18). The table is
+  the single source for the form, `validateStudent()`, the transcript preview and the engine — add a
+  number field and give it a range here, or it will be as decorative as the `min`/`max` attributes were
+  before R1. A refused value is NOT written to `Student`: it stays in its box (`aria-invalid` + a
+  `.field-error` message) and in `refusedValues`, a map in `initApp()` keyed by the field's `data-key`,
+  because `render()` rebuilds the page from the record and would otherwise put the last good value back
+  without a word. Clear that map wherever the record is replaced wholesale (Load example, Clear, Load a
+  file) — a stale refusal marks a box the new record never filled. The engine checks the GPA again in
+  `gpaRow`: the form cannot be the only guard, since a save file is hand-editable, and every row that
+  compares the GPA to §2.2's minimum (§4.5 candidacy, §4.7 defense, §3.4's M.S. defense) reads it
+  through `usableGpa()` — one report may not say both "cannot be checked" and "yours is -2.00".
+  Remember there are TWO "Bachelor's degree awarded — year" boxes, the standing card's and the
+  transcript preview's (`external-upload.ts`), writing the same field; a guard added to one belongs
+  on the other.
+
 - **Course ids go through `canonicalCourseId()`** (src/data/assemble.ts, 2026-09-11) before every
   sheet lookup and every department test, and on entry in the manual form and the preview — so
   "cse60641" is CSE 60641. `isIncompleteCourseId()` catches placeholder numbers ("CSE 6xxxx"): a

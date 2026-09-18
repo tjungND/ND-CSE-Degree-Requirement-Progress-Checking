@@ -1,0 +1,60 @@
+{
+  "name": "gpa-off-scale",
+  "description": "Interface review R1 (2026-09-18): a cumulative GPA off Notre Dame's 4.00 scale is not a pass and not a deficiency — §2.2 cannot be checked at all. The form now refuses such a figure before it is stored; this is the floor under a record that already carries one, so the row can never read '35.00 meets the 3.0 minimum' with a green Met pill again. No other row in the same report may go on to quote the figure either: the §4.5 candidacy gate used to read “yours is 35.00” beside a §2.2 row saying the GPA could not be checked at all.",
+  "today": "2027-01-10",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 35,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "candidacyPassed": "2027-05-01"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "shared.gpa": {
+      "status": "cannot_evaluate",
+      "detailIncludes": [
+        "35.00 is outside the 0.00–4.00 range",
+        "correct it under Coursework"
+      ],
+      "detailExcludes": [
+        "meets the",
+        "below the"
+      ]
+    },
+    "phd.candidacy": {
+      "status": "needs_dgs_review",
+      "detailExcludes": [
+        "yours is",
+        "cumulative GPA for admission to candidacy"
+      ]
+    },
+    "phd.dissertation.defense": {
+      "status": "unmet",
+      "detailExcludes": [
+        "may not defend"
+      ]
+    }
+  }
+}

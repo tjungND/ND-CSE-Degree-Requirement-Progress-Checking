@@ -184,8 +184,11 @@ describe('coursesNeedingDgsReview — Notre Dame coursework', () => {
 
   // DGS 2026-09-11: "they 'may' count, subject to all other constraints, so
   // they should be listed when a MSCSE uploads an ND undergrad transcript for
-  // further decisions & review." The sheet's `dgs_approval` is what makes them
-  // a "may"; the ticked attestation is what settles it.
+  // further decisions & review." The sheet's `adgs_approval` (the MSCSE's side
+  // of `dgs_approval`) is what makes them a "may"; the ticked attestation is
+  // what settles it. The course carrying that shape is CSE 40437 (2026-09-18:
+  // the live sheet says adgs_approval for the MSCSE, dgs_approval for the
+  // Ph.D.); CSE 40600 carries the blocked-outright shape beside it.
   it('an MSCSE student’s own 40000-level undergraduate coursework is listed until the approval exists', () => {
     const ug = (courseId: string, title: string): CourseEntry =>
       nd(courseId, title, { origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', term: { season: 'fall', year: 2025 }, countedToward: 'bs' });
@@ -195,13 +198,13 @@ describe('coursesNeedingDgsReview — Notre Dame coursework', () => {
       entryTerm: { season: 'fall', year: 2026 },
       bachelorsAwarded: { season: 'spring', year: 2026 },
       priorMs: 'none',
-      courses: [ug('CSE 40875', 'Statistical Computing'), ug('CSE 40437', 'Social Sensing'), ug('CSE 20110', 'Discrete Mathematics')],
+      courses: [ug('CSE 40437', 'Social Sensing and Cyber-Physical Systems'), ug('CSE 40600', 'CSE Service Projects'), ug('CSE 20110', 'Discrete Mathematics')],
       milestones: {},
       attestations: attested ? { dgsApproved4xxxx: true } : {},
     });
     const pending = coursesNeedingDgsReview(ms(false), buildRules());
-    // CSE 40437 is `no` in the sheet and CSE 20110 too low to count: neither is a decision to make.
-    assert.deepEqual(pending.map((p) => `${p.course.entry.courseId}:${p.kind}:${p.unlisted ? 'new-row' : 'decide'}`), ['CSE 40875:priorNd:decide']);
+    // CSE 40600 is `no` in the sheet and CSE 20110 too low to count: neither is a decision to make.
+    assert.deepEqual(pending.map((p) => `${p.course.entry.courseId}:${p.kind}:${p.unlisted ? 'new-row' : 'decide'}`), ['CSE 40437:priorNd:decide']);
     assert.match(pending[0]!.reason, /may count toward the MSCSE \(§3\.2\) inside the allowance for courses below the 60000 level — needs advisor \+ ADGS approval/); // the ADGS decides for the MSCSE (2026-09-11)
     assert.deepEqual(coursesNeedingDgsReview(ms(true), buildRules()), []);
   });
@@ -226,15 +229,19 @@ describe('the review request skips a course no ruling can help', () => {
   const asked = (s: Student) => coursesNeedingDgsReview(s, rules).map((p) => p.course.entry.courseId);
 
   it('a listed dgs_approval course with a D is not asked about — approval could add nothing', () => {
-    assert.deepEqual(asked(nd('CSE 40113', 'D')), []);
+    // CSE 40243 is a 40000-level course the sheet lets the Ph.D. count only
+    // with the DGS's approval (2026-09-18: the course that used to stand here,
+    // CSE 40113, counts outright in the live sheet).
+    assert.deepEqual(asked(nd('CSE 40243', 'D')), []);
     // The same course with a countable grade is still asked about.
-    assert.deepEqual(asked(nd('CSE 40113', 'B')), ['CSE 40113']);
+    assert.deepEqual(asked(nd('CSE 40243', 'B')), ['CSE 40243']);
   });
 
   it('a C- whose core area the sheet already gives is not asked about either', () => {
-    // CSE 50120 is tagged core_area=algorithms, so §4.4.1 is already satisfied
-    // without any ruling; credit is foreclosed by the grade.
-    assert.deepEqual(asked(nd('CSE 50120', 'C-')), []);
+    // CSE 50502 is tagged core_area=algorithms, so §4.4.1 is already satisfied
+    // without any ruling; credit is foreclosed by the grade. (It replaced
+    // CSE 50120, which the live sheet has never carried — 2026-09-18.)
+    assert.deepEqual(asked(nd('CSE 50502', 'C-')), []);
   });
 
   it('an UNLISTED C- whose title names a core area is still asked about', () => {

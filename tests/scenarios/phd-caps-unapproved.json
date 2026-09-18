@@ -1,0 +1,128 @@
+{
+  "name": "phd-caps-unapproved",
+  "description": "Interface review R3 (2026-09-18): the twin of phd-4xxxx-overuse and phd-noncse-cap with NOTHING attested. Both §4.2 allowances quote the same condition on their own cards — “subject to approval of the student's advisor and DGS” — so while a course is waiting for that approval neither row may read Met. The CSE-4xxxx cap used to; the non-CSE cap already did not, and a student with an unapproved course of either kind now gets the same verdict for the same situation. Nine credits of CSE 4xxxx against a six-credit cap and twelve non-CSE credits against a nine-credit cap, so each row also carries its over-cap line: the 4xxxx credits over the limit are lost (§4.2), the non-CSE credits over it still count toward the total (decision F1, 2026-09-12). (Sheet fidelity: this turns on the Courses tab's `counts_toward_phd = dgs_approval` cell, and since the 2026-09-18 re-pointing it turns on real live ones — CSE 40243, CSE 40437 and CSE 40567 each carry that verdict on the live sheet and the fixture copies their cells. It is the common shape: 160 of the live sheet's 181 CSE 4xxxx rows read `dgs_approval` for the Ph.D. in the 2026-09-16 snapshot, so this row's verdict is what most Ph.D. students with a 40000-level course will actually see.)",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.4,
+    "courses": [
+      {
+        "courseId": "CSE 40243",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 40437",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A-",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 40567",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "MATH 60610",
+        "title": "Basic Real Analysis",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "ACMS 60842",
+        "title": "Statistical Learning",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "EE 60566",
+        "title": "Advanced Computer Architecture",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "PSY 60119",
+        "title": "Cognition",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.cap.fourk": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "6 of the 6 credits below the 60000 level used",
+        "needs approval: CSE 40243, CSE 40437, CSE 40567",
+        "CSE 40567: 3 credits not counted — over the cap"
+      ]
+    },
+    "phd.cap.noncse": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "9 of the 9 non-CSE cap credits used",
+        "needs approval: ACMS 60842, MATH 60610, EE 60566, PSY 60119",
+        "PSY 60119: 3 credits over the cap — count toward the total-credit requirement only"
+      ]
+    }
+  }
+}

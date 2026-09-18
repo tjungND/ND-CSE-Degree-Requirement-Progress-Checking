@@ -93,35 +93,52 @@ describe('what a course counts toward', () => {
 // 2026-09-08): a course can then satisfy any one of them, not just one group
 // or all five, and the student picks which.
 describe('a course listed under several specialization groups', () => {
-  // The fixture sheet lists CSE 60427 under two groups (`hcc;dsai`).
+  // The sheet's one such course is CSE 60876 Research Methods, whose cell
+  // spells the five groups out — `alg, hcc, arch, dsai, sys`, separated by
+  // commas and spaces where the sheet elsewhere uses a semicolon. CSE 60427
+  // and CSE 60641 name a single group each. (Re-pointed 2026-09-18, when the
+  // fixture was re-read off the live sheet: CSE 60427 is `hcc` alone there,
+  // and the `any` keyword this block used to exercise has left both the
+  // Courses tab and the live Categories tab.)
   const rule = (id: string) => rules.courses.get(id)?.[0];
 
   it('the sheet cell is read as a list', () => {
-    assert.deepEqual(rule('CSE 60427')?.categoryGroups, ['hcc', 'dsai']);
+    assert.deepEqual(
+      rule('CSE 60876')?.categoryGroups,
+      ['alg', 'hcc', 'arch', 'dsai', 'sys'],
+      'commas and spaces separate the codes just as a semicolon does',
+    );
+    assert.deepEqual(rule('CSE 60427')?.categoryGroups, ['hcc'], 'one group still reads as a list of one');
     assert.deepEqual(rule('CSE 60641')?.categoryGroups, ['sys'], 'one group still reads as a list of one');
-    assert.deepEqual(rule('CSE 60876')?.categoryGroups, ['any'], '`any` still means every group');
     assert.equal(rule('CSE 40113')?.categoryIneligible, true);
   });
 
   it('offers only the groups the course is listed under, minus those another course covers', () => {
     const s = student([
-      nd('CSE 60427', { title: 'Human-Centered Computing' }),
+      nd('CSE 60876', { title: 'Research Methods' }),
       nd('CSE 60641', { title: 'Graduate Operating Systems' }),
     ]);
     const row = audit(s, rules, '2027-03-01').requirements.find((r) => r.id === 'phd.qualifier.categories');
-    const offered = row?.groupChoices?.['CSE 60427'] ?? [];
-    assert.ok(offered.includes('hcc') || offered.includes('dsai'), 'its own groups: ' + JSON.stringify(offered));
-    assert.ok(!offered.includes('arch') && !offered.includes('alg'), 'never a group it is not listed under: ' + JSON.stringify(offered));
+    const offered = row?.groupChoices?.['CSE 60876'] ?? [];
+    assert.ok(offered.length > 0, 'its own groups: ' + JSON.stringify(offered));
+    assert.ok(!offered.includes('sys'), 'CSE 60641 already covers sys, so it is not offered again: ' + JSON.stringify(offered));
+    // "Only the groups it is listed under" has no course left to bite on while
+    // the sheet's one multi-group course is listed under all five; the check
+    // stays as the invariant a narrower cell would have to honour.
+    const listed = rule('CSE 60876')?.categoryGroups ?? [];
+    assert.ok(offered.every((g) => listed.includes(g)), 'never a group it is not listed under: ' + JSON.stringify(offered));
+    // A course the sheet pins to one group is offered no choice at all.
+    assert.equal(row?.groupChoices?.['CSE 60641'], undefined, 'the sheet fixes this course’s group');
   });
 
-  it('a two-group course can fill either one, so it covers whichever is still open', () => {
+  it('a multi-group course can fill any one of them, so it covers whichever is still open', () => {
     const s = student([
-      nd('CSE 60427', { title: 'Human-Centered Computing' }),
+      nd('CSE 60876', { title: 'Research Methods' }),
       nd('CSE 60641', { title: 'Graduate Operating Systems' }),
       nd('CSE 60111', { title: 'Complexity and Algorithms' }),
     ]);
     const row = audit(s, rules, '2027-03-01').requirements.find((r) => r.id === 'phd.qualifier.categories');
     assert.equal(row?.status, 'met', String(row?.detail));
-    assert.ok((row?.satisfiedBy ?? []).includes('CSE 60427'), JSON.stringify(row?.satisfiedBy));
+    assert.ok((row?.satisfiedBy ?? []).includes('CSE 60876'), JSON.stringify(row?.satisfiedBy));
   });
 });

@@ -16,6 +16,7 @@ import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
 import { GRADES } from '../engine/grades.ts';
+import { BACHELORS_YEAR_RANGE, COURSE_CREDITS_RANGE, TERM_YEAR_RANGE, inRange, inputRefusal } from '../engine/ranges.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, Grade, Program, Season, Student, Term } from '../engine/types.ts';
 import type { ExternalCourseCandidate } from '../transcript/external.ts';
@@ -1014,10 +1015,33 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     let crIn: HTMLElement;
     if (locked && r.credits !== undefined) crIn = lockedText('course-credits', 'credits', `${r.credits} cr`);
     else {
-      crIn = el('input', { type: 'number', min: '0', max: '30', step: '0.5', 'aria-label': `Credits for ${who()}`, 'data-key': `ext.row.${i}.credits`, value: r.credits !== undefined ? String(r.credits) : '' });
+      // Fifteen credits is the most any single course may be worth (DGS
+      // 2026-09-18), so this box takes the SAME bound as the add-course form
+      // rather than its old decorative max="30" with a `v > 0` guard. A value
+      // outside it leaves the row incomplete (so it cannot be added) and says
+      // why, instead of blanking itself without a word.
+      crIn = el('input', {
+        type: 'number',
+        min: String(COURSE_CREDITS_RANGE.min),
+        max: String(COURSE_CREDITS_RANGE.max),
+        step: '0.5',
+        'aria-label': `Credits for ${who()}`,
+        'data-key': `ext.row.${i}.credits`,
+        value: r.credits !== undefined ? String(r.credits) : '',
+      });
       crIn.addEventListener('change', () => {
-        const v = Number((crIn as HTMLInputElement).value);
-        r.credits = Number.isFinite(v) && v > 0 ? v : undefined;
+        const text = (crIn as HTMLInputElement).value;
+        const v = Number(text);
+        // A blank box is "not filled in yet", as it always was — only a value
+        // the app will not keep is refused out loud.
+        const keep = inRange(v, COURSE_CREDITS_RANGE) && v > 0;
+        r.credits = keep ? v : undefined;
+        if (text !== '' && !keep) {
+          crIn.setAttribute('aria-invalid', 'true');
+          toast(inputRefusal(text, COURSE_CREDITS_RANGE, 'added'));
+        } else {
+          crIn.removeAttribute('aria-invalid');
+        }
       });
     }
     let gradeSel: HTMLElement;
@@ -1044,10 +1068,26 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       seasonSel = el('select', { 'aria-label': `Semester for ${who()}`, 'data-key': `ext.row.${i}.season` });
       for (const se of ['fall', 'spring', 'summer'] as Season[]) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), r.season === se));
       seasonSel.addEventListener('change', () => (r.season = (seasonSel as HTMLSelectElement).value as Season));
-      yearIn = el('input', { type: 'number', min: '1970', max: '2040', 'aria-label': `Year for ${who()}`, 'data-key': `ext.row.${i}.year`, value: r.year !== undefined ? String(r.year) : '' });
+      // The same floor as every other term year, and no ceiling (DGS
+      // 2026-09-18). The old `v > 1900` accepted 1950 and 9999 alike.
+      yearIn = el('input', {
+        type: 'number',
+        min: String(TERM_YEAR_RANGE.min),
+        'aria-label': `Year for ${who()}`,
+        'data-key': `ext.row.${i}.year`,
+        value: r.year !== undefined ? String(r.year) : '',
+      });
       yearIn.addEventListener('change', () => {
-        const v = Number((yearIn as HTMLInputElement).value);
-        r.year = Number.isFinite(v) && v > 1900 ? v : undefined;
+        const text = (yearIn as HTMLInputElement).value;
+        const v = Number(text);
+        const keep = inRange(v, TERM_YEAR_RANGE);
+        r.year = keep ? v : undefined;
+        if (text !== '' && !keep) {
+          yearIn!.setAttribute('aria-invalid', 'true');
+          toast(inputRefusal(text, TERM_YEAR_RANGE, 'added'));
+        } else {
+          yearIn!.removeAttribute('aria-invalid');
+        }
       });
     }
     // Taken as (2026-09-05): the level decides Bachelor's vs graduate coursework on add.
@@ -1286,8 +1326,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
 function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, program: Program, sync?: (term: Term | undefined) => void): HTMLElement {
   const yearInput = el('input', {
     type: 'number',
-    min: '1970',
-    max: '2040',
+    min: String(BACHELORS_YEAR_RANGE.min),
     'aria-label': 'Bachelor’s degree awarded — year',
     'aria-describedby': 'ext-bachelors-hint',
     'data-key': 'ext.preview.bachelors.year',
@@ -1299,7 +1338,21 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, pr
   const apply = (): void => {
     const raw = (yearInput as HTMLInputElement).value;
     const year = Number(raw);
-    p.bachelorsAwarded = raw !== '' && Number.isFinite(year) && year >= 1970 ? { season: (seasonSel as HTMLSelectElement).value as Season, year } : undefined;
+    // This is the SECOND "Bachelor's degree awarded — year" box (the other is
+    // on the standing card) and it writes the same field of the record through
+    // `sync`, so it takes the same range (interface review R1, 2026-09-18).
+    // The guard here was `>= 1970` with no upper bound, which accepted 9999 —
+    // and 9999 dates every row of the transcript "before the award", so every
+    // imported course was re-levelled to undergraduate.
+    const keep = raw !== '' && inRange(year, BACHELORS_YEAR_RANGE);
+    if (raw !== '' && !keep) {
+      previewError = inputRefusal(raw, BACHELORS_YEAR_RANGE);
+      yearInput.setAttribute('aria-invalid', 'true');
+      render();
+      return;
+    }
+    yearInput.removeAttribute('aria-invalid');
+    p.bachelorsAwarded = keep ? { season: (seasonSel as HTMLSelectElement).value as Season, year } : undefined;
     p.bachelorsSource = 'student';
     relevelByAward(p, rules, program);
     previewError = undefined;

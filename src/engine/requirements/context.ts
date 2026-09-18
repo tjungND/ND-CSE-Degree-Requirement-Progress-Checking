@@ -124,9 +124,18 @@ export function capRow(args: {
   section: string;
   quote: string;
   ctx: Ctx;
-  /** Cap rows whose courses need DGS/advisor approval go needs_dgs_review
-   * until attested (non-CSE, transfer); the CSE-4xxxx cap row stays met and
-   * lets the approvals row carry the flag. */
+  /** Cap rows whose own handbook sentence makes the credit conditional on an
+   * approval go needs_dgs_review while any of their courses is still waiting
+   * for it, rather than met. Set it exactly where the quote on the card says
+   * so — §4.2's two allowances ("subject to approval of the student's advisor
+   * and DGS"), §3.2's non-CSE allowance ("subject to approval by the advisor
+   * and the DGS") and §3.5's shared credits ("With approval of the instructor
+   * and DGS").
+   *
+   * Not on `ms.cap.fourk`: §3.2's "Up to six (6) credits at the 40000 level
+   * may be used to satisfy the course requirement" names no approval, so its
+   * absence there is the handbook's, not an oversight (interface review R3,
+   * 2026-09-18 — the other two were oversights and are fixed). */
   approvalDriven?: boolean;
 }): RequirementResult {
   const usage = args.ctx.alloc.capUsage.get(args.capId);

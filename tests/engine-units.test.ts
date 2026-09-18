@@ -451,7 +451,10 @@ describe('is a transferred course a CSE course?', () => {
     const rules = buildRules({ parameters: { cse_subject_codes: '' } });
     assert.equal(rules.parameters.codeList('cse_subject_codes'), undefined);
     assert.equal(rules.parameters.codeList('nope'), undefined);
-    assert.deepEqual(buildRules().parameters.codeList('cse_subject_codes'), ['CS', 'CSCI', 'COMPSCI', 'CSE', 'CMSC', 'EECS', 'CSYE']);
+    // The fixture carries the live sheet's own list (DGS 2026-09-18: the live
+    // sheet always wins) — ECE joined it when the DGS ruled it a computing
+    // department code.
+    assert.deepEqual(buildRules().parameters.codeList('cse_subject_codes'), ['CS', 'CSCI', 'COMPSCI', 'CSE', 'CMSC', 'EECS', 'CSYE', 'ECE']);
   });
 });
 
@@ -459,7 +462,9 @@ describe('is a transferred course a CSE course?', () => {
 // handbook writes §3.6 for the MSCSE — "CSE 50xxx courses are preparatory and
 // do not count toward the MSCSE degree requirements in §3.1-3.5" — and says
 // nothing about a Ph.D. student required to take them; the sheet decides,
-// course by course (DGS 2026-09-03 for CSE 50502).
+// course by course (DGS 2026-09-03 for CSE 50502). The block runs on that
+// live row itself — dgs_approval for the Ph.D., no for the MSCSE — so the
+// two sides below are the sheet's own cells, not an invented pair.
 describe('50000-level bridge courses', () => {
   const bridgeStudent = (attestations: Student['attestations'] = {}): Student => ({
     schemaVersion: 1,
@@ -468,7 +473,7 @@ describe('50000-level bridge courses', () => {
     bachelorsAwarded: { season: 'spring', year: 2026 },
     priorMs: 'none',
     gpa: 3.5,
-    courses: [{ courseId: 'CSE 50120', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }],
+    courses: [{ courseId: 'CSE 50502', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }],
     milestones: {},
     attestations,
   });
@@ -480,10 +485,10 @@ describe('50000-level bridge courses', () => {
   it('the below-60000 approval checkbox clears a 50000-level course', () => {
     const before = audit(bridgeStudent(), buildRules(), '2027-06-01');
     assert.equal(before.requirements.find((r) => r.id === 'phd.credits.regular')?.status, 'unmet');
-    assert.match(before.courseLines.find((l) => l.courseId === 'CSE 50120')!.text, /needs advisor \+ DGS approval/);
+    assert.match(before.courseLines.find((l) => l.courseId === 'CSE 50502')!.text, /needs advisor \+ DGS approval/);
 
     const after = audit(bridgeStudent({ dgsApproved4xxxx: true }), buildRules(), '2027-06-01');
-    const line = after.courseLines.find((l) => l.courseId === 'CSE 50120');
+    const line = after.courseLines.find((l) => l.courseId === 'CSE 50502');
     assert.equal(line?.mark, 'counts');
     assert.match(line!.text, /^counts toward regular courses \(3 cr\)/);
     assert.match(after.requirements.find((r) => r.id === 'phd.credits.regular')!.detail, /3 of 24/);
@@ -494,13 +499,13 @@ describe('50000-level bridge courses', () => {
   // course was telling the student it used "the 40000-level allowance".
   it('the allowance line names the level the course is at', () => {
     const after = audit(bridgeStudent({ dgsApproved4xxxx: true }), buildRules(), '2027-06-01');
-    assert.match(after.courseLines.find((l) => l.courseId === 'CSE 50120')!.text, /uses the 50000-level allowance \(6 credits, §4\.2\)/);
+    assert.match(after.courseLines.find((l) => l.courseId === 'CSE 50502')!.text, /uses the 50000-level allowance \(6 credits, §4\.2\)/);
   });
 
   // §3.6.1 for the MSCSE, straight from the sheet's counts_toward_mscse = no.
   it('the same course counts nothing toward the MSCSE', () => {
     const ms = audit({ ...bridgeStudent({ dgsApproved4xxxx: true }), program: 'mscse' }, buildRules(), '2027-06-01');
-    assert.match(ms.courseLines.find((l) => l.courseId === 'CSE 50120')!.text, /does not count toward the MSCSE/);
+    assert.match(ms.courseLines.find((l) => l.courseId === 'CSE 50502')!.text, /does not count toward the MSCSE/);
     assert.match(ms.requirements.find((r) => r.id === 'ms.credits.total')!.detail, /0 of 30/);
   });
 
@@ -508,7 +513,7 @@ describe('50000-level bridge courses', () => {
   // the degree — a bridge semester is still a full-time semester.
   it('a bridge semester still counts toward residence', () => {
     const s = bridgeStudent();
-    s.courses = ['CSE 50120', 'CSE 60641', 'CSE 60111'].map((courseId) => ({
+    s.courses = ['CSE 50502', 'CSE 60641', 'CSE 60111'].map((courseId) => ({
       courseId, credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' as const,
     }));
     assert.match(audit(s, buildRules(), '2027-06-01').requirements.find((r) => r.id === 'phd.residency')!.detail, /1 of 4 semesters/);
@@ -538,10 +543,10 @@ describe('§3.5 / §3.6 track notes', () => {
   const tracksOf = (s: Student) => specialTracks(s, classify(s, rules).classified);
 
   it('a bridge course raises the §3.6 note, and says something different to each program', () => {
-    const phd = tracksOf(student([course('CSE 50120')]));
+    const phd = tracksOf(student([course('CSE 50502')]));
     assert.deepEqual(phd.map((t) => t.id), ['transition']);
     assert.match(phd[0]!.text, /ask them/i);
-    const ms = tracksOf(student([course('CSE 50120')], { program: 'mscse' }));
+    const ms = tracksOf(student([course('CSE 50502')], { program: 'mscse' }));
     assert.match(ms[0]!.text, /do not count toward the MSCSE degree requirements/);
   });
 
@@ -563,7 +568,7 @@ describe('§3.5 / §3.6 track notes', () => {
   });
 
   it('both at once — a 4+1 who then needs bridge courses', () => {
-    const s = student([course('CSE 60641', 2026, 'spring'), course('CSE 50120')]);
+    const s = student([course('CSE 60641', 2026, 'spring'), course('CSE 50502')]);
     assert.deepEqual(tracksOf(s).map((t) => t.id), ['transition', 'integrated']);
     assert.deepEqual(audit(s, rules, '2027-06-01').tracks.map((t) => t.section), ['§3.6', '§3.5']);
   });
@@ -617,7 +622,7 @@ describe('undergraduate Notre Dame coursework', () => {
   });
 
   it('below the 60000 level it draws on §4.2’s six credits; below 40000 it counts nothing', () => {
-    const s = student([ug('CSE 40113'), ug('CSE 40567'), ug('CSE 40875'), ug('CSE 20110')]);
+    const s = student([ug('CSE 40113'), ug('CSE 40567'), ug('CSE 40243'), ug('CSE 20110')]);
     assert.match(detail(s, 'phd.cap.fourk'), /6 of the 6 credits below the 60000 level used/);
     assert.match(lineFor(s, 'CSE 20110'), /taken as an undergraduate student — no transfer credit/, 'a course that cannot count at any answer keeps the line it always had');
   });
@@ -670,9 +675,9 @@ describe('undergraduate Notre Dame coursework', () => {
     });
     it('the two best 40000-level courses apply to both degrees; a third, and every 60000-level course, to the MSCSE only', () => {
       const senior = { season: 'fall' as const, year: 2025 };
-      const s = ms([{ ...ug('CSE 40113'), grade: 'A' }, { ...ug('CSE 40567'), grade: 'B' }, { ...ug('CSE 40875'), grade: 'A-' }, { ...ug('CSE 60641'), term: senior }, { ...ug('CSE 60111'), term: senior }], { attestations: { dgsApproved4xxxx: true } });
+      const s = ms([{ ...ug('CSE 40113'), grade: 'A' }, { ...ug('CSE 40567'), grade: 'B' }, { ...ug('CSE 40243'), grade: 'A-' }, { ...ug('CSE 60641'), term: senior }, { ...ug('CSE 60111'), term: senior }], { attestations: { dgsApproved4xxxx: true } });
       assert.match(lineFor(s, 'CSE 40113'), /will apply to both your bachelor’s degree and your MSCSE/);
-      assert.match(lineFor(s, 'CSE 40875'), /will apply to both your bachelor’s degree and your MSCSE/); // A- beats B
+      assert.match(lineFor(s, 'CSE 40243'), /will apply to both your bachelor’s degree and your MSCSE/); // A- beats B
       assert.match(lineFor(s, 'CSE 40567'), /^not counted — over the 6-credit cap on courses below the 60000 level \(§3\.2\)/); // the B: third 40xxx, over §3.2's six
       assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses \(3 cr\); will apply to your MSCSE only$/);
       assert.match(detail(s, 'ms.cap.sharedbs'), /6 of the 6 credits shared with your bachelor’s degree used/);
@@ -683,10 +688,13 @@ describe('undergraduate Notre Dame coursework', () => {
       assert.match(lineFor(s, 'CSE 60111'), /will apply to both/);
       assert.match(lineFor(s, 'CSE 60321'), /will apply to your MSCSE only/);
     });
-    it('a 40000-level course is still provisional until the DGS approval is ticked', () => {
-      const s = ms([ug('CSE 40113')]);
-      assert.match(lineFor(s, 'CSE 40113'), /^pending ADGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/); // the ADGS decides for the MSCSE (2026-09-11)
-      assert.match(lineFor(ms([ug('CSE 40113')], { attestations: { dgsApproved4xxxx: true } }), 'CSE 40113'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
+    // CSE 40437 is the fixture's 40000-level row that says adgs_approval for
+    // the MSCSE; CSE 40113 used to play this part, but the live sheet says
+    // plain yes for it, and a yes needs no one's approval (DGS 2026-09-18).
+    it('a 40000-level course the sheet gates on approval is provisional until the box is ticked', () => {
+      const s = ms([ug('CSE 40437')]);
+      assert.match(lineFor(s, 'CSE 40437'), /^pending ADGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/); // the ADGS decides for the MSCSE (2026-09-11)
+      assert.match(lineFor(ms([ug('CSE 40437')], { attestations: { dgsApproved4xxxx: true } }), 'CSE 40437'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
     });
   });
 
@@ -703,9 +711,9 @@ describe('undergraduate Notre Dame coursework', () => {
       assert.equal(can('MATH 10550'), false);
     });
     it('the sheet’s "no" is final, per program', () => {
-      assert.equal(can('CSE 40437'), false); // no for both degrees
-      assert.equal(can('CSE 50120', 'mscse'), false); // no for the MSCSE
-      assert.equal(can('CSE 50120', 'phd'), true); // dgs_approval for the Ph.D.
+      assert.equal(can('CSE 40600'), false); // no for both degrees — the role CSE 40437 held until the live sheet turned it into an approval (2026-09-18)
+      assert.equal(can('CSE 50502', 'mscse'), false); // no for the MSCSE
+      assert.equal(can('CSE 50502', 'phd'), true); // dgs_approval for the Ph.D.
     });
     it('a course missing from the sheet can still count, provisionally', () => {
       assert.equal(can('CSE 69999'), true);

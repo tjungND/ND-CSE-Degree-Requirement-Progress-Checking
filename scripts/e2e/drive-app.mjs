@@ -248,6 +248,83 @@ export async function driveApp(s, baseUrl) {
   await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 60567')`);
   await s.evalJs(`(() => { const cr = document.querySelector('[data-key="course.new.credits"]'); cr.value = '3'; cr.dispatchEvent(new Event('change')); })()`);
 
+  // Numbers the form refuses (interface review R1, 2026-09-18). Before this,
+  // `min`/`max` were decorative: a GPA of 35 was stored and the §2.2 row read
+  // "Cumulative GPA 35.00 meets the 3.0 minimum" under a green Met pill, and a
+  // course at 999 credits (box max 15) was accepted.
+  const gpaBefore = await s.evalJs(`document.querySelector('[data-key="courses.gpa"]').value`);
+  const badGpa = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const g = document.querySelector('[data-key="courses.gpa"]');
+    g.value = '35';
+    g.dispatchEvent(new Event('change'));
+    const row = [...document.querySelectorAll('.req')].find((r) => /Cumulative GPA/.test(r.querySelector('.req-title')?.textContent ?? ''));
+    return {
+      kept: g.value,
+      invalid: g.getAttribute('aria-invalid'),
+      describedBy: g.getAttribute('aria-describedby'),
+      message: document.querySelector('#courses-gpa-error')?.textContent ?? '',
+      hidden: document.querySelector('#courses-gpa-error')?.classList.contains('hidden'),
+      stored: (JSON.parse(localStorage.getItem('cse-degree-audit/v1/student') || '{}')).gpa ?? null,
+      rowStatus: [...(row?.classList ?? [])].find((c) => c.startsWith('s-')) ?? '',
+      rowText: row?.textContent ?? '',
+    };
+  })())`));
+  console.log('  GPA 35 refused:', JSON.stringify({ ...badGpa, rowText: badGpa.rowText.slice(0, 90) }));
+  if (badGpa.kept !== '35') throw new Error('the refused value must stay in the box to be corrected: ' + badGpa.kept);
+  if (badGpa.invalid !== 'true' || badGpa.hidden !== false) throw new Error('a refused box must be marked invalid and show its message: ' + JSON.stringify(badGpa));
+  if (!/between 0.00 and 4.00/.test(badGpa.message)) throw new Error('the message must name the range: ' + badGpa.message);
+  if (badGpa.describedBy !== 'courses-gpa-error') throw new Error('the message must be the box’s description: ' + badGpa.describedBy);
+  if (badGpa.stored === 35) throw new Error('a refused value must never reach localStorage');
+  // The record keeps the last figure the app accepted, so §2.2 still reads
+  // against THAT one — what must never happen is 35 reaching the verdict.
+  if (/\b35\b/.test(badGpa.rowText.split('Handbook §')[0])) throw new Error('§2.2 must never carry the refused figure: ' + badGpa.rowText.slice(0, 160));
+  await s.evalJs(`(() => { document.querySelector('[data-key="courses.gpa"]').closest('.card').id = 'shot-gpa'; })()`);
+  await s.shotElement('gpa-refused', '#shot-gpa');
+  // …and a figure on the scale is accepted, clearing the mark and the message.
+  const goodGpa = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const g = document.querySelector('[data-key="courses.gpa"]');
+    g.value = '3.5';
+    g.dispatchEvent(new Event('change'));
+    const g2 = document.querySelector('[data-key="courses.gpa"]');
+    const row = [...document.querySelectorAll('.req')].find((r) => /Cumulative GPA/.test(r.querySelector('.req-title')?.textContent ?? ''));
+    return {
+      invalid: g2.getAttribute('aria-invalid'),
+      shown: !document.querySelector('#courses-gpa-error')?.classList.contains('hidden'),
+      stored: (JSON.parse(localStorage.getItem('cse-degree-audit/v1/student') || '{}')).gpa ?? null,
+      rowStatus: [...(row?.classList ?? [])].find((c) => c.startsWith('s-')) ?? '',
+    };
+  })())`));
+  console.log('  GPA 3.5 accepted:', JSON.stringify(goodGpa));
+  if (goodGpa.invalid !== null || goodGpa.shown) throw new Error('a corrected box must lose the mark and the message: ' + JSON.stringify(goodGpa));
+  if (goodGpa.stored !== 3.5 || goodGpa.rowStatus !== 's-met') throw new Error('a GPA on the scale must be stored and met: ' + JSON.stringify(goodGpa));
+  // A course at 999 credits is refused at entry, not counted.
+  const badCredits = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const id = document.querySelector('[data-key="course.new.id"]');
+    id.value = 'CSE 60772';
+    id.dispatchEvent(new Event('change'));
+    const cr = document.querySelector('[data-key="course.new.credits"]');
+    cr.value = '999';
+    document.querySelector('[data-key="course.new.add"]').click();
+    return {
+      added: [...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772'),
+      invalid: document.querySelector('[data-key="course.new.credits"]')?.getAttribute('aria-invalid'),
+      message: document.querySelector('#new-course-credits-error')?.textContent ?? '',
+    };
+  })())`));
+  console.log('  999 credits refused:', JSON.stringify(badCredits));
+  if (badCredits.added) throw new Error('a course at 999 credits must not be added');
+  if (badCredits.invalid !== 'true' || !/between 0 and 15/.test(badCredits.message)) throw new Error('the credits box must say why: ' + JSON.stringify(badCredits));
+  await s.evalJs(`(() => {
+    const cr = document.querySelector('[data-key="course.new.credits"]');
+    cr.value = '3';
+    cr.dispatchEvent(new Event('input'));
+    const id = document.querySelector('[data-key="course.new.id"]');
+    id.value = '';
+    const g = document.querySelector('[data-key="courses.gpa"]');
+    g.value = ${JSON.stringify(gpaBefore ?? '')};
+    g.dispatchEvent(new Event('change'));
+  })()`);
+
   // §3.6 Transition to Computing (2026-09-10, promised 2026-08-31): a student
   // who enters a 50000-level bridge course is told the audit does not model
   // their track and sent to the DGS — above the dial, and NOT in the amber

@@ -1,8 +1,77 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-16 (this session, branch `claude/wordpress-embed-autoresize-db66da`, still running;
-the first Claude Code Desktop session's branch `claude/setup-handoff-review-c38220` — see 2026-09-11
-below — has since merged).
+Last updated: 2026-09-18 (this session, branch `claude/review-fixes-2026-09-18-9b0583`, still running —
+working through `docs/REVIEW-FIXES-2026-09-18.md`, the fix order from the 2026-09-18 interface review).
+
+2026-09-18: **the interface review of 2026-09-18** (blue/red team against the live Pages build at
+`717c112`). The work order is `docs/REVIEW-FIXES-2026-09-18.md`, six commits; the DGS asked for commits
+1 and 2 first. DONE so far:
+
+- **R1 — numbers outside their own box's range are refused** (commit 1). `min`/`max` were decorative:
+  nothing read `validity`, nothing clamped, and a GPA of 35 went to localStorage and came back as
+  "Cumulative GPA 35.00 meets the 3.0 minimum" under a green Met pill; -2 read as a real deficiency; a
+  course at 999 credits (box max 15) put "1005 pending review/approval" on the 60-credit row. One range
+  table now lives in `src/engine/ranges.ts` (GPA 0–4.00, course credits 0–15, term year 2000–2040,
+  bachelor's-awarded year 1970–2040) and is read by the form, the save-file loader, the transcript
+  import and the engine. A refused value keeps its place in the box (`aria-invalid`, a `.field-error`
+  message beside it, announced through the toast live region) and never reaches `Student`; the refusal
+  survives re-renders through a `refusedValues` map keyed by `data-key`, since `render()` rebuilds the
+  page from the record on every change. The §2.2 row returns `cannot_evaluate` for a GPA off the scale —
+  the floor under a hand-edited file, which used to throw on `.toFixed()` for `"four point oh"`. A file's
+  bad GPA is DROPPED and reported, not thrown on: `loadLocal()` shares that code and a throw there
+  discards the whole record silently. Tests: `tests/ranges.test.ts`, `tests/scenarios/gpa-off-scale.json`,
+  and an e2e block in `scripts/e2e/drive-app.mjs` (both engines).
+
+  An adversarial pass over the finished change found six more, all fixed in the same commit:
+  `gpa: null` in a record bypassed the guard and then threw in the §4.5 candidacy gate, taking the
+  page down on load (it is now "not entered"); the three OTHER rows that compare the GPA to §2.2's
+  minimum — §4.5 candidacy, §4.7 defense, §3.4's M.S. defense — still read the raw figure, so one
+  report said both "cannot be checked" and "yours is -2.00" (they now read `usableGpa()`);
+  `formatValue` ROUNDED the refused value, so 15.5 credits came back as "16 was not added" and a GPA
+  of 4.001 as "4.00 was not saved" — a figure inside the range the same sentence demands; a refusal
+  survived a transcript import and sat in red beside a row reading the transcript's own figure; the
+  bachelor's SEASON select became a silent no-op while its year was refused; and the SECOND
+  "Bachelor's degree awarded — year" box — the one in the transcript preview
+  (`external-upload.ts`) — still ran the `>= 1970`, no-upper-bound guard, which accepted 9999 and
+  thereby re-levelled every imported row to undergraduate.
+
+  NOT fixed, deliberately, and put to the DGS: the external-transcript preview's per-row **credits**
+  (box max 30, guard `v > 0`) and **year** (box min 1970, guard `v > 1900`) boxes are still
+  decorative, and `validateStudent` range-checks only the GPA — a record written by the pre-fix
+  build keeps its 999-credit course. Each needs a bound only the DGS can set (is 30 the real
+  ceiling for an imported course; may an external course predate 2000?).
+- **R3 — two cap rows ignored their own approval requirement** (commit 2). `phd.cap.fourk` (§4.2) and
+  `ms.cap.sharedbs` (§3.5) now pass `approvalDriven: true`, so they read `needs_dgs_review` while a
+  course is still waiting for the approval their own quoted sentence requires, instead of Met directly
+  above the sentence naming those courses. `ms.cap.fourk` is deliberately untouched (§3.2 names no
+  approval). Tests: `tests/scenarios/phd-caps-unapproved.json` (new), `mscse-prior-nd-undergrad-4xxxx`
+  (expectation updated).
+
+- **The DGS's bounds ruling** (same commit as R1). “Cap per-row credit at 15. That will be the maximum
+  credit of any single course” — so 15 is the APP's bound, not the add-course form's: it holds in the
+  transcript-preview rows (the box advertised 30 and enforced `v > 0`) and in a saved record, where a
+  course carrying more loads with 0 credits and is reported. “Change the min of year to 2000. Do not
+  have a maximum bound for the year” — one rule for every year, the bachelor's-award year included;
+  no `max` attribute anywhere, so a student may record a term as far ahead as they plan. A stored TERM
+  year is deliberately not corrected on load: unlike credits it has no safe fallback.
+- **§3.5's shared-credit row** — DGS decision A: leave it. `approvalDriven` stays on `ms.cap.sharedbs`
+  (it is correct where it fires) but it is INERT for the courses §3.5 describes, because `capRow` reads
+  the sheet's per-course verdict while §3.5's approval is about the double-counting, and 123 of the
+  live sheet's 129 CSE 6xxxx rows say a plain `yes`. Not worth an attestation while the sharing itself
+  may leave the handbook — written up for the committee as `docs/HANDBOOK-REVISIONS.md` §9.
+- **The rules fixture now mirrors the live sheet** (DGS: “the live sheet always wins”). All three tabs
+  re-pointed at `data/snapshot.json`; five invented course ids gone (four swapped for the real live
+  course with the same shape, CSE 50110 deleted outright); nineteen tests moved with it, every one
+  re-pointed rather than deleted. CSE 60999 (blank verdict) is the one fixture-only row left, and its
+  `notes` cell says so. **When a scenario turns on a sheet cell, check `data/snapshot.json` first** —
+  three tests here were PASSING on premises the live sheet had falsified.
+- **`any` is retired** (DGS 2026-09-18). The old shorthand for “listed under every §4.4.2 group” is out
+  of `RESERVED_GROUP_CODES`, out of the parser and out of the three call sites that read it as “every
+  group”; a course that belongs everywhere names all five, as the live sheet does. A leftover `any` is
+  now reported as an undefined code and fills no group.
+
+Still to do from that work order: R2 (conditional satisfaction — the dashboard, the over-cap warning),
+R5 (the example banner), R6/R7 (privacy wording, shared computers), B1–B9. R4 is closed by the DGS.
 
 2026-09-16 (hotfix): `bestMultiOrder` in allocate.ts was factorial — a Ph.D. student importing a
 

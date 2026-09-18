@@ -22,11 +22,19 @@ export type Counts = 'yes' | 'no' | 'dgs_approval' | 'adgs_approval';
 export type Transferable = 'yes' | 'no' | 'dgs_approval' | 'adgs_approval';
 
 /** category_group values that are valid on a Courses row but are NOT real
- * §4.4.2 specialization groups: 'any' = listed under every group (student
- * picks), 'ineligible' = can never satisfy the category requirement (the DGS
- * marks all 40000-level courses this way). They may appear in the Categories
- * tab for the sheet's own dropdowns, but never join the matchable group list. */
-export const RESERVED_GROUP_CODES = ['any', 'ineligible'] as const;
+ * §4.4.2 specialization groups: 'ineligible' = can never satisfy the category
+ * requirement (the DGS marks all 40000-level courses this way). It may appear
+ * in the Categories tab for the sheet's own dropdowns, but never joins the
+ * matchable group list.
+ *
+ * `any` USED to be the second one — "listed under every group, the student
+ * picks". The DGS retired it on 2026-09-18: the live sheet has no `any` row in
+ * the Categories tab and no Courses cell uses it, because a course listed
+ * everywhere now names the five groups outright (CSE 60876: "alg, hcc, arch,
+ * dsai, sys"), which says the same thing without a keyword to learn. A cell
+ * that still says `any` is now reported as an unknown group code — the honest
+ * answer for a value the sheet no longer defines. */
+export const RESERVED_GROUP_CODES = ['ineligible'] as const;
 
 export type CourseType = 'regular' | 'seminar' | 'research' | 'independent' | 'project';
 
@@ -155,7 +163,7 @@ export interface Rules {
   courses: ReadonlyMap<string, RuleCourse[]>;
   parameters: Parameters;
   coreAreas: { code: string; name: string }[];
-  categoryGroups: { code: string; name: string }[]; // the real groups; 'any' is not one
+  categoryGroups: { code: string; name: string }[]; // the real groups; 'ineligible' is not one
   /** The DGS's rulings on courses from other universities (§4.4.1/§5.2);
    * empty until the ExternalCourses tab exists and is published. */
   external: ExternalRule[];

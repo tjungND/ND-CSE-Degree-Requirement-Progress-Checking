@@ -1,6 +1,6 @@
 {
   "name": "unknown-course",
-  "description": "Sheet verdicts are honored at every level: an unknown course is provisional (never silently counted), counts_toward=no is honored for a 6xxxx independent course and a blocked 4xxxx, and blank counts_toward means needs DGS review.",
+  "description": "Sheet verdicts are honored at every level: an unknown course is provisional (never silently counted), counts_toward=no is honored for a 6xxxx independent course (CSE 67900) and for a 4xxxx the sheet blocks outright (CSE 40600), and blank counts_toward means needs DGS review. Re-pointed on 2026-09-18: CSE 66998 was never a real course id, and CSE 40437 turned out to read adgs_approval/dgs_approval live rather than no/no.",
   "today": "2027-01-15",
   "rules": { "base": "default" },
   "student": {
@@ -12,8 +12,8 @@
     "courses": [
       { "courseId": "CSE 60007", "title": "Made-Up Graduate Topics", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
       { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
-      { "courseId": "CSE 66998", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
-      { "courseId": "CSE 40437", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 67900", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 40600", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
       { "courseId": "CSE 60999", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
     ],
     "milestones": {},
@@ -25,8 +25,8 @@
   },
   "expectCourseLines": {
     "CSE 60007": ["not in the rules sheet", "DGS"],
-    "CSE 66998": ["does not count"],
-    "CSE 40437": ["does not count"],
+    "CSE 67900": ["does not count"],
+    "CSE 40600": ["does not count"],
     "CSE 60999": ["needs DGS review"]
   }
 }

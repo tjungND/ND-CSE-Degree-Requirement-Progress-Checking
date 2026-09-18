@@ -1,14 +1,15 @@
 // §4.4.2 distinct-group matching: "three category specialization courses from
-// three distinct groups". A course listed under every group ('any', e.g.
-// Research Methods) can stand in for whichever group the student still needs —
+// three distinct groups". A course the sheet lists under several groups (e.g.
+// Research Methods, listed under all five) can stand in for whichever the
+// student still needs —
 // Kuhn's augmenting-path bipartite matching (≤5 groups, tiny) finds the best
 // assignment deterministically, honoring the student's own pick when possible.
 export interface GroupCandidate {
   courseId: string;
   title: string;
-  /** Groups this course may fill (one fixed group, or all of them for 'any'). */
+  /** Groups this course may fill — one, several, or all five. */
   groups: string[];
-  /** The student's pinned choice for an 'any' course (decision Q2). */
+  /** The student's pinned choice where the course leaves one open (decision Q2). */
   pinned?: string;
   sortKey: string; // deterministic iteration order
 }

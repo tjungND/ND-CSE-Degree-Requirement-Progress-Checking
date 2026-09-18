@@ -1,6 +1,6 @@
 {
   "name": "phd-sem4-two-groups",
-  "description": "Semester 4: all three core areas passed, four B-or-better category courses — but they span only two distinct groups (the algorithms course got a B-, below the §4.4.2 floor), and an A in a 40000-level course marked 'ineligible' must not add a group.",
+  "description": "Semester 4: all three core areas passed, four B-or-better category courses — but they span only two distinct groups (the algorithms course got a B-, below the §4.4.2 floor), and an A in a 40000-level course marked 'ineligible' must not add a group. Interface review R3 (2026-09-18): CSE 40567 is carried here with no attestation, so §4.2's below-60000 allowance is conditionally satisfied, not met — pinned so the verdict cannot move again unnoticed. That half of the scenario rode on CSE 40113 until the fixture was re-pointed at the live sheet the same day; the live sheet counts CSE 40113 toward the Ph.D. outright, so the course that still needs the advisor + DGS approval is CSE 40567 (and it is marked ineligible for the category groups too, so the no-extra-group half is unchanged).",
   "today": "2028-03-15",
   "rules": {
     "base": "default"
@@ -66,7 +66,7 @@
         "origin": "nd"
       },
       {
-        "courseId": "CSE 40113",
+        "courseId": "CSE 40567",
         "credits": 3,
         "term": {
           "season": "fall",
@@ -103,6 +103,13 @@
     },
     "phd.credits.regular": {
       "status": "unmet"
+    },
+    "phd.cap.fourk": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "3 of the 6 credits below the 60000 level used",
+        "needs approval: CSE 40567"
+      ]
     }
   }
 }

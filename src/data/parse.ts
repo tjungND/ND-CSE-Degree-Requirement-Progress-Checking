@@ -91,9 +91,10 @@ export function categoryGroupsOf(cell: string | undefined): {
     .map((c) => c.trim().toLowerCase())
     .filter((c) => c !== '');
   if (codes.includes('ineligible')) return { categoryIneligible: true, categoryGroupRaw: raw };
-  // `any` anywhere in the cell means every group — a course listed as "any"
-  // plus a code is still every group, and saying so is simpler than guessing.
-  if (codes.includes('any')) return { categoryGroups: ['any'], categoryGroupRaw: raw };
+  // (`any` was a third answer here until the DGS retired it on 2026-09-18 — a
+  // course listed under every group now names all five, as the live sheet does.
+  // A leftover `any` falls through to the list below and validate.ts reports it
+  // as a code the Categories tab does not define.)
   return { categoryGroups: [...new Set(codes)], categoryGroupRaw: raw };
 }
 
@@ -344,8 +345,8 @@ export function parseCategoriesTab(
     }
     const group = cells['category_group'] ?? '';
     if (CODE_RE.test(group)) {
-      // Reserved codes ('any', 'ineligible') may sit in this list for the
-      // sheet's own dropdowns, but they are NOT matchable §4.4.2 groups.
+      // 'ineligible' may sit in this list for the sheet's own dropdowns, but
+      // it is NOT a matchable §4.4.2 group.
       if (!(RESERVED_GROUP_CODES as readonly string[]).includes(group)) {
         if (categoryGroups.some((c) => c.code === group)) dup('category_group', group, rowNum);
         else categoryGroups.push({ code: group, name: cells['category_group_name'] || group });

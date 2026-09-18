@@ -1,24 +1,24 @@
 course_id,title,level,credit_min,credit_max,credits_default,course_type,counts_toward_mscse,counts_toward_phd,core_area,category_group,typically_offered,active,last_offered,rules_effective_term,offered_now,offered_next,dgs_reviewed,notes
-CSE 50120,Bridge Data Structures,5,3,3,3,regular,no,dgs_approval,algorithms,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,"Fixture: the live shape of a Transition to Computing bridge course (CSE 50502) - no for the MSCSE, dgs_approval for the PhD, and a core area"
-CSE 50110,Bridge Programming Foundations,5,3,3,3,regular,yes,yes,,,fall,yes,Fall 2026,Fall 2026,,,yes,"Fixture: a 50000-level bridge course the sheet permits — it counts, but inside §4.2's six-credit cap (DGS 2026-09-09)"
+CSE 50502,Transition to Data Structures & Algorithms,5,3,3,3,regular,no,dgs_approval,algorithms,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,"Fixture: the live Transition to Computing bridge course — no for the MSCSE, dgs_approval for the Ph.D., and a core area (DGS 2026-09-10)"
 CSE 60111,Complexity and Algorithms,6,3,3,3,regular,yes,yes,algorithms,alg,spring,yes,Spring 2026,Fall 2026,yes,no,yes,§4.4.2 typical spring course
 CSE 60321,Advanced Computer Architecture,6,3,3,3,regular,yes,yes,architecture,arch,spring,yes,Spring 2026,Fall 2026,no,yes,yes,§4.4.2 typical spring course
-CSE 60427,Human-Centered Computing Research,6,3,3,3,regular,yes,yes,,hcc;dsai,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course
-CSE 60535,Graduate Computer Vision,6,3,3,3,regular,yes,yes,,dsai,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course
+CSE 60427,Human-Centered Computing Research,6,3,3,3,regular,yes,yes,,hcc,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course
+CSE 60535,Computer Vision,6,3,3,3,regular,yes,yes,,dsai,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course
 CSE 60641,Graduate Operating Systems,6,3,3,3,regular,yes,yes,os,sys,fall,yes,Fall 2026,Fall 2026,yes,yes,yes,§4.4.2 typical fall course
 CSE 60762,Custom System on Chip Design,6,3,3,3,regular,yes,yes,,arch,spring,yes,Spring 2026,Fall 2026,,,yes,§4.4.2 typical spring course
 CSE 60770,Secure Software Engineering,6,3,3,3,regular,yes,yes,,sys,fall,yes,Fall 2026,Fall 2026,,,yes,§4.4.2 typical fall course
-CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,dsai,spring,yes,Spring 2026,Fall 2026,,,yes,"§4.4.2 typical spring course, dsai until Fall 2027"
-CSE 60868,Graduate Neural Networks,6,3,3,3,regular,yes,yes,,alg,spring,yes,Spring 2026,Fall 2027,,,yes,Fixture: moved to the alg group from Fall 2027 (tests rules_effective_term selection)
-CSE 60876,Research Methods,6,3,3,3,regular,yes,yes,,any,spring,yes,Spring 2026,Fall 2026,,,yes,Listed under all five groups in §4.4.2 — the student assigns it to whichever group they still need
-CSE 60999,Topics in Computing,6,3,3,3,regular,,,,,varies,yes,Fall 2026,Fall 2026,,,no,Fixture: blank counts_toward_* — the app must say needs DGS review
+CSE 60868,Neural Networks,6,3,3,3,regular,yes,yes,,dsai,spring,yes,Spring 2026,Fall 2026,,,yes,"§4.4.2 typical spring course, dsai until Fall 2027"
+CSE 60868,Neural Networks,6,3,3,3,regular,yes,yes,,alg,spring,yes,Spring 2026,Fall 2027,,,yes,Fixture: the SECOND dated row for this course — from Fall 2027 it moves to the alg group. Tests rules_effective_term selection; the row above carries the live sheet’s current group (dsai).
+CSE 60876,Research Methods,6,3,3,3,regular,yes,yes,,"alg, hcc, arch, dsai, sys",spring,yes,Spring 2026,Fall 2026,,,yes,Listed under all five groups in §4.4.2 — the student assigns it to whichever group they still need
+CSE 60999,Topics in Computing,6,3,3,3,regular,,,,,varies,yes,Fall 2026,Fall 2026,,,no,"NOT A REAL COURSE — fixture-only row for a schema state the live sheet does not currently contain: blank counts_toward_*, which the app must report as ""needs DGS review"" rather than guess (CLAUDE.md). The live sheet DID carry blank verdicts until the DGS filled them in on 2026-09-03, so the state is reachable. Flagged to the DGS 2026-09-18."
 CSE 63801,Research Seminar I,6,1,1,1,seminar,no,yes,,,fall,yes,Fall 2026,Fall 2026,,,yes,§4.2 — required of Ph.D. students in year one
 CSE 63802,Research Seminar II,6,1,1,1,seminar,no,yes,,,spring,yes,Spring 2026,Fall 2026,,,yes,§4.2 — required of Ph.D. students in year one
-CSE 66998,Special Studies,6,1,6,3,independent,no,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,Fixture: a 6xxxx course whose counts_toward_* = no must be honored (prototype bug)
-CSE 68901,M.S. Thesis Direction,6,1,6,3,research,yes,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,"§3.2 — thesis direction credits. course_type mirrors the LIVE sheet (research), so the fixture pins the 2026-09-11 rule that §3.2's two ids decide the project pool whatever this cell says."
-CSE 68902,M.S. Project,6,1,6,3,project,yes,no,,,varies,yes,Fall 2026,Fall 2026,,,yes,§3.2 — project credits
-CSE 98900,Research and Dissertation,9,1,15,9,research,no,yes,,,both,yes,Fall 2026,Fall 2026,,,yes,Ph.D. research credits — count toward the 60 total only
-CSE 40113,Design/Analysis of Algorithms,4,3,3,3,regular,adgs_approval,dgs_approval,,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
-CSE 40567,Computer Security,4,3,3,3,regular,adgs_approval,dgs_approval,,ineligible,spring,yes,Spring 2026,Fall 2026,,,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
-CSE 40875,Statistical Computing,4,3,3,3,regular,adgs_approval,dgs_approval,,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
-CSE 40437,Social Sensing,4,3,3,3,regular,no,no,,ineligible,spring,yes,Spring 2026,Fall 2026,,,yes,Fixture: a 4xxxx course the DGS blocked outright (counts_toward_* = no)
+CSE 67900,Special Studies,6,0,12,,independent,no,no,,,varies,no,Fall 2026,Fall 2026,,,yes,Fixture: a 6xxxx course whose counts_toward_* = no must be honored (prototype bug)
+CSE 68901,Thesis Direction,6,0,9,,research,yes,dgs_approval,,,varies,yes,Fall 2026,Fall 2026,,,yes,"§3.2 — thesis direction credits. course_type mirrors the LIVE sheet (research), so the fixture pins the 2026-09-11 rule that §3.2's two ids decide the project pool whatever this cell says."
+CSE 68902,Thesis Project,6,0,6,,project,yes,dgs_approval,,,varies,yes,Fall 2026,Fall 2026,,,yes,§3.2 — project credits
+CSE 98900,Research and Dissertation,9,0,12,,research,yes,yes,,,both,no,Fall 2026,Fall 2026,,,yes,Ph.D. research credits — count toward the 60 total only
+CSE 40113,Design/Analysis of Algorithms,4,3,3,3,regular,yes,yes,algorithms,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40567,Computer Security,4,3,3,3,regular,yes,dgs_approval,,ineligible,spring,yes,Spring 2026,Fall 2026,,,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40243,Compilers and Language Design,4,3,3,3,regular,yes,dgs_approval,,ineligible,fall,yes,Fall 2026,Fall 2026,,,yes,40000-level — §3.2/§4.2 allow up to 6 credits with advisor + DGS approval
+CSE 40437,Social Sensing and Cyber-Physical Systems,4,3,3,3,regular,adgs_approval,dgs_approval,,ineligible,spring,no,Spring 2026,Fall 2026,,,yes,Fixture: a 4xxxx course the DGS blocked outright (counts_toward_* = no)
+CSE 40600,CSE Service Projects,4,1,3,,independent,no,no,,ineligible,spring,yes,Spring 2026,Fall 2026,,,yes,"A CSE 4xxxx the sheet blocks outright for both degrees (counts_toward_* = no) — the live shape, taken over from CSE 40437 when that row turned out to need approval live (DGS 2026-09-18: the live sheet always wins)."

@@ -59,7 +59,9 @@ export interface CourseEntry {
    * ExternalCourses rulings decide §4.4.1). Kept so old saved/imported
    * student files still load; the engine ignores it. */
   claimedCoreArea?: CoreArea;
-  /** Only meaningful when the rules sheet says category_group = 'any' (decision Q2). */
+  /** Only meaningful where the rules sheet lists the course under SEVERAL
+   * groups, so the student's pick decides which one it fills (decision Q2).
+   * ('any' was the old way of saying "all five"; retired 2026-09-18.) */
   assignedGroup?: CategoryGroup;
   /** Which degrees this course's credits have ALREADY been counted toward —
    * asked of the student, per course, for Notre Dame coursework taken in or
