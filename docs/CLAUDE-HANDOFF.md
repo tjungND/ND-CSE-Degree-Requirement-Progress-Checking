@@ -454,9 +454,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   unused `CODE_RE` constant is gone. Regression check: the 17 sanitized line dumps in the
   session scratchpad — 16 unchanged, t17 +3 rows (all real 8-letter-subject courses). Test:
   external-transcript.test.ts ("reads subjects of seven letters or more…").
-- **Course-rules page count line** keeps the view label's case (2026-09-06): "View: whether a
-  course counts toward the M.S. (MSCSE)." — only the first letter is lowered (was
-  `.toLowerCase()` on the whole label, which printed "m.s. (mscse)").
+- **Course-rules page count line** prints the view label as written: "View: MSCSE degree credit."
+  The labels became short noun phrases on 2026-09-18 (trim review P-7); before that every one
+  began "Whether a course …" and the line lowered the first letter to sit inside the sentence,
+  which would now print "mSCSE". (The rule it replaced in 2026-09-06 was `.toLowerCase()` on the
+  whole label, which printed "m.s. (mscse)".)
 - **Batch of 2026-09-06 (afternoon): inactive buttons, locked preview values, compact rows.**
   - `src/ui/dom.ts` `inactiveButton(attrs, reason, explain, …children)` + `PREVIEW_OPEN_NOTE`:
     a button with `aria-disabled="true"`, class `inactive` (styled like `[disabled]`), `title` =

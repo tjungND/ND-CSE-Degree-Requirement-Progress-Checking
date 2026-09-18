@@ -92,7 +92,17 @@ export function rulesDateLine(
   const override = rules.parameters.raw.get('rules_effective_date')?.value.trim();
   if (override) return `The course rules here are effective as of ${formatYmdLong(override) ?? override}${tail}`;
   const at = formatDateLong(rules.rulesDate?.at);
-  if (at && rules.rulesDate?.kind === 'known') return `The course rules here were last updated on ${at}${tail}`;
+  // One date, not the same date twice. On any day the sheet changed, the LIVE
+  // page printed "last updated on September 18, 2026, and are up-to-date as of
+  // September 18, 2026" — nineteen words for eleven (trim review P-13,
+  // 2026-09-18). Live only: on the saved copy the two dates are different
+  // facts, and "last updated on X and up-to-date as of X" is worth saying,
+  // which is what tests/rules-date.test.ts pins.
+  if (at && rules.rulesDate?.kind === 'known') {
+    return rules.source === 'live' && at === asOf
+      ? `The course rules here were last updated on ${at}.`
+      : `The course rules here were last updated on ${at}${tail}`;
+  }
   // "updated AFTER September 8, and up-to-date as of September 8" contradicts
   // itself, and says so for the six hours after every sheet edit (2026-09-08).
   // Only this branch collapses: for the saved copy, "last updated on X and

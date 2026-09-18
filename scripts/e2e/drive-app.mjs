@@ -591,10 +591,12 @@ async function driveAppEmbed(s, baseUrl) {
   console.log('  the self-check tool without the parameter is unchanged');
 }
 
-// Both pages link the DGS's rules spreadsheet (2026-09-04): once in the masthead
-// (under the dated line) and once in the footer, each time saying it is
-// accessible by faculty only. The link must be the sheet's human address, not
-// a published-CSV one.
+// Both pages link the DGS's rules spreadsheet (2026-09-04): in the masthead
+// (under the dated line), saying it is accessible by faculty only, and — on the
+// self-check page — in the footer as well. The course-rules page's footer copy
+// went on 2026-09-18 (trim review P-12): it repeated the masthead's own source
+// line word for word, on the page that IS the spreadsheet's public face. The
+// link must be the sheet's human address, not a published-CSV one.
 async function checkSheetLink(s, page) {
   const found = await s.evalJs(`(() => {
     const sel = 'a[href^="https://docs.google.com/spreadsheets/d/"]';
@@ -611,7 +613,8 @@ async function checkSheetLink(s, page) {
   })()`);
   const bad = [];
   if (found.masthead !== 1) bad.push(`masthead links: ${found.masthead}`);
-  if (found.footer !== 1) bad.push(`footer links: ${found.footer}`);
+  const wantFooter = page === 'courses' ? 0 : 1;
+  if (found.footer !== wantFooter) bad.push(`footer links: ${found.footer} (expected ${wantFooter})`);
   if (found.csv) bad.push('a link points at a published-CSV address');
   if (!found.name) bad.push('link text is not the sheet name');
   if (!found.facultyOnly) bad.push('a mention lacks the faculty-only note');
@@ -633,7 +636,10 @@ export async function driveCourses(s, baseUrl) {
   // (Note rows — the DGS's notes, opened per course since 2026-09-05 — are tbody rows too; count courses only.)
   const before = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
   await s.evalJs(
-    `const sel=[...document.querySelectorAll('.filters select')].find(x=>[...x.options].some(o=>o.value==='algorithms')); sel.value='algorithms'; sel.dispatchEvent(new Event('change'))`,
+    // The core areas and the specialization categories share one "Ph.D.
+    // qualifier area" select since 2026-09-18 (trim review P-22); its values
+    // carry a prefix so the two Algorithms entries stay apart.
+    `const sel=document.querySelector('[data-key="filter.qualifier"]'); sel.value='core:algorithms'; sel.dispatchEvent(new Event('change'))`,
   );
   await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length < ${before}`);
   const after = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
@@ -859,8 +865,8 @@ export async function driveCourses(s, baseUrl) {
   // stands in EACH of their cards, and the note above them says it can fill
   // only one. A blank Specialization cell sorts LAST, not first.
   const spec = JSON.parse(await s.evalJs(`JSON.stringify((() => {
-    const sel = document.querySelector('[data-key="filter.category"]');
-    const opts = [...sel.options].map((o) => o.value);
+    const sel = document.querySelector('[data-key="filter.qualifier"]');
+    const opts = [...sel.options].map((o) => o.value.replace(/^(core|cat):/, ''));
     // The specialization cards are the qualifier section's grid — by class, not by position (the sections were reordered 2026-09-16).
     const cards = [...document.querySelectorAll('.overview:not(.schedule-overview) .ov-grid')].pop();
     const headings = [...cards.querySelectorAll('.ov-card h3')].map((h) => h.textContent.trim());
@@ -871,7 +877,9 @@ export async function driveCourses(s, baseUrl) {
   if (spec.opts.includes('any-listed')) throw new Error('the "Listed under every category" filter value is still offered');
   if (spec.headings.length !== 5) throw new Error('expected the five real specialization cards, got ' + JSON.stringify(spec.headings));
   if (!spec.inEvery) throw new Error('a course listed under every category must appear in every card: ' + JSON.stringify(spec.headings));
-  if (!/never several/.test(spec.note)) throw new Error('the "fills only one category" note is missing: ' + spec.note);
+  // "never several" restated "only one" and went on 2026-09-18 (trim review
+  // P-3); the rule it emphasised is what must still be there.
+  if (!/can fill only/.test(spec.note)) throw new Error('the "fills only one category" note is missing: ' + spec.note);
   console.log('  specialization cards:', spec.headings.join(', '), '— the flexible course is in each, with the "only one" note');
   await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'category'; sel.dispatchEvent(new Event('change')); })()`);
   await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length > 10`);
@@ -885,8 +893,11 @@ export async function driveCourses(s, baseUrl) {
   // (item 30): open a shared link, check what it selected, then change a
   // filter and check the address bar followed.
   await s.open(new URL('courses.html?view=mscse&core=algorithms', baseUrl).href, '.all-courses table.course-rules');
-  const shared = JSON.parse(await s.evalJs(`JSON.stringify({ view: document.querySelector('[data-key="filter.view"]').value, core: document.querySelector('[data-key="filter.core"]').value, program: document.querySelector('[data-key="filter.program"]').value, hiddenHeaders: document.querySelectorAll('.all-courses table.course-rules thead th.col-hidden').length, rows: document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length })`));
-  if (shared.view !== 'mscse' || shared.core !== 'algorithms') throw new Error('shared link did not select the view/filters: ' + JSON.stringify(shared));
+  const shared = JSON.parse(await s.evalJs(`JSON.stringify({ view: document.querySelector('[data-key="filter.view"]').value, core: document.querySelector('[data-key="filter.qualifier"]').value, program: document.querySelector('[data-key="filter.program"]').value, hiddenHeaders: document.querySelectorAll('.all-courses table.course-rules thead th.col-hidden').length, rows: document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length })`));
+  if (shared.view !== 'mscse' || shared.core !== 'core:algorithms') throw new Error('shared link did not select the view/filters: ' + JSON.stringify(shared));
+  // The view picks the COLUMNS and must not narrow the rows (trim review P-19):
+  // a shared link that names only a view leaves every course in the table.
+  if (shared.program !== 'all') throw new Error('the view must not pre-set the Program filter: ' + JSON.stringify(shared));
   if (shared.hiddenHeaders !== 3) throw new Error('the M.S. view should hide 3 columns, hid ' + shared.hiddenHeaders);
   await s.evalJs(`(() => { const q = document.querySelector('[data-key="filter.search"]'); q.value = 'algorithms'; q.dispatchEvent(new Event('input')); })()`);
   await s.waitFor(`/q=algorithms/.test(window.location.search)`, 3000).catch(() => {});

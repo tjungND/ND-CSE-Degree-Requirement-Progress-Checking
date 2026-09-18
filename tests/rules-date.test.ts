@@ -128,3 +128,18 @@ describe('date formatting', () => {
     assert.equal(formatDateLong(undefined), undefined);
   });
 });
+
+// One date rather than the same date twice, and only while the LIVE sheet is
+// showing (trim review P-13, 2026-09-18). The saved-copy case above keeps both
+// dates on purpose: there they are different facts.
+describe('the dated line does not print one date twice', () => {
+  const params = { raw: new Map<string, { value: string }>() };
+  it('live, sheet last changed today: one date', () => {
+    const line = rulesDateLine({ parameters: params, rulesDate: { kind: 'known', at: '2026-09-18T04:00:00Z' }, source: 'live', syncedAt: '2026-09-18T04:00:00Z' }, 'Fall 2026', '2026-09-18');
+    assert.equal(line, 'The course rules here were last updated on September 18, 2026.');
+  });
+  it('live, sheet last changed earlier: both dates', () => {
+    const line = rulesDateLine({ parameters: params, rulesDate: { kind: 'known', at: '2026-09-16T04:00:00Z' }, source: 'live', syncedAt: '2026-09-16T04:00:00Z' }, 'Fall 2026', '2026-09-18');
+    assert.equal(line, 'The course rules here were last updated on September 16, 2026, and are up-to-date as of September 18, 2026.');
+  });
+});

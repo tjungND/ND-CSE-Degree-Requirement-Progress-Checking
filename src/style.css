@@ -410,12 +410,28 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .courses-page .muted { color: var(--muted); }
 .courses-page .small { font-size: 12.5px; }
 .courses-page .sub a { color: inherit; text-decoration: underline; }
+/* A text column, not the whole window. At 1400 px these paragraphs ran 148 to
+   193 characters a line and the legend key 206 on one (trim review P-17,
+   2026-09-18); the masthead's own intro has been capped since it was written.
+   Not in the frame, where the host's column is the cap. */
+.courses-page .overview > p, .courses-page .legend li, .courses-page .legend-key, .courses-page .count { max-width: 70ch; }
+html.embed .courses-page .overview > p, html.embed .courses-page .legend li, html.embed .courses-page .legend-key, html.embed .courses-page .count { max-width: none; }
 .ov-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
 .ov-grid > .ov-card { flex: 0 1 auto; min-width: min(100%, 260px); max-width: 100%; } /* content width: a card left alone on a row must not stretch across it */
 /* The schedule cards hold a seven-column table, so they take the whole row
    until the window can fit two of them side by side (2026-09-09). */
 .ov-grid.two > .ov-card { flex: 1 1 min(100%, 1100px); }
 .schedule-table { font-size: 13px; }
+/* The schedule tables collapse only where they become a stack of cards taller
+   than the section that follows them (trim review P-20, 2026-09-18). Whether
+   each one is open is set in courses-page.ts by the window width, so at 861 px
+   and above — and on paper — they are open and the summary has nothing to say;
+   the desktop page and the print-out are unchanged. */
+.sched-details > summary { display: none; }
+@media (max-width: 860px) {
+  .sched-details > summary { display: list-item; cursor: pointer; font-weight: 600; color: var(--navy); padding: 4px 0; font-size: 14px; }
+}
+@media print { .sched-details > summary { display: none; } }
 .schedule-table th[scope='col'] { white-space: nowrap; }
 .schedule-table td.cell-title { white-space: nowrap; }
 /* One course, one line: the card grows to its longest course instead of
@@ -446,17 +462,34 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 @media (max-width: 600px) { .filters input[type=search] { min-width: 0; } }
 .legend-block { margin: 6px 0 8px; }
 .legend-key { margin: 6px 0; line-height: 2; }
+/* Each pill stays with the words it defines when the line wraps (trim review
+   P-24): at 390 px "With ADGS approval" ended one line and "counts once the
+   advisor…" started the next. */
+.legend-key .legend-entry { display: inline-block; }
 details.legend { margin: 4px 0 8px; }
 details.legend summary { cursor: pointer; font-weight: 600; color: var(--navy); }
 table.course-rules tbody th { text-align: left; font-size: inherit; text-transform: none; letter-spacing: 0; color: inherit; background: none; position: static; border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; font-weight: 700; }
 .table-scroll:focus-visible { outline-offset: -3px; }
+/* `position: sticky; top: 0` on the headings never engaged: `overflow-x: auto`
+   on the wrapper computes `overflow-y: auto`, which makes the WRAPPER the
+   sticky scrollport, and it does not scroll (trim review P-31, 2026-09-18).
+   Measured 2,500 px into the 6,413 px table, the header sat at top −2,500 px.
+   Above 1100 px the table fits, so the wrapper does not need to scroll and the
+   heading can pin to the page; below it the wrapper keeps its sideways scroll
+   and its focusable region (WCAG 2.1.1), and below 860 px the table is cards.
+   The second rule is not optional: with the header pinned, a row reached by a
+   #CSE-60641 link would land underneath it. */
+@media (min-width: 1100px) {
+  .courses-page .all-courses .table-scroll { overflow: visible; }
+  .courses-page .all-courses table.course-rules tbody tr { scroll-margin-top: 96px; }
+}
 .count { margin: 6px 0; }
 .table-scroll { overflow-x: auto; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 10px; } /* position: relative — so a visually-hidden (absolutely positioned) header label is clipped with the table instead of widening the page (2026-09-05) */
 table.course-rules { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 980px; }
 table.course-rules th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 2px solid var(--line); padding: 8px 8px; background: #fafbfc; position: sticky; top: 0; }
 table.course-rules th .sort { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; text-transform: inherit; letter-spacing: inherit; text-align: left; }
 table.course-rules th .sort.active { color: var(--navy); }
-table.course-rules th .th-sub { display: block; font-size: 9.5px; font-weight: 400; letter-spacing: 0.04em; color: var(--grey); margin-top: 1px; }
+table.course-rules th .th-sub { display: block; font-size: 11px; font-weight: 400; letter-spacing: 0.04em; color: var(--muted); margin-top: 1px; } /* was 9.5px/--grey, the smallest and faintest text on the page — trim review P-23 */
 table.course-rules td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; }
 table.course-rules tr:hover td { background: #f3f5f8; }
 table.course-rules tr:target td { background: #fff7e0; }
@@ -523,17 +556,22 @@ table.course-rules tr.deep-linked td, table.course-rules tr.deep-linked th { bac
 }
 
 /* who-to-contact card, top right of every page (names live in src/ui/contacts.ts) */
-.masthead .contact-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 12px; font-size: 13px; margin-top: 4px; }
-.masthead .contact-card h2 { margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
-.masthead .contact-card ul { list-style: none; margin: 0; padding: 0; }
-.masthead .contact-card li { margin: 5px 0; line-height: 1.35; }
-.masthead .contact-card .role { font-weight: 700; color: var(--navy); }
-.masthead .contact-card .scope { display: block; color: var(--muted); font-size: 12px; }
-.masthead .contact-card a { color: inherit; }
+/* Scoped to the card, not to the masthead: it is rendered at the end of
+   <main> on a narrow screen and in the embed, where `.masthead .contact-card`
+   would style nothing and it rendered as bare 15 px text (trim review P-21,
+   2026-09-18, and the same trap the embed move hit on 2026-09-16). */
+.contact-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 12px; font-size: 13px; margin-top: 4px; }
+main > .contact-card { margin-top: 22px; }
+.contact-card h2 { margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+.contact-card ul { list-style: none; margin: 0; padding: 0; }
+.contact-card li { margin: 5px 0; line-height: 1.35; }
+.contact-card .role { font-weight: 700; color: var(--navy); }
+.contact-card .scope { display: block; color: var(--muted); font-size: 12px; }
+.contact-card a { color: inherit; }
 /* Printed, the card is text, not a boxed aside. Embed mode gets the same
    treatment at the end of this file — it has to come AFTER the embed rules,
    which carry equal specificity (2026-09-16). */
-@media print { .masthead .contact-card { border: 0; padding: 0; } }
+@media print { .contact-card { border: 0; padding: 0; } }
 
 /* loading card (src/ui/loading.ts) */
 .load-card { max-width: 560px; margin: 36px auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; }
@@ -639,8 +677,8 @@ tr.ocr-low td { background: #fff7e0; }
   .course-form .row1 { grid-template-columns: minmax(0, 1fr); }
   .external-slot .slot-label { min-width: 0; }
   .masthead h1 { font-size: 22px; }
-  .masthead .contact-card { font-size: 12px; padding: 8px 10px 9px; }
-  .masthead .contact-card li { margin: 3px 0; }
+  .contact-card { font-size: 12px; padding: 8px 10px 9px; }
+  .contact-card li { margin: 3px 0; }
   .masthead-tools { gap: 8px; }
   .masthead-tools .tabs { display: flex; width: 100%; }
   .masthead-tools .tab { flex: 1 1 0; text-align: center; padding: 10px 6px; }

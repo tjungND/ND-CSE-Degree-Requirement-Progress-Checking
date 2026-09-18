@@ -21,7 +21,7 @@ import { SIBLING_PARAM, allowedHostPage, siblingAnchorAttrs } from './sibling-li
 import { embedTargetAttrs, isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnchorScrollRelay } from './embed.ts';
 import { formatYmdLong, handbookLink, rulesDateLine } from './handbook.ts';
 import { ndDateOnly } from '../data/rules-date.ts';
-import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
+import { sheetSourceLine } from './sheet-source.ts'; // sheetSourceNote is the self-check page's now (trim review P-12)
 
 // ---------- labels (sheet codes → words students understand) ----------
 
@@ -71,11 +71,15 @@ interface Filters {
   view: View;
 }
 
+// Short noun phrases: a dropdown is scanned, not read, and the label above it
+// already asks the question — every option used to begin "Whether a course …",
+// so the eye reached the eighth word before they differed (trim review P-7,
+// 2026-09-18). These are the column headers' own words.
 const VIEW_LABEL: Record<View, string> = {
   all: 'Everything',
-  mscse: 'Whether a course counts toward the M.S. (MSCSE)',
-  phd: 'Whether a course counts toward the Ph.D.',
-  qualifier: 'Whether a course satisfies a Ph.D. qualifier area',
+  mscse: 'MSCSE degree credit',
+  phd: 'Ph.D. degree credit',
+  qualifier: 'Ph.D. qualifier areas (§4.4)',
 };
 /** Columns hidden per view, by their 1-based position in the table. */
 const HIDDEN_COLUMNS: Record<View, number[]> = {
@@ -112,6 +116,11 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   if (core && validCores.has(core)) f.core = core;
   const category = params.get('category')?.trim().toLowerCase();
   if (category && validCategories.has(category)) f.category = category;
+  // One control now carries both (trim review P-22, 2026-09-18), so it can
+  // hold one of them at a time. A link written before that, or by hand, with
+  // BOTH keeps its core area — the narrower of the two, and the one at most
+  // three courses on today's sheet could satisfy together.
+  if (f.core && f.category) f.category = '';
   const type = params.get('type')?.trim().toLowerCase();
   if (type && ['regular', 'seminar', 'research', 'independent', 'project'].includes(type)) f.type = type;
   const offered = params.get('offered');
@@ -130,8 +139,10 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   // A link that asks for the M.S. view AND the Ph.D. program describes a page
   // that cannot exist: the status line would name one degree over a list
   // filtered by the other, with that degree's column hidden (review B-11).
-  // The view picks the columns, so it wins and the program follows it.
-  if ((f.view === 'mscse' || f.view === 'phd') && f.program !== 'all' && f.program !== f.view) f.program = f.view;
+  // The view picks the columns, so it wins — and the contradicting program is
+  // CLEARED rather than switched, which would hide the rows whose answer for
+  // the chosen degree is "No" (trim review P-19).
+  if ((f.view === 'mscse' || f.view === 'phd') && f.program !== 'all' && f.program !== f.view) f.program = 'all';
   return f;
 }
 
@@ -259,6 +270,18 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // Whether the DGS has filled the schedule columns in at all: with every cell
   // blank the filter can only return nothing, so it is not shown (2026-09-09).
   const scheduleKnown = rows.some((r) => offeredIn('this')(r) !== undefined || offeredIn('next')(r) !== undefined);
+  /** Is any loaded row still unconfirmed by the DGS?
+   *
+   * The same data-driven rule the schedule filter above uses (trim review
+   * P-18, 2026-09-18). While every row is confirmed — 321 of 321 on today's
+   * sheet — the "DGS reviewed" column is one value repeated 117 times, its
+   * sort key sorts nothing, the "Only DGS-confirmed rows" switch can only
+   * return the list it was given, and the legend explains a pill that appears
+   * nowhere. All four are hidden, and all four come back by themselves the day
+   * the sheet gains an unconfirmed row. The DGS's confirmation is still on the
+   * page for every course, in the hover card, so the 2026-09-01 decision that
+   * it be shown survives. */
+  const someRowPending = rows.some((r) => !r.dgsReviewed);
   // A shared link saved last semester may still carry ?offered=now. Whether
   // that means anything depends on today and on the sheet, so it is dropped
   // here rather than silently filtering the table to nothing while the control
@@ -417,19 +440,28 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
               el(
                 'p',
                 { class: 'sub' },
+                // "Official course rules", "These mappings" and "these same rules"
+                // were three names for one thing (trim review P-9, 2026-09-18).
                 el('strong', {}, 'Official course rules. '),
-                'These mappings are set by the Graduate Studies Committee and the DGS under the ',
+                'The Graduate Studies Committee and the DGS set them under the ',
                 handbookLink(),
-                ', and they are what the DGS and the Grad Admin use to decide whether a student’s courses satisfy the degree requirements. The ',
+                '; the DGS and the Grad Admin use them to decide whether your courses satisfy the degree requirements. The ',
                 el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
-                ' applies these same rules to your own coursework.',
+                ' applies them to your coursework.',
               ),
               el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
               // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
               sheetSourceLine(),
             ]),
       ),
-      embed ? null : contactCard(),
+      // On a narrow screen this card is not a right-hand column, it is 250 px
+      // of names and addresses between the introduction and the first heading:
+      // at 390 px the first screen held no course and no control (trim review
+      // P-21, 2026-09-18). Above 900 px it stays where it was, at no vertical
+      // cost. The node is moved on a width change rather than placed once, so
+      // a rotated tablet or a dragged window is not frozen in the other
+      // layout. (In embed mode it has been at the end since 2026-09-16.)
+      embed ? null : contactHost,
     );
   }
 
@@ -498,6 +530,37 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     /** The schedule row a qualifier card's link jumps to (DGS 2026-09-17):
      * this semester's card first, else next semester's. */
     const scheduleRowId = (r: RuleCourse, which: 'this' | 'next'): string => `sched-${which}-${r.courseId.replace(' ', '-')}`;
+    /** The table, wrapped so a narrow screen can start with it closed (trim
+     * review P-20, 2026-09-18): below 861 px each row becomes a stacked card,
+     * so the Fall card alone measured 9,880 px at 390 px — every one of those
+     * courses repeated, in the same format, in All courses below. At 861 px
+     * and above the CSS forces it open and hides the summary, so nothing about
+     * the desktop page changes; `@media print` does the same, so a printed
+     * copy keeps both schedules. */
+    const collapsible = (table: HTMLElement, count: number): HTMLElement => {
+      const d = el('details', { class: 'sched-details' });
+      d.append(el('summary', {}, `${count} course${count === 1 ? '' : 's'}`), table);
+      // `open` is set here rather than by CSS: a closed <details> hides its
+      // content through the UA's own slot, which a `display` rule cannot be
+      // relied on to override. The width decides it, and a window dragged
+      // across the breakpoint re-decides — one that chose once would freeze a
+      // rotated tablet in the wrong state.
+      const wide = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 861px)') : undefined;
+      d.open = wide ? wide.matches : true;
+      wide?.addEventListener?.('change', (ev) => {
+        d.open = (ev as MediaQueryListEvent).matches;
+      });
+      // On paper both schedules print in full, whatever the window was doing.
+      let openBefore = d.open;
+      window.addEventListener('beforeprint', () => {
+        openBefore = d.open;
+        d.open = true;
+      });
+      window.addEventListener('afterprint', () => {
+        d.open = openBefore;
+      });
+      return d;
+    };
     const miniTable = (items: RuleCourse[], label: string, which: 'this' | 'next'): HTMLElement =>
       el(
         'div',
@@ -519,7 +582,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
               // the two qualifier groupings beside it.
               colHead('MSCSE', 'degree credit', 'MSCSE degree credit'),
               colHead('Ph.D.', 'degree credit', 'Ph.D. degree credit'),
-              colHead('Core', 'Ph.D. Qual. §4.4.1', 'Core knowledge — Ph.D. Qualifying Examination §4.4.1'),
+              colHead('Core knowledge', 'Ph.D. Qual. §4.4.1', 'Core knowledge — Ph.D. Qualifying Examination §4.4.1'),
               colHead('Specialization', 'Ph.D. Qual. §4.4.2', 'Specialization — Ph.D. Qualifying Examination §4.4.2'),
             ),
           ),
@@ -578,7 +641,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                   ? `Only ${answered} course${answered === 1 ? ' has' : 's have'} been marked for ${termLabel(term)} so far, and ${answered === 1 ? 'it is' : 'none of them are'} being offered. The rest of the semester is not on the sheet yet.`
                   : `No course is listed for ${termLabel(term)}.`,
               )
-            : miniTable(items, heading, which),
+            : collapsible(miniTable(items, heading, which), items.length),
       );
     };
     return el(
@@ -702,7 +765,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'p',
         { class: 'muted' },
-        'Core knowledge and specialization are the two course-based requirements of the Ph.D. Qualifying Examination (§4.4) — they apply to Ph.D. students only, and MSCSE students can ignore these groupings. Whether a course counts toward degree credit is a separate question, answered in the table below.',
+        // "Ph.D. students only" first: an MSCSE reader used to learn the section
+        // was not for them 27 words in, after a heading, the key line and — on a
+        // phone — two screens of cards (trim review P-8, 2026-09-18).
+        el('strong', {}, 'Ph.D. students only. '),
+        'Core knowledge and specialization are the two course-based requirements of the Qualifying Examination (§4.4); whether a course counts toward degree credit is a separate question, answered in the table below.',
       ),
       el('h3', { class: 'ov-sub' }, 'Core knowledge areas ', el('span', { class: 'cite' }, '§4.4.1')),
       // §4.4.1: "All PhD students are required to pass (or have previously passed) an
@@ -712,8 +779,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'p',
         { class: 'muted' },
-        'The core-knowledge requirement can be met by the Notre Dame courses listed here ',
-        el('strong', {}, 'or by prior coursework at a previous institution — undergraduate or graduate'),
+        // The requirement itself, which the paragraph never stated — it opened
+        // with how it "can be met" (trim review P-14, 2026-09-18). "Each area
+        // below" rather than "all three": the areas come from the sheet.
+        'Ph.D. students must pass a course in each area below — at Notre Dame or ',
+        el('strong', {}, 'at a previous institution, undergraduate or graduate'),
         ' (§4.4.1: “either at Notre Dame or at their previous institution”). A course from a previous institution counts once the DGS has confirmed it; the ',
         el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
         ' prepares that review request from your imported transcripts.',
@@ -726,11 +796,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'p',
         { class: 'muted' },
-        `${catRule.charAt(0).toUpperCase()}${catRule.slice(1)} (§4.4.2). A course may be listed under more than one category, and it then appears in each of their cards below — but it can fill only `,
+        // "never several" restated "only one", and eleven words said what the
+        // clause before them had already set up (trim review P-3, 2026-09-18).
+        `${catRule.charAt(0).toUpperCase()}${catRule.slice(1)} (§4.4.2). A course listed under more than one category appears in each of their cards below, but can fill only `,
         el('strong', {}, 'one'),
-        ' of them, never several. Which one is settled when the course is entered in the ',
+        ' of them; the ',
         el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
-        '.',
+        ' settles which.',
       ),
       el('div', { class: 'ov-grid' }, ...groupCards),
       // (The "* Pending DGS confirmation" footnote was removed at the DGS's request, 2026-09-16.)
@@ -877,16 +949,19 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   let clearButton: HTMLElement | undefined;
 
   function filterBar(): HTMLElement {
-    // "What are you checking?" (item 30) — picks the columns; a degree view
-    // also narrows the Program filter to that degree unless the reader
-    // changes it back.
+    // "What are you checking?" (item 30) picks the COLUMNS. It used to narrow
+    // the Program filter to the same degree, which hid exactly the courses a
+    // reader was checking: choose the M.S. view, search 63801, and the page
+    // answered "the DGS has not ruled on it yet" while the sheet plainly rules
+    // it No for the MSCSE (trim review P-19, 2026-09-18). It now clears only a
+    // Program filter that CONTRADICTS the view — one that would filter the
+    // rows by a column this view hides (review B-11).
     const view = el('select', {
       'data-key': 'filter.view',
       onchange: (e) => {
         const v = (e.target as HTMLSelectElement).value as View;
         filters.view = v;
-        if (v === 'mscse' || v === 'phd') filters.program = v;
-        if (v === 'all' || v === 'qualifier') filters.program = 'all';
+        if ((v === 'mscse' || v === 'phd') && filters.program !== 'all' && filters.program !== v) filters.program = 'all';
         clear(filterHost);
         filterHost.append(filterBar());
         refreshTable();
@@ -927,24 +1002,36 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       option('mscse', 'Counts toward MSCSE', filters.program === 'mscse'),
       option('phd', 'Counts toward Ph.D.', filters.program === 'phd'),
     );
-    const core = el('select', {
-      'data-key': 'filter.core',
+    // One control for both halves of the qualifier (trim review P-22,
+    // 2026-09-18). Two selects sat side by side, each with its own "Any …"
+    // option, both shown even in the MSCSE views where neither applies; a
+    // single label says the whole control is Ph.D.-only, and the two optgroups
+    // keep the §§ apart. The option text keeps its "Core:" / "Specialization:"
+    // prefix on purpose: the closed control shows only the option, and
+    // Algorithms is the name of both a core area and a category (as are
+    // Computer Architecture and Architecture).
+    const QUALIFIER_PREFIX = { core: 'core:', category: 'cat:' };
+    const qualValue = filters.core ? `${QUALIFIER_PREFIX.core}${filters.core}` : filters.category ? `${QUALIFIER_PREFIX.category}${filters.category}` : '';
+    const qualifierArea = el('select', {
+      'data-key': 'filter.qualifier',
       onchange: (e) => {
-        filters.core = (e.target as HTMLSelectElement).value;
+        const v = (e.target as HTMLSelectElement).value;
+        filters.core = v.startsWith(QUALIFIER_PREFIX.core) ? v.slice(QUALIFIER_PREFIX.core.length) : '';
+        filters.category = v.startsWith(QUALIFIER_PREFIX.category) ? v.slice(QUALIFIER_PREFIX.category.length) : '';
         refreshTable();
       },
     });
-    core.append(option('', 'Any core area', filters.core === ''));
-    for (const c of rules.coreAreas) core.append(option(c.code, `Core: ${c.name}`, filters.core === c.code));
-    const category = el('select', {
-      'data-key': 'filter.category',
-      onchange: (e) => {
-        filters.category = (e.target as HTMLSelectElement).value;
-        refreshTable();
-      },
-    });
-    category.append(option('', 'Any specialization', filters.category === ''));
-    for (const g of rules.categoryGroups) category.append(option(g.code, `Specialization: ${g.name}`, filters.category === g.code));
+    qualifierArea.append(option('', 'Any qualifier area', qualValue === ''));
+    if (rules.coreAreas.length > 0) {
+      const g = el('optgroup', { label: 'Core knowledge §4.4.1' });
+      for (const c of rules.coreAreas) g.append(option(`${QUALIFIER_PREFIX.core}${c.code}`, `Core: ${c.name}`, filters.core === c.code));
+      qualifierArea.append(g);
+    }
+    if (rules.categoryGroups.length > 0) {
+      const g = el('optgroup', { label: 'Specialization §4.4.2' });
+      for (const c of rules.categoryGroups) g.append(option(`${QUALIFIER_PREFIX.category}${c.code}`, `Specialization: ${c.name}`, filters.category === c.code));
+      qualifierArea.append(g);
+    }
     const type = el('select', {
       'data-key': 'filter.type',
       onchange: (e) => {
@@ -988,7 +1075,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     (confirmed as HTMLInputElement).checked = filters.confirmedOnly;
     // On phones the table becomes cards and its sortable headers are hidden,
     // so sorting moves into the filter bar (shown only there by CSS).
-    const SORT_LABELS: Record<SortKey, string> = {
+    const SORT_LABELS: Partial<Record<SortKey, string>> = {
       course: 'Course number',
       title: 'Title',
       type: 'Type',
@@ -997,7 +1084,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       core: 'Core knowledge',
       category: 'Specialization',
       offered: 'Typically offered',
-      reviewed: 'DGS reviewed',
+      ...(someRowPending ? { reviewed: 'DGS reviewed' } : {}),
     };
     const sortSel = el('select', {
       'data-key': 'filter.sort',
@@ -1036,10 +1123,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'div',
       { class: 'filters', role: 'search', 'aria-label': 'Filter the course list' },
       el('div', { class: 'filter view-filter' }, labelled('What are you checking?', view, 'filter-view')),
-      labelled('Search by course number or title', search, 'filter-search'),
+      labelled('Course number or title', search, 'filter-search'),
       labelled('Program', program, 'filter-program'),
-      labelled('Core knowledge area', core, 'filter-core'),
-      labelled('Specialization category', category, 'filter-category'),
+      labelled('Ph.D. qualifier area', qualifierArea, 'filter-qualifier'),
       labelled('Course type', type, 'filter-type'),
       ...(scheduleKnown ? [labelled('On the schedule', offered, 'filter-offered')] : []),
       // The two switches and Clear share one line under the pickers, so the
@@ -1049,7 +1135,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         'div',
         { class: 'switches' },
         el('label', { class: 'check' }, retired, ' Include retired courses'),
-        el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows'),
+        ...(someRowPending ? [el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows')] : []),
         clearButton,
       ),
       el('div', { class: 'filter mobile-only' }, labelled('Sort by', sortSel, 'filter-sort'), el('label', { class: 'check' }, descBox, ' Descending')),
@@ -1119,10 +1205,12 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       th('type', 'Type'),
       th('mscse', 'MSCSE', 'degree credit'),
       th('phd', 'Ph.D.', 'degree credit'),
-      th('core', 'Core knowledge', 'Ph.D. qualifying exam §4.4.1'),
-      th('category', 'Specialization', 'Ph.D. qualifying exam §4.4.2'),
+      // The same wording as the schedule cards' own headers (trim review P-30).
+      th('core', 'Core knowledge', 'Ph.D. Qual. §4.4.1'),
+      th('category', 'Specialization', 'Ph.D. Qual. §4.4.2'),
       th('offered', 'Typically offered'),
-      th('reviewed', 'DGS reviewed'),
+      // Only while it says something (trim review P-18, 2026-09-18).
+      ...(someRowPending ? [th('reviewed', 'DGS reviewed')] : []),
     );
     const body = el('tbody', {});
     // A filter that matches nothing used to render nothing, and silence reads
@@ -1139,7 +1227,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           { class: 'empty-row' },
           el(
             'td',
-            { colspan: '9' },
+            { colspan: someRowPending ? '9' : '8' },
             el('strong', {}, 'No course here matches these filters. '),
             ...(filters.query.trim() ? ['Check the spelling of “', filters.query.trim(), '” first — the search matches a course number or a word in the title. '] : []),
             ...(!filters.includeRetired ? ['Retired courses are hidden until “Include retired courses” is ticked. '] : []),
@@ -1166,11 +1254,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           el('td', { class: r.coreArea ? '' : 'muted', 'data-label': 'Core knowledge (§4.4.1)' }, coreLabel(r)),
           el('td', { class: catClass, 'data-label': 'Specialization (§4.4.2)' }, categoryLabel(r)),
           el('td', { class: r.typicallyOffered ? '' : 'muted', 'data-label': 'Typically offered' }, offeredLabel(r)),
-          el(
-            'td',
-            { 'data-label': 'DGS reviewed' },
-            r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending'),
-          ),
+          ...(someRowPending
+            ? [
+                el(
+                  'td',
+                  { 'data-label': 'DGS reviewed' },
+                  r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending'),
+                ),
+              ]
+            : []),
         ),
       );
     }
@@ -1202,8 +1294,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     if (filters.offered === 'next') active.push(`on the schedule for ${termLabel(nextTeachingTerm)}`);
     if (filters.includeRetired) active.push('retired courses included');
     if (filters.confirmedOnly) active.push('DGS-confirmed rows only');
-    // "…toward the Ph.D.." — the label ends in its own full stop, so do not add a second.
-    const viewSentence = filters.view === 'all' ? '' : ` View: ${viewLabel.charAt(0).toLowerCase()}${viewLabel.slice(1)}${viewLabel.endsWith('.') ? '' : '.'}`;
+    // Printed as written. (The first-letter lower-casing of 2026-09-06 existed
+    // only because every label began with "Whether"; it would now print "mSCSE
+    // degree credit". The labels end in "." in one case, so no second stop.)
+    const viewSentence = filters.view === 'all' ? '' : ` View: ${viewLabel}${viewLabel.endsWith('.') ? '' : '.'}`;
     countLine.textContent = `${list.length} of ${shown} courses shown.${clearedFor ? ` Filters cleared to show ${clearedFor}.` : ''}${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
     return el(
       'div',
@@ -1230,24 +1324,44 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
    * always visible, and the full column guide in a disclosure. */
   function legend(): HTMLElement {
     const li = (term: string | Node, text: string) => el('li', {}, term, ' — ', text);
+    // Each pill and the words it defines travel together when the line wraps
+    // (trim review P-24, 2026-09-18) — the separators are unchanged.
+    const entry = (...parts: (string | Node)[]) => el('span', { class: 'legend-entry' }, ...parts);
     const key = el(
       'p',
       { class: 'legend-key muted small' },
       'Key: ',
-      el('span', { class: 'pill yes' }, 'Yes'),
-      ' counts · ',
-      el('span', { class: 'pill approval' }, 'With DGS approval'),
-      ' / ',
-      el('span', { class: 'pill approval-adgs' }, 'With ADGS approval'),
-      ' counts once the advisor and the named reviewer approve it · ',
-      el('span', { class: 'pill no' }, 'No'),
-      ' does not count · ',
-      el('span', { class: 'pill undecided' }, 'Not yet decided'),
-      ' ask first · ',
-      el('span', { class: 'pill pending' }, 'Pending'),
-      ' row not yet confirmed by the DGS.',
+      entry(el('span', { class: 'pill yes' }, 'Yes'), ' counts · '),
+      entry(
+        el('span', { class: `pill ${COUNTS_CLASS.dgs_approval}` }, COUNTS_LABEL.dgs_approval),
+        ' / ',
+        el('span', { class: `pill ${COUNTS_CLASS.adgs_approval}` }, COUNTS_LABEL.adgs_approval),
+        ' counts once the advisor and the named reviewer approve it · ',
+      ),
+      entry(el('span', { class: 'pill no' }, 'No'), ' does not count · '),
+      entry(el('span', { class: 'pill undecided' }, 'Not yet decided'), ' ask first'),
+      // The Pending half appears only while some row is unconfirmed, with the
+      // column and the switch it explains (trim review P-18).
+      ...(someRowPending ? [entry(' · ', el('span', { class: 'pill pending' }, 'Pending'), ' row not yet confirmed by the DGS')] : []),
+      '.',
     );
     const details = el('details', { class: 'legend' });
+    // Print it open. Closed, a printed copy carried 117 rows of pills and lost
+    // every sentence that qualifies them — that only regular courses count
+    // toward the regular-course credits (§3.2, §4.2), the 6-credit cap the
+    // approved sub-60000 courses share, what the two qualifier columns mean
+    // (§4.4.1, §4.4.2) and that "Typically offered" is not a promise (trim
+    // review P-32, 2026-09-18). The screen is untouched: the disclosure is
+    // restored to whatever the reader had. `::details-content` would do this
+    // in CSS but Safari does not have it.
+    let openBeforePrint = false;
+    window.addEventListener('beforeprint', () => {
+      openBeforePrint = details.open;
+      details.open = true;
+    });
+    window.addEventListener('afterprint', () => {
+      details.open = openBeforePrint;
+    });
     details.append(
       el('summary', {}, 'How to read the columns'),
       el(
@@ -1259,18 +1373,16 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         // are required credits of their own kind, not filler.
         li(
           el('strong', {}, 'Type'),
-          'only regular courses count toward the regular-course credits (§3.2, §4.2). Seminar, research, independent-study and project credits count toward the degree total instead — and some of them are required in their own right: the M.S. project or thesis credits (§3.2) and the first-year research seminars (§4.2).',
+          'only regular courses count toward the regular-course credits (§3.2, §4.2). Seminar, research, independent-study and project credits count toward the degree total instead. Some are required in their own right: the M.S. project or thesis credits (§3.2) and the first-year research seminars (§4.2).',
         ),
-        li(el('span', { class: 'pill yes' }, 'Yes'), 'counts toward that degree.'),
         // Two reviewers, two colours (DGS 2026-09-16) — and the ADGS pill here
         // was painted in the DGS blue until 2026-09-18 (review B-13), so the
         // one place that explains the colours was the one place they did not
         // hold. Both come from COUNTS_CLASS now, which cannot drift again.
         li(
           el('span', {}, el('span', { class: `pill ${COUNTS_CLASS.dgs_approval}` }, COUNTS_LABEL.dgs_approval), ' / ', el('span', { class: `pill ${COUNTS_CLASS.adgs_approval}` }, COUNTS_LABEL.adgs_approval)),
-          'counts once the advisor approves it and the named reviewer does — the sheet says which of the two, course by course (for example CSE courses below the 60000 level, which share one 6-credit cap however many are approved).',
+          'counts once the advisor and the named reviewer both approve it. The sheet names the reviewer course by course (for example CSE courses below 60000, which share one 6-credit cap however many are approved).',
         ),
-        li(el('span', { class: 'pill no' }, 'No'), 'does not count toward that degree.'),
         li(el('span', { class: 'pill undecided' }, 'Not yet decided'), 'no ruling on this course yet; ask the ADGS (MSCSE) or the DGS (Ph.D.) before relying on it.'),
         // The three area names come from the Categories tab, like the cards,
         // the filter and the cells — they were a string literal here until
@@ -1278,22 +1390,22 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         // contradicting the rest of the page.
         li(
           el('strong', {}, 'Core knowledge'),
-          `a Ph.D. Qualifying Examination requirement (§4.4.1): the core-knowledge area ${rules.coreAreas.length > 0 ? `(${rules.coreAreas.map((c) => c.name).join(', ')})` : '(none listed in the rules sheet yet)'} the course satisfies. The requirement can also be met by an equivalent course passed at a previous institution — undergraduate or graduate — once the DGS confirms it. Ph.D. students only — not part of any MSCSE requirement.`,
+          `a Qualifying Examination requirement (§4.4.1), Ph.D. students only: which area ${rules.coreAreas.length > 0 ? `(${rules.coreAreas.map((c) => c.name).join(', ')})` : '(none listed in the rules sheet yet)'} the course satisfies. An equivalent course passed at a previous institution — undergraduate or graduate — also counts, once the DGS confirms it.`,
         ),
         li(
           el('strong', {}, 'Specialization'),
-          `the other course-based Qualifying Examination requirement (§4.4.2): ${catRule}. A course listed under more than one category can fill only one of them. "No specialization category" marks courses that can never satisfy it — it says nothing about degree credit, which the two credit columns answer. Ph.D. students only — not part of any MSCSE requirement.`,
+          `a Qualifying Examination requirement (§4.4.2), Ph.D. students only: ${catRule}. A course listed under more than one category can fill only one. "No specialization category" means the course can never satisfy §4.4.2; it says nothing about degree credit, which the credit columns answer.`,
         ),
         li(el('strong', {}, 'Typically offered'), 'a planning hint from past schedules, not a promise — check the class search for the actual term.'),
         ...(scheduleKnown
           ? [
               li(
                 el('strong', {}, 'On the schedule'),
-                `a filter rather than a column: it lists the courses the DGS has marked as running in ${termLabel(thisTeachingTerm)} or in ${termLabel(nextTeachingTerm)}. A course with nothing recorded is simply not listed — that is not a statement that it will not run. Unlike "Typically offered", which is a pattern from past years, this is the DGS's word on these two semesters.`,
+                `a filter, not a column: the courses the DGS has marked as running in ${termLabel(thisTeachingTerm)} or ${termLabel(nextTeachingTerm)}. A course with nothing recorded is not listed — the sheet is silent, not saying it will not run. Unlike "Typically offered", this is the DGS's word on these two semesters.`,
               ),
             ]
           : []),
-        li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.'),
+        ...(someRowPending ? [li(el('span', { class: 'pill pending' }, 'Pending'), 'the DGS has not yet confirmed this row; treat it as provisional.')] : []),
       ),
     );
     return el('div', { class: 'legend-block' }, key, details);
@@ -1310,19 +1422,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'footer',
       { class: 'legal' },
       embed
-        ? el('div', { class: 'embed-exit-line' }, openFullPageLink('Open the full course-rules page'), ' — the same list outside this page, with the ND heading and the contacts.')
+        ? el('div', { class: 'embed-exit-line' }, openFullPageLink('Open the full course-rules page'), ' — the same list outside this page.')
         : null,
-      embed
-        ? null
-        : el(
-            'div',
-            {},
-            el('strong', {}, 'Source. '),
-            // Where the data come from and who can open the sheet (DGS, 2026-09-04;
-            // shortened the same day — the handbook link now sits inside the note).
-            ...sheetSourceNote('courses'),
-            ' Where this page and the handbook disagree, the handbook and the DGS decide.',
-          ),
+      // (The footer's "Source." paragraph went on 2026-09-18, trim review P-1 and
+      // P-12. Its last sentence was the opening banner's first, word for word,
+      // and the rest was the masthead's own source line again — the spreadsheet
+      // named, linked and marked faculty-only, and the handbook linked. Both are
+      // still on the page, above. The self-check page's footer is untouched:
+      // `sheetSourceNote` is shared and still called there.)
       el(
         'div',
         { class: 'legal-license' },
@@ -1333,14 +1440,27 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         el('a', { href: LICENSE_URL, target: '_blank', rel: 'noopener noreferrer' }, 'LICENSE.md'),
         ' · source: ',
         el('a', { href: REPO_URL, target: '_blank', rel: 'noopener noreferrer' }, 'GitHub'),
-        '. Questions about this page: ',
-        mailto(DGS.email),
+        // (The DGS's address was here a third time — the banner and the contact
+        // card both carry it, in both modes. Trim review P-34, 2026-09-18.)
         '.',
       ),
     );
   }
 
   // ---------- assemble ----------
+
+  // The contact card lives in one of two places by width (trim review P-21).
+  // Two empty hosts and one node moved between them, so there is only ever one
+  // card in the document and no duplicate ids or headings.
+  const contactHost = el('div', { class: 'contact-host' });
+  const mainContactHost = el('div', { class: 'contact-host' });
+  const contactNode = contactCard();
+  const placeContact = (wide: boolean): void => {
+    (wide ? contactHost : mainContactHost).append(contactNode);
+  };
+  const wideEnough = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 900px)') : undefined;
+  placeContact(wideEnough ? wideEnough.matches : true);
+  wideEnough?.addEventListener?.('change', (ev) => placeContact((ev as MediaQueryListEvent).matches));
 
   clear(root);
   root.classList.add('courses-page');
@@ -1363,7 +1483,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // "Who to contact" is a right-hand column on the full page; in a ~700 px
       // frame there is no right-hand column, so it becomes the last block of
       // the page instead of the first (DGS 2026-09-16).
-      embedded ? contactCard() : null,
+      embedded ? contactCard() : mainContactHost,
     ),
     footer(),
   );
@@ -1424,6 +1544,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       const target = document.getElementById(id);
       if (!target) return; // nothing by that name — a stale link, nothing to do
       done = true;
+      // A schedule row can sit inside a collapsed <details> on a narrow screen
+      // (trim review P-20): scrolling to it without opening that first leaves
+      // the reader on a blank stretch of page.
+      for (let d = target.closest('details'); d; d = d.parentElement?.closest('details') ?? null) d.open = true;
       if (embedded) postScrollTo(target); // the frame cannot scroll itself
       else target.scrollIntoView({ block: 'start' });
       // `:target` styling follows the address, which has not changed, so the
