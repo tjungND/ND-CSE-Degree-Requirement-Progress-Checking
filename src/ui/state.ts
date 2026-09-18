@@ -150,6 +150,8 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
       delete e['registeredLevel']; // a hint only — drop a malformed one rather than refuse the file
     if (e['fromNdTranscript'] !== undefined && e['fromNdTranscript'] !== true)
       delete e['fromNdTranscript']; // likewise a hint (which rows the transcript import added)
+    if (e['fromExample'] !== undefined && e['fromExample'] !== true) delete e['fromExample']; // and which came from "Load example"
+
   });
   // The cumulative GPA is the one number in a file the engine reads straight
   // through to a verdict, so it is range-checked here as well as in the form

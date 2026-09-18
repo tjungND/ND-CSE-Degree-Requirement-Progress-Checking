@@ -64,6 +64,12 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
 };
 const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
+/** What "Load example" fills in BESIDE the courses. Kept here so removing the
+ * example rows can take these back too — but only where the student has not
+ * since changed them, since a value they edited is theirs (R5, 2026-09-18). */
+const EXAMPLE_MILESTONES: Student['milestones'] = { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example' };
+const EXAMPLE_ATTESTATIONS: Student['attestations'] = { advisorApprovedPlan: true };
+
 /** The §4.4.2 groups a course may satisfy, in the Categories tab's own order
  * (DGS 2026-09-08 — a sheet cell may name one group, several, or `any`).
  * Empty when the course is ineligible or the DGS has not said. */
@@ -530,16 +536,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS determines eligibility, the Grad Admin processes it.`,
         ),
         // The example is saved like any other record, so say whose it is until
-        // the student clears it (2026-09-08).
-        student.isExample
-          ? el(
-              'div',
-              { class: 'card example-banner', role: 'note' },
-              el('strong', {}, 'This is the example student, not your record. '),
-              'Nothing here came from you. Clear it before entering your own coursework.',
-              el('div', { class: 'save-buttons' }, el('button', { class: 'btn', 'data-key': 'example.clear', onclick: clearAll }, 'Clear the example')),
-            )
-          : null,
+        // the student takes it back (2026-09-08). What it says is counted from
+        // the rows themselves (R5, 2026-09-18): "Nothing here came from you"
+        // was sticky, so a student who loaded the example and then added one
+        // real course was told none of it was theirs — and offered a button
+        // that would have cleared their course along with the demo.
+        exampleBanner(),
         noticeStrip(),
         // The universities the ExternalCourses tab knows, for both University
         // boxes (manual course form, previous-transcript preview) — one
@@ -2698,22 +2700,87 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       bachelorsAwarded: { season: 'spring', year: 2026 },
       priorMs: 'none',
       gpa: 3.5,
+      // Every seeded row is tagged (R5, 2026-09-18), so the banner can count
+      // what is the example's and "Remove the example rows" can take back
+      // exactly those, leaving anything the student added.
       courses: [
-        { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' },
-        { courseId: 'CSE 63801', title: 'Research Seminar I', credits: 1, term: { season: 'fall', year: 2026 }, grade: 'S', origin: 'nd' },
-        { courseId: 'CSE 60111', title: 'Complexity and Algorithms', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'B-', origin: 'nd' },
-        { courseId: 'CSE 60321', title: 'Advanced Computer Architecture', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'B+', origin: 'nd' },
-        { courseId: 'CSE 63802', title: 'Research Seminar II', credits: 1, term: { season: 'spring', year: 2027 }, grade: 'S', origin: 'nd' },
-        { courseId: 'CSE 60770', title: 'Secure Software Engineering', credits: 3, term: { season: 'fall', year: 2027 }, grade: 'A', origin: 'nd' },
-        { courseId: 'CSE 60876', title: 'Research Methods', credits: 3, term: { season: 'spring', year: 2028 }, grade: 'IP', origin: 'nd', assignedGroup: 'dsai' },
-        { courseId: 'CSE 98900', title: 'Research and Dissertation', credits: 6, term: { season: 'spring', year: 2028 }, grade: 'IP', origin: 'nd' },
+        { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 63801', title: 'Research Seminar I', credits: 1, term: { season: 'fall', year: 2026 }, grade: 'S', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 60111', title: 'Complexity and Algorithms', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'B-', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 60321', title: 'Advanced Computer Architecture', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'B+', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 63802', title: 'Research Seminar II', credits: 1, term: { season: 'spring', year: 2027 }, grade: 'S', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 60770', title: 'Secure Software Engineering', credits: 3, term: { season: 'fall', year: 2027 }, grade: 'A', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 60876', title: 'Research Methods', credits: 3, term: { season: 'spring', year: 2028 }, grade: 'IP', origin: 'nd', assignedGroup: 'dsai', fromExample: true },
+        { courseId: 'CSE 98900', title: 'Research and Dissertation', credits: 6, term: { season: 'spring', year: 2028 }, grade: 'IP', origin: 'nd', fromExample: true },
       ],
-      milestones: { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example' },
-      attestations: { advisorApprovedPlan: true },
+      milestones: { ...EXAMPLE_MILESTONES },
+      attestations: { ...EXAMPLE_ATTESTATIONS },
     };
     saveLocal(student);
     render();
     toast('Example student loaded — clear it before entering your own record.');
+  }
+
+  /** The rows "Load example" seeded that are still on the record. */
+  function exampleRows(): CourseEntry[] {
+    return student.courses.filter((c) => c.fromExample);
+  }
+
+  /** Does the record still carry anything the example put there? An older saved
+   * record has `isExample` but no per-row flags — it is the example whole. */
+  function hasExample(): boolean {
+    return exampleRows().length > 0 || (student.isExample === true && student.courses.length === 0);
+  }
+
+  function exampleBanner(): HTMLElement | null {
+    if (!hasExample()) return null;
+    const mine = exampleRows().length;
+    const all = student.courses.length;
+    const some = mine > 0 && mine < all;
+    return el(
+      'div',
+      { class: 'card example-banner', role: 'note' },
+      some
+        ? el('strong', {}, `${mine} of these ${all} courses are the example student’s. `)
+        : el('strong', {}, 'This is the example student, not your record. '),
+      some
+        ? 'Removing them leaves everything you entered yourself untouched.'
+        : 'Nothing here came from you. Remove it before entering your own coursework.',
+      el(
+        'div',
+        { class: 'save-buttons' },
+        el('button', { class: 'btn', 'data-key': 'example.clear', onclick: removeExample }, 'Remove the example rows'),
+      ),
+    );
+  }
+
+  /** Take back exactly what "Load example" put in — the flagged rows, and the
+   * milestones and attestations it filled in WHERE THE STUDENT HAS NOT SINCE
+   * CHANGED THEM, since a value they edited is their own (R5, 2026-09-18). */
+  function removeExample(): void {
+    const before = JSON.parse(JSON.stringify(student)) as Student;
+    const removed = exampleRows().length;
+    cancelUndo();
+    update((s) => {
+      s.courses = s.courses.filter((c) => !c.fromExample);
+      for (const [k, v] of Object.entries(EXAMPLE_MILESTONES)) {
+        if ((s.milestones as Record<string, unknown>)[k] === v) delete (s.milestones as Record<string, unknown>)[k];
+      }
+      for (const [k, v] of Object.entries(EXAMPLE_ATTESTATIONS)) {
+        if ((s.attestations as Record<string, unknown>)[k] === v) delete (s.attestations as Record<string, unknown>)[k];
+      }
+      s.isExample = undefined; // nothing of the example is left to announce
+    });
+    toastWithAction(
+      `${removed} example row${removed === 1 ? '' : 's'} removed${student.courses.length > 0 ? ` — your own ${student.courses.length} stay${student.courses.length === 1 ? 's' : ''}` : ''}.`,
+      'Undo',
+      () => {
+        student = before;
+        saveLocal(student);
+        render();
+      },
+      { ttlMs: 20000 },
+    );
   }
 
   function clearAll(): void {

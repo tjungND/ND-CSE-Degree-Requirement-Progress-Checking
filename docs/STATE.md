@@ -81,8 +81,16 @@ working through `docs/REVIEW-FIXES-2026-09-18.md`, the fix order from the 2026-0
   and `tests/conditional-satisfaction.test.ts` now pins the invariant across every scenario with
   `ms.cap.fourk` as the one documented exception.
 
-Still to do from that work order: R5 (the example banner), R6/R7 (privacy wording — W-P1 is answered,
-shared computers), B1–B9. R4 is closed by the DGS.
+- **R5 — the example banner tells the truth** (commit 4). `isExample` was a flag on the WHOLE record
+  and sticky with it: load the example, add one real course, and the banner still read “Nothing here
+  came from you” while its button offered to clear the lot. Every seeded row now carries
+  `fromExample`, the banner counts them (“8 of these 9 courses are the example student's”), and
+  **Remove the example rows** takes back exactly those — plus the milestones and attestations the
+  example filled in, but only where the student has not since changed them, since an edited value is
+  theirs. With nothing of the example left, the banner and the flag both go. Undo covers it (20 s).
+
+Still to do from that work order: R6/R7 (privacy wording — W-P1 is answered, shared computers),
+B1–B9. R4 is closed by the DGS.
 
 2026-09-16 (hotfix): `bestMultiOrder` in allocate.ts was factorial — a Ph.D. student importing a
 

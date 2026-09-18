@@ -54,6 +54,13 @@ export interface CourseEntry {
    * Absent on rows saved before this flag existed; those are removed one by
    * one in the table, as before. */
   fromNdTranscript?: true;
+  /** True on every row "Load example" seeded (interface review R5,
+   * 2026-09-18). `isExample` was a flag on the WHOLE record, so adding one
+   * real course of your own left the banner still saying "Nothing here came
+   * from you" — and its button still offered to clear the lot. The flag is
+   * per row, so the banner can count what is the example's and the button can
+   * take back exactly those. */
+  fromExample?: true;
   /** transfer-only: §4.4.1 core area the student claims this course satisfies (decision Q12). */
   /** Deprecated 2026-09-03 (the claim path is retired — the DGS's
    * ExternalCourses rulings decide §4.4.1). Kept so old saved/imported

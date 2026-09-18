@@ -468,6 +468,55 @@ export async function driveApp(s, baseUrl) {
   console.log('  M.S. summary:', summary);
   if (!/\d+\/\d+/.test(summary ?? '')) throw new Error('score dial did not render');
 
+  // The example banner tells the truth about whose rows these are (interface
+  // review R5, 2026-09-18). `isExample` used to be a flag on the whole record:
+  // load the example, add one course of your own, and the banner still said
+  // "Nothing here came from you" while offering to clear the lot.
+  await s.open(baseUrl);
+  await s.evalJs(`localStorage.clear()`);
+  await s.open(baseUrl);
+  await s.waitFor(`document.querySelectorAll('.req').length > 5`);
+  await s.evalJs(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Load example').click()`);
+  await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
+  const wholeExample = await s.evalJs(`document.querySelector('.example-banner')?.textContent ?? ''`);
+  if (!/This is the example student, not your record/.test(wholeExample)) {
+    throw new Error('an untouched example must still say it is the example: ' + wholeExample.slice(0, 120));
+  }
+  await s.evalJs(`(() => {
+    const id = document.querySelector('[data-key="course.new.id"]');
+    id.value = 'CSE 60772';
+    id.dispatchEvent(new Event('change'));
+    document.querySelector('[data-key="course.new.add"]').click();
+  })()`);
+  await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772')`);
+  const mixed = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const b = document.querySelector('.example-banner');
+    if (b) b.id = 'shot-example';
+    return { text: b?.textContent ?? '', button: b?.querySelector('button')?.textContent ?? '' };
+  })())`));
+  console.log('  example banner after one real course:', JSON.stringify(mixed));
+  if (!/8 of these 9 courses are the example student’s/.test(mixed.text)) {
+    throw new Error('the banner must count whose rows these are: ' + mixed.text.slice(0, 160));
+  }
+  if (/Nothing here came from you/.test(mixed.text)) throw new Error('…and must not claim nothing came from the student');
+  if (mixed.button !== 'Remove the example rows') throw new Error('the button must offer to remove only the example rows: ' + mixed.button);
+  await s.shotElement('example-banner-mixed', '#shot-example');
+  await s.evalJs(`document.querySelector('[data-key="example.clear"]').click()`);
+  await s.waitFor(`!document.querySelector('.example-banner')`);
+  const after = JSON.parse(await s.evalJs(`JSON.stringify((() => ({
+    ids: [...document.querySelectorAll('table.courses .cid')].map((e) => e.textContent),
+    banner: !!document.querySelector('.example-banner'),
+    stored: (JSON.parse(localStorage.getItem('cse-degree-audit/v1/student') || '{}').courses ?? []).map((c) => c.courseId),
+    advisor: JSON.parse(localStorage.getItem('cse-degree-audit/v1/student') || '{}').milestones?.advisorName ?? null,
+  }))())`));
+  console.log('  after removing the example rows:', JSON.stringify(after));
+  if (after.banner) throw new Error('with no example rows left the banner must go');
+  if (after.ids.join() !== 'CSE 60772' || after.stored.join() !== 'CSE 60772') {
+    throw new Error('removing the example rows must leave the student\'s own course: ' + JSON.stringify(after));
+  }
+  if (after.advisor !== null) throw new Error('the example\'s advisor should have gone with it: ' + after.advisor);
+  await s.evalJs(`localStorage.clear()`);
+
   await driveAppEmbed(s, baseUrl);
 }
 
