@@ -70,7 +70,14 @@ export function thresholdRow(args: {
   } else {
     // Credits can be fractional since quarter-system conversion (2026-09-08).
     const n = (v: number) => (unit === 'credits' ? formatCredits(v) : String(v));
-    parts.push(`${n(sums.definite)} of ${required} ${unit} complete`);
+    // "15 of 9 credits complete" is not a sentence (blue-team B3, 2026-09-18):
+    // past the minimum the row says what the student HAS and that the floor is
+    // behind them, instead of counting toward a number they have overshot.
+    parts.push(
+      sums.definite >= required
+        ? `${n(sums.definite)} ${unit} — the ${n(required)}-${unit.replace(/s$/, '')} minimum is met`
+        : `${n(sums.definite)} of ${required} ${unit} complete`,
+    );
     if (sums.in_progress > 0) parts.push(`${n(sums.in_progress)} in progress`);
     if (sums.provisional > 0) parts.push(`${n(sums.provisional)} pending review/approval`);
     if (status === 'needs_dgs_review' && args.provisionalCourses?.length) {
@@ -89,6 +96,7 @@ export function thresholdRow(args: {
     ...(args.shortTitle ? { shortTitle: args.shortTitle } : {}),
     status,
     ...joinedDetail(parts),
+    ...(required === undefined ? {} : { progress: { have: sums.definite, need: required, unit } }),
     citation: { section: args.section, quote: args.quote },
     ...(args.satisfiedBy && args.satisfiedBy.length > 0 ? { satisfiedBy: args.satisfiedBy } : {}),
     ...(args.pendingBy && args.pendingBy.length > 0 ? { pendingBy: args.pendingBy } : {}),
@@ -164,13 +172,21 @@ export function capRow(args: {
     }));
 
   let status: Status;
+  let label: string | undefined;
   const parts: DetailPart[] = [];
   if (usage?.limit === undefined) {
     status = 'cannot_evaluate';
     parts.push(missingParamDetail(args.limitKey));
   } else if (relevant.length === 0) {
+    // "Does not apply — No courses touch this cap" read as an EXEMPTION from
+    // §4.2's limit (blue-team B4, 2026-09-18). The allowance applies; it is
+    // simply unused, and the row says so in the same shape as when it is used.
+    // The status stays not_applicable — an unused allowance is not a
+    // requirement to meet, so it must not join the score — and only the pill's
+    // wording changes, through the same override as W-CS2.
     status = 'not_applicable';
-    parts.push('No courses touch this cap');
+    label = 'Not used yet';
+    parts.push(`${formatCredits(0)} of the ${formatCredits(usage.limit)} ${args.capLabel} used`);
   } else {
     const pending = relevant.filter((c) => c.approvalPending);
     status = args.approvalDriven && pending.length > 0 ? 'needs_dgs_review' : 'met';
@@ -185,6 +201,7 @@ export function capRow(args: {
     group: args.group,
     title: args.title,
     status,
+    ...(label ? { statusLabel: label } : {}),
     ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },
   };

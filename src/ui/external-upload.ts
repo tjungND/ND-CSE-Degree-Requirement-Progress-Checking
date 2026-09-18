@@ -576,7 +576,20 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
   } else {
     parts.push(
       el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
-      button({ class: 'btn', 'data-key': `ext.import.${slot.level}`, onclick: () => (fileInput as HTMLInputElement).click() }, 'Import from PDF'),
+      // Named for its own row (blue-team B7, 2026-09-18): all four import
+      // buttons on this card had the accessible name "Import from PDF", with no
+      // aria-label and no enclosing group label, so a screen-reader user
+      // reached four identical controls and could not tell which transcript
+      // each one wanted. The file inputs behind them were already named.
+      button(
+        {
+          class: 'btn',
+          'data-key': `ext.import.${slot.level}`,
+          'aria-label': `Import ${slot.label.toLowerCase()} from PDF`,
+          onclick: () => (fileInput as HTMLInputElement).click(),
+        },
+        'Import from PDF',
+      ),
       fileInput,
     );
   }

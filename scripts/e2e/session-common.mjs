@@ -44,7 +44,19 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
         await shot('consent-gate');
         consentShotTaken = true;
       }
-      await evalJs(`document.querySelector('.consent-overlay button.btn').click()`);
+      // The notice carries the program choice since 2026-09-18 (blue-team B2):
+      // for a record this browser has never seen, nothing is pre-selected and
+      // "I understand — continue" stays inactive until the student answers, so
+      // the drivers answer it the way a Ph.D. student would. A returning record
+      // arrives pre-selected and the button is live from the start.
+      await evalJs(`(() => {
+        const btn = document.querySelector('.consent-overlay button.btn');
+        if (btn.hasAttribute('disabled')) {
+          const phd = document.querySelector('[data-key="consent.program.phd"]');
+          phd.click();
+        }
+        btn.click();
+      })()`);
       await waitFor(`!document.querySelector('.consent-overlay')`);
     }
   };

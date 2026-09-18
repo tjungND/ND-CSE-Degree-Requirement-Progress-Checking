@@ -192,6 +192,14 @@ a.btn { text-decoration: none; display: inline-block; color: inherit; }
 a.btn.primary { color: #fff; }
 .btn.tiny { padding: 3px 8px; margin: 0; min-height: 24px; } /* ≥24 px target (WCAG 2.5.8) */
 .btn.tiny.remove { min-width: 28px; }
+/* On a phone the course rows stack into cards and Remove is the one
+   destructive control among them — 28×32 px is under the 44×44 guideline
+   (blue-team B8, 2026-09-18). Undo exists and is announced, so this is polish;
+   it is also the difference between deleting the row you meant to and the one
+   above it. */
+@media (max-width: 860px) {
+  .btn.tiny.remove { min-width: 44px; min-height: 44px; }
+}
 
 /* course form */
 .course-form .row1 { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 8px; margin-bottom: 8px; align-items: end; }
@@ -271,6 +279,19 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 /* The end-of-report card (R7, 2026-09-18): Clear where someone who has just
    finished reading actually is, not only at the top of the page. */
 .finish-card { margin-top: 12px; }
+/* The program choice inside the opening notice (blue-team B2, 2026-09-18):
+   the question the page used to answer silently with "Ph.D.". */
+.consent-program-group { margin: 14px 0 16px; }
+.consent-program .radio { padding: 3px 0; }
+.consent-box .btn.primary[disabled] { opacity: 0.55; cursor: not-allowed; }
+/* The footer's five things, each with a heading and two of them behind a
+   disclosure (blue-team B9, 2026-09-18) — it was ~1,900 characters of unbroken
+   grey prose. Closed, the footer is five short lines. */
+.legal > div, .legal > details { margin-bottom: 10px; }
+.legal-head { font-size: 13px; font-weight: 700; color: var(--ink); margin: 0 0 2px; display: inline; }
+.legal > details > summary { cursor: pointer; list-style-position: outside; }
+.legal > details > summary .legal-head { color: var(--navy); }
+.legal > details[open] > summary { margin-bottom: 4px; }
 .meters { margin: 6px 0 4px; }
 .meter { margin-bottom: 6px; }
 .meter-label { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }

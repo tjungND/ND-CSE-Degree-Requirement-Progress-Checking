@@ -128,10 +128,12 @@ function meters(report: AuditReport): HTMLElement {
   const box = el('div', { class: 'meters' });
   for (const [id, label] of wanted) {
     const row = report.requirements.find((r) => r.id === id);
-    const m = row ? /^(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?)/.exec(row.detail) : null;
-    if (!m) continue;
-    const have = Number(m[1]);
-    const need = Number(m[2]);
+    // From the row's own numbers, not re-parsed out of its prose: B3 reworded
+    // the sentence once a minimum is passed, and the old /^(\d+) of (\d+)/
+    // would have quietly dropped the bar for exactly the students who had
+    // earned it.
+    if (!row?.progress) continue;
+    const { have, need } = row.progress;
     const bar = el('div', { class: 'bar' });
     const fill = el('i', {});
     fill.style.width = `${Math.min(100, (have / need) * 100)}%`;
@@ -367,13 +369,47 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
  * item 27). The handbook order of the cards below is kept: students look
  * things up by section. */
 function attentionList(report: AuditReport): HTMLElement | null {
-  // Most actionable first (2026-09-08): a missing input the student can supply
-  // today, then a course waiting on the DGS, then what is simply not done yet.
-  // The old order put the one row a new student could act on 13th of 13.
+  // Ranked by URGENCY, not by status (blue-team B5, 2026-09-18). Filtering on
+  // status alone put "Dissertation defense passed" — years away — above the
+  // research qualifier due in eighteen months, and left the qualifying
+  // examination out altogether because it classifies as in_progress.
   const ORDER: Status[] = ['cannot_evaluate', 'needs_dgs_review', 'unmet'];
+  /** Rows nothing can be done about yet. Most say so in their own detail — the
+   * engine writes "Not yet available: …" wherever a requirement names its own
+   * precondition. The dissertation pair does not, so they are named here: a
+   * student cannot have readers approve a dissertation, or defend it, before
+   * the §4.5 candidacy exam they come after. This is a PRESENTATION judgement
+   * about what belongs on a to-do list, not a rule — both rows stay in the
+   * report, with their verdicts unchanged. */
+  const AFTER_CANDIDACY = ['phd.dissertation.approval', 'phd.dissertation.defense'];
+  const candidacyPassed = report.requirements.some((r) => r.id === 'phd.candidacy' && r.status === 'met');
+  const unreachable = (r: RequirementResult): boolean =>
+    /^Not yet available:/.test(r.detail) || (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed);
+  const DEADLINE_RANK: Record<string, number> = { overdue: 0, due_soon: 1, upcoming: 3, done: 4 };
+  const rank = (r: RequirementResult): number => {
+    const byDeadline = r.deadline ? DEADLINE_RANK[r.deadline.state] ?? 3 : undefined;
+    // A missing input the student can supply today still comes first: it is the
+    // one thing on the page that is entirely theirs to fix.
+    if (r.status === 'cannot_evaluate') return -1;
+    return byDeadline ?? 2 + ORDER.indexOf(r.status) / 10;
+  };
   const rows = report.requirements
-    .filter((r) => !r.informational && ORDER.includes(r.status))
-    .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
+    .filter((r) => {
+      if (r.informational || unreachable(r)) return false;
+      if (ORDER.includes(r.status)) return true;
+      // …and an in_progress row whose deadline is close is exactly what the
+      // student needs to see, whatever its status says (B5).
+      return r.status === 'in_progress' && (r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue');
+    })
+    .sort((a, b) => {
+      const d = rank(a) - rank(b);
+      if (d !== 0) return d;
+      // Same urgency: the nearer date first, then the report's own order.
+      const da = a.deadline?.date ?? '';
+      const db = b.deadline?.date ?? '';
+      if (da && db && da !== db) return da < db ? -1 : 1;
+      return ORDER.indexOf(a.status) - ORDER.indexOf(b.status);
+    });
   if (rows.length === 0) return null;
   // Cut at a sentence when there is one inside 110 characters; otherwise at a
   // word, with an ellipsis (2026-09-08 — the qualifier row's only full stops

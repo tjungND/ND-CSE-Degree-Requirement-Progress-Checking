@@ -98,7 +98,23 @@ working through `docs/REVIEW-FIXES-2026-09-18.md`, the fix order from the 2026-0
   machine, and **Clear** is reachable from the END of the report as well as the top of the page,
   beside “Save to a file” so nobody clears work they meant to keep.
 
-Still to do from that work order: B1–B9. R4 is closed by the DGS.
+- **B1–B9 — the blue-team usability pass** (commit 6). B1 (first screen: contacts to the end, notices
+  to one line, no empty summary above the inputs — the first import control moved from y=1104 to
+  y=585 at 708×937, the first data-entry control from 20th in the tab order to 3rd), B2 (the program
+  is asked in the opening notice, not defaulted to `phd` in silence), B3 (“15 of 9” became “15
+  credits — the 9-credit minimum is met”, and the meters read `row.progress` instead of re-parsing
+  the prose), B4 (an unused allowance is “Not used yet”, not “Does not apply”), B5 (“Needs your
+  attention” ranks by deadline and drops what cannot be acted on yet), B7 (four import buttons, four
+  names), B8 (44×44 Remove on a phone), B9 (the footer is five headed things, two of them
+  disclosures). **B6 was NOT done and the reason matters**: Escape already closes the opening notice
+  (drive-a11y.mjs has asserted it since 2026-09-05), and “remember the acknowledgement” reverses the
+  DGS's recorded decision of 2026-09-03 that the gate shows on every visit. Put to him.
+
+Everything in `docs/REVIEW-FIXES-2026-09-18.md` is now done except B6's storage half (above) and R4,
+which the DGS closed. Two things the review did not cover are still open for him: §3.5's shared-credit
+row is satisfied-looking for the courses §3.5 actually describes (decision A, `HANDBOOK-REVISIONS.md`
+§9), and the advisor email still says “needs DGS review” where the page now says “Conditionally
+met” — a different audience, so it was left alone rather than changed unasked.
 
 2026-09-16 (hotfix): `bestMultiOrder` in allocate.ts was factorial — a Ph.D. student importing a
 

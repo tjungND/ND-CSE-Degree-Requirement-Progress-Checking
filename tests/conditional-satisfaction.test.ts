@@ -138,8 +138,20 @@ describe('the one row that must not read "Conditionally met" (W-CS2)', () => {
     }
   });
 
-  it('no other row overrides its pill', () => {
-    const overridden = reports.flatMap(({ report }) => report.requirements.filter((r) => r.statusLabel).map((r) => r.id));
-    assert.deepEqual([...new Set(overridden)], ['phd.dissertation.defense']);
+  it('only the rows that are meant to override their pill do', () => {
+    // Two, each for a stated reason: the §4.7 defense past §4.3's limit
+    // ("Eligibility at risk", W-CS2), and a cap nobody has drawn on yet ("Not
+    // used yet", blue-team B4 — "Does not apply" read as an exemption from a
+    // limit that does apply). Anything else appearing here is a bug.
+    const overridden = new Map<string, Set<string>>();
+    for (const { report } of reports) {
+      for (const r of report.requirements) {
+        if (!r.statusLabel) continue;
+        overridden.set(r.statusLabel, (overridden.get(r.statusLabel) ?? new Set()).add(r.id));
+      }
+    }
+    assert.deepEqual([...overridden.keys()].sort(), ['Eligibility at risk', 'Not used yet']);
+    assert.deepEqual([...(overridden.get('Eligibility at risk') ?? [])], ['phd.dissertation.defense']);
+    for (const id of overridden.get('Not used yet') ?? []) assert.match(id, /\.cap\./, id);
   });
 });

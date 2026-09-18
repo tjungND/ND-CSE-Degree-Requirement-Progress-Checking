@@ -269,6 +269,10 @@ export interface RequirementResult {
    * advisor, the DGS and the Grad Admin — which re-voice them — keep the
    * names spelled out, which is what the DGS asked for. */
   shortDetailParts?: DetailPart[];
+  /** The numbers behind a threshold row, for the credit meters (B3,
+   * 2026-09-18). The meters used to re-parse them out of `detail` with
+   * /^(\d+) of (\d+)/, so rewording the sentence silently deleted the bar. */
+  progress?: { have: number; need: number; unit: string };
   deadline?: DeadlineInfo;
   citation: { section: string; quote: string };
   /** What satisfies the row right now — course ids for course-based rows,

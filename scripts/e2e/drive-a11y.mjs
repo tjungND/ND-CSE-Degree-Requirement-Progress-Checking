@@ -28,6 +28,7 @@ export async function driveA11y(s, baseUrl) {
   // courses exist, and a native confirm() would block the page.
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl);
+  await checkFirstScreen(s, baseUrl);
   await s.evalJs(`[...document.querySelectorAll('button')].find(b => b.textContent === 'Load example').click()`);
   await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
   await checkFocusPreserved(s);
@@ -138,6 +139,40 @@ async function checkDialog(s, baseUrl) {
   const focusAfter = await s.evalJs(`document.activeElement?.tagName + ':' + (document.activeElement?.textContent ?? '').slice(0, 30)`);
   if (!focusAfter.startsWith('H1:')) throw new Error('opening dialog: focus did not land on the page heading after closing — ' + focusAfter);
   console.log('  opening notice: focus inside, Tab contained, Escape closes, focus returns to the heading');
+}
+
+// 1b. The first screen belongs to the work, not the preamble (blue-team B1,
+// 2026-09-18). At 708×937 the "1. Transcripts — START HERE" heading sat at
+// y=944 and the first Import button at y=1104, and the first nineteen
+// interactive elements included no data-entry control at all.
+async function checkFirstScreen(s, baseUrl) {
+  await s.send('Emulation.setDeviceMetricsOverride', { width: 708, height: 937, deviceScaleFactor: 1, mobile: false });
+  // A FIRST visit is what B1 measured: no record, so nothing to summarise.
+  await s.open(baseUrl, '.transcript-upload');
+  const first = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const start = [...document.querySelectorAll('h2')].find((h) => /START HERE/.test(h.textContent ?? ''));
+    const importBtn = document.querySelector('[data-key="import.nd"]');
+    const focusable = [...document.querySelectorAll('a[href], button, input, select, textarea')]
+      .filter((n) => n.offsetParent !== null && !n.closest('.skip-link'));
+    const firstEntry = focusable.findIndex((n) => /^(import\.|course\.new\.|standing\.|courses\.|program\.)/.test(n.dataset?.key ?? ''));
+    return {
+      startHereTop: Math.round(start?.getBoundingClientRect().top ?? -1),
+      importTop: Math.round(importBtn?.getBoundingClientRect().top ?? -1),
+      firstEntryIndex: firstEntry,
+      contactAtEnd: !!document.querySelector('footer .contact-card'),
+      contactInMasthead: !!document.querySelector('.masthead .contact-card'),
+      noticeLines: document.querySelectorAll('.notice-strip .notice-line').length,
+    };
+  })())`));
+  console.log('  first screen at 708×937:', JSON.stringify(first));
+  if (first.importTop < 0 || first.importTop > 937) throw new Error('the first import control must be on the first screen: ' + first.importTop);
+  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 6) {
+    throw new Error('a data-entry control must come early in the tab order, not 20th: ' + first.firstEntryIndex);
+  }
+  if (first.contactInMasthead || !first.contactAtEnd) throw new Error('the who-to-contact card belongs at the end: ' + JSON.stringify(first));
+  if (first.noticeLines !== 1) throw new Error('the notices collapse to ONE line above the fold: ' + first.noticeLines);
+  await s.shot('first-screen-708');
+  await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
 }
 
 // 2. Focus survives the re-render that every change triggers.

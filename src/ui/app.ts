@@ -12,7 +12,7 @@ import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
-import type { CourseEntry, CourseLine, Season, Student, Term } from '../engine/types.ts';
+import type { CourseEntry, CourseLine, Program, Season, Student, Term } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
@@ -88,6 +88,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // Sheet-driven contacts (2026-09-04): must run before ANYTHING renders —
   // the consent notice below already shows the DGS's name and address.
   applyContactOverrides(rules.parameters);
+  /** What a saved record on this device carried that the app will not keep
+   * (R1, 2026-09-18) — shown once the page is up, and put back in the field
+   * it came from, so a figure that vanished is never unexplained. */
+  const loadRefusals: Refusal[] = [];
+  const saved = loadLocal(loadRefusals);
+  let student: Student = saved ?? emptyStudent();
   // Department-approval gate (DGS request, 2026-09-03): shown on EVERY visit
   // until the student clicks Agree — the tool is under testing and not yet
   // approved by the department. Nothing is stored about the click.
@@ -98,6 +104,36 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // "I understand — continue" rather than "Agree" (usability review 2026-09-05,
   // item 9): the notice is informational, not a consent; nothing is stored.
   const agreeButton = el('button', { class: 'btn primary', autofocus: true }, 'I understand — continue');
+  // The program choice lives here (blue-team B2, 2026-09-18). It used to be a
+  // SILENT default — emptyStudent() says `program: 'phd'` and nothing asked —
+  // so an MSCSE student who missed the segmented control at the top read
+  // seventeen Ph.D. checks (dissertation readers, the OCE, the eight-year
+  // limit) and a footer saying 0 of 17 met. This dialog is already a forced
+  // interaction on every visit; asking here removes the whole failure class.
+  // A returning student's answer is pre-selected, so it stays one click.
+  const programRadios = el('div', { class: 'radios consent-program' });
+  let chosenProgram: Program | undefined = saved?.program;
+  for (const [value, label] of [
+    ['phd', 'Ph.D. in Computer Science and Engineering (Handbook §4)'],
+    ['mscse', 'M.S. in Computer Science and Engineering — MSCSE (Handbook §3)'],
+  ] as [Program, string][]) {
+    const radio = el('input', {
+      type: 'radio',
+      name: 'consent-program',
+      value,
+      'data-key': `consent.program.${value}`,
+      onchange: () => {
+        chosenProgram = value;
+        agreeButton.removeAttribute('disabled');
+      },
+    }) as HTMLInputElement;
+    radio.checked = saved?.program === value;
+    programRadios.append(el('label', { class: 'radio' }, radio, ` ${label}`));
+  }
+  // Nothing is pre-selected for a student with no record on this device, and
+  // the button stays inactive until they answer — the report must not render
+  // against a program nobody chose.
+  if (!saved) agreeButton.setAttribute('disabled', 'disabled');
   const consentDialog = el(
     'dialog',
     { class: 'consent consent-overlay', 'aria-labelledby': 'consent-title' },
@@ -121,10 +157,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         mailto(DGS.email),
         ').',
       ),
+      el('fieldset', { class: 'field group consent-program-group' }, el('legend', { class: 'label' }, 'Which degree are you working toward?'), programRadios),
       agreeButton,
     ),
   );
   const closeConsent = (): void => {
+    // The answer takes effect BEFORE the dialog goes, so that by the time
+    // anything can observe the notice gone, the page behind it already shows
+    // the chosen program — otherwise a script (or a fast reader) can act on a
+    // page that is about to re-render underneath them. Escape closes the notice
+    // — it always has, and drive-a11y.mjs checks it — and leaves the program as
+    // it was, which the segmented control at the top still shows and can still
+    // change (B2, 2026-09-18).
+    if (chosenProgram && chosenProgram !== student.program) {
+      update((s) => void (s.program = chosenProgram!));
+    }
     if (consentDialog.open) consentDialog.close();
     consentDialog.remove();
     root.querySelector<HTMLElement>('.masthead h1')?.focus();
@@ -141,11 +188,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     consentDialog.setAttribute('open', '');
   }
 
-  /** What a saved record on this device carried that the app will not keep
-   * (R1, 2026-09-18) — shown once the page is up, and put back in the field
-   * it came from, so a figure that vanished is never unexplained. */
-  const loadRefusals: Refusal[] = [];
-  let student: Student = loadLocal(loadRefusals) ?? emptyStudent();
   // Established on the loading card (DGS 2026-09-07): the date at Notre Dame,
   // from the server this page came from when it answers, and read in Notre
   // Dame's own zone either way — never the device's idea of the calendar.
@@ -551,7 +593,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Phones and small tablets (2026-09-05, review item 2): the result
         // first, then the inputs, then the full report — plus a sticky score
         // bar with jump links (both hidden on wide screens by CSS).
-        renderSummary(report, untouched),
+        // On a narrow screen the report's summary sits ABOVE the inputs, which
+        // is right once there is something to summarise — and 252 px of
+        // "Getting started" between the student and the first control when
+        // there is not (blue-team B1, 2026-09-18). An untouched record shows it
+        // at the bottom with the rest of the report instead.
+        untouched ? null : renderSummary(report, untouched),
         el(
           'div',
           { class: 'layout' },
@@ -685,7 +732,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             )
           : null,
       ),
-      embed ? null : contactCard(),
+      // The Who-to-contact card is at the END of the page (B1, 2026-09-18).
+      // It was three reference links and three mailto links above the first
+      // control a student could type into, and the report already names people
+      // by role where they matter. Embedded mode has put it in the footer
+      // since 2026-09-16; now every mode does.
       el(
         'div',
         { class: 'masthead-tools' },
@@ -728,7 +779,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'p',
         { class: 'notice-full privacy' },
         el('strong', {}, 'Private by design. '),
-        'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing is uploaded, transmitted, or stored anywhere else. The page makes two network requests, neither of which carries anything about you: the read-only fetch of the public course rules, and one request to this site’s own server to ask what time it is at Notre Dame.',
+        // Measured, like the rest of the privacy wording (R6/W-P1,
+        // 2026-09-18): this paragraph said "two network requests, neither of
+        // which carries anything about you". A load makes five — one per
+        // published sheet tab, plus the date probe — and while none carries
+        // anything a student typed, each carries an IP, a user agent and a
+        // referrer, which is what the approved wording concedes.
+        'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing you enter is uploaded, transmitted, or stored anywhere else. Loading the page makes five requests that carry nothing you typed: four to Google Sheets, one per tab of the public course-rules spreadsheet, and one to this site’s own server on GitHub to ask what time it is at Notre Dame. Those two services see that someone opened the page; they never see what you enter.',
       ),
     );
     return el(
@@ -737,8 +794,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // The notice names the decider for THIS tab (ADGS on the MSCSE tab, DGS
       // on the Ph.D. tab — DGS 2026-09-15) by the same rewrite as the rest of
       // the page; the feedback address is the DGS's own and is kept as is.
-      el('p', { class: 'notice-line' }, el('strong', {}, 'Alpha — under testing. '), ALPHA_LINE, el('span', { 'data-keep-dgs': '' }, ' Feedback: ', mailto(DGS.email), ` (the DGS, Prof. ${DGS.name}, who maintains this page).`)),
-      el('p', { class: 'notice-line privacy-line' }, el('strong', {}, 'Private by design. '), PRIVACY_LINE),
+      // ONE line above the fold, not two paragraphs (blue-team B1,
+      // 2026-09-18): at 708×937 the first data-entry control sat at y=1104,
+      // below a full screen of preamble, and the first nineteen interactive
+      // elements included no way to enter anything. Both notices are intact,
+      // in full, one click away in the Details disclosure that was already
+      // here — and both are still in the footer and the copied summary.
+      el(
+        'p',
+        { class: 'notice-line' },
+        el('strong', {}, 'Alpha — under testing. '),
+        'Informational only; the DGS decides. Your coursework never leaves this browser.',
+      ),
       details,
     );
   }
@@ -1507,7 +1574,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const button = (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string): HTMLButtonElement =>
       blocked ? inactiveButton(attrs, PREVIEW_OPEN_NOTE, toast, label) : el('button', attrs, label);
     const importButton = button(
-      { class: 'btn', 'data-key': 'import.nd', onclick: () => (fileInput as HTMLInputElement).click() },
+      {
+        class: 'btn',
+        'data-key': 'import.nd',
+        // B7 (2026-09-18): four buttons on this card read "Import from PDF".
+        // The visible label stays short; the accessible name says which row.
+        'aria-label': `${imported.length > 0 ? 'Import again' : 'Import'} — ${ndRowLabel(student)}`,
+        onclick: () => (fileInput as HTMLInputElement).click(),
+      },
       imported.length > 0 ? 'Import again' : 'Import from PDF',
     );
     const parts: (Node | string)[] = [
@@ -2577,7 +2651,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint' },
-        'Everything you enter — including any transcript PDF you upload — is processed and saved in this browser only, and never sent anywhere. To keep a copy or move to another device, save it as a file.',
+        // The privacy statement belongs where the file controls are, not only
+        // in the footer (B9, 2026-09-18). Wording approved as W-P1.
+        'Everything you enter — including any transcript PDF you upload — is processed and saved in this browser only. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter. To keep a copy or move to another device, save it as a file.',
       ),
       // The other side of "it stays in this browser" (interface review R7,
       // 2026-09-18): on a lab or library machine the record has no expiry, so
@@ -2646,10 +2722,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'footer',
       { class: 'legal' },
+      // Five distinct things in one grey block of ~1,900 characters
+      // (blue-team B9, 2026-09-18): scope, the alpha warning, where the rules
+      // come from, privacy, and the licence. Each now has a heading, and the
+      // two longest are disclosures — closed, the footer is five short lines.
       el(
         'div',
-        {},
-        el('strong', {}, 'This is a self-check, not an official audit. '),
+        { class: 'legal-scope' },
+        el('h2', { class: 'legal-head' }, 'This is a self-check, not an official audit'),
         student.program === 'mscse' ? 'It applies Section 3 of the ' : 'It applies Section 4 of the ',
         handbookLink(),
         '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Eligibility is determined by the DGS; processing and the official record are the Grad Admin’s — confirm with them before you rely on it.',
@@ -2658,8 +2738,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // wording table, 2026-09-12): the opening dialog and the banner already
       // said it; BETA_NOTICE carries "not an official degree audit".
       el(
-        'div',
-        { class: 'legal-beta' },
+        'details',
+        { class: 'legal-beta', 'data-key': 'legal.alpha' },
+        el('summary', {}, el('h2', { class: 'legal-head' }, 'What is still being tested')),
         BETA_NOTICE,
         ' ',
         el('strong', {}, RULES_ACCURACY_NOTICE),
@@ -2672,15 +2753,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       ),
       // What the rules spreadsheet is and who can open it (DGS, 2026-09-04).
       el(
-        'div',
-        { class: 'legal-source' },
-        el('strong', {}, 'Where the rules come from. '),
+        'details',
+        { class: 'legal-source', 'data-key': 'legal.source' },
+        el('summary', {}, el('h2', { class: 'legal-head' }, 'Where the rules come from')),
         ...sheetSourceNote('app'),
       ),
       el(
         'div',
         { class: 'legal-privacy' },
-        el('strong', {}, 'Your data never leaves your device. '),
+        el('h2', { class: 'legal-head' }, 'Your data never leaves your device'),
         // W-P1 (DGS 2026-09-18). The middle two sentences are his approved
         // wording verbatim; the FERPA sentence stays, as he asked.
         'Your coursework never leaves this browser: everything you enter — and any transcript PDF you upload — is processed here and saved only on this computer. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter. Your FERPA-protected education records remain under your control.',
@@ -2688,7 +2769,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'div',
         { class: 'legal-license' },
-        el('strong', {}, 'License. '),
+        el('h2', { class: 'legal-head' }, 'License'),
         '© 2026 University of Notre Dame du Lac. Free for non-commercial (academic and research) use; commercial use requires a license from Notre Dame\'s IDEA Center (',
         mailto('softwarelicensing@nd.edu'),
         '). Full terms: ',
@@ -2700,7 +2781,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Embedded, the way out of the frame — and, with the contact card moved
       // off the top, the place the contacts now live (DGS 2026-09-16).
       isEmbedded() ? el('div', { class: 'embed-exit-line' }, openFullPageLink('Open the full self-check page'), ' — the same tool in its own window.') : null,
-      isEmbedded() ? contactCard() : null,
+      contactCard(),
     );
   }
 
