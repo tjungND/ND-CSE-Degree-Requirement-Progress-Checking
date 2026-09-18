@@ -435,14 +435,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
 
   function notices(): HTMLElement[] {
     const out: HTMLElement[] = [
+      // Two sentences, at the DGS's request (2026-09-18): the caveats about
+      // Pending rows, "typically offered" and the retired switch were cut —
+      // each of those is explained where it appears (the legend's own entries,
+      // the Pending pill, the empty-table text), and the banner is what a
+      // reader meets first.
       el(
         'div',
         { class: 'banner official', role: 'note' },
-        'Rows marked ',
-        el('span', { class: 'pill pending' }, 'Pending'),
-        ' are still under DGS review and may change. ',
-        el('strong', {}, 'Not every course listed is currently offered: '),
-        'even an active (non-retired) course may run only in some semesters, or not at all in a given year — the “Typically offered” column is a planning hint, so check the class search for the actual schedule. Retired courses are hidden unless you tick “Include retired courses”. Where this page and the handbook disagree, the handbook and the DGS decide.',
+        'Where this page and the handbook disagree, the handbook and the DGS decide.',
         ...reportToDgs(' Corrections and questions — please email'),
       ),
     ];
@@ -623,15 +624,11 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         el(
           'a',
           // Offered this semester or next → the course's row on the schedule
-          // card; otherwise its row in All courses (DGS 2026-09-17). A retired
-          // course is never on a schedule card, and its All-courses row exists
-          // only while "Include retired courses" is ticked, so its link says so
-          // rather than pointing at a row that is not there (review B-10).
+          // card; otherwise its row in All courses (DGS 2026-09-17).
           {
-            class: `ov-item${r.dgsReviewed ? '' : ' pending'}${r.active ? '' : ' is-retired'}`,
-            href: !r.active
-              ? `?retired=1#${r.courseId.replace(' ', '-')}`
-              : offeredIn('this')(r) === true
+            class: `ov-item${r.dgsReviewed ? '' : ' pending'}`,
+            href:
+              offeredIn('this')(r) === true
                 ? `#sched-this-${r.courseId.replace(' ', '-')}`
                 : offeredIn('next')(r) === true
                   ? `#sched-next-${r.courseId.replace(' ', '-')}`
@@ -654,25 +651,22 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           ...(offeredIn('next')(r) === true
             ? [el('span', { class: 'pill small sched-next', title: `Offered ${termLabel(nextTeachingTerm)}` }, el('span', { class: 'visually-hidden' }, 'Offered '), termShortLabel(nextTeachingTerm))]
             : []),
-          // A retired course still counts for the students who took it (DGS
-          // 2026-09-18), so it is listed here — marked, so nobody plans to
-          // take it.
-          ...(r.active ? [] : [el('span', { class: 'pill small retired' }, 'Retired')]),
         ),
         r,
       );
     /** The courses in one §4.4.1 area or §4.4.2 group.
      *
-     * Retired courses are IN the cards since 2026-09-18 (DGS: "a retired
-     * course may belong in qualifying-exam cards if indeed listed"). They were
-     * hidden until then, which cost a student the fact that a course they had
-     * already passed satisfies the area — the audit engine has always counted
-     * it — and let a card read "No course assigned yet" while the sheet listed
-     * one (review B-3). Live courses first, then the retired ones. */
+     * CURRENT courses only — the DGS's ruling of 2026-09-18, which reversed his
+     * own answer of an hour before: retired courses are not shown in these
+     * cards. They are still in the table under "Include retired courses", and
+     * the audit engine still counts one for a student who took it.
+     *
+     * What that leaves, from review B-3: a card whose only course is retired
+     * cannot say "No course assigned yet", because one IS assigned. It says
+     * nothing is on offer, which is true either way. */
     const listFor = (pick: (r: RuleCourse) => boolean): HTMLElement => {
-      const matches = rows.filter(pick);
-      const items = [...matches.filter((r) => r.active), ...matches.filter((r) => !r.active)];
-      return items.length === 0 ? el('span', { class: 'muted' }, 'No course assigned yet.') : el('div', { class: 'ov-list' }, ...items.map(item));
+      const items = rows.filter((r) => r.active && pick(r));
+      return items.length === 0 ? el('span', { class: 'muted' }, 'No current course is listed here.') : el('div', { class: 'ov-list' }, ...items.map(item));
     };
     const coreCards = rules.coreAreas.map((c) =>
       el('div', { class: 'ov-card' }, el('h3', {}, c.name), listFor((r) => r.coreArea === c.code)),
@@ -1370,6 +1364,30 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     ),
     footer(),
   );
+  // A card link points at a row in the table below, and a filter the reader
+  // left on can hide that row, so the click goes nowhere (review B-10,
+  // 2026-09-18). Rather than a dead link, clear the filters and let the click
+  // land: the count line names which filters were on, so what happened is on
+  // screen. Registered before the embed relay, which reads the target's
+  // position on the same click and needs it to exist by then.
+  root.addEventListener('click', (ev) => {
+    const link = (ev.target as Element | null)?.closest?.('a[href^="#"]');
+    if (!(link instanceof HTMLAnchorElement)) return;
+    let id = '';
+    try {
+      id = decodeURIComponent(link.getAttribute('href')?.slice(1) ?? '');
+    } catch {
+      return;
+    }
+    // Only a course row is worth un-filtering for — not "#all-courses".
+    if (!id || !/^(sched-(this|next)-)?[A-Z]{2,6}-\d/.test(id)) return;
+    if (document.getElementById(id)) return;
+    Object.assign(filters, defaultFilters());
+    clear(filterHost);
+    filterHost.append(filterBar());
+    refreshTable();
+  });
+
   if (embedded) {
     startAnchorScrollRelay(root); // #CSE-60641 links, in a frame that cannot scroll
     notifyEmbedHeight();

@@ -488,7 +488,6 @@ table.course-rules .course-id .pill { margin-left: 6px; }
    and lets it wrap inside its own box. */
 .ov-item .ctitle { flex: 1 1 10ch; min-width: 0; }
 .ov-item .pill.small { flex: 0 0 auto; font-size: 11px; padding: 1px 6px; }
-.ov-item.is-retired .cid, .ov-item.is-retired .ctitle { color: var(--grey); }
 /* A row reached by a link someone was sent, highlighted like a clicked one —
    `:target` cannot fire for a fragment the browser resolved before the page
    existed (review B-7, 2026-09-18). */

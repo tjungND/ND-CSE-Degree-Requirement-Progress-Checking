@@ -712,7 +712,8 @@ export async function driveCourses(s, baseUrl) {
         keyNextPills: key ? key.querySelectorAll('.sched-next').length : 0,
         anyNextTag: document.querySelectorAll('.overview:not(.schedule-overview) .pill.sched-next').length,
         retiredInCards: document.querySelectorAll('.overview:not(.schedule-overview) a.ov-item .pill.retired').length,
-        emptyCards: cards.filter((c) => /No course assigned yet/.test(c.textContent)).length,
+        emptyCards: cards.filter((c) => /No current course is listed here/.test(c.textContent)).length,
+        cardText: cards.map((c) => c.textContent).join(' '),
         adgsInLegend: legendPills.filter((x) => /^With ADGS approval=/.test(x)),
         // A character class, not a backslash escape: inside this template
         // literal \* would reach the page as a bare *, i.e. "zero or more spaces".
@@ -724,13 +725,15 @@ export async function driveCourses(s, baseUrl) {
     // The key must not advertise a semester with no tags anywhere on the page.
     if (rv.keyNextPills > 0 && rv.anyNextTag === 0) throw new Error('the key promises a next-semester tag that no course carries: ' + rv.keyText);
     if (rv.keyNowPills === 0 && rv.keyNextPills === 0 && /offered/.test(rv.keyText)) throw new Error('key line without pills: ' + rv.keyText);
-    if (rv.emptyCards > 0 && rv.retiredInCards === 0) {
-      throw new Error('a qualifier card says "No course assigned yet" while retired courses are hidden — they belong there (DGS 2026-09-18)');
-    }
+    // Retired courses are NOT in these cards (DGS 2026-09-18, reversing his
+    // answer of an hour before), and an empty card must not claim that nothing
+    // is assigned when a retired course is.
+    if (rv.retiredInCards > 0) throw new Error('a retired course is listed in a qualifying-examination card — the DGS asked for current courses only');
+    if (/No course assigned yet/.test(rv.cardText)) throw new Error('an empty qualifier card must not say "No course assigned yet" — a retired course may be assigned');
     if (rv.adgsInLegend.some((x) => /pill approval(?!-adgs)/.test(x))) throw new Error('the ADGS pill in the column guide is painted with the DGS class: ' + JSON.stringify(rv.adgsInLegend));
     if (rv.starMarks > 0) throw new Error('the unexplained " *" marker is back in the qualifier cards: ' + JSON.stringify(rv.starContext));
     if (rv.citeCursor === 'pointer') throw new Error('the § citations on this page are labels, not buttons — they must not offer a hand cursor');
-    console.log('  review 2026-09-18: key ' + JSON.stringify(rv.keyText.slice(0, 64)) + '; retired in cards ' + rv.retiredInCards + '; ADGS pill ' + JSON.stringify(rv.adgsInLegend));
+    console.log('  review 2026-09-18: key ' + JSON.stringify(rv.keyText.slice(0, 64)) + '; retired in cards ' + rv.retiredInCards + ' (must be 0); ADGS pill ' + JSON.stringify(rv.adgsInLegend));
 
     // Blanks stay at the END when a column is reversed (B-8).
     const blanks = JSON.parse(await s.evalJs(`JSON.stringify((() => {
