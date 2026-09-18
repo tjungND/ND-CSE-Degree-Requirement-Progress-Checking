@@ -160,6 +160,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // (DGS 2026-09-14); src/ui/schedule-terms.ts explains why the page will
   // not guess.
   const { thisTerm: thisTeachingTerm, nextTerm: nextTeachingTerm } = scheduleTerms(currentTerm);
+  /** "Fall 2026" → "Fall '26", the tag on a qualifier-card course (2026-09-17). */
+  const termShortLabel = (t: Term): string => `${t.season[0]!.toUpperCase()}${t.season.slice(1)} ’${String(t.year).slice(-2)}`;
   const offeredIn =
     (which: 'this' | 'next') =>
     (r: RuleCourse): boolean | undefined => {
@@ -525,6 +527,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           { class: `ov-item${r.dgsReviewed ? '' : ' pending'}`, href: offeredIn('this')(r) === true ? `#sched-this-${r.courseId.replace(' ', '-')}` : offeredIn('next')(r) === true ? `#sched-next-${r.courseId.replace(' ', '-')}` : `#${r.courseId.replace(' ', '-')}` },
           el('span', { class: 'cid' }, r.courseId, r.dgsReviewed ? '' : ' *'),
           el('span', { class: 'ctitle' }, r.title),
+          // The live schedule, as two small tags (DGS 2026-09-17): this
+          // semester in green, next semester in blue; nothing when not offered.
+          ...(offeredIn('this')(r) === true ? [el('span', { class: 'pill small sched-now', title: `Offered ${termLabel(thisTeachingTerm)}` }, termShortLabel(thisTeachingTerm))] : []),
+          ...(offeredIn('next')(r) === true ? [el('span', { class: 'pill small sched-next', title: `Offered ${termLabel(nextTeachingTerm)}` }, termShortLabel(nextTeachingTerm))] : []),
         ),
         r,
       );
@@ -547,6 +553,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'section',
       { class: 'overview' },
       el('h2', {}, 'Ph.D. Qualifying Examination courses ', el('span', { class: 'cite' }, '§4.4')),
+      ...(rows.some((r) => offeredIn('this')(r) === true || offeredIn('next')(r) === true)
+        ? [el('p', { class: 'muted small sched-key' }, el('span', { class: 'pill small sched-now' }, termShortLabel(thisTeachingTerm)), ' offered this semester · ', el('span', { class: 'pill small sched-next' }, termShortLabel(nextTeachingTerm)), ' offered next semester')]
+        : []),
       el(
         'p',
         { class: 'muted' },
@@ -607,15 +616,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       popRow('Core knowledge (§4.4.1)', coreLabel(r)),
       popRow('Specialization (§4.4.2)', categoryLabel(r)),
       popRow('Typically offered', offeredLabel(r)),
-      // The live schedule, both semesters (DGS 2026-09-17).
-      popRow(
-        `Offered ${termLabel(thisTeachingTerm)}`,
-        offeredIn('this')(r) === true ? el('span', { class: 'pill yes' }, 'Yes') : offeredIn('this')(r) === false ? el('span', { class: 'pill no' }, 'No') : el('span', { class: 'muted' }, 'Not released yet'),
-      ),
-      popRow(
-        `Offered ${termLabel(nextTeachingTerm)}`,
-        offeredIn('next')(r) === true ? el('span', { class: 'pill yes' }, 'Yes') : offeredIn('next')(r) === false ? el('span', { class: 'pill no' }, 'No') : el('span', { class: 'muted' }, 'Not released yet'),
-      ),
       popRow('DGS reviewed', r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending')),
     );
   };

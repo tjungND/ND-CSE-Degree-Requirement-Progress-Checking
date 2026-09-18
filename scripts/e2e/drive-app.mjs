@@ -473,9 +473,12 @@ export async function driveCourses(s, baseUrl) {
     if (q.n === 0) throw new Error('no qualifier-card courses rendered');
     if (q.offeredHref && !q.offeredTargetExists) throw new Error('a qualifier link to the schedule must resolve: ' + q.offeredHref);
     if (q.otherTargetExists === false) throw new Error('a qualifier link to All courses must resolve');
+    // The offering shows as a tag on the course, not in the hover card (DGS 2026-09-17, second pass).
+    const tagged = await s.evalJs(`document.querySelectorAll('.overview:not(.schedule-overview) a.ov-item .pill.sched-now, .overview:not(.schedule-overview) a.ov-item .pill.sched-next').length`);
+    if (q.offeredHref && tagged === 0) throw new Error('an offered qualifier course must carry a semester tag');
     const hover = await s.evalJs(`(() => { const a = document.querySelector('.overview:not(.schedule-overview) a.ov-item'); a.dispatchEvent(new Event('mouseenter')); const t = document.querySelector('#course-pop').textContent; a.dispatchEvent(new Event('mouseleave')); return t; })()`);
-    if (!/Offered Fall \d{4}|Offered Spring \d{4}/.test(hover)) throw new Error('the hover card must show the offering status by semester: ' + hover.slice(0, 200));
-    console.log('  qualifier cards: links → schedule row when offered (' + (q.offeredHref ?? 'none offered') + '), else All courses; hover shows both semesters');
+    if (/Offered (Fall|Spring) \d{4}/.test(hover)) throw new Error('the hover card must not show the offering status: ' + hover.slice(0, 200));
+    console.log('  qualifier cards: links → schedule row when offered (' + (q.offeredHref ?? 'none offered') + '), else All courses; ' + tagged + ' semester tag(s)');
   }
 
   // Two schedule cards (DGS 2026-09-09), which say "Not released yet." while

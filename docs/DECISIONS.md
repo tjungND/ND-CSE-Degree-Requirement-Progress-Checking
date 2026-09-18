@@ -11,6 +11,7 @@ Code to update the engine (each has a matching test scenario).
 
 | date | question | decision | decided by | handbook § |
 |---|---|---|---|---|
+| 2026-09-17 (third) | Qualifier-card courses: where the offering shows. | DGS: not in the hover card. Instead each course carries a small tag — “Fall ’26” (green) when offered this semester, “Spring ’27” (blue) when offered next — with a one-line key under the section heading; the click behaviour of the same day stays. | **DGS** | — |
 | 2026-09-17 (second) | Unofficial transcripts in the previous-degree slots. | DGS: accept them with a warning — students may use unofficial transcripts to track progress, but the ADGS, DGS and Grad Admin will require official transcripts for review, approval and processing. Supersedes the 2026-09-15 refusal; the “unofficial” test (`isUnofficial`) is unchanged and now sets a preview warning instead. | **DGS** | — |
 | 2026-09-17 | Qualifier-card courses: hover and click. | DGS: hovering a course in “Ph.D. Qualifying Examination courses” shows whether it is offered this semester and next (two rows in the hover card: Yes / No / Not released yet); clicking jumps to the course's row on the schedule card when it is offered in either semester (this semester's card first), otherwise to its row in All courses. Schedule rows carry ids `sched-this-…` / `sched-next-…`. | **DGS** | — |
 | 2026-09-16 (eleventh) | Course-rules page section order. | DGS: Ph.D. Qualifying Examination courses first, then On the schedule, then All courses. | **DGS** | — |
