@@ -240,10 +240,11 @@ Known-pending (the app's diagnostics panel is the live truth):
   becomes this semester; older or undated → nothing, and the page counts those rows in a "not shown"
   line. `current_semester` / `offered_semester` are no longer read (the Parameters row is harmless).
 - **The page is fluid** (2026-09-09). `#app` has NO max-width — do not re-add one. `.layout` is
-  `minmax(0, 1fr) minmax(480px, 30%)`, so both columns grow. What keeps a wide window readable is
-  the reading measure on prose (`.card > p`, `.req-detail`, `.detail-list`, `.card .hint`), not a
-  cap on the page. `checkWide` in scripts/e2e/drive-a11y.mjs fails if either page stops filling a
-  2200 px window.
+  `minmax(0, 1fr) minmax(480px, 30%)`, so both columns grow. There is NO reading measure on prose
+  either (DGS 2026-09-19: the 100ch, then 70ch, cap on `.card > p` etc. read as stray line breaks
+  because a paragraph stopped short of its card's edge) — the inputs column is its own grid column,
+  so text cannot run under the report cards. `checkWide` in scripts/e2e/drive-a11y.mjs fails if
+  either page stops filling a 2200 px window.
 - **A university named only in an image** (2026-09-08): `NAME_ONLY_IN_IMAGE` in
   src/transcript/external.ts maps an acronym to a school's real name, tried ONLY after every
   text-reading pass in `guessUniversity` has failed. Keep it that way — it is a fallback, not a

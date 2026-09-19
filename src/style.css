@@ -23,7 +23,7 @@ body {
   color: var(--ink);
   background: var(--bg);
 }
-#app { margin: 0 auto; padding: 20px 20px 60px; } /* fluid: the page fills the window at any width (DGS 2026-09-09); paragraphs keep their own reading measure below */
+#app { margin: 0 auto; padding: 20px 20px 60px; } /* fluid: the page fills the window at any width (DGS 2026-09-09), and so does every paragraph (DGS 2026-09-19) */
 
 /* masthead */
 .masthead {
@@ -33,10 +33,14 @@ body {
 }
 .masthead-main { min-width: 0; }
 .masthead-tools { grid-column: 1 / -1; }
+/* The second column holds the contacts card on courses.html only; the self-check
+   page has nothing there, so its intro wrapped 400 px short of the rule beneath
+   it (DGS 2026-09-19). One column here. */
+#app:not(.courses-page) .masthead { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 900px) { .masthead { grid-template-columns: minmax(0, 1fr); } }
 .eyebrow { color: var(--gold-text); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .masthead h1 { margin: 2px 0 6px; color: var(--navy); font-size: 28px; }
-.masthead .sub { margin: 0; color: var(--muted); max-width: 70ch; }
+.masthead .sub { margin: 0; color: var(--muted); }
 .masthead-tools { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .tab { border: 0; background: var(--card); padding: 8px 16px; font: inherit; cursor: pointer; color: var(--muted); }
@@ -90,12 +94,12 @@ button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor:
 @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } } /* tablets in portrait and phones: one column */
 /* Nothing may widen the columns on a phone (WCAG 1.4.10 reflow; usability review 2026-09-05, item 1): wide tables scroll inside their card. */
 .layout > * { min-width: 0; }
-/* A card fills its column, but a paragraph inside it keeps a reading measure
-   (2026-09-09): on a wide monitor the tables and lists use the room and the
-   sentences do not run to 200 characters. 70ch is about 90 characters a line;
-   the earlier 100ch measured 113-131 because ch is the width of the digit 0
-   (trim review 2026-09-18, P-67; .combined-note is a <details>, so it is named here). */
-.card > p, .req-detail, .req .detail-list, .card .hint, .card .empty, .combined-note { max-width: 70ch; }
+/* No reading measure on paragraphs (DGS, 2026-09-19): the 2026-09-09 100ch
+   and the 2026-09-18 70ch (trim review P-67) both left a card's text wrapping
+   short of its own right edge, which read as stray line breaks. The inputs
+   column is its own grid column, so a paragraph can never run under the report
+   cards; on a wide monitor it simply uses the card. The same for .masthead .sub,
+   .legal and .privacy-note below. */
 .table-scroll.plain { overflow-x: auto; background: none; border: 0; border-radius: 0; }
 /* The group dropdown sits under the requirement list now, so it needs its own
    room: axe's target-size check failed in WebKit when they touched (2026-09-08). */
@@ -384,7 +388,7 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .req.s-not_applicable .req-title { color: var(--muted); }
 .pill.s-not_applicable { background: #f1f2f4; color: var(--muted); }
 
-.legal { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; max-width: 90ch; }
+.legal { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 
 /* Toasts stack in one fixed live region outside the page root (2026-09-06 evening):
    a plain message (4 s) and up to three Undo toasts that survive re-renders. */
@@ -417,7 +421,7 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .transcript-preview .save-buttons { margin-top: 10px; }
 
 /* privacy notes (FERPA) */
-.privacy-note { color: var(--muted); font-size: 13px; margin: 6px 0 0; max-width: 80ch; }
+.privacy-note { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
 .legal-beta, .legal-privacy, .legal-license, .legal-source { margin-top: 10px; }
 .legal-license strong, .legal-source strong { color: var(--ink); }
@@ -928,7 +932,6 @@ html.embed #app { padding: 0 0 10px; }
 /* The masthead is one column and loses its heavy navy rule — that rule reads as
    the top of a page, and this is not the top of the page any more. */
 html.embed .masthead { display: block; padding: 0 0 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
-html.embed .masthead .sub { max-width: none; }
 /* "Who to contact" moves to the end of the page (courses-page.ts / app.ts), so
    its styling can no longer come from `.masthead .contact-card`. */
 html.embed .contact-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 12px; font-size: 13px; margin: 20px 0 0; }
@@ -946,7 +949,6 @@ html.embed .contact-card a { color: inherit; }
 /* The way out of the frame — the one link that must be easy to find. */
 html.embed .embed-exit-line { margin: 0 0 10px; }
 html.embed .embed-exit { font-weight: 700; color: var(--navy); text-decoration: underline; }
-html.embed .legal { max-width: none; }
 /* A content-height frame has no viewport of its own (DGS 2026-09-16, the
    self-check tool resizes its frame too): dialogs sit at a document position
    (`placeInFrame` sets top), toasts below the student's last interaction, and
