@@ -12,7 +12,7 @@ proposals, 87 accepted by two checkers each, and the DGS said "I will follow you
 about 1,150 words off the page, the §4.6/§4.7 date fields hidden until candidacy, the prior-degree
 controls and the 4+1 note folded, the advisor button on the finish card, the status key inside the
 headline, the § cite inside the title, the sticky score bar hidden while the headline is on screen).
-**Four proposals the checkers split on are NOT applied and wait for one word each from the DGS**:
+**The four proposals the checkers split on were decided on 2026-09-19 (P-3, P-52, P-63 applied; P-46 kept as is)**:
 P-3 (drop the footer's "What is still being tested" fold, a duplicate of the strip's Details), P-46
 (leave met caps out of the Grad Admin email), P-52 (drop the "Start here:" lead in the transcripts
 callout), P-63 ("Clear everything" → "Clear"). The review's decision sheet (an artifact, link in the
@@ -486,7 +486,6 @@ queue. Recent commits, newest first:
 
 ## Open for the DGS (decisions, not code)
 
-0. The four split trim proposals above (P-3, P-46, P-52, P-63): yes or no to each.
 1. The evening batch's wording (listed, numbered, in the reply that delivered it): the Grad Admin card
    and processing request, the copy dialog, the bachelor's-award notes, the two Level labels, the
    rewordings around the two roles. Say "Sn: …" to change any of them.

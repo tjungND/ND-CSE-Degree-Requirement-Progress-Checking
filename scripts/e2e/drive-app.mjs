@@ -577,8 +577,8 @@ export async function driveApp(s, baseUrl) {
   if (after.advisor !== null) throw new Error('the example\'s advisor should have gone with it: ' + after.advisor);
   await s.evalJs(`localStorage.clear()`);
 
-  // Printing opens the footer's closed disclosures ("What is still being
-  // tested", "Where the rules come from") and closes them again afterwards
+  // Printing opens the footer's closed disclosure ("Where the rules come
+  // from") and closes it again afterwards
   // (trim review 2026-09-18, P-71): a closed <details> prints as a bare
   // heading with nothing under it. The handler listens for beforeprint /
   // afterprint, so dispatching the events stands in for the print dialog
@@ -587,7 +587,7 @@ export async function driveApp(s, baseUrl) {
   const printFold = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const all = () => [...document.querySelectorAll('footer.legal details')];
     const original = all().map((d) => d.open);
-    all().forEach((d, i) => { d.open = i === 0; });
+    all().forEach((d) => { d.open = false; }); // one fold since P-3 (2026-09-19): closed → opened → closed again
     const before = all().map((d) => d.open);
     window.dispatchEvent(new Event('beforeprint'));
     const during = all().map((d) => d.open);
@@ -597,7 +597,7 @@ export async function driveApp(s, baseUrl) {
     return { n: before.length, before, during, after };
   })())`));
   console.log('  footer disclosures around printing:', JSON.stringify(printFold));
-  if (printFold.n < 2) throw new Error('expected the two footer disclosures: ' + JSON.stringify(printFold));
+  if (printFold.n < 1) throw new Error('expected the footer disclosure: ' + JSON.stringify(printFold));
   if (!printFold.during.every(Boolean)) throw new Error('beforeprint must open every closed footer disclosure so the printed page carries its text (P-71): ' + JSON.stringify(printFold));
   if (printFold.after.join() !== printFold.before.join()) throw new Error('afterprint must return the footer disclosures to the state the student had (P-71): ' + JSON.stringify(printFold));
 

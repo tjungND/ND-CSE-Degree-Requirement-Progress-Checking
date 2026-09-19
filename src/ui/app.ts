@@ -435,8 +435,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   const srStatus = el('div', { class: 'visually-hidden', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' });
   document.body.append(srStatus);
 
-  /** The footer's two disclosures ("What is still being tested", "Where the
-   * rules come from") print OPEN and return to what the student had (trim
+  /** The footer's disclosure ("Where the rules come from"; "What is still
+   * being tested" went with P-3, 2026-09-19) prints OPEN and return to what the student had (trim
    * review 2026-09-18, P-71): closed, they printed as two bare headings.
    * Only the ones this handler opened are closed again; restoreFocus reads
    * the open state from the DOM, so a later re-render keeps the screen state. */
@@ -683,7 +683,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                     // where the report ends, not in the storage card (trim
                     // review 2026-09-18, P-72); same key, dialog and wording.
                     advisorSummaryButton(report),
-                    el('button', { class: 'btn', 'data-key': 'report.clear', onclick: clearAll }, 'Clear everything'),
+                    el('button', { class: 'btn', 'data-key': 'report.clear', onclick: clearAll }, 'Clear'), // same label as the button at the top: one action, one name (DGS 2026-09-19, P-63)
                   ),
                 ),
           ),
@@ -1407,7 +1407,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // "Start here" made prominent (DGS 2026-09-15): a filled badge in the
       // heading and a bold callout line above the hint.
       el('h2', {}, el('span', { class: 'step-no' }, '1. '), 'Transcripts ', el('span', { class: 'chip-start' }, 'Start here')),
-      el('p', { class: 'start-callout' }, el('strong', {}, 'Start here:'), ' import your transcripts, and most of the page below fills itself in.'),
+      el('p', { class: 'start-callout' }, 'Import your transcripts, and most of the page below fills itself in.'), // the badge beside the title already says START HERE (DGS 2026-09-19, P-52)
       // Shorter sentences (usability review 2026-09-05, item 10): the same
       // facts, none over 25 words. "Nothing is uploaded" is the strip line
       // above, the toast during the read and the OCR opt-in; the card keeps
@@ -2893,23 +2893,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // one imperative (trim review 2026-09-18, P-21).
         '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Confirm with the DGS before you rely on this self-check.',
       ),
-      // One statement of the alpha status in the footer, not two (red-team
-      // wording table, 2026-09-12): the opening dialog and the banner already
-      // said it; BETA_NOTICE carries "not an official degree audit".
-      el(
-        'details',
-        { class: 'legal-beta', 'data-key': 'legal.alpha' },
-        el('summary', {}, el('h2', { class: 'legal-head' }, 'What is still being tested')),
-        BETA_NOTICE,
-        ' ',
-        el('strong', {}, RULES_ACCURACY_NOTICE),
-        ' ',
-        BETA_SCOPE_NOTICE,
-        ' (See the ',
-        el('a', siblingAnchorAttrs('course-rules', window.location.search, embedTargetAttrs()), 'course rules page'),
-        '.)',
-        ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
-      ),
+      // No alpha paragraph in the footer (DGS 2026-09-19, trim proposal P-3):
+      // it was word for word the red strip's Details at the top of the page.
       // What the rules spreadsheet is and who can open it (DGS, 2026-09-04).
       el(
         'details',
