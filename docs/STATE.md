@@ -1,7 +1,25 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-18 (this session, branch `claude/review-fixes-2026-09-18-9b0583`, still running —
-working through `docs/REVIEW-FIXES-2026-09-18.md`, the fix order from the 2026-09-18 interface review).
+Last updated: 2026-09-18, evening (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-09-18 (evening): **two trim reviews, both applied.** The course-rules page first: a blue/red-team
+review (66 confirmed findings, 55 fixed in `6921402`/`4c1d577`, the DGS's rulings on `last_offered`,
+retired courses and the banner in `952ad24`), then a trim (`c9ca730`: 1,131 → 916 words, one column
+and one control fewer; "Ineligible" for 4xxxx/5xxxx specialization in `5230694`; Load example follows
+the tab in `8e0fe7f`). Then the self-check page and its three emails: 363 strings inventoried, 93
+proposals, 87 accepted by two checkers each, and the DGS said "I will follow your suggestions" — the
+75 that were not "keep" findings are applied (DECISIONS row "2026-09-18 (nineteenth)" lists the shape:
+about 1,150 words off the page, the §4.6/§4.7 date fields hidden until candidacy, the prior-degree
+controls and the 4+1 note folded, the advisor button on the finish card, the status key inside the
+headline, the § cite inside the title, the sticky score bar hidden while the headline is on screen).
+**Four proposals the checkers split on are NOT applied and wait for one word each from the DGS**:
+P-3 (drop the footer's "What is still being tested" fold, a duplicate of the strip's Details), P-46
+(leave met caps out of the Grad Admin email), P-52 (drop the "Start here:" lead in the transcripts
+callout), P-63 ("Clear everything" → "Clear"). The review's decision sheet (an artifact, link in the
+session) marks every card Applied or Your call.
+
+2026-09-18 (day): the interface review below (`docs/REVIEW-FIXES-2026-09-18.md`) is done except B6's
+storage half.
 
 2026-09-18: **the interface review of 2026-09-18** (blue/red team against the live Pages build at
 `717c112`). The work order is `docs/REVIEW-FIXES-2026-09-18.md`, six commits; the DGS asked for commits
@@ -468,6 +486,7 @@ queue. Recent commits, newest first:
 
 ## Open for the DGS (decisions, not code)
 
+0. The four split trim proposals above (P-3, P-46, P-52, P-63): yes or no to each.
 1. The evening batch's wording (listed, numbered, in the reply that delivered it): the Grad Admin card
    and processing request, the copy dialog, the bachelor's-award notes, the two Level labels, the
    rewordings around the two roles. Say "Sn: …" to change any of them.

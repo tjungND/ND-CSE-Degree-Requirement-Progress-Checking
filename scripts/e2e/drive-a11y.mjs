@@ -73,7 +73,20 @@ async function checkMobilePieces(s, page) {
     await at(1400, false);
     if ((await visible('.summary-mobile')) || (await visible('.sticky-score'))) throw new Error('summary block / sticky bar must be hidden on wide screens');
     await at(390, true);
-    if (!(await visible('.summary-mobile')) || !(await visible('.sticky-score')) || !(await visible('.audit .back-link'))) throw new Error('summary block, sticky bar and back link must show on phones');
+    if (!(await visible('.summary-mobile')) || !(await visible('.audit .back-link'))) throw new Error('summary block and back link must show on phones');
+    // The sticky bar duplicates the score headline, so it is display:none
+    // (`.score-on-screen`, one IntersectionObserver in app.ts) while either
+    // score headline is in the viewport and back as soon as the score scrolls
+    // off (trim review 2026-09-18, P-66): assert both states, not just "shown".
+    const settle = () => s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+    await s.evalJs(`document.querySelector('.summary-mobile .headline').scrollIntoView({ block: 'center' })`);
+    await settle();
+    if (await visible('.sticky-score')) throw new Error('the sticky score bar must hide while the summary headline is on screen (P-66)');
+    await s.evalJs(`document.getElementById('inputs').scrollIntoView()`);
+    await settle();
+    if (!(await visible('.sticky-score'))) throw new Error('the sticky score bar must show once the score headline has scrolled off (P-66)');
+    await s.evalJs('window.scrollTo(0, 0)');
+    await settle();
     const stacked = await s.evalJs(`getComputedStyle(document.querySelector('table.courses.stack tr:nth-child(2)')).display`);
     if (stacked !== 'flex') throw new Error('course rows must stack on phones (got display: ' + stacked + ')');
     console.log('  phone pieces on the self-check page: summary first, sticky score bar, back link, stacked course rows');
@@ -179,7 +192,12 @@ async function checkFirstScreen(s, baseUrl) {
 async function checkFocusPreserved(s) {
   // "Prior graduate study" is a radio group (2026-09-05, item 12): ArrowDown
   // moves the selection to the next radio, which fires change → re-render.
-  await s.evalJs(`document.querySelector('[data-key="standing.prior.none"]').focus()`);
+  // The radios sit inside the "Prior degrees" <details> fold (trim review
+  // 2026-09-18, P-65), closed on the Ph.D. example (priorMs 'none', no
+  // transfers): a radio inside a closed fold cannot take focus, so open it
+  // first. After ArrowDown priorMs is 'unfinished' and the fold renders open
+  // on its own; rememberFocus also restores an open details[data-key].
+  await s.evalJs(`document.querySelector('[data-key="standing.prior.fold"]').open = true; document.querySelector('[data-key="standing.prior.none"]').focus()`);
   await key(s, 'ArrowDown', 'ArrowDown', 40);
   // The browser moves the radio selection, fires `change`, and only THEN does
   // the page re-render and put focus back. Waiting for `checked` catches the

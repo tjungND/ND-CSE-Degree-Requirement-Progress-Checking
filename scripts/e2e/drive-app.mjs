@@ -134,6 +134,10 @@ export async function driveApp(s, baseUrl) {
   // the along-the-way row out of the report entirely, and unticking brings it
   // back. The example student is a Ph.D. student, so the box is on the page.
   const msRow = () => `!!document.getElementById('req-phd-msAlongTheWay')`;
+  // The box lives inside the "Prior degrees" <details> fold (trim review
+  // 2026-09-18, P-65), closed for the example; a JS click fires inside a
+  // closed fold, but open it so a screenshot of Your standing shows the box.
+  await s.evalJs(`document.querySelector('[data-key="standing.prior.fold"]').open = true`);
   if (!(await s.evalJs(`document.querySelector('[data-key="standing.ndMasters"]') !== null`)))
     throw new Error('the "I already hold the MSCSE from Notre Dame" box is missing from Your standing');
   if ((await s.evalJs(msRow())) !== true) throw new Error('the §4.5 along-the-way row should be in the report before the box is ticked');
@@ -343,7 +347,7 @@ export async function driveApp(s, baseUrl) {
       status: [...(row?.classList ?? [])].find((c) => c.startsWith('s-')) ?? '',
       headline: document.querySelector('.audit .headline, .scorehead .headline')?.textContent ?? '',
       sticky: document.querySelector('.sticky-score')?.textContent ?? '',
-      keyItems: [...document.querySelectorAll('.status-key .key-item')].map((k) => k.textContent),
+      keyItems: [...document.querySelectorAll('.audit .headline .key-item')].map((k) => k.textContent),
       condBand: document.querySelector('.dial .dial-arc-conditional')?.getAttribute('stroke-dasharray') ?? '',
     };
   })())`));
@@ -426,10 +430,15 @@ export async function driveApp(s, baseUrl) {
   const gaDlg = JSON.parse(await s.evalJs(`JSON.stringify((() => { const d = document.querySelector('dialog.copy-check'); return { title: d.querySelector('h2').textContent, to: [...d.querySelectorAll('.copy-to')].map(p => p.textContent), subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 200) }; })())`));
   console.log('  Grad Admin dialog:', gaDlg.title, '|', JSON.stringify(gaDlg.to), '|', gaDlg.subject);
   if (!gaDlg.title.startsWith('Processing request') || !gaDlg.to[0].startsWith('To: Graduate Program Administrator') || !(gaDlg.to[1] ?? '').startsWith('Cc: Director of Graduate Studies') || !/^Subject: Processing request \(degree self-check\) — Ph\.D\., entered Fall \d{4}$/.test(gaDlg.subject) || !gaDlg.text.includes('Dear Grad Admin,')) throw new Error('Grad Admin dialog: ' + JSON.stringify(gaDlg));
-  // Three numbered steps (2026-09-06 evening; the self-check-file step dropped 2026-09-15): open/paste, attach the ORIGINAL transcripts, send.
+  // Two numbered steps for a student with no transfer credit (P-45, 2026-09-18;
+  // the self-check-file step dropped 2026-09-15): open/paste, send. The Grad
+  // Admin needs the original transcripts only for §5.2 transfer credit, so the
+  // emphasised '*Attach your ORIGINAL transcripts' step appears — second of
+  // three — only when a course the DGS ruled transferable is in the request;
+  // the Ph.D. example has none.
   const gaSteps = await s.evalJs(`[...document.querySelectorAll('dialog.copy-check ol.copy-steps li')].map(li => (li.querySelector('strong') ? '*' : '') + li.textContent)`);
   console.log('  Grad Admin dialog steps:', JSON.stringify(gaSteps.map((t) => t.slice(0, 70))));
-  if (gaSteps.length !== 3 || !gaSteps[1].startsWith('*Attach your ORIGINAL transcripts') || !/^Send it\./.test(gaSteps[2])) throw new Error('Grad Admin dialog steps: ' + JSON.stringify(gaSteps));
+  if (gaSteps.length !== 2 || !/^Send it\./.test(gaSteps[1]) || gaSteps.some((t) => /ORIGINAL transcripts/.test(t))) throw new Error('Grad Admin dialog steps (no transfer → no attach step): ' + JSON.stringify(gaSteps));
   // "Open in my email app" (DGS 2026-09-13): a mailto: to the Grad Admin with
   // the DGS in cc and the subject; the body is the message itself only while
   // the address stays short enough for every client.
@@ -567,6 +576,30 @@ export async function driveApp(s, baseUrl) {
   }
   if (after.advisor !== null) throw new Error('the example\'s advisor should have gone with it: ' + after.advisor);
   await s.evalJs(`localStorage.clear()`);
+
+  // Printing opens the footer's closed disclosures ("What is still being
+  // tested", "Where the rules come from") and closes them again afterwards
+  // (trim review 2026-09-18, P-71): a closed <details> prints as a bare
+  // heading with nothing under it. The handler listens for beforeprint /
+  // afterprint, so dispatching the events stands in for the print dialog
+  // headless Chrome cannot show. One fold is left open beforehand so the
+  // "return to what the student had" half is exercised too.
+  const printFold = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const all = () => [...document.querySelectorAll('footer.legal details')];
+    const original = all().map((d) => d.open);
+    all().forEach((d, i) => { d.open = i === 0; });
+    const before = all().map((d) => d.open);
+    window.dispatchEvent(new Event('beforeprint'));
+    const during = all().map((d) => d.open);
+    window.dispatchEvent(new Event('afterprint'));
+    const after = all().map((d) => d.open);
+    all().forEach((d, i) => { d.open = original[i]; });
+    return { n: before.length, before, during, after };
+  })())`));
+  console.log('  footer disclosures around printing:', JSON.stringify(printFold));
+  if (printFold.n < 2) throw new Error('expected the two footer disclosures: ' + JSON.stringify(printFold));
+  if (!printFold.during.every(Boolean)) throw new Error('beforeprint must open every closed footer disclosure so the printed page carries its text (P-71): ' + JSON.stringify(printFold));
+  if (printFold.after.join() !== printFold.before.join()) throw new Error('afterprint must return the footer disclosures to the state the student had (P-71): ' + JSON.stringify(printFold));
 
   await driveAppEmbed(s, baseUrl);
 }

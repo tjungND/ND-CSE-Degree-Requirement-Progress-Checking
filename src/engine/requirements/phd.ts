@@ -335,7 +335,10 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
   let status = combineAll([...children.map((c) => c.status), ...(ndCredits ? [ndCredits.status] : [])]);
   const parts: string[] = ['Three components: core knowledge (§4.4.1 — one card per core area below), category specialization (§4.4.2), research (§4.4.3)'];
   if (ndCredits && ndCredits.status !== 'met') {
-    parts.push(`§4.2 also conditions the examination on at least nine credits of regular courses taken at Notre Dame — not met yet (${ndCredits.detail.split('.')[0]}), so it cannot be completed until then`);
+    // §4.2: "all Ph.D. students must take at least nine (9) credits at Notre
+    // Dame in order to satisfy the qualifying examination". Said once (trim
+    // review 2026-09-18, P-24); the tail is the credits row's own first sentence.
+    parts.push(`§4.2 also requires at least nine credits of regular courses taken at Notre Dame before the examination — ${ndCredits.detail.split('.')[0]}`);
   }
   let deadline: RequirementResult['deadline'];
   if (semesters === undefined) {

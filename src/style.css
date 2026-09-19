@@ -49,7 +49,7 @@ body {
 .banner.beta { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
 /* One slim strip instead of three stacked banners (item 8). */
 .notice-strip { padding: 8px 14px; }
-.notice-strip .notice-line { margin: 2px 0; font-size: 13.5px; }
+.notice-strip .notice-line { margin: 2px 0; font-size: 13px; } /* 12.5/13.5 px folded into 13 px page-wide (trim review 2026-09-18, P-69) */
 .notice-strip .privacy-line { color: #1d4d1d; }
 .notice-strip a { color: inherit; }
 .notice-details { margin-top: 4px; font-size: 13px; }
@@ -81,7 +81,7 @@ dialog.copy-check .consent-box { max-width: none; }
 .card h3.subhead { margin: 16px 0 6px; font-size: 14px; color: var(--navy); }
 button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 .banner.official a { color: inherit; }
-.masthead .effective { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.masthead .effective { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
 .masthead .sub a, .legal a { color: inherit; text-decoration: underline; }
 
 /* layout */
@@ -92,18 +92,20 @@ button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor:
 .layout > * { min-width: 0; }
 /* A card fills its column, but a paragraph inside it keeps a reading measure
    (2026-09-09): on a wide monitor the tables and lists use the room and the
-   sentences do not run to 200 characters. */
-.card > p, .req-detail, .req .detail-list, .card .hint, .card .empty { max-width: 100ch; }
+   sentences do not run to 200 characters. 70ch is about 90 characters a line;
+   the earlier 100ch measured 113-131 because ch is the width of the digit 0
+   (trim review 2026-09-18, P-67; .combined-note is a <details>, so it is named here). */
+.card > p, .req-detail, .req .detail-list, .card .hint, .card .empty, .combined-note { max-width: 70ch; }
 .table-scroll.plain { overflow-x: auto; background: none; border: 0; border-radius: 0; }
 /* The group dropdown sits under the requirement list now, so it needs its own
    room: axe's target-size check failed in WebKit when they touched (2026-09-08). */
 table.courses .counts select { max-width: 100%; margin-top: 8px; min-height: 28px; }
 /* Every requirement a course feeds, under the credit sentence (2026-09-08).
    Quiet enough not to compete with it, and each name links to its card. */
-.counts-toward { margin-top: 3px; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.counts-toward { margin-top: 3px; font-size: 13px; line-height: 1.4; color: var(--muted); }
 .counts-toward-label { font-weight: 600; }
 .counts-toward.later { color: var(--warn); }
-.group-hint { margin-top: 4px; font-size: 12.5px; line-height: 1.4; color: var(--warn); }
+.group-hint { margin-top: 4px; font-size: 13px; line-height: 1.4; color: var(--warn); }
 .counts-toward .req-link { color: inherit; text-decoration: underline; text-decoration-style: dotted; }
 .counts-toward .req-link:hover, .counts-toward .req-link:focus-visible { text-decoration-style: solid; }
 /* Phones — the rest of this block moved to the phone block far below (2026-09-08):
@@ -126,6 +128,12 @@ table.courses .counts select { max-width: 100%; margin-top: 8px; min-height: 28p
 
 .field { display: block; margin-bottom: 10px; }
 .field .label, .ft-terms .label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+/* The standing card's prior-degrees fold (trim review 2026-09-18, P-65): its
+   summary is styled like a fieldset legend, not 13 px bold ink; the fieldset
+   and the MSCSE field inside keep their own spacing. */
+.prior-fold { margin-bottom: 10px; }
+.prior-fold > summary { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; margin-bottom: 3px; }
+.prior-fold[open] > summary { margin-bottom: 6px; }
 .field.inline { margin: 0; }
 input, select, button { font: inherit; }
 input, select { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: #fff; color: var(--ink); max-width: 100%; }
@@ -209,12 +217,12 @@ a.btn.primary { color: #fff; }
 .course-form .row2 input[type='number'] { width: 72px; }
 .hidden { display: none !important; }
 
-table.courses { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13.5px; }
+table.courses { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
 table.courses th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 2px solid var(--line); padding: 4px 6px; }
 table.courses td { border-bottom: 1px solid var(--line); padding: 6px; vertical-align: top; }
 table.courses .cid { font-weight: 600; white-space: nowrap; }
-table.courses .ctitle { color: var(--muted); font-size: 12.5px; }
-table.courses .counts { color: var(--muted); font-size: 12.5px; max-width: 260px; }
+table.courses .ctitle { color: var(--muted); font-size: 13px; }
+table.courses .counts { color: var(--muted); font-size: 13px; max-width: 260px; }
 table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey); }
 /* Per-course status marks (2026-09-06; four states since 2026-09-13): green ✓ counts,
    blue ◐ in progress, amber ● pending approval, red ✕ does not count — a different shape
@@ -228,7 +236,7 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .mark-excluded { color: var(--bad); }
 .empty { color: var(--muted); font-style: italic; }
 
-.attest { display: block; margin: 6px 0; font-size: 13.5px; }
+.attest { display: block; margin: 6px 0; font-size: 13px; }
 .ft-terms { margin-top: 8px; }
 .ft-term { display: inline-block; margin-right: 14px; font-size: 13px; }
 
@@ -237,7 +245,7 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .save-buttons .btn { margin-left: 0; }
 
 .diagnostics summary { cursor: pointer; font-weight: 600; color: var(--info); }
-.issue { font-size: 12.5px; padding: 3px 0; border-bottom: 1px dotted var(--line); }
+.issue { font-size: 13px; padding: 3px 0; border-bottom: 1px dotted var(--line); }
 .issue.error { color: var(--bad); }
 .issue.warning { color: var(--warn); }
 
@@ -260,15 +268,17 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 /* Conditional satisfaction reads as its own band on the ring, in the same blue
    as its pill (interface review R2, 2026-09-18). */
 .dial-arc-conditional { opacity: 0.75; }
-/* The key under the credit meters: what each band of the ring means, in words
-   and in colour, so the ring never has to be guessed at. */
-.status-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 2px; font-size: 12px; color: var(--muted); }
-.status-key .key-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.status-key .key-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
-.status-key .s-met { color: var(--ok); }
-.status-key .s-needs_dgs_review { color: var(--info); }
-.status-key .s-in_progress { color: var(--warn); }
-.status-key .s-unmet { color: var(--muted); }
+/* The key to the ring's bands (interface review R2, 2026-09-18): what each
+   band means, in words and in colour, so the ring never has to be guessed at.
+   Moved into the headline (trim review 2026-09-18, P-49): the headline already
+   carried the same counts in the same words, so each part now leads with its
+   dot. The text stays navy; only the dot is coloured. */
+.headline .key-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.headline .key-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.headline .s-met .key-dot { background: var(--ok); }
+.headline .s-needs_dgs_review .key-dot { background: var(--info); }
+.headline .s-in_progress .key-dot { background: var(--warn); }
+.headline .s-unmet .key-dot { background: var(--muted); }
 /* A detail line about something the student is LOSING (over-cap credits): not
    the grey prose the rest of the detail is in. */
 .req-detail .detail-warn { color: #6b4d10; }
@@ -288,7 +298,7 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
    disclosure (blue-team B9, 2026-09-18) — it was ~1,900 characters of unbroken
    grey prose. Closed, the footer is five short lines. */
 .legal > div, .legal > details { margin-bottom: 10px; }
-.legal-head { font-size: 13px; font-weight: 700; color: var(--ink); margin: 0 0 2px; display: inline; }
+.legal-head { font-size: 13px; font-weight: 700; color: var(--ink); margin: 0 6px 2px 0; display: inline; } /* inline, so a gap before the text — "Privacy" used to run into "Your coursework…" (trim review 2026-09-18, P-56) */
 .legal > details > summary { cursor: pointer; list-style-position: outside; }
 .legal > details > summary .legal-head { color: var(--navy); }
 .legal > details[open] > summary { margin-bottom: 4px; }
@@ -303,6 +313,10 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .req-sub { margin-left: 18px; }
 .req-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .req-title { font-weight: 600; }
+/* The § chip sits inside the title span, after the last word, so a row with no
+   deadline and no course link has no second line (trim review 2026-09-18, P-70).
+   The base .cite margin-left: -4px below was for the old chip line. */
+.req-title .cite { margin-left: 6px; vertical-align: baseline; }
 .req-chips { margin: 3px 0; display: flex; gap: 8px; flex-wrap: wrap; }
 .cite { color: var(--gold-text); font-weight: 700; font-size: 12px; cursor: pointer; border: 0; background: none; padding: 2px 4px; margin-left: -4px; min-height: 24px; min-width: 24px; display: inline-flex; align-items: center; border-radius: 4px; font-family: inherit; } /* ≥24 px target (WCAG 2.5.8) */
 /* The § chip is a real disclosure, and looked exactly like the decorative gold
@@ -318,32 +332,36 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .courses-page .cite { cursor: default; border-bottom: 0; }
 .courses-page .cite::after { content: none; }
 .rule-quote { margin-top: 6px; font-size: 12px; font-style: italic; color: #55606e; border-left: 3px solid var(--gold); padding-left: 8px; }
-/* Deadlines in body-size type with a lead word, coloured by state (item 15). */
+/* Deadlines in body-size type, coloured by state (item 15). Item 15's lead
+   word ("Deadline:" / "Deadline passed:") and its .deadline-word rules went in
+   the trim review (2026-09-18, P-50): the engine's label already opens with
+   "Due by" / "Overdue —", and the whole chip carries the state colour. */
 .chip { font-size: 13px; color: var(--muted); }
 .chip.deadline { display: inline-block; padding: 2px 8px; border-radius: 6px; background: #f3f5f8; color: var(--ink); }
-.chip.deadline .deadline-word { font-weight: 700; color: var(--muted); }
 .chip.deadline.d-due_soon { background: #fff3dc; color: #6b4d10; }
-.chip.deadline.d-due_soon .deadline-word { color: var(--warn); }
 .chip.deadline.d-overdue { background: #fbe9e7; color: #7a1f1f; }
-.chip.deadline.d-overdue .deadline-word { color: var(--bad); }
 .course-link { font-size: 13px; color: var(--navy); font-weight: 600; }
 /* "Needs your attention" (item 27) */
 .attention { margin: 6px 0 10px; background: #fffdf5; border: 1px solid #e8d48a; border-left: 4px solid var(--warn); border-radius: 8px; padding: 8px 12px; }
 .attention h3 { margin: 0 0 4px; font-size: 14px; color: var(--navy); }
 .attention ul { margin: 0; padding-left: 18px; }
-.attention li { margin: 3px 0; font-size: 13.5px; }
+.attention li { margin: 3px 0; font-size: 13px; }
 .attention li a { color: var(--navy); font-weight: 600; }
 .attention-next { color: var(--muted); }
 .attention-overdue { color: var(--bad); font-weight: 600; }
 /* "Terms used here" (item 28) */
-.glossary { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 13.5px; }
+.glossary { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 13px; }
 .glossary summary { cursor: pointer; font-weight: 600; color: var(--navy); }
 .glossary dl { margin: 8px 0 0; }
 .glossary dt { font-weight: 700; margin-top: 8px; }
 .glossary dd { margin: 2px 0 0; color: var(--muted); }
 .glossary .hint { margin-top: 10px; }
 .bar i.done { background: var(--ok); }
-.req-detail { color: var(--muted); font-size: 13px; }
+/* The detail sentence carries the fact the student came for, so it is set in
+   ink, not the hint grey (trim review 2026-09-18, P-68); .detail-warn keeps its
+   amber above. A "Does not apply" row stays quiet as a whole (its title is muted below). */
+.req-detail { color: var(--ink); font-size: 13px; }
+.req.s-not_applicable .req-detail { color: var(--muted); }
 ul.req-detail.detail-list { margin: 4px 0 0; padding-left: 18px; }
 ul.req-detail.detail-list li { margin: 2px 0; }
 ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px; list-style-type: circle; }
@@ -366,7 +384,7 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .req.s-not_applicable .req-title { color: var(--muted); }
 .pill.s-not_applicable { background: #f1f2f4; color: var(--muted); }
 
-.legal { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; max-width: 90ch; }
+.legal { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; max-width: 90ch; }
 
 /* Toasts stack in one fixed live region outside the page root (2026-09-06 evening):
    a plain message (4 s) and up to three Undo toasts that survive re-renders. */
@@ -380,7 +398,10 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .toast-action { margin-left: 8px; border: 1px solid rgba(255, 255, 255, 0.7); background: transparent; color: #fff; border-radius: 6px; padding: 3px 10px; font: inherit; font-weight: 600; cursor: pointer; min-height: 24px; }
 
 @media print {
-  .masthead-tools, .inputs, .toast-stack, .save-buttons, .legal-actions, .skip-link { display: none !important; }
+  /* On paper the finish card, the "See the courses" arrows and the self-check
+     intro cannot be acted on (trim review 2026-09-18, P-91); the intro selector is
+     scoped so courses.html keeps its own masthead intro when printed. */
+  .masthead-tools, .inputs, .toast-stack, .save-buttons, .legal-actions, .skip-link, .finish-card, .course-link, #app:not(.courses-page) .masthead .sub { display: none !important; }
   .layout { display: block; }
   .audit-col { position: static; max-height: none; overflow: visible; }
   body { background: #fff; }
@@ -390,13 +411,13 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 /* transcript upload */
 .transcript-upload { margin: 0 0 12px; }
 .transcript-upload .btn { margin-left: 0; }
-.hint-inline { color: var(--muted); font-size: 12.5px; }
+.hint-inline { color: var(--muted); font-size: 13px; }
 .transcript-preview { border: 1px dashed var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #fffdf5; overflow-x: auto; position: relative; container-type: inline-size; } /* container-type: the editable preview lays itself out by ITS width (2026-09-06) */
 .transcript-preview h3 { margin: 0 0 6px; font-size: 14px; color: var(--navy); }
 .transcript-preview .save-buttons { margin-top: 10px; }
 
 /* privacy notes (FERPA) */
-.privacy-note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; max-width: 80ch; }
+.privacy-note { color: var(--muted); font-size: 13px; margin: 6px 0 0; max-width: 80ch; }
 .privacy-note strong, .legal-privacy strong { color: var(--ink); }
 .legal-beta, .legal-privacy, .legal-license, .legal-source { margin-top: 10px; }
 .legal-license strong, .legal-source strong { color: var(--ink); }
@@ -577,7 +598,7 @@ main > .contact-card { margin-top: 22px; }
 .load-card { max-width: 560px; margin: 36px auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; }
 .load-head { display: flex; gap: 12px; align-items: flex-start; }
 .load-head strong { display: block; font-size: 16px; color: var(--navy); }
-.load-sub { color: var(--muted); font-size: 13.5px; }
+.load-sub { color: var(--muted); font-size: 13px; }
 .spin { width: 18px; height: 18px; border: 2.5px solid #d6dbe3; border-top-color: var(--navy); border-radius: 50%; display: inline-block; flex: none; animation: spin 0.9s linear infinite; }
 .spin.sm { width: 12px; height: 12px; border-width: 2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -592,7 +613,7 @@ main > .contact-card { margin-top: 22px; }
 .load-card .load-bar { height: 6px; margin-top: 10px; border: 0; background: #eef0f3; }
 .load-card .load-bar i { transition: width 0.12s linear; }
 .load-card .load-bar.warn i { background: #b45309; }
-.load-card .elapsed { font-size: 12.5px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.load-card .elapsed { font-size: 13px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
 .load-fail { margin-top: 14px; background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 12px 14px; }
 .load-fail p { margin: 0 0 10px; }
 .load-fail p:last-child { margin-bottom: 0; }
@@ -605,8 +626,11 @@ main > .contact-card { margin-top: 22px; }
 
 /* external transcripts card (src/ui/external-upload.ts) */
 .external-slot { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
-/* Where a combined BS+MS transcript goes (DGS request 2026-09-05): a callout the eye lands on before the three rows. */
-.combined-note { margin: 10px 0 6px; background: #eef4fb; border: 1px solid #b9cfe8; border-left: 4px solid var(--info); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 13.5px; }
+/* Where a combined BS+MS transcript goes (DGS request 2026-09-05): a callout the eye lands on before the three rows.
+   Folded behind its one-line summary (trim review 2026-09-18, P-1) — the body opens on a click, or by itself when it applies. */
+.combined-note { margin: 10px 0 6px; background: #eef4fb; border: 1px solid #b9cfe8; border-left: 4px solid var(--info); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+.combined-note > summary { cursor: pointer; font-weight: 600; }
+.combined-note[open] > summary { margin-bottom: 5px; }
 .unofficial-note { margin-top: 2px; }
 .external-slot:last-of-type { border-bottom: 0; }
 .external-slot .slot-label { font-weight: 600; color: var(--navy); min-width: 140px; display: inline-block; }
@@ -638,14 +662,14 @@ abbr.term { text-decoration: underline dotted; text-decoration-color: var(--line
 /* opt-in OCR for scanned external transcripts (src/ui/external-upload.ts) */
 .ocr-optin { margin-top: 10px; background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 12px 14px; }
 .ocr-optin p { margin: 0 0 10px; }
-.ocr-banner { background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 8px 12px; margin: 6px 0 10px; font-size: 13.5px; }
-.ocr-progress { margin-top: 10px; color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ocr-banner { background: #fff7e0; border: 1px solid #e0c877; color: #6b5510; border-radius: 8px; padding: 8px 12px; margin: 6px 0 10px; font-size: 13px; }
+.ocr-progress { margin-top: 10px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 tr.ocr-low td { background: #fff7e0; }
 
 /* ---------- phones and tablets (2026-09-05, usability review items 2, 13, 30) ---------- */
 /* Wide screens: the report sits beside the inputs, so the mobile-only pieces stay hidden. */
 .summary-mobile, .sticky-score, .mobile-only, .filters .filter.mobile-only { display: none; }
-.jump-link { display: inline-block; margin-top: 8px; font-size: 13.5px; color: var(--navy); font-weight: 600; }
+.jump-link { display: inline-block; margin-top: 8px; font-size: 13px; color: var(--navy); font-weight: 600; }
 .summary-mobile .jump-link { margin-top: 4px; }
 .jump-link.back-link { display: none; }
 .slot-sep { white-space: pre; }
@@ -656,6 +680,9 @@ tr.ocr-low td { background: #fff7e0; }
   .jump-link.back-link { display: inline-block; margin: 0 0 8px; }
   /* A small sticky score bar with jumps between the two halves of the page. */
   .sticky-score { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; align-items: center; gap: 14px; padding: 9px 14px; background: var(--navy); color: #fff; font-size: 14px; box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.18); }
+  /* Hidden while the score is already on screen — app.ts sets the class from an
+     IntersectionObserver on the two score headlines (trim review 2026-09-18, P-66). */
+  .sticky-score.score-on-screen { display: none; }
   .sticky-score .sticky-text { flex: 1 1 auto; font-weight: 700; }
   .sticky-score a { color: #fff; text-decoration: underline; font-weight: 600; min-height: 24px; display: inline-flex; align-items: center; }
   .sticky-score a:focus-visible { outline-color: #fff; outline-offset: 1px; }
@@ -720,7 +747,7 @@ tr.ocr-low td { background: #fff7e0; }
   table.courses.stack td.cell-course { order: 0; flex: 1 1 0; min-width: 0; }
   table.courses.stack td.cell-remove { order: 1; flex: 0 0 auto; margin-left: auto; }
   table.courses.stack td.cell-title { order: 2; flex: 0 0 100%; }
-  table.courses.stack td.cell-meta { order: 3; font-size: 13.5px; }
+  table.courses.stack td.cell-meta { order: 3; font-size: 13px; }
   table.courses.stack td.cell-meta::before { content: attr(data-label) ': '; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   table.courses.stack td.cell-note { order: 4; flex: 0 0 100%; max-width: none; }
   table.courses.stack td.cell-note:empty { display: none; }
@@ -760,7 +787,7 @@ tr.ocr-low td { background: #fff7e0; }
   .transcript-preview table.courses.stack.edit td.cell-check { order: 0; flex: 0 0 auto; }
   .transcript-preview table.courses.stack.edit td.cell-course { order: 0; flex: 0 1 150px; min-width: 110px; }
   .transcript-preview table.courses.stack.edit td.cell-title { order: 1; flex: 1 1 220px; min-width: 0; width: auto; }
-  .transcript-preview table.courses.stack.edit td.cell-meta { order: 3; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+  .transcript-preview table.courses.stack.edit td.cell-meta { order: 3; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
   .transcript-preview table.courses.stack.edit td.cell-meta::before { content: attr(data-label); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   .transcript-preview table.courses.stack.edit td.cell-course::before, .transcript-preview table.courses.stack.edit td.cell-title::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   .transcript-preview table.courses.stack.edit input, .transcript-preview table.courses.stack.edit select { max-width: 100%; }
@@ -788,7 +815,7 @@ tr.ocr-low td { background: #fff7e0; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.cell-empty { display: none; }
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta.locked-cell:has(+ td.cell-empty)::after { content: none; } /* no dangling "·" before the level dropdown wraps */
   .transcript-preview table.courses.stack.edit tr.compact td.cell-meta:not(.locked-cell)::before { font-size: 11px; }
-  .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 3px 6px; font-size: 13.5px; }
+  .transcript-preview table.courses.stack.edit tr.compact td.level-cell select { padding: 3px 6px; font-size: 13px; }
 }
 /* One line per course when the preview is at least 560 px wide — the width the
    decision of 2026-09-06 records. An 1100 px window leaves the preview 582 px
@@ -873,7 +900,7 @@ tr.ocr-low td { background: #fff7e0; }
 .course-pop[hidden] { display: none; }
 .course-pop h4 { margin: 0; font-size: 17px; color: var(--ink); display: flex; gap: 8px; align-items: baseline; }
 .course-pop .pop-title { margin: 2px 0 8px; color: var(--muted); font-size: 14px; }
-.course-pop .pop-row { display: flex; gap: 8px; align-items: baseline; margin-top: 4px; font-size: 13.5px; }
+.course-pop .pop-row { display: flex; gap: 8px; align-items: baseline; margin-top: 4px; font-size: 13px; }
 .course-pop .pop-label { color: var(--grey); font-weight: 700; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .course-pop .pop-value { color: var(--ink); }
 @media (max-width: 600px) { .course-pop { display: none; } } /* no pointer to hover with */
@@ -932,7 +959,7 @@ html.embed .sticky-score { display: none; }
 html.embed .copy-check .copy-preview { height: 320px; }
 html.embed html, html.embed { scroll-padding-bottom: 0; }
 /* The self-check tool only: where its saved work is going (src/ui/app.ts). */
-html.embed .banner.embed-storage { margin: 12px 0 0; font-size: 13.5px; }
+html.embed .banner.embed-storage { margin: 12px 0 0; font-size: 13px; }
 /* The loading card is a centred 560 px box on a full page; in a frame that is
    about to be sized to it, centring it leaves the frame's own margins doubled. */
 html.embed .load-card { margin: 12px auto; }

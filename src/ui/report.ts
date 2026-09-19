@@ -78,37 +78,48 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   // decision)" — which filed two conditionally satisfied requirements under
   // things the student had not done (R2, 2026-09-18).
   const open = remaining - inProgress - conditional;
-  const parts = [`${met} of ${scored} met`];
-  if (conditional > 0) parts.push(`${conditional} conditionally met`);
-  if (inProgress > 0) parts.push(`${inProgress} in progress`);
-  if (open > 0) parts.push(`${open} not yet`);
+  // The headline IS the status key (trim review 2026-09-18, P-49; R2's separate
+  // key under the meters is gone): each count carries a dot in the colour of
+  // the dial band it stands for, so the ring is readable without hovering
+  // anything, and the same three numbers are no longer printed twice 180 px
+  // apart. The dots are empty elements — the words carry the counts.
+  const parts: [string, string][] = [['s-met', `${met} of ${scored} met`]];
+  if (conditional > 0) parts.push(['s-needs_dgs_review', `${conditional} conditionally met`]);
+  if (inProgress > 0) parts.push(['s-in_progress', `${inProgress} in progress`]);
+  if (open > 0) parts.push(['s-unmet', `${open} not yet`]);
   // "0 of 17 met" is a true but useless thing to tell someone who has entered
   // nothing (2026-09-08): every row is open because the page is empty, not
   // because anything is wrong. The old `scored === 0` branch could never fire —
-  // an empty Ph.D. record still scores 17 rows.
+  // an empty Ph.D. record still scores 17 rows. Neither of the two plain-text
+  // states carries key dots: a lone "17 not yet" / "17 met" said nothing the
+  // sentence does not.
   const headline =
     untouched
-      ? 'Getting started — add your coursework to see where you stand'
+      ? el('div', { class: 'headline' }, 'Getting started — add your coursework to see where you stand')
       : scored > 0 && remaining === 0
-        ? 'All automatically checkable items are currently satisfied'
-        : parts.join(' · ');
-  return el(
-    'div',
-    { class: 'scorehead' },
-    svg,
-    el(
-      'div',
-      {},
-      el('div', { class: 'headline' }, headline),
-      el(
-        'div',
-        { class: 'subline' },
-        remaining === 0 && scored > 0
-          ? 'All automatic checks pass — the DGS still confirms eligibility, and the Grad Admin processes it: send the processing request before you file.'
-          : 'This is a self-check — the DGS decides eligibility by the rules; the Grad Admin processes it and keeps the official record.',
-      ),
-    ),
-  );
+        ? el('div', { class: 'headline' }, 'All automatically checkable items are currently satisfied')
+        : el(
+            'div',
+            { class: 'headline' },
+            ...parts.flatMap(([cls, label], i) => [
+              i > 0 ? ' · ' : null,
+              el('span', { class: `key-item ${cls}` }, el('i', { class: 'key-dot' }), label),
+            ]),
+          );
+  // The subline under the headline survives only where it carries an
+  // instruction — "send the processing request before you file". The
+  // self-check reminder it used to give in every other state is on the
+  // notice line above the report, in the footer and in the print header
+  // (trim review 2026-09-18, P-10).
+  const subline =
+    remaining === 0 && scored > 0
+      ? el(
+          'div',
+          { class: 'subline' },
+          'All automatic checks pass — the DGS still confirms eligibility, and the Grad Admin processes it: send the processing request before you file.',
+        )
+      : null;
+  return el('div', { class: 'scorehead' }, svg, el('div', {}, headline, subline));
 }
 
 function meters(report: AuditReport): HTMLElement {
@@ -150,23 +161,10 @@ function meters(report: AuditReport): HTMLElement {
       ),
     );
   }
-  // The status key (R2, 2026-09-18): the three states the dial's bands stand
-  // for, in words and in the same colours, so the ring is readable without
-  // hovering anything. Only the states this student actually has.
-  const { met, conditional, scored } = report.summary;
-  const inProgress = report.requirements.filter((r) => !r.informational && r.status === 'in_progress').length;
-  const notYet = scored - met - conditional - inProgress;
-  const key = el('div', { class: 'status-key' });
-  for (const [cls, n, label] of [
-    ['s-met', met, 'met'],
-    ['s-needs_dgs_review', conditional, 'conditionally met'],
-    ['s-in_progress', inProgress, 'in progress'],
-    ['s-unmet', notYet, 'not yet'],
-  ] as const) {
-    if (n <= 0) continue;
-    key.append(el('span', { class: `key-item ${cls}` }, el('i', { class: 'key-dot' }), `${n} ${label}`));
-  }
-  if (key.childElementCount > 0) box.append(key);
+  // The status key R2 (2026-09-18) put here moved into the headline (trim
+  // review 2026-09-18, P-49): the dots now sit beside the counts they explain,
+  // and an untouched record — which has none of the states — shows no key at
+  // all (P-48).
   return box;
 }
 
@@ -198,19 +196,21 @@ function requirementCard(r: RequirementResult): HTMLElement {
     },
     r.citation.section,
   );
-  const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title), pill);
-  const chips = el('div', { class: 'req-chips' }, cite);
+  // The § chip flows inline after the title's last word, so it reads as part
+  // of the requirement's name and a row with no deadline and no course link
+  // has no second line at all (trim review 2026-09-18, P-70). The chip keeps
+  // its target size, dashed underline, caret and aria wiring.
+  const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title, ' ', cite), pill);
+  // Built only when something goes into it (P-70): a deadline chip, a course
+  // link, or both.
+  const chips = el('div', { class: 'req-chips' });
   if (r.deadline && r.status !== 'met') {
-    // Deadlines in readable body-size type with a lead word, coloured by
-    // state (usability review 2026-09-05, item 15).
-    chips.append(
-      el(
-        'span',
-        { class: `chip deadline d-${r.deadline.state}` },
-        el('span', { class: 'deadline-word' }, r.deadline.state === 'overdue' ? 'Deadline passed: ' : 'Deadline: '),
-        r.deadline.label,
-      ),
-    );
+    // Deadlines in readable body-size type, coloured by state (usability
+    // review 2026-09-05, item 15). Item 15's "Deadline:" / "Deadline passed:"
+    // lead word is gone (trim review 2026-09-18, P-50): every label the engine
+    // writes already opens with "Due by" / "Due before" / "Overdue —", and the
+    // whole chip carries the state colour.
+    chips.append(el('span', { class: `chip deadline d-${r.deadline.state}` }, r.deadline.label));
   }
   // A link straight to the matching course list (item 29): the core-knowledge
   // rows, the specialization row and the regular-course rows.
@@ -249,7 +249,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
     'div',
     { class: `req s-${r.status}`, id: `req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` },
     head,
-    chips,
+    chips.childElementCount > 0 ? chips : null,
     detailNode,
     quote,
   );
@@ -300,12 +300,16 @@ export function scoreLine(report: AuditReport): string {
 }
 
 export function renderReport(report: AuditReport, untouched = false): HTMLElement {
-  const panel = el('section', { class: 'audit', 'aria-label': 'Audit report' });
+  // "Your report", matching the column's own label in app.ts and the page's
+  // second-person voice — not "Audit report", the one place a screen reader
+  // was told this is the audit the page says three times it is not (trim
+  // review 2026-09-18, P-61).
+  const panel = el('section', { class: 'audit', 'aria-label': 'Your report' });
   // On a first visit every row is "Not yet" simply because nothing has been
   // entered — thirteen red rows about a student who has typed nothing read as
   // failure (2026-09-08). The list is still there, folded, and named for what
   // it is: the requirements, not a to-do list.
-  const attention = attentionList(report);
+  const attention = attentionList(report, untouched);
   const attentionBlock =
     attention === null
       ? []
@@ -367,8 +371,26 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
  * needing a DGS decision, or missing an input — each linking to its card with
  * the card's first sentence as the next step (usability review 2026-09-05,
  * item 27). The handbook order of the cards below is kept: students look
- * things up by section. */
-function attentionList(report: AuditReport): HTMLElement | null {
+ * things up by section.
+ *
+ * On an UNTOUCHED record (trim review 2026-09-18, P-2) the list is something
+ * else: the fold above it is named "What this degree requires", so its body is
+ * one title per requirement the summary counts — the same 17, in handbook
+ * order, each still a link to its row — with no pill, no detail sentence and
+ * no "Needs your attention" heading. Eleven "Not yet · 0 of 60" lines about an
+ * empty page were the to-do list the 2026-09-08 fold was meant to put away,
+ * and each was the first sentence of the row 300 px below, word for word. The
+ * full ranked list returns the moment anything is entered. */
+function attentionList(report: AuditReport, untouched = false): HTMLElement | null {
+  if (untouched) {
+    const counted = report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
+    if (counted.length === 0) return null;
+    return el(
+      'section',
+      { class: 'attention', 'aria-label': 'What this degree requires' },
+      el('ul', {}, ...counted.map((r) => el('li', {}, el('a', { href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` }, r.title)))),
+    );
+  }
   // Ranked by URGENCY, not by status (blue-team B5, 2026-09-18). Filtering on
   // status alone put "Dissertation defense passed" — years away — above the
   // research qualifier due in eighteen months, and left the qualifying
@@ -467,14 +489,22 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
           ['Project or thesis', 'Six credits of Master’s project (CSE 68902) or Master’s thesis direction (CSE 68901), in addition to the 24 regular-course credits.', '§3.2, §3.4'],
           ['Transfer credit', 'Graduate courses from another program may count toward the course requirement within the handbook’s caps, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
         ] as [string, string, string][])),
+    // One sentence each and a pointer at the next entry (trim review
+    // 2026-09-18, P-17): the example list was the contact card's line again
+    // and still said "on this page", which R-16 had already retired there.
     ...(program === 'mscse'
-      ? ([['ADGS', 'The Assistant Director of Graduate Studies — the faculty member who decides, by the handbook and the course rules, every requirement for MSCSE students: course approvals, transfer credit, the review requests on this page. Processing is not the ADGS’s job (see Grad Admin).', '§1']] as [string, string, string][])
-      : ([['DGS', 'The Director of Graduate Studies — the faculty member who determines, by the handbook and the course rules, whether each requirement here is satisfied. Processing is not the DGS’s job (see Grad Admin).', '§1']] as [string, string, string][])),
+      ? ([['ADGS', 'The Assistant Director of Graduate Studies — the faculty member who decides, by the handbook and the course rules, every requirement for MSCSE students. Processing is the Grad Admin’s job.', '§1']] as [string, string, string][])
+      : ([['DGS', 'The Director of Graduate Studies — the faculty member who decides, by the handbook and the course rules, whether each requirement here is satisfied. Processing is the Grad Admin’s job.', '§1']] as [string, string, string][])),
+    // A definition only: "Requests go by email; this page sends nothing" is on
+    // the request cards and in every dialog's last step (trim review
+    // 2026-09-18, P-35). On the M.S. tab the decider is the ADGS, as the entry
+    // one line above says (P-60; DGS 2026-09-11) — the glossary is exempt from
+    // first-mention.ts's DGS→ADGS rewrite, so it must say so itself.
     [
       'Grad Admin',
       program === 'phd'
-        ? 'The Graduate Program Administrator: processes what the DGS has decided and keeps the official record — transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5). Requests go by email; this page sends nothing.'
-        : 'The Graduate Program Administrator: processes what the DGS has decided and keeps the official record — transfer credit (§5.2), and the exam and defense forms (§3.4). Requests go by email; this page sends nothing.',
+        ? 'The Graduate Program Administrator: processes what the DGS has decided and keeps the official record — transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5).'
+        : 'The Graduate Program Administrator: processes what the ADGS has decided and keeps the official record — transfer credit (§5.2), and the exam and defense forms (§3.4).',
       '§5.2',
     ],
   ];
@@ -490,7 +520,9 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
         el('dd', {}, text),
       ]),
     ),
-    el('p', { class: 'hint' }, 'Short forms of the handbook’s wording — the section numbers link the full text through each requirement’s § button above.'),
+    // The glossary's § chips are plain spans, not links; only the rows' §
+    // buttons open the handbook text (trim review 2026-09-18, P-32).
+    el('p', { class: 'hint' }, 'Paraphrased; each requirement’s § button above opens the handbook’s own words.'),
   );
 }
 

@@ -427,11 +427,55 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * not exist any more (a removed course row, the closed preview). */
   let focusAfterRender: string | undefined;
   let lastHeadline = '';
+  /** Watches the two score headlines for the sticky bar (P-66); one per render. */
+  let scoreObserver: IntersectionObserver | undefined;
   /** A visually hidden polite live region, created once OUTSIDE the root so
    * the rebuild never re-creates it (a re-created region is not announced):
    * screen-reader users hear the new headline after each change. */
   const srStatus = el('div', { class: 'visually-hidden', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' });
   document.body.append(srStatus);
+
+  /** The footer's two disclosures ("What is still being tested", "Where the
+   * rules come from") print OPEN and return to what the student had (trim
+   * review 2026-09-18, P-71): closed, they printed as two bare headings.
+   * Only the ones this handler opened are closed again; restoreFocus reads
+   * the open state from the DOM, so a later re-render keeps the screen state. */
+  window.addEventListener('beforeprint', () => {
+    document.querySelectorAll<HTMLDetailsElement>('footer.legal details:not([open])').forEach((d) => {
+      d.dataset.printOpened = '';
+      d.open = true;
+    });
+  });
+  window.addEventListener('afterprint', () => {
+    document.querySelectorAll<HTMLDetailsElement>('footer.legal details[data-print-opened]').forEach((d) => {
+      d.open = false;
+      delete d.dataset.printOpened;
+    });
+  });
+
+  /** The sticky score bar (phones, ≤900 px) says what the score headline
+   * says; while either headline — the phone summary's at the top or the
+   * report's — is on screen, the bar is hidden (`.score-on-screen`,
+   * style.css) and it returns as soon as the score scrolls off (trim review
+   * 2026-09-18, P-66). The HEADLINES are watched, not the blocks: the summary
+   * block's meters and jump link are often on screen after its score line
+   * has gone. The previous render's observer is dropped with its nodes. */
+  function watchScoreHeadlines(): void {
+    scoreObserver?.disconnect();
+    scoreObserver = undefined;
+    const bar = root.querySelector<HTMLElement>('.sticky-score');
+    const headlines = [...root.querySelectorAll<HTMLElement>('.summary-mobile .headline, .audit .scorehead .headline')];
+    if (!bar || headlines.length === 0 || typeof IntersectionObserver === 'undefined') return;
+    const onScreen = new Set<Element>();
+    scoreObserver = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) onScreen.add(e.target);
+        else onScreen.delete(e.target);
+      }
+      bar.classList.toggle('score-on-screen', onScreen.size > 0);
+    });
+    for (const h of headlines) scoreObserver.observe(h);
+  }
 
   function rememberFocus(): { key?: string; path?: number[]; selection?: [number, number]; x: number; y: number; open: string[]; expanded: string[] } {
     const active = document.activeElement as HTMLElement | null;
@@ -575,7 +619,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'p',
           { class: 'print-header' },
-          `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS determines eligibility, the Grad Admin processes it.`,
+          `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS decides eligibility, the Grad Admin processes it.`, // "decides", as everywhere else (trim review 2026-09-18, P-60)
         ),
         // The example is saved like any other record, so say whose it is until
         // the student takes it back (2026-09-08). What it says is counted from
@@ -611,7 +655,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             askDgsCard(),
             milestonesCard(),
             askGradAdminCard(report),
-            saveCard(report),
+            saveCard(),
             diagnosticsCard(),
           ),
           el(
@@ -635,6 +679,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                     'div',
                     { class: 'save-buttons' },
                     el('button', { class: 'btn', 'data-key': 'report.save', onclick: () => exportFile(student) }, 'Save to a file'),
+                    // The summary is a view of the report, so its button sits
+                    // where the report ends, not in the storage card (trim
+                    // review 2026-09-18, P-72); same key, dialog and wording.
+                    advisorSummaryButton(report),
                     el('button', { class: 'btn', 'data-key': 'report.clear', onclick: clearAll }, 'Clear everything'),
                   ),
                 ),
@@ -655,6 +703,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // evening) — text nodes only, in document order, before focus is restored.
     applyFirstMentionRule(root);
     applyDeciderRule(root, student.program); // DGS → ADGS for an MSCSE student (2026-09-11)
+    watchScoreHeadlines();
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
     // so a keystroke in a title field does not chatter.
@@ -704,9 +753,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               el(
                 'p',
                 { class: 'sub' },
-                'Enter your coursework and milestones to see, requirement by requirement, where you stand against the ',
+                // No "enter your coursework" above the card that imports it;
+                // four lines instead of six at 390 px (trim review 2026-09-18, P-25).
+                'See where you stand, requirement by requirement, against the ',
                 handbookLink(),
-                '. Every check cites the section it comes from. Looking for the list of courses that count? See the ',
+                '; every check cites its section. The courses that count are on the ',
                 el('a', siblingAnchorAttrs('course-rules', window.location.search, embedTargetAttrs()), 'course rules page'),
                 '.',
               ),
@@ -725,7 +776,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               { class: 'banner embed-storage', role: 'note' },
               el('strong', {}, 'You are using the tool inside another page. '),
               'What you enter is saved by this embedded box only, and some browsers (Safari in particular) do not let an embedded page save anything at all — your entries may be gone when you come back. Use ',
-              el('strong', {}, '“Save my progress to a file”'),
+              el('strong', {}, '“Save to a file”'), // the button's label since 2026-09-03 (trim review 2026-09-18, P-62)
               ' to keep your work, or ',
               openFullPageLink('open the full page'),
               ' and work there instead.',
@@ -768,10 +819,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('strong', {}, 'Alpha version under testing. '),
         BETA_NOTICE,
         ' ',
-        el('strong', {}, RULES_ACCURACY_NOTICE),
-        ' (See the ',
+        // The link parenthetical folds into the bold sentence here (trim
+        // review 2026-09-18, P-39); the constant keeps its period for the
+        // footer and the copied summary, which render in their own order.
+        el('strong', {}, RULES_ACCURACY_NOTICE.replace(/\.$/, '')),
+        ' (see the ',
         el('a', siblingAnchorAttrs('course-rules', window.location.search, embedTargetAttrs()), 'course rules page'),
-        '.) ',
+        '). ',
         BETA_SCOPE_NOTICE,
         ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
       ),
@@ -779,13 +833,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'p',
         { class: 'notice-full privacy' },
         el('strong', {}, 'Private by design. '),
-        // Measured, like the rest of the privacy wording (R6/W-P1,
-        // 2026-09-18): this paragraph said "two network requests, neither of
-        // which carries anything about you". A load makes five — one per
-        // published sheet tab, plus the date probe — and while none carries
-        // anything a student typed, each carries an IP, a user agent and a
-        // referrer, which is what the approved wording concedes.
-        'Everything you enter — and any transcript PDF you import — is processed and stored entirely locally, within your own browser; the optional text recognition (OCR) for scanned transcripts is also computed in your browser. Nothing you enter is uploaded, transmitted, or stored anywhere else. Loading the page makes five requests that carry nothing you typed: four to Google Sheets, one per tab of the public course-rules spreadsheet, and one to this site’s own server on GitHub to ask what time it is at Notre Dame. Those two services see that someone opened the page; they never see what you enter.',
+        // The DGS's 2026-09-03 sentences plus the OCR clause, closing with the
+        // approved W-P1 sentence (2026-09-18) that the save card and footer
+        // also use. The five-request tally that used to follow was the
+        // measurement behind W-P1 (see PRIVACY_LINE in handbook.ts), not the
+        // claim (trim review 2026-09-18, P-7).
+        'Everything you enter — and any transcript PDF you import, including the optional text recognition (OCR) of a scanned one — is processed and stored in this browser only. Nothing you enter is uploaded, transmitted, or stored anywhere else. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter.',
       ),
     );
     return el(
@@ -880,7 +933,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             ? `${termLabel(student.entryTerm)} is assumed — set the semester you entered the program. `
             : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
           student.program === 'phd'
-            ? 'The residency count and every deadline — the 8-year limit (§4.3), the 18-month research qualifier (§4.4.3), the qualifier’s four semesters (§4.4), and the Oral Candidacy Exam (OCE) by the eighth semester (§4.5) — are counted from this term.'
+            // The four deadlines are each a report row with a Deadline chip;
+            // the §s stay (trim review 2026-09-18, P-11).
+            ? 'The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term.'
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
@@ -985,7 +1040,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           ? 'Courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).'
           : hasGraduateTransfers
             ? 'Required, and you already have coursework from before Notre Dame: enter the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2); until it is set, every graduate-level course from before Notre Dame is taken as graduate coursework.'
-            : 'Required — the semester your bachelor’s degree was awarded. Every student has one, whether or not they also hold a graduate degree, and §5.2 counts a course as transfer credit only when it was taken after it.',
+            // The legend above already names the field (trim review 2026-09-18, P-23).
+            : 'Required for every student, with or without a graduate degree: §5.2 counts a course as transfer credit only when it was taken after the bachelor’s degree.',
     );
     // Already holds Notre Dame's own master's degree (DGS 2026-09-09). §4.5
     // lets a Ph.D. student earn the MSCSE along the way; a student who earned
@@ -1018,9 +1074,31 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         { class: `hint field-hint${ndMs?.inferred ? ' warn' : ''}` },
         ndMs?.inferred
           ? `Ticked because ${ndMs.inferred.how}. Untick it if that is not right. The Ph.D. can award the MSCSE along the way (§4.5); a degree you already hold is not shown as something to earn. Your master's coursework is still transfer credit (§5.2) — that is the row above.`
-          : 'Tick this if you earned the MSCSE at Notre Dame before starting the Ph.D. The Ph.D. can award the MSCSE along the way (§4.5), and a degree you already hold is not shown as something to earn.',
+          // Says what the box changes, quoting the report row's title
+          // (trim review 2026-09-18, P-18).
+          : 'If you earned the MSCSE at Notre Dame before the Ph.D., the §4.5 “MSCSE awarded along the way” row is left out.',
       ),
     );
+
+    // The prior-degree controls behind one line on a fresh record (trim
+    // review 2026-09-18, P-65): of this card's controls a new student must set
+    // two, and the prior-study answer changes nothing until a transfer course
+    // exists — a previous-transcript import sets it for them. The fold is
+    // OPEN, not merely openable, whenever anything could draw on §5.2:
+    // graduate-level transfer coursework on the record (imported or typed —
+    // the same test that drives the warning above), an answer other than
+    // "none", the MSCSE box ticked, or a warning to show. Item 12 of
+    // 2026-09-05 (three radios, all visible) holds inside the fold. The
+    // data-key lets rememberFocus keep it open across re-renders.
+    const priorOpen = priorTranscripts.length > 0 || student.priorMs !== 'none' || student.ndMasters !== undefined || priorNote !== null;
+    const priorFold = el(
+      'details',
+      { class: 'prior-fold', 'data-key': 'standing.prior.fold' },
+      el('summary', {}, 'Prior degrees (§5.2 transfer caps) — open if you hold or started a graduate degree before this program.'),
+      fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
+      priorNote,
+    );
+    if (priorOpen) (priorFold as HTMLDetailsElement).open = true;
 
     const card = el(
       'section',
@@ -1035,15 +1113,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
       bsYearError,
       bsNote,
-      fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
-      priorNote,
+      priorFold,
     );
     // Not shown once a master's transcript from ANOTHER university is on the
     // record and nothing says the student holds Notre Dame's MSCSE (DGS
     // 2026-09-13): their master's is that one, and the question would only
     // confuse. A ticked or transcript-read answer keeps the box.
     const otherMasters = student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel === 'masters' && !isNotreDameCourse(c));
-    if (student.program === 'phd' && (ndMs !== undefined || !otherMasters)) card.append(ndMsField);
+    if (student.program === 'phd' && (ndMs !== undefined || !otherMasters)) priorFold.append(ndMsField); // inside the fold (P-65)
     // Integrated B.S. + M.S. (4+1)? Asked only when the record has Notre Dame
     // coursework from before the entry term (DGS 2026-09-12, red-team F7):
     // a 60000-level course taken as an undergraduate earns credit only then.
@@ -1289,7 +1366,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 // transfer of credits earned in another program at Notre Dame"
                 // — and a student who never left Notre Dame is the one most
                 // likely to assume their own courses simply carry over.
-                `Transfer credit (§5.2) is decided by the DGS course by course — normally only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate; the review request below asks for those rulings. Once the DGS has ruled a course transferable, the Grad Admin processes the credit transfer — the processing request below the milestones covers it.`,
+                // Trimmed 2026-09-18 (P-87): same facts, the DGS named less often.
+                `Transfer credit (§5.2) is decided by the DGS course by course — normally only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate: the review request below asks for the rulings; the processing request below the milestones then has the Grad Admin transfer the credit.`,
               )
             : null,
         g.entries.length > 0
@@ -1317,12 +1395,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('h2', {}, el('span', { class: 'step-no' }, '1. '), 'Transcripts ', el('span', { class: 'chip-start' }, 'Start here')),
       el('p', { class: 'start-callout' }, el('strong', {}, 'Start here:'), ' import your transcripts, and most of the page below fills itself in.'),
       // Shorter sentences (usability review 2026-09-05, item 10): the same
-      // facts, none over 25 words.
+      // facts, none over 25 words. "Nothing is uploaded" is the strip line
+      // above, the toast during the read and the OCR opt-in; the card keeps
+      // what is specific to it (trim review 2026-09-18, P-20).
       el(
         'p',
         { class: 'hint' },
-        el('strong', {}, 'System-generated PDFs are read exactly.'),
-        ' A scanned or photographed transcript can be read with built-in text recognition (OCR) — English only — after you agree. Everything is read on your own computer and nothing is uploaded, and you check every field before it is added.',
+        el('strong', {}, 'System-generated PDFs are read exactly;'),
+        ' a scanned or photographed transcript is read with built-in text recognition (OCR, English only) after you agree. You check every field before it is added.',
       ),
       // Unofficial transcripts read best (DGS observation 2026-09-05): the web /
       // self-service PDF is single-column and carries no watermark; official
@@ -1391,7 +1471,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('strong', {}, 'Decisions are made only by email: '),
         `initiate the review request by clicking the button below — it opens the request for you to check and send from your own email app to the ${deciderTitle(student.program)} (`,
         mailto(deciderContact(student.program).email),
-        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email. The request includes rows the DGS can paste straight into the rules sheet; the page itself sends nothing. The DGS decides eligibility only; once a course is decided, having it processed is a separate request — see the processing card below the milestones.',
+        // The DGS's own sentence (2026-09-15) and the attach reminder
+        // (2026-09-03); the email's format and the two-roles statement are
+        // said by the dialog and the Grad Admin card (trim review 2026-09-18, P-5).
+        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email.',
       ),
       ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
       ...notes.map((t) => el('div', { class: 'review-line review-note', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, 'Note'), ` — ${t}`)),
@@ -1645,7 +1728,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     } else {
       parts.push(
         importButton,
-        el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. Parsed courses are shown for your confirmation before anything is added.'),
+        // The card hint above already says every field is checked before it
+        // is added, and the preview is that check (trim review 2026-09-18, P-29).
+        el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below.'),
       );
     }
     return el('div', { class: 'transcript-upload external-slot' }, ...parts, fileInput, errorBox);
@@ -1724,7 +1809,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           'label',
           { class: 'attest entry-term-line' },
           cb,
-          ` Set your entry term to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. The residency count and every deadline are counted from this term; check it.`,
+          // The consequence is under the field in Your standing, in both
+          // states (trim review 2026-09-18, P-30).
+          ` Set your entry term to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. Check it.`,
         ),
       );
       if (tp.entryTerm.alternative) box.append(el('p', { class: 'hint warn' }, `Note: ${tp.entryTerm.alternative.why}.`));
@@ -1737,7 +1824,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'p',
           { class: 'hint bachelors-line' },
-          `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date} — “Bachelor’s degree awarded” under Your standing will be set to ${termLabel(bs.term)}. Courses taken in or before that term, even graduate-level ones, are not counted as transfer credit (§5.2).`,
+          // The §5.2 rule is under the field it governs, one card down
+          // (trim review 2026-09-18, P-13).
+          `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date} — “Bachelor’s degree awarded” under Your standing will be set to ${termLabel(bs.term)}.`,
         ),
       );
     }
@@ -1746,9 +1835,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'p',
           { class: 'hint prior-note' },
+          // Three parallel clauses as one list, every § kept (trim review 2026-09-18, P-31).
           student.program === 'phd'
-            ? `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} will be filed as coursework from before you entered the program: no residency counts, but a core-knowledge course still counts (§4.4.1), Notre Dame coursework you took as an undergraduate can still count toward the credits (§4.2), and graduate courses from elsewhere may transfer under §5.2. Undergraduate courses that cannot matter start unticked.`
-            : `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} will be filed as coursework from before you entered the program: no residency counts, but Notre Dame coursework you took as an undergraduate can still count toward the credits (§3.2), and graduate courses from elsewhere may transfer under §5.2. Undergraduate courses that cannot matter start unticked.`,
+            ? `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} are filed as coursework from before you entered: no residency counts, but they can still satisfy core knowledge (§4.4.1), count toward the credits if taken at Notre Dame as an undergraduate (§4.2), or transfer as graduate courses from elsewhere under §5.2. Undergraduate courses that cannot matter start unticked.`
+            : `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} are filed as coursework from before you entered: no residency counts, but they can still count toward the credits if taken at Notre Dame as an undergraduate (§3.2) or transfer as graduate courses from elsewhere under §5.2. Undergraduate courses that cannot matter start unticked.`,
         ),
       );
     }
@@ -1947,17 +2037,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               transcriptPreview = undefined;
               focusAfterRender = 'import.nd';
               render();
+              // "Check it under Your standing" once, at the end, for the entry
+              // term and the bachelor's term together — it used to follow each
+              // (trim review 2026-09-18, P-90). The unfinished-M.S. clause keeps
+              // its own, different instruction.
+              const toCheck = (appliedEntry ? 1 : 0) + (bachelorsSet ? 1 : 0);
               toast(
                 `Added ${picked.length} course${picked.length === 1 ? '' : 's'} from the transcript` +
-                  (appliedEntry ? `; your entry term set to ${termLabel(appliedEntry)} — check it under Your standing` : '') +
+                  (appliedEntry ? `; entry term set to ${termLabel(appliedEntry)}` : '') +
                   (priorAdded > 0 ? `; ${priorAdded} filed as coursework from before you entered the program` : '') +
                   (priorSet === 'completed'
                     ? '; Prior graduate study set to “Completed prior M.S. or Ph.D.” from the degree awarded on your transcript'
                     : priorSet === 'unfinished'
                       ? '; Prior graduate study set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it'
                       : '') +
-                  (bachelorsSet ? `; “Bachelor’s degree awarded” set to ${termLabel(bachelorsSet)} from the degree on your transcript — check it under Your standing` : '') +
+                  (bachelorsSet ? `; “Bachelor’s degree awarded” set to ${termLabel(bachelorsSet)} from your transcript` : '') +
                   (ndMastersSet ? '; ticked “I already hold the MSCSE from Notre Dame” from the degree on your transcript — the §4.5 along-the-way row is left out for you' : '') +
+                  (toCheck === 2 ? ' — check both under Your standing' : toCheck === 1 ? ' — check it under Your standing' : '') +
                   '.',
               );
             },
@@ -2153,7 +2249,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         const yes = await confirmDialog({
           title: `${id} is entered with 0 credits`,
           body: [
-            'A course with no credits counts toward nothing — not the 30 total credits, not the regular-course credits, not any cap. It will appear in your coursework with a line saying so.',
+            // No number: 30 is the MSCSE total, and this dialog opens on both
+            // tabs (trim review 2026-09-18, P-86).
+            'A course with no credits counts toward nothing — not the total credits, not the regular-course credits, not any cap. It will appear in your coursework with a line saying so.',
             'Your transcript prints the credit hours beside each course. If this one has a value, cancel and type it in the Credits box.',
           ],
           confirmLabel: 'Add it with 0 credits',
@@ -2197,7 +2295,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           idInput,
           idError,
         ),
-        labelWrap('Title', titleInput, '(filled automatically for listed courses)'),
+        labelWrap('Title', titleInput), // the box fills itself for a listed course — the student sees it (trim review 2026-09-18, P-44)
       ),
       el(
         'div',
@@ -2445,6 +2543,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function askGradAdminCard(report: ReturnType<typeof audit>): HTMLElement {
     const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
     const n = built.items.count;
+    // The Grad Admin needs the original transcripts only to process §5.2
+    // transfer credit; nothing else in the request is decided from a PDF, so
+    // the attach step, the email's "Attached:" line and the card's clause
+    // appear only when a transfer is in it (trim review 2026-09-18, P-45).
+    const needsTranscripts = built.items.transfers.length > 0;
     const label = 'Initiate the request';
     const attrs = { class: 'btn', 'data-key': 'gradadmin.copy' };
     const button =
@@ -2468,9 +2571,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   subject: built.subject,
                   text: built.text,
                   html: built.html,
-                  steps: [
-                    { text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply).', emphasis: true },
-                  ],
+                  steps: needsTranscripts ? [{ text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply).', emphasis: true }] : [],
                   returnFocusKey: 'gradadmin.copy',
                 });
               },
@@ -2481,19 +2582,35 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'section',
       { class: 'card grad-admin-request' },
       el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, `${n} item${n === 1 ? '' : 's'}`)),
-      el(
-        'p',
-        { class: 'hint' },
-        el('strong', {}, 'Two people, two jobs. '),
-        'The DGS decides eligibility by the course rules — that is what the review request above asks for. The Grad Admin (',
-        `${GRAD_ADMIN.name}, `,
-        mailto(GRAD_ADMIN.email),
-        student.program === 'phd'
-          ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc — attach your original transcripts. The page itself sends nothing.'
-          : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc — attach your original transcripts. The page itself sends nothing.',
-      ),
+      // Two people, two jobs (DGS 2026-09-06; the button sentence DGS
+      // 2026-09-15). While there is nothing to send, the paragraph told the
+      // student to click a button that does nothing, so the n = 0 state is
+      // one line and the full paragraph returns with the first item (trim
+      // review 2026-09-18, P-4). The full paragraph no longer points at "the
+      // review request above" (a card most students never see) or repeats
+      // "the page itself sends nothing" (step 3 of the dialog) — P-19.
+      n === 0
+        ? el(
+            'p',
+            { class: 'hint' },
+            'Nothing to process yet — this card fills in as requirements are met and milestone dates are entered. The Grad Admin (',
+            `${GRAD_ADMIN.name}, `,
+            mailto(GRAD_ADMIN.email),
+            ') processes what the DGS has decided and keeps the official record.',
+          )
+        : el(
+            'p',
+            { class: 'hint' },
+            el('strong', {}, 'Two people, two jobs. '),
+            'The DGS decides eligibility by the course rules; the Grad Admin (',
+            `${GRAD_ADMIN.name}, `,
+            mailto(GRAD_ADMIN.email),
+            student.program === 'phd'
+              ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. '
+              : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. ',
+            `Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc${needsTranscripts ? ' — attach your original transcripts' : ''}.`,
+          ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line', 'data-keep-dgs': '' }, text)),
-      n === 0 ? el('p', { class: 'hint' }, 'Nothing to process yet.') : null,
       el('div', { class: 'save-buttons' }, button),
     );
   }
@@ -2505,7 +2622,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'section',
       { class: 'card' },
       el('h2', {}, el('span', { class: 'step-no' }, '4. '), 'Milestones ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§2.3, §3.4' : '§2.3, §4.4–4.7')),
-      el('p', { class: 'hint' }, 'Enter each date once it has happened; leave the rest blank — every date here is optional.'),
+      // "Optional" once, leading (2026-09-05 item 11; trim review 2026-09-18, P-41).
+      el('p', { class: 'hint' }, 'Every date here is optional — enter a date once it has happened.'),
     );
 
     card.append(
@@ -2534,16 +2652,29 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     } else {
       card.append(
         dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
-        dateField('Qualifier completion form filed with the Grad Admin (DGS office, §4.4)', 'qualifierFormFiled'),
+        // "(DGS office)" dropped (trim review 2026-09-18, P-51): the handbook's
+        // phrase for the desk the page calls the Grad Admin, one card above
+        // "two people, two jobs"; phd.ts and the advisor summary already read this way.
+        dateField('Qualifier completion form filed with the Grad Admin (§4.4)', 'qualifierFormFiled'),
         dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed'),
-        dateField('Dissertation approved for defense by all readers (§4.6)', 'dissertationApprovedForDefense'),
-        dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
       );
+      // §4.6 opens "After satisfying the above requirements": nobody has a
+      // dissertation date without an OCE date, so the two dissertation fields
+      // appear once the OCE is dated — or when a loaded record already
+      // carries either date, so nothing on file is ever hidden (trim review
+      // 2026-09-18, P-64). The §4.6/§4.7 report rows are unchanged.
+      if (m.candidacyPassed || m.dissertationApprovedForDefense || m.defensePassed) {
+        card.append(
+          dateField('Dissertation approved for defense by all readers (§4.6)', 'dissertationApprovedForDefense'),
+          dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
+        );
+      }
     }
 
     card.append(el('h2', { class: 'mt' }, 'Approvals you already have'));
     card.append(
-      el('p', { class: 'hint' }, 'Tick only what has actually been approved — this is a self-check; the DGS decides, and the Grad Admin holds the real record.'),
+      // The two-roles sentence is the next card's opening (trim review 2026-09-18, P-16).
+      el('p', { class: 'hint' }, 'Tick only what has actually been approved.'),
       attestation('My advisor approved my plan of study (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
       attestation('The DGS approved my course(s) below the 60000 level (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
       attestation('The DGS approved my non-CSE course(s) (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApprovedNonCse, (v, s) => (s.attestations.dgsApprovedNonCse = v)),
@@ -2613,8 +2744,33 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   // ---------- save / load ----------
 
-  function saveCard(report: ReturnType<typeof audit>): HTMLElement {
-    const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden', 'aria-label': 'Saved progress file' });
+  /** "Send summary to advisor" (DGS 2026-09-15): the dialog with the
+   * advisor summary. Rendered at the end of the report since the trim review
+   * (2026-09-18, P-72); it was the third button of the storage card. */
+  function advisorSummaryButton(report: ReturnType<typeof audit>): HTMLElement {
+    return el(
+      'button',
+      {
+        class: 'btn',
+        'data-key': 'save.copy',
+        onclick: () => {
+          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
+          void copyDialog({
+            what: 'Summary for your advisor',
+            recipient: { role: 'Your advisor', name: student.milestones.advisorName ?? 'name not entered under Milestones' },
+            subject: built.subject,
+            text: built.text,
+            html: built.html,
+            returnFocusKey: 'save.copy',
+          });
+        },
+      },
+      'Send summary to advisor',
+    );
+  }
+
+  function saveCard(): HTMLElement {
+    const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden', 'aria-label': 'Saved file' }); // (P-62)
     fileInput.addEventListener('change', async () => {
       const file = (fileInput as HTMLInputElement).files?.[0];
       if (!file) return;
@@ -2639,7 +2795,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           applyRefusals(refusals);
           render();
         }
-        toast(refusals.length > 0 ? `Progress loaded. ${refusals.map((r) => r.message).join(' ')}` : 'Progress loaded.');
+        // "File", as the buttons say (trim review 2026-09-18, P-62).
+        toast(refusals.length > 0 ? `File loaded. ${refusals.map((r) => r.message).join(' ')}` : 'File loaded.');
       } catch (err) {
         toast(err instanceof Error ? err.message : 'That file could not be read.');
       }
@@ -2647,13 +2804,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'section',
       { class: 'card save-card' },
-      el('h2', {}, 'Your data stays in this browser'),
+      el('h2', {}, 'Your record stays in this browser'), // "record", the page's word for what localStorage holds (R7; trim review 2026-09-18, P-56)
       el(
         'p',
         { class: 'hint' },
         // The privacy statement belongs where the file controls are, not only
-        // in the footer (B9, 2026-09-18). Wording approved as W-P1.
-        'Everything you enter — including any transcript PDF you upload — is processed and saved in this browser only. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter. To keep a copy or move to another device, save it as a file.',
+        // in the footer (B9, 2026-09-18). The GitHub/Google Sheets sentence
+        // (W-P1) stays in the footer and the notice Details; here only the
+        // claim and the instruction (trim review 2026-09-18, P-8; "import"
+        // for what the student does, P-53).
+        'Everything you enter — including any transcript PDF you import — is processed and saved in this browser only. To keep a copy or move to another device, save it as a file.',
       ),
       // The other side of "it stays in this browser" (interface review R7,
       // 2026-09-18): on a lab or library machine the record has no expiry, so
@@ -2662,32 +2822,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint warn' },
-        'On a shared or public computer, clear your record before you walk away: it stays in this browser until you do, with no expiry, and the next person to open this page on this machine would see it.',
+        // Both R7 facts in fewer words (trim review 2026-09-18, P-36).
+        'On a shared or public computer, clear your record before you walk away: it never expires, and the next person to open this page on this machine would see it.',
       ),
       el(
         'div',
         { class: 'save-buttons' },
         el('button', { class: 'btn primary', 'data-key': 'save.file', onclick: () => exportFile(student) }, 'Save to a file'),
         el('button', { class: 'btn', 'data-key': 'save.load', onclick: () => (fileInput as HTMLInputElement).click() }, 'Load a file'),
-        el(
-          'button',
-          {
-            class: 'btn',
-            'data-key': 'save.copy',
-            onclick: () => {
-              const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
-              void copyDialog({
-                what: 'Summary for your advisor',
-                recipient: { role: 'Your advisor', name: student.milestones.advisorName ?? 'name not entered under Milestones' },
-                subject: built.subject,
-                text: built.text,
-                html: built.html,
-                returnFocusKey: 'save.copy',
-              });
-            },
-          },
-          'Send summary to advisor',
-        ),
         el('button', { class: 'btn', 'data-key': 'save.print', onclick: () => window.print() }, 'Print'),
       ),
       fileInput,
@@ -2732,7 +2874,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('h2', { class: 'legal-head' }, 'This is a self-check, not an official audit'),
         student.program === 'mscse' ? 'It applies Section 3 of the ' : 'It applies Section 4 of the ',
         handbookLink(),
-        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Eligibility is determined by the DGS; processing and the official record are the Grad Admin’s — confirm with them before you rely on it.',
+        // Who decides and who processes is on the Grad Admin card, in the
+        // glossary and in the contact card right below; the footer keeps its
+        // one imperative (trim review 2026-09-18, P-21).
+        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Confirm with the DGS before you rely on this self-check.',
       ),
       // One statement of the alpha status in the footer, not two (red-team
       // wording table, 2026-09-12): the opening dialog and the banner already
@@ -2761,10 +2906,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'div',
         { class: 'legal-privacy' },
-        el('h2', { class: 'legal-head' }, 'Your data never leaves your device'),
+        // One word (trim review 2026-09-18, P-56): the heading is inline and
+        // ran straight into the sentence below, which says the claim itself.
+        el('h2', { class: 'legal-head' }, 'Privacy'),
         // W-P1 (DGS 2026-09-18). The middle two sentences are his approved
         // wording verbatim; the FERPA sentence stays, as he asked.
-        'Your coursework never leaves this browser: everything you enter — and any transcript PDF you upload — is processed here and saved only on this computer. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter. Your FERPA-protected education records remain under your control.',
+        'Your coursework never leaves this browser: everything you enter — and any transcript PDF you import — is processed here and saved only on this computer. The page itself loads from GitHub and reads the course rules from Google Sheets, so those two services see that someone opened the page; they never see what you enter. Your FERPA-protected education records remain under your control.',
       ),
       el(
         'div',
@@ -2871,7 +3018,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     student = exampleFor(program);
     saveLocal(student);
     render();
-    toast(`Example ${name} student loaded — clear it before entering your own record.`);
+    // No visible toast: the banner at the top of the inputs says the same
+    // and names the right button, and the toast covered the page on a phone.
+    // Screen readers still hear what happened — the banner is a role=note,
+    // which is not announced (trim review 2026-09-18, P-27).
+    srStatus.textContent = `Example ${name} student loaded.`;
   }
 
   /** The rows "Load example" seeded that are still on the record. */
@@ -2898,7 +3049,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : el('strong', {}, 'This is the example student, not your record. '),
       some
         ? 'Removing them leaves everything you entered yourself untouched.'
-        : 'Nothing here came from you. Remove it before entering your own coursework.',
+        : 'Nothing here came from you. Remove it before entering your own record.', // "record", as in the first sentence (trim review 2026-09-18, P-57)
       el(
         'div',
         { class: 'save-buttons' },

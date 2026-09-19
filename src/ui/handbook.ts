@@ -17,10 +17,13 @@ export function handbookLink(label: string = HANDBOOK_TITLE): HTMLAnchorElement 
 }
 
 /** The beta-status disclaimer, worded by the DGS (docs/DECISIONS.md,
- * 2026-09-01; shortened the same day at the DGS's request). */
+ * 2026-09-01; shortened the same day at the DGS's request). "the DGS", not
+ * the full title, since the trim review (P-42, 2026-09-18): the DGS→ADGS
+ * rewrite matches only the token, so on the MSCSE tab the full title left the
+ * page and the advisor email naming two deciders (DECISIONS 2026-09-15). */
 export const BETA_NOTICE =
   'Informational only, no warranty — not an official degree audit; every final decision ' +
-  'rests with the Director of Graduate Studies.';
+  'rests with the DGS.';
 
 /** What is NOT in beta: the course rules themselves (DGS wording, 2026-09-01).
  * Shown in bold next to the beta notice in the banner, the footer and the
@@ -38,9 +41,11 @@ export const RULES_ACCURACY_NOTICE =
  * the Notre Dame transcript) gained a per-row level and an entry-term reading
  * — those cases are now handled, best-effort, with every row for the student
  * to check. */
+// Recast without its doubled phrases in the trim review (2026-09-18, P-39),
+// overruling the DGS's 2026-09-05 wording; every clause of substance kept in order.
 export const COVERAGE_NOTICE =
-  'Not all cases are covered yet — for example, transcripts whose layout the parser has not seen, ' +
-  'or a combined BS/MS record whose undergraduate and graduate courses are not told apart on it.';
+  'Not all cases are covered yet, for example transcripts whose layout the parser has not seen, ' +
+  'or a combined BS/MS record that does not tell its undergraduate and graduate courses apart.';
 
 /** The ONE-LINE versions shown in the slim notice strip at the top of the
  * self-check page (usability review 2026-09-05, item 8 — three stacked
@@ -60,10 +65,12 @@ export const PRIVACY_LINE =
 
 /** The sentences that follow RULES_ACCURACY_NOTICE — what the alpha label
  * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04; the
- * coverage caveat 2026-09-05). */
+ * coverage caveat 2026-09-05). "under development and still highly inaccurate"
+ * said one thing twice — recast in the trim review (2026-09-18, P-39), which
+ * overrules the 2026-09-04 PDF-caveat wording and the 2026-09-05 COVERAGE_NOTICE. */
 export const BETA_SCOPE_NOTICE =
-  'Only this tool’s application of them is still being tested. In particular, the transcript-PDF ' +
-  'import is under development and still highly inaccurate — check every imported course against ' +
+  'Only this tool’s application of them is still being tested — in particular the transcript-PDF ' +
+  'import, still highly inaccurate: check every imported course against ' +
   `your actual transcript. ${COVERAGE_NOTICE}`;
 
 /** The dated line under each page's title — two dates, one sentence (DGS wording,

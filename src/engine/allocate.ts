@@ -180,7 +180,10 @@ function priorNdShape(
   const counts = program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
   const programName = program === 'mscse' ? 'MSCSE' : 'Ph.D.';
   if (counts === 'no') {
-    return { ineligibleReason: `not counted — the rules sheet says this course does not count toward the ${programName}` };
+    // A verdict names the policy, "the course rules"; "rules sheet" is kept only where
+    // the spreadsheet itself is the object, e.g. a missing parameter (trim review
+    // 2026-09-18, P-54 — the same rename at the seven sibling verdicts below).
+    return { ineligibleReason: `not counted — the course rules say this course does not count toward the ${programName}` };
   }
   const isCse = deptOf(courseId) === 'CSE';
   // The sheet row's verdict is read the same way for a course taken before
@@ -195,11 +198,11 @@ function priorNdShape(
     (!isCse && attestations.dgsApprovedNonCse === true);
   const approvalPending =
     counts === undefined
-      ? 'the rules sheet does not say whether it counts — needs DGS review'
+      ? 'the course rules do not say whether it counts — needs DGS review'
       : needsCourseApproval(counts)
         ? approvalAttested
           ? undefined
-          : `needs advisor + ${approverToken(counts)} approval per the rules sheet`
+          : `needs advisor + ${approverToken(counts)} approval per the course rules`
         : undefined;
   const shape = (pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
   // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
@@ -695,7 +698,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
           ],
           tier: tierFor(grade, provisional),
           ...(rule === undefined
-            ? { unknown: true as const, approvalPending: `not in the rules sheet — counted provisionally; needs DGS review${nonCseApproval ? `; ${nonCseApproval}` : ''}` }
+            ? { unknown: true as const, approvalPending: `not in the course rules — counted provisionally; needs DGS review${nonCseApproval ? `; ${nonCseApproval}` : ''}` }
             : shapeApproval !== undefined
               ? { approvalPending: shapeApproval }
               : {}),
@@ -946,14 +949,14 @@ export function classify(student: Student, rules: Rules, today?: string): {
         caps,
         tier: 'provisional',
         unknown: true,
-        approvalPending: 'not in the rules sheet — counted provisionally; needs DGS review',
+        approvalPending: 'not in the course rules — counted provisionally; needs DGS review',
       };
     }
 
     const counts = program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
     const programName = program === 'mscse' ? 'MSCSE' : 'Ph.D.';
     if (counts === 'no') {
-      return { ...base, ineligibleReason: `the rules sheet says it does not count toward the ${programName}` };
+      return { ...base, ineligibleReason: `the course rules say it does not count toward the ${programName}` };
     }
     // A sheet-listed dgs_approval course is cleared by the matching attestation:
     // BELOW the 60000 level → the "courses below the 60000 level" checkbox;
@@ -971,11 +974,11 @@ export function classify(student: Student, rules: Rules, today?: string): {
       (!isCse && attestations.dgsApprovedNonCse === true);
     const approvalPending =
       counts === undefined
-        ? 'the rules sheet does not say whether it counts — needs DGS review'
+        ? 'the course rules do not say whether it counts — needs DGS review'
         : needsCourseApproval(counts)
           ? approvalAttested
             ? undefined
-            : `needs advisor + ${approverToken(counts)} approval per the rules sheet`
+            : `needs advisor + ${approverToken(counts)} approval per the course rules`
           : undefined;
     const provisional = approvalPending !== undefined;
 

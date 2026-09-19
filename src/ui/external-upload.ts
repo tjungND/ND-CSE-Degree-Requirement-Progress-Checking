@@ -328,19 +328,29 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
     // same, so "one combined PDF" is not the common case it was written as).
     // Two transcripts: one row each. One PDF covering both: the Master's row,
     // once, with each course's "Taken as" level read from it.
+    // Folded behind one line (trim review 2026-09-18, P-1): a closed <details>
+    // that only a 4+1 student needs to open — opened by code when the Previous
+    // Master's row already holds a transcript or a preview is showing (where
+    // "Taken as" is corrected). No role attribute: axe rejects role=note on
+    // a <details> (its own role is group). The data-key is what app.ts's render memo
+    // uses to keep it open across re-renders. The class stays on the details
+    // element: drive-transcript.mjs reads .combined-note's textContent (a
+    // closed body is still in it). Body shortened by the DGS (P-6, P-53:
+    // 'import', not 'upload').
     el(
-      'div',
-      { class: 'combined-note', role: 'note' },
+      'details',
+      { class: 'combined-note', 'data-key': 'transcripts.shape', open: coursesInSlot(args.student, 'masters').length > 0 || preview !== undefined },
+      el('summary', {}, 'Two degrees from the same university (a 4+1 or 5+1), or a finished Notre Dame degree? Open this first.'),
       el('strong', {}, 'A bachelor’s and a master’s from the same university'),
-      ' — a 4+1 or 5+1 program, Notre Dame’s included — comes as either two transcripts or one. ',
+      ' (a 4+1 or 5+1, Notre Dame’s included) come as two transcripts or one. ',
       el('strong', {}, 'Two transcripts:'),
-      ' upload each in its own row, the bachelor’s in the Undergraduate row and the master’s in the Master’s row. ',
+      ' the bachelor’s in the Undergraduate row, the master’s in the Master’s row. ',
       el('strong', {}, 'One transcript covering both degrees:'),
-      ' upload it once, in the ',
+      ' import it once, in the ',
       el('strong', {}, 'Previous Master’s Transcript'),
-      ' row — never the same PDF twice. Either way, whether you took each course as an undergraduate or as a graduate student is read from the transcript and shown in a “Taken as” column you can correct before adding: it is your status at the time, not the course’s level, and it decides what the course can count toward.',
+      ' row — never the same PDF twice. Either way, whether you took each course as an undergraduate or a graduate student is read from it and shown in a “Taken as” column you can correct: your status at the time, not the course’s level, decides what a course can count toward.',
       el('br'),
-      'Notre Dame’s own transcripts belong in these rows too, for a degree you have already finished. The ND row above is for the program you are in now.',
+      'Notre Dame’s own transcripts belong in these rows too, for a degree already finished; the ND row above is your current program.',
     ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
@@ -378,8 +388,10 @@ export function isUnofficial(lines: readonly string[]): boolean {
     return /^\W*unofficial\W*$/i.test(flat) || /^\W*unofficial\b.*\btranscript\b/i.test(flat);
   });
 }
+// 'import', not 'upload' — the student's act; 'uploaded' is kept for the
+// privacy fact (trim review 2026-09-18, P-53).
 const BACHELORS_IN_PROGRESS =
-  'This undergraduate transcript is still in progress — it lists courses without a final grade. A completed bachelor’s transcript is required here: upload it again once the degree is finished and every course has a grade.';
+  'This undergraduate transcript is still in progress — it lists courses without a final grade. A completed bachelor’s transcript is required here: import it again once the degree is finished and every course has a grade.';
 /** `degreeStated`: the transcript itself says the bachelor's degree was
  * conferred ("Graduated on … with the degree of Bachelor …", a dated award
  * line). Then a row without a readable grade is a parsing gap to fix in the
@@ -638,7 +650,9 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
         ? 'You can try the built-in text recognition (OCR) on it instead, which reads the page as an image, or add the courses by hand below (and please tell the DGS which university, so parsing can be improved). OCR: '
         : 'A scan cannot be read exactly — the reliable route is a system-generated PDF from your university’s portal. You can instead try the built-in text recognition (OCR): ',
       el('strong', {}, 'English-language transcripts only'),
-      ', results are approximate, and you must check every field before adding. Either way the file never leaves your browser.',
+      // "check every field" and "never leaves your browser" are said by the
+      // card hint above and the preview heading (trim review 2026-09-18, P-89).
+      ', and the result is approximate.',
     ),
     el(
       'div',
@@ -896,7 +910,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               }${p.omitted ? ` (${p.omitted} other course${p.omitted === 1 ? ' was' : 's were'} read and left out)` : ''}.`,
             ),
           ]
-        : [el('p', { class: 'hint level-note' }, el('strong', {}, 'How “Taken as” was filled in: '), levelNote(p), ' “Taken as” is your status at the time, not the course’s level. Please double-check the column before adding.')]),
+        : // The preview's own heading already says "check every line" (trim review 2026-09-18, P-93).
+          [el('p', { class: 'hint level-note' }, el('strong', {}, 'How “Taken as” was filled in: '), levelNote(p), ' “Taken as” is your status at the time, not the course’s level.')]),
     ...(p.transferSkipped
       ? [
           el(
@@ -910,7 +925,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       'p',
       { class: 'hint', id: 'ext-university-hint' },
       uniLocked
-        ? 'The university name and each course’s number, title, credits, grade and term are taken from your transcript as printed and cannot be edited here; only “Taken as” can be changed. Anything the parser could not read (a grade, credits or a year) must be filled in by hand — rows without a grade are not added.'
+        ? // Shortened (trim review 2026-09-18, P-88): the locked values show in the rows themselves.
+          'The university name and each course are shown as your transcript prints them and cannot be edited here; only “Taken as” can be changed. Fill in anything the parser could not read (a grade, credits or a year) — rows without a grade are not added.'
         : p.universityGuessed
           ? // The name is nowhere in this transcript's text — it was worked out
             // from an abbreviation (2026-09-08). Say so, since the student is
@@ -1324,7 +1340,8 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             );
           },
         },
-        `Add ${p.rows.filter((r) => r.include).length} checked course${p.rows.filter((r) => r.include).length === 1 ? '' : 's'}`,
+        // 'selected' — the word Select all / Select none and the ND preview use (trim review 2026-09-18, P-58).
+        `Add ${p.rows.filter((r) => r.include).length} selected course${p.rows.filter((r) => r.include).length === 1 ? '' : 's'}`,
       ),
       el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; previewError = undefined; render(); } }, 'Cancel'),
     ),

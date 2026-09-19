@@ -36,7 +36,9 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Lo
   return new Promise((resolve) => {
     const spinner = () => el('span', { class: 'spin', 'aria-hidden': 'true' });
     const title = el('strong', {}, 'Loading the current course rules');
-    const subtitle = el('div', { class: 'load-sub' }, `from the DGS’s Google Spreadsheet — usually a few seconds; a slow answer is asked for again, up to about ${BUDGET_S} s in all`);
+    // The budget ("up to about 30 s") is printed once, on the elapsed line under
+    // the bar, not here as well (trim review 2026-09-18, P-92).
+    const subtitle = el('div', { class: 'load-sub' }, 'from the DGS’s Google Spreadsheet — usually a few seconds; a slow answer is asked for again');
     const headSpin = spinner();
 
     type Step = { li: HTMLLIElement; dot: HTMLSpanElement; detail: HTMLSpanElement };

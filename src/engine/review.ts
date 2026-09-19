@@ -132,7 +132,7 @@ export function coursesNeedingDgsReview(student: Student, rules: Rules): Pending
           // repeated there.
           reason:
             c.unknown === true
-              ? c.approvalPending !== undefined && !/not in the rules sheet/.test(c.approvalPending)
+              ? c.approvalPending !== undefined && !/not in the course rules/.test(c.approvalPending) // the verdict's words (P-54, 2026-09-18)
                 ? `not in the course rules yet; ${c.approvalPending}`
                 : 'not in the course rules yet'
               : (c.approvalPending ?? 'needs DGS review'),

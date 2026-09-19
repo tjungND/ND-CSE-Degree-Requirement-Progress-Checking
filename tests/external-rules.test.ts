@@ -126,7 +126,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     priorStudy: 'Completed prior M.S. or Ph.D.',
     nd: [
       { courseId: 'MATH 60610', title: 'Real Analysis I', credits: 3, grade: 'A', termText: 'Fall 2026', reason: 'not in the course rules yet', unlisted: true },
-      { courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the rules sheet', unlisted: false },
+      { courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the course rules', unlisted: false },
     ],
     external: [
       { institution: 'Purdue University', courseId: 'CS 50300', title: 'Operating Systems', credits: 3, grade: 'A', termText: 'Fall 2023', slotLabel: 'Previous Master\u2019s Transcript', reason: 'not yet reviewed by the DGS', unlisted: true },
@@ -175,7 +175,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.match(built.text, /Dear DGS,\n/);
     assert.doesNotMatch(built.text, /Grad Admin/);
     assert.match(built.text, /Prior graduate study: Completed prior M\.S\. or Ph\.D\./);
-    assert.match(built.text, /transcripts .* are attached to this email/i);
+    assert.match(built.text, /\nMy transcripts are attached\.\n/);
     assert.ok(!built.text.includes('audit'), 'the request says self-check, never audit');
     // The human half (sign-off included) sits ABOVE one line; everything
     // machine-readable is below it, marked exactly once.
@@ -187,8 +187,8 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
 
   it('text flavor: one table per sheet tab, rows only for unlisted courses', () => {
     const { text } = built;
-    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 Courses tab:/u);
-    assert.match(text, /imported to the DGS\u2019s rules sheet \u2014 ExternalCourses tab:/u);
+    assert.match(text, /Rows for the rules sheet \u2014 Courses tab:/u);
+    assert.match(text, /Rows for the rules sheet \u2014 ExternalCourses tab:/u);
     assert.ok(text.includes('MATH 60610\tReal Analysis I'), 'Courses-tab row');
     assert.ok(text.includes('Purdue University\tCS 50300\tOperating Systems'), 'ExternalCourses-tab row, university as the record spells it (2026-09-06, late evening: no upper-casing)');
     assert.ok(!text.includes('CSE 40567\t'), 'sheet-listed ND course gets no new row');
@@ -213,7 +213,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.ok(html.includes('<tr><td>Purdue University</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
     assert.ok(html.includes('<p><strong>Notre Dame:</strong></p><table'));
     assert.ok(html.includes('<tr><th>Course</th><th>Title</th><th>Credits</th><th>Grade</th><th>Term</th><th>Why it needs a decision</th></tr>'));
-    assert.ok(html.includes('<tr><td>CSE 40567</td><td></td><td>3</td><td>B</td><td>Fall 2026</td><td>needs advisor + DGS approval per the rules sheet</td></tr>'));
+    assert.ok(html.includes('<tr><td>CSE 40567</td><td></td><td>3</td><td>B</td><td>Fall 2026</td><td>needs advisor + DGS approval per the course rules</td></tr>'));
     assert.ok(html.includes('Data &amp; &quot;Structures&quot; &lt;II&gt;'), 'titles are HTML-escaped');
     assert.ok(!html.includes('<II>'), 'no raw markup leaks from titles');
   });
@@ -221,7 +221,7 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
   it('a section with no unlisted rows disappears entirely', () => {
     const only = buildCombinedReviewRequest({
       priorStudy: 'No prior graduate degree',
-      nd: [{ courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the rules sheet', unlisted: false }],
+      nd: [{ courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the course rules', unlisted: false }],
       external: [],
     });
     assert.equal((only.html.match(/<table/g) ?? []).length, 1, 'only the details table remains');
@@ -437,11 +437,11 @@ describe('the sign-off row names who must act (2026-09-07)', () => {
     assert.deepEqual(signOffActors('pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)'), ['gradAdmin']);
     assert.deepEqual(signOffActors('transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)'), ['dgs']);
     assert.deepEqual(signOffActors('transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)'), ['dgs']);
-    assert.deepEqual(signOffActors('not in the rules sheet — counted provisionally; needs DGS review'), ['dgs']);
-    assert.deepEqual(signOffActors('the rules sheet does not say whether it counts — needs DGS review'), ['dgs']);
+    assert.deepEqual(signOffActors('not in the course rules — counted provisionally; needs DGS review'), ['dgs']);
+    assert.deepEqual(signOffActors('the course rules do not say whether it counts — needs DGS review'), ['dgs']);
     // Both people, so the course is listed under both.
     assert.deepEqual(signOffActors('non-CSE course — needs advisor + DGS approval (§3.2/§4.2)'), ['advisor', 'dgs']);
-    assert.deepEqual(signOffActors('needs advisor + DGS approval per the rules sheet'), ['advisor', 'dgs']);
+    assert.deepEqual(signOffActors('needs advisor + DGS approval per the course rules'), ['advisor', 'dgs']);
     assert.deepEqual(signOffActors('wording nobody anticipated'), ['dgs'], 'an unrecognised reason falls back to the DGS');
   });
 

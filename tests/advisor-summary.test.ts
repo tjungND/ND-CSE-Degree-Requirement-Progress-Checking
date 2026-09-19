@@ -42,7 +42,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 1 requirement not yet met\n/);
     assert.match(text, /\nHere is my current standing from the CSE degree self-check tool, as of September 4, 2026\.\n/);
     assert.match(text, /\nPh\.D\. \(Handbook §4\); entered Fall 2026; no prior graduate degree; cumulative GPA 3\.50\.\n/);
-    assert.match(text, /\n1 of 4 requirements met · 1 in progress · 1 not yet met · 1 needs DGS review\.\n/);
+    assert.match(text, /\n1 of 4 requirements met · 1 in progress · 1 not yet met · 1 conditionally met\.\n/);
     assert.doesNotMatch(text, /2026-09-04/, 'no ISO date anywhere');
   });
 
@@ -53,7 +53,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.match(text, /\n  \[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\)\n/);
     assert.match(text, /\n  \[NOT YET\] 60 total credits of courses & research \(§4\.2\) — 14 of 60 credits complete\. 9 in progress\.\n/);
     assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\.\n/);
-    assert.match(text, /\n  \[NEEDS DGS REVIEW\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
+    assert.match(text, /\n  \[CONDITIONALLY MET\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
     assert.doesNotMatch(text, /Transfer credit from prior graduate study/, '"does not apply" rows are left out');
     assert.doesNotMatch(text, /\nAPPROVALS\n|Courses still to be approved or processed/, 'the sign-off list feeds the to-do lists, not a section');
     assert.doesNotMatch(text, /CSE 60641|COURSES COUNTED/, 'no course list');
@@ -67,15 +67,15 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.ok(html.includes(`<td>${green}MET</span></td><td>${green}Cumulative GPA of at least 3.0</span></td>`));
     assert.ok(html.includes(`<td>${red}NOT YET</span></td><td>${red}60 total credits of courses &amp; research</span></td><td>§4.2</td><td>14 of 60 credits complete. 9 in progress.</td>`));
     assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td>`));
-    assert.ok(html.includes(`<td>${amber}NEEDS DGS REVIEW</span></td>`));
+    assert.ok(html.includes(`<td>${amber}CONDITIONALLY MET</span></td>`));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });
 
   it('to-do lists follow the sections and end the email before the notices', () => {
-    const order = ['WHAT I NEED TO DO', 'WHAT I NEED FROM YOU, MY ADVISOR', 'WHAT THE DGS NEEDS TO DO', 'WHAT THE GRAD ADMIN NEEDS TO DO', 'Alpha version under testing.'].map((h) => text.indexOf(`\n${h}`));
+    const order = ['WHAT I NEED TO DO', 'WHAT I NEED FROM YOU, MY ADVISOR', 'WHAT THE DGS NEEDS TO DO', 'Nothing is pending with the Grad Admin.', 'Alpha version under testing.'].map((h) => text.indexOf(`\n${h}`));
     assert.ok(order.every((i) => i >= 0) && order[0]! > text.indexOf('COURSEWORK — §4.2'), `all present, after the sections: ${order}`);
     assert.deepEqual([...order].sort((a, b) => a - b), order);
-    assert.match(text, /\nWHAT I NEED TO DO\n- Complete 46 more credits toward the total-credit requirement \(9 of them in progress\) \(§4\.2\)\.\n- Complete 12 more credits of regular courses \(3 of them in progress\) \(§4\.2\)\.\n- Send the DGS the review request for MATH 60610 \(with my transcripts attached\)\.\n/);
+    assert.match(text, /\nWHAT I NEED TO DO\n- Complete 46 more credits toward the total-credit requirement \(9 of them in progress\) \(§4\.2\)\.\n- Complete 12 more credits of regular courses \(3 of them in progress\) \(§4\.2\)\.\n- Send the DGS the review request for MATH 60610\.\n/);
     assert.match(text, /\nWHAT I NEED FROM YOU, MY ADVISOR\n- Approve MATH 60610 — non-CSE course \(§3\.2\/§4\.2\)\.\n/);
     assert.match(text, /\nWHAT THE DGS NEEDS TO DO\n- Decide on MATH 60610 — non-CSE course — needs advisor \+ DGS approval \(§3\.2\/§4\.2\)\.\n/);
     assert.match(html, /<p><strong>What I need to do<\/strong><\/p><ul><li>Complete 46 more credits/);
@@ -83,7 +83,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
   });
 
   it('closes with the alpha/no-warranty notice and the handbook edition; no deadline footnote without deadlines', () => {
-    assert.match(text, /Alpha version under testing\. Informational only, no warranty — not an official degree audit; every final decision rests with the Director of Graduate Studies\. Checked against the CSE Graduate Studies Handbook, July 2026 \(https:\/\/[^)]+\)\.\n\nThank you!\n$/);
+    assert.match(text, /\nThank you!\n\nAlpha version under testing\. Informational only, no warranty — not an official degree audit; every final decision rests with the DGS\. Checked against the CSE Graduate Studies Handbook, July 2026 \(https:\/\/[^)]+\)\.\n$/);
     assert.doesNotMatch(text, /transcript-PDF|Not all cases are covered|Deadlines are counted from/);
   });
 });
@@ -160,9 +160,9 @@ describe('actionItems: the rest of the rules', () => {
           ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
           informational: true,
           detailParts: [
-            { lead: 'The DGS has still to decide these — send the review request', items: ['CS 51000 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))', 'CSE 60999 (not in the rules sheet — counted provisionally; needs DGS review)'] },
-            'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the attestation below the milestones',
-            'The attestation checkboxes record approvals you already have',
+            { lead: 'The DGS has still to decide these — send the review request', items: ['CS 51000 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))', 'CSE 60999 (not in the course rules — counted provisionally; needs DGS review)'] },
+            'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the box below the milestones',
+            'Once approved, tick the box under “Approvals you already have”',
           ],
         },
       ],
@@ -180,13 +180,13 @@ describe('actionItems: the rest of the rules', () => {
       'Retake or replace CSE 60111 (B-) — a specialization course below the grade floor (§4.4.2).',
       'Get the dissertation approved for defense by all readers (§4.6).',
       'Defend the dissertation (§4.7).',
-      'Send the DGS the review request for CS 51000, CSE 60999 (with my transcripts attached).',
+      'Send the DGS the review request for CS 51000, CSE 60999.',
     ]);
     assert.deepEqual(todo.advisor, ['Approve my plan of study (§4.2).']); // the degree's own section only (2026-09-11)
     assert.deepEqual(todo.dgs, [
       'Confirm the Operating Systems core-knowledge course named in the review request (§4.4.1).',
       'Decide on CS 51000 — transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2).',
-      'Decide on CSE 60999 — not in the rules sheet — counted provisionally; needs DGS review.',
+      'Decide on CSE 60999 — not in the course rules — counted provisionally; needs DGS review.',
       "Add the missing parameter 'phd_time_limit_years' to the rules sheet so all requirements complete within 8 years can be checked.",
     ]);
     assert.deepEqual(todo.gradAdmin, []);
@@ -195,7 +195,7 @@ describe('actionItems: the rest of the rules', () => {
     assert.ok(!actionItems(early).student.some((s) => /dissertation/i.test(s)));
     // Empty lists say so in the email.
     const { text } = advisorSummary({ program: 'mscse', requirements: [req('shared.gpa', 'Cumulative GPA of at least 3.0', 'met', 'ok', 'Basic requirements — §2.2–2.3', '§2.2')], courseLines: [], summary: { met: 1, conditional: 0, scored: 1 }, warnings: [], tracks: [] }, opts);
-    assert.match(text, /\nWHAT I NEED TO DO\n- Nothing at the moment\.\n\nWHAT I NEED FROM YOU, MY ADVISOR\n- Nothing at the moment\.\n\nWHAT THE ADGS NEEDS TO DO\n- Nothing at the moment\.\n\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Nothing at the moment\.\n/);
+    assert.match(text, /\nWHAT I NEED TO DO\n- Nothing at the moment\.\n\nWHAT I NEED FROM YOU, MY ADVISOR\n- Nothing at the moment\.\n\nNothing is pending with the ADGS or the Grad Admin\.\n\nThank you!\n/);
     assert.match(text, /^Subject: Degree self-check — M\.S\. in CSE, entered Fall 2026 — all checked requirements met\n/);
   });
 
@@ -234,8 +234,8 @@ describe('whyFor re-voices the engine detail for the advisor', () => {
       ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review'),
       detailParts: [
         { lead: 'Your advisor and the DGS must both approve these — send the review request', items: ['MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2))'] },
-        'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the attestation below the milestones',
-        'The attestation checkboxes record approvals you already have',
+        'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the box below the milestones',
+        'Once approved, tick the box under “Approvals you already have”',
       ],
     };
     assert.equal(
@@ -254,7 +254,7 @@ describe('whyFor re-voices the engine detail for the advisor', () => {
       ...req('x', 'x', 'in_progress'),
       detailParts: ['3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups', 'below the B floor: CSE 60111 (B-) — you may retake the course to replace the grade or take another course (§4.4.2)', 'The approved course list is on the course rules page'],
     };
-    assert.equal(whyFor(spec), '3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups. Below the B floor: CSE 60111 (B-) — I may retake the course to replace the grade or take another course (§4.4.2).');
+    assert.equal(whyFor(spec), '3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups. Below the B floor (§4.4.2): CSE 60111 (B-).');
     assert.equal(whyFor(spec, true), '3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups.');
     assert.equal(whyFor(req('x', 'x', 'unmet', 'Cumulative GPA 2.80 is below the 3.0 minimum — you cannot receive a degree or defend until it recovers (§2.2).')), 'Cumulative GPA 2.80 is below the 3.0 minimum — I cannot receive a degree or defend until it recovers (§2.2).');
     assert.equal(whyFor(req('x', 'x', 'in_progress', '§4.2 expects these during the first year — you are in semester 2.')), '§4.2 expects these during the first year — I am in semester 2.');
@@ -309,10 +309,10 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     assert.deepEqual(todo.dgs, ['Decide on CS 77777 — transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2).']);
     assert.ok(todo.student.includes('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).'));
     assert.ok(todo.student.includes('File the qualifier completion form with the Grad Admin (§4.4).'));
-    assert.ok(todo.student.includes('Send the Grad Admin the processing request for CS 50300 (with my transcripts attached).'));
-    assert.ok(todo.student.includes('Send the DGS the review request for CS 77777 (with my transcripts attached).'));
+    assert.ok(todo.student.includes('Send the Grad Admin the processing request for CS 50300.'));
+    assert.ok(todo.student.includes('Send the DGS the review request for CS 77777.'));
     const { text, html, subject } = advisorSummary(r, { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 });
-    assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — nothing not yet met — 0 in progress, 1 needs DGS review');
+    assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — nothing not yet met — 0 in progress, 1 conditionally met');
     assert.match(text, /\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Process the MSCSE awarded along the way \(§4\.5\)\.\n/);
     assert.match(html, /<p><strong>What the Grad Admin needs to do<\/strong><\/p><ul><li>Process the MSCSE awarded along the way/);
   });

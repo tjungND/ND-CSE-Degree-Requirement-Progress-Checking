@@ -595,7 +595,8 @@ Known-pending (the app's diagnostics panel is the live truth):
   (date in words via `formatYmdLong`, program, entry term, prior study, GPA, then the counts as
   the page headline counts them — informational and does-not-apply rows outside); NOT YET MET as
   a numbered list (name red-bold/`**…**` per 2026-09-04, §, why, deadline — overdue first, then
-  nearest deadline, then handbook order); NEEDS DGS REVIEW; CANNOT EVALUATE (only when any); IN
+  nearest deadline, then handbook order); CONDITIONALLY MET (or the row's `statusLabel` upper-cased,
+  e.g. ELIGIBILITY AT RISK — trim review 2026-09-18, P-59); CANNOT EVALUATE (only when any); IN
   PROGRESS (first statement of the detail only, deadline if any); "Met:" names on one line;
   does-not-apply rows, the course list, the separate DEADLINES block, the per-line
   "(approximate)" and the PDF/coverage caveats are GONE (one deadline footnote + alpha notice +
@@ -634,7 +635,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   `courses.html?core=<code>&view=qualifier`, the categories row → `?view=qualifier`, the
   regular-course rows → `?program=…&type=regular&view=…`), the headline maths (`open =
   remaining − inProgress`, needs-review count appended), meters past target ("12 (9 needed) ✓",
-  `.bar i.done`), deadline chips `.chip.deadline.d-<state>` with a `.deadline-word`. The dial SVG
+  `.bar i.done`), deadline chips `.chip.deadline.d-<state>` (no lead word since P-50). The dial SVG
   is `aria-hidden`. `diagnosticsCard()` renders only when an ERROR exists. `.print-header` is a
   print-only first line in `<main>`. courses-page.ts: `Filters.view` (`all|mscse|phd|qualifier`,
   `VIEW_LABEL`, `HIDDEN_COLUMNS` = 1-based column positions hidden per view, applied as

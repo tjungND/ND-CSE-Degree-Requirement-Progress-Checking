@@ -976,16 +976,21 @@ export function buildCombinedReviewRequest(opts: {
     context: [
       // (No second full stop after a label that ends in one — "…or Ph.D.".)
       `Prior graduate study: ${opts.priorStudy}${opts.priorStudy.endsWith('.') ? '' : '.'}`,
-      'My transcripts (Bachelor’s / Master’s / Ph.D., whichever apply) are attached to this email.',
+      // The "whichever apply" hedge instructs the student and lives in the
+      // dialog step; the reader sees the attachments (trim review 2026-09-18, P-14).
+      'My transcripts are attached.',
       ...(opts.notes ?? []).map((n) => `Please also check: ${n}`),
     ],
+    // The reader owns the sheet (DGS 2026-09-03 wording, shortened in the trim
+    // review 2026-09-18, P-15); naming no owner also keeps "the DGS's sheet"
+    // from becoming "the ADGS's" on the MSCSE tab. Rows unchanged byte for byte.
     sections: [
       {
-        rowsIntro: `This is the table that can be imported to the DGS’s rules sheet — Courses tab:${repeatNote(ndRows, opts.nd)}`,
+        rowsIntro: `Rows for the rules sheet — Courses tab:${repeatNote(ndRows, opts.nd)}`,
         rows: ndRows.map((c) => [c.courseId, c.title ?? '']),
       },
       {
-        rowsIntro: `This is the table that can be imported to the DGS’s rules sheet — ExternalCourses tab:${repeatNote(extRows, opts.external)}`,
+        rowsIntro: `Rows for the rules sheet — ExternalCourses tab:${repeatNote(extRows, opts.external)}`,
         rows: extRows.map((c) => [c.institution ?? '', c.courseId, c.title ?? '']),
       },
     ],

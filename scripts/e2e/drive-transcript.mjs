@@ -154,7 +154,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   if (dlg.dgsEmail === '' || !dlg.to.startsWith('To: Director of Graduate Studies') || !dlg.to.includes(dlg.dgsEmail)) throw new Error('copy dialog recipient: ' + dlg.to);
   if (dlg.subject !== 'Subject: Course review request (degree self-check)' || !dlg.text.startsWith('Subject: Course review request')) throw new Error('copy dialog subject/text: ' + dlg.subject + ' | ' + dlg.text);
   // The emphasised lead line (DGS request 2026-09-06, late evening) sits right above the message and says it is on the clipboard.
-  if (!/^(✓ The following message has been copied to your clipboard\.|The following message was NOT copied — your browser blocked the clipboard\.)$/.test(dlg.lead) || !dlg.leadBeforeMessage) throw new Error('copy dialog lead line: ' + JSON.stringify(dlg.lead) + ' before message: ' + dlg.leadBeforeMessage);
+  if (!/^(✓ This message has been copied to your clipboard\.|The following message was NOT copied — your browser blocked the clipboard\.)$/.test(dlg.lead) || !dlg.leadBeforeMessage) throw new Error('copy dialog lead line: ' + JSON.stringify(dlg.lead) + ' before message: ' + dlg.leadBeforeMessage);
   // Numbered steps (2026-09-06 evening): paste, attach the ORIGINAL transcripts (emphasised), send.
   await s.shot('copy-dialog');
   await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
@@ -218,7 +218,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   console.log('  inactive Remove explained itself, nothing removed');
   await s.shot('external-preview');
   await s.evalJs(
-    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
+    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`,
   );
   await s.waitFor(`!document.querySelector('.external-card .transcript-preview') && [...document.querySelectorAll('h3.subhead')].some(h => h.textContent.includes('Purdue University'))`);
   // The DGS's rulings live on each course's line in the coursework table
@@ -378,7 +378,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   })()`);
   console.log('  OCR fields fixed by hand in the preview:', fixed);
   await s.evalJs(
-    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
+    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`,
   );
   await s.waitFor(`[...document.querySelectorAll('h3.subhead')].some(h => h.textContent.includes('Purdue University — Previous Undergraduate Transcript'))`);
   const ocrLines = (await groupLines('Purdue University — Previous Master’s Transcript')).length + (await groupLines('Purdue University — Previous Undergraduate Transcript')).length;
@@ -468,7 +468,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
   await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
   await s.evalJs(
-    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked course/.test(b.textContent)).click()`,
+    `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`,
   );
   await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
   const combinedToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
@@ -668,7 +668,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   }
   if (ugRows.some((r) => /^(MATH 10550|CSE 20110)/.test(r))) throw new Error('coursework that can count nothing must stay out: ' + JSON.stringify(ugRows));
   await s.shot('nd-undergrad-preview');
-  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ checked/.test(b.textContent)).click()`);
+  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected/.test(b.textContent)).click()`);
   await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent).includes('CSE 40166')`);
 
   // The student is never asked (DGS 2026-09-11): the app applies the two

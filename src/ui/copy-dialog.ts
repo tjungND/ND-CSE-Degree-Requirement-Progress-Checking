@@ -141,9 +141,12 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   const cc = r.cc ? el('p', { class: 'copy-to' }, el('strong', {}, 'Cc: '), `${r.cc.role}, ${r.cc.name} (`, mailto(r.cc.email), ')') : null;
   const subject = el('p', { class: 'copy-subject' }, el('strong', {}, 'Subject: '), opts.subject);
   // The lead line above the message (DGS request 2026-09-06, late evening):
-  // say plainly that the text below is what was copied.
+  // say plainly that the text below is what was copied. Shortened in the trim
+  // review (P-34, 2026-09-18): since 2026-09-13 "Open in my email app" can
+  // carry the body itself, so "exactly what you will paste" no longer
+  // described step 1. The copied statement stays its own bold sentence.
   const lead = copied
-    ? el('p', { class: 'copy-lead copied' }, el('strong', {}, '✓ The following message has been copied to your clipboard.'), ' Read it through — it is exactly what you will paste into the email.')
+    ? el('p', { class: 'copy-lead copied' }, el('strong', {}, '✓ This message has been copied to your clipboard.'), ' Read it through before you send.')
     : el('p', { class: 'copy-lead blocked' }, el('strong', {}, 'The following message was NOT copied — your browser blocked the clipboard.'), ' Select it and copy it yourself: on a phone, touch and hold the message, then Select All and Copy.');
   // Numbered steps (DGS request 2026-09-06 evening): what to do now, in order.
   const recipientText = `${r.role}${r.name ? ` (${r.name})` : ''}${r.cc ? `, with the ${r.cc.role} in cc` : ''}`;
@@ -165,13 +168,17 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
     { class: 'copy-steps' },
     el('li', {}, first),
     ...(opts.steps ?? []).map((step) => el('li', {}, step.emphasis ? el('strong', {}, step.text) : step.text)),
-    el('li', {}, 'Send it. Nothing is sent by this page — the email is yours.'),
+    // "the email is yours" restated "nothing is sent by this page" (trim
+    // review 2026-09-18, P-38).
+    el('li', {}, 'Send it. This page sends nothing.'),
   );
-  const note = el('p', { class: 'hint copy-note' }, 'Check the message, the name and the address before you send.');
+  // No closing "Check the message, the name and the address" note: the title,
+  // the lead and the printed To/Cc/Subject lines already say to check it
+  // (trim review 2026-09-18, P-28).
   const dialog = el(
     'dialog',
     { class: 'consent copy-check', 'aria-labelledby': 'copy-check-title' },
-    el('div', { class: 'consent-box copy-box' }, el('h2', { id: 'copy-check-title' }, title), to, cc, subject, lead, preview, steps, note, el('div', { class: 'save-buttons' }, openMail, ok)),
+    el('div', { class: 'consent-box copy-box' }, el('h2', { id: 'copy-check-title' }, title), to, cc, subject, lead, preview, steps, el('div', { class: 'save-buttons' }, openMail, ok)),
   );
   const close = (): void => {
     if (dialog.open) dialog.close();

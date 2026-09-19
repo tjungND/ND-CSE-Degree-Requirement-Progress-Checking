@@ -36,7 +36,9 @@ type Color = keyof typeof COLORS;
 const STATUS_TAG: Record<Status, { word: string; color: Color }> = {
   met: { word: 'MET', color: 'green' },
   in_progress: { word: 'IN PROGRESS', color: 'amber' },
-  needs_dgs_review: { word: 'NEEDS DGS REVIEW', color: 'amber' },
+  // The page's word since W-CS1 (2026-09-18); the email matched it in the trim
+  // review (P-59). The Why column still names who must approve.
+  needs_dgs_review: { word: 'CONDITIONALLY MET', color: 'amber' },
   unmet: { word: 'NOT YET', color: 'red' },
   cannot_evaluate: { word: 'CANNOT EVALUATE', color: 'red' },
   not_applicable: { word: 'DOES NOT APPLY', color: 'green' },
@@ -67,7 +69,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
       ? `${plural(n.unmet, 'requirement')} not yet met${n.overdue > 0 ? `, ${plural(n.overdue, 'deadline')} passed` : ''}`
       : n.scored > 0 && n.met === n.scored
         ? 'all checked requirements met'
-        : `nothing not yet met — ${n.inProgress} in progress${n.waiting > 0 ? `, ${n.waiting} need${n.waiting === 1 ? 's' : ''} DGS review` : ''}`;
+        : `nothing not yet met — ${n.inProgress} in progress${n.waiting > 0 ? `, ${n.waiting} conditionally met` : ''}`;
   const subject = `Degree self-check — ${programShort}, entered ${opts.entryTerm} — ${headlineFact}`;
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
   const intro = `Here is my current standing from the CSE degree self-check tool, as of ${asOf}.`;
@@ -79,7 +81,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `${n.met} of ${n.scored} requirements met`,
     ...(n.inProgress > 0 ? [`${n.inProgress} in progress`] : []),
     ...(n.unmet > 0 ? [`${n.unmet} not yet met`] : []),
-    ...(n.waiting > 0 ? [`${n.waiting} need${n.waiting === 1 ? 's' : ''} DGS review`] : []),
+    ...(n.waiting > 0 ? [`${n.waiting} conditionally met`] : []),
     ...(n.unchecked > 0 ? [`${n.unchecked} cannot be evaluated`] : []),
   ].join(' · ');
 
@@ -105,23 +107,46 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     : '';
   const statusNote = `Alpha version under testing. ${BETA_NOTICE} Checked against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`;
 
+  // The tag: the page's per-row label when the engine set one (W-CS2,
+  // "Eligibility at risk" for a defense past §4.3's limit), else the status
+  // word — so the advisor never reads "conditionally met" for a row the page
+  // shows as at risk (trim review 2026-09-18, P-59).
+  const tagWord = (r: RequirementResult): string => r.statusLabel?.toUpperCase() ?? STATUS_TAG[r.status].word;
+  // The DGS and Grad Admin lists print only when they hold something; two
+  // headings announcing that two absent people have nothing to do were filler
+  // for the advisor. One sentence keeps all four parties accounted for (trim
+  // review 2026-09-18, P-9). The student and advisor lists always print.
+  const nothingPending = (): string =>
+    todo.dgs.length === 0 && todo.gradAdmin.length === 0
+      ? 'Nothing is pending with the DGS or the Grad Admin.'
+      : todo.dgs.length === 0
+        ? 'Nothing is pending with the DGS.'
+        : todo.gradAdmin.length === 0
+          ? 'Nothing is pending with the Grad Admin.'
+          : '';
+
   // ---- plain text ----
   const line = (r: RequirementResult): string => {
-    const tag = STATUS_TAG[r.status];
+    const tag = { word: tagWord(r), color: STATUS_TAG[r.status].color };
     const due = deadlineOf(r);
     const parts = [r.status === 'met' ? '' : whyFor(r), due ? `${due.text}.` : ''].filter(Boolean);
     return `[${tag.word}] ${r.title} (${r.citation.section})${parts.length ? ` — ${parts.join(' ')}` : ''}`;
   };
   const todoText = (heading: string, items: string[]) =>
     `${heading}\n${items.length > 0 ? items.map((i) => `- ${i}`).join('\n') : '- Nothing at the moment.'}\n\n`;
+  const pendingText = nothingPending();
+  // Sign-off before the footnotes: a letter ends with "Thank you!", and the
+  // deadline note and the alpha notice read as footnotes below it, as in the
+  // Grad Admin request (trim review 2026-09-18, P-73).
   const text =
     `Subject: ${subject}\n\nDear Advisor,\n\n${intro}\n${standing}\n${counts}.\n\n` +
     sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map((r) => `  ${line(r)}`).join('\n')}\n\n`).join('') +
     todoText('WHAT I NEED TO DO', todo.student) +
     todoText('WHAT I NEED FROM YOU, MY ADVISOR', todo.advisor) +
-    todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) +
-    todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) +
-    `${deadlineNote ? `${deadlineNote}\n` : ''}${statusNote}\n\nThank you!\n`;
+    (todo.dgs.length > 0 ? todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) : '') +
+    (todo.gradAdmin.length > 0 ? todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) : '') +
+    (pendingText ? `${pendingText}\n\n` : '') +
+    `Thank you!\n\n${deadlineNote ? `${deadlineNote}\n` : ''}${statusNote}\n`;
 
   // ---- HTML ----
   const colored = (color: Color, inner: string) => `<span style="color:${COLORS[color]};font-weight:bold">${inner}</span>`;
@@ -132,7 +157,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
       `<table border="1" cellspacing="0" cellpadding="4"><tr><th>Status</th><th>Requirement</th><th>§</th><th>Why</th>${withDeadline ? '<th>Deadline</th>' : ''}</tr>` +
       s.rows
         .map((r) => {
-          const tag = STATUS_TAG[r.status];
+          const tag = { word: tagWord(r), color: STATUS_TAG[r.status].color };
           const due = deadlineOf(r);
           const dueCell = due ? (due.passed ? colored('red', esc(due.text)) : esc(due.text)) : '';
           return (
@@ -152,10 +177,12 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     sections.map(htmlSection).join('') +
     todoHtml('What I need to do', todo.student) +
     todoHtml('What I need from you, my advisor', todo.advisor) +
-    todoHtml('What the DGS needs to do', todo.dgs) +
-    todoHtml('What the Grad Admin needs to do', todo.gradAdmin) +
+    (todo.dgs.length > 0 ? todoHtml('What the DGS needs to do', todo.dgs) : '') +
+    (todo.gradAdmin.length > 0 ? todoHtml('What the Grad Admin needs to do', todo.gradAdmin) : '') +
+    (pendingText ? `<p>${esc(pendingText)}</p>` : '') +
+    `<p>Thank you!</p>` +
     (deadlineNote ? `<p>${esc(deadlineNote)}</p>` : '') +
-    `<p>${esc(statusNote)}</p><p>Thank you!</p>`;
+    `<p>${esc(statusNote)}</p>`;
   // "Oral Candidacy Exam (OCE)" once per flavour, then "OCE" (2026-09-06 evening).
   return { text: decisionWording(report.program, shortenAfterFirst(text)), html: decisionWording(report.program, shortenAfterFirst(html)), subject: decisionWording(report.program, subject) };
 }
@@ -364,13 +391,14 @@ export function actionItems(report: AuditReport): ActionItems {
   }
   // One name per course: the approvals row lists a course under one lead, but
   // a course can reach here from more than one part, and this sentence is the
-  // one the student emails (2026-09-07).
+  // one the student emails (2026-09-07). The attach-transcripts reminder is
+  // the student's own dialog's, not the advisor's (trim review 2026-09-18, P-37).
   const once = (list: string[]) => [...new Set(list)].join(', ');
   if (pendingCourses.length > 0) {
-    out.student.push(`Send the DGS the review request for ${once(pendingCourses)} (with my transcripts attached).`);
+    out.student.push(`Send the DGS the review request for ${once(pendingCourses)}.`);
   }
   if (processingCourses.length > 0) {
-    out.student.push(`Send the Grad Admin the processing request for ${once(processingCourses)} (with my transcripts attached).`);
+    out.student.push(`Send the Grad Admin the processing request for ${once(processingCourses)}.`);
   }
 
   // Missing rules-sheet parameters: the DGS's tool to fix.
@@ -434,16 +462,25 @@ function dropsFromEmail(statement: string, r: RequirementResult): boolean {
  * as the fact. Add a rule here when an engine detail gains a new "do this on
  * the page" sentence (they are listed in docs/CLAUDE-HANDOFF.md). */
 const REWRITES: [RegExp, string][] = [
-  [/^Confirm your advisor approved your plan of study \(([^)]*)\) and tick the attestation.*$/i, 'Advisor approval of my plan of study ($1) is not yet recorded'],
+  // "tick the box" since the trim review (P-55, 2026-09-18); "attestation" kept
+  // so an older fixture still re-voices.
+  [/^Confirm your advisor approved your plan of study \(([^)]*)\) and tick the (attestation|box).*$/i, 'Advisor approval of my plan of study ($1) is not yet recorded'],
   [/^Enter your cumulative GPA\b.*$/i, 'Cumulative GPA not entered yet'],
+  // The §4.4.2 retake advice is written for the student; the advisor needs the
+  // course, the grade and the §, and the to-do list already says "Retake or
+  // replace …" (trim review 2026-09-18, P-22).
+  [/^below the ([A-Z][+-]?) floor: (.+?) — you may retake the course to replace the grade or take another course \((§[\d.]+)\)$/i, 'below the $1 floor ($3): $2'],
+  // "one card per core area below" is the page describing its own layout; the
+  // email has no cards (trim review 2026-09-18, P-40).
+  [/ — one card per core area below\)/, ')'],
 ];
 function rewrite(statement: string): string {
   for (const [re, to] of REWRITES) if (re.test(statement)) return statement.replace(re, to);
   return statement;
 }
 
-/** The student is writing: "you may retake the course" → "I may retake the
- * course"; "by your first semester" → "by my first semester". */
+/** The student is writing: "you are registered" → "I am registered"; "by your
+ * first semester" → "by my first semester". */
 function firstPerson(statement: string): string {
   return statement
     .replace(/\b[Yy]ou are\b/g, 'I am')

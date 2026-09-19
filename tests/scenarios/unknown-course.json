@@ -24,7 +24,7 @@
     "phd.credits.regular": { "status": "unmet" }
   },
   "expectCourseLines": {
-    "CSE 60007": ["not in the rules sheet", "DGS"],
+    "CSE 60007": ["not in the course rules", "DGS"],
     "CSE 67900": ["does not count"],
     "CSE 40600": ["does not count"],
     "CSE 60999": ["needs DGS review"]

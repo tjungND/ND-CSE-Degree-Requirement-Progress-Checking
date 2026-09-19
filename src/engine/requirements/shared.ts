@@ -145,12 +145,15 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     if (list === undefined || list.length === 0) continue;
     parts.push({ lead: LEADS[key]!, items: list.map((c) => `${c.entry.courseId} (${c.approvalPending})`) });
   }
+  // "tick the box", not "the attestation": the student never sees that word —
+  // the card is "Approvals you already have" (trim review 2026-09-18, P-55).
+  // advisor-summary.ts REWRITES re-voices the first sentence; keep in step.
   if (planUnconfirmed) {
     parts.push(
-      `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the attestation below the milestones`,
+      `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the box below the milestones`,
     );
   }
-  if (parts.length > 0) parts.push('The attestation checkboxes record approvals you already have');
+  if (parts.length > 0) parts.push('Once approved, tick the box under “Approvals you already have”');
   const joined = parts.length === 0 ? { detail: 'No entered course that counts toward the degree is waiting on anyone.' } : joinedDetail(parts);
   return {
     id: 'shared.approvals',

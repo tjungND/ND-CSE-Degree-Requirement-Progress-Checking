@@ -28,10 +28,11 @@ export const CONTACTS: Contact[] = [
     role: 'Assistant DGS (ADGS)',
     name: 'Aaron Dingler',
     email: 'adingler@nd.edu',
-    // "the review requests on this page" was written for the self-check tool
-    // and is also read on the course-rules page, which prepares no request
-    // (review R-16, 2026-09-18). The scope now names the work, not the page.
-    scope: 'decides every requirement for MSCSE students — course approvals, transfer credit, the review requests the self-check tool prepares',
+    // The same shape as the DGS line above; the three examples ("course
+    // approvals, transfer credit, the review requests …") were subsumed by
+    // "every requirement" and are still listed in the report's glossary
+    // (trim review 2026-09-18, P-26; replaces the R-16 rewording of the same day).
+    scope: 'decides every requirement for MSCSE students',
   },
   {
     role: 'Graduate Program Administrator (Grad Admin)',
