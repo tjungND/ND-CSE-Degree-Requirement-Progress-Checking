@@ -491,6 +491,14 @@ html.embed .courses-page .overview > p, html.embed .courses-page .legend li, htm
 .filters .switches { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
 .filters .check { font-size: 13.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .filters .clear-filters { margin: 0 0 0 auto; }
+/* "More filters" (mobile review 2026-09-19): the fold courses-page.ts renders
+   below 861 px; above it the same controls sit directly in the grid. */
+.filters details.more-filters { grid-column: 1 / -1; }
+.filters details.more-filters > summary { cursor: pointer; font-weight: 600; color: var(--navy); padding: 6px 0; min-height: 40px; box-sizing: border-box; }
+.filters details.more-filters > .more-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 12px; margin-top: 4px; }
+/* Inside the fold the switches lose the grid row that spaced them; a 44 px
+   row keeps the checkbox a touch target (axe target-size, 2026-09-19). */
+@media (max-width: 860px) { .filters .check { min-height: 44px; } .filters .check input { width: 20px; height: 20px; } }
 @media (max-width: 600px) { .filters input[type=search] { min-width: 0; } }
 .legend-block { margin: 6px 0 8px; }
 .legend-key { margin: 6px 0; line-height: 2; }
@@ -720,8 +728,20 @@ tr.ocr-low td { background: #fff7e0; }
   .masthead-tools { gap: 8px; }
   .masthead-tools .tabs { display: flex; width: 100%; }
   .masthead-tools .tab { flex: 1 1 0; text-align: center; padding: 10px 6px; }
-  .masthead-tools > div:not(.tabs) { display: flex; gap: 6px; width: 100%; }
-  .masthead-tools > div:not(.tabs) .btn { flex: 1 1 0; margin: 0; }
+  /* Load example and Clear are tools, not a second pair of tabs: at phone
+     width two full-width buttons under two full-width tabs read as four tabs
+     (mobile review 2026-09-19). Auto width, same 40 px height. */
+  .masthead-tools > div:not(.tabs) { display: flex; gap: 8px; width: 100%; }
+  .masthead-tools > div:not(.tabs) .btn { flex: 0 0 auto; margin: 0; padding-left: 14px; padding-right: 14px; }
+  /* The sheet's source line is faculty-facing and is in the footer's "Where the
+     rules come from" fold too; on a phone it was three of the nine lines before
+     the tabs (mobile review 2026-09-19). courses.html keeps it: there it is the
+     only place the sheet is named. */
+  #app:not(.courses-page) .masthead .sheet-source { display: none; }
+  /* The year box in the add-a-course row showed "2026" with the spinner on top
+     of the last digit at 390 px (mobile review 2026-09-19): no spinner there. */
+  .course-form .row2 input[type='number'][data-key='course.new.year'] { appearance: textfield; -moz-appearance: textfield; width: 64px; }
+  .course-form .row2 input[type='number'][data-key='course.new.year']::-webkit-inner-spin-button, .course-form .row2 input[type='number'][data-key='course.new.year']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .btn { min-height: 40px; }
   /* A mis-tap on "Prior graduate study" silently changes the §5.2 caps, so the
      radios and the approval checkboxes get a real touch target (2026-09-08). */

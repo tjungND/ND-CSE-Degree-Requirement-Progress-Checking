@@ -248,6 +248,13 @@ Known-pending (the app's diagnostics panel is the live truth):
   `.layout` grid's THIRD child (DGS 2026-09-19): `grid-row: 2` under the inputs column while
   `.audit-col` spans both rows; below 900 px both reset and the footer is simply last. It is inside
   `<main>`, so not a contentinfo landmark — deliberate. courses.html's footer is untouched.
+- **The course-rules filter bar has two shapes** (mobile review 2026-09-19): above 860 px every
+  control sits in the `.filters` grid as before; below, `filterBar()` wraps everything but the view
+  and the search in `<details class="more-filters">`, open when any of those is set. `display:
+  contents` on a `<details>` is ignored by browsers, so the shape is chosen at build time from
+  `wideFilters` (a `matchMedia('(min-width: 861px)')`, `{ matches: true }` under node) and the bar is
+  rebuilt on its `change` event — the values live in `filters`, not in the controls. In e2e, use
+  `checkVisibility()` for anything inside a closed details: WebKit gives its content boxes.
 - **A university named only in an image** (2026-09-08): `NAME_ONLY_IN_IMAGE` in
   src/transcript/external.ts maps an acronym to a school's real name, tried ONLY after every
   text-reading pass in `guessUniversity` has failed. Keep it that way — it is a fallback, not a

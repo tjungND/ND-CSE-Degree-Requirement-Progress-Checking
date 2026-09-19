@@ -94,7 +94,17 @@ async function checkMobilePieces(s, page) {
     await at(1400, false);
     if (await visible('[data-key="filter.sort"]')) throw new Error('the Sort control must be hidden on wide screens (headers sort there)');
     await at(390, true);
-    if (!(await visible('[data-key="filter.sort"]'))) throw new Error('the Sort control must show on phones');
+    // On a phone the sort control lives behind "More filters" (mobile review
+    // 2026-09-19): closed by default, open when a filter in it is set.
+    // `visible()` is not enough here: WebKit lays out a closed <details>'
+    // content (content-visibility: hidden — boxes with sizes, nothing drawn),
+    // so the sort control has client rects while unseen. checkVisibility()
+    // answers the real question in both engines.
+    const shown = (sel) => s.evalJs(`document.querySelector('${sel}')?.checkVisibility() === true`);
+    if (await shown('[data-key="filter.sort"]')) throw new Error('the "More filters" fold must start closed on a phone with nothing set');
+    if (!(await visible('.filters details.more-filters > summary'))) throw new Error('the "More filters" summary must show on phones');
+    await s.evalJs(`document.querySelector('.filters details.more-filters').open = true`);
+    if (!(await shown('[data-key="filter.sort"]'))) throw new Error('the Sort control must show on phones once More filters is open');
     const card = await s.evalJs(`getComputedStyle(document.querySelector('.all-courses table.course-rules tbody tr')).display`);
     if (card !== 'block') throw new Error('course rows must render as cards on phones (got display: ' + card + ')');
     await s.evalJs(`(() => { const sel = document.querySelector('[data-key="filter.sort"]'); sel.value = 'title'; sel.dispatchEvent(new Event('change')); })()`);

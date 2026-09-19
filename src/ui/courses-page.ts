@@ -1123,28 +1123,61 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       'Clear filters',
     );
     clearButton.classList.toggle('hidden', !filtersActive());
+    // On a phone the bar was eight stacked controls — a full screen before
+    // the first course (mobile review 2026-09-19). The view and the search box
+    // stay in sight; the rest folds behind "More filters", open by itself
+    // whenever one of them is set, so a filtered list always shows what is
+    // filtering it. Above 860 px there is no fold at all — the same controls
+    // sit directly in the grid as before. (`display: contents` on a <details>
+    // is ignored by browsers, so the structure differs by width and the bar is
+    // rebuilt when the width crosses 861 px — see the listener at mount.)
+    const moreCount =
+      (filters.program !== 'all' ? 1 : 0) +
+      (filters.core || filters.category ? 1 : 0) +
+      (filters.type ? 1 : 0) +
+      (filters.offered ? 1 : 0) +
+      (filters.includeRetired ? 1 : 0) +
+      (filters.confirmedOnly ? 1 : 0) +
+      (filters.sort !== 'course' || filters.desc ? 1 : 0);
+    const moreControls = (): HTMLElement[] => [
+        labelled('Program', program, 'filter-program'),
+        labelled('Ph.D. qualifier area', qualifierArea, 'filter-qualifier'),
+        labelled('Course type', type, 'filter-type'),
+        ...(scheduleKnown ? [labelled('On the schedule', offered, 'filter-offered')] : []),
+        // The two switches and Clear share one line under the pickers, so the
+        // row reads as a grid of equal cells rather than a ragged wrap (DGS
+        // 2026-09-09).
+        el(
+          'div',
+          { class: 'switches' },
+          el('label', { class: 'check' }, retired, ' Include retired courses'),
+          ...(someRowPending ? [el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows')] : []),
+          clearButton,
+        ),
+        el('div', { class: 'filter mobile-only' }, labelled('Sort by', sortSel, 'filter-sort'), el('label', { class: 'check' }, descBox, ' Descending')),
+    ];
+    const more = wideFilters.matches
+      ? moreControls()
+      : [
+          el(
+            'details',
+            { class: 'more-filters', 'data-key': 'filter.more', open: moreCount > 0 },
+            el('summary', {}, moreCount > 0 ? `More filters (${moreCount} set)` : 'More filters'),
+            el('div', { class: 'more-grid' }, ...moreControls()),
+          ),
+        ];
     return el(
       'div',
       { class: 'filters', role: 'search', 'aria-label': 'Filter the course list' },
       el('div', { class: 'filter view-filter' }, labelled('What are you checking?', view, 'filter-view')),
       labelled('Course number or title', search, 'filter-search'),
-      labelled('Program', program, 'filter-program'),
-      labelled('Ph.D. qualifier area', qualifierArea, 'filter-qualifier'),
-      labelled('Course type', type, 'filter-type'),
-      ...(scheduleKnown ? [labelled('On the schedule', offered, 'filter-offered')] : []),
-      // The two switches and Clear share one line under the pickers, so the
-      // row reads as a grid of equal cells rather than a ragged wrap (DGS
-      // 2026-09-09).
-      el(
-        'div',
-        { class: 'switches' },
-        el('label', { class: 'check' }, retired, ' Include retired courses'),
-        ...(someRowPending ? [el('label', { class: 'check' }, confirmed, ' Only DGS-confirmed rows')] : []),
-        clearButton,
-      ),
-      el('div', { class: 'filter mobile-only' }, labelled('Sort by', sortSel, 'filter-sort'), el('label', { class: 'check' }, descBox, ' Descending')),
+      ...more,
     );
   }
+  /** Whether the filter bar is the desk grid (no fold) — see filterBar. Tests
+   * run without matchMedia and get the desk bar. */
+  const wideFilters: { matches: boolean; addEventListener?: (t: string, f: () => void) => void } =
+    typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 861px)') : { matches: true };
 
   /** Set for the one render that follows a card link clearing the reader's
    * filters, so the count line can say what just happened. */
@@ -1469,6 +1502,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   clear(root);
   root.classList.add('courses-page');
   filterHost.append(filterBar());
+  // The bar's shape depends on the width (a fold below 861 px); a rotated
+  // tablet or a dragged window gets the other shape, with its values kept —
+  // they live in `filters`, not in the controls.
+  wideFilters.addEventListener?.('change', () => {
+    clear(filterHost);
+    filterHost.append(filterBar());
+  });
   refreshTable();
   const embedded = isEmbedded();
   root.append(
