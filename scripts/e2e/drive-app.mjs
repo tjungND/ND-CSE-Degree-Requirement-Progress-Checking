@@ -425,7 +425,7 @@ export async function driveApp(s, baseUrl) {
   await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
   const gaDlg = JSON.parse(await s.evalJs(`JSON.stringify((() => { const d = document.querySelector('dialog.copy-check'); return { title: d.querySelector('h2').textContent, to: [...d.querySelectorAll('.copy-to')].map(p => p.textContent), subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 200) }; })())`));
   console.log('  Grad Admin dialog:', gaDlg.title, '|', JSON.stringify(gaDlg.to), '|', gaDlg.subject);
-  if (!gaDlg.title.startsWith('Processing request') || !gaDlg.to[0].startsWith('To: Graduate Program Administrator') || !(gaDlg.to[1] ?? '').startsWith('Cc: Director of Graduate Studies') || !gaDlg.subject.startsWith('Subject: Processing request (degree self-check) — Ph.D., entered Fall 2026') || !gaDlg.text.includes('Dear Grad Admin,')) throw new Error('Grad Admin dialog: ' + JSON.stringify(gaDlg));
+  if (!gaDlg.title.startsWith('Processing request') || !gaDlg.to[0].startsWith('To: Graduate Program Administrator') || !(gaDlg.to[1] ?? '').startsWith('Cc: Director of Graduate Studies') || !/^Subject: Processing request \(degree self-check\) — Ph\.D\., entered Fall \d{4}$/.test(gaDlg.subject) || !gaDlg.text.includes('Dear Grad Admin,')) throw new Error('Grad Admin dialog: ' + JSON.stringify(gaDlg));
   // Three numbered steps (2026-09-06 evening; the self-check-file step dropped 2026-09-15): open/paste, attach the ORIGINAL transcripts, send.
   const gaSteps = await s.evalJs(`[...document.querySelectorAll('dialog.copy-check ol.copy-steps li')].map(li => (li.querySelector('strong') ? '*' : '') + li.textContent)`);
   console.log('  Grad Admin dialog steps:', JSON.stringify(gaSteps.map((t) => t.slice(0, 70))));
@@ -461,6 +461,34 @@ export async function driveApp(s, baseUrl) {
     `[...document.querySelectorAll('.req-title')].some(e => e.textContent.includes('project'))`,
   );
   await s.shot('app-example-ms');
+
+  // "Load example" loads the example for the tab you are on (DGS 2026-09-18).
+  // One example for both was a Ph.D. record, so an MSCSE student who pressed it
+  // was shown a dissertation and a qualifying examination, and the report
+  // switched to §4 under them.
+  // The record already holds the Ph.D. example, so the button asks first —
+  // answer it the way a student would. (A real `confirm` blocks the page and
+  // the harness has no dialog handler.)
+  await s.evalJs(`(() => { window.__confirm = window.confirm; window.confirm = () => true; })()`);
+  await s.evalJs(`[...document.querySelectorAll('button')].find((b) => b.textContent === 'Load example').click()`);
+  await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 68902')`, 5000).catch(() => {});
+  await s.evalJs(`(() => { window.confirm = window.__confirm; })()`);
+  const msEx = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const txt = document.body.innerText;
+    return {
+      program: document.querySelector('[data-key="program.mscse"]')?.getAttribute('aria-pressed') ?? document.querySelector('.segmented [aria-pressed="true"]')?.textContent ?? '',
+      courses: [...document.querySelectorAll('table.courses .cid')].map((e) => e.textContent),
+      phdWords: /dissertation|Qualifying Examination|candidacy/i.test(txt),
+      futureGrades: (txt.match(/is still counted, but check the term/g) || []).length,
+      rows: [...document.querySelectorAll('.req-title')].map((e) => e.textContent).join(' | '),
+    };
+  })())`));
+  if (msEx.phdWords) throw new Error('the MSCSE example must not put Ph.D. requirements on the page: ' + msEx.rows.slice(0, 200));
+  if (!msEx.courses.includes('CSE 68902')) throw new Error('the MSCSE example must carry the §3.4 project course: ' + JSON.stringify(msEx.courses));
+  if (msEx.courses.includes('CSE 98900')) throw new Error('the MSCSE example is still the Ph.D. record: ' + JSON.stringify(msEx.courses));
+  if (msEx.futureGrades > 0) throw new Error('the example gives a final grade to a semester that has not happened');
+  console.log('  Load example on the M.S. tab loads an MSCSE record (' + msEx.courses.length + ' courses, project included, no Ph.D. rows)');
+  await s.shot('app-example-mscse');
 
   const summary = await s.evalJs(
     `document.querySelector('.headline')?.textContent + ' | ' + document.querySelector('.dial-text')?.textContent`,
