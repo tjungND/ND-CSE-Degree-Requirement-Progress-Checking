@@ -779,12 +779,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           ? el(
               'p',
               { class: 'banner embed-storage', role: 'note' },
-              el('strong', {}, 'You are using the tool inside another page. '),
-              'What you enter is saved by this embedded box only, and some browsers (Safari in particular) do not let an embedded page save anything at all — your entries may be gone when you come back. Use ',
+              // 55 words → 30 (embed review 2026-09-19): the fact, the risk,
+              // the two ways out — the first thing on the page has to be short.
+              el('strong', {}, 'This is the tool inside another page. '),
+              'Your entries may not be here when you come back (Safari saves nothing for an embedded page). Use ',
               el('strong', {}, '“Save to a file”'), // the button's label since 2026-09-03 (trim review 2026-09-18, P-62)
-              ' to keep your work, or ',
+              ', or ',
               openFullPageLink('open the full page'),
-              ' and work there instead.',
+              '.',
             )
           : null,
       ),

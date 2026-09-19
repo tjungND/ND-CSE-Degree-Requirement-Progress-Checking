@@ -890,6 +890,13 @@ tr.ocr-low td { background: #fff7e0; }
   table.course-rules tbody th.course-id { font-size: 16px; white-space: normal; }
   table.course-rules tbody td.cell-title { color: var(--muted); margin-bottom: 4px; }
   table.course-rules tbody td[data-label]::before { content: attr(data-label) ': '; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
+  /* A card does not print its empty fields (embed review 2026-09-19): "Core
+     knowledge: —", "Specialization: —", "Typically offered: —" were three of
+     the six lines on most cards, and the 321-course list measured 31,600 px in
+     a 360 px frame. The `muted` class is exactly "this cell is a dash"
+     (courses-page.ts); on the wide table the dash stays, because there a blank
+     cell reads as a missing value. */
+  table.course-rules tbody td.muted { display: none; }
   .courses-page .count { margin: 10px 0 4px; }
 }
 @media print { .summary-mobile, .sticky-score, .jump-link, .mobile-only { display: none !important; } }
