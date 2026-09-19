@@ -94,6 +94,11 @@ button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor:
 @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } } /* tablets in portrait and phones: one column */
 /* Nothing may widen the columns on a phone (WCAG 1.4.10 reflow; usability review 2026-09-05, item 1): wide tables scroll inside their card. */
 .layout > * { min-width: 0; }
+/* The footer lives in the grid, under the inputs column (DGS 2026-09-19); the
+   report column spans both rows so the footer fills what it left empty. */
+.layout > .legal { grid-column: 1; grid-row: 2; margin-top: 4px; }
+.layout > .audit-col { grid-row: 1 / span 2; }
+@media (max-width: 900px) { .layout > .legal, .layout > .audit-col { grid-column: auto; grid-row: auto; } .layout > .legal { margin-top: 26px; } }
 /* No reading measure on paragraphs (DGS, 2026-09-19): the 2026-09-09 100ch
    and the 2026-09-18 70ch (trim review P-67) both left a card's text wrapping
    short of its own right edge, which read as stray line breaks. The inputs

@@ -244,7 +244,10 @@ Known-pending (the app's diagnostics panel is the live truth):
   either (DGS 2026-09-19: the 100ch, then 70ch, cap on `.card > p` etc. read as stray line breaks
   because a paragraph stopped short of its card's edge) — the inputs column is its own grid column,
   so text cannot run under the report cards. `checkWide` in scripts/e2e/drive-a11y.mjs fails if
-  either page stops filling a 2200 px window.
+  either page stops filling a 2200 px window. The self-check's `<footer class="legal">` is the
+  `.layout` grid's THIRD child (DGS 2026-09-19): `grid-row: 2` under the inputs column while
+  `.audit-col` spans both rows; below 900 px both reset and the footer is simply last. It is inside
+  `<main>`, so not a contentinfo landmark — deliberate. courses.html's footer is untouched.
 - **A university named only in an image** (2026-09-08): `NAME_ONLY_IN_IMAGE` in
   src/transcript/external.ts maps an acronym to a school's real name, tried ONLY after every
   text-reading pass in `guessUniversity` has failed. Keep it that way — it is a fallback, not a

@@ -609,7 +609,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     root.append(
       ...[
       // Landmarks + a skip link (usability review 2026-09-05, item 7): header
-      // → main (notices, inputs, report) → footer; the skip link jumps a
+      // → main (notices, inputs, report, footer); the skip link jumps a
       // keyboard user straight to the report.
       el('a', { class: 'skip-link', href: '#report' }, 'Skip to the report'),
       masthead(),
@@ -687,6 +687,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   ),
                 ),
           ),
+          // The footer is the layout grid's third child (DGS 2026-09-19): on a
+          // wide screen it sits under the inputs column, in the space the
+          // longer report column used to leave empty; on a phone the single
+          // column keeps it last. Inside <main> it is no longer a contentinfo
+          // landmark — a deliberate trade for the placement.
+          footer(),
         ),
         el(
           'nav',
@@ -696,7 +702,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           el('a', { href: '#report' }, 'Report ↓'),
         ),
       ),
-      footer(),
       ].filter((n): n is HTMLElement => n !== null),
     );
     // "Oral Candidacy Exam (OCE)" in full once, then "OCE" (DGS 2026-09-06
