@@ -183,7 +183,8 @@ async function checkFirstScreen(s, baseUrl) {
     throw new Error('a data-entry control must come early in the tab order, not 20th: ' + first.firstEntryIndex);
   }
   if (first.contactInMasthead || !first.contactAtEnd) throw new Error('the who-to-contact card belongs at the end: ' + JSON.stringify(first));
-  if (first.noticeLines !== 1) throw new Error('the notices collapse to ONE line above the fold: ' + first.noticeLines);
+  // Two strips since 2026-09-19 (DGS: red for alpha, green for privacy), one line each.
+  if (first.noticeLines !== 2) throw new Error('the notices collapse to one line each above the fold: ' + first.noticeLines);
   await s.shot('first-screen-708');
   await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
 }

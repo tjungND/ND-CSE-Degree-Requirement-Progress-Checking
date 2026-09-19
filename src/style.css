@@ -51,15 +51,17 @@ body {
   border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
 }
 .banner.beta { background: #fdecec; border-color: #e3a3a3; color: #7a1f1f; }
+.banner.privacy { background: #eaf5ea; border-color: #9fcf9f; color: #1d4d1d; } /* the green strip: privacy, split from the alpha strip (DGS 2026-09-19) */
+.notice-strips > .banner { margin-bottom: 8px; }
+.notice-strips { margin-bottom: 14px; }
 /* One slim strip instead of three stacked banners (item 8). */
 .notice-strip { padding: 8px 14px; }
 .notice-strip .notice-line { margin: 2px 0; font-size: 13px; } /* 12.5/13.5 px folded into 13 px page-wide (trim review 2026-09-18, P-69) */
 .notice-strip .privacy-line { color: #1d4d1d; }
 .notice-strip a { color: inherit; }
 .notice-details { margin-top: 4px; font-size: 13px; }
-.notice-details summary { cursor: pointer; font-weight: 600; color: #7a1f1f; }
+.notice-details summary { cursor: pointer; font-weight: 600; color: inherit; } /* red in the alpha strip, green in the privacy strip (2026-09-19) */
 .notice-details .notice-full { margin: 6px 0 0; }
-.notice-details .notice-full.privacy { color: #1d4d1d; }
 .banner.official { background: #e9eef7; border-color: #b9c7e0; color: #1e2f4d; }
 .banner.privacy { background: #eef7ee; border-color: #b3d6b3; color: #1d4d1d; }
 .card.dgs-review { border-left: 4px solid #c99700; }

@@ -813,8 +813,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * paragraphs unchanged (they also stay in the footer and the copied
    * summary). The privacy paragraph keeps its place right under the alpha
    * text (DGS placement, 2026-09-03). */
+  // Two strips, not one (DGS 2026-09-19): red for the alpha status, green for
+  // privacy. Each is ONE line above the fold (blue-team B1, 2026-09-18 — the
+  // first control must stay on the first screen) with its full paragraph in
+  // a Details disclosure; both paragraphs are also in the footer and the
+  // copied summary.
   function noticeStrip(): HTMLElement {
-    const details = el(
+    const alphaDetails = el(
       'details',
       { class: 'notice-details', 'data-key': 'notice.details' },
       el('summary', {}, 'Details'),
@@ -834,6 +839,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         BETA_SCOPE_NOTICE,
         ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),
       ),
+    );
+    const privacyDetails = el(
+      'details',
+      { class: 'notice-details', 'data-key': 'privacy.details' },
+      el('summary', {}, 'Details'),
       el(
         'p',
         { class: 'notice-full privacy' },
@@ -848,23 +858,22 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
     return el(
       'div',
-      { class: 'banner beta notice-strip', role: 'note' },
+      { class: 'notice-strips' },
       // The notice names the decider for THIS tab (ADGS on the MSCSE tab, DGS
       // on the Ph.D. tab — DGS 2026-09-15) by the same rewrite as the rest of
       // the page; the feedback address is the DGS's own and is kept as is.
-      // ONE line above the fold, not two paragraphs (blue-team B1,
-      // 2026-09-18): at 708×937 the first data-entry control sat at y=1104,
-      // below a full screen of preamble, and the first nineteen interactive
-      // elements included no way to enter anything. Both notices are intact,
-      // in full, one click away in the Details disclosure that was already
-      // here — and both are still in the footer and the copied summary.
       el(
-        'p',
-        { class: 'notice-line' },
-        el('strong', {}, 'Alpha — under testing. '),
-        'Informational only; the DGS decides. Your coursework never leaves this browser.',
+        'div',
+        { class: 'banner beta notice-strip', role: 'note' },
+        el('p', { class: 'notice-line' }, el('strong', {}, 'Alpha — under testing. '), 'Informational only; the DGS decides.'),
+        alphaDetails,
       ),
-      details,
+      el(
+        'div',
+        { class: 'banner privacy notice-strip', role: 'note' },
+        el('p', { class: 'notice-line' }, el('strong', {}, 'Private by design — FERPA. '), 'Your coursework never leaves this browser.'),
+        privacyDetails,
+      ),
     );
   }
 
