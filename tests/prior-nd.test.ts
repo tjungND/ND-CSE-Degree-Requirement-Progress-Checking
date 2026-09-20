@@ -7,15 +7,10 @@ import { describe, it } from 'node:test';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from '../src/ui/prior-nd.ts';
 import { emptyStudent, validateStudent } from '../src/ui/state.ts';
+import { ndCourse } from './helpers/student.ts';
 
-const nd = (courseId: string, season: 'fall' | 'spring', year: number, extra: Partial<CourseEntry> = {}): CourseEntry => ({
-  courseId,
-  credits: 3,
-  term: { season, year },
-  grade: 'A',
-  origin: 'nd',
-  ...extra,
-});
+const nd = (courseId: string, season: 'fall' | 'spring', year: number, extra: Partial<CourseEntry> = {}): CourseEntry =>
+  ndCourse(courseId, { term: { season, year }, ...extra });
 
 describe('prior Notre Dame coursework', () => {
   it('level: the registered level decides; then the bachelor’s award term (2026-09-06); the course number last', () => {

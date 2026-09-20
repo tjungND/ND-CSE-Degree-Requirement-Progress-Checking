@@ -2,28 +2,16 @@
 // Each fixture pins "today", the rules (base fixture + optional inline patch),
 // a full Student object, and the expected status per requirement id.
 //
-// Tests run on node's built-in runner (`node --test`), NOT vitest: this repo
-// lives under a folder whose name contains a colon ("FY26-27 (DGS: Taeho
-// Jung)"), which breaks vite-node's module URLs. Vite still does the build;
-// node runs the TypeScript tests directly (type stripping).
+// Tests run on node's built-in runner (`node --test`), not vitest — see the
+// `//scripts-note` in package.json. Vite still does the build; node runs the
+// TypeScript tests directly (type stripping).
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { audit, REQUIREMENT_IDS } from '../src/engine/audit.ts';
 import { coursesNeedingDgsReview } from '../src/engine/review.ts';
-import { buildRules, type ScenarioFile } from './helpers.ts';
+import { allScenarios, buildRules } from './helpers.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const scenarioDir = join(here, 'scenarios');
-
-const files = readdirSync(scenarioDir)
-  .filter((f) => f.endsWith('.json'))
-  .sort();
-const scenarios: ScenarioFile[] = files.map((f) =>
-  JSON.parse(readFileSync(join(scenarioDir, f), 'utf8')),
-);
+const scenarios = allScenarios();
 
 describe('scenarios', () => {
   for (const sc of scenarios) {

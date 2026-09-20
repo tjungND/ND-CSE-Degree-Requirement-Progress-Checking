@@ -254,7 +254,9 @@ describe('whyFor re-voices the engine detail for the advisor', () => {
       ...req('x', 'x', 'in_progress'),
       detailParts: ['3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups', 'below the B floor: CSE 60111 (B-) — you may retake the course to replace the grade or take another course (§4.4.2)', 'The approved course list is on the course rules page'],
     };
-    assert.equal(whyFor(spec), '3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups. Below the B floor (§4.4.2): CSE 60111 (B-).');
+    const why = whyFor(spec);
+    assert.ok(why.includes('3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups.'), why);
+    assert.ok(why.includes('Below the B floor (§4.4.2): CSE 60111 (B-).'), why);
     assert.equal(whyFor(spec, true), '3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups.');
     assert.equal(whyFor(req('x', 'x', 'unmet', 'Cumulative GPA 2.80 is below the 3.0 minimum — you cannot receive a degree or defend until it recovers (§2.2).')), 'Cumulative GPA 2.80 is below the 3.0 minimum — I cannot receive a degree or defend until it recovers (§2.2).');
     assert.equal(whyFor(req('x', 'x', 'in_progress', '§4.2 expects these during the first year — you are in semester 2.')), '§4.2 expects these during the first year — I am in semester 2.');

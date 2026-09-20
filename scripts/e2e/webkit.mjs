@@ -10,7 +10,7 @@
 // the DGS's Mac. One-time setup per machine (the build is cached outside the
 // repo, in ~/Library/Caches/ms-playwright):  npx playwright-core install webkit
 import { join } from 'node:path';
-import { sessionHelpers } from './session-common.mjs';
+import { sessionHelpers, settleIn } from './session-common.mjs';
 
 export async function launchWebkit() {
   let pw;
@@ -47,18 +47,25 @@ export async function openWebkitSession(context, outDir) {
     }
   };
 
-  const settle = () => evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 120)))');
+  const settle = settleIn(evalJs);
   const shot = async (name) => {
-    await settle();
+    await settle(120);
     await page.screenshot({ path: join(outDir, `${name}.png`) });
     console.log('  screenshot:', `${name}.png`);
   };
   const shotElement = async (name, selector) => {
-    await settle();
+    await settle(120);
     const el = page.locator(selector).first();
     if ((await el.count()) === 0) throw new Error('shotElement: nothing matches ' + selector);
     await el.screenshot({ path: join(outDir, `${name}.png`) });
     console.log('  screenshot:', `${name}.png`);
+  };
+
+  // Same contract as cdp.mjs's setViewport; `mobile` has no per-page
+  // equivalent in Playwright (see Emulation.setDeviceMetricsOverride below).
+  const setViewport = async ({ width, height, settleMs = 150 }) => {
+    await page.setViewportSize({ width, height });
+    await settle(settleMs);
   };
 
   const setFileInput = async (selector, filePath) => {
@@ -105,5 +112,5 @@ export async function openWebkitSession(context, outDir) {
 
   const { waitFor, open } = sessionHelpers({ navigate: (url) => page.goto(url), evalJs, shot });
 
-  return { send, evalJs, waitFor, shot, shotElement, setFileInput, open, close: () => page.close() };
+  return { send, evalJs, waitFor, settle, setViewport, shot, shotElement, setFileInput, open, close: () => page.close() };
 }

@@ -70,7 +70,7 @@ describe('rules loader: hedged attempts and retries', () => {
   it('when both requests stall the attempt is abandoned and a fresh one made', async () => {
     const f = stubFetch(['stall', 'stall', CSV]);
     const events: LoadProgress[] = [];
-    const text = await fetchCsv('courses', 'https://example.test/courses', (p) => events.push(p), [120, 200, 300], 20, noPause);
+    const text = await fetchCsv('courses', 'https://example.test/courses', (p) => events.push(p), [20, 30, 40], 5, noPause);
     assert.equal(text, CSV);
     assert.equal(f.calls(), 3);
     assert.equal(f.aborted(), 2);
@@ -80,8 +80,8 @@ describe('rules loader: hedged attempts and retries', () => {
   it('gives up after the last attempt with a message that counts the attempts', async () => {
     const f = stubFetch(['stall']);
     await assert.rejects(
-      fetchCsv('parameters', 'https://example.test/p', () => {}, [60, 60, 60], 10, noPause),
-      (e: unknown) => e instanceof RulesLoadError && e.kind === 'timeout' && e.retryable && /3 attempts, 0.18 seconds in all/.test(e.message),
+      fetchCsv('parameters', 'https://example.test/p', () => {}, [20, 20, 20], 5, noPause),
+      (e: unknown) => e instanceof RulesLoadError && e.kind === 'timeout' && e.retryable && /3 attempts, 0.06 seconds in all/.test(e.message),
     );
     assert.equal(f.calls(), 6, 'two requests per attempt, three attempts');
   });

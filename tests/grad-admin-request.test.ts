@@ -9,23 +9,12 @@ import type { CourseEntry, Grade, Student } from '../src/engine/types.ts';
 import { OCE_FULL } from '../src/ui/first-mention.ts';
 import { gradAdminRequest, processingItems, selfCheckFileName } from '../src/ui/grad-admin-request.ts';
 import { buildRules } from './helpers.ts';
+import { ndCourse, phdStudent, transferCourse } from './helpers/student.ts';
 
 const rules = buildRules(); // fixture ExternalCourses tab: CS 50300 transferable=yes (core os), CS 59000 no
-const purdue = (courseId: string, title: string): CourseEntry => ({
-  courseId,
-  title,
-  credits: 3,
-  term: { season: 'fall', year: 2024 },
-  grade: 'A',
-  origin: 'transfer',
-  institution: 'Purdue University',
-  degreeLevel: 'masters',
-});
-const nd = (courseId: string, title: string, season: 'fall' | 'spring', year: number, grade: Grade = 'A', credits = 3): CourseEntry => ({ courseId, title, credits, term: { season, year }, grade, origin: 'nd' });
-const student = (extra: Partial<Student> = {}): Student => ({
-  schemaVersion: 1,
-  program: 'phd',
-  entryTerm: { season: 'fall', year: 2026 },
+const purdue = (courseId: string, title: string): CourseEntry => transferCourse(courseId, title, { degreeLevel: 'masters' });
+const nd = (courseId: string, title: string, season: 'fall' | 'spring', year: number, grade: Grade = 'A', credits = 3): CourseEntry => ndCourse(courseId, { title, credits, term: { season, year }, grade });
+const student = (extra: Partial<Student> = {}): Student => phdStudent({
   priorMs: 'completed',
   gpa: 3.5,
   courses: [
@@ -39,7 +28,6 @@ const student = (extra: Partial<Student> = {}): Student => ({
     })),
   ],
   milestones: { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example', candidacyPassed: '2029-04-01' },
-  attestations: {},
   ...extra,
 });
 const opts = { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 };

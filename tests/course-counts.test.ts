@@ -8,26 +8,10 @@ import { describe, it } from 'node:test';
 import { audit } from '../src/engine/audit.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
+import { ndCourse as nd, phdStudent } from './helpers/student.ts';
 
 const rules = buildRules();
-const nd = (courseId: string, extra: Partial<CourseEntry> = {}): CourseEntry => ({
-  courseId,
-  credits: 3,
-  term: { season: 'fall', year: 2026 },
-  grade: 'A',
-  origin: 'nd',
-  ...extra,
-});
-const student = (courses: CourseEntry[]): Student => ({
-  schemaVersion: 1,
-  program: 'phd',
-  entryTerm: { season: 'fall', year: 2026 },
-  priorMs: 'none',
-  gpa: 3.5,
-  courses,
-  milestones: {},
-  attestations: {},
-});
+const student = (courses: CourseEntry[]): Student => phdStudent({ gpa: 3.5, courses });
 const countsFor = (s: Student, courseId: string) =>
   audit(s, rules, '2027-03-01').courseLines.find((l) => l.courseId === courseId)?.counts ?? [];
 

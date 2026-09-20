@@ -15,6 +15,7 @@ import { advisorSummary } from '../src/ui/advisor-summary.ts';
 import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
+import { phdStudent } from './helpers/student.ts';
 
 // Widened 2026-09-11: nothing on the MSCSE tab may cite ANY part of §4 — the
 // approvals row was citing §3.2/§4.2/§5.2 to a master's student.
@@ -41,17 +42,8 @@ const courses: CourseEntry[] = [
   { courseId: 'CSE 69999', title: 'Unknown Seminar', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'IP', origin: 'nd' },
 ];
 
-const student = (program: Student['program']): Student => ({
-  schemaVersion: 1,
-  program,
-  entryTerm: { season: 'fall', year: 2026 },
-  bachelorsAwarded: { season: 'spring', year: 2026 },
-  priorMs: 'completed',
-  gpa: 3.7,
-  courses,
-  milestones: {},
-  attestations: {},
-});
+const student = (program: Student['program']): Student =>
+  phdStudent({ program, bachelorsAwarded: { season: 'spring', year: 2026 }, priorMs: 'completed', gpa: 3.7, courses });
 
 const offending = (strings: string[]): string[] => strings.filter((t) => FORBIDDEN.test(t));
 

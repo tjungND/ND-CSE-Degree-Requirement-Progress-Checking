@@ -5,48 +5,14 @@ context capsule from the session that built it (Aug 2026, with DGS Taeho Jung an
 policy questions). Read `CLAUDE.md` first (constraints), then this, before changing rule logic.
 The git log is narrative — commit messages explain each step's reasoning.
 
-## State of the world (as of 2026-09-01)
+## State of the world
 
-Complete and verified: engine (§2/§3/§4 requirements, 31 requirement rows), sheet loader with
-plain-English diagnostics + a student-chosen snapshot fallback, UI (loading card, form, course
-table, transcript upload, report), 70+ tests, GitHub workflows (test/deploy/sync-sheet), docs (README, MAINTENANCE,
-data/README, DECISIONS, LICENSE). An adversarial multi-agent review confirmed 25 defects; all
-fixed with regression tests.
-
-Repo is pushed and public: https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking.
-CI note: the first two pushes (2026-08-31, 2026-09-01) FAILED in the `build` job because the test
-script was `node --test tests/` — Node 24's runner does not accept a directory ("Cannot find
-module …/tests"). Fixed 2026-09-01 to `node --test "tests/**/*.test.ts"` (60/60 pass on Node 24
-and 22). Nothing was deployed to Pages until that fix landed.
-
-2026-09-01 doc changes (no code): `DGS-READ-THIS.md` was replaced by a root `README.md` written
-for two kinds of DGS — Track A (sheet edits, no code) and Track B (changing the app with Claude
-Code or Codex, step by step); `LICENSE.md` added (University of Notre Dame dual license: free
-non-commercial, paid commercial via the IDEA Center — leave it alone unless the DGS asks);
-`AGENTS.md` added so Codex reads the same rules as `CLAUDE.md`. Keep `CLAUDE.md` and `AGENTS.md`
-consistent when either changes.
-
-Known-pending (the app's diagnostics panel is the live truth):
-- Sheet: the 7 Parameters rows and the 3 mistyped Courses rows (`CSE 98900`, `CSE 68900`,
-  `CSE 87701`) were fixed by the DGS on 2026-09-01, `CSE 44901` (now dgs_approval for both
-  degrees, inactive) and the last blank verdicts on 2026-09-03 (all verified against the live CSV).
-- GitHub Pages is live at https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
-  (Settings → Pages → Source: GitHub Actions; deploy green since 2026-09-01) — link it, and
-  `courses.html`, from cse.nd.edu.
-- The sheet's own README tab pointed to `src/data/sheet-urls.ts`; fixed by the DGS 2026-09-03 —
-  it now says `data/sheet-urls.json` and lists ExternalCourses among the tabs to publish.
-- Google's published-CSV endpoint intermittently HANGS (no response at all): seen 2026-09-01
-  from a GitHub runner (the first sync-sheet run timed out at 30 s) and from a browser (one
-  request hung past 20 s, the next three took ~300 ms). `scripts/sync-sheet.ts` therefore fetches
-  sequentially with 3 attempts × 60 s and the workflow logs a curl reachability line per tab;
-  the browser loader keeps its single 12 s attempt and falls back to the snapshot with the banner
-  — by design, since the snapshot is now at most ~6 h behind. The DGS ran `npm run sync-sheet`
-  locally and committed the snapshot that day (2c13949).
-- Working copies are ordinary git clones OUTSIDE any Drive/OneDrive/Dropbox folder (since
-  2026-09-02; e.g. `~/degree-audit-app`), with GitHub as the sync between machines. The repo
-  previously lived in a Drive-synced folder and Drive damaged `.git` four ways in two days —
-  the war story and the repair commands are in `MAINTENANCE.md` § repo peculiarities. The old
-  Drive folder is retired; never run git or npm in it.
+Where things stand — what is done, what is open, the newest decisions — is `docs/STATE.md`,
+kept current by every session. (This section used to hold a 2026-09-01 snapshot and went stale:
+the loader now hedges a stalled request after `HEDGE_AFTER_MS` and retries within `LOAD_BUDGET_MS`
+— `src/data/load.ts` — and `npm test` runs several hundred tests, not 70.) The app's
+**Rules-sheet diagnostics** panel is the live truth about the sheet; working copies are ordinary
+git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo peculiarities).
 
 ## Non-obvious engineering decisions (and why — don't undo these casually)
 
@@ -239,6 +205,25 @@ Known-pending (the app's diagnostics panel is the live truth):
   dated this teaching semester or later → both as written; dated the semester before → `offered_next`
   becomes this semester; older or undated → nothing, and the page counts those rows in a "not shown"
   line. `current_semester` / `offered_semester` are no longer read (the Parameters row is harmless).
+- **The code was tidied for readers and agents on 2026-09-20** (four review passes, behaviour
+  preserved; verified by the 535 unit tests and the e2e suite in both engines). What moved:
+  `src/ui/app.ts` 3,141 → 2,185 lines — the ND transcript import is `src/ui/nd-upload.ts`
+  (same argument shape as `external-upload.ts`: `student` is passed per call, never captured),
+  toasts/undo are `toasts.ts`, focus memory is `focus-keeper.ts`, refused numbers are
+  `refusals.ts`, the example student is `example.ts`, field/label/error builders are
+  `form-helpers.ts`, and `email-html.ts` holds `esc`/`plural`/program names for the three email
+  builders. In the engine, `classify()` is split into `classifyTransfer` /
+  `classifyPriorNdUndergraduate` over a `ClassifyEnv` (pure move), each course's rule row is
+  resolved once, `coursesNeedingDgsReviewFor(classified, …)` lets the UI reuse the audit's
+  classification instead of re-running it, `timeLimitRow` / `provisionalRegularIds` /
+  `defendGpaNote` in context.ts serve both programs, and the ExternalCourses tab is indexed once
+  per rules object. On the course-rules page the per-row schedule, search text and group list are
+  computed once per render. The one behavioural nuance: the add-a-course year box now defaults to
+  the Notre Dame date's year, like every other date on the page, not the device clock. Items the
+  reviews raised but left for the DGS: `MS_PROJECT_COURSE_IDS` is matched on the raw id at two
+  sites and the canonical id at one (a hand-typed `cse 68902` differs); CI runs the test suite twice
+  per push to main (test.yml and deploy.yml); the sync workflow's `npm test` step tests nothing
+  that reads the snapshot.
 - **The page is fluid** (2026-09-09). `#app` has NO max-width — do not re-add one. `.layout` is
   `minmax(0, 1fr) minmax(480px, 30%)`, so both columns grow. There is NO reading measure on prose
   either (DGS 2026-09-19: the 100ch, then 70ch, cap on `.card > p` etc. read as stray line breaks
@@ -265,7 +250,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   INSTITUTIONS" block names the transcript. A name from the table sets `universityGuessed`, which
   leaves the preview's box EDITABLE; a name read as text stays locked. `plausible` also drops a
   cell that is only a generic word ("UNIVERSITY") or that repeats one (a page watermark).
-- **`transferable` has three values** (2026-09-08): `Transferable = 'yes' | 'no' | 'dgs_approval'`
+- **`transferable` has four values** (2026-09-08; `adgs_approval` added 2026-09-12): `Transferable = 'yes' | 'no' | 'dgs_approval' | 'adgs_approval'`
   in data/types.ts, replacing the old boolean — the compiler flags every comparison the change
   invalidated (allocate.ts three, phd.ts's transferRow, grad-admin-request.ts); `grep '\.transferable'`
   for the full list, review.ts included. `dgs_approval`
@@ -629,7 +614,7 @@ Known-pending (the app's diagnostics panel is the live truth):
   Program Coordinator" wording is gone). Never reintroduce "Coordinator".
 - **Usability review Phases 1–2** (2026-09-05, DGS asked for all remaining items; the WORDING is
   Claude's draft, listed in the DECISIONS row of the same date for the DGS to edit — change the
-  strings in `src/ui/handbook.ts` (`ALPHA_LINE`, `PRIVACY_LINE`), app.ts (card intros, hints,
+  strings in `src/ui/handbook.ts` (`BETA_NOTICE` and its neighbours; `ALPHA_LINE` went with the two-strip notice, 2026-09-19), app.ts (card intros, hints,
   footer), external-upload.ts (combined callout), report.ts (`STATUS_LABEL`, headline, glossary
   entries) and re-run `npm run e2e`). Mechanics worth knowing: `noticeStrip()` in app.ts replaced
   `betaNotice()` + `privacyNotice()` — one `.banner.beta.notice-strip` with two one-line
@@ -714,20 +699,21 @@ Known-pending (the app's diagnostics panel is the live truth):
   a permutation test). Greedy fill is provably optimal while every course touches ≤ 1 cap
   (true since the DGS ruled non-CSE 4xxxx counts nothing); a tiny exact search handles any
   future multi-cap case.
-- **§4.4.2 distinct groups** use Kuhn's bipartite matching (`matching.ts`) so an `any`-group
-  course (Research Methods) lands on the group the student is missing; a student's pinned
+- **§4.4.2 distinct groups** use Kuhn's bipartite matching (`matching.ts`) so a course listed under
+  every group (Research Methods) lands on the group the student is missing; a student's pinned
   choice is honored and a suggestion is emitted if suboptimal.
 - **`rules_effective_term` resolution**: newest Courses row not after the COURSE'S term; if every
   row is later (all 371 live rows say Fall 2026), the OLDEST row applies retroactively —
   without that fallback every pre-2026 course would resolve to nothing.
-- **Reserved `category_group` codes**: `any` and `ineligible` (`RESERVED_GROUP_CODES` in
-  `src/data/types.ts`) are valid on Courses rows but never matchable groups. The DGS marks all
+- **Reserved `category_group` code**: `ineligible` (`RESERVED_GROUP_CODES` in
+  `src/data/types.ts`) is valid on Courses rows but never a matchable group (`any` was retired
+  2026-09-18 — a course in every group names all five). The DGS marks all
   40000-level courses `ineligible`. If you see a sixth "group" appear in matching, this broke.
 - **Retakes** (§4.4.2): only ND rows dedupe (foreign transfer ids can collide); the counted
   attempt is the last PASSING final, else a live IP retake, else the last failed one (which
   earns nothing — F/U earn zero credit by DGS decision).
-- **Transcript upload** (`src/transcript/`): pdfjs-dist is the ONLY runtime dependency,
-  lazy-loaded as its own chunk so the main bundle stays ~170KB. The parser handles Banner 8
+- **Transcript upload** (`src/transcript/`): pdfjs-dist is one of the two lazily-loaded runtime
+  dependencies (the other is tesseract.js, the opt-in OCR), loaded as its own chunk so the main bundle stays ~170KB. The parser handles Banner 8
   ("INSTITUTION CREDIT") and Banner 9 ("Institutional Credit") wording, ND's official-PDF
   layout (credits BEFORE grade: `BIOS 60574 Title 3.000 B+ 9.999`), Banner term codes
   (YYYY00=Summer, YYYY10=Fall, YYYY20=Spring of YYYY+1), and ND markers that may exist only

@@ -110,8 +110,8 @@ rather than silently passing.
 
 ### Tab `Categories` — two lists side by side
 Columns A–B hold the §4.4.1 core-knowledge areas, columns D–E the §4.4.2 specialization groups
-(column C is empty). The app reads each pair by its header name. The codes `any` and
-`ineligible` are reserved: valid on Courses rows, but never real matchable groups.
+(column C is empty). The app reads each pair by its header name. The code
+`ineligible` is reserved: valid on Courses rows, but never a real matchable group.
 
 | `core_area` | `core_area_name` | | `category_group` | `category_group_name` |
 |---|---|---|---|---|
@@ -131,7 +131,7 @@ is reported, with its row number, in the app's diagnostics panel.
 
 ### `snapshot.json`
 Written by `npm run sync-sheet` (and the six-hourly Action): `{ schemaVersion, syncedAt, csv:
-{ courses, parameters, categories } }` — the **raw CSV text** of the three tabs, so the app's one
+{ courses, parameters, categories, external } }` — the **raw CSV text** of the four tabs (`external` = ExternalCourses, kept from the previous snapshot if that tab alone fails), so the app's one
 parser handles live and fallback data identically, and each commit diff reads as "what the DGS
 changed". The script leaves the file **untouched while the sheet content is unchanged** (line
 endings and trailing whitespace ignored), so `syncedAt` is the moment the current rules were first

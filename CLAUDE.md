@@ -69,7 +69,12 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
   (`src/data/rules-date.ts`): Google sends no Last-Modified header, so "when did the rules last
   change" = when the six-hourly sync first saw the current content.
 - `src/ui/` — form, course table with sheet-driven autocomplete, transcript upload + preview,
-  report. All user-entered text rendered via `textContent`, never innerHTML. A second page,
+  report. All user-entered text rendered via `textContent`, never innerHTML. `app.ts` is the
+  render loop and the cards that read the mutable record; the pieces with a clean interface live
+  beside it (refactor 2026-09-20): `nd-upload.ts` (the Notre Dame transcript import and preview),
+  `toasts.ts`, `focus-keeper.ts` (focus restored by `data-key` across re-renders), `refusals.ts`
+  (out-of-range numbers kept in their box), `example.ts`, `form-helpers.ts`, `email-html.ts`
+  (what the three generated emails share). A second page,
   `courses.html` → `src/courses.ts` → `src/ui/courses-page.ts`, is the public course-rules list
   (read-only view of the Courses tab; no student data); both pages are built by Vite from
   `vite.config.ts` `rollupOptions.input`. `src/ui/embed.ts` is the `?embed=1` mode both pages
@@ -145,5 +150,5 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
 - FERPA: never open a real transcript. Sanitized copies only, kept outside the repo under neutral
   names; never let a student's name into code, fixtures, docs or commit messages.
 - Wording: "Grad Admin" is the Graduate Program Administrator; every student-facing string Claude
-  drafts is listed, numbered, in the reply that delivers it, for the DGS to edit (the W1–W47 review
-  file `docs/WORDING-REVIEW.md` was approved in full and removed on 2026-09-06).
+  drafts is listed, numbered, in the reply that delivers it, for the DGS to edit (the first round, W1–W47, was approved in full and its
+  file removed on 2026-09-06; `docs/WORDING-REVIEW.md` is back as the running wording register).

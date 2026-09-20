@@ -21,7 +21,7 @@ Nothing about students is stored anywhere you can see. There is no server.
 
 ### 1. A course changes (new course, retired course, counts differently)
 Open the Google Sheet **CSE-Degree-Checking-Rules** (named CSE-Degree-Audit-Rules until 2026-09-05) → `Courses` tab.
-- New course: add a row. `counts_toward_mscse` / `counts_toward_phd` ∈ `yes | no | dgs_approval`
+- New course: add a row. `counts_toward_mscse` / `counts_toward_phd` ∈ `yes | no | dgs_approval | adgs_approval`
   (`dgs_approval` / `adgs_approval` = counts provisionally, the app tells the student to get sign-off; blank = the
   app says "needs DGS review"). Tag `core_area` (§4.4.1) and `category_group` (§4.4.2) if it
   qualifies; a course that belongs in every group names all five (`alg, hcc, arch, dsai, sys`).
@@ -197,7 +197,7 @@ last edit (see "Sync" below).
   activity** and emails the owner — re-enable from the Actions tab (Actions → sync-sheet →
   "Enable workflow"). If a run fails at `npm run sync-sheet` with a timeout: the very first run
   (2026-09-01) did — Google left the runner's request hanging for 30 s — so the script now
-  fetches the three tabs one at a time with three attempts and a 60 s timeout, and the workflow
+  fetches the four tabs one at a time with three attempts and a 60 s timeout, and the workflow
   logs a `curl` reachability line per tab just before it. Look at those lines: an `HTTP 200` in
   a few seconds means the hang was transient (re-run the workflow: Actions → sync-sheet → Re-run,
   or `gh run rerun <run-id>`); a timeout there too means Google is not answering GitHub's
@@ -209,7 +209,7 @@ last edit (see "Sync" below).
   live page (README § "Embedding these pages in a WordPress page"). GitHub Pages sends no
   `X-Frame-Options` or `frame-ancestors`, which is the only reason framing works at all; if a future
   host ever adds either header, every embed breaks at once and the fix is on the host, not here.
-- **Tests**: `npm test` (60+ tests: one JSON scenario per student case in `tests/scenarios/`
+- **Tests**: `npm test` (one JSON scenario per student case in `tests/scenarios/`
   plus engine/loader/transcript units). `npm run build` type-checks and bundles. Both must pass
   before merging anything; `npm run e2e` additionally drives the built app in headless Chrome
   (screenshots land in `.e2e-out/`, including the public course-rules page `courses.html`) — run
@@ -301,9 +301,12 @@ transcript sanitizes to a landscape copy the app reads the same way (2026-09-05)
   `FY26-27 (DGS: Taeho Jung)` and the colon silently broke npm's script PATH and vite's module
   loader; the folder was renamed to fix it. The dependency-free test runner was kept.
 - **Transcript upload** (`src/transcript/`): students can upload their ND unofficial transcript
-  PDF; it is parsed **in the browser** (pdfjs-dist — the app's one runtime dependency, bundled,
-  no network) and the parsed courses are shown for confirmation before anything is added.
-  Non-ND transcripts are refused with a message pointing to manual DGS review. PDF parsing is
+  PDF; it is parsed **in the browser** (pdfjs-dist — one of the app's two lazily-loaded runtime dependencies, with tesseract.js for
+  opt-in OCR; both bundled, no network) and the parsed courses are shown for confirmation before anything is added.
+  The Transcripts card has four slots — Notre Dame, and a previous Undergraduate, Master's and
+  Ph.D. transcript from another university (`src/transcript/external.ts`, best-effort; scanned
+  PDFs through the opt-in in-browser OCR); every external course not matched in the sheet's
+  ExternalCourses tab shows "not yet reviewed by the DGS". ND PDF parsing is
   best-effort against the Banner self-service transcript layout: if the Registrar changes the
   format, collect one fresh transcript PDF (any volunteer student), and ask Claude Code to
   update `src/transcript/parse.ts` and its tests against it. Nothing uploaded ever leaves the

@@ -5,7 +5,7 @@
 // the loading card, the opening notice — lives in session-common.mjs.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { sessionHelpers } from './session-common.mjs';
+import { sessionHelpers, settleIn } from './session-common.mjs';
 
 export async function openSession(debugPort, outDir) {
   const target = await (
@@ -45,14 +45,14 @@ export async function openSession(debugPort, outDir) {
     return r.result?.value;
   };
 
-  const settle = () => evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 120)))');
+  const settle = settleIn(evalJs);
   const save = (name, base64) => {
     writeFileSync(join(outDir, `${name}.png`), Buffer.from(base64, 'base64'));
     console.log('  screenshot:', `${name}.png`);
   };
 
   const shot = async (name) => {
-    await settle();
+    await settle(120);
     const { data } = await send('Page.captureScreenshot', { format: 'png' });
     save(name, data);
   };
@@ -60,7 +60,7 @@ export async function openSession(debugPort, outDir) {
   // A cropped screenshot of one element (a preview card, say): scrolled into
   // view, then clipped in page coordinates — the way puppeteer does it.
   const shotElement = async (name, selector) => {
-    await settle();
+    await settle(120);
     const rect = await evalJs(`(() => {
       const e = document.querySelector(${JSON.stringify(selector)});
       if (!e) return null;
@@ -75,6 +75,13 @@ export async function openSession(debugPort, outDir) {
       clip: { ...rect, scale: 1 },
     });
     save(name, data);
+  };
+
+  // Resize the viewport and let the layout catch up. `mobile` is Chrome's
+  // touch/meta-viewport emulation; the app's breakpoints are width-only.
+  const setViewport = async ({ width, height, mobile = false, settleMs = 150 }) => {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile, screenWidth: width, screenHeight: height });
+    await settle(settleMs);
   };
 
   const setFileInput = async (selector, filePath) => {
@@ -98,5 +105,5 @@ export async function openSession(debugPort, outDir) {
     mobile: false,
   });
 
-  return { send, evalJs, waitFor, shot, shotElement, setFileInput, open, close: () => ws.close() };
+  return { send, evalJs, waitFor, settle, setViewport, shot, shotElement, setFileInput, open, close: () => ws.close() };
 }

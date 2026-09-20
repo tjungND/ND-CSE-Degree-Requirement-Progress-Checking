@@ -1,6 +1,12 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-18, evening (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-09-20 (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-09-20: **code tidy for readers and agents** — see the 2026-09-20 bullet in
+`docs/CLAUDE-HANDOFF.md` for what moved where (app.ts is a third shorter; seven new `src/ui`
+modules; engine helpers shared between the two programs; per-render caches on the course-rules
+page). Behaviour unchanged except the add-a-course year default (Notre Dame date, not the device).
+Three items from the review are open for the DGS, listed in that bullet.
 
 2026-09-18 (evening): **two trim reviews, both applied.** The course-rules page first: a blue/red-team
 review (66 confirmed findings, 55 fixed in `6921402`/`4c1d577`, the DGS's rulings on `last_offered`,

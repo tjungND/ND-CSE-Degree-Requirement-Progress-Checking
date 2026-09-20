@@ -1,10 +1,7 @@
 // Direct unit tests for the engine's tricky corners: order independence, the
 // cap allocator, group matching, the status algebra, and term arithmetic.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { allocate, priorNdUndergraduateCanCount, type CapSpec, type ClassifiedCourse } from '../src/engine/allocate.ts';
 import { audit } from '../src/engine/audit.ts';
 import { matchDistinctGroups } from '../src/engine/matching.ts';
@@ -22,11 +19,8 @@ import {
   termOfDate,
 } from '../src/engine/term.ts';
 import type { CourseEntry, Status, Student } from '../src/engine/types.ts';
-import { buildRules, type ScenarioFile } from './helpers.ts';
-
-const here = dirname(fileURLToPath(import.meta.url));
-const scenario = (name: string): ScenarioFile =>
-  JSON.parse(readFileSync(join(here, 'scenarios', `${name}.json`), 'utf8'));
+import { buildRules, loadScenario as scenario } from './helpers.ts';
+import { phdStudent } from './helpers/student.ts';
 
 describe('order independence', () => {
   // The prototype's biggest bug: entry order changed the verdict. Permuting the
@@ -288,16 +282,11 @@ describe('residency from the entry term (2026-09-05)', () => {
     // registrations (2026-09-11).
     const ids = ['CSE 60641', 'CSE 60111', 'CSE 60321', 'CSE 60535'];
     const nd = (season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: ids.shift()!, credits: 9, term: { season, year }, grade: 'A', origin: 'nd' });
-    const student: Student = {
-      schemaVersion: 1,
-      program: 'phd',
+    const student: Student = phdStudent({
       entryTerm: { season: 'fall', year: 2024 },
-      priorMs: 'none',
       courses: [nd('fall', 2020), nd('spring', 2021), nd('fall', 2024), nd('spring', 2025)],
       fullTimeTermOverrides: [{ season: 'fall', year: 2023 }, { season: 'fall', year: 2025 }],
-      milestones: {},
-      attestations: {},
-    };
+    });
     const { classify } = await import('../src/engine/allocate.ts');
     const ctx = { student, rules, params: rules.parameters, classified: classify(student, rules).classified } as unknown as Parameters<typeof fullTimeTermRecords>[0];
     const records = fullTimeTermRecords(ctx);
@@ -341,17 +330,8 @@ describe('deadline chips read as semesters (2026-09-05)', () => {
 // the course requirement, subject to approval of the student's advisor and
 // DGS."). Three defects found on 2026-09-09 while checking that path.
 describe('non-CSE courses', () => {
-  const nonCseStudent = (courses: CourseEntry[], attestations: Student['attestations'] = {}): Student => ({
-    schemaVersion: 1,
-    program: 'phd',
-    entryTerm: { season: 'fall', year: 2026 },
-    bachelorsAwarded: { season: 'spring', year: 2026 },
-    priorMs: 'none',
-    gpa: 3.6,
-    courses,
-    milestones: {},
-    attestations,
-  });
+  const nonCseStudent = (courses: CourseEntry[], attestations: Student['attestations'] = {}): Student =>
+    phdStudent({ bachelorsAwarded: { season: 'spring', year: 2026 }, gpa: 3.6, courses, attestations });
   const course = (courseId: string, title: string, credits = 3): CourseEntry => ({
     courseId,
     title,
@@ -466,15 +446,10 @@ describe('is a transferred course a CSE course?', () => {
 // live row itself — dgs_approval for the Ph.D., no for the MSCSE — so the
 // two sides below are the sheet's own cells, not an invented pair.
 describe('50000-level bridge courses', () => {
-  const bridgeStudent = (attestations: Student['attestations'] = {}): Student => ({
-    schemaVersion: 1,
-    program: 'phd',
-    entryTerm: { season: 'fall', year: 2026 },
+  const bridgeStudent = (attestations: Student['attestations'] = {}): Student => phdStudent({
     bachelorsAwarded: { season: 'spring', year: 2026 },
-    priorMs: 'none',
     gpa: 3.5,
     courses: [{ courseId: 'CSE 50502', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }],
-    milestones: {},
     attestations,
   });
 
@@ -525,18 +500,8 @@ describe('50000-level bridge courses', () => {
 // built 2026-09-10. Recognised from the coursework, never asked for.
 describe('§3.5 / §3.6 track notes', () => {
   const rules = buildRules();
-  const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
-    schemaVersion: 1,
-    program: 'phd',
-    entryTerm: { season: 'fall', year: 2026 },
-    bachelorsAwarded: { season: 'spring', year: 2026 },
-    priorMs: 'none',
-    gpa: 3.5,
-    courses,
-    milestones: {},
-    attestations: {},
-    ...over,
-  });
+  const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student =>
+    phdStudent({ bachelorsAwarded: { season: 'spring', year: 2026 }, gpa: 3.5, courses, ...over });
   const course = (courseId: string, year = 2026, season: 'fall' | 'spring' = 'fall'): CourseEntry => ({
     courseId, credits: 3, term: { season, year }, grade: 'A', origin: 'nd',
   });
@@ -581,17 +546,11 @@ describe('§3.5 / §3.6 track notes', () => {
 // toward three degrees.
 describe('undergraduate Notre Dame coursework', () => {
   const rules = buildRules();
-  const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
-    schemaVersion: 1,
-    program: 'phd',
+  const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => phdStudent({
     integratedBsMs: true, // a 4+1 unless a test says otherwise (DGS 2026-09-12)
-    entryTerm: { season: 'fall', year: 2026 },
     bachelorsAwarded: { season: 'spring', year: 2025 },
-    priorMs: 'none',
     gpa: 3.8,
     courses,
-    milestones: {},
-    attestations: {},
     ...over,
   });
   const ug = (courseId: string, countedToward?: CourseEntry['countedToward'], institution = 'University of Notre Dame'): CourseEntry => ({
@@ -727,10 +686,8 @@ describe('undergraduate Notre Dame coursework', () => {
 // for the DGS rather than asked.
 describe('below the 40000 level, and the 4+1 flag (F8, 2026-09-12)', () => {
   const rules = buildRules();
-  const base = (courses: CourseEntry[], over: Partial<Student> = {}): Student => ({
-    schemaVersion: 1, program: 'phd', entryTerm: { season: 'fall', year: 2026 }, bachelorsAwarded: { season: 'spring', year: 2026 }, priorMs: 'none', gpa: 3.8,
-    courses, milestones: {}, attestations: {}, ...over,
-  });
+  const base = (courses: CourseEntry[], over: Partial<Student> = {}): Student =>
+    phdStudent({ bachelorsAwarded: { season: 'spring', year: 2026 }, gpa: 3.8, courses, ...over });
   it('an unlisted CSE 30124 or CSE 10101 typed as program coursework is refused, not counted provisionally', () => {
     const r = audit(base([{ courseId: 'CSE 30124', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }, { courseId: 'CSE 10101', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }]), rules, '2027-06-01');
     for (const id of ['CSE 30124', 'CSE 10101']) {
@@ -758,15 +715,11 @@ describe('below the 40000 level, and the 4+1 flag (F8, 2026-09-12)', () => {
 // from different origins, and a final grade for a semester still in the future.
 describe('suspect course entries the report warns about', () => {
   const rules = buildRules();
-  const base = (courses: CourseEntry[]): Student => ({
-    schemaVersion: 1,
-    program: 'phd',
-    entryTerm: { season: 'fall', year: 2026 },
+  const base = (courses: CourseEntry[]): Student => phdStudent({
     priorMs: 'completed',
     bachelorsAwarded: { season: 'spring', year: 2022 },
     gpa: 3.5,
     courses,
-    milestones: {},
     attestations: { transferApproved: true },
   });
 

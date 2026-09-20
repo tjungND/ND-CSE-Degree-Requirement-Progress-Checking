@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import { coursesNeedingDgsReview, reviewRequestSummary } from '../src/engine/review.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
+import { phdStudent, transferCourse as purdue } from './helpers/student.ts';
 
 describe('reviewRequestSummary — the card chip and its copy button', () => {
   it('names courses, courses and a note, or (2026-09-12 bug) just a note — never "0 courses"', () => {
@@ -19,25 +20,7 @@ describe('reviewRequestSummary — the card chip and its copy button', () => {
 type Row = Record<string, string>;
 const row = (course_id: string, extra: Row = {}): Row => ({ university: 'PURDUE UNIVERSITY', course_id, course_title: 'x', ...extra });
 
-const purdue = (courseId: string, title: string, extra: Partial<CourseEntry> = {}): CourseEntry => ({
-  courseId,
-  title,
-  credits: 3,
-  term: { season: 'fall', year: 2024 },
-  grade: 'A',
-  origin: 'transfer',
-  institution: 'Purdue University',
-  ...extra,
-});
-const student = (courses: CourseEntry[]): Student => ({
-  schemaVersion: 1,
-  program: 'phd',
-  entryTerm: { season: 'fall', year: 2026 },
-  priorMs: 'completed',
-  courses,
-  milestones: {},
-  attestations: {},
-});
+const student = (courses: CourseEntry[]): Student => phdStudent({ priorMs: 'completed', courses });
 const ids = (s: Student, external: Row[] | undefined) =>
   coursesNeedingDgsReview(s, external === undefined ? buildRules() : buildRules({ external }))
     .map((p) => `${p.course.entry.courseId}:${p.unlisted ? 'new-row' : 'decide'}`)

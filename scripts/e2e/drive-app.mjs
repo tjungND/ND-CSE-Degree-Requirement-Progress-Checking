@@ -618,7 +618,9 @@ async function driveAppEmbed(s, baseUrl) {
       // The page only reports a CHANGED height, and it finished growing before
       // this listener existed — so change it: open the notice's Details.
       document.querySelector('[data-key="notice.details"]')?.setAttribute('open', '');
-      await new Promise((r) => setTimeout(r, 1200));
+      // Poll for the first report rather than sleep (up to 6 s; the check below says if none came).
+      const until = Date.now() + 6000;
+      while (heights.length === 0 && Date.now() < until) await new Promise((r) => setTimeout(r, 50));
       return JSON.stringify({
         heights: heights.length,
         eyebrow: !!document.querySelector('.masthead .eyebrow'),
@@ -981,7 +983,7 @@ export async function driveCourses(s, baseUrl) {
 async function checkPrintColumns(s, baseUrl, query) {
   await s.open(new URL('courses.html' + query, baseUrl).href, '.all-courses table.course-rules');
   await s.send('Emulation.setEmulatedMedia', { media: 'print' });
-  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)))');
+  await s.settle(200);
   const tables = JSON.parse(
     await s.evalJs(`JSON.stringify([...document.querySelectorAll('table.course-rules')].map((t) => {
       const shown = (e) => getComputedStyle(e).display !== 'none';
@@ -1011,7 +1013,7 @@ async function checkPrintColumns(s, baseUrl, query) {
     })()`),
   );
   await s.send('Emulation.setEmulatedMedia', { media: '' });
-  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+  await s.settle();
   if (!tables.length) throw new Error('no course tables found under print media');
   for (const t of tables) {
     if (!t.lastHeaderShown) throw new Error(`printing hides the "${t.lastHeader}" header of the ${t.table} table while its cells still print`);
@@ -1092,11 +1094,19 @@ async function driveCoursesEmbed(s, baseUrl) {
       // four seconds: the inner page fetches the live sheet from Google, which
       // occasionally takes longer than that and failed this check for reasons
       // having nothing to do with what it tests (2026-09-18). Poll up to 25 s,
-      // then give the settling messages a moment of quiet.
+      // then wait until the framed page has stopped growing (its height unchanged
+      // across two samples, up to 7.5 s) — that is when its broadcasts settle.
       const deadline = Date.now() + 25000;
       const rows = () => frame.contentDocument?.querySelectorAll('.all-courses table.course-rules tbody tr').length ?? 0;
       while (rows() < 10 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 250));
-      await new Promise((r) => setTimeout(r, 1500));
+      const quiet = Date.now() + 7500;
+      let last = -1;
+      while (Date.now() < quiet) {
+        await new Promise((r) => setTimeout(r, 250));
+        const h = frame.contentDocument?.documentElement.scrollHeight ?? -1;
+        if (h === last) break;
+        last = h;
+      }
       const inner = frame.contentDocument;
       const out = { got, framedRows: inner.querySelectorAll('.all-courses table.course-rules tbody tr').length, framedEyebrow: !!inner.querySelector('.masthead .eyebrow') };
       frame.remove();
@@ -1125,12 +1135,25 @@ async function driveCoursesEmbed(s, baseUrl) {
         frame.src = 'courses.html?embed=1';
         document.body.append(frame);
         await new Promise((r) => frame.addEventListener('load', r, { once: true }));
-        await new Promise((r) => setTimeout(r, 4000));
+        // Poll (up to 25 s, as above) for what the checks below need: the framed
+        // page rendered, its overview chip present, and a first height reported.
+        const ready = () => {
+          const doc = frame.contentDocument;
+          return !!doc && doc.querySelectorAll('.all-courses table.course-rules tbody tr').length >= 10
+            && !!doc.querySelector('.ov-item[href^="#"]') && window.__posted.some((p) => p.type === 'nd-cse-audit:height');
+        };
+        const deadline = Date.now() + 25000;
+        while (!ready() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 250));
+        if (!ready()) throw new Error('the framed page did not render, show an overview chip and report a height within 25 s');
         const inner = frame.contentDocument;
         const chip = inner.querySelector('.ov-item[href^="#"]');
         const chipHref = chip ? chip.getAttribute('href') : null;
         if (chip) chip.click();
-        await new Promise((r) => setTimeout(r, 400));
+        // The click asks each allowed origin in turn; poll for the three (up to 2 s).
+        const scrollsIn = () => window.__posted.filter((p) => p.type === 'nd-cse-audit:scrollto').length;
+        const clicked = Date.now() + 2000;
+        while (scrollsIn() < 3 && Date.now() < clicked) await new Promise((r) => setTimeout(r, 50));
+        if (scrollsIn() === 0) throw new Error('clicking ' + chipHref + ' sent no scroll request within 2 s');
         const out = {
           chipHref,
           heightOrigins: [...new Set(window.__posted.filter((p) => p.type === 'nd-cse-audit:height').map((p) => p.origin))],
@@ -1196,7 +1219,10 @@ async function driveWordPressSnippet(s, baseUrl) {
       const other = document.createElement('iframe');
       other.src = 'about:blank';
       document.body.append(other);
-      await new Promise((r) => setTimeout(r, 200));
+      // Poll (up to 1 s) for the blank frame to have a window to impersonate.
+      const blankBy = Date.now() + 1000;
+      while (!(other.contentWindow && other.contentDocument?.readyState === 'complete') && Date.now() < blankBy) await new Promise((r) => setTimeout(r, 25));
+      if (!other.contentWindow) throw new Error('the about:blank frame did not load within 1 s');
 
       const fire = (data, o, src) => window.dispatchEvent(new MessageEvent('message', { data: data, origin: o, source: src }));
       const height = (h) => ({ type: 'nd-cse-audit:height', height: h });

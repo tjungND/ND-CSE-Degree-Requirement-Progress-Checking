@@ -15,6 +15,7 @@ import { signOffActors } from '../src/engine/requirements/shared.ts';
 import { actionItems, advisorSummary } from '../src/ui/advisor-summary.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
+import { phdStudent, transferCourse } from './helpers/student.ts';
 
 const CORE = [
   { code: 'os', name: 'Operating Systems' },
@@ -22,23 +23,8 @@ const CORE = [
   { code: 'architecture', name: 'Computer Architecture' },
 ];
 
-const student = (courses: Partial<CourseEntry>[], priorMs: Student['priorMs'] = 'completed'): Student => ({
-  schemaVersion: 1,
-  program: 'phd',
-  entryTerm: { season: 'fall', year: 2026 },
-  priorMs,
-  courses: courses.map((c) => ({
-    courseId: 'CS 50300',
-    credits: 3,
-    term: { season: 'fall', year: 2024 },
-    grade: 'A',
-    origin: 'transfer',
-    institution: 'Purdue University',
-    ...c,
-  })) as CourseEntry[],
-  milestones: {},
-  attestations: {},
-});
+const student = (courses: Partial<CourseEntry>[], priorMs: Student['priorMs'] = 'completed'): Student =>
+  phdStudent({ priorMs, courses: courses.map((c) => transferCourse('CS 50300', undefined, c)) });
 
 const rules = buildRules(); // fixture ExternalCourses tab included
 

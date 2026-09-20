@@ -64,7 +64,7 @@ load, about five minutes after you make them. Nothing needs to be deployed.
    its owner, so they should survive either change — verify with A7 afterwards.
 2. Open the sheet and read its **README** tab once. It explains every column and the color coding
    (light-yellow cells are yours to decide; grey columns are informational copies from Banner).
-3. The app reads three tabs — **Courses**, **Parameters**, **Categories** — and ignores the rest.
+3. The app reads four tabs — **Courses**, **Parameters**, **Categories**, **ExternalCourses** — and ignores the rest.
    **Changelog** is for humans: log every edit there.
 
 ### A1. Know the columns you will touch (Courses tab)
@@ -203,7 +203,7 @@ then ticks the matching box under "Approvals you already have".
 4. If the page cannot load the rules, a card explains why and suggests reloading; a visitor can
    also choose to continue with the app's saved copy (a banner then says so). If the card says
    the spreadsheet is not published, check in the sheet that **File → Share → Publish to web**
-   is still on for the three tabs. If the sheet was replaced by a new file, see A9.
+   is still on for the four tabs. If the sheet was replaced by a new file, see A9.
 
 Nothing you enter in the app is stored anywhere but that browser.
 
@@ -356,8 +356,8 @@ Approve the commands it proposes (`npm test`, `npm run build`, …) when it asks
   Update src/transcript/parse.ts and its tests so this file parses, without breaking the existing
   fixtures. Do not commit the sample."*
 - **The sheet was re-published or replaced.** In the sheet, *File → Share → Publish to web →
-  Link*, pick Courses, Parameters, Categories in turn as *Comma-separated values*, copy the three
-  URLs. Then: *"Replace the three URLs in data/sheet-urls.json with these, run npm run
+  Link*, pick Courses, Parameters, Categories, ExternalCourses in turn as *Comma-separated values*, copy the four
+  URLs. Then: *"Replace the four URLs in data/sheet-urls.json with these, run npm run
   sync-sheet, and confirm the diagnostics are clean."*
 - **A number should apply only to new students.** *"Parameters have no rules_effective_term. Plan how
   to grandfather `<key>` by entry term, mirroring the Courses-row versioning, and tell me the
@@ -530,8 +530,8 @@ in-browser PDF parsing · `tests/scenarios/*.json` — one student case per file
 `data/sheet-urls.json` — the published-CSV links plus the sheet's own link shown on the pages (edit only if the sheet is re-published or replaced) ·
 `data/README.md` — the sheet schema, column by column · `docs/DECISIONS.md` — every policy
 interpretation ever made · `docs/CLAUDE-HANDOFF.md` — engineering decisions and recipes for AI
-sessions · `MAINTENANCE.md` — deeper technical notes and the list of one-time setup still pending ·
-`src/ui/handbook.ts` — handbook edition + PDF link · `src/ui/contacts.ts` — who to contact ·
+sessions · `MAINTENANCE.md` — deeper technical notes · `docs/STATE.md` — where things stand and the open items ·
+`src/ui/handbook.ts` — handbook edition + PDF link · the six `contact_*` rows of the Parameters tab — who to contact (`src/ui/contacts.ts` is only the fallback) ·
 `CLAUDE.md` / `AGENTS.md` — the instructions AI agents read. (The build-time starter kit —
 `START-HERE.md`, `KICKOFF-PROMPT.md`, `reference/`, the seed spreadsheet and the Banner sweep — was
 removed on 2026-09-14 and lives in git history only.)
@@ -558,8 +558,10 @@ tooling (details in `MAINTENANCE.md`).
    [Embedding these pages in a WordPress page](#embedding-these-pages-in-a-wordpress-page)) —
    a stale origin makes the frame stop resizing without any visible error.
 3. **Update the people on the page:** names and e-mail addresses of the DGS, Assistant DGS and
-   Graduate Program Administrator live in `src/ui/contacts.ts` (the footer, the feedback notes
-   and the error-report address all read from it). Edit, commit, push — Track B, five minutes.
+   Graduate Program Administrator are the six `contact_*` rows of the sheet's Parameters tab
+   (`contact_dgs_name` … `contact_grad_admin_email`; the footer, the feedback notes and the
+   error-report address all read from them) — Track A, no code. `src/ui/contacts.ts` is only the
+   fallback used when a row is missing.
 4. **Walk through one live edit together:** change a Parameters value, wait five minutes, watch the
    app pick it up, change it back, log both in the Changelog.
 5. **Point them at this file.** Everything else follows from it.
@@ -567,7 +569,7 @@ tooling (details in `MAINTENANCE.md`).
 
 ## Status and open items
 
-See `MAINTENANCE.md` § "One-time setup still pending" for the sheet rows that still need pasting;
+See `docs/STATE.md` for where things stand and the open items;
 the app's **Rules-sheet diagnostics** panel is the live truth.
 
 ## License

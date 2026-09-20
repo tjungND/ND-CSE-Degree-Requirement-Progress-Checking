@@ -7,12 +7,8 @@ import { describe, it } from 'node:test';
 import { rulesFromCsvTexts } from '../src/data/assemble.ts';
 import { parseCsv } from '../src/data/csv.ts';
 import { audit } from '../src/engine/audit.ts';
-import { buildRules, fixtureCsvTexts, type ScenarioFile } from './helpers.ts';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { buildRules, fixtureCsvTexts, loadScenario } from './helpers.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
 const meta = { source: 'snapshot' as const, syncedAt: '2026-08-31T00:00:00Z' };
 
 describe('csv parser', () => {
@@ -237,9 +233,7 @@ describe('sheet validation', () => {
 
 describe('blank parameter values never read as zero', () => {
   it("gpa_min = '' → issue + cannot_evaluate, NOT a 0.0 floor everyone passes", () => {
-    const sc: ScenarioFile = JSON.parse(
-      readFileSync(join(here, 'scenarios', 'gpa-floor.json'), 'utf8'),
-    );
+    const sc = loadScenario('gpa-floor');
     const rules = buildRules({ parameters: { gpa_min: '' } });
     assert.equal(rules.parameters.number('gpa_min'), undefined);
     assert.ok(rules.issues.some((i) => i.message.includes("'gpa_min'") && i.message.includes('blank')));
@@ -250,9 +244,7 @@ describe('blank parameter values never read as zero', () => {
 
 describe('missing parameters propagate to "cannot evaluate"', () => {
   it('missing category_min_grade → §4.4.2 row cannot be evaluated', () => {
-    const sc: ScenarioFile = JSON.parse(
-      readFileSync(join(here, 'scenarios', 'phd-sem4-two-groups.json'), 'utf8'),
-    );
+    const sc = loadScenario('phd-sem4-two-groups');
     const rules = buildRules({ parameters: { category_min_grade: null } });
     const report = audit(sc.student, rules, sc.today);
     const row = report.requirements.find((r) => r.id === 'phd.qualifier.categories');

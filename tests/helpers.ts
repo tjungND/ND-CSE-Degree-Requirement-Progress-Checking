@@ -1,6 +1,6 @@
 // Test helpers: load the fixture rules CSVs, apply a scenario's inline patch,
 // and build a Rules object through the SAME parse/validate pipeline the app uses.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCsv, serializeCsv } from '../src/data/csv.ts';
@@ -10,6 +10,7 @@ import type { Student } from '../src/engine/types.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureDir = join(here, 'fixtures', 'rules');
+const scenarioDir = join(here, 'scenarios');
 
 export interface ScenarioFile {
   name: string;
@@ -43,13 +44,32 @@ export interface RulesPatch {
   external?: Record<string, string>[];
 }
 
-export function fixtureCsvTexts(): { courses: string; parameters: string; categories: string; external: string } {
-  return {
+/** One scenario fixture by file name (without `.json`). */
+export function loadScenario(name: string): ScenarioFile {
+  return JSON.parse(readFileSync(join(scenarioDir, `${name}.json`), 'utf8'));
+}
+
+/** Every scenario fixture, in file-name order. */
+export function allScenarios(): ScenarioFile[] {
+  return readdirSync(scenarioDir)
+    .filter((f) => f.endsWith('.json'))
+    .sort()
+    .map((f) => loadScenario(f.slice(0, -'.json'.length)));
+}
+
+type FixtureCsvTexts = { courses: string; parameters: string; categories: string; external: string };
+let cachedCsvTexts: FixtureCsvTexts | undefined;
+
+/** The fixture CSVs, read once per process (the strings are immutable; a fresh
+ * object is returned each time so no caller can alter another's copy). */
+export function fixtureCsvTexts(): FixtureCsvTexts {
+  cachedCsvTexts ??= {
     courses: readFileSync(join(fixtureDir, 'courses.csv'), 'utf8'),
     parameters: readFileSync(join(fixtureDir, 'parameters.csv'), 'utf8'),
     categories: readFileSync(join(fixtureDir, 'categories.csv'), 'utf8'),
     external: readFileSync(join(fixtureDir, 'external.csv'), 'utf8'),
   };
+  return { ...cachedCsvTexts };
 }
 
 /** Apply a scenario's inline patch at the CSV level, so patched rules still go

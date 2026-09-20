@@ -4,7 +4,9 @@
 // slot, correct/confirm the preview, and check the DGS-verdict lines (in the
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
-export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf, ndOfficialPdf, noLinesPdf, ndUgInProgressPdf) {
+// `pdfs` is the name → path map run.mjs builds from tests/fixtures/.
+export async function driveTranscript(s, baseUrl, pdfs) {
+  const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf } = pdfs;
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -465,8 +467,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
   // rows, nothing spilling out of the card — measured, and a cropped screenshot
   // of the preview for the eye (combined-preview-1400.png / -1100.png).
   for (const width of [1400, 1100]) await checkCompactPreview(s, width);
-  await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
-  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+  await s.setViewport({ width: 1400, height: 1900 });
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`,
   );
@@ -773,8 +774,7 @@ export async function driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, 
 // in every row, and nothing reaches past the row or scrolls the preview
 // sideways. The cropped screenshot is what to look at when a number is off.
 async function checkCompactPreview(s, width) {
-  await s.send('Emulation.setDeviceMetricsOverride', { width, height: 1900, deviceScaleFactor: 1, mobile: false });
-  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)))');
+  await s.setViewport({ width, height: 1900, settleMs: 200 });
   const m = JSON.parse(
     await s.evalJs(`JSON.stringify((() => {
       const box = document.querySelector('.external-card .transcript-preview');

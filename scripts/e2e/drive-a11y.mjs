@@ -19,7 +19,6 @@ const key = (s, k, code, vk) =>
   s.send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk }).then(() =>
     s.send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: vk }),
   );
-const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function driveA11y(s, baseUrl) {
   await checkDialog(s, baseUrl);
@@ -56,7 +55,7 @@ export async function driveA11y(s, baseUrl) {
   await checkAxe(s, 'self-check page, embed mode');
   await s.open(baseUrl, '.masthead h1');
   await checkWide(s, 'app', `document.querySelector('.layout')`);
-  await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
+  await s.setViewport({ width: 1400, height: 1900 });
 }
 
 // 3b. The phone/tablet layout pieces (2026-09-05, review items 2, 13, 30):
@@ -65,10 +64,7 @@ export async function driveA11y(s, baseUrl) {
 // course-rules page the table becomes cards with a Sort control.
 async function checkMobilePieces(s, page) {
   const visible = (sel) => s.evalJs(`(() => { const e = document.querySelector('${sel}'); return !!e && getComputedStyle(e).display !== 'none' && e.getClientRects().length > 0; })()`);
-  const at = async (width, mobile) => {
-    await s.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile, screenWidth: width, screenHeight: 900 });
-    await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
-  };
+  const at = (width, mobile) => s.setViewport({ width, height: 900, mobile });
   if (page === 'app') {
     await at(1400, false);
     if ((await visible('.summary-mobile')) || (await visible('.sticky-score'))) throw new Error('summary block / sticky bar must be hidden on wide screens');
@@ -78,7 +74,7 @@ async function checkMobilePieces(s, page) {
     // (`.score-on-screen`, one IntersectionObserver in app.ts) while either
     // score headline is in the viewport and back as soon as the score scrolls
     // off (trim review 2026-09-18, P-66): assert both states, not just "shown".
-    const settle = () => s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+    const settle = () => s.settle();
     await s.evalJs(`document.querySelector('.summary-mobile .headline').scrollIntoView({ block: 'center' })`);
     await settle();
     if (await visible('.sticky-score')) throw new Error('the sticky score bar must hide while the summary headline is on screen (P-66)');
@@ -147,7 +143,7 @@ async function checkDialog(s, baseUrl) {
     await s.waitFor(`document.querySelector('.masthead h1')`);
   }
   await s.waitFor(`document.querySelector('dialog.consent[open]')`);
-  await pause(150);
+  await s.settle();
   const inside = () => s.evalJs(`!!document.activeElement?.closest('dialog.consent')`);
   if (!(await inside())) throw new Error('opening dialog: focus did not move into the dialog');
   for (let i = 0; i < 4; i++) {
@@ -169,7 +165,7 @@ async function checkDialog(s, baseUrl) {
 // y=944 and the first Import button at y=1104, and the first nineteen
 // interactive elements included no data-entry control at all.
 async function checkFirstScreen(s, baseUrl) {
-  await s.send('Emulation.setDeviceMetricsOverride', { width: 708, height: 937, deviceScaleFactor: 1, mobile: false });
+  await s.setViewport({ width: 708, height: 937 });
   // A FIRST visit is what B1 measured: no record, so nothing to summarise.
   await s.open(baseUrl, '.transcript-upload');
   const first = JSON.parse(await s.evalJs(`JSON.stringify((() => {
@@ -196,7 +192,7 @@ async function checkFirstScreen(s, baseUrl) {
   // Two strips since 2026-09-19 (DGS: red for alpha, green for privacy), one line each.
   if (first.noticeLines !== 2) throw new Error('the notices collapse to one line each above the fold: ' + first.noticeLines);
   await s.shot('first-screen-708');
-  await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
+  await s.setViewport({ width: 1400, height: 1900 });
 }
 
 // 2. Focus survives the re-render that every change triggers.
@@ -228,14 +224,14 @@ async function checkFocusPreserved(s) {
   // A checkbox: focus then click (the page re-renders), focus must stay put.
   // (The click itself is synchronous through evalJs, so there is nothing to
   // wait FOR here — unlike the radio above, whose key event arrives
-  // asynchronously. The pause stays.)
+  // asynchronously. The wait stays.)
   await s.evalJs(`const cb = document.querySelector('[data-key^="attest."]'); cb.focus(); cb.click();`);
-  await pause(150);
+  await s.settle();
   const cbKey = await s.evalJs(`document.activeElement?.dataset?.key ?? ''`);
   if (!cbKey.startsWith('attest.')) throw new Error('focus check: focus left the checkbox after the change — now on ' + cbKey);
   // Put the example back the way it was.
   await s.evalJs(`document.querySelector('[data-key="standing.prior.none"]').click()`);
-  await pause(100);
+  await s.settle(100);
   console.log('  focus is preserved across re-renders (radio group, checkbox); Tab continues from the same control');
 }
 
@@ -243,9 +239,9 @@ async function checkFocusPreserved(s) {
 // 3b. The page FILLS a wide window (DGS 2026-09-09): it used to stop at
 // 1240 px and centre, leaving a monitor half empty. Both columns grow with it.
 async function checkWide(s, page, readyExpr, width = 2200) {
-  await s.send('Emulation.setDeviceMetricsOverride', { width, height: 1200, deviceScaleFactor: 1, mobile: false, screenWidth: width, screenHeight: 1200 });
+  await s.setViewport({ width, height: 1200 });
   await s.waitFor(readyExpr);
-  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 250)))');
+  await s.settle(250);
   const m = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const app = document.getElementById('app');
     const lay = document.querySelector('.layout');
@@ -266,9 +262,9 @@ async function checkWide(s, page, readyExpr, width = 2200) {
 
 async function checkPhone(s, page, readyExpr, width = 390) {
   const height = width < 600 ? 844 : 1180;
-  await s.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true, screenWidth: width, screenHeight: height });
+  await s.setViewport({ width, height, mobile: true });
   await s.waitFor(readyExpr);
-  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 250)))');
+  await s.settle(250);
   const m = JSON.parse(
     await s.evalJs(`JSON.stringify({ scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, wide: [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > ${width + 1} && getComputedStyle(e).position !== 'fixed').slice(0, 5).map(e => e.tagName + '.' + String(e.className).slice(0, 30)) })`),
   );
@@ -313,8 +309,7 @@ async function checkPhone(s, page, readyExpr, width = 390) {
     if (phone.pillRights.length > 1) throw new Error('the status pill must park in one column: ' + JSON.stringify(phone.pillRights));
   }
   console.log(`  ${width < 600 ? 'phone' : 'tablet'} width (${width} px), ${page} page: no horizontal scrolling`);
-  await s.send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1900, deviceScaleFactor: 1, mobile: false });
-  await s.evalJs('new Promise(r => requestAnimationFrame(() => setTimeout(r, 150)))');
+  await s.setViewport({ width: 1400, height: 1900 });
 }
 
 // 4. axe-core: WCAG 2.x A/AA rules plus the landmark best practices.

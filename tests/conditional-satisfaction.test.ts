@@ -9,23 +9,13 @@
 //   3. the dashboard had no count for "satisfied except for a signature" — it
 //      was folded into "not yet" with a parenthetical.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { audit } from '../src/engine/audit.ts';
 import type { AuditReport } from '../src/engine/types.ts';
 import { scoreLine } from '../src/ui/report.ts';
-import { buildRules, type ScenarioFile } from './helpers.ts';
+import { allScenarios, buildRules } from './helpers.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const scenarioDir = join(here, 'scenarios');
-const scenarios: ScenarioFile[] = readdirSync(scenarioDir)
-  .filter((f) => f.endsWith('.json'))
-  .sort()
-  .map((f) => JSON.parse(readFileSync(join(scenarioDir, f), 'utf8')));
-
-const reports: { name: string; report: AuditReport }[] = scenarios.map((sc) => ({
+const reports: { name: string; report: AuditReport }[] = allScenarios().map((sc) => ({
   name: sc.name,
   report: audit(sc.student, buildRules(sc.rules.patch), sc.today),
 }));

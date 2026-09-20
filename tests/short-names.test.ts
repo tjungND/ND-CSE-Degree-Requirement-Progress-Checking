@@ -8,6 +8,7 @@ import { audit } from '../src/engine/audit.ts';
 import { shortName } from '../src/engine/short-names.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
+import { ndCourse as nd, phdStudent } from './helpers/student.ts';
 
 describe('short forms of the core-area and group names', () => {
   it('shortens every name the DGS listed', () => {
@@ -40,24 +41,7 @@ describe('short forms of the core-area and group names', () => {
 });
 
 const rules = buildRules();
-const nd = (courseId: string, extra: Partial<CourseEntry> = {}): CourseEntry => ({
-  courseId,
-  credits: 3,
-  term: { season: 'fall', year: 2026 },
-  grade: 'A',
-  origin: 'nd',
-  ...extra,
-});
-const student = (courses: CourseEntry[]): Student => ({
-  schemaVersion: 1,
-  program: 'phd',
-  entryTerm: { season: 'fall', year: 2026 },
-  priorMs: 'none',
-  gpa: 3.5,
-  courses,
-  milestones: {},
-  attestations: {},
-});
+const student = (courses: CourseEntry[]): Student => phdStudent({ gpa: 3.5, courses });
 
 describe('where the short forms are used, and where they are not', () => {
   const report = audit(

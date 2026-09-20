@@ -7,8 +7,9 @@
 //     (= npm run e2e:webkit)         SAME drivers; screenshots in .e2e-out/webkit/. One-time
 //                                    setup per Mac:  npx playwright-core install webkit
 //   E2E_ONLY=<substring>             run a single driver while iterating (e.g. E2E_ONLY=access)
+//   E2E_BUILD=1                      rebuild dist/ first even if it looks up to date
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,8 +62,28 @@ async function waitForHttp(url, timeoutMs = 20000) {
   throw new Error(`timed out waiting for ${url}`);
 }
 
-if (!existsSync(join(root, 'dist', 'index.html'))) {
-  console.log('dist/ missing — running npm run build first…');
+// The newest mtime under a path (a file, or a folder walked recursively).
+function newestMtime(path) {
+  const st = statSync(path);
+  if (!st.isDirectory()) return st.mtimeMs;
+  let newest = st.mtimeMs;
+  for (const entry of readdirSync(path)) newest = Math.max(newest, newestMtime(join(path, entry)));
+  return newest;
+}
+
+// Build when dist/ is missing, when E2E_BUILD=1, or when anything the build
+// reads is newer than the last build — otherwise the run tests a stale page.
+const distIndex = join(root, 'dist', 'index.html');
+const buildInputs = ['src', 'index.html', 'courses.html', 'public', join('data', 'snapshot.json')].map((p) => join(root, p)).filter(existsSync);
+const buildReason = !existsSync(distIndex)
+  ? 'dist/ missing'
+  : process.env.E2E_BUILD === '1'
+    ? 'E2E_BUILD=1'
+    : Math.max(...buildInputs.map(newestMtime)) > statSync(distIndex).mtimeMs
+      ? 'dist/ is older than the sources'
+      : null;
+if (buildReason) {
+  console.log(`${buildReason} — running npm run build first…`);
   const b = spawnSync('npm', ['run', 'build'], { cwd: root, stdio: 'inherit' });
   if (b.status !== 0) process.exit(b.status ?? 1);
 }
@@ -81,6 +102,8 @@ process.on('exit', cleanup);
 process.on('SIGINT', () => process.exit(130));
 
 let failed = false;
+const runStarted = Date.now();
+const seconds = (since) => ((Date.now() - since) / 1000).toFixed(1);
 let webkitBrowser; // closed in the finally below (Playwright owns that process, not `children`)
 try {
   // vite is spawned directly (not through npm) so kill() reaches the server.
@@ -121,32 +144,38 @@ try {
   }
 
   const baseUrl = `http://localhost:${PREVIEW_PORT}/`;
-  const ndPdf = join(root, 'tests', 'fixtures', 'nd-transcript.pdf');
-  const externalPdf = join(root, 'tests', 'fixtures', 'external-transcript.pdf');
-  const scanPdf = join(root, 'tests', 'fixtures', 'external-transcript-scan.pdf');
-  const bannerPdf = join(root, 'tests', 'fixtures', 'banner-transcript.pdf');
-  const watermarkedPdf = join(root, 'tests', 'fixtures', 'banner-watermarked-transcript.pdf');
-  const otherPdf = join(root, 'tests', 'fixtures', 'other-transcript.pdf');
-  const combinedPdf = join(root, 'tests', 'fixtures', 'combined-transcript.pdf');
-  const ndUgPdf = join(root, 'tests', 'fixtures', 'nd-undergrad-transcript.pdf');
-  const ucPdf = join(root, 'tests', 'fixtures', 'uc-system-transcript.pdf');
-  const ndOfficialPdf = join(root, 'tests', 'fixtures', 'nd-official-transcript.pdf');
-  const noLinesPdf = join(root, 'tests', 'fixtures', 'no-lines-transcript.pdf');
-  const ndUgInProgressPdf = join(root, 'tests', 'fixtures', 'nd-undergrad-in-progress-transcript.pdf');
+  // The transcript fixtures, by name → path (all sanitized PDFs in tests/fixtures/).
+  const pdfs = Object.fromEntries(
+    Object.entries({
+      nd: 'nd-transcript.pdf',
+      other: 'other-transcript.pdf',
+      external: 'external-transcript.pdf',
+      scan: 'external-transcript-scan.pdf',
+      banner: 'banner-transcript.pdf',
+      watermarked: 'banner-watermarked-transcript.pdf',
+      combined: 'combined-transcript.pdf',
+      ndUg: 'nd-undergrad-transcript.pdf',
+      uc: 'uc-system-transcript.pdf',
+      ndOfficial: 'nd-official-transcript.pdf',
+      noLines: 'no-lines-transcript.pdf',
+      ndUgInProgress: 'nd-undergrad-in-progress-transcript.pdf',
+    }).map(([name, file]) => [name, join(root, 'tests', 'fixtures', file)]),
+  );
 
   // E2E_ONLY=<substring> runs a single driver while iterating (e.g. E2E_ONLY=access).
   const only = process.env.E2E_ONLY;
   for (const [name, fn] of [
     ['app basics', (s) => driveApp(s, baseUrl)],
-    ['transcript upload', (s) => driveTranscript(s, baseUrl, ndPdf, otherPdf, externalPdf, scanPdf, bannerPdf, watermarkedPdf, combinedPdf, ndUgPdf, ucPdf, ndOfficialPdf, noLinesPdf, ndUgInProgressPdf)],
+    ['transcript upload', (s) => driveTranscript(s, baseUrl, pdfs)],
     ['course rules list', (s) => driveCourses(s, baseUrl)],
     ['accessibility and phone layout', (s) => driveA11y(s, baseUrl)],
   ].filter(([name]) => !only || name.includes(only))) {
     console.log(`\n▶ ${name}`);
+    const started = Date.now();
     const session = await openSessionFor();
     try {
       await fn(session);
-      console.log(`✔ ${name}`);
+      console.log(`✔ ${name} (${seconds(started)} s)`);
     } catch (err) {
       failed = true;
       console.error(`✖ ${name}:`, err instanceof Error ? err.message : err);
@@ -162,5 +191,6 @@ try {
   cleanup();
 }
 
-console.log(`\nScreenshots in ${relative(root, outDir)}/ (${browserKind}). ${failed ? 'E2E FAILED' : 'E2E passed.'}`);
+console.log(`\n${seconds(runStarted)} s in all.`);
+console.log(`Screenshots in ${relative(root, outDir)}/ (${browserKind}). ${failed ? 'E2E FAILED' : 'E2E passed.'}`);
 process.exit(failed ? 1 : 0);

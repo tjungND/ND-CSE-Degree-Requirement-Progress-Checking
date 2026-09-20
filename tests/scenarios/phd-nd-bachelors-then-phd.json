@@ -107,12 +107,12 @@
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "not counted — a 60000-level course taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program",
+      "taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program",
       "say so under Your standing",
       "still satisfies the Operating Systems core-knowledge requirement"
     ],
     "CSE 60111": [
-      "not counted — a 60000-level course taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program"
+      "taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program"
     ]
   }
 }

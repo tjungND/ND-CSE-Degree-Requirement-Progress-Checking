@@ -4,6 +4,17 @@
 // primitives (navigate / evalJs / shot) and get the same waitFor and open back,
 // so the drivers see the loading card and the opening notice handled
 // identically in both browsers. Change the page's start-up flow here, once.
+
+/** Let the page paint: one animation frame, then `ms` more for whatever the
+ * frame kicked off (a ResizeObserver, a scroll handler). Both backends build
+ * their `settle` from this and expose it on the session as `s.settle(ms)`. */
+export const settleIn = (evalJs) => (ms = 150) => evalJs(`new Promise(r => requestAnimationFrame(() => setTimeout(r, ${ms})))`);
+
+// Once per RUN, not per session: every driver opens its own session, and the
+// loading-failed and consent-gate screenshots are the same picture each time.
+let failureShotTaken = false;
+let consentShotTaken = false;
+
 export function sessionHelpers({ navigate, evalJs, shot }) {
   const waitFor = async (expression, timeoutMs = 20000) => {
     const t0 = Date.now();
@@ -19,8 +30,6 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
   // on …" — the harness screenshots that card (once) and clicks it, so the
   // failure path is exercised on every run. With network, the live rules load
   // and the masthead appears by itself.
-  let failureShotTaken = false;
-  let consentShotTaken = false;
   const open = async (url, readySelector = '.masthead h1') => {
     await navigate(url);
     // The live rules come from Google at start-up: allow a slow network a full
