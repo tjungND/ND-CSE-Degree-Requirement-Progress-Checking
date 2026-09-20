@@ -1,7 +1,10 @@
-# Runs the test suite and a build on every push and pull request.
+# Runs the test suite and a build on every push to a branch and every pull request.
+# Not on main: deploy.yml already runs npm ci, npm test and npm run build there before
+# it publishes, so a second run on the same commit could never catch anything (DGS 2026-09-20).
 name: test
 on:
   push:
+    branches-ignore: [main]
   pull_request:
 jobs:
   test:

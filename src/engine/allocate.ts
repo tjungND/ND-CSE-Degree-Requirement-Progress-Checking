@@ -219,7 +219,7 @@ function priorNdShape(
   const approvalPending = approvalStatus(counts, rule.level, isCse, attestations);
   const shape =(pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
   // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
-  if (program === 'mscse' && MS_PROJECT_COURSE_IDS.includes(courseId)) return shape('project', []);
+  if (program === 'mscse' && isMsProjectCourse(courseId)) return shape('project', []);
   switch (rule.courseType) {
     case 'regular':
       if (rule.level === 4 || rule.level === 5) {
@@ -251,6 +251,10 @@ function priorNdShape(
  * two. The Ph.D. is untouched: §3.2 is the master's section, and a Ph.D.
  * student's thesis-direction credits are research credits. */
 const MS_PROJECT_COURSE_IDS = ['CSE 68901', 'CSE 68902'];
+/** The project-course test, on the canonical id at every site (DGS 2026-09-20): the
+ * entry form canonicalises ids, so this only matters for a hand-edited save file
+ * with "cse 68902" — which used to be a project course on one path and not another. */
+const isMsProjectCourse = (courseId: string): boolean => MS_PROJECT_COURSE_IDS.includes(canonicalCourseId(courseId));
 
 function tierFor(grade: Grade, provisional: boolean): Tier {
   if (provisional) return 'provisional'; // worst uncertainty dominates
@@ -567,7 +571,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
     const approvalPending = approvalStatus(counts, level, isCse, attestations);
     const tier = tierFor(grade, approvalPending !== undefined);
 
-    if (program === 'mscse' && MS_PROJECT_COURSE_IDS.includes(c.courseId)) {
+    if (program === 'mscse' && isMsProjectCourse(c.courseId)) {
       return { ...base, pool: 'project', caps: [], tier, approvalPending };
     }
 
@@ -812,7 +816,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
   // report, "counts toward the project/thesis requirement". Said before
   // the sheet's own verdict, because it holds whatever the row says.
-  const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || MS_PROJECT_COURSE_IDS.includes(canonicalCourseId(c.courseId));
+  const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || isMsProjectCourse(c.courseId);
   if (isProject) {
     return {
       ...extBase,

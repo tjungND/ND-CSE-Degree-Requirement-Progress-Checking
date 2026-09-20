@@ -219,11 +219,10 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `defendGpaNote` in context.ts serve both programs, and the ExternalCourses tab is indexed once
   per rules object. On the course-rules page the per-row schedule, search text and group list are
   computed once per render. The one behavioural nuance: the add-a-course year box now defaults to
-  the Notre Dame date's year, like every other date on the page, not the device clock. Items the
-  reviews raised but left for the DGS: `MS_PROJECT_COURSE_IDS` is matched on the raw id at two
-  sites and the canonical id at one (a hand-typed `cse 68902` differs); CI runs the test suite twice
-  per push to main (test.yml and deploy.yml); the sync workflow's `npm test` step tests nothing
-  that reads the snapshot.
+  the Notre Dame date's year, like every other date on the page, not the device clock. The three items the
+  reviews left for the DGS were decided the same day (DECISIONS 2026-09-20): `isMsProjectCourse`
+  matches the canonical id everywhere; test.yml skips pushes to main (deploy.yml tests there);
+  the sync workflow keeps its test step as the scheduled clean-machine check.
 - **The page is fluid** (2026-09-09). `#app` has NO max-width — do not re-add one. `.layout` is
   `minmax(0, 1fr) minmax(480px, 30%)`, so both columns grow. There is NO reading measure on prose
   either (DGS 2026-09-19: the 100ch, then 70ch, cap on `.card > p` etc. read as stray line breaks
