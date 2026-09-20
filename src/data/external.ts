@@ -135,6 +135,33 @@ export function normalizeCourseId(id: string): string {
   return id.toUpperCase().replace(/[\s\-–—_./]+/g, '');
 }
 
+/** The ExternalCourses rows indexed by university key, then by normalized
+ * course id — built once per rows array (a WeakMap keyed on the array itself,
+ * so a fresh Rules object gets a fresh index) instead of scanning every row for
+ * every course the engine classifies. First row wins on both levels, exactly
+ * as the linear scans it replaces did. */
+interface ExternalIndex {
+  byUniversity: Map<string, { byCourse: Map<string, ExternalRule>; creditSystem?: CreditSystem }>;
+}
+const EXTERNAL_INDEX = new WeakMap<readonly ExternalRule[], ExternalIndex>();
+function externalIndex(rules: readonly ExternalRule[]): ExternalIndex {
+  let index = EXTERNAL_INDEX.get(rules);
+  if (index) return index;
+  index = { byUniversity: new Map() };
+  for (const r of rules) {
+    let uni = index.byUniversity.get(r.universityKey);
+    if (!uni) {
+      uni = { byCourse: new Map() };
+      index.byUniversity.set(r.universityKey, uni);
+    }
+    const id = normalizeCourseId(r.courseId);
+    if (!uni.byCourse.has(id)) uni.byCourse.set(id, r);
+    if (uni.creditSystem === undefined && r.creditSystem !== undefined) uni.creditSystem = r.creditSystem;
+  }
+  EXTERNAL_INDEX.set(rules, index);
+  return index;
+}
+
 /** The DGS's ruling for one (university, course) pair, or undefined = the DGS
  * has not reviewed that course yet. First matching row wins (duplicates are
  * reported at parse time). */
@@ -146,7 +173,7 @@ export function findExternalRule(
   const uni = normalizeUniversity(university);
   const id = normalizeCourseId(courseId);
   if (uni === '' || id === '') return undefined;
-  return rules.find((r) => r.universityKey === uni && normalizeCourseId(r.courseId) === id);
+  return externalIndex(rules).byUniversity.get(uni)?.byCourse.get(id);
 }
 
 /** §5.2: "Credits not earned on the semester system, such as trimester and
@@ -169,13 +196,13 @@ export function creditSystemFactorLabel(factor: number): string {
  * rows (the DGS sets it once; it applies to every course from that university,
  * listed or not). Undefined when no row says — credits then count as printed. */
 export function universityCreditSystem(
-  external: readonly { universityKey: string; creditSystem?: CreditSystem }[],
+  external: readonly ExternalRule[],
   university: string | undefined,
 ): CreditSystem | undefined {
   if (university === undefined) return undefined;
   const key = normalizeUniversity(university);
   if (key === '') return undefined;
-  return external.find((r) => r.universityKey === key && r.creditSystem !== undefined)?.creditSystem;
+  return externalIndex(external).byUniversity.get(key)?.creditSystem;
 }
 
 /** What one course counts for at Notre Dame: the DGS's fixed value for this

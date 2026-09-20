@@ -1,5 +1,6 @@
 // Student-side data model. See docs/DECISIONS.md for every interpretation choice.
 // The engine is pure: audit(student, rules, today) — no DOM, no fetch, no Date.now().
+import type { CourseMark } from './allocate.ts';
 import type { SpecialTrack } from './tracks.ts';
 
 export type Program = 'mscse' | 'phd';
@@ -61,8 +62,9 @@ export interface CourseEntry {
    * per row, so the banner can count what is the example's and the button can
    * take back exactly those. */
   fromExample?: true;
-  /** transfer-only: §4.4.1 core area the student claims this course satisfies (decision Q12). */
-  /** Deprecated 2026-09-03 (the claim path is retired — the DGS's
+  /** transfer-only: §4.4.1 core area the student claims this course satisfies (decision Q12).
+   *
+   * Deprecated 2026-09-03 (the claim path is retired — the DGS's
    * ExternalCourses rulings decide §4.4.1). Kept so old saved/imported
    * student files still load; the engine ignores it. */
   claimedCoreArea?: CoreArea;
@@ -320,15 +322,15 @@ export interface CourseLine {
    * it is passed), amber (counted only until an advisor/DGS approval), red
    * (earns nothing). "Taken", "in progress" and "pending approval" were one
    * amber mark until the DGS asked for them to be told apart. */
-  mark: 'counts' | 'in_progress' | 'pending' | 'excluded';
+  mark: CourseMark;
 }
 
 export interface AuditReport {
   program: Program;
   requirements: RequirementResult[];
   courseLines: CourseLine[];
-  /** met / scored, where n/a and informational rows are excluded from both. */
-  /** `met` counts rows that are satisfied outright; `conditional` those
+  /** met / scored, where n/a and informational rows are excluded from both.
+   * `met` counts rows that are satisfied outright; `conditional` those
    * satisfied except for an approval (W-CS1, 2026-09-18). They are disjoint,
    * and both are inside `scored`. */
   summary: { met: number; conditional: number; scored: number };

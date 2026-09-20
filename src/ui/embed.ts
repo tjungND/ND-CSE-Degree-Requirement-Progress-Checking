@@ -216,12 +216,6 @@ function send(): void {
   post({ type: HEIGHT_MESSAGE, height });
 }
 
-/** Make this page's own `#…` links work inside a frame that cannot scroll.
- *
- * One delegated listener rather than a handler per anchor, so links added to
- * the page later are covered without anyone remembering to. The default action
- * is left alone: it still sets `:target` and moves focus, it simply has nothing
- * to scroll. */
 /** Where the student last acted, in document coordinates — the only place a
  * pop-up can appear that is certain to be on screen in a frame the page cannot
  * scroll (the parent's viewport is invisible to a cross-origin frame). */
@@ -265,9 +259,21 @@ export function postScrollTo(target: Element): void {
   if (!isEmbedded()) return;
   const raw = target.getBoundingClientRect().top + window.scrollY;
   if (!Number.isFinite(raw)) return;
-  post({ type: SCROLL_MESSAGE, offset: Math.min(MAX_EMBED_HEIGHT, Math.max(0, Math.round(raw))) });
+  post({ type: SCROLL_MESSAGE, offset: clampOffset(raw) });
 }
 
+/** Clamped the same way a height is, and never negative: the parent is being
+ * asked for a position inside this page, not for an arbitrary scroll. */
+function clampOffset(raw: number): number {
+  return Math.min(MAX_EMBED_HEIGHT, Math.max(0, Math.round(raw)));
+}
+
+/** Make this page's own `#…` links work inside a frame that cannot scroll.
+ *
+ * One delegated listener rather than a handler per anchor, so links added to
+ * the page later are covered without anyone remembering to. The default action
+ * is left alone: it still sets `:target` and moves focus, it simply has nothing
+ * to scroll. */
 export function startAnchorScrollRelay(root: HTMLElement): void {
   if (!isEmbedded()) return;
   root.addEventListener('click', (ev) => {
@@ -284,9 +290,7 @@ export function startAnchorScrollRelay(root: HTMLElement): void {
     if (!target) return;
     const raw = target.getBoundingClientRect().top + window.scrollY;
     if (!Number.isFinite(raw)) return;
-    // Clamped the same way a height is, and never negative: the parent is being
-    // asked for a position inside this page, not for an arbitrary scroll.
-    post({ type: SCROLL_MESSAGE, offset: Math.min(MAX_EMBED_HEIGHT, Math.max(0, Math.round(raw))) });
+    post({ type: SCROLL_MESSAGE, offset: clampOffset(raw) });
   });
 }
 

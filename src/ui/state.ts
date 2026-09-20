@@ -2,9 +2,14 @@
 // (DGS-requested, 2026-08-31) so a student can move between devices/browsers.
 // Nothing ever leaves the browser (CLAUDE.md).
 import { COURSE_CREDITS_RANGE, GPA_RANGE, inRange, rangeRefusal } from '../engine/ranges.ts';
-import type { Student } from '../engine/types.ts';
+import type { Season, Student } from '../engine/types.ts';
 
 const LS_KEY = 'cse-degree-audit/v1/student';
+
+/** The name of the file "Save to a file" writes (exportFile below). */
+export function selfCheckFileName(program: Student['program']): string {
+  return `cse-degree-audit-${program}.json`;
+}
 
 export function emptyStudent(): Student {
   return {
@@ -21,7 +26,8 @@ export function emptyStudent(): Student {
   };
 }
 
-const SEASONS = ['fall', 'spring', 'summer'];
+/** The three semesters, in the order every season dropdown lists them. */
+export const SEASONS: readonly Season[] = ['fall', 'spring', 'summer'];
 
 function validTerm(t: unknown): t is Student['entryTerm'] {
   const term = t as Record<string, unknown> | undefined;
@@ -113,6 +119,10 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     throw new Error('This file has no valid entry term.');
   }
   if (!Array.isArray(d.courses)) throw new Error('This file has no course list.');
+  // Which degrees a course has already counted toward (2026-09-10). A value
+  // the app does not know is dropped, never thrown on — an unanswered course
+  // simply counts nothing until the student answers.
+  const COUNTED_TOWARD = ['bs', 'mscse', 'both', 'neither'];
   // Deep-check each course — a malformed entry accepted here would crash every
   // later page load, since the file is saved to localStorage.
   d.courses.forEach((c: unknown, i: number) => {
@@ -151,7 +161,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     if (e['fromNdTranscript'] !== undefined && e['fromNdTranscript'] !== true)
       delete e['fromNdTranscript']; // likewise a hint (which rows the transcript import added)
     if (e['fromExample'] !== undefined && e['fromExample'] !== true) delete e['fromExample']; // and which came from "Load example"
-
+    if (e['countedToward'] !== undefined && !COUNTED_TOWARD.includes(e['countedToward'] as string)) delete e['countedToward'];
   });
   // The cumulative GPA is the one number in a file the engine reads straight
   // through to a verdict, so it is range-checked here as well as in the form
@@ -173,14 +183,6 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     gpaRefused || !(gs && typeof gs === 'object' && (gs['basis'] === 'transcript-graduate' || gs['basis'] === 'program-only'))
       ? undefined
       : (gs as Student['gpaSource']);
-  // Which degrees a course has already counted toward (2026-09-10). A value
-  // the app does not know is dropped, never thrown on — an unanswered course
-  // simply counts nothing until the student answers.
-  const COUNTED_TOWARD = ['bs', 'mscse', 'both', 'neither'];
-  for (const c of d.courses ?? []) {
-    const row = c as unknown as Record<string, unknown>;
-    if (row['countedToward'] !== undefined && !COUNTED_TOWARD.includes(row['countedToward'] as string)) delete row['countedToward'];
-  }
   const raw = d as Record<string, unknown>;
   const bachelorsAwarded = validBachelors(raw['bachelorsAwarded']);
   return {
@@ -237,7 +239,7 @@ export function exportFile(student: Student): void {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `cse-degree-audit-${student.program}.json`;
+  a.download = selfCheckFileName(student.program);
   a.click();
   URL.revokeObjectURL(a.href);
 }

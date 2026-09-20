@@ -1,6 +1,6 @@
 // §2 requirements shared by both programs.
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../ranges.ts';
-import { coursesNeedingDgsReview } from '../review.ts';
+import { coursesNeedingDgsReviewFor } from '../review.ts';
 import { startOfTerm } from '../term.ts';
 import type { DetailPart, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
@@ -115,7 +115,7 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   // A pre-approved transfer whose §4.4.1 core area the DGS has not recorded is
   // still in the review request (review.ts), so it belongs to the DGS too: the
   // reason string alone cannot tell, hence the second source here.
-  const stillWithDgs = new Set(coursesNeedingDgsReview(ctx.student, ctx.rules).map((p) => p.course.entry.courseId));
+  const stillWithDgs = new Set(coursesNeedingDgsReviewFor(ctx.classified, ctx.student).map((p) => p.course.entry.courseId));
   const ACTOR_ORDER = ['advisor', 'dgs', 'gradAdmin'] as const;
   const actorsOf = (c: (typeof pending)[number]): SignOffActor[] => {
     const actors = new Set<SignOffActor>(signOffActors(c.approvalPending!));
@@ -133,7 +133,9 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   const groups = new Map<string, typeof pending>();
   for (const c of pending) {
     const key = actorsOf(c).join(',');
-    groups.set(key, [...(groups.get(key) ?? []), c]);
+    const list = groups.get(key);
+    if (list) list.push(c);
+    else groups.set(key, [c]);
   }
   const anyDgs = [...groups.keys()].some((key) => key.split(',').includes('dgs'));
   const status = anyDgs ? 'needs_dgs_review' : groups.size > 0 || planUnconfirmed ? 'in_progress' : 'not_applicable';

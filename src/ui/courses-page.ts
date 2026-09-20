@@ -10,12 +10,12 @@ import { resolveRuleRow } from '../data/assemble.ts';
 import type { CourseType, Counts, RuleCourse, Rules } from '../data/types.ts';
 import type { Term } from '../engine/types.ts';
 import { termLabel, termOfDate } from '../engine/term.ts';
-import { rowSchedule, scheduleTerms, type RowFreshness } from './schedule-terms.ts';
+import { rowSchedule, scheduleTerms, type RowFreshness, type RowSchedule } from './schedule-terms.ts';
 
 // (A local `afterTeachingTermBack` lived here until 2026-09-18 — a second copy
 // of schedule-terms.ts's own arithmetic, kept only for a sentence about
 // one-semester-behind rows that the DGS's `last_offered` ruling retired.)
-import { DGS, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
+import { LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 import { SIBLING_PARAM, allowedHostPage, siblingAnchorAttrs } from './sibling-links.ts';
 import { embedTargetAttrs, isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnchorScrollRelay } from './embed.ts';
@@ -49,7 +49,8 @@ const OFFERED_LABEL: Record<string, string> = {
   varies: 'Varies',
 };
 
-type SortKey = 'course' | 'title' | 'type' | 'mscse' | 'phd' | 'core' | 'category' | 'offered' | 'reviewed';
+const SORT_KEYS = ['course', 'title', 'type', 'mscse', 'phd', 'core', 'category', 'offered', 'reviewed'] as const;
+type SortKey = (typeof SORT_KEYS)[number];
 
 /** What the reader is checking (usability review 2026-09-05, item 30): the
  * table shows only the columns that answer that question. */
@@ -122,7 +123,7 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   // three courses on today's sheet could satisfy together.
   if (f.core && f.category) f.category = '';
   const type = params.get('type')?.trim().toLowerCase();
-  if (type && ['regular', 'seminar', 'research', 'independent', 'project'].includes(type)) f.type = type;
+  if (type && Object.keys(TYPE_LABEL).includes(type)) f.type = type;
   const offered = params.get('offered');
   if (offered === 'now' || offered === 'next') f.offered = offered;
   // NOTE: whether either value still MEANS anything depends on today's date
@@ -132,10 +133,10 @@ function filtersFromUrl(defaults: Filters, validCores: Set<string>, validCategor
   if (params.get('retired') === '1') f.includeRetired = true;
   if (params.get('confirmed') === '1') f.confirmedOnly = true;
   const sort = params.get('sort')?.trim().toLowerCase();
-  if (sort && ['course', 'title', 'type', 'mscse', 'phd', 'core', 'category', 'offered', 'reviewed'].includes(sort)) f.sort = sort as SortKey;
+  if (sort && (SORT_KEYS as readonly string[]).includes(sort)) f.sort = sort as SortKey;
   if (params.get('desc') === '1') f.desc = true;
   const view = params.get('view')?.trim().toLowerCase();
-  if (view === 'all' || view === 'mscse' || view === 'phd' || view === 'qualifier') f.view = view;
+  if (view && Object.keys(VIEW_LABEL).includes(view)) f.view = view as View;
   // A link that asks for the M.S. view AND the Ph.D. program describes a page
   // that cannot exist: the status line would name one degree over a list
   // filtered by the other, with that degree's column hidden (review B-11).
@@ -213,7 +214,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const offeredIn =
     (which: 'this' | 'next') =>
     (r: RuleCourse): boolean | undefined => {
-      const rs = rowSchedule(currentTerm, r);
+      const rs = scheduleOf(r);
       return which === 'this' ? rs.this : rs.next;
     };
   /** Rows the page leaves OFF the schedule cards although their sheet cells
@@ -228,7 +229,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         out.retired += 1;
         continue;
       }
-      out[rowSchedule(currentTerm, r).freshness] += 1;
+      out[scheduleOf(r).freshness] += 1;
     }
     return out;
   };
@@ -236,12 +237,16 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // One row per course: the rule in effect this term (older/newer versions are
   // mentioned in the hover text so nothing is hidden).
   const rows: RuleCourse[] = [];
-  for (const [courseId, versions] of rules.courses) {
+  for (const courseId of rules.courses.keys()) {
     const current = resolveRuleRow(rules, courseId, currentTerm);
     if (current) rows.push(current);
-    void versions;
   }
   rows.sort((a, b) => a.courseId.localeCompare(b.courseId));
+  /** Each row's schedule reading (schedule-terms.ts), taken once: the filter,
+   * both cards, the tags, the key line and the note under the cards all ask
+   * for it, and it is pure. */
+  const schedules = new Map<RuleCourse, RowSchedule>(rows.map((r) => [r, rowSchedule(currentTerm, r)]));
+  const scheduleOf = (r: RuleCourse): RowSchedule => schedules.get(r) ?? rowSchedule(currentTerm, r);
 
   const coreName = new Map(rules.coreAreas.map((c) => [c.code, c.name]));
   const groupName = new Map(rules.categoryGroups.map((g) => [g.code, g.name]));
@@ -263,13 +268,44 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
 
   // ---------- helpers ----------
 
+  // The contact card lives in one of two places by width (trim review P-21).
+  // Two empty hosts and one node moved between them, so there is only ever one
+  // card in the document and no duplicate ids or headings.
+  const contactHost = el('div', { class: 'contact-host' });
+  const mainContactHost = el('div', { class: 'contact-host' });
+  const contactNode = contactCard();
+  const placeContact = (wide: boolean): void => {
+    (wide ? contactHost : mainContactHost).append(contactNode);
+  };
+  const wideEnough = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 900px)') : undefined;
+  placeContact(wideEnough ? wideEnough.matches : true);
+  wideEnough?.addEventListener?.('change', (ev) => placeContact((ev as MediaQueryListEvent).matches));
+  /** Whether the filter bar is the desk grid (no fold) — see filterBar. Tests
+   * run without matchMedia and get the desk bar. */
+  const wideFilters: { matches: boolean; addEventListener?: (t: string, f: () => void) => void } =
+    typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 861px)') : { matches: true };
+
   const countsLabel = (c: Counts | undefined): string => (c ? COUNTS_LABEL[c] : 'Not yet decided');
   const countsClass = (c: Counts | undefined): string => (c ? COUNTS_CLASS[c] : 'undecided');
+  /** The Yes / No / With … approval pill, wherever a credit verdict is shown. */
+  const countsPill = (c: Counts | undefined): HTMLElement => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
+  /** The id of a course's row in All courses — the anchor every in-page link to it uses. */
+  const rowAnchorId = (r: RuleCourse): string => r.courseId.replace(' ', '-');
+  /** The schedule row a qualifier card's link jumps to (DGS 2026-09-17):
+   * this semester's card first, else next semester's. */
+  const scheduleRowId = (r: RuleCourse, which: 'this' | 'next'): string => `sched-${which}-${rowAnchorId(r)}`;
   const coreLabel = (r: RuleCourse): string => (r.coreArea ? (coreName.get(r.coreArea) ?? r.coreArea) : '—');
   const allGroupCodes = rules.categoryGroups.map((g) => g.code);
+  /** Whether the sheet says anything about each card's semester (a yes or a
+   * no), and whether any row is marked offered in it — asked by the filter,
+   * the cards, the key line and the "On the schedule" options. */
+  const saidThis = rows.some((r) => scheduleOf(r).this !== undefined);
+  const saidNext = rows.some((r) => scheduleOf(r).next !== undefined);
+  const anyNow = rows.some((r) => scheduleOf(r).this === true);
+  const anyNext = rows.some((r) => scheduleOf(r).next === true);
   // Whether the DGS has filled the schedule columns in at all: with every cell
   // blank the filter can only return nothing, so it is not shown (2026-09-09).
-  const scheduleKnown = rows.some((r) => offeredIn('this')(r) !== undefined || offeredIn('next')(r) !== undefined);
+  const scheduleKnown = saidThis || saidNext;
   /** Is any loaded row still unconfirmed by the DGS?
    *
    * The same data-driven rule the schedule filter above uses (trim review
@@ -286,7 +322,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // that means anything depends on today and on the sheet, so it is dropped
   // here rather than silently filtering the table to nothing while the control
   // reads "Any semester" (2026-09-09).
-  if (filters.offered !== '' && !rows.some((r) => offeredIn(filters.offered === 'now' ? 'this' : 'next')(r) !== undefined)) {
+  if (filters.offered !== '' && !(filters.offered === 'now' ? saidThis : saidNext)) {
     filters.offered = '';
   }
   // §4.4.2's numbers are DGS-tunable sheet parameters, so the two places that
@@ -302,10 +338,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       : 'courses from several different categories are required — the handbook has the exact numbers';
   /** The groups a course may satisfy, in the Categories tab's order (DGS
    * 2026-09-08 — a cell may name one, several, or `any`). */
+  const groupsMemo = new Map<RuleCourse, string[]>();
   const groupsOf = (r: RuleCourse): string[] => {
+    const memo = groupsMemo.get(r);
+    if (memo) return memo;
     const listed = r.categoryGroups;
-    if (!listed || listed.length === 0) return [];
-    return allGroupCodes.filter((g) => listed.includes(g));
+    const groups = !listed || listed.length === 0 ? [] : allGroupCodes.filter((g) => listed.includes(g));
+    groupsMemo.set(r, groups);
+    return groups;
   };
   const categoryLabel = (r: RuleCourse): string => {
     // "Ineligible", the DGS's own word (2026-09-18): a 40000- or 50000-level
@@ -351,11 +391,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   // Spacing-insensitive search (usability review 2026-09-05, item 26):
   // "CSE20110", "cse 20110" and "20110" all find CSE 20110.
   const squash = (text: string): string => text.toLowerCase().replace(/\s+/g, '');
+  /** Each row's search text, lowered and squashed once rather than per keystroke. */
+  const searchable = new Map(rows.map((r) => [r, { id: squash(r.courseId), title: r.title.toLowerCase() }] as const));
 
   function visibleRows(): RuleCourse[] {
     const q = filters.query.trim().toLowerCase();
     const qs = squash(q);
-    let list = rows.filter((r) => {
+    const list = rows.filter((r) => {
       if (!filters.includeRetired && !r.active) return false;
       if (filters.confirmedOnly && !r.dgsReviewed) return false;
       if (filters.program !== 'all' && !counts(r, filters.program)) return false;
@@ -372,7 +414,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // read as a promise either way.
       if (filters.offered === 'now' && offeredIn('this')(r) !== true) return false;
       if (filters.offered === 'next' && offeredIn('next')(r) !== true) return false;
-      if (q && !squash(r.courseId).includes(qs) && !r.title.toLowerCase().includes(q)) return false;
+      if (q) {
+        const text = searchable.get(r)!;
+        if (!text.id.includes(qs) && !text.title.includes(q)) return false;
+      }
       return true;
     });
     // A row with nothing in the sorted column belongs at the END. `undefined`
@@ -407,14 +452,16 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     // direction and then appending the blanks keeps "nothing recorded here" at
     // the end, where it belongs, whichever way the column is sorted.
     const dir = filters.desc ? -1 : 1;
-    const filled = list.filter((r) => key(r) !== undefined);
-    const blanks = list.filter((r) => key(r) === undefined);
-    const byKey = (a: RuleCourse, b: RuleCourse): number => {
-      const ka = key(a)!;
-      const kb = key(b)!;
-      return ka !== kb ? dir * ka.localeCompare(kb) : dir * a.courseId.localeCompare(b.courseId);
+    // The key is computed once per row, not once per comparison.
+    const keyed = list.map((r) => ({ r, k: key(r) }));
+    const filled = keyed.filter((x) => x.k !== undefined);
+    const blanks = keyed.filter((x) => x.k === undefined);
+    const byKey = (a: { r: RuleCourse; k: string | undefined }, b: { r: RuleCourse; k: string | undefined }): number => {
+      const ka = a.k!;
+      const kb = b.k!;
+      return ka !== kb ? dir * ka.localeCompare(kb) : dir * a.r.courseId.localeCompare(b.r.courseId);
     };
-    return [...filled.sort(byKey), ...blanks.sort((a, b) => dir * a.courseId.localeCompare(b.courseId))];
+    return [...filled.sort(byKey), ...blanks.sort((a, b) => dir * a.r.courseId.localeCompare(b.r.courseId))].map((x) => x.r);
   }
 
   // ---------- page pieces ----------
@@ -515,7 +562,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     return out;
   }
 
-  /** Quick view: core areas and specialization categories with their courses. */
   /** What is running this semester and next — two cards, from the Courses
    * tab's `offered_now` / `offered_next` (DGS 2026-09-09). A column with no
    * `yes` anywhere has not been published yet, and the card says so rather
@@ -526,14 +572,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     // (2026-09-09): "Typically offered" (a pattern from past years, which
     // these cards supersede), "DGS reviewed" (the * beside a course id says
     // it) and the notes (a per-row disclosure in the table below).
-    const pill = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
     /** A column header with its explanation under the name, in the small type
      * the main table uses; `abbr` gives a screen reader the long form. */
     const colHead = (label: string, sub: string, full: string): HTMLElement =>
       el('th', { scope: 'col', abbr: full }, label, el('span', { class: 'th-sub' }, sub));
-    /** The schedule row a qualifier card's link jumps to (DGS 2026-09-17):
-     * this semester's card first, else next semester's. */
-    const scheduleRowId = (r: RuleCourse, which: 'this' | 'next'): string => `sched-${which}-${r.courseId.replace(' ', '-')}`;
     /** The table, wrapped so a narrow screen can start with it closed (trim
      * review P-20, 2026-09-18): below 861 px each row becomes a stacked card,
      * so the Fall card alone measured 9,880 px at 390 px — every one of those
@@ -600,14 +642,14 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                 el(
                   'th',
                   { scope: 'row', class: 'course-id' },
-                  withCourseCard(el('a', { href: `#${r.courseId.replace(' ', '-')}` }, r.courseId), r),
+                  withCourseCard(el('a', { href: `#${rowAnchorId(r)}` }, r.courseId), r),
                   // Named, not an asterisk whose footnote no longer exists (R-10).
                   r.dgsReviewed ? '' : el('span', { class: 'pill small pending', title: 'The DGS has not yet confirmed this row' }, 'Pending'),
                 ),
                 el('td', { class: 'cell-title', 'data-label': 'Title' }, r.title),
                 el('td', { 'data-label': 'Type' }, TYPE_LABEL[r.courseType]),
-                el('td', { 'data-label': 'MSCSE degree credit' }, pill(r.countsTowardMscse)),
-                el('td', { 'data-label': 'Ph.D. degree credit' }, pill(r.countsTowardPhd)),
+                el('td', { 'data-label': 'MSCSE degree credit' }, countsPill(r.countsTowardMscse)),
+                el('td', { 'data-label': 'Ph.D. degree credit' }, countsPill(r.countsTowardPhd)),
                 el('td', { class: r.coreArea ? '' : 'muted', 'data-label': 'Core knowledge (§4.4.1)' }, coreLabel(r)),
                 el('td', { class: groupsOf(r).length === 0 && !r.categoryIneligible ? 'muted' : '', 'data-label': 'Specialization (§4.4.2)' }, categoryLabel(r)),
               ),
@@ -618,7 +660,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     const card = (heading: string, term: Term, offered: (r: RuleCourse) => boolean | undefined, which: 'this' | 'next'): HTMLElement => {
       // "Released" means the DGS has said something about this semester at
       // all — a yes or a no. Until then the list is not empty, it is unknown.
-      const said = rows.some((r) => offered(r) !== undefined);
+      const said = which === 'this' ? saidThis : saidNext;
       // A course whose rule changes between the two semesters is shown as it
       // will be in the semester the card is about — the table below is
       // explicitly "the rule in effect this term", but a card headed Spring
@@ -694,12 +736,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           // card; otherwise its row in All courses (DGS 2026-09-17).
           {
             class: `ov-item${r.dgsReviewed ? '' : ' pending'}`,
-            href:
-              offeredIn('this')(r) === true
-                ? `#sched-this-${r.courseId.replace(' ', '-')}`
-                : offeredIn('next')(r) === true
-                  ? `#sched-next-${r.courseId.replace(' ', '-')}`
-                  : `#${r.courseId.replace(' ', '-')}`,
+            href: offeredIn('this')(r) === true ? `#${scheduleRowId(r, 'this')}` : offeredIn('next')(r) === true ? `#${scheduleRowId(r, 'next')}` : `#${rowAnchorId(r)}`,
           },
           el('span', { class: 'cid' }, r.courseId),
           el('span', { class: 'ctitle' }, r.title),
@@ -754,8 +791,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // state of the live sheet — it promised a "Spring ’27" marker that
       // appeared on no course, which reads as "none of these run next spring".
       ...(() => {
-        const anyNow = rows.some((r) => offeredIn('this')(r) === true);
-        const anyNext = rows.some((r) => offeredIn('next')(r) === true);
         if (!anyNow && !anyNext) return [];
         const bits: (string | Node)[] = [];
         if (anyNow) bits.push(el('span', { class: 'pill small sched-now' }, termShortLabel(thisTeachingTerm)), ` offered ${thisSemesterPhrase}`);
@@ -825,13 +860,12 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     el('div', { class: 'pop-row' }, el('span', { class: 'pop-label' }, label), el('span', { class: 'pop-value' }, value));
   const fillCard = (r: RuleCourse): void => {
     clear(hoverCard);
-    const pill = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
     hoverCard.append(
       el('h4', {}, r.courseId, r.active ? '' : el('span', { class: 'pill retired' }, 'Retired')),
       el('p', { class: 'pop-title' }, r.title),
       popRow('Type', TYPE_LABEL[r.courseType]),
-      popRow('MSCSE degree credit', pill(r.countsTowardMscse)),
-      popRow('Ph.D. degree credit', pill(r.countsTowardPhd)),
+      popRow('MSCSE degree credit', countsPill(r.countsTowardMscse)),
+      popRow('Ph.D. degree credit', countsPill(r.countsTowardPhd)),
       popRow('Core knowledge (§4.4.1)', coreLabel(r)),
       popRow('Specialization (§4.4.2)', categoryLabel(r)),
       popRow('Typically offered', offeredLabel(r)),
@@ -951,8 +985,21 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   };
   const filterHost = el('div', { class: 'filter-host' });
   let clearButton: HTMLElement | undefined;
+  /** Rebuild the bar from `filters` (its values live there, not in the controls). */
+  const rebuildFilterBar = (): void => {
+    clear(filterHost);
+    filterHost.append(filterBar());
+  };
+  /** Put keyboard focus back on a control after the bar was rebuilt under it. */
+  const focusFilter = (key: string): void => {
+    filterHost.querySelector<HTMLElement>(`[data-key="${key}"]`)?.focus();
+  };
 
   function filterBar(): HTMLElement {
+    return layoutFilterBar(buildFilterControls());
+  }
+  /** The controls, each wired to `filters` and to refreshTable. */
+  function buildFilterControls() {
     // "What are you checking?" (item 30) picks the COLUMNS. It used to narrow
     // the Program filter to the same degree, which hid exactly the courses a
     // reader was checking: choose the M.S. view, search 63801, and the page
@@ -966,10 +1013,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         const v = (e.target as HTMLSelectElement).value as View;
         filters.view = v;
         if ((v === 'mscse' || v === 'phd') && filters.program !== 'all' && filters.program !== v) filters.program = 'all';
-        clear(filterHost);
-        filterHost.append(filterBar());
+        rebuildFilterBar();
         refreshTable();
-        filterHost.querySelector<HTMLElement>('[data-key="filter.view"]')?.focus();
+        focusFilter('filter.view');
       },
     });
     for (const [k, label] of Object.entries(VIEW_LABEL)) view.append(option(k, label, filters.view === k));
@@ -992,10 +1038,9 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         // and the bar is rebuilt so both controls read the same.
         if ((filters.view === 'mscse' || filters.view === 'phd') && filters.program !== 'all' && filters.program !== filters.view) {
           filters.view = filters.program;
-          clear(filterHost);
-          filterHost.append(filterBar());
+          rebuildFilterBar();
           refreshTable();
-          filterHost.querySelector<HTMLElement>('[data-key="filter.program"]')?.focus();
+          focusFilter('filter.program');
           return;
         }
         refreshTable();
@@ -1057,8 +1102,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     });
     offered.append(option('', 'Any semester', filters.offered === ''));
     // Only a semester the sheet has actually recorded is offered as a choice.
-    if (rows.some((r) => offeredIn('this')(r) !== undefined)) offered.append(option('now', `Offered ${thisSemesterPhrase} (${termLabel(thisTeachingTerm)})`, filters.offered === 'now'));
-    if (rows.some((r) => offeredIn('next')(r) !== undefined)) offered.append(option('next', `Offered ${nextSemesterPhrase} (${termLabel(nextTeachingTerm)})`, filters.offered === 'next'));
+    if (saidThis) offered.append(option('now', `Offered ${thisSemesterPhrase} (${termLabel(thisTeachingTerm)})`, filters.offered === 'now'));
+    if (saidNext) offered.append(option('next', `Offered ${nextSemesterPhrase} (${termLabel(nextTeachingTerm)})`, filters.offered === 'next'));
     const retired = el('input', {
       type: 'checkbox',
       'data-key': 'filter.retired',
@@ -1114,15 +1159,20 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         'data-key': 'filter.clear',
         onclick: () => {
           Object.assign(filters, defaultFilters());
-          clear(filterHost);
-          filterHost.append(filterBar());
+          rebuildFilterBar();
           refreshTable();
-          filterHost.querySelector<HTMLElement>('[data-key="filter.search"]')?.focus();
+          focusFilter('filter.search');
         },
       },
       'Clear filters',
     );
     clearButton.classList.toggle('hidden', !filtersActive());
+    return { view, search, program, qualifierArea, type, offered, retired, confirmed, sortSel, descBox, clearButton };
+  }
+  /** The bar's shape: the view and the search box always in sight, the rest
+   * in the grid on a desk and behind "More filters" on a phone. */
+  function layoutFilterBar(c: ReturnType<typeof buildFilterControls>): HTMLElement {
+    const { view, search, program, qualifierArea, type, offered, retired, confirmed, sortSel, descBox, clearButton } = c;
     // On a phone the bar was eight stacked controls — a full screen before
     // the first course (mobile review 2026-09-19). The view and the search box
     // stay in sight; the rest folds behind "More filters", open by itself
@@ -1174,10 +1224,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       ...more,
     );
   }
-  /** Whether the filter bar is the desk grid (no fold) — see filterBar. Tests
-   * run without matchMedia and get the desk bar. */
-  const wideFilters: { matches: boolean; addEventListener?: (t: string, f: () => void) => void } =
-    typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 861px)') : { matches: true };
 
   /** Set for the one render that follows a card link clearing the reader's
    * filters, so the count line can say what just happened. */
@@ -1203,116 +1249,94 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     notifyEmbedHeight();
   }
 
-  function table(): HTMLElement {
-    const list = visibleRows();
-    // Sortable headers expose their state (aria-sort) and say what pressing
-    // them does (usability review 2026-09-05, item 26).
-    const th = (key: SortKey, label: string, sub = ''): HTMLElement => {
-      const active = filters.sort === key;
-      const direction = filters.desc ? 'descending' : 'ascending';
-      return el(
-        'th',
-        { scope: 'col', 'aria-sort': active ? direction : 'none' },
-        el(
-          'button',
-          {
-            class: `sort${active ? ' active' : ''}`,
-            'data-key': `sort.${key}`,
-            onclick: () => {
-              if (filters.sort === key) filters.desc = !filters.desc;
-              else {
-                filters.sort = key;
-                filters.desc = false;
-              }
-              refreshTable();
-            },
-            'aria-label': active ? `${label} — sorted ${direction}; press to reverse` : `${label} — press to sort by it`,
+  /** Column visibility for the chosen view (item 30): a class on each hidden
+   * header and cell, so the card layout on phones hides the same fields.
+   * `col` is the 1-based column; `base` is the cell's own class, kept first. */
+  const colClass = (hidden: Set<number>, col: number, base = ''): string => (hidden.has(col) ? `${base} col-hidden`.trim() : base);
+  /** The same for a cell with no class of its own: an attribute only when hidden. */
+  const colAttr = (hidden: Set<number>, col: number): Record<string, string> => (hidden.has(col) ? { class: 'col-hidden' } : {});
+
+  // Sortable headers expose their state (aria-sort) and say what pressing
+  // them does (usability review 2026-09-05, item 26).
+  const sortHeader = (hidden: Set<number>, col: number, key: SortKey, label: string, sub = ''): HTMLElement => {
+    const active = filters.sort === key;
+    const direction = filters.desc ? 'descending' : 'ascending';
+    return el(
+      'th',
+      { scope: 'col', 'aria-sort': active ? direction : 'none', ...colAttr(hidden, col) },
+      el(
+        'button',
+        {
+          class: `sort${active ? ' active' : ''}`,
+          'data-key': `sort.${key}`,
+          onclick: () => {
+            if (filters.sort === key) filters.desc = !filters.desc;
+            else {
+              filters.sort = key;
+              filters.desc = false;
+            }
+            refreshTable();
           },
-          label,
-          active ? (filters.desc ? ' ▼' : ' ▲') : '',
-          sub ? el('span', { class: 'th-sub' }, sub) : '',
-        ),
-      );
-    };
-    const head = el(
-      'tr',
-      {},
-      th('course', 'Course'),
-      th('title', 'Title'),
-      th('type', 'Type'),
-      th('mscse', 'MSCSE', 'degree credit'),
-      th('phd', 'Ph.D.', 'degree credit'),
-      // The same wording as the schedule cards' own headers (trim review P-30).
-      th('core', 'Core knowledge', 'Ph.D. Qual. §4.4.1'),
-      th('category', 'Specialization', 'Ph.D. Qual. §4.4.2'),
-      th('offered', 'Typically offered'),
-      // Only while it says something (trim review P-18, 2026-09-18).
-      ...(someRowPending ? [th('reviewed', 'DGS reviewed')] : []),
+          'aria-label': active ? `${label} — sorted ${direction}; press to reverse` : `${label} — press to sort by it`,
+        },
+        label,
+        active ? (filters.desc ? ' ▼' : ' ▲') : '',
+        sub ? el('span', { class: 'th-sub' }, sub) : '',
+      ),
     );
-    const body = el('tbody', {});
-    // A filter that matches nothing used to render nothing, and silence reads
-    // as "this course does not count" — the opposite of the project's rule
-    // never to guess (2026-09-08).
-    if (list.length === 0) {
-      // Three separate things a reader can be looking at, and the old single
-      // sentence answered only one of them (review B-20, 2026-09-18): a typo
-      // was told the course "has not been decided by the DGS", and a course
-      // hidden by the retired switch was described as undecided too.
-      body.append(
-        el(
-          'tr',
-          { class: 'empty-row' },
-          el(
-            'td',
-            { colspan: someRowPending ? '9' : '8' },
-            el('strong', {}, 'No course here matches these filters. '),
-            ...(filters.query.trim() ? ['Check the spelling of “', filters.query.trim(), '” first — the search matches a course number or a word in the title. '] : []),
-            ...(!filters.includeRetired ? ['Retired courses are hidden until “Include retired courses” is ticked. '] : []),
-            'If the course is not on this page at all, the DGS has not ruled on it yet; that is not the same as “does not count”, and the degree self-check tool prepares the review request that asks for a ruling.',
-          ),
-        ),
-      );
-    }
-    for (const r of list) {
-      const pillCounts = (c: Counts | undefined) => el('span', { class: `pill ${countsClass(c)}` }, countsLabel(c));
-      // "Ineligible" is a ruling, not a blank: it is printed in full ink on
-      // the schedule cards and was greyed out here (review B-14).
-      const catClass = groupsOf(r).length === 0 && !r.categoryIneligible ? 'muted' : '';
-      const rowId = r.courseId.replace(' ', '-');
-      body.append(
-        el(
-          'tr',
-          { id: rowId, class: r.active ? '' : 'retired' },
-          el('th', { scope: 'row', class: 'course-id' }, r.courseId, r.active ? '' : el('span', { class: 'pill retired' }, 'Retired')),
-          el('td', { class: 'cell-title' }, r.title),
-          el('td', { 'data-label': 'Type' }, TYPE_LABEL[r.courseType]),
-          el('td', { 'data-label': 'MSCSE degree credit' }, pillCounts(r.countsTowardMscse)),
-          el('td', { 'data-label': 'Ph.D. degree credit' }, pillCounts(r.countsTowardPhd)),
-          el('td', { class: r.coreArea ? '' : 'muted', 'data-label': 'Core knowledge (§4.4.1)' }, coreLabel(r)),
-          el('td', { class: catClass, 'data-label': 'Specialization (§4.4.2)' }, categoryLabel(r)),
-          el('td', { class: r.typicallyOffered ? '' : 'muted', 'data-label': 'Typically offered' }, offeredLabel(r)),
-          ...(someRowPending
-            ? [
-                el(
-                  'td',
-                  { 'data-label': 'DGS reviewed' },
-                  r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending'),
-                ),
-              ]
-            : []),
-        ),
-      );
-    }
-    // Column visibility for the chosen view (item 30): a class on each hidden
-    // header and cell, so the card layout on phones hides the same fields.
-    const hidden = new Set(HIDDEN_COLUMNS[filters.view]);
-    if (hidden.size > 0) {
-      for (const tr of [head, ...body.querySelectorAll('tr:not(.note-row):not(.empty-row)')]) {
-        Array.from(tr.children).forEach((cell, i) => {
-          if (hidden.has(i + 1)) cell.classList.add('col-hidden');
-        });
-      }
-    }
+  };
+
+  // A filter that matches nothing used to render nothing, and silence reads
+  // as "this course does not count" — the opposite of the project's rule
+  // never to guess (2026-09-08).
+  const emptyRow = (): HTMLElement =>
+    // Three separate things a reader can be looking at, and the old single
+    // sentence answered only one of them (review B-20, 2026-09-18): a typo
+    // was told the course "has not been decided by the DGS", and a course
+    // hidden by the retired switch was described as undecided too.
+    el(
+      'tr',
+      { class: 'empty-row' },
+      el(
+        'td',
+        { colspan: someRowPending ? '9' : '8' },
+        el('strong', {}, 'No course here matches these filters. '),
+        ...(filters.query.trim() ? ['Check the spelling of “', filters.query.trim(), '” first — the search matches a course number or a word in the title. '] : []),
+        ...(!filters.includeRetired ? ['Retired courses are hidden until “Include retired courses” is ticked. '] : []),
+        'If the course is not on this page at all, the DGS has not ruled on it yet; that is not the same as “does not count”, and the degree self-check tool prepares the review request that asks for a ruling.',
+      ),
+    );
+
+  const courseRow = (r: RuleCourse, hidden: Set<number>): HTMLElement => {
+    // "Ineligible" is a ruling, not a blank: it is printed in full ink on
+    // the schedule cards and was greyed out here (review B-14).
+    const catClass = groupsOf(r).length === 0 && !r.categoryIneligible ? 'muted' : '';
+    return el(
+      'tr',
+      { id: rowAnchorId(r), class: r.active ? '' : 'retired' },
+      el('th', { scope: 'row', class: colClass(hidden, 1, 'course-id') }, r.courseId, r.active ? '' : el('span', { class: 'pill retired' }, 'Retired')),
+      el('td', { class: colClass(hidden, 2, 'cell-title') }, r.title),
+      el('td', { ...colAttr(hidden, 3), 'data-label': 'Type' }, TYPE_LABEL[r.courseType]),
+      el('td', { ...colAttr(hidden, 4), 'data-label': 'MSCSE degree credit' }, countsPill(r.countsTowardMscse)),
+      el('td', { ...colAttr(hidden, 5), 'data-label': 'Ph.D. degree credit' }, countsPill(r.countsTowardPhd)),
+      el('td', { class: colClass(hidden, 6, r.coreArea ? '' : 'muted'), 'data-label': 'Core knowledge (§4.4.1)' }, coreLabel(r)),
+      el('td', { class: colClass(hidden, 7, catClass), 'data-label': 'Specialization (§4.4.2)' }, categoryLabel(r)),
+      el('td', { class: colClass(hidden, 8, r.typicallyOffered ? '' : 'muted'), 'data-label': 'Typically offered' }, offeredLabel(r)),
+      // (Column 9 is hidden by no view.)
+      ...(someRowPending
+        ? [
+            el(
+              'td',
+              { 'data-label': 'DGS reviewed' },
+              r.dgsReviewed ? el('span', { class: 'pill yes' }, '✓ Confirmed') : el('span', { class: 'pill pending' }, 'Pending'),
+            ),
+          ]
+        : []),
+    );
+  };
+
+  /** "18 of 176 courses shown." plus what is filtering them. */
+  const countLineText = (list: RuleCourse[]): string => {
     const shown = rows.filter((r) => filters.includeRetired || r.active).length;
     // The view label keeps its case ("M.S. (MSCSE)", "Ph.D." — lower-casing it
     // read "m.s. (mscse)", found live 2026-09-06); its first letter is lowered
@@ -1335,7 +1359,31 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     // only because every label began with "Whether"; it would now print "mSCSE
     // degree credit". The labels end in "." in one case, so no second stop.)
     const viewSentence = filters.view === 'all' ? '' : ` View: ${viewLabel}${viewLabel.endsWith('.') ? '' : '.'}`;
-    countLine.textContent = `${list.length} of ${shown} courses shown.${clearedFor ? ` Filters cleared to show ${clearedFor}.` : ''}${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
+    return `${list.length} of ${shown} courses shown.${clearedFor ? ` Filters cleared to show ${clearedFor}.` : ''}${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
+  };
+
+  function table(): HTMLElement {
+    const list = visibleRows();
+    const hidden = new Set(HIDDEN_COLUMNS[filters.view]);
+    const head = el(
+      'tr',
+      {},
+      sortHeader(hidden, 1, 'course', 'Course'),
+      sortHeader(hidden, 2, 'title', 'Title'),
+      sortHeader(hidden, 3, 'type', 'Type'),
+      sortHeader(hidden, 4, 'mscse', 'MSCSE', 'degree credit'),
+      sortHeader(hidden, 5, 'phd', 'Ph.D.', 'degree credit'),
+      // The same wording as the schedule cards' own headers (trim review P-30).
+      sortHeader(hidden, 6, 'core', 'Core knowledge', 'Ph.D. Qual. §4.4.1'),
+      sortHeader(hidden, 7, 'category', 'Specialization', 'Ph.D. Qual. §4.4.2'),
+      sortHeader(hidden, 8, 'offered', 'Typically offered'),
+      // Only while it says something (trim review P-18, 2026-09-18).
+      ...(someRowPending ? [sortHeader(hidden, 9, 'reviewed', 'DGS reviewed')] : []),
+    );
+    const body = el('tbody', {});
+    if (list.length === 0) body.append(emptyRow());
+    for (const r of list) body.append(courseRow(r, hidden));
+    countLine.textContent = countLineText(list);
     return el(
       'div',
       {},
@@ -1486,29 +1534,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
 
   // ---------- assemble ----------
 
-  // The contact card lives in one of two places by width (trim review P-21).
-  // Two empty hosts and one node moved between them, so there is only ever one
-  // card in the document and no duplicate ids or headings.
-  const contactHost = el('div', { class: 'contact-host' });
-  const mainContactHost = el('div', { class: 'contact-host' });
-  const contactNode = contactCard();
-  const placeContact = (wide: boolean): void => {
-    (wide ? contactHost : mainContactHost).append(contactNode);
-  };
-  const wideEnough = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 900px)') : undefined;
-  placeContact(wideEnough ? wideEnough.matches : true);
-  wideEnough?.addEventListener?.('change', (ev) => placeContact((ev as MediaQueryListEvent).matches));
-
   clear(root);
   root.classList.add('courses-page');
   filterHost.append(filterBar());
   // The bar's shape depends on the width (a fold below 861 px); a rotated
   // tablet or a dragged window gets the other shape, with its values kept —
   // they live in `filters`, not in the controls.
-  wideFilters.addEventListener?.('change', () => {
-    clear(filterHost);
-    filterHost.append(filterBar());
-  });
+  wideFilters.addEventListener?.('change', rebuildFilterBar);
   refreshTable();
   const embedded = isEmbedded();
   root.append(
@@ -1550,8 +1582,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     if (!id || !/^(sched-(this|next)-)?[A-Z]{2,6}-\d/.test(id)) return;
     if (document.getElementById(id)) return;
     Object.assign(filters, defaultFilters());
-    clear(filterHost);
-    filterHost.append(filterBar());
+    rebuildFilterBar();
     // Say so. This is the one click on the page that changes state by itself,
     // and the count line comes back reading "117 of 117 courses shown" with the
     // reader's filter gone and the Clear button hidden in the same instant.

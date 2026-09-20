@@ -112,11 +112,9 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     rules,
     today,
     entry,
-    entryNormalized: normalized,
     alloc,
     classified,
     params,
-    warnings,
   };
   const reviewFlags: string[] = [];
   const ugFlag = undergraduateGraduateCourseworkFlagFor(classified, student);
@@ -153,7 +151,8 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // must be able to tell "not finished" from "cannot be judged yet" (red-team
   // 2026-09-13): a blank rules-sheet cell elsewhere used to make a student who
   // had finished everything read "Overdue — the 8-year limit passed".
-  const otherRows = rows.filter((r) => !r.informational && r.status !== 'not_applicable');
+  const isScored = (r: RequirementResult) => !r.informational && r.status !== 'not_applicable';
+  const otherRows = rows.filter(isScored);
   const others = {
     allMet: otherRows.every((r) => r.status === 'met'),
     anyCannotEvaluate: otherRows.some((r) => r.status === 'cannot_evaluate'),
@@ -161,7 +160,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   rows.push(student.program === 'mscse' ? msTimeLimitRow(ctx, others) : phdTimeLimitRow(ctx, others));
   rows.push(approvalsRow(ctx));
 
-  const scored = rows.filter((r) => !r.informational && r.status !== 'not_applicable');
+  const scored = rows.filter(isScored);
   // Conditional satisfaction gets its own number (interface review R2,
   // 2026-09-18): the dashboard could not tell "satisfied, pending a signature"
   // from "not satisfied", so it buried the first inside the second and
@@ -212,7 +211,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     requirements: rows.map((r) => decisionWordingDeep(p, r)),
     courseLines: courseLines.map((l) => ({ ...l, text: decisionWording(p, l.text) })),
     summary,
-    warnings: [...warnings, ...alloc.warnings].map((w) => decisionWording(p, w)),
+    warnings: warnings.map((w) => decisionWording(p, w)),
     tracks: specialTracks(student, classified).map((t) => ({ ...t, text: decisionWording(p, t.text) })),
   };
 }

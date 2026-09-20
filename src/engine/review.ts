@@ -22,7 +22,7 @@
 import { termIndex } from './term.ts';
 import { isNotreDameInstitution, needsApproval } from '../data/external.ts';
 import type { Rules } from '../data/types.ts';
-import { classify, type ClassifiedCourse } from './allocate.ts';
+import { classify, levelOf, type ClassifiedCourse } from './allocate.ts';
 import { decisionWording } from './decider.ts';
 import { CORE_TITLE_RE } from './core-title.ts';
 import { passesCreditFloor } from './grades.ts';
@@ -52,9 +52,6 @@ export function reviewRequestSummary(courseCount: number, hasNote: boolean): str
   return 'a note';
 }
 
-/** The courses the review request asks the DGS about, in the order the
- * request lists them: Notre Dame program coursework, Notre Dame coursework
- * from before entry, then other universities. */
 /** A 4+1's undergraduate graduate-level coursework, when there is a lot of it
  * (DGS 2026-09-12, red-team F8 item 1, answer (c)). §3.5 speaks of "one or
  * two 3-credit CSE courses at the 6xxxx level"; the app presumes any further
@@ -77,8 +74,9 @@ export function undergraduateGraduateCourseworkFlagFor(classified: readonly Clas
       c.ineligibleReason === undefined &&
       c.pool !== 'none' &&
       termIndex(c.entry.term) <= termIndex(awarded) &&
-      /(\d)\d{4}\b/.test(c.entry.courseId) &&
-      Number(/(\d)\d{4}\b/.exec(c.entry.courseId)![1]) >= 6,
+      // The number's own digit, whatever the sheet row's `level` says (NaN
+      // when the id has no five-digit number, and NaN >= 6 is false).
+      levelOf(c.entry) >= 6,
   );
   if (counted.length <= 2) return undefined;
   const ids = counted.map((c) => c.entry.courseId).join(', ');
@@ -93,8 +91,16 @@ export function undergraduateGraduateCourseworkFlagFor(classified: readonly Clas
   );
 }
 
+/** The courses the review request asks the DGS about, in the order the
+ * request lists them: Notre Dame program coursework, Notre Dame coursework
+ * from before entry, then other universities. */
 export function coursesNeedingDgsReview(student: Student, rules: Rules): PendingDgsReview[] {
   const { classified } = classify(student, rules);
+  return coursesNeedingDgsReviewFor(classified, student);
+}
+/** The same, over courses already classified — what audit() hands the
+ * approvals row, so the record is not classified a second time for it. */
+export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse[], student: Student): PendingDgsReview[] {
   const nd: PendingDgsReview[] = [];
   const priorNd: PendingDgsReview[] = [];
   const external: PendingDgsReview[] = [];

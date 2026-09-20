@@ -56,11 +56,6 @@ export function rulesFromCsvTexts(
   };
 }
 
-/** Which rules row governs a course taken in `term`?
- * Latest row with rules_effective_term ≤ the course's term (rule changes grandfather
- * past courses); if none matches — every live row currently says Fall 2026 —
- * the EARLIEST row applies retroactively, so students' older courses still
- * resolve. Rows without an rules_effective_term are always in effect. */
 /** "cse60641", "CSE60641", " cse  60641 " → "CSE 60641": the shape the Courses
  * tab uses. Every lookup and every department test goes through this, so a
  * hand-typed or OCR-read id reaches the same row as the printed one (DGS
@@ -78,6 +73,11 @@ export function isIncompleteCourseId(courseId: string): boolean {
   return /^[A-Z]{2,6}\s+\d*X+\d*$/i.test(canonicalCourseId(courseId)) || /\d[X]+|[X]+\d/i.test(canonicalCourseId(courseId).split(' ')[1] ?? '');
 }
 
+/** Which rules row governs a course taken in `term`?
+ * Latest row with rules_effective_term ≤ the course's term (rule changes grandfather
+ * past courses); if none matches — every live row currently says Fall 2026 —
+ * the EARLIEST row applies retroactively, so students' older courses still
+ * resolve. Rows without an rules_effective_term are always in effect. */
 export function resolveRuleRow(
   rules: Rules,
   courseId: string,

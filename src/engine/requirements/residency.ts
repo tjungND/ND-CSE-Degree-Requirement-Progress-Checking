@@ -10,7 +10,7 @@
 // transcript — are not residence in this one. (A transcript import already
 // files pre-entry courses as prior coursework; this guard covers courses
 // entered by hand and entry terms changed afterwards.)
-import { termIndex } from '../term.ts';
+import { semesterSeq, termIndex } from '../term.ts';
 import type { Term } from '../types.ts';
 import type { Ctx } from './context.ts';
 
@@ -51,9 +51,8 @@ export function fullTimeTermRecords(ctx: Ctx): { term: Term; fullTime: boolean; 
  * terms — what satisfies the residency rows, for the processing request
  * (2026-09-06 evening). Mirrors maxConsecutiveFullTime() in term.ts. */
 export function longestFullTimeRun(records: { term: Term; fullTime: boolean }[]): Term[] {
-  const seq = (t: Term) => t.year * 2 + (t.season === 'fall' ? 1 : 0);
   const byseq = new Map<number, Term>();
-  for (const r of records) if (r.fullTime && r.term.season !== 'summer') byseq.set(seq(r.term), r.term);
+  for (const r of records) if (r.fullTime && r.term.season !== 'summer') byseq.set(semesterSeq(r.term), r.term);
   let best: Term[] = [];
   for (const [k, term] of byseq) {
     if (byseq.has(k - 1)) continue; // not the start of a run

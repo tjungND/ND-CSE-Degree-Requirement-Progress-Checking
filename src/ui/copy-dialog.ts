@@ -106,6 +106,27 @@ export function mailtoHref(r: CopyRecipient, subject: string, text: string, copi
   return `mailto:${r.email ? encodeURIComponent(r.email) : ''}?${params.join('&')}`;
 }
 
+/** Open a native <dialog> as a modal: focus moves into it, Tab stays inside,
+ * the page behind is inert, Escape closes it. Returns false where the browser
+ * has no showModal (none current) — the dialog is then simply opened, so the
+ * notice still shows and nothing is blocked. */
+export function openModal(dialog: HTMLDialogElement): boolean {
+  if (typeof dialog.showModal === 'function') {
+    dialog.showModal();
+    return true;
+  }
+  dialog.setAttribute('open', '');
+  return false;
+}
+
+/** Put focus back where a dialog was opened from — the control with this
+ * `data-key` — or, failing that (no key, or the control was re-rendered away),
+ * the page heading. */
+export function returnFocusTo(dataKey?: string): void {
+  const opener = dataKey === undefined ? null : document.querySelector<HTMLElement>(`[data-key="${CSS.escape(dataKey)}"]`);
+  (opener ?? document.querySelector<HTMLElement>('.masthead h1'))?.focus();
+}
+
 /** Copy, then show the dialog — with the "copy it yourself" variant when the
  * clipboard was refused (the message is then focused and selected, so Cmd+C
  * works at once). */
@@ -149,20 +170,15 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
     ? el('p', { class: 'copy-lead copied' }, el('strong', {}, '✓ This message has been copied to your clipboard.'), ' Read it through before you send.')
     : el('p', { class: 'copy-lead blocked' }, el('strong', {}, 'The following message was NOT copied — your browser blocked the clipboard.'), ' Select it and copy it yourself: on a phone, touch and hold the message, then Select All and Copy.');
   // Numbered steps (DGS request 2026-09-06 evening): what to do now, in order.
-  const recipientText = `${r.role}${r.name ? ` (${r.name})` : ''}${r.cc ? `, with the ${r.cc.role} in cc` : ''}`;
   // One short step when the email app can be opened (DGS 2026-09-13: "just
   // 'Click open in my email app'"); the paste instructions only when it
   // cannot, or when the clipboard was blocked.
   const typeAddress = addressMissing ? ` and type your ${r.role.replace(/^your /i, '')}’s email address in the To field` : '';
-  const first = openMail
-    ? copied
-      ? bodyIncluded
-        ? `Click “Open in my email app”${typeAddress}.`
-        : `Click “Open in my email app”${typeAddress}, then paste the copied message into the email.`
-      : `Click “Open in my email app”${typeAddress}, then select the whole message above, copy it (on a phone: touch and hold, Select All, Copy) and paste it into the email.`
-    : copied
-      ? `Paste the copied message into a new email to ${recipientText}. It is on your clipboard as text and as formatted HTML — the tables keep their shape in Gmail and Outlook.`
-      : `Your browser did not allow the page to write to the clipboard: select the whole message above and copy it — on a phone, touch and hold it, then Select All and Copy — then paste it into a new email to ${recipientText}.`;
+  const first = copied
+    ? bodyIncluded
+      ? `Click “Open in my email app”${typeAddress}.`
+      : `Click “Open in my email app”${typeAddress}, then paste the copied message into the email.`
+    : `Click “Open in my email app”${typeAddress}, then select the whole message above, copy it (on a phone: touch and hold, Select All, Copy) and paste it into the email.`;
   const steps = el(
     'ol',
     { class: 'copy-steps' },
@@ -183,16 +199,14 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   const close = (): void => {
     if (dialog.open) dialog.close();
     dialog.remove();
-    const opener = document.querySelector<HTMLElement>(`[data-key="${CSS.escape(opts.returnFocusKey)}"]`);
-    (opener ?? document.querySelector<HTMLElement>('.masthead h1'))?.focus();
+    returnFocusTo(opts.returnFocusKey);
   };
   ok.addEventListener('click', close);
   dialog.addEventListener('close', close); // Escape
   document.body.append(dialog);
   placeInFrame(dialog, document.querySelector(`[data-key="${CSS.escape(opts.returnFocusKey)}"]`)); // embed mode: beside the button (2026-09-16)
-  if (typeof dialog.showModal === 'function') dialog.showModal();
-  else dialog.setAttribute('open', '');
-  if (copied) (openMail ?? ok).focus();
+  openModal(dialog);
+  if (copied) openMail.focus();
   else {
     preview.focus();
     (preview as HTMLTextAreaElement).select();
@@ -230,8 +244,7 @@ export function confirmDialog(opts: {
     const close = (): void => {
       if (dialog.open) dialog.close();
       dialog.remove();
-      const opener = document.querySelector<HTMLElement>(`[data-key="${CSS.escape(opts.returnFocusKey)}"]`);
-      (opener ?? document.querySelector<HTMLElement>('.masthead h1'))?.focus();
+      returnFocusTo(opts.returnFocusKey);
       resolve(answer);
     };
     confirm.addEventListener('click', () => {
@@ -242,8 +255,7 @@ export function confirmDialog(opts: {
     dialog.addEventListener('close', close); // Escape cancels
     document.body.append(dialog);
     placeInFrame(dialog, document.querySelector(`[data-key="${CSS.escape(opts.returnFocusKey)}"]`)); // embed mode (2026-09-16)
-    if (typeof dialog.showModal === 'function') dialog.showModal();
-    else dialog.setAttribute('open', '');
+    openModal(dialog);
     cancel.focus(); // the safe default has focus
   });
 }

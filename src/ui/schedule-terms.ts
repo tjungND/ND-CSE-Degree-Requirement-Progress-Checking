@@ -14,6 +14,7 @@
 // column read as this semester; anything older, or undated, shows nothing.
 //
 // DOM-free so the rule has a test matrix (tests/schedule-terms.test.ts).
+import { semesterSeq } from '../engine/term.ts';
 import type { Season, Term } from '../engine/types.ts';
 
 /** Schedules are kept for FALL and SPRING. Summer is not a graduate teaching
@@ -31,8 +32,7 @@ export function teachingTermOf(today: Term): Term {
 
 /** Fall/spring order: negative when `a` comes first. */
 function compareTeaching(a: Term, b: Term): number {
-  const seq = (t: Term) => t.year * 2 + (t.season === 'fall' ? 1 : 0);
-  return seq(a) - seq(b);
+  return semesterSeq(a) - semesterSeq(b);
 }
 
 export type RowFreshness = 'current' | 'ahead' | 'stale' | 'undated';

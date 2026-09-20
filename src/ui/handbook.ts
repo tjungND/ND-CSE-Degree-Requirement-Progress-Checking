@@ -35,24 +35,22 @@ export const RULES_ACCURACY_NOTICE =
 /** Which student situations the tool does not model yet (DGS wording,
  * 2026-09-05). Shown in the alpha banner, the footer and the copied summary
  * (via BETA_SCOPE_NOTICE) — no longer in the opening notice, at the DGS's
- * request later on 2026-09-05. Keep the examples in step with the engine. */
-/** 2026-09-05: the examples changed when combined transcripts (4+1 / 5+1
- * BS-MS, a BS and an MS at one institution, an earlier Notre Dame degree on
- * the Notre Dame transcript) gained a per-row level and an entry-term reading
- * — those cases are now handled, best-effort, with every row for the student
- * to check. */
-// Recast without its doubled phrases in the trim review (2026-09-18, P-39),
-// overruling the DGS's 2026-09-05 wording; every clause of substance kept in order.
+ * request later on 2026-09-05. Keep the examples in step with the engine:
+ * they changed the same day, when combined transcripts (4+1 / 5+1 BS-MS, a BS
+ * and an MS at one institution, an earlier Notre Dame degree on the Notre
+ * Dame transcript) gained a per-row level and an entry-term reading — those
+ * cases are now handled, best-effort, with every row for the student to
+ * check. Recast without its doubled phrases in the trim review (2026-09-18,
+ * P-39), overruling the DGS's 2026-09-05 wording; every clause of substance
+ * kept in order. */
 export const COVERAGE_NOTICE =
   'Not all cases are covered yet, for example transcripts whose layout the parser has not seen, ' +
   'or a combined BS/MS record that does not tell its undergraduate and graduate courses apart.';
 
-/** The ONE-LINE versions shown in the slim notice strip at the top of the
- * self-check page (usability review 2026-09-05, item 8 — three stacked
- * banners became one strip whose "Details" expander holds the full
- * paragraphs below, unchanged). Same facts, fewer words. */
-export const ALPHA_LINE =
-  'Informational only, no warranty — every final decision rests with the Director of Graduate Studies (DGS). The course rules are accurate; only this tool’s application of them is still being tested.';
+// The privacy line's measurement record — NOT rendered anywhere (the notice
+// strip and the footer in app.ts carry the W-P1 sentence in their own text;
+// the strip's one-line alpha version, ALPHA_LINE, was retired with the two-strip
+// notice of 2026-09-19). Kept because app.ts's notice cites it as the record.
 // Measured, not assumed (interface review R6, 2026-09-18): one load makes FIVE
 // requests — four to docs.google.com, one per published sheet tab, and one HEAD
 // back to this site's own server for the date at Notre Dame. No student data is

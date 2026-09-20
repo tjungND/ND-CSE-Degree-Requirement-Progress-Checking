@@ -30,7 +30,7 @@ export const HEDGE_AFTER_MS = 2_000;
  * longer so a slow but working connection still gets through. */
 export const ATTEMPT_TIMEOUTS_MS: readonly number[] = [6_000, 10_000, 14_000];
 /** Attempts per tab before the load is reported as failed. */
-export const MAX_ATTEMPTS = ATTEMPT_TIMEOUTS_MS.length;
+const MAX_ATTEMPTS = ATTEMPT_TIMEOUTS_MS.length;
 /** Tabs fetched at the same time: all of them (DGS 2026-09-06, after the
  * measurement above showed no rate limiting and no extra stalls from
  * simultaneous requests). Lower it here if Google ever changes that. */
@@ -40,8 +40,6 @@ export const FETCH_CONCURRENCY = 4;
 export const LOAD_BUDGET_MS = 30_000;
 
 export type TabName = keyof CsvTexts;
-/** The three tabs the app cannot run without. */
-export const REQUIRED_TABS: readonly TabName[] = ['courses', 'parameters', 'categories'];
 /** The tabs in words a student understands ("the course list", not "Courses"). */
 export const TAB_LABELS: Record<TabName, string> = {
   courses: 'the course list',
@@ -50,11 +48,13 @@ export const TAB_LABELS: Record<TabName, string> = {
   external: 'the external-course rules',
 };
 
+/** The published-CSV URL of each tab (data/sheet-urls.json), typed once. */
+const SHEET_URLS = sheetUrls as { courses: string; parameters: string; categories: string; external?: string };
+
 /** Is the ExternalCourses tab published and configured? Until the DGS creates
  * the tab and pastes its published-CSV URL into data/sheet-urls.json, the app
  * runs without it and every external course shows as "not yet reviewed". */
-export const EXTERNAL_TAB_CONFIGURED: boolean =
-  typeof (sheetUrls as { external?: string }).external === 'string' && (sheetUrls as { external?: string }).external !== '';
+export const EXTERNAL_TAB_CONFIGURED: boolean = typeof SHEET_URLS.external === 'string' && SHEET_URLS.external !== '';
 
 /** What the loader reports while it works (drives the loading card). */
 export type LoadProgress =
@@ -96,7 +96,7 @@ export const SNAPSHOT_SAVED_ON = ndDateOnly(snapshot.syncedAt);
 
 /** Data rows in a CSV text: non-empty lines (a line of only commas is a blank
  * sheet row) minus the header. Good enough for "371 rows" on the loading card. */
-export function countCsvRows(csv: string): number {
+function countCsvRows(csv: string): number {
   let n = 0;
   for (const line of csv.split(/\r?\n/)) if (!/^[\s,]*$/.test(line)) n++;
   return Math.max(0, n - 1);
@@ -286,7 +286,7 @@ function noteNewerSheet(rules: Rules): Rules {
  * diagnostics panel says why (never a dead page over the optional tab). */
 export async function loadLiveRules(nowIso: string, onProgress: (p: LoadProgress) => void = () => {}): Promise<Rules> {
   onProgress({ step: 'connect' });
-  const urls = sheetUrls as { courses: string; parameters: string; categories: string; external?: string };
+  const urls = SHEET_URLS;
   // All tabs at once, each hedged and retried (2026-09-06; the history: a
   // plain Promise.all with one 15 s request per tab, then one tab after
   // another — both failed whenever any single request stalled, because the

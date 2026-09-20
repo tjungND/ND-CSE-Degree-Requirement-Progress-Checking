@@ -101,8 +101,7 @@ export interface RuleCourse {
   /** §4.4.2: every specialization group this course may satisfy (DGS
    * 2026-09-08 — the sheet's `category_group` cell may now name SEVERAL, so a
    * course can be worth a choice of two or three groups and not only one or
-   * all five). `any` in the sheet expands to every group at parse time.
-   * Undefined = the DGS has not said; empty = explicitly not eligible, which
+   * all five). Undefined = the DGS has not said; empty = explicitly not eligible, which
    * `categoryIneligible` records so the two are never confused. */
   categoryGroups?: string[];
   /** The sheet said `ineligible`: this course can never satisfy §4.4.2. */
@@ -145,16 +144,12 @@ export interface SheetIssue {
  * undefined (the engine then reports "cannot evaluate"), never a guess. */
 export interface Parameters {
   number(key: string): number | undefined;
-  /** A semester code — "FA26", "SP27" (DGS 2026-09-09). */
-  term(key: string): Term | undefined;
   gradeLetter(key: string): string | undefined;
   courseList(key: string): string[] | undefined;
   /** A list of SUBJECT codes, upper-cased ("CS; CSCI" → ['CS','CSCI']).
    * undefined = the key is missing OR its cell is blank — either way the
    * sheet has not said, and nothing is decided from it. */
   codeList(key: string): string[] | undefined;
-  section(key: string): string | undefined;
-  has(key: string): boolean;
   raw: ReadonlyMap<string, { value: string; section: string; row: number }>;
 }
 

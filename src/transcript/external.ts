@@ -10,7 +10,7 @@ import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
 import { resolveCampus } from './campus.ts';
-import { dateOnLine } from './parse.ts';
+import { MONTHS, dateOnLine } from './parse.ts';
 
 export interface ExternalCourseCandidate {
   courseId: string;
@@ -113,6 +113,55 @@ const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy/
 const LETTER_GRADE_RE = /^(A|A-|B\+|B|B-|C\+|C|C-|D\+?|D-?|F)$/;
 const YEAR_RE = /\b(19[5-9]\d|20[0-4]\d)\b/;
 
+/** Words that name an institution outright (guessUniversity has a wider list
+ * of its own, with the non-English forms and the weak "college"). */
+const STRONG_NAME_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|universidad|università|universität|universiteit/i;
+// A sentence that merely mentions a university ("This official university
+// transcript is certified to be a …") is not a name (2026-09-05).
+const SENTENCE_RE = /\b(this|is|are|was|were|has|have|to be|certified|issued|printed|member of|does not|registrar|provost|dean)\b/i;
+
+// Degree lines (named once here; the scan tests them on every line).
+// "Degree(s) Awarded" with the parenthesis is UMass Amherst's heading (DGS 2026-09-13).
+const DEGREES_AWARDED_HEADING_RE = /^[\s*-]*degree(?:s|\(s\))?\s+(awarded|conferred|earned)\b/i;
+const DEGREE_NAME_RE = /\b(bachelor|master|doctor)/i;
+const NAMES_DEGREE_RE = /\b(bachelor|master|doctor|ph\.?\s?d)\b/i;
+const NOT_AWARDED_RE = /\bsought\b|\bexpected\b|\bcandidate\b|\bcurrent program\b/i;
+const GRAD_DEGREE_NAME_RE = /\b(master|doctor|ph\.?\s?d)\b/i;
+const DEGREE_CONFERRED_HEADER_RE = /degree\b.*\b(conferred|awarded)\b/i;
+const DEGREE_CONFERRED_HEADER_ALONE_RE = /^[^:]*\bdegree\b[^:]*\b(conferred|awarded)\b\s*:?\s*$/i;
+
+// Block and term markers the scan tests on every line.
+const TRANSFER_BANNER_RE = /TRANSFER\s+CREDIT\s+ACCEPTED\s+BY/i;
+const TRANSFER_TABLE_RE = /^\s*(?:term\s+)?course\s+transfer\s+course\b/i;
+const INSTITUTION_CREDIT_RE = /INSTITUTION(?:AL)?\s+CREDIT|UNIVERSITY OF NOTRE DAME CREDIT/i;
+const TERM_WORD_RE = /(fall|spring|summer|autumn|winter|semester|term|trimester|quarter|session|academic\s+year)/i;
+const LEVEL_SUFFIX_RE = /\b(undergraduate|graduate)\s*$/i;
+const LEVEL_ALONE_RE = /^(undergraduate|graduate)$/i;
+const FALL_RE = /\b(fall|autumn)\b/i;
+const SPRING_RE = /\b(spring|winter|intersession)\b/i;
+const SUMMER_RE = /\bsummer\b/i;
+
+/** The season a term header names, when it names one. */
+function seasonOf(text: string): Season | undefined {
+  return FALL_RE.test(text) ? 'fall' : SPRING_RE.test(text) ? 'spring' : SUMMER_RE.test(text) ? 'summer' : undefined;
+}
+
+/** Whitespace-split tokens of a row's cells (joined at column gaps). */
+const tokensOf = (parts: string[]): string[] =>
+  parts
+    .join('  ')
+    .split(/\s+/)
+    .filter((t) => t !== '');
+
+/** What one row's tokens yield (scanTokens): the title's words, then the
+ * credits and the grade — or the printed grade token when it maps to none. */
+interface RowScan {
+  credits?: number;
+  grade?: Grade;
+  rawGrade?: string;
+  titleParts: string[];
+}
+
 function mapGrade(token: string): Grade | undefined {
   const t = token.toUpperCase().replace(/\s+/g, '');
   if (t === 'A+') return 'A'; // no A+ in the app's grade scale (2026-09-05)
@@ -157,9 +206,6 @@ const NAME_ONLY_IN_IMAGE: readonly (readonly [RegExp, string])[] = [
   [/\bUCSD\b/, 'University of California, San Diego'],
 ];
 
-/** The institution and how sure we are of it: a name read from the text is
- * taken as printed; a name recovered from an acronym is only a suggestion, so
- * the preview lets the student correct it (2026-09-08). */
 /** The name a WATERMARK spells out (DGS 2026-09-12). UC San Diego tiles
  * "UNIVERSITY OF CALIFORNIA SAN DIEGO • UNIVERSITY OF CALIFORNIA SAN DIEGO •
  * …" across every page; the text layer breaks the tiles at the margins and at
@@ -169,14 +215,13 @@ const NAME_ONLY_IN_IMAGE: readonly (readonly [RegExp, string])[] = [
  * institution's name in full: read it from the tiles rather than from any
  * fragment. Undefined when no line repeats a university-like phrase. */
 function watermarkName(lines: string[]): string | undefined {
-  const STRONG_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|universidad|università|universität|universiteit/i;
   const seen = new Map<string, { count: number; text: string }>();
   for (const line of lines) {
     const parts = line.split(/\s*[•·|]\s*/).map((c) => c.replace(/\s+/g, ' ').trim());
     const counts = new Map<string, string>();
     const perLine = new Map<string, number>();
     for (const c of parts) {
-      if (c.length < 8 || c.length > 80 || /\d/.test(c) || !STRONG_RE.test(c)) continue;
+      if (c.length < 8 || c.length > 80 || /\d/.test(c) || !STRONG_NAME_RE.test(c)) continue;
       const key = normalizeUniversity(c);
       if (key === '') continue;
       counts.set(key, c);
@@ -197,7 +242,7 @@ function watermarkName(lines: string[]): string | undefined {
   if (known) return known[1];
   return best.text
     .toLowerCase()
-    .replace(/(^|[\s-])([a-zà-ÿ])/g, (m, sep: string, ch: string) => sep + ch.toUpperCase())
+    .replace(/(^|[\s-])([a-zà-ÿ])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase())
     .replace(/\b(Of|The|And|At|De|Da|Di|Du|Von|Van|Der|Del|La|Le)\b/g, (w) => w.toLowerCase())
     .replace(/^([a-z])/, (ch) => ch.toUpperCase());
 }
@@ -225,18 +270,16 @@ function withCampus(
  * within ten lines of the heading) beats the header. A block headed "…by
  * other institutions" (UC San Diego) names somebody else and is skipped. */
 function awardingInstitution(lines: string[]): string | undefined {
-  const STRONG_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|universidad|università|universität|universiteit/i;
-  const SENTENCE_RE = /\b(this|is|are|was|were|has|have|to be|certified|issued|printed|member of|does not|registrar|provost|dean)\b/i;
   for (let i = 0; i < lines.length; i++) {
     const flat = lines[i]!.replace(/\s+/g, ' ').trim();
-    if (!/^[\s*-]*degree(?:s|\(s\))?\s+(awarded|conferred|earned)\b/i.test(flat) || /other\s+institution/i.test(flat)) continue;
+    if (!DEGREES_AWARDED_HEADING_RE.test(flat) || /other\s+institution/i.test(flat)) continue;
     let best: string | undefined;
     for (let k = 1; k <= 10 && i + k < lines.length; k++) {
       const cand = lines[i + k]!
         .replace(/\s+/g, ' ')
         .replace(/\s+degree\s*$/i, '')
         .trim();
-      if (cand.length < 8 || cand.length > 90 || /\d/.test(cand) || !STRONG_RE.test(cand) || SENTENCE_RE.test(cand) || /^(college|school|department|faculty|institute)\s+of\b/i.test(cand)) continue;
+      if (cand.length < 8 || cand.length > 90 || /\d/.test(cand) || !STRONG_NAME_RE.test(cand) || SENTENCE_RE.test(cand) || /^(college|school|department|faculty|institute)\s+of\b/i.test(cand)) continue;
       if (best === undefined || cand.length > best.length) best = cand;
     }
     if (best !== undefined) return best;
@@ -250,7 +293,6 @@ function awardingInstitution(lines: string[]): string | undefined {
  * where a conferral is already established, so the looseness cannot invent
  * a date elsewhere. */
 export function looseDateOnLine(line: string): string | undefined {
-  const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   const m = /\b([A-Za-z]{3,10})[^A-Za-z0-9]{0,4}(\d{1,2})[^0-9]{0,4}[A-Za-z]?(\d{4})\b/.exec(line);
   if (!m) return undefined;
   const month = MONTHS.indexOf(m[1]!.slice(0, 3).toUpperCase()) + 1;
@@ -261,6 +303,9 @@ export function looseDateOnLine(line: string): string | undefined {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
+/** The institution and how sure we are of it: a name read from the text is
+ * taken as printed; a name recovered from an acronym is only a suggestion, so
+ * the preview lets the student correct it (2026-09-08). */
 function guessedUniversity(lines: string[]): { university?: string; universityGuessed?: true } {
   // The watermark, when there is one, spells the name in full and beats any
   // fragment of itself (DGS 2026-09-12).
@@ -284,10 +329,10 @@ function guessedUniversity(lines: string[]): { university?: string; universityGu
   return weak === undefined ? {} : { university: weak };
 }
 
-/** Guess the institution from the first page's header lines: the earliest
- * digit-free line that names a university-like body. */
 const expandName = (name: string | undefined): string | undefined => (name === undefined ? undefined : expandInstitutionAbbreviations(name));
 
+/** Guess the institution from the first page's header lines: the earliest
+ * digit-free line that names a university-like body. */
 function guessUniversity(lines: string[], weak: boolean): string | undefined {
   // Strong words name an institution; "college" alone is weak (it also names a
   // division — "College of Science" — or a Banner field, "College : …").
@@ -297,9 +342,6 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
   const DIVISION_RE = /^(college|school|department|faculty|institute)\s+of\b|\bcollege of\b|^(program|college|major|degree)\s*:/i;
   /** Candidate name cells: each line split at column gaps (a merged two-column
    * line yields the institution's own cell), cleaned, and filtered. */
-  // A sentence that merely mentions a university ("This official university
-  // transcript is certified to be a …") is not a name (2026-09-05).
-  const SENTENCE_RE = /\b(this|is|are|was|were|has|have|to be|certified|issued|printed|member of|does not|registrar|provost|dean)\b/i;
   // "UNIVERSITY" on its own names nobody. UC San Diego's transcript tiles
   // "UNIVERSITY OF CALIFORNIA, SAN DIEGO •" across the page as a watermark,
   // and the text layer breaks it into fragments — one of which was read as the
@@ -373,14 +415,6 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const courses: ExternalCourseCandidate[] = [];
   let currentYear: number | undefined;
   let currentSeason: Season | undefined;
-  const seasonOf = (text: string): Season | undefined =>
-    /\b(fall|autumn)\b/i.test(text)
-      ? 'fall'
-      : /\b(spring|winter|intersession)\b/i.test(text)
-        ? 'spring'
-        : /\bsummer\b/i.test(text)
-          ? 'summer'
-          : undefined;
   // Course numbers: 2–5 digits, an optional dotted part (Johns Hopkins
   // "601.226"), up to three trailing letters (Buffalo "106LEC", Western
   // "3331A"); or an all-digit id ("30240233").
@@ -424,10 +458,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * to map. A later unambiguous letter grade replaces a numeric guess. When
    * the title comes AFTER the numbers ("CSCI-549   B   4.0   Title", USC,
    * 2026-09-05) the wordy tail becomes the title. */
-  const scanTokens = (
-    tokens: string[],
-    into: { credits?: number; grade?: Grade; rawGrade?: string; titleParts: string[] },
-  ): void => {
+  const scanTokens = (tokens: string[], into: RowScan): void => {
     let titleDone = into.titleParts.length > 0 && (into.credits !== undefined || into.grade !== undefined || into.rawGrade !== undefined);
     const tail: string[] = [];
     let sawEcho = false;
@@ -517,10 +548,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (!num) continue;
       const subject = subjectCell.toUpperCase();
       if (CODE_STOPWORDS_RE.test(subject.replace(/ /g, ''))) continue;
-      const tokens = [num[2]!.trim(), ...cells.slice(i + 2)]
-        .join('  ')
-        .split(/\s+/)
-        .filter((t) => t !== '');
+      const tokens = tokensOf([num[2]!.trim(), ...cells.slice(i + 2)]);
       if (looksLikeIdentifierLine(subject, tokens)) continue;
       return { code: `${subject} ${num[1]!.toUpperCase()}`, tokens };
     }
@@ -535,10 +563,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (CODE_STOPWORDS_RE.test(code.replace(/[^A-Z]/g, ''))) return undefined;
       if (!subjectCase(cell.slice(0, code.length).replace(/\d.*$/, ''))) return undefined; // "Chapter 3": prose, not a code
       const rest = cell.slice(cell.length - m[2]!.length); // same indices — toUpperCase is length-stable for these codes
-      const tokens = [rest, ...cells.slice(idx + 1)]
-        .join('  ')
-        .split(/\s+/)
-        .filter((t) => t !== '');
+      const tokens = tokensOf([rest, ...cells.slice(idx + 1)]);
       if (looksLikeIdentifierLine(code.replace(/[^A-Z]/g, ''), tokens)) return undefined;
       return { code, tokens };
     }
@@ -592,57 +617,66 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // for the line below it (Johns Hopkins).
   let degreeBlock = 0; // lines of a degrees-awarded block still to read
   let blockConferredGrad = false;
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    const line = lines[lineIndex]!;
+  type Lead = ReturnType<typeof leadCode>;
+  /** Block and term tracking for one line: which transfer block the scan is
+   * in, and the year, season and level the next course rows inherit. */
+  const trackTermAndTransfer = (line: string): void => {
     // Transfer blocks: Banner's "TRANSFER CREDIT ACCEPTED BY …" until
     // "INSTITUTION CREDIT"; PeopleSoft's "Term  Course  Transfer Course …"
     // table (2026-09-05, a scanned community-college block) until the next
     // term header.
-    if (/TRANSFER\s+CREDIT\s+ACCEPTED\s+BY/i.test(line)) transferBlock = 'banner';
-    else if (/^\s*(?:term\s+)?course\s+transfer\s+course\b/i.test(line)) transferBlock = 'table';
-    else if (/INSTITUTION(?:AL)?\s+CREDIT|UNIVERSITY OF NOTRE DAME CREDIT/i.test(line)) transferBlock = undefined;
+    if (TRANSFER_BANNER_RE.test(line)) transferBlock = 'banner';
+    else if (TRANSFER_TABLE_RE.test(line)) transferBlock = 'table';
+    else if (INSTITUTION_CREDIT_RE.test(line)) transferBlock = undefined;
     // Track the nearest term-ish header so course rows inherit its year.
-    if (/(fall|spring|summer|autumn|winter|semester|term|trimester|quarter|session|academic\s+year)/i.test(line)) {
+    if (TERM_WORD_RE.test(line)) {
       const y = YEAR_RE.exec(line);
       if (y && line.replace(/\s{2,}/g, ' ').length < 60) {
         if (transferBlock === 'table') transferBlock = undefined; // the table ends at the next term header
         currentYear = Number(y[1]);
         currentSeason = seasonOf(line) ?? currentSeason;
-        const suffix = /\b(undergraduate|graduate)\s*$/i.exec(line.trim());
+        const suffix = LEVEL_SUFFIX_RE.exec(line.trim());
         if (suffix) blockLevel = levelWord(suffix[1]!);
       }
     }
-    const flat = line.replace(/\s{2,}/g, '  ').trim();
+  };
+  /** Level markers on one line. True when the line was only a marker and is
+   * done with. */
+  const readLevelMarkers = (flat: string, lead: Lead): boolean => {
     const levelBlock = LEVEL_BLOCK_RE.exec(flat);
     if (levelBlock && !/\d{2,}/.test(flat.slice(0, 12))) {
       const word = levelBlock.slice(1).find((g) => g !== undefined) ?? '';
       blockLevel = levelWord(word);
-      continue;
+      return true;
     }
-    const levelCell = flat.split(/\s{2,}/).find((c) => /^(undergraduate|graduate)$/i.test(c.trim()));
-    if (levelCell && !leadCode(flat)) {
+    const levelCell = flat.split(/\s{2,}/).find((c) => LEVEL_ALONE_RE.test(c.trim()));
+    if (levelCell && !lead) {
       blockLevel = levelWord(levelCell.trim());
-      if (/^(undergraduate|graduate)$/i.test(flat)) continue;
+      if (LEVEL_ALONE_RE.test(flat)) return true;
     }
     const totalsLevel = LEVEL_TOTALS_RE.exec(flat);
     if (totalsLevel) retroLevel = levelWord(totalsLevel[1]!);
+    return false;
+  };
+  /** Degree lines: the degrees-awarded block, a graduate conferral, and the
+   * bachelor's name and date (which may sit on a nearby line). */
+  const readDegreeSignals = (flat: string, lead: Lead, lineIndex: number): void => {
     // Degrees awarded.
-    // "Degree(s) Awarded" with the parenthesis is UMass Amherst's heading (DGS 2026-09-13).
-    if (/^[\s*-]*degree(?:s|\(s\))?\s+(awarded|conferred|earned)\b/i.test(flat) && !/\b(bachelor|master|doctor)/i.test(flat)) {
+    if (DEGREES_AWARDED_HEADING_RE.test(flat) && !DEGREE_NAME_RE.test(flat)) {
       degreeBlock = 6;
     } else if (
-      /degree\b.*\b(conferred|awarded)\b/i.test(flat) &&
-      !/\b(bachelor|master|doctor)/i.test(flat) &&
+      DEGREE_CONFERRED_HEADER_RE.test(flat) &&
+      !DEGREE_NAME_RE.test(flat) &&
       // Either laid out in columns, or a heading and nothing else on the line
       // (Johns Hopkins prints "JHU Degree and Date Conferred" as one run,
       // 2026-09-08).
-      (flat.split(/\s{2,}/).length >= 2 || /^[^:]*\bdegree\b[^:]*\b(conferred|awarded)\b\s*:?\s*$/i.test(flat))
+      (flat.split(/\s{2,}/).length >= 2 || DEGREE_CONFERRED_HEADER_ALONE_RE.test(flat))
     ) {
       degreeBlock = 2; // a table header: the values follow on the next line(s)
     }
-    const namesDegree = /\b(bachelor|master|doctor|ph\.?\s?d)\b/i.test(flat) && !/\bsought\b|\bexpected\b|\bcandidate\b|\bcurrent program\b/i.test(flat);
+    const namesDegree = NAMES_DEGREE_RE.test(flat) && !NOT_AWARDED_RE.test(flat);
     const conferredHere = namesDegree && (CONFER_RE.test(flat) || degreeBlock > 0) && !NOT_COMPLETE_RE.test(flat);
-    if (degreeBlock > 0 && !leadCode(flat)) degreeBlock -= 1;
+    if (degreeBlock > 0 && !lead) degreeBlock -= 1;
     if (conferredHere && GRAD_DEGREE_RE.test(flat)) blockConferredGrad = true;
     // Named, not necessarily conferred: "Degree Sought: Bachelor of Science"
     // still says this record covers an undergraduate degree.
@@ -668,7 +702,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       }
       for (let k = 1; k <= 6 && bachelorsConferredOn === undefined; k++) {
         const later = lines[lineIndex + k];
-        if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim()) || /\b(master|doctor|ph\.?\s?d)\b/i.test(later)) break;
+        if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim()) || GRAD_DEGREE_NAME_RE.test(later)) break;
         if (DEGREE_DATE_LINE_RE.test(later) && !NOT_YET_RE.test(later)) bachelorsConferredOn = dateOnLine(later);
         // A bare "Date:" right under "Degree Completed: Bachelor of Science"
         // is that degree's date (UMass Amherst, DGS 2026-09-13) — but only
@@ -678,23 +712,26 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       }
       if (bachelorsConferredOn === undefined && recentDegreeDate !== undefined && lineIndex - recentDegreeDate.at <= 2) bachelorsConferredOn = recentDegreeDate.date;
     }
-    if (flat.length < 6) continue;
+  };
+  /** One course row, when the line is one. Returns the index of the last line
+   * consumed (a continuation or title line may be taken with the row). */
+  const readCourseRow = (line: string, flat: string, lead: Lead, lineIndex: number): number => {
+    if (flat.length < 6) return lineIndex;
     // The course code is expected at the start of the row (or right after a
     // leading term/date cell). Column gaps are unreliable across layouts, so
     // the rest of the line is TOKENIZED: credits and grade are searched among
     // the tokens after the title; the title is the leading run of wordy tokens.
-    const lead = leadCode(flat);
-    if (!lead) continue;
+    if (!lead) return lineIndex;
     if (transferBlock !== undefined) {
       transferRowsSkipped += 1;
-      continue;
+      return lineIndex;
     }
     let rowLevel: Level | undefined;
     if (lead.tokens.length > 0 && ROW_LEVEL_RE.test(lead.tokens[0]!)) {
       rowLevel = /^U/.test(lead.tokens[0]!) ? 'undergraduate' : 'graduate';
       lead.tokens.shift();
     }
-    const into: { credits?: number; grade?: Grade; rawGrade?: string; titleParts: string[] } = { titleParts: [] };
+    const into: RowScan = { titleParts: [] };
     scanTokens(lead.tokens, into);
     let usedContinuation = false;
     if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined && into.titleParts.length > 0) {
@@ -704,9 +741,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // row's continuation.
       const next = lines[lineIndex + 1]?.replace(/\s{2,}/g, '  ').trim();
       if (next && next.length >= 1 && !leadCode(next)) {
-        const nextTokens = next.split(/\s+/).filter((t) => t !== '');
+        const nextTokens = tokensOf([next]);
         if (nextTokens.length <= 8) {
-          const probe = { titleParts: [...into.titleParts], credits: undefined, grade: undefined, rawGrade: undefined } as typeof into;
+          const probe = { titleParts: [...into.titleParts], credits: undefined, grade: undefined, rawGrade: undefined } as RowScan;
           scanTokens(nextTokens, probe);
           if (probe.credits !== undefined || probe.grade !== undefined || probe.rawGrade !== undefined) {
             into.credits = probe.credits;
@@ -720,7 +757,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     }
     // A candidate needs a code plus at least a credit value or a grade —
     // otherwise it is a header/footer line that happened to start with a code.
-    if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined) continue;
+    if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined) return lineIndex;
     // A row printed without its title, or with an unreadable one (a bilingual
     // transcript's non-Latin title), takes the plain wordy line just above
     // and/or the one after the row (after a consumed continuation line).
@@ -743,18 +780,32 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const codeDigits = lead.code.replace(/^[A-Z ]+[- ]?/, '');
     const withoutCode = (text: string) => text.replace(codeDigits, ' ');
     const yearLine = withoutCode(usedContinuation ? `${line} ${lines[lineIndex + 1] ?? ''}` : line);
+    const rowYear = YEAR_RE.exec(yearLine);
     courses.push({
       courseId: lead.code.replace(/^([A-Z]+(?: [A-Z]+)?)[- ]?(\d)/, '$1 $2'),
       title: into.titleParts.join(' ').slice(0, 90) || undefined,
       credits: into.credits,
       grade: into.grade,
       rawGrade: into.rawGrade,
-      year: YEAR_RE.exec(yearLine) ? Number(YEAR_RE.exec(yearLine)![1]) : currentYear,
-      season: YEAR_RE.exec(yearLine) ? (seasonOf(yearLine) ?? currentSeason) : currentSeason,
+      year: rowYear ? Number(rowYear[1]) : currentYear,
+      season: rowYear ? (seasonOf(yearLine) ?? currentSeason) : currentSeason,
       lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
     });
     rowLevels.push(rowLevel ?? blockLevel);
     if (usedContinuation) lineIndex += 1; // the continuation line is consumed
+    return lineIndex;
+  };
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex]!;
+    trackTermAndTransfer(line);
+    const flat = line.replace(/\s{2,}/g, '  ').trim();
+    // The course code at the row's start, read once: the level and degree
+    // tests below ask whether the line is a course row, and the row reader
+    // needs the tokens.
+    const lead = leadCode(flat);
+    if (readLevelMarkers(flat, lead)) continue;
+    readDegreeSignals(flat, lead, lineIndex);
+    lineIndex = readCourseRow(line, flat, lead, lineIndex);
   }
   // Per-row level (2026-09-05): the row's or block's own marker first; else,
   // with a dated bachelor's conferral, the row's term against that date; else
@@ -807,7 +858,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
 
 /** One unreviewed course, pre-rendered for the review request (the caller
  * supplies the term label and slot label so this stays UI- and engine-free). */
-export interface ReviewRequestCourse {
+interface ReviewRequestCourse {
   institution?: string;
   courseId: string;
   title?: string;
@@ -896,7 +947,7 @@ export const MARKER_DIVIDER = '-'.repeat(64);
  * covers everything). `unlisted` marks courses that need a NEW sheet row —
  * ND courses missing from the Courses tab, external courses with no
  * ExternalCourses ruling; the rest need a decision, not a row. */
-export interface PendingReviewCourse extends ReviewRequestCourse {
+interface PendingReviewCourse extends ReviewRequestCourse {
   reason: string;
   unlisted: boolean;
 }

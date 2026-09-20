@@ -18,14 +18,6 @@ export interface TierSums {
 
 export const ZERO_SUMS: TierSums = { definite: 0, in_progress: 0, provisional: 0 };
 
-export function addSums(a: TierSums, b: TierSums): TierSums {
-  return {
-    definite: a.definite + b.definite,
-    in_progress: a.in_progress + b.in_progress,
-    provisional: a.provisional + b.provisional,
-  };
-}
-
 /** Σ ≥ N with the certainty ladder. `required === undefined` means the rules
  * sheet is missing the parameter → cannot evaluate (never silently pass). */
 export function thresholdStatus(sums: TierSums, required: number | undefined): Status {

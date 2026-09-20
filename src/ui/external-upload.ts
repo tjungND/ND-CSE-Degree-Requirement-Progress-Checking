@@ -18,26 +18,18 @@ import type { Rules } from '../data/types.ts';
 import { GRADES } from '../engine/grades.ts';
 import { BACHELORS_YEAR_RANGE, COURSE_CREDITS_RANGE, TERM_YEAR_RANGE, inRange, inputRefusal } from '../engine/ranges.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
+import { SEASONS } from './state.ts';
 import type { CourseEntry, Grade, Program, Season, Student, Term } from '../engine/types.ts';
-import type { ExternalCourseCandidate } from '../transcript/external.ts';
+import type { ExternalParseResult } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
 import { reclassifyNotreDameCourses } from './prior-nd.ts';
 import { canonicalUniversityName } from './university-name.ts';
-import { confirmDialog, writeClipboard } from './copy-dialog.ts';
+import { confirmDialog } from './copy-dialog.ts';
 import { parseTranscript } from '../transcript/parse.ts';
-import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
+import { el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { campusQuestion, MULTI_CAMPUS_SYSTEMS } from '../transcript/campus.ts';
 
-/** Write a review request to the clipboard in BOTH flavors (2026-09-03):
- * text/plain keeps the tab-separated rows; text/html carries them as a real
- * table — HTML email flattens tabs to spaces, but a table survives Gmail and
- * pastes into Sheets as cells. Falls back to plain text where ClipboardItem
- * is unsupported. Used by the "Ask the DGS to review" card in app.ts. */
-export function copyReviewRequest(built: { text: string; html: string }): Promise<void> {
-  return writeClipboard(built); // the writer lives with the dialog since 2026-09-06 (copy-dialog.ts)
-}
-
-export type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
+type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
 /** What the Notre Dame row is called, which depends on the program the student
  * picked at the top (DGS 2026-09-11). A 4+1 student holds several Notre Dame
  * transcripts; the row wants the one for the program they are in now. */
@@ -52,6 +44,11 @@ export const DEGREE_SLOTS: { level: DegreeLevel; label: string }[] = [
   { level: 'masters', label: 'Previous Master’s Transcript' },
   { level: 'phd', label: 'Previous Ph.D. Transcript' },
 ];
+
+/** The three seasons, as the term controls list them, and each one's label
+ * ("Fall"). (A shared SEASONS in engine/term.ts and a seasonSelect in dom.ts
+ * would also serve app.ts and state.ts — left for a cross-file change.) */
+const seasonName = (se: Season): string => se[0]!.toUpperCase() + se.slice(1);
 
 interface PreviewRow {
   include: boolean;
@@ -182,13 +179,13 @@ function relevelByAward(p: ExternalPreview, rules: Rules, program: Program): voi
     if (r.year === undefined) continue;
     r.level = termIndex({ season: r.season, year: r.year }) <= termIndex(award) ? 'undergraduate' : 'graduate';
     r.levelSource = 'award';
-    r.include = r.level === 'graduate' || isRelevantRow(p.university, rules, r, program);
-    r.irrelevant = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, program) ? true : undefined;
+    r.include = !isBlockedRow(p, rules, r, program);
+    r.irrelevant = isBlockedRow(p, rules, r, program) ? true : undefined;
   }
   p.mixedLevels = new Set(p.rows.map((r) => r.level)).size > 1 || undefined;
 }
 
-/** The level a row is treated at: its own when the transcript said, else the slot's. */
+/** The level a slot's rows take when the transcript does not say: undergraduate in the bachelor's row, graduate elsewhere. */
 function slotDefaultLevel(slot: DegreeLevel): PreviewRow['level'] {
   return slot === 'bachelors' ? 'undergraduate' : 'graduate';
 }
@@ -210,6 +207,12 @@ let preview: ExternalPreview | undefined;
  * or (preview errors) the next attempt to add. */
 let importError: { slot: DegreeLevel; message: string } | undefined;
 let previewError: string | undefined;
+/** An import that failed: the message under the slot row, focused (item 6). */
+function failSlot(slot: DegreeLevel, message: string, render: () => void): void {
+  importError = { slot, message };
+  render();
+  document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
+}
 /** A scan was uploaded and awaits the student's explicit OCR opt-in
  * (DGS decision 2026-09-02: never OCR without asking; English only). */
 /** `reason` 'no-lines' (DGS 2026-09-16): a text-layer PDF from which no
@@ -240,14 +243,6 @@ export function importsBusy(): boolean {
   return preview !== undefined || pendingScan !== undefined || ocrBusy !== undefined;
 }
 
-/** Undergraduate rows (DGS request 2026-09-04): undergraduate credits never
- * transfer (§5.2), so only rows that can matter are offered in the preview —
- * a title matching the §4.4.1 core keywords (algorithms, operating systems,
- * architecture), a course the DGS has already ruled on for this university,
- * or (Notre Dame) a course the Courses tab tags with a core area. On a
- * single-level undergraduate transcript everything else is left out (and
- * counted, for the note); on a MIXED-level transcript (2026-09-05) such rows
- * stay visible but unticked, since the student may need to change a level. */
 /** Can this row matter? Graduate rows always (§5.2 transfer candidates);
  * undergraduate rows only for §4.4.1 core knowledge — a core-keyword title, a
  * DGS ruling, or (Notre Dame) a Courses-tab core area. Re-evaluated whenever
@@ -266,6 +261,12 @@ function isRelevantRow(university: string, rules: Rules, r: PreviewRow, program:
   // count, subject to all other constraints, so they should be listed"). The
   // engine decides which, so the row is offered and the report rules on it.
   return (qualifier && rule?.coreArea !== undefined) || priorNdUndergraduateCanCount({ courseId: r.courseId, credits: r.credits ?? 0, term: { season: r.season, year: r.year }, grade: 'A' } as CourseEntry, rule, program);
+}
+
+/** An undergraduate row that cannot matter: unticked and locked in the
+ * preview, and never added. */
+function isBlockedRow(p: ExternalPreview, rules: Rules, r: PreviewRow, program: Program): boolean {
+  return r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, program);
 }
 
 /** Why an undergraduate row that cannot matter is not selectable (DGS
@@ -293,6 +294,14 @@ function blockedRowNote(notreDame: boolean, program: Program): string {
   return notreDame ? BLOCKED_ND_ROW_NOTE : BLOCKED_ROW_NOTE;
 }
 
+/** Undergraduate rows (DGS request 2026-09-04): undergraduate credits never
+ * transfer (§5.2), so only rows that can matter are offered in the preview —
+ * a title matching the §4.4.1 core keywords (algorithms, operating systems,
+ * architecture), a course the DGS has already ruled on for this university,
+ * or (Notre Dame) a course the Courses tab tags with a core area. On a
+ * single-level undergraduate transcript everything else is left out (and
+ * counted, for the note); on a MIXED-level transcript (2026-09-05) such rows
+ * stay visible but unticked, since the student may need to change a level. */
 function keepRelevantRows(
   university: string,
   rules: Rules,
@@ -363,10 +372,6 @@ function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
   return student.courses.filter((c) => c.origin === 'transfer' && c.degreeLevel === level);
 }
 
-/** The Previous Undergraduate row wants a FINISHED bachelor's record (DGS
- * 2026-09-11: "when previous undergraduate transcript shows as in-progress,
- * reject the transcript and show a warning message that says a completed BS
- * transcript is required"). A row without a final grade is the tell. */
 /** A previous-degree transcript must be OFFICIAL (DGS 2026-09-15: "If the
  * imported transcript has 'unofficial' anywhere, deem it unofficial and
  * reject it"). Only the Notre Dame row takes the unofficial self-service PDF. */
@@ -388,6 +393,10 @@ export function isUnofficial(lines: readonly string[]): boolean {
     return /^\W*unofficial\W*$/i.test(flat) || /^\W*unofficial\b.*\btranscript\b/i.test(flat);
   });
 }
+/** The Previous Undergraduate row wants a FINISHED bachelor's record (DGS
+ * 2026-09-11: "when previous undergraduate transcript shows as in-progress,
+ * reject the transcript and show a warning message that says a completed BS
+ * transcript is required"). A row without a final grade is the tell. */
 // 'import', not 'upload' — the student's act; 'uploaded' is kept for the
 // privacy fact (trim review 2026-09-18, P-53).
 const BACHELORS_IN_PROGRESS =
@@ -402,15 +411,69 @@ export function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string
   return rows.some((r) => r.grade === '' || r.grade === 'IP');
 }
 
+/** The half of an external import both routes share — the text layer
+ * (slotRow) and the OCR opt-in (scanOptInBlock): the parsed rows as preview
+ * rows, the in-progress bachelor's refusal, the "Taken as" pre-fill, the
+ * relevance filter and the preview itself. Returns the rows read and kept,
+ * or undefined when the transcript was refused (the caller says why). */
+function previewFromParsed(
+  parsed: ExternalParseResult,
+  slot: DegreeLevel,
+  args: ExternalCardArgs,
+  flags: { unofficial: boolean; fromOcr: boolean },
+): { mapped: PreviewRow[]; kept: { rows: PreviewRow[]; omitted: number } } | undefined {
+  const mapped: PreviewRow[] = parsed.courses.map((c) => ({
+    include: true,
+    courseId: c.courseId,
+    title: c.title ?? '',
+    credits: c.credits,
+    grade: (c.grade ?? '') as Grade | '',
+    rawGrade: c.rawGrade,
+    season: c.season ?? ('fall' as Season),
+    year: c.year,
+    lowConfidence: c.lowConfidence,
+    level: c.level ?? slotDefaultLevel(slot),
+    levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
+  }));
+  if (undergraduateInProgress(slot, mapped, parsed.bachelorsConferred === true)) return undefined;
+  const termPrefill = prefillLevelsByTerm(mapped, slot, parsed.bachelorsNamed === true);
+  const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
+  const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed, args.student.program);
+  const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
+  preview = {
+    ...(flags.unofficial ? { unofficial: true } : {}),
+    slot,
+    university: parsed.university ?? '',
+    ...(flags.fromOcr
+      ? // OCR misreads names too — the field stays editable (2026-09-06).
+        { fromOcr: true }
+      : {
+          // A name read from the transcript is locked; one recovered from an
+          // acronym is pre-filled and editable (2026-09-08).
+          universityFromTranscript: (parsed.university ?? '') !== '' && parsed.universityGuessed !== true,
+          universityGuessed: parsed.universityGuessed,
+        }),
+    campusSystem: parsed.campusSystem,
+    campus: parsed.campus,
+    campusFromTranscript: parsed.campus !== undefined,
+    conferred: parsed.degreeConferred,
+    creditSystem: parsed.quarterSystem ? 'quarter' : parsed.trimesterSystem ? 'trimester' : undefined,
+    bachelorsConferredOn: parsed.bachelorsConferredOn,
+    ...bachelors,
+    rows: kept.rows,
+    omitted: kept.omitted,
+    transferSkipped: parsed.transferRowsSkipped,
+    mixedLevels: mixed || undefined,
+    termPrefill,
+  };
+  return { mapped, kept };
+}
+
 function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCardArgs): HTMLElement {
   const { student, rules, update, toast, render } = args;
   const have = coursesInSlot(student, slot.level);
   const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: `hidden external-file-${slot.level}`, 'aria-label': `${slot.label} PDF` });
-  const fail = (message: string): void => {
-    importError = { slot: slot.level, message };
-    render();
-    document.querySelector<HTMLElement>(`[data-key="ext.error.${slot.level}"]`)?.focus();
-  };
+  const fail = (message: string): void => failSlot(slot.level, message, render);
   fileInput.addEventListener('change', async () => {
     const file = (fileInput as HTMLInputElement).files?.[0];
     if (!file) return;
@@ -475,44 +538,9 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
         render();
         return;
       }
-      const mapped = parsed.courses.map((c: ExternalCourseCandidate) => ({
-        include: true,
-        courseId: c.courseId,
-        title: c.title ?? '',
-        credits: c.credits,
-        grade: (c.grade ?? '') as Grade | '',
-        rawGrade: c.rawGrade,
-        season: c.season ?? ('fall' as Season),
-        year: c.year,
-        level: c.level ?? slotDefaultLevel(slot.level),
-        levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
-      }));
-      if (undergraduateInProgress(slot.level, mapped, parsed.bachelorsConferred === true)) return fail(BACHELORS_IN_PROGRESS);
-      const termPrefill = prefillLevelsByTerm(mapped, slot.level, parsed.bachelorsNamed === true);
-      const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
-      const kept = keepRelevantRows(parsed.university ?? '', rules, mapped, mixed, args.student.program);
-      const bachelors = bachelorsForPreview(slot.level, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
-      preview = {
-        ...(unofficial ? { unofficial: true } : {}),
-        slot: slot.level,
-        university: parsed.university ?? '',
-        // A name read from the transcript is locked; one recovered from an
-        // acronym is pre-filled and editable (2026-09-08).
-        universityFromTranscript: (parsed.university ?? '') !== '' && parsed.universityGuessed !== true,
-        universityGuessed: parsed.universityGuessed,
-        campusSystem: parsed.campusSystem,
-        campus: parsed.campus,
-        campusFromTranscript: parsed.campus !== undefined,
-        conferred: parsed.degreeConferred,
-        creditSystem: parsed.quarterSystem ? 'quarter' : parsed.trimesterSystem ? 'trimester' : undefined,
-        bachelorsConferredOn: parsed.bachelorsConferredOn,
-        ...bachelors,
-        rows: kept.rows,
-        omitted: kept.omitted,
-        transferSkipped: parsed.transferRowsSkipped,
-        mixedLevels: mixed || undefined,
-        termPrefill,
-      };
+      const made = previewFromParsed(parsed, slot.level, args, { unofficial, fromOcr: false });
+      if (!made) return fail(BACHELORS_IN_PROGRESS);
+      const { mapped, kept } = made;
       if (mapped.length === 0) {
         // No course line in the text layer (DGS 2026-09-16): offer OCR — the
         // text layer may be an image's stray caption, or a layout the parser
@@ -679,48 +707,13 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 ocrBusy = undefined;
                 const unofficial = isUnofficial(lines.map((l) => l.text)); // warned on the preview (DGS 2026-09-17)
                 if (parsed.looksLikeNotreDame) {
-                  importError = { slot, message: `This looks like an ND transcript — use the “${ndRowLabel(student)}” row above, with the digital PDF from insideND (not a scan).` };
-                  render();
-                  document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
+                  failSlot(slot, `This looks like an ND transcript — use the “${ndRowLabel(student)}” row above, with the digital PDF from insideND (not a scan).`, render);
                   return;
                 }
-                const mapped = parsed.courses.map((c) => ({
-                  include: true,
-                  courseId: c.courseId,
-                  title: c.title ?? '',
-                  credits: c.credits,
-                  grade: (c.grade ?? '') as Grade | '',
-                  rawGrade: c.rawGrade,
-                  season: c.season ?? ('fall' as Season),
-                  year: c.year,
-                  lowConfidence: c.lowConfidence,
-                  level: c.level ?? slotDefaultLevel(slot),
-                  levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
-                }));
-                if (undergraduateInProgress(slot, mapped, parsed.bachelorsConferred === true)) { importError = { slot, message: BACHELORS_IN_PROGRESS }; render(); document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus(); return; }
-                const termPrefill = prefillLevelsByTerm(mapped, slot, parsed.bachelorsNamed === true);
-                const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
-                const kept = keepRelevantRows(parsed.university ?? '', args.rules, mapped, mixed, args.student.program);
-                const bachelors = bachelorsForPreview(slot, mixed, parsed.bachelorsConferredOn, termPrefill !== undefined, handSetBachelors(args.student));
-                preview = {
-                  ...(unofficial ? { unofficial: true } : {}),
-                  slot,
-                  university: parsed.university ?? '',
-                  // OCR misreads names too — the field stays editable (2026-09-06).
-                  fromOcr: true,
-                  campusSystem: parsed.campusSystem,
-                  campus: parsed.campus,
-                  campusFromTranscript: parsed.campus !== undefined,
-                  conferred: parsed.degreeConferred,
-                  creditSystem: parsed.quarterSystem ? 'quarter' : parsed.trimesterSystem ? 'trimester' : undefined,
-                  bachelorsConferredOn: parsed.bachelorsConferredOn,
-                  ...bachelors,
-                  rows: kept.rows,
-                  omitted: kept.omitted,
-                  transferSkipped: parsed.transferRowsSkipped,
-                  mixedLevels: mixed || undefined,
-                  termPrefill,
-                };
+                if (!previewFromParsed(parsed, slot, args, { unofficial, fromOcr: true })) {
+                  failSlot(slot, BACHELORS_IN_PROGRESS, render);
+                  return;
+                }
                 if (parsed.courses.length === 0) {
                   previewError = `OCR finished but found no course-like lines (${pagesRead} of ${pagesTotal} pages read). You can add the courses by hand below.`;
                 } else if (pagesTotal > pagesRead) {
@@ -731,9 +724,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 // Leave a breadcrumb for debugging without surfacing internals.
                 console.error('OCR failed:', e);
                 ocrBusy = undefined;
-                importError = { slot, message: 'The text reader could not run in this browser — please use a system-generated PDF instead.' };
-                render();
-                document.querySelector<HTMLElement>(`[data-key="ext.error.${slot}"]`)?.focus();
+                failSlot(slot, 'The text reader could not run in this browser — please use a system-generated PDF instead.', render);
               }
             })();
           },
@@ -787,6 +778,179 @@ function levelNote(p: ExternalPreview): string {
   }
   const text = parts.join('; ');
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
+
+/** One row of the preview table. Every control in a row names its row
+ * (usability review 2026-09-05, item 5): a screen reader says "Credits for
+ * CS 25100", not just "spin button". */
+function previewRow(
+  p: ExternalPreview,
+  r: PreviewRow,
+  i: number,
+  ctx: { rules: Rules; student: Student; toast: (msg: string) => void; render: () => void; blockedNote: string },
+): HTMLElement {
+  const { rules, student, toast, render, blockedNote } = ctx;
+  const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
+  // An undergraduate row that cannot matter is not selectable (DGS request
+  // 2026-09-06): the box is disabled and the row explains why on hover; a
+  // change of "Taken as" re-renders, so the box follows the level.
+  const blocked = isBlockedRow(p, rules, r, student.program);
+  if (blocked) r.include = false;
+  const noteId = `ext-row-${i}-note`;
+  const cb = el('input', {
+    type: 'checkbox',
+    'aria-label': `Add ${who()}`,
+    'data-key': `ext.row.${i}.include`,
+    ...(blocked ? { disabled: 'disabled', 'aria-describedby': noteId, title: blockedNote } : {}),
+    onchange: (e) => {
+      r.include = (e.target as HTMLInputElement).checked;
+      render(); // the Add button's count follows (item 13)
+    },
+  });
+  cb.checked = r.include;
+  // Course number and title as the transcript printed them (DGS request
+  // 2026-09-06): fixed for a text-layer import; editable for OCR rows (the
+  // reader misreads) and rows typed by hand.
+  const locked = !p.fromOcr && !r.manual;
+  const idIn = locked
+    ? el('span', { class: 'course-id locked', 'data-key': `ext.row.${i}.id` }, r.courseId)
+    : el('input', { value: r.courseId, class: 'course-id', 'aria-label': `Course id, ${who()}`, 'data-key': `ext.row.${i}.id` });
+  if (!locked) idIn.addEventListener('change', () => (r.courseId = (idIn as HTMLInputElement).value));
+  const titleIn = locked
+    ? el('span', { class: 'course-title locked', 'data-key': `ext.row.${i}.title` }, r.title)
+    : el('input', { value: r.title, class: 'course-title', 'aria-label': `Title for ${who()}`, 'data-key': `ext.row.${i}.title` });
+  if (!locked) titleIn.addEventListener('change', () => (r.title = (titleIn as HTMLInputElement).value));
+  // Credits, grade and term are locked too for a text-layer import (DGS
+  // request 2026-09-06, second pass) — as printed on the transcript. A value
+  // the parser could not read stays an input, or the row could never be
+  // completed; OCR and hand-typed rows stay fully editable.
+  const lockedText = (cls: string, key: string, text: string | HTMLElement): HTMLElement => el('span', { class: `${cls} locked`, 'data-key': `ext.row.${i}.${key}` }, text);
+  let crIn: HTMLElement;
+  if (locked && r.credits !== undefined) crIn = lockedText('course-credits', 'credits', `${r.credits} cr`);
+  else {
+    // Fifteen credits is the most any single course may be worth (DGS
+    // 2026-09-18), so this box takes the SAME bound as the add-course form
+    // rather than its old decorative max="30" with a `v > 0` guard. A value
+    // outside it leaves the row incomplete (so it cannot be added) and says
+    // why, instead of blanking itself without a word.
+    crIn = el('input', {
+      type: 'number',
+      min: String(COURSE_CREDITS_RANGE.min),
+      max: String(COURSE_CREDITS_RANGE.max),
+      step: '0.5',
+      'aria-label': `Credits for ${who()}`,
+      'data-key': `ext.row.${i}.credits`,
+      value: r.credits !== undefined ? String(r.credits) : '',
+    });
+    crIn.addEventListener('change', () => {
+      const text = (crIn as HTMLInputElement).value;
+      const v = Number(text);
+      // A blank box is "not filled in yet", as it always was — only a value
+      // the app will not keep is refused out loud.
+      const keep = inRange(v, COURSE_CREDITS_RANGE) && v > 0;
+      r.credits = keep ? v : undefined;
+      if (text !== '' && !keep) {
+        crIn.setAttribute('aria-invalid', 'true');
+        toast(inputRefusal(text, COURSE_CREDITS_RANGE, 'added'));
+      } else {
+        crIn.removeAttribute('aria-invalid');
+      }
+    });
+  }
+  let gradeSel: HTMLElement;
+  if (locked && r.grade !== '') gradeSel = lockedText('course-grade', 'grade', r.grade === 'IP' ? 'In progress' : r.grade);
+  else {
+    gradeSel = el('select', { 'aria-label': `Grade for ${who()}`, 'data-key': `ext.row.${i}.grade` });
+    gradeSel.append(option('', r.rawGrade ? `choose… (transcript says “${r.rawGrade}”)` : 'choose…', r.grade === ''));
+    for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, r.grade === g));
+    gradeSel.addEventListener('change', () => (r.grade = (gradeSel as HTMLSelectElement).value as Grade | ''));
+  }
+  // The term: one locked "Fall 2023" when the transcript gave both parts.
+  const termLocked = locked && r.year !== undefined;
+  // One line only when nothing is left to fill in (DGS bug 2026-09-07): a
+  // text-layer row whose credits, grade or year the parser missed renders
+  // full-size controls, and the one-line form cannot wrap around them.
+  const compactRow = rowIsCompact({ locked, credits: r.credits, grade: r.grade, year: r.year });
+  let seasonSel: HTMLElement;
+  let yearIn: HTMLElement | null;
+  if (termLocked) {
+    // The short form in the cell, the full name as the tooltip (DGS 2026-09-07).
+    seasonSel = lockedText('course-term', 'season', el('abbr', { class: 'term', title: termLabel({ season: r.season, year: r.year! }) }, termShort({ season: r.season, year: r.year! })));
+    yearIn = null;
+  } else {
+    seasonSel = el('select', { 'aria-label': `Semester for ${who()}`, 'data-key': `ext.row.${i}.season` });
+    for (const se of SEASONS) seasonSel.append(option(se, seasonName(se), r.season === se));
+    seasonSel.addEventListener('change', () => (r.season = (seasonSel as HTMLSelectElement).value as Season));
+    // The same floor as every other term year, and no ceiling (DGS
+    // 2026-09-18). The old `v > 1900` accepted 1950 and 9999 alike.
+    yearIn = el('input', {
+      type: 'number',
+      min: String(TERM_YEAR_RANGE.min),
+      'aria-label': `Year for ${who()}`,
+      'data-key': `ext.row.${i}.year`,
+      value: r.year !== undefined ? String(r.year) : '',
+    });
+    yearIn.addEventListener('change', () => {
+      const text = (yearIn as HTMLInputElement).value;
+      const v = Number(text);
+      const keep = inRange(v, TERM_YEAR_RANGE);
+      r.year = keep ? v : undefined;
+      if (text !== '' && !keep) {
+        yearIn!.setAttribute('aria-invalid', 'true');
+        toast(inputRefusal(text, TERM_YEAR_RANGE, 'added'));
+      } else {
+        yearIn!.removeAttribute('aria-invalid');
+      }
+    });
+  }
+  // Taken as (2026-09-05): the level decides Bachelor's vs graduate coursework on add.
+  const levelSel = el('select', {
+    class: 'row-level',
+    'aria-label': `Taken as (level) for ${who()}`,
+    title: `Taken as — your status when you took the course, not the course’s level: a graduate-level course taken before your bachelor’s degree was awarded counts as undergraduate coursework${student.program === 'phd' ? ' (§4.4.1 core knowledge only, no transfer credit — §5.2)' : ' (no transfer credit — §5.2)'}`,
+    'data-key': `ext.row.${i}.level`,
+  });
+  // "UG student" / "Grad student" (DGS 2026-09-06 late evening, shortened
+  // 2026-09-07): a bare "Undergraduate" next to a 500-level course read as
+  // the course's level and confused students; the word "student" says whose
+  // status it is.
+  levelSel.append(option('undergraduate', 'UG student', r.level === 'undergraduate'), option('graduate', 'Grad student', r.level === 'graduate'));
+  levelSel.addEventListener('change', () => {
+    r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level'];
+    r.levelSource = 'slot'; // the student decided — no longer "by the rule"
+    // A row that becomes relevant is offered ticked, like every other
+    // relevant row; one that becomes irrelevant is unticked and locked.
+    if (!isBlockedRow(p, rules, r, student.program)) r.include = true;
+    render();
+  });
+  // A locked (text-layer) row is COMPACT (DGS request 2026-09-06, second
+  // pass): two lines — tick, number and title; then "4 cr · A · Fall 2023 ·
+  // Taken as [level]" — no field labels (the values speak for themselves).
+  // Editable rows (OCR, typed by hand) keep their labelled inputs.
+  const tr = el(
+    'tr',
+    {
+      class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : '', compactRow ? 'compact' : 'editable'].join(' ').trim(),
+      ...(blocked ? { title: blockedNote } : {}),
+    },
+    el(
+      'td',
+      { class: 'cell-check' },
+      r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null,
+      cb,
+      blocked ? el('span', { id: noteId, class: 'visually-hidden' }, blockedNote) : null,
+    ),
+    el('td', { class: 'cell-course', 'data-label': 'Course id' }, idIn),
+    // (The greyed row + disabled box are the visible cue; the reason is the
+    // hover text and the box's aria-describedby — DGS 2026-09-06: no tag.)
+    el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn),
+    el('td', { class: `cell-meta${locked && r.credits !== undefined ? ' locked-cell' : ''}`, 'data-label': 'Credits' }, crIn),
+    el('td', { class: `cell-meta${locked && r.grade !== '' ? ' locked-cell' : ''}`, 'data-label': 'Grade' }, gradeSel),
+    el('td', { class: `cell-meta${termLocked ? ' locked-cell' : ''}`, 'data-label': 'Term' }, seasonSel),
+    termLocked ? el('td', { class: 'cell-meta cell-empty', 'data-label': 'Year' }) : el('td', { class: 'cell-meta', 'data-label': 'Year' }, yearIn),
+    el('td', { class: 'cell-meta level-cell', 'data-label': 'Taken as' }, levelSel),
+  );
+  return tr;
 }
 
 function previewBlock(args: ExternalCardArgs): HTMLElement {
@@ -1002,175 +1166,11 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       el('th', { scope: 'col', class: 'level-head', title: `Your status when you took the course — not the course’s level. A graduate-level course taken before your bachelor’s degree was awarded still counts as undergraduate coursework${student.program === 'phd' ? ': §4.4.1 core knowledge only, no transfer credit (§5.2).' : ', which brings no transfer credit (§5.2).'}` }, 'Taken as'),
     ),
   );
-  // Every control in a row names its row (usability review 2026-09-05, item
-  // 5): a screen reader says "Credits for CS 25100", not just "spin button".
   const blockedNote = blockedRowNote(p.notreDame === true, student.program);
-  const rowEls = p.rows.map((r, i) => {
-    const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
-    // An undergraduate row that cannot matter is not selectable (DGS request
-    // 2026-09-06): the box is disabled and the row explains why on hover; a
-    // change of "Taken as" re-renders, so the box follows the level.
-    const blocked = r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, student.program);
-    if (blocked) r.include = false;
-    const noteId = `ext-row-${i}-note`;
-    const cb = el('input', {
-      type: 'checkbox',
-      'aria-label': `Add ${who()}`,
-      'data-key': `ext.row.${i}.include`,
-      ...(blocked ? { disabled: 'disabled', 'aria-describedby': noteId, title: blockedNote } : {}),
-      onchange: (e) => {
-        r.include = (e.target as HTMLInputElement).checked;
-        render(); // the Add button's count follows (item 13)
-      },
-    });
-    cb.checked = r.include;
-    // Course number and title as the transcript printed them (DGS request
-    // 2026-09-06): fixed for a text-layer import; editable for OCR rows (the
-    // reader misreads) and rows typed by hand.
-    const locked = !p.fromOcr && !r.manual;
-    const idIn = locked
-      ? el('span', { class: 'course-id locked', 'data-key': `ext.row.${i}.id` }, r.courseId)
-      : el('input', { value: r.courseId, class: 'course-id', 'aria-label': `Course id, ${who()}`, 'data-key': `ext.row.${i}.id` });
-    if (!locked) idIn.addEventListener('change', () => (r.courseId = (idIn as HTMLInputElement).value));
-    const titleIn = locked
-      ? el('span', { class: 'course-title locked', 'data-key': `ext.row.${i}.title` }, r.title)
-      : el('input', { value: r.title, class: 'course-title', 'aria-label': `Title for ${who()}`, 'data-key': `ext.row.${i}.title` });
-    if (!locked) titleIn.addEventListener('change', () => (r.title = (titleIn as HTMLInputElement).value));
-    // Credits, grade and term are locked too for a text-layer import (DGS
-    // request 2026-09-06, second pass) — as printed on the transcript. A value
-    // the parser could not read stays an input, or the row could never be
-    // completed; OCR and hand-typed rows stay fully editable.
-    const lockedText = (cls: string, key: string, text: string | HTMLElement): HTMLElement => el('span', { class: `${cls} locked`, 'data-key': `ext.row.${i}.${key}` }, text);
-    let crIn: HTMLElement;
-    if (locked && r.credits !== undefined) crIn = lockedText('course-credits', 'credits', `${r.credits} cr`);
-    else {
-      // Fifteen credits is the most any single course may be worth (DGS
-      // 2026-09-18), so this box takes the SAME bound as the add-course form
-      // rather than its old decorative max="30" with a `v > 0` guard. A value
-      // outside it leaves the row incomplete (so it cannot be added) and says
-      // why, instead of blanking itself without a word.
-      crIn = el('input', {
-        type: 'number',
-        min: String(COURSE_CREDITS_RANGE.min),
-        max: String(COURSE_CREDITS_RANGE.max),
-        step: '0.5',
-        'aria-label': `Credits for ${who()}`,
-        'data-key': `ext.row.${i}.credits`,
-        value: r.credits !== undefined ? String(r.credits) : '',
-      });
-      crIn.addEventListener('change', () => {
-        const text = (crIn as HTMLInputElement).value;
-        const v = Number(text);
-        // A blank box is "not filled in yet", as it always was — only a value
-        // the app will not keep is refused out loud.
-        const keep = inRange(v, COURSE_CREDITS_RANGE) && v > 0;
-        r.credits = keep ? v : undefined;
-        if (text !== '' && !keep) {
-          crIn.setAttribute('aria-invalid', 'true');
-          toast(inputRefusal(text, COURSE_CREDITS_RANGE, 'added'));
-        } else {
-          crIn.removeAttribute('aria-invalid');
-        }
-      });
-    }
-    let gradeSel: HTMLElement;
-    if (locked && r.grade !== '') gradeSel = lockedText('course-grade', 'grade', r.grade === 'IP' ? 'In progress' : r.grade);
-    else {
-      gradeSel = el('select', { 'aria-label': `Grade for ${who()}`, 'data-key': `ext.row.${i}.grade` });
-      gradeSel.append(option('', r.rawGrade ? `choose… (transcript says “${r.rawGrade}”)` : 'choose…', r.grade === ''));
-      for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, r.grade === g));
-      gradeSel.addEventListener('change', () => (r.grade = (gradeSel as HTMLSelectElement).value as Grade | ''));
-    }
-    // The term: one locked "Fall 2023" when the transcript gave both parts.
-    const termLocked = locked && r.year !== undefined;
-    // One line only when nothing is left to fill in (DGS bug 2026-09-07): a
-    // text-layer row whose credits, grade or year the parser missed renders
-    // full-size controls, and the one-line form cannot wrap around them.
-    const compactRow = rowIsCompact({ locked, credits: r.credits, grade: r.grade, year: r.year });
-    let seasonSel: HTMLElement;
-    let yearIn: HTMLElement | null;
-    if (termLocked) {
-      // The short form in the cell, the full name as the tooltip (DGS 2026-09-07).
-      seasonSel = lockedText('course-term', 'season', el('abbr', { class: 'term', title: termLabel({ season: r.season, year: r.year! }) }, termShort({ season: r.season, year: r.year! })));
-      yearIn = null;
-    } else {
-      seasonSel = el('select', { 'aria-label': `Semester for ${who()}`, 'data-key': `ext.row.${i}.season` });
-      for (const se of ['fall', 'spring', 'summer'] as Season[]) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), r.season === se));
-      seasonSel.addEventListener('change', () => (r.season = (seasonSel as HTMLSelectElement).value as Season));
-      // The same floor as every other term year, and no ceiling (DGS
-      // 2026-09-18). The old `v > 1900` accepted 1950 and 9999 alike.
-      yearIn = el('input', {
-        type: 'number',
-        min: String(TERM_YEAR_RANGE.min),
-        'aria-label': `Year for ${who()}`,
-        'data-key': `ext.row.${i}.year`,
-        value: r.year !== undefined ? String(r.year) : '',
-      });
-      yearIn.addEventListener('change', () => {
-        const text = (yearIn as HTMLInputElement).value;
-        const v = Number(text);
-        const keep = inRange(v, TERM_YEAR_RANGE);
-        r.year = keep ? v : undefined;
-        if (text !== '' && !keep) {
-          yearIn!.setAttribute('aria-invalid', 'true');
-          toast(inputRefusal(text, TERM_YEAR_RANGE, 'added'));
-        } else {
-          yearIn!.removeAttribute('aria-invalid');
-        }
-      });
-    }
-    // Taken as (2026-09-05): the level decides Bachelor's vs graduate coursework on add.
-    const levelSel = el('select', {
-      class: 'row-level',
-      'aria-label': `Taken as (level) for ${who()}`,
-      title: `Taken as — your status when you took the course, not the course’s level: a graduate-level course taken before your bachelor’s degree was awarded counts as undergraduate coursework${student.program === 'phd' ? ' (§4.4.1 core knowledge only, no transfer credit — §5.2)' : ' (no transfer credit — §5.2)'}`,
-      'data-key': `ext.row.${i}.level`,
-    });
-    // "UG student" / "Grad student" (DGS 2026-09-06 late evening, shortened
-    // 2026-09-07): a bare "Undergraduate" next to a 500-level course read as
-    // the course's level and confused students; the word "student" says whose
-    // status it is.
-    levelSel.append(option('undergraduate', 'UG student', r.level === 'undergraduate'), option('graduate', 'Grad student', r.level === 'graduate'));
-    levelSel.addEventListener('change', () => {
-      r.level = (levelSel as HTMLSelectElement).value as PreviewRow['level'];
-      r.levelSource = 'slot'; // the student decided — no longer "by the rule"
-      // A row that becomes relevant is offered ticked, like every other
-      // relevant row; one that becomes irrelevant is unticked and locked.
-      if (!(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, student.program))) r.include = true;
-      render();
-    });
-    // A locked (text-layer) row is COMPACT (DGS request 2026-09-06, second
-    // pass): two lines — tick, number and title; then "4 cr · A · Fall 2023 ·
-    // Taken as [level]" — no field labels (the values speak for themselves).
-    // Editable rows (OCR, typed by hand) keep their labelled inputs.
-    const tr = el(
-      'tr',
-      {
-        class: [r.lowConfidence ? 'ocr-low' : '', blocked ? 'prior-row blocked-row' : '', compactRow ? 'compact' : 'editable'].join(' ').trim(),
-        ...(blocked ? { title: blockedNote } : {}),
-      },
-      el(
-        'td',
-        { class: 'cell-check' },
-        r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null,
-        cb,
-        blocked ? el('span', { id: noteId, class: 'visually-hidden' }, blockedNote) : null,
-      ),
-      el('td', { class: 'cell-course', 'data-label': 'Course id' }, idIn),
-      // (The greyed row + disabled box are the visible cue; the reason is the
-      // hover text and the box's aria-describedby — DGS 2026-09-06: no tag.)
-      el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn),
-      el('td', { class: `cell-meta${locked && r.credits !== undefined ? ' locked-cell' : ''}`, 'data-label': 'Credits' }, crIn),
-      el('td', { class: `cell-meta${locked && r.grade !== '' ? ' locked-cell' : ''}`, 'data-label': 'Grade' }, gradeSel),
-      el('td', { class: `cell-meta${termLocked ? ' locked-cell' : ''}`, 'data-label': 'Term' }, seasonSel),
-      termLocked ? el('td', { class: 'cell-meta cell-empty', 'data-label': 'Year' }) : el('td', { class: 'cell-meta', 'data-label': 'Year' }, yearIn),
-      el('td', { class: 'cell-meta level-cell', 'data-label': 'Taken as' }, levelSel),
-    );
-    return tr;
-  });
+  const rowEls = p.rows.map((r, i) => previewRow(p, r, i, { rules, student, toast, render, blockedNote }));
   table.append(...rowEls);
   const selectAll = (on: boolean) => {
-    for (const r of p.rows) r.include = on && !(r.level === 'undergraduate' && !isRelevantRow(p.university, rules, r, student.program));
+    for (const r of p.rows) r.include = on && !isBlockedRow(p, rules, r, student.program);
     render();
   };
   box.append(
@@ -1194,6 +1194,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       },
     }, '+ Add a row by hand'),
   );
+  const selected = p.rows.filter((r) => r.include).length;
   box.append(
     el(
       'div',
@@ -1341,7 +1342,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           },
         },
         // 'selected' — the word Select all / Select none and the ND preview use (trim review 2026-09-18, P-58).
-        `Add ${p.rows.filter((r) => r.include).length} selected course${p.rows.filter((r) => r.include).length === 1 ? '' : 's'}`,
+        `Add ${selected} selected course${selected === 1 ? '' : 's'}`,
       ),
       el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; previewError = undefined; render(); } }, 'Cancel'),
     ),
@@ -1364,7 +1365,7 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, pr
     ...(p.bachelorsRequired ? { required: 'required', 'aria-required': 'true' } : {}),
   });
   const seasonSel = el('select', { 'aria-label': 'Bachelor’s degree awarded — semester', 'data-key': 'ext.preview.bachelors.season' });
-  for (const se of ['fall', 'spring', 'summer'] as const) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), (p.bachelorsAwarded?.season ?? 'spring') === se));
+  for (const se of SEASONS) seasonSel.append(option(se, seasonName(se), (p.bachelorsAwarded?.season ?? 'spring') === se));
   const apply = (): void => {
     const raw = (yearInput as HTMLInputElement).value;
     const year = Number(raw);

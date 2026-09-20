@@ -3,8 +3,10 @@
 import { formatCredits } from '../credits.ts';
 import type { Parameters, Rules } from '../../data/types.ts';
 import type { AllocationResult, CapId, ClassifiedCourse, CourseAllocation } from '../allocate.ts';
+import { usableGpa } from '../ranges.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
+import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm } from '../term.ts';
 import type { DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
 
 export interface Ctx {
@@ -13,15 +15,85 @@ export interface Ctx {
   today: string;
   /** Entry term normalized (summer entry → the following fall, decision Q17c). */
   entry: Term;
-  entryNormalized: boolean;
   alloc: AllocationResult;
   classified: ClassifiedCourse[];
   params: Parameters;
-  warnings: string[];
 }
 
 export function missingParamDetail(key: string): string {
   return `Cannot evaluate — the rules sheet is missing '${key}'. Ask the DGS to add it to the Parameters tab`;
+}
+
+/** The regular-pool courses counted only provisionally — named on the credit
+ * rows whenever the verdict leans on them. */
+export function provisionalRegularIds(ctx: Ctx): string[] {
+  return ctx.classified
+    .filter((c) => c.pool === 'regular' && c.tier === 'provisional' && !c.superseded)
+    .map((c) => c.entry.courseId);
+}
+
+/** §2.2's bar on defending with a low GPA, as the sentence the defense rows
+ * append (empty when it does not apply). */
+export function defendGpaNote(ctx: Ctx): string {
+  const min = ctx.params.number('gpa_min');
+  const defenseGpa = usableGpa(ctx.student.gpa); // R1: an off-scale figure gates nothing
+  return min !== undefined && defenseGpa !== undefined && defenseGpa < min
+    ? ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`
+    : '';
+}
+
+/** The degree's time limit — §3.3's five years / §4.3's eight — as one row.
+ * "Met" only when everything else already is, and able to tell "not finished"
+ * from "cannot be judged yet" (red-team 2026-09-13): a blank rules-sheet cell
+ * elsewhere used to make a student who had finished everything read "Overdue
+ * — the 8-year limit passed". */
+export function timeLimitRow(
+  ctx: Ctx,
+  others: { allMet: boolean; anyCannotEvaluate: boolean },
+  args: { id: string; group: string; title: string; yearsKey: string; section: string; quote: string },
+): RequirementResult {
+  const years = ctx.params.number(args.yearsKey);
+  let status: Status;
+  let detail: string;
+  let deadline: RequirementResult['deadline'];
+  if (years === undefined) {
+    status = 'cannot_evaluate';
+    detail = missingParamDetail(args.yearsKey);
+  } else {
+    // Shown as a semester, never a date (DGS request 2026-09-05): eight years
+    // from the entry term's start is the start of a term.
+    const date = addYearsIso(startOfTerm(ctx.entry).date, years);
+    if (others.allMet) {
+      status = 'met';
+      detail = `All requirements are complete within the ${years}-year limit.`;
+      deadline = { date, approx: true, state: 'done', label: 'Complete' };
+    } else if (ctx.today > date && others.anyCannotEvaluate) {
+      // A missing rules-sheet value is not a missed deadline (red-team
+      // 2026-09-13): a student who has finished everything used to read
+      // "Overdue — forfeiture" because one unrelated parameter was blank.
+      status = 'cannot_evaluate';
+      detail = `The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value.`;
+      deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
+    } else if (ctx.today > date) {
+      status = 'unmet';
+      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
+      deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
+    } else {
+      status = 'in_progress';
+      detail = ''; // the deadline chip carries the when (2026-09-03)
+      // A semester, never a date (DGS request 2026-09-05).
+      deadline = { date, approx: true, state: 'upcoming', label: `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)` };
+    }
+  }
+  return {
+    id: args.id,
+    group: args.group,
+    title: args.title,
+    status,
+    detail,
+    deadline,
+    citation: { section: args.section, quote: args.quote },
+  };
 }
 
 /** Join independent detail statements into the prose `detail`, keeping the
@@ -148,9 +220,7 @@ export function capRow(args: {
   approvalDriven?: boolean;
 }): RequirementResult {
   const usage = args.ctx.alloc.capUsage.get(args.capId);
-  const relevant = args.ctx.classified.filter(
-    (c) => !c.superseded && (c.caps.includes(args.capId) || false),
-  );
+  const relevant = args.ctx.classified.filter((c) => !c.superseded && c.caps.includes(args.capId));
   // Credits the cap DISCARDS. A row that loses a student credit must never
   // present as an unqualified pass (interface review R2, 2026-09-18): these are
   // emitted as warning parts, so the report gives them their own treatment

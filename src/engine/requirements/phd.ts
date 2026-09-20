@@ -1,8 +1,7 @@
 // §4 — Requirements for the Doctor of Philosophy Degree.
 // Every builder quotes the handbook sentence it implements.
 import { formatCredits } from '../credits.ts';
-import { resolveRuleRow } from '../../data/assemble.ts';
-import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
+import { isNotreDameInstitution } from '../../data/external.ts';
 import { coreTitleMatchesArea } from '../core-title.ts';
 import { isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from '../grades.ts';
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
@@ -12,10 +11,8 @@ import { combineAll, deadlineStatus } from '../status.ts';
 import {
   addMonthsIso,
   addYearsIso,
-  compareTerm,
   deadlineTerm,
   deadlineTermLabel,
-  dueTermPhrase,
   endOfNextSemester,
   endOfTerm,
   maxConsecutiveFullTime,
@@ -28,7 +25,7 @@ import {
 } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, joinedDetail, missingParamDetail, thresholdRow, countedCourseIds, pendingCourseIds } from './context.ts';
+import { capRow, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
 import { transferRow } from './transfer.ts';
 
@@ -40,9 +37,7 @@ const DISSERTATION = 'Dissertation and defense — §4.6–4.7';
 
 export function phdRows(ctx: Ctx): RequirementResult[] {
   const rows: RequirementResult[] = [];
-  const provisionalRegular = ctx.classified
-    .filter((c) => c.pool === 'regular' && c.tier === 'provisional' && !c.superseded)
-    .map((c) => c.entry.courseId);
+  const provisionalRegular = provisionalRegularIds(ctx);
 
   // §4.2: "The graduate school requires a total of sixty (60) credits of
   // courses and research for the Ph.D." Only passed courses count toward the
@@ -282,47 +277,14 @@ function residencyRow(ctx: Ctx): RequirementResult {
 export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the Ph.D. degree within eight (8) years results in forfeiture of degree eligibility.';
-  const years = ctx.params.number('phd_time_limit_years');
-  let status: Status;
-  let detail: string;
-  let deadline: RequirementResult['deadline'];
-  if (years === undefined) {
-    status = 'cannot_evaluate';
-    detail = missingParamDetail('phd_time_limit_years');
-  } else {
-    // Shown as a semester, never a date (DGS request 2026-09-05): eight years
-    // from the entry term's start is the start of a term.
-    const date = addYearsIso(startOfTerm(ctx.entry).date, years);
-    if (others.allMet) {
-      status = 'met';
-      detail = `All requirements are complete within the ${years}-year limit.`;
-      deadline = { date, approx: true, state: 'done', label: 'Complete' };
-    } else if (ctx.today > date && others.anyCannotEvaluate) {
-      // A missing rules-sheet value is not a missed deadline (red-team
-      // 2026-09-13): a student who has finished everything used to read
-      // "Overdue — forfeiture" because one unrelated parameter was blank.
-      status = 'cannot_evaluate';
-      detail = `The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value.`;
-      deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
-    } else if (ctx.today > date) {
-      status = 'unmet';
-      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
-      deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
-    } else {
-      status = 'in_progress';
-      detail = ''; // the deadline chip carries the when (2026-09-03)
-      deadline = { date, approx: true, state: 'upcoming', label: `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)` };
-    }
-  }
-  return {
+  return timeLimitRow(ctx, others, {
     id: 'phd.timeLimit',
     group: TIME,
     title: 'All requirements complete within 8 years',
-    status,
-    detail,
-    deadline,
-    citation: { section: '§4.3', quote },
-  };
+    yearsKey: 'phd_time_limit_years',
+    section: '§4.3',
+    quote,
+  });
 }
 
 /** §4.4: "Students must complete all three components of the qualiﬁer
@@ -450,6 +412,8 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       }
     }
     const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : pending ? 'needs_dgs_review' : 'unmet';
+    // The course id alone (the detail may add "(Purdue University)" etc.).
+    const bareId = (s: string) => s.replace(/ \(.*\)$/, '');
     const detail = done
       ? `Satisfied by ${done}.`
       : confirmed
@@ -467,11 +431,10 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       status,
       detail,
       citation: { section: '§4.4.1', quote },
-      // The course id alone (the detail may add "(Purdue University)" etc.).
-      ...(status === 'met' ? { satisfiedBy: [(done ?? confirmed)!.replace(/ \(.*\)$/, '')] } : {}),
+      ...(status === 'met' ? { satisfiedBy: [bareId((done ?? confirmed)!)] } : {}),
       // In progress, or waiting on the DGS: it will satisfy this area, and the
       // course's own line says so (2026-09-08).
-      ...(status !== 'met' && (ip ?? pending) ? { pendingBy: [(ip ?? pending)!.replace(/ \(.*\)$/, '')] } : {}),
+      ...(status !== 'met' && (ip ?? pending) ? { pendingBy: [bareId((ip ?? pending)!)] } : {}),
     };
   });
 }
@@ -507,12 +470,6 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   const qualifying: GroupCandidate[] = [];
   const inProgress: GroupCandidate[] = [];
   const belowFloor: string[] = [];
-  // A course taken in an EARLIER Notre Dame program (a prior MSCSE, a 4+1)
-  // whose §5.2 transfer credit is not approved yet — named, never counted
-  // (DGS 2026-09-09).
-  const awaitingTransfer: GroupCandidate[] = [];
-  const countedCredits = new Map<(typeof ctx.classified)[number], number>();
-  for (const p of ctx.alloc.perCourse) countedCredits.set(p.course, p.countedRegular + p.countedOther);
   for (const c of ctx.classified) {
     if (c.superseded) continue;
     // §4.4.2 names no institution and no term — unlike §4.4.1's "or have
@@ -524,7 +481,6 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     // make it part of this degree (DGS 2026-09-09). Coursework from another
     // university cannot reach this row at all: only the Courses tab carries
     // §4.4.2 group tags, and it lists Notre Dame's courses.
-    let priorNd = false;
     if (c.entry.origin !== 'nd') {
       if (!isNotreDameInstitution(c.entry.institution)) continue;
       // A course taken BEFORE the bachelor's degree — §3.5's junior/senior-year
@@ -542,7 +498,6 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       // falling over the §5.2 cap, and is not dropped for being outside the
       // five-year window or below the transfer grade floor — §4.4.2 has its
       // own grade floor, applied below like everyone else's.
-      priorNd = false;
     }
     // The sheet may name one group, several, or `any` (DGS 2026-09-08).
     // 'ineligible' and a blank cell are both "not a candidate"; a code the
@@ -560,14 +515,6 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       pinned: groups.length > 1 ? c.entry.assignedGroup : undefined,
       sortKey: `${termIndex(c.entry.term)}|${c.entry.courseId}`,
     };
-    // A prior Notre Dame course counts only once the transfer is approved —
-    // `definite` is exactly that state (the student has recorded the DGS's
-    // recommendation and the Graduate School's approval). Before then it is
-    // named as waiting, so the student can see what the approval would buy.
-    if (priorNd && c.tier !== 'definite') {
-      if (meetsGradeFloor(c.entry.grade, floor as Grade)) awaitingTransfer.push(cand);
-      continue;
-    }
     if (isInProgress(c.entry.grade)) inProgress.push(cand);
     else if (meetsGradeFloor(c.entry.grade, floor as Grade)) qualifying.push(cand);
     else if (isPassed(c.entry.grade)) belowFloor.push(`${c.entry.courseId} (${c.entry.grade})`);
@@ -576,7 +523,6 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   const flexible = new Set([...qualifying, ...inProgress].filter((c) => c.groups.length > 1).map((c) => c.courseId));
   const def = matchDistinctGroups(qualifying, allGroups);
   const combined = matchDistinctGroups([...qualifying, ...inProgress], allGroups);
-  const withTransfers = matchDistinctGroups([...qualifying, ...inProgress, ...awaitingTransfer], allGroups);
 
   let status: Status;
   // Two versions of the same statements (DGS 2026-09-08): `parts` spells the
@@ -616,24 +562,6 @@ function categoriesRow(ctx: Ctx): RequirementResult {
         `still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
       );
     }
-  }
-  // Courses from an earlier Notre Dame program that would cover a group once
-  // their transfer is approved (DGS 2026-09-09). They never change a "met" —
-  // a requirement already satisfied needs nothing from them — but where they
-  // would complete the row, the row waits on the DGS rather than reading
-  // "unmet", so the student can see that the approval is what is missing.
-  if (awaitingTransfer.length > 0) {
-    const wouldFinish =
-      status !== 'met' &&
-      withTransfers.distinctCount >= groupsReq &&
-      qualifying.length + inProgress.length + awaitingTransfer.length >= coursesReq;
-    if (wouldFinish) status = 'needs_dgs_review';
-    const ids = awaitingTransfer.map((c) => c.courseId).join(', ');
-    add(
-      wouldFinish
-        ? `${ids} — taken in your earlier Notre Dame program — would complete this once the DGS recommends the §5.2 transfer and the Graduate School approves it; send the review request`
-        : `${ids} — taken in your earlier Notre Dame program — will count here once the §5.2 transfer is approved`,
-    );
   }
   if (belowFloor.length > 0) {
     add(
@@ -679,7 +607,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     // page pre-fills an unset group from it and tells the student.
     // Read off the matching over passed AND in-progress courses (like
     // `groupChoices`), so a course still being taken is placed too.
-    ...(flexible.size > 0 ? { groupAssignments: Object.fromEntries([...withTransfers.bestAssignment].filter(([id]) => flexible.has(id))) } : {}),
+    ...(flexible.size > 0 ? { groupAssignments: Object.fromEntries([...combined.bestAssignment].filter(([id]) => flexible.has(id))) } : {}),
     ...(assignedDone.length > 0 ? { satisfiedBy: assignedDone } : {}),
     ...(assignedPending.length > 0 ? { pendingBy: assignedPending } : {}),
     citation: { section: '§4.4.2', quote },
@@ -810,12 +738,7 @@ function candidacyRow(ctx: Ctx): RequirementResult {
 
 function dissertationRows(ctx: Ctx): RequirementResult[] {
   const m = ctx.student.milestones;
-  const min = ctx.params.number('gpa_min');
-  const defenseGpa = usableGpa(ctx.student.gpa); // R1: an off-scale figure gates nothing
-  const gpaGate =
-    min !== undefined && defenseGpa !== undefined && defenseGpa < min
-      ? ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`
-      : '';
+  const gpaGate = defendGpaNote(ctx);
   // §4.3: "Failure to complete all requirements for the Ph.D. degree within
   // eight (8) years results in forfeiture of degree eligibility." The defense
   // is the last of those requirements, so a defense dated after the limit

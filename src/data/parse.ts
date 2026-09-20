@@ -3,8 +3,9 @@
 // by column name. Malformed cells produce plain-English SheetIssues; prose
 // "note rows" at the bottom of a tab are skipped silently.
 import { parseTermCode } from '../engine/term.ts';
+import type { Term } from '../engine/types.ts';
 import { parseCsv } from './csv.ts';
-import { normalizeUniversity } from './external.ts';
+import { normalizeCourseId, normalizeUniversity } from './external.ts';
 import type { CourseType, Counts, ExternalRule, RuleCourse, SheetIssue, Transferable } from './types.ts';
 import { RESERVED_GROUP_CODES } from './types.ts';
 
@@ -81,7 +82,7 @@ function isBlankRow(cells: Record<string, string>): boolean {
  * several separated by `;` `,` `|` `/` or spaces, `any` for every group, or
  * `ineligible`. Codes are validated later against the Categories tab, so this
  * only splits and tidies; the raw cell is kept for the diagnostics. */
-export function categoryGroupsOf(cell: string | undefined): {
+function categoryGroupsOf(cell: string | undefined): {
   categoryGroups?: string[];
   categoryIneligible?: true;
   categoryGroupRaw?: string;
@@ -132,8 +133,8 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
   }
   // `rules_effective_term` was renamed from `effective_term` on 2026-09-14 and
   // both spellings are read, so it is checked as a pair rather than by name.
-  const missing = EXPECTED_COURSE_COLUMNS.filter((name) => !tab.header.includes(name));
-  if (!tab.header.includes('rules_effective_term') && !tab.header.includes('effective_term')) missing.push('rules_effective_term' as (typeof EXPECTED_COURSE_COLUMNS)[number]);
+  const missing: string[] = EXPECTED_COURSE_COLUMNS.filter((name) => !tab.header.includes(name));
+  if (!tab.header.includes('rules_effective_term') && !tab.header.includes('effective_term')) missing.push('rules_effective_term');
   for (const name of missing) {
     issues.push({
       severity: 'error',
@@ -233,7 +234,7 @@ export function parseCoursesTab(text: string, issues: SheetIssue[]): RuleCourse[
       return n;
     };
 
-    let effectiveTerm = undefined;
+    let effectiveTerm: Term | undefined;
     // `rules_effective_term` since 2026-09-14 (DGS: the old name did not say
     // WHAT takes effect); the old header is still read so an un-renamed sheet
     // keeps working.
@@ -433,7 +434,9 @@ export function parseCategoriesTab(
     const byName = new Map<string, string[]>();
     for (const entry of list) {
       const key = entry.name.trim().toLowerCase();
-      byName.set(key, [...(byName.get(key) ?? []), entry.code]);
+      const codes = byName.get(key);
+      if (codes) codes.push(entry.code);
+      else byName.set(key, [entry.code]);
     }
     for (const [name, codes] of byName) {
       if (codes.length > 1) {
@@ -556,7 +559,7 @@ export function parseExternalTab(
     // 2026-09-06 — a corrected row pasted below an old one takes effect),
     // with a warning so the older row can be deleted.
     const dupIndex = out.findIndex(
-      (r) => r.universityKey === rule.universityKey && r.courseId.toUpperCase().replace(/[^A-Z0-9]/g, '') === courseId.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+      (r) => r.universityKey === rule.universityKey && normalizeCourseId(r.courseId) === normalizeCourseId(courseId),
     );
     if (dupIndex >= 0) {
       const dup = out[dupIndex]!;

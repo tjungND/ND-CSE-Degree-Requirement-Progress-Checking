@@ -53,13 +53,14 @@ export function applyFirstMentionRule(root: ParentNode, re: RegExp = OCE_RE, sho
   const doc = (root as Node).ownerDocument ?? (root as Document);
   const walker = doc.createTreeWalker(root as Node, 4 /* NodeFilter.SHOW_TEXT */);
   const test = new RegExp(re.source, re.flags.replace('g', ''));
+  const every = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
   let seen = false;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const value = node.nodeValue;
     if (!value || !test.test(value)) continue;
     if (node.parentElement?.closest('details.glossary, .print-header, select, textarea, script, style')) continue;
     if (seen) {
-      node.nodeValue = value.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g'), short);
+      node.nodeValue = value.replace(every, short);
     } else {
       node.nodeValue = shortenAfterFirst(value, re, short);
       seen = true;

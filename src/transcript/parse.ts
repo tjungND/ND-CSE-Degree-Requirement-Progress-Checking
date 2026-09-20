@@ -19,7 +19,7 @@ import { looksLikeNotreDameTranscript } from './nd-markers.ts';
  * transcript's Level column (UG / GR…), else the term's level block ("Term
  * Totals (Undergraduate)", "College: Graduate School"), else the course number
  * (≥ 60000 graduate, < 50000 undergraduate; 5xxxx stays unknown). */
-export type RegisteredLevel = 'undergraduate' | 'graduate';
+type RegisteredLevel = 'undergraduate' | 'graduate';
 
 export interface ParsedCourse {
   courseId: string;
@@ -97,7 +97,8 @@ const NEW_STUDENT_RE = /\bSTUDENT\s*TYPE\s*:?\s*NEW\b/;
 const DEGREE_WORD_RE = /\b(BACHELOR|MASTER|DOCTOR|PH\.?\s?D)\b/;
 const AWARD_WORD_RE = /\b(AWARDED|CONFERRED|CONFERRAL|GRANTED|DEGREE\s*DATE|DEGREE\s*COMPLETION\s*DATE|COMPLETION\s*DATE|GRADUATED|GRADUATION\s*DATE)\b/; // "Conferral Date", "Degree Completion Date" added 2026-09-06 (late evening)
 const NOT_AWARDED_RE = /\b(SOUGHT|PENDING|EXPECTED|ANTICIPATED|CANDIDATE|CURRENT\s*PROGRAM|IN\s*PROGRESS)\b|NOT\s+COMPLET|INCOMPLETE/;
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+/** Three-letter month names, for the dates both transcript parsers read. */
+export const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 function bannerCodeTerm(code: string): Term {
   const year = Number(code.slice(0, 4));
@@ -163,7 +164,6 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
 
   let term: Term | undefined;
   let origin: 'nd' | 'transfer' = 'nd';
-  let inProgress = false;
   let institution: string | undefined;
   let expectInstitution = false;
   let lastGpa: number | undefined;
@@ -188,177 +188,11 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   let inDegreesAwarded = false; // inside a "DEGREES AWARDED" block
   let degreeAwaitingDate: DegreeAwarded | undefined; // a "Degree Date:" line may follow
 
-  for (const rawLine of lines) {
-    const line = rawLine.replace(/\s+/g, ' ').trim();
-    if (line === '') continue;
-    const upper = line.toUpperCase();
-
-    // ---- header signals (2026-09-05) ----
-    if (ADMIT_RE.test(upper)) {
-      const t = termOnLine(line);
-      if (t) admitTerms.push(t);
-      continue;
-    }
-    if (NEW_STUDENT_RE.test(upper)) {
-      if (term) newStudentTerms.add(termIndex(term));
-      continue;
-    }
-    // Degrees awarded: a block header ("DEGREES AWARDED"), a line that names a
-    // degree together with an award word ("Degree Awarded Doctor of Philosophy
-    // 15-MAY-2024", "Bachelor of Science — Conferred May 2020"), or a degree
-    // name inside the block; a "Degree Date:" line right after supplies the
-    // date. "Sought"/"Current Program" lines name a degree that is NOT awarded.
-    if (/^DEGREES?\s+(AWARDED|CONFERRED|EARNED)\b/.test(upper) && !DEGREE_WORD_RE.test(upper.replace(/^DEGREES?\s+(AWARDED|CONFERRED|EARNED)/, ''))) {
-      inDegreesAwarded = true;
-      continue;
-    }
-    if (/^(CURRENT\s+PROGRAM|CURRICULUM\s+INFORMATION|INSTITUTION(AL)?\s+CREDIT|TRANSFER\s+CREDIT|COURSES?\s+IN\s+PROGRESS|TRANSCRIPT\s+TOTALS)/.test(upper)) {
-      inDegreesAwarded = false;
-      degreeAwaitingDate = undefined;
-    }
-    if (degreeAwaitingDate && AWARD_WORD_RE.test(upper) && !DEGREE_WORD_RE.test(upper)) {
-      const date = dateOnLine(line);
-      if (date) degreeAwaitingDate.date = date;
-      degreeAwaitingDate = undefined;
-      continue;
-    }
-    if (DEGREE_WORD_RE.test(upper) && !COURSE_HEAD_RE.test(line) && !NOT_AWARDED_RE.test(upper) && (inDegreesAwarded || AWARD_WORD_RE.test(upper))) {
-      const degree: DegreeAwarded = { name: degreeNameOf(line), level: degreeLevelOf(line), date: dateOnLine(line) };
-      degreesAwarded.push(degree);
-      degreeAwaitingDate = degree.date ? undefined : degree;
-      continue;
-    }
-    // Level markers: the term's totals line ("Term Totals (Graduate)"), a
-    // "Level: Graduate" line, or the term block's college ("College: Graduate
-    // School" — Notre Dame's graduate programs all sit in the Graduate School).
-    const levelWord = /\b(UNDERGRADUATE|GRADUATE)\b/.exec(upper);
-    if (levelWord && !COURSE_HEAD_RE.test(line)) {
-      const level: RegisteredLevel = levelWord[1] === 'UNDERGRADUATE' ? 'undergraduate' : 'graduate';
-      if (/^(COURSE\s+)?LEVEL\s*:/.test(upper)) {
-        // The official PDF opens each RECORD with "Course Level: Undergraduate"
-        // / "Course Level: Graduate …" — everything that follows, until the
-        // next such line, is at that level (2026-09-05); a term seen before
-        // it belongs to the previous record.
-        sectionLevel = level;
-        term = undefined;
-        continue;
-      }
-      if (/^(TERM\s+TOTALS|\(?(UNDER)?GRADUATE\)?$|COLLEGE\s*:?\s*(THE\s+)?GRADUATE\s+SCHOOL)/.test(upper)) {
-        if (term) termLevelHints.set(termIndex(term), level);
-        else sectionLevel = level;
-        if (/^TERM\s+TOTALS/.test(upper)) totalsLevel = level;
-        continue;
-      }
-      // "Transcript Totals - (Graduate)": the level of the Overall row below.
-      if (/^TRANSCRIPT\s+TOTALS/.test(upper)) {
-        totalsLevel = level;
-        inProgress = false;
-        continue;
-      }
-    }
-    // Banner 9's "Transcript Level" table: the value row's first cell is the
-    // level word ("Graduate   Web Transcript   …", 2026-09-05).
-    if (/^(UNDERGRADUATE|GRADUATE)(\s{2,}|$)/.test(rawLine.trim().toUpperCase()) && !term) {
-      sectionLevel = rawLine.trim().toUpperCase().startsWith('UNDERGRADUATE') ? 'undergraduate' : 'graduate';
-      continue;
-    }
-
-    // Section switches — tolerant of both Banner 8 ("INSTITUTION CREDIT",
-    // "COURSES IN PROGRESS", trailing "-Top-" link text) and Banner 9
-    // ("Institutional Credit", "Course(s) in Progress") wording.
-    if (/TRANSFER CREDIT ACCEPTED|TRANSFER CREDIT\b/.test(upper)) {
-      origin = 'transfer';
-      inProgress = false;
-      expectInstitution = true;
-      continue;
-    }
-    if (/INSTITUTION(AL)? CREDIT|UNIVERSITY OF NOTRE DAME CREDIT/.test(upper)) {
-      // Banner web: "INSTITUTION CREDIT"; the official (Parchment) PDF:
-      // "UNIVERSITY OF NOTRE DAME CREDIT:" (2026-09-05).
-      origin = 'nd';
-      inProgress = false;
-      institution = undefined;
-      totalsLevel = undefined;
-      continue;
-    }
-    if (/COURSE\(?S?\)? IN PROGRESS|WORK IN PROGRESS/.test(upper)) {
-      origin = 'nd';
-      inProgress = true;
-      institution = undefined;
-      continue;
-    }
-    if (/TRANSCRIPT TOTALS/.test(upper)) {
-      inProgress = false;
-      continue;
-    }
-
-    // Cumulative GPA. Web transcript: the "Overall" totals row's last ≤4.334
-    // decimal (and each term's "Cumulative" row under "Term Totals (Level)").
-    // Official ND PDF: running totals like "NOTRE DAME Ehrs: 72.000 QPts:
-    // 106.000 GPA-Hrs: 28.000 GPA: 3.786" — take the labeled value. Every
-    // figure is filed under the level of its totals block (or of the record,
-    // "Course Level: Graduate"), so a combined transcript's graduate figure
-    // can be told from its undergraduate one (bug report 2026-09-05); the
-    // LAST occurrence is also kept for transcripts that label no level.
-    const noteGpa = (value: number): void => {
-      lastGpa = value;
-      const lvl = totalsLevel ?? sectionLevel;
-      if (lvl) gpaByLevel[lvl] = value;
-    };
-    const labeledGpa = /\bGPA:?\s*([0-4]\.\d{1,3})\b\s*$/.exec(line);
-    if (labeledGpa) {
-      noteGpa(Number(labeledGpa[1]));
-      continue;
-    }
-    if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper) || (/^CUMULATIVE\b/.test(upper) && totalsLevel !== undefined)) {
-      const nums = line.match(/\d+\.\d{1,3}/g);
-      if (nums && nums.length > 0) {
-        const last = Number(nums[nums.length - 1]);
-        if (last <= 4.334) noteGpa(last);
-      }
-      continue;
-    }
-
-    // Term headers ("Fall Semester 2026", "Term: Spring Semester 2027", …).
-    const termMatch = TERM_RE.exec(line);
-    if (termMatch && !COURSE_HEAD_RE.test(line)) {
-      term = { season: termMatch[1]!.toLowerCase() as Season, year: Number(termMatch[2]) };
-      totalsLevel = undefined;
-      // The official PDF's transfer block puts the source institution on the
-      // term line ("Fall 2020   College Board", 2026-09-05).
-      if (origin === 'transfer') {
-        const rest = line.replace(TERM_RE, '').replace(/^[\s:,-]+|[\s:,-]+$/g, '').trim();
-        if (/[A-Za-z]{4,}/.test(rest)) {
-          institution = rest;
-          expectInstitution = false;
-        }
-      }
-      continue;
-    }
-
-    // In the transfer section, a non-course line right after the header names
-    // the attempt period and source institution (e.g. "202010: Purdue
-    // University"). ND's Banner term codes: YYYY00 = Summer YYYY, YYYY10 =
-    // Fall YYYY, YYYY20 = Spring YYYY+1 (confirmed against ND's own catalog
-    // exports: 202610 = "Fall Semester 2026", 201800 = "Summer Session 2018").
-    const courseMatch = COURSE_HEAD_RE.exec(line);
-    if (!courseMatch) {
-      if (expectInstitution && origin === 'transfer' && /[A-Za-z]{4,}/.test(line) && !TERM_RE.test(line)) {
-        const code = /^(\d{4})(00|10|20)\b/.exec(line);
-        if (code) {
-          const year = Number(code[1]);
-          term =
-            code[2] === '10'
-              ? { season: 'fall', year }
-              : code[2] === '20'
-                ? { season: 'spring', year: year + 1 }
-                : { season: 'summer', year };
-        }
-        institution = line.replace(/^\d+\s*:?\s*/, '').replace(/[.:]\s*$/, '').trim() || undefined;
-        expectInstitution = false;
-      }
-      continue;
-    }
+  /** One course row (the tail after `COURSE_HEAD_RE`): walk its tokens for the
+   * credits and the grade, and file the course under the current term, origin
+   * and level. A row that is not a course after all, or one with no grade to
+   * keep, is skipped — with a note where the student should add it by hand. */
+  const readNdCourseRow = (courseMatch: RegExpExecArray): void => {
     expectInstitution = false;
 
     const [, subject, number, levelCode, rest] = courseMatch;
@@ -376,7 +210,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       decimals.unshift(Number(tokens.pop()));
       if (decimals.length === 4) break;
     }
-    if (decimals.length === 0) continue; // not a course row (no credit hours)
+    if (decimals.length === 0) return; // not a course row (no credit hours)
     // Web-transcript layout: "… GRADE credits [qualityPoints]" — with 2+
     // trailing decimals the FIRST is the credit hours.
     const credits = decimals[0]!;
@@ -408,19 +242,19 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       // transfer block), not an Incomplete — a graded row carries quality
       // points too (2026-09-05).
       skipped.push(`${courseId} (${tailUpper})`);
-      continue;
+      return;
     } else if (tailUpper === 'TR') {
       tokens.pop();
       skipped.push(`${courseId} (TR — the original grade is not shown; add it manually)`);
-      continue;
+      return;
     }
 
     const resolvedCredits = creditsOverride ?? credits;
-    if (resolvedCredits > 20) continue; // not a plausible credit-hours value
+    if (resolvedCredits > 20) return; // not a plausible credit-hours value
 
     if (!term) {
       warnings.push(`${courseId} appeared before any term header — it was skipped; add it manually.`);
-      continue;
+      return;
     }
 
     courses.push({
@@ -434,6 +268,167 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       level: origin === 'nd' ? rowLevel : undefined,
     });
     courseSectionLevel.push(sectionLevel);
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\s+/g, ' ').trim();
+    if (line === '') continue;
+    const upper = line.toUpperCase();
+    // Matched once per line: three guards below and the course-row reader all ask.
+    const courseMatch = COURSE_HEAD_RE.exec(line);
+
+    // ---- header signals (2026-09-05) ----
+    if (ADMIT_RE.test(upper)) {
+      const t = termOnLine(line);
+      if (t) admitTerms.push(t);
+      continue;
+    }
+    if (NEW_STUDENT_RE.test(upper)) {
+      if (term) newStudentTerms.add(termIndex(term));
+      continue;
+    }
+    // Degrees awarded: a block header ("DEGREES AWARDED"), a line that names a
+    // degree together with an award word ("Degree Awarded Doctor of Philosophy
+    // 15-MAY-2024", "Bachelor of Science — Conferred May 2020"), or a degree
+    // name inside the block; a "Degree Date:" line right after supplies the
+    // date. "Sought"/"Current Program" lines name a degree that is NOT awarded.
+    if (/^DEGREES?\s+(AWARDED|CONFERRED|EARNED)\b/.test(upper) && !DEGREE_WORD_RE.test(upper.replace(/^DEGREES?\s+(AWARDED|CONFERRED|EARNED)/, ''))) {
+      inDegreesAwarded = true;
+      continue;
+    }
+    if (/^(CURRENT\s+PROGRAM|CURRICULUM\s+INFORMATION|INSTITUTION(AL)?\s+CREDIT|TRANSFER\s+CREDIT|COURSES?\s+IN\s+PROGRESS|TRANSCRIPT\s+TOTALS)/.test(upper)) {
+      inDegreesAwarded = false;
+      degreeAwaitingDate = undefined;
+    }
+    if (degreeAwaitingDate && AWARD_WORD_RE.test(upper) && !DEGREE_WORD_RE.test(upper)) {
+      const date = dateOnLine(line);
+      if (date) degreeAwaitingDate.date = date;
+      degreeAwaitingDate = undefined;
+      continue;
+    }
+    if (DEGREE_WORD_RE.test(upper) && !courseMatch && !NOT_AWARDED_RE.test(upper) && (inDegreesAwarded || AWARD_WORD_RE.test(upper))) {
+      const degree: DegreeAwarded = { name: degreeNameOf(line), level: degreeLevelOf(line), date: dateOnLine(line) };
+      degreesAwarded.push(degree);
+      degreeAwaitingDate = degree.date ? undefined : degree;
+      continue;
+    }
+    // Level markers: the term's totals line ("Term Totals (Graduate)"), a
+    // "Level: Graduate" line, or the term block's college ("College: Graduate
+    // School" — Notre Dame's graduate programs all sit in the Graduate School).
+    const levelWord = /\b(UNDERGRADUATE|GRADUATE)\b/.exec(upper);
+    if (levelWord && !courseMatch) {
+      const level: RegisteredLevel = levelWord[1] === 'UNDERGRADUATE' ? 'undergraduate' : 'graduate';
+      if (/^(COURSE\s+)?LEVEL\s*:/.test(upper)) {
+        // The official PDF opens each RECORD with "Course Level: Undergraduate"
+        // / "Course Level: Graduate …" — everything that follows, until the
+        // next such line, is at that level (2026-09-05); a term seen before
+        // it belongs to the previous record.
+        sectionLevel = level;
+        term = undefined;
+        continue;
+      }
+      if (/^(TERM\s+TOTALS|\(?(UNDER)?GRADUATE\)?$|COLLEGE\s*:?\s*(THE\s+)?GRADUATE\s+SCHOOL)/.test(upper)) {
+        if (term) termLevelHints.set(termIndex(term), level);
+        else sectionLevel = level;
+        if (/^TERM\s+TOTALS/.test(upper)) totalsLevel = level;
+        continue;
+      }
+      // "Transcript Totals - (Graduate)": the level of the Overall row below.
+      if (/^TRANSCRIPT\s+TOTALS/.test(upper)) {
+        totalsLevel = level;
+        continue;
+      }
+    }
+    // Banner 9's "Transcript Level" table: the value row's first cell is the
+    // level word ("Graduate   Web Transcript   …", 2026-09-05).
+    const rawUpper = rawLine.trim().toUpperCase();
+    if (/^(UNDERGRADUATE|GRADUATE)(\s{2,}|$)/.test(rawUpper) && !term) {
+      sectionLevel = rawUpper.startsWith('UNDERGRADUATE') ? 'undergraduate' : 'graduate';
+      continue;
+    }
+
+    // Section switches — tolerant of both Banner 8 ("INSTITUTION CREDIT",
+    // "COURSES IN PROGRESS", trailing "-Top-" link text) and Banner 9
+    // ("Institutional Credit", "Course(s) in Progress") wording.
+    if (/TRANSFER CREDIT ACCEPTED|TRANSFER CREDIT\b/.test(upper)) {
+      origin = 'transfer';
+      expectInstitution = true;
+      continue;
+    }
+    if (/INSTITUTION(AL)? CREDIT|UNIVERSITY OF NOTRE DAME CREDIT/.test(upper)) {
+      // Banner web: "INSTITUTION CREDIT"; the official (Parchment) PDF:
+      // "UNIVERSITY OF NOTRE DAME CREDIT:" (2026-09-05).
+      origin = 'nd';
+      institution = undefined;
+      totalsLevel = undefined;
+      continue;
+    }
+    if (/COURSE\(?S?\)? IN PROGRESS|WORK IN PROGRESS/.test(upper)) {
+      origin = 'nd';
+      institution = undefined;
+      continue;
+    }
+    if (/TRANSCRIPT TOTALS/.test(upper)) continue;
+
+    // Cumulative GPA. Web transcript: the "Overall" totals row's last ≤4.334
+    // decimal (and each term's "Cumulative" row under "Term Totals (Level)").
+    // Official ND PDF: running totals like "NOTRE DAME Ehrs: 72.000 QPts:
+    // 106.000 GPA-Hrs: 28.000 GPA: 3.786" — take the labeled value. Every
+    // figure is filed under the level of its totals block (or of the record,
+    // "Course Level: Graduate"), so a combined transcript's graduate figure
+    // can be told from its undergraduate one (bug report 2026-09-05); the
+    // LAST occurrence is also kept for transcripts that label no level.
+    const noteGpa = (value: number): void => {
+      lastGpa = value;
+      const lvl = totalsLevel ?? sectionLevel;
+      if (lvl) gpaByLevel[lvl] = value;
+    };
+    const labeledGpa = /\bGPA:?\s*([0-4]\.\d{1,3})\b\s*$/.exec(line);
+    if (labeledGpa) {
+      noteGpa(Number(labeledGpa[1]));
+      continue;
+    }
+    if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper) || (/^CUMULATIVE\b/.test(upper) && totalsLevel !== undefined)) {
+      const nums = line.match(/\d+\.\d{1,3}/g);
+      if (nums && nums.length > 0) {
+        const last = Number(nums[nums.length - 1]);
+        if (last <= 4.334) noteGpa(last);
+      }
+      continue;
+    }
+
+    // Term headers ("Fall Semester 2026", "Term: Spring Semester 2027", …).
+    const termMatch = TERM_RE.exec(line);
+    if (termMatch && !courseMatch) {
+      term = { season: termMatch[1]!.toLowerCase() as Season, year: Number(termMatch[2]) };
+      totalsLevel = undefined;
+      // The official PDF's transfer block puts the source institution on the
+      // term line ("Fall 2020   College Board", 2026-09-05).
+      if (origin === 'transfer') {
+        const rest = line.replace(TERM_RE, '').replace(/^[\s:,-]+|[\s:,-]+$/g, '').trim();
+        if (/[A-Za-z]{4,}/.test(rest)) {
+          institution = rest;
+          expectInstitution = false;
+        }
+      }
+      continue;
+    }
+
+    // In the transfer section, a non-course line right after the header names
+    // the attempt period and source institution (e.g. "202010: Purdue
+    // University"). ND's Banner term codes: YYYY00 = Summer YYYY, YYYY10 =
+    // Fall YYYY, YYYY20 = Spring YYYY+1 (confirmed against ND's own catalog
+    // exports: 202610 = "Fall Semester 2026", 201800 = "Summer Session 2018").
+    if (!courseMatch) {
+      if (expectInstitution && origin === 'transfer' && /[A-Za-z]{4,}/.test(line) && !TERM_RE.test(line)) {
+        const code = /^(\d{4})(00|10|20)\b/.exec(line);
+        if (code) term = bannerCodeTerm(code[1]! + code[2]!);
+        institution = line.replace(/^\d+\s*:?\s*/, '').replace(/[.:]\s*$/, '').trim() || undefined;
+        expectInstitution = false;
+      }
+      continue;
+    }
+    readNdCourseRow(courseMatch);
   }
 
   if (skipped.length > 0) {
@@ -499,7 +494,7 @@ export function levelFromNumber(courseId: string): RegisteredLevel | undefined {
  * — versus a degree earned along the way); the earlier term is kept, because
  * earlier deadlines are the safe mistake, and the other reading is returned
  * as `alternative` for the standing card to spell out. */
-export function inferEntryTerm(args: {
+function inferEntryTerm(args: {
   courses: ParsedCourse[];
   admitTerms: Term[];
   newStudentTerms: Set<number>;

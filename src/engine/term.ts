@@ -25,6 +25,8 @@ export function termLabel(t: Term): string {
  * keep termLabel's "Fall 2026"; the cells render this inside an <abbr> whose
  * title is the full name. */
 const SEASON_CODE: Record<Season, string> = { fall: 'FA', spring: 'SP', summer: 'SU' };
+/** The reverse lookup, keyed by the lower-cased code. */
+const SEASON_OF_CODE: Readonly<Record<string, Season | undefined>> = { fa: 'fall', sp: 'spring', su: 'summer' };
 export function termShort(t: Term): string {
   return `${SEASON_CODE[t.season]}${String(t.year % 100).padStart(2, '0')}`;
 }
@@ -38,7 +40,8 @@ export function termShort(t: Term): string {
 export function parseTermCode(s: string): Term | undefined {
   const m = /^\s*(fa|sp|su)\s*[-\s]?\s*(\d{2}|\d{4})\s*$/i.exec(s);
   if (!m || !m[1] || !m[2]) return parseTermLabel(s);
-  const season = ({ fa: 'fall', sp: 'spring', su: 'summer' } as const)[m[1].toLowerCase() as 'fa' | 'sp' | 'su'];
+  const season = SEASON_OF_CODE[m[1].toLowerCase()];
+  if (season === undefined) return parseTermLabel(s); // unreachable: the pattern admits only fa|sp|su
   const digits = m[2];
   return { season, year: digits.length === 2 ? 2000 + Number(digits) : Number(digits) };
 }
@@ -62,7 +65,7 @@ export function termOfDate(iso: string): Term {
 }
 
 /** Sequential index over fall/spring terms only (summer maps to the preceding spring). */
-function semesterSeq(t: Term): number {
+export function semesterSeq(t: Term): number {
   if (t.season === 'fall') return t.year * 2 + 1;
   return t.year * 2; // spring and summer both map to the year's spring slot
 }

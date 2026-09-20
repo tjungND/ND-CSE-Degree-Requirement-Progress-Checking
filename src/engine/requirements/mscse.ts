@@ -1,10 +1,9 @@
 // §3 — Requirements for the Master of Science Degree (MSCSE).
 // Every builder quotes the handbook sentence it implements.
-import { usableGpa } from '../ranges.ts';
-import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm, termLabel } from '../term.ts';
+import { termLabel } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, countedCourseIds, pendingCourseIds, missingParamDetail, thresholdRow } from './context.ts';
+import { capRow, countedCourseIds, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow } from './context.ts';
 import { fullTimeTermRecords } from './residency.ts';
 import { transferRow } from './transfer.ts';
 
@@ -17,9 +16,7 @@ const REGULAR_QUOTE =
 
 export function mscseRows(ctx: Ctx): RequirementResult[] {
   const rows: RequirementResult[] = [];
-  const provisionalRegular = ctx.classified
-    .filter((c) => c.pool === 'regular' && c.tier === 'provisional' && !c.superseded)
-    .map((c) => c.entry.courseId);
+  const provisionalRegular = provisionalRegularIds(ctx);
 
   // §3.2: "The graduate school requires a total of thirty (30) credits of
   // courses and research for the M.S. degree." Only passed courses count
@@ -202,45 +199,15 @@ function residencyRow(ctx: Ctx): RequirementResult {
 export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the M.S. degree within 5 years results in forfeiture of degree eligibility.';
-  const years = ctx.params.number('ms_time_limit_years');
-  let status: Status;
-  let detail: string;
-  let deadline: RequirementResult['deadline'];
-  if (years === undefined) {
-    status = 'cannot_evaluate';
-    detail = missingParamDetail('ms_time_limit_years');
-  } else {
-    const date = addYearsIso(startOfTerm(ctx.entry).date, years);
-    if (others.allMet) {
-      status = 'met';
-      detail = `All requirements are complete within the ${years}-year limit.`;
-      deadline = { date, approx: true, state: 'done', label: 'Complete' };
-    } else if (ctx.today > date && others.anyCannotEvaluate) {
-      // A missing rules-sheet value is not a missed deadline (red-team
-      // 2026-09-13) — the Ph.D. row carries the same guard.
-      status = 'cannot_evaluate';
-      detail = `The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value.`;
-      deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
-    } else if (ctx.today > date) {
-      status = 'unmet';
-      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
-      deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
-    } else {
-      status = 'in_progress';
-      detail = ''; // the deadline chip carries the when (2026-09-03)
-      // A semester, never a date (DGS request 2026-09-05).
-      deadline = { date, approx: true, state: 'upcoming', label: `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)` };
-    }
-  }
-  return {
+  // The same row as the Ph.D.'s, with the master's key and quote.
+  return timeLimitRow(ctx, others, {
     id: 'ms.timeLimit',
     group: TIME,
     title: 'All requirements complete within 5 years',
-    status,
-    detail,
-    deadline,
-    citation: { section: '§3.3', quote },
-  };
+    yearsKey: 'ms_time_limit_years',
+    section: '§3.3',
+    quote,
+  });
 }
 
 /** Which §3.4 route the record itself shows (2026-09-12): a Master's project
@@ -274,7 +241,6 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     // the oral thesis defense examination."
     const quote =
       'Upon acceptance of the thesis by the thesis defense examination committee (advisor and two readers), the student must successfully pass the oral thesis defense examination.';
-    const readers = ctx.params.number('ms_thesis_readers_min');
     let status: Status;
     let detail: string;
     if (m.thesisDefensePassed || eitherDone) {
@@ -282,12 +248,7 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       detail = m.thesisDefensePassed ? `Thesis defense passed ${m.thesisDefensePassed}${m.thesisApprovedByReaders ? ` (thesis approved by the readers ${m.thesisApprovedByReaders})` : ''}.` : `Not needed — the project route is complete (project report accepted ${m.projectReportAccepted}).${alternative}`;
     } else {
       status = 'unmet';
-      detail = `Not yet passed.${alternative}`;
-      const min = ctx.params.number('gpa_min');
-      const defenseGpa = usableGpa(ctx.student.gpa); // R1: an off-scale figure gates nothing
-      if (min !== undefined && defenseGpa !== undefined && defenseGpa < min) {
-        detail += ` Note §2.2: a student whose cumulative GPA is below ${min.toFixed(1)} may not defend.`;
-      }
+      detail = `Not yet passed.${alternative}${defendGpaNote(ctx)}`;
     }
     rows.push({
       id: 'ms.thesis.defense',

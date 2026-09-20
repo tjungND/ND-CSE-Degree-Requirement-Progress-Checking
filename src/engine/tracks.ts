@@ -13,7 +13,7 @@
 // requirement is still decided by the handbook and the rules sheet. What the
 // note does is name the thing the page cannot decide, and send them to the one
 // person who can.
-import type { ClassifiedCourse } from './allocate.ts';
+import { levelOf, type ClassifiedCourse } from './allocate.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
 import { compareTerm } from './term.ts';
 import type { Student } from './types.ts';
@@ -27,15 +27,7 @@ export interface SpecialTrack {
 }
 
 const deptOf = (id: string) => id.split(' ')[0] ?? '';
-const levelOf = (c: ClassifiedCourse): number => {
-  if (c.rule?.level !== undefined) return c.rule.level;
-  const m = /(\d)\d{4}\b/.exec(c.entry.courseId);
-  return m ? Number(m[1]) : NaN;
-};
 
-/** Which of the two tracks this student's coursework shows, and what to tell
- * them. Pure; both notes are program-specific, because the handbook says
- * different things to an MSCSE and a Ph.D. student about the same course. */
 /** Which courses the app chose to apply to both degrees — the student is told,
  * not asked (DGS 2026-09-11): 40000-level CSE courses first, best grade first;
  * 60000-level coursework is saved for the graduate degree. */
@@ -45,6 +37,9 @@ function sharedList(classified: ClassifiedCourse[]): string {
   return `This page chose ${both.join(' and ')} to apply to both your bachelor’s degree and your MSCSE — your 40000-level CSE courses first, best grade first, so that 60000-level coursework is saved for the graduate degree; every other course applies to your MSCSE only. `;
 }
 
+/** Which of the two tracks this student's coursework shows, and what to tell
+ * them. Pure; both notes are program-specific, because the handbook says
+ * different things to an MSCSE and a Ph.D. student about the same course. */
 export function specialTracks(student: Student, classified: ClassifiedCourse[]): SpecialTrack[] {
   const notes: SpecialTrack[] = [];
   const phd = student.program === 'phd';
@@ -52,7 +47,7 @@ export function specialTracks(student: Student, classified: ClassifiedCourse[]):
   // §3.6: a 50000-level CSE course exists for one reason — the Transition to
   // Computing bridge set (§3.6.1's three courses). Listed in the rules sheet
   // or not, entering one is the signal.
-  if (classified.some((c) => deptOf(c.entry.courseId) === 'CSE' && levelOf(c) === 5)) {
+  if (classified.some((c) => deptOf(c.entry.courseId) === 'CSE' && levelOf(c.entry, c.rule) === 5)) {
     notes.push({
       id: 'transition',
       section: '§3.6',
@@ -71,7 +66,7 @@ export function specialTracks(student: Student, classified: ClassifiedCourse[]):
     awarded !== undefined &&
     classified.some(
       (c) =>
-        levelOf(c) >= 6 &&
+        levelOf(c.entry, c.rule) >= 6 &&
         compareTerm(c.entry.term, awarded) <= 0 &&
         // The one canonical test (red-team 2026-09-13): this used to carry its
         // own regex AND treat a blank institution as Notre Dame, so the note

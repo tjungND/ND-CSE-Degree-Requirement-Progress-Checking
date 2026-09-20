@@ -5,45 +5,49 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { classify, priorNdUndergraduateCanCount } from '../engine/allocate.ts';
+import { classify, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
-import { coursesNeedingDgsReview, reviewRequestSummary, undergraduateGraduateCourseworkFlag, type PendingDgsReview } from '../engine/review.ts';
+import { coursesNeedingDgsReviewFor, reviewRequestSummary, undergraduateGraduateCourseworkFlagFor, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
-import { GRADES, GRADE_POINTS } from '../engine/grades.ts';
+import { GRADES } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, CourseLine, Program, Season, Student, Term } from '../engine/types.ts';
-import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
-import { clear, el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
+import { clear, el, inactiveButton, option } from './dom.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
-import { ALPHA_LINE, BETA_NOTICE, BETA_SCOPE_NOTICE, PRIVACY_LINE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
+import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
-import { embedTargetAttrs, isEmbedded, lastInteractionTop, openFullPageLink, placeInFrame } from './embed.ts';
+import { embedTargetAttrs, isEmbedded, openFullPageLink, placeInFrame } from './embed.ts';
 import { deciderTitle } from '../engine/decider.ts';
 import {
   BACHELORS_YEAR_RANGE,
   COURSE_CREDITS_RANGE,
   GPA_RANGE,
   TERM_YEAR_RANGE,
-  type NumberRange,
-  formatValue,
   inRange,
   inputRefusal,
-  rangeSpan,
 } from '../engine/ranges.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
-import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, ndRowLabel } from './external-upload.ts';
+import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
-import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, isNotreDameCourse, isPriorNd, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
+import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
+import { deriveNdMasters, derivePriorMs, isNotreDameCourse, isPriorNd, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
-import { confirmDialog, copyDialog } from './copy-dialog.ts';
+import { confirmDialog, copyDialog, openModal, returnFocusTo } from './copy-dialog.ts';
+import { plural } from './email-html.ts';
+import { EXAMPLE_ATTESTATIONS, EXAMPLE_MILESTONES, exampleFor } from './example.ts';
+import { clearInvalid, errorLine, field, fieldset, labelWrap, markInvalid, radios } from './form-helpers.ts';
+import { createFocusKeeper } from './focus-keeper.ts';
+import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
+import { createToasts } from './toasts.ts';
 import { gradAdminRequest } from './grad-admin-request.ts';
 import { advisorSummary } from './advisor-summary.ts';
-import { renderReport, renderSummary, scoreLine } from './report.ts';
+import { renderReport, renderSummary, reqAnchorId, scoreLine } from './report.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 import {
   type Refusal,
+  SEASONS,
   clearLocal,
   emptyStudent,
   exportFile,
@@ -52,7 +56,6 @@ import {
   saveLocal,
 } from './state.ts';
 
-const SEASONS: Season[] = ['fall', 'spring', 'summer'];
 // (The §4.4.1 core-title keywords moved to src/engine/core-title.ts on
 // 2026-09-04 so the classifier and the import preview share them.)
 
@@ -62,13 +65,18 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
   unfinished: 'Prior M.S., not completed',
   completed: 'Completed prior M.S. or Ph.D.',
 };
-const GROUP_CODES = ['alg', 'hcc', 'arch', 'dsai', 'sys'] as const;
 
-/** What "Load example" fills in BESIDE the courses. Kept here so removing the
- * example rows can take these back too — but only where the student has not
- * since changed them, since a value they edited is theirs (R5, 2026-09-18). */
-const EXAMPLE_MILESTONES: Student['milestones'] = { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example' };
-const EXAMPLE_ATTESTATIONS: Student['attestations'] = { advisorApprovedPlan: true };
+/** The three semesters as <option>s for a season dropdown, `selected` marked. */
+function seasonOptions(selected?: Season): HTMLOptionElement[] {
+  return SEASONS.map((se) => option(se, se[0]!.toUpperCase() + se.slice(1), selected === se));
+}
+
+/** A §4.4.2 group's short name (short-names.ts) from its code, or the code
+ * itself when the Categories tab does not define it. */
+function groupShortName(rules: Rules, code: string): string {
+  return shortName(rules.categoryGroups.find((x) => x.code === code)?.name ?? code);
+}
+
 
 /** The §4.4.2 groups a course may satisfy, in the Categories tab's own order
  * (DGS 2026-09-08 — a sheet cell may name one group, several, or `any`).
@@ -174,54 +182,37 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     }
     if (consentDialog.open) consentDialog.close();
     consentDialog.remove();
-    root.querySelector<HTMLElement>('.masthead h1')?.focus();
+    returnFocusTo();
   };
   agreeButton.addEventListener('click', closeConsent);
   consentDialog.addEventListener('close', closeConsent);
   document.body.append(consentDialog);
   placeInFrame(consentDialog); // embed mode: at the top of the frame, not the middle of a tall page (DGS 2026-09-16)
-  if (typeof consentDialog.showModal === 'function') {
-    consentDialog.showModal();
-    agreeButton.focus();
-  } else {
-    // A browser without <dialog> (none current) still gets the notice, unblocking.
-    consentDialog.setAttribute('open', '');
-  }
+  if (openModal(consentDialog)) agreeButton.focus();
 
   // Established on the loading card (DGS 2026-09-07): the date at Notre Dame,
   // from the server this page came from when it answers, and read in Notre
   // Dame's own zone either way — never the device's idea of the calendar.
   const todayIso = today.iso;
   const fullTimeFloor = rules.parameters.number('fulltime_credits_min') ?? 9;
-  let toastTimer: number | undefined;
+  // The universities the ExternalCourses tab knows, for both University
+  // boxes (manual course form, previous-transcript preview) — one
+  // datalist per page (2026-09-06 evening). Built once, like the course list
+  // below: both depend on the rules alone, and render() re-attaches the same
+  // nodes on every rebuild.
+  const knownUniversitiesList = el('datalist', { id: 'known-universities' }, ...knownUniversities(rules.external).map((u) => el('option', { value: u })));
+  const knownCoursesList = el('datalist', { id: 'known-courses' });
+  for (const [id, rows] of rules.courses) {
+    const row = rows[rows.length - 1]!;
+    if (!row.active) continue;
+    const opt = el('option', { value: id });
+    opt.label = `${id} — ${row.title}`;
+    knownCoursesList.append(opt);
+  }
   /** §4.4.2 group suggestions for this render (2026-09-08): course id → the
    * groups the student's other courses do not cover. Set in render(), read by
    * the coursework table, which is built later in the same pass. */
   let groupChoices: Record<string, string[]> = {};
-  /** Parsed-transcript preview awaiting the student's confirmation. */
-  let transcriptPreview:
-    | {
-        courses: ParsedCourse[];
-        selected: boolean[];
-        duplicate: boolean[];
-        /** The transcript's graduate-level cumulative GPA (2026-09-05 — never
-         * the undergraduate one on a combined transcript). */
-        gpa?: number;
-        /** The undergraduate-level figure, shown only to say it is NOT used. */
-        undergraduateGpa?: number;
-        /** This program's courses alone (offered when earlier graduate
-         * coursework at Notre Dame is folded into the transcript's figure). */
-        programGpa?: number;
-        gpaChoice: 'transcript' | 'program' | 'none';
-        /** The entry term read from the transcript (2026-09-05) and whether
-         * the student keeps the checkbox that applies it. */
-        entryTerm?: EntryTermInference;
-        useEntryTerm: boolean;
-        degreesAwarded: DegreeAwarded[];
-        /** Parser warnings, shown inside the preview (not as vanishing toasts). */
-        warnings: string[];
-      }
-    | undefined;
 
   const update = (mutate: (s: Student) => void): void => {
     mutate(student);
@@ -229,203 +220,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     render();
   };
 
-  // ---------- numbers the form refuses (interface review R1, 2026-09-18) ----------
-  //
-  // The `min`/`max` on every number box used to be decorative: nothing read
-  // `validity`, nothing clamped, and a GPA of 35 went to localStorage and came
-  // back as "Cumulative GPA 35.00 meets the 3.0 minimum" under a green Met
-  // pill. An impossible value is now refused ON COMMIT — the typed text stays
-  // in its field to be corrected, and `student` never sees it.
-  //
-  // render() rebuilds the page from the record on every change, so the refusal
-  // lives out here, by `data-key`, or the rebuild would quietly put the last
-  // good value back and drop the message.
-  const refusedValues = new Map<string, { text: string; message: string }>();
-  /** The `data-key`s a refusal can be shown back in — every box `rangedNumber`
-   * builds. A refusal for anything else is reported but has no field to sit in. */
-  const FORM_REFUSAL_KEYS = new Set(['courses.gpa', 'standing.year', 'standing.bachelors.year']);
+  // Numbers the form refuses (interface review R1, 2026-09-18) — refusals.ts.
+  // The map lives here because render() rebuilds the page from the record on
+  // every change: the refused text and its sentence are put back by `data-key`.
+  const refusedValues: RefusedValues = new Map();
 
-  /** A number a saved record or a transcript carried that the app will not
-   * keep lands in the SAME refused state as one typed into the box: shown back
-   * in its own field, marked invalid, with the sentence beside it. */
-  const applyRefusals = (refusals: Refusal[]): void => {
-    // Only the refusals that belong to a box on this page go back into one;
-    // the rest (a course's credits, which the coursework table shows as text)
-    // are told in their own toast and live on the course's own line.
-    for (const r of refusals) {
-      if (FORM_REFUSAL_KEYS.has(r.key)) refusedValues.set(r.key, { text: r.text, message: r.message });
-    }
-  };
-
-  /** A number input whose range is enforced, with its own persistent message
-   * (the `.field-error` pattern the course-number box has used since the
-   * 2026-09-05 usability review — item 6: a problem stays beside its field,
-   * it does not flash past in a toast).
-   *
-   * `commit` is called only with a value inside the range; an empty box
-   * commits `undefined` when `allowEmpty`, and is refused when it is not. */
-  function rangedNumber(opts: {
-    key: string;
-    range: NumberRange;
-    value: string;
-    allowEmpty: boolean;
-    attrs?: Record<string, string>;
-    commit: (value: number | undefined) => void;
-  }): { input: HTMLInputElement; error: HTMLElement } {
-    const errorId = `${opts.key.replace(/[^\w-]+/g, '-')}-error`;
-    const refused = refusedValues.get(opts.key);
-    const error = el('p', { class: 'field-error hidden', id: errorId, role: 'alert' });
-    const input = el('input', {
-      type: 'number',
-      min: String(opts.range.min),
-      // No `max` attribute where the range has no ceiling (years, DGS 2026-09-18).
-      ...(opts.range.max === undefined ? {} : { max: String(opts.range.max) }),
-      'data-key': opts.key,
-      ...(opts.attrs ?? {}),
-      value: refused ? refused.text : opts.value,
-    }) as HTMLInputElement;
-    const describedBy = opts.attrs?.['aria-describedby'];
-    const show = (message: string): void => {
-      error.textContent = message;
-      error.classList.remove('hidden');
-      input.setAttribute('aria-invalid', 'true');
-      input.setAttribute('aria-describedby', describedBy ? `${errorId} ${describedBy}` : errorId);
-    };
-    const clear = (): void => {
-      error.textContent = '';
-      error.classList.add('hidden');
-      input.removeAttribute('aria-invalid');
-      if (describedBy) input.setAttribute('aria-describedby', describedBy);
-      else input.removeAttribute('aria-describedby');
-    };
-    if (refused) show(refused.message);
-    // Typing is not committing: the message stays until the student leaves the
-    // box with a value the app can keep, so it is still there to read.
-    input.addEventListener('change', () => {
-      const text = input.value.trim();
-      if (text === '' && opts.allowEmpty) {
-        refusedValues.delete(opts.key);
-        clear();
-        opts.commit(undefined);
-        return;
-      }
-      const n = Number(text);
-      if (text === '' || !inRange(n, opts.range)) {
-        const message = inputRefusal(input.value, opts.range);
-        refusedValues.set(opts.key, { text: input.value, message });
-        show(message);
-        toast(message); // the polite live region, so it is heard as well as seen
-        return; // NOT written to the record, and NOT saved
-      }
-      refusedValues.delete(opts.key);
-      clear();
-      opts.commit(n);
-    });
-    return { input, error };
-  }
-
-  // Toasts live in a stack created once OUTSIDE the root (2026-09-06
-  // evening). render() rebuilds the page on every change, and an Undo that
-  // lived inside it died with the first keystroke, checkbox or "Reading…"
-  // toast after a Remove — the DGS's "the review card never comes back". Now
-  // a plain toast has one slot (4 s), and each Undo is its own element (12 s
-  // for a row, 20 s for a transcript-wide removal) that no plain toast
-  // replaces; Load example / Clear / Load a file cancel every Undo, since a
-  // stale one would splice old rows into a replaced record. The stack is one
-  // polite live region, so screen readers hear each message (a region created
-  // per toast would not be announced).
-  const toastStack = el('div', { class: 'toast-stack', role: 'status', 'aria-live': 'polite' });
-  document.body.append(toastStack);
-  // Embedded, a fixed bottom stack would sit at the end of a tall frame: the
-  // stack goes just below where the student last acted instead (2026-09-16).
-  const placeToasts = (): void => {
-    if (!isEmbedded()) return;
-    toastStack.style.top = `${lastInteractionTop() + 48}px`;
-  };
-  let plainToast: HTMLElement | undefined;
-  let plainToastTimer: number | undefined;
-  const toast = (msg: string): void => {
-    plainToast?.remove();
-    const t = el('div', { class: 'toast show' }, msg);
-    plainToast = t;
-    placeToasts();
-    toastStack.prepend(t);
-    window.clearTimeout(plainToastTimer);
-    plainToastTimer = window.setTimeout(() => {
-      t.remove();
-      if (plainToast === t) plainToast = undefined;
-    }, 4000);
-  };
-  /** A notice that a choice was made for the student (2026-09-12): its own
-   * slot, so the plain toast that follows the same action ("… added to your
-   * coursework") does not replace it. Stays 12 s. */
-  let noticeToast: HTMLElement | undefined;
-  const notice = (msg: string): void => {
-    noticeToast?.remove();
-    const t = el('div', { class: 'toast show auto-notice' }, msg);
-    noticeToast = t;
-    placeToasts();
-    toastStack.prepend(t);
-    window.setTimeout(() => {
-      t.remove();
-      if (noticeToast === t) noticeToast = undefined;
-    }, 12000);
-  };
-  const undoToasts = new Map<HTMLElement, number>();
-  const cancelUndo = (): void => {
-    for (const [t, timer] of undoToasts) {
-      window.clearTimeout(timer);
-      t.remove();
-    }
-    undoToasts.clear();
-  };
-  /** A toast carrying one action (Undo) — stays longer, is clickable, and
-   * survives re-renders. `focusKey` names the control to focus after the
-   * action's render (the button lives outside the root, so the rebuild has
-   * nothing to remember). */
-  const toastWithAction = (msg: string, actionLabel: string, action: () => void, opts: { ttlMs?: number; focusKey?: string } = {}): void => {
-    for (const [t, timer] of undoToasts) {
-      if (undoToasts.size < 3) break; // at most three live Undos — the oldest goes
-      window.clearTimeout(timer);
-      t.remove();
-      undoToasts.delete(t);
-    }
-    const t = el('div', { class: 'toast show has-action' }, msg, ' ');
-    const dismiss = (): void => {
-      const timer = undoToasts.get(t);
-      if (timer !== undefined) window.clearTimeout(timer);
-      undoToasts.delete(t);
-      t.remove();
-    };
-    t.append(
-      el(
-        'button',
-        {
-          class: 'toast-action',
-          onclick: () => {
-            dismiss();
-            if (opts.focusKey !== undefined) focusAfterRender = opts.focusKey;
-            action();
-          },
-        },
-        actionLabel,
-      ),
-    );
-    placeToasts();
-    toastStack.prepend(t);
-    undoToasts.set(t, window.setTimeout(dismiss, opts.ttlMs ?? 12000));
-  };
-
-  // Every change rebuilds the page from the student record (simple, and the
-  // engine stays pure) — so the control the student was using is destroyed
-  // and re-created. Keyboard and screen-reader users were dropped to the top
-  // of the page after every dropdown or checkbox (usability review
-  // 2026-09-05, item 23): the rebuild now remembers which control had focus,
-  // by its stable `data-key` (or, failing that, its position in the tree),
-  // and its text selection and the scroll position, and restores them.
-  /** Where to put focus after the NEXT render, when the focused control will
-   * not exist any more (a removed course row, the closed preview). */
-  let focusAfterRender: string | undefined;
+  // The focus keeper (focus-keeper.ts): render() rebuilds the whole root, so
+  // it remembers which control had focus before and restores it after.
+  const { remember: rememberFocus, restore: restoreFocus, setFocusAfterRender } = createFocusKeeper(root);
+  // The toast stack (toasts.ts), created once outside the root.
+  const { toast, notice, cancelUndo, toastWithAction } = createToasts(setFocusAfterRender);
   let lastHeadline = '';
   /** Watches the two score headlines for the sticky bar (P-66); one per render. */
   let scoreObserver: IntersectionObserver | undefined;
@@ -477,69 +281,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     for (const h of headlines) scoreObserver.observe(h);
   }
 
-  function rememberFocus(): { key?: string; path?: number[]; selection?: [number, number]; x: number; y: number; open: string[]; expanded: string[] } {
-    const active = document.activeElement as HTMLElement | null;
-    // What the student had opened, so a keystroke elsewhere does not close it
-    // (2026-09-08): render() rebuilds the whole root, and used to restore focus
-    // to a § button whose quote had silently collapsed underneath it.
-    const memo: ReturnType<typeof rememberFocus> = {
-      x: window.scrollX,
-      y: window.scrollY,
-      open: [...root.querySelectorAll<HTMLDetailsElement>('details[data-key]')].filter((d) => d.open).map((d) => d.dataset['key'] ?? ''),
-      expanded: [...root.querySelectorAll<HTMLElement>('[aria-expanded="true"][data-key]')].map((b) => b.dataset['key'] ?? ''),
-    };
-    if (!active || active === document.body || !root.contains(active)) return memo;
-    memo.key = active.dataset['key'];
-    if (!memo.key) {
-      const path: number[] = [];
-      for (let n: Element | null = active; n && n !== root; n = n.parentElement) {
-        path.unshift(Array.prototype.indexOf.call(n.parentElement?.children ?? [], n));
-      }
-      memo.path = path;
-    }
-    const input = active as HTMLInputElement;
-    if ((active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') && typeof input.selectionStart === 'number' && input.selectionEnd !== null) {
-      memo.selection = [input.selectionStart, input.selectionEnd];
-    }
-    return memo;
-  }
-
-  function restoreFocus(memo: ReturnType<typeof rememberFocus>): void {
-    // Re-open first, so focus lands inside something that is actually visible.
-    for (const k of memo.open) {
-      const d = root.querySelector<HTMLDetailsElement>(`details[data-key="${CSS.escape(k)}"]`);
-      if (d) d.open = true;
-    }
-    for (const k of memo.expanded) {
-      const b = root.querySelector<HTMLElement>(`[data-key="${CSS.escape(k)}"][aria-expanded]`);
-      if (!b) continue;
-      b.setAttribute('aria-expanded', 'true');
-      const controls = b.getAttribute('aria-controls');
-      if (controls) document.getElementById(controls)?.classList.remove('hidden');
-    }
-    const key = focusAfterRender ?? memo.key;
-    focusAfterRender = undefined;
-    let target: HTMLElement | null = null;
-    if (key) target = root.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
-    if (!target && memo.path) {
-      let n: Element | null = root;
-      for (const i of memo.path) n = n?.children[i] ?? null;
-      target = n as HTMLElement | null;
-    }
-    if (target && typeof target.focus === 'function') {
-      target.focus({ preventScroll: true });
-      const input = target as HTMLInputElement;
-      if (memo.selection && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && /^(text|search|number|email|url|tel|password)$/.test(input.type || 'text')) {
-        try {
-          if (input.type !== 'number') input.setSelectionRange(memo.selection[0], memo.selection[1]);
-        } catch {
-          /* selection is not supported on this input type — focus alone is enough */
-        }
-      }
-    }
-    window.scrollTo(memo.x, memo.y);
-  }
-
   /** Choices the page makes for the student (DGS 2026-09-12): whenever the
    * record itself shows the best answer, fill it in, say so in a toast, and
    * leave the control for the student to change. Only an UNSET choice is
@@ -579,7 +320,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         const group = best[c.courseId];
         if (!group || c.assignedGroup) continue;
         c.assignedGroup = group as CourseEntry['assignedGroup'];
-        filled.push(`${c.courseId} → ${shortName(rules.categoryGroups.find((x) => x.code === group)?.name ?? group)}`);
+        filled.push(`${c.courseId} → ${groupShortName(rules, group)}`);
       }
       if (filled.length > 0) {
         notices.push(
@@ -605,9 +346,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const untouched =
       student.courses.length === 0 && Object.keys(student.milestones).length === 0 && student.gpa === undefined;
     groupChoices = report.requirements.find((r) => r.id === 'phd.qualifier.categories')?.groupChoices ?? {};
+    // The engine's classification of the record, once per render: the review
+    // card, the milestones card and the Grad Admin request all read it.
+    const { classified } = classify(student, rules);
     clear(root);
     root.append(
-      ...[
       // Landmarks + a skip link (usability review 2026-09-05, item 7): header
       // → main (notices, inputs, report, footer); the skip link jumps a
       // keyboard user straight to the report.
@@ -629,10 +372,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // that would have cleared their course along with the demo.
         exampleBanner(),
         noticeStrip(),
-        // The universities the ExternalCourses tab knows, for both University
-        // boxes (manual course form, previous-transcript preview) — one
-        // datalist per page (2026-09-06 evening).
-        el('datalist', { id: 'known-universities' }, ...knownUniversities(rules.external).map((u) => el('option', { value: u }))),
+        knownUniversitiesList,
         rules.source === 'snapshot' ? snapshotBanner() : null,
         // Phones and small tablets (2026-09-05, review item 2): the result
         // first, then the inputs, then the full report — plus a sticky score
@@ -642,7 +382,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // "Getting started" between the student and the first control when
         // there is not (blue-team B1, 2026-09-18). An untouched record shows it
         // at the bottom with the rest of the report instead.
-        untouched ? null : renderSummary(report, untouched),
+        untouched ? null : renderSummary(report),
         el(
           'div',
           { class: 'layout' },
@@ -652,9 +392,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             transcriptsCard(),
             standingCard(),
             coursesCard(report.courseLines),
-            askDgsCard(),
-            milestonesCard(),
-            askGradAdminCard(report),
+            askDgsCard(classified),
+            milestonesCard(classified),
+            askGradAdminCard(report, classified),
             saveCard(),
             diagnosticsCard(),
           ),
@@ -702,7 +442,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           el('a', { href: '#report' }, 'Report ↓'),
         ),
       ),
-      ].filter((n): n is HTMLElement => n !== null),
     );
     // "Oral Candidacy Exam (OCE)" in full once, then "OCE" (DGS 2026-09-06
     // evening) — text nodes only, in document order, before focus is restored.
@@ -809,17 +548,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
-  /** One slim strip instead of two stacked banners (usability review
-   * 2026-09-05, item 8): the alpha line and the privacy line, each one
-   * sentence or two, and a "Details" expander that holds the full DGS-worded
-   * paragraphs unchanged (they also stay in the footer and the copied
-   * summary). The privacy paragraph keeps its place right under the alpha
-   * text (DGS placement, 2026-09-03). */
-  // Two strips, not one (DGS 2026-09-19): red for the alpha status, green for
-  // privacy. Each is ONE line above the fold (blue-team B1, 2026-09-18 — the
-  // first control must stay on the first screen) with its full paragraph in
-  // a Details disclosure; both paragraphs are also in the footer and the
-  // copied summary.
+  /** Two slim strips (DGS 2026-09-19): red for the alpha status, green for
+   * privacy — the alpha line and the privacy line, each ONE sentence above
+   * the fold (blue-team B1, 2026-09-18 — the first control must stay on the
+   * first screen), each with a "Details" expander that holds the full
+   * DGS-worded paragraph unchanged; both paragraphs are also in the footer
+   * and the copied summary. The privacy strip keeps its place right under
+   * the alpha text (DGS placement, 2026-09-03). They were one strip from the
+   * usability review (2026-09-05, item 8 — two stacked banners folded into
+   * one) until the split. */
   function noticeStrip(): HTMLElement {
     const alphaDetails = el(
       'details',
@@ -926,7 +663,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'data-key': 'standing.season',
       onchange: (e) => setEntry((s) => void (s.entryTerm.season = (e.target as HTMLSelectElement).value as Season)),
     });
-    for (const se of SEASONS) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1), student.entryTerm.season === se));
+    seasonSel.append(...seasonOptions(student.entryTerm.season));
     // The entry term is the hinge of every deadline in §4 (and §3.3's five
     // years), so a year outside 2000–2040 is refused rather than ignored: the
     // old handler fell back to the stored year and said nothing (R1).
@@ -937,7 +674,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       allowEmpty: false, // a record always has an entry term
       attrs: { 'aria-label': 'Entered the program — year' },
       commit: (value) => setEntry((s) => void (s.entryTerm.year = value!)),
-    });
+    }, refusedValues, toast);
     // While the term is a guess (fresh record) or a transcript reading, say so
     // — a wrong entry term silently shifts every deadline (bug report 2026-09-05).
     const inferred = student.entryTermInferred;
@@ -1005,7 +742,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // the note says so until the student touches either control.
     const awarded = student.bachelorsAwarded;
     const bsSeason = el('select', { 'aria-label': 'Bachelor’s degree awarded — semester', 'data-key': 'standing.bachelors.season' });
-    for (const se of SEASONS) bsSeason.append(option(se, se[0]!.toUpperCase() + se.slice(1), (awarded?.season ?? 'spring') === se));
+    bsSeason.append(...seasonOptions(awarded?.season ?? 'spring'));
     const setBachelors = (year: number | undefined): void =>
       update((s) => {
         s.bachelorsAwarded = year === undefined ? undefined : { season: (bsSeason as HTMLSelectElement).value as Season, year };
@@ -1026,7 +763,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ...(awarded === undefined ? { required: 'required', 'aria-required': 'true' } : {}),
       },
       commit: setBachelors,
-    });
+    }, refusedValues, toast);
     bsSeason.addEventListener('change', () => {
       const text = (bsYear as HTMLInputElement).value;
       const year = Number(text);
@@ -1182,7 +919,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       card.append(fieldset('Project or thesis option (§3.4)', optGroup));
     }
 
-    card.append(fullTimeTerms());
+    const ftTerms = fullTimeTerms();
+    if (ftTerms) card.append(ftTerms);
     return card;
   }
 
@@ -1201,7 +939,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       : 'Entered the Ph.D. program at Notre Dame CSE in';
   }
 
-  function fullTimeTerms(): HTMLElement {
+  /** The full-time-terms fieldset, or null while the record has no term to list. */
+  function fullTimeTerms(): HTMLElement | null {
     // Residency (decision Q8): ≥9 entered credits marks a term full-time
     // automatically; these checkboxes cover research-heavy terms that aren't.
     // Only terms from the entry term on: residence is counted in THIS program
@@ -1210,7 +949,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const terms = new Map<number, Term>();
     for (const c of student.courses) if (c.origin === 'nd' && termIndex(c.term) >= entryIndex) terms.set(termIndex(c.term), c.term);
     for (const t of student.fullTimeTermOverrides ?? []) if (termIndex(t) >= entryIndex) terms.set(termIndex(t), t);
-    if (terms.size === 0) return el('div', {});
+    if (terms.size === 0) return null;
     // A fieldset whose legend is the question (item 5); a term counted
     // automatically is stated as text, not as a disabled ticked box (item 11).
     const box = el('fieldset', { class: 'ft-terms' }, el('legend', { class: 'label' }, `Full-time terms (for residency, ${student.program === 'mscse' ? '§3.3' : '§4.3'})`));
@@ -1271,7 +1010,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           s.gpa = value;
           s.gpaSource = undefined; // typed by hand — no longer the transcript's figure
         }),
-    });
+    }, refusedValues, toast);
     // Which figure the GPA is (combined-transcript bug report 2026-09-05): a
     // Notre Dame transcript carries one cumulative GPA per level, and the
     // graduate one can include an earlier graduate program at Notre Dame.
@@ -1320,12 +1059,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // requirement, so a core-sounding title is not a reason to list an
       // undergraduate course for them (DGS 2026-09-11).
       const qualifierApplies = student.program === 'phd';
+      const rule = resolveRuleRow(rules, e.c.courseId, e.c.term);
       if (
         g.bachelors &&
         !(qualifierApplies && CORE_TITLE_RE.test(e.c.title ?? '')) &&
         !(qualifierApplies && findExternalRule(rules.external, e.c.institution ?? '', e.c.courseId)) &&
-        !(qualifierApplies && priorNd && resolveRuleRow(rules, e.c.courseId, e.c.term)?.coreArea) &&
-        !(priorNd && priorNdUndergraduateCanCount(e.c, resolveRuleRow(rules, e.c.courseId, e.c.term), student.program))
+        !(qualifierApplies && priorNd && rule?.coreArea) &&
+        !(priorNd && priorNdUndergraduateCanCount(e.c, rule, student.program))
       ) {
         g.hidden += 1;
         continue;
@@ -1343,7 +1083,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'section',
       { class: 'card' },
       el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
-      // (The coursework card's intro sentence was removed on 2026-09-15 at the DGS's request.)
       field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
       gpaError,
       gpaNote,
@@ -1365,7 +1104,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 : student.program === 'phd'
                   ? `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`
                   : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), and they satisfy nothing else in the MSCSE — so none of them is listed here`) +
-              `${g.hidden > 0 ? ` ${g.hidden} other course${g.hidden === 1 ? '' : 's'} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown.` : ''}`,
+              `${g.hidden > 0 ? ` ${plural(g.hidden, 'other course')} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown.` : ''}`,
             )
           : hasTransferCandidate(g.entries)
             ? el(
@@ -1402,7 +1141,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // a preview is open, every import button is blocked until the student
   // confirms (or cancels) it — one transcript at a time.
   function transcriptsCard(): HTMLElement {
-    const busy = transcriptPreview !== undefined || importsBusy();
+    const busy = ndPreviewOpen() || importsBusy();
+    const ndArgs: NdUploadArgs = { student, rules, update, toast, toastWithAction, render, blocked: busy, setFocusAfterRender, refusedValues };
     return el(
       'div',
       { class: 'card external-card' },
@@ -1426,8 +1166,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       busy
         ? el('p', { class: 'hint warn' }, 'One transcript at a time: confirm the open preview below (“Add …”) or cancel it before importing another PDF.')
         : null,
-      transcriptUpload(busy),
-      transcriptPreview ? transcriptPreviewBlock() : null,
+      ndTranscriptUpload(ndArgs),
+      ndPreviewOpen() ? ndTranscriptPreviewBlock(ndArgs) : null,
       ...priorTranscriptSection({ student, rules, update, toast, toastWithAction, render, blocked: busy }),
     );
   }
@@ -1440,18 +1180,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // — plus external courses the ExternalCourses tab has not ruled on. The
   // student MUST email the request to the DGS and the Graduate Program
   // Administrator; the page itself sends nothing.
-  function askDgsCard(): HTMLElement | null {
+  function askDgsCard(classified: readonly ClassifiedCourse[]): HTMLElement | null {
     // Which courses need a DGS decision, and why, is the engine's call
     // (src/engine/review.ts, 2026-09-06 evening — with the test matrix that
     // pins it); this card only lists them and builds the copy-ready request.
-    const pending = coursesNeedingDgsReview(student, rules);
+    const pending = coursesNeedingDgsReviewFor(classified, student);
     const n = pending.length;
     // Notes that are not about one course (2026-09-12): a 4+1 with many
     // undergraduate graduate-level courses counted.
-    const flags = undergraduateGraduateCourseworkFlag(student, rules);
+    const flags = undergraduateGraduateCourseworkFlagFor(classified, student);
     const notes = flags ? [flags] : [];
     if (n === 0 && notes.length === 0) return null;
     const what = reviewRequestSummary(n, notes.length > 0);
+    const decider = deciderContact(student.program);
     const request = (p: PendingDgsReview) => ({
       courseId: p.course.entry.courseId,
       title: p.course.entry.title ?? p.course.rule?.title,
@@ -1486,7 +1227,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         { class: 'hint' },
         el('strong', {}, 'Decisions are made only by email: '),
         `initiate the review request by clicking the button below — it opens the request for you to check and send from your own email app to the ${deciderTitle(student.program)} (`,
-        mailto(deciderContact(student.program).email),
+        mailto(decider.email),
         // The DGS's own sentence (2026-09-15) and the attach reminder
         // (2026-09-03); the email's format and the two-roles statement are
         // said by the dialog and the Grad Admin card (trim review 2026-09-18, P-5).
@@ -1508,7 +1249,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes });
                 return copyDialog({
                   what: 'Review request',
-                  recipient: { role: deciderContact(student.program).role, name: deciderContact(student.program).name, email: deciderContact(student.program).email },
+                  recipient: { role: decider.role, name: decider.name, email: decider.email },
                   subject: built.subject,
                   text: built.text,
                   html: built.html,
@@ -1524,578 +1265,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
-  // ---------- transcript upload ----------
-
-  /** An import that failed (usability review 2026-09-05, item 6): shown as a
-   * persistent message under the Notre Dame row — a 4-second toast was easy
-   * to miss and impossible to re-read. Cleared by the next import or Dismiss. */
-  let ndImportError: string | undefined;
-
-  function transcriptUpload(blocked: boolean): HTMLElement {
-    const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: 'hidden', 'aria-label': 'ND unofficial transcript PDF' });
-    const fail = (message: string): void => {
-      transcriptPreview = undefined;
-      ndImportError = message;
-      focusAfterRender = 'import.nd.error';
-      render();
-    };
-    fileInput.addEventListener('change', async () => {
-      const file = (fileInput as HTMLInputElement).files?.[0];
-      if (!file) return;
-      ndImportError = undefined;
-      toast('Reading the transcript… (it never leaves this browser)');
-      try {
-        const { pdfToLines } = await import('../transcript/pdf.ts'); // pdfjs loads lazily
-        const lines = await pdfToLines(await file.arrayBuffer());
-        // Kellogg's own instructions tell students to SCREENSHOT the page —
-        // those PDFs have no text layer, and deserve a specific message,
-        // not a false "this isn't ND" rejection.
-        if (lines.join('').trim().length < 40) {
-          fail('This PDF has no readable text (a screenshot?). Please use your browser’s "Print → Save as PDF" on the transcript page instead, or add courses manually.');
-          return;
-        }
-        const parsed = parseTranscript(lines);
-        if (!parsed.isNotreDame) {
-          fail("Only ND's unofficial transcript is accepted here — for courses from other universities, use the Previous-Transcript rows below.");
-          return;
-        }
-        if (parsed.courses.length === 0) {
-          fail('This looks like an ND transcript, but no course lines could be read from it. Add your courses manually, and tell the DGS so the parser can be improved.');
-          return;
-        }
-        const duplicate = parsed.courses.map((c) =>
-          student.courses.some(
-            (s) => s.courseId === c.courseId && termIndex(s.term) === termIndex(c.term),
-          ),
-        );
-        // The entry term read from the transcript (2026-09-05) is applied
-        // unless the student unticks it in the preview. Pre-entry Notre Dame
-        // courses become prior coursework; pre-entry UNDERGRADUATE courses
-        // that cannot matter start unticked, like the external undergraduate
-        // import. "Cannot matter" is the engine's answer since 2026-09-11 —
-        // undergraduate Notre Dame coursework can COUNT now, not only
-        // demonstrate a §4.4.1 core area — and §4.4.1 itself is the Ph.D.
-        // qualifier's, so it is no reason to tick anything for an MSCSE
-        // student.
-        const entry = parsed.entryTerm?.term ?? student.entryTerm;
-        const bsTerm = bachelorsTermFor(parsed.degreesAwarded);
-        const qualifierApplies = student.program === 'phd';
-        const irrelevantPrior = parsed.courses.map(
-          (c) =>
-            c.origin === 'nd' &&
-            termIndex(c.term) < termIndex(entry) &&
-            priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bsTerm) === 'bachelors' &&
-            !priorNdUndergraduateCanCount(
-              { courseId: c.courseId, credits: c.credits, term: c.term, grade: c.grade, origin: 'transfer' },
-              resolveRuleRow(rules, c.courseId, c.term),
-              student.program,
-            ) &&
-            !(qualifierApplies && CORE_TITLE_RE.test(c.title ?? '')) &&
-            !(qualifierApplies && resolveRuleRow(rules, c.courseId, c.term)?.coreArea) &&
-            !(qualifierApplies && findExternalRule(rules.external, 'University of Notre Dame', c.courseId)),
-        );
-        // The GPA (combined-transcript bug report 2026-09-05): the transcript's
-        // GRADUATE-level cumulative figure, never the undergraduate one; and
-        // when graduate courses from an EARLIER program at Notre Dame precede
-        // the entry term, that figure includes them, so the courses of this
-        // program alone are averaged too and the student chooses (the
-        // transcript's figure is the default — it is what the registrar and
-        // the Graduate School compute; docs/DECISIONS.md 2026-09-05).
-        const programGpa = gpaOfProgramCourses(parsed.courses, entry);
-        // A figure misread off the page is not offered at all (R1,
-        // 2026-09-18): the preview's GPA control is the one place a number
-        // the student never typed can reach §2.2, so a reading off the 4.00
-        // scale is dropped here and said in the preview's own warnings, where
-        // the rest of what the parser could not place is already listed.
-        const transcriptGpa = inRange(parsed.cumulativeGpa, GPA_RANGE) ? parsed.cumulativeGpa : undefined;
-        const gpaWarning =
-          parsed.cumulativeGpa !== undefined && transcriptGpa === undefined
-            ? [
-                `The cumulative GPA read from this transcript (${formatValue(parsed.cumulativeGpa, GPA_RANGE)}) is outside the ${rangeSpan(GPA_RANGE)} range, so it was not used — enter your GPA under Coursework.`,
-              ]
-            : [];
-        const earlierGraduateWork = parsed.courses.some(
-          (c) => c.origin === 'nd' && termIndex(c.term) < termIndex(entry) && c.level === 'graduate' && GRADE_POINTS[c.grade] !== undefined,
-        );
-        transcriptPreview = {
-          courses: parsed.courses,
-          selected: parsed.courses.map((_, i) => !duplicate[i] && !irrelevantPrior[i]),
-          duplicate,
-          gpa: transcriptGpa,
-          undergraduateGpa: inRange(parsed.cumulativeGpaByLevel?.undergraduate, GPA_RANGE) ? parsed.cumulativeGpaByLevel?.undergraduate : undefined,
-          programGpa: earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? programGpa : undefined,
-          gpaChoice: transcriptGpa !== undefined ? 'transcript' : earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? 'program' : 'none',
-          entryTerm: parsed.entryTerm,
-          useEntryTerm: parsed.entryTerm !== undefined,
-          degreesAwarded: parsed.degreesAwarded,
-          warnings: [...parsed.warnings, ...gpaWarning],
-        };
-        render();
-      } catch {
-        fail('That PDF could not be read (a scanned image, or not a PDF?). Add your courses manually.');
-      } finally {
-        (fileInput as HTMLInputElement).value = '';
-      }
-    });
-    const errorBox = ndImportError
-      ? el(
-          'div',
-          { class: 'import-error', role: 'alert', tabindex: '-1', 'data-key': 'import.nd.error' },
-          el('span', {}, ndImportError),
-          ' ',
-          el(
-            'button',
-            {
-              class: 'btn tiny',
-              'aria-label': 'Dismiss this message',
-              onclick: () => {
-                ndImportError = undefined;
-                focusAfterRender = 'import.nd';
-                render();
-              },
-            },
-            'Dismiss',
-          ),
-        )
-      : null;
-    // Everything the transcript import added can be taken back in one click,
-    // like a previous-university transcript (DGS request 2026-09-06): the
-    // rows it added (program courses, pre-entry prior coursework and the
-    // transcript's transfer-credit block — all flagged `fromNdTranscript`),
-    // the GPA it filled in, and a "Prior graduate study" it inferred. Rows
-    // typed by hand stay; so does the entry term, which the student can
-    // still change under Your standing. Undo instead of a confirm dialog.
-    const imported = student.courses.filter((c) => c.fromNdTranscript === true);
-    // While a preview is open (this row's or a previous-university one), the
-    // Import and Remove buttons are inactive and say why on hover / click
-    // (DGS request 2026-09-06) — `inactiveButton`, not `disabled`, so the
-    // reason can be shown.
-    const button = (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string): HTMLButtonElement =>
-      blocked ? inactiveButton(attrs, PREVIEW_OPEN_NOTE, toast, label) : el('button', attrs, label);
-    const importButton = button(
-      {
-        class: 'btn',
-        'data-key': 'import.nd',
-        // B7 (2026-09-18): four buttons on this card read "Import from PDF".
-        // The visible label stays short; the accessible name says which row.
-        'aria-label': `${imported.length > 0 ? 'Import again' : 'Import'} — ${ndRowLabel(student)}`,
-        onclick: () => (fileInput as HTMLInputElement).click(),
-      },
-      imported.length > 0 ? 'Import again' : 'Import from PDF',
-    );
-    const parts: (Node | string)[] = [
-      // Named for the program the student picked at the top (DGS 2026-09-11):
-      // an ND 4+1 student has several Notre Dame transcripts, and "ND
-      // Unofficial Transcript" did not say which one this row wants.
-      el('span', { class: 'slot-label' }, ndRowLabel(student)),
-      el('span', { class: 'slot-sep', 'aria-hidden': 'true' }, ' — '),
-    ];
-    if (imported.length > 0) {
-      const n = imported.length;
-      parts.push(
-        el('span', {}, `${n} course${n === 1 ? '' : 's'} from your transcript `),
-        button(
-          {
-            class: 'btn tiny',
-            'aria-label': `Remove the ${n} course${n === 1 ? '' : 's'} imported from your ND transcript`,
-            'data-key': 'import.nd.remove',
-            onclick: () => {
-              // Index-preserving (2026-09-06 evening): Undo puts every row
-              // back where it was, so the table order and the course.N.remove
-              // keys are exactly as before the Remove.
-              const removed = student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.fromNdTranscript === true);
-              const before = { gpa: student.gpa, gpaSource: student.gpaSource, priorMs: student.priorMs, inferred: student.priorMsInferred };
-              focusAfterRender = 'import.nd';
-              update((s) => {
-                s.courses = s.courses.filter((c) => c.fromNdTranscript !== true);
-                if (s.gpaSource !== undefined) {
-                  s.gpa = undefined; // the transcript's figure — a hand-typed GPA has no gpaSource and stays
-                  s.gpaSource = undefined;
-                }
-                if (
-                  s.priorMsInferred === true &&
-                  !s.courses.some((c) => c.origin === 'transfer' && (c.degreeLevel === 'masters' || c.degreeLevel === 'phd'))
-                ) {
-                  s.priorMs = 'none';
-                  s.priorMsInferred = undefined;
-                }
-              });
-              toastWithAction(
-                `${removed.length} course${removed.length === 1 ? '' : 's'} from your ND transcript removed${before.gpaSource !== undefined ? ', and the GPA it filled in' : ''}.`,
-                'Undo',
-                () =>
-                  update((s) => {
-                    for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
-                    s.gpa = before.gpa;
-                    s.gpaSource = before.gpaSource;
-                    s.priorMs = before.priorMs;
-                    s.priorMsInferred = before.inferred;
-                  }),
-                { ttlMs: 20000, focusKey: 'import.nd.remove' },
-              );
-            },
-          },
-          'Remove',
-        ),
-        ' · ',
-        importButton,
-        el('span', { class: 'hint-inline' }, ' — after new grades post, remove these and import the updated PDF; courses you typed in by hand are kept.'),
-      );
-    } else {
-      parts.push(
-        importButton,
-        // The card hint above already says every field is checked before it
-        // is added, and the preview is that check (trim review 2026-09-18, P-29).
-        el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below.'),
-      );
-    }
-    return el('div', { class: 'transcript-upload external-slot' }, ...parts, fileInput, errorBox);
-  }
-
-  /** Credit-weighted GPA of the graded Notre Dame courses from the entry term
-   * on — this program's courses only (letter grades; S/U and in-progress rows
-   * carry no points). Undefined when nothing is graded yet. */
-  /** The dated bachelor's award on a parsed Notre Dame transcript, as the
-   * term to file pre-entry courses by and to fill "Bachelor's degree awarded"
-   * with (DGS 2026-09-06). */
-  function bachelorsAwardFrom(degrees: DegreeAwarded[]): { term: Term; degree: DegreeAwarded } | undefined {
-    const d = degrees.find((x) => x.level === 'bachelors' && x.date !== undefined);
-    return d ? { term: termOfDate(d.date!), degree: d } : undefined;
-  }
-  /** An import fills the field only while it is empty or still an import's own reading. */
-  const bachelorsMayBeSet = (s: Student): boolean => s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined;
-  /** The award term a Notre Dame import would use: the transcript's, when it
-   * may still set the field; else whatever the student has. */
-  const bachelorsTermFor = (degrees: DegreeAwarded[]): Term | undefined => {
-    const bs = bachelorsAwardFrom(degrees);
-    return bs && bachelorsMayBeSet(student) ? bs.term : student.bachelorsAwarded;
-  };
-
-  function gpaOfProgramCourses(courses: ParsedCourse[], entry: Term): number | undefined {
-    let points = 0;
-    let hours = 0;
-    for (const c of courses) {
-      if (c.origin !== 'nd' || termIndex(c.term) < termIndex(entry) || c.level === 'undergraduate') continue;
-      const p = GRADE_POINTS[c.grade];
-      if (p === undefined || c.credits <= 0) continue;
-      points += p * c.credits;
-      hours += c.credits;
-    }
-    return hours > 0 ? Math.round((points / hours) * 1000) / 1000 : undefined;
-  }
-
-  function transcriptPreviewBlock(): HTMLElement {
-    const tp = transcriptPreview!;
-    const box = el('div', { class: 'transcript-preview' });
-    // The entry term the split below is judged against: the transcript's
-    // reading while its checkbox is ticked, otherwise the standing card's.
-    const entry = tp.useEntryTerm && tp.entryTerm ? tp.entryTerm.term : student.entryTerm;
-    const priorCount = tp.courses.filter((c) => c.origin === 'nd' && termIndex(c.term) < termIndex(entry)).length;
-    box.append(
-      el('h3', {}, `Found ${tp.courses.length} course${tp.courses.length === 1 ? '' : 's'} — untick anything that shouldn't count, then add`),
-    );
-    if (tp.warnings.length > 0) {
-      // What the parser skipped or could not place — persistent, inside the
-      // preview (usability review 2026-09-05, item 6).
-      box.append(
-        el(
-          'div',
-          { class: 'import-warnings', role: 'note' },
-          el('strong', {}, 'Check these: '),
-          el('ul', {}, ...tp.warnings.map((w) => el('li', {}, w))),
-        ),
-      );
-    }
-    if (tp.entryTerm) {
-      // The transcript's reading of the entry term (2026-09-05) — applied by
-      // default, because every deadline depends on it; explained, because a
-      // combined transcript can support two readings.
-      const cb = el('input', {
-        type: 'checkbox',
-        class: 'use-entry-term',
-        'data-key': 'preview.entryTerm',
-        onchange: (e) => {
-          tp.useEntryTerm = (e.target as HTMLInputElement).checked;
-          render();
-        },
-      });
-      cb.checked = tp.useEntryTerm;
-      box.append(
-        el(
-          'label',
-          { class: 'attest entry-term-line' },
-          cb,
-          // The consequence is under the field in Your standing, in both
-          // states (trim review 2026-09-18, P-30).
-          ` Set your entry term to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. Check it.`,
-        ),
-      );
-      if (tp.entryTerm.alternative) box.append(el('p', { class: 'hint warn' }, `Note: ${tp.entryTerm.alternative.why}.`));
-    }
-    // The dated bachelor's award (2026-09-06) fills "Bachelor's degree awarded"
-    // under Your standing, unless the student already set it by hand.
-    const bs = bachelorsAwardFrom(tp.degreesAwarded);
-    if (bs && bachelorsMayBeSet(student)) {
-      box.append(
-        el(
-          'p',
-          { class: 'hint bachelors-line' },
-          // The §5.2 rule is under the field it governs, one card down
-          // (trim review 2026-09-18, P-13).
-          `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date} — “Bachelor’s degree awarded” under Your standing will be set to ${termLabel(bs.term)}.`,
-        ),
-      );
-    }
-    if (priorCount > 0) {
-      box.append(
-        el(
-          'p',
-          { class: 'hint prior-note' },
-          // Three parallel clauses as one list, every § kept (trim review 2026-09-18, P-31).
-          student.program === 'phd'
-            ? `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} are filed as coursework from before you entered: no residency counts, but they can still satisfy core knowledge (§4.4.1), count toward the credits if taken at Notre Dame as an undergraduate (§4.2), or transfer as graduate courses from elsewhere under §5.2. Undergraduate courses that cannot matter start unticked.`
-            : `${priorCount} course${priorCount === 1 ? '' : 's'} dated before ${termLabel(entry)} are filed as coursework from before you entered: no residency counts, but they can still count toward the credits if taken at Notre Dame as an undergraduate (§3.2) or transfer as graduate courses from elsewhere under §5.2. Undergraduate courses that cannot matter start unticked.`,
-        ),
-      );
-    }
-    const table = el('table', { class: 'courses stack' });
-    table.append(
-      el(
-        'tr',
-        {},
-        el('th', { scope: 'col' }, el('span', { class: 'visually-hidden' }, 'Add')),
-        el('th', { scope: 'col' }, 'Course'),
-        el('th', { scope: 'col' }, 'Term'),
-        el('th', { scope: 'col', abbr: 'Credits' }, 'Cr'),
-        el('th', { scope: 'col' }, 'Grade'),
-        el('th', { scope: 'col' }, el('span', { class: 'visually-hidden' }, 'Note')),
-      ),
-    );
-    tp.courses.forEach((c, i) => {
-      const cb = el('input', {
-        type: 'checkbox',
-        'aria-label': `Add ${c.courseId} (${termLabel(c.term)})`,
-        'data-key': `preview.row.${i}`,
-        onchange: (e) => {
-          tp.selected[i] = (e.target as HTMLInputElement).checked;
-          render(); // the Add button's count follows (item 13)
-        },
-      });
-      cb.checked = tp.selected[i]!;
-      const prior = c.origin === 'nd' && termIndex(c.term) < termIndex(entry);
-      const note = tp.duplicate[i]
-        ? 'already entered'
-        : c.origin === 'transfer'
-          ? 'transfer'
-          : prior
-            ? `before entry — prior ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded)) === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
-            : '';
-      table.append(
-        el(
-          'tr',
-          { class: prior ? 'prior-row' : '' },
-          el('td', { class: 'cell-check' }, cb),
-          el('td', { class: 'cell-course' }, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
-          el('td', { class: 'cell-meta', 'data-label': 'Term' }, el('abbr', { class: 'term', title: termLabel(c.term) }, termShort(c.term))),
-          el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
-          el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? 'In progress' : c.grade),
-          el('td', { class: 'ctitle cell-note' }, note),
-        ),
-      );
-    });
-    // Select all / none (item 13) — the duplicates stay unticked either way.
-    const selectAll = (on: boolean) => {
-      tp.courses.forEach((_, i) => (tp.selected[i] = on && !tp.duplicate[i]));
-      render();
-    };
-    box.append(
-      el(
-        'p',
-        { class: 'select-links' },
-        el('button', { class: 'btn tiny', 'data-key': 'preview.all', onclick: () => selectAll(true) }, 'Select all'),
-        ' ',
-        el('button', { class: 'btn tiny', 'data-key': 'preview.none', onclick: () => selectAll(false) }, 'Select none'),
-      ),
-      table,
-    );
-    // The GPA for the §2.2 check (combined-transcript bug report 2026-09-05).
-    if (tp.gpa !== undefined && tp.programGpa !== undefined) {
-      // Two defensible figures: the registrar's graduate cumulative GPA (which
-      // folds in an earlier graduate program at Notre Dame) or this program's
-      // courses alone — the student picks, the transcript's figure by default.
-      const radio = (value: typeof tp.gpaChoice, label: string, note: string) => {
-        const r = el('input', { type: 'radio', name: 'gpa-choice', value, 'data-key': `preview.gpa.${value}`, onchange: () => (tp.gpaChoice = value) });
-        r.checked = tp.gpaChoice === value;
-        return el('label', { class: 'attest gpa-option' }, r, ` ${label} `, el('span', { class: 'hint-inline' }, note));
-      };
-      box.append(
-        el(
-          'fieldset',
-          { class: 'gpa-choice group' },
-          el('legend', { class: 'label' }, 'Cumulative GPA for the §2.2 check'),
-          el(
-            'p',
-            { class: 'hint' },
-            `Your transcript's graduate-level cumulative GPA includes graduate courses taken at Notre Dame before ${termLabel(entry)} (an earlier program). The handbook's "cumulative GPA" is the registrar's figure; if the two straddle 3.0, ask the DGS which applies.${tp.undergraduateGpa !== undefined ? ` The undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used.` : ''}`,
-          ),
-          radio('transcript', `Use the transcript's graduate cumulative GPA (${tp.gpa.toFixed(2)})`, '— as the registrar computes it, all graduate coursework at Notre Dame'),
-          radio('program', `Use this program's courses only (${tp.programGpa.toFixed(2)})`, `— computed from the graded rows from ${termLabel(entry)} on`),
-          radio('none', 'Leave the GPA field as it is', ''),
-        ),
-      );
-    } else if (tp.gpa !== undefined) {
-      const cb = el('input', { type: 'checkbox', 'data-key': 'preview.gpa', onchange: (e) => (tp.gpaChoice = (e.target as HTMLInputElement).checked ? 'transcript' : 'none') });
-      cb.checked = tp.gpaChoice === 'transcript';
-      box.append(
-        el(
-          'label',
-          { class: 'attest' },
-          cb,
-          ` Use the transcript's ${tp.undergraduateGpa !== undefined ? 'graduate-level ' : ''}cumulative GPA (${tp.gpa.toFixed(2)}) for the §2.2 check${tp.undergraduateGpa !== undefined ? ` — the undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used` : ''}`,
-        ),
-      );
-    } else if (tp.undergraduateGpa !== undefined) {
-      box.append(
-        el(
-          'p',
-          { class: 'hint warn' },
-          `No graduate-level cumulative GPA was found on this transcript yet — the undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) does not apply to §2.2. Enter your graduate GPA under Coursework once your first grades post.`,
-        ),
-      );
-    }
-    box.append(
-      el(
-        'div',
-        { class: 'save-buttons' },
-        el(
-          'button',
-          {
-            class: 'btn primary',
-            'data-key': 'preview.add',
-            onclick: () => {
-              const picked = tp.courses.filter((_, i) => tp.selected[i]);
-              let priorAdded = 0;
-              let priorSet: Student['priorMs'] | undefined;
-              let bachelorsSet: Term | undefined;
-              let ndMastersSet = false;
-              update((s) => {
-                if (tp.useEntryTerm && tp.entryTerm) {
-                  s.entryTerm = { ...tp.entryTerm.term };
-                  s.entryTermInferred = { how: tp.entryTerm.how, alternative: tp.entryTerm.alternative };
-                  refusedValues.delete('standing.year'); // the transcript answered this box
-                }
-                // Likewise for the two boxes the import fills in below: a
-                // refusal left over from something typed earlier would show a
-                // rejected figure beside a row now reading the transcript's
-                // (R1, 2026-09-18).
-                if (tp.gpaChoice !== 'none') refusedValues.delete('courses.gpa');
-                // The bachelor's award term (2026-09-06), before the prior
-                // rows are filed — they follow it when unlabelled.
-                const bs = bachelorsAwardFrom(tp.degreesAwarded);
-                if (bs && bachelorsMayBeSet(s)) {
-                  refusedValues.delete('standing.bachelors.year');
-                  s.bachelorsAwarded = bs.term;
-                  s.bachelorsAwardedInferred = { how: `the ${bs.degree.name} awarded ${bs.degree.date} on your Notre Dame transcript` };
-                  bachelorsSet = bs.term;
-                }
-                for (const c of picked) {
-                  const entryCourse: CourseEntry = {
-                    courseId: c.courseId,
-                    title: c.title,
-                    credits: c.credits,
-                    term: c.term,
-                    grade: c.grade,
-                    origin: c.origin,
-                    institution: c.institution,
-                    registeredLevel: c.origin === 'nd' ? c.level : undefined,
-                    fromNdTranscript: true, // so "Remove" can take back exactly these rows
-                  };
-                  s.courses.push(entryCourse);
-                }
-                // Pre-entry Notre Dame courses → prior coursework (2026-09-05).
-                priorAdded = reclassifyNotreDameCourses(s).toPrior;
-                // A Notre Dame master's degree awarded BEFORE this program is
-                // one the student already holds (DGS 2026-09-09) — §4.5's
-                // along-the-way MSCSE is then not something to earn, and the
-                // report leaves that row out. A master's dated after the entry
-                // term is the along-the-way award itself, so the date decides;
-                // an undated conferral line leaves the checkbox to the student.
-                // Kept on the record so the reading can be made again when the
-                // entry term changes — which for a 4+1 it usually does.
-                s.ndDegrees = tp.degreesAwarded
-                  .filter((d) => d.date !== undefined && d.level !== 'other')
-                  .map((d) => ({ level: d.level as 'bachelors' | 'masters' | 'phd', date: d.date! }));
-                deriveNdMasters(s);
-                ndMastersSet = s.ndMasters !== undefined;
-                // Prior GRADUATE coursework at Notre Dame sets "Prior graduate
-                // study" the way an uploaded Master's transcript does
-                // (2026-09-03 rule): completed when the transcript shows a
-                // graduate degree awarded, else "not completed" + the warning.
-                // derivePriorMs carries the Notre Dame master's; an UNDATED
-                // conferral line still counts as "completed" here, since it
-                // says the degree exists even where it cannot be placed.
-                const before = s.priorMs;
-                if (s.priorMs === 'none' && s.ndMasters === undefined && hasPriorGraduateStudy(s) && tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd')) {
-                  s.priorMs = 'completed';
-                  s.priorMsInferred = true;
-                }
-                derivePriorMs(s);
-                if (s.priorMs !== before) priorSet = s.priorMs;
-                if (tp.gpaChoice === 'transcript' && tp.gpa !== undefined) {
-                  s.gpa = tp.gpa;
-                  s.gpaSource = { basis: 'transcript-graduate', programGpa: tp.programGpa, undergraduateGpa: tp.undergraduateGpa };
-                } else if (tp.gpaChoice === 'program' && tp.programGpa !== undefined) {
-                  s.gpa = tp.programGpa;
-                  s.gpaSource = { basis: 'program-only', transcriptGpa: tp.gpa, undergraduateGpa: tp.undergraduateGpa };
-                }
-              });
-              const appliedEntry = tp.useEntryTerm && tp.entryTerm ? tp.entryTerm.term : undefined;
-              transcriptPreview = undefined;
-              focusAfterRender = 'import.nd';
-              render();
-              // "Check it under Your standing" once, at the end, for the entry
-              // term and the bachelor's term together — it used to follow each
-              // (trim review 2026-09-18, P-90). The unfinished-M.S. clause keeps
-              // its own, different instruction.
-              const toCheck = (appliedEntry ? 1 : 0) + (bachelorsSet ? 1 : 0);
-              toast(
-                `Added ${picked.length} course${picked.length === 1 ? '' : 's'} from the transcript` +
-                  (appliedEntry ? `; entry term set to ${termLabel(appliedEntry)}` : '') +
-                  (priorAdded > 0 ? `; ${priorAdded} filed as coursework from before you entered the program` : '') +
-                  (priorSet === 'completed'
-                    ? '; Prior graduate study set to “Completed prior M.S. or Ph.D.” from the degree awarded on your transcript'
-                    : priorSet === 'unfinished'
-                      ? '; Prior graduate study set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it'
-                      : '') +
-                  (bachelorsSet ? `; “Bachelor’s degree awarded” set to ${termLabel(bachelorsSet)} from your transcript` : '') +
-                  (ndMastersSet ? '; ticked “I already hold the MSCSE from Notre Dame” from the degree on your transcript — the §4.5 along-the-way row is left out for you' : '') +
-                  (toCheck === 2 ? ' — check both under Your standing' : toCheck === 1 ? ' — check it under Your standing' : '') +
-                  '.',
-              );
-            },
-          },
-          `Add ${tp.selected.filter(Boolean).length} selected course${tp.selected.filter(Boolean).length === 1 ? '' : 's'}`,
-        ),
-        el('button', { class: 'btn', 'data-key': 'preview.cancel', onclick: () => { transcriptPreview = undefined; focusAfterRender = 'import.nd'; render(); } }, 'Cancel'),
-      ),
-    );
-    return box;
-  }
-
   function courseForm(): HTMLElement {
-    const datalist = el('datalist', { id: 'known-courses' });
-    for (const [id, rows] of rules.courses) {
-      const row = rows[rows.length - 1]!;
-      if (!row.active) continue;
-      const opt = el('option', { value: id });
-      opt.label = `${id} — ${row.title}`;
-      datalist.append(opt);
-    }
-
     // Visible labels instead of placeholders (usability review 2026-09-05,
     // item 5): a placeholder vanishes as soon as the student types.
     const idInput = el('input', { list: 'known-courses', class: 'course-id', id: 'new-course-id', 'data-key': 'course.new.id', 'aria-describedby': 'new-course-id-hint' });
-    const idError = el('p', { class: 'field-error hidden', id: 'new-course-id-error', role: 'alert' });
+    const idError = errorLine('new-course-id-error');
     const titleInput = el('input', { class: 'course-title', 'data-key': 'course.new.title' });
     const creditsInput = el('input', {
       type: 'number',
@@ -2106,17 +1280,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'data-key': 'course.new.credits',
       id: 'new-course-credits',
     });
-    const creditsError = el('p', { class: 'field-error hidden', id: 'new-course-credits-error', role: 'alert' });
+    const creditsError = errorLine('new-course-credits-error');
     const seasonSel = el('select', { 'aria-label': 'Term — semester', 'data-key': 'course.new.season' });
-    for (const se of SEASONS) seasonSel.append(option(se, se[0]!.toUpperCase() + se.slice(1)));
+    seasonSel.append(...seasonOptions());
     const yearInput = el('input', {
       type: 'number',
       min: String(TERM_YEAR_RANGE.min),
       'aria-label': 'Term — year',
       'data-key': 'course.new.year',
-      value: String(new Date().getFullYear()),
+      value: String(termOfDate(todayIso).year), // the year at Notre Dame, like every other date on the page — not the device clock
     });
-    const termYearError = el('p', { class: 'field-error hidden', id: 'new-course-year-error', role: 'alert' });
+    const termYearError = errorLine('new-course-year-error');
     const gradeSel = el('select', { 'data-key': 'course.new.grade' });
     for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, g === 'IP'));
     const originSel = el('select', { 'data-key': 'course.new.origin' });
@@ -2127,8 +1301,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     institutionInput.addEventListener('change', () => {
       (institutionInput as HTMLInputElement).value = canonicalUniversityName((institutionInput as HTMLInputElement).value);
     });
-    // (The per-course core-area claim dropdown was retired 2026-09-03 —
-    // the DGS's ExternalCourses rulings are the only §4.4.1 external path.)
     // Level for a course from another university — two choices since
     // 2026-09-06 (DGS: the generic "graduate coursework" overlapped with
     // "from a previous Master's / Ph.D."): Graduate (after the bachelor's; a
@@ -2166,13 +1338,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       levelField.classList.toggle('hidden', !transfer);
     });
 
-    const clearIdError = () => {
-      idError.classList.add('hidden');
-      idError.textContent = '';
-      idInput.removeAttribute('aria-invalid');
-      idInput.setAttribute('aria-describedby', 'new-course-id-hint');
-    };
-    idInput.addEventListener('input', clearIdError);
+    idInput.addEventListener('input', () => clearInvalid(idInput, idError, 'new-course-id-hint'));
     idInput.addEventListener('change', () => {
       const id = canonicalCourseId(idInput.value);
       idInput.value = id;
@@ -2204,30 +1370,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
      * 999 credits, in a box whose `max` is 15, used to be accepted and to put
      * "1005 pending review/approval" on the 60-credit row). */
     const refuseEntry = (input: HTMLElement, error: HTMLElement, message: string): void => {
-      error.textContent = message;
-      error.classList.remove('hidden');
-      input.setAttribute('aria-invalid', 'true');
-      input.setAttribute('aria-describedby', error.id);
+      markInvalid(input, error, message);
       toast(message); // heard as well as seen (the polite live region)
       input.focus();
     };
-    const clearEntryError = (input: HTMLElement, error: HTMLElement): void => {
-      error.classList.add('hidden');
-      error.textContent = '';
-      input.removeAttribute('aria-invalid');
-      input.removeAttribute('aria-describedby');
-    };
-    creditsInput.addEventListener('input', () => clearEntryError(creditsInput, creditsError));
-    yearInput.addEventListener('input', () => clearEntryError(yearInput, termYearError));
+    creditsInput.addEventListener('input', () => clearInvalid(creditsInput, creditsError));
+    yearInput.addEventListener('input', () => clearInvalid(yearInput, termYearError));
 
     const add = async () => {
       const id = canonicalCourseId(idInput.value);
       if (!id) {
         // A persistent error next to the field, not a vanishing toast (item 6).
-        idError.textContent = 'Enter a course number, such as CSE 60641.';
-        idError.classList.remove('hidden');
-        idInput.setAttribute('aria-invalid', 'true');
-        idInput.setAttribute('aria-describedby', 'new-course-id-error new-course-id-hint');
+        markInvalid(idInput, idError, 'Enter a course number, such as CSE 60641.', 'new-course-id-hint');
         idInput.focus();
         return;
       }
@@ -2276,7 +1430,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         });
         if (!yes) return;
       }
-      focusAfterRender = 'course.new.id'; // ready for the next course
+      setFocusAfterRender('course.new.id'); // ready for the next course
       // A Notre Dame course dated before the entry term is coursework from an
       // earlier Notre Dame degree, whoever typed it (2026-09-09). The import
       // path has always re-filed those; a hand-typed one used to stay program
@@ -2300,7 +1454,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'course-form' },
-      datalist,
+      knownCoursesList,
       el(
         'div',
         { class: 'row1' },
@@ -2383,7 +1537,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         rows.forEach((r, i) => {
           if (i > 0) list.append(el('span', { class: 'sep', 'aria-hidden': 'true' }, ' · '));
           // The short name in the list, the full requirement title on hover.
-          list.append(el('a', { class: 'req-link', href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}`, title: r.long }, r.title));
+          list.append(el('a', { class: 'req-link', href: `#${reqAnchorId(r.id)}`, title: r.long }, r.title));
         });
         countsCell.append(list);
       }
@@ -2406,7 +1560,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         const helpful = new Set((groupChoices[c.courseId] ?? []).filter((g) => rowChoices.includes(g)));
         // Short forms in this column (DGS 2026-09-08): the full names do not
         // fit a dropdown beside a course, and the glossary keeps them in full.
-        const groupName = (g: string) => shortName(rules.categoryGroups.find((x) => x.code === g)?.name ?? g);
+        const groupName = (g: string) => groupShortName(rules, g);
         sel.append(option('', 'Assign group…', !c.assignedGroup));
         // Two headings rather than a note on each option: the closed dropdown
         // then shows the plain group name, and opening it shows which choices
@@ -2519,7 +1673,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             // Focus moves to the row that takes this one's place (the next
             // course slides into this index), else the previous row, else the form.
             const last = index === student.courses.length - 1;
-            focusAfterRender = last ? (index > 0 ? `course.${index - 1}.remove` : 'course.new.id') : `course.${index}.remove`;
+            setFocusAfterRender(last ? (index > 0 ? `course.${index - 1}.remove` : 'course.new.id') : `course.${index}.remove`);
             update((s) => void s.courses.splice(index, 1));
             toastWithAction(
               `${removed.courseId} removed.`,
@@ -2556,9 +1710,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // other half of the two roles. The DGS decides eligibility (the review
   // request above); the Grad Admin processes what has been decided and keeps
   // the official record. Placed after the milestones, whose dates it reports.
-  function askGradAdminCard(report: ReturnType<typeof audit>): HTMLElement {
-    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
+  function askGradAdminCard(report: ReturnType<typeof audit>, classified: readonly ClassifiedCourse[]): HTMLElement {
+    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa }, classified);
     const n = built.items.count;
+    const decider = deciderContact(student.program);
     // The Grad Admin needs the original transcripts only to process §5.2
     // transfer credit; nothing else in the request is decided from a PDF, so
     // the attach step, the email's "Attached:" line and the card's clause
@@ -2579,11 +1734,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             {
               ...attrs,
               onclick: () => {
-                // (The self-check file used to be saved and attached here,
-                // 2026-09-06 — dropped, DGS 2026-09-15: the request is the message.)
                 void copyDialog({
                   what: 'Processing request',
-                  recipient: { role: GRAD_ADMIN.role, name: GRAD_ADMIN.name, email: GRAD_ADMIN.email, cc: { role: deciderContact(student.program).role, name: deciderContact(student.program).name, email: deciderContact(student.program).email } },
+                  recipient: { role: GRAD_ADMIN.role, name: GRAD_ADMIN.name, email: GRAD_ADMIN.email, cc: { role: decider.role, name: decider.name, email: decider.email } },
                   subject: built.subject,
                   text: built.text,
                   html: built.html,
@@ -2597,7 +1750,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'section',
       { class: 'card grad-admin-request' },
-      el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, `${n} item${n === 1 ? '' : 's'}`)),
+      el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, plural(n, 'item'))),
       // Two people, two jobs (DGS 2026-09-06; the button sentence DGS
       // 2026-09-15). While there is nothing to send, the paragraph told the
       // student to click a button that does nothing, so the n = 0 state is
@@ -2631,7 +1784,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
-  function milestonesCard(): HTMLElement {
+  function milestonesCard(classified: readonly ClassifiedCourse[]): HTMLElement {
     const m = student.milestones;
     const a = student.attestations;
     const card = el(
@@ -2702,7 +1855,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // It is shown only when it can settle something: with no reviewed
     // transfer course it is a dead control, so the explanation stands alone.
     {
-      const transfers = classify(student, rules).classified.filter(
+      const transfers = classified.filter(
         (c) => c.entry.origin === 'transfer' && c.entry.degreeLevel !== 'bachelors' && !c.superseded && c.caps.includes('transfer'),
       );
       const reviewed = transfers.filter((c) => c.reviewed === true);
@@ -2726,10 +1879,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       card.append(
         attestation('The DGS extended my qualifier deadline (§4.4)', a.qualifierExtensionGranted, (v, s) => (s.attestations.qualifierExtensionGranted = v)),
       );
-      // (The per-area "previously passed elsewhere" checkboxes were retired
-      // 2026-09-03 — a core area from a previous institution now counts only
-      // via the DGS's ExternalCourses ruling, fed by the Transcripts card.
-      // Old saved files with the attestation still load; it is ignored.)
     }
     return card;
   }
@@ -2808,7 +1957,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // A number the file carried that the app would not keep goes back into
         // its own field, refused, rather than disappearing (R1, 2026-09-18).
         if (refusals.length > 0) {
-          applyRefusals(refusals);
+          applyRefusals(refusedValues, refusals);
           render();
         }
         // "File", as the buttons say (trim review 2026-09-18, P-62).
@@ -2854,12 +2003,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   // ---------- diagnostics ----------
 
-  function diagnosticsCard(): HTMLElement {
+  function diagnosticsCard(): HTMLElement | null {
     const issues = rules.issues;
     // Students see this only when the sheet has ERRORS (usability review
     // 2026-09-05, item 19); warnings alone are the DGS's business and are
     // printed by `npm run sync-sheet`.
-    if (!issues.some((i) => i.severity === 'error')) return el('div', {});
+    if (!issues.some((i) => i.severity === 'error')) return null;
     const details = el('details', { class: 'card diagnostics', 'data-key': 'diagnostics' });
     details.append(
       el(
@@ -2936,76 +2085,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   // ---------- example / clear ----------
 
-  /** The example for the program the student is actually looking at (DGS
-   * 2026-09-18). One example for both was a Ph.D. record: an MSCSE student who
-   * pressed "Load example" to see what the tool does was shown a dissertation,
-   * two research seminars and a qualifying examination, and the report switched
-   * to §4 under them. Each example is a real mid-degree record for its own
-   * degree, built from courses the sheet actually carries. */
-  function exampleFor(program: Program): Student {
-    // "Last year" and "this year" against Notre Dame's own date, which the
-    // loading card settled.
-    const thisYear = termOfDate(today.iso).year;
-    const lastYear = thisYear - 1;
-    const common = {
-      schemaVersion: 1 as const,
-      isExample: true as const,
-      // A student a year into the degree, so the finished courses sit in terms
-      // that have finished. Dated from this year rather than hard-coded, so the
-      // example does not drift into the past as the years pass — and so a
-      // final grade never lands in a semester that has not happened, which the
-      // report warns about, in an example meant to show the tool working.
-      entryTerm: { season: 'fall' as const, year: lastYear },
-      // The example is a complete record: the bachelor's term is required
-      // (2026-09-07), so leaving it out made the demo warn about itself.
-      bachelorsAwarded: { season: 'spring' as const, year: lastYear },
-      priorMs: 'none' as const,
-      milestones: { ...EXAMPLE_MILESTONES },
-      attestations: { ...EXAMPLE_ATTESTATIONS },
-    };
-    // Every seeded row is tagged (R5, 2026-09-18), so the banner can count
-    // what is the example's and "Remove the example rows" can take back
-    // exactly those, leaving anything the student added.
-    if (program === 'mscse') {
-      return {
-        ...common,
-        program: 'mscse',
-        // §3.4's two routes: the project, which the tool also infers from
-        // CSE 68902 being on the record.
-        msOption: 'project',
-        gpa: 3.6,
-        // The 40000-level pair is deliberate: §3.2 allows six credits and this
-        // record uses exactly six, so the cap reads as met rather than unused.
-        attestations: { ...EXAMPLE_ATTESTATIONS, dgsApproved4xxxx: true },
-        courses: [
-          { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'A', origin: 'nd', fromExample: true },
-          { courseId: 'CSE 60535', title: 'Computer Vision', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'A-', origin: 'nd', fromExample: true },
-          { courseId: 'CSE 40113', title: 'Design/Analysis of Algorithms', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'B+', origin: 'nd', fromExample: true },
-          { courseId: 'CSE 60770', title: 'Secure Software Engineering', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'A', origin: 'nd', fromExample: true },
-          { courseId: 'CSE 60424', title: 'Graduate Human Computer Interaction', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'B+', origin: 'nd', fromExample: true },
-          { courseId: 'CSE 40166', title: 'Computer Graphics', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'B', origin: 'nd', fromExample: true },
-          { courseId: 'CSE 60625', title: 'Advanced Topics in Machine Learning', credits: 3, term: { season: 'fall', year: thisYear }, grade: 'IP', origin: 'nd', fromExample: true },
-          { courseId: 'CSE 68902', title: 'Thesis Project', credits: 6, term: { season: 'fall', year: thisYear }, grade: 'IP', origin: 'nd', fromExample: true },
-        ],
-      };
-    }
-    return {
-      ...common,
-      program: 'phd',
-      gpa: 3.5,
-      courses: [
-        { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'A', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 63801', title: 'Research Seminar I', credits: 1, term: { season: 'fall', year: lastYear }, grade: 'S', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 60111', title: 'Complexity and Algorithms', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'B-', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 60321', title: 'Advanced Computer Architecture', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'B+', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 63802', title: 'Research Seminar II', credits: 1, term: { season: 'spring', year: thisYear }, grade: 'S', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 60770', title: 'Secure Software Engineering', credits: 3, term: { season: 'fall', year: thisYear }, grade: 'IP', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 60876', title: 'Research Methods', credits: 3, term: { season: 'spring', year: thisYear + 1 }, grade: 'IP', origin: 'nd', assignedGroup: 'dsai', fromExample: true },
-        { courseId: 'CSE 98900', title: 'Research and Dissertation', credits: 6, term: { season: 'spring', year: thisYear + 1 }, grade: 'IP', origin: 'nd', fromExample: true },
-      ],
-    };
-  }
-
   function loadExample(): void {
     // The example matches the tab the student is on, so pressing it never
     // changes which degree the report is about (DGS 2026-09-18).
@@ -3016,7 +2095,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     }
     cancelUndo(); // a stale Undo would splice old rows into the replaced record
     refusedValues.clear(); // …and a stale refusal would mark a box the record no longer has
-    student = exampleFor(program);
+    student = exampleFor(program, todayIso);
     saveLocal(student);
     render();
     // No visible toast: the banner at the top of the inputs says the same
@@ -3077,7 +2156,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       s.isExample = undefined; // nothing of the example is left to announce
     });
     toastWithAction(
-      `${removed} example row${removed === 1 ? '' : 's'} removed${student.courses.length > 0 ? ` — your own ${student.courses.length} stay${student.courses.length === 1 ? 's' : ''}` : ''}.`,
+      `${plural(removed, 'example row')} removed${student.courses.length > 0 ? ` — your own ${student.courses.length} stay${student.courses.length === 1 ? 's' : ''}` : ''}.`,
       'Undo',
       () => {
         student = before;
@@ -3097,45 +2176,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     render();
   }
 
-  // ---------- small helpers ----------
-
-  function field(label: string, control: HTMLElement): HTMLElement {
-    return el('label', { class: 'field' }, el('span', { class: 'label' }, label), control);
-  }
-  function labelWrap(label: string, control: HTMLElement, hint?: string): HTMLElement {
-    return el(
-      'label',
-      { class: 'field inline' },
-      el('span', { class: 'label' }, label, hint ? ' ' : '', hint ? el('span', { class: 'label-hint' }, hint) : null),
-      control,
-    );
-  }
-  /** A radio group: every option visible, one tap each (item 12). The
-   * `data-key`s are per option, so focus lands back on the chosen radio after
-   * the page rebuilds. */
-  function radios(keyPrefix: string, options: [string, string][], current: string, onPick: (value: string) => void): HTMLElement {
-    const name = keyPrefix.replace(/\W+/g, '-');
-    return el(
-      'div',
-      { class: 'radios' },
-      ...options.map(([value, label]) => {
-        const r = el('input', { type: 'radio', name, value, 'data-key': `${keyPrefix}.${value}`, onchange: () => onPick(value) });
-        r.checked = value === current;
-        return el('label', { class: 'radio' }, r, ` ${label}`);
-      }),
-    );
-  }
-  /** Several controls answering ONE question (entry term = semester + year):
-   * a fieldset whose legend is the question, so each control keeps its own
-   * accessible name and the group its meaning (WCAG 1.3.1). */
-  function fieldset(legend: string, controls: HTMLElement, variant: 'block' | 'inline' = 'block'): HTMLElement {
-    return el('fieldset', { class: `field${variant === 'inline' ? ' inline' : ''} group` }, el('legend', { class: 'label' }, legend), controls);
-  }
-
   // A record already on this device may carry a number an older build let
   // through (R1, 2026-09-18): it is refused now, shown back in its field, and
   // said out loud once the page is up — never dropped in silence.
-  if (loadRefusals.length > 0) applyRefusals(loadRefusals);
+  if (loadRefusals.length > 0) applyRefusals(refusedValues, loadRefusals);
   render();
   for (const r of loadRefusals) toast(r.message);
 }

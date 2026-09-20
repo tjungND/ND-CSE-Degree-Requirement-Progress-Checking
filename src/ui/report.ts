@@ -20,6 +20,21 @@ const STATUS_LABEL: Record<Status, string> = {
   not_applicable: 'Does not apply',
 };
 
+/** The rows the headline counts: informational rows (the per-course sign-off
+ * list, the along-the-way M.S.) and "does not apply" rows are outside the score. */
+export function scoredRows(report: AuditReport): RequirementResult[] {
+  return report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
+}
+
+/** A requirement id as an element-id fragment: `phd.qualifier.core.os` → `phd-qualifier-core-os`. */
+function idSlug(id: string): string {
+  return id.replace(/[^a-z0-9]+/gi, '-');
+}
+/** The `id` of a requirement's card on the page — what every link to it targets. */
+export function reqAnchorId(id: string): string {
+  return `req-${idSlug(id)}`;
+}
+
 function dial(report: AuditReport, untouched = false): HTMLElement {
   const { met, conditional, scored } = report.summary;
   const pct = scored === 0 ? 0 : met / scored;
@@ -71,8 +86,7 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   // review 2026-09-05, item 17); when everything passes it says what "all"
   // means here — the automatic checks, not the DGS's confirmation.
   const remaining = scored - met;
-  const scoredRows = report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
-  const inProgress = scoredRows.filter((r) => r.status === 'in_progress').length;
+  const inProgress = scoredRows(report).filter((r) => r.status === 'in_progress').length;
   // Conditional satisfaction stands in the headline as its own count. It was a
   // parenthetical on the "not yet" number — "6 not yet (2 need a DGS
   // decision)" — which filed two conditionally satisfied requirements under
@@ -161,10 +175,6 @@ function meters(report: AuditReport): HTMLElement {
       ),
     );
   }
-  // The status key R2 (2026-09-18) put here moved into the headline (trim
-  // review 2026-09-18, P-49): the dots now sit beside the counts they explain,
-  // and an untouched record — which has none of the states — shows no key at
-  // all (P-48).
   return box;
 }
 
@@ -179,7 +189,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // disclosure button (usability review 2026-09-05, item 24): its expanded
   // state is exposed, and its name says what it does — the tooltip alone
   // reached neither keyboard nor touch users.
-  const quoteId = `rule-quote-${r.id.replace(/[^a-z0-9]+/gi, '-')}`;
+  const quoteId = `rule-quote-${idSlug(r.id)}`;
   const quote = el('div', { class: 'rule-quote hidden', id: quoteId }, `Handbook ${r.citation.section}: “${r.citation.quote}”`);
   const cite = el(
     'button',
@@ -247,7 +257,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
       : el('div', { class: 'req-detail', 'data-keep-dgs': '' }, r.detail);
   return el(
     'div',
-    { class: `req s-${r.status}`, id: `req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` },
+    { class: `req s-${r.status}`, id: reqAnchorId(r.id) },
     head,
     chips.childElementCount > 0 ? chips : null,
     detailNode,
@@ -280,11 +290,11 @@ function courseListLink(r: RequirementResult): HTMLElement | undefined {
  * time at the TOP of the page on phones and small tablets, where the full
  * report sits below every input card (usability review 2026-09-05, item 2).
  * The links jump between the two halves of the page. */
-export function renderSummary(report: AuditReport, untouched = false): HTMLElement {
+export function renderSummary(report: AuditReport): HTMLElement {
   return el(
     'section',
     { class: 'summary-mobile', 'aria-label': 'Your result so far' },
-    dial(report, untouched),
+    dial(report),
     meters(report),
     el('a', { class: 'jump-link', href: '#report' }, 'See the full report ↓'),
   );
@@ -318,7 +328,7 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
             el(
               'details',
               { class: 'attention-fold', 'data-key': 'report.attention' },
-              el('summary', {}, `What this degree requires — ${report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable').length} checks`),
+              el('summary', {}, `What this degree requires — ${scoredRows(report).length} checks`),
               attention,
             ),
           ]
@@ -383,12 +393,12 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
  * full ranked list returns the moment anything is entered. */
 function attentionList(report: AuditReport, untouched = false): HTMLElement | null {
   if (untouched) {
-    const counted = report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
+    const counted = scoredRows(report);
     if (counted.length === 0) return null;
     return el(
       'section',
       { class: 'attention', 'aria-label': 'What this degree requires' },
-      el('ul', {}, ...counted.map((r) => el('li', {}, el('a', { href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` }, r.title)))),
+      el('ul', {}, ...counted.map((r) => el('li', {}, el('a', { href: `#${reqAnchorId(r.id)}` }, r.title)))),
     );
   }
   // Ranked by URGENCY, not by status (blue-team B5, 2026-09-18). Filtering on
@@ -455,7 +465,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
         el(
           'li',
           {},
-          el('a', { href: `#req-${r.id.replace(/[^a-z0-9]+/gi, '-')}` }, r.title),
+          el('a', { href: `#${reqAnchorId(r.id)}` }, r.title),
           el('span', { class: `pill s-${r.status} small` }, STATUS_LABEL[r.status]),
           r.deadline && r.deadline.state === 'overdue' ? el('span', { class: 'attention-overdue' }, ' — deadline passed') : null,
           el('span', { class: 'attention-next', 'data-keep-dgs': '' }, ` ${firstSentence(r.detail)}`),

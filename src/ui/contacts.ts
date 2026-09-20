@@ -100,7 +100,9 @@ export function reportToDgs(prefix: string): (string | Node)[] {
   return [prefix, ' the DGS (', mailto(DGS.email), ').'];
 }
 
-/** The "Who to contact" card shown at the top right of every page. */
+/** The "Who to contact" card: at the END of both pages — the self-check's
+ * footer (B1, 2026-09-18) and the course-rules page's last block (its masthead
+ * column above 900 px), and the footer of either in embed mode (2026-09-16). */
 export function contactCard(): HTMLElement {
   // A region, not an <aside>: it sits inside the page header, and a
   // complementary landmark must not be nested in another landmark (WCAG /

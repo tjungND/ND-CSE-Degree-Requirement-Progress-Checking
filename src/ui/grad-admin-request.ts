@@ -19,13 +19,16 @@
 // the word "audit" (the page is a self-check).
 import { formatCredits } from '../engine/credits.ts';
 import type { Rules } from '../data/types.ts';
-import { classify } from '../engine/allocate.ts';
+import { classify, type ClassifiedCourse } from '../engine/allocate.ts';
 import { termLabel } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, Milestones, RequirementResult, Student } from '../engine/types.ts';
 import { DO_NOT_MODIFY_MARKER, EDITABLE_MARKER, MARKER_DIVIDER } from '../transcript/external.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
+import { esc, plural, programLabel, programShort } from './email-html.ts';
 import { formatYmdLong } from './handbook.ts';
+
+export { selfCheckFileName } from './state.ts';
 
 export interface MilestoneField {
   key: keyof Milestones;
@@ -129,8 +132,11 @@ function metTable(r: RequirementResult, student: Student): MetTable {
   return { heading, columns: ['Evidence'], rows: [[r.detail || 'met']] };
 }
 
-export function processingItems(report: AuditReport, student: Student, rules: Rules): ProcessingItems {
-  const { classified } = classify(student, rules);
+/** `classified` — the engine's classification of the student's courses, when
+ * the caller already has it for this record (app.ts classifies once per
+ * render); otherwise it is computed here. */
+export function processingItems(report: AuditReport, student: Student, rules: Rules, classified?: readonly ClassifiedCourse[]): ProcessingItems {
+  classified ??= classify(student, rules).classified;
   const attested = student.attestations.transferApproved === true;
   const transfers: ProcessingTransfer[] = classified
     .filter(
@@ -173,7 +179,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
     ...(msAlongTheWay ? ['MSCSE along the way — the self-check shows its requirements met (§4.5)'] : []),
     ...(met.length > 0
-      ? [`${met.length} requirement${met.length === 1 ? '' : 's'} met so far — the request lists each with the courses, semesters or dates that meet it, for the record`]
+      ? [`${plural(met.length, 'requirement')} met so far — the request lists each with the courses, semesters or dates that meet it, for the record`]
       : []),
   ];
   return {
@@ -198,21 +204,15 @@ export interface GradAdminRequestOptions {
   gpa?: number;
 }
 
-/** The name of the file "Save to a file" writes (state.ts exportFile). */
-export function selfCheckFileName(program: Student['program']): string {
-  return `cse-degree-audit-${program}.json`;
-}
-
 export function gradAdminRequest(
   report: AuditReport,
   student: Student,
   rules: Rules,
   opts: GradAdminRequestOptions,
+  classified?: readonly ClassifiedCourse[],
 ): { subject: string; text: string; html: string; items: ProcessingItems } {
-  const items = processingItems(report, student, rules);
-  const programShort = report.program === 'mscse' ? 'M.S. in CSE' : 'Ph.D.';
-  const programLabel = report.program === 'mscse' ? 'M.S. in CSE (Handbook §3)' : 'Ph.D. (Handbook §4)';
-  const subject = `Processing request (degree self-check) — ${programShort}, entered ${opts.entryTerm}`;
+  const items = processingItems(report, student, rules, classified);
+  const subject = `Processing request (degree self-check) — ${programShort(report.program)}, entered ${opts.entryTerm}`;
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
   const prior = opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
   // "in cc" said once, in the intro; the closing's "The DGS is in cc." repeated
@@ -220,7 +220,7 @@ export function gradAdminRequest(
   const intro =
     'Could you process the items below for my degree record? The DGS, in cc, decides eligibility; this request is only for processing what has already been decided.';
   const standing =
-    `My standing from the CSE degree self-check tool, as of ${asOf}: ${programLabel}; entered ${opts.entryTerm}; ${prior}; ` +
+    `My standing from the CSE degree self-check tool, as of ${asOf}: ${programLabel(report.program)}; entered ${opts.entryTerm}; ${prior}; ` +
     `cumulative GPA ${opts.gpa !== undefined ? opts.gpa.toFixed(2) : 'not entered yet'}.`;
   // (The self-check file is no longer attached — DGS 2026-09-15.) The
   // "whichever apply" hedge instructs the student and lives in the dialog step
@@ -286,7 +286,6 @@ export function gradAdminRequest(
     `${closing}\n`;
 
   // ---- HTML ----
-  const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const htmlTable = (columns: string[], rows: string[][]): string =>
     `<table border="1" cellspacing="0" cellpadding="4"><tr>${columns.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>` +
     rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') +

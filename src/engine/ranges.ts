@@ -99,7 +99,7 @@ export function usableGpa(gpa: unknown): number | undefined {
 /** The bounds as a refusal sentence says them: "between 0.00 and 4.00", or
  * "2000 or later" where there is no ceiling (only the year ranges are
  * open-ended, hence "later" rather than "more"). */
-export function rangeBounds(range: NumberRange): string {
+function rangeBounds(range: NumberRange): string {
   const min = range.min.toFixed(range.decimals);
   return range.max === undefined ? `${min} or later` : `between ${min} and ${range.max.toFixed(range.decimals)}`;
 }

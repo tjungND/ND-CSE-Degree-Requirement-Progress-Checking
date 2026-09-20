@@ -18,7 +18,9 @@ import type { AuditReport, DetailPart, RequirementResult, Status } from '../engi
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
+import { esc, plural, programLabel, programShort } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
+import { scoredRows } from './report.ts';
 
 export interface AdvisorSummaryOptions {
   todayIso: string;
@@ -46,11 +48,9 @@ const STATUS_TAG: Record<Status, { word: string; color: Color }> = {
 
 export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions): { text: string; html: string; subject: string } {
   const rows = report.requirements;
-  // Counts as the page's headline counts them: informational rows (the
-  // per-course sign-off list, the along-the-way M.S.) and "does not apply"
-  // rows are outside the score.
-  const scoredRows = rows.filter((r) => !r.informational && r.status !== 'not_applicable');
-  const count = (status: Status) => scoredRows.filter((r) => r.status === status).length;
+  // Counts as the page's headline counts them (scoredRows, report.ts).
+  const scored = scoredRows(report);
+  const count = (status: Status) => scored.filter((r) => r.status === status).length;
   const n = {
     met: report.summary.met,
     scored: report.summary.scored,
@@ -58,24 +58,21 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     inProgress: count('in_progress'),
     waiting: count('needs_dgs_review'),
     unchecked: count('cannot_evaluate'),
-    overdue: scoredRows.filter((r) => r.status === 'unmet' && r.deadline?.state === 'overdue').length,
+    overdue: scored.filter((r) => r.status === 'unmet' && r.deadline?.state === 'overdue').length,
   };
-  const plural = (k: number, word: string) => `${k} ${word}${k === 1 ? '' : 's'}`;
 
-  const programLabel = report.program === 'mscse' ? 'M.S. in CSE (Handbook §3)' : 'Ph.D. (Handbook §4)';
-  const programShort = report.program === 'mscse' ? 'M.S. in CSE' : 'Ph.D.';
   const headlineFact =
     n.unmet > 0
       ? `${plural(n.unmet, 'requirement')} not yet met${n.overdue > 0 ? `, ${plural(n.overdue, 'deadline')} passed` : ''}`
       : n.scored > 0 && n.met === n.scored
         ? 'all checked requirements met'
         : `nothing not yet met — ${n.inProgress} in progress${n.waiting > 0 ? `, ${n.waiting} conditionally met` : ''}`;
-  const subject = `Degree self-check — ${programShort}, entered ${opts.entryTerm} — ${headlineFact}`;
+  const subject = `Degree self-check — ${programShort(report.program)}, entered ${opts.entryTerm} — ${headlineFact}`;
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
   const intro = `Here is my current standing from the CSE degree self-check tool, as of ${asOf}.`;
   const prior = opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
   const standing =
-    `${programLabel}; entered ${opts.entryTerm}; ${prior}; ` +
+    `${programLabel(report.program)}; entered ${opts.entryTerm}; ${prior}; ` +
     `cumulative GPA ${opts.gpa !== undefined ? opts.gpa.toFixed(2) : 'not entered yet'}.`;
   const counts = [
     `${n.met} of ${n.scored} requirements met`,
@@ -185,10 +182,6 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `<p>${esc(statusNote)}</p>`;
   // "Oral Candidacy Exam (OCE)" once per flavour, then "OCE" (2026-09-06 evening).
   return { text: decisionWording(report.program, shortenAfterFirst(text)), html: decisionWording(report.program, shortenAfterFirst(html)), subject: decisionWording(report.program, subject) };
-}
-
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /** "Due by the end of Spring 2028" / "Deadline passed (was due during Spring

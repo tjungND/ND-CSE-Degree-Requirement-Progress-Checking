@@ -11,13 +11,13 @@ import { formatCredits } from './credits.ts';
 import { canonicalCourseId, isIncompleteCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { approverToken, needsCourseApproval } from './decider.ts';
 import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactorKey, creditSystemFactorLabel } from '../data/external.ts';
-import type { ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
+import type { Counts, ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
 import { compareTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel, termOfDate } from './term.ts';
-import type { Attestations, CourseEntry, Grade, Program, Student } from './types.ts';
+import type { Attestations, CourseEntry, Grade, Program, Student, Term } from './types.ts';
 
 export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs';
 
@@ -135,11 +135,12 @@ export interface AllocationResult {
   /** Counted transfer credits (all provisional unless attested). */
   transfer: TierSums;
   capUsage: Map<CapId, { used: number; limit: number | undefined; excluded: string[] }>;
-  warnings: string[];
 }
 
 const deptOf = (id: string) => canonicalCourseId(id).split(' ')[0] ?? '';
-const levelOf = (course: CourseEntry, rule?: RuleCourse): number => {
+/** The course's level digit: the sheet row's `level` when there is one, else
+ * the first digit of the five-digit number; NaN when the id has no such number. */
+export const levelOf = (course: CourseEntry, rule?: RuleCourse): number => {
   if (rule?.level !== undefined) return rule.level;
   const m = /(\d)\d{4}\b/.exec(course.courseId);
   return m ? Number(m[1]) : NaN;
@@ -152,11 +153,33 @@ const levelOf = (course: CourseEntry, rule?: RuleCourse): number => {
  * (2026-09-11). It says "could", not "does": the answer to the "already
  * counted toward…" question and the caps decide the rest. */
 export function priorNdUndergraduateCanCount(course: CourseEntry, rule: RuleCourse | undefined, program: Program): boolean {
-  const level = levelOf(course, rule);
-  const eligible = level >= 6 || (deptOf(course.courseId) === 'CSE' && (level === 4 || (level === 5 && rule !== undefined)));
-  if (!eligible) return false;
+  if (!undergradLevelEligible(levelOf(course, rule), course.courseId, rule)) return false;
   if (rule === undefined) return true; // not in the sheet: counted provisionally, and the DGS is asked
   return (program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd) !== 'no';
+}
+
+/** The level floor for Notre Dame coursework taken as an undergraduate: 60000
+ * and above; CSE at the 40000 level; CSE at the 50000 level only when the
+ * sheet lists the course. */
+function undergradLevelEligible(level: number, courseId: string, rule: RuleCourse | undefined): boolean {
+  return level >= 6 || (deptOf(courseId) === 'CSE' && (level === 4 || (level === 5 && rule !== undefined)));
+}
+
+/** What a sheet row's verdict still asks of this student: undefined when the
+ * course counts outright (or the matching checkbox is ticked), else the
+ * approval-pending reason the course line carries. `level` is whatever the
+ * caller reads as the course's level — the row's own, or the number's digit. */
+function approvalStatus(counts: Counts | undefined, level: number | undefined, isCse: boolean, attestations: Attestations): string | undefined {
+  const approvalAttested =
+    ((level === 4 || level === 5) && attestations.dgsApproved4xxxx === true) ||
+    (!isCse && attestations.dgsApprovedNonCse === true);
+  return counts === undefined
+    ? 'the course rules do not say whether it counts — needs DGS review'
+    : needsCourseApproval(counts)
+      ? approvalAttested
+        ? undefined
+        : `needs advisor + ${approverToken(counts)} approval per the course rules`
+      : undefined;
 }
 
 /** How an EARLIER NOTRE DAME course may count once it transfers in under §5.2
@@ -193,18 +216,8 @@ function priorNdShape(
   // Nearly every 40000-level row says `dgs_approval` for the MSCSE, which is
   // what makes an earlier Notre Dame undergraduate 40000-level course
   // something that MAY count — listed, never counted silently.
-  const approvalAttested =
-    ((rule.level === 4 || rule.level === 5) && attestations.dgsApproved4xxxx === true) ||
-    (!isCse && attestations.dgsApprovedNonCse === true);
-  const approvalPending =
-    counts === undefined
-      ? 'the course rules do not say whether it counts — needs DGS review'
-      : needsCourseApproval(counts)
-        ? approvalAttested
-          ? undefined
-          : `needs advisor + ${approverToken(counts)} approval per the course rules`
-        : undefined;
-  const shape = (pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
+  const approvalPending = approvalStatus(counts, rule.level, isCse, attestations);
+  const shape =(pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
   // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
   if (program === 'mscse' && MS_PROJECT_COURSE_IDS.includes(courseId)) return shape('project', []);
   switch (rule.courseType) {
@@ -269,6 +282,12 @@ export function classify(student: Student, rules: Rules, today?: string): {
   const windowYears = params.number(program === 'mscse' ? 'ms_transfer_window_years' : 'phd_transfer_window_years');
   // §5.2 pro-rata factors, read from the sheet (DGS 2026-09-12).
   const creditFactors = { quarter: params.number('quarter_credit_factor'), trimester: params.number('trimester_credit_factor') };
+  // Each course's governing Courses-tab row, resolved once.
+  const ruleRows = new Map<CourseEntry, RuleCourse | undefined>();
+  const ruleOf = (c: CourseEntry): RuleCourse | undefined => {
+    if (!ruleRows.has(c)) ruleRows.set(c, resolveRuleRow(rules, c.courseId, c.term));
+    return ruleRows.get(c);
+  };
 
   for (const c of student.courses) {
     if (c.origin === 'transfer' && !(c.institution ?? '').trim()) {
@@ -293,7 +312,9 @@ export function classify(student: Student, rules: Rules, today?: string): {
   const sameTerm = new Map<string, CourseEntry[]>();
   for (const c of student.courses) {
     const key = `${canonicalCourseId(c.courseId)}|${termIndex(c.term)}`;
-    sameTerm.set(key, [...(sameTerm.get(key) ?? []), c]);
+    const group = sameTerm.get(key);
+    if (group) group.push(c);
+    else sameTerm.set(key, [c]);
   }
   for (const group of sameTerm.values()) {
     if (group.length < 2 || group.every((c) => c.origin === 'nd')) continue; // all-ND duplicates: the retake rule below already says it
@@ -320,7 +341,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
       if (c.origin !== 'transfer' || !isNotreDameInstitution(c.institution)) return false;
       if (!(c.degreeLevel === 'bachelors' || (awarded !== undefined && compareTerm(c.term, awarded) <= 0))) return false;
       if (!GRADES.includes(c.grade) || !passesCreditFloor(c.grade)) return false;
-      const rule = resolveRuleRow(rules, c.courseId, c.term);
+      const rule = ruleOf(c);
       if (!priorNdUndergraduateCanCount(c, rule, 'mscse')) return false;
       // §3.5 (Sept-2026 revision draft): "3-credit CSE REGULAR courses at the
       // 60000 level or higher, and count these both as undergraduate CSE
@@ -331,7 +352,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
       // keeps the benefit of the doubt, as elsewhere in this file.
       return rule === undefined || rule.courseType === 'regular';
     };
-    const lvl = (c: CourseEntry) => levelOf(c, resolveRuleRow(rules, c.courseId, c.term));
+    const lvl = (c: CourseEntry) => levelOf(c, ruleOf(c));
     const points = (c: CourseEntry) => GRADE_POINTS[c.grade] ?? 0;
     const fourk = student.courses
       .filter((c) => undergrad(c) && deptOf(c.courseId) === 'CSE' && lvl(c) === 4)
@@ -347,6 +368,8 @@ export function classify(student: Student, rules: Rules, today?: string): {
     }
   }
 
+  // Everything the transfer branch reads, gathered once (see ClassifyEnv).
+  const env: ClassifyEnv = { rules, student, program, attestations, entry, transferFloor, windowYears, creditFactors, cseSubjectCodes, bsShared };
   const sorted = [...student.courses].sort(
     (a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId),
   );
@@ -362,8 +385,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
   const byId = new Map<string, CourseEntry[]>();
   for (const c of sorted) {
     if (c.origin !== 'nd') continue;
-    const rule = resolveRuleRow(rules, c.courseId, c.term);
-    const type = rule?.courseType ?? 'regular';
+    const type = ruleOf(c)?.courseType ?? 'regular';
     if (type !== 'regular') continue;
     const list = byId.get(c.courseId) ?? [];
     list.push(c);
@@ -392,9 +414,8 @@ export function classify(student: Student, rules: Rules, today?: string): {
     warnings.push(`${id} is entered ${attempts.length} times — its credits count once (§4.4.2 retake rule).`);
   }
 
-  const classified: ClassifiedCourse[] = sorted.map((entryCourse) => {
-    const c = entryCourse;
-    const rule = resolveRuleRow(rules, c.courseId, c.term);
+  const classified: ClassifiedCourse[] = sorted.map((c) => {
+    const rule = ruleOf(c);
     const grade = c.grade;
     const base: ClassifiedCourse = { entry: c, rule, pool: 'none', caps: [], tier: 'provisional' };
 
@@ -452,433 +473,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
       return { ...base, ineligibleReason: 'failed — earns no credit (DGS decision 2026-08-31)' };
     }
 
-    if (c.origin === 'transfer') {
-      // The DGS's ExternalCourses ruling, when one exists. Attached to every
-      // return path so §4.4.1 core knowledge sees it even when no credit counts.
-      const external = findExternalRule(rules.external, c.institution ?? '', c.courseId);
-      // Set once per university in the sheet; applies to every course from it.
-      // The DGS's row for the university decides the credit system; failing
-      // that, what the transcript itself announced at import (2026-09-11).
-      const sheetCreditSystem = universityCreditSystem(rules.external, c.institution);
-      const creditSystem = sheetCreditSystem ?? c.creditSystem;
-      const conversionKey = creditSystemFactorKey(creditSystem);
-      const conversionFactor = creditSystem === 'quarter' || creditSystem === 'trimester' ? creditFactors[creditSystem] : undefined;
-      const extBase: ClassifiedCourse = { ...base, external };
-      // Prior NOTRE DAME coursework (2026-09-05 — an earlier Notre Dame degree
-      // on a combined transcript): the Courses tab already says which §4.4.1
-      // core area a Notre Dame course covers, whenever it was taken, so no
-      // ExternalCourses ruling is needed for that part. Transfer credit still
-      // follows §5.2 like any other prior graduate course.
-      const ndCoreArea = isNotreDameInstitution(c.institution) ? rule?.coreArea : undefined;
-      const areaName = (code: string) => rules.coreAreas.find((a) => a.code === code)?.name ?? code;
-      // §5.2 criterion 2: transfers must be "graduate courses … [taken with]
-      // graduate student status" — Bachelor's coursework can never transfer.
-      // §4.4.1 core knowledge has no such restriction, so the course stays
-      // visible to the core check (coreRows reads classified regardless).
-      // The per-course line leads with the ONE thing an undergraduate course
-      // can do — demonstrate a core-knowledge area (DGS request 2026-09-04;
-      // shortened 2026-09-06 so it did not repeat "no transfer credit").
-      // DGS 2026-09-07 restores that half, with its REASON: the bar is the
-      // student's status when they took the course, not the course's level, so
-      // a graduate-numbered course taken before the bachelor's says so on its
-      // own line rather than leaving it to the group heading.
-      const suggested = external === undefined && ndCoreArea === undefined ? coreTitleSuggestion(c.title) : undefined;
-      // §4.4.1 core knowledge and §4.4.2 specialization are the Ph.D.
-      // qualifying examination's, and the MSCSE has no qualifier at all — so
-      // an MSCSE student is told nothing about either (DGS 2026-09-11:
-      // "anything related to them should not be shown to current MSCSE
-      // students"). The note is the one place a core area reached a course
-      // line, and it is empty for them.
-      const qualifierApplies = program === 'phd';
-      // A DGS-confirmed core area is said on the line itself (2026-09-06 —
-      // the separate "What the DGS's rules say" block is gone).
-      const coreNote = !qualifierApplies
-        ? ''
-        : external?.satisfiesCoreArea
-          ? `; satisfies the ${areaName(external.satisfiesCoreArea)} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
-          : ndCoreArea
-            ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
-            : suggested
-              ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
-              : '';
-      // NOTRE DAME COURSEWORK TAKEN AS AN UNDERGRADUATE — the Graduate School's
-      // answer, through the DGS (2026-09-10, evening), which settles the
-      // question §5.2 criterion 2 raised and goes well past it:
-      //
-      //   "Any 60000-level and above coursework taken as an undergraduate, not
-      //   being used to fulfill undergraduate degree requirements can be used
-      //   to satisfy both the master's and the PhD. Notably, such credits are
-      //   counted towards the PhD, even those above and beyond the usual 24
-      //   allowed for transfer. The only hard constraint is that the same
-      //   course's credits cannot count towards three degrees (BS, MSCSE, PhD)
-      //   at the same time. … up to two 40000-level courses taken by ND
-      //   undergraduates can count towards both BS and MSCSE. … up to 6 credits
-      //   from 40xxx courses can count towards PhD."
-      //
-      // So this coursework is NOT §5.2 transfer credit at all — it never
-      // touches the transfer cap. A 6xxxx course counts in full whether or not
-      // the B.S. used it (DGS 2026-09-10: uncapped); a course below the 60000
-      // level counts inside §4.2's own six-credit allowance, the same six a
-      // course taken in the program would use. The one bar is a course already
-      // spent on two degrees.
-      const awardedTerm = student.bachelorsAwarded;
-      const asUndergraduate =
-        c.degreeLevel === 'bachelors' || (awardedTerm !== undefined && compareTerm(c.term, awardedTerm) <= 0);
-      // Only coursework that could actually count comes down this path. A
-      // 20000-level course, or a non-CSE course below the 60000 level, counts
-      // nothing at any answer, so it keeps the line it has always had — which
-      // leads with the one thing it CAN do, demonstrate a §4.4.1 core area,
-      // and tells the student to send the review request.
-      const undergradLevelEarly = levelOf(c, rule);
-      const eligibleUndergradLevel =
-        undergradLevelEarly >= 6 ||
-        (deptOf(c.courseId) === 'CSE' && (undergradLevelEarly === 4 || (undergradLevelEarly === 5 && rule !== undefined)));
-      if (asUndergraduate && eligibleUndergradLevel && isNotreDameInstitution(c.institution)) {
-        // For an MSCSE student the question has TWO answers (DGS 2026-09-11):
-        // the course counted only toward the MSCSE, or toward both the
-        // bachelor's and the MSCSE — "'count to neither' or no answer are not
-        // options". Records saved under the earlier four-way question are
-        // read the same way: 'bs' meant the bachelor's used it (→ both), and
-        // 'neither' meant it did not (→ MSCSE only).
-        // The MSCSE never asks: the app decides which courses are shared with
-        // the bachelor's degree (bsShared, above) and says so on the line.
-        const spent = student.program === 'mscse' ? (bsShared.has(c) ? 'both' : 'mscse') : c.countedToward;
-        // A Ph.D. student with no Notre Dame master's cannot have a course
-        // that already counted twice, so they are never asked.
-        const couldHaveCountedTwice = student.program === 'phd' && student.ndMasters !== undefined;
-        const shape = rule ? priorNdShape(c.courseId, rule, student.program, attestations) : undefined;
-        if (shape && 'ineligibleReason' in shape) {
-          return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
-        }
-        // ONLY A 4+1's graduate coursework earns credit (DGS 2026-09-12,
-        // red-team F7): "If the student was just a BS (not 4+1 BS/MS
-        // integration), the 60xxx courses taken as an undergrad student do
-        // not count toward credits of MSCSE or PhD. They may qualify for the
-        // core knowledge and specialization category requirements of PhD
-        // students even without credit transfer." The 40000-level allowance
-        // (§3.2/§4.2's "up to two") is the degree's own and is not touched.
-        // §5.2's five-year window binds this coursework too (DGS 2026-09-14):
-        // a Notre Dame CSE 40000-level course taken more than five years
-        // before admission earns no credit — "they can still be used to
-        // satisfy the core knowledge requirements", which §4.4.1/§4.4.2
-        // read off any Notre Dame course regardless of credit.
-        if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
-          return {
-            ...extBase,
-            notTransferCredit: true,
-            ineligibleReason: `not counted — taken more than ${windowYears} years before admission (${termLabel(c.term)}; the ${windowYears}-year window of §5.2 applies to earlier Notre Dame coursework too)${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
-          };
-        }
-        if (undergradLevelEarly >= 6 && student.integratedBsMs !== true) {
-          return {
-            ...extBase,
-            notTransferCredit: true,
-            ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} credit only for a student who was in the Integrated B.S. + M.S. (4+1) program${student.integratedBsMs === false ? '' : '; if you were, say so under Your standing'}${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules, and its §4.4.2 group` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
-          };
-        }
-        // A master's project or thesis must be earned while enrolled in the
-        // MSCSE program (§3.4: "...Masters thesis direction (CSE 68901)
-        // earned at Notre Dame"; DGS decision 2026-09-12) — a 4+1 student
-        // cannot pick it up as an undergraduate elective, mirroring the rule
-        // below against a TRANSFERRED project/thesis course.
-        if (student.program === 'mscse' && shape && !('ineligibleReason' in shape) && shape.pool === 'project') {
-          return {
-            ...extBase,
-            ineligibleReason: `not counted — a master’s project or thesis is not a regular course and must be earned while enrolled in the MSCSE program, not as an undergraduate (§3.4)${coreNote}`,
-          };
-        }
-        // The level rules are the degree's, not the transcript's: this
-        // coursework counts the way the same course would if it were taken in
-        // the program. Below the 60000 level that means §4.2's six-credit
-        // allowance and nothing under the 40000 level at all — an
-        // undergraduate transcript is full of 1xxxx and 2xxxx courses, and
-        // without this they filled that allowance.
-        const undergradLevel = undergradLevelEarly;
-        // §3.5's WINDOW, for the MSCSE only (DGS 2026-09-11, correcting the
-        // day's earlier reading): "Students in the Integrated B.S. + M.S.
-        // program may take one or two 3-credit CSE courses at the 6xxxx level
-        // in the second semester of the junior year and the senior year" — so
-        // a graduate course taken EARLIER than that is not §3.5 coursework and
-        // counts toward nothing here. DGS: "60xxx courses taken in junior year
-        // 1st semester should not count toward MSCSE. Only courses taken in
-        // 2nd semester of junior year and both semesters in senior year should
-        // count."
-        //
-        // Those three terms are the three fall/spring semesters ending with
-        // the one the bachelor's degree was awarded in, so the award term is
-        // what places a course in the student's academic years — and without
-        // it nothing can be placed at all. The Ph.D. has no such window: the
-        // Graduate School's answer (2026-09-10) speaks of "coursework taken as
-        // an undergraduate" with no term in it.
-        //
-        // The window is §3.5's shape, not a tunable, so it lives here rather
-        // than in the Parameters tab; the three-semester span is the
-        // handbook's sentence translated.
-        if (student.program === 'mscse' && undergradLevel >= 6) {
-          if (awardedTerm === undefined) {
-            return {
-              ...extBase,
-              ineligibleReason:
-                'not counted yet — set the semester your bachelor’s degree was awarded, under Your standing. §3.5 counts graduate coursework from the second semester of your junior year onward, and this page cannot tell which year this course was in until it knows when you graduated',
-            };
-          }
-          if (semesterNumber(awardedTerm, c.term) < -1) {
-            return {
-              ...extBase,
-              ineligibleReason: `not counted — taken before the second semester of your junior year, which is where §3.5 begins: it lets an Integrated B.S. + M.S. student count graduate courses from that semester and the senior year (your bachelor’s degree was awarded ${termLabel(awardedTerm)})`,
-            };
-          }
-        }
-        // Only now, when the course could actually count, is the student asked
-        // anything: no course may count toward three degrees, so the answer
-        // decides it. A 20000-level course counts nothing at any answer, and
-        // asking about it would be noise on every undergraduate transcript.
-        // The three-degree bar is the PH.D.'s: a course already spent on the
-        // bachelor's and the master's cannot be spent a third time. For an
-        // MSCSE student "both" is not a bar at all — it describes the
-        // double-counting §3.5 allows, and the cap below is what limits it.
-        if (spent === 'both' && student.program === 'phd') {
-          return {
-            ...extBase,
-            ineligibleReason: `not counted — you have told us this course already counted toward your bachelor’s degree AND your master’s, and no course may count toward three degrees${coreNote}`,
-          };
-        }
-        // An MSCSE student is asked the same question about a 40000-level
-        // course on their own undergraduate transcript. "Up to two 40000-level
-        // courses taken by ND undergraduates can count towards both BS and
-        // MSCSE" is a MAY, not a must (DGS 2026-09-11): the answer decides
-        // which allowance the course draws on — §3.2's alone if the bachelor's
-        // degree never used it, §3.5's shared six credits as well if it did —
-        // and the sheet row decides whether it needs an approval on top.
-        if (spent === undefined && couldHaveCountedTwice) {
-          // The Ph.D. asks about three degrees; the MSCSE student has only two
-          // in play, and what their answer decides is which allowance the
-          // course draws on — §3.5's shared six credits, or §3.2's alone.
-          return {
-            ...extBase,
-            ineligibleReason:
-              student.program === 'mscse'
-                ? `not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5), so the answer decides how this one counts${coreNote}`
-                : `not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, so the answer decides whether it counts here${coreNote}`,
-          };
-        }
-        // 60000 and above: in full, and outside every cap the app has — the
-        // Graduate School put these beyond §5.2's twenty-four in as many words.
-        const belowSixty = undergradLevel < 6;
-        // A non-CSE course the sheet does not list — every MATH or EE 60xxx
-        // on a non-CSE transcript — is still "from a department other than
-        // CSE" (§4.2): it draws the nine-credit non-CSE allowance and needs
-        // the same advisor + DGS approval a non-CSE course taken in the
-        // program needs, cleared by the same checkbox (DGS 2026-09-11; until
-        // then twelve credits of EE 60xxx touched no cap and no checkbox).
-        const unlistedNonCse = rule === undefined && deptOf(c.courseId) !== 'CSE';
-        const nonCseApproval =
-          unlistedNonCse && attestations.dgsApprovedNonCse !== true ? `non-CSE course — needs advisor + DGS approval (${program === 'mscse' ? '§3.2' : '§4.2'})` : undefined;
-        // Counted, but the DGS is asked: not in the rules sheet at all, or in
-        // it with a verdict that names an approval this student has not
-        // attested (2026-09-11) — "they may count, subject to all other
-        // constraints, so they should be listed for further decisions".
-        const shapeApproval = shape !== undefined && !('ineligibleReason' in shape) ? shape.approvalPending : undefined;
-        const provisional = rule === undefined || shapeApproval !== undefined;
-        // §3.5 lets an MSCSE student count coursework their bachelor's degree
-        // already used, up to six credits in all — "an ND 4+1 student can have
-        // up to 6 credits (whether 40xxx or 60xxx courses) counted towards
-        // both degrees" (DGS 2026-09-10). The Ph.D. has no such cap: what it
-        // has is the three-degree bar above.
-        const sharedWithBachelors: CapId[] =
-          student.program === 'mscse' && spent === 'both' ? ['sharedbs'] : [];
-        return {
-          ...extBase,
-          ...(student.program === 'mscse' ? { bsShare: spent as 'both' | 'mscse' } : {}),
-          pool: shape?.pool ?? 'regular',
-          caps: [
-            ...sharedWithBachelors,
-            ...(belowSixty ? ['fourk' as CapId, ...(shape?.caps ?? []).filter((id) => id !== 'fourk')] : (shape?.caps ?? []).filter((id) => id !== 'fourk')),
-            ...(unlistedNonCse ? ['noncse' as CapId] : []),
-          ],
-          tier: tierFor(grade, provisional),
-          ...(rule === undefined
-            ? { unknown: true as const, approvalPending: `not in the course rules — counted provisionally; needs DGS review${nonCseApproval ? `; ${nonCseApproval}` : ''}` }
-            : shapeApproval !== undefined
-              ? { approvalPending: shapeApproval }
-              : {}),
-        };
-      }
-      // A NOTRE DAME graduate course dated before the entry term, for a student
-      // whose record shows no prior graduate program (red-team F7, 2026-09-12):
-      // §5.2 governs another university's work or another Notre Dame program,
-      // and neither is on this record — nearly always the entry term is wrong
-      // (it defaults to the coming fall). No transfer row is opened; the line
-      // says what to check. §4.4.1/§4.4.2 still see the course (any ND course
-      // does, 2026-09-11).
-      if (isNotreDameInstitution(c.institution) && c.degreeLevel !== 'bachelors' && student.priorMs === 'none' && student.ndMasters === undefined) {
-        return {
-          ...extBase,
-          notTransferCredit: true,
-          ineligibleReason: `not counted — dated before your entry term (${termLabel(entry)}), but your record shows no prior graduate program, so it is not §5.2 transfer credit either: check the entry term under Your standing (it starts out as the coming fall), or set “Prior graduate study” if you were in another graduate program${coreNote}`,
-        };
-      }
-      if (c.degreeLevel === 'bachelors') {
-        const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
-        const suggested = coreTitleSuggestion(c.title);
-        const ugNote = '; taken as an undergraduate student — no transfer credit (§5.2)';
-        // For an MSCSE student there is no §4.4.1 to demonstrate: an
-        // undergraduate course from another university can do nothing here,
-        // and saying so once is the whole line (DGS 2026-09-11).
-        if (!qualifierApplies) {
-          return { ...extBase, ineligibleReason: `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)` };
-        }
-        return {
-          ...extBase,
-          ineligibleReason: confirmedArea
-            ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS${ugNote}`
-            : ndCoreArea
-              ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules${ugNote}`
-              : suggested
-                ? `may satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review; send the review request${ugNote}`
-                : `not relevant to the core knowledge requirement (§4.4.1)${ugNote}`,
-        };
-      }
-      // Graduate courses (2026-09-04): §5.2 transfer credit is not the only
-      // thing a prior course can earn — an unreviewed course whose title
-      // matches the core keywords may satisfy §4.4.1 core knowledge after the
-      // DGS's review, and its line says so. (A DGS-ruled course is decided.)
-      const transferable = transferableFor(external, student.program);
-      if (transferable === 'no') {
-        return {
-          ...extBase,
-          // The university as the student's record spells it (DGS 2026-09-06, late evening: no upper-cased sheet spelling in student-facing text).
-          ineligibleReason: `not counted — the DGS has ruled this ${c.institution ?? external?.university} course non-transferable (external-course rules)${coreNote}`,
-        };
-      }
-      // §5.2 (verbatim): "A student may transfer credits earned at another
-      // accredited university only if: 1) the student is in degree status at
-      // Notre Dame; 2) the courses taken are graduate courses appropriate to
-      // the Notre Dame graduate program and the student had graduate student
-      // status when they took these courses; 3) the courses were completed
-      // within a five-year period prior to admission to a graduate degree
-      // program at Notre Dame or while enrolled in a graduate degree program
-      // at Notre Dame; 4) grades of "B" (3.0 on 4.0 scale) or better were
-      // achieved; and 5) the transfer is recommended by the DGS and approved
-      // by the Graduate School."
-      // Criterion 2 by the student's own record (DGS 2026-09-06: "Only the
-      // courses taken with the graduate student status can count. The
-      // graduate-level courses taken before earning the bachelor's degree do
-      // not count."): a course dated in or before the term the bachelor's
-      // degree was awarded was not taken with graduate student status,
-      // whatever its number or the level it was registered at. An unknown
-      // award term changes nothing (degreeLevel decides, as before). The
-      // award term is absolute (DGS 2026-09-06, later that evening): a
-      // transferable=yes ruling in the ExternalCourses tab does NOT restore
-      // the credit of a course taken before the bachelor's degree — the
-      // ruling is about the course, criterion 2 about the student.
-      const awarded = student.bachelorsAwarded;
-      const beforeBachelors = awarded !== undefined && compareTerm(c.term, awarded) <= 0;
-      const whenTaken = awarded !== undefined && compareTerm(c.term, awarded) === 0 ? 'in the term' : 'before';
-      if (beforeBachelors) {
-        return {
-          ...extBase,
-          ineligibleReason: `not counted — taken ${whenTaken} your bachelor’s degree was awarded (${termLabel(awarded!)}), so not as a graduate student (§5.2)${coreNote}`,
-        };
-      }
-      // §5.2: "grades of 'B' (3.0 on 4.0 scale) or better were achieved" and
-      // "completed within a five-year period prior to admission … or while
-      // enrolled". Every transfer needs DGS + Graduate School approval.
-      if (transferFloor !== undefined && !meetsGradeFloor(grade, transferFloor as Grade) && !isInProgress(grade)) {
-        return { ...extBase, ineligibleReason: `not counted — grade below ${transferFloor} (§5.2)${coreNote}` };
-      }
-      if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
-        return {
-          ...extBase,
-          ineligibleReason: `not counted — completed outside the ${windowYears}-year window before admission (five-year window, §5.2)${coreNote}`,
-        };
-      }
-      // An earlier Notre Dame course keeps its own Courses-tab verdict on top
-      // of §5.2's (2026-09-09): the §5.2 cap says how MUCH may transfer, the
-      // sheet row says what the course IS — regular, project, research — and
-      // §4.2's level rules still apply to it.
-      const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, student.program, attestations) : undefined;
-      // A master's project or thesis does not transfer into EITHER degree (DGS
-      // 2026-09-11: "Master's project is not a regular course. It cannot be
-      // transferred, so it should not count toward PhD." — and §3.4's own
-      // "(CSE 68901) earned at Notre Dame", DGS decision 2026-09-12, reads the
-      // same way for the MSCSE: it must be earned in the program, not
-      // transferred in from an earlier one). Until 2026-09-11 a prior Notre
-      // Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
-      // report, "counts toward the project/thesis requirement". Said before
-      // the sheet's own verdict, because it holds whatever the row says.
-      const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || MS_PROJECT_COURSE_IDS.includes(canonicalCourseId(c.courseId));
-      if (isProject) {
-        return {
-          ...extBase,
-          transferable,
-          ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the ${student.program === 'phd' ? 'Ph.D. (§5.2)' : 'MSCSE (§3.4, §5.2)'}${coreNote}`,
-        };
-      }
-      if (shape && 'ineligibleReason' in shape) {
-        return { ...extBase, transferable, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
-      }
-      // The student's "transfer approved" checkbox settles a course the DGS
-      // has actually looked at — one with an ExternalCourses ruling, or a
-      // Notre Dame course the Courses tab lists. A course nobody has reviewed
-      // stays pending whatever is ticked (DGS 2026-09-11: "Do not let
-      // never-reviewed courses count even with the checkbox checked").
-      const reviewed = isNotreDameInstitution(c.institution) ? rule !== undefined : external !== undefined && transferable !== undefined;
-      const attested = attestations.transferApproved === true && reviewed;
-      const attestedButUnreviewed = attestations.transferApproved === true && !reviewed;
-      // A university with no ExternalCourses row has no credit system on
-      // record, so its credits are shown as the transcript prints them. Say
-      // so while the course is unreviewed — a quarter-system transcript would
-      // otherwise read a third too generous until the DGS adds the row
-      // (2026-09-11).
-      const creditSystemNote =
-        external === undefined && creditSystem === undefined && !isNotreDameInstitution(c.institution)
-          ? '; credits shown as your transcript prints them — if your university uses quarters or trimesters, the DGS’s ruling converts them (§5.2 pro-rata)'
-          : '';
-      // §4.2 caps credits "taken from a department other than CSE" at nine,
-      // wherever they were taken — and a transcript from elsewhere spells the
-      // department every way there is (DGS 2026-09-09: "CompSci, CompS, CS,
-      // CE, ECE, CSYE etc. all can mean CSE in fact"). The sheet decides: the
-      // `cse_subject_codes` list, or an `is_cse` cell for a course the code
-      // cannot settle. A course the sheet says nothing about is left out of
-      // the allowance entirely rather than guessed at, so nothing changes for
-      // a student until the DGS has answered. Notre Dame's own earlier
-      // courses are decided by their own subject, as they always were.
-      const fromNd = isNotreDameInstitution(c.institution);
-      const isCse = fromNd ? deptOf(c.courseId) === 'CSE' : isCseCourse(c.courseId, external, cseSubjectCodes);
-      const nonCseCap: CapId[] = isCse === false && !(shape?.caps ?? []).includes('noncse') ? ['noncse'] : [];
-      return {
-        ...extBase,
-        reviewed,
-        transferable,
-        pool: shape?.pool ?? 'regular',
-        caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap],
-        tier: tierFor(grade, !attested),
-        // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
-        // this course wins; otherwise a quarter university's credits are
-        // converted from what the transcript prints (DGS 2026-09-08), which is
-        // the only thing that works when a course's credits vary by term.
-        effectiveCredits: ndEquivalentCredits(c.credits, external, creditSystem, conversionFactor),
-        ...(external?.ndCredits === undefined && (creditSystem === 'quarter' || creditSystem === 'trimester')
-          ? conversionFactor !== undefined
-            ? { creditsConverted: true as const, convertedFrom: creditSystem, conversionFactor, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
-            : { conversionMissingKey: conversionKey }
-          : {}),
-        approvalPending: attested
-          ? undefined
-          : transferable === 'yes'
-            ? `pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)${coreNote}`
-            : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
-              // program 2026-09-09): the sheet has looked at the course and
-              // ruled that this one needs an approval. Unlike a blank cell,
-              // that IS a decision; what is open is this student's case.
-              needsApproval(transferable)
-              ? `transfer — needs DGS approval (§5.2)${coreNote}`
-              : external
-                ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
-                : `transfer — not yet reviewed by the DGS${attestedButUnreviewed ? ', so your “transfer approved” checkbox cannot apply to it yet' : ''}; an external course counts only once the DGS has explicitly approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
-      };
-    }
+    if (c.origin === 'transfer') return classifyTransfer(env, c, rule, base);
 
     const level = levelOf(c, rule);
     const isCse = deptOf(c.courseId) === 'CSE';
@@ -969,21 +564,11 @@ export function classify(student: Student, rules: Rules, today?: string): {
     // and this did not, so the one bridge course the sheet permits for a Ph.D.
     // (CSE 50502, `dgs_approval`) could never be cleared: it stayed amber and
     // stayed in the review request whatever the student ticked.
-    const approvalAttested =
-      ((level === 4 || level === 5) && attestations.dgsApproved4xxxx === true) ||
-      (!isCse && attestations.dgsApprovedNonCse === true);
-    const approvalPending =
-      counts === undefined
-        ? 'the course rules do not say whether it counts — needs DGS review'
-        : needsCourseApproval(counts)
-          ? approvalAttested
-            ? undefined
-            : `needs advisor + ${approverToken(counts)} approval per the course rules`
-          : undefined;
-    const provisional = approvalPending !== undefined;
+    const approvalPending = approvalStatus(counts, level, isCse, attestations);
+    const tier = tierFor(grade, approvalPending !== undefined);
 
     if (program === 'mscse' && MS_PROJECT_COURSE_IDS.includes(c.courseId)) {
-      return { ...base, pool: 'project', caps: [], tier: tierFor(grade, provisional), approvalPending };
+      return { ...base, pool: 'project', caps: [], tier, approvalPending };
     }
 
     switch (rule.courseType) {
@@ -1001,22 +586,498 @@ export function classify(student: Student, rules: Rules, today?: string): {
               ineligibleReason: `not counted — non-CSE ${level}0000-level courses do not count (DGS decision 2026-08-31)`,
             };
           }
-          return { ...base, pool: 'regular', caps: ['fourk'], tier: tierFor(grade, provisional), approvalPending };
+          return { ...base, pool: 'regular', caps: ['fourk'], tier, approvalPending };
         }
         const caps: CapId[] = isCse ? [] : ['noncse'];
-        return { ...base, pool: 'regular', caps, tier: tierFor(grade, provisional), approvalPending };
+        return { ...base, pool: 'regular', caps, tier, approvalPending };
       }
       case 'project':
-        return { ...base, pool: 'project', caps: [], tier: tierFor(grade, provisional), approvalPending };
+        return { ...base, pool: 'project', caps: [], tier, approvalPending };
       case 'seminar':
-        return { ...base, pool: 'seminar', caps: [], tier: tierFor(grade, provisional), approvalPending };
+        return { ...base, pool: 'seminar', caps: [], tier, approvalPending };
       case 'research':
       case 'independent':
-        return { ...base, pool: 'total_only', caps: [], tier: tierFor(grade, provisional), approvalPending };
+        return { ...base, pool: 'total_only', caps: [], tier, approvalPending };
     }
   });
 
   return { classified, warnings };
+}
+
+/** The record-wide facts classify() reads for every course from before the
+ * program — computed once per audit, handed to the two branches below. */
+interface ClassifyEnv {
+  rules: Rules;
+  student: Student;
+  program: Program;
+  attestations: Attestations;
+  /** The entry term, normalized (a summer entry reads as the following fall). */
+  entry: Term;
+  transferFloor: string | undefined;
+  windowYears: number | undefined;
+  creditFactors: { quarter: number | undefined; trimester: number | undefined };
+  cseSubjectCodes: string[] | undefined;
+  bsShared: ReadonlySet<CourseEntry>;
+}
+
+/** A course from before the program (origin 'transfer'): §5.2 transfer credit,
+ * a Notre Dame course taken as an undergraduate, or an undergraduate course
+ * from elsewhere that can only demonstrate §4.4.1 core knowledge. The body of
+ * classify()'s transfer branch, moved out whole so the map
+ * callback reads in one screen; nothing in it changed. */
+function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | undefined, base: ClassifiedCourse): ClassifiedCourse {
+  const { rules, student, program, attestations, entry, transferFloor, windowYears, cseSubjectCodes, creditFactors } = env;
+  const grade = c.grade;
+  // The DGS's ExternalCourses ruling, when one exists. Attached to every
+  // return path so §4.4.1 core knowledge sees it even when no credit counts.
+  const external = findExternalRule(rules.external, c.institution ?? '', c.courseId);
+  // Set once per university in the sheet; applies to every course from it.
+  // The DGS's row for the university decides the credit system; failing
+  // that, what the transcript itself announced at import (2026-09-11).
+  const sheetCreditSystem = universityCreditSystem(rules.external, c.institution);
+  const creditSystem = sheetCreditSystem ?? c.creditSystem;
+  const conversionKey = creditSystemFactorKey(creditSystem);
+  const conversionFactor = creditSystem === 'quarter' || creditSystem === 'trimester' ? creditFactors[creditSystem] : undefined;
+  const extBase: ClassifiedCourse = { ...base, external };
+  // Prior NOTRE DAME coursework (2026-09-05 — an earlier Notre Dame degree
+  // on a combined transcript): the Courses tab already says which §4.4.1
+  // core area a Notre Dame course covers, whenever it was taken, so no
+  // ExternalCourses ruling is needed for that part. Transfer credit still
+  // follows §5.2 like any other prior graduate course.
+  const ndCoreArea = isNotreDameInstitution(c.institution) ? rule?.coreArea : undefined;
+  const areaName = (code: string) => rules.coreAreas.find((a) => a.code === code)?.name ?? code;
+  // §5.2 criterion 2: transfers must be "graduate courses … [taken with]
+  // graduate student status" — Bachelor's coursework can never transfer.
+  // §4.4.1 core knowledge has no such restriction, so the course stays
+  // visible to the core check (coreRows reads classified regardless).
+  // The per-course line leads with the ONE thing an undergraduate course
+  // can do — demonstrate a core-knowledge area (DGS request 2026-09-04;
+  // shortened 2026-09-06 so it did not repeat "no transfer credit").
+  // DGS 2026-09-07 restores that half, with its REASON: the bar is the
+  // student's status when they took the course, not the course's level, so
+  // a graduate-numbered course taken before the bachelor's says so on its
+  // own line rather than leaving it to the group heading.
+  const suggested = external === undefined && ndCoreArea === undefined ? coreTitleSuggestion(c.title) : undefined;
+  // §4.4.1 core knowledge and §4.4.2 specialization are the Ph.D.
+  // qualifying examination's, and the MSCSE has no qualifier at all — so
+  // an MSCSE student is told nothing about either (DGS 2026-09-11:
+  // "anything related to them should not be shown to current MSCSE
+  // students"). The note is the one place a core area reached a course
+  // line, and it is empty for them.
+  const qualifierApplies = program === 'phd';
+  // A DGS-confirmed core area is said on the line itself (2026-09-06 —
+  // the separate "What the DGS's rules say" block is gone).
+  const coreNote = !qualifierApplies
+    ? ''
+    : external?.satisfiesCoreArea
+      ? `; satisfies the ${areaName(external.satisfiesCoreArea)} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
+      : ndCoreArea
+        ? `; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules`
+        : suggested
+          ? `; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) after DGS review`
+          : '';
+  // NOTRE DAME COURSEWORK TAKEN AS AN UNDERGRADUATE — the Graduate School's
+  // answer, through the DGS (2026-09-10, evening), which settles the
+  // question §5.2 criterion 2 raised and goes well past it:
+  //
+  //   "Any 60000-level and above coursework taken as an undergraduate, not
+  //   being used to fulfill undergraduate degree requirements can be used
+  //   to satisfy both the master's and the PhD. Notably, such credits are
+  //   counted towards the PhD, even those above and beyond the usual 24
+  //   allowed for transfer. The only hard constraint is that the same
+  //   course's credits cannot count towards three degrees (BS, MSCSE, PhD)
+  //   at the same time. … up to two 40000-level courses taken by ND
+  //   undergraduates can count towards both BS and MSCSE. … up to 6 credits
+  //   from 40xxx courses can count towards PhD."
+  //
+  // So this coursework is NOT §5.2 transfer credit at all — it never
+  // touches the transfer cap. A 6xxxx course counts in full whether or not
+  // the B.S. used it (DGS 2026-09-10: uncapped); a course below the 60000
+  // level counts inside §4.2's own six-credit allowance, the same six a
+  // course taken in the program would use. The one bar is a course already
+  // spent on two degrees.
+  const awardedTerm = student.bachelorsAwarded;
+  const asUndergraduate =
+    c.degreeLevel === 'bachelors' || (awardedTerm !== undefined && compareTerm(c.term, awardedTerm) <= 0);
+  // Only coursework that could actually count comes down this path. A
+  // 20000-level course, or a non-CSE course below the 60000 level, counts
+  // nothing at any answer, so it keeps the line it has always had — which
+  // leads with the one thing it CAN do, demonstrate a §4.4.1 core area,
+  // and tells the student to send the review request.
+  const undergradLevel = levelOf(c, rule);
+  if (asUndergraduate && undergradLevelEligible(undergradLevel, c.courseId, rule) && isNotreDameInstitution(c.institution)){
+    return classifyPriorNdUndergraduate(env, { c, rule, extBase, coreNote, ndCoreArea, areaName, qualifierApplies, awardedTerm, undergradLevel });
+  }
+  // A NOTRE DAME graduate course dated before the entry term, for a student
+  // whose record shows no prior graduate program (red-team F7, 2026-09-12):
+  // §5.2 governs another university's work or another Notre Dame program,
+  // and neither is on this record — nearly always the entry term is wrong
+  // (it defaults to the coming fall). No transfer row is opened; the line
+  // says what to check. §4.4.1/§4.4.2 still see the course (any ND course
+  // does, 2026-09-11).
+  if (isNotreDameInstitution(c.institution) && c.degreeLevel !== 'bachelors' && student.priorMs === 'none' && student.ndMasters === undefined) {
+    // (student.priorMs / student.ndMasters are the record's own facts, not the program.)
+    return {
+      ...extBase,
+      notTransferCredit: true,
+      ineligibleReason: `not counted — dated before your entry term (${termLabel(entry)}), but your record shows no prior graduate program, so it is not §5.2 transfer credit either: check the entry term under Your standing (it starts out as the coming fall), or set “Prior graduate study” if you were in another graduate program${coreNote}`,
+    };
+  }
+  if (c.degreeLevel === 'bachelors') {
+    const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
+    const suggested = coreTitleSuggestion(c.title);
+    const ugNote = '; taken as an undergraduate student — no transfer credit (§5.2)';
+    // For an MSCSE student there is no §4.4.1 to demonstrate: an
+    // undergraduate course from another university can do nothing here,
+    // and saying so once is the whole line (DGS 2026-09-11).
+    if (!qualifierApplies) {
+      return { ...extBase, ineligibleReason: `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)` };
+    }
+    return {
+      ...extBase,
+      ineligibleReason: confirmedArea
+        ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS${ugNote}`
+        : ndCoreArea
+          ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules${ugNote}`
+          : suggested
+            ? `may satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review; send the review request${ugNote}`
+            : `not relevant to the core knowledge requirement (§4.4.1)${ugNote}`,
+    };
+  }
+  // Graduate courses (2026-09-04): §5.2 transfer credit is not the only
+  // thing a prior course can earn — an unreviewed course whose title
+  // matches the core keywords may satisfy §4.4.1 core knowledge after the
+  // DGS's review, and its line says so. (A DGS-ruled course is decided.)
+  const transferable = transferableFor(external, program);
+  if (transferable === 'no') {
+    return {
+      ...extBase,
+      // The university as the student's record spells it (DGS 2026-09-06, late evening: no upper-cased sheet spelling in student-facing text).
+      ineligibleReason: `not counted — the DGS has ruled this ${c.institution ?? external?.university} course non-transferable (external-course rules)${coreNote}`,
+    };
+  }
+  // §5.2 (verbatim): "A student may transfer credits earned at another
+  // accredited university only if: 1) the student is in degree status at
+  // Notre Dame; 2) the courses taken are graduate courses appropriate to
+  // the Notre Dame graduate program and the student had graduate student
+  // status when they took these courses; 3) the courses were completed
+  // within a five-year period prior to admission to a graduate degree
+  // program at Notre Dame or while enrolled in a graduate degree program
+  // at Notre Dame; 4) grades of "B" (3.0 on 4.0 scale) or better were
+  // achieved; and 5) the transfer is recommended by the DGS and approved
+  // by the Graduate School."
+  // Criterion 2 by the student's own record (DGS 2026-09-06: "Only the
+  // courses taken with the graduate student status can count. The
+  // graduate-level courses taken before earning the bachelor's degree do
+  // not count."): a course dated in or before the term the bachelor's
+  // degree was awarded was not taken with graduate student status,
+  // whatever its number or the level it was registered at. An unknown
+  // award term changes nothing (degreeLevel decides, as before). The
+  // award term is absolute (DGS 2026-09-06, later that evening): a
+  // transferable=yes ruling in the ExternalCourses tab does NOT restore
+  // the credit of a course taken before the bachelor's degree — the
+  // ruling is about the course, criterion 2 about the student.
+  const awarded = student.bachelorsAwarded;
+  const beforeBachelors = awarded !== undefined && compareTerm(c.term, awarded) <= 0;
+  const whenTaken = awarded !== undefined && compareTerm(c.term, awarded) === 0 ? 'in the term' : 'before';
+  if (beforeBachelors) {
+    return {
+      ...extBase,
+      ineligibleReason: `not counted — taken ${whenTaken} your bachelor’s degree was awarded (${termLabel(awarded!)}), so not as a graduate student (§5.2)${coreNote}`,
+    };
+  }
+  // §5.2: "grades of 'B' (3.0 on 4.0 scale) or better were achieved" and
+  // "completed within a five-year period prior to admission … or while
+  // enrolled". Every transfer needs DGS + Graduate School approval.
+  if (transferFloor !== undefined && !meetsGradeFloor(grade, transferFloor as Grade) && !isInProgress(grade)) {
+    return { ...extBase, ineligibleReason: `not counted — grade below ${transferFloor} (§5.2)${coreNote}` };
+  }
+  if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
+    return {
+      ...extBase,
+      ineligibleReason: `not counted — completed outside the ${windowYears}-year window before admission (five-year window, §5.2)${coreNote}`,
+    };
+  }
+  // An earlier Notre Dame course keeps its own Courses-tab verdict on top
+  // of §5.2's (2026-09-09): the §5.2 cap says how MUCH may transfer, the
+  // sheet row says what the course IS — regular, project, research — and
+  // §4.2's level rules still apply to it.
+  const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, program, attestations) : undefined;
+  // A master's project or thesis does not transfer into EITHER degree (DGS
+  // 2026-09-11: "Master's project is not a regular course. It cannot be
+  // transferred, so it should not count toward PhD." — and §3.4's own
+  // "(CSE 68901) earned at Notre Dame", DGS decision 2026-09-12, reads the
+  // same way for the MSCSE: it must be earned in the program, not
+  // transferred in from an earlier one). Until 2026-09-11 a prior Notre
+  // Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
+  // report, "counts toward the project/thesis requirement". Said before
+  // the sheet's own verdict, because it holds whatever the row says.
+  const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || MS_PROJECT_COURSE_IDS.includes(canonicalCourseId(c.courseId));
+  if (isProject) {
+    return {
+      ...extBase,
+      transferable,
+      ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the ${program === 'phd' ? 'Ph.D. (§5.2)' : 'MSCSE (§3.4, §5.2)'}${coreNote}`,
+    };
+  }
+  if (shape && 'ineligibleReason' in shape) {
+    return { ...extBase, transferable, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
+  }
+  // The student's "transfer approved" checkbox settles a course the DGS
+  // has actually looked at — one with an ExternalCourses ruling, or a
+  // Notre Dame course the Courses tab lists. A course nobody has reviewed
+  // stays pending whatever is ticked (DGS 2026-09-11: "Do not let
+  // never-reviewed courses count even with the checkbox checked").
+  const reviewed = isNotreDameInstitution(c.institution) ? rule !== undefined : external !== undefined && transferable !== undefined;
+  const attested = attestations.transferApproved === true && reviewed;
+  const attestedButUnreviewed = attestations.transferApproved === true && !reviewed;
+  // A university with no ExternalCourses row has no credit system on
+  // record, so its credits are shown as the transcript prints them. Say
+  // so while the course is unreviewed — a quarter-system transcript would
+  // otherwise read a third too generous until the DGS adds the row
+  // (2026-09-11).
+  const creditSystemNote =
+    external === undefined && creditSystem === undefined && !isNotreDameInstitution(c.institution)
+      ? '; credits shown as your transcript prints them — if your university uses quarters or trimesters, the DGS’s ruling converts them (§5.2 pro-rata)'
+      : '';
+  // §4.2 caps credits "taken from a department other than CSE" at nine,
+  // wherever they were taken — and a transcript from elsewhere spells the
+  // department every way there is (DGS 2026-09-09: "CompSci, CompS, CS,
+  // CE, ECE, CSYE etc. all can mean CSE in fact"). The sheet decides: the
+  // `cse_subject_codes` list, or an `is_cse` cell for a course the code
+  // cannot settle. A course the sheet says nothing about is left out of
+  // the allowance entirely rather than guessed at, so nothing changes for
+  // a student until the DGS has answered. Notre Dame's own earlier
+  // courses are decided by their own subject, as they always were.
+  const fromNd = isNotreDameInstitution(c.institution);
+  const isCse = fromNd ? deptOf(c.courseId) === 'CSE' : isCseCourse(c.courseId, external, cseSubjectCodes);
+  const nonCseCap: CapId[] = isCse === false && !(shape?.caps ?? []).includes('noncse') ? ['noncse'] : [];
+  return {
+    ...extBase,
+    reviewed,
+    transferable,
+    pool: shape?.pool ?? 'regular',
+    caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap],
+    tier: tierFor(grade, !attested),
+    // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
+    // this course wins; otherwise a quarter university's credits are
+    // converted from what the transcript prints (DGS 2026-09-08), which is
+    // the only thing that works when a course's credits vary by term.
+    effectiveCredits: ndEquivalentCredits(c.credits, external, creditSystem, conversionFactor),
+    ...(external?.ndCredits === undefined && (creditSystem === 'quarter' || creditSystem === 'trimester')
+      ? conversionFactor !== undefined
+        ? { creditsConverted: true as const, convertedFrom: creditSystem, conversionFactor, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
+        : { conversionMissingKey: conversionKey }
+      : {}),
+    approvalPending: attested
+      ? undefined
+      : transferable === 'yes'
+        ? `pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)${coreNote}`
+        : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
+          // program 2026-09-09): the sheet has looked at the course and
+          // ruled that this one needs an approval. Unlike a blank cell,
+          // that IS a decision; what is open is this student's case.
+          needsApproval(transferable)
+          ? `transfer — needs DGS approval (§5.2)${coreNote}`
+          : external
+            ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
+            : `transfer — not yet reviewed by the DGS${attestedButUnreviewed ? ', so your “transfer approved” checkbox cannot apply to it yet' : ''}; an external course counts only once the DGS has explicitly approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
+  };
+}
+
+/** NOTRE DAME COURSEWORK TAKEN AS AN UNDERGRADUATE that could count toward the
+ * degree — the inner block of the transfer branch, moved out whole.
+ * `course` carries what the transfer branch had already worked
+ * out for the course before it reached this block. */
+function classifyPriorNdUndergraduate(
+  env: ClassifyEnv,
+  course: {
+    c: CourseEntry;
+    rule: RuleCourse | undefined;
+    extBase: ClassifiedCourse;
+    coreNote: string;
+    ndCoreArea: string | undefined;
+    areaName: (code: string) => string;
+    qualifierApplies: boolean;
+    awardedTerm: Term | undefined;
+    undergradLevel: number;
+  },
+): ClassifiedCourse {
+  const { student, program, attestations, entry, windowYears, bsShared } = env;
+  const { c, rule, extBase, coreNote, ndCoreArea, areaName, qualifierApplies, awardedTerm, undergradLevel } = course;
+  const grade = c.grade;
+  // For an MSCSE student the question has TWO answers (DGS 2026-09-11):
+  // the course counted only toward the MSCSE, or toward both the
+  // bachelor's and the MSCSE — "'count to neither' or no answer are not
+  // options". Records saved under the earlier four-way question are
+  // read the same way: 'bs' meant the bachelor's used it (→ both), and
+  // 'neither' meant it did not (→ MSCSE only).
+  // The MSCSE never asks: the app decides which courses are shared with
+  // the bachelor's degree (bsShared, above) and says so on the line.
+  const bsShare: 'both' | 'mscse' | undefined = program === 'mscse' ? (bsShared.has(c) ? 'both' : 'mscse') : undefined;
+  const spent = program === 'mscse' ? bsShare : c.countedToward;
+  // A Ph.D. student with no Notre Dame master's cannot have a course
+  // that already counted twice, so they are never asked.
+  const couldHaveCountedTwice = program === 'phd' && student.ndMasters !== undefined;
+  const shape = rule ? priorNdShape(c.courseId, rule, program, attestations) : undefined;
+  if (shape && 'ineligibleReason' in shape) {
+    return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
+  }
+  // ONLY A 4+1's graduate coursework earns credit (DGS 2026-09-12,
+  // red-team F7): "If the student was just a BS (not 4+1 BS/MS
+  // integration), the 60xxx courses taken as an undergrad student do
+  // not count toward credits of MSCSE or PhD. They may qualify for the
+  // core knowledge and specialization category requirements of PhD
+  // students even without credit transfer." The 40000-level allowance
+  // (§3.2/§4.2's "up to two") is the degree's own and is not touched.
+  // §5.2's five-year window binds this coursework too (DGS 2026-09-14):
+  // a Notre Dame CSE 40000-level course taken more than five years
+  // before admission earns no credit — "they can still be used to
+  // satisfy the core knowledge requirements", which §4.4.1/§4.4.2
+  // read off any Notre Dame course regardless of credit.
+  if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
+    return {
+      ...extBase,
+      notTransferCredit: true,
+      ineligibleReason: `not counted — taken more than ${windowYears} years before admission (${termLabel(c.term)}; the ${windowYears}-year window of §5.2 applies to earlier Notre Dame coursework too)${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
+    };
+  }
+  if (undergradLevel >= 6 && student.integratedBsMs !== true) {
+    return {
+      ...extBase,
+      notTransferCredit: true,
+      ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns ${program === 'mscse' ? 'MSCSE' : 'Ph.D.'} credit only for a student who was in the Integrated B.S. + M.S. (4+1) program${student.integratedBsMs === false ? '' : '; if you were, say so under Your standing'}${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules, and its §4.4.2 group` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
+    };
+  }
+  // A master's project or thesis must be earned while enrolled in the
+  // MSCSE program (§3.4: "...Masters thesis direction (CSE 68901)
+  // earned at Notre Dame"; DGS decision 2026-09-12) — a 4+1 student
+  // cannot pick it up as an undergraduate elective, mirroring the rule
+  // below against a TRANSFERRED project/thesis course.
+  if (program === 'mscse' && shape && !('ineligibleReason' in shape) && shape.pool === 'project') {
+    return {
+      ...extBase,
+      ineligibleReason: `not counted — a master’s project or thesis is not a regular course and must be earned while enrolled in the MSCSE program, not as an undergraduate (§3.4)${coreNote}`,
+    };
+  }
+  // The level rules are the degree's, not the transcript's: this
+  // coursework counts the way the same course would if it were taken in
+  // the program. Below the 60000 level that means §4.2's six-credit
+  // allowance and nothing under the 40000 level at all — an
+  // undergraduate transcript is full of 1xxxx and 2xxxx courses, and
+  // without this they filled that allowance.
+  // §3.5's WINDOW, for the MSCSE only (DGS 2026-09-11, correcting the
+  // day's earlier reading): "Students in the Integrated B.S. + M.S.
+  // program may take one or two 3-credit CSE courses at the 6xxxx level
+  // in the second semester of the junior year and the senior year" — so
+  // a graduate course taken EARLIER than that is not §3.5 coursework and
+  // counts toward nothing here. DGS: "60xxx courses taken in junior year
+  // 1st semester should not count toward MSCSE. Only courses taken in
+  // 2nd semester of junior year and both semesters in senior year should
+  // count."
+  //
+  // Those three terms are the three fall/spring semesters ending with
+  // the one the bachelor's degree was awarded in, so the award term is
+  // what places a course in the student's academic years — and without
+  // it nothing can be placed at all. The Ph.D. has no such window: the
+  // Graduate School's answer (2026-09-10) speaks of "coursework taken as
+  // an undergraduate" with no term in it.
+  //
+  // The window is §3.5's shape, not a tunable, so it lives here rather
+  // than in the Parameters tab; the three-semester span is the
+  // handbook's sentence translated.
+  if (program === 'mscse' && undergradLevel >= 6) {
+    if (awardedTerm === undefined) {
+      return {
+        ...extBase,
+        ineligibleReason:
+          'not counted yet — set the semester your bachelor’s degree was awarded, under Your standing. §3.5 counts graduate coursework from the second semester of your junior year onward, and this page cannot tell which year this course was in until it knows when you graduated',
+      };
+    }
+    if (semesterNumber(awardedTerm, c.term) < -1) {
+      return {
+        ...extBase,
+        ineligibleReason: `not counted — taken before the second semester of your junior year, which is where §3.5 begins: it lets an Integrated B.S. + M.S. student count graduate courses from that semester and the senior year (your bachelor’s degree was awarded ${termLabel(awardedTerm)})`,
+      };
+    }
+  }
+  // Only now, when the course could actually count, is the student asked
+  // anything: no course may count toward three degrees, so the answer
+  // decides it. A 20000-level course counts nothing at any answer, and
+  // asking about it would be noise on every undergraduate transcript.
+  // The three-degree bar is the PH.D.'s: a course already spent on the
+  // bachelor's and the master's cannot be spent a third time. For an
+  // MSCSE student "both" is not a bar at all — it describes the
+  // double-counting §3.5 allows, and the cap below is what limits it.
+  if (spent === 'both' && program === 'phd') {
+    return {
+      ...extBase,
+      ineligibleReason: `not counted — you have told us this course already counted toward your bachelor’s degree AND your master’s, and no course may count toward three degrees${coreNote}`,
+    };
+  }
+  // An MSCSE student is asked the same question about a 40000-level
+  // course on their own undergraduate transcript. "Up to two 40000-level
+  // courses taken by ND undergraduates can count towards both BS and
+  // MSCSE" is a MAY, not a must (DGS 2026-09-11): the answer decides
+  // which allowance the course draws on — §3.2's alone if the bachelor's
+  // degree never used it, §3.5's shared six credits as well if it did —
+  // and the sheet row decides whether it needs an approval on top.
+  if (spent === undefined && couldHaveCountedTwice) {
+    // The Ph.D. asks about three degrees; the MSCSE student has only two
+    // in play, and what their answer decides is which allowance the
+    // course draws on — §3.5's shared six credits, or §3.2's alone.
+    return {
+      ...extBase,
+      ineligibleReason:
+        // `student.program`, not the alias: the compiler has narrowed the
+        // alias to 'phd' through couldHaveCountedTwice, and the MSCSE
+        // sentence is kept as written for the record (the MSCSE never
+        // reaches here — bsShared answers for it).
+        student.program === 'mscse'
+          ? `not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5), so the answer decides how this one counts${coreNote}`
+          : `not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, so the answer decides whether it counts here${coreNote}`,
+    };
+  }
+  // 60000 and above: in full, and outside every cap the app has — the
+  // Graduate School put these beyond §5.2's twenty-four in as many words.
+  const belowSixty = undergradLevel < 6;
+  // A non-CSE course the sheet does not list — every MATH or EE 60xxx
+  // on a non-CSE transcript — is still "from a department other than
+  // CSE" (§4.2): it draws the nine-credit non-CSE allowance and needs
+  // the same advisor + DGS approval a non-CSE course taken in the
+  // program needs, cleared by the same checkbox (DGS 2026-09-11; until
+  // then twelve credits of EE 60xxx touched no cap and no checkbox).
+  const unlistedNonCse = rule === undefined && deptOf(c.courseId) !== 'CSE';
+  const nonCseApproval =
+    unlistedNonCse && attestations.dgsApprovedNonCse !== true ? `non-CSE course — needs advisor + DGS approval (${program === 'mscse' ? '§3.2' : '§4.2'})` : undefined;
+  // Counted, but the DGS is asked: not in the rules sheet at all, or in
+  // it with a verdict that names an approval this student has not
+  // attested (2026-09-11) — "they may count, subject to all other
+  // constraints, so they should be listed for further decisions".
+  const shapeApproval = shape !== undefined && !('ineligibleReason' in shape) ? shape.approvalPending : undefined;
+  const provisional = rule === undefined || shapeApproval !== undefined;
+  // §3.5 lets an MSCSE student count coursework their bachelor's degree
+  // already used, up to six credits in all — "an ND 4+1 student can have
+  // up to 6 credits (whether 40xxx or 60xxx courses) counted towards
+  // both degrees" (DGS 2026-09-10). The Ph.D. has no such cap: what it
+  // has is the three-degree bar above.
+  const sharedWithBachelors: CapId[] = bsShare === 'both' ? ['sharedbs'] : [];
+  return {
+    ...extBase,
+    ...(bsShare !== undefined ? { bsShare } : {}),
+    pool: shape?.pool ?? 'regular',
+    caps: [
+      ...sharedWithBachelors,
+      ...(belowSixty ? ['fourk' as CapId, ...(shape?.caps ?? []).filter((id) => id !== 'fourk')] : (shape?.caps ?? []).filter((id) => id !== 'fourk')),
+      ...(unlistedNonCse ? ['noncse' as CapId] : []),
+    ],
+    tier: tierFor(grade, provisional),
+    ...(rule === undefined
+      ? { unknown: true as const, approvalPending: `not in the course rules — counted provisionally; needs DGS review${nonCseApproval ? `; ${nonCseApproval}` : ''}` }
+      : shapeApproval !== undefined
+        ? { approvalPending: shapeApproval }
+        : {}),
+  };
 }
 
 const TIER_ORDER: Tier[] = ['definite', 'in_progress', 'provisional'];
@@ -1028,11 +1089,13 @@ const TIER_ORDER: Tier[] = ['definite', 'in_progress', 'provisional'];
 export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): AllocationResult {
   const capRoom = new Map<CapId, number>();
   const capUsage: AllocationResult['capUsage'] = new Map();
+  const capById = new Map<CapId, CapSpec>();
   for (const cap of caps) {
     capRoom.set(cap.id, cap.limit ?? 0);
     capUsage.set(cap.id, { used: 0, limit: cap.limit, excluded: [] });
+    if (!capById.has(cap.id)) capById.set(cap.id, cap); // first spec wins, as the scans it replaces did
   }
-  const capLabel = (id: CapId) => caps.find((c) => c.id === id)?.label ?? id;
+  const capLabel = (id: CapId) => capById.get(id)?.label ?? id;
 
   const sums = {
     regular: { ...ZERO_SUMS },
@@ -1054,7 +1117,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
    * room was `limit ?? 0`, so a missing cap silently read as zero and painted
    * every affected course red (2026-09-09). */
   const missingLimitCap = (cc: ClassifiedCourse): CapId | undefined =>
-    cc.caps.find((id) => caps.find((c) => c.id === id)?.limit === undefined);
+    cc.caps.find((id) => capById.get(id)?.limit === undefined);
 
   const take = (cc: ClassifiedCourse, amount: number) => {
     const credits = cc.effectiveCredits ?? cc.entry.credits;
@@ -1108,26 +1171,22 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
     if (cc.entry.origin === 'transfer' && cc.caps.includes('transfer')) sums.transfer[cc.tier] += counted;
 
     const excludedReason = unknownCap
-      ? `the rules sheet does not say what the ${capLabel(unknownCap)} is, so this course cannot be counted yet — ask the DGS to fill it in (${caps.find((c) => c.id === unknownCap)?.section ?? ''})`
+      ? `the rules sheet does not say what the ${capLabel(unknownCap)} is, so this course cannot be counted yet — ask the DGS to fill it in (${capById.get(unknownCap)?.section ?? ''})`
       : excluded > 0 && cc.caps.length > 0
         ? (() => {
             // Name the cap that actually ran out, not every cap the course
             // draws on (2026-09-11): an all-non-CSE master's read "over the
             // transfer-credit cap and 9-credit non-CSE cap" with 15 of the 24
             // transfer credits still free.
-            const bound = cc.caps.filter((id) => (capRoom.get(id) ?? Infinity) <= 0);
-            const named = bound.length > 0 ? bound : cc.caps;
-            return `over the ${named.map(capLabel).join(' and ')} (${caps.find((c) => c.id === named[0])?.section ?? ''})`;
+            const named = boundCaps.length > 0 ? boundCaps : cc.caps;
+            return `over the ${named.map(capLabel).join(' and ')} (${capById.get(named[0]!)?.section ?? ''})`;
           })()
         : undefined;
     // An UNREVIEWED transfer course is a candidate, whatever the cap did with
     // it here (DGS 2026-09-06): the DGS decides which courses transfer, so
     // the allocator's choice of which candidates fill the cap is not a
     // verdict — its line says "candidate", never "over the cap".
-    const transferCandidate =
-      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.transferable !== 'yes'
-        ? { capLimit: caps.find((c) => c.id === 'transfer')?.limit }
-        : undefined;
+    const transferCandidate = unreviewedCandidate ? { capLimit: capById.get('transfer')?.limit } : undefined;
     allocations.set(cc, {
       course: cc,
       countedRegular: isRegular ? counted : 0,
@@ -1135,7 +1194,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       excluded: spillsToTotal ? 0 : excluded,
       ...(spillsToTotal ? { overCapToTotal: excluded } : {}),
       excludedReason,
-      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined, caps.find((c) => c.id === 'fourk'), spillsToTotal),
+      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined, capById.get('fourk'), spillsToTotal),
     });
   };
 
@@ -1193,7 +1252,7 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
   }
 
   const perCourse = classified.map((cc) => allocations.get(cc)!);
-  return { perCourse, ...sums, capUsage, warnings: [] };
+  return { perCourse, ...sums, capUsage };
 }
 
 /** The processing order for the multi-cap courses that counts the most credits.
@@ -1269,6 +1328,12 @@ function bestMultiOrder(
   return order.map((i) => multis[i]!);
 }
 
+/** The three live states a counted course can be in (DGS 2026-09-13): earned,
+ * being taken now, or waiting on an approval. They were one amber mark until
+ * then. */
+const markForTier = (tier: Tier): CourseMark =>
+  tier === 'definite' ? 'counts' : tier === 'in_progress' ? 'in_progress' : 'pending';
+
 /** The per-course line and its colour (DGS request 2026-09-06). A credit that
  * is only counted PROVISIONALLY — until an advisor/DGS approval — is not
  * presented as counting: its line leads with "pending DGS review — would
@@ -1276,12 +1341,6 @@ function bestMultiOrder(
  * count … when passed", amber; a definite credit "counts toward …", green;
  * a credit that earns nothing "not counted — …", red. The mark is what the
  * page paints; the words carry the same fact for print and copies. */
-/** The three live states a counted course can be in (DGS 2026-09-13): earned,
- * being taken now, or waiting on an approval. They were one amber mark until
- * then. */
-const markForTier = (tier: Tier): CourseMark =>
-  tier === 'definite' ? 'counts' : tier === 'in_progress' ? 'in_progress' : 'pending';
-
 function buildExplanation(
   cc: ClassifiedCourse,
   counted: number,

@@ -5,6 +5,7 @@ import './style.css';
 import { loadRulesWithCard } from './ui/loading.ts';
 import { startApp } from './ui/app.ts';
 import { markEmbedMode, startHeightBroadcast, trackInteractions } from './ui/embed.ts';
+import { clearLocal } from './ui/state.ts';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (app) {
@@ -33,11 +34,7 @@ if (app) {
       const btn = document.createElement('button');
       btn.textContent = 'Clear saved data and start fresh';
       btn.addEventListener('click', () => {
-        try {
-          localStorage.removeItem('cse-degree-audit/v1/student');
-        } catch {
-          /* ignore */
-        }
+        clearLocal();
         location.reload();
       });
       app.append(msg, btn);
