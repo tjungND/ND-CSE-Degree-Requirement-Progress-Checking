@@ -780,14 +780,41 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     });
     const hasGraduateTransfers = student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel !== 'bachelors');
     const bsInferred = student.bachelorsAwardedInferred;
+    // A standalone master's transcript (DGS 2026-09-20): the award is only
+    // known to be BEFORE the master's first semester, and that is what the
+    // field says — no season, no year, nothing required — until the student
+    // chooses to set the exact term.
+    const bsBefore = bsInferred?.before;
+    const bsBeforeLine = bsBefore
+      ? el(
+          'div',
+          { class: 'pair bachelors-before' },
+          el('span', { class: 'bachelors-before-text', 'data-key': 'standing.bachelors.before' }, `Before ${termLabel(bsBefore)}`),
+          el(
+            'button',
+            {
+              class: 'btn tiny',
+              'data-key': 'standing.bachelors.exact',
+              onclick: () =>
+                update((s) => {
+                  // Keep the value; drop the "before" reading so the season and year show, pre-filled.
+                  if (s.bachelorsAwardedInferred) s.bachelorsAwardedInferred = { how: s.bachelorsAwardedInferred.how };
+                }),
+            },
+            'Set the exact semester',
+          ),
+        )
+      : undefined;
     const bsNote = el(
       'p',
       // Required since 2026-09-07 (DGS): every student has a bachelor's
       // degree, and §5.2 counts a course as transfer credit only if it was
       // taken after that degree — so the term is needed whether or not the
       // student also holds a graduate degree. An unset field always warns.
-      { class: `hint${bsInferred || awarded === undefined ? ' warn' : ''} field-hint bachelors-note` },
-      awarded && bsInferred
+      { class: `hint${(bsInferred && !bsBefore) || awarded === undefined ? ' warn' : ''} field-hint bachelors-note` },
+      awarded && bsBefore
+        ? `Your master’s transcript starts in ${termLabel(bsBefore)}, so your bachelor’s degree counts as awarded before then — which is all §5.2 needs for the courses on it. Set the exact semester only if you also have coursework from before your master’s.`
+        : awarded && bsInferred
         ? `${termLabel(awarded)} was read from your transcript (${bsInferred.how}). Check it — courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).`
         : awarded
           ? 'Courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).'
@@ -863,8 +890,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // What this field drives (item 11) — the longer note takes over while
       // the term is inferred or assumed.
       entryNote ?? el('p', { class: 'hint field-hint' }, 'Every deadline and the residency count are counted from this term.'),
-      fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
-      bsYearError,
+      bsBeforeLine ? fieldset('Bachelor’s degree awarded', bsBeforeLine) : fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
+      bsBeforeLine ? null : bsYearError,
       bsNote,
       priorFold,
     );

@@ -195,6 +195,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 .ft-check { color: var(--ok); font-weight: 700; }
 .pair { display: flex; gap: 6px; }
 .pair input { width: 90px; }
+.pair.bachelors-before { align-items: center; gap: 10px; } /* "Before Fall 2019" + the button that reveals the season/year (DGS 2026-09-20) */
+.bachelors-before-text { font-weight: 600; color: var(--navy); }
 
 .btn { border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: 7px 13px; cursor: pointer; margin-left: 6px; }
 .btn:hover { border-color: var(--navy); }

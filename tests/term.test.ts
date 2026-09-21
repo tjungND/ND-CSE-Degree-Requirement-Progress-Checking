@@ -2,7 +2,15 @@
 // for table cells (DGS 2026-09-07).
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parseTermCode, parseTermLabel, termLabel, termShort } from '../src/engine/term.ts';
+import { parseTermCode, parseTermLabel, termBefore, termLabel, termShort } from '../src/engine/term.ts';
+
+describe('termBefore (the "Before <first master\'s semester>" reading, DGS 2026-09-20)', () => {
+  it('steps back one term in the spring → summer → fall order', () => {
+    assert.deepEqual(termBefore({ season: 'fall', year: 2023 }), { season: 'summer', year: 2023 });
+    assert.deepEqual(termBefore({ season: 'summer', year: 2023 }), { season: 'spring', year: 2023 });
+    assert.deepEqual(termBefore({ season: 'spring', year: 2023 }), { season: 'fall', year: 2022 });
+  });
+});
 
 describe('term labels', () => {
   it('termShort: season code + two-digit year (FA26 / SP25 / SU25); termLabel keeps the full name', () => {

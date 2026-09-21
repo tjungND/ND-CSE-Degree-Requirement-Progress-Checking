@@ -158,7 +158,15 @@ export interface Student {
    * student touches the control; a later import may replace an inferred
    * value, never a chosen one. Remove/Undo leave both alone (like the entry
    * term — a fact about the student, not about the import). */
-  bachelorsAwardedInferred?: { how: string };
+  bachelorsAwardedInferred?: {
+    how: string;
+    /** Set when the value is only "before this term" (DGS 2026-09-20): a
+     * standalone master's transcript says nothing about the bachelor's award,
+     * so `bachelorsAwarded` holds the term before the master's first semester
+     * and the page shows "Before <that semester>" instead of a season and a
+     * year. Cleared when the student sets the exact term. */
+    before?: Term;
+  };
   /** Set when the student ALREADY HOLDS a Notre Dame master's degree — the
    * MSCSE earned before entering the Ph.D. program (DGS 2026-09-09). §4.5's
    * "along the way" MSCSE is a degree they cannot earn a second time, so that

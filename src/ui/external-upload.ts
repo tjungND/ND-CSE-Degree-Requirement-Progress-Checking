@@ -17,7 +17,7 @@ import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
 import { GRADES } from '../engine/grades.ts';
 import { BACHELORS_YEAR_RANGE, COURSE_CREDITS_RANGE, TERM_YEAR_RANGE, inRange, inputRefusal } from '../engine/ranges.ts';
-import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
+import { termBefore, termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import { SEASONS } from './state.ts';
 import type { CourseEntry, Grade, Program, Season, Student, Term } from '../engine/types.ts';
 import type { ExternalParseResult } from '../transcript/external.ts';
@@ -184,6 +184,8 @@ function relevelByAward(p: ExternalPreview, rules: Rules, program: Program): voi
   }
   p.mixedLevels = new Set(p.rows.map((r) => r.level)).size > 1 || undefined;
 }
+
+const compareTermIndex = (a: Term, b: Term): number => termIndex(a) - termIndex(b);
 
 /** The level a slot's rows take when the transcript does not say: undergraduate in the bachelor's row, graduate elsewhere. */
 function slotDefaultLevel(slot: DegreeLevel): PreviewRow['level'] {
@@ -1257,6 +1259,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             let graduateRows = 0;
             let bachelorsSet: Term | undefined;
             let bachelorsFromTranscript = false;
+            let bachelorsBefore: Term | undefined;
             update((s) => {
               for (const r of ready) {
                 const degreeLevel = degreeLevelFor(p.slot, r.level);
@@ -1305,6 +1308,23 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   bachelorsFromTranscript = p.bachelorsSource === 'transcript';
                 }
               }
+              // A standalone master's transcript says nothing about the
+              // bachelor's degree, and the student is not asked (DGS
+              // 2026-09-20): it was awarded BEFORE the master's first
+              // semester, which is all §5.2 needs — every course on the
+              // transcript is dated after it. The record holds the term just
+              // before that semester; the page shows "Before <semester>".
+              // A term the student set by hand is left alone.
+              if (p.slot === 'masters' && !p.bachelorsRequired && p.bachelorsAwarded === undefined && (s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined)) {
+                const dated = ready.filter((r) => r.year !== undefined).map((r) => ({ season: r.season, year: r.year! }));
+                const first = dated.sort(compareTermIndex)[0];
+                if (first !== undefined) {
+                  const wasBefore = s.bachelorsAwardedInferred?.before;
+                  s.bachelorsAwarded = termBefore(first);
+                  s.bachelorsAwardedInferred = { how: `the first semester on your ${university} master’s transcript`, before: { ...first } };
+                  if (wasBefore === undefined || termIndex(wasBefore) !== termIndex(first)) bachelorsBefore = first;
+                }
+              }
               // A Notre Dame transcript can land in one of these slots as the
               // record of an EARLIER Notre Dame degree (2026-09-05), and such a
               // transcript often carries the current program too. The entry
@@ -1337,7 +1357,9 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                     : '') +
                 (bachelorsSet
                   ? ` “Bachelor’s degree awarded” was set to ${termLabel(bachelorsSet)}${bachelorsFromTranscript ? ' from the conferral date on your transcript' : ''} — check it under Your standing.`
-                  : ''),
+                  : bachelorsBefore
+                    ? ` “Bachelor’s degree awarded” reads “Before ${termLabel(bachelorsBefore)}”, the first semester on this transcript — set the exact semester under Your standing if you know it.`
+                    : ''),
             );
           },
         },
@@ -1406,13 +1428,17 @@ function bachelorsField(p: ExternalPreview, rules: Rules, render: () => void, pr
       ? `Read from your transcript (bachelor’s degree conferred ${p.bachelorsConferredOn}) — check it. Courses dated in or before this term count as undergraduate coursework${ugTail}`
       : p.bachelorsRequired
         ? `Required for a combined bachelor’s + master’s record: enter the semester your bachelor’s degree was awarded. Courses dated in or before it count as undergraduate coursework${ugTail.replace(/\.$/, '')}; changing it re-fills “Taken as” for every row.`
-        : 'Required — the semester your bachelor’s degree was awarded; courses dated in or before it count as undergraduate coursework (§5.2).';
+        : p.slot === 'masters'
+          // A standalone master's transcript (DGS 2026-09-20): not required —
+          // left blank, the award reads "Before <first semester on it>".
+          ? 'Optional — left blank, your bachelor’s degree counts as awarded before the first semester on this transcript, which is all §5.2 needs; set the exact semester if you know it.'
+          : 'Required — the semester your bachelor’s degree was awarded; courses dated in or before it count as undergraduate coursework (§5.2).';
   return el(
     'div',
     { class: 'field bachelors-field' },
     // Required everywhere since 2026-09-07 (DGS); only the Add-blocking is
     // specific to a combined bachelor's + master's record.
-    el('span', { class: 'label' }, 'Bachelor’s degree awarded (required)'),
+    el('span', { class: 'label' }, p.slot === 'masters' && !p.bachelorsRequired ? 'Bachelor’s degree awarded' : 'Bachelor’s degree awarded (required)'),
     el('div', { class: 'pair' }, seasonSel, yearInput),
     el('p', { class: 'hint', id: 'ext-bachelors-hint' }, hint),
   );

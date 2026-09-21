@@ -2,7 +2,7 @@
 // (DGS-requested, 2026-08-31) so a student can move between devices/browsers.
 // Nothing ever leaves the browser (CLAUDE.md).
 import { COURSE_CREDITS_RANGE, GPA_RANGE, inRange, rangeRefusal } from '../engine/ranges.ts';
-import type { Season, Student } from '../engine/types.ts';
+import type { Season, Student, Term } from '../engine/types.ts';
 
 const LS_KEY = 'cse-degree-audit/v1/student';
 
@@ -54,7 +54,9 @@ function validBachelors(v: unknown): Student['entryTerm'] | undefined {
 }
 function validBachelorsInferred(v: unknown, term: Student['entryTerm'] | undefined): Student['bachelorsAwardedInferred'] {
   const f = v as Record<string, unknown> | undefined;
-  return term && f && typeof f === 'object' && typeof f['how'] === 'string' ? { how: f['how'] } : undefined;
+  if (!(term && f && typeof f === 'object' && typeof f['how'] === 'string')) return undefined;
+  const before = validTerm(f['before']) ? { season: (f['before'] as Term).season, year: (f['before'] as Term).year } : undefined;
+  return { how: f['how'], ...(before ? { before } : {}) };
 }
 
 /** An earlier Notre Dame master's degree (2026-09-09). Presence is the fact

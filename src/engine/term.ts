@@ -11,6 +11,13 @@ export function termIndex(t: Term): number {
   return t.year * 3 + SEASON_ORDER[t.season];
 }
 
+/** The term just before `t` in the spring → summer → fall order (fall's
+ * predecessor is the same year's summer; spring's is the previous fall). */
+export function termBefore(t: Term): Term {
+  if (t.season === 'spring') return { season: 'fall', year: t.year - 1 };
+  return { season: t.season === 'summer' ? 'spring' : 'summer', year: t.year };
+}
+
 export function compareTerm(a: Term, b: Term): number {
   return termIndex(a) - termIndex(b);
 }
