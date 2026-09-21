@@ -61,6 +61,16 @@ export function rulesFromCsvTexts(
  * hand-typed or OCR-read id reaches the same row as the printed one (DGS
  * 2026-09-11: "let app ignore the case and space"). Ids that are not a
  * subject plus a number are only upper-cased and space-collapsed. */
+/** A subject printed one letter at a time — "C S 50300", "C S E 60641" — is
+ * read as "CS 50300", "CSE 60641" (DGS 2026-09-20: remove the spaces before
+ * recognising the code). Only a run of single letters directly before the
+ * course number is joined, so titles and prose are untouched; this also
+ * turns the University of Washington's "E E 235" into "EE 235", which the
+ * ExternalCourses lookup already treated as the same id. */
+export function joinSpacedSubject(text: string): string {
+  return text.replace(/^((?:[A-Za-z] ){1,5}[A-Za-z])(?=\s*-?\s*\d)/, (m) => m.replace(/ /g, ''));
+}
+
 export function canonicalCourseId(courseId: string): string {
   const flat = courseId.toUpperCase().replace(/\s+/g, ' ').trim();
   const m = /^([A-Z]{2,6})\s*(\d[\dX]{3,5})$/i.exec(flat.replace(/\s+/g, ''));

@@ -11,6 +11,7 @@
 //
 // Parsing a PDF's text is inherently best-effort: everything parsed here is
 // shown to the student for confirmation before anything is added (never guess).
+import { joinSpacedSubject } from '../data/assemble.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { Grade, Season, Term } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
@@ -271,7 +272,8 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   };
 
   for (const rawLine of lines) {
-    const line = rawLine.replace(/\s+/g, ' ').trim();
+    // "C S E 60641" reads as "CSE 60641" (DGS 2026-09-20).
+    const line = joinSpacedSubject(rawLine.replace(/\s+/g, ' ').trim());
     if (line === '') continue;
     const upper = line.toUpperCase();
     // Matched once per line: three guards below and the course-row reader all ask.

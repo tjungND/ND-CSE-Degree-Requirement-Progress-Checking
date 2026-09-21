@@ -24,6 +24,10 @@ const PURDUE = [
 ].concat(Array(20).fill('Purdue University Registrar record — not an official copy unless sealed.'));
 
 describe('external transcript parsing', () => {
+  it('a subject printed one letter at a time is read without the spaces (DGS 2026-09-20)', () => {
+    const spaced = parseExternalTranscript([...PURDUE.slice(0, 6), 'C S 50300   Operating Systems                 3.0   A', 'C S E 60641   Graduate Operating Systems   3.0   A', 'E E   235   Circuits I   4.0   B', ...PURDUE.slice(12)]);
+    assert.deepEqual(spaced.courses.map((c) => c.courseId), ['CS 50300', 'CSE 60641', 'EE 235']);
+  });
   it('reports graduate-degree conferral only on positive same-line evidence', () => {
     const withMs = parseExternalTranscript([...PURDUE, 'Master of Science in Computer Science — Conferred: May 2021']);
     assert.equal(withMs.degreeConferred, true);

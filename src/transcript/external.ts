@@ -4,6 +4,7 @@
 // added without their review, and unmatched grades must be chosen by hand.
 // System-generated PDFs are read exactly; a PDF with no text layer is offered
 // the opt-in English-only OCR instead (decision 2026-09-02; src/transcript/ocr.ts).
+import { joinSpacedSubject } from '../data/assemble.ts';
 import { expandInstitutionAbbreviations, normalizeCourseId, normalizeUniversity } from '../data/external.ts';
 import { shortenAfterFirst } from '../ui/first-mention.ts';
 import { termIndex, termOfDate } from '../engine/term.ts';
@@ -441,7 +442,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const looksLikeIdentifierLine = (subject: string, tokens: string[]): boolean =>
     BARE_IDENTIFIER_RE.test(subject) && !tokens.some((tk) => /[A-Za-z]{3}/.test(tk));
   // A subject cell: "CS", "COMPSCI", "STATISTC", or a two-part code with a
-  // space ("E E", "A A" at the University of Washington, 2026-09-05).
+  // space ("E E", "A A" at the University of Washington, 2026-09-05 — since
+  // 2026-09-20 joinSpacedSubject turns those into "EE", "AA" first, so the
+  // second alternative is now the multi-letter case such as "MATH SCI").
   const SUBJECT_RE = /^[A-Za-z]{2,10}$|^[A-Za-z]{1,4} [A-Za-z]{1,4}$/;
   /** Course subjects are printed in capitals (DGS, 2026-09-06). A short
    * subject may still be lowercase ("cs 5321", 2026-09-04), but a word of
@@ -531,7 +534,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const leadCode = (flat: string): { code: string; tokens: string[] } | undefined => {
     // A stray 1–3-letter security mark merged onto the row's start ("XK ITWS
     // 1882 …", 2026-09-05) is skipped when a real code follows it.
-    const cells = flat.replace(/^[A-Z]{1,3}\s+(?=[A-Za-z]{2,10}(?: [A-Za-z]{1,4})?\s+\d)/, '').split(/\s{2,}/);
+    // "C S 50300" reads as "CS 50300" (DGS 2026-09-20; see joinSpacedSubject).
+    const cells = joinSpacedSubject(flat).replace(/^[A-Z]{1,3}\s+(?=[A-Za-z]{2,10}(?: [A-Za-z]{1,4})?\s+\d)/, '').split(/\s{2,}/);
     // Banner / PeopleSoft layouts print the subject and the number in SEPARATE
     // columns ("CS   455   Data Communication   3.00 A   12.00"; Western's
     // "COMPSCI   3331A Title …" keeps the title in the number's cell; Johns

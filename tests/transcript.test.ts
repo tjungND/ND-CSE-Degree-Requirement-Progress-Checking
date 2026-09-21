@@ -42,6 +42,10 @@ CSE 98900 GR Research and Dissertation 6.000
 describe('transcript parsing', () => {
   const parsed = parseTranscript(ND_TRANSCRIPT);
 
+  it('a subject printed one letter at a time is read without the spaces (DGS 2026-09-20)', () => {
+    const spaced = parseTranscript(ND_TRANSCRIPT.map((l) => l.replace('CSE 60641 GR', 'C S E 60641 GR')));
+    assert.ok(spaced.courses.some((c) => c.courseId === 'CSE 60641' && c.title === 'Graduate Operating Systems'));
+  });
   it('recognizes a Notre Dame transcript', () => {
     assert.equal(parsed.isNotreDame, true);
   });
