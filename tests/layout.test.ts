@@ -80,6 +80,28 @@ describe('two-column page detection', () => {
     assert.equal(splitColumns(oneColumnTable(120), W).length, 1);
   });
 
+  it('never splits a wide one-column table whose only wordy text at the numbers is one repeated header (2026-09-20)', () => {
+    // The DGS's synthetic transcripts: short titles, then Attempted / Earned /
+    // Grade / Points far to the right, with the "Attempted" header printed
+    // above every term's numbers — five wordy runs at the edge, all one word.
+    const runs: Run[] = [];
+    let y = 760;
+    for (let term = 0; term < 6; term++) {
+      y -= 12;
+      runs.push(run(43, y, `2022-23 Fall Term`, 88), run(149, y, 'Academic Career: Graduate', 108));
+      y -= 12;
+      runs.push(run(43, y, 'Course', 25), run(155, y, 'Description', 40), run(407, y, 'Attempted', 36), run(455, y, 'Earned', 25), run(497, y, 'Grade', 21), run(544, y, 'Points', 22));
+      for (let i = 0; i < 3; i++) {
+        y -= 10;
+        runs.push(run(43, y, `CS1${term}${i}`, 24), run(155, y, 'Operating systems design', 120), run(438, y, '3', 4), run(475, y, '3', 4), run(497, y, 'A', 5), run(542, y, '12.000', 24));
+      }
+      y -= 10;
+      runs.push(run(43, y, 'Term Totals: 11 units', 70), run(155, y, 'Term GPA', 35), run(548, y, '3.745', 19));
+    }
+    assert.equal(splitColumns(runs, W).length, 1);
+    assert.ok(runsToLines(runs, W).some((l) => /^CS100 {3}Operating systems design {3}3 {3}3 {3}A {3}12\.000$/.test(l)), runsToLines(runs, W).join('\n'));
+  });
+
   it('leaves small pages alone', () => {
     assert.equal(splitColumns(twoColumnPage().slice(0, 30), W).length, 1);
   });

@@ -239,6 +239,17 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `wideFilters` (a `matchMedia('(min-width: 861px)')`, `{ matches: true }` under node) and the bar is
   rebuilt on its `change` event — the values live in `filters`, not in the controls. In e2e, use
   `checkVisibility()` for anything inside a closed details: WebKit gives its content boxes.
+- **Synthetic transcript fixtures** (2026-09-20). `tests/fixtures/ms-transcripts/<school>.json` is the
+  exact line list the app's PDF layout step produced for one of the DGS's 48 synthetic master's /
+  combined transcripts, and `expected.json` is what `parseExternalTranscript` must return for each;
+  `tests/ms-transcripts.test.ts` pins all 48 (647 course rows). The PDFs themselves stay outside the
+  repo (the DGS's iCloud Downloads, `ms-transcript-fixtures/pdf/`). To add or refresh one: run the PDF
+  through pdfjs (legacy build, node) → `runsFromTextItems` → `runsToLines`, save the lines, parse, and
+  write the rows as `id | title | credits | grade | season year[ | level]`; the harness that did this
+  lives in the session scratchpad, not the repo — twenty lines, easy to redo. Two layout rules came
+  out of this batch: a two-column split needs three DIFFERENT wordy texts at the right edge (one
+  repeated header such as "Attempted" is a table, not a column), and the crossing test reads per-word
+  runs joined into phrases (some generators emit one run per word).
 - **A university named only in an image** (2026-09-08): `NAME_ONLY_IN_IMAGE` in
   src/transcript/external.ts maps an acronym to a school's real name, tried ONLY after every
   text-reading pass in `guessUniversity` has failed. Keep it that way — it is a fallback, not a

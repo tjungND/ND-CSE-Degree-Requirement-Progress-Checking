@@ -209,8 +209,10 @@ export function groupLines(runs: Run[]): string[] {
  *   2. both sides hold at least 30% of the runs;
  *   3. the right column's left edge is WORDY: at least five runs starting
  *      there contain a four-letter word (term headers, "College of …",
- *      "Ehrs:", "Good Standing"). A table's right half starts with numbers
- *      ("3.000") or one-letter grades, so it fails this test.
+ *      "Ehrs:", "Good Standing"), of at least three different texts, and
+ *      the right half is not more than 75% numbers and grades. A table's
+ *      right half starts with numbers ("3.000"), one-letter grades or one
+ *      repeated header ("Attempted"), so it fails this test.
  * Runs that cross the band (headers) stay with the left column, where they
  * were read first. */
 export function splitColumns(runs: Run[], pageWidth: number): Run[][] {
@@ -231,7 +233,13 @@ export function findColumnGap(runs: Run[], pageWidth: number): number | undefine
   // banners are drawn to the full column width and touch the gap; they say
   // nothing about the layout, so they do not count as crossings.
   const DECORATIVE_RE = /^[\W_]+$|CONTINUED ON/i; // covers "_____", "-----", "*****" boxes
-  const measurable = runs.filter((r) => !DECORATIVE_RE.test(r.text));
+  // Some generators emit one run PER WORD (the DGS's synthetic Oregon State
+  // transcript, 2026-09-20): a title such as "ALGORITHMS: DESIGN, ANALYSIS,"
+  // then never "crosses" the middle, because no single word does. The
+  // crossing test therefore reads word runs joined into phrases — the same
+  // 8-unit gap that groupLines() treats as one space, so table cells (three
+  // spaces apart) stay separate.
+  const measurable = joinWords(runs).filter((r) => !DECORATIVE_RE.test(r.text));
   const tolerance = Math.max(2, runs.length * 0.02);
   // The gap is often only a few units wide, so every candidate position is
   // tried in turn and the first that passes all three tests wins.
@@ -252,11 +260,37 @@ export function findColumnGap(runs: Run[], pageWidth: number): number | undefine
     // The band between the candidate and that edge must be (nearly) empty —
     // otherwise the candidate sits inside the left column's last cells.
     if (right.filter((r) => r.x < rightEdge - 12).length > tolerance) continue;
-    const wordyAtEdge = right.filter((r) => r.x >= rightEdge - 6 && r.x <= rightEdge + 12 && /[A-Za-z]{4}/.test(r.text)).length;
-    if (wordyAtEdge < 5) continue;
+    const wordyAtEdge = right.filter((r) => r.x >= rightEdge - 6 && r.x <= rightEdge + 12 && /[A-Za-z]{4}/.test(r.text));
+    if (wordyAtEdge.length < 5) continue;
+    // Five copies of ONE word are a column header, not a column (the DGS's
+    // synthetic transcripts, 2026-09-20): "Attempted" printed above every
+    // term's numbers passed the test, and the page's credits and grades were
+    // read after all its titles. A real text column starts with varied text
+    // — term headers, "Ehrs:", a college name — so three distinct words are
+    // asked for, and the right half must not be mostly numbers and grades.
+    if (new Set(wordyAtEdge.map((r) => r.text.trim())).size < 3) continue;
+    const numericOrGrade = right.filter((r) => /^[\d.,/]+$|^[A-Z][+\-]?$/.test(r.text.trim())).length;
+    if (numericOrGrade > right.length * 0.75) continue; // a Banner column is ~half numbers (course numbers, credits, points)
     return x;
   }
   return undefined;
+}
+
+/** Runs on one baseline whose horizontal gap is a word space (≤ 8 units)
+ * joined into one run, for the layout tests that ask "does this text cross
+ * the middle of the page?". The runs themselves are left as they were. */
+function joinWords(runs: Run[]): Run[] {
+  const sorted = [...runs].sort((a, b) => b.y - a.y || a.x - b.x);
+  const out: Run[] = [];
+  for (const r of sorted) {
+    const last = out[out.length - 1];
+    if (last && Math.abs(last.y - r.y) <= 2 && r.x - (last.x + last.width) <= 8 && r.x >= last.x) {
+      out[out.length - 1] = { ...last, text: `${last.text} ${r.text}`, width: r.x + r.width - last.x };
+    } else {
+      out.push({ ...r });
+    }
+  }
+  return out;
 }
 
 /** pdfjs occasionally merges a left column's last cell with the right

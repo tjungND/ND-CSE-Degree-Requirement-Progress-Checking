@@ -205,10 +205,16 @@ export interface CampusResolution {
 export function resolveCampus(university: string | undefined, lines: readonly string[] = []): CampusResolution {
   if (university === undefined || university.trim() === '') return {};
   const key = normalizeUniversity(university);
-  const system = MULTI_CAMPUS_SYSTEMS.find((s) => {
-    const sk = normalizeUniversity(s.system);
-    return key === sk || key.startsWith(sk + ' ');
-  });
+  const system =
+    MULTI_CAMPUS_SYSTEMS.find((s) => {
+      const sk = normalizeUniversity(s.system);
+      return key === sk || key.startsWith(sk + ' ');
+    }) ??
+    // A SUNY campus prints its own name FIRST — "BINGHAMTON UNIVERSITY, STATE
+    // UNIVERSITY OF NEW YORK" (DGS 2026-09-20). A system named inside the
+    // printed name counts only when the name also names one of its campuses,
+    // so "California State University" still belongs to no system.
+    MULTI_CAMPUS_SYSTEMS.find((s) => key.includes(' ' + normalizeUniversity(s.system)) && s.campuses.some((cp) => cp.aliases.test(university)));
   if (system === undefined) return {};
   const inName = system.campuses.find((cp) => cp.aliases.test(university));
   if (inName) return { system, campus: inName };
