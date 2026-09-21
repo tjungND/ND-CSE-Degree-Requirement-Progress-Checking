@@ -5,9 +5,10 @@
 // UC Berkeley course. When the campus can be read from the record it is
 // pre-filled; when it cannot, the student MUST choose it before the courses
 // are added. Only systems whose bare name is genuinely ambiguous are listed —
-// "Purdue University" or "University of Michigan" alone means the flagship,
-// and asking would only be noise. (University of Washington is listed at the
-// DGS's request, 2026-09-13.)
+// "Purdue University" alone means the flagship, and asking would only be
+// noise. (University of Washington is listed at the DGS's request, 2026-09-13;
+// University of Michigan on 2026-09-20 — Dearborn and Flint transcripts print
+// the bare name too.)
 import { normalizeUniversity } from '../data/external.ts';
 
 export interface Campus {
@@ -52,6 +53,16 @@ export const MULTI_CAMPUS_SYSTEMS: readonly MultiCampusSystem[] = [
       c('Seattle', 'University of Washington', /\bSeattle\b|\bUW\s*Seattle\b/i),
       c('Tacoma', 'University of Washington Tacoma', /\bTacoma\b|\bUWT\b/i),
       c('Bothell', 'University of Washington Bothell', /\bBothell\b|\bUWB\b/i),
+    ],
+  },
+  {
+    // DGS 2026-09-20: as with Washington, the bare name is Ann Arbor's, but
+    // the Dearborn and Flint transcripts print it too.
+    system: 'University of Michigan',
+    campuses: [
+      c('Ann Arbor', 'University of Michigan', /\bAnn Arbor\b|\bUM\s*Ann Arbor\b/i),
+      c('Dearborn', 'University of Michigan-Dearborn', /\bDearborn\b|\bUM-?D\b/i),
+      c('Flint', 'University of Michigan-Flint', /\bFlint\b|\bUM-?Flint\b/i),
     ],
   },
   {

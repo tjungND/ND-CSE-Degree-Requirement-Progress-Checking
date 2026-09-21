@@ -23,7 +23,7 @@ describe('multi-campus systems', () => {
     assert.equal(resolveCampus('University of California', deep).campus, undefined);
   });
   it('schools whose bare name means the flagship are not systems', () => {
-    for (const name of ['Purdue University', 'University of Michigan', 'California State University', 'Notre Dame']) {
+    for (const name of ['Purdue University', 'Michigan State University', 'California State University', 'Notre Dame']) {
       assert.equal(resolveCampus(name).system, undefined, name);
     }
   });
@@ -33,6 +33,13 @@ describe('multi-campus systems', () => {
     assert.equal(resolveCampus('University of Washington', ['UNIVERSITY OF WASHINGTON', 'Seattle, WA 98195']).campus?.full, 'University of Washington');
     assert.equal(resolveCampus('University of Washington Tacoma').campus?.full, 'University of Washington Tacoma');
     assert.equal(resolveCampus('University of Washington', ['UNIVERSITY OF WASHINGTON', 'Bothell Campus']).campus?.name, 'Bothell');
+  });
+  it('University of Michigan asks unless the record names Ann Arbor, Dearborn or Flint (DGS 2026-09-20)', () => {
+    assert.equal(resolveCampus('University of Michigan').campus, undefined);
+    assert.equal(resolveCampus('University of Michigan').system?.system, 'University of Michigan');
+    assert.equal(resolveCampus('University of Michigan', ['UNIVERSITY OF MICHIGAN', 'Ann Arbor, MI 48109']).campus?.full, 'University of Michigan');
+    assert.equal(resolveCampus('University of Michigan-Dearborn').campus?.full, 'University of Michigan-Dearborn');
+    assert.equal(resolveCampus('University of Michigan', ['UNIVERSITY OF MICHIGAN', 'Flint Campus']).campus?.name, 'Flint');
   });
   it('the parser carries the system and the campus', () => {
     const lines = ['UNIVERSITY OF CALIFORNIA', ...HEAD, 'Fall Quarter 2023', 'CSE 202   Algorithm Design and Analysis   4.0   A'];
