@@ -85,6 +85,13 @@ const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'
 const SKIP_GRADES = new Set(['W', 'WF', 'WP', 'AU', 'NR', 'X', 'NG', 'I']);
 
 const TERM_RE = /\b(Fall|Spring|Summer)\s+(?:Semester\s+|Session\s+)?(\d{4})\b/i;
+/** A long title Banner wrapped onto the line after its course row — words
+ * only, no digits, at most six of them ("Architecture", "and Analysis") —
+ * is the rest of that title (DGS 2026-09-22: "Advanced Computer" lost its
+ * "Architecture"). Standing notes and headers that can follow a row are
+ * refused by name. */
+const TITLE_CONTINUATION_RE = /^[A-Za-z][A-Za-z&'’,\-\/()]*(?: [A-Za-z&'’,\-\/()]+){0,5}$/; // no colon: "… CREDIT:" is a section header
+const NOT_A_CONTINUATION_RE = /^(GOOD STANDING|DEAN|HONORS?|TERM|LEVEL|COLLEGE|MAJOR|MINOR|PROGRAM|DEPARTMENT|CONTINUED|CURRENT|CUMULATIVE|INSTITUTION|TRANSFER|UNOFFICIAL|OFFICIAL|PAGE|SUBJ|COURSE|TOTALS?|EHRS|GPA|ACADEMIC|STUDENT|DEGREES?|BACHELOR|MASTER|DOCTOR|FALL|SPRING|SUMMER|UNIVERSITY|NOTRE DAME|CREDIT|RECORD|BEGINNING|END|FIRST YEAR|TRANSCRIPT|OVERALL|COURSES?|GRADUATE|UNDERGRADUATE|WEB|IN PROGRESS)\b/;
 // Banner 9's web transcript prints a Campus column ("Main") between the
 // number and the Level ("CSE 60618 Main GR Title …", 2026-09-05): one
 // capitalized word is skipped there, but only when a level code follows it.
@@ -193,6 +200,8 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
    * credits and the grade, and file the course under the current term, origin
    * and level. A row that is not a course after all, or one with no grade to
    * keep, is skipped — with a note where the student should add it by hand. */
+  /** The index of the course whose row was the previous line, while its title may continue. */
+  let titleOpen: number | undefined;
   const readNdCourseRow = (courseMatch: RegExpExecArray): void => {
     expectInstitution = false;
 
@@ -258,6 +267,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       return;
     }
 
+    titleOpen = courses.length;
     courses.push({
       courseId,
       title: tokens.join(' ') || undefined,
@@ -278,6 +288,16 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     const upper = line.toUpperCase();
     // Matched once per line: three guards below and the course-row reader all ask.
     const courseMatch = COURSE_HEAD_RE.exec(line);
+    // The line right after a course row may be the rest of its title.
+    if (titleOpen !== undefined) {
+      const idx = titleOpen;
+      titleOpen = undefined;
+      if (!courseMatch && TITLE_CONTINUATION_RE.test(line) && !NOT_A_CONTINUATION_RE.test(upper) && !TERM_RE.test(line)) {
+        const c = courses[idx]!;
+        c.title = c.title ? `${c.title} ${line}` : line;
+        continue;
+      }
+    }
 
     // ---- header signals (2026-09-05) ----
     if (ADMIT_RE.test(upper)) {

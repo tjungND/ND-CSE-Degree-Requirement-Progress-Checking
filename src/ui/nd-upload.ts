@@ -285,7 +285,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
       importButton,
       // The card hint above already says every field is checked before it
       // is added, and the preview is that check (trim review 2026-09-18, P-29).
-      el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below.'),
+      el('span', { class: 'hint-inline' }, ' — the system-generated PDF from insideND; fills the coursework table and GPA below. If it also shows a Notre Dame bachelor’s or master’s, import it here once — those degrees, their courses and your entry term are read from it. The Previous rows are for other universities.'),
     );
   }
   return el('div', { class: 'transcript-upload external-slot' }, ...parts, fileInput, errorBox);

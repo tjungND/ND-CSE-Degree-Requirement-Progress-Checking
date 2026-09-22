@@ -125,7 +125,14 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // title joins the request for §4.4.1 review (DGS rule 2026-09-04) — and
   // the undergraduate CSE 30321 "Computer Architecture" taken before entry
   // (2026-09-05: prior Notre Dame coursework not in the Courses tab).
-  if (!ndReview.includes('Initiate the review request for 3 courses') || ndReview.includes('Grad Admin') || !ndReview.includes('email app to the DGS')) {
+  // The LIVE sheet decides whether CSE 30321 is pending: on 2026-09-22 the DGS
+  // added it to the Courses tab with its core area, which settles its §4.4.1
+  // question, so the request then holds two courses, not three.
+  const listed30321 = await s.evalJs(`!!document.querySelector('#known-courses option[value="CSE 30321"]')`);
+  // `p30321` is that course's share of every later count in this driver.
+  const p30321 = listed30321 ? 0 : 1;
+  const wantReview = 2 + p30321;
+  if (!ndReview.includes(`Initiate the review request for ${wantReview} courses`) || ndReview.includes('Grad Admin') || !ndReview.includes('email app to the DGS')) {
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
@@ -169,7 +176,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // Notre Dame's own 4+1 issues two — so the note has to name both shapes and
   // say where each goes before the student picks a file.
   const combined = await s.evalJs(`document.querySelector('.combined-note')?.textContent ?? ''`);
-  for (const needed of ['Two transcripts:', 'One transcript covering both degrees:', 'Previous Master’s Transcript', 'Notre Dame’s own transcripts belong in these rows']) {
+  for (const needed of ['Two transcripts:', 'One transcript covering both degrees:', 'Previous Master’s Transcript', 'A Notre Dame degree is different: it is on the same insideND transcript']) {
     if (!combined.includes(needed)) throw new Error('the transcript-shape note must say ' + JSON.stringify(needed) + ' — got: ' + combined);
   }
   console.log('  transcript-shape note covers two transcripts, one combined, and where ND’s own go');
@@ -287,21 +294,23 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   const bsNoteChosen = await s.evalJs(`document.querySelector('.bachelors-note')?.textContent ?? ''`);
   if (bsNoteChosen.includes('read from your transcript')) throw new Error('a hand-set award term is no longer "read from your transcript"');
   const reviewAfterRule = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
-  if (!reviewAfterRule.includes('Initiate the review request for 5 courses')) throw new Error('two excluded Purdue rows with core-sounding titles stay, one leaves — 5 expected: ' + reviewAfterRule.slice(0, 140));
+  if (!reviewAfterRule.includes(`Initiate the review request for ${4 + p30321} courses`)) throw new Error(`two excluded Purdue rows with core-sounding titles stay, one leaves — ${4 + p30321} expected: ` + reviewAfterRule.slice(0, 140));
   await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card')].find(c => c.querySelector('h2')?.textContent.includes('Coursework')); c.id = 'shot-coursework'; })()`);
   await s.shotElement('bachelors-rule', '#shot-coursework');
   await setBachelorsYear('2021');
   const candidatesBack = await groupLines('Purdue University — Previous Master’s Transcript');
   if (!candidatesBack.every((l) => l.includes('candidate for transfer credit'))) throw new Error('back to 2021: the rows must be candidates again: ' + JSON.stringify(candidatesBack));
-  if (!(await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`)).includes('Initiate the review request for 6 courses')) throw new Error('back to 2021: 6 courses expected in the request');
+  if (!(await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`)).includes(`Initiate the review request for ${5 + p30321} courses`)) throw new Error(`back to 2021: ${5 + p30321} courses expected in the request`);
   console.log('  bachelor’s award Spring 2024 → all three Purdue rows excluded (§5.2 status), 5 in the request; back to 2021 → candidates again');
   const priorNdLines = await groupLines('ND, before entering the program — undergraduate coursework');
-  if (!priorNdLines.some((l) => l.startsWith('CSE 30321') && l.includes('mark-pending') && l.includes('may satisfy the Computer Architecture core-knowledge requirement'))) {
-    throw new Error('the prior Notre Dame undergraduate course should carry an amber "may satisfy" line: ' + JSON.stringify(priorNdLines));
+  // Pending (amber, "may satisfy") while the sheet does not list CSE 30321;
+  // settled by its core-area cell once it does (the live sheet, 2026-09-22).
+  if (!priorNdLines.some((l) => l.startsWith('CSE 30321') && (listed30321 ? /satisf(y|ies) the Computer Architecture core-knowledge requirement/.test(l) : l.includes('mark-pending') && l.includes('may satisfy the Computer Architecture core-knowledge requirement')))) {
+    throw new Error('the prior Notre Dame undergraduate course should carry its core-knowledge line: ' + JSON.stringify(priorNdLines));
   }
   // ONE combined request: the 3 from 2b + the 3 external courses.
   const copyBtn = await s.evalJs(
-    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Initiate the review request for 6 courses'))`,
+    `[...document.querySelectorAll('.dgs-review button')].some(b => b.textContent.includes('Initiate the review request for ${5 + p30321} courses'))`,
   );
   if (!copyBtn) throw new Error('the combined review request button is missing/wrong');
   const transferDetail = await s.evalJs(
@@ -322,6 +331,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   })()`);
   await s.waitFor(`document.querySelector('.external-file-bachelors')`);
   const afterRemove = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
+  // Five either way: a pending CSE 30321 leaves the count (6 → 5); a settled one was never in it (5 → 5).
   if (!afterRemove.includes('Initiate the review request for 5 courses')) throw new Error('removing the prior ND undergraduate course should leave 5 pending: ' + afterRemove.slice(0, 140));
   console.log('  prior ND undergraduate course removed via the Bachelor’s slot (5 pending)');
 
@@ -402,7 +412,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // left out with a note; the institution comes from the legend page.
   await s.setFileInput('.external-file-phd', bannerPdf);
   await s.waitFor(`[...document.querySelectorAll('.external-card h3')].some(h => h.textContent.includes('Previous Ph.D. Transcript'))`);
-  const redirected = await s.evalJs(`[...document.querySelectorAll('.import-error, .hint.warn.nd-prior-note')].some(e => e.textContent.includes('looks like an ND transcript') || e.textContent.includes('is an ND transcript'))`);
+  const redirected = await s.evalJs(`[...document.querySelectorAll('.import-error')].some(e => e.textContent.includes('This is a Notre Dame transcript'))`);
   if (redirected) throw new Error('the Banner transcript was redirected to the ND row because of an nd.edu e-mail');
   const bannerUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
   const bannerRows = await s.evalJs(`document.querySelectorAll('.external-card .transcript-preview table tr').length - 1`);
@@ -490,51 +500,19 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if (priorSel !== 'completed') throw new Error('prior study should be "completed" from the M.S. conferral line, got ' + priorSel);
   await s.shot('combined-added');
 
-  // 8) A Notre Dame transcript in a previous-degree slot (2026-09-05) is
-  //    accepted as the record of an earlier Notre Dame degree — read by the
-  //    Notre Dame parser, filed under "University of Notre Dame", with the
-  //    reminder that a transcript holding the current program belongs in the
-  //    Notre Dame row.
-  //    An UNOFFICIAL transcript in a previous-degree slot is accepted with a
-  //    warning (DGS 2026-09-17; refused outright from 2026-09-15 to then): the
-  //    student may track progress with it, the reviewers will want the official one.
-  await s.setFileInput('.external-file-phd', ndPdf);
-  await s.waitFor(`document.querySelector('[data-key="ext.preview.unofficial"]')`);
-  const unofficialNote = await s.evalJs(`document.querySelector('[data-key="ext.preview.unofficial"]').textContent`);
-  if (!/marked “unofficial”.*will require an OFFICIAL transcript for review, approval and processing/.test(unofficialNote)) throw new Error('the unofficial-transcript warning is wrong: ' + unofficialNote.slice(0, 160));
-  console.log('  unofficial transcript in a previous-degree slot accepted with the warning');
-  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
-  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
-  await s.setFileInput('.external-file-phd', ndOfficialPdf);
-  await s.waitFor(`document.querySelector('.external-card .transcript-preview .nd-prior-note')`);
-  const ndUni = await s.evalJs(`[...document.querySelectorAll('.external-card .field input')].map(i => i.value)[0]`);
-  const ndSlotRows = await s.evalJs(
-    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => (tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent) + ':' + tr.querySelector('select.row-level').value)`,
-  );
-  const ndTransferNote = await s.evalJs(`[...document.querySelectorAll('.external-card .transcript-preview .hint.warn')].map(e => e.textContent).join(' | ')`);
-  // "Bachelor's degree awarded (required)" belongs on the Ph.D.-slot preview
-  // too (DGS 2026-09-09): the award term decides which of these courses were
-  // taken with graduate student status. Its year box must fit four digits AND
-  // the spinner — at 58 px the last digit sat under the arrows.
-  const bach = JSON.parse(await s.evalJs(`JSON.stringify((() => {
-    const f = document.querySelector('.external-card .transcript-preview .bachelors-field');
-    if (!f) return { present: false };
-    const y = f.querySelector('input[type="number"]');
-    return { present: true, label: f.querySelector('.label')?.textContent, w: Math.round(y.getBoundingClientRect().width), clientW: y.clientWidth, scrollW: y.scrollWidth };
-  })())`));
-  if (!bach.present) throw new Error('the Ph.D.-slot preview must show the bachelor’s award term');
-  if (!/Bachelor.s degree awarded \(required\)/.test(bach.label ?? '')) throw new Error('bachelor’s field label: ' + bach.label);
-  if (bach.clientW < 70) throw new Error('the year box is too narrow for four digits and the spinner: ' + JSON.stringify(bach));
-  console.log('  Ph.D. slot shows the bachelor’s award term; its year box is', bach.w + 'px');
-  console.log('  ND transcript in the Ph.D. slot:', ndUni, '|', JSON.stringify(ndSlotRows));
-  if (ndUni !== 'University of Notre Dame') throw new Error('a Notre Dame transcript in a previous slot must be filed under University of Notre Dame: ' + ndUni);
-  if (ndSlotRows.length !== 8 || !ndSlotRows.includes('CSE 30321:undergraduate') || !ndSlotRows.includes('CSE 60641:graduate')) {
-    throw new Error('ND rows/levels wrong in the previous slot');
+  // 8) A Notre Dame transcript in a previous-degree slot is REFUSED (DGS
+  //    2026-09-22, superseding 2026-09-05): insideND prints one transcript for
+  //    every degree, and the Notre Dame row reads the earlier degrees from it.
+  //    Unofficial or official, the answer is the same.
+  for (const [label, pdf] of [['unofficial', ndPdf], ['official', ndOfficialPdf]]) {
+    await s.setFileInput('.external-file-phd', pdf);
+    await s.waitFor(`document.querySelector('[data-key="ext.error.phd"]')?.textContent.includes('This is a Notre Dame transcript')`);
+    const refusal = await s.evalJs(`document.querySelector('[data-key="ext.error.phd"]').textContent`);
+    if (!/belongs in the “Current ND Unofficial Ph\.D\. Transcript” row above, once/.test(refusal)) throw new Error('ND-in-previous-row refusal wording: ' + refusal.slice(0, 160));
+    if (await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`)) throw new Error('a refused Notre Dame transcript must not open a preview');
+    console.log(`  ${label} ND transcript in the Ph.D. slot refused: ` + refusal.slice(0, 80));
   }
-  if (!/1 row listed under .Transfer credit accepted by the institution. was left out/.test(ndTransferNote)) throw new Error('ND transfer-block note missing: ' + ndTransferNote);
-  await s.shot('nd-in-previous-slot');
-  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
-  await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
+  await s.shot('nd-in-previous-slot-refused');
 
   // 9) The Notre Dame transcript is removable like the others (2026-09-06):
   //    Remove takes back exactly what the import added — the 5 program
@@ -646,30 +624,23 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     await s.evalJs(`document.querySelector('[data-key="standing.msOption.undecided"]').click()`);
   }
 
-  // A transcript still in progress is not a bachelor's record (DGS 2026-09-11):
-  // an undergraduate record with no degree awarded and a course without a
-  // grade is refused with the message, and no preview opens. (Since
-  // 2026-09-16 a transcript that STATES the bachelor's conferral is never
-  // refused for an ungraded row — so the combined ND record, whose in-progress
-  // courses are the Ph.D.'s, is no longer the fixture here.)
-  await s.setFileInput('.external-file-bachelors', ndUgInProgressPdf);
-  await s.waitFor(`document.querySelector('[data-key="ext.error.bachelors"]')?.textContent.includes('A completed bachelor’s transcript is required')`);
-  if (await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`)) throw new Error('an in-progress undergraduate transcript must not open a preview');
-  console.log('  in-progress undergraduate transcript refused: ' + (await s.evalJs(`document.querySelector('[data-key="ext.error.bachelors"]').textContent`)).slice(0, 90));
-  await s.setFileInput('.external-file-bachelors', ndUgPdf);
-  await s.waitFor(`document.querySelector('.external-card .transcript-preview table tr:nth-child(2)')`);
-  const ugRows = await s.evalJs(
-    `[...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map(tr => (tr.querySelector('.cell-course input')?.value ?? tr.querySelector('.cell-course .course-id')?.textContent) + ':' + (tr.querySelector('.cell-check input').checked ? 'ticked' : 'unticked'))`,
-  );
-  console.log('  ND undergraduate transcript in the Undergraduate row:', JSON.stringify(ugRows));
-  // The 40000-level courses are the point: before today CSE 40166 (no core
-  // keyword in its title) was dropped from the preview altogether.
-  for (const want of ['CSE 40113:ticked', 'CSE 40166:ticked', 'CSE 60641:ticked']) {
-    if (!ugRows.includes(want)) throw new Error('the preview must offer ' + want + ': ' + JSON.stringify(ugRows));
+  // A Notre Dame undergraduate transcript in the Undergraduate row is refused
+  // (DGS 2026-09-22): it goes in the Notre Dame row, once. The in-progress
+  // fixture is a Notre Dame transcript too, so it gets the same answer.
+  for (const [label, pdf] of [['in-progress', ndUgInProgressPdf], ['finished', ndUgPdf]]) {
+    await s.setFileInput('.external-file-bachelors', pdf);
+    await s.waitFor(`document.querySelector('[data-key="ext.error.bachelors"]')?.textContent.includes('This is a Notre Dame transcript')`);
+    if (await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`)) throw new Error('a refused Notre Dame transcript must not open a preview');
+    console.log(`  ${label} ND undergraduate transcript in the Undergraduate row refused`);
   }
-  if (ugRows.some((r) => /^(MATH 10550|CSE 20110)/.test(r))) throw new Error('coursework that can count nothing must stay out: ' + JSON.stringify(ugRows));
-  await s.shot('nd-undergrad-preview');
-  await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected/.test(b.textContent)).click()`);
+  // The 4+1 record — the courses the Notre Dame row's import files as prior
+  // undergraduate coursework — is loaded as a saved record, so the rest of
+  // the step tests the MSCSE audit and its lines, not an import path.
+  await s.evalJs(`localStorage.setItem('cse-degree-audit/v1/student', JSON.stringify({ schemaVersion: 1, program: 'mscse', entryTerm: { season: 'fall', year: 2026 }, priorMs: 'none', gpa: 3.5, bachelorsAwarded: { season: 'spring', year: 2026 }, courses: [
+    { courseId: 'CSE 40113', title: 'Design/Analysis of Algorithms', credits: 3, grade: 'A', term: { season: 'fall', year: 2024 }, origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'undergraduate' },
+    { courseId: 'CSE 40166', title: 'Computer Graphics', credits: 3, grade: 'A-', term: { season: 'spring', year: 2025 }, origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'undergraduate' },
+    { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, grade: 'A', term: { season: 'spring', year: 2026 }, origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'undergraduate' } ], milestones: {}, attestations: {} }))`);
+  await s.open(baseUrl, '.transcript-upload');
   await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent).includes('CSE 40166')`);
 
   // The student is never asked (DGS 2026-09-11): the app applies the two

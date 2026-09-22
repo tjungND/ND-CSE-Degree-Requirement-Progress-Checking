@@ -11,7 +11,7 @@
 // transmits nothing — FERPA).
 import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
-import { NOTRE_DAME, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
+import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
@@ -35,7 +35,8 @@ type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
  * transcripts; the row wants the one for the program they are in now. */
 export function ndRowLabel(student: Student): string {
   // "Current" (DGS 2026-09-11): this row is for the program the student is in
-  // now; earlier Notre Dame degrees go in the previous-transcript rows below.
+  // now — and, since 2026-09-22, for the earlier Notre Dame degrees too: they
+  // are on the same insideND transcript, which is imported here once.
   return student.program === 'mscse' ? 'Current ND Unofficial MSCSE Transcript' : 'Current ND Unofficial Ph.D. Transcript';
 }
 
@@ -127,10 +128,6 @@ interface ExternalPreview {
   campusSystem?: string;
   campus?: string;
   campusFromTranscript?: boolean;
-  /** A Notre Dame transcript in a previous-degree slot (2026-09-05): an
-   * earlier Notre Dame degree. The preview reminds the student that the
-   * Notre Dame row handles a transcript that also holds the current program. */
-  notreDame?: boolean;
   /** The credit system the transcript announced (quarter 2026-09-11,
    * trimester 2026-09-12); the student can correct it in the preview.
    * `undefined` = semester / not stated. */
@@ -210,6 +207,10 @@ let preview: ExternalPreview | undefined;
 let importError: { slot: DegreeLevel; message: string } | undefined;
 let previewError: string | undefined;
 /** An import that failed: the message under the slot row, focused (item 6). */
+/** Why a Notre Dame transcript is refused in a previous-degree row (DGS 2026-09-22). */
+function ndInPreviousRow(student: Student): string {
+  return `This is a Notre Dame transcript. It belongs in the “${ndRowLabel(student)}” row above, once: insideND prints one transcript for every degree you took here, and that row reads your earlier Notre Dame degrees, their courses and your entry term from it. Adding it here too would list every earlier course twice.`;
+}
 function failSlot(slot: DegreeLevel, message: string, render: () => void): void {
   importError = { slot, message };
   render();
@@ -280,20 +281,15 @@ const BLOCKED_ROW_NOTE =
  * reason: it is not the transfer rule that stops it but the level (2026-09-11).
  * And an MSCSE student is told nothing about §4.4.1 core knowledge, which
  * belongs to the Ph.D. qualifying examination (DGS 2026-09-11). */
-const BLOCKED_ND_ROW_NOTE =
-  'Not selectable: this course is below the level your degree can count (60000 and above in full, CSE courses below it inside the allowance) and it is not related to the core-knowledge areas (Alg, OS, Comp Arch — §4.4.1), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
 
 const BLOCKED_MS_ROW_NOTE =
   'Not selectable: undergraduate credits do not transfer (§5.2), so there is nothing this course can count toward in the MSCSE. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
 
-const BLOCKED_MS_ND_ROW_NOTE =
-  'Not selectable: this course is below the level the MSCSE can count — 60000-level coursework counts in full, and CSE courses below that inside §3.2’s allowance. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
 
 /** Which "why is this row locked?" note the preview shows, by transcript and
  * by degree. */
-function blockedRowNote(notreDame: boolean, program: Program): string {
-  if (program === 'mscse') return notreDame ? BLOCKED_MS_ND_ROW_NOTE : BLOCKED_MS_ROW_NOTE;
-  return notreDame ? BLOCKED_ND_ROW_NOTE : BLOCKED_ROW_NOTE;
+function blockedRowNote(program: Program): string {
+  return program === 'mscse' ? BLOCKED_MS_ROW_NOTE : BLOCKED_ROW_NOTE;
 }
 
 /** Undergraduate rows (DGS request 2026-09-04): undergraduate credits never
@@ -351,9 +347,9 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
     el(
       'details',
       { class: 'combined-note', 'data-key': 'transcripts.shape', open: coursesInSlot(args.student, 'masters').length > 0 || preview !== undefined },
-      el('summary', {}, 'Two degrees from the same university (a 4+1 or 5+1), or a finished Notre Dame degree? Open this first.'),
+      el('summary', {}, 'Two degrees from another university (a 4+1 or 5+1)? Open this first.'),
       el('strong', {}, 'A bachelor’s and a master’s from the same university'),
-      ' (a 4+1 or 5+1, Notre Dame’s included) come as two transcripts or one. ',
+      ' (a 4+1 or 5+1) come as two transcripts or one. ',
       el('strong', {}, 'Two transcripts:'),
       ' the bachelor’s in the Undergraduate row, the master’s in the Master’s row. ',
       el('strong', {}, 'One transcript covering both degrees:'),
@@ -361,7 +357,7 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
       el('strong', {}, 'Previous Master’s Transcript'),
       ' row — never the same PDF twice. Either way, whether you took each course as an undergraduate or a graduate student is read from it and shown in a “Taken as” column you can correct: your status at the time, not the course’s level, decides what a course can count toward.',
       el('br'),
-      'Notre Dame’s own transcripts belong in these rows too, for a degree already finished; the ND row above is your current program.',
+      'A Notre Dame degree is different: it is on the same insideND transcript as your current program, so it goes in the ND row above, once.',
     ),
     ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
@@ -472,7 +468,7 @@ function previewFromParsed(
 }
 
 function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCardArgs): HTMLElement {
-  const { student, rules, update, toast, render } = args;
+  const { student, update, toast, render } = args;
   const have = coursesInSlot(student, slot.level);
   const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: `hidden external-file-${slot.level}`, 'aria-label': `${slot.label} PDF` });
   const fail = (message: string): void => failSlot(slot.level, message, render);
@@ -489,50 +485,12 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       const lines = await pdfToLines(buffer.slice(0));
       const unofficial = isUnofficial(lines); // accepted with a warning on the preview (DGS 2026-09-17)
       const { parseExternalTranscript } = await import('../transcript/external.ts');
-      // A NOTRE DAME transcript in a previous-degree slot (2026-09-05): the
-      // record of an earlier Notre Dame degree (undergraduate at Notre Dame
-      // before a Ph.D. elsewhere-then-here, a prior Notre Dame M.S.). Read by
-      // the Notre Dame parser — it knows the UG/GR column and the degrees
-      // awarded — and filed under "University of Notre Dame". (A transcript
-      // that ALSO holds the current program belongs in the Notre Dame row,
-      // which separates the two by the entry term; the preview says so.)
-      const nd = parseTranscript(lines);
-      if (nd.isNotreDame) {
-        const ndRows: PreviewRow[] = nd.courses
-          .filter((c) => c.origin === 'nd')
-          .map((c) => ({
-            include: true,
-            courseId: c.courseId,
-            title: c.title ?? '',
-            credits: c.credits,
-            grade: c.grade,
-            season: c.term.season,
-            year: c.term.year,
-            level: c.level ?? slotDefaultLevel(slot.level),
-            levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
-          }));
-        if (undergraduateInProgress(slot.level, ndRows, nd.degreesAwarded.some((d) => d.level === 'bachelors' && d.date !== undefined))) return fail(BACHELORS_IN_PROGRESS);
-        const levels = new Set(ndRows.map((r) => r.level));
-        const kept = keepRelevantRows(NOTRE_DAME, rules, ndRows, levels.size > 1, args.student.program);
-        const ndBachelors = nd.degreesAwarded.find((d) => d.level === 'bachelors' && d.date !== undefined)?.date;
-        preview = {
-          ...(unofficial ? { unofficial: true } : {}),
-          slot: slot.level,
-          university: NOTRE_DAME,
-          universityFromTranscript: true,
-          conferred: nd.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd'),
-          bachelorsConferredOn: ndBachelors,
-          ...bachelorsForPreview(slot.level, levels.size > 1, ndBachelors, false, handSetBachelors(args.student)),
-          rows: kept.rows,
-          omitted: kept.omitted,
-          transferSkipped: nd.courses.filter((c) => c.origin === 'transfer').length || undefined,
-          mixedLevels: levels.size > 1,
-          notreDame: true,
-        };
-        if (ndRows.length === 0) previewError = 'This looks like an ND transcript, but no course lines could be read from it. Add the courses by hand below, and tell the DGS.';
-        render();
-        return;
-      }
+      // A NOTRE DAME transcript never belongs in a previous-degree row (DGS
+      // 2026-09-22, superseding 2026-09-05): insideND prints ONE transcript
+      // for every degree the student took here, and the Notre Dame row reads
+      // the earlier degrees, their courses and the entry term from it.
+      // Accepting it here too listed every earlier course twice.
+      if (parseTranscript(lines).isNotreDame) return fail(ndInPreviousRow(student));
       const parsed = parseExternalTranscript(lines);
       if (!parsed.hasTextLayer) {
         // A scan or photo: never OCR silently — offer it (DGS decision 2026-09-02).
@@ -709,7 +667,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                 ocrBusy = undefined;
                 const unofficial = isUnofficial(lines.map((l) => l.text)); // warned on the preview (DGS 2026-09-17)
                 if (parsed.looksLikeNotreDame) {
-                  failSlot(slot, `This looks like an ND transcript — use the “${ndRowLabel(student)}” row above, with the digital PDF from insideND (not a scan).`, render);
+                  failSlot(slot, `${ndInPreviousRow(student)} Use the digital PDF from insideND there, not a scan.`, render);
                   return;
                 }
                 if (!previewFromParsed(parsed, slot, args, { unofficial, fromOcr: true })) {
@@ -992,7 +950,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           ),
         ]
       : []),
-    ...(p.creditSystem !== undefined || (!p.notreDame && !p.fromOcr)
+    ...(p.creditSystem !== undefined || !p.fromOcr
       ? [
           (() => {
             // The credit system, read from the transcript and correctable
@@ -1040,15 +998,6 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
         ]
       : []),
     ...(p.unofficial ? [el('p', { class: 'hint warn unofficial-note', 'data-key': 'ext.preview.unofficial' }, UNOFFICIAL_WARNING)] : []),
-    ...(p.notreDame
-      ? [
-          el(
-            'p',
-            { class: 'hint warn nd-prior-note' },
-            `This is an ND transcript, read as the record of an EARLIER ND degree. If it also holds your current program’s terms, cancel and use the “${ndRowLabel(student)}” row instead — it separates the earlier degree from the program by your entry term.`,
-          ),
-        ]
-      : []),
     ...(p.mixedLevels
       ? [
           el(
@@ -1057,9 +1006,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             el('strong', {}, 'How “Taken as” was filled in: '),
             levelNote(p),
             ' “Taken as” is your status at the time, not the course’s level: a graduate-level course (for example a 500- or 600-level one) that you took before your bachelor’s degree was awarded was taken as an undergraduate student, so it counts as undergraduate coursework. Please double-check every row before adding — ',
-            p.notreDame
-              ? 'rows taken as an undergraduate student at Notre Dame may still count toward your degree — 60000-level coursework in full, and CSE courses below it inside the allowance your degree allows — so they are offered ticked, and the report says course by course what each one does; the ones that can count nothing at all start unticked. Rows taken as a graduate student are §5.2 transfer candidates.'
-              : student.program === 'phd'
+            student.program === 'phd'
                 ? 'rows taken as an undergraduate student can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.'
                 : 'rows taken as an undergraduate student bring no transfer credit (§5.2) and satisfy nothing else in the MSCSE, so they are not offered; rows taken as a graduate student are §5.2 transfer candidates.',
           ),
@@ -1168,7 +1115,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
       el('th', { scope: 'col', class: 'level-head', title: `Your status when you took the course — not the course’s level. A graduate-level course taken before your bachelor’s degree was awarded still counts as undergraduate coursework${student.program === 'phd' ? ': §4.4.1 core knowledge only, no transfer credit (§5.2).' : ', which brings no transfer credit (§5.2).'}` }, 'Taken as'),
     ),
   );
-  const blockedNote = blockedRowNote(p.notreDame === true, student.program);
+  const blockedNote = blockedRowNote(student.program);
   const rowEls = p.rows.map((r, i) => previewRow(p, r, i, { rules, student, toast, render, blockedNote }));
   table.append(...rowEls);
   const selectAll = (on: boolean) => {

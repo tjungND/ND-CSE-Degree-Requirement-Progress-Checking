@@ -46,6 +46,17 @@ describe('transcript parsing', () => {
     const spaced = parseTranscript(ND_TRANSCRIPT.map((l) => l.replace('CSE 60641 GR', 'C S E 60641 GR')));
     assert.ok(spaced.courses.some((c) => c.courseId === 'CSE 60641' && c.title === 'Graduate Operating Systems'));
   });
+  it('joins a title that Banner wrapped onto the next line (DGS 2026-09-22)', () => {
+    const wrapped = ND_TRANSCRIPT.flatMap((l) => (l.startsWith('CSE 60321 GR Advanced Computer Architecture') ? ['CSE 60321 GR Advanced Computer B- 3.000 8.001 R', 'Architecture'] : [l]));
+    const c = parseTranscript(wrapped).courses.find((x) => x.courseId === 'CSE 60321');
+    assert.equal(c?.title, 'Advanced Computer Architecture');
+    assert.equal(c?.grade, 'B-');
+    // A totals header or a standing note after a row is not a title.
+    const totals = ND_TRANSCRIPT.flatMap((l) => (l.startsWith('CSE 60321 GR') ? [l, 'TRANSCRIPT TOTALS (GRADUATE)'] : [l]));
+    assert.equal(parseTranscript(totals).courses.find((x) => x.courseId === 'CSE 60321')?.title, 'Advanced Computer Architecture');
+    const noted = ND_TRANSCRIPT.flatMap((l) => (l.startsWith('CSE 60321 GR') ? [l, 'Good Standing'] : [l]));
+    assert.equal(parseTranscript(noted).courses.find((x) => x.courseId === 'CSE 60321')?.title, 'Advanced Computer Architecture');
+  });
   it('recognizes a Notre Dame transcript', () => {
     assert.equal(parsed.isNotreDame, true);
   });

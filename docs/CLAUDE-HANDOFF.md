@@ -239,6 +239,12 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `wideFilters` (a `matchMedia('(min-width: 861px)')`, `{ matches: true }` under node) and the bar is
   rebuilt on its `change` event — the values live in `filters`, not in the controls. In e2e, use
   `checkVisibility()` for anything inside a closed details: WebKit gives its content boxes.
+- **A Notre Dame transcript is refused in the three Previous rows** (DGS 2026-09-22): `slotRow` in
+  external-upload.ts runs the ND parser's `isNotreDame` test first and fails the slot with
+  `ndInPreviousRow()`; the OCR path does the same. The 2026-09-05 path that read such a transcript as
+  an earlier Notre Dame degree (the preview's `notreDame` flag, `.nd-prior-note`, the ND blocked-row
+  notes) is gone. The Notre Dame row handles the whole insideND record — entry term, degrees awarded,
+  pre-entry rows as prior coursework — see nd-upload.ts.
 - **Synthetic transcript fixtures** (2026-09-20). `tests/fixtures/ms-transcripts/<school>.json` is the
   exact line list the app's PDF layout step produced for one of the DGS's 48 synthetic master's /
   combined transcripts, and `expected.json` is what `parseExternalTranscript` must return for each;
