@@ -1634,7 +1634,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // The MSCSE is never asked (DGS 2026-09-11): the app chooses which courses
       // apply to both degrees and each line says so.
       const couldHaveCountedTwice = student.program === 'phd' && student.ndMasters !== undefined;
-      if (asUndergraduate && couldHaveCountedTwice) {
+      // And only for a course that COULD count toward this degree (DGS
+      // 2026-09-22): a 30000-level or lower course counts toward the
+      // bachelor's alone whatever the answer — the engine never asks about
+      // it (undergradLevelEligible), so the page must not either.
+      const couldCountHere = priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), student.program);
+      if (asUndergraduate && couldHaveCountedTwice && couldCountHere) {
         const sel = el('select', {
           'aria-label': `Which degrees ${c.courseId} has already counted toward`,
           'data-key': `course.${index}.countedToward`,
