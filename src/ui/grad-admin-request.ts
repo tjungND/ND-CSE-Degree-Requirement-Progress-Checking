@@ -166,7 +166,8 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   });
   const byId = new Map(report.requirements.map((r) => [r.id, r]));
   const msAlongTheWay = byId.get('phd.msAlongTheWay')?.status === 'met';
-  const qualifierFormDue = byId.get('phd.qualifier')?.status === 'met' && !student.milestones.qualifierFormFiled;
+  // A pass attested under the earlier rules (2026-09-21) was recorded back then; no form to chase.
+  const qualifierFormDue = byId.get('phd.qualifier')?.status === 'met' && !student.milestones.qualifierFormFiled && student.attestations.qualifierPassedUnderPriorRules !== true;
   const met = report.requirements
     .filter((r) => r.status === 'met' && !r.informational && r.group !== 'Approvals')
     .map((r) => metTable(r, student));

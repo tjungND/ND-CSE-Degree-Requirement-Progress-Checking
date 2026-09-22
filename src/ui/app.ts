@@ -28,6 +28,7 @@ import {
   inputRefusal,
 } from '../engine/ranges.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
+import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
@@ -1906,6 +1907,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       card.append(
         attestation('The DGS extended my qualifier deadline (§4.4)', a.qualifierExtensionGranted, (v, s) => (s.attestations.qualifierExtensionGranted = v)),
       );
+      // The qualifier rule changed several times in four years (DGS
+      // 2026-09-21): from the third year on, a student may attest that they
+      // passed the examination under the requirements in force at the time.
+      // Hidden before then — a ticked box on an earlier record is ignored by
+      // the engine, which says so in a warning.
+      if (qualifierPriorRulesEligible(student.entryTerm, todayIso) || a.qualifierPassedUnderPriorRules) {
+        card.append(
+          attestation('I passed the qualifying examination under the earlier requirements (§4.4, third year or later)', a.qualifierPassedUnderPriorRules, (v, s) => (s.attestations.qualifierPassedUnderPriorRules = v)),
+        );
+      }
     }
     return card;
   }

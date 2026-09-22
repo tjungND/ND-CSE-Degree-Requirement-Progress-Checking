@@ -1,0 +1,21 @@
+{
+  "name": "phd-qualifier-passed-under-prior-rules",
+  "description": "DGS 2026-09-21: the qualifier rule changed several times in four years. A student in their third year or later may attest that they passed the examination under the requirements then in force; the umbrella row is met, the current rule's components do not apply, and the Grad Admin request does not chase the completion form. Entry Fall 2023, today 2026-09-21: the fifth semester (Fall 2025) has begun.",
+  "today": "2026-09-21",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2023 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [],
+    "milestones": {},
+    "attestations": { "qualifierPassedUnderPriorRules": true }
+  },
+  "expect": {
+    "phd.qualifier": { "status": "met", "detailIncludes": ["Passed under the earlier qualifier requirements"] },
+    "phd.qualifier.categories": { "status": "not_applicable", "detailIncludes": ["passed under the earlier requirements"] },
+    "phd.qualifier.research": { "status": "not_applicable" }
+  }
+}

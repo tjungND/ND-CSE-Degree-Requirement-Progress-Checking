@@ -8,22 +8,8 @@ import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
 import { usableGpa } from '../ranges.ts';
 import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus } from '../status.ts';
-import {
-  addMonthsIso,
-  addYearsIso,
-  deadlineTerm,
-  deadlineTermLabel,
-  endOfNextSemester,
-  endOfTerm,
-  maxConsecutiveFullTime,
-  nthSemester,
-  semesterNumber,
-  startOfTerm,
-  termIndex,
-  termLabel,
-  termOfDate,
-} from '../term.ts';
-import type { DetailPart, Grade, RequirementResult, Status } from '../types.ts';
+import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
+import type { DetailPart, Grade, RequirementResult, Status, Term } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { capRow, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
@@ -178,8 +164,17 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   ];
   // §4.2 conditions the qualifier on nine regular credits at Notre Dame (F3,
   // 2026-09-12): the umbrella cannot read "met" while that row is not.
-  rows.push(qualifierUmbrellaRow(ctx, qualifierChildren, rows.find((r) => r.id === 'phd.credits.nd')));
-  rows.push(...qualifierChildren);
+  if (qualifierPassedUnderPriorRules(ctx)) {
+    // The qualifier rule changed several times in four years (DGS
+    // 2026-09-21): a student in their third year or later may attest that
+    // they passed the examination under the requirements in force at the
+    // time. The examination is then complete — the Grad Admin's record is
+    // what counts — and the current rule's three components do not apply.
+    rows.push(...qualifierRowsPassedUnderPriorRules(ctx, qualifierChildren));
+  } else {
+    rows.push(qualifierUmbrellaRow(ctx, qualifierChildren, rows.find((r) => r.id === 'phd.credits.nd')));
+    rows.push(...qualifierChildren);
+  }
   rows.push(candidacyRow(ctx));
   rows.push(...dissertationRows(ctx));
   // §4.5's MSCSE cannot be earned twice. A Ph.D. student who already holds the
@@ -188,6 +183,36 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   // their credits from zero toward it (DGS 2026-09-09).
   if (ctx.student.ndMasters === undefined) rows.push(msAlongTheWayRow(ctx));
   return rows;
+}
+
+/** The attestation stands only for a student in their third year or later
+ * (DGS 2026-09-21): the fifth semester after entry has begun. A ticked box on
+ * a record whose entry term is later than that is ignored (and audit() warns). */
+export function qualifierPriorRulesEligible(entry: Term, todayIso: string): boolean {
+  return compareTerm(termOfDate(todayIso), nthSemester(entry, 5)) >= 0;
+}
+function qualifierPassedUnderPriorRules(ctx: Ctx): boolean {
+  return ctx.student.attestations.qualifierPassedUnderPriorRules === true && qualifierPriorRulesEligible(ctx.entry, ctx.today);
+}
+function qualifierRowsPassedUnderPriorRules(ctx: Ctx, children: RequirementResult[]): RequirementResult[] {
+  const quote =
+    'Ph.D. students must pass a qualifying examination, which has three components: core knowledge, category specialization, and research.';
+  const umbrella: RequirementResult = {
+    id: 'phd.qualifier',
+    group: QUALIFIER,
+    title: 'Qualifying examination — all components',
+    status: 'met',
+    detail: `Passed under the earlier qualifier requirements, as you attested under “Approvals you already have” — the Grad Admin’s record of the examination is what counts.${ctx.student.milestones.qualifierFormFiled ? '' : ' If the completion form is not on file, file it with the Grad Admin (§4.4).'}`,
+    deadline: { date: ctx.today, approx: true, state: 'done', label: 'Complete' },
+    citation: { section: '§4.4', quote },
+  };
+  const components = children.map((c) => ({
+    ...c,
+    status: 'not_applicable' as const,
+    detail: 'Not required: the qualifying examination was passed under the earlier requirements (your attestation).',
+    deadline: undefined,
+  }));
+  return [umbrella, ...components];
 }
 
 /** §4.2: "Two credits of Research Seminar (CSE 63801 and CSE 63802) are

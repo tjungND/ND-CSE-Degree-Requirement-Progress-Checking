@@ -11,7 +11,7 @@ import type { AuditReport, RequirementResult, Student } from './types.ts';
 import type { Ctx } from './requirements/context.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
-import { phdRows, phdTimeLimitRow } from './requirements/phd.ts';
+import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
 
 /** Requirement id ↔ plan-inventory mapping (docs/DECISIONS.md, plan §1):
  *   shared.gpa=S1  shared.advisor=S2  shared.approvals=advisory
@@ -141,6 +141,14 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   if (student.bachelorsAwarded === undefined && student.courses.length > 0) {
     warnings.push(
       '“Bachelor’s degree awarded” is not set under Your standing. It is required: §5.2 counts a course as transfer credit only when it was taken after your bachelor’s degree was awarded, whether or not you also hold a graduate degree.',
+    );
+  }
+
+  // The prior-rules qualifier attestation is for third-year-and-later students
+  // only (DGS 2026-09-21); a ticked box on an earlier record is ignored, and said.
+  if (student.program === 'phd' && student.attestations.qualifierPassedUnderPriorRules === true && !qualifierPriorRulesEligible(entry, today)) {
+    warnings.push(
+      `“I passed the qualifying examination under the earlier requirements” is ticked, but with an entry term of ${termLabel(entry)} you are not yet in your third year — the box applies only from the fifth semester, so the current qualifier requirements are shown.`,
     );
   }
 

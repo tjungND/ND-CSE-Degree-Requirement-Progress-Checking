@@ -1,0 +1,31 @@
+{
+  "name": "phd-qualifier-prior-rules-too-early",
+  "description": "DGS 2026-09-21: the prior-rules qualifier attestation is for the third year on. A second-year record with the box ticked (entry Fall 2025, today 2026-09-21: semester 3) keeps the current qualifier requirements and gets a warning.",
+  "today": "2026-09-21",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [],
+    "milestones": {},
+    "attestations": {
+      "qualifierPassedUnderPriorRules": true
+    }
+  },
+  "expect": {
+    "phd.qualifier": {
+      "status": "unmet"
+    },
+    "phd.qualifier.research": {
+      "status": "in_progress"
+    }
+  }
+}

@@ -120,6 +120,11 @@ export interface Attestations {
    * claimedCoreArea). Kept so old saved files still load; ignored. */
   corePassedElsewhere?: CoreArea[];
   qualifierExtensionGranted?: boolean; // §4.4 "the DGS may extend the deadline"
+  /** The student passed the qualifying examination under the requirements in
+   * force when they took it — the rule changed several times in four years
+   * (DGS 2026-09-21). Offered only to students in their third year or later;
+   * the engine honours it only then (`qualifierPriorRulesEligible`). */
+  qualifierPassedUnderPriorRules?: boolean;
 }
 
 export interface Student {
