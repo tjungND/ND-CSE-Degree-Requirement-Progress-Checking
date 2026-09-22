@@ -3,7 +3,7 @@
 import { termLabel } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, countedCourseIds, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow } from './context.ts';
+import { capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow } from './context.ts';
 import { fullTimeTermRecords } from './residency.ts';
 import { transferRow } from './transfer.ts';
 
@@ -30,6 +30,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       sums: ctx.alloc.total,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
       pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
+      contributions: courseContributions(ctx, (p) => p.countedRegular + p.countedOther),
       required: ctx.params.number('ms_total_credits_min'),
       requiredKey: 'ms_total_credits_min',
       section: '§3.2',
@@ -52,6 +53,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       sums: ctx.alloc.regular,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
       pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular),
+      contributions: courseContributions(ctx, (p) => p.countedRegular),
       required: ctx.params.number('ms_regular_credits_min'),
       requiredKey: 'ms_regular_credits_min',
       section: '§3.2',
@@ -72,6 +74,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       sums: ctx.alloc.project,
       satisfiedBy: countedCourseIds(ctx, (p) => (p.course.pool === 'project' ? p.countedOther : 0)),
       pendingBy: pendingCourseIds(ctx, (p) => (p.course.pool === 'project' ? p.countedOther : 0)),
+      contributions: courseContributions(ctx, (p) => (p.course.pool === 'project' ? p.countedOther : 0)),
       required: ctx.params.number('ms_project_credits_min'),
       requiredKey: 'ms_project_credits_min',
       section: '§3.2',

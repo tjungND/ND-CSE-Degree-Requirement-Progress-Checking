@@ -325,6 +325,11 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
    deadline and no course link has no second line (trim review 2026-09-18, P-70).
    The base .cite margin-left: -4px below is live on courses.html, whose § marks
    follow a heading. */
+.req .contrib { margin: 6px 0 0; font-size: 13px; }
+.req .contrib > summary { cursor: pointer; color: var(--navy); font-weight: 600; }
+.req .contrib-list { margin: 4px 0 0; padding-left: 18px; color: var(--ink); }
+.req .contrib-list li.pending { color: var(--muted); }
+.req .contrib-list .cid { font-weight: 600; }
 .req-title .cite { margin-left: 6px; vertical-align: baseline; }
 .req-chips { margin: 3px 0; display: flex; gap: 8px; flex-wrap: wrap; }
 /* The § chip is a real disclosure, and looked exactly like the decorative gold

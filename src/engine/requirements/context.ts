@@ -7,7 +7,7 @@ import { usableGpa } from '../ranges.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
 import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm } from '../term.ts';
-import type { DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
+import type { Contribution, DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
 
 export interface Ctx {
   student: Student;
@@ -132,6 +132,8 @@ export function thresholdRow(args: {
   satisfiedBy?: string[];
   /** The courses whose credits will count here once passed/approved (2026-09-08). */
   pendingBy?: string[];
+  /** Which courses contribute, and how much (2026-09-22) — `courseContributions`. */
+  contributions?: Contribution[];
 }): RequirementResult {
   const { sums, required } = args;
   const status = thresholdStatus(sums, required);
@@ -172,6 +174,7 @@ export function thresholdRow(args: {
     citation: { section: args.section, quote: args.quote },
     ...(args.satisfiedBy && args.satisfiedBy.length > 0 ? { satisfiedBy: args.satisfiedBy } : {}),
     ...(args.pendingBy && args.pendingBy.length > 0 ? { pendingBy: args.pendingBy } : {}),
+    ...(args.contributions && args.contributions.length > 0 ? { contributions: args.contributions } : {}),
   };
 }
 
@@ -183,6 +186,15 @@ export function countedCourseIds(ctx: Ctx, pick: (p: CourseAllocation) => number
   return ctx.alloc.perCourse
     .filter((p) => pick(p) > 0 && p.course.tier === 'definite' && !p.course.superseded)
     .map((p) => p.course.entry.courseId);
+}
+
+/** Every course that contributes to a row by `pick`, with the credits it
+ * contributes; a course still to be passed or approved is `pending` (DGS
+ * 2026-09-22: the report folds these behind "Courses counted"). */
+export function courseContributions(ctx: Ctx, pick: (p: CourseAllocation) => number): Contribution[] {
+  return ctx.alloc.perCourse
+    .filter((p) => pick(p) > 0 && !p.course.superseded)
+    .map((p) => ({ courseId: p.course.entry.courseId, credits: pick(p), ...(p.course.tier === 'definite' ? {} : { pending: true as const }) }));
 }
 
 /** The same courses, but the ones still to be passed or approved (2026-09-08):
@@ -266,6 +278,11 @@ export function capRow(args: {
     }
     parts.push(...excludedLines);
   }
+  // What each course draws on this allowance (2026-09-22): the regular-course
+  // credits it counts, or every counted credit for a transfer cap.
+  const contributions = courseContributions(args.ctx, (p) =>
+    p.course.caps.includes(args.capId) ? (args.capId === 'transfer' ? p.countedRegular + p.countedOther : p.countedRegular) : 0,
+  );
   return {
     id: args.id,
     group: args.group,
@@ -274,5 +291,6 @@ export function capRow(args: {
     ...(label ? { statusLabel: label } : {}),
     ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },
+    ...(contributions.length > 0 ? { contributions } : {}),
   };
 }

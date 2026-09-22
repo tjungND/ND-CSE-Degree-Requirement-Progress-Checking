@@ -1,7 +1,8 @@
 // Renders an AuditReport: score dial, credit meters, requirement groups with
 // status pills + deadline chips + § citations. (The "Copy summary for advisor"
 // email lives in advisor-summary.ts — string building only, no DOM.)
-import type { AuditReport, RequirementResult, Status } from '../engine/types.ts';
+import { formatCredits } from '../engine/credits.ts';
+import type { AuditReport, Contribution, RequirementResult, Status } from '../engine/types.ts';
 import { el } from './dom.ts';
 
 // Plain words in sentence case (usability review 2026-09-05, item 16): no
@@ -255,14 +256,43 @@ function requirementCard(r: RequirementResult): HTMLElement {
           ),
         )
       : el('div', { class: 'req-detail', 'data-keep-dgs': '' }, r.detail);
+  // Which courses and credits a credit row is built from (DGS 2026-09-22),
+  // folded so the card stays short: "Courses counted (4 · 12 credits)".
+  // The data-key keeps a fold the student opened open across re-renders.
+  const contrib = r.contributions ?? [];
+  const contribNode =
+    contrib.length > 0
+      ? el(
+          'details',
+          { class: 'contrib', 'data-key': `contrib.${r.id}` },
+          el('summary', {}, contribSummary(contrib)),
+          el(
+            'ul',
+            { class: 'contrib-list' },
+            ...contrib.map((c) =>
+              el('li', { class: c.pending ? 'pending' : '' }, el('span', { class: 'cid' }, c.courseId), ` · ${formatCredits(c.credits)} ${c.credits === 1 ? 'credit' : 'credits'}`, c.pending ? ' — will count once passed or approved' : ''),
+            ),
+          ),
+        )
+      : null;
   return el(
     'div',
     { class: `req s-${r.status}`, id: reqAnchorId(r.id) },
     head,
     chips.childElementCount > 0 ? chips : null,
     detailNode,
+    contribNode,
     quote,
   );
+}
+
+/** "Courses counted (4 · 12 credits)", plus the pending ones when there are any. */
+function contribSummary(contrib: readonly Contribution[]): string {
+  const counted = contrib.filter((c) => !c.pending);
+  const pending = contrib.filter((c) => c.pending);
+  const credits = (list: readonly Contribution[]) => formatCredits(list.reduce((n, c) => n + c.credits, 0));
+  const head = counted.length > 0 ? `Courses counted (${counted.length} · ${credits(counted)} credits)` : 'Courses counted (none yet)';
+  return pending.length > 0 ? `${head} · ${pending.length} pending (${credits(pending)} credits)` : head;
 }
 
 /** courses.html understands filter query parameters (2026-09-05, item 29),

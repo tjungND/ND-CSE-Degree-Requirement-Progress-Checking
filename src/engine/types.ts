@@ -258,6 +258,12 @@ export interface DeadlineInfo extends ApproxDate {
  * scenario fixtures keep reading as before. */
 export type DetailPart = string | { lead: string; items: string[] } | { warn: string };
 
+export interface Contribution {
+  courseId: string;
+  credits: number;
+  pending?: true;
+}
+
 export interface RequirementResult {
   id: string;
   group: string; // display group heading, e.g. "Coursework — §4.2"
@@ -296,6 +302,11 @@ export interface RequirementResult {
    * prose (DGS request 2026-09-06 evening). Only definite credits count
    * here (passed, no approval pending). Absent when nothing does yet. */
   satisfiedBy?: string[];
+  /** The courses behind a credit row and what each contributes (DGS
+   * 2026-09-22): counted credits, or credits that will count once the course
+   * is passed or approved (`pending`). The report folds them behind
+   * "Courses counted" on every threshold and cap row. */
+  contributions?: Contribution[];
   /** A short name for lists, where the full title is too long to read
    * sideways (DGS 2026-09-08 — "24 credit hours of regular courses at the
    * 60000 level or higher" swamped a course's "Counts toward" cell). The card

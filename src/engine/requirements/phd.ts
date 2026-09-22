@@ -11,7 +11,7 @@ import { combineAll, deadlineStatus } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status, Term } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
+import { capRow, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
 import { transferRow } from './transfer.ts';
 
@@ -37,6 +37,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       sums: ctx.alloc.total,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
       pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular + p.countedOther),
+      contributions: courseContributions(ctx, (p) => p.countedRegular + p.countedOther),
       required: ctx.params.number('phd_total_credits_min'),
       requiredKey: 'phd_total_credits_min',
       section: '§4.2',
@@ -61,6 +62,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       sums: ctx.alloc.regular,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
       pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular),
+      contributions: courseContributions(ctx, (p) => p.countedRegular),
       required: ctx.params.number('phd_regular_credits_min'),
       requiredKey: 'phd_regular_credits_min',
       section: '§4.2',
@@ -133,6 +135,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       shortTitle: '9 regular credits at ND',
       sums: ctx.alloc.ndRegular,
       pendingBy: pendingCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
+      contributions: courseContributions(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       satisfiedBy: countedCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
       required: ctx.params.number('phd_nd_credits_min'),
       requiredKey: 'phd_nd_credits_min',
