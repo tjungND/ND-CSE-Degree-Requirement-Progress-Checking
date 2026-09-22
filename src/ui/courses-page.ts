@@ -566,6 +566,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
    * tab's `offered_now` / `offered_next` (DGS 2026-09-09). A column with no
    * `yes` anywhere has not been published yet, and the card says so rather
    * than showing an empty list, which would read as "nothing is offered". */
+  /** A course of another department, listed in the Courses tab because the DGS
+   * reviewed it (DGS 2026-09-21): shown apart from the CSE list, in the
+   * schedule cards and in All courses, under a note that the list is only what
+   * has been reviewed, not every course the department accepts. */
+  const isNonCse = (r: RuleCourse): boolean => !/^CSE\b/i.test(r.courseId);
+  const NON_CSE_HEADING = 'Non-CSE courses the DGS has reviewed';
+  const NON_CSE_NOTE =
+    'Only the courses of other departments that the DGS has already reviewed are listed here. It is not a complete list of the non-CSE courses the department accepts — ask the DGS about any course that is not here.';
+
   function scheduleSection(): HTMLElement {
     const live = rows.filter((r) => r.active);
     // Every attribute the table carries except the three the DGS left out
@@ -657,6 +666,25 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           ),
         ),
       );
+    /** The CSE courses, then — apart, under the heading and note — any course
+     * of another department (DGS 2026-09-21). */
+    const scheduleTables = (items: RuleCourse[], heading: string, which: 'this' | 'next'): HTMLElement => {
+      const cse = items.filter((r) => !isNonCse(r));
+      const others = items.filter(isNonCse);
+      const out = el('div', {}, miniTable(cse, heading, which));
+      if (others.length > 0) {
+        out.append(
+          el(
+            'div',
+            { class: 'non-cse' },
+            el('h4', {}, NON_CSE_HEADING),
+            el('p', { class: 'hint non-cse-note' }, NON_CSE_NOTE),
+            miniTable(others, `${heading} — ${NON_CSE_HEADING}`, which),
+          ),
+        );
+      }
+      return out;
+    };
     const card = (heading: string, term: Term, offered: (r: RuleCourse) => boolean | undefined, which: 'this' | 'next'): HTMLElement => {
       // "Released" means the DGS has said something about this semester at
       // all — a yes or a no. Until then the list is not empty, it is unknown.
@@ -687,7 +715,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                   ? `Only ${answered} course${answered === 1 ? ' has' : 's have'} been marked for ${termLabel(term)} so far, and ${answered === 1 ? 'it is' : 'none of them are'} being offered. The rest of the semester is not on the sheet yet.`
                   : `No course is listed for ${termLabel(term)}.`,
               )
-            : collapsible(miniTable(items, heading, which), items.length),
+            : collapsible(scheduleTables(items, heading, which), items.length),
       );
     };
     return el(
@@ -1362,12 +1390,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     return `${list.length} of ${shown} courses shown.${clearedFor ? ` Filters cleared to show ${clearedFor}.` : ''}${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
   };
 
-  /** A course of another department, listed in the Courses tab because the DGS
-   * reviewed it (DGS 2026-09-21): shown apart from the CSE list, under a note
-   * that the list is only what has been reviewed, not every course the
-   * department accepts. */
-  const isNonCse = (r: RuleCourse): boolean => !/^CSE\b/i.test(r.courseId);
-
   function table(): HTMLElement {
     const all = visibleRows();
     const list = all.filter((r) => !isNonCse(r));
@@ -1421,12 +1443,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         el(
           'section',
           { class: 'non-cse', 'data-key': 'table.non-cse' },
-          el('h3', {}, 'Non-CSE courses the DGS has reviewed'),
-          el(
-            'p',
-            { class: 'hint non-cse-note' },
-            'Only the courses of other departments that the DGS has already reviewed are listed here. It is not a complete list of the non-CSE courses the department accepts — ask the DGS about any course that is not here.',
-          ),
+          el('h3', {}, NON_CSE_HEADING),
+          el('p', { class: 'hint non-cse-note' }, NON_CSE_NOTE),
           scroller(
             el(
               'table',
