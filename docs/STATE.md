@@ -1,6 +1,24 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-20 (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-09-21 (this session, branch `claude/sheet-shared-drive-move`).
+
+2026-09-21: **the rules sheet moved into a shared drive — no code change was needed.**
+`CSE-Degree-Checking-Rules` now lives at the top level of the shared drive **"CSE Department
+Adminstration: Graduate Programs"**; before that it sat in the DGS's own "DGS things (CSE)" folder
+in My Drive. A move keeps the file id, the published `/d/e/…` token and every tab gid, so all four
+URLs in `data/sheet-urls.json` still resolve — checked anonymously the same day: each
+`/pub?…&output=csv` still answers with Google's 302 to its CSV download host, on all four tabs.
+What did change is ownership and access: the drive owns the file (no individual owner, so it no
+longer leaves with the DGS), and access is now that drive's membership — the DGS, the Grad Admin
+and one more staff member as Managers, the Assistant DGS as Content manager, and the **CSE
+Faculty** group plus one staff member as Viewers. Docs corrected for the new location:
+`data/README.md`, the `_comment` in `data/sheet-urls.json`, `README.md` (intro bullet and handoff
+item 1, which asked for exactly this move) and `MAINTENANCE.md` (which said the sheet is one "you
+own"). **Open, for the DGS to decide:** both pages call the sheet "accessible by faculty only"
+(`src/ui/sheet-source.ts`, and `tests/sheet-source.test.ts` locks the footer's promise), which is
+now slightly narrow — grad-program staff on the drive can open it too. Wording change, so it waits
+for approval. Also still true and unrelated to the move: the sheet's Drive title now carries an
+"ADD ONLY" warning after the name, while `SHEET_NAME` is the short name the pages print.
 
 2026-09-20: **code tidy for readers and agents** — see the 2026-09-20 bullet in
 `docs/CLAUDE-HANDOFF.md` for what moved where (app.ts is a third shorter; seven new `src/ui`

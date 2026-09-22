@@ -1,7 +1,10 @@
 # Rules data — the DGS-editable Google Sheet
 
-Sheet: **CSE-Degree-Checking-Rules** (named CSE-Degree-Audit-Rules until 2026-09-05; owner: the current DGS; lives in the shared "DGS things (CSE)"
-Drive folder under "Degree Audit App (Claude Code starter kit)"). The app reads it read-only at page load through Google's
+Sheet: **CSE-Degree-Checking-Rules** (named CSE-Degree-Audit-Rules until 2026-09-05). Since
+2026-09-21 it lives at the top level of the shared drive **"CSE Department Adminstration: Graduate
+Programs"**, which owns it — there is no individual owner, so the sheet does not leave with the
+DGS and access follows that drive’s membership; before that it sat in the DGS’s own "DGS things
+(CSE)" folder in My Drive. The app reads it read-only at page load through Google's
 "Publish to web" CSV links, and a GitHub Action snapshots it into `data/snapshot.json` every six
 hours (committing only when the content changed) so the app still works if the sheet is ever
 unpublished — and so the pages can say when the rules last changed.
