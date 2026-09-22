@@ -1362,10 +1362,20 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     return `${list.length} of ${shown} courses shown.${clearedFor ? ` Filters cleared to show ${clearedFor}.` : ''}${active.length > 0 ? ` Filters: ${active.join('; ')}.` : ''}${viewSentence}`;
   };
 
+  /** A course of another department, listed in the Courses tab because the DGS
+   * reviewed it (DGS 2026-09-21): shown apart from the CSE list, under a note
+   * that the list is only what has been reviewed, not every course the
+   * department accepts. */
+  const isNonCse = (r: RuleCourse): boolean => !/^CSE\b/i.test(r.courseId);
+
   function table(): HTMLElement {
-    const list = visibleRows();
+    const all = visibleRows();
+    const list = all.filter((r) => !isNonCse(r));
+    const others = all.filter(isNonCse);
     const hidden = new Set(HIDDEN_COLUMNS[filters.view]);
-    const head = el(
+    // Built per table: the sort buttons carry click handlers, which a clone
+    // would not (the non-CSE table below gets its own header).
+    const headRow = (): HTMLElement => el(
       'tr',
       {},
       sortHeader(hidden, 1, 'course', 'Course'),
@@ -1380,19 +1390,20 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // Only while it says something (trim review P-18, 2026-09-18).
       ...(someRowPending ? [sortHeader(hidden, 9, 'reviewed', 'DGS reviewed')] : []),
     );
+    const head = headRow();
     const body = el('tbody', {});
-    if (list.length === 0) body.append(emptyRow());
+    if (all.length === 0) body.append(emptyRow());
     for (const r of list) body.append(courseRow(r, hidden));
-    countLine.textContent = countLineText(list);
-    return el(
+    countLine.textContent = countLineText(all);
+    const scroller = (tbl: HTMLElement, label: string) =>
+      // The scroll wrapper is keyboard-focusable and named, so a keyboard
+      // user can scroll a wide table (WCAG 2.1.1; item 26).
+      el('div', { class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': label }, tbl);
+    const out = el(
       'div',
       {},
       countLine,
-      // The scroll wrapper is keyboard-focusable and named, so a keyboard
-      // user can scroll a wide table (WCAG 2.1.1; item 26).
-      el(
-        'div',
-        { class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': 'Course rules table (scrolls sideways on narrow screens)' },
+      scroller(
         el(
           'table',
           { class: 'course-rules' },
@@ -1400,8 +1411,36 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           el('thead', {}, head),
           body,
         ),
+        'Course rules table (scrolls sideways on narrow screens)',
       ),
     );
+    if (others.length > 0) {
+      const otherBody = el('tbody', {});
+      for (const r of others) otherBody.append(courseRow(r, hidden));
+      out.append(
+        el(
+          'section',
+          { class: 'non-cse', 'data-key': 'table.non-cse' },
+          el('h3', {}, 'Non-CSE courses the DGS has reviewed'),
+          el(
+            'p',
+            { class: 'hint non-cse-note' },
+            'Only the courses of other departments that the DGS has already reviewed are listed here. It is not a complete list of the non-CSE courses the department accepts — ask the DGS about any course that is not here.',
+          ),
+          scroller(
+            el(
+              'table',
+              { class: 'course-rules' },
+              el('caption', { class: 'visually-hidden' }, 'Non-CSE courses the DGS has reviewed, and how they count'),
+              el('thead', {}, headRow()),
+              otherBody,
+            ),
+            'Non-CSE course rules table (scrolls sideways on narrow screens)',
+          ),
+        ),
+      );
+    }
+    return out;
   }
 
   /** The legend now precedes the table (usability review 2026-09-05, item

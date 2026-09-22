@@ -917,6 +917,10 @@ tr.ocr-low td { background: #fff7e0; }
   table.course-rules tbody td.muted { display: none; }
   .courses-page .count { margin: 10px 0 4px; }
 }
+/* Non-CSE courses the DGS has reviewed sit under the CSE list (DGS 2026-09-21). */
+.non-cse { margin-top: 22px; }
+.non-cse h3 { margin: 0 0 4px; font-size: 16px; color: var(--navy); }
+.non-cse .non-cse-note { margin: 0 0 8px; }
 
 /* The course card that follows the pointer on the course-rules page (DGS
    2026-09-09). `position: fixed` so the schedule tables' scroll region cannot
