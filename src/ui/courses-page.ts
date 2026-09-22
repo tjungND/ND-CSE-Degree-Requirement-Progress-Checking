@@ -666,25 +666,6 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
           ),
         ),
       );
-    /** The CSE courses, then — apart, under the heading and note — any course
-     * of another department (DGS 2026-09-21). */
-    const scheduleTables = (items: RuleCourse[], heading: string, which: 'this' | 'next'): HTMLElement => {
-      const cse = items.filter((r) => !isNonCse(r));
-      const others = items.filter(isNonCse);
-      const out = el('div', {}, miniTable(cse, heading, which));
-      if (others.length > 0) {
-        out.append(
-          el(
-            'div',
-            { class: 'non-cse' },
-            el('h4', {}, NON_CSE_HEADING),
-            el('p', { class: 'hint non-cse-note' }, NON_CSE_NOTE),
-            miniTable(others, `${heading} — ${NON_CSE_HEADING}`, which),
-          ),
-        );
-      }
-      return out;
-    };
     const card = (heading: string, term: Term, offered: (r: RuleCourse) => boolean | undefined, which: 'this' | 'next'): HTMLElement => {
       // "Released" means the DGS has said something about this semester at
       // all — a yes or a no. Until then the list is not empty, it is unknown.
@@ -693,7 +674,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // will be in the semester the card is about — the table below is
       // explicitly "the rule in effect this term", but a card headed Spring
       // 2027 must not print Fall 2026's credit rules (2026-09-09).
-      const items = live.filter((r) => offered(r) === true).map((r) => resolveRuleRow(rules, r.courseId, term) ?? r);
+      // CSE courses only (DGS 2026-09-21): the DGS does not track which
+      // non-CSE courses run each semester, so they are not on the schedule —
+      // they are in All courses, under their own heading.
+      const items = live.filter((r) => offered(r) === true && !isNonCse(r)).map((r) => resolveRuleRow(rules, r.courseId, term) ?? r);
       // How many rows actually answered for this semester. One row saying "no"
       // used to turn the card into the flat "No course is listed for Spring
       // 2027", which reads as a published, empty schedule (review R-9).
@@ -715,13 +699,13 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                   ? `Only ${answered} course${answered === 1 ? ' has' : 's have'} been marked for ${termLabel(term)} so far, and ${answered === 1 ? 'it is' : 'none of them are'} being offered. The rest of the semester is not on the sheet yet.`
                   : `No course is listed for ${termLabel(term)}.`,
               )
-            : collapsible(scheduleTables(items, heading, which), items.length),
+            : collapsible(miniTable(items, heading, which), items.length),
       );
     };
     return el(
       'section',
       { class: 'overview schedule-overview' },
-      el('h2', {}, 'On the schedule'),
+      el('h2', {}, 'CSE courses on the schedule'),
       // (The intro paragraph was removed at the DGS's request, 2026-09-16.)
       el(
         'div',
