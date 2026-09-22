@@ -14,6 +14,8 @@ cited on every line. It is a self-check, not an official audit.
   WordPress page with `?embed=1` (see below).
 - **Rules sheet (the DGS edits this):** Google Sheet **CSE-Degree-Checking-Rules** (renamed from CSE-Degree-Audit-Rules on 2026-09-05) —
   https://docs.google.com/spreadsheets/d/1C8zYQvLN3gsOpjQHR1RMKdekB1VC_nv9rwSJ_RQCxVA/edit
+  — in the **CSE Department Adminstration: Graduate Programs** shared drive (moved there on
+  2026-09-21; the drive owns it, so it stays behind when a DGS hands over)
 - **Code:** this repository, https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
 
 The app was built so that a Director of Graduate Studies (DGS) can run it **without being a
@@ -547,8 +549,13 @@ tooling (details in `MAINTENANCE.md`).
 
 ## Handoff checklist
 
-1. **Sheet:** transfer ownership of CSE-Degree-Checking-Rules to the next DGS, or move it to a
-   departmental Shared Drive. Confirm *File → Share → Publish to web* is still on afterwards.
+1. **Sheet:** done on 2026-09-21 — CSE-Degree-Checking-Rules lives in the shared drive **"CSE
+   Department Adminstration: Graduate Programs"**, which owns it, so nothing to transfer. Two things
+   to check instead: the next DGS is a **Manager** of that drive (a Manager can re-publish tabs; a
+   Contributor cannot), and the **CSE Faculty** group keeps at least Viewer access, since both pages
+   link the sheet as faculty-readable. If the sheet is ever moved again, confirm *File → Share →
+   Publish to web* is still on for the four tabs — a move does not change any of the addresses in
+   `data/sheet-urls.json`, but a drive whose sharing settings forbid publishing would break them.
 2. **Repository:** add the next DGS as **Admin** (*Settings → Collaborators*), or transfer the
    repository (*Settings → General → Transfer ownership*). A transfer changes the live URL to
    `https://<new-owner>.github.io/ND-CSE-Degree-Requirement-Progress-Checking/` — then re-enable

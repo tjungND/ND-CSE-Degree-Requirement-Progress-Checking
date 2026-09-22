@@ -6,7 +6,7 @@
 
 You inherited a small static web app that lets CSE graduate students self-check their standing
 against the Graduate Handbook (§3 MSCSE, §4 Ph.D.). You should almost never need to touch code:
-**policy lives in a Google Sheet you own; the handbook's structure lives in code.**
+**policy lives in a Google Sheet you edit; the handbook's structure lives in code.**
 
 ```
 Google Sheet (you edit)  ──publish-to-web CSV──►  static web app (student's browser)
@@ -231,7 +231,11 @@ last edit (see "Sync" below).
 - **Published-CSV URLs** live in `data/sheet-urls.json` (the only file to edit if the sheet is
   ever re-published or replaced). Its `sheet_edit_url` is the spreadsheet's own link, shown on
   both pages with a "faculty only" note (`src/ui/sheet-source.ts`, 2026-09-04) — the sheet is
-  shared with faculty, not students, who see the same rules on `courses.html`.
+  shared with faculty, not students, who see the same rules on `courses.html`. Moving the sheet
+  between Drive locations changes none of these addresses: the file id, the published `/d/e/…`
+  token and the tab gids all survive a move (verified on 2026-09-21, My Drive → the "CSE Department
+  Adminstration: Graduate Programs" shared drive, all four tabs still served anonymously). Only
+  unpublishing and re-publishing, or replacing the file, changes them.
 
 ## A transcript that will not import
 
