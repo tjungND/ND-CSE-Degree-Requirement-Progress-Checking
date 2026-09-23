@@ -29,11 +29,11 @@ import {
 } from '../engine/ranges.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
-import { applyBackground, backgroundQuestions, completeBackground, openBackgroundDialog, type Background } from './background.ts';
+import { applyBackground, backgroundQuestions, completeBackground, describeBackground, openBackgroundDialog, type Background } from './background.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
-import { deriveNdMasters, derivePriorMs, isNotreDameCourse, isPriorNd, reclassifyNotreDameCourses } from './prior-nd.ts';
+import { deriveNdMasters, derivePriorMs, isNotreDameCourse, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
 import { confirmDialog, copyDialog, openModal, returnFocusTo } from './copy-dialog.ts';
@@ -113,6 +113,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // closes — the ARIA dialog pattern, which the old overlay div did not follow.
   // "I understand — continue" rather than "Agree" (usability review 2026-09-05,
   // item 9): the notice is informational, not a consent; nothing is stored.
+  // The dialog is built by a function (2026-09-22) so that Reset can show it
+  // again for the emptied record: program and earlier degrees are chosen
+  // there and nowhere else.
+  const openOpeningDialog = (prefill: Student | undefined): void => {
   const agreeButton = el('button', { class: 'btn primary', autofocus: true }, 'I understand — continue');
   // The program choice lives here (blue-team B2, 2026-09-18). It used to be a
   // SILENT default — emptyStudent() says `program: 'phd'` and nothing asked —
@@ -122,7 +126,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // interaction on every visit; asking here removes the whole failure class.
   // A returning student's answer is pre-selected, so it stays one click.
   const programRadios = el('div', { class: 'radios consent-program' });
-  let chosenProgram: Program | undefined = saved?.program;
+  let chosenProgram: Program | undefined = prefill?.program;
   for (const [value, label] of [
     ['phd', 'Ph.D. in Computer Science and Engineering (Handbook §4)'],
     ['mscse', 'M.S. in Computer Science and Engineering — MSCSE (Handbook §3)'],
@@ -134,10 +138,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'data-key': `consent.program.${value}`,
       onchange: () => {
         chosenProgram = value;
+        renderQuestions();
         gate();
       },
     }) as HTMLInputElement;
-    radio.checked = saved?.program === value;
+    radio.checked = prefill?.program === value;
     programRadios.append(el('label', { class: 'radio' }, radio, ` ${label}`));
   }
   // Nothing is pre-selected for a student with no record on this device, and
@@ -147,17 +152,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // choice; for a new record the button waits for them too. A record saved
   // before they existed arrives with no answer and the button live — the
   // Transcripts card offers the questions from its "Change" link.
-  let chosenBackground: Partial<Background> | undefined = saved?.background;
+  let chosenBackground: Partial<Background> | undefined = prefill?.background;
   const gate = (): void => {
-    const ready = chosenProgram !== undefined && (saved !== undefined || completeBackground(chosenBackground) !== undefined);
+    const ready = chosenProgram !== undefined && (prefill !== undefined || completeBackground(chosenBackground, chosenProgram) !== undefined);
     if (ready) agreeButton.removeAttribute('disabled');
     else agreeButton.setAttribute('disabled', 'disabled');
   };
-  const backgroundBlock = backgroundQuestions(chosenBackground, 'consent', (b) => {
-    chosenBackground = b;
-    gate();
-  });
-  if (!saved) agreeButton.setAttribute('disabled', 'disabled');
+  // The questions depend on the program (an MSCSE student cannot already hold
+  // the MSCSE; a Notre Dame CSE bachelor's asks about the 4+1 only for the
+  // MSCSE), so they are rebuilt whenever the program radio changes.
+  const backgroundBlock = el('div', {});
+  const renderQuestions = (): void => {
+    backgroundBlock.replaceChildren(
+      backgroundQuestions(chosenBackground, 'consent', chosenProgram ?? 'phd', (b) => {
+        chosenBackground = b;
+        gate();
+      }),
+    );
+  };
+  renderQuestions();
+  if (!prefill) agreeButton.setAttribute('disabled', 'disabled');
   const consentDialog = el(
     'dialog',
     { class: 'consent consent-overlay', 'aria-labelledby': 'consent-title' },
@@ -194,7 +208,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // — it always has, and drive-a11y.mjs checks it — and leaves the program as
     // it was, which the segmented control at the top still shows and can still
     // change (B2, 2026-09-18).
-    const answered = completeBackground(chosenBackground);
+    const answered = completeBackground(chosenBackground, chosenProgram ?? student.program);
     const backgroundChanged = answered !== undefined && JSON.stringify(answered) !== JSON.stringify(student.background);
     if ((chosenProgram && chosenProgram !== student.program) || backgroundChanged) {
       update((s) => {
@@ -211,6 +225,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   document.body.append(consentDialog);
   placeInFrame(consentDialog); // embed mode: at the top of the frame, not the middle of a tall page (DGS 2026-09-16)
   if (openModal(consentDialog)) agreeButton.focus();
+  };
+  openOpeningDialog(saved);
 
   // Established on the loading card (DGS 2026-09-07): the date at Notre Dame,
   // from the server this page came from when it answers, and read in Notre
@@ -325,14 +341,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // registered at the GRADUATE level yet dated inside the bachelor's degree
     // is the Integrated program's signature — a regular bachelor's registers
     // its 60000-level electives as undergraduate rows.
-    if (student.integratedBsMs === undefined && student.bachelorsAwarded !== undefined) {
+    if (student.background === undefined && student.integratedBsMs === undefined && student.bachelorsAwarded !== undefined) {
       const signature = student.courses.find(
         (c) => isNotreDameCourse(c) && c.registeredLevel === 'graduate' && termIndex(c.term) <= termIndex(student.bachelorsAwarded!),
       );
       if (signature) {
         student.integratedBsMs = true;
         student.integratedBsMsInferred = { how: `your Notre Dame transcript, which registers ${signature.courseId} at the graduate level inside your bachelor’s degree` };
-        notices.push('Integrated B.S. + M.S. (4+1) set to “Yes” — your Notre Dame transcript registers graduate-level coursework inside your bachelor’s degree. Change it under Your standing if that is wrong.');
+        notices.push('Integrated B.S. + M.S. (4+1) set to “Yes” — your Notre Dame transcript registers graduate-level coursework inside your bachelor’s degree. Change it in the earlier-degrees questions (Your standing → Change) if that is wrong.');
       }
     }
     if (student.program === 'phd') {
@@ -445,7 +461,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                     // where the report ends, not in the storage card (trim
                     // review 2026-09-18, P-72); same key, dialog and wording.
                     advisorSummaryButton(report),
-                    el('button', { class: 'btn', 'data-key': 'report.clear', onclick: clearAll }, 'Clear'), // same label as the button at the top: one action, one name (DGS 2026-09-19, P-63)
+                    el('button', { class: 'btn', 'data-key': 'report.reset', onclick: resetAll }, 'Reset'), // same label as the button at the top: one action, one name (DGS 2026-09-19, P-63)
                   ),
                 ),
           ),
@@ -485,17 +501,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function masthead(): HTMLElement {
     // The two program buttons expose their pressed state (item 5): a screen
     // reader says "M.S. in CSE §3, toggle button, pressed".
-    const tab = (label: string, program: Student['program']) =>
-      el(
-        'button',
-        {
-          class: `tab${student.program === program ? ' active' : ''}`,
-          'aria-pressed': student.program === program ? 'true' : 'false',
-          'data-key': `program.${program}`,
-          onclick: () => update((s) => void (s.program = program)),
-        },
-        label,
-      );
+    // The program tabs are gone (DGS 2026-09-22): the degree is chosen in the
+    // opening dialog, and Reset brings that dialog back.
     // Embedded (?embed=1), the host page already carries the ND masthead and
     // its own heading: the gold eyebrow goes and the <h1> stays only for screen
     // readers and the document outline (DGS 2026-09-16, same treatment as the
@@ -559,12 +566,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'div',
         { class: 'masthead-tools' },
-        el('div', { class: 'tabs', role: 'group', 'aria-label': 'Degree program' }, tab('M.S. in CSE §3', 'mscse'), tab('Ph.D. §4', 'phd')),
+        el('span', { class: 'program-name' }, student.program === 'mscse' ? 'M.S. in CSE (Handbook §3)' : 'Ph.D. (Handbook §4)'),
         el(
           'div',
           {},
           el('button', { class: 'btn', 'data-key': 'tools.example', onclick: loadExample }, 'Load example'),
-          el('button', { class: 'btn', 'data-key': 'tools.clear', onclick: clearAll }, 'Clear'),
+          el('button', { class: 'btn', 'data-key': 'tools.reset', onclick: resetAll }, 'Reset'),
         ),
       ),
     );
@@ -715,46 +722,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
       : null;
-    // Radio buttons rather than a dropdown (usability review 2026-09-05,
-    // item 12): three choices, all visible, one tap on a phone.
-    const priorGroup = radios(
-      'standing.prior',
-      [
-        ['none', 'No prior graduate degree'],
-        ['unfinished', 'Prior M.S., not completed'],
-        ['completed', 'Completed prior M.S. or Ph.D.'],
-      ],
-      student.priorMs,
-      (value) =>
-        update((s) => {
-          s.priorMs = value as Student['priorMs'];
-          s.priorMsInferred = undefined; // the student chose — no longer inferred
-        }),
+    // The prior-degree controls — "Prior graduate study", "I already hold the
+    // MSCSE", the Integrated 4+1 question — left this card on 2026-09-22 (DGS):
+    // the opening dialog's earlier-degrees questions settle all three
+    // (applyBackground), and this line says what they settled, with the way
+    // to change it. A record from before the questions shows the way to answer.
+    const changeKey = 'standing.background.change';
+    const earlierDegreesLine = el(
+      'p',
+      { class: 'hint background-line', 'data-key': 'standing.background' },
+      el('strong', {}, 'Earlier degrees: '),
+      student.background ? describeBackground(student.background) + ' — ' : 'not answered yet — ',
+      el('button', { class: 'btn tiny link', 'data-key': changeKey, onclick: () => openBackgroundDialog(student, update, changeKey) }, student.background ? 'Change' : 'Answer two questions'),
+      '. (§5.2 transfer caps, the MSCSE already held and the Integrated 4+1 follow from this.)',
     );
-    // Reconcile the dropdown with the uploaded transcripts (2026-09-03): a
-    // graduate transcript sets this automatically on import — "Completed" when
-    // a degree-conferral line was found, otherwise "not completed" plus the
-    // warning below, since the §5.2 caps depend on which it is (DGS
-    // 2026-09-04). If the student somehow still has "none" alongside a
-    // graduate transcript (older saved file, manual change), the original
-    // contradiction warning shows instead.
-    const priorTranscripts = DEGREE_SLOTS.filter(
-      (sl) => sl.level !== 'bachelors' && student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel === sl.level),
-    );
-    let priorNote: HTMLElement | null = null;
-    if (student.priorMsInferred === true && student.priorMs === 'unfinished') {
-      priorNote = el(
-        'p',
-        { class: 'hint warn' },
-        'Set to “Prior M.S., not completed” because no degree-conferral line was found on your transcript — pick “Completed prior M.S. or Ph.D.” if you earned that degree (the §5.2 transfer caps depend on it).',
-      );
-    } else if (student.priorMs === 'none' && priorTranscripts.length > 0) {
-      priorNote = el(
-        'p',
-        { class: 'hint warn' },
-        `Your Transcripts card has a ${priorTranscripts.map((sl) => sl.label).join(' and a ')}, but this says “No prior graduate degree” — pick “Completed prior M.S. or Ph.D.” if you earned that degree, or “Prior M.S., not completed” if not (the §5.2 transfer caps depend on it).`,
-      );
-    }
     // Bachelor's degree awarded (DGS 2026-09-06): graduate-level courses dated
     // in or before this term earn no transfer credit — §5.2 needs graduate
     // student status (allocate.ts). Required since 2026-09-07 (DGS), though
@@ -845,63 +826,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             // The legend above already names the field (trim review 2026-09-18, P-23).
             : 'Required for every student, with or without a graduate degree: §5.2 counts a course as transfer credit only when it was taken after the bachelor’s degree.',
     );
-    // Already holds Notre Dame's own master's degree (DGS 2026-09-09). §4.5
-    // lets a Ph.D. student earn the MSCSE along the way; a student who earned
-    // it BEFORE this program cannot earn it again, so that row is left out of
-    // their report entirely (phd.ts). The Notre Dame transcript sets this from
-    // its degree-conferral lines; this box is how the student corrects it.
-    // Ph.D. only — the MSCSE audit has no along-the-way row to suppress.
-    const ndMs = student.ndMasters;
-    const ndMsBox = el('input', {
-      type: 'checkbox',
-      'data-key': 'standing.ndMasters',
-      onchange: (e) =>
-        update((s) => {
-          // The student decided: keep any term already read from the
-          // transcript for the wording, but drop the "inferred" flag.
-          s.ndMasters = (e.target as HTMLInputElement).checked ? { ...(s.ndMasters?.term ? { term: s.ndMasters.term } : {}) } : undefined;
-          // The §5.2 cap depends on this answer — 24 credits for a completed
-          // prior degree, 6 for an unfinished one. Ticking the box used to
-          // take the §4.5 row away and leave the cap at 6 (2026-09-10).
-          derivePriorMs(s);
-        }),
-    });
-    (ndMsBox as HTMLInputElement).checked = ndMs !== undefined;
-    const ndMsField = el(
-      'div',
-      { class: 'field' },
-      el('label', { class: 'check' }, ndMsBox, ' I already hold the MSCSE from Notre Dame'),
-      el(
-        'p',
-        { class: `hint field-hint${ndMs?.inferred ? ' warn' : ''}` },
-        ndMs?.inferred
-          ? `Ticked because ${ndMs.inferred.how}. Untick it if that is not right. The Ph.D. can award the MSCSE along the way (§4.5); a degree you already hold is not shown as something to earn. Your master's coursework is still transfer credit (§5.2) — that is the row above.`
-          // Says what the box changes, quoting the report row's title
-          // (trim review 2026-09-18, P-18).
-          : 'If you earned the MSCSE at Notre Dame before the Ph.D., the §4.5 “MSCSE awarded along the way” row is left out.',
-      ),
-    );
-
-    // The prior-degree controls behind one line on a fresh record (trim
-    // review 2026-09-18, P-65): of this card's controls a new student must set
-    // two, and the prior-study answer changes nothing until a transfer course
-    // exists — a previous-transcript import sets it for them. The fold is
-    // OPEN, not merely openable, whenever anything could draw on §5.2:
-    // graduate-level transfer coursework on the record (imported or typed —
-    // the same test that drives the warning above), an answer other than
-    // "none", the MSCSE box ticked, or a warning to show. Item 12 of
-    // 2026-09-05 (three radios, all visible) holds inside the fold. The
-    // data-key lets rememberFocus keep it open across re-renders.
-    const priorOpen = priorTranscripts.length > 0 || student.priorMs !== 'none' || student.ndMasters !== undefined || priorNote !== null;
-    const priorFold = el(
-      'details',
-      { class: 'prior-fold', 'data-key': 'standing.prior.fold' },
-      el('summary', {}, 'Prior degrees (§5.2 transfer caps) — open if you hold or started a graduate degree before this program.'),
-      fieldset('Prior graduate study (§5.2 transfer caps)', priorGroup),
-      priorNote,
-    );
-    if (priorOpen) (priorFold as HTMLDetailsElement).open = true;
-
     const card = el(
       'section',
       { class: 'card' },
@@ -915,45 +839,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       bsBeforeLine ? fieldset('Bachelor’s degree awarded', bsBeforeLine) : fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
       bsBeforeLine ? null : bsYearError,
       bsNote,
-      priorFold,
+      earlierDegreesLine,
     );
-    // Not shown once a master's transcript from ANOTHER university is on the
-    // record and nothing says the student holds Notre Dame's MSCSE (DGS
-    // 2026-09-13): their master's is that one, and the question would only
-    // confuse. A ticked or transcript-read answer keeps the box.
-    const otherMasters = student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel === 'masters' && !isNotreDameCourse(c));
-    if (student.program === 'phd' && (ndMs !== undefined || !otherMasters)) priorFold.append(ndMsField); // inside the fold (P-65)
-    // Integrated B.S. + M.S. (4+1)? Asked only when the record has Notre Dame
-    // coursework from before the entry term (DGS 2026-09-12, red-team F7):
-    // a 60000-level course taken as an undergraduate earns credit only then.
-    if (student.courses.some((c) => isNotreDameCourse(c) && isPriorNd(c, student.entryTerm))) {
-      const fourPlusOne = radios(
-        'standing.integratedBsMs',
-        [
-          ['yes', 'Yes — Integrated B.S. + M.S. (4+1)'],
-          ['no', 'No — a regular bachelor’s'],
-        ],
-        student.integratedBsMs === true ? 'yes' : student.integratedBsMs === false ? 'no' : '',
-        (value) =>
-          update((s) => {
-            s.integratedBsMs = value === 'yes';
-            s.integratedBsMsInferred = undefined; // the student decided
-          }),
-      );
-      card.append(
-        fieldset('Were you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)', fourPlusOne),
-        el(
-          'p',
-          { class: `hint ${student.integratedBsMs === undefined ? 'warn' : ''} fourplusone-note` },
-          student.integratedBsMsInferred
-            ? `Set to “Yes” from ${student.integratedBsMsInferred.how}. Change it if that is wrong.`
-            : student.integratedBsMs === undefined
-              ? 'Not answered: your 60000-level courses from before the entry term earn no credit until you answer. A 4+1’s graduate coursework counts (§3.5); a regular bachelor’s does not, though it can still satisfy §4.4.1 core knowledge and a §4.4.2 group for the Ph.D.'
-              : 'Decides whether 60000-level courses taken as an undergraduate earn MSCSE/Ph.D. credit (§3.5).',
-        ),
-      );
-    }
-
     if (student.program === 'mscse') {
       const optGroup = radios(
         'standing.msOption',
@@ -2231,16 +2118,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
-  function clearAll(): void {
-    if (!window.confirm('Clear everything you have entered on this device?')) return;
+  function resetAll(): void {
+    if (!window.confirm('Reset everything you have entered on this device and start over?')) return;
     cancelUndo();
     refusedValues.clear();
     student = emptyStudent();
     clearLocal();
     render();
-    // A cleared record is a new student (DGS 2026-09-22): ask the
-    // earlier-degrees questions again rather than showing every row.
-    openBackgroundDialog(student, update, `program.${student.program}`);
+    // A reset record is a new student (DGS 2026-09-22): back to the opening
+    // dialog — the degree and the earlier degrees are chosen there.
+    openOpeningDialog(undefined);
   }
 
   // A record already on this device may carry a number an older build let

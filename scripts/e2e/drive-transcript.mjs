@@ -484,9 +484,10 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
   const combinedToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
   console.log('  combined toast:', combinedToast.slice(0, 160));
-  if (!combinedToast.includes('(2 undergraduate, 2 graduate)') || !combinedToast.includes('Completed prior M.S. or Ph.D.')) {
-    throw new Error('combined import must report the level split and set prior study from the M.S. conferral');
-  }
+  // Prior study is no longer inferred by an import once the earlier-degrees
+  // answer exists (DGS 2026-09-22): the consent helper answered "finished".
+  if (!combinedToast.includes('(2 undergraduate, 2 graduate)')) throw new Error('combined import must report the level split');
+  if ((await s.evalJs(`JSON.parse(localStorage.getItem('cse-degree-audit/v1/student')).priorMs`)) !== 'completed') throw new Error('prior study must stay as the earlier-degrees answer set it');
   // The hand-set award term (3c) is kept — an import only replaces an inferred one (2026-09-06).
   if (combinedToast.includes('Bachelor’s degree awarded')) throw new Error('a hand-set award term must not be replaced by an import');
   if ((await s.evalJs(`document.querySelector('[data-key="standing.bachelors.year"]')?.value`)) !== '2021') throw new Error('the hand-set award term must survive the combined import');
@@ -496,8 +497,9 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     throw new Error('the combined transcript must split into undergraduate and Master’s coursework groups');
   }
   // "Prior graduate study" is a radio group since 2026-09-05 (item 12).
-  const priorSel = await s.evalJs(`[...document.querySelectorAll('input[type=radio][data-key^="standing.prior."]')].find(r => r.checked)?.value`);
-  if (priorSel !== 'completed') throw new Error('prior study should be "completed" from the M.S. conferral line, got ' + priorSel);
+  // Since 2026-09-22 the fact comes from the earlier-degrees answer (the consent helper says finished), not from the import.
+  const priorSel = await s.evalJs(`JSON.parse(localStorage.getItem('cse-degree-audit/v1/student')).priorMs`);
+  if (priorSel !== 'completed') throw new Error('prior study should be "completed" from the earlier-degrees answer, got ' + priorSel);
   await s.shot('combined-added');
 
   // 8) A Notre Dame transcript in a previous-degree slot is REFUSED (DGS
@@ -593,21 +595,30 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   }
 
   await s.evalJs(`localStorage.clear()`);
+  // The program is chosen in the opening dialog, and Reset brings it back
+  // (DGS 2026-09-22): the Notre Dame row's label follows the choice.
   await s.open(baseUrl, '.transcript-upload');
-  // Chrome occasionally swallows a click that lands while the notice's own
-  // update is still rendering (a flake seen only here, 2026-09-22): click the
-  // tab until the row's label follows it.
-  for (let attempt = 0; attempt < 5; attempt++) {
-    await s.evalJs(`document.querySelector('[data-key="program.mscse"]')?.click()`);
-    await s.settle(300);
-    if (await s.evalJs(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`)) break;
-  }
+  const chooseViaReset = async (program) => {
+    await s.evalJs(`window.confirm = () => true; document.querySelector('[data-key="tools.reset"]').click()`);
+    await s.waitFor(`document.querySelector('.consent-overlay')`);
+    await s.evalJs(`(() => {
+      document.querySelector('[data-key="consent.program.${program}"]').click();
+      document.querySelector('[data-key="consent.bachelors.elsewhere"]').click();
+      document.querySelector('[data-key="consent.graduate.elsewhere"]').click();
+      document.querySelector('[data-key="consent.sameplace.no"]').click();
+      document.querySelector('[data-key="consent.finished.yes"]').click();
+      document.querySelector('.consent-overlay button.btn').click();
+    })()`);
+    await s.waitFor(`!document.querySelector('.consent-overlay')`);
+  };
+  await chooseViaReset('mscse');
   await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`);
-  const phdLabel = await s.evalJs(`(() => { document.querySelector('[data-key="program.phd"]').click(); return document.querySelector('.transcript-upload')?.textContent ?? ''; })()`);
-  if (!phdLabel.includes('Current ND Unofficial Ph.D. Transcript')) throw new Error('the Ph.D. tab must name the row "ND Unofficial Ph.D. Transcript": ' + phdLabel.slice(0, 120));
-  await s.evalJs(`document.querySelector('[data-key="program.mscse"]').click()`);
+  if (await s.evalJs(`!!document.querySelector('[data-key^="program."]')`)) throw new Error('the program tabs must be gone (DGS 2026-09-22)');
+  await chooseViaReset('phd');
+  await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial Ph.D. Transcript')`);
+  await chooseViaReset('mscse');
   await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`);
-  console.log('  the Notre Dame row follows the program tab: MSCSE → "Current ND Unofficial MSCSE Transcript", Ph.D. → "Current ND Unofficial Ph.D. Transcript"');
+  console.log('  the Notre Dame row follows the program chosen in the opening dialog: MSCSE → "Current ND Unofficial MSCSE Transcript", Ph.D. → "Current ND Unofficial Ph.D. Transcript"; Reset brings the dialog back');
 
   // The §3.4 route is read off the record (DGS 2026-09-12, red-team F4): a
   // Master's project course added while "Undecided" sets the option to
@@ -643,7 +654,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // The 4+1 record — the courses the Notre Dame row's import files as prior
   // undergraduate coursework — is loaded as a saved record, so the rest of
   // the step tests the MSCSE audit and its lines, not an import path.
-  await s.evalJs(`localStorage.setItem('cse-degree-audit/v1/student', JSON.stringify({ schemaVersion: 1, program: 'mscse', entryTerm: { season: 'fall', year: 2026 }, priorMs: 'none', gpa: 3.5, bachelorsAwarded: { season: 'spring', year: 2026 }, courses: [
+  await s.evalJs(`localStorage.setItem('cse-degree-audit/v1/student', JSON.stringify({ schemaVersion: 1, program: 'mscse', entryTerm: { season: 'fall', year: 2026 }, priorMs: 'none', gpa: 3.5, bachelorsAwarded: { season: 'spring', year: 2026 }, background: { bachelors: 'nd-cse', ndIntegrated: false, graduate: 'none' }, integratedBsMs: undefined, courses: [
     { courseId: 'CSE 40113', title: 'Design/Analysis of Algorithms', credits: 3, grade: 'A', term: { season: 'fall', year: 2024 }, origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'undergraduate' },
     { courseId: 'CSE 40166', title: 'Computer Graphics', credits: 3, grade: 'A-', term: { season: 'spring', year: 2025 }, origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'undergraduate' },
     { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, grade: 'A', term: { season: 'spring', year: 2026 }, origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'undergraduate' } ], milestones: {}, attestations: {} }))`);
@@ -675,11 +686,14 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // undergraduate level, so nothing marks the student as a 4+1: the standing
   // card asks, the course earns nothing until answered, and "Yes" counts it.
   const before60641 = await s.evalJs(lineOf('CSE 60641'));
-  if (!/earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program; if you were, say so under Your standing/.test(before60641)) {
+  if (!/earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program; if you were, say so in the earlier-degrees questions/.test(before60641)) {
     throw new Error('unanswered 4+1: the 60000-level undergraduate course must earn nothing and say why: ' + before60641.slice(0, 220));
   }
-  if (!(await s.evalJs(`!!document.querySelector('[data-key="standing.integratedBsMs.yes"]')`))) throw new Error('the standing card must ask about the Integrated B.S. + M.S. program');
-  await s.evalJs(`document.querySelector('[data-key="standing.integratedBsMs.yes"]').click()`);
+  // The 4+1 is answered in the earlier-degrees questions since 2026-09-22.
+  await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
+  await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.yes"]').click(); document.querySelector('[data-key="background.save"]').click();`);
+  await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
   await s.waitFor(`/counts toward regular courses/.test(${lineOf('CSE 60641')})`);
   console.log('  4+1 asked; answered Yes → the senior-year 60000-level course counts');
   const after60641 = await s.evalJs(lineOf('CSE 60641'));
@@ -725,6 +739,12 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if (reviewHead !== '' && !/Ask the ADGS to review/.test(reviewHead)) throw new Error('the review card must address the ADGS on the MSCSE tab: ' + reviewHead);
   console.log('  MSCSE tab: every decision goes to the ADGS — no standalone "DGS" outside the contact card, notices, glossary and footer');
 
+  // This record answered "no graduate degree", so it has no Master's row
+  // (DGS 2026-09-22); say a master's elsewhere before importing one.
+  await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
+  await s.evalJs(`(() => { for (const k of ['background.graduate.elsewhere', 'background.sameplace.no', 'background.finished.yes']) document.querySelector('[data-key="' + k + '"]').click(); document.querySelector('[data-key="background.save"]').click(); })()`);
+  await s.waitFor(`!document.querySelector('dialog.background-dialog') && !!document.querySelector('.external-file-masters')`);
   await s.setFileInput('.external-file-masters', combinedPdf);
   await s.waitFor(`document.querySelector('.external-card .transcript-preview table tr:nth-child(2)')`);
   const previewText = await s.evalJs(

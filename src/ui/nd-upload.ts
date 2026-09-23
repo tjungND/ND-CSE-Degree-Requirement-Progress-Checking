@@ -577,8 +577,8 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
     s.ndDegrees = tp.degreesAwarded
       .filter((d) => d.date !== undefined && d.level !== 'other')
       .map((d) => ({ level: d.level as 'bachelors' | 'masters' | 'phd', date: d.date! }));
-    deriveNdMasters(s);
-    ndMastersSet = s.ndMasters !== undefined;
+    if (s.background === undefined) deriveNdMasters(s); // an answered background settles this (2026-09-22)
+    ndMastersSet = s.background === undefined && s.ndMasters !== undefined;
     // Prior GRADUATE coursework at Notre Dame sets "Prior graduate
     // study" the way an uploaded Master's transcript does
     // (2026-09-03 rule): completed when the transcript shows a
@@ -587,11 +587,11 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
     // conferral line still counts as "completed" here, since it
     // says the degree exists even where it cannot be placed.
     const before = s.priorMs;
-    if (s.priorMs === 'none' && s.ndMasters === undefined && hasPriorGraduateStudy(s) && tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd')) {
+    if (s.background === undefined && s.priorMs === 'none' && s.ndMasters === undefined && hasPriorGraduateStudy(s) && tp.degreesAwarded.some((d) => d.level === 'masters' || d.level === 'phd')) {
       s.priorMs = 'completed';
       s.priorMsInferred = true;
     }
-    derivePriorMs(s);
+    if (s.background === undefined) derivePriorMs(s);
     if (s.priorMs !== before) priorSet = s.priorMs;
     if (tp.gpaChoice === 'transcript' && tp.gpa !== undefined) {
       s.gpa = tp.gpa;

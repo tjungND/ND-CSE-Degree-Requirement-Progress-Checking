@@ -239,6 +239,13 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `wideFilters` (a `matchMedia('(min-width: 861px)')`, `{ matches: true }` under node) and the bar is
   rebuilt on its `change` event — the values live in `filters`, not in the controls. In e2e, use
   `checkVisibility()` for anything inside a closed details: WebKit gives its content boxes.
+- **The opening dialog is where the student's situation is set** (DGS 2026-09-22, later the same
+  day): program AND earlier degrees, with follow-ups (4+1 at Notre Dame for an MSCSE student;
+  same-university and finished for a degree elsewhere). `applyBackground` writes `priorMs`,
+  `ndMasters` and `integratedBsMs` from the answer; the standing card's controls for those are
+  gone, the program tabs are gone (`.program-name` shows the choice), and imports skip their
+  inference of those facts while `student.background` exists. Reset (`resetAll`) empties the
+  record and calls `openOpeningDialog(undefined)` — the dialog is a function for that reason.
 - **The earlier-degrees questions** (DGS 2026-09-22): `src/ui/background.ts` owns the two questions
   (`backgroundQuestions`, used by the opening dialog in app.ts and by the "Change" dialog
   `openBackgroundDialog` from the Transcripts card), the row rule `priorSlotsFor(background)` and

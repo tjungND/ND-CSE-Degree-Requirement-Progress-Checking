@@ -185,7 +185,10 @@ async function checkFirstScreen(s, baseUrl) {
   })())`));
   console.log('  first screen at 708×937:', JSON.stringify(first));
   if (first.importTop < 0 || first.importTop > 937) throw new Error('the first import control must be on the first screen: ' + first.importTop);
-  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 6) {
+  // Seven focusables precede the first import control since the program tabs
+  // left the masthead (DGS 2026-09-22): three masthead links, Load example,
+  // Reset, and the two notice strips' Details.
+  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 8) {
     throw new Error('a data-entry control must come early in the tab order, not 20th: ' + first.firstEntryIndex);
   }
   if (first.contactInMasthead || !first.contactAtEnd) throw new Error('the who-to-contact card belongs at the end: ' + JSON.stringify(first));
@@ -197,30 +200,20 @@ async function checkFirstScreen(s, baseUrl) {
 
 // 2. Focus survives the re-render that every change triggers.
 async function checkFocusPreserved(s) {
-  // "Prior graduate study" is a radio group (2026-09-05, item 12): ArrowDown
-  // moves the selection to the next radio, which fires change → re-render.
-  // The radios sit inside the "Prior degrees" <details> fold (trim review
-  // 2026-09-18, P-65), closed on the Ph.D. example (priorMs 'none', no
-  // transfers): a radio inside a closed fold cannot take focus, so open it
-  // first. After ArrowDown priorMs is 'unfinished' and the fold renders open
-  // on its own; rememberFocus also restores an open details[data-key].
-  await s.evalJs(`document.querySelector('[data-key="standing.prior.fold"]').open = true; document.querySelector('[data-key="standing.prior.none"]').focus()`);
-  await key(s, 'ArrowDown', 'ArrowDown', 40);
-  // The browser moves the radio selection, fires `change`, and only THEN does
-  // the page re-render and put focus back. Waiting for `checked` catches the
-  // first step and races the last (it failed about once in three runs,
-  // 2026-09-08 and again 2026-09-09), so the wait IS the assertion: it ends
-  // when focus is back on the radio, and a timeout is the failure.
-  await s.waitFor(`document.querySelector('[data-key="standing.prior.unfinished"]')?.checked === true`);
-  try {
-    await s.waitFor(`document.activeElement?.dataset?.key === 'standing.prior.unfinished'`);
-  } catch {
-    const where = await s.evalJs(`document.activeElement?.dataset?.key ?? document.activeElement?.tagName ?? 'nothing'`);
-    throw new Error('focus check: focus left the radio after the change — now on ' + where);
-  }
+  // The standing card's radio groups left with the earlier-degrees questions
+  // (DGS 2026-09-22); the §3.4 option radios exist only for the MSCSE, so the
+  // radio half of this check uses the report's attestation checkboxes below
+  // and the milestones' date fields: focus then type, re-render, focus stays.
+  await s.evalJs(`(() => { const d = document.querySelector('[data-key="milestone.advisorName"]'); d.focus(); d.value = 'Prof. Focus'; d.dispatchEvent(new Event('change')); })()`);
+  await s.settle();
+  const nameKey = await s.evalJs(`document.activeElement?.dataset?.key ?? ''`);
+  if (nameKey !== 'milestone.advisorName') throw new Error('focus check: focus left the text field after the change — now on ' + nameKey);
   await key(s, 'Tab', 'Tab', 9);
   const next = await s.evalJs(`document.activeElement?.dataset?.key ?? document.activeElement?.tagName`);
-  if (next?.startsWith('standing.prior') || next === 'BODY') throw new Error('focus check: Tab after the change did not move on — ' + next);
+  if (next === 'milestone.advisorName' || next === 'BODY') throw new Error('focus check: Tab after the change did not move on — ' + next);
+  // Put the example's advisor back: the copy-dialog check later names them.
+  await s.evalJs(`(() => { const d = document.querySelector('[data-key="milestone.advisorName"]'); d.value = 'Prof. Example'; d.dispatchEvent(new Event('change')); })()`);
+  await s.settle();
   // A checkbox: focus then click (the page re-renders), focus must stay put.
   // (The click itself is synchronous through evalJs, so there is nothing to
   // wait FOR here — unlike the radio above, whose key event arrives
@@ -229,10 +222,7 @@ async function checkFocusPreserved(s) {
   await s.settle();
   const cbKey = await s.evalJs(`document.activeElement?.dataset?.key ?? ''`);
   if (!cbKey.startsWith('attest.')) throw new Error('focus check: focus left the checkbox after the change — now on ' + cbKey);
-  // Put the example back the way it was.
-  await s.evalJs(`document.querySelector('[data-key="standing.prior.none"]').click()`);
-  await s.settle(100);
-  console.log('  focus is preserved across re-renders (radio group, checkbox); Tab continues from the same control');
+  console.log('  focus is preserved across re-renders (text field, checkbox); Tab continues from the same control');
 }
 
 // 3. No sideways scrolling at a phone (390) or tablet-portrait (820) width.

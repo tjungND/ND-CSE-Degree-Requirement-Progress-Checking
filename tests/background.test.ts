@@ -1,7 +1,8 @@
 // The earlier-degrees questions (DGS 2026-09-22): which transcript rows each answer needs.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { completeBackground, priorSlotsFor } from '../src/ui/background.ts';
+import { applyBackground, completeBackground, priorSlotsFor } from '../src/ui/background.ts';
+import { phdStudent } from './helpers/student.ts';
 
 describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => {
   it('a bachelor’s elsewhere and no graduate degree: the Undergraduate row', () => {
@@ -25,9 +26,30 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
     assert.deepEqual(priorSlotsFor(undefined), ['bachelors', 'masters', 'phd']);
   });
   it('an answer is complete only when every question that applies is answered', () => {
-    assert.equal(completeBackground({ bachelors: 'elsewhere' }), undefined);
-    assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'elsewhere' }), undefined);
-    assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true }), { bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true });
-    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', graduate: 'none', samePlace: true }), { bachelors: 'nd-cse', graduate: 'none' });
+    assert.equal(completeBackground({ bachelors: 'elsewhere' }, 'phd'), undefined);
+    assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true }, 'phd'), undefined, 'finished? still open');
+    assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true, finished: false }, 'phd'), { bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true, finished: false });
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', graduate: 'none', samePlace: true }, 'phd'), { bachelors: 'nd-cse', graduate: 'none' });
+    // An MSCSE student with a Notre Dame CSE bachelor's is asked about the 4+1; one cannot already hold the MSCSE.
+    assert.equal(completeBackground({ bachelors: 'nd-cse', graduate: 'none' }, 'mscse'), undefined);
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' }, 'mscse'), { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' });
+    assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse' }, 'mscse'), undefined);
+  });
+  it('an answer settles the record’s prior-degree facts (the standing card’s controls, gone 2026-09-22)', () => {
+    const base = phdStudent();
+    const a = { ...base, program: 'phd' as const };
+    applyBackground(a, { bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: false, finished: true });
+    assert.equal(a.priorMs, 'completed');
+    assert.equal(a.ndMasters, undefined);
+    assert.equal(a.integratedBsMs, false);
+    const b = { ...base, program: 'phd' as const };
+    applyBackground(b, { bachelors: 'nd-cse', graduate: 'nd-4plus1' });
+    assert.deepEqual(b.ndMasters, {});
+    assert.equal(b.integratedBsMs, true);
+    assert.equal(b.priorMs, 'none');
+    const c = { ...base, program: 'mscse' as const };
+    applyBackground(c, { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' });
+    assert.equal(c.integratedBsMs, true);
+    assert.equal(c.ndMasters, undefined);
   });
 });

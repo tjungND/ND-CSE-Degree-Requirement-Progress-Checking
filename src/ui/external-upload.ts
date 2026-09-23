@@ -1248,7 +1248,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               // student's own choice; touching the dropdown clears the flag.
               // Since 2026-09-05 any GRADUATE row triggers this, whatever the
               // slot (a 4+1's fifth year on an undergraduate transcript).
-              if (graduateRows > 0 && s.priorMs === 'none') {
+              if (graduateRows > 0 && s.priorMs === 'none' && s.background === undefined) {
                 s.priorMs = p.conferred === true ? 'completed' : 'unfinished';
                 s.priorMsInferred = true;
                 priorAutoSet = s.priorMs;

@@ -68,6 +68,7 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
           document.querySelector('[data-key="consent.bachelors.elsewhere"]')?.click();
           document.querySelector('[data-key="consent.graduate.elsewhere"]')?.click();
           document.querySelector('[data-key="consent.sameplace.no"]')?.click();
+          document.querySelector('[data-key="consent.finished.yes"]')?.click();
         }
         btn.click();
       })()`);

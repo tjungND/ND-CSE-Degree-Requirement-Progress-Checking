@@ -130,22 +130,22 @@ export async function driveApp(s, baseUrl) {
   if (oce.page !== 1 || oce.glossary !== 1 || oce.short < 3) throw new Error('OCE first-mention rule: ' + JSON.stringify(oce));
 
   // A Ph.D. student who already holds Notre Dame's own master's (DGS
-  // 2026-09-09): §4.5 cannot award a degree twice, so ticking the box takes
-  // the along-the-way row out of the report entirely, and unticking brings it
-  // back. The example student is a Ph.D. student, so the box is on the page.
+  // 2026-09-09): §4.5 cannot award a degree twice. Since 2026-09-22 that fact
+  // is an answer in the earlier-degrees questions (Change, on the standing
+  // card): answering "the MSCSE at Notre Dame" takes the along-the-way row out
+  // of the report, answering "No" brings it back.
   const msRow = () => `!!document.getElementById('req-phd-msAlongTheWay')`;
-  // The box lives inside the "Prior degrees" <details> fold (trim review
-  // 2026-09-18, P-65), closed for the example; a JS click fires inside a
-  // closed fold, but open it so a screenshot of Your standing shows the box.
-  await s.evalJs(`document.querySelector('[data-key="standing.prior.fold"]').open = true`);
-  if (!(await s.evalJs(`document.querySelector('[data-key="standing.ndMasters"]') !== null`)))
-    throw new Error('the "I already hold the MSCSE from Notre Dame" box is missing from Your standing');
-  if ((await s.evalJs(msRow())) !== true) throw new Error('the §4.5 along-the-way row should be in the report before the box is ticked');
-  await s.evalJs(`document.querySelector('[data-key="standing.ndMasters"]').click()`);
+  if ((await s.evalJs(msRow())) !== true) throw new Error('the §4.5 along-the-way row should be in the report for the example');
+  const answerGraduate = async (value) => {
+    await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
+    await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
+    await s.evalJs(`document.querySelector('[data-key="background.graduate.${value}"]').click(); document.querySelector('[data-key="background.save"]').click();`);
+    await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
+  };
+  await answerGraduate('nd-mscse');
   await s.waitFor(`!document.getElementById('req-phd-msAlongTheWay')`);
-  const ndMsHint = await s.evalJs(`[...document.querySelectorAll('.card .hint')].some((p) => /already hold the MSCSE|degree you already hold/.test(p.textContent))`);
-  console.log('  already holds the MSCSE → the §4.5 along-the-way row is gone (hint shown:', ndMsHint + ')');
-  await s.evalJs(`document.querySelector('[data-key="standing.ndMasters"]').click()`); // put it back
+  console.log('  already holds the MSCSE (earlier-degrees answer) → the §4.5 along-the-way row is gone');
+  await answerGraduate('none'); // put it back
   await s.waitFor(`!!document.getElementById('req-phd-msAlongTheWay')`);
 
   // Manual course from another university (2026-09-06 evening): the University
@@ -463,9 +463,19 @@ export async function driveApp(s, baseUrl) {
   await s.shot('rule-quote');
   await s.evalJs(`document.querySelector('button.cite').click()`); // close it again
 
-  await s.evalJs(
-    `[...document.querySelectorAll('button.tab')].find(b => b.textContent.includes('M.S.')).click()`,
-  );
+  // The program is chosen in the opening dialog; Reset brings it back (DGS
+  // 2026-09-22). Reset empties the record, so "Load example" below fills a
+  // fresh MSCSE record rather than replacing the Ph.D. example.
+  await s.evalJs(`(() => { window.__confirm = window.confirm; window.confirm = () => true; document.querySelector('[data-key="tools.reset"]').click(); })()`);
+  await s.waitFor(`document.querySelector('.consent-overlay')`);
+  await s.evalJs(`(() => {
+    document.querySelector('[data-key="consent.program.mscse"]').click();
+    document.querySelector('[data-key="consent.bachelors.elsewhere"]').click();
+    document.querySelector('[data-key="consent.graduate.none"]').click();
+    document.querySelector('.consent-overlay button.btn').click();
+  })()`);
+  await s.waitFor(`!document.querySelector('.consent-overlay')`);
+  await s.evalJs(`(() => { window.confirm = window.__confirm; })()`);
   await s.waitFor(
     `[...document.querySelectorAll('.req-title')].some(e => e.textContent.includes('project'))`,
   );
@@ -485,7 +495,7 @@ export async function driveApp(s, baseUrl) {
   const msEx = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const txt = document.body.innerText;
     return {
-      program: document.querySelector('[data-key="program.mscse"]')?.getAttribute('aria-pressed') ?? document.querySelector('.segmented [aria-pressed="true"]')?.textContent ?? '',
+      program: JSON.parse(localStorage.getItem('cse-degree-audit/v1/student') ?? '{}').program ?? '',
       courses: [...document.querySelectorAll('table.courses .cid')].map((e) => e.textContent),
       phdWords: /dissertation|Qualifying Examination|candidacy/i.test(txt),
       futureGrades: (txt.match(/is still counted, but check the term/g) || []).length,
@@ -517,8 +527,8 @@ export async function driveApp(s, baseUrl) {
       ferpa: /FERPA-protected education records remain under your control/.test(txt),
       shared: /On a shared or public computer, clear your record before you walk away/.test(txt),
       finishCard: card?.textContent ?? '',
-      clearAtEnd: !!document.querySelector('[data-key="report.clear"]'),
-      clearAtTop: !!document.querySelector('[data-key="tools.clear"]'),
+      clearAtEnd: !!document.querySelector('[data-key="report.reset"]'),
+      clearAtTop: !!document.querySelector('[data-key="tools.reset"]'),
     };
   })())`));
   console.log('  privacy + shared computers:', JSON.stringify({ ...privacy, finishCard: privacy.finishCard.slice(0, 60) }));

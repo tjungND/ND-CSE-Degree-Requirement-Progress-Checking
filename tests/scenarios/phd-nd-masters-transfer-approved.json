@@ -102,7 +102,7 @@
     "phd.transfer": {
       "status": "met",
       "detailIncludes": [
-        "9 of 24 transfer credits counted"
+        "15 of 24 transfer credits counted"
       ]
     },
     "phd.qualifier.categories": {
@@ -111,7 +111,7 @@
   },
   "expectCourseLines": {
     "CSE 68902": [
-      "a master’s project or thesis is not a regular course and does not transfer into the Ph.D. (§5.2)"
+      "the total-credit requirement only"
     ]
   },
   "expectReviewEmpty": true

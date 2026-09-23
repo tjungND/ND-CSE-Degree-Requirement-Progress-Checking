@@ -825,13 +825,19 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // report, "counts toward the project/thesis requirement". Said before
   // the sheet's own verdict, because it holds whatever the row says.
   const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || isMsProjectCourse(c.courseId);
-  if (isProject) {
+  // For the MSCSE that still holds. For the Ph.D. the DGS reversed it on
+  // 2026-09-22: a 60000-level course that is not a regular course does not
+  // count toward the 24 regular credits, but it does count toward the 60 —
+  // so a prior master's thesis or project course is a transfer candidate
+  // like any other, in the total-only pool (the `isProject` pool below).
+  if (isProject && program !== 'phd') {
     return {
       ...extBase,
       transferable,
-      ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the ${program === 'phd' ? 'Ph.D. (§5.2)' : 'MSCSE (§3.4, §5.2)'}${coreNote}`,
+      ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the MSCSE (§3.4, §5.2)${coreNote}`,
     };
   }
+  const projectNote = isProject ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : '';
   if (shape && 'ineligibleReason' in shape) {
     return { ...extBase, transferable, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
   }
@@ -868,7 +874,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     ...extBase,
     reviewed,
     transferable,
-    pool: shape?.pool ?? 'regular',
+    pool: isProject ? 'total_only' : (shape?.pool ?? 'regular'),
     caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap],
     tier: tierFor(grade, !attested),
     // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
@@ -884,16 +890,16 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     approvalPending: attested
       ? undefined
       : transferable === 'yes'
-        ? `pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)${coreNote}`
+        ? `pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)${coreNote}${projectNote}`
         : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
           // program 2026-09-09): the sheet has looked at the course and
           // ruled that this one needs an approval. Unlike a blank cell,
           // that IS a decision; what is open is this student's case.
           needsApproval(transferable)
-          ? `transfer — needs DGS approval (§5.2)${coreNote}`
+          ? `transfer — needs DGS approval (§5.2)${coreNote}${projectNote}`
           : external
-            ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}`
-            : `transfer — not yet reviewed by the DGS${attestedButUnreviewed ? ', so your “transfer approved” checkbox cannot apply to it yet' : ''}; an external course counts only once the DGS has explicitly approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}`,
+            ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}${projectNote}`
+            : `transfer — not yet reviewed by the DGS${attestedButUnreviewed ? ', so your “transfer approved” checkbox cannot apply to it yet' : ''}; an external course counts only once the DGS has explicitly approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
   };
 }
 
@@ -958,7 +964,7 @@ function classifyPriorNdUndergraduate(
     return {
       ...extBase,
       notTransferCredit: true,
-      ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns ${program === 'mscse' ? 'MSCSE' : 'Ph.D.'} credit only for a student who was in the Integrated B.S. + M.S. (4+1) program${student.integratedBsMs === false ? '' : '; if you were, say so under Your standing'}${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules, and its §4.4.2 group` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
+      ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns ${program === 'mscse' ? 'MSCSE' : 'Ph.D.'} credit only for a student who was in the Integrated B.S. + M.S. (4+1) program${student.integratedBsMs === false ? '' : '; if you were, say so in the earlier-degrees questions (Your standing → Change)'}${qualifierApplies ? (ndCoreArea ? `; it still satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) per the course rules, and its §4.4.2 group` : '; it can still satisfy §4.4.1 core knowledge or a §4.4.2 group') : ''}`,
     };
   }
   // A master's project or thesis must be earned while enrolled in the
