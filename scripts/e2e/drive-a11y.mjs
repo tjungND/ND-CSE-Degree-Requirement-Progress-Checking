@@ -136,6 +136,11 @@ async function checkCopyDialog(s) {
 
 // 1. The opening notice as a modal dialog.
 async function checkDialog(s, baseUrl) {
+  // A fresh record: the earlier steps' saved answers would make the dialog
+  // ready at once (every family must be answered since 2026-09-23).
+  await s.send('Page.navigate', { url: baseUrl });
+  await s.waitFor(`document.querySelector('.masthead h1') || document.querySelector('.load-card.failed')`);
+  await s.evalJs(`localStorage.clear()`);
   await s.send('Page.navigate', { url: baseUrl });
   await s.waitFor(`document.querySelector('.masthead h1') || document.querySelector('.load-card.failed')`);
   if (await s.evalJs(`!!document.querySelector('.load-card.failed')`)) {
@@ -153,11 +158,20 @@ async function checkDialog(s, baseUrl) {
   }
   const labelled = await s.evalJs(`document.getElementById(document.querySelector('dialog.consent')?.getAttribute('aria-labelledby') ?? '')?.textContent ?? ''`);
   if (labelled !== 'Before you continue') throw new Error('opening dialog: not labelled by its visible title (' + labelled + ')');
+  // Escape is refused until every family is answered (DGS 2026-09-23), and
+  // so is the button.
+  await key(s, 'Escape', 'Escape', 27);
+  await s.settle();
+  if (!(await s.evalJs(`!!document.querySelector('dialog.consent[open]')`))) throw new Error('opening dialog: Escape must not close it before the questions are answered');
+  if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must wait for the answers');
+  await s.evalJs(`(() => { for (const k of ['consent.program.phd', 'consent.bachelors.elsewhere', 'consent.graduate.none']) document.querySelector('[data-key="' + k + '"]')?.click(); })()`);
+  await s.settle();
+  if (await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`)) throw new Error('opening dialog: the button must be live once every family is answered');
   await key(s, 'Escape', 'Escape', 27);
   await s.waitFor(`!document.querySelector('dialog.consent')`);
   const focusAfter = await s.evalJs(`document.activeElement?.tagName + ':' + (document.activeElement?.textContent ?? '').slice(0, 30)`);
   if (!focusAfter.startsWith('H1:')) throw new Error('opening dialog: focus did not land on the page heading after closing — ' + focusAfter);
-  console.log('  opening notice: focus inside, Tab contained, Escape closes, focus returns to the heading');
+  console.log('  opening notice: focus inside, Tab contained, Escape refused until answered then closes, focus returns to the heading');
 }
 
 // 1b. The first screen belongs to the work, not the preamble (blue-team B1,

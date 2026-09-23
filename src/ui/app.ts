@@ -149,13 +149,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // the button stays inactive until they answer — the report must not render
   // against a program nobody chose.
   // The earlier-degrees questions (DGS 2026-09-22) sit under the program
-  // choice; for a new record the button waits for them too. A record saved
-  // before they existed arrives with no answer and the button live — the
-  // Transcripts card offers the questions from its "Change" link.
+  // choice, and every family must be answered before the button works and
+  // before Escape closes the dialog (DGS 2026-09-23: "force the selections in
+  // each family") — a record saved before the questions existed is asked
+  // them on its next visit, like a new one.
   let chosenBackground: Partial<Background> | undefined = prefill?.background;
+  const isReady = (): boolean => chosenProgram !== undefined && completeBackground(chosenBackground, chosenProgram) !== undefined;
   const gate = (): void => {
-    const ready = chosenProgram !== undefined && (prefill !== undefined || completeBackground(chosenBackground, chosenProgram) !== undefined);
-    if (ready) agreeButton.removeAttribute('disabled');
+    if (isReady()) agreeButton.removeAttribute('disabled');
     else agreeButton.setAttribute('disabled', 'disabled');
   };
   // The questions depend on the program (an MSCSE student cannot already hold
@@ -171,7 +172,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   };
   renderQuestions();
-  if (!prefill) agreeButton.setAttribute('disabled', 'disabled');
+  gate();
   const consentDialog = el(
     'dialog',
     { class: 'consent consent-overlay', 'aria-labelledby': 'consent-title' },
@@ -223,6 +224,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   };
   agreeButton.addEventListener('click', closeConsent);
   consentDialog.addEventListener('close', closeConsent);
+  // Escape is refused while a family is unanswered (the `cancel` event fires
+  // before `close`); once every answer is in, Escape closes as it always has.
+  consentDialog.addEventListener('cancel', (e) => {
+    if (!isReady()) e.preventDefault();
+  });
   document.body.append(consentDialog);
   placeInFrame(consentDialog); // embed mode: at the top of the frame, not the middle of a tall page (DGS 2026-09-16)
   if (openModal(consentDialog)) agreeButton.focus();
