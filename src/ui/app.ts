@@ -219,15 +219,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // program's results. The class goes on <html> so the backdrop still covers
   // the viewport.
   document.documentElement.classList.add('opening-dialog');
+  // Only the button closes the notice (DGS 2026-09-23: Escape must not). Set
+  // once the button has done its work, so the `close` event that follows is
+  // not mistaken for an attempt to dismiss it.
+  let finished = false;
   const closeConsent = (): void => {
+    if (finished) return;
+    finished = true;
     document.documentElement.classList.remove('opening-dialog');
     // The answer takes effect BEFORE the dialog goes, so that by the time
     // anything can observe the notice gone, the page behind it already shows
     // the chosen program — otherwise a script (or a fast reader) can act on a
-    // page that is about to re-render underneath them. Escape closes the notice
-    // — it always has, and drive-a11y.mjs checks it — and leaves the program as
-    // it was, which the segmented control at the top still shows and can still
-    // change (B2, 2026-09-18).
+    // page that is about to re-render underneath them.
     const answered = completeBackground(chosenBackground, chosenProgram ?? student.program);
     const backgroundChanged = answered !== undefined && JSON.stringify(answered) !== JSON.stringify(student.background);
     if ((chosenProgram && chosenProgram !== student.program) || backgroundChanged) {
@@ -241,15 +244,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     returnFocusTo();
   };
   agreeButton.addEventListener('click', closeConsent);
-  consentDialog.addEventListener('close', closeConsent);
-  // Escape is refused while a family is unanswered (the `cancel` event fires
-  // before `close`); once every answer is in, Escape closes as it always has.
-  consentDialog.addEventListener('cancel', (e) => {
-    if (!isReady()) e.preventDefault();
+  // Escape never closes it (DGS 2026-09-23; until then it closed the notice
+  // once every family was answered). Three layers, because browsers differ:
+  // the keydown is cancelled, which stops the close request where the HTML
+  // spec's close-watcher rules apply; the `cancel` event is cancelled; and
+  // Chrome, which lets a second Escape close a dialog whose `cancel` was
+  // refused, finds the notice opened again straight away.
+  consentDialog.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') e.preventDefault();
+  });
+  consentDialog.addEventListener('cancel', (e) => e.preventDefault());
+  consentDialog.addEventListener('close', () => {
+    if (finished || !consentDialog.isConnected) return;
+    if (openModal(consentDialog)) (consentDialog.querySelector<HTMLElement>('input:checked') ?? agreeButton).focus();
   });
   document.body.append(consentDialog);
   placeInFrame(consentDialog); // embed mode: at the top of the frame, not the middle of a tall page (DGS 2026-09-16)
-  if (openModal(consentDialog)) agreeButton.focus();
+  // Focus the first thing to answer while the button is inactive (it used to
+  // fall through to the DGS's email link).
+  if (openModal(consentDialog)) (agreeButton.hasAttribute('disabled') ? consentDialog.querySelector<HTMLElement>('input[type=radio]') ?? agreeButton : agreeButton).focus();
   };
   openOpeningDialog(saved);
 

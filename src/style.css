@@ -77,6 +77,18 @@ dialog.consent::backdrop { background: rgba(10, 22, 40, 0.55); }
 /* The page is hidden while the opening dialog is up (DGS 2026-09-23); the
    layout is kept so nothing jumps when it closes. */
 html.opening-dialog #app { visibility: hidden; }
+/* The opening notice looks like the loading card it follows (DGS 2026-09-23):
+   the page's own light ground as the backdrop, a bordered white card 36 px
+   from the top, 560 px wide, a navy heading — so the rules loading and the
+   first question read as one screen. (Literal colours on ::backdrop: older
+   Safari does not pass custom properties to it.) */
+dialog.consent-overlay { max-width: min(560px, calc(100vw - 32px)); width: 100%; margin: 36px auto auto; }
+dialog.consent-overlay::backdrop { background: #f7f8fa; }
+dialog.consent-overlay .consent-box { max-width: none; border: 1px solid #d9dde3; box-shadow: none; padding: 18px 22px; }
+dialog.consent-overlay .consent-box h2 { color: var(--navy); font-size: 18px; }
+dialog.consent-overlay .consent-box > .btn { margin-left: 0; }
+/* Embedded, the loading card sits on the host page's own ground; so does the notice. */
+html.embed dialog.consent-overlay::backdrop { background: transparent; }
 .consent-box { background: #fff; border-radius: 12px; max-width: 540px; padding: 22px 26px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
 .consent-box h2 { margin-top: 0; }
 .consent-box .consent-warning { color: var(--bad); font-weight: 700; }
