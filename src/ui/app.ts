@@ -434,7 +434,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             askDgsCard(classified),
             milestonesCard(classified),
             askGradAdminCard(report, classified),
-            saveCard(),
+            saveCard(report),
             diagnosticsCard(),
           ),
           el(
@@ -1887,12 +1887,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   /** "Send summary to advisor" (DGS 2026-09-15): the dialog with the
    * advisor summary. Rendered at the end of the report since the trim review
    * (2026-09-18, P-72); it was the third button of the storage card. */
-  function advisorSummaryButton(report: ReturnType<typeof audit>): HTMLElement {
+  function advisorSummaryButton(report: ReturnType<typeof audit>, key = 'save.copy'): HTMLElement {
     return el(
       'button',
       {
         class: 'btn',
-        'data-key': 'save.copy',
+        'data-key': key,
         onclick: () => {
           const advisors = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
           const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, advisors });
@@ -1902,7 +1902,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             subject: built.subject,
             text: built.text,
             html: built.html,
-            returnFocusKey: 'save.copy',
+            returnFocusKey: key,
           });
         },
       },
@@ -1910,7 +1910,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
-  function saveCard(): HTMLElement {
+  function saveCard(report: ReturnType<typeof audit>): HTMLElement {
     const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden', 'aria-label': 'Saved file' }); // (P-62)
     fileInput.addEventListener('change', async () => {
       const file = (fileInput as HTMLInputElement).files?.[0];
@@ -1974,6 +1974,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('button', { class: 'btn', 'data-key': 'save.print', onclick: () => window.print() }, 'Print'),
         // Reset beside Print (DGS 2026-09-22) — the card whose sentence tells a
         // student on a shared machine to clear the record holds the button.
+        // Also here (DGS 2026-09-23), with its own key so focus returns to
+        // the right one of the two buttons.
+        advisorSummaryButton(report, 'save.summary'),
         el('button', { class: 'btn', 'data-key': 'save.reset', onclick: resetAll }, 'Reset'),
       ),
       fileInput,
