@@ -1,0 +1,125 @@
+{
+  "name": "phd-bs-nd-double-count-cap",
+  "description": "A Ph.D. student straight from Notre Dame's 4+1 track who never finished the MSCSE (no Notre Dame master's on record), with four senior-year 60000-level courses on the undergraduate side of the transcript. The Graduate School, through the DGS (2026-09-22): \"Only up to 6 credits may double-count towards two degrees.\" Three courses the bachelor's degree used ('bs') would each count toward two degrees — the first two fit the six credits, the third is over the allowance and counts nothing; a course the bachelor's did not use ('neither') counts in full. The new phd.cap.sharedbs row reports the allowance. Nothing here is transfer credit.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "integratedBsMs": true,
+    "gpa": 3.8,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate",
+        "countedToward": "bs"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate",
+        "countedToward": "bs"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate",
+        "countedToward": "bs"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate",
+        "countedToward": "neither"
+      },
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.cap.sharedbs": {
+      "status": "met",
+      "detailIncludes": [
+        "6 of the 6 credits that may still count toward both your bachelor’s degree and the Ph.D. used",
+        "3 credits not counted — over the cap"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "9 of 24"
+      ]
+    },
+    "phd.transfer": {
+      "status": "not_applicable",
+      "detailIncludes": [
+        "No transfer courses entered"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "counts toward regular courses (3 cr)",
+      "counts toward both your bachelor’s degree and the Ph.D. — inside the 6 credits that may count toward two degrees (Graduate School)"
+    ],
+    "CSE 60770": [
+      "counts toward regular courses (3 cr)",
+      "not used by an earlier degree — counts in full"
+    ]
+  },
+  "expectReviewEmpty": true
+}

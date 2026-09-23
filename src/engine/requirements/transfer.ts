@@ -138,6 +138,14 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
       }
     }
   }
+  // The student's own Notre Dame MSCSE (Graduate School through the DGS,
+  // 2026-09-22): its coursework is not transfer credit and is not on this row.
+  const ndMasters = ctx.classified.filter((c) => c.ndMastersCredit && !c.superseded);
+  if (ndMasters.length > 0) {
+    parts.push(
+      `Your Notre Dame MSCSE coursework (${ndMasters.map((c) => c.entry.courseId).join(', ')}) is not transfer credit: a move from a master’s to a Ph.D. in the same discipline counts all the credits toward the Ph.D., beyond this cap and without transfer approval (Graduate School), so it is counted on its own lines and not here`,
+    );
+  }
   // The counted transfer courses — what the processing request tables (2026-09-06).
   const transferSatisfied = countedCourseIds(ctx, (p) => (p.course.caps.includes('transfer') ? p.countedRegular : 0));
   return {

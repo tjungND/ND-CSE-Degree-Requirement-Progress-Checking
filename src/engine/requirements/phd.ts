@@ -14,6 +14,7 @@ import type { Ctx } from './context.ts';
 import { capRow, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
 import { transferRow } from './transfer.ts';
+import { spentOnBachelorsAndMasters } from '../allocate.ts';
 
 const COURSEWORK = 'Coursework — §4.2';
 const TIME = 'Residence and time — §4.3';
@@ -156,6 +157,34 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
         : undefined,
     }),
   );
+
+  // The Graduate School, through the DGS (2026-09-22): "Only up to 6 credits
+  // may double-count towards two degrees. If 6 credits have double-counted to
+  // BS & MS, no more credits can double-count to BS & PhD later when the
+  // student pursues PhD." The row appears only for a student with a course
+  // that draws on it — Notre Dame coursework their bachelor's degree used.
+  if (ctx.classified.some((c) => c.caps.includes('sharedbs'))) {
+    const spent = spentOnBachelorsAndMasters(ctx.student);
+    const base = ctx.params.number('ms_bs_double_count_credits_max');
+    rows.push(
+      capRow({
+        id: 'phd.cap.sharedbs',
+        group: COURSEWORK,
+        title: 'At most 6 credits counted toward two degrees (your bachelor’s and the Ph.D.)',
+        capId: 'sharedbs',
+        capLabel: 'credits that may still count toward both your bachelor’s degree and the Ph.D.',
+        limitKey: 'ms_bs_double_count_credits_max',
+        section: 'Graduate School',
+        quote:
+          'Only up to 6 credits may double-count towards two degrees. If 6 credits have double-counted to BS & MS, no more credits can double-count to BS & PhD later when the student pursues PhD. (The Graduate School, through the DGS, 2026-09-22 — not yet in the handbook.)',
+        ctx,
+        extraDetail:
+          spent > 0 && base !== undefined
+            ? [`${formatCredits(spent)} of the ${formatCredits(base)} credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so ${formatCredits(Math.max(0, base - spent))} ${Math.max(0, base - spent) === 1 ? 'credit' : 'credits'} can still count toward both your bachelor’s degree and the Ph.D.`]
+            : undefined,
+      }),
+    );
+  }
 
   rows.push(transferRow(ctx, { id: 'phd.transfer', group: COURSEWORK, capKeyCompleted: 'phd_transfer_completed_ms_credits_max', section: '§4.2, §5.2' }));
   rows.push(residencyRow(ctx));

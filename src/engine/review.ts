@@ -222,14 +222,18 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         course: c,
         kind: 'priorNd',
         reason:
-          `taken at Notre Dame before entering the program (${bachelors ? 'undergraduate' : 'graduate'}) — ` +
+          `taken at Notre Dame before entering the program (${bachelors ? 'undergraduate' : c.ndMastersCredit ? 'MSCSE' : 'graduate'}) — ` +
           (c.rule === undefined
             ? qualifierApplies
               ? 'not in the course rules yet; does it cover a §4.4.1 core area?'
               : 'not in the course rules yet'
             : bachelors && needsApprovalOnTop
               ? `may count toward the ${student.program === 'mscse' ? 'MSCSE (§3.2)' : 'Ph.D. (§4.2)'} inside the allowance for courses below the 60000 level — ${c.approvalPending}`
-              : 'transfer credit needs a DGS recommendation (§5.2)'),
+              : c.ndMastersCredit
+                ? // Not transfer credit (Graduate School 2026-09-22): what is
+                  // open is the sheet row's own approval, and nothing else.
+                  `counts toward the Ph.D. from your Notre Dame MSCSE — ${c.approvalPending}`
+                : 'transfer credit needs a DGS recommendation (§5.2)'),
         unlisted: c.rule === undefined,
       });
     } else {

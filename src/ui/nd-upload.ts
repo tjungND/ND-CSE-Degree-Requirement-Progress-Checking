@@ -427,7 +427,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
       : c.origin === 'transfer'
         ? 'transfer'
         : prior
-          ? `before entry — prior ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student)) === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
+          ? `before entry — prior ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student)) === 'bachelors' ? 'undergraduate' : args.student.ndMasters !== undefined ? 'MSCSE' : 'graduate'} coursework`
           : '';
     table.append(
       el(

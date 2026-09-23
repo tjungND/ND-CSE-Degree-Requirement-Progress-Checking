@@ -1,6 +1,17 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-21 (this session, branch `claude/sheet-shared-drive-move`).
+Last updated: 2026-09-22 (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-09-22: **the Graduate School's two rules are in** (DECISIONS rows of 2026-09-22, both marked
+"relaying the Graduate School"): at most six credits may count toward two degrees, with the
+bachelor's-and-MSCSE courses using the allowance first (`phd.cap.sharedbs`, every Ph.D. student now
+answers "Already counted toward…"); and a Notre Dame MSCSE's coursework counts toward the Ph.D. in
+full, without transfer approval and outside §5.2's 24 (no longer on the §5.2 row or in the review
+request). **Open, for the DGS to confirm:** the app applies neither §5.2's five-year window nor its
+B floor to that MSCSE coursework, and treats only the MSCSE (not another department's Notre Dame
+master's) as "the same discipline" — both flagged in `docs/HANDBOOK-REVISIONS.md` §4. The
+pre-entry Notre Dame heading now says MSCSE / Ph.D. coursework rather than "graduate".
+
 
 2026-09-21: **the rules sheet moved into a shared drive — no code change was needed.**
 `CSE-Degree-Checking-Rules` now lives at the top level of the shared drive **"CSE Department

@@ -961,6 +961,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               ? `From your transcript's graduate-level cumulative GPA${gs.programGpa !== undefined ? ` (this program's courses alone average ${gs.programGpa.toFixed(2)})` : ''}${gs.undergraduateGpa !== undefined ? `; the undergraduate GPA (${gs.undergraduateGpa.toFixed(2)}) is not used` : ''}.`
               : `Computed from this program's graded courses only${gs.transcriptGpa !== undefined ? ` — your transcript's graduate-level cumulative GPA is ${gs.transcriptGpa.toFixed(2)}, which includes earlier graduate coursework at Notre Dame; the DGS decides which figure §2.2 uses` : ''}.`,
           );
+    const priorNdCourseworkWord = (c: CourseEntry): string =>
+      c.degreeLevel === 'bachelors'
+        ? 'undergraduate'
+        : c.degreeLevel === 'phd'
+          ? 'Ph.D.'
+          : student.ndMasters !== undefined
+            ? 'MSCSE'
+            : c.degreeLevel === 'masters'
+              ? 'master’s'
+              : 'graduate';
     // Group the list by university + degree (2026-09-03): Notre Dame first,
     // then one section per (university, transcript) in first-seen order.
     const all = student.courses.map((c, index) => ({ c, index }));
@@ -973,8 +983,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Prior Notre Dame coursework (2026-09-05): an earlier Notre Dame degree
       // read from the same transcript — named for what it is.
       const priorNd = isNotreDameInstitution(e.c.institution);
+      // Which earlier Notre Dame degree (DGS 2026-09-22: "clarify whether that
+      // is MS or PhD"): the MSCSE when the student holds one, else the row's
+      // own level; "graduate" only when neither says.
       const heading = priorNd
-        ? `ND, before entering the program — ${e.c.degreeLevel === 'bachelors' ? 'undergraduate' : 'graduate'} coursework`
+        ? `ND, before entering the program — ${priorNdCourseworkWord(e.c)} coursework`
         : `${e.c.institution ?? 'University not set'} — ${slot}`;
       let g = groups.find((x) => x.heading === heading);
       if (!g) {
@@ -1540,14 +1553,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         isNotreDameInstitution(c.institution) &&
         (c.degreeLevel === 'bachelors' || (awardTerm !== undefined && termIndex(c.term) <= termIndex(awardTerm)));
       // The MSCSE is never asked (DGS 2026-09-11): the app chooses which courses
-      // apply to both degrees and each line says so.
-      const couldHaveCountedTwice = student.program === 'phd' && student.ndMasters !== undefined;
+      // apply to both degrees and each line says so. Every Ph.D. student is
+      // (Graduate School 2026-09-22: at most 6 credits may count toward two
+      // degrees, and the bachelor's-and-MSCSE courses use them up first).
+      const askedWhichDegrees = student.program === 'phd';
+      const holdsNdMasters = student.ndMasters !== undefined;
       // And only for a course that COULD count toward this degree (DGS
       // 2026-09-22): a 30000-level or lower course counts toward the
       // bachelor's alone whatever the answer — the engine never asks about
       // it (undergradLevelEligible), so the page must not either.
       const couldCountHere = priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), student.program);
-      if (asUndergraduate && couldHaveCountedTwice && couldCountHere) {
+      if (asUndergraduate && askedWhichDegrees && couldCountHere) {
         const sel = el('select', {
           'aria-label': `Which degrees ${c.courseId} has already counted toward`,
           'data-key': `course.${index}.countedToward`,
@@ -1574,13 +1590,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 ['mscse', 'Only my MSCSE'],
                 ['both', 'Both my bachelor’s degree and my MSCSE'],
               ] as const)
-            : ([
-                ['', 'Already counted toward…'],
-                ['neither', 'Neither — it was extra'],
-                ['bs', 'My bachelor’s degree'],
-                ['mscse', 'My MSCSE'],
-                ['both', 'Both my bachelor’s and my MSCSE'],
-              ] as const);
+            : holdsNdMasters
+              ? ([
+                  ['', 'Already counted toward…'],
+                  ['neither', 'Neither — it was extra'],
+                  ['bs', 'My bachelor’s degree'],
+                  ['mscse', 'My MSCSE'],
+                  ['both', 'Both my bachelor’s and my MSCSE'],
+                ] as const)
+              : // No Notre Dame master's: the only degree that can have used
+                // the course is the bachelor's (2026-09-22).
+                ([
+                  ['', 'Already counted toward…'],
+                  ['neither', 'Nothing — it was extra'],
+                  ['bs', 'My bachelor’s degree'],
+                ] as const);
         for (const [value, label] of choices) {
           sel.append(option(value, label, (c.countedToward ?? '') === value));
         }
@@ -1592,7 +1616,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               { class: 'group-hint' },
               student.program === 'mscse'
                 ? 'Choose one: this course counts only toward your MSCSE, or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5) — once two 3-credit courses are shared, the rest can only count toward the MSCSE. Nothing counts until you choose. Most 40000-level courses also need your advisor’s and the DGS’s approval, so they are listed in the review request.'
-                : 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it — unless it has already counted toward both your bachelor’s and your MSCSE. No course may count toward three degrees, so this answer decides it.',
+                : holdsNdMasters
+                  ? 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it. No course may count toward three degrees, and at most 6 credits may count toward two (Graduate School): the courses that counted toward both your bachelor’s and your MSCSE use up that allowance, and a course only your bachelor’s used draws on what is left. This answer decides it.'
+                  : 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full for a 4+1 student, and up to 6 credits below it. At most 6 credits may count toward two degrees (Graduate School), so say whether your bachelor’s degree used this course. This answer decides it.',
             ),
           );
         }

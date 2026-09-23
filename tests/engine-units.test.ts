@@ -563,7 +563,7 @@ describe('undergraduate Notre Dame coursework', () => {
   const detail = (s: Student, id: string) => report(s).requirements.find((r) => r.id === id)!.detail;
 
   it('a 60000-level course counts in full, and outside the §5.2 cap', () => {
-    const s = student([ug('CSE 60641'), ug('CSE 60111')]);
+    const s = student([ug('CSE 60641', 'neither'), ug('CSE 60111', 'neither')]);
     assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses \(3 cr\)/);
     assert.match(detail(s, 'phd.credits.regular'), /6 of 24/);
     assert.match(detail(s, 'phd.credits.total'), /6 of 60/);
@@ -581,13 +581,42 @@ describe('undergraduate Notre Dame coursework', () => {
   });
 
   it('below the 60000 level it draws on §4.2’s six credits; below 40000 it counts nothing', () => {
-    const s = student([ug('CSE 40113'), ug('CSE 40567'), ug('CSE 40243'), ug('CSE 20110')]);
+    const s = student([ug('CSE 40113', 'neither'), ug('CSE 40567', 'neither'), ug('CSE 40243', 'neither'), ug('CSE 20110')]);
     assert.match(detail(s, 'phd.cap.fourk'), /6 of the 6 credits below the 60000 level used/);
     assert.match(lineFor(s, 'CSE 20110'), /not eligible for degree credit at the 20000-level — only CSE 40000-level courses/, 'a course that cannot count at any answer says why: its level (DGS 2026-09-22)');
   });
 
-  it('a student with no Notre Dame master’s is never asked — nothing of theirs can have counted twice', () => {
-    assert.match(lineFor(student([ug('CSE 60641')]), 'CSE 60641'), /^counts toward/);
+  // The Graduate School, through the DGS (2026-09-22): "Only up to 6 credits
+  // may double-count towards two degrees. If 6 credits have double-counted to
+  // BS & MS, no more credits can double-count to BS & PhD later when the
+  // student pursues PhD." Until then a student with no Notre Dame master's was
+  // never asked — nothing of theirs could have counted twice.
+  it('a student with no Notre Dame master’s is asked whether the bachelor’s degree used the course; “bs” draws the six credits, “neither” counts in full', () => {
+    const asked = student([ug('CSE 60641')]);
+    assert.match(lineFor(asked, 'CSE 60641'), /^not counted yet — say, next to the course, whether your bachelor’s degree used this course\. At most 6 credits may count toward two degrees \(Graduate School\)/);
+    assert.equal(report(asked).courseLines.find((l) => l.courseId === 'CSE 60641')?.mark, 'pending');
+    assert.match(lineFor(student([ug('CSE 60641', 'neither')]), 'CSE 60641'), /^counts toward regular courses \(3 cr\); not used by an earlier degree — counts in full/);
+    const three = student([ug('CSE 60641', 'bs'), ug('CSE 60111', 'bs'), ug('CSE 60321', 'bs')]);
+    // Same term, same grade: the allocator fills in course-id order, so the
+    // highest-numbered of the three is the one over the allowance.
+    assert.match(lineFor(three, 'CSE 60111'), /^counts toward regular courses \(3 cr\); counts toward both your bachelor’s degree and the Ph\.D\. — inside the 6 credits that may count toward two degrees \(Graduate School\)/);
+    assert.match(lineFor(three, 'CSE 60641'), /^not counted — over the 6-credit allowance for coursework counted toward two degrees \(Graduate School\)/);
+    assert.match(detail(three, 'phd.cap.sharedbs'), /6 of the 6 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
+    assert.match(detail(three, 'phd.credits.regular'), /6 of 24/);
+    // No course draws on the allowance → no row.
+    assert.equal(report(student([ug('CSE 60641', 'neither')])).requirements.find((r) => r.id === 'phd.cap.sharedbs'), undefined);
+  });
+
+  it('a 4+1 whose bachelor’s-and-MSCSE courses used the six credits has none left for a bachelor’s-only course', () => {
+    const s = student([ug('CSE 60641', 'both'), ug('CSE 60111', 'both'), ug('CSE 60321', 'bs'), ug('CSE 60770', 'mscse')], held);
+    assert.match(lineFor(s, 'CSE 60321'), /^not counted — over the allowance for coursework counted toward two degrees — 6 of its 6 credits already used by the courses counted toward your bachelor’s degree and your MSCSE \(Graduate School\)/);
+    assert.match(lineFor(s, 'CSE 60770'), /counted toward your MSCSE — counts in full toward the Ph\.D\./);
+    assert.match(detail(s, 'phd.cap.sharedbs'), /0 of the 0 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
+    assert.match(detail(s, 'phd.cap.sharedbs'), /6 of the 6 credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE/);
+    // One 'both' course (3 credits) leaves three: the 'bs' course fits.
+    const half = student([ug('CSE 60641', 'both'), ug('CSE 60321', 'bs')], held);
+    assert.match(lineFor(half, 'CSE 60321'), /^counts toward regular courses \(3 cr\); counts toward both your bachelor’s degree and the Ph\.D\./);
+    assert.match(detail(half, 'phd.cap.sharedbs'), /3 of the 3 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
   });
 
   it('a student who HOLDS the MSCSE is asked, and nothing counts until they answer', () => {
@@ -608,7 +637,7 @@ describe('undergraduate Notre Dame coursework', () => {
   });
 
   it('§4.4.1 and §4.4.2 come with the credit', () => {
-    const s = student([ug('CSE 60641'), ug('CSE 60111'), ug('CSE 60321')]);
+    const s = student([ug('CSE 60641', 'neither'), ug('CSE 60111', 'neither'), ug('CSE 60321', 'neither')]);
     assert.equal(report(s).requirements.find((r) => r.id === 'phd.qualifier.core.os')?.status, 'met');
     assert.match(detail(s, 'phd.qualifier.categories'), /3 distinct groups/);
   });
@@ -697,7 +726,7 @@ describe('below the 40000 level, and the 4+1 flag (F8, 2026-09-12)', () => {
     assert.match(r.requirements.find((q) => q.id === 'phd.credits.regular')!.detail, /0 of 24/);
   });
   it('a 4+1 with three or more counted undergraduate 6xxxx courses is flagged for the DGS; two are not', () => {
-    const ug = (id: string, season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: id, credits: 3, term: { season, year }, grade: 'A', origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'graduate' });
+    const ug = (id: string, season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: id, credits: 3, term: { season, year }, grade: 'A', origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'graduate', countedToward: 'neither' });
     const two = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026)], { integratedBsMs: true }), rules, '2027-06-01');
     assert.deepEqual(two.reviewFlags ?? [], []);
     const three = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026), ug('CSE 60321', 'spring', 2026)], { integratedBsMs: true }), rules, '2027-06-01');

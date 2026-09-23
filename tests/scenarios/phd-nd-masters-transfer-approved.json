@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-masters-transfer-approved",
-  "description": "A student who did the MSCSE at Notre Dame and has recorded the DGS's recommendation and the Graduate School's approval. The §5.2 row is met and the review request must be EMPTY — until 2026-09-11 it still asked for a recommendation the DGS had already given, because the attestation guard covered only ExternalCourses rulings and Notre Dame's own courses never have one. A prior CSE 68902 (master's project) does not transfer at all (DGS 2026-09-11) and does not appear in the request either. And §4.4.2 is satisfied by the Notre Dame courses whether or not their credit transferred.",
+  "description": "A student who did the MSCSE at Notre Dame. Since 2026-09-22 (Graduate School through the DGS) that coursework is not transfer credit at all: it counts in full toward the Ph.D. without transfer approval, so the §5.2 row has nothing to list whether or not the \"transfer approved\" box is ticked, and the review request must be EMPTY (until 2026-09-11 it asked for a recommendation the DGS had already given; until 2026-09-22 the courses were §5.2 candidates settled by the attestation). A prior CSE 68902 (master's project) counts toward the total only (DGS 2026-09-22). §4.4.2 is satisfied by the Notre Dame courses.",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -100,18 +100,25 @@
   },
   "expect": {
     "phd.transfer": {
-      "status": "met",
+      "status": "not_applicable",
       "detailIncludes": [
-        "15 of 24 transfer credits counted"
+        "Your Notre Dame MSCSE coursework (CSE 60641, CSE 60111, CSE 60321, CSE 68902) is not transfer credit"
       ]
     },
     "phd.qualifier.categories": {
       "status": "met"
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "12 of 24"
+      ]
     }
   },
   "expectCourseLines": {
     "CSE 68902": [
-      "the total-credit requirement only"
+      "counts toward the total-credit requirement only (6 cr)",
+      "from your Notre Dame MSCSE"
     ]
   },
   "expectReviewEmpty": true

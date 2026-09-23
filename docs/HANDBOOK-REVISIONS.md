@@ -138,6 +138,28 @@ The app implements it.
   requirement only with the approval of the student's advisor and the DGS."* The handbook currently
   leaves the reader to infer it from §3.2's silence.
 
+**Two more answers from the Graduate School (through the DGS, 2026-09-22)**, verbatim: *"Only up to 6
+credits may double-count towards two degrees. If 6 credits. have double-counted to BS & MS, no more
+credits can double-count to BS & PhD later when the student pursues PhD. Also, in cases where a graduate
+student moves from a master's program to a PhD program in the same discipline all the credits are
+counted towards the PhD, even those above and beyond the usual 24 allowed for transfer."* And the DGS's
+reading of the second: *"any 60xxx courses taken during MS (whether part of 4+1 or not) transfer to PhD
+without needing any approval, even beyond the 24-credit limit."* The app implements both. What the
+handbook should say:
+
+- In §3.5 or §4.2: *"At most six credits may be counted toward two degrees. Credits counted toward
+  both the bachelor's degree and the MSCSE reduce, credit for credit, what may later be counted toward
+  both the bachelor's degree and the Ph.D."*
+- In §5.2, which today reads as if a Notre Dame MSCSE were transfer credit ("These five requirements
+  also apply to the transfer of credits earned in another program at Notre Dame"): *"Coursework from a
+  Notre Dame MSCSE counts toward the Ph.D. in the same discipline in full, without a transfer request
+  and outside the 24-credit limit; the requirements of this section govern coursework from other
+  universities and from other Notre Dame programs."* Two edges the answer does not settle, which the
+  app resolves in the Graduate School's favour and the handbook should confirm: whether §5.2's
+  five-year window and B-or-better floor still apply to that coursework (the app applies neither —
+  "all the credits"), and whether the same holds for a master's from another department at Notre Dame
+  ("the same discipline" — the app treats only the MSCSE this way).
+
 Until those sentences exist, this file is the only written record of a rule that decides how much
 credit every 4+1 student arrives with.
 

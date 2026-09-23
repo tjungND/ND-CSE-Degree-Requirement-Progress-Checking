@@ -230,6 +230,10 @@ export function capRow(args: {
    * absence there is the handbook's, not an oversight (interface review R3,
    * 2026-09-18 — the other two were oversights and are fixed). */
   approvalDriven?: boolean;
+  /** Plain sentences after the usage line — what the cap's number does not
+   * say on its own (the Ph.D.'s two-degree allowance names what an earlier
+   * degree already used, 2026-09-22). */
+  extraDetail?: string[];
 }): RequirementResult {
   const usage = args.ctx.alloc.capUsage.get(args.capId);
   const relevant = args.ctx.classified.filter((c) => !c.superseded && c.caps.includes(args.capId));
@@ -278,6 +282,7 @@ export function capRow(args: {
     }
     parts.push(...excludedLines);
   }
+  if (usage?.limit !== undefined) parts.push(...(args.extraDetail ?? []));
   // What each course draws on this allowance (2026-09-22): the regular-course
   // credits it counts, or every counted credit for a transfer cap.
   const contributions = courseContributions(args.ctx, (p) =>

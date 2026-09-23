@@ -252,6 +252,21 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `applyBackground` (what an answer settles on the standing card). `Student.background` is absent on
   older records — every row shows then. The e2e consent helper (session-common.mjs) answers
   "elsewhere / elsewhere / not the same place" so every previous row exists for the transcript driver.
+- **The Graduate School's two rules** (through the DGS, 2026-09-22 — DECISIONS has the verbatim
+  answers). (1) `classifyTransfer` has a branch before the §5.2 logic for a Ph.D. student's own
+  Notre Dame MSCSE coursework (`program === 'phd' && ND && student.ndMasters`): `ndMastersCredit`
+  + `notTransferCredit`, counted by `priorNdShape` alone — no 'transfer' cap, window, floor or
+  approval; a thesis/project row is total-only with no approval. `transferRow` names those courses
+  as not counted there; `review.ts` words an unlisted one as "counts toward the Ph.D. from your
+  Notre Dame MSCSE — …". (2) Every Ph.D. student is asked `countedToward` for eligible prior
+  undergraduate Notre Dame courses (two options without an ND master's, app.ts); 'bs' adds the
+  `sharedbs` cap, which `audit.ts` builds for the Ph.D. with `limit = ms_bs_double_count_credits_max
+  − spentOnBachelorsAndMasters(student)` (allocate.ts, the 'both' credits) and a label that says what
+  was used; `phd.cap.sharedbs` (phd.ts) appears only when a course draws on it and carries an
+  `extraDetail` (new optional `capRow` arg). Prior-undergraduate ND courses now always carry
+  `notTransferCredit` — an unanswered one used to sit on the §5.2 row and, with no real transfer
+  left, made it read Met. The pre-entry ND heading in the coursework card names the degree
+  (`priorNdCourseworkWord` in app.ts: MSCSE / Ph.D. / master's / graduate).
 - **A Notre Dame transcript is refused in the three Previous rows** (DGS 2026-09-22): `slotRow` in
   external-upload.ts runs the ND parser's `isNotreDame` test first and fails the slot with
   `ndInPreviousRow()`; the OCR path does the same. The 2026-09-05 path that read such a transcript as

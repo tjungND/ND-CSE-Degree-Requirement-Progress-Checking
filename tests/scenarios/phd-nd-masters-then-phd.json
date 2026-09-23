@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-masters-then-phd",
-  "description": "A Ph.D. student who did their bachelor's AND their MSCSE at Notre Dame, then entered the Ph.D. (DGS 2026-09-09). One Notre Dame transcript covers all three careers, split at the entry term: the undergraduate courses satisfy §4.4.1 core knowledge but never transfer (§5.2 criterion 2), the MSCSE courses are §5.2 transfer candidates — \"These five requirements also apply to the transfer of credits earned in another program at Notre Dame\" — and, once the transfer is approved, those courses also count toward §4.4.2 specialization, which names no institution and no term. The MSCSE thesis-direction credits keep the Courses tab's verdict (counts_toward_phd = no) instead of counting as regular Ph.D. credits, and the §4.5 along-the-way MSCSE row is left out for a student who already holds the degree.",
+  "description": "A Ph.D. student who did their bachelor's AND their MSCSE at Notre Dame, then entered the Ph.D. (DGS 2026-09-09). One Notre Dame transcript covers all three careers, split at the entry term: the undergraduate courses satisfy §4.4.1 core knowledge but never transfer (§5.2 criterion 2); the MSCSE courses count in full toward the Ph.D. WITHOUT transfer approval and beyond §5.2's cap (Graduate School through the DGS, 2026-09-22: \"in cases where a graduate student moves from a master's program to a PhD program in the same discipline all the credits are counted towards the PhD, even those above and beyond the usual 24 allowed for transfer\" — until then they were §5.2 transfer candidates); the MSCSE thesis-direction credits count toward the total only (DGS 2026-09-22), the courses satisfy §4.4.2, and the §4.5 along-the-way MSCSE row is left out for a student who already holds the degree. Since the courses are not transfer credit, the §5.2 row has nothing to list and says so.",
   "today": "2026-09-09",
   "rules": {
     "base": "default"
@@ -128,9 +128,10 @@
   },
   "expect": {
     "phd.transfer": {
-      "status": "met",
+      "status": "not_applicable",
       "detailIncludes": [
-        "15 of 24 transfer credits counted"
+        "No transfer courses entered",
+        "Your Notre Dame MSCSE coursework (CSE 60641, CSE 60111, CSE 60321, CSE 68901) is not transfer credit"
       ]
     },
     "phd.qualifier.core.architecture": {
@@ -159,6 +160,12 @@
     },
     "phd.residency": {
       "status": "in_progress"
+    },
+    "phd.credits.total": {
+      "status": "unmet",
+      "detailIncludes": [
+        "26 of 60"
+      ]
     }
   },
   "expectAbsent": [
@@ -169,7 +176,14 @@
       "not eligible for degree credit at the 30000-level — only CSE 40000-level courses"
     ],
     "CSE 68901": [
-      "the total-credit requirement only"
+      "counts toward the total-credit requirement only (6 cr)",
+      "from your Notre Dame MSCSE — counts in full toward the Ph.D. without transfer approval",
+      "a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)"
+    ],
+    "CSE 60641": [
+      "counts toward regular courses (3 cr)",
+      "from your Notre Dame MSCSE — counts in full toward the Ph.D. without transfer approval (Graduate School: a move from a master’s to a Ph.D. in the same discipline counts all the credits, beyond §5.2’s cap)"
     ]
-  }
+  },
+  "expectReviewEmpty": true
 }

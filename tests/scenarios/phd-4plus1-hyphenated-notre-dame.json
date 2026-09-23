@@ -1,13 +1,21 @@
 {
   "name": "phd-4plus1-hyphenated-notre-dame",
-  "description": "Red-team 2026-09-13: a 4+1 student whose transcript (or typing) spells the university \"Notre-Dame\" is the same student as one who spells it \"University of Notre Dame\". The old isNotreDameInstitution regex read \\s* between the two words, so a hyphen silently zeroed the credit, refused the course as a §5.2 transfer it never was, and dropped it out of the DGS review request. isNotreDameInstitution now folds the name through normalizeUniversity first.",
+  "description": "Red-team 2026-09-13: a 4+1 student whose transcript (or typing) spells the university \"Notre-Dame\" is the same student as one who spells it \"University of Notre Dame\". The old isNotreDameInstitution regex read \\s* between the two words, so a hyphen silently zeroed the credit, refused the course as a §5.2 transfer it never was, and dropped it out of the DGS review request. isNotreDameInstitution now folds the name through normalizeUniversity first. (countedToward: neither since 2026-09-22 — every Ph.D. student is asked whether the bachelor’s degree used the course, because at most 6 credits may count toward two degrees, Graduate School.)",
   "today": "2027-06-01",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default"
+  },
   "student": {
     "schemaVersion": 1,
     "program": "phd",
-    "entryTerm": { "season": "fall", "year": 2026 },
-    "bachelorsAwarded": { "season": "spring", "year": 2026 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
     "priorMs": "none",
     "gpa": 3.7,
     "integratedBsMs": true,
@@ -15,22 +23,43 @@
       {
         "courseId": "CSE 60641",
         "credits": 3,
-        "term": { "season": "fall", "year": 2025 },
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
         "grade": "A",
         "origin": "transfer",
         "institution": "Notre-Dame",
-        "degreeLevel": "bachelors"
+        "degreeLevel": "bachelors",
+        "countedToward": "neither"
       }
     ],
     "milestones": {},
     "attestations": {}
   },
   "expect": {
-    "phd.credits.total": { "status": "unmet", "detailIncludes": ["3 of 60"] },
-    "phd.credits.regular": { "status": "unmet", "detailIncludes": ["3 of 24"] },
-    "phd.qualifier.core.os": { "status": "met", "detailIncludes": ["CSE 60641"] }
+    "phd.credits.total": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 60"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24"
+      ]
+    },
+    "phd.qualifier.core.os": {
+      "status": "met",
+      "detailIncludes": [
+        "CSE 60641"
+      ]
+    }
   },
   "expectCourseLines": {
-    "CSE 60641": ["counts toward regular courses"]
+    "CSE 60641": [
+      "counts toward regular courses"
+    ]
   }
 }

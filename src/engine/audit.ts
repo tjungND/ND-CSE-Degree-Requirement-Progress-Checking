@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { allocate, classify, type CapSpec } from './allocate.ts';
+import { allocate, classify, spentOnBachelorsAndMasters, type CapSpec } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
@@ -12,6 +12,7 @@ import type { Ctx } from './requirements/context.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
+import { formatCredits } from './credits.ts';
 
 /** Requirement id ↔ plan-inventory mapping (docs/DECISIONS.md, plan §1):
  *   shared.gpa=S1  shared.advisor=S2  shared.approvals=advisory
@@ -46,6 +47,7 @@ export const REQUIREMENT_IDS = [
   'phd.seminar',
   'phd.cap.fourk',
   'phd.cap.noncse',
+  'phd.cap.sharedbs',
   'phd.transfer',
   'phd.residency',
   'phd.timeLimit',
@@ -66,6 +68,21 @@ export const REQUIREMENT_IDS = [
  * then tells the student the sheet is missing it (2026-09-09). */
 function capLabel(limit: number | undefined, name: string): string {
   return limit === undefined ? name : `${limit}-credit ${name}`;
+}
+
+/** The Ph.D.'s cap on coursework counted toward two degrees: the sheet's six
+ * credits less what the bachelor's-and-MSCSE courses already took. */
+function sharedDegreesCap(base: number | undefined, spent: number): CapSpec {
+  const limit = base === undefined ? undefined : Math.max(0, base - spent);
+  return {
+    id: 'sharedbs',
+    limit,
+    label:
+      spent > 0 && base !== undefined
+        ? `allowance for coursework counted toward two degrees — ${formatCredits(spent)} of its ${formatCredits(base)} credits already used by the courses counted toward your bachelor’s degree and your MSCSE`
+        : capLabel(limit, 'allowance for coursework counted toward two degrees'),
+    section: 'Graduate School',
+  };
 }
 
 export function audit(student: Student, rules: Rules, today: string): AuditReport {
@@ -97,6 +114,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       : [
           { id: 'fourk', limit: num('phd_4xxxx_cse_credits_max'), label: capLabel(num('phd_4xxxx_cse_credits_max'), 'cap on courses below the 60000 level'), section: '§4.2' },
           { id: 'noncse', limit: num('phd_noncse_6xxxx_credits_max'), label: capLabel(num('phd_noncse_6xxxx_credits_max'), 'non-CSE cap'), section: '§4.2' },
+          // The Graduate School's six credits that may count toward two degrees
+          // (through the DGS, 2026-09-22): what the courses counted toward the
+          // bachelor's AND the MSCSE used up is gone for the Ph.D. — "If 6
+          // credits have double-counted to BS & MS, no more credits can
+          // double-count to BS & PhD later". The same sheet key as §3.5's
+          // allowance: it is the same six credits.
+          sharedDegreesCap(num('ms_bs_double_count_credits_max'), spentOnBachelorsAndMasters(student)),
           {
             id: 'transfer',
             limit: num(student.priorMs === 'completed' ? 'phd_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max'),

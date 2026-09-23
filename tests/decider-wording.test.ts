@@ -71,6 +71,9 @@ describe('the §3.5 more-than-two note names the degree’s decider', () => {
       origin: 'transfer' as const,
       institution: 'University of Notre Dame',
       degreeLevel: 'bachelors' as const,
+      // Every Ph.D. student answers since 2026-09-22 (Graduate School: at
+      // most 6 credits may count toward two degrees); "neither" counts in full.
+      countedToward: 'neither' as const,
     })),
     milestones: {},
     attestations: {},
