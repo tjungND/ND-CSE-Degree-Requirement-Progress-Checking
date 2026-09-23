@@ -14,8 +14,7 @@
 // Kept from the morning's design: the subject line with the headline facts,
 // the one standing paragraph, the deadline footnote and the alpha notice; the
 // re-voicing of the engine's student-facing details (`whyFor`).
-import type { AuditReport, Contribution, DetailPart, RequirementResult, Status } from '../engine/types.ts';
-import { formatCredits } from '../engine/credits.ts';
+import type { AuditReport, DetailPart, RequirementResult, Status } from '../engine/types.ts';
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
@@ -129,21 +128,13 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
         : isNotStarted(r)
           ? { word: 'NOT STARTED', color: 'grey' }
           : STATUS_TAG[r.status];
-  // The courses a credit requirement counts, for the advisor (DGS 2026-09-22:
-  // "list all the courses that are used to satisfy the requirements in the
-  // Why column") — the same list the page folds under "Courses counted".
-  const coursesFor = (r: RequirementResult): WhySegment[] => {
-    const counted = (r.contributions ?? []).filter((c) => !c.pending);
-    const pending = (r.contributions ?? []).filter((c) => c.pending);
-    const fmt = (c: Contribution) => `${c.courseId} (${formatCredits(c.credits)} cr)`;
-    const seg = (lead: string, list: Contribution[]): WhySegment[] =>
-      list.length === 0 ? [] : list.length === 1 ? [`${lead}: ${fmt(list[0]!)}.`] : [{ lead, items: list.map(fmt) }];
-    return [...seg('Courses counted', counted), ...seg('Will count when passed or approved', pending)];
-  };
   // Met rows carry their Why too (DGS 2026-09-22): which courses met the core
   // areas and the categories, which seminars were taken when. Lists of two or
-  // more are bullets (DGS 2026-09-23).
-  const whyCell = (r: RequirementResult): WhySegment[] => [...whySegments(r), ...coursesFor(r)];
+  // more are bullets (DGS 2026-09-23). The page's "Courses counted" lists were
+  // added here on 2026-09-22 and taken out again on 2026-09-23 (DGS: "Advisors
+  // don't need to know the course details. Summary in the why column is
+  // enough.") — the row's own summary is the Why.
+  const whyCell = (r: RequirementResult): WhySegment[] => whySegments(r);
   const whyText = (segs: WhySegment[]): string =>
     segs
       .map((s) => (typeof s === 'string' ? s : `${s.lead ? `${s.lead}:` : ''}${s.items.map((i) => `\n      - ${i}`).join('')}`))

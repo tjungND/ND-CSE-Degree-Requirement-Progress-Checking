@@ -53,11 +53,11 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.ok(basic >= 0 && coursework > basic, 'sections in handbook order');
     assert.match(text, /\n  \[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'met rows carry their Why (DGS 2026-09-22)');
     assert.match(text, /\n  \[IN PROGRESS\] 60 total credits of courses & research \(§4\.2\) — 14 of 60 credits complete\. 9 in progress\.\n/);
-    assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\. Courses counted:\n      - CSE 60641 \(3 cr\)\n      - CSE 60111 \(3 cr\) Will count when passed or approved: CSE 60321 \(3 cr\)\.\n/, 'two or more counted courses are bullets (DGS 2026-09-23)');
+    assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\.\n/, 'no course list — the summary is enough (DGS 2026-09-23)');
     assert.match(text, /\n  \[CONDITIONALLY MET\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
     assert.doesNotMatch(text, /Transfer credit from prior graduate study/, '"does not apply" rows are left out');
     assert.doesNotMatch(text, /\nAPPROVALS\n|Courses still to be approved or processed/, 'the sign-off list feeds the to-do lists, not a section');
-    assert.doesNotMatch(text, /COURSES COUNTED/, 'no separate course list — the courses sit in each row’s Why (DGS 2026-09-22)');
+    assert.doesNotMatch(text, /Courses counted|COURSES COUNTED/, 'no course list (DGS 2026-09-23)');
   });
 
   it('HTML: one table per section; status word and requirement name in the status colour', () => {
@@ -67,10 +67,10 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     const red = `<span style="color:${COLORS.red};font-weight:bold">`;
     assert.ok(html.includes(`<td>${green}MET</span></td><td>${green}Cumulative GPA of at least 3.0</span></td>`));
     assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}60 total credits of courses &amp; research</span></td><td>§4.2</td><td>14 of 60 credits complete. 9 in progress.</td>`));
-    assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td><td>§4.2</td><td>12 of 24 credits complete. 3 in progress. Courses counted:<ul><li>CSE 60641 (3 cr)</li><li>CSE 60111 (3 cr)</li></ul> Will count when passed or approved: CSE 60321 (3 cr).</td>`), html);
+    assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td><td>§4.2</td><td>12 of 24 credits complete. 3 in progress.</td>`), html);
     // A met row lists its courses too — the Why cell is otherwise empty for it.
     const metWithCourses = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.credits.nd', title: 'Nine at ND', contributions: [{ courseId: 'CSE 60770', credits: 3 }] }] }, opts);
-    assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\. Courses counted: CSE 60770 \(3 cr\)\./);
+    assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'contributions are not listed');
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).text, /\nDear Prof\. X and Prof\. Y,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISORS\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X'] }).text, /\nDear Prof\. X,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISOR\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).html, /<p>Dear Prof\. X and Prof\. Y,<\/p>/);
