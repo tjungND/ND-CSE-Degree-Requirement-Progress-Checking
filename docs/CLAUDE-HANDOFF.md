@@ -258,7 +258,7 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `s-overdue`). The headline counts in progress / overdue / cannot be evaluated / conditionally
   met; the engine statuses are unchanged, so tests and the attention list still read `unmet`.
   `advisorSummary` also lists each row's `contributions` in the Why column (`coursesFor`) and takes
-  `twoAdvisors` (a second advisor lives in `milestones.advisorName2`). `ndRegular` (allocate.ts)
+  `advisors` (the names; a second advisor lives in `milestones.advisorName2`). `ndRegular` (allocate.ts)
   counts `ndMastersCredit` rows as taken at Notre Dame for §4.2's nine.
 - **The Graduate School's two rules** (through the DGS, 2026-09-22 — DECISIONS has the verbatim
   answers). (1) `classifyTransfer` has a branch before the §5.2 logic for a Ph.D. student's own

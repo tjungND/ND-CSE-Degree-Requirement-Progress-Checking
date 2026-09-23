@@ -1895,7 +1895,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'data-key': 'save.copy',
         onclick: () => {
           const advisors = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
-          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, twoAdvisors: advisors.length > 1 });
+          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, advisors });
           void copyDialog({
             what: 'Summary for your advisor',
             recipient: { role: advisors.length > 1 ? 'Your advisors' : 'Your advisor', name: advisors.length > 0 ? advisors.join(' and ') : 'name not entered under Milestones' },

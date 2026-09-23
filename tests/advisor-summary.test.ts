@@ -71,7 +71,10 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     // A met row lists its courses too — the Why cell is otherwise empty for it.
     const metWithCourses = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.credits.nd', title: 'Nine at ND', contributions: [{ courseId: 'CSE 60770', credits: 3 }] }] }, opts);
     assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Courses counted: CSE 60770 \(3 cr\)\./);
-    assert.match(advisorSummary(report, { ...opts, twoAdvisors: true }).text, /\nDear Advisors,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISORS\n/);
+    assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).text, /\nDear Prof\. X and Prof\. Y,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISORS\n/);
+    assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X'] }).text, /\nDear Prof\. X,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISOR\n/);
+    assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).html, /<p>Dear Prof\. X and Prof\. Y,<\/p>/);
+    assert.match(text, /\nDear Advisor,\n/, 'no name entered → the generic salutation');
     assert.ok(html.includes(`<td>${amber}CONDITIONALLY MET</span></td>`));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });

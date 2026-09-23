@@ -29,8 +29,10 @@ export interface AdvisorSummaryOptions {
   /** The "Prior graduate study" choice as the page labels it. */
   priorStudy: string;
   gpa?: number;
-  /** Two advisors (DGS 2026-09-22): the salutation and the to-do heading say so. */
-  twoAdvisors?: boolean;
+  /** The advisors' names from the Milestones card (DGS 2026-09-22): the
+   * salutation names them — "Dear Prof. X and Prof. Y," — and the to-do
+   * heading says "my advisors" when there are two. Empty = "Dear Advisor,". */
+  advisors?: string[];
 }
 
 /** The page's palette, inline because email clients drop stylesheets. */
@@ -154,6 +156,12 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
           ? 'Nothing is pending with the Grad Admin.'
           : '';
 
+  // The salutation names the advisors as the Milestones card has them (DGS
+  // 2026-09-22: "Prof. X and Prof. Y"); with no name entered, "Dear Advisor,".
+  const advisors = (opts.advisors ?? []).map((n) => n.trim()).filter(Boolean);
+  const twoAdvisors = advisors.length > 1;
+  const salutation = advisors.length > 0 ? advisors.join(' and ') : 'Advisor';
+
   // ---- plain text ----
   const line = (r: RequirementResult): string => {
     const tag = tagFor(r);
@@ -168,10 +176,10 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   // deadline note and the alpha notice read as footnotes below it, as in the
   // Grad Admin request (trim review 2026-09-18, P-73).
   const text =
-    `Subject: ${subject}\n\nDear ${opts.twoAdvisors ? 'Advisors' : 'Advisor'},\n\n${intro}\n${standing}\n${counts}.\n\n` +
+    `Subject: ${subject}\n\nDear ${salutation},\n\n${intro}\n${standing}\n${counts}.\n\n` +
     sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map((r) => `  ${line(r)}`).join('\n')}\n\n`).join('') +
     todoText('WHAT I NEED TO DO', todo.student) +
-    todoText(opts.twoAdvisors ? 'WHAT I NEED FROM YOU, MY ADVISORS' : 'WHAT I NEED FROM YOU, MY ADVISOR', todo.advisor) +
+    todoText(twoAdvisors ? 'WHAT I NEED FROM YOU, MY ADVISORS' : 'WHAT I NEED FROM YOU, MY ADVISOR', todo.advisor) +
     (todo.dgs.length > 0 ? todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) : '') +
     (pendingText ? `${pendingText}\n\n` : '') +
@@ -201,11 +209,11 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const todoHtml = (heading: string, items: string[]) =>
     `<p><strong>${esc(heading)}</strong></p><ul>${(items.length > 0 ? items : ['Nothing at the moment.']).map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
   const html =
-    `<p>Subject: ${esc(subject)}</p><p>Dear ${opts.twoAdvisors ? 'Advisors' : 'Advisor'},</p>` +
+    `<p>Subject: ${esc(subject)}</p><p>Dear ${esc(salutation)},</p>` +
     `<p>${esc(intro)}<br>${esc(standing)}<br><strong>${esc(counts)}.</strong></p>` +
     sections.map(htmlSection).join('') +
     todoHtml('What I need to do', todo.student) +
-    todoHtml(opts.twoAdvisors ? 'What I need from you, my advisors' : 'What I need from you, my advisor', todo.advisor) +
+    todoHtml(twoAdvisors ? 'What I need from you, my advisors' : 'What I need from you, my advisor', todo.advisor) +
     (todo.dgs.length > 0 ? todoHtml('What the DGS needs to do', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoHtml('What the Grad Admin needs to do', todo.gradAdmin) : '') +
     (pendingText ? `<p>${esc(pendingText)}</p>` : '') +
