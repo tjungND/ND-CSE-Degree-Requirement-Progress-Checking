@@ -78,9 +78,12 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.match(advisorSummary(report, { ...opts, advisors: ['Matthew Morrison', 'Dr. Sharon Hu'] }).text, /\nDear Prof\. Matthew Morrison and Dr\. Sharon Hu,\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Professor Hu'] }).text, /\nDear Professor Hu,\n/);
     assert.match(text, /\nDear Advisor,\n/, 'no name entered → the generic salutation');
-    // Two course statements in a row become bullets (the seminar row); one does not.
+    // A seminar already taken is dropped (DGS 2026-09-23); the open one stays.
+    // Two open course statements in a row become bullets; one does not.
     const seminar = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.seminar', title: 'Seminar', detail: 'CSE 63801: done (Fall 2026). CSE 63802: in progress (Spring 2027).' }] }, opts).text;
-    assert.match(seminar, /\[MET\] Seminar \(§2\.2\) —\n      - CSE 63801: done \(Fall 2026\)\n      - CSE 63802: in progress \(Spring 2027\)\n/);
+    assert.match(seminar, /\[MET\] Seminar \(§2\.2\) — CSE 63802: in progress \(Spring 2027\)\.\n/);
+    const twoOpen = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.seminar', title: 'Seminar', detail: 'CSE 63801: not yet. CSE 63802: in progress (Spring 2027).' }] }, opts).text;
+    assert.match(twoOpen, /\[MET\] Seminar \(§2\.2\) —\n      - CSE 63801: not yet\n      - CSE 63802: in progress \(Spring 2027\)\n/);
     assert.ok(html.includes(`<td>${amber}CONDITIONALLY MET</span></td>`));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });

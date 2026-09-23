@@ -533,6 +533,9 @@ function splitStatements(detail: string): string[] {
  * the deadline phrase already carries. */
 function dropsFromEmail(statement: string, r: RequirementResult): boolean {
   if (/\bcheckbox(es)?\b|\battestation\b|\btick\b|course rules page|self-check page/i.test(statement)) return true;
+  // A seminar already taken ("CSE 63801: done (Fall 2025)") is nothing the
+  // advisor needs (DGS 2026-09-23); the ones still open stay.
+  if (/^[A-Z]{2,5} \d{5}: done\b/.test(statement)) return true;
   if (/^(Talk to|Ask the DGS|Ask your advisor)\b/i.test(statement)) return true;
   if (/^Overdue\b/i.test(statement) && r.deadline?.state === 'overdue') return true;
   return false;
