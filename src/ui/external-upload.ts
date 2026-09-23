@@ -12,6 +12,7 @@
 import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
+import { describeBackground, openBackgroundDialog, priorSlotsFor } from './background.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
@@ -327,7 +328,20 @@ function keepRelevantRows(
  * request lives in app.ts's "Ask the DGS to review" card — ONE button for ND
  * and external courses together. */
 export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | null)[] {
+  // Which rows this student needs, from the earlier-degrees answer (DGS
+  // 2026-09-22); with no answer every row shows, as before the questions.
+  const background = args.student.background;
+  const slots = priorSlotsFor(background);
+  const changeKey = 'transcripts.background.change';
+  const backgroundLine = el(
+    'p',
+    { class: 'hint background-line', 'data-key': 'transcripts.background' },
+    background ? describeBackground(background) + ' — ' : 'Which transcripts you need depends on your earlier degrees — ',
+    el('button', { class: 'btn tiny link', 'data-key': changeKey, onclick: () => openBackgroundDialog(args.student, args.update, changeKey) }, background ? 'Change' : 'Answer two questions'),
+    '.',
+  );
   return [
+    backgroundLine,
     // A bachelor's and a master's from ONE university arrive in two shapes, and
     // the student has to be told which they have before they can file it
     // (DGS 2026-09-05, rewritten 2026-09-11 — Notre Dame's own 4+1 issues two
@@ -344,9 +358,9 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
     // element: drive-transcript.mjs reads .combined-note's textContent (a
     // closed body is still in it). Body shortened by the DGS (P-6, P-53:
     // 'import', not 'upload').
-    el(
+    !slots.includes('masters') ? null : el(
       'details',
-      { class: 'combined-note', 'data-key': 'transcripts.shape', open: coursesInSlot(args.student, 'masters').length > 0 || preview !== undefined },
+      { class: 'combined-note', 'data-key': 'transcripts.shape', open: coursesInSlot(args.student, 'masters').length > 0 || preview !== undefined || background?.samePlace === true },
       el('summary', {}, 'Two degrees from another university (a 4+1 or 5+1)? Open this first.'),
       el('strong', {}, 'A bachelor’s and a master’s from the same university'),
       ' (a 4+1 or 5+1) come as two transcripts or one. ',
@@ -359,7 +373,7 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
       el('br'),
       'A Notre Dame degree is different: it is on the same insideND transcript as your current program, so it goes in the ND row above, once.',
     ),
-    ...DEGREE_SLOTS.map((slot) => slotRow(slot, args)),
+    ...DEGREE_SLOTS.filter((slot) => slots.includes(slot.level)).map((slot) => slotRow(slot, args)),
     pendingScan ? scanOptInBlock(args) : null,
     ocrBusy ? ocrProgressBlock() : null,
     preview ? previewBlock(args) : null,

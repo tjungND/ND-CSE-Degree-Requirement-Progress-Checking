@@ -141,6 +141,12 @@ export interface Student {
    * deadline (§4.3 eight-year limit, §4.4.3 eighteen months, §4.5 eighth
    * semester) hang on this term. */
   entryTermInferred?: { how: string; alternative?: { term: Term; why: string } };
+  /** The student's earlier degrees, asked in the opening dialog (DGS
+   * 2026-09-22): where the bachelor's is from and whether a graduate degree
+   * came before this program. Decides which transcript rows are shown
+   * (src/ui/background.ts). Absent on records saved before it was asked —
+   * every row shows then, as before. */
+  background?: { bachelors: 'nd-cse' | 'nd-other' | 'elsewhere'; graduate: 'none' | 'nd-mscse' | 'nd-other' | 'elsewhere'; samePlace?: boolean };
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
   /** True while priorMs holds a value INFERRED from an uploaded transcript
    * (2026-09-03) rather than chosen by the student — cleared when they touch

@@ -35,6 +35,8 @@ export function exampleFor(program: Program, todayIso: string): Student {
     // (2026-09-07), so leaving it out made the demo warn about itself.
     bachelorsAwarded: { season: 'spring' as const, year: lastYear },
     priorMs: 'none' as const,
+    // The example's Purdue course is a bachelor's elsewhere with no graduate degree (2026-09-22).
+    background: { bachelors: 'elsewhere' as const, graduate: 'none' as const },
     milestones: { ...EXAMPLE_MILESTONES },
     attestations: { ...EXAMPLE_ATTESTATIONS },
   };

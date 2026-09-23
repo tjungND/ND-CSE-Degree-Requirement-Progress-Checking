@@ -29,6 +29,7 @@ import {
 } from '../engine/ranges.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
+import { applyBackground, backgroundQuestions, completeBackground, type Background } from './background.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
@@ -133,7 +134,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'data-key': `consent.program.${value}`,
       onchange: () => {
         chosenProgram = value;
-        agreeButton.removeAttribute('disabled');
+        gate();
       },
     }) as HTMLInputElement;
     radio.checked = saved?.program === value;
@@ -142,6 +143,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // Nothing is pre-selected for a student with no record on this device, and
   // the button stays inactive until they answer — the report must not render
   // against a program nobody chose.
+  // The earlier-degrees questions (DGS 2026-09-22) sit under the program
+  // choice; for a new record the button waits for them too. A record saved
+  // before they existed arrives with no answer and the button live — the
+  // Transcripts card offers the questions from its "Change" link.
+  let chosenBackground: Partial<Background> | undefined = saved?.background;
+  const gate = (): void => {
+    const ready = chosenProgram !== undefined && (saved !== undefined || completeBackground(chosenBackground) !== undefined);
+    if (ready) agreeButton.removeAttribute('disabled');
+    else agreeButton.setAttribute('disabled', 'disabled');
+  };
+  const backgroundBlock = backgroundQuestions(chosenBackground, 'consent', (b) => {
+    chosenBackground = b;
+    gate();
+  });
   if (!saved) agreeButton.setAttribute('disabled', 'disabled');
   const consentDialog = el(
     'dialog',
@@ -167,6 +182,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ').',
       ),
       el('fieldset', { class: 'field group consent-program-group' }, el('legend', { class: 'label' }, 'Which degree are you working toward?'), programRadios),
+      backgroundBlock,
       agreeButton,
     ),
   );
@@ -178,8 +194,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // — it always has, and drive-a11y.mjs checks it — and leaves the program as
     // it was, which the segmented control at the top still shows and can still
     // change (B2, 2026-09-18).
-    if (chosenProgram && chosenProgram !== student.program) {
-      update((s) => void (s.program = chosenProgram!));
+    const answered = completeBackground(chosenBackground);
+    const backgroundChanged = answered !== undefined && JSON.stringify(answered) !== JSON.stringify(student.background);
+    if ((chosenProgram && chosenProgram !== student.program) || backgroundChanged) {
+      update((s) => {
+        if (chosenProgram) s.program = chosenProgram;
+        if (answered) applyBackground(s, answered);
+      });
     }
     if (consentDialog.open) consentDialog.close();
     consentDialog.remove();

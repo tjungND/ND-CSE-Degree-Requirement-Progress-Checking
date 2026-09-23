@@ -58,11 +58,16 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
       // "I understand — continue" stays inactive until the student answers, so
       // the drivers answer it the way a Ph.D. student would. A returning record
       // arrives pre-selected and the button is live from the start.
+      // The earlier-degrees questions (2026-09-22) are answered the way the
+      // transcript driver needs: a bachelor's elsewhere and graduate study
+      // elsewhere at a different university — every previous row shows.
       await evalJs(`(() => {
         const btn = document.querySelector('.consent-overlay button.btn');
         if (btn.hasAttribute('disabled')) {
-          const phd = document.querySelector('[data-key="consent.program.phd"]');
-          phd.click();
+          document.querySelector('[data-key="consent.program.phd"]').click();
+          document.querySelector('[data-key="consent.bachelors.elsewhere"]')?.click();
+          document.querySelector('[data-key="consent.graduate.elsewhere"]')?.click();
+          document.querySelector('[data-key="consent.sameplace.no"]')?.click();
         }
         btn.click();
       })()`);

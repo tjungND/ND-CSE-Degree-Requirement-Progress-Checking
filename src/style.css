@@ -156,6 +156,9 @@ fieldset.field.inline { margin: 0; }
 .skip-link:focus { top: 0; }
 /* Radio groups (item 12) and step numbers on the card titles (item 31). */
 .radios { display: flex; flex-direction: column; gap: 4px; }
+.background-questions fieldset[hidden] { display: none; }
+.background-line .btn.link { padding: 0 2px; min-height: 0; border: 0; background: none; color: var(--navy); text-decoration: underline; font-size: inherit; }
+.background-dialog .save-buttons { margin-top: 10px; }
 .radios .radio { font-size: 14px; }
 .radios input[type="radio"] { margin: 0 4px 0 0; }
 .step-no { color: var(--gold-text); }

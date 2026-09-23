@@ -239,6 +239,12 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `wideFilters` (a `matchMedia('(min-width: 861px)')`, `{ matches: true }` under node) and the bar is
   rebuilt on its `change` event — the values live in `filters`, not in the controls. In e2e, use
   `checkVisibility()` for anything inside a closed details: WebKit gives its content boxes.
+- **The earlier-degrees questions** (DGS 2026-09-22): `src/ui/background.ts` owns the two questions
+  (`backgroundQuestions`, used by the opening dialog in app.ts and by the "Change" dialog
+  `openBackgroundDialog` from the Transcripts card), the row rule `priorSlotsFor(background)` and
+  `applyBackground` (what an answer settles on the standing card). `Student.background` is absent on
+  older records — every row shows then. The e2e consent helper (session-common.mjs) answers
+  "elsewhere / elsewhere / not the same place" so every previous row exists for the transcript driver.
 - **A Notre Dame transcript is refused in the three Previous rows** (DGS 2026-09-22): `slotRow` in
   external-upload.ts runs the ND parser's `isNotreDame` test first and fails the slot with
   `ndInPreviousRow()`; the OCR path does the same. The 2026-09-05 path that read such a transcript as

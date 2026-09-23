@@ -63,6 +63,16 @@ function validBachelorsInferred(v: unknown, term: Student['entryTerm'] | undefin
  * ("this student already holds the MSCSE"); the term is optional, since a
  * student may tick the box without one. A malformed term is dropped rather
  * than throwing — the fact still stands. */
+/** The earlier-degrees answer (2026-09-22): both questions well-formed, else unanswered. */
+function validBackground(v: unknown): Student['background'] {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const bachelors = o['bachelors'];
+  const graduate = o['graduate'];
+  if (bachelors !== 'nd-cse' && bachelors !== 'nd-other' && bachelors !== 'elsewhere') return undefined;
+  if (graduate !== 'none' && graduate !== 'nd-mscse' && graduate !== 'nd-other' && graduate !== 'elsewhere') return undefined;
+  return { bachelors, graduate, ...(graduate === 'elsewhere' ? { samePlace: o['samePlace'] === true } : {}) };
+}
 function validNdMasters(v: unknown): Student['ndMasters'] {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
@@ -195,6 +205,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     entryTermInferred: validInferred(raw['entryTermInferred']),
     bachelorsAwarded,
     bachelorsAwardedInferred: validBachelorsInferred(raw['bachelorsAwardedInferred'], bachelorsAwarded),
+    background: validBackground(raw['background']),
     ndMasters: validNdMasters(raw['ndMasters']),
     ...(typeof raw['integratedBsMs'] === 'boolean' ? { integratedBsMs: raw['integratedBsMs'] as boolean } : {}),
     ...(typeof raw['integratedBsMs'] === 'boolean' && raw['integratedBsMsInferred'] && typeof (raw['integratedBsMsInferred'] as Record<string, unknown>)['how'] === 'string'
