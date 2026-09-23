@@ -113,7 +113,16 @@ export function applyBackground(s: Student, b: Background): void {
 /** The questions as fieldsets, for `program`; `onChange` gets the current
  * partial answer after every click. `prefix` keeps the radio groups and
  * data-keys distinct between the opening dialog and the change dialog. */
-export function backgroundQuestions(current: Partial<Background> | undefined, prefix: string, program: Program, onChange: (b: Partial<Background>) => void): HTMLElement {
+export function backgroundQuestions(
+  current: Partial<Background> | undefined,
+  prefix: string,
+  program: Program,
+  onChange: (b: Partial<Background>) => void,
+  /** One question at a time (the opening dialog, DGS 2026-09-23): the next
+   * family appears only once the one before it is answered. The Change
+   * dialog shows them all, since its answers already exist. */
+  sequential = false,
+): HTMLElement {
   const state: Partial<Background> = { ...(current ?? {}) };
   if (program === 'mscse' && (state.graduate === 'nd-mscse' || state.graduate === 'nd-4plus1')) state.graduate = undefined;
   const radios = (name: string, options: [string, string][], chosen: string | undefined, pick: (v: string) => void): HTMLElement => {
@@ -153,8 +162,26 @@ export function backgroundQuestions(current: Partial<Background> | undefined, pr
         onChange(state);
       }),
     );
-    elsewhereBox.hidden = finishedBox.hidden = state.graduate !== 'elsewhere';
+    elsewhereBox.hidden = state.graduate !== 'elsewhere';
+    finishedBox.hidden = state.graduate !== 'elsewhere' || (sequential && state.samePlace === undefined);
+    // The graduate-degree family waits for the bachelor's answer (and the
+    // 4+1 follow-up, when it is asked).
+    graduateBox.hidden = sequential && (state.bachelors === undefined || (program === 'mscse' && state.bachelors === 'nd-cse' && state.ndIntegrated === undefined));
   };
+  const graduateBox = el(
+    'fieldset',
+    { class: 'field group' },
+    el('legend', { class: 'label' }, 'Did you hold, or start, a graduate degree before this program?'),
+    radios('graduate', graduateOptions(program), state.graduate, (v) => {
+      state.graduate = v as GraduateBefore;
+      if (v !== 'elsewhere') {
+        state.samePlace = undefined;
+        state.finished = undefined;
+      }
+      renderFollowUps();
+      onChange(state);
+    }),
+  );
   renderFollowUps();
   return el(
     'div',
@@ -171,20 +198,7 @@ export function backgroundQuestions(current: Partial<Background> | undefined, pr
       }),
     ),
     integratedBox,
-    el(
-      'fieldset',
-      { class: 'field group' },
-      el('legend', { class: 'label' }, 'Did you hold, or start, a graduate degree before this program?'),
-      radios('graduate', graduateOptions(program), state.graduate, (v) => {
-        state.graduate = v as GraduateBefore;
-        if (v !== 'elsewhere') {
-          state.samePlace = undefined;
-          state.finished = undefined;
-        }
-        renderFollowUps();
-        onChange(state);
-      }),
-    ),
+    graduateBox,
     elsewhereBox,
     finishedBox,
   );

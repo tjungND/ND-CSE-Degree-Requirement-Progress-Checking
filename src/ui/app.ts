@@ -163,12 +163,24 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // the MSCSE; a Notre Dame CSE bachelor's asks about the 4+1 only for the
   // MSCSE), so they are rebuilt whenever the program radio changes.
   const backgroundBlock = el('div', {});
+  // One family at a time (DGS 2026-09-23): nothing below the program choice
+  // until it is made, then each question once the one before it is answered.
   const renderQuestions = (): void => {
+    if (chosenProgram === undefined) {
+      backgroundBlock.replaceChildren();
+      return;
+    }
     backgroundBlock.replaceChildren(
-      backgroundQuestions(chosenBackground, 'consent', chosenProgram ?? 'phd', (b) => {
-        chosenBackground = b;
-        gate();
-      }),
+      backgroundQuestions(
+        chosenBackground,
+        'consent',
+        chosenProgram,
+        (b) => {
+          chosenBackground = b;
+          gate();
+        },
+        true,
+      ),
     );
   };
   renderQuestions();
@@ -202,7 +214,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       agreeButton,
     ),
   );
+  // The page behind the opening dialog is hidden until it closes (DGS
+  // 2026-09-23): a half-read report under a modal invited reading the wrong
+  // program's results. The class goes on <html> so the backdrop still covers
+  // the viewport.
+  document.documentElement.classList.add('opening-dialog');
   const closeConsent = (): void => {
+    document.documentElement.classList.remove('opening-dialog');
     // The answer takes effect BEFORE the dialog goes, so that by the time
     // anything can observe the notice gone, the page behind it already shows
     // the chosen program — otherwise a script (or a fast reader) can act on a
