@@ -87,6 +87,10 @@ dialog.consent-overlay::backdrop { background: #f7f8fa; }
 dialog.consent-overlay .consent-box { max-width: none; border: 1px solid #d9dde3; box-shadow: none; padding: 18px 22px; }
 dialog.consent-overlay .consent-box h2 { color: var(--navy); font-size: 18px; }
 dialog.consent-overlay .consent-box > .btn { margin-left: 0; }
+/* Safari does not focus a radio on a mouse click, so focus rests on the dialog
+   itself and the first key press drew a ring round the whole card. The ring
+   says nothing there; controls inside keep theirs. */
+dialog.consent:focus, dialog.consent:focus-visible { outline: none; }
 /* Embedded, the loading card sits on the host page's own ground; so does the notice. */
 html.embed dialog.consent-overlay::backdrop { background: transparent; }
 .consent-box { background: #fff; border-radius: 12px; max-width: 540px; padding: 22px 26px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
