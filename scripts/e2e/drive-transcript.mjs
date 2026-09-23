@@ -594,7 +594,14 @@ export async function driveTranscript(s, baseUrl, pdfs) {
 
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
-  await s.evalJs(`document.querySelector('[data-key="program.mscse"]').click()`);
+  // Chrome occasionally swallows a click that lands while the notice's own
+  // update is still rendering (a flake seen only here, 2026-09-22): click the
+  // tab until the row's label follows it.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await s.evalJs(`document.querySelector('[data-key="program.mscse"]')?.click()`);
+    await s.settle(300);
+    if (await s.evalJs(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`)) break;
+  }
   await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`);
   const phdLabel = await s.evalJs(`(() => { document.querySelector('[data-key="program.phd"]').click(); return document.querySelector('.transcript-upload')?.textContent ?? ''; })()`);
   if (!phdLabel.includes('Current ND Unofficial Ph.D. Transcript')) throw new Error('the Ph.D. tab must name the row "ND Unofficial Ph.D. Transcript": ' + phdLabel.slice(0, 120));

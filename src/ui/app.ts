@@ -29,7 +29,7 @@ import {
 } from '../engine/ranges.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
-import { applyBackground, backgroundQuestions, completeBackground, type Background } from './background.ts';
+import { applyBackground, backgroundQuestions, completeBackground, openBackgroundDialog, type Background } from './background.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
@@ -2238,6 +2238,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     student = emptyStudent();
     clearLocal();
     render();
+    // A cleared record is a new student (DGS 2026-09-22): ask the
+    // earlier-degrees questions again rather than showing every row.
+    openBackgroundDialog(student, update, `program.${student.program}`);
   }
 
   // A record already on this device may carry a number an older build let

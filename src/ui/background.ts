@@ -27,7 +27,7 @@ export const BACHELORS_OPTIONS: [BachelorsFrom, string][] = [
 export const GRADUATE_OPTIONS: [GraduateBefore, string][] = [
   ['none', 'No'],
   ['elsewhere', 'Yes, at another university (a master’s, or Ph.D. study — finished or not)'],
-  ['nd-mscse', 'Yes, the MSCSE at Notre Dame'],
+  ['nd-mscse', 'Yes, the MSCSE at Notre Dame (whether through the 4+1 program or not)'],
   ['nd-other', 'Yes, at Notre Dame in another department'],
 ];
 
