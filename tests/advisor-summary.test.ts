@@ -74,6 +74,9 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).text, /\nDear Prof\. X and Prof\. Y,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISORS\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X'] }).text, /\nDear Prof\. X,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISOR\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).html, /<p>Dear Prof\. X and Prof\. Y,<\/p>/);
+    // A name typed without a title gets "Prof."; an existing title is kept (DGS 2026-09-23).
+    assert.match(advisorSummary(report, { ...opts, advisors: ['Matthew Morrison', 'Dr. Sharon Hu'] }).text, /\nDear Prof\. Matthew Morrison and Dr\. Sharon Hu,\n/);
+    assert.match(advisorSummary(report, { ...opts, advisors: ['Professor Hu'] }).text, /\nDear Professor Hu,\n/);
     assert.match(text, /\nDear Advisor,\n/, 'no name entered → the generic salutation');
     assert.ok(html.includes(`<td>${amber}CONDITIONALLY MET</span></td>`));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);

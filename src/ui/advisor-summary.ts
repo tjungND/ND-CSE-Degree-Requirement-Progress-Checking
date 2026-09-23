@@ -160,7 +160,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
 
   // The salutation names the advisors as the Milestones card has them (DGS
   // 2026-09-22: "Prof. X and Prof. Y"); with no name entered, "Dear Advisor,".
-  const advisors = (opts.advisors ?? []).map((n) => n.trim()).filter(Boolean);
+  // "Prof." before a name typed without a title (DGS 2026-09-23): a name that
+  // already starts with Prof./Professor/Dr. is left as typed.
+  const advisors = (opts.advisors ?? []).map((n) => n.trim()).filter(Boolean).map(withTitle);
   const twoAdvisors = advisors.length > 1;
   const salutation = advisors.length > 0 ? advisors.join(' and ') : 'Advisor';
 
@@ -447,6 +449,11 @@ export function actionItems(report: AuditReport): ActionItems {
     dgs: dedupe(out.dgs),
     gradAdmin: dedupe(out.gradAdmin),
   };
+}
+
+/** "Matthew Morrison" → "Prof. Matthew Morrison"; "Dr. Hu" / "Professor Hu" / "Prof. Hu" unchanged. */
+export function withTitle(name: string): string {
+  return /^(prof\.?|professor|dr\.?)\s/i.test(name) ? name : `Prof. ${name}`;
 }
 
 function dedupe(items: string[]): string[] {
