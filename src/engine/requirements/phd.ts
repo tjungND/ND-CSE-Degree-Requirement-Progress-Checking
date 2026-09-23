@@ -274,7 +274,10 @@ function seminarRow(ctx: Ctx): RequirementResult {
       const passed = entries.some((c) => passesCreditFloor(c.entry.grade) && isPassed(c.entry.grade));
       const ip = entries.some((c) => isInProgress(c.entry.grade));
       if (passed) satisfied.push(id);
-      parts.push(`${id}: ${passed ? 'done' : ip ? 'in progress' : 'not yet'}`);
+      // The semester it was taken (DGS 2026-09-22, for the advisor summary):
+      // "CSE 63801: done (Fall 2026)".
+      const taken = entries.find((c) => (passed ? passesCreditFloor(c.entry.grade) && isPassed(c.entry.grade) : isInProgress(c.entry.grade)));
+      parts.push(`${id}: ${passed ? 'done' : ip ? 'in progress' : 'not yet'}${taken ? ` (${termLabel(taken.entry.term)})` : ''}`);
       return passed ? 'met' : ip ? 'in_progress' : 'unmet';
     });
     status = states.every((s) => s === 'met')

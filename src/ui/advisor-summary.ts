@@ -142,7 +142,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     ].filter(Boolean);
     return parts.join(' ');
   };
-  const whyCell = (r: RequirementResult): string => [r.status === 'met' ? '' : whyFor(r), coursesFor(r)].filter(Boolean).join(' ');
+  // Met rows carry their Why too (DGS 2026-09-22): which courses met the core
+  // areas and the categories, which seminars were taken when.
+  const whyCell = (r: RequirementResult): string => [whyFor(r), coursesFor(r)].filter(Boolean).join(' ');
   // The DGS and Grad Admin lists print only when they hold something; two
   // headings announcing that two absent people have nothing to do were filler
   // for the advisor. One sentence keeps all four parties accounted for (trim

@@ -51,7 +51,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     const basic = text.indexOf('\nBASIC REQUIREMENTS — §2.2–2.3\n');
     const coursework = text.indexOf('\nCOURSEWORK — §4.2\n');
     assert.ok(basic >= 0 && coursework > basic, 'sections in handbook order');
-    assert.match(text, /\n  \[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\)\n/);
+    assert.match(text, /\n  \[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'met rows carry their Why (DGS 2026-09-22)');
     assert.match(text, /\n  \[IN PROGRESS\] 60 total credits of courses & research \(§4\.2\) — 14 of 60 credits complete\. 9 in progress\.\n/);
     assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\. Courses counted: CSE 60641 \(3 cr\), CSE 60111 \(3 cr\)\. Will count when passed or approved: CSE 60321 \(3 cr\)\.\n/);
     assert.match(text, /\n  \[CONDITIONALLY MET\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
@@ -70,7 +70,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td><td>§4.2</td><td>12 of 24 credits complete. 3 in progress. Courses counted: CSE 60641 (3 cr), CSE 60111 (3 cr). Will count when passed or approved: CSE 60321 (3 cr).</td>`), html);
     // A met row lists its courses too — the Why cell is otherwise empty for it.
     const metWithCourses = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.credits.nd', title: 'Nine at ND', contributions: [{ courseId: 'CSE 60770', credits: 3 }] }] }, opts);
-    assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Courses counted: CSE 60770 \(3 cr\)\./);
+    assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\. Courses counted: CSE 60770 \(3 cr\)\./);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).text, /\nDear Prof\. X and Prof\. Y,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISORS\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X'] }).text, /\nDear Prof\. X,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISOR\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).html, /<p>Dear Prof\. X and Prof\. Y,<\/p>/);
@@ -121,7 +121,7 @@ describe('advisor summary: deadlines on the rows that have them', () => {
   it('subject line adds the passed deadline; rows say their semester, never a date', () => {
     assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 4 requirements in progress, 1 deadline passed\n/);
     assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[OVERDUE\] Research component: a significant research contribution \(§4\.4\.3\) — Deadline passed \(was due during Spring 2028\)\.\n/);
-    assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\)\n/);
+    assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\) — Done\.\n/);
     for (const dueLine of text.split('\n').filter((l: string) => /\bdue\b/i.test(l))) {
       assert.doesNotMatch(dueLine, /\d{4}-\d{2}-\d{2}/, `no ISO date in a deadline line: ${dueLine}`);
     }
