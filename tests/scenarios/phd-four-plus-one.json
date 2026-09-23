@@ -1,6 +1,6 @@
 {
   "name": "phd-four-plus-one",
-  "description": "A Ph.D. student who came through Notre Dame's own 4+1 — three careers on one transcript, and the case the three-degree limit is written for. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. This student HOLDS the MSCSE, so each undergraduate course is asked about and counts nothing until answered: here none has been, so the two §3.5 courses and the 40000-level one wait, amber, while the fifth-year MSCSE coursework counts in full without transfer approval — a master's-to-Ph.D. move in the same discipline (Graduate School through the DGS, 2026-09-22; until then it transferred under §5.2). The courses still satisfy §4.4.1 and §4.4.2 meanwhile — neither is credit. (integratedBsMs: true since 2026-09-12 — only a 4+1's undergraduate 60000-level coursework earns credit.)",
+  "description": "A Ph.D. student who came through Notre Dame's own 4+1 — three careers on one transcript, and the case the three-degree limit is written for. Graduate School, through the DGS (2026-09-10, evening): Notre Dame coursework taken as an UNDERGRADUATE counts toward the Ph.D. — 60000-level and above in full and beyond §5.2's twenty-four, below it inside §4.2's six-credit allowance — and the one hard limit is that no course may count toward three degrees, so a course already spent on the B.S. AND the MSCSE counts nothing here. It is not transfer credit and never touches the §5.2 cap. This student HOLDS the MSCSE, so each undergraduate course is asked about and counts nothing until answered: here none has been, so the two §3.5 courses and the 40000-level one wait, amber, while the fifth-year MSCSE coursework counts in full without transfer approval — a master's-to-Ph.D. move in the same discipline (Graduate School through the DGS, 2026-09-22; until then it transferred under §5.2). The courses still satisfy §4.4.1 and §4.4.2 meanwhile — neither is credit. (integratedBsMs: true since 2026-09-12 — only a 4+1's undergraduate 60000-level coursework earns credit.) The regular courses of the Notre Dame MSCSE count toward §4.2's nine at Notre Dame (DGS 2026-09-22).",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -170,9 +170,9 @@
       ]
     },
     "phd.credits.nd": {
-      "status": "unmet",
+      "status": "met",
       "detailIncludes": [
-        "0 of 9"
+        "9 credits — the 9-credit minimum is met"
       ]
     }
   },

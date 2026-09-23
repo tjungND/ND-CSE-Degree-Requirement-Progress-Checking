@@ -179,9 +179,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'div',
       { class: 'consent-box' },
       el('h2', { id: 'consent-title' }, 'Before you continue'),
+      // In red (DGS 2026-09-22): the one sentence a tester must not miss.
       el(
         'p',
-        {},
+        { class: 'consent-warning' },
         'This tool has not been approved by the department yet. It is for testing and informational purposes only.',
       ),
       // Open invitation for feedback (DGS wording, 2026-09-05). The coverage
@@ -1771,6 +1772,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           onchange: (e) => update((s) => void (s.milestones.advisorName = (e.target as HTMLInputElement).value || undefined)),
         }),
       ),
+      // A student may have two advisors (DGS 2026-09-22); the second box is
+      // optional and the two names read as one supervision everywhere.
+      field(
+        'Second advisor, if you have two (co-advisor)',
+        el('input', {
+          value: m.advisorName2 ?? '',
+          'data-key': 'milestone.advisorName2',
+          onchange: (e) => update((s) => void (s.milestones.advisorName2 = (e.target as HTMLInputElement).value || undefined)),
+        }),
+      ),
       dateField('Advisor identified on (§2.3)', 'advisorIdentified'),
     );
 
@@ -1896,10 +1907,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         class: 'btn',
         'data-key': 'save.copy',
         onclick: () => {
-          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa });
+          const advisors = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
+          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, twoAdvisors: advisors.length > 1 });
           void copyDialog({
             what: 'Summary for your advisor',
-            recipient: { role: 'Your advisor', name: student.milestones.advisorName ?? 'name not entered under Milestones' },
+            recipient: { role: advisors.length > 1 ? 'Your advisors' : 'Your advisor', name: advisors.length > 0 ? advisors.join(' and ') : 'name not entered under Milestones' },
             subject: built.subject,
             text: built.text,
             html: built.html,

@@ -11,7 +11,10 @@ import { el } from './dom.ts';
 const STATUS_LABEL: Record<Status, string> = {
   met: 'Met',
   in_progress: 'In progress',
-  unmet: 'Not yet',
+  // "Not yet" and "In progress" merged (DGS 2026-09-22: "If they are the
+  // same, choose 'In progress'"); an unmet row whose deadline has passed is
+  // the one that is not the same, and its pill reads "Overdue" (pillLabel).
+  unmet: 'In progress',
   // "Conditionally met", not "Needs DGS review" (W-CS1, DGS 2026-09-18): the
   // student's POSITION, not the errand. The sub-line still names who must
   // approve, so nothing is lost by dropping the actor — and the pill no longer
@@ -20,6 +23,16 @@ const STATUS_LABEL: Record<Status, string> = {
   cannot_evaluate: 'Cannot evaluate',
   not_applicable: 'Does not apply',
 };
+
+/** An unmet row whose deadline has passed: the one "not yet" that is not
+ * simply "in progress" (DGS 2026-09-22). */
+export function isOverdue(r: RequirementResult): boolean {
+  return r.status === 'unmet' && r.deadline?.state === 'overdue';
+}
+/** The pill's word: the engine's override, else "Overdue", else the status word. */
+export function pillLabel(r: RequirementResult): string {
+  return r.statusLabel ?? (isOverdue(r) ? 'Overdue' : STATUS_LABEL[r.status]);
+}
 
 /** The rows the headline counts: informational rows (the per-course sign-off
  * list, the along-the-way M.S.) and "does not apply" rows are outside the score. */
@@ -87,12 +100,13 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   // review 2026-09-05, item 17); when everything passes it says what "all"
   // means here — the automatic checks, not the DGS's confirmation.
   const remaining = scored - met;
-  const inProgress = scoredRows(report).filter((r) => r.status === 'in_progress').length;
-  // Conditional satisfaction stands in the headline as its own count. It was a
-  // parenthetical on the "not yet" number — "6 not yet (2 need a DGS
-  // decision)" — which filed two conditionally satisfied requirements under
-  // things the student had not done (R2, 2026-09-18).
-  const open = remaining - inProgress - conditional;
+  // "In progress" and "not yet" are one count since 2026-09-22 (DGS: the two
+  // words meant the same thing to the reader); a passed deadline is counted
+  // apart, in red. Conditional satisfaction stands as its own count (R2,
+  // 2026-09-18) and so does "cannot evaluate".
+  const overdue = scoredRows(report).filter(isOverdue).length;
+  const cannot = scoredRows(report).filter((r) => r.status === 'cannot_evaluate').length;
+  const inProgress = remaining - conditional - overdue - cannot;
   // The headline IS the status key (trim review 2026-09-18, P-49; R2's separate
   // key under the meters is gone): each count carries a dot in the colour of
   // the dial band it stands for, so the ring is readable without hovering
@@ -101,7 +115,8 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   const parts: [string, string][] = [['s-met', `${met} of ${scored} met`]];
   if (conditional > 0) parts.push(['s-needs_dgs_review', `${conditional} conditionally met`]);
   if (inProgress > 0) parts.push(['s-in_progress', `${inProgress} in progress`]);
-  if (open > 0) parts.push(['s-unmet', `${open} not yet`]);
+  if (overdue > 0) parts.push(['s-unmet', `${overdue} overdue`]);
+  if (cannot > 0) parts.push(['s-cannot_evaluate', `${cannot} cannot be evaluated`]);
   // "0 of 17 met" is a true but useless thing to tell someone who has entered
   // nothing (2026-09-08): every row is open because the page is empty, not
   // because anything is wrong. The old `scored === 0` branch could never fire —
@@ -184,7 +199,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // the counts (W-CS2): the §4.7 defense past §4.3's limit reads "Eligibility
   // at risk", since "Conditionally met" would promise a degree that may be
   // forfeit.
-  const pill = el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}` }, r.statusLabel ?? STATUS_LABEL[r.status]);
+  const pill = el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}${isOverdue(r) ? ' s-overdue' : ''}` }, pillLabel(r));
   // The rule itself, on the output side (DGS request 2026-09-03): clicking the
   // § chip reveals the handbook sentence this verdict is checked against. A
   // disclosure button (usability review 2026-09-05, item 24): its expanded
@@ -496,7 +511,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
           'li',
           {},
           el('a', { href: `#${reqAnchorId(r.id)}` }, r.title),
-          el('span', { class: `pill s-${r.status} small` }, STATUS_LABEL[r.status]),
+          el('span', { class: `pill s-${r.status} small${isOverdue(r) ? ' s-overdue' : ''}` }, pillLabel(r)),
           r.deadline && r.deadline.state === 'overdue' ? el('span', { class: 'attention-overdue' }, ' — deadline passed') : null,
           el('span', { class: 'attention-next', 'data-keep-dgs': '' }, ` ${firstSentence(r.detail)}`),
         ),

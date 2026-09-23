@@ -22,6 +22,10 @@ const QUALIFIER = 'Qualifying examination — §4.4';
 const CANDIDACY = 'Oral Candidacy Exam (OCE) — §4.5'; // the DGS's name for the §4.5 examination (2026-09-06); the handbook quotes below stay verbatim
 const DISSERTATION = 'Dissertation and defense — §4.6–4.7';
 
+/** Taken at Notre Dame for §4.2's nine: in this program, or in the student's
+ * own Notre Dame MSCSE (DGS 2026-09-22). */
+const atNotreDame = (c: { entry: { origin: string }; ndMastersCredit?: true }): boolean => c.entry.origin === 'nd' || c.ndMastersCredit === true;
+
 export function phdRows(ctx: Ctx): RequirementResult[] {
   const rows: RequirementResult[] = [];
   const provisionalRegular = provisionalRegularIds(ctx);
@@ -135,25 +139,27 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       title: 'At least 9 credits of regular courses taken at Notre Dame',
       shortTitle: '9 regular credits at ND',
       sums: ctx.alloc.ndRegular,
-      pendingBy: pendingCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
-      contributions: courseContributions(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
-      satisfiedBy: countedCourseIds(ctx, (p) => (p.course.entry.origin === 'nd' && p.course.pool === 'regular' ? p.countedRegular : 0)),
+      pendingBy: pendingCourseIds(ctx, (p) => (atNotreDame(p.course) && p.course.pool === 'regular' ? p.countedRegular : 0)),
+      contributions: courseContributions(ctx, (p) => (atNotreDame(p.course) && p.course.pool === 'regular' ? p.countedRegular : 0)),
+      satisfiedBy: countedCourseIds(ctx, (p) => (atNotreDame(p.course) && p.course.pool === 'regular' ? p.countedRegular : 0)),
       required: ctx.params.number('phd_nd_credits_min'),
       requiredKey: 'phd_nd_credits_min',
       section: '§4.2',
       quote:
         'Regardless of any credits transferred, all Ph.D. students must take at least nine (9) credits at Notre Dame in order to satisfy the qualifying examination described in section 4.4.',
-      // Notre Dame coursework from BEFORE this program — a 4+1's undergraduate
-      // 60000-level courses, or an earlier Notre Dame degree — counts toward
-      // the 60 and the 24 but not toward these nine (DGS 2026-09-13: "it does
-      // not count towards the nine new credits that need to be earned at Notre
-      // Dame during the degree program"). Said out loud only when the student
-      // actually has such coursework, so a shortfall does not read as a
-      // data-entry problem they could fix.
+      // Notre Dame coursework from BEFORE this program: a 4+1's undergraduate
+      // 60000-level courses count toward the 60 and the 24 but not toward
+      // these nine (DGS 2026-09-13: "it does not count towards the nine new
+      // credits that need to be earned at Notre Dame during the degree
+      // program"); the regular courses of the student's own Notre Dame MSCSE
+      // DO count here (DGS 2026-09-22: "The regular courses taken at ND during
+      // the MSCSE should count"). Said out loud only when the student actually
+      // has undergraduate coursework of that kind, so a shortfall does not
+      // read as a data-entry problem they could fix.
       extraDetail: ctx.classified.some(
-        (c) => c.entry.origin === 'transfer' && isNotreDameInstitution(c.entry.institution) && c.pool === 'regular' && c.ineligibleReason === undefined,
+        (c) => c.entry.origin === 'transfer' && isNotreDameInstitution(c.entry.institution) && !c.ndMastersCredit && c.pool === 'regular' && c.ineligibleReason === undefined,
       )
-        ? ['Notre Dame coursework from before this program — a 4+1’s undergraduate courses, or an earlier Notre Dame degree — counts toward the 60 and the 24, but not here: these nine are the credits earned in the Ph.D. itself (DGS 2026-09-13)']
+        ? ['Notre Dame coursework you took as an undergraduate counts toward the 60 and the 24, but not here: these nine are graduate credits earned at Notre Dame — in the Ph.D., or in your Notre Dame MSCSE (DGS 2026-09-13, 2026-09-22)']
         : undefined,
     }),
   );

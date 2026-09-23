@@ -125,7 +125,10 @@ function metTable(r: RequirementResult, student: Student): MetTable {
   if (milestoneKey) {
     const date = student.milestones[milestoneKey];
     const rows: string[][] = [['Date', typeof date === 'string' && date !== '' ? date : 'not entered']];
-    if (r.id === 'shared.advisor') rows.unshift(['Advisor', student.milestones.advisorName ?? 'name not entered']);
+    if (r.id === 'shared.advisor') {
+      const names = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
+      rows.unshift([names.length > 1 ? 'Advisors' : 'Advisor', names.length > 0 ? names.join(' and ') : 'name not entered']);
+    }
     return { heading, columns: ['What', 'Evidence'], rows };
   }
   if (r.id === 'shared.gpa') return { heading, columns: ['What', 'Evidence'], rows: [['Cumulative GPA', student.gpa !== undefined ? student.gpa.toFixed(2) : 'not entered']] };
@@ -186,7 +189,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   return {
     transfers,
     milestones,
-    advisorName: student.milestones.advisorName,
+    advisorName: [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n).join(' and ') || undefined,
     msAlongTheWay,
     qualifierFormDue,
     met,

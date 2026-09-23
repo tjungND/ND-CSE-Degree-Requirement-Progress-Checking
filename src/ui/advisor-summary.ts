@@ -14,7 +14,8 @@
 // Kept from the morning's design: the subject line with the headline facts,
 // the one standing paragraph, the deadline footnote and the alpha notice; the
 // re-voicing of the engine's student-facing details (`whyFor`).
-import type { AuditReport, DetailPart, RequirementResult, Status } from '../engine/types.ts';
+import type { AuditReport, Contribution, DetailPart, RequirementResult, Status } from '../engine/types.ts';
+import { formatCredits } from '../engine/credits.ts';
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
@@ -28,6 +29,8 @@ export interface AdvisorSummaryOptions {
   /** The "Prior graduate study" choice as the page labels it. */
   priorStudy: string;
   gpa?: number;
+  /** Two advisors (DGS 2026-09-22): the salutation and the to-do heading say so. */
+  twoAdvisors?: boolean;
 }
 
 /** The page's palette, inline because email clients drop stylesheets. */
@@ -41,7 +44,10 @@ const STATUS_TAG: Record<Status, { word: string; color: Color }> = {
   // The page's word since W-CS1 (2026-09-18); the email matched it in the trim
   // review (P-59). The Why column still names who must approve.
   needs_dgs_review: { word: 'CONDITIONALLY MET', color: 'amber' },
-  unmet: { word: 'NOT YET', color: 'red' },
+  // "Not yet" and "In progress" were two words for one thing to the reader
+  // (DGS 2026-09-22: "If they are the same, choose 'In progress'"); a passed
+  // deadline is the one case that is not the same, and reads OVERDUE (tagFor).
+  unmet: { word: 'IN PROGRESS', color: 'amber' },
   cannot_evaluate: { word: 'CANNOT EVALUATE', color: 'red' },
   not_applicable: { word: 'DOES NOT APPLY', color: 'green' },
 };
@@ -61,12 +67,15 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     overdue: scored.filter((r) => r.status === 'unmet' && r.deadline?.state === 'overdue').length,
   };
 
+  // One number for what is still open (DGS 2026-09-22: "Not yet" and "In
+  // progress" merged into "in progress"); a passed deadline is said apart.
+  const open = n.unmet + n.inProgress;
   const headlineFact =
-    n.unmet > 0
-      ? `${plural(n.unmet, 'requirement')} not yet met${n.overdue > 0 ? `, ${plural(n.overdue, 'deadline')} passed` : ''}`
-      : n.scored > 0 && n.met === n.scored
-        ? 'all checked requirements met'
-        : `nothing not yet met — ${n.inProgress} in progress${n.waiting > 0 ? `, ${n.waiting} conditionally met` : ''}`;
+    n.scored > 0 && n.met === n.scored
+      ? 'all checked requirements met'
+      : open > 0
+        ? `${plural(open, 'requirement')} in progress${n.overdue > 0 ? `, ${plural(n.overdue, 'deadline')} passed` : ''}`
+        : `${n.met} of ${n.scored} met${n.waiting > 0 ? `, ${n.waiting} conditionally met` : ''}`;
   const subject = `Degree self-check — ${programShort(report.program)}, entered ${opts.entryTerm} — ${headlineFact}`;
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
   const intro = `Here is my current standing from the CSE degree self-check tool, as of ${asOf}.`;
@@ -76,8 +85,8 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `cumulative GPA ${opts.gpa !== undefined ? opts.gpa.toFixed(2) : 'not entered yet'}.`;
   const counts = [
     `${n.met} of ${n.scored} requirements met`,
-    ...(n.inProgress > 0 ? [`${n.inProgress} in progress`] : []),
-    ...(n.unmet > 0 ? [`${n.unmet} not yet met`] : []),
+    ...(open > 0 ? [`${open} in progress`] : []),
+    ...(n.overdue > 0 ? [`${plural(n.overdue, 'deadline')} passed`] : []),
     ...(n.waiting > 0 ? [`${n.waiting} conditionally met`] : []),
     ...(n.unchecked > 0 ? [`${n.unchecked} cannot be evaluated`] : []),
   ].join(' · ');
@@ -108,7 +117,26 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   // "Eligibility at risk" for a defense past §4.3's limit), else the status
   // word — so the advisor never reads "conditionally met" for a row the page
   // shows as at risk (trim review 2026-09-18, P-59).
-  const tagWord = (r: RequirementResult): string => r.statusLabel?.toUpperCase() ?? STATUS_TAG[r.status].word;
+  const tagFor = (r: RequirementResult): { word: string; color: Color } =>
+    r.statusLabel
+      ? { word: r.statusLabel.toUpperCase(), color: STATUS_TAG[r.status].color }
+      : r.status === 'unmet' && r.deadline?.state === 'overdue'
+        ? { word: 'OVERDUE', color: 'red' }
+        : STATUS_TAG[r.status];
+  // The courses a credit requirement counts, for the advisor (DGS 2026-09-22:
+  // "list all the courses that are used to satisfy the requirements in the
+  // Why column") — the same list the page folds under "Courses counted".
+  const coursesFor = (r: RequirementResult): string => {
+    const counted = (r.contributions ?? []).filter((c) => !c.pending);
+    const pending = (r.contributions ?? []).filter((c) => c.pending);
+    const fmt = (c: Contribution) => `${c.courseId} (${formatCredits(c.credits)} cr)`;
+    const parts = [
+      counted.length > 0 ? `Courses counted: ${counted.map(fmt).join(', ')}.` : '',
+      pending.length > 0 ? `Will count when passed or approved: ${pending.map(fmt).join(', ')}.` : '',
+    ].filter(Boolean);
+    return parts.join(' ');
+  };
+  const whyCell = (r: RequirementResult): string => [r.status === 'met' ? '' : whyFor(r), coursesFor(r)].filter(Boolean).join(' ');
   // The DGS and Grad Admin lists print only when they hold something; two
   // headings announcing that two absent people have nothing to do were filler
   // for the advisor. One sentence keeps all four parties accounted for (trim
@@ -124,9 +152,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
 
   // ---- plain text ----
   const line = (r: RequirementResult): string => {
-    const tag = { word: tagWord(r), color: STATUS_TAG[r.status].color };
+    const tag = tagFor(r);
     const due = deadlineOf(r);
-    const parts = [r.status === 'met' ? '' : whyFor(r), due ? `${due.text}.` : ''].filter(Boolean);
+    const parts = [whyCell(r), due ? `${due.text}.` : ''].filter(Boolean);
     return `[${tag.word}] ${r.title} (${r.citation.section})${parts.length ? ` — ${parts.join(' ')}` : ''}`;
   };
   const todoText = (heading: string, items: string[]) =>
@@ -136,10 +164,10 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   // deadline note and the alpha notice read as footnotes below it, as in the
   // Grad Admin request (trim review 2026-09-18, P-73).
   const text =
-    `Subject: ${subject}\n\nDear Advisor,\n\n${intro}\n${standing}\n${counts}.\n\n` +
+    `Subject: ${subject}\n\nDear ${opts.twoAdvisors ? 'Advisors' : 'Advisor'},\n\n${intro}\n${standing}\n${counts}.\n\n` +
     sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map((r) => `  ${line(r)}`).join('\n')}\n\n`).join('') +
     todoText('WHAT I NEED TO DO', todo.student) +
-    todoText('WHAT I NEED FROM YOU, MY ADVISOR', todo.advisor) +
+    todoText(opts.twoAdvisors ? 'WHAT I NEED FROM YOU, MY ADVISORS' : 'WHAT I NEED FROM YOU, MY ADVISOR', todo.advisor) +
     (todo.dgs.length > 0 ? todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) : '') +
     (pendingText ? `${pendingText}\n\n` : '') +
@@ -154,12 +182,12 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
       `<table border="1" cellspacing="0" cellpadding="4"><tr><th>Status</th><th>Requirement</th><th>§</th><th>Why</th>${withDeadline ? '<th>Deadline</th>' : ''}</tr>` +
       s.rows
         .map((r) => {
-          const tag = { word: tagWord(r), color: STATUS_TAG[r.status].color };
+          const tag = tagFor(r);
           const due = deadlineOf(r);
           const dueCell = due ? (due.passed ? colored('red', esc(due.text)) : esc(due.text)) : '';
           return (
             `<tr><td>${colored(tag.color, esc(tag.word))}</td><td>${colored(tag.color, esc(r.title))}</td><td>${esc(r.citation.section)}</td>` +
-            `<td>${esc(r.status === 'met' ? '' : whyFor(r))}</td>${withDeadline ? `<td>${dueCell}</td>` : ''}</tr>`
+            `<td>${esc(whyCell(r))}</td>${withDeadline ? `<td>${dueCell}</td>` : ''}</tr>`
           );
         })
         .join('') +
@@ -169,11 +197,11 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const todoHtml = (heading: string, items: string[]) =>
     `<p><strong>${esc(heading)}</strong></p><ul>${(items.length > 0 ? items : ['Nothing at the moment.']).map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
   const html =
-    `<p>Subject: ${esc(subject)}</p><p>Dear Advisor,</p>` +
+    `<p>Subject: ${esc(subject)}</p><p>Dear ${opts.twoAdvisors ? 'Advisors' : 'Advisor'},</p>` +
     `<p>${esc(intro)}<br>${esc(standing)}<br><strong>${esc(counts)}.</strong></p>` +
     sections.map(htmlSection).join('') +
     todoHtml('What I need to do', todo.student) +
-    todoHtml('What I need from you, my advisor', todo.advisor) +
+    todoHtml(opts.twoAdvisors ? 'What I need from you, my advisors' : 'What I need from you, my advisor', todo.advisor) +
     (todo.dgs.length > 0 ? todoHtml('What the DGS needs to do', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoHtml('What the Grad Admin needs to do', todo.gradAdmin) : '') +
     (pendingText ? `<p>${esc(pendingText)}</p>` : '') +

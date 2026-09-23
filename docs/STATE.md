@@ -12,6 +12,11 @@ B floor to that MSCSE coursework, and treats only the MSCSE (not another departm
 master's) as "the same discipline" — both flagged in `docs/HANDBOOK-REVISIONS.md` §4. The
 pre-entry Notre Dame heading now says MSCSE / Ph.D. coursework rather than "graduate".
 
+2026-09-22 (later): five more DGS items — the advisor summary's Why column lists the courses
+counted; "Not yet" and "In progress" merged into "In progress" (an unmet row past its deadline
+reads "Overdue"); the Notre Dame MSCSE's regular courses count toward §4.2's nine at Notre Dame;
+a second advisor box; the opening dialog's testing sentence in red. DECISIONS rows of the same date.
+
 
 2026-09-21: **the rules sheet moved into a shared drive — no code change was needed.**
 `CSE-Degree-Checking-Rules` now lives at the top level of the shared drive **"CSE Department

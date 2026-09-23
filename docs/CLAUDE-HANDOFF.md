@@ -252,6 +252,14 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `applyBackground` (what an answer settles on the standing card). `Student.background` is absent on
   older records — every row shows then. The e2e consent helper (session-common.mjs) answers
   "elsewhere / elsewhere / not the same place" so every previous row exists for the transcript driver.
+- **Status words on the page and in the advisor summary** (DGS 2026-09-22): `unmet` and
+  `in_progress` both display "In progress" (report.ts `pillLabel`, advisor-summary.ts `tagFor`);
+  an unmet row with `deadline.state === 'overdue'` displays "Overdue" (`isOverdue`, class
+  `s-overdue`). The headline counts in progress / overdue / cannot be evaluated / conditionally
+  met; the engine statuses are unchanged, so tests and the attention list still read `unmet`.
+  `advisorSummary` also lists each row's `contributions` in the Why column (`coursesFor`) and takes
+  `twoAdvisors` (a second advisor lives in `milestones.advisorName2`). `ndRegular` (allocate.ts)
+  counts `ndMastersCredit` rows as taken at Notre Dame for §4.2's nine.
 - **The Graduate School's two rules** (through the DGS, 2026-09-22 — DECISIONS has the verbatim
   answers). (1) `classifyTransfer` has a branch before the §5.2 logic for a Ph.D. student's own
   Notre Dame MSCSE coursework (`program === 'phd' && ND && student.ndMasters`): `ndMastersCredit`

@@ -58,12 +58,14 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   const quote = ms
     ? 'M.S. students, with assistance from the DGS, are expected to identify a thesis or project advisor by the beginning of their first semester.'
     : 'Continuous advisor supervision is required throughout the duration of the Ph.D. program.';
-  const { advisorIdentified, advisorName } = ctx.student.milestones;
+  const { advisorIdentified, advisorName, advisorName2 } = ctx.student.milestones;
+  const names = [advisorName, advisorName2].filter((n): n is string => !!n);
   let status: RequirementResult['status'];
   let detail: string;
-  if (advisorIdentified || advisorName) {
+  if (advisorIdentified || names.length > 0) {
     status = 'met';
-    detail = `Advisor${advisorName ? `: ${advisorName}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}.`;
+    // Two advisors are one supervision (DGS 2026-09-22): "Advisors: A and B".
+    detail = `${names.length > 1 ? 'Advisors' : 'Advisor'}${names.length > 0 ? `: ${names.join(' and ')}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}.`;
   } else {
     status = 'unmet';
     const start = startOfTerm(ctx.entry).date;

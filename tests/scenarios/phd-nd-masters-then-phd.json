@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-masters-then-phd",
-  "description": "A Ph.D. student who did their bachelor's AND their MSCSE at Notre Dame, then entered the Ph.D. (DGS 2026-09-09). One Notre Dame transcript covers all three careers, split at the entry term: the undergraduate courses satisfy §4.4.1 core knowledge but never transfer (§5.2 criterion 2); the MSCSE courses count in full toward the Ph.D. WITHOUT transfer approval and beyond §5.2's cap (Graduate School through the DGS, 2026-09-22: \"in cases where a graduate student moves from a master's program to a PhD program in the same discipline all the credits are counted towards the PhD, even those above and beyond the usual 24 allowed for transfer\" — until then they were §5.2 transfer candidates); the MSCSE thesis-direction credits count toward the total only (DGS 2026-09-22), the courses satisfy §4.4.2, and the §4.5 along-the-way MSCSE row is left out for a student who already holds the degree. Since the courses are not transfer credit, the §5.2 row has nothing to list and says so.",
+  "description": "A Ph.D. student who did their bachelor's AND their MSCSE at Notre Dame, then entered the Ph.D. (DGS 2026-09-09). One Notre Dame transcript covers all three careers, split at the entry term: the undergraduate courses satisfy §4.4.1 core knowledge but never transfer (§5.2 criterion 2); the MSCSE courses count in full toward the Ph.D. WITHOUT transfer approval and beyond §5.2's cap (Graduate School through the DGS, 2026-09-22: \"in cases where a graduate student moves from a master's program to a PhD program in the same discipline all the credits are counted towards the PhD, even those above and beyond the usual 24 allowed for transfer\" — until then they were §5.2 transfer candidates); the MSCSE thesis-direction credits count toward the total only (DGS 2026-09-22), the courses satisfy §4.4.2, and the §4.5 along-the-way MSCSE row is left out for a student who already holds the degree. Since the courses are not transfer credit, the §5.2 row has nothing to list and says so. The regular courses of the Notre Dame MSCSE count toward §4.2's nine at Notre Dame (DGS 2026-09-22).",
   "today": "2026-09-09",
   "rules": {
     "base": "default"
@@ -153,9 +153,9 @@
       ]
     },
     "phd.credits.nd": {
-      "status": "unmet",
+      "status": "met",
       "detailIncludes": [
-        "0 of 9"
+        "9 credits — the 9-credit minimum is met"
       ]
     },
     "phd.residency": {

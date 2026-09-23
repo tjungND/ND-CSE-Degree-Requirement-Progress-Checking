@@ -19,7 +19,8 @@ const report: AuditReport = {
   requirements: [
     req('shared.gpa', 'Cumulative GPA of at least 3.0', 'met', 'Cumulative GPA 3.50 meets the 3.0 minimum.', 'Basic requirements — §2.2–2.3', '§2.2'),
     req('phd.credits.total', '60 total credits of courses & research', 'unmet', '14 of 60 credits complete. 9 in progress.'),
-    req('phd.credits.regular', '24 credit hours of regular courses', 'in_progress', '12 of 24 credits complete. 3 in progress.'),
+    // The courses a credit row counts ride into the Why column (DGS 2026-09-22).
+    { ...req('phd.credits.regular', '24 credit hours of regular courses', 'in_progress', '12 of 24 credits complete. 3 in progress.'), contributions: [{ courseId: 'CSE 60641', credits: 3 }, { courseId: 'CSE 60111', credits: 3 }, { courseId: 'CSE 60321', credits: 3, pending: true as const }] },
     req('phd.cap.noncse', 'At most 9 credits at 6xxxx from outside CSE', 'needs_dgs_review', 'needs approval: MATH 60610.'),
     req('phd.transfer', 'Transfer credit from prior graduate study', 'not_applicable', 'No prior M.S.'),
     {
@@ -39,10 +40,10 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
   const { text, html } = advisorSummary(report, opts);
 
   it('subject line and standing paragraph carry the headline facts', () => {
-    assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 1 requirement not yet met\n/);
+    assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 2 requirements in progress\n/);
     assert.match(text, /\nHere is my current standing from the CSE degree self-check tool, as of September 4, 2026\.\n/);
     assert.match(text, /\nPh\.D\. \(Handbook §4\); entered Fall 2026; no prior graduate degree; cumulative GPA 3\.50\.\n/);
-    assert.match(text, /\n1 of 4 requirements met · 1 in progress · 1 not yet met · 1 conditionally met\.\n/);
+    assert.match(text, /\n1 of 4 requirements met · 2 in progress · 1 conditionally met\.\n/);
     assert.doesNotMatch(text, /2026-09-04/, 'no ISO date anywhere');
   });
 
@@ -51,12 +52,12 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     const coursework = text.indexOf('\nCOURSEWORK — §4.2\n');
     assert.ok(basic >= 0 && coursework > basic, 'sections in handbook order');
     assert.match(text, /\n  \[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\)\n/);
-    assert.match(text, /\n  \[NOT YET\] 60 total credits of courses & research \(§4\.2\) — 14 of 60 credits complete\. 9 in progress\.\n/);
-    assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\.\n/);
+    assert.match(text, /\n  \[IN PROGRESS\] 60 total credits of courses & research \(§4\.2\) — 14 of 60 credits complete\. 9 in progress\.\n/);
+    assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\. Courses counted: CSE 60641 \(3 cr\), CSE 60111 \(3 cr\)\. Will count when passed or approved: CSE 60321 \(3 cr\)\.\n/);
     assert.match(text, /\n  \[CONDITIONALLY MET\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
     assert.doesNotMatch(text, /Transfer credit from prior graduate study/, '"does not apply" rows are left out');
     assert.doesNotMatch(text, /\nAPPROVALS\n|Courses still to be approved or processed/, 'the sign-off list feeds the to-do lists, not a section');
-    assert.doesNotMatch(text, /CSE 60641|COURSES COUNTED/, 'no course list');
+    assert.doesNotMatch(text, /COURSES COUNTED/, 'no separate course list — the courses sit in each row’s Why (DGS 2026-09-22)');
   });
 
   it('HTML: one table per section; status word and requirement name in the status colour', () => {
@@ -65,8 +66,12 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     const amber = `<span style="color:${COLORS.amber};font-weight:bold">`;
     const red = `<span style="color:${COLORS.red};font-weight:bold">`;
     assert.ok(html.includes(`<td>${green}MET</span></td><td>${green}Cumulative GPA of at least 3.0</span></td>`));
-    assert.ok(html.includes(`<td>${red}NOT YET</span></td><td>${red}60 total credits of courses &amp; research</span></td><td>§4.2</td><td>14 of 60 credits complete. 9 in progress.</td>`));
-    assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td>`));
+    assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}60 total credits of courses &amp; research</span></td><td>§4.2</td><td>14 of 60 credits complete. 9 in progress.</td>`));
+    assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td><td>§4.2</td><td>12 of 24 credits complete. 3 in progress. Courses counted: CSE 60641 (3 cr), CSE 60111 (3 cr). Will count when passed or approved: CSE 60321 (3 cr).</td>`), html);
+    // A met row lists its courses too — the Why cell is otherwise empty for it.
+    const metWithCourses = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.credits.nd', title: 'Nine at ND', contributions: [{ courseId: 'CSE 60770', credits: 3 }] }] }, opts);
+    assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Courses counted: CSE 60770 \(3 cr\)\./);
+    assert.match(advisorSummary(report, { ...opts, twoAdvisors: true }).text, /\nDear Advisors,\n[\s\S]*\nWHAT I NEED FROM YOU, MY ADVISORS\n/);
     assert.ok(html.includes(`<td>${amber}CONDITIONALLY MET</span></td>`));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });
@@ -111,8 +116,8 @@ describe('advisor summary: deadlines on the rows that have them', () => {
   const { text, html } = advisorSummary(withDeadlines, opts);
 
   it('subject line adds the passed deadline; rows say their semester, never a date', () => {
-    assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 2 requirements not yet met, 1 deadline passed\n/);
-    assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[NOT YET\] Research component: a significant research contribution \(§4\.4\.3\) — Deadline passed \(was due during Spring 2028\)\.\n/);
+    assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 4 requirements in progress, 1 deadline passed\n/);
+    assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[OVERDUE\] Research component: a significant research contribution \(§4\.4\.3\) — Deadline passed \(was due during Spring 2028\)\.\n/);
     assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\)\n/);
     for (const dueLine of text.split('\n').filter((l: string) => /\bdue\b/i.test(l))) {
       assert.doesNotMatch(dueLine, /\d{4}-\d{2}-\d{2}/, `no ISO date in a deadline line: ${dueLine}`);
@@ -314,7 +319,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     assert.ok(todo.student.includes('Send the Grad Admin the processing request for CS 50300.'));
     assert.ok(todo.student.includes('Send the DGS the review request for CS 77777.'));
     const { text, html, subject } = advisorSummary(r, { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 });
-    assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — nothing not yet met — 0 in progress, 1 conditionally met');
+    assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — 2 of 3 met, 1 conditionally met');
     assert.match(text, /\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Process the MSCSE awarded along the way \(§4\.5\)\.\n/);
     assert.match(html, /<p><strong>What the Grad Admin needs to do<\/strong><\/p><ul><li>Process the MSCSE awarded along the way/);
   });

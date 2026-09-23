@@ -99,6 +99,8 @@ export interface CourseEntry {
 export interface Milestones {
   advisorIdentified?: string;
   advisorName?: string;
+  /** A second advisor (co-advisor), when the student has two (DGS 2026-09-22). */
+  advisorName2?: string;
   researchQualifierPassed?: string; // §4.4.3
   qualifierFormFiled?: string; // §4.4
   candidacyPassed?: string; // §4.5

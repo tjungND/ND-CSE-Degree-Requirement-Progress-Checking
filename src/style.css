@@ -76,6 +76,7 @@ dialog.consent { border: 0; padding: 0; background: transparent; max-width: min(
 dialog.consent::backdrop { background: rgba(10, 22, 40, 0.55); }
 .consent-box { background: #fff; border-radius: 12px; max-width: 540px; padding: 22px 26px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
 .consent-box h2 { margin-top: 0; }
+.consent-box .consent-warning { color: var(--bad); font-weight: 700; }
 /* The check-before-you-send dialog behind every copy button (2026-09-06 evening). */
 dialog.copy-check { max-width: min(760px, calc(100vw - 32px)); width: 100%; }
 dialog.copy-check .consent-box { max-width: none; }
@@ -289,7 +290,8 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .headline .s-met .key-dot { background: var(--ok); }
 .headline .s-needs_dgs_review .key-dot { background: var(--info); }
 .headline .s-in_progress .key-dot { background: var(--warn); }
-.headline .s-unmet .key-dot { background: var(--muted); }
+.headline .s-unmet .key-dot { background: var(--bad); }
+.headline .s-cannot_evaluate .key-dot { background: var(--muted); }
 /* A detail line about something the student is LOSING (over-cap credits): not
    the grey prose the rest of the detail is in. */
 .req-detail .detail-warn { color: #6b4d10; }
@@ -389,8 +391,12 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .pill.s-met { background: #e4f2ea; color: var(--ok); }
 .req.s-in_progress { border-left-color: var(--warn); }
 .pill.s-in_progress { background: #fbeedd; color: var(--warn); }
-.req.s-unmet { border-left-color: var(--bad); }
-.pill.s-unmet { background: #fbe9e7; color: var(--bad); }
+/* "Not yet" reads "In progress" since 2026-09-22, in the same amber; only an
+   unmet row past its deadline (.s-overdue) keeps the red. */
+.req.s-unmet { border-left-color: var(--warn); }
+.pill.s-unmet { background: #fbeedd; color: var(--warn); }
+.req.s-unmet:has(.pill.s-overdue) { border-left-color: var(--bad); }
+.pill.s-overdue { background: #fbe9e7; color: var(--bad); }
 .req.s-needs_dgs_review { border-left-color: var(--info); }
 .pill.s-needs_dgs_review { background: #e7eef9; color: var(--info); }
 .req.s-cannot_evaluate { border-left-color: var(--grey); }

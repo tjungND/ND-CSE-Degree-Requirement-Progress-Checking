@@ -1256,7 +1256,10 @@ export function allocate(classified: ClassifiedCourse[], caps: CapSpec[]): Alloc
       sums.totalOnly[cc.tier] += excluded;
       sums.total[cc.tier] += excluded;
     }
-    if (isRegular && cc.entry.origin === 'nd') sums.ndRegular[cc.tier] += counted;
+    // §4.2's nine at Notre Dame: courses taken in the program, and (DGS
+    // 2026-09-22) the regular courses of the student's own Notre Dame MSCSE —
+    // not a 4+1's undergraduate coursework (DGS 2026-09-13).
+    if (isRegular && (cc.entry.origin === 'nd' || cc.ndMastersCredit)) sums.ndRegular[cc.tier] += counted;
     if (cc.entry.origin === 'nd' && (cc.rule?.courseType === 'research' || cc.rule?.courseType === 'project')) {
       sums.ndResearch[cc.tier] += counted; // §4.5 along-the-way (DGS 2026-09-04)
     }
