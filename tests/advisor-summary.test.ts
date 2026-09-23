@@ -83,7 +83,10 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     const seminar = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.seminar', title: 'Seminar', detail: 'CSE 63801: done (Fall 2026). CSE 63802: in progress (Spring 2027).' }] }, opts).text;
     assert.match(seminar, /\[MET\] Seminar \(§2\.2\) — CSE 63802: in progress \(Spring 2027\)\.\n/);
     const twoOpen = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.seminar', title: 'Seminar', detail: 'CSE 63801: not yet. CSE 63802: in progress (Spring 2027).' }] }, opts).text;
-    assert.match(twoOpen, /\[MET\] Seminar \(§2\.2\) —\n      - CSE 63801: not yet\n      - CSE 63802: in progress \(Spring 2027\)\n/);
+    assert.match(twoOpen, /\[MET\] Seminar \(§2\.2\) — CSE 63801: not yet\. CSE 63802: in progress \(Spring 2027\)\.\n/, 'no bullets (DGS 2026-09-23)');
+    // The categories row names the groups satisfied, not the courses (DGS 2026-09-23).
+    const cats = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.qualifier.categories', title: 'Categories', detail: '', detailParts: [{ lead: '3 qualifying courses covering 2 distinct groups', items: ['CSE 60641 Graduate Operating Systems → Systems and Software', 'CSE 60321 Advanced Computer Architecture → Architecture', 'CSE 60876 Research Methods → Architecture (flexible course — your assignment)'] }] }] }, opts).text;
+    assert.match(cats, /\[MET\] Categories \(§2\.2\) — 3 qualifying courses covering 2 distinct groups: Systems and Software, Architecture\.\n/);
     assert.ok(html.includes(`<td>${amber}CONDITIONALLY MET</span></td>`));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });

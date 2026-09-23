@@ -128,20 +128,12 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
         : isNotStarted(r)
           ? { word: 'NOT STARTED', color: 'grey' }
           : STATUS_TAG[r.status];
-  // Met rows carry their Why too (DGS 2026-09-22): which courses met the core
-  // areas and the categories, which seminars were taken when. Lists of two or
-  // more are bullets (DGS 2026-09-23). The page's "Courses counted" lists were
-  // added here on 2026-09-22 and taken out again on 2026-09-23 (DGS: "Advisors
-  // don't need to know the course details. Summary in the why column is
-  // enough.") — the row's own summary is the Why.
-  const whyCell = (r: RequirementResult): WhySegment[] => whySegments(r);
-  const whyText = (segs: WhySegment[]): string =>
-    segs
-      .map((s) => (typeof s === 'string' ? s : `${s.lead ? `${s.lead}:` : ''}${s.items.map((i) => `\n      - ${i}`).join('')}`))
-      .join(' ')
-      .replace(/ \n/g, '\n');
-  const whyHtml = (segs: WhySegment[]): string =>
-    segs.map((s) => (typeof s === 'string' ? esc(s) : `${s.lead ? esc(`${s.lead}:`) : ''}<ul>${s.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`)).join(' ');
+  // Met rows carry their Why too (DGS 2026-09-22): a one-line summary of what
+  // met them. The "Courses counted" lists (2026-09-22), the bullet lists and
+  // the seminar semesters (2026-09-23, morning) were all taken out again the
+  // same day — DGS: "Advisors don't need to know the course details. Summary
+  // in the why column is enough." The categories row names the groups only.
+  const whyCell = (r: RequirementResult): string => whyFor(r);
   // The DGS and Grad Admin lists print only when they hold something; two
   // headings announcing that two absent people have nothing to do were filler
   // for the advisor. One sentence keeps all four parties accounted for (trim
@@ -167,11 +159,8 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const line = (r: RequirementResult): string => {
     const tag = tagFor(r);
     const due = deadlineOf(r);
-    const why = whyCell(r);
-    // A deadline after a bulleted list goes on its own line.
-    const dueText = due ? `${due.text}.` : '';
-    const parts = [whyText(why), why.some((s) => typeof s !== 'string') && dueText ? `\n      ${dueText}` : dueText].filter(Boolean);
-    return `[${tag.word}] ${r.title} (${r.citation.section})${parts.length ? ` — ${parts.join(' ')}` : ''}`.replace(' — \n', ' —\n');
+    const parts = [whyCell(r), due ? `${due.text}.` : ''].filter(Boolean);
+    return `[${tag.word}] ${r.title} (${r.citation.section})${parts.length ? ` — ${parts.join(' ')}` : ''}`;
   };
   const todoText = (heading: string, items: string[]) =>
     `${heading}\n${items.length > 0 ? items.map((i) => `- ${i}`).join('\n') : '- Nothing at the moment.'}\n\n`;
@@ -203,7 +192,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
           const dueCell = due ? (due.passed ? colored('red', esc(due.text)) : esc(due.text)) : '';
           return (
             `<tr><td>${colored(tag.color, esc(tag.word))}</td><td>${colored(tag.color, esc(r.title))}</td><td>${esc(r.citation.section)}</td>` +
-            `<td>${whyHtml(whyCell(r))}</td>${withDeadline ? `<td>${dueCell}</td>` : ''}</tr>`
+            `<td>${esc(whyCell(r))}</td>${withDeadline ? `<td>${dueCell}</td>` : ''}</tr>`
           );
         })
         .join('') +
@@ -261,7 +250,7 @@ export function actionItems(report: AuditReport): ActionItems {
   const out: ActionItems = { student: [], advisor: [], dgs: [], gradAdmin: [] };
   const byId = new Map(report.requirements.map((r) => [r.id, r]));
   /** The detail as prose — the joined parts when the row carries them. */
-  const textOf = (r: RequirementResult) => (r.detailParts ? r.detailParts.map(flatten).join('. ') : r.detail);
+  const textOf = (r: RequirementResult) => (r.detailParts ? r.detailParts.map((p) => flatten(p)).join('. ') : r.detail);
   const isOpen = (status: Status) => status === 'unmet' || status === 'in_progress';
   // "by the end of Spring 2030" / "before Fall 2034" / "during Spring 2028" —
   // the engine's semester phrases are complete adverbials; a passed deadline
@@ -468,57 +457,30 @@ function dedupe(items: string[]): string[] {
  * left to say (the deadline phrase then stands alone). `firstStatementOnly`
  * keeps just the leading statement. */
 export function whyFor(r: RequirementResult, firstStatementOnly = false): string {
-  const segs = whySegments(r);
-  const kept = firstStatementOnly ? segs.slice(0, 1) : segs;
-  return kept.map((s) => (typeof s === 'string' ? s : `${s.lead ? `${s.lead}: ` : ''}${s.items.join('; ')}.`)).join(' ');
+  const statements = (r.detailParts ? r.detailParts.map((p) => flatten(p, r)) : splitStatements(r.detail))
+    .map((s) => s.trim().replace(/\.$/, ''))
+    .filter((s) => s.length > 0)
+    .map(rewrite)
+    .filter((s) => !dropsFromEmail(s, r))
+    .map(firstPerson);
+  const kept = firstStatementOnly ? statements.slice(0, 1) : statements;
+  if (kept.length === 0) return '';
+  return kept.map((s) => `${s.charAt(0).toUpperCase()}${s.slice(1)}.`).join(' ');
 }
 
-/** A Why segment: a sentence, or a list the email renders as bullets (DGS
- * 2026-09-23: "if there are multiple courses/categories, use bullet points"). */
-export type WhySegment = string | { lead: string; items: string[] };
-
-/** The engine's detail as segments: every statement re-voiced as in whyFor;
- * a detail part with two or more items becomes a list, and so do two or more
- * consecutive statements that each name a course ("CSE 63801: done (Fall 2024)"). */
-export function whySegments(r: RequirementResult): WhySegment[] {
-  const voice = (s: string): string | undefined => {
-    const t = rewrite(s.trim().replace(/\.$/, ''));
-    if (t.length === 0 || dropsFromEmail(t, r)) return undefined;
-    const v = firstPerson(t);
-    return `${v.charAt(0).toUpperCase()}${v.slice(1)}`;
-  };
-  const out: WhySegment[] = [];
-  const isCourseLine = (s: string) => /^[A-Z]{2,5} \d{5}:/.test(s);
-  let run: string[] = [];
-  const flush = () => {
-    if (run.length > 1) out.push({ lead: '', items: run });
-    else if (run.length === 1) out.push(`${run[0]}.`);
-    run = [];
-  };
-  const statement = (s: string) => {
-    const v = voice(s);
-    if (v === undefined) return;
-    if (isCourseLine(v)) run.push(v);
-    else {
-      flush();
-      out.push(`${v}.`);
-    }
-  };
-  for (const p of r.detailParts ?? splitStatements(r.detail)) {
-    if (typeof p !== 'string' && 'items' in p && p.items.length > 1) {
-      flush();
-      const lead = voice(p.lead);
-      if (lead !== undefined) out.push({ lead, items: p.items.map((i) => i.replace(/\.$/, '')) });
-      continue;
-    }
-    statement(typeof p === 'string' ? p : flatten(p));
-  }
-  flush();
-  return out;
-}
-
-function flatten(p: DetailPart): string {
-  return typeof p === 'string' ? p : 'warn' in p ? p.warn : `${p.lead}: ${p.items.join('; ')}`;
+/** A detail part as one sentence. The §4.4.2 categories row lists "COURSE
+ * title → Group" per course on the page; the advisor needs only which groups
+ * are satisfied (DGS 2026-09-23: "Just need to say which categories are
+ * satisfied. No bullet points needed."), so its items reduce to the distinct
+ * group names. */
+function flatten(p: DetailPart, r?: RequirementResult): string {
+  if (typeof p === 'string') return p;
+  if ('warn' in p) return p.warn;
+  const items =
+    r?.id === 'phd.qualifier.categories'
+      ? [...new Set(p.items.map((i) => i.replace(/^.*→\s*/, '').replace(/\s*\(flexible course[^)]*\)/, '').trim()))]
+      : p.items;
+  return `${p.lead}: ${items.join(r?.id === 'phd.qualifier.categories' ? ', ' : '; ')}`;
 }
 
 /** Split prose into statements at ". " before a capital or digit, sparing the

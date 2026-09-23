@@ -257,7 +257,7 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   an unmet row with `deadline.state === 'overdue'` displays "Overdue" (`isOverdue`, class
   `s-overdue`). The headline counts in progress / overdue / cannot be evaluated / conditionally
   met; the engine statuses are unchanged, so tests and the attention list still read `unmet`.
-  `advisorSummary` renders each row's own detail as Why segments (`whySegments`; lists of two or more are bullets; no course lists — DGS 2026-09-23) and takes
+  `advisorSummary` re-voices each row's own detail as the Why (`whyFor`; no course lists, no bullets, the categories row reduced to group names — DGS 2026-09-23) and takes
   `advisors` (the names; a second advisor lives in `milestones.advisorName2`). `ndRegular` (allocate.ts)
   counts `ndMastersCredit` rows as taken at Notre Dame for §4.2's nine.
 - **The Graduate School's two rules** (through the DGS, 2026-09-22 — DECISIONS has the verbatim
