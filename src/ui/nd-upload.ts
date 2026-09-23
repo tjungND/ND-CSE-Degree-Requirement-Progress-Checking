@@ -165,7 +165,11 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
         programGpa: earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? programGpa : undefined,
         gpaChoice: transcriptGpa !== undefined ? 'transcript' : earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? 'program' : 'none',
         entryTerm: parsed.entryTerm,
-        useEntryTerm: parsed.entryTerm !== undefined,
+        // Ticked by default only while the entry term on the record is still
+        // assumed or read from an earlier import: a term the student typed
+        // under Your standing is theirs (DGS 2026-09-22: "Do not reset them if
+        // there are manual inputs") — the box then starts unticked.
+        useEntryTerm: parsed.entryTerm !== undefined && args.student.entryTermInferred !== undefined,
         degreesAwarded: parsed.degreesAwarded,
         warnings: [...parsed.warnings, ...gpaWarning],
       };
@@ -366,7 +370,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         cb,
         // The consequence is under the field in Your standing, in both
         // states (trim review 2026-09-18, P-30).
-        ` Set your entry term to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. Check it.`,
+        args.student.entryTermInferred === undefined
+          ? ` Replace the entry term you entered (${termLabel(args.student.entryTerm)}) with this transcript’s reading, ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. Left unticked, your own entry term is kept.`
+          : ` Set your entry term to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. Check it.`,
       ),
     );
     if (tp.entryTerm.alternative) box.append(el('p', { class: 'hint warn' }, `Note: ${tp.entryTerm.alternative.why}.`));
