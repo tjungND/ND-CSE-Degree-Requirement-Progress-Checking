@@ -583,7 +583,7 @@ describe('undergraduate Notre Dame coursework', () => {
   it('below the 60000 level it draws on §4.2’s six credits; below 40000 it counts nothing', () => {
     const s = student([ug('CSE 40113'), ug('CSE 40567'), ug('CSE 40243'), ug('CSE 20110')]);
     assert.match(detail(s, 'phd.cap.fourk'), /6 of the 6 credits below the 60000 level used/);
-    assert.match(lineFor(s, 'CSE 20110'), /taken as an undergraduate student — no transfer credit/, 'a course that cannot count at any answer keeps the line it always had');
+    assert.match(lineFor(s, 'CSE 20110'), /not eligible for degree credit at the 20000-level — only CSE 40000-level courses/, 'a course that cannot count at any answer says why: its level (DGS 2026-09-22)');
   });
 
   it('a student with no Notre Dame master’s is never asked — nothing of theirs can have counted twice', () => {

@@ -730,12 +730,20 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   if (c.degreeLevel === 'bachelors') {
     const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
     const suggested = coreTitleSuggestion(c.title);
-    const ugNote = '; taken as an undergraduate student — no transfer credit (§5.2)';
+    // Two different reasons (DGS 2026-09-22). Another university's course:
+    // the student's STATUS at the time — §5.2 needs graduate student status
+    // (DGS 2026-09-07). A Notre Dame course reaches this branch only because
+    // its LEVEL cannot count (undergradLevelEligible): Notre Dame coursework
+    // is never §5.2 transfer credit (Graduate School, 2026-09-10), so "no
+    // transfer credit" named the wrong rule for it.
+    const nd = isNotreDameInstitution(c.institution);
+    const levelReason = `${levelOf(c, rule)}0000-level — only CSE 40000-level courses (up to 6 credits, with approval), 50000-level CSE courses listed in the course rules and 60000-level courses can count (${program === 'mscse' ? '§3.2' : '§4.2'})`;
+    const ugNote = nd ? `; not eligible for degree credit at the ${levelReason}` : '; taken as an undergraduate student — no transfer credit (§5.2)';
     // For an MSCSE student there is no §4.4.1 to demonstrate: an
     // undergraduate course from another university can do nothing here,
     // and saying so once is the whole line (DGS 2026-09-11).
     if (!qualifierApplies) {
-      return { ...extBase, ineligibleReason: `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)` };
+      return { ...extBase, ineligibleReason: nd ? `not counted — not eligible for degree credit at the ${levelReason}` : `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)` };
     }
     return {
       ...extBase,
