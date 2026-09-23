@@ -519,24 +519,27 @@ export async function driveApp(s, baseUrl) {
   // finished reading actually is (interface review R6/R7, 2026-09-18).
   const privacy = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const txt = document.body.textContent ?? '';
-    const card = document.querySelector('.finish-card');
-    if (card) card.id = 'shot-finish';
     return {
       overstated: /only network request|to any third party/.test(txt),
       approved: /Your coursework never leaves this browser/.test(txt),
       ferpa: /FERPA-protected education records remain under your control/.test(txt),
       shared: /On a shared or public computer, clear your record before you walk away/.test(txt),
-      finishCard: card?.textContent ?? '',
-      clearAtEnd: !!document.querySelector('[data-key="report.reset"]'),
+      // The finish card is gone (DGS 2026-09-22): Reset lives in the storage
+      // card beside Print and in the tools row; the advisor summary button
+      // sits between Load example and Reset in that row.
+      finishCard: document.querySelector('.finish-card') ? 'still there' : '',
+      clearAtEnd: !!document.querySelector('[data-key="save.reset"]'),
       clearAtTop: !!document.querySelector('[data-key="tools.reset"]'),
+      toolsOrder: [...document.querySelectorAll('.masthead-tools .btn')].map((b) => b.getAttribute('data-key')).join(','),
     };
   })())`));
   console.log('  privacy + shared computers:', JSON.stringify({ ...privacy, finishCard: privacy.finishCard.slice(0, 60) }));
   if (privacy.overstated) throw new Error('the overstated privacy claims must be gone');
   if (!privacy.approved || !privacy.ferpa) throw new Error('the approved wording and the FERPA sentence must both be there');
   if (!privacy.shared) throw new Error('the shared-computer line must be in the save card');
-  if (!privacy.clearAtEnd || !privacy.clearAtTop) throw new Error('Clear must be reachable from BOTH ends: ' + JSON.stringify(privacy));
-  await s.shotElement('finish-card', '#shot-finish');
+  if (privacy.finishCard) throw new Error('the finish card must be gone (DGS 2026-09-22)');
+  if (!privacy.clearAtEnd || !privacy.clearAtTop) throw new Error('Reset must be in the storage card and the tools row: ' + JSON.stringify(privacy));
+  if (privacy.toolsOrder !== 'tools.example,save.copy,tools.reset') throw new Error('tools row order: ' + privacy.toolsOrder);
 
   // The example banner tells the truth about whose rows these are (interface
   // review R5, 2026-09-18). `isExample` used to be a flag on the whole record:

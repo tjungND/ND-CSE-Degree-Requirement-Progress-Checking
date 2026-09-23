@@ -821,9 +821,15 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       group: DISSERTATION,
       title: 'Dissertation unanimously approved for defense by the readers',
       status: m.dissertationApprovedForDefense ? 'met' : 'unmet',
+      // Before the Oral Candidacy Exam the dissertation stage has not begun
+      // (DGS 2026-09-22: "Dissertation does not start before OCE is passed");
+      // the leading "Not started" is what the page and the advisor summary
+      // read to show the grey pill, so keep it as the first words.
       detail: m.dissertationApprovedForDefense
         ? `Approved for defense ${m.dissertationApprovedForDefense}.`
-        : 'Not yet approved.',
+        : m.candidacyPassed === undefined
+          ? 'Not started — the dissertation stage begins after the Oral Candidacy Exam is passed (§4.5).'
+          : 'Not yet approved.',
       citation: {
         section: '§4.6',
         quote: 'Only a dissertation, which has been unanimously approved for defense by the readers, may be defended.',
@@ -845,7 +851,9 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
         ? lateDefense
           ? `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). §4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
           : `Defense passed ${m.defensePassed}. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
-        : `Not yet: three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`,
+        : m.candidacyPassed === undefined
+          ? `Not started — the defense comes after the Oral Candidacy Exam (§4.5) and the readers’ approval (§4.6); three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`
+          : `Not yet: three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`,
       citation: {
         section: '§4.7',
         quote: 'In defending the dissertation, the doctoral candidate supports its claims, procedures and results.',

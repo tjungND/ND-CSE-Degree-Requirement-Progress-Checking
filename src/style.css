@@ -292,6 +292,7 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .headline .s-in_progress .key-dot { background: var(--warn); }
 .headline .s-unmet .key-dot { background: var(--bad); }
 .headline .s-cannot_evaluate .key-dot { background: var(--muted); }
+.headline .s-notstarted .key-dot { background: var(--line); }
 /* A detail line about something the student is LOSING (over-cap credits): not
    the grey prose the rest of the detail is in. */
 .req-detail .detail-warn { color: #6b4d10; }
@@ -301,7 +302,9 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .pill.s-alarm { background: #fbeedd; color: #7a4a00; font-weight: 700; }
 /* The end-of-report card (R7, 2026-09-18): Clear where someone who has just
    finished reading actually is, not only at the top of the page. */
-.finish-card { margin-top: 12px; }
+/* The program the record is for (DGS 2026-09-22: "nicer and more prominent") —
+   a navy badge where the two tabs used to be. */
+.program-name { display: inline-block; background: var(--navy); color: #fff; font-weight: 700; font-size: 1.05rem; letter-spacing: 0.01em; padding: 8px 16px; border-radius: 999px; }
 /* The program choice inside the opening notice (blue-team B2, 2026-09-18):
    the question the page used to answer silently with "Ph.D.". */
 .consent-program-group { margin: 14px 0 16px; }
@@ -397,6 +400,9 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .pill.s-unmet { background: #fbeedd; color: var(--warn); }
 .req.s-unmet:has(.pill.s-overdue) { border-left-color: var(--bad); }
 .pill.s-overdue { background: #fbe9e7; color: var(--bad); }
+/* A stage that has not begun (the dissertation rows before the OCE, DGS 2026-09-22): grey, not amber. */
+.req.s-unmet:has(.pill.s-notstarted) { border-left-color: var(--line); }
+.pill.s-notstarted { background: #eef0f3; color: var(--muted); }
 .req.s-needs_dgs_review { border-left-color: var(--info); }
 .pill.s-needs_dgs_review { background: #e7eef9; color: var(--info); }
 .req.s-cannot_evaluate { border-left-color: var(--grey); }
@@ -428,7 +434,7 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
   /* On paper the finish card, the "See the courses" arrows and the self-check
      intro cannot be acted on (trim review 2026-09-18, P-91); the intro selector is
      scoped so courses.html keeps its own masthead intro when printed. */
-  .masthead-tools, .inputs, .toast-stack, .save-buttons, .skip-link, .finish-card, .course-link, #app:not(.courses-page) .masthead .sub { display: none !important; }
+  .masthead-tools, .inputs, .toast-stack, .save-buttons, .skip-link, .course-link, #app:not(.courses-page) .masthead .sub { display: none !important; }
   .summary-mobile, .sticky-score, .jump-link, .mobile-only { display: none !important; }
   .layout { display: block; }
   .audit-col { position: static; max-height: none; overflow: visible; }
@@ -745,7 +751,7 @@ tr.ocr-low td { background: #fff7e0; }
   /* Load example and Clear are tools, not a second pair of tabs: at phone
      width two full-width buttons under two full-width tabs read as four tabs
      (mobile review 2026-09-19). Auto width, same 40 px height. */
-  .masthead-tools > div:not(.tabs) { display: flex; gap: 8px; width: 100%; }
+  .masthead-tools > div:not(.tabs) { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; } /* three buttons since 2026-09-22 — they wrap on a phone */
   .masthead-tools > div:not(.tabs) .btn { flex: 0 0 auto; margin: 0; padding-left: 14px; padding-right: 14px; }
   /* The sheet's source line is faculty-facing and is in the footer's "Where the
      rules come from" fold too; on a phone it was three of the nine lines before

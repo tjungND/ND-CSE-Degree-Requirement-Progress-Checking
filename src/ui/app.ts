@@ -394,7 +394,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // → main (notices, inputs, report, footer); the skip link jumps a
       // keyboard user straight to the report.
       el('a', { class: 'skip-link', href: '#report' }, 'Skip to the report'),
-      masthead(),
+      masthead(report),
       el(
         'main',
         { id: 'main' },
@@ -444,27 +444,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               ? el('div', { class: 'warnings', role: 'note', 'data-keep-dgs': '' }, ...report.warnings.map((w) => el('div', {}, `⚠ ${w}`)))
               : null,
             renderReport(report, untouched),
-            // Clear is at the top of the page, which is the wrong end for
-            // someone who has just finished reading their report on a shared
-            // machine (R7, 2026-09-18).
-            untouched
-              ? null
-              : el(
-                  'div',
-                  { class: 'card finish-card', role: 'note' },
-                  el('strong', {}, 'Finished on a shared computer? '),
-                  'Your record stays in this browser until you clear it — save it to a file first if you want to keep it.',
-                  el(
-                    'div',
-                    { class: 'save-buttons' },
-                    el('button', { class: 'btn', 'data-key': 'report.save', onclick: () => exportFile(student) }, 'Save to a file'),
-                    // The summary is a view of the report, so its button sits
-                    // where the report ends, not in the storage card (trim
-                    // review 2026-09-18, P-72); same key, dialog and wording.
-                    advisorSummaryButton(report),
-                    el('button', { class: 'btn', 'data-key': 'report.reset', onclick: resetAll }, 'Reset'), // same label as the button at the top: one action, one name (DGS 2026-09-19, P-63)
-                  ),
-                ),
+            // The finish card that stood here (R7, 2026-09-18: Reset at the
+            // end for a shared machine) repeated the storage card's sentence
+            // and its Save button; the DGS removed it on 2026-09-22 — Reset
+            // sits in the storage card next to Print, and the advisor summary
+            // button in the tools row at the top.
           ),
           // The footer is the layout grid's third child (DGS 2026-09-19): on a
           // wide screen it sits under the inputs column, in the space the
@@ -499,7 +483,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   // ---------- masthead ----------
 
-  function masthead(): HTMLElement {
+  function masthead(report: ReturnType<typeof audit>): HTMLElement {
     // The two program buttons expose their pressed state (item 5): a screen
     // reader says "M.S. in CSE §3, toggle button, pressed".
     // The program tabs are gone (DGS 2026-09-22): the degree is chosen in the
@@ -572,6 +556,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           'div',
           {},
           el('button', { class: 'btn', 'data-key': 'tools.example', onclick: loadExample }, 'Load example'),
+          // Between Load example and Reset (DGS 2026-09-22); it was at the end
+          // of the report from the trim review (P-72) until then.
+          advisorSummaryButton(report),
           el('button', { class: 'btn', 'data-key': 'tools.reset', onclick: resetAll }, 'Reset'),
         ),
       ),
@@ -1985,6 +1972,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('button', { class: 'btn primary', 'data-key': 'save.file', onclick: () => exportFile(student) }, 'Save to a file'),
         el('button', { class: 'btn', 'data-key': 'save.load', onclick: () => (fileInput as HTMLInputElement).click() }, 'Load a file'),
         el('button', { class: 'btn', 'data-key': 'save.print', onclick: () => window.print() }, 'Print'),
+        // Reset beside Print (DGS 2026-09-22) — the card whose sentence tells a
+        // student on a shared machine to clear the record holds the button.
+        el('button', { class: 'btn', 'data-key': 'save.reset', onclick: resetAll }, 'Reset'),
       ),
       fileInput,
     );

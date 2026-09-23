@@ -29,9 +29,18 @@ const STATUS_LABEL: Record<Status, string> = {
 export function isOverdue(r: RequirementResult): boolean {
   return r.status === 'unmet' && r.deadline?.state === 'overdue';
 }
-/** The pill's word: the engine's override, else "Overdue", else the status word. */
+/** An unmet row whose stage has not begun — the engine leads its detail with
+ * "Not started" (the dissertation rows before the OCE, DGS 2026-09-22). */
+export function isNotStarted(r: RequirementResult): boolean {
+  return r.status === 'unmet' && /^Not started\b/.test(r.detail);
+}
+/** The pill's word: the engine's override, else "Overdue" / "Not started", else the status word. */
 export function pillLabel(r: RequirementResult): string {
-  return r.statusLabel ?? (isOverdue(r) ? 'Overdue' : STATUS_LABEL[r.status]);
+  return r.statusLabel ?? (isOverdue(r) ? 'Overdue' : isNotStarted(r) ? 'Not started' : STATUS_LABEL[r.status]);
+}
+/** Extra pill classes for the two display-only states. */
+function pillState(r: RequirementResult): string {
+  return isOverdue(r) ? ' s-overdue' : isNotStarted(r) ? ' s-notstarted' : '';
 }
 
 /** The rows the headline counts: informational rows (the per-course sign-off
@@ -105,8 +114,9 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   // apart, in red. Conditional satisfaction stands as its own count (R2,
   // 2026-09-18) and so does "cannot evaluate".
   const overdue = scoredRows(report).filter(isOverdue).length;
+  const notStarted = scoredRows(report).filter(isNotStarted).length;
   const cannot = scoredRows(report).filter((r) => r.status === 'cannot_evaluate').length;
-  const inProgress = remaining - conditional - overdue - cannot;
+  const inProgress = remaining - conditional - overdue - notStarted - cannot;
   // The headline IS the status key (trim review 2026-09-18, P-49; R2's separate
   // key under the meters is gone): each count carries a dot in the colour of
   // the dial band it stands for, so the ring is readable without hovering
@@ -116,6 +126,7 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
   if (conditional > 0) parts.push(['s-needs_dgs_review', `${conditional} conditionally met`]);
   if (inProgress > 0) parts.push(['s-in_progress', `${inProgress} in progress`]);
   if (overdue > 0) parts.push(['s-unmet', `${overdue} overdue`]);
+  if (notStarted > 0) parts.push(['s-notstarted', `${notStarted} not started`]);
   if (cannot > 0) parts.push(['s-cannot_evaluate', `${cannot} cannot be evaluated`]);
   // "0 of 17 met" is a true but useless thing to tell someone who has entered
   // nothing (2026-09-08): every row is open because the page is empty, not
@@ -199,7 +210,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // the counts (W-CS2): the §4.7 defense past §4.3's limit reads "Eligibility
   // at risk", since "Conditionally met" would promise a degree that may be
   // forfeit.
-  const pill = el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}${isOverdue(r) ? ' s-overdue' : ''}` }, pillLabel(r));
+  const pill = el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}${pillState(r)}` }, pillLabel(r));
   // The rule itself, on the output side (DGS request 2026-09-03): clicking the
   // § chip reveals the handbook sentence this verdict is checked against. A
   // disclosure button (usability review 2026-09-05, item 24): its expanded
@@ -511,7 +522,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
           'li',
           {},
           el('a', { href: `#${reqAnchorId(r.id)}` }, r.title),
-          el('span', { class: `pill s-${r.status} small${isOverdue(r) ? ' s-overdue' : ''}` }, pillLabel(r)),
+          el('span', { class: `pill s-${r.status} small${pillState(r)}` }, pillLabel(r)),
           r.deadline && r.deadline.state === 'overdue' ? el('span', { class: 'attention-overdue' }, ' — deadline passed') : null,
           el('span', { class: 'attention-next', 'data-keep-dgs': '' }, ` ${firstSentence(r.detail)}`),
         ),

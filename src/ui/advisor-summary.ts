@@ -21,7 +21,7 @@ import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
 import { esc, plural, programLabel, programShort } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
-import { scoredRows } from './report.ts';
+import { isNotStarted, scoredRows } from './report.ts';
 
 export interface AdvisorSummaryOptions {
   todayIso: string;
@@ -34,7 +34,7 @@ export interface AdvisorSummaryOptions {
 }
 
 /** The page's palette, inline because email clients drop stylesheets. */
-export const COLORS = { green: '#10693f', amber: '#8e5108', red: '#a81e14' } as const;
+export const COLORS = { green: '#10693f', amber: '#8e5108', red: '#a81e14', grey: '#5b6472' } as const;
 type Color = keyof typeof COLORS;
 
 /** Status word (the page's) and colour per status. */
@@ -69,7 +69,8 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
 
   // One number for what is still open (DGS 2026-09-22: "Not yet" and "In
   // progress" merged into "in progress"); a passed deadline is said apart.
-  const open = n.unmet + n.inProgress;
+  const notStarted = scored.filter(isNotStarted).length;
+  const open = n.unmet + n.inProgress - notStarted;
   const headlineFact =
     n.scored > 0 && n.met === n.scored
       ? 'all checked requirements met'
@@ -87,6 +88,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `${n.met} of ${n.scored} requirements met`,
     ...(open > 0 ? [`${open} in progress`] : []),
     ...(n.overdue > 0 ? [`${plural(n.overdue, 'deadline')} passed`] : []),
+    ...(notStarted > 0 ? [`${notStarted} not started`] : []),
     ...(n.waiting > 0 ? [`${n.waiting} conditionally met`] : []),
     ...(n.unchecked > 0 ? [`${n.unchecked} cannot be evaluated`] : []),
   ].join(' · ');
@@ -122,7 +124,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
       ? { word: r.statusLabel.toUpperCase(), color: STATUS_TAG[r.status].color }
       : r.status === 'unmet' && r.deadline?.state === 'overdue'
         ? { word: 'OVERDUE', color: 'red' }
-        : STATUS_TAG[r.status];
+        : isNotStarted(r)
+          ? { word: 'NOT STARTED', color: 'grey' }
+          : STATUS_TAG[r.status];
   // The courses a credit requirement counts, for the advisor (DGS 2026-09-22:
   // "list all the courses that are used to satisfy the requirements in the
   // Why column") — the same list the page folds under "Courses counted".
