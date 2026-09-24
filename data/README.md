@@ -126,6 +126,7 @@ Columns A–B hold the §4.4.1 core-knowledge areas, columns D–E the §4.4.2 s
 | | | | `ineligible` | Courses ineligible for qualifying examination |
 
 ### Tab `Changelog` (optional, human-only) — date, who, what changed. The app does not read it.
+Only changes to the engine's logic go here — how a requirement is evaluated, what counts, a cap, a status (DGS 2026-09-23). Visual, layout and wording-only changes do not; they are in `docs/DECISIONS.md` and the git history.
 
 ### Note rows
 A row whose key cell is a plain-English sentence (and whose other cells are empty) is treated as
