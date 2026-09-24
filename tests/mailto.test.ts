@@ -19,6 +19,8 @@ describe('mailto: behind the copy dialog', () => {
     assert.match(decodeURIComponent(mailtoHref(dgs, 'S', long, false)!), /\[DELETE THIS LINE AND PASTE: copy the full message from the degree self-check page/);
   });
   it('no address on file (the advisor): the link still opens the email app, To left empty (DGS 2026-09-15)', () => {
+    // A message with tables is always pasted, however short (2026-09-23).
+    assert.match(decodeURIComponent(mailtoHref(dgs, 'S', 'short', true, true)), /body=\[DELETE THIS LINE AND PASTE: the full message was automatically copied/);
     assert.equal(mailtoHref({ role: 'Your advisor', name: 'Prof. Example' }, 'S', 'body', true), 'mailto:?subject=S&body=body');
   });
 });

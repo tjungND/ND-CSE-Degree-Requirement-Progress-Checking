@@ -62,8 +62,10 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
   }
   // Inside a cross-origin <iframe> Chrome refuses the async clipboard unless
   // the frame carries allow="clipboard-write" (DGS 2026-09-16). The legacy
-  // command still works there within the click that opened the dialog: select
-  // the plain text in a hidden textarea and copy it. Plain text only.
+  // command still works there within the click that opened the dialog. It
+  // copied the plain text only until 2026-09-23, so the embedded page's
+  // requests pasted without their tables (DGS: "They used to be"); a `copy`
+  // listener now hands the command BOTH flavours, as the async path does.
   const ta = document.createElement('textarea');
   ta.value = built.text;
   ta.setAttribute('readonly', '');
@@ -72,12 +74,20 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
   ta.style.left = '-9999px';
   document.body.append(ta);
   ta.select();
+  const both = (e: ClipboardEvent): void => {
+    if (!e.clipboardData) return;
+    e.clipboardData.setData('text/plain', built.text);
+    e.clipboardData.setData('text/html', built.html);
+    e.preventDefault();
+  };
+  document.addEventListener('copy', both);
   let ok = false;
   try {
     ok = document.execCommand('copy');
   } catch {
     ok = false;
   }
+  document.removeEventListener('copy', both);
   ta.remove();
   if (!ok) throw new Error('clipboard blocked');
 }
@@ -91,7 +101,16 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
  * address on file (the advisor's, DGS 2026-09-15) the link still opens the
  * email app — subject and body filled, the To field left for the student. */
 export const MAILTO_BODY_LIMIT = 1800;
-export function mailtoHref(r: CopyRecipient, subject: string, text: string, copied: boolean): string {
+export function mailtoHref(
+  r: CopyRecipient,
+  subject: string,
+  text: string,
+  copied: boolean,
+  /** The message has tables (2026-09-23): a mailto: body is plain text, so
+   * the tables would arrive as "a | b | c" lines — the reminder to paste the
+   * copied message is used instead, whatever the length. */
+  pasteOnly = false,
+): string {
   const body = encodeURIComponent(text);
   // The body when the message is too long for the link (DGS 2026-09-16: say
   // plainly that it was auto-copied and that THIS text is to be replaced).
@@ -101,7 +120,7 @@ export function mailtoHref(r: CopyRecipient, subject: string, text: string, copi
   const params = [
     ...(r.cc ? [`cc=${encodeURIComponent(r.cc.email)}`] : []),
     `subject=${encodeURIComponent(subject)}`,
-    `body=${body.length <= MAILTO_BODY_LIMIT ? body : encodeURIComponent(fallback)}`,
+    `body=${!pasteOnly && body.length <= MAILTO_BODY_LIMIT ? body : encodeURIComponent(fallback)}`,
   ];
   return `mailto:${r.email ? encodeURIComponent(r.email) : ''}?${params.join('&')}`;
 }
@@ -145,8 +164,12 @@ function showCopyDialog(opts: CopyDialogOptions, copied: boolean): void {
   const ok = el('button', { class: 'btn', 'data-key': 'copy.ok' }, 'OK');
   // "Open in my email app" (DGS 2026-09-13): a mailto: link styled as the
   // primary button, so the address, the cc and the subject are never retyped.
-  const href = mailtoHref(r, opts.subject, opts.text, copied);
-  const bodyIncluded = encodeURIComponent(opts.text).length <= MAILTO_BODY_LIMIT;
+  // Every message with a table (the DGS review request, the Grad Admin
+  // request, the advisor summary) is pasted, never pre-filled as plain text:
+  // the tables are what the DGS copies into the sheet (DGS 2026-09-23).
+  const hasTables = /<table\b/i.test(opts.html);
+  const href = mailtoHref(r, opts.subject, opts.text, copied, hasTables);
+  const bodyIncluded = !hasTables && encodeURIComponent(opts.text).length <= MAILTO_BODY_LIMIT;
   const openMail = el('a', { class: 'btn primary', 'data-key': 'copy.email', href, target: '_blank', rel: 'noopener' }, 'Open in my email app');
   const addressMissing = !r.email;
   const preview = el('textarea', { class: 'copy-preview', readonly: 'readonly', 'aria-label': 'The copied message', spellcheck: 'false' });

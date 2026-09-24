@@ -171,6 +171,28 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'review.copy') throw new Error('focus must return to the copy button after OK');
   console.log('  copy dialog names the DGS, shows subject and message; OK closes it, focus back on the button');
 
+  // The tables must survive every copy path (DGS 2026-09-23: "They used to
+  // be"). As inside the sites.nd.edu iframe, the async clipboard is refused;
+  // the legacy fallback must still hand over the HTML tables, and "Open in my
+  // email app" must ask for a paste rather than pre-fill a plain-text body.
+  {
+    await s.evalJs(`(() => {
+      window.__copiedHtml = null;
+      window.__copiedFired = false;
+      window.addEventListener('copy', (e) => { window.__copiedFired = true; window.__copiedHtml = e.clipboardData?.getData('text/html') ?? null; });
+      const refuse = () => Promise.reject(new Error('refused as in a frame'));
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write: refuse, writeText: refuse } });
+    })()`);
+    await s.evalJs(`document.querySelector('[data-key="review.copy"]').click()`);
+    await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
+    const got = JSON.parse(await s.evalJs(`JSON.stringify({ fired: window.__copiedFired, html: window.__copiedHtml ?? '', mail: decodeURIComponent(document.querySelector('dialog.copy-check [data-key="copy.email"]')?.getAttribute('href') ?? '') })`));
+    if (got.fired && !/<table\b/.test(got.html)) throw new Error('the iframe fallback copied no HTML table: ' + got.html.slice(0, 80));
+    if (!/body=\[DELETE THIS LINE AND PASTE/.test(got.mail)) throw new Error('a request with tables must be pasted, not pre-filled: ' + got.mail.slice(0, 120));
+    await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
+    await s.waitFor(`!document.querySelector('dialog.copy-check')`);
+    console.log(`  tables survive: iframe-style fallback ${got.fired ? 'copied HTML tables' : 'not exercised (no copy event in this browser)'}; the email app asks for a paste`);
+  }
+
   // The guidance above the four rows (DGS 2026-09-11): a bachelor's and a
   // master's from one university arrive as TWO transcripts as often as one —
   // Notre Dame's own 4+1 issues two — so the note has to name both shapes and
