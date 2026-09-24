@@ -539,7 +539,7 @@ export async function driveApp(s, baseUrl) {
   if (!privacy.shared) throw new Error('the shared-computer line must be in the save card');
   if (privacy.finishCard) throw new Error('the finish card must be gone (DGS 2026-09-22)');
   if (!privacy.clearAtEnd || !privacy.clearAtTop) throw new Error('Reset must be in the storage card and the tools row: ' + JSON.stringify(privacy));
-  if (privacy.toolsOrder !== 'tools.example,save.copy,tools.reset') throw new Error('tools row order: ' + privacy.toolsOrder);
+  if (privacy.toolsOrder !== 'tools.example,tools.save,tools.load,tools.print,save.copy,tools.reset') throw new Error('tools row order: ' + privacy.toolsOrder);
 
   // The example banner tells the truth about whose rows these are (interface
   // review R5, 2026-09-18). `isExample` used to be a flag on the whole record:

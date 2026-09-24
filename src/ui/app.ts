@@ -593,6 +593,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           'div',
           {},
           el('button', { class: 'btn', 'data-key': 'tools.example', onclick: loadExample }, 'Load example'),
+          // The storage card's three buttons, here too (DGS 2026-09-24), between
+          // Load example and the advisor summary. "Load a file" opens the storage
+          // card's own file input, so there is one import path.
+          el('button', { class: 'btn', 'data-key': 'tools.save', onclick: () => exportFile(student) }, 'Save to a file'),
+          el('button', { class: 'btn', 'data-key': 'tools.load', onclick: () => document.querySelector<HTMLInputElement>('[data-key="save.fileinput"]')?.click() }, 'Load a file'),
+          el('button', { class: 'btn', 'data-key': 'tools.print', onclick: () => window.print() }, 'Print'),
           // Between Load example and Reset (DGS 2026-09-22); it was at the end
           // of the report from the trim review (P-72) until then.
           advisorSummaryButton(report),
@@ -1948,7 +1954,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   }
 
   function saveCard(report: ReturnType<typeof audit>): HTMLElement {
-    const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden', 'aria-label': 'Saved file' }); // (P-62)
+    const fileInput = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden', 'aria-label': 'Saved file', 'data-key': 'save.fileinput' }); // (P-62); the tools row's "Load a file" opens it too
     fileInput.addEventListener('change', async () => {
       const file = (fileInput as HTMLInputElement).files?.[0];
       if (!file) return;

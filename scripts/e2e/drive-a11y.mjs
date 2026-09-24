@@ -206,10 +206,12 @@ async function checkFirstScreen(s, baseUrl) {
   })())`));
   console.log('  first screen at 708×937:', JSON.stringify(first));
   if (first.importTop < 0 || first.importTop > 937) throw new Error('the first import control must be on the first screen: ' + first.importTop);
-  // Seven focusables precede the first import control since the program tabs
+  // Seven focusables preceded the first import control once the program tabs
   // left the masthead (DGS 2026-09-22): three masthead links, Load example,
-  // Reset, and the two notice strips' Details.
-  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 8) {
+  // Reset, and the two notice strips' Details. The tools row has since gained
+  // Send summary (DGS 2026-09-22) and Save / Load / Print (DGS 2026-09-24),
+  // at the DGS's request; the skip link still jumps straight to the inputs.
+  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 11) {
     throw new Error('a data-entry control must come early in the tab order, not 20th: ' + first.firstEntryIndex);
   }
   if (first.contactInMasthead || !first.contactAtEnd) throw new Error('the who-to-contact card belongs at the end: ' + JSON.stringify(first));
