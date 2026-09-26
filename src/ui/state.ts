@@ -70,7 +70,7 @@ function validBackground(v: unknown): Student['background'] {
   const bachelors = o['bachelors'];
   const graduate = o['graduate'];
   if (bachelors !== 'nd-cse' && bachelors !== 'nd-other' && bachelors !== 'elsewhere') return undefined;
-  if (graduate !== 'none' && graduate !== 'nd-mscse' && graduate !== 'nd-4plus1' && graduate !== 'nd-other' && graduate !== 'elsewhere') return undefined;
+  if (graduate !== 'none' && graduate !== 'nd-mscse' && graduate !== 'nd-4plus1' && graduate !== 'nd-mscse-transfer' && graduate !== 'nd-other' && graduate !== 'elsewhere') return undefined;
   return {
     bachelors,
     ...(bachelors === 'nd-cse' && typeof o['ndIntegrated'] === 'boolean' ? { ndIntegrated: o['ndIntegrated'] as boolean } : {}),

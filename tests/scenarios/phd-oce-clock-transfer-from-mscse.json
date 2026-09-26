@@ -1,0 +1,61 @@
+{
+  "name": "phd-oce-clock-transfer-from-mscse",
+  "description": "Started in the Notre Dame MSCSE in Fall 2022 and transferred into the Ph.D. without finishing it: the \u00a74.5 eighth semester is counted from the MSCSE start (DGS 2026-09-26), so in Fall 2026 (semester 9) the OCE is overdue and the row says whose clock it is.",
+  "today": "2026-10-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2022
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2022-09-01",
+      "researchQualifierPassed": "2023-11-01"
+    },
+    "attestations": {},
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "nd-mscse-transfer"
+    }
+  },
+  "expect": {
+    "phd.candidacy": {
+      "status": "unmet",
+      "detailIncludes": [
+        "Overdue",
+        "counted from Fall 2022, when you started the MSCSE"
+      ]
+    },
+    "phd.msAlongTheWay": {
+      "status": "not_applicable"
+    }
+  }
+}

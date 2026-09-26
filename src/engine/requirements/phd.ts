@@ -764,6 +764,15 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     // The deadline chip carries the when; policy (coursework-before-exam,
     // committee make-up) lives behind the § chip (2026-09-03).
     parts.push(`Overdue — talk to the DGS`);
+  // Whose eighth semester (DGS 2026-09-26): "when someone has a completed MS
+  // degree at CSE@ND, their OCE clock starts when they enter the PhD program.
+  // However, when someone initially started as an MS in our department but
+  // has transferred into PhD program in the middle, the OCE clock starts when
+  // they started the MS program." Both are the record's entry term — the
+  // opening dialog's answer says which — and the line names the start so a
+  // wrong entry term is noticed.
+  if (ctx.student.background?.graduate === 'nd-mscse-transfer') parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — a transfer into the Ph.D. keeps that clock (DGS 2026-09-26)`);
+  else if (ctx.student.ndMasters !== undefined) parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (DGS 2026-09-26)`);
   // The exam's two conditions (red-team F8, DGS 2026-09-12). §4.5: "All
   // coursework for the Ph.D. must be completed (or in progress the same
   // semester) before the candidacy exam can be taken." §2.2: "Continuation in

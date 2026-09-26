@@ -148,7 +148,7 @@ export interface Student {
    * came before this program. Decides which transcript rows are shown
    * (src/ui/background.ts). Absent on records saved before it was asked —
    * every row shows then, as before. */
-  background?: { bachelors: 'nd-cse' | 'nd-other' | 'elsewhere'; ndIntegrated?: boolean; graduate: 'none' | 'elsewhere' | 'nd-mscse' | 'nd-4plus1' | 'nd-other'; samePlace?: boolean; finished?: boolean };
+  background?: { bachelors: 'nd-cse' | 'nd-other' | 'elsewhere'; ndIntegrated?: boolean; graduate: 'none' | 'elsewhere' | 'nd-mscse' | 'nd-4plus1' | 'nd-mscse-transfer' | 'nd-other'; samePlace?: boolean; finished?: boolean };
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
   /** True while priorMs holds a value INFERRED from an uploaded transcript
    * (2026-09-03) rather than chosen by the student — cleared when they touch

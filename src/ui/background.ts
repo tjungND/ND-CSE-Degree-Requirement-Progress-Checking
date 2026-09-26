@@ -10,7 +10,11 @@ import { openModal, returnFocusTo } from './copy-dialog.ts';
 import { el } from './dom.ts';
 
 export type BachelorsFrom = 'nd-cse' | 'nd-other' | 'elsewhere';
-export type GraduateBefore = 'none' | 'elsewhere' | 'nd-mscse' | 'nd-4plus1' | 'nd-other';
+/** `nd-mscse-transfer` (DGS 2026-09-26): no degree — the student began in the
+ * Notre Dame MSCSE and transferred into the Ph.D. before finishing it. It
+ * settles nothing about caps (no prior degree), but §4.5's eighth semester is
+ * counted from the MSCSE start: the entry term is the MSCSE's. */
+export type GraduateBefore = 'none' | 'elsewhere' | 'nd-mscse' | 'nd-4plus1' | 'nd-mscse-transfer' | 'nd-other';
 export interface Background {
   bachelors: BachelorsFrom;
   /** An MSCSE student with a Notre Dame CSE bachelor's: in the Integrated
@@ -41,6 +45,7 @@ export function graduateOptions(program: Program): [GraduateBefore, string][] {
       ? ([
           ['nd-mscse', 'Yes, the MSCSE at Notre Dame — as a regular master’s student'],
           ['nd-4plus1', 'Yes, the MSCSE at Notre Dame — through the Integrated B.S. + M.S. (4+1) program'],
+          ['nd-mscse-transfer', 'Not a degree — I started in the MSCSE at Notre Dame and transferred into the Ph.D. before finishing it'],
         ] as [GraduateBefore, string][])
       : []),
     ['nd-other', 'Yes, at Notre Dame in another department'],
@@ -51,7 +56,7 @@ export function graduateOptions(program: Program): [GraduateBefore, string][] {
  * applies is still open. */
 export function completeBackground(b: Partial<Background> | undefined, program: Program): Background | undefined {
   if (!b || b.bachelors === undefined || b.graduate === undefined) return undefined;
-  if (program === 'mscse' && (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1')) return undefined;
+  if (program === 'mscse' && (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1' || b.graduate === 'nd-mscse-transfer')) return undefined;
   const asksIntegrated = program === 'mscse' && b.bachelors === 'nd-cse';
   if (asksIntegrated && b.ndIntegrated === undefined) return undefined;
   if (b.graduate === 'elsewhere' && (b.samePlace === undefined || b.finished === undefined)) return undefined;
@@ -91,6 +96,8 @@ export function describeBackground(b: Background): string {
         ? 'the MSCSE at Notre Dame'
         : b.graduate === 'nd-4plus1'
           ? 'the MSCSE at Notre Dame (4+1)'
+          : b.graduate === 'nd-mscse-transfer'
+          ? 'none — transferred into the Ph.D. from the Notre Dame MSCSE (deadlines count from the MSCSE start)'
           : b.graduate === 'nd-other'
             ? 'Notre Dame, another department'
             : `${b.finished ? 'finished' : 'not finished'}, at ${b.samePlace ? 'the same university as the bachelor’s (a 4+1 or 5+1)' : 'another university'}`;
@@ -124,7 +131,7 @@ export function backgroundQuestions(
   sequential = false,
 ): HTMLElement {
   const state: Partial<Background> = { ...(current ?? {}) };
-  if (program === 'mscse' && (state.graduate === 'nd-mscse' || state.graduate === 'nd-4plus1')) state.graduate = undefined;
+  if (program === 'mscse' && (state.graduate === 'nd-mscse' || state.graduate === 'nd-4plus1' || state.graduate === 'nd-mscse-transfer')) state.graduate = undefined;
   const radios = (name: string, options: [string, string][], chosen: string | undefined, pick: (v: string) => void): HTMLElement => {
     const box = el('div', { class: 'radios' });
     for (const [value, label] of options) {

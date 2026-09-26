@@ -1,7 +1,7 @@
 // The earlier-degrees questions (DGS 2026-09-22): which transcript rows each answer needs.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { applyBackground, completeBackground, priorSlotsFor } from '../src/ui/background.ts';
+import { applyBackground, completeBackground, graduateOptions, priorSlotsFor } from '../src/ui/background.ts';
 import { phdStudent } from './helpers/student.ts';
 
 describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => {
@@ -34,6 +34,18 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
     assert.equal(completeBackground({ bachelors: 'nd-cse', graduate: 'none' }, 'mscse'), undefined);
     assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' }, 'mscse'), { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' });
     assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse' }, 'mscse'), undefined);
+  });
+  it('a transfer from the MSCSE into the Ph.D. (DGS 2026-09-26) is a Ph.D.-only answer that settles no prior degree', () => {
+    assert.ok(graduateOptions('phd').some(([v]) => v === 'nd-mscse-transfer'));
+    assert.ok(!graduateOptions('mscse').some(([v]) => v === 'nd-mscse-transfer'));
+    assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse-transfer' }, 'mscse'), undefined);
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' }, 'phd'), { bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' });
+    assert.deepEqual(priorSlotsFor({ bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' }), []);
+    const s = { ...phdStudent(), program: 'phd' as const };
+    applyBackground(s, { bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' });
+    assert.equal(s.priorMs, 'none');
+    assert.equal(s.ndMasters, undefined);
+    assert.equal(s.integratedBsMs, false);
   });
   it('an answer settles the record’s prior-degree facts (the standing card’s controls, gone 2026-09-22)', () => {
     const base = phdStudent();

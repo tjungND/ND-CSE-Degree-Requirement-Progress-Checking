@@ -748,7 +748,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           student.program === 'phd'
             // The four deadlines are each a report row with a Deadline chip;
             // the §s stay (trim review 2026-09-18, P-11).
-            ? 'The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term.'
+            ? 'The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term. If you started in the Notre Dame MSCSE and transferred into the Ph.D. before finishing it, this is the semester you started the MSCSE; if you finished the MSCSE first, it is the semester you started the Ph.D. (§4.5, DGS 2026-09-26).'
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
@@ -866,7 +866,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       yearError,
       // What this field drives (item 11) — the longer note takes over while
       // the term is inferred or assumed.
-      entryNote ?? el('p', { class: 'hint field-hint' }, 'Every deadline and the residency count are counted from this term.'),
+      entryNote ??
+        el(
+          'p',
+          { class: 'hint field-hint' },
+          'Every deadline and the residency count are counted from this term.' +
+            // Whose semester 1 (DGS 2026-09-26): the MSCSE start for a transfer
+            // into the Ph.D., the Ph.D. start after a finished MSCSE.
+            (student.program === 'phd'
+              ? ' If you started in the Notre Dame MSCSE and transferred into the Ph.D. before finishing it, this is the semester you started the MSCSE; if you finished the MSCSE first, it is the semester you started the Ph.D. (§4.5, DGS 2026-09-26).'
+              : ''),
+        ),
       bsBeforeLine ? fieldset('Bachelor’s degree awarded', bsBeforeLine) : fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
       bsBeforeLine ? null : bsYearError,
       bsNote,

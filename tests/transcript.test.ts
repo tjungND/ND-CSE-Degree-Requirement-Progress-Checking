@@ -259,6 +259,15 @@ describe('combined transcript: entry term, levels and degrees (2026-09-05)', () 
     assert.deepEqual(banner.entryTerm?.term, { season: 'spring', year: 2025 }, 'Banner code 202420 = Spring 2025');
   });
 
+  it('two admit terms: the earlier one unless a master’s was awarded between them (DGS 2026-09-26 — a transfer into the Ph.D. keeps the MSCSE clock)', () => {
+    const transfer = parseTranscript(['University of Notre Dame', 'Admit Term: Fall 2022', 'Admit Term: Fall 2024']);
+    assert.deepEqual(transfer.entryTerm?.term, { season: 'fall', year: 2022 });
+    assert.equal(transfer.entryTerm?.how, 'the earlier of the admit-term lines on your transcript');
+    assert.deepEqual(transfer.entryTerm?.alternative?.term, { season: 'fall', year: 2024 });
+    const finished = parseTranscript(['University of Notre Dame', 'Admit Term: Fall 2022', 'Degree Awarded: Master of Science in Computer Science and Engineering   May 19, 2024', 'Admit Term: Fall 2024']);
+    assert.deepEqual(finished.entryTerm?.term, { season: 'fall', year: 2024 });
+    assert.equal(finished.entryTerm?.alternative, undefined);
+  });
   it('names the other reading when a degree is awarded between graduate-level terms (prior M.S. or along-the-way M.S.)', () => {
     const lines = [
       'University of Notre Dame',

@@ -525,8 +525,30 @@ function inferEntryTerm(args: {
   const { courses, admitTerms, newStudentTerms, degreesAwarded } = args;
   const byIndex = (a: Term, b: Term) => termIndex(a) - termIndex(b);
   if (admitTerms.length > 0) {
-    const latest = [...admitTerms].sort(byIndex)[admitTerms.length - 1]!;
-    return { term: latest, how: 'the admit-term line on your transcript' };
+    const sorted = [...admitTerms].sort(byIndex);
+    const earliest = sorted[0]!;
+    const latest = sorted[sorted.length - 1]!;
+    if (termIndex(earliest) === termIndex(latest)) return { term: latest, how: 'the admit-term line on your transcript' };
+    // Two admissions (DGS 2026-09-26): with a master's degree awarded between
+    // them, the later one is the Ph.D. entry — the finished MSCSE does not
+    // count toward §4.5's eight semesters. Without one the student
+    // transferred into the Ph.D. mid-way and keeps the MSCSE's clock, so the
+    // EARLIER admission is the entry term; the later is offered as the other
+    // reading (earlier deadlines are the safe mistake).
+    const mastersBetween = degreesAwarded.some(
+      (d) => d.level === 'masters' && d.date !== undefined && termIndex(termOfDate(d.date)) >= termIndex(earliest) && termIndex(termOfDate(d.date)) < termIndex(latest),
+    );
+    if (mastersBetween) return { term: latest, how: 'the later admit-term line on your transcript — the admission after your master’s degree' };
+    return {
+      term: earliest,
+      how: 'the earlier of the admit-term lines on your transcript',
+      alternative: {
+        term: latest,
+        why:
+          `your transcript states a later admission, ${termLabel(latest)}. If you finished a master’s degree before that admission, the entry term is ${termLabel(latest)}; ` +
+          `a transfer from the MSCSE into the Ph.D. keeps the earlier term (DGS 2026-09-26), so ${termLabel(earliest)} is set until you change it`,
+      },
+    };
   }
   const ndCourses = courses.filter((c) => c.origin === 'nd');
   const uniqueTerms = (list: ParsedCourse[]): Term[] => {

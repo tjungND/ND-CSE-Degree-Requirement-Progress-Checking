@@ -85,6 +85,27 @@ does have to satisfy, since the M.S. thesis requirement is already behind them.
 
 ---
 
+## 10. §4.5 — whose eighth semester: the student who came from the MSCSE
+
+**Today.** §4.5 says the candidacy exam "must be taken before the end of the eighth semester in
+the program." For a student who started in the MSCSE and transferred into the Ph.D., or who
+finished the MSCSE and then entered the Ph.D., "the program" is ambiguous: the graduate program
+in CSE, or the Ph.D. program?
+
+**What the app does (DGS, 2026-09-26).** A finished MSCSE does not count: the eight semesters
+run from the Ph.D. entry. A transfer into the Ph.D. before finishing the MSCSE keeps the MSCSE's
+clock: the eight semesters run from the MSCSE start. The app applies the same entry term to
+every §4 clock (residency, the eight years, the qualifier's semester, the eighteen months) —
+the DGS stated the rule for the candidacy exam only.
+
+**Suggested sentence.** In §4.5: *"Semesters are counted from the student's admission to the
+Ph.D. program, or, for a student who transferred into the Ph.D. from the MSCSE without
+completing it, from the admission to the MSCSE."* And a sentence in §4.3 and §4.4 saying whether
+the residency count, the eight-year limit and the qualifying-examination deadline are counted
+the same way.
+
+---
+
 ## 4. §3.5 and §5.2 — the 4+1 student's senior-year graduate courses
 
 **Today.** §3.5 lets an Integrated B.S. + M.S. student take "one or two 3-credit CSE courses at
