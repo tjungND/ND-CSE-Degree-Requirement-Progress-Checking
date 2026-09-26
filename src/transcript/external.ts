@@ -189,7 +189,7 @@ const TOTALS_LINE_RE = /^\s*(?:ehrs|gpa-?hrs|qpts|term\s+(?:totals?|units|credit
 // four languages, the German Wintersemester / Sommersemester and their
 // abbreviations, MIT's IAP, a January or winter session, Nepal's Year/Part.
 const TERM_WORD_RE =
-  /\b(fall|spring|summer|autumn|winter|semester|sem\.?|term|trimester|quarter|session|academic\s+year|monsoon|examinations?\s+held|regular\s+examinations?|semestre|semestr|per[ií]odo|ciclo|wintersemester|sommersemester|wise|sose|iap|january|j-term|midyear|special\s+term|year\/part|h[oọ]c\s+k[yỳ]|学期)\b/i;
+  /\b(fall|spring|summer|autumn|winter|semester|sem\.?|term|trimester|quarter|session|academic\s+year|monsoon|examinations?\s+held|regular\s+examinations?|semestre|semestr|per[ií]odo|ciclo|wintersemester|sommersemester|wise|sose|iap|january|j-term|midyear|special\s+term|full\s+year|year\/part|h[oọ]c\s+k[yỳ]|学期)\b/i;
 const LEVEL_SUFFIX_RE = /\b(undergraduate|graduate|postgraduate)\s*$/i;
 const LEVEL_ALONE_RE = /^(undergraduate|graduate)$/i;
 // Season words (2026-09-26): Monsoon is the Indian fall semester; the southern
@@ -279,6 +279,10 @@ interface LegendHints {
   npPasses?: true;
   /** P is a letter grade worth points (India's UGC scale "P 4"), not a pass. */
   pIsLetter?: true;
+  /** The Australian HD / D / CR / P / N scale (the ANU sample, 2026-09-26):
+   * D is a Distinction (70–79), not the app's D, CR a Credit band, P the
+   * 50–59 pass — every band is left raw beside its mark for the DGS. */
+  hdScale?: true;
 }
 
 function readLegend(lines: string[]): LegendHints {
@@ -297,6 +301,9 @@ function readLegend(lines: string[]): LegendHints {
     if (/(?:^|[\s,;|])S\s*(?:[=:–-]|\()?\s*(?:outstanding\s*\(?)?10\b/i.test(l)) hints.sIsTop = true;
     if (/(?:^|[\s,;|])NP\s*[=:–-]?\s*\(?\s*(?:no\s+grade\s*[-–:]?\s*pass|pass(?:ed|ing)?(?:\s*[,;)]|\s+without|\s*$))/i.test(l)) hints.npPasses = true;
     if (/(?:^|[\s,;|])P\s*(?:\(pass\))?\s*[=:–-]?\s*(?:\()?\s*[4-5](?:\.0+)?\b(?!\s*\.\d)/.test(l) && /\b(?:O|A\+?)\s*[=:–-]?\s*\(?\s*(?:10|9)\b/.test(l)) hints.pIsLetter = true;
+    // An HD grade on a row, or a legend naming the High Distinction: the
+    // Australian scale, where D is a Distinction (the ANU sample, 2026-09-26).
+    if (/\bhigh\s+distinction\b/i.test(l) || /(?:^|\s)HD\s*\*?$/.test(l)) hints.hdScale = true;
   }
   return hints;
 }
@@ -327,6 +334,9 @@ function mapGrade(token: string, legend: LegendHints = {}, inGradePosition = tru
     if (CODED_IN_PROGRESS_TOKENS.has(t)) return 'IP';
   }
   if (t === 'A+') return 'A'; // no A+ in the app's grade scale (2026-09-05)
+  // On the Australian scale D, CR, P and N are bands of the mark beside them
+  // (D = Distinction, 70–79), none of them the app's grades: left raw.
+  if (legend.hdScale && /^(?:HD|D|CR|P|N)$/.test(t)) return undefined;
   if (LETTER_GRADE_RE.test(t)) {
     if (t === 'D+' || t === 'D-') return 'D';
     return t as Grade;
@@ -758,6 +768,9 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
   // and the text layer breaks it into fragments — one of which was read as the
   // institution (DGS 2026-09-09).
   const GENERIC_ONLY_RE = /^(the\s+)?(universit(y|e|à|ä|ies)|college|institute|school|campus)(\s+of)?[.,]?$/i;
+  // A program name that happens to contain the word ("BACHELOR OF UNIVERSITY",
+  // the ANU sample's award list, 2026-09-26) is not the institution.
+  const DEGREE_PHRASE_RE = /^(?:bachelor|master|doctor)s?(?:'s)?\s+(?:of|in)\b|^(?:graduate|postgraduate)\s+(?:diploma|certificate)\b/i;
   // The same watermark, unbroken: a university phrase REPEATS on the line
   // ("UNIVERSITY OF CALIFORNIA … UNIVERSITY OF CALIFORNIA"). Two different
   // "University" phrases are a real name — "BINGHAMTON UNIVERSITY, STATE
@@ -770,7 +783,7 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
       .replace(/[\s,]+-\s*\d{3}\s?\d{3}\s*$/, '')
       .trim();
   const plausible = (c: string) =>
-    c.length >= 4 && c.length <= 80 && !/\d{3,}/.test(c) && !DIVISION_RE.test(c) && !SENTENCE_RE.test(c) && !GENERIC_ONLY_RE.test(c) && !REPEATED_RE.test(c) && !TRANSFER_FROM_RE.test(c);
+    c.length >= 4 && c.length <= 80 && !/\d{3,}/.test(c) && !DIVISION_RE.test(c) && !SENTENCE_RE.test(c) && !GENERIC_ONLY_RE.test(c) && !DEGREE_PHRASE_RE.test(c) && !REPEATED_RE.test(c) && !TRANSFER_FROM_RE.test(c);
   /** Candidate name cells: the whole line first when it is a short,
    * digit-free name spaced out across the page ("UNIVERSITY   OF   SOUTHERN
    * CALIFORNIA", 2026-09-05), then each cell at a column gap (a merged
@@ -884,15 +897,27 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const DIGIT_LED_CODE_RE = /^(?:\d{1,2}\.|\d{4}$|\d{4}-\d{4}|\d{3}-\d{4}-\d{2}|[A-Z]\d[A-Z0-9]{3}[A-Z])/;
   // Codes are matched case-insensitively (2026-09-04 — some registrars print
   // "cs 5321"), so common words that would then look like codes are refused:
-  // term headers and summary lines such as "Fall 2023  GPA 3.85".
+  // term headers and summary lines such as "Fall 2023  GPA 3.85" — and,
+  // since the registrar keys that travel as a transcript's back page were
+  // read (2026-09-26), the function words, document-structure words and
+  // address words that precede a number in prose ("Since 1998, a scheme…",
+  // "Clause 11.", "Suite 200", "Rs. 5000/-"). "OR" (operations research),
+  // "ED" (education), "ART" and "LAW" are real subjects and stay allowed, and
+  // so are "IN" (TUM's Informatik, UCI's "IN4MATX"), "ON" and "FOR"
+  // (forestry) — those are refused only when printed in lowercase or
+  // capitalised, the way prose prints them (`proseSubject`).
   const CODE_STOPWORDS_RE =
-    /^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC|FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|SUBTOTAL|AVERAGE|GPA|CGPA|SGPA|CUM|ROOM|NO|NUM|NUMBER|CODE|TITLE|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|PASSED|CREDIT|CREDITS|HOUR|HOURS|UNIT|UNITS|POINT|POINTS|GRADE|GRADES|COURSE|SECTION|CHAPTER|LEVEL|CLASS|STUDENT|RECORD|GRADUATE|UNDERGRADUATE|ACADEMIC|DEGREE|PROGRAM|PLAN|COLLEGE|SCHOOL|CAMPUS|CATALOG|MAJOR|MINOR|DATE|PRINTED|ISSUED|STANDING|STATUS|VERSION)$/;
+    /^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC|FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|SUBTOTAL|AVERAGE|GPA|CGPA|SGPA|CUM|ROOM|NO|NUM|NUMBER|CODE|TITLE|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|PASSED|CREDIT|CREDITS|HOUR|HOURS|UNIT|UNITS|POINT|POINTS|GRADE|GRADES|COURSE|SECTION|CHAPTER|LEVEL|CLASS|STUDENT|RECORD|GRADUATE|UNDERGRADUATE|ACADEMIC|DEGREE|PROGRAM|PLAN|COLLEGE|SCHOOL|CAMPUS|CATALOG|MAJOR|MINOR|DATE|PRINTED|ISSUED|STANDING|STATUS|VERSION|SINCE|AT|FROM|THAN|THE|AND|OF|TO|BY|WITH|INTO|UPON|PRE|POST|CLAUSE|ARTICLE|RULE|ITEM|STEP|NOTE|TABLE|FIGURE|FIG|ANNEX|APPENDIX|PART|OPEN|GRAND|AVANT|DEPUIS|BEFORE|AFTER|UNTIL|OVER|UNDER|ABOUT|PER|EACH|EVERY|ONLY|SEE|LINE|ROW|REV|PHONE|TEL|FAX|BOX|SUITE|ZIP|MUST|SHALL|ALSO|ABOVE|BELOW|WITHIN|WITHOUT|THROUGH|BETWEEN|DURING|WHEN|WHERE|WHICH|THAT|THIS|THESE|THOSE|THERE|THEIR|THEY|THEN|BOTH|SUCH|SAME|MORE|MOST|LESS|LEAST|LAST|NEXT|FIRST|SECOND|THIRD|FOURTH|FINAL|MAXIMUM|MINIMUM|APPROXIMATELY|AROUND|NEARLY|JUST|EVEN|STILL|YET|NOW|ALWAYS|NEVER|OFTEN|USUALLY|OUT|OFF|OWN|NOT|NON|YES|VIA|ETC|VS|WWW|HTTP|HTTPS|EMAIL|STREET|AVENUE|ROAD|FLOOR|CALL|VISIT|CONTACT|FEE|FEES|COST|USD|EUR|INR|RS|RUPEES|DOLLARS|AMOUNT|PRICE|COPY|COPIES|STUDENTS|CANDIDATES|EXAMPLE|SUPPOSE|UPPOSE|ROM|SECTIONS|PAGES|LINES|ITEMS|FORM|FORMS)$/;
   // "ID" was refused as a code until 2026-09-08 (it reads as "identifier"),
   // which dropped every Georgia Tech industrial-design course. It is a real
   // subject, so only the shape that is genuinely an identifier is refused: a
   // record number with no course title after it. A student id is long enough
   // that the code pattern (2-5 digits) does not match it anyway.
   const BARE_IDENTIFIER_RE = /^ID$/;
+  /** Function words a subject cell can only be in prose when not set in
+   * capitals: "in 2009", "For Y22", "on 24" (2026-09-26). */
+  const PROSE_SUBJECT_RE = /^(?:in|on|for|as|or|an|if|is|it|no|so|up|we|he|do|be|my|us|at|to|by|of|the|and|than|since|from|with)$/i;
+  const proseSubject = (original: string): boolean => PROSE_SUBJECT_RE.test(original) && original !== original.toUpperCase();
   const looksLikeIdentifierLine = (subject: string, tokens: string[]): boolean =>
     BARE_IDENTIFIER_RE.test(subject) && !tokens.some((tk) => /[A-Za-z]{3}/.test(tk));
   // A subject cell: "CS", "COMPSCI", "STATISTC", or a two-part code with a
@@ -1207,7 +1232,20 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // column is such a cell.
       const restOfFlag = post[post.length - 1] === 'flag' && leftover.every((t) => /^[\p{L}]+$/u.test(t));
       if (!restOfFlag && (leftover.length > 1 || (leftover.length === 1 && !/^[A-Z*#&@]$/.test(leftover[0]!)))) continue;
-      if (best === undefined || blanks < best.blanks) best = { s, values, blanks };
+      // A status row prints no mark ("CLASS 5   1   ABN *", the ANU sample,
+      // 2026-09-26): reading the title's trailing number as the credits and
+      // the credits as a one-digit mark beside an unmapped status fills every
+      // column, so that fit costs one blank too — and the longer title wins
+      // the tie, as it does everywhere else.
+      const markAt = post.lastIndexOf('mark');
+      const gradeAt = post.indexOf('grade');
+      // Only where the mark column FOLLOWS the credits column (units, mark,
+      // grade): with the marks before the credits (JNTU "… Lab   0   1.5   Ab")
+      // a one-digit mark is the absent student's zero.
+      const creditsAt = post.findIndex((k) => k === 'credits' || k === 'attempted' || k === 'earned' || k === 'ects');
+      const oneDigitMark = markAt >= 0 && gradeAt >= 0 && creditsAt >= 0 && creditsAt < markAt && values[markAt] !== undefined && /^\d$/.test(values[markAt]!) && values[gradeAt] !== undefined && !numericToken(values[gradeAt]!) && mapGrade(values[gradeAt]!, legend) === undefined;
+      const cost = blanks + (oneDigitMark ? 1 : 0);
+      if (best === undefined || cost < best.blanks) best = { s, values, blanks: cost };
     }
     if (!best) return undefined;
     // A header that names fewer columns than the rows print (a term block
@@ -1236,7 +1274,14 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // A pass/fail result or an unmapped band beside a printed mark ("93   P",
     // "66   CR", "78   DI"): the mark is the grade, the band derives from it
     // (GT05, 2026-09-26). A letter grade the app knows (HUST "8.7   B+") wins.
-    if (gradeToken !== undefined && lastMark !== undefined && numericToken(lastMark) && Number(lastMark.replace(',', '.')) > 0 && (isPassFailToken(gradeToken, legend) || mapGrade(gradeToken, legend) === undefined)) gradeToken = lastMark;
+    let band: string | undefined;
+    if (gradeToken !== undefined && lastMark !== undefined && numericToken(lastMark) && Number(lastMark.replace(',', '.')) > 0 && (isPassFailToken(gradeToken, legend) || mapGrade(gradeToken, legend) === undefined)) {
+      // The band stays beside the mark in what the student is shown ("62 CR",
+      // "77 D" — the ANU sample, 2026-09-26): the mark alone reads as a
+      // grade on an unknown scale.
+      if (gradeToken !== lastMark && /^[A-Za-z][A-Za-z+-]{0,3}$/.test(gradeToken)) band = gradeToken;
+      gradeToken = lastMark;
+    }
     if (creditsToken === undefined && gradeToken === undefined) return undefined;
     // A term cell on the row (U Tokyo "2022   S1S2", DTU "E23", UNAM "2019-1",
     // a result date) — read after the values are known.
@@ -1251,7 +1296,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(gradeToken) ? gradeToken.slice(1, -1) : gradeToken;
       const mapped = mapGrade(bare, legend);
       if (mapped !== undefined) into.grade = mapped;
-      else into.rawGrade = /^W\d$/.test(bare) ? 'W' : bare;
+      else into.rawGrade = /^W\d$/.test(bare) ? 'W' : band === undefined ? bare : `${bare} ${band}`;
     }
     // A status word beside a one-letter grade decides it (TUM "B   bestanden":
     // B is bestanden, a pass, not the letter B — 2026-09-26).
@@ -1328,7 +1373,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (i === 1 && !/^[A-Za-z]{1,3}$/.test(cells[0]!) && !LEAD_DATE_RE.test(cells[0]!)) break; // only a short division/security cell, or a date, may precede
       const subjectCell = rawSubjectCell.replace(CROSS_LISTED_SUBJECT_RE, '').replace(SUBJECT_TRAILING_DASH_RE, '');
       const colonSubject = COLON_SUBJECT_RE.test(subjectCell);
-      if (!colonSubject && (!SUBJECT_RE.test(subjectCell) || !subjectCase(subjectCell))) continue;
+      if (!colonSubject && (!SUBJECT_RE.test(subjectCell) || !subjectCase(subjectCell) || proseSubject(subjectCell))) continue;
       const num = NUMBER_RE.exec(numberCell);
       if (!num) continue;
       const subject = subjectCell.toUpperCase();
@@ -1355,7 +1400,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (/^[A-Z]{2,10} (19|20)\d{2}$/.test(code) && m[2]!.trim() === '' && cells.length === 1) return undefined; // "IAP 2023" — a term, not a course
       // A digit-led or mixed code must be followed by a title (letters), or it
       // is a number on a totals line.
-      if (DIGIT_LED_CODE_RE.test(code) && !/[\p{L}]{2}/u.test([m[2]!, ...cells.slice(idx + 1)].join(' '))) return undefined;
+      // The rest of the cell in its printed case (the match ran on the
+      // upper-cased cell; the code is length-stable).
+      const restText = [cell.slice(cell.length - m[2]!.length), ...cells.slice(idx + 1)].join(' ');
+      if (DIGIT_LED_CODE_RE.test(code) && !/[\p{L}]{2}/u.test(restText)) return undefined;
+      if (proseSubject(cell.slice(0, code.length).replace(/[^A-Za-z].*$/, ''))) return undefined;
+      // …and that title is printed with a capital or in another script — a
+      // number-only code before lowercase prose is a grade-point table
+      // ("B+   3.333 per credit", Delaware's key, 2026-09-26).
+      if (DIGIT_LED_CODE_RE.test(code) && !/[\p{Lu}]|[^\x00-\x7F]/u.test(restText)) return undefined;
+      // A course-number RANGE from a key ("0000-0999 … 5000-5999 Master's",
+      // UConn) and a number the line continues ("199719/98", NUS) are not codes.
+      if (/^\d000-\d999$/.test(code)) return undefined;
+      if (/^\d{5,10}$/.test(code) && cell[code.length] === '/') return undefined;
       // Every word of the subject is tested ("TERM GPA 12" is no course).
       if (code.split(/[^A-Z]+/).some((w) => CODE_STOPWORDS_RE.test(w))) return undefined;
       if (!subjectCase(cell.slice(0, code.length).replace(/\d.*$/, ''))) return undefined; // "Chapter 3": prose, not a code
@@ -1486,7 +1543,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const maxOrdinal = Math.max(1, ...lines.map((l) => ordinalOf(l) ?? 0).filter((n) => n < 4));
   const readTermLine = (line: string): TermRead | undefined => {
     if (!TERM_WORD_RE.test(line) && !YEAR_PART_RE.test(line) && !SLASH_ORDINAL_RE.test(line) && !/\bsession\s*:/i.test(line)) return undefined;
-    const flat = line.replace(/\s{2,}/g, ' ').trim();
+    // A year whose last digit the PDF sets apart ("200 3   FULL YEAR", the
+    // ANU sample, 2026-09-26) is joined back before anything reads it.
+    const flat = line.replace(/\s{2,}/g, ' ').trim().replace(/\b((?:19|20)\d) (\d)\b/g, '$1$2');
     // A course row never opens a term ("ENGL 2010   Intermediate Writing").
     if (leadCode(line.replace(/\s{2,}/g, '  ').trim())) return undefined;
     // Long lines are prose — unless bilingual (the Latin half before a
@@ -1557,6 +1616,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       }
     }
     const ordinal = ordinalOf(flat);
+    if (year === undefined && currentYear !== undefined && flat.length <= 30 && !/\d/.test(flat)) {
+      // A term line with no year of its own — "SECOND SEMESTER", "Summer
+      // Session" — under a header that printed one (the ANU sample prints
+      // "2005   FIRST SEMESTER" once, then "SECOND SEMESTER"; 2026-09-26).
+      // One season word exactly; an ordinal alone falls in calendar order.
+      const seasonWords = (flat.match(/\b(?:fall|spring|summer|autumn|winter)\b/gi) ?? []).length;
+      const alone = seasonWords === 1 ? seasonOf(flat) : undefined;
+      if (alone !== undefined) return { year: currentYear, season: alone, explicit: true };
+      if (ordinal !== undefined && seasonWords === 0 && !/\blevel\b/i.test(flat)) {
+        if (maxOrdinal >= 3) return { year: currentYear, season: ordinal === 1 ? 'spring' : ordinal === 2 ? 'summer' : 'fall', explicit: true };
+        return { year: currentYear, season: ordinal === 1 ? 'spring' : ordinal === 2 ? 'fall' : 'summer', explicit: true };
+      }
+    }
     if (year === undefined) {
       // "Level-1 Term-I" under an earlier "Session: 2018-2019" (BUET): the
       // session is the admission year; Level N is N − 1 years on.
@@ -1687,6 +1759,18 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   };
   /** One course row, when the line is one. Returns the index of the last line
    * consumed (a continuation or title line may be taken with the row). */
+  const PROGRAM_TITLE_RE = /^(?:bachelor|master|doctor)s?(?:'s)?\s+(?:of|in)\b|^(?:graduate|postgraduate|advanced)\s+(?:diploma|certificate)\b|^(?:diploma|certificate|associate)\s+(?:of|in)\b|^(?:licenciatura|maestr[ií]a|mestrado|doutorado|doctorado)\s+(?:en|em)\b/i;
+  const PROSE_WORD_RE = /^(?:is|are|was|were|be|been|shall|must|may|will|can|has|have|had|does|do|not|if|which|that|this|these|those|than|then|when|where|there|their|they|he|she|it|its|we|you|our|your|who|whom|whose|as|such|so|also|only|each|every|per|at|by|from|into|upon|about|after|before|during|until|while|because|provided|unless|otherwise|however|thus|therefore|hence|whereas|within|without|would|should|could|might|should)$/;
+  const courseLikeTitle = (parts: readonly string[]): boolean => {
+    if (parts.length === 0) return true;
+    const text = parts.join(' ');
+    if (PROGRAM_TITLE_RE.test(text)) return false;
+    if (text.includes('@')) return false;
+    if (/,$/.test(text)) return false;
+    const words = parts.map((w) => w.replace(/[^\p{L}]/gu, ''));
+    if (parts.length >= 6 && new Set(words.filter((w) => PROSE_WORD_RE.test(w))).size >= 2) return false;
+    return true;
+  };
   const readCourseRow = (line: string, flat: string, lead: Lead, lineIndex: number): number => {
     if (flat.length < 6) return lineIndex;
     // The course code is expected at the start of the row (or right after a
@@ -1719,6 +1803,13 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       }
       scanTokens(lead.tokens, into);
     }
+    // Lines a course row never looks like (the registrar keys and regulations
+    // that travel as a transcript's back page, 2026-09-26): a program line
+    // ("3500   BACHELOR OF CLASSES", the ANU sample), an address or e-mail
+    // line, a title that ends in a comma, and prose — six words or more
+    // with two of the function words no course title uses ("students were
+    // admitted in a batch and there were 8 repeaters").
+    if (!courseLikeTitle(into.titleParts)) return lineIndex;
     let usedContinuation = false;
     if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined && into.titleParts.length > 0) {
       // Two-line rows (2026-09-04): some registrars print the code + title on
@@ -1728,7 +1819,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const next = lines[lineIndex + 1]?.replace(/\s{2,}/g, '  ').trim();
       if (next && next.length >= 1 && !leadCode(next) && !TOTALS_LINE_RE.test(next)) {
         const nextTokens = tokensOf([next]);
-        if (nextTokens.length <= 8) {
+        // The continuation holds the row's NUMBERS: a next line of words is
+        // the following prose sentence, not this row's credits (2026-09-26).
+        const nextWordy = nextTokens.filter((tk) => /[\p{L}]{2}/u.test(tk)).length;
+        if (nextTokens.length <= 8 && nextWordy <= 3) {
           const probe = { titleParts: [...into.titleParts], credits: undefined, grade: undefined, rawGrade: undefined } as RowScan;
           scanTokens(nextTokens, probe);
           if (probe.credits !== undefined || probe.grade !== undefined || probe.rawGrade !== undefined) {

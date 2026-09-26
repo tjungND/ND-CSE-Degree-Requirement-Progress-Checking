@@ -5,6 +5,15 @@
 // real person's record — every one composes course rows to the registrar's
 // documented layout, with "SAMPLE STUDENT" / "000000000" where a name or id
 // would print; only the SJTU and Peradeniya templates carry published rows.
+// The `pdf-*` fixtures (2026-09-26, later the same day) are different: they
+// are the text the app's own pdfjs layout stage reads from PUBLIC registrar
+// PDFs — a sample transcript (ANU), a template (Vaasa) and thirty-two keys,
+// legends, forms and regulations, the "back pages" that travel inside a real
+// transcript PDF. A key must yield NO course row (`negative: true` in
+// expected.json: only the courses are compared), and the two samples are
+// pinned as read. `sources.json` records each PDF's URL, SHA-256 and size;
+// the PDFs themselves are not committed — scripts/dev/pdf-to-lines.mts
+// regenerates a fixture from a downloaded copy.
 //
 // KNOWN_FAILING lists the fixtures the parser cannot read yet, with the gap
 // ids from the research plan (docs/DECISIONS.md, 2026-09-26). A fixture on the
@@ -27,6 +36,9 @@ type Expected = {
   quarterSystem: true | null;
   trimesterSystem?: true | null;
   courses: string[];
+  /** A key / legend / form: the parser must find no course row; the header
+   * fields are not compared (a back page names no institution reliably). */
+  negative?: true;
 };
 const expected = JSON.parse(readFileSync(join(DIR, 'expected.json'), 'utf8')) as Record<string, Expected>;
 const sources = JSON.parse(readFileSync(join(DIR, 'sources.json'), 'utf8')) as Record<string, { institution: string; url: string }>;
@@ -44,13 +56,15 @@ function differences(name: string): string[] {
   const field = (label: string, got: unknown, exp: unknown) => {
     if (got !== exp) out.push(`${label}: got ${JSON.stringify(got)}, want ${JSON.stringify(exp)}`);
   };
-  field('university', r.university ?? null, want.university);
-  field('campusSystem', r.campusSystem ?? null, want.campusSystem);
-  field('campus', r.campus ?? null, want.campus);
-  field('degreeConferred', r.degreeConferred ?? null, want.degreeConferred);
-  field('bachelorsConferredOn', r.bachelorsConferredOn ?? null, want.bachelorsConferredOn);
-  field('quarterSystem', r.quarterSystem ?? null, want.quarterSystem);
-  field('trimesterSystem', r.trimesterSystem ?? null, want.trimesterSystem ?? null);
+  if (!want.negative) {
+    field('university', r.university ?? null, want.university);
+    field('campusSystem', r.campusSystem ?? null, want.campusSystem);
+    field('campus', r.campus ?? null, want.campus);
+    field('degreeConferred', r.degreeConferred ?? null, want.degreeConferred);
+    field('bachelorsConferredOn', r.bachelorsConferredOn ?? null, want.bachelorsConferredOn);
+    field('quarterSystem', r.quarterSystem ?? null, want.quarterSystem);
+    field('trimesterSystem', r.trimesterSystem ?? null, want.trimesterSystem ?? null);
+  }
   const got = r.courses.map(rowOf);
   const n = Math.max(got.length, want.courses.length);
   for (let i = 0; i < n; i++) if (got[i] !== want.courses[i]) out.push(`row ${i}: got ${JSON.stringify(got[i])}, want ${JSON.stringify(want.courses[i])}`);

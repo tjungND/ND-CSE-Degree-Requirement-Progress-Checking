@@ -40,8 +40,8 @@ describe('public-transcript rules (2026-09-26)', () => {
   });
   it('a pass/fail token beside a printed mark yields to the mark; a letter grade beats a numeric guess', () => {
     const r = doc('University of Sydney', 'Unit of Study   Title   Credit Points   Mark   Grade', 'Semester 1 2023', 'COMP 5216   Mobile Computing   6   66   CR', 'COMP 5048   Visual Analytics   6   78   DI', 'COMP 5300   Databases   6   88   A');
-    assert.equal(row(r, 'COMP 5216')?.rawGrade, '66');
-    assert.equal(row(r, 'COMP 5048')?.rawGrade, '78');
+    assert.equal(row(r, 'COMP 5216')?.rawGrade, '66 CR'); // the band stays beside the mark (2026-09-26, the ANU sample)
+    assert.equal(row(r, 'COMP 5048')?.rawGrade, '78 DI');
     assert.equal(row(r, 'COMP 5300')?.grade, 'A');
   });
   it('the column header maps a Banner Self-Service row: grade before credits, level before title', () => {
@@ -117,5 +117,68 @@ describe('public-transcript rules (2026-09-26)', () => {
     // "be applied toward a degree" is prose, not a B.E.
     const prose = doc('UC Berkeley Extension', 'Extension courses carry credit that may be applied toward a degree elsewhere, awarded June 2023.', 'Fall 2022', 'COMPSCI X470   Foundations of Data Science   3   A');
     assert.equal(prose.bachelorsConferredOn, undefined);
+  });
+  // ——— Read from the registrar PDFs themselves (2026-09-26, later the same day) ———
+  it('the prose of a transcript key or regulation never starts a course row: function words, "Clause 11.", lowercase "in 2009", a program line, an e-mail, a trailing comma, a sentence', () => {
+    const r = doc(
+      'Some University',
+      'Fall 2023',
+      'CS 500   Topics   3.00   A',
+      'Since 1998, a scheme of first- and second-level degree programmes (Bachelor and Master) was introduced to be offered parallel to or',
+      'Clause 37.   Grading using the designations A B+ B C+ C D+ D or F shall be executed based on the',
+      'in 2009 as replacement for the previous   A',
+      'IN 2003   Efficient Algorithms and Data Structures   8   1,7',
+      '3500   BACHELOR OF COMPUTING (HONOURS)   3   C',
+      '14853, univreg@cornell.edu, Telephone: (607) 255-4232   3   A',
+      'CS 601   students were admitted in a batch and there were 8 repeaters   3   A',
+      'CS 602   Exampleville,   3   A',
+      'B+   3.333 per credit',
+      '0000-0999 Ratcliffe Hicks School of Agriculture   4.3   A',
+      '199719/98 (Building B+, B   Very Good',
+      '6.5840   Distributed Computer Systems Engineering   12   A',
+    );
+    assert.deepEqual(r.courses.map((c) => c.courseId), ['CS 500', 'IN 2003', '6.5840']);
+  });
+  it('a two-line row takes its numbers from the next line only when that line is numbers, not the next sentence', () => {
+    const r = doc('Some University', 'Fall 2023', 'CS 502   Seminar in Computing', '1.00   A', 'CS 503   Advanced Topics in Computing', 'The document explains A process and the criteria');
+    assert.equal(row(r, 'CS 502')?.grade, 'A');
+    assert.equal(row(r, 'CS 502')?.credits, 1);
+    assert.equal(row(r, 'CS 503'), undefined);
+  });
+  it('the Australian HD / D / CR / P / N bands stay raw beside their mark, and a term line with no year of its own takes the header’s', () => {
+    const r = doc(
+      'THE AUSTRALIAN NATIONAL UNIVERSITY',
+      'BACHELOR OF UNIVERSITY',
+      '200 5   FIRST SEMESTER',
+      'COURSE CODE   COURSE TITLE   UNITS TAKEN   MARK   GRADE',
+      'COMP 1100   Introduction to Programming   6   77   D',
+      'COMP 1110   Structured Programming   6   81   HD',
+      'COMP 1130   Programming Advanced   6   62   CR',
+      'SECOND SEMESTER',
+      'COMP 2100   Software Design   6   55   P',
+      'COMP 2300   Computer Organisation   6   40   N',
+      'EXAM1003   CLASS 5   1   ABN *',
+    );
+    assert.equal(r.university, 'THE AUSTRALIAN NATIONAL UNIVERSITY');
+    assert.equal(row(r, 'COMP 1100')?.rawGrade, '77 D');
+    assert.equal(row(r, 'COMP 1100')?.grade, undefined);
+    assert.equal(row(r, 'COMP 1110')?.rawGrade, '81 HD');
+    assert.equal(row(r, 'COMP 1130')?.rawGrade, '62 CR');
+    assert.equal(row(r, 'COMP 2100')?.rawGrade, '55 P');
+    assert.equal(row(r, 'COMP 2300')?.rawGrade, '40 N');
+    assert.deepEqual([row(r, 'COMP 1100')?.season, row(r, 'COMP 1100')?.year], ['spring', 2005]);
+    assert.deepEqual([row(r, 'COMP 2100')?.season, row(r, 'COMP 2100')?.year], ['fall', 2005]);
+    // A status row with no mark: the title keeps its number, the units are the credits.
+    assert.equal(row(r, 'EXAM 1003')?.title, 'CLASS 5');
+    assert.equal(row(r, 'EXAM 1003')?.credits, 1);
+    assert.equal(row(r, 'EXAM 1003')?.rawGrade, 'ABN');
+    // Without an HD anywhere, D is the app's D and the mark is set aside.
+    const us = doc('Some University', 'Fall 2023', 'CODE   TITLE   CREDITS   MARK   GRADE', 'CS 500   Topics   3   77   D');
+    assert.equal(row(us, 'CS 500')?.grade, 'D');
+  });
+  it('a year the PDF sets apart ("200 3   FULL YEAR") is a year-only term', () => {
+    const r = doc('Some University', '200 3   FULL YEAR', 'CS 500   Topics   3   A');
+    assert.equal(row(r, 'CS 500')?.year, 2003);
+    assert.equal(row(r, 'CS 500')?.season, undefined);
   });
 });

@@ -262,6 +262,13 @@ export function findColumnGap(runs: Run[], pageWidth: number): number | undefine
     if (right.filter((r) => r.x < rightEdge - 12).length > tolerance) continue;
     const wordyAtEdge = right.filter((r) => r.x >= rightEdge - 6 && r.x <= rightEdge + 12 && /[A-Za-z]{4}/.test(r.text));
     if (wordyAtEdge.length < 5) continue;
+    // A table header that straddles the candidate — "COURSE CODE   COURSE
+    // TITLE" on the left of it, "UNITS TAKEN   MARK   GRADE" on the right,
+    // on ONE baseline — says the page is one wide table whose short titles
+    // leave a blank band (the ANU sample, 2026-09-26): its rows would
+    // otherwise be read as titles first and numbers afterwards. Two real
+    // columns each carry a complete header, or none at this baseline.
+    if (headerStraddles(left, right)) continue;
     // Five copies of ONE word are a column header, not a column (the DGS's
     // synthetic transcripts, 2026-09-20): "Attempted" printed above every
     // term's numbers passed the test, and the page's credits and grades were
@@ -274,6 +281,22 @@ export function findColumnGap(runs: Run[], pageWidth: number): number | undefine
     return x;
   }
   return undefined;
+}
+
+const LEFT_HEADER_RE = /\b(?:course\s*(?:code|no\.?|number|id)|subj(?:ect)?|crs|title|description|module|unit\s+code)\b/i;
+const RIGHT_HEADER_RE = /\b(?:units?(?:\s+taken)?|credits?|cred|crdt|hrs|hours|marks?|grade|grd|points?|pts|ects|attempted|earned|result)\b/i;
+/** True when some baseline holds a code/title header left of the candidate
+ * gap and a credits/grade header right of it, neither side complete. */
+function headerStraddles(left: Run[], right: Run[]): boolean {
+  const textAt = (runs: Run[], y: number) => runs.filter((r) => Math.abs(r.y - y) <= 2).map((r) => r.text).join('  ');
+  for (const r of left) {
+    if (!LEFT_HEADER_RE.test(r.text)) continue;
+    const l = textAt(left, r.y);
+    const rt = textAt(right, r.y);
+    if (rt === '') continue;
+    if (!RIGHT_HEADER_RE.test(l) && RIGHT_HEADER_RE.test(rt) && !LEFT_HEADER_RE.test(rt)) return true;
+  }
+  return false;
 }
 
 /** Runs on one baseline whose horizontal gap is a word space (≤ 8 units)

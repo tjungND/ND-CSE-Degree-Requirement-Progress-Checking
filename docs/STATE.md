@@ -9,8 +9,15 @@ course-code shapes, day-first dates, more degree wording, PeopleSoft transfer bl
 fixtures read as expected; the other five wait on **seven questions for the DGS** listed in the
 2026-09-26 DECISIONS rows (code-less Chinese transcripts, Thailand's calendar, unit-based credits,
 per-row quarter conversions, Extension credit, adjacent-line conferral, grade scales beyond the
-legend). Real sample PDFs were NOT downloaded (the rule needs the DGS's yes per file); the research
-plan's needs-download list names 40-odd registrar PDFs worth fetching for end-to-end layout tests.
+legend). **Later the same day the DGS said to download the public PDFs**: 50 of the 60 on the
+plan's list were fetched and run through the app's own pdfjs layout stage (the ten others have
+moved, sit behind bot walls or are not PDFs); the real geometry found a column-split bug on the
+ANU sample and 55 false course rows from transcript KEYS (the back pages inside real transcript
+PDFs), both fixed; Australian HD/D/CR/P/N bands stay raw beside their mark, and every mark-plus-band
+row now shows the band (“78 DI”). 34 `pdf-*` fixtures (2 samples pinned, 32 keys pinned as
+negatives) join the 93; 122 of 127 pass, the five known-failing unchanged. The PDFs are not in the
+repo — `sources.json` has each one's URL, SHA-256 and size; `scripts/dev/pdf-to-lines.mts` and
+`scripts/dev/ocr-lines.mjs` regenerate a fixture from a downloaded copy.
 
 
 2026-09-22: **the Graduate School's two rules are in** (DECISIONS rows of 2026-09-22, both marked

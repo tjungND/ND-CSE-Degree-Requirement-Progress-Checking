@@ -72,6 +72,28 @@ describe('two-column page detection', () => {
     assert.ok(!lines.some((l) => l.includes('PTS R Fall 2013')));
   });
 
+  it('never splits a one-wide table whose header straddles the blank band between short titles and the numbers (the ANU sample, 2026-09-26)', () => {
+    // Page 1 of the registrar's sample: an award table (STATUS / DATE at
+    // x=326) and an enrolment table whose "CLASS n" titles end at x=175 and
+    // whose UNITS TAKEN / MARK / GRADE cells start at x=405 — the band between
+    // has a wordy, varied right edge, and nothing crosses it.
+    const runs: Run[] = [run(46, 747, 'NAME'), run(438, 747, 'STUDENT No.'), run(46, 732, 'SAMPLE STUDENT'), run(440, 732, '5123456'), run(40, 669, 'DESCRIPTION'), run(326, 669, 'STATUS'), run(440, 669, 'DATE')];
+    const awards = ['BACHELOR OF CLASSES (EXAMINATION STUDIES)', 'BACHELOR OF UNIVERSITY', 'GRADUATE DIPLOMA IN COLLEGE', 'MASTER OF COLLEGE (AUSTRALIAN STUDIES)', 'GRADUATE DIPLOMA IN SCHOOL (WITH MERIT)', 'AUSTRALIAN COLLEGE STUDIES'];
+    awards.forEach((t, i) => {
+      runs.push(run(40, 645 - i * 10.6, t), run(326, 645 - i * 10.6, i % 2 ? 'AWARDED' : 'TRANSFER'));
+      if (i % 2) runs.push(run(440, 645 - i * 10.6, '27 SEPTEMBER 2006'));
+    });
+    runs.push(run(76, 525, 'COURSE CODE'), run(141, 525, 'COURSE TITLE'), run(405, 525, 'UNITS TAKEN'), run(476, 525, 'MARK'), run(508, 525, 'GRADE'), run(40, 500, 'UNDERGRADUATE | GPA: 4.261'), run(40, 477, '3500'), run(75, 477, 'BACHELOR OF CLASSES'), run(40, 453, '2003'), run(75, 453, 'FULL YEAR'));
+    for (let i = 0; i < 14; i++) {
+      const y = 443 - i * 12.5;
+      runs.push(run(75, y, `EXAM10${String(i).padStart(2, '0')}`), run(145, y, `CLASS ${i + 1}`), run(438, y, '2'), run(481, y, String(50 + i)), run(516, y, i % 3 ? 'CR' : 'P'));
+    }
+    runs.push(run(167, 170, 'THE AUSTRALIAN NATIONAL UNIVERSITY', 161), run(404, 170, 'Admin Istrator'), run(404, 158, 'Registrar, Student Administration', 134), run(167, 157, 'Acton · ACT · 2601 · Australia', 140), run(167, 146, 'www.anu.edu.au'), run(404, 145, '24 August 2017'));
+    assert.equal(splitColumns(runs, 595).length, 1);
+    const lines = runsToLines(runs, 595);
+    assert.ok(lines.includes('COURSE CODE   COURSE TITLE   UNITS TAKEN   MARK   GRADE'));
+    assert.ok(lines.includes('EXAM1000   CLASS 1   2   50   P'));
+  });
   it('never splits a one-column table — titles cross the middle', () => {
     assert.equal(splitColumns(oneColumnTable(220), W).length, 1);
   });

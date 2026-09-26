@@ -742,5 +742,449 @@
   "kind": "official assessment and grading rules (HTML); rows composed (7-point scale, BE/IB, E23/F24 exam periods)",
   "lens": "europe-canada-anz",
   "from": "europe-canada-anz/dtu.json"
+ },
+ "pdf-anu-sample": {
+  "institution": "The Australian National University",
+  "country": "Australia",
+  "url": "https://d1zkbwgd2iyy9p.cloudfront.net/files/resource/documents/Sample_Transcript_Watermark.pdf",
+  "kind": "registrar SAMPLE academic transcript (PDF, three pages, \"Certified Correct\" layout with a UNITS TAKEN / MARK / GRADE table)",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "f41d7ab4a79fd4ff4b8de6bc6aa9880ba26d30741443c165969a25fb1ceccbf5",
+   "bytes": 109723,
+   "pages_text_lines": 97
+  },
+  "note": "Pinned as read, with two known artefacts (DECISIONS.md 2026-09-26): page 2's first row is letter-spaced in the PDF and reads `XAM 25 | 01 C LASS 7`; the status row `CLASS 29   16   STI *` reads the 29 as the credits (two-digit units look like a mark). The `200 4   STATUS` block prints no term word, so its rows keep the previous year. Fix consciously and re-pin."
+ },
+ "pdf-vaasa-template": {
+  "institution": "University of Vaasa (Asia Exchange template)",
+  "country": "Finland",
+  "url": "https://asiaexchange.org/wp-content/uploads/2020/04/Transcript_Example.pdf",
+  "kind": "annotated EXAMPLE transcript of records (PDF template with [Teacher Name] placeholders)",
+  "lens": "east-asia",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "d430e66f1737be8d9f073f402dc63ff06b3d9ee17d0c81995d43463e718a351f",
+   "bytes": 316146,
+   "pages_text_lines": 122
+  },
+  "note": "A template: the rows are placeholders (`Course I`, `[ Teacher Name ]`); the first row's title swallows the annotation `of your courses together`, and page 2 prints codes and values in separate blocks, so only page 1's rows read. Pinned as read."
+ },
+ "pdf-key-uconn": {
+  "institution": "University of Connecticut",
+  "country": "USA",
+  "url": "https://registrar.media.uconn.edu/wp-content/uploads/sites/1604/2025/10/2025-UConn-Transcript-Key.pdf",
+  "kind": "transcript key (back page)",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "aa14a014cc7e3ad5bea4b3b2e9eba4d0775af994df8152dede0ef48a3a7a953c",
+   "bytes": 168331,
+   "pages_text_lines": 94
+  }
+ },
+ "pdf-key-udel": {
+  "institution": "University of Delaware",
+  "country": "USA",
+  "url": "https://www.udel.edu/content/dam/udelImages/registrar/Students/Transcripts/Official-Transcript-Legend_Update_9_6_2024.pdf",
+  "kind": "official transcript legend (back page)",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "5b2abf959d025a6c09d7a08d1577aea36f43f31dd94fbe8c3b4c9bb39de723d2",
+   "bytes": 114839,
+   "pages_text_lines": 61
+  }
+ },
+ "pdf-key-stanford": {
+  "institution": "Stanford University",
+  "country": "USA",
+  "url": "https://web.stanford.edu/dept/registrar/transcript/transcript_key.pdf",
+  "kind": "transcript key (back page)",
+  "lens": "us-private",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "67a27179d47f066da67074522f2bc3025e0a7dfd61df3877b307356ec371cb8c",
+   "bytes": 95347,
+   "pages_text_lines": 205
+  }
+ },
+ "pdf-key-cornell": {
+  "institution": "Cornell University",
+  "country": "USA",
+  "url": "https://registrar.cornell.edu/sites/default/files/2025-10/BACK_PDF%20for%20web.pdf",
+  "kind": "transcript back page",
+  "lens": "us-private",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "ee77f9be5097ab8751290e44e1c9a249e3acec39d7974859a2f540ac3debdec8",
+   "bytes": 1060480,
+   "pages_text_lines": 76
+  }
+ },
+ "pdf-key-mcgill": {
+  "institution": "McGill University",
+  "country": "Canada",
+  "url": "https://www.mcgill.ca/student-records/files/student-records/transcript_key_16.10.14_0.pdf",
+  "kind": "transcript key (bilingual back page)",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "ff1e3c69a2df7b0f974cf45b91cbd2c1dfeb692456dd881fb56785b664abda31",
+   "bytes": 154264,
+   "pages_text_lines": 185
+  }
+ },
+ "pdf-europass-ds-examples": {
+  "institution": "Europass (Fachhochschule Aachen example)",
+  "country": "EU",
+  "url": "https://europass.europa.eu/system/files/2022-05/dsupplementexamples-en.pdf",
+  "kind": "Diploma Supplement examples",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "2a6cb8954a6b6b3c8123946f9576ef85d4284d10a9ac49c28a52b1ebeb56da9d",
+   "bytes": 110253,
+   "pages_text_lines": 280
+  }
+ },
+ "pdf-jadavpur-transcript-guidelines": {
+  "institution": "Jadavpur University",
+  "country": "India",
+  "url": "https://jadavpuruniversity.in/storage/2024/09/Transcript-Guidelines2024.pdf",
+  "kind": "transcript guidelines (fees and procedure)",
+  "lens": "india",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "98ac849683e4f14a74c1d77ce8e4088107cbdc3624e7bfb30b3aa5cea7b49bac",
+   "bytes": 159442,
+   "pages_text_lines": 93
+  }
+ },
+ "pdf-key-umich": {
+  "institution": "University of Michigan",
+  "country": "USA",
+  "url": "https://ro.umich.edu/sites/default/files/file/U-M_CentralTranscriptGuide.pdf",
+  "kind": "central transcript guide (back page)",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "8f1d2b6eff7a92f506b131b2c30487d179dfabaee62f9fc7285c296c130433ec",
+   "bytes": 6880,
+   "pages_text_lines": 35
+  }
+ },
+ "pdf-key-rochester": {
+  "institution": "University of Rochester",
+  "country": "USA",
+  "url": "https://www.rochester.edu/registrar/assets/pdf/TranscriptKey.pdf",
+  "kind": "transcript key",
+  "lens": "us-private",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "4163a5179730640138c729d7bd7fa4505c3184707ae6a787b44011f7404667de",
+   "bytes": 67154,
+   "pages_text_lines": 136
+  }
+ },
+ "pdf-key-illinois": {
+  "institution": "University of Illinois Urbana-Champaign",
+  "country": "USA",
+  "url": "https://registrar.illinois.edu/wp-content/uploads/2018/06/2015_banner_transcript_key_final.pdf",
+  "kind": "Banner transcript key (2015)",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "2282e4e7eef96e4690004c4365b65ff6220dc19b550e1f2ab067eda4494f11fd",
+   "bytes": 231225,
+   "pages_text_lines": 142
+  }
+ },
+ "pdf-heidelberg-tor-form": {
+  "institution": "Universität Heidelberg",
+  "country": "Germany",
+  "url": "https://www.zuv.uni-heidelberg.de/md/zuv/international/erasmus/down/transcript_of_recordsincoming.pdf",
+  "kind": "blank ECTS Transcript of Records form",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "2f3a0ac40ae5fd67a9011f0f762bc12020e5fdf03f0454d6ebaeabb2eb4a9de6",
+   "bytes": 24765,
+   "pages_text_lines": 69
+  }
+ },
+ "pdf-iitb-transcript-request": {
+  "institution": "IIT Bombay",
+  "country": "India",
+  "url": "https://acad.iitb.ac.in/sites/default/files/transcript.pdf",
+  "kind": "transcript request form and charges",
+  "lens": "india",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "d25045ddc3cb703282c07d1ba1930061617fe1862872411a2d184fdaa8ba9ebe",
+   "bytes": 103833,
+   "pages_text_lines": 61
+  }
+ },
+ "pdf-itb-factsheet": {
+  "institution": "Institut Teknologi Bandung",
+  "country": "Indonesia",
+  "url": "https://alliance4universities.eu/wp-content/uploads/2021/01/ITB-2020-2021.pdf",
+  "kind": "exchange fact sheet",
+  "lens": "east-asia",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "b34d781855bdec7928cd3e011267bab06ca0632fc56f5987b5e62419979a580e",
+   "bytes": 164686,
+   "pages_text_lines": 70
+  }
+ },
+ "pdf-key-utk": {
+  "institution": "University of Tennessee, Knoxville",
+  "country": "USA",
+  "url": "https://onestop.utk.edu/wp-content/uploads/sites/2/2025/11/Transcript-Key-UTK.pdf",
+  "kind": "transcript key",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "12fbbc4dad3d2167b205ab69070332aa0eb3a0eb183c276f74127a99f026be7c",
+   "bytes": 99538,
+   "pages_text_lines": 66
+  }
+ },
+ "pdf-key-vt": {
+  "institution": "Virginia Tech",
+  "country": "USA",
+  "url": "https://www.registrar.vt.edu/content/dam/registrar_vt_edu/documents/Updates/Transcript-Key.pdf",
+  "kind": "transcript key",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "1628e84f8731dc2ef32bc4317feebe492a775d65d0d69d8493ee2f6053d48837",
+   "bytes": 161145,
+   "pages_text_lines": 92
+  }
+ },
+ "pdf-key-temple": {
+  "institution": "Temple University",
+  "country": "USA",
+  "url": "https://registrar.temple.edu/sites/registrar/files/OUR_TUTranscriptKey.pdf",
+  "kind": "transcript key",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "5f0848af418e18917963a57ebd0348ed8397fe355138bf4c99a740ba891de5df",
+   "bytes": 215078,
+   "pages_text_lines": 164
+  }
+ },
+ "pdf-key-unc": {
+  "institution": "University of North Carolina at Chapel Hill",
+  "country": "USA",
+  "url": "https://registrar.unc.edu/wp-content/uploads/sites/1407/2024/05/Transcript-Key-current.pdf",
+  "kind": "transcript key",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "b0d823a425877e2b5c28b3195dfaa38d83c5be039c3c12fa52108ef5b5445f5b",
+   "bytes": 105416,
+   "pages_text_lines": 73
+  }
+ },
+ "pdf-key-arizona": {
+  "institution": "University of Arizona",
+  "country": "USA",
+  "url": "https://www.registrar.arizona.edu/sites/default/files/ua_transcript_key_-_records_spring_1988_and_forward_-_8.24.2019.pdf",
+  "kind": "transcript key (records spring 1988 and forward)",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "7518d3fabb2907a3448edb2ad98499e0d1f215813a908031faad959fb8f4c5ac",
+   "bytes": 229794,
+   "pages_text_lines": 85
+  }
+ },
+ "pdf-key-fsu": {
+  "institution": "Florida State University",
+  "country": "USA",
+  "url": "https://registrar.fsu.edu/sites/g/files/upcbnu3886/files/documents/records/transcript-legend.pdf",
+  "kind": "transcript legend",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "d82446a1f5742a8f7fd55fc41fd838e3ba53ac20f1c3b48fe463df252c325c47",
+   "bytes": 159385,
+   "pages_text_lines": 138
+  }
+ },
+ "pdf-key-duke": {
+  "institution": "Duke University",
+  "country": "USA",
+  "url": "https://registrar.duke.edu/sites/default/files/Duke_University_Transcript_Guide.pdf",
+  "kind": "transcript guide",
+  "lens": "us-private",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "b8292341e3aa9ac28c9bdd88c04fe38297fc94bde57ebd4fd860c0479d510d56",
+   "bytes": 105837,
+   "pages_text_lines": 115
+  }
+ },
+ "pdf-key-byu": {
+  "institution": "Brigham Young University",
+  "country": "USA",
+  "url": "https://enrollment.byu.edu/00000191-0571-d110-a9f7-d77fcfa90001/transcript-key",
+  "kind": "transcript key",
+  "lens": "us-private",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "c1425a1bc361aee33af14110fed68ead0d9dbeb64cac46ab66fd257d66720550",
+   "bytes": 62028,
+   "pages_text_lines": 104
+  }
+ },
+ "pdf-key-rice": {
+  "institution": "Rice University",
+  "country": "USA",
+  "url": "https://ga.rice.edu/undergraduate-students/academic-policies-procedures/transcript/transcript.pdf",
+  "kind": "transcript explanation",
+  "lens": "us-private",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "7d4c74a49bcac3f592b03e7fb14274444a9d64fadc03a9306755d0edfc714422",
+   "bytes": 37886,
+   "pages_text_lines": 24
+  }
+ },
+ "pdf-kerala-transcript-form": {
+  "institution": "University of Kerala",
+  "country": "India",
+  "url": "https://www.keralauniversity.ac.in/pdfs/application_forms/transcript_grade_2008.pdf",
+  "kind": "transcript application form (2008 grade scheme)",
+  "lens": "india",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "37c66309dacb484d6c595f518747b82494baf845775c7c424b12a76b95ede083",
+   "bytes": 88202,
+   "pages_text_lines": 124
+  }
+ },
+ "pdf-key-kfupm": {
+  "institution": "KFUPM",
+  "country": "Saudi Arabia",
+  "url": "https://registrar.kfupm.edu.sa/transcripts-certificates/transcript-information/",
+  "kind": "transcript information",
+  "lens": "mideast-africa-latam",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "a111f876ee0c01a2db41d4b3bc8f59ff9835b08fc10fb8ea22db20f3c568343a",
+   "bytes": 99878,
+   "pages_text_lines": 80
+  }
+ },
+ "pdf-key-waterloo": {
+  "institution": "University of Waterloo",
+  "country": "Canada",
+  "url": "https://uwaterloo.ca/the-centre/sites/default/files/uploads/documents/transcript-legend-back-page-oct-2024-post-publish-with-header.pdf",
+  "kind": "transcript legend (back page, October 2024)",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "09142962133528e4502617eb914a70f0deaf0889cfa1d4655dabd9c8f16662fb",
+   "bytes": 170863,
+   "pages_text_lines": 107
+  }
+ },
+ "pdf-ethz-standards": {
+  "institution": "ETH Zürich",
+  "country": "Switzerland",
+  "url": "https://ethz.ch/content/dam/ethz/main/education/admission/master/standards/Standards_allgemein_EN.pdf",
+  "kind": "master admission standards (grade tables)",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "faea54dd90f7c99ddc8151fe58417643c3974a79f396fa74012b040fd8feec89",
+   "bytes": 92275,
+   "pages_text_lines": 124
+  }
+ },
+ "pdf-asub-banner-tutorial": {
+  "institution": "Arkansas State University-Beebe",
+  "country": "USA",
+  "url": "https://www.asub.edu/images/uploads/20230324/20220718bannertutorialtranscript-81021.pdf",
+  "kind": "Banner Self-Service transcript tutorial",
+  "lens": "us-systems",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "2406e0fc8f020d041dda2da5d1b62b597357961547e54719a06b4284cdaa20ea",
+   "bytes": 4265590,
+   "pages_text_lines": 26
+  }
+ },
+ "pdf-utokyo-grading": {
+  "institution": "University of Tokyo",
+  "country": "Japan",
+  "url": "https://www.u-tokyo.ac.jp/content/400254132.pdf",
+  "kind": "grading and GPA notice (Japanese)",
+  "lens": "east-asia",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "283762b09754932e22bafaf739c3d7166368ee30e40d265a42278647c0b44947",
+   "bytes": 250696,
+   "pages_text_lines": 120
+  }
+ },
+ "pdf-key-hku": {
+  "institution": "University of Hong Kong",
+  "country": "Hong Kong",
+  "url": "https://ase.hku.hk/asoffice/doc/guideline_transcript.pdf",
+  "kind": "transcript guideline",
+  "lens": "east-asia",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "9d01cbaeb2d2d7e410b476241b45ea41d5ae3332fb93221bd789655cfdc3d638",
+   "bytes": 1192954,
+   "pages_text_lines": 138
+  }
+ },
+ "pdf-edperspective-china": {
+  "institution": "Educational Perspectives (China requirements)",
+  "country": "USA",
+  "url": "https://www.edperspective.org/pdf/bcsp/EP-China-Requirements.pdf",
+  "kind": "credential-evaluation document requirements",
+  "lens": "east-asia",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "430e99b5696dd4cf2834e8a7bae9705cc01004c774d17653fde8622bc4e21ca7",
+   "bytes": 151852,
+   "pages_text_lines": 25
+  }
+ },
+ "pdf-nus-grade-legend": {
+  "institution": "National University of Singapore",
+  "country": "Singapore",
+  "url": "https://www.nus.edu.sg/registrar/docs/info/administrative-policies-procedures/transcript-information-grade-legend.pdf",
+  "kind": "transcript information and grade legend (all periods)",
+  "lens": "east-asia",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "b11ad163068ff81bf18bd99f5f3e434a40d27004ab0a3aad520413f90b3e92a8",
+   "bytes": 394628,
+   "pages_text_lines": 1074
+  }
+ },
+ "pdf-chula-regulations": {
+  "institution": "Chulalongkorn University",
+  "country": "Thailand",
+  "url": "https://www.reg.chula.ac.th/document/CLLA_regundergrad%202565.pdf",
+  "kind": "undergraduate regulations B.E. 2565 (English)",
+  "lens": "east-asia",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-09-26)",
+  "pdf": {
+   "sha256": "3ba563c735b4e31bbd0ad7d30209fd637112029e239f09f0547b01bd8f6c2ae1",
+   "bytes": 249257,
+   "pages_text_lines": 595
+  }
  }
 }
