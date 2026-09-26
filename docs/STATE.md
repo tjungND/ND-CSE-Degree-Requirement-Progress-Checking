@@ -7,9 +7,9 @@ MSCSE does not count (the OCE clock starts at the Ph.D. entry); a transfer into 
 unfinished MSCSE keeps the MSCSE's clock. The engine already counted from the entry term; what was
 missing was the case itself: a Ph.D.-only dialog answer (`nd-mscse-transfer`), the OCE row saying
 whose clock it counts, the standing card's hint, and the transcript inference taking the EARLIER
-of two admit terms unless a master's was awarded between them. **Open for the DGS:** whether the
-other §4 clocks (residency, eight years, qualifier, eighteen months) follow the same rule — the
-app applies one entry term to all of them (DECISIONS 2026-09-26; HANDBOOK-REVISIONS §10).
+of two admit terms unless a master's was awarded between them. The DGS confirmed that every §4
+clock (residency, eight years, qualifier, eighteen months) starts at the MSCSE for the transfer
+student — which is what one entry term already does (DECISIONS 2026-09-26; HANDBOOK-REVISIONS §10).
 
 2026-09-26: **the transcript import was checked against 93 public sample transcripts** (registrar
 keys, templates, credential-evaluator samples from 39 countries) and the parser rewritten where

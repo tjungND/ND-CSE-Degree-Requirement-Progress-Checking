@@ -94,15 +94,15 @@ in CSE, or the Ph.D. program?
 
 **What the app does (DGS, 2026-09-26).** A finished MSCSE does not count: the eight semesters
 run from the Ph.D. entry. A transfer into the Ph.D. before finishing the MSCSE keeps the MSCSE's
-clock: the eight semesters run from the MSCSE start. The app applies the same entry term to
-every §4 clock (residency, the eight years, the qualifier's semester, the eighteen months) —
-the DGS stated the rule for the candidacy exam only.
+clock: the eight semesters run from the MSCSE start. The same entry term starts every §4 clock
+(residency, the eight years, the qualifier's semester, the eighteen months) — the DGS confirmed
+this for the transfer student: "all clocks start at the MSCSE".
 
 **Suggested sentence.** In §4.5: *"Semesters are counted from the student's admission to the
 Ph.D. program, or, for a student who transferred into the Ph.D. from the MSCSE without
 completing it, from the admission to the MSCSE."* And a sentence in §4.3 and §4.4 saying whether
 the residency count, the eight-year limit and the qualifying-examination deadline are counted
-the same way.
+the same way (the DGS's practice: they are).
 
 ---
 
