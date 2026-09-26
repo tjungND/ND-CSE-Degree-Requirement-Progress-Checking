@@ -99,7 +99,10 @@ export interface ExternalParseResult {
  * positive evidence. */
 // "Graduated on 15 June 2020 with the degree of Bachelor of Science …" (DGS
 // 2026-09-16) is a conferral too.
-const CONFER_RE = /conferr|awarded|granted|complet|graduat/i;
+// Widened 2026-09-26 (public templates): "Award:", "Degree obtained", German
+// verliehen / erworben, Portuguese formado / colação de grau, Spanish fecha de
+// grado / egreso / titulación, Italian conseguito / conferito, Swedish utfärdad.
+const CONFER_RE = /conferr|\bconfer\s+date|awarded|\baward\s*:|\bdate\s+of\s+award|granted|complet|graduat|obtained|obtid[oa]|verliehen|erworben|abgeschlossen|délivré|obtenu|conseguito|conferito|obtenido|utfärdad|tildelt|formado|colação\s+de\s+grau|fecha\s+de\s+(?:grado|egreso|titulaci[oó]n)|data\s+da\s+defesa/i;
 const NOT_COMPLETE_RE = /incomplete|not\s+complet/i;
 /** A status that says the degree is NOT done — "Status: IN PROGRESS - NOT
  * CONFERRED" under "Master of Science" in a degrees-awarded block (DGS's RPI,
@@ -111,17 +114,23 @@ const NOT_CONFERRED_STATUS_RE = /\bnot\s+(?:yet\s+)?(?:conferred|awarded|granted
  * awarded"): "Degree Date:", "Degree Completion Date:", "Conferral Date:",
  * "Date Conferred:", "Graduation Date:", "Awarded:", "Completed on". */
 const DEGREE_DATE_LINE_RE =
-  /degree\s+(?:completion\s+|conferral\s+|award(?:ed)?\s+)?date|\bconferr|\bawarded\b|\bgranted\b|completion\s+date|completed\s+on|date\s+(?:of\s+)?(?:completion|conferral|graduation|award)|graduation\s+date|\bgraduated\b/i;
+  /degree\s+(?:completion\s+|conferral\s+|award(?:ed)?\s+)?date|\bconfer(?:ral)?\s+date|\bconferr|\bawarded\b|\bgranted\b|completion\s+date|completed\s+on|date\s+(?:of\s+)?(?:completion|conferral|graduation|award)|graduation\s+date|\bgraduated\b|colação\s+de\s+grau|fecha\s+de\s+(?:grado|egreso|titulaci[oó]n)|data\s+da\s+defesa|verliehen\s+am/i;
 /** A dated line that is a forecast, never an award. */
 const NOT_YET_RE = /expected|anticipated|projected|sought|in\s+progress|pending/i;
-const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy/i;
+// Abbreviations from Indian, Bangladeshi and Commonwealth transcripts (2026-09-26).
+const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy|integrated\s+m\.?\s?tech|dual\s+degree/i;
+const gradDegreeIn = (text: string): boolean => GRAD_DEGREE_RE.test(text) || GRAD_ABBR_RE.test(text) || GRAD_WORDS_RE.test(text);
 
 const LETTER_GRADE_RE = /^(A|A-|B\+|B|B-|C\+|C|C-|D\+?|D-?|F)$/;
 const YEAR_RE = /\b(19[5-9]\d|20[0-4]\d)\b/;
 
 /** Words that name an institution outright (guessUniversity has a wider list
  * of its own, with the non-English forms and the weak "college"). */
-const STRONG_NAME_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|universidad|università|universität|universiteit/i;
+// Widened 2026-09-26 (public keys): institutes of information technology /
+// science / engineering, Indonesia's Institut Teknologi, Italy's Politecnico,
+// technical universities, academies of higher education, vidyapeeth.
+const STRONG_NAME_RE =
+  /universit|\binst(?:itute)?\.?\s+of\s+(?:tech|information\s+technology|science|engineering)|\binstitut\w*\s+(?:of\s+)?(?:science|technology|teknologi)|polytechnic|politecnico|polytechnique|politécnic|technical\s+university|technische\s+universität|hochschule|academy\s+of\s+higher\s+education|vidyapeeth|vishwavidyalaya|viswavidyalaya|universidad|università|universität|universiteit|universitas/i;
 // A sentence that merely mentions a university ("This official university
 // transcript is certified to be a …") is not a name (2026-09-05).
 const SENTENCE_RE = /\b(this|is|are|was|were|has|have|to be|certified|issued|printed|member of|does not|registrar|provost|dean)\b/i;
@@ -129,10 +138,18 @@ const SENTENCE_RE = /\b(this|is|are|was|were|has|have|to be|certified|issued|pri
 // Degree lines (named once here; the scan tests them on every line).
 // "Degree(s) Awarded" with the parenthesis is UMass Amherst's heading (DGS 2026-09-13).
 const DEGREES_AWARDED_HEADING_RE = /^[\s*-]*degree(?:s|\(s\))?\s+(awarded|conferred|earned)\b/i;
+// Degree abbreviations are CASE-SENSITIVE and want their dots or a degree
+// context ("B.Tech.", "BSc", "BS in …") — "be applied toward a degree" is
+// prose, not a B.E. (2026-09-26).
+const BACHELORS_ABBR_RE = /\bB\.\s?(?:E|Tech|Sc|S|Eng|Arch|A)\.?(?=[\s.,(]|$)|\b(?:BSc|BEng|BTech|BE|BS|BA)(?:\s*\(Hons\.?\))?(?=\s+(?:in|of|degree|\()|[.,]|$)/;
+const GRAD_ABBR_RE = /\bM\.\s?(?:Tech|E|Eng|Sc|S|Phil|CA)\.?(?=[\s.,(]|$)|\b(?:MSc|MEng|MTech|ME|MS)(?=\s+(?:in|of|degree|\()|[.,]|$)/;
+const GRAD_WORDS_RE = /\bmestre\b|\bmestrado\b|\bmag[ií]ster\b|\bmaestr[ií]a\b|\bdoutorado\b|\bdoctorado\b/i;
+const BACHELORS_WORDS_RE = /\bbachelor|licenciad[oa]|licenciatura|bacharel(?:ado)?|\bt[ií]tulo\s*:\s*ingenier[oa]/i;
+const bachelorsIn = (text: string): boolean => BACHELORS_WORDS_RE.test(text) || BACHELORS_ABBR_RE.test(text);
 const DEGREE_NAME_RE = /\b(bachelor|master|doctor)/i;
-const NAMES_DEGREE_RE = /\b(bachelor|master|doctor|ph\.?\s?d)\b/i;
+const namesDegreeIn = (text: string): boolean => /\b(bachelor|master|doctor|ph\.?\s?d)\b/i.test(text) || bachelorsIn(text) || GRAD_ABBR_RE.test(text) || GRAD_WORDS_RE.test(text);
 const NOT_AWARDED_RE = /\bsought\b|\bexpected\b|\bcandidate\b|\bcurrent program\b/i;
-const GRAD_DEGREE_NAME_RE = /\b(master|doctor|ph\.?\s?d)\b/i;
+const gradDegreeNameIn = (text: string): boolean => /\b(master|doctor|ph\.?\s?d)\b/i.test(text) || GRAD_ABBR_RE.test(text) || GRAD_WORDS_RE.test(text);
 const DEGREE_CONFERRED_HEADER_RE = /degree\b.*\b(conferred|awarded)\b/i;
 const DEGREE_CONFERRED_HEADER_ALONE_RE = /^[^:]*\bdegree\b[^:]*\b(conferred|awarded)\b\s*:?\s*$/i;
 
@@ -144,6 +161,8 @@ const INSTITUTION_CREDIT_RE = /INSTITUTION(?:AL)?\s+CREDIT|UNIVERSITY OF NOTRE D
 // does (DGS's synthetic set, 2026-09-20): "Beginning of Graduate Record",
 // "***** GRADUATE RECORD *****", "-- GRADUATE --", "Graduate Program of
 // Study", and the block's own "Total transfer credits accepted: 6" line.
+const TRANSFER_PEOPLESOFT_RE = /^\s*transfer\s+(?:credits?|work|coursework)(?:\s+from\b|\s*:?\s*$)|^\s*transfer\s+credit\s+summary\b|^\s*applied\s+toward\b/i;
+const TRANSFER_TOTALS_RE = /^\s*(?:course\s+trans\s+gpa|transfer\s+totals?)\b/i;
 const TRANSFER_END_RE =
   /^\s*(?:\*+\s*)?(?:beginning\s+of\s+)?(?:graduate|undergraduate)\s+(?:academic\s+)?record\b|^\s*(?:graduate|undergraduate)\s+program\s+of\s+study\b|^\s*-+\s*(?:graduate|undergraduate)\s*-+|^\s*total\s+transfer\b/i;
 // "Transferred from: University of Florida" names the OTHER school (2026-09-20):
@@ -154,7 +173,9 @@ const TRANSFER_FROM_RE = /^\s*transfer(?:red)?\s+(?:from|credit)\b/i;
 const NAMES_INSTITUTION_RE = /universit|college|institute|school|academy/i;
 // An academic-year term header, "2023-24 Spring Term" (2026-09-20): Fall is
 // the first year, Winter / Spring / Summer the second.
-const ACADEMIC_YEAR_RE = /\b((?:19|20)\d{2})[-–/](\d{2})\b/;
+// Two-digit or four-digit second year (2026-09-26: Wisconsin "Spring 2023-2024",
+// MIT "Spring Term 2022-2023", NUS "2022/2023"); no leading \b so "AY2022/2023" reads.
+const ACADEMIC_YEAR_RE = /((?:19|20)\d{2})[-–/]((?:19|20)?\d{2})\b/;
 // WPI's seven-week terms, "A Term 2020" … "D Term 2021" (DGS 2026-09-20: a
 // quarter calendar). A and B fall in the autumn semester, C and D in spring.
 const WPI_TERM_RE = /^\s*([A-D])\s+term\s+((?:19|20)\d{2})\b/i;
@@ -162,14 +183,63 @@ const WPI_TERM_RE = /^\s*([A-D])\s+term\s+((?:19|20)\d{2})\b/i;
 // "Term Units 9" — is never the second line of a two-line course row
 // (2026-09-20: a term total was read as the credits of the row above it).
 const TOTALS_LINE_RE = /^\s*(?:ehrs|gpa-?hrs|qpts|term\s+(?:totals?|units|credits|gpa)|cumulative|totals?)\b|\bgpa\b/i;
-const TERM_WORD_RE = /(fall|spring|summer|autumn|winter|semester|term|trimester|quarter|session|academic\s+year)/i;
-const LEVEL_SUFFIX_RE = /\b(undergraduate|graduate)\s*$/i;
+// Word-bounded since 2026-09-26 ("Intermediate Writing" + course number 2010 was
+// a term header), and widened to the words other registrars print: Monsoon
+// (IIIT Hyderabad), Sem/Sem., "Examination(s) held", semestre / semester in
+// four languages, the German Wintersemester / Sommersemester and their
+// abbreviations, MIT's IAP, a January or winter session, Nepal's Year/Part.
+const TERM_WORD_RE =
+  /\b(fall|spring|summer|autumn|winter|semester|sem\.?|term|trimester|quarter|session|academic\s+year|monsoon|examinations?\s+held|regular\s+examinations?|semestre|semestr|per[ií]odo|ciclo|wintersemester|sommersemester|wise|sose|iap|january|j-term|midyear|special\s+term|year\/part|h[oọ]c\s+k[yỳ]|学期)\b/i;
+const LEVEL_SUFFIX_RE = /\b(undergraduate|graduate|postgraduate)\s*$/i;
 const LEVEL_ALONE_RE = /^(undergraduate|graduate)$/i;
-const FALL_RE = /\b(fall|autumn)\b/i;
-const SPRING_RE = /\b(spring|winter|intersession)\b/i;
-const SUMMER_RE = /\bsummer\b/i;
+// Season words (2026-09-26): Monsoon is the Indian fall semester; the southern
+// hemisphere's Otoño / Outono (March–July) sits where Notre Dame's spring does
+// and its Primavera (August–December) where the fall does; the German
+// Wintersemester (October–March) is the fall term, the Sommersemester
+// (April–July) the spring; Swiss HS / FS likewise; MIT's IAP, a January or
+// winter session and an intersession precede the spring.
+const FALL_RE = /\b(fall|autumn|monsoon|primavera|wintersemester|wise|herbstsemester|otoño\s+boreal)\b/i;
+const SPRING_RE = /\b(spring|winter|intersession|otoño|outono|frühjahrssemester|iap|j-term)\b/i;
+const SUMMER_RE = /\b(summer|verano|verão|midyear|special\s+(?:term|semester)|sommer|sommersemester|sose)\b/i;
+/** An ordinal semester or term: "Semester I", "First Semester", "Term 2",
+ * "Sem-II", "1º Sem", "1S", "Odd Semester", "Semester One", Nepal's
+ * "Year/Part: I/II" (the part), Thailand's "1/2022". */
+const ORDINAL_AFTER_RE = /\b(?:semester|sem\.?|term|trimestre|semestre|per[ií]odo|ciclo|h[oọ]c\s+k[yỳ]|part)\s*[-:#]?\s*(I{1,3}|IV|[1-4]|one|two|three|four|first|second|third|fourth|1st|2nd|3rd|4th|odd|even)\b(?![-/.]\d)/i;
+const ORDINAL_BEFORE_RE = /\b(first|second|third|fourth|1st|2nd|3rd|4th|odd|even|[1-4]\s*[ºª°]|[1-4]S)\s*[-.]?\s*(?:semester|sem\b\.?|term|semestre|trimestre|quarter)/i;
+/** IIT Kanpur's "2019-20/I": the ordinal after the academic year. */
+const RANGE_SLASH_ORDINAL_RE = /(?:19|20)\d{2}[-–/](?:(?:19|20)?\d{2})\s*\/\s*(I{1,3}|[1-3])\b/i;
+const YEAR_PART_RE = /year\s*\/\s*part\s*:?\s*(I{1,4}|IV|[1-4])\s*\/\s*(I{1,3}|[1-3])/i;
+const SLASH_ORDINAL_RE = /(?:^|\s)([1-3])\s*[ºª°]?\s*(?:S|Sem\.?)?\s*\/\s*((?:19|20)\d{2})(?:\s|$)/i;
+/** A month range on a term line (UBC "Term 1   September - December 2019"):
+ * the first month names the season. */
+const MONTH_RANGE_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*[-–—]\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*,?\s*((?:19|20)\d{2})\b/i;
+const MONTH_YEAR_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(?:\s*\/\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?)?,?\s*((?:19|20)\d{2})\b/i;
+const SOLAR_HIJRI_YEAR_RE = /\b(13[5-9]\d|14[0-2]\d)\b/;
+const GREGORIAN_HINT_RE = /\(\s*((?:19|20)\d{2})(?:\s*[-–/]\s*(?:19|20)?\d{2})?\s*(?:G\.?C\.?|A\.?D\.?)?\s*\)|((?:19|20)\d{2})(?:\s*[-–/]\s*(?:19|20)?\d{2})?\s*(?:G\.?C\.?|A\.?D\.?)/i;
 
 /** The season a term header names, when it names one. */
+/** The ordinal a term line names (1–4), or undefined. */
+function ordinalOf(text: string): number | undefined {
+  const word = (w: string): number => {
+    const t = w.toLowerCase().replace(/[ºª°]/g, '').replace(/s$/i, '');
+    if (/^(i|1|one|first|1st|odd)$/.test(t)) return 1;
+    if (/^(ii|2|two|second|2nd|even)$/.test(t)) return 2;
+    if (/^(iii|3|three|third|3rd)$/.test(t)) return 3;
+    return 4;
+  };
+  const yp = YEAR_PART_RE.exec(text);
+  if (yp) return word(yp[2]!);
+  const rs = RANGE_SLASH_ORDINAL_RE.exec(text);
+  if (rs) return word(rs[1]!);
+  const after = ORDINAL_AFTER_RE.exec(text);
+  if (after) return word(after[1]!);
+  const before = ORDINAL_BEFORE_RE.exec(text);
+  if (before) return word(before[1]!);
+  const slash = SLASH_ORDINAL_RE.exec(text);
+  if (slash) return Number(slash[1]);
+  return undefined;
+}
+
 function seasonOf(text: string): Season | undefined {
   return FALL_RE.test(text) ? 'fall' : SPRING_RE.test(text) ? 'spring' : SUMMER_RE.test(text) ? 'summer' : undefined;
 }
@@ -185,29 +255,148 @@ const tokensOf = (parts: string[]): string[] =>
  * credits and the grade — or the printed grade token when it maps to none. */
 interface RowScan {
   credits?: number;
+  /** The credits as printed ("3.000"), so the Earned column can be told from a
+   * grade on the 4.0 scale that happens to equal the credits (2026-09-26). */
+  creditsText?: string;
   grade?: Grade;
   rawGrade?: string;
   titleParts: string[];
 }
 
-function mapGrade(token: string): Grade | undefined {
+/** What the transcript's OWN legend says about tokens the app would otherwise
+ * read wrongly or not at all (public-transcript research, 2026-09-26 — the
+ * legend is the only evidence the app may act on; CLAUDE.md: never guess):
+ * `eFails` — the failing grade is E (Ohio State, Utah, Arizona State, Florida:
+ * "E 0.0 Failure"); `nUnsatisfactory` — N means no credit / not satisfactory
+ * (Minnesota); `sIsTop` — S is the top grade of an S/A/B/C/D/E scale worth 10
+ * points (IIT Madras, Anna University), NOT the app's satisfactory, so it is
+ * left raw for the student to map. */
+interface LegendHints {
+  eFails?: true;
+  nUnsatisfactory?: true;
+  sIsTop?: true;
+  /** NP means "no grade — pass" here (KFUPM), not the US "no pass". */
+  npPasses?: true;
+  /** P is a letter grade worth points (India's UGC scale "P 4"), not a pass. */
+  pIsLetter?: true;
+}
+
+function readLegend(lines: string[]): LegendHints {
+  const hints: LegendHints = {};
+  for (const raw of lines) {
+    const l = raw.replace(/\s+/g, ' ');
+    // "E 0.0 Failure", "E = Failure", "E - Failing grade", "E (0.0)". The
+    // synthetic legends of the committed fixtures say "F 0.00 Failure" and
+    // define no E, so they leave every hint unset.
+    if (/(?:^|[\s,;|(])E\s*[=:–-]?\s*\(?\s*(?:0(?:\.0+)?\s*[)\s,]*)?\(?\s*(?:[=:–-]\s*)?(?:fail(?:ure|ing|ed)?|unsatisfactory)\b/i.test(l)) hints.eFails = true;
+    // "E 0.00" only where the E opens a legend entry — on a course row ("MATH
+    // 1210   Calculus I   4.000   E   0.00") it is a grade and its points.
+    if (/^(?:.{0,24}[\s,;|])?E\s*[=:–-]?\s*(?:\()?0\.0+\)?(?:\s|$)/.test(l) && !/^[A-Z]{2,10}\s+\d{2,5}\b/.test(l)) hints.eFails = true;
+    if (/(?:^|[\s,;|])N\s*[=:–-]?\s*(?:\()?\s*(?:not\s+satisfactory|no\s+credit|non-?credit|unsatisfactory)\b/i.test(l)) hints.nUnsatisfactory = true;
+    // "S 10", "S = 10", "S (10)", "S – Outstanding (10 points)".
+    if (/(?:^|[\s,;|])S\s*(?:[=:–-]|\()?\s*(?:outstanding\s*\(?)?10\b/i.test(l)) hints.sIsTop = true;
+    if (/(?:^|[\s,;|])NP\s*[=:–-]?\s*\(?\s*(?:no\s+grade\s*[-–:]?\s*pass|pass(?:ed|ing)?(?:\s*[,;)]|\s+without|\s*$))/i.test(l)) hints.npPasses = true;
+    if (/(?:^|[\s,;|])P\s*(?:\(pass\))?\s*[=:–-]?\s*(?:\()?\s*[4-5](?:\.0+)?\b(?!\s*\.\d)/.test(l) && /\b(?:O|A\+?)\s*[=:–-]?\s*\(?\s*(?:10|9)\b/.test(l)) hints.pIsLetter = true;
+  }
+  return hints;
+}
+
+/** Registrar pass/fail spellings and status codes read from public transcript
+ * keys (2026-09-26): Penn State SA/UN, Ohio State PA, Illinois PS/PP/PD/PZ,
+ * NUS CS/CU, HKUST PP, IIT-style SAT, and the words other languages print in
+ * the grade cell (German "bestanden", Italian "idoneo", Spanish "aprobado",
+ * Portuguese "aprovado", Swedish "godkänd", Norwegian "bestått"). Tokens that
+ * are NOT a pass/fail — a transfer T/TR, a withdrawal W, an incomplete I, an
+ * audit AU, a top grade S on an S–E scale — are left raw for the student. */
+const PASS_TOKENS = new Set(['P', 'PASS', 'PASSED', 'PASSING', 'CR', 'S', 'BESTANDEN', 'IDONEO', 'IDONEA', 'APROBADO', 'APROBADA', 'APROVADO', 'APROVADA', 'GODKÄND', 'GODKAND', 'BESTÅTT', 'BESTATT', 'APPROVED', 'SUPERATO', 'SUPERATA', 'SATISFACTORY']);
+const FAIL_TOKENS = new Set(['NP', 'FAIL', 'FAILED', 'NC', 'U', 'NICHTBESTANDEN', 'REPROBADO', 'REPROBADA', 'REPROVADO', 'REPROVADA', 'NONSUPERATO', 'NONSUPERATA', 'UNSATISFACTORY', 'UNDERKÄND', 'UNDERKAND']);
+const IN_PROGRESS_TOKENS = new Set(['IP', 'INPROGRESS', 'ENROLLED']);
+/** Registrar codes that are also ordinary words inside a course title ("CS
+ * Trends", "Lab for CS 2000", "Course to be …"): read as grades only where a
+ * grade sits — after the credits, or right before them — never while the
+ * title is still open (2026-09-26, the Binghamton and Northeastern fixtures). */
+const CODED_PASS_TOKENS = new Set(['SA', 'SAT', 'PA', 'PS', 'PP', 'PD', 'PZ', 'CS', 'BE', 'SY', 'CPL', 'ACC']);
+const CODED_FAIL_TOKENS = new Set(['UN', 'NS', 'NZ', 'CU', 'IB', 'NAC']);
+const CODED_IN_PROGRESS_TOKENS = new Set(['IPR', 'INP', 'PR']);
+
+function mapGrade(token: string, legend: LegendHints = {}, inGradePosition = true): Grade | undefined {
   const t = token.toUpperCase().replace(/\s+/g, '');
+  if (inGradePosition) {
+    if (CODED_PASS_TOKENS.has(t)) return 'S';
+    if (CODED_FAIL_TOKENS.has(t)) return 'U';
+    if (CODED_IN_PROGRESS_TOKENS.has(t)) return 'IP';
+  }
   if (t === 'A+') return 'A'; // no A+ in the app's grade scale (2026-09-05)
   if (LETTER_GRADE_RE.test(t)) {
     if (t === 'D+' || t === 'D-') return 'D';
     return t as Grade;
   }
-  if (t === 'P' || t === 'PASS' || t === 'CR' || t === 'S') return 'S';
-  if (t === 'NP' || t === 'FAIL' || t === 'NC' || t === 'U') return 'U';
-  if (t === 'IP' || t === 'INPROGRESS' || t === 'ENROLLED') return 'IP';
+  // Korean-style "A0 / B0" (the plain grade, beside A+ and B+): the zero is
+  // the absence of a plus (public keys, 2026-09-26).
+  if (/^[A-D]0$/.test(t)) return t[0] as Grade;
+  // The transcript's legend decides what E, N and S mean (never a guess).
+  if (t === 'E' && legend.eFails) return 'F';
+  if (t === 'N' && legend.nUnsatisfactory) return 'U';
+  if (t === 'S' && legend.sIsTop) return undefined;
+  if (t === 'NP' && legend.npPasses) return 'S';
+  if (t === 'P' && legend.pIsLetter) return undefined;
+  if (PASS_TOKENS.has(t)) return 'S';
+  if (FAIL_TOKENS.has(t)) return 'U';
+  if (IN_PROGRESS_TOKENS.has(t)) return 'IP';
   return undefined;
 }
+
+/** A pass/fail-class token (S/U/IP family), as opposed to a letter grade: a
+ * letter grade may replace a numeric guess on the row ("a real grade beats a
+ * numeric guess"), a pass/fail token may not — the University of Sydney prints
+ * "66   CR" where CR is the 65–74 band and the mark is the grade (2026-09-26). */
+const isPassFailToken = (token: string, legend: LegendHints): boolean => {
+  const g = mapGrade(token, legend);
+  return g === 'S' || g === 'U' || g === 'IP';
+};
+
+/** Grade tokens that carry no letter grade but ARE the row's result, kept as
+ * printed for the student to map (2026-09-26): a fraction mark (15/20, 28/30,
+ * 16.2/20), the Italian 30 with honours ("30L", "30 e lode"), the Chinese
+ * five-level words, and a CJK grade character (優 / 良 / 合格 / 及格). */
+const FRACTION_MARK_RE = /^\d{1,2}(?:[.,]\d{1,2})?\/(?:10|20|30)$/;
+const LODE_RE = /^30\s?(?:L|e lode|cum laude|con lode)$/i;
+const GRADE_WORD_RE = /^(?:excellent|good|medium|fair|qualified|average|poor|distinction|merit|very good|pass with distinction|high pass|low pass|honou?rs)$/i;
+const CJK_GRADE_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]{1,3}$/u;
+/** Phrases a transcript prints as several words in the grade cell, joined
+ * before the token scan so they read as one token. */
+const GRADE_PHRASES: readonly (readonly string[])[] = [
+  ['30', 'e', 'lode'],
+  ['30', 'cum', 'laude'],
+  ['30', 'con', 'lode'],
+  ['nicht', 'bestanden'],
+  ['non', 'superato'],
+  ['non', 'superata'],
+  ['very', 'good'],
+  ['pass', 'with', 'distinction'],
+  ['high', 'pass'],
+  ['low', 'pass'],
+];
+const joinGradePhrases = (tokens: string[]): string[] => {
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const phrase = GRADE_PHRASES.find((p) => p.every((w, j) => tokens[i + j]?.toLowerCase() === w));
+    if (phrase) {
+      out.push(tokens.slice(i, i + phrase.length).join(' '));
+      i += phrase.length - 1;
+    } else out.push(tokens[i]!);
+  }
+  return out;
+};
 
 /** A cell that reads as a plausible credit value (0 ≤ n ≤ 30, up to 3
  * decimals — Banner and PeopleSoft print "3.000", 2026-09-05). */
 /** WPI prints its seven-week-term credits as a fraction, "1/3" (DGS
  * 2026-09-20): read as the number, to three decimals. */
 const FRACTION_CREDITS_RE = /^(\d)\/(\d)$/;
+/** "3.000" → 3 decimals, "3" → 0 (the credits' printed format, 2026-09-26). */
+const decimalsOf = (token: string): number => (/[.,](\d+)$/.exec(token)?.[1] ?? '').length;
+const numericLike = (token: string): boolean => /^\d{1,3}(?:[.,]\d{1,2})?$/.test(token);
 
 function asCredits(token: string): number | undefined {
   const fraction = FRACTION_CREDITS_RE.exec(token);
@@ -219,6 +408,106 @@ function asCredits(token: string): number | undefined {
   // since 2026-09-05 so such rows do not come back with blank credits.
   return n >= 0 && n <= 30 ? n : undefined;
 }
+
+/** The credits cell as a COLUMN-MAPPED layout may print it (2026-09-26):
+ * parentheses round a value no credit was awarded for (Tulane "(3.000)"), a
+ * lecture:lab sum (IISc "3:1"), WPI's fraction, and values up to 120 — UK and
+ * Australian credit points (15, 20, 40, 60), UChicago's 100 units — which the
+ * position-free scan must keep refusing (a mark of 85 would read as credits). */
+function asCreditsWide(token: string): number | undefined {
+  const bare = /^\(\d{1,3}(?:[.,]\d{1,3})?\)$/.test(token) ? token.slice(1, -1) : token;
+  const lectureLab = /^(\d{1,2}):(\d{1,2})$/.exec(bare);
+  if (lectureLab) return Number(lectureLab[1]) + Number(lectureLab[2]);
+  const narrow = asCredits(bare);
+  if (narrow !== undefined) return narrow;
+  if (!/^\d{1,3}(?:[.,]\d{1,3})?$/.test(bare)) return undefined;
+  const n = Number(bare.replace(',', '.'));
+  return n > 30 && n <= 120 ? n : undefined;
+}
+
+/** The kinds of column a course table's header line names — read so the row
+ * scan knows WHERE the grade and the credits sit (public-transcript research,
+ * 2026-09-26): marks columns before the grade (Indian universities), the
+ * grade before the credits (Banner Self-Service), attempted/earned pairs
+ * (PeopleSoft), ECTS beside a local grade (Europe), a level or type cell. */
+type ColumnKind = 'code' | 'title' | 'credits' | 'ects' | 'attempted' | 'earned' | 'grade' | 'points' | 'mark' | 'level' | 'flag' | 'term' | 'serial' | 'workload' | 'duration';
+
+const COLUMN_KIND_RES: readonly (readonly [ColumnKind, RegExp])[] = [
+  ['serial', /^(?:s\.?\s*)?(?:no\.?|sl\.?\s*no\.?|sr\.?\s*no\.?|#|s\.?\s*n\.?)$/i],
+  ['term', /^(?:term|semester|session|period|periodo|período|date|year|academic\s*year|semester\s*ending\s*date|quarter|exam\s*(?:period|month|date)|month\s*&?\s*year|announced\s*on|declared\s*on|date\s*of\s*result|result\s*date|completed|month\/year|pr[üu]fungsdatum|datum|fecha|data|semestre|per[ií]odo\s*letivo)$/i],
+  ['code', /^(?:course|subject|subj\.?|subject\s*code|course\s*(?:code|id|no\.?|number|num\.?|unit\s*code)|code|kode(?:\s*\/\s*code)?|no\.?|number|cat\.?\s*no\.?|ref\.?|clave|código|codigo|course\s*unit|crs\.?(?:\s*no\.?)?|crse(?:\s*no\.?)?|dept\s*crs|modulnummer|modul-?nr\.?|modul\s*no\.?|kennung)$/i],
+  ['title', /(?:title|name|description|nama|titre|denominaci|disciplina|asignatura|materia|curso|course\s*unit\s*name|subject\s*name|unit\s*of\s*study|modul(?!nummer|-?nr|\s*no)|module|lehrveranstaltung)/i],
+  ['flag', /^(?:r|rpt|repeat(?:ed)?|h|flag|notes?|remarks?|type|course\s*type|category|status|exam\s*type|tipo(?:\s*de\s*examen)?|mode|comments?|excl\.?|incl\.?|situa[çc][aã]o|section|sec\.?|instructor|room|days|time|campus|component|delivery|part|option|classification\s*code|core\/elective|elective\/core|resit|pass\/fail|p\/f|honor\s*code|notation|code)$/i],
+  ['mark', /(?:marks?|mrk|score|internals?|externals?|total|theor(?:y|etical)|practical|term\s*work|assessment|exam(?:ination)?|full|max|obtained|nota\b|média|media\b|promedio|calif|punt|out\s*of)/i],
+  ['attempted', /(?:attempt|taken|enrol|registered|inscri)/i],
+  ['earned', /(?:earned|passed|aprobad|obtid|erworben)/i],
+  ['points', /^(?:(?:quality|grade|honor|gpa)\s*(?:points?|pts?)|q\.?\s*pts?|g\.?\s*pts?|gp|pts?|points?|qpts?|gpa\s*hrs?|gpa|c\s*\*\s*g|cxg|credit\s*x\s*grade|credits?\s*\*\s*(?:grade\s*)?points?)$/i],
+  ['workload', /^(?:ch|carga\s*hor[aá]ria|workload|contact\s*hours|hours\s*per\s*week|lecture\s*hours|l-t-p|ltp|wochenstunden|sws|freq\.?|frequ[êe]ncia|attendance|presença|asistencia)$/i],
+  ['duration', /^duration/i],
+  ['ects', /^(?:ects(?:\s*credits?)?|ects\s*cr\.?|credit\s*\(?ects\)?)$/i],
+  ['credits', /^(?:credits?|cr\.?|crd|crds|cr\.?\s*hrs?\.?|hrs?\.?|hours|credit\s*(?:hours?|hrs?|value|units?|points?|weight)|units?|cu|course\s*units?|unit\s*value|sem\.?\s*hrs?|semester\s*(?:hours?|credits?)|quarter\s*(?:units?|hours?|hrs?)|sks(?:\s*\/\s*credits?)?|weight|wgt|units?\s*of\s*credit|cp|cfu|créditos?(?:\s+(?:aula|trabalho))?|creditos?|crédits?|kredit|c)$/i],
+  ['grade', /^(?:grade|grd|gr|letter\s*grade|final\s*grade|results?|outcome|nilai(?:\s*\/\s*grade)?|grado|voto|calificaci[oó]n|betyg|karakter|note|conceito|grade\s*letter|grade\s*\(?letter\)?|local\s*grade|ects\s*grade|honor|honou?rs|classification)$/i],
+  ['level', /^(?:level|lvl|career|academic\s*career|ug\/gr|course\s*level)$/i],
+];
+
+/** The kinds of a header line, in column order — or undefined when the line
+ * is not a course-table header: fewer than three cells, fewer than three of
+ * them recognised, no course/title column, or nothing to read (no credits,
+ * grade or marks column). A cell no pattern knows is 'flag' (skipped). */
+/** The header's cell texts, kept beside the kinds (Sharif "Theoretical /
+ * Practical" are credit hours, not marks, when no credits column exists). */
+let lastHeaderCells: string[] = [];
+function readColumnHeader(flat: string): ColumnKind[] | undefined {
+  const cells = flat.split(/\s{2,}/).map((c) => c.trim().replace(/[.:]+$/, '')).filter((c) => c.length > 0);
+  if (cells.length < 3 || cells.length > 14) return undefined;
+  if (cells.some((c) => /\d{3,}/.test(c))) return undefined; // a row, a date, a code
+  let known = 0;
+  const kinds: ColumnKind[] = cells.map((cell) => {
+    // "Credits (ECTS)", "Grade (Letter)", "Score (10)" — the parenthesis
+    // qualifies the column, it does not rename it; a slash joins two languages
+    // ("Kode / Code") and the first half decides.
+    const head = cell.replace(/\s*\(.*\)\s*$/, '').split(/\s*\/\s*/)[0]!.trim();
+    for (const [kind, re] of COLUMN_KIND_RES) {
+      if (re.test(head) || (kind === 'title' && re.test(cell)) || (kind === 'mark' && re.test(cell) && !/credit|unit|hour|grade|point/i.test(cell))) {
+        known += 1;
+        return kind;
+      }
+    }
+    return 'flag';
+  });
+  if (known < 3 || known < Math.ceil(cells.length * 0.6)) return undefined;
+  if (!kinds.includes('code') && !kinds.includes('title')) return undefined;
+  if (!kinds.some((k) => k === 'credits' || k === 'ects' || k === 'grade' || k === 'mark' || k === 'attempted' || k === 'earned')) return undefined;
+  // German "Note" is the grade unless another grade column exists (then it is
+  // the English "Note", a remark).
+  if (!kinds.includes('grade')) cells.forEach((c, i) => { if (/^note$/i.test(c)) kinds[i] = 'grade'; });
+  // "Number   Course   ECTS …": two code-like cells and no title — the second
+  // is the title. "Unit of Study   Title …": two title-like cells and no code
+  // — the first is the code. A lone "Course" cell is the code AND the title.
+  // A "Code" / "Notation" cell AFTER the title is a notation column (UCI).
+  const firstTitle = kinds.indexOf('title');
+  const firstCode = kinds.indexOf('code');
+  if (firstTitle < 0 && kinds.filter((k) => k === 'code').length >= 2) kinds[kinds.indexOf('code', firstCode + 1)] = 'title';
+  else if (firstTitle < 0) kinds[firstCode] = 'title';
+  else if (firstCode < 0 && kinds.filter((k) => k === 'title').length >= 2) kinds[firstTitle] = 'code';
+  const titleAt = kinds.indexOf('title');
+  for (let i = titleAt + 1; i < kinds.length; i++) if (kinds[i] === 'code' || kinds[i] === 'title' || kinds[i] === 'serial') kinds[i] = 'flag';
+  // No credits column: a "Points" column BEFORE the grade is the credits (New
+  // Zealand, UK credit points), and Iranian "Theoretical / Practical" cells
+  // are credit hours of each kind.
+  if (!kinds.includes('credits') && !kinds.includes('attempted')) {
+    const gradeAt = kinds.indexOf('grade');
+    const pointsAt = kinds.indexOf('points');
+    if (pointsAt >= 0 && (gradeAt < 0 || pointsAt < gradeAt)) kinds[pointsAt] = 'credits';
+    cells.forEach((c, i) => {
+      if (kinds[i] === 'mark' && /^(?:theoretical|practical|theory\s*credits?|lab\s*credits?)$/i.test(c.replace(/\s*\(.*\)\s*$/, ''))) kinds[i] = 'credits';
+    });
+  }
+  lastHeaderCells = cells;
+  return kinds;
+}
+
+const PLACEHOLDER_TOKEN_RE = /^(?:[-–—_]+|n\/a|\.{2,}|\*+)$/i; // bare "NA" is Illinois Tech's non-attendance grade, not a blank
 
 /** Institutions whose transcript prints its NAME only as an image, but whose
  * text carries an unmistakable acronym (DGS 2026-09-08: Johns Hopkins prints
@@ -238,6 +527,24 @@ const NAME_ONLY_IN_IMAGE: readonly (readonly [RegExp, string])[] = [
   // UC San Diego prints the logo as an image and abbreviates itself in the
   // text ("---UCSD DEGREES AWARDED---", DGS 2026-09-09).
   [/\bUCSD\b/, 'University of California, San Diego'],
+  // Schools whose header prints only the brand (public transcript keys and
+  // templates, 2026-09-26); each is a weak guess the student can correct.
+  [/\bKU\s?LEUVEN\b/i, 'KU Leuven'],
+  [/\bETH\s+Z[uü]rich\b/i, 'ETH Zurich'],
+  [/\bEPFL\b/, 'École Polytechnique Fédérale de Lausanne'],
+  [/\bTU\s?Delft\b/i, 'Delft University of Technology'],
+  [/\bTU\/e\b|\bTU\s?Eindhoven\b/i, 'Eindhoven University of Technology'],
+  [/\bTU\s?Wien\b/i, 'TU Wien'],
+  [/\bKTH\b/, 'KTH Royal Institute of Technology'],
+  [/\bDTU\b/, 'Technical University of Denmark'],
+  [/\bNTNU\b/, 'Norwegian University of Science and Technology'],
+  [/\bUCL\b/, 'University College London'],
+  [/\bLSE\b/, 'London School of Economics and Political Science'],
+  [/\bKIT\b/, 'Karlsruhe Institute of Technology'],
+  [/\bRWTH\b/, 'RWTH Aachen University'],
+  [/\bTUM\b/, 'Technical University of Munich'],
+  [/\bKAIST\b/, 'Korea Advanced Institute of Science and Technology'],
+  [/\bPOSTECH\b/, 'Pohang University of Science and Technology'],
 ];
 
 /** The name a WATERMARK spells out (DGS 2026-09-12). UC San Diego tiles
@@ -312,6 +619,8 @@ function awardingInstitution(lines: string[]): string | undefined {
       const cand = lines[i + k]!
         .replace(/\s+/g, ' ')
         .replace(/\s+degree\s*$/i, '')
+        // "Campus: Indiana University Indianapolis" (IU's degree block, 2026-09-26).
+        .replace(/^(?:campus|institution|university|school|awarded\s+by|awarding\s+institution|name\s+of\s+institution)\s*:\s*/i, '')
         .trim();
       // The block ends where the transfer-credit block begins (2026-09-20):
       // "Transferred from: University of Florida" names the other school.
@@ -321,6 +630,69 @@ function awardingInstitution(lines: string[]): string | undefined {
       if (best === undefined || cand.length > best.length) best = cand;
     }
     if (best !== undefined) return best;
+  }
+  return undefined;
+}
+
+/** The date that follows the degree-date label on a line — "Date of
+ * Registration: 09.09.2019   Graduation Date: 30.06.2023" gives the second
+ * (METU, 2026-09-26) — else the line's first date. */
+function dateAfterLabel(line: string): string | undefined {
+  const at = DEGREE_DATE_LINE_RE.exec(line)?.index;
+  const tail = at === undefined ? line : line.slice(at);
+  // dateOnLine reads "25/06/2022" month-first and returns an impossible month;
+  // a day-first reading is then the one (University of Delhi, 2026-09-26).
+  const sane = (d: string | undefined) => (d !== undefined && Number(d.slice(5, 7)) <= 12 ? d : undefined);
+  return sane(dateOnLine(tail)) ?? isoOrEuropeanDate(gregorianPart(tail)) ?? sane(dateOnLine(line)) ?? isoOrEuropeanDate(gregorianPart(line));
+}
+
+/** The Gregorian half of a dual-calendar date: "1401/06/30 (2022/09/21)" →
+ * "(2022/09/21)"; a line with no parenthesised date is returned whole. */
+const gregorianPart = (text: string): string => /\(\s*(?:19|20)\d{2}[-/.]\d{1,2}[-/.]\d{1,2}\s*\)/.exec(text)?.[0] ?? text.replace(/\b1[34]\d{2}[-/.]\d{1,2}[-/.]\d{1,2}\b/g, ' ');
+
+/** An ISO or day-first numeric date on a line (2026-09-26): "2023-10-27",
+ * "27-Jun-19", "30.06.2023", "15/07/2023", "25/06/2022" — day-first when the
+ * first number exceeds 12 or the separator is a dot or dash; a month above 12
+ * is refused rather than written into the record. */
+const ROMANCE_MONTHS: readonly (readonly string[])[] = [
+  ['enero', 'janeiro', 'janvier', 'gennaio', 'jan'],
+  ['febrero', 'fevereiro', 'février', 'fevrier', 'febbraio', 'feb', 'fev'],
+  ['marzo', 'março', 'marco', 'mars', 'mar'],
+  ['abril', 'avril', 'aprile', 'abr', 'apr'],
+  ['mayo', 'maio', 'mai', 'maggio', 'may'],
+  ['junio', 'junho', 'juin', 'giugno', 'jun'],
+  ['julio', 'julho', 'juillet', 'luglio', 'jul'],
+  ['agosto', 'août', 'aout', 'ago', 'aug'],
+  ['septiembre', 'setembro', 'setiembre', 'septembre', 'settembre', 'sep', 'set'],
+  ['octubre', 'outubro', 'octobre', 'ottobre', 'oct', 'out'],
+  ['noviembre', 'novembro', 'novembre', 'nov'],
+  ['diciembre', 'dezembro', 'décembre', 'decembre', 'dicembre', 'dic', 'dez', 'dec'],
+];
+export function isoOrEuropeanDate(text: string, dayFirst = false): string | undefined {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const valid = (y: number, m: number, d: number) => (y >= 1950 && y <= 2049 && m >= 1 && m <= 12 && d >= 1 && d <= 31 ? `${y}-${pad(m)}-${pad(d)}` : undefined);
+  const iso = /\b((?:19|20)\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/.exec(text);
+  if (iso) return valid(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  // "18 de marzo de 2023", "15 de dezembro de 2023", "5 luglio 2024", "12 juin 2023".
+  const romance = /\b(\d{1,2})\s+(?:de\s+)?([a-zçéû]{3,10})\s+(?:de\s+)?((?:19|20)\d{2})\b/i.exec(text);
+  if (romance) {
+    const month = ROMANCE_MONTHS.findIndex((names) => names.some((n) => romance[2]!.toLowerCase().startsWith(n))) + 1;
+    if (month > 0) return valid(Number(romance[3]), month, Number(romance[1]));
+  }
+  const mon = /\b(\d{1,2})[-/. ]([A-Za-z]{3})[a-z]*[-/. ,]+(\d{2,4})\b/.exec(text);
+  if (mon) {
+    const month = MONTHS.indexOf(mon[2]!.toUpperCase()) + 1;
+    const y = mon[3]!.length === 2 ? 2000 + Number(mon[3]) : Number(mon[3]);
+    return month === 0 ? undefined : valid(y, month, Number(mon[1]));
+  }
+  const num = /\b(\d{1,2})([-/.])(\d{1,2})\2((?:19|20)\d{2})\b/.exec(text);
+  if (num) {
+    const a = Number(num[1]);
+    const b = Number(num[3]);
+    const y = Number(num[4]);
+    if (num[2] === '/' && a <= 12 && b > 12) return valid(y, a, b); // US month-first
+    if (num[2] !== '/' || a > 12 || dayFirst) return valid(y, b, a); // day-first
+    return undefined; // ambiguous "05/06/2023": dateOnLine's US reading stands
   }
   return undefined;
 }
@@ -375,7 +747,8 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
   // Strong words name an institution; "college" alone is weak (it also names a
   // division — "College of Science" — or a Banner field, "College : …").
   // "Inst." is how Georgia Tech's transcript abbreviates it (DGS 2026-09-08).
-  const STRONG_RE = /universit|\binst(?:itute)?\.?\s+of\s+tech|polytechnic|école|hochschule|universidad|università|universität|universiteit|대학교|大学/i;
+  const STRONG_RE =
+    /universit|\binst(?:itute)?\.?\s+of\s+(?:tech|information\s+technology|science|engineering)|\binstitut\w*\s+(?:of\s+)?(?:science|technology|teknologi)|polytechnic|politecnico|polytechnique|politécnic|technical\s+university|technische\s+universität|école|hochschule|academy\s+of\s+higher\s+education|vidyapeeth|vishwavidyalaya|viswavidyalaya|universidad|università|universität|universiteit|universitas|대학교|大学/i;
   const WEAK_RE = /college/i;
   const DIVISION_RE = /^(college|school|department|faculty|institute)\s+of\b|\bcollege of\b|^(program|college|major|degree)\s*:/i;
   /** Candidate name cells: each line split at column gaps (a merged two-column
@@ -390,7 +763,12 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
   // "University" phrases are a real name — "BINGHAMTON UNIVERSITY, STATE
   // UNIVERSITY OF NEW YORK" (DGS 2026-09-20; the word alone used to refuse it).
   const REPEATED_RE = /\b(universit\w*(?:\s+\w+){1,3})\b[\s\S]*\b\1\b/i;
-  const clean = (c: string) => c.replace(/\s{2,}/g, ' ').trim();
+  const clean = (c: string) =>
+    c
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s*::\s*[A-Z][A-Za-z .]*?\s*-?\s*\d{3}\s?\d{3}\s*$/, '')
+      .replace(/[\s,]+-\s*\d{3}\s?\d{3}\s*$/, '')
+      .trim();
   const plausible = (c: string) =>
     c.length >= 4 && c.length <= 80 && !/\d{3,}/.test(c) && !DIVISION_RE.test(c) && !SENTENCE_RE.test(c) && !GENERIC_ONLY_RE.test(c) && !REPEATED_RE.test(c) && !TRANSFER_FROM_RE.test(c);
   /** Candidate name cells: the whole line first when it is a short,
@@ -408,6 +786,9 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
     // RECORD", "Northeastern University, Office of the Registrar"); strip them
     // so the guess is the institution's name alone.
     const stripped = cell
+      // "ANNA UNIVERSITY :: CHENNAI 600 025", "… TIRUCHIRAPPALLI - 620 015" (2026-09-26).
+      .replace(/\s*::\s*[A-Z][A-Za-z .]*?\s*-?\s*\d{3}\s?\d{3}\s*$/, '')
+      .replace(/[\s,]+-\s*\d{3}\s?\d{3}\s*$/, '')
       .replace(/^(unofficial|official)?\s*transcript\s*(of|from)?\s*/i, '')
       // A bare leading "UNOFFICIAL" ("UNOFFICIAL University at Buffalo
       // Transcript", DGS 2026-09-14).
@@ -454,6 +835,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const looksLikeNotreDame = looksLikeNotreDameTranscript(allText);
 
   const courses: ExternalCourseCandidate[] = [];
+  const legend = readLegend(lines);
+  // A document with one unambiguously day-first date ("15/02/2023") prints
+  // every slashed date day-first (Politecnico di Milano's "12/07/2023" is 12
+  // July, not 7 December — 2026-09-26).
+  const dayFirstDocument = lines.some((l) => /\b(?:1[3-9]|2\d|3[01])\/\d{1,2}\/(?:19|20)\d{2}\b/.test(l));
   let currentYear: number | undefined;
   let currentSeason: Season | undefined;
   // Course numbers: 2–5 digits, an optional dotted part (Johns Hopkins
@@ -461,7 +847,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // "3331A"); or an all-digit id ("30240233").
   // A capital may lead the number — Columbia's "W4111", Drexel's "I699"
   // (DGS 2026-09-20).
-  const NUMBER_RE = /^([A-Z]?\d{2,5}(?:\.\d{3})?[A-Za-z]{0,3})\b(.*)$/;
+  // Widened 2026-09-26 (public keys): six digits (NTHU "542100"), a one- or
+  // two-digit dotted part (UC Berkeley Extension "X479.2"), a campus digit after
+  // the letter suffix (Toronto "108H1").
+  const NUMBER_RE = /^([A-Z]?\d{2,6}(?:\.\d{1,3})?[A-Za-z]{0,3}\d?)\b(.*)$/;
   // Subjects run 2–10 letters: "CS", "COMPSCI", "STATISTC", "ENGLWRIT" (UMass
   // prints 7- and 8-letter subjects, DGS bug report 2026-09-06 — the earlier
   // cap of 6 dropped every such course).
@@ -474,13 +863,30 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // or two letters, then dot or space); Wisconsin "COMP SCI 787" and BU "CAS
   // CS 505" (two-word subject); Columbia "COMS W4111" (a capital on the
   // number); CMU "15-513" (digits, dash, digits).
+  // More shapes from the public-transcript research (2026-09-26), each gated
+  // by the row needing a credit value or a grade after it as before:
+  // Toronto "CSC108H1" (a campus digit after the suffix); NTHU "CS 542100"
+  // (six digits); UCI "IN4MATX 209" (a digit inside the subject); Berkeley
+  // Extension "COMPSCI X479.2" and "EL ENG X404" (a lettered number, dotted
+  // section, two-word subject); BITS WILP "SS ZG519" (two letters glued to
+  // the number); IISc "E0 251" (letter-digit subject); MIT "6.5840", "6.S898",
+  // "6.THG" (department number, dot, subject — a title must follow, so a
+  // totals value "12.000" never becomes a course); U Tokyo "4860-1005"; ETH
+  // "252-0027-00L"; KU Leuven "H02A5A"; IIIT Hyderabad "CS1.301"; VTU / SRM
+  // "18CS51", "18CSC301T" (a scheme year before the letters); UNAM's
+  // zero-padded "0001" (any four-digit number outside the year range — a
+  // 2000–2049 key is refused as a year, a known limit).
   const LEAD_CODE_RE =
-    /^([A-Z]{2,10}[- ]?\d{2,5}(?:\.\d{1,3})?[A-Z]{0,3}|[A-Z]{2,10}-[A-Z]{1,2}[. ]\d{2,5}[A-Z]{0,3}|[A-Z]{2,10} [A-Z]{2,4} \d{2,5}[A-Z]{0,3}|[A-Z]{2,10} [A-Z]\d{3,5}|\d{2}-\d{3}|[A-Z]{2,4}\.\d{2,5}\.\d{1,3}[A-Z]{0,3}|\d{5,10})\b[.:]?\s*(.*)$/;
+    /^((?:[A-Z]{2,10}|[A-Z]{2,4}\d[A-Z]{2,6})[- ]?\d{2,6}(?:\.\d{1,3})?[A-Z]{0,3}\d?|[A-Z]{2,10}-[A-Z]{1,2}[. ]\d{2,5}[A-Z]{0,3}|[A-Z]{2,10} [A-Z]{2,4} \d{2,5}[A-Z]{0,3}|[A-Z]{2,10}(?: [A-Z]{2,4})? [A-Z]{1,2}\d{2,5}(?:\.\d{1,2})?[A-Z]?|[A-Z]\d \d{3,4}|\d{2}-\d{3}|[A-Z]{2,4}\.\d{2,5}\.\d{1,3}[A-Z]{0,3}|[A-Z]{2}\d\.\d{3}|\d{1,2}\.(?:\d{3,4}|[A-Z]{1,3}\d{0,3})[A-Z]?|\d{4}-\d{4}|\d{3}-\d{4}-\d{2}[A-Z]?|[A-Z]\d[A-Z0-9]{3}[A-Z]|\d{2}[A-Z]{2,6}\d{2,4}[A-Z]{0,2}|\d{5,10}|\d{4})\b[.:]?\s*(.*)$/;
+  /** Codes that are digits with a dot or dash, or a four-digit key: taken only
+   * when a wordy title follows, so a totals line ("12.000   3.000") or a bare
+   * year never starts a row. */
+  const DIGIT_LED_CODE_RE = /^(?:\d{1,2}\.|\d{4}$|\d{4}-\d{4}|\d{3}-\d{4}-\d{2}|[A-Z]\d[A-Z0-9]{3}[A-Z])/;
   // Codes are matched case-insensitively (2026-09-04 — some registrars print
   // "cs 5321"), so common words that would then look like codes are refused:
   // term headers and summary lines such as "Fall 2023  GPA 3.85".
   const CODE_STOPWORDS_RE =
-    /^(FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|SUBTOTAL|AVERAGE|GPA|CGPA|SGPA|CUM|ROOM|NO|NUM|NUMBER|CODE|TITLE|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|PASSED|CREDIT|CREDITS|HOUR|HOURS|UNIT|UNITS|POINT|POINTS|GRADE|GRADES|COURSE|SECTION|CHAPTER|LEVEL|CLASS|STUDENT|RECORD|GRADUATE|UNDERGRADUATE|ACADEMIC|DEGREE|PROGRAM|PLAN|COLLEGE|SCHOOL|CAMPUS|CATALOG|MAJOR|MINOR|DATE|PRINTED|ISSUED|STANDING|STATUS|VERSION)$/;
+    /^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC|FALL|SPRING|SUMMER|WINTER|AUTUMN|TERM|SEM|SEMESTER|SESSION|QUARTER|YEAR|PAGE|TOTAL|TOTALS|SUBTOTAL|AVERAGE|GPA|CGPA|SGPA|CUM|ROOM|NO|NUM|NUMBER|CODE|TITLE|OVERALL|REGENTS|CUMULATIVE|INSTITUTION|TRANSFER|EARNED|ATTEMPTED|PASSED|CREDIT|CREDITS|HOUR|HOURS|UNIT|UNITS|POINT|POINTS|GRADE|GRADES|COURSE|SECTION|CHAPTER|LEVEL|CLASS|STUDENT|RECORD|GRADUATE|UNDERGRADUATE|ACADEMIC|DEGREE|PROGRAM|PLAN|COLLEGE|SCHOOL|CAMPUS|CATALOG|MAJOR|MINOR|DATE|PRINTED|ISSUED|STANDING|STATUS|VERSION)$/;
   // "ID" was refused as a code until 2026-09-08 (it reads as "identifier"),
   // which dropped every Georgia Tech industrial-design course. It is a real
   // subject, so only the shape that is genuinely an identifier is refused: a
@@ -493,7 +899,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // space ("E E", "A A" at the University of Washington, 2026-09-05 — since
   // 2026-09-20 joinSpacedSubject turns those into "EE", "AA" first, so the
   // second alternative is now the multi-letter case such as "MATH SCI").
-  const SUBJECT_RE = /^[A-Za-z]{2,10}$|^[A-Za-z]{1,4} [A-Za-z]{1,4}$/;
+  const SUBJECT_RE = /^[A-Za-z]{2,10}$|^[A-Za-z]{1,4} [A-Za-z]{1,4}$|^[A-Za-z]{2,4}\d[A-Za-z]{2,6}$|^[A-Za-z]\d$/;
   // Subject cells with a column artefact (DGS 2026-09-20): RIT prints "CSCI-"
   // (the dash belongs to the code, "CSCI-603", split at the column); Clemson
   // prints a cross-listing, "CPSC (ECE)"; Rutgers' subject is numeric with
@@ -516,13 +922,15 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * to map. A later unambiguous letter grade replaces a numeric guess. When
    * the title comes AFTER the numbers ("CSCI-549   B   4.0   Title", USC,
    * 2026-09-05) the wordy tail becomes the title. */
-  const scanTokens = (tokens: string[], into: RowScan): void => {
+  const scanTokens = (rawTokens: string[], into: RowScan): void => {
+    const tokens = joinGradePhrases(rawTokens);
     let titleDone = into.titleParts.length > 0 && (into.credits !== undefined || into.grade !== undefined || into.rawGrade !== undefined);
     const tail: string[] = [];
     let sawEcho = false;
     for (let k = 0; k < tokens.length; k++) {
       const token = tokens[k]!;
       const nextToken = tokens[k + 1];
+      if (/^[*#@]$/.test(token) && (titleDone || into.titleParts.length > 0)) continue; // a repeat / exclusion mark beside a value or a title ("&" stays a title connector)
       // A single letter right after the code (2026-09-05): Georgia Tech's
       // "H" column flag before the title ("CS 8946   B Title …") is dropped
       // when a wordy title follows it; a grade before the credits
@@ -532,8 +940,41 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       }
       // A bare integer followed by a decimal credit value is part of the
       // title ("College Calculus 1   4.000   4.000   D", 2026-09-05).
-      const integerInTitle = !titleDone && /^\d{1,2}$/.test(token) && nextToken !== undefined && /^\d{1,2}[.,]\d{1,3}$/.test(nextToken) && asCredits(nextToken) !== undefined;
+      // Narrowed 2026-09-26: a small integer (Calculus 1, Part 2) before a
+      // one- or two-decimal value; a larger one ("Master Thesis 15   8.7") is
+      // the credits and the decimal a grade. Banner's three-decimal credits
+      // ("College Calculus 1   4.000") keep the wider rule.
+      const integerInTitle =
+        !titleDone &&
+        /^\d{1,2}$/.test(token) &&
+        nextToken !== undefined &&
+        asCredits(nextToken) !== undefined &&
+        (/^\d{1,2}[.,]\d{3}$/.test(nextToken) ||
+          (/^\d{1,2}[.,]\d{1,2}$/.test(nextToken) && Number(token) <= 3 && tokens[k + 2] !== undefined && mapGrade(tokens[k + 2]!, legend) !== undefined));
+      // A lone lowercase letter between title words is a word of the title
+      // ("Introducción a la Programación", "Álgebra y Geometría" — 2026-09-26),
+      // never the grade A that its capital would be.
+      if (!titleDone && into.titleParts.length > 0 && /^[a-zà-ÿ]$/.test(token)) {
+        into.titleParts.push(token);
+        continue;
+      }
       if (integerInTitle && into.titleParts.length > 0) {
+        into.titleParts.push(token);
+        continue;
+      }
+      // "Calculus 1   3   A-" (McGill, NTU — 2026-09-26): a one-digit integer
+      // after title words, then INTEGER credits, then a grade-like token — the
+      // digit is the title's.
+      const integerBeforeIntegerCredits =
+        !titleDone &&
+        into.titleParts.length > 0 &&
+        /^\d$/.test(token) &&
+        nextToken !== undefined &&
+        /^\d{1,2}$/.test(nextToken) &&
+        asCredits(nextToken) !== undefined &&
+        tokens[k + 2] !== undefined &&
+        (mapGrade(tokens[k + 2]!, legend) !== undefined || /^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(tokens[k + 2]!) || /^\d{1,3}(?:[.,]\d{1,2})?$/.test(tokens[k + 2]!));
+      if (integerBeforeIntegerCredits) {
         into.titleParts.push(token);
         continue;
       }
@@ -547,7 +988,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         /^\d{1,2}$/.test(token) &&
         nextToken !== undefined &&
         /^[\p{L}]{3,}/u.test(nextToken) &&
-        mapGrade(nextToken) === undefined &&
+        mapGrade(nextToken, legend) === undefined &&
         !/^[A-Z]{1,4}$/.test(nextToken);
       // "Lab for CS 2000   1.0   A" (Northeastern, 2026-09-20): a number that
       // with the capitalised word before it forms a course code stays in the
@@ -563,13 +1004,17 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         nextToken !== undefined &&
         asCredits(nextToken) !== undefined &&
         tokens[k + 2] !== undefined &&
-        mapGrade(tokens[k + 2]!) !== undefined;
+        mapGrade(tokens[k + 2]!, legend) !== undefined;
       if (integerBetweenWords || codeInTitle || letterInTitle) {
         into.titleParts.push(token);
         continue;
       }
       const asCr = asCredits(token);
-      const asGr = mapGrade(token);
+      // "(P)" / "(F)" — Villanova prints pass/fail results in parentheses
+      // (public keys, 2026-09-26); the letters inside are the token.
+      const bareToken = /^\([A-Za-z]{1,2}[+-]?\)$/.test(token) ? token.slice(1, -1) : token;
+      const creditsFollow = nextToken !== undefined && asCredits(nextToken) !== undefined;
+      const asGr = mapGrade(bareToken, legend, titleDone || into.credits !== undefined || creditsFollow);
       const gradeFirst =
         into.titleParts.length === 0 && into.grade === undefined && asGr !== undefined && nextToken !== undefined && asCredits(nextToken) !== undefined;
       if (gradeFirst) {
@@ -577,13 +1022,27 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         titleDone = true;
         continue;
       }
+      // Grade-shaped: a short capitalised token the app cannot map ("W", "T",
+      // "ABS", "AA"), kept as printed for the student. Since 2026-09-26 also
+      // with one trailing star (BU "P*", Penn "I*", IIT Kanpur "A*"), a zero
+      // prefix (Binghamton's excluded first attempt "0F"), a fraction mark,
+      // the Italian 30 with honours, a grade word or a CJK grade character.
+      const upper = bareToken.toUpperCase();
       const gradeShaped =
-        asGr === undefined && /^[A-Z][A-Z+\-/0-9.]{0,3}$/.test(token.toUpperCase()) && !/^\d/.test(token) && token.length <= 4;
+        asGr === undefined &&
+        // Printed in capitals, as grades are ("to" in a title's tail is not one).
+        ((/^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(upper) && bareToken === upper && bareToken.length <= 5) ||
+          /^0[A-F][+-]?$/.test(upper) ||
+          bareToken === 'Fx' || // KTH's fail-with-resit
+          FRACTION_MARK_RE.test(bareToken) ||
+          LODE_RE.test(bareToken) ||
+          (titleDone && GRADE_WORD_RE.test(bareToken)) ||
+          (titleDone && CJK_GRADE_RE.test(bareToken)));
       const numericGrade =
         asGr === undefined && /^\d{1,3}(?:[.,]\d{1,2})?$/.test(token) && Number(token.replace(',', '.')) <= 100;
       // A title token is wordy — or a bare connector ("&", "/", "-", ":")
       // between wordy tokens ("Econ & Priv Issues in Big Data", 2026-09-05).
-      const wordy = /[\p{L}]/u.test(token) && !/^\(?\d/.test(token);
+      const wordy = /[\p{L}]/u.test(token) && !/^\(?\d/.test(token) && !FRACTION_MARK_RE.test(token) && !LODE_RE.test(token);
       const connector = into.titleParts.length > 0 && /^[&/+:\-–—]$/.test(token);
       if (!titleDone && asCr === undefined && asGr === undefined && (connector || wordy)) {
         into.titleParts.push(token);
@@ -592,20 +1051,41 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       titleDone = true;
       if (into.credits === undefined && asCr !== undefined) {
         into.credits = asCr;
+        into.creditsText = token;
         continue;
       }
       if (asGr !== undefined && into.grade === undefined) {
-        into.grade = asGr;
-        into.rawGrade = undefined; // a real grade beats a numeric guess
+        // A letter grade beats a numeric guess ("3.00   3.00   A"); a pass/fail
+        // token does not (Sydney "66   CR": the mark is the grade, CR its
+        // band — 2026-09-26), and neither beats a grade-shaped token already
+        // read.
+        const passFail = isPassFailToken(bareToken, legend);
+        if (into.rawGrade === undefined || !passFail) {
+          into.grade = asGr;
+          into.rawGrade = undefined;
+        }
         continue;
       }
-      if (into.grade === undefined && into.rawGrade === undefined && into.titleParts.length > 0) {
-        // A number equal to the credits just read is the "earned" column
-        // ("3.00   3.00   12.00"), not a numeric grade (2026-09-05).
-        const echoesCredits = into.credits !== undefined && Number(token.replace(',', '.')) === into.credits;
-        if (echoesCredits) sawEcho = true;
-        if (gradeShaped) into.rawGrade = token;
-        else if (numericGrade && !echoesCredits && !sawEcho) into.rawGrade = token; // after "earned" comes "points"
+      if (into.grade === undefined && into.titleParts.length > 0) {
+        // The Earned column repeats the credits ("3.00   3.00   A   12.00",
+        // 2026-09-05) — but only in the credits' own printed format with
+        // another token after it: a lone "3.0" after credits of "3", or the
+        // last number of the row, is a grade on the 4.0 scale (Michigan
+        // State, Washington) or the Danish 7-step scale (DTU) — 2026-09-26.
+        const value = Number(token.replace(',', '.'));
+        const sameFormat = into.creditsText !== undefined && decimalsOf(token) === decimalsOf(into.creditsText);
+        const echoesCredits = into.credits !== undefined && value === into.credits && sameFormat && nextToken !== undefined;
+        // "3.00   0.00   W" (PeopleSoft, a failed / withdrawn / in-progress
+        // row): zero earned right after the credits is that column, never a
+        // grade, when a grade-like token still follows (2026-09-26).
+        const zeroEarned =
+          value === 0 && tokens[k - 1] === into.creditsText && tokens.slice(k + 1).some((t) => mapGrade(t, legend) !== undefined || /^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(t));
+        if (echoesCredits || zeroEarned) sawEcho = true;
+        // A grade-shaped token replaces a numeric guess only when that guess
+        // looks like a points value ("12.00   W"); a printed MARK keeps its
+        // number and the band beside it is dropped (Sydney "78   DI", 2026-09-26).
+        else if (gradeShaped && (into.rawGrade === undefined || decimalsOf(into.rawGrade) >= 2)) into.rawGrade = /^W\d$/.test(bareToken) ? 'W' : bareToken;
+        else if (into.rawGrade === undefined && numericGrade && !sawEcho) into.rawGrade = token; // after "earned" comes "points"
       }
       if (wordy && !gradeShaped && token.length > 1) tail.push(token);
     }
@@ -614,10 +1094,221 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     }
   };
 
+  /** The column order of the course table being read, from its header line
+   * (readColumnHeader, 2026-09-26). Kept until the next header; the tables of
+   * one transcript share a layout, and a legend page that looks like a header
+   * is harmless (no course rows follow it).
+   * Only the columns AFTER the title are matched against a row's tail; the
+   * cells before the code (a serial number, a date) are leadCode's business,
+   * and a level or flag cell between the code and the title is consumed
+   * first. */
+  let columnKinds: ColumnKind[] | undefined;
+  const numericToken = (t: string) => /^-?\d{1,3}(?:[.,]\d{1,3})?$/.test(t);
+  const gradeLike = (t: string): boolean => {
+    const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(t) ? t.slice(1, -1) : t;
+    if (mapGrade(bare, legend) !== undefined) return true;
+    const upper = bare.toUpperCase();
+    if (/^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(upper) && bare === upper && bare.length <= 5) return true;
+    if (/^0[A-F][+-]?$/.test(upper) || FRACTION_MARK_RE.test(bare) || LODE_RE.test(bare) || GRADE_WORD_RE.test(bare) || CJK_GRADE_RE.test(bare) || bare === 'Fx' || /^(?:Ab|Abs|Absent)$/i.test(bare)) return true;
+    return numericToken(bare) && Number(bare.replace(',', '.')) <= 100;
+  };
+  const fits = (kind: ColumnKind, t: string): boolean => {
+    if (PLACEHOLDER_TOKEN_RE.test(t)) return true; // an empty cell printed as "-"
+    switch (kind) {
+      case 'credits':
+      case 'ects':
+        return asCreditsWide(t) !== undefined;
+      case 'attempted':
+      case 'earned':
+      case 'points':
+      case 'workload':
+      case 'duration':
+        return numericToken(t);
+      case 'mark':
+        return numericToken(t) || /^\d{1,3}(?:[.,]\d{1,2})?\/\d{1,3}$/.test(t) || /^[A-Z]{1,3}$/.test(t) || /^\d{1,3}(?:[.,]\d+)?%$/.test(t);
+      case 'grade':
+        return gradeLike(t);
+      case 'level':
+        return /^(?:UG|UGRD|GR|GRAD|U|G|L|V|M|[4-8]|undergraduate|graduate|postgraduate|masters?|doctoral)$/i.test(t);
+      case 'term':
+        return /^(?:\d{4}(?:-\d)?|[A-Z]\d{2}|S1S2|A1A2|S[12]|A[12]|(?:fall|spring|summer|autumn|winter)\w*|\d{1,2}[-/.]\w{2,3}[-/.]\d{2,4})$/i.test(t);
+      case 'flag':
+        // A short mark ("R", "H", "*", "ORD") or a course-type word — never a
+        // word that could be part of the title ("IT Risk Management").
+        // …or an attempt number, a percentage attendance, a status word.
+        return (
+          /^[A-Z][A-Z0-9*#&+-]{0,3}$/.test(t) ||
+          /^[*#&+-]$/.test(t) ||
+          /^\d$/.test(t) ||
+          /^\d{1,3}(?:[.,]\d+)?%$/.test(t) ||
+          mapGrade(t, legend) !== undefined ||
+          /^(?:compulsory|elective|core|lab|theory|practical|honou?rs|regular|repeat|optional|major|minor|general|open|basic|advanced|obligatorio|optativo|opcional|obrigat[oó]ria|optativa|pflicht|wahl|ord|ext|ex|course|matriculado|trancado|cursando|aprovad[oa]|reprovad[oa])$/i.test(t)
+        );
+      default:
+        return false;
+    }
+  };
+  /** Match a row's tokens against the header's columns: the longest title
+   * whose remaining tokens all land in a column, preferring the fewest empty
+   * columns. Fills `into` and returns the level cell, or undefined when the
+   * layout does not fit (the position-free scan then runs as before). */
+  const scanWithMap = (rawTokens: string[], into: RowScan): { level?: Level; year?: number; season?: Season } | undefined => {
+    if (!columnKinds) return undefined;
+    const tokens = joinGradePhrases(rawTokens);
+    const titleAt = columnKinds.indexOf('title');
+    const codeAt = columnKinds.indexOf('code');
+    // Only a level cell may sit between the code and the title (Banner
+    // Self-Service); a header with no code column has nothing before the title.
+    const pre = codeAt >= 0 ? columnKinds.slice(codeAt + 1, titleAt).filter((k) => k === 'level') : [];
+    const post = columnKinds.slice(titleAt + 1).filter((k) => k !== 'code' && k !== 'serial');
+    if (post.length === 0) return undefined;
+    // Cells between the code and the title (Banner Self-Service's Level).
+    let start = 0;
+    const preValues: Partial<Record<ColumnKind, string>> = {};
+    for (const kind of pre) {
+      const t = tokens[start];
+      if (t !== undefined && fits(kind, t) && !/^[\p{L}]{3,}/u.test(t)) {
+        preValues[kind] = t;
+        start += 1;
+      }
+    }
+    let best: { s: number; values: (string | undefined)[]; blanks: number } | undefined;
+    for (let s = tokens.length - 1; s >= start; s--) {
+      const tail = tokens.slice(s);
+      const values: (string | undefined)[] = [];
+      let i = 0;
+      let blanks = 0;
+      for (const kind of post) {
+        // A repeat / exclusion mark beside a value ("C- #", "A *") belongs to
+        // no column; step over it.
+        while (tail[i] !== undefined && /^[*#@]$/.test(tail[i]!)) i += 1;
+        const t = tail[i];
+        // A numeric token that would be the grade is the points cell when it
+        // is the row's last token and a points column follows (a gradeless
+        // row: "3.00   3.00   12.00").
+        const lastNumeric = kind === 'grade' && t !== undefined && numericToken(t) && i === tail.length - 1 && post.slice(post.indexOf(kind) + 1).includes('points');
+        // A letter token under a MARK column, with a grade column still to
+        // come, is that column's (Toronto "0.50   SDF": the mark is blank).
+        const gradeFollows = kind === 'mark' && t !== undefined && /^[A-Za-z]/.test(t) && post.slice(post.indexOf(kind) + 1).includes('grade');
+        if (t !== undefined && fits(kind, t) && !lastNumeric && !gradeFollows) {
+          values.push(PLACEHOLDER_TOKEN_RE.test(t) ? undefined : t);
+          i += 1;
+          // "1 semester", "2 years" — the duration's unit word goes with it.
+          if (kind === 'duration' && tail[i] !== undefined && /^(?:semesters?|years?|terms?|weeks?|months?|quarters?)$/i.test(tail[i]!)) i += 1;
+        } else {
+          values.push(undefined);
+          blanks += 1;
+        }
+      }
+      // Every token must land in a column — except a trailing one-letter flag
+      // the header does not name (WashU's repeat "R" after the grade).
+      const leftover = tail.slice(i);
+      // …or the rest of a two-word type cell ("Core Course") when the last
+      // column is such a cell.
+      const restOfFlag = post[post.length - 1] === 'flag' && leftover.every((t) => /^[\p{L}]+$/u.test(t));
+      if (!restOfFlag && (leftover.length > 1 || (leftover.length === 1 && !/^[A-Z*#&@]$/.test(leftover[0]!)))) continue;
+      if (best === undefined || blanks < best.blanks) best = { s, values, blanks };
+    }
+    if (!best) return undefined;
+    // A header that names fewer columns than the rows print (a term block
+    // whose header dropped CREDITS while its rows still carry "3.0") would
+    // leave the credits inside the title: hand such a row to the
+    // position-free scan instead.
+    const title = tokens.slice(start, best.s);
+    const creditsFound = post.some((k, i) => (k === 'credits' || k === 'ects' || k === 'attempted' || k === 'earned') && best!.values[i] !== undefined);
+    if (!creditsFound && (title.some((t) => /^\d{1,2}[.,]\d{1,3}$/.test(t)) || (title.length > 1 && /^\d{1,2}$/.test(title[title.length - 1]!)))) return undefined;
+    const value = (kind: ColumnKind, nth = 0): string | undefined => {
+      let seen = 0;
+      for (let i = 0; i < post.length; i++) if (post[i] === kind) { if (seen === nth) return best!.values[i]; seen += 1; }
+      return undefined;
+    };
+    const creditsValues = post.map((k, i) => (k === 'credits' ? best!.values[i] : undefined)).filter((t): t is string => t !== undefined);
+    // The local credits first; ECTS only where nothing else is printed (METU
+    // "Credit   Grade   ECTS"). Two credits cells are summed only when they are
+    // the theoretical and practical hours (Sharif "3   0").
+    const theoryPractical = lastHeaderCells.filter((c) => /^(?:theoretical|practical|créditos\s+(?:aula|trabalho))$/i.test(c.replace(/\s*\(.*\)\s*$/, ''))).length >= 2;
+    const creditsToken =
+      theoryPractical && creditsValues.length > 1 && creditsValues.every((t) => asCreditsWide(t) !== undefined)
+        ? String(creditsValues.reduce((sum, t) => sum + (asCreditsWide(t) ?? 0), 0))
+        : (value('credits') ?? value('attempted') ?? value('earned') ?? value('ects'));
+    const lastMark = post.includes('mark') ? value('mark', post.filter((k) => k === 'mark').length - 1) : undefined;
+    let gradeToken = value('grade') ?? (post.includes('grade') ? undefined : lastMark);
+    // A pass/fail result or an unmapped band beside a printed mark ("93   P",
+    // "66   CR", "78   DI"): the mark is the grade, the band derives from it
+    // (GT05, 2026-09-26). A letter grade the app knows (HUST "8.7   B+") wins.
+    if (gradeToken !== undefined && lastMark !== undefined && numericToken(lastMark) && Number(lastMark.replace(',', '.')) > 0 && (isPassFailToken(gradeToken, legend) || mapGrade(gradeToken, legend) === undefined)) gradeToken = lastMark;
+    if (creditsToken === undefined && gradeToken === undefined) return undefined;
+    // A term cell on the row (U Tokyo "2022   S1S2", DTU "E23", UNAM "2019-1",
+    // a result date) — read after the values are known.
+    const termCells = post.map((k, i) => (k === 'term' ? best!.values[i] : undefined)).filter((t): t is string => t !== undefined);
+    const rowTerm = rowTermOf(termCells);
+    into.titleParts = title.filter((t) => !/^[*#@]$/.test(t));
+    if (creditsToken !== undefined) {
+      into.credits = asCreditsWide(creditsToken);
+      into.creditsText = creditsToken;
+    }
+    if (gradeToken !== undefined) {
+      const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(gradeToken) ? gradeToken.slice(1, -1) : gradeToken;
+      const mapped = mapGrade(bare, legend);
+      if (mapped !== undefined) into.grade = mapped;
+      else into.rawGrade = /^W\d$/.test(bare) ? 'W' : bare;
+    }
+    // A status word beside a one-letter grade decides it (TUM "B   bestanden":
+    // B is bestanden, a pass, not the letter B — 2026-09-26).
+    const statusValues = post.map((k, i) => (k === 'flag' ? best!.values[i] : undefined)).filter((t): t is string => t !== undefined);
+    const germanStatus = statusValues.find((t) => /^(?:bestanden|nicht bestanden|nb)$/i.test(t));
+    const statusGrade = germanStatus === undefined ? undefined : mapGrade(germanStatus, legend);
+    if (statusGrade !== undefined && gradeToken !== undefined && /^[BU]$/.test(gradeToken)) {
+      into.grade = statusGrade;
+      into.rawGrade = undefined;
+    }
+    // A status cell saying the course is still running, with no grade printed
+    // (USP "MA" — matriculado; "cursando"; "em curso"): in progress.
+    if (gradeToken === undefined && statusValues.some((t) => /^(?:MA|matriculad[oa]|cursando|em\s+curso|en\s+curso|inscrit[oa]|enrolled|in\s+progress)$/i.test(t))) into.grade = 'IP';
+    const levelToken = preValues.level ?? value('level');
+    const level: Level | undefined = levelToken === undefined ? undefined : /^(?:UG|UGRD|U|L|[4-6]|undergraduate)$/i.test(levelToken) ? 'undergraduate' : 'graduate';
+    return { level, ...rowTerm };
+  };
+  /** The term a row's own cells name (2026-09-26): a year with a semester
+   * mark (U Tokyo "2022 S1S2" / "A1A2"), DTU's exam period ("E23" = efterår
+   * = fall 2023, "F24" = forår = spring 2024), UNAM's "2019-1" (the first
+   * semester of the 2019 academic year, which begins in August 2018) and
+   * "2019-2", Uniandes' "2019-10 / -20 / -19" (spring / fall / summer), or a
+   * full date, which termOfDate places. */
+  const rowTermOf = (cells: string[]): { year?: number; season?: Season } => {
+    let year: number | undefined;
+    let season: Season | undefined;
+    for (const c of cells) {
+      const y = /^((?:19|20)\d{2})$/.exec(c);
+      if (y) { year = Number(y[1]); continue; }
+      const jp = /^(S|A)(?:1|2|1S2|1A2)?$/.exec(c);
+      if (jp && /^(?:S1S2|A1A2|S1|S2|A1|A2)$/.test(c)) { season = jp[1] === 'S' ? 'spring' : 'fall'; continue; }
+      const dk = /^([EF])(\d{2})$/.exec(c);
+      if (dk) { year = 2000 + Number(dk[2]); season = dk[1] === 'E' ? 'fall' : 'spring'; continue; }
+      const mx = /^((?:19|20)\d{2})-([12])$/.exec(c);
+      if (mx) { year = mx[2] === '1' ? Number(mx[1]) - 1 : Number(mx[1]); season = mx[2] === '1' ? 'fall' : 'spring'; continue; }
+      const co = /^((?:19|20)\d{2})-(10|20|19)$/.exec(c);
+      if (co) { year = Number(co[1]); season = co[2] === '10' ? 'spring' : co[2] === '20' ? 'fall' : 'summer'; continue; }
+      // Brazil's "1S/2022", "1º Sem/2019", "2022/1": the numbered half-year, in
+      // calendar order.
+      const br = /^([12])\s*[ºª°]?\s*(?:S|Sem\.?)?\s*\/\s*((?:19|20)\d{2})$/i.exec(c) ?? /^((?:19|20)\d{2})\s*\/\s*([12])$/.exec(c);
+      if (br) { const half = /^[12]/.test(br[1]!) ? br[1]! : br[2]!; year = Number(/^[12]$/.test(br[1]!) ? br[2] : br[1]); season = half === '1' ? 'spring' : 'fall'; continue; }
+      // A result date places the row only when no term header does (VTU's
+      // "Announced on" is months after the semester).
+      const sane = (d: string | undefined) => (d !== undefined && Number(d.slice(5, 7)) <= 12 ? d : undefined);
+      const date = currentYear === undefined || !headerSeasonExplicit ? (isoOrEuropeanDate(c, dayFirstDocument) ?? sane(dateOnLine(c))) : undefined;
+      if (date) { const t = termOfDate(date); year = t.year; season = t.season; }
+    }
+    return { ...(year !== undefined ? { year } : {}), ...(season !== undefined ? { season } : {}) };
+  };
+
   /** The course code at the start of a line's first (or second) cell —
    * case-insensitive, stopword-guarded. Returns the UPPERCASED code and the
    * rest of the line's tokens (original case, for the title). */
-  const leadCode = (flat: string): { code: string; tokens: string[] } | undefined => {
+  /** A date cell that may open a row before the code (Peradeniya "27-Jun-19
+   * GP101 English I A 3", 2026-09-26): dd-Mon-yy, dd/mm/yyyy, yyyy-mm-dd. */
+  const LEAD_DATE_RE = /^(?:\d{1,2}[-/.][A-Za-z]{3}[-/.]\d{2,4}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{4}-\d{2}-\d{2})$/;
+  const leadCode = (flat: string): { code: string; tokens: string[]; date?: string; preCell?: string } | undefined => {
     // A stray 1–2-letter security mark merged onto the row's start ("XK ITWS
     // 1882 …", 2026-09-05) is skipped when a real code follows it. Three
     // letters are a college prefix that belongs to the code — BU's "CAS CS
@@ -634,7 +1325,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const rawSubjectCell = cells[i];
       const numberCell = cells[i + 1];
       if (rawSubjectCell === undefined || numberCell === undefined || cells.length < i + 3) break;
-      if (i === 1 && !/^[A-Za-z]{1,3}$/.test(cells[0]!)) break; // only a short division/security cell may precede
+      if (i === 1 && !/^[A-Za-z]{1,3}$/.test(cells[0]!) && !LEAD_DATE_RE.test(cells[0]!)) break; // only a short division/security cell, or a date, may precede
       const subjectCell = rawSubjectCell.replace(CROSS_LISTED_SUBJECT_RE, '').replace(SUBJECT_TRAILING_DASH_RE, '');
       const colonSubject = COLON_SUBJECT_RE.test(subjectCell);
       if (!colonSubject && (!SUBJECT_RE.test(subjectCell) || !subjectCase(subjectCell))) continue;
@@ -644,23 +1335,35 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (CODE_STOPWORDS_RE.test(subject.replace(/ /g, ''))) continue;
       const tokens = tokensOf([num[2]!.trim(), ...cells.slice(i + 2)]);
       if (looksLikeIdentifierLine(subject, tokens)) continue;
-      return { code: colonSubject ? `${subject}${num[1]!}` : `${subject} ${num[1]!.toUpperCase()}`, tokens };
+      const date = i === 1 && LEAD_DATE_RE.test(cells[0]!) ? cells[0] : undefined;
+      return { code: colonSubject ? `${subject}${num[1]!}` : `${subject} ${num[1]!.toUpperCase()}`, tokens, ...(date ? { date } : {}), ...(i === 1 ? { preCell: cells[0] } : {}) };
     }
     for (const idx of [0, 1] as const) {
       const cell = cells[idx];
       if (cell === undefined) break;
-      if (idx === 1 && /[a-z]{3}/i.test(cells[0]!)) break; // wordy first cell → not a leading term/date
+      if (idx === 1 && /[a-z]{3}/i.test(cells[0]!) && !LEAD_DATE_RE.test(cells[0]!)) break; // wordy first cell → not a leading term/date
       const m = LEAD_CODE_RE.exec(cell.toUpperCase());
       if (!m) continue;
       const code = m[1]!;
-      if (/^(19|20)\d{2}$/.test(code)) return undefined; // a bare year, not a course code
+      // A bare year or a year range is not a course code: on its own it is a
+      // term line; as a first cell ("2022/2023   052513   …", Politecnico di
+      // Milano) the code may follow it (2026-09-26).
+      if (/^(19|20)\d{2}(?:-(19|20)\d{2})?$/.test(code)) {
+        if (idx === 0 && cells.length > 1 && /^(?:19|20)\d{2}(?:[-–/](?:19|20)?\d{2})?$/.test(cell)) continue;
+        return undefined;
+      }
+      if (/^[A-Z]{2,10} (19|20)\d{2}$/.test(code) && m[2]!.trim() === '' && cells.length === 1) return undefined; // "IAP 2023" — a term, not a course
+      // A digit-led or mixed code must be followed by a title (letters), or it
+      // is a number on a totals line.
+      if (DIGIT_LED_CODE_RE.test(code) && !/[\p{L}]{2}/u.test([m[2]!, ...cells.slice(idx + 1)].join(' '))) return undefined;
       // Every word of the subject is tested ("TERM GPA 12" is no course).
       if (code.split(/[^A-Z]+/).some((w) => CODE_STOPWORDS_RE.test(w))) return undefined;
       if (!subjectCase(cell.slice(0, code.length).replace(/\d.*$/, ''))) return undefined; // "Chapter 3": prose, not a code
       const rest = cell.slice(cell.length - m[2]!.length); // same indices — toUpperCase is length-stable for these codes
       const tokens = tokensOf([rest, ...cells.slice(idx + 1)]);
       if (looksLikeIdentifierLine(code.replace(/[^A-Z]/g, ''), tokens)) return undefined;
-      return { code, tokens };
+      const date = idx === 1 && LEAD_DATE_RE.test(cells[0]!) ? cells[0] : undefined;
+      return { code, tokens, ...(date ? { date } : {}), ...(idx === 1 ? { preCell: cells[0] } : {}) };
     }
     return undefined;
   };
@@ -684,6 +1387,12 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // let undergraduate work masquerade as graduate transfer credit — so they are
   // skipped and counted (2026-09-05).
   let transferBlock: 'banner' | 'table' | undefined;
+  // Banner's "COURSES IN PROGRESS" section (public keys, 2026-09-26): its rows
+  // print credits and no grade — they are in progress until the next term
+  // header or section heading, as the Notre Dame parser reads its own.
+  let inProgressBlock = false;
+  const IN_PROGRESS_HEADING_RE = /^\s*(?:\*+\s*)?(?:courses?\s+in\s+progress|(?:work\s+)?in[- ]progress(?:\s+courses?)?)\b/i;
+  const SECTION_HEADING_RE = /^\s*(?:\*+\s*)?(?:transcript\s+totals|total\s+institution|totals?\b|overall\b|cumulative\b|end\s+of\s+(?:transcript|record)|transfer\s+credit|degrees?\s+awarded|academic\s+standing)/i;
   let transferRowsSkipped = 0;
   // Level signals (2026-09-05, combined B.S.+M.S. / 4+1 transcripts): a
   // "Level:" / "Term Totals (Graduate)" / "College: Graduate School" line sets
@@ -696,6 +1405,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   type Level = NonNullable<ExternalCourseCandidate['level']>;
   const LEVEL_BLOCK_RE =
     /^(?:[a-z]+\s+)?level\s*:?\s*(undergraduate|graduate)\b|^term\s+totals\s*\(?\s*(undergraduate|graduate)\b|^\(?(undergraduate|graduate)\)?$|^college\s*:?\s*(?:the\s+)?(graduate)\s+school\b|^(?:beginning\s+of\s+)?(undergraduate|graduate)\s+(?:academic\s+)?record\b/i;
+  const CELL_LEVEL_RE =
+    /^(?:academic\s+)?career\s*:?\s*(undergraduate|graduate|postgraduate|masters?|doctoral)\b|^program(?:me)?\s*:?\s*(?:master'?s|doctoral|ph\.?d\.?|graduate|postgraduate)\s+(?:program(?:me)?|course|degree)|^(graduate|postgraduate)\s+student'?s?\s+(?:work\s+)?record\b|^(?:p[oó]s-gradua[çc][aã]o|posgrado|mestrado|maestr[ií]a|doutorado|doctorado)\b|^(?:fheq|scqf|nfq)?\s*level\s*:?\s*([4-8])\b/i;
   const LEVEL_TOTALS_RE = /\b(undergraduate|graduate)\s+(?:semester\s+)?totals\b/i;
   const ROW_LEVEL_RE = /^(UG|UGRD|GR|GRAD)$/;
   const levelWord = (w: string): Level => (w.toLowerCase() === 'undergraduate' ? 'undergraduate' : 'graduate');
@@ -722,32 +1433,184 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // term header.
     if (TRANSFER_BANNER_RE.test(line)) transferBlock = 'banner';
     else if (TRANSFER_TABLE_RE.test(line)) transferBlock = 'table';
-    else if (INSTITUTION_CREDIT_RE.test(line) || TRANSFER_END_RE.test(line)) transferBlock = undefined;
+    // PeopleSoft's block (public keys, 2026-09-26): a bare "Transfer Credits"
+    // heading, "Transfer Credit from <school>", "Applied Toward … Program";
+    // closed by "Course Trans GPA" / "Transfer Totals" or the next term header.
+    else if (TRANSFER_PEOPLESOFT_RE.test(line)) transferBlock = 'table';
+    else if (INSTITUTION_CREDIT_RE.test(line) || TRANSFER_END_RE.test(line) || TRANSFER_TOTALS_RE.test(line)) transferBlock = undefined;
     // Track the nearest term-ish header so course rows inherit its year.
-    if (TERM_WORD_RE.test(line)) {
-      const y = YEAR_RE.exec(line);
-      if (y && line.replace(/\s{2,}/g, ' ').length < 60) {
-        if (transferBlock === 'table') transferBlock = undefined; // the table ends at the next term header
-        // A bare term header ends Banner's block too (2026-09-20) — one that
-        // names an institution is a transfer term inside it.
-        if (transferBlock === 'banner' && !NAMES_INSTITUTION_RE.test(line)) transferBlock = undefined;
-        currentYear = Number(y[1]);
-        const season = seasonOf(line);
-        currentSeason = season ?? currentSeason;
-        const academicYear = ACADEMIC_YEAR_RE.exec(line);
-        if (academicYear && season !== undefined && season !== 'fall') {
-          currentYear = Number(academicYear[1]!.slice(0, 2) + academicYear[2]!);
-        }
-        const wpi = WPI_TERM_RE.exec(line);
-        if (wpi) currentSeason = /^[AB]$/i.test(wpi[1]!) ? 'fall' : 'spring';
-        const suffix = LEVEL_SUFFIX_RE.exec(line.trim());
-        if (suffix) blockLevel = levelWord(suffix[1]!);
+    if (IN_PROGRESS_HEADING_RE.test(line)) inProgressBlock = true;
+    else if (SECTION_HEADING_RE.test(line)) inProgressBlock = false;
+    const term = readTermLine(line);
+    if (term) {
+      // (The in-progress section's own term line — "Term: Fall 2024" under
+      // "COURSES IN PROGRESS" — does not end it; a section heading does.)
+      if (transferBlock === 'table') transferBlock = undefined; // the table ends at the next term header
+      // A bare term header ends Banner's block too (2026-09-20) — one that
+      // names an institution is a transfer term inside it.
+      if (transferBlock === 'banner' && !NAMES_INSTITUTION_RE.test(line)) transferBlock = undefined;
+      currentYear = term.year;
+      // A header that names no season ("Term 2234", a bare "Session:
+      // 2018-2019") leaves the season open rather than keeping the previous
+      // header's (2026-09-26 — BITS Pilani's fall rows inherited "Summer").
+      currentSeason = term.season;
+      headerSeasonExplicit = term.explicit === true;
+      const suffix = LEVEL_SUFFIX_RE.exec(line.trim());
+      if (suffix) blockLevel = levelWord(suffix[1]!);
+    }
+  };
+  /** A term header, read (2026-09-26) from the year(s) it prints and the
+   * season, ordinal, month range or calendar it names. Undefined when the
+   * line is not one: no term word, no usable year, a course row, or a
+   * prose line (long, unless its only digits are years and an ordinal). */
+  interface TermRead {
+    year: number;
+    season?: Season;
+    /** The season came from the header itself, not from an academic-year default. */
+    explicit?: true;
+  }
+  // The academic year of the last header that printed one (BUET prints
+  // "Session: 2018-2019" once and "Level-1 Term-I" per term) and the highest
+  // ordinal any term line uses (three terms in one year — UNSW — put the
+  // second in the summer; two put it in the fall).
+  let academicRange: { first: number; second: number } | undefined;
+  // Whether the current header named a season, ordinal or month: a row's own
+  // date wins over a header that only names the academic year (Politecnico
+  // di Milano's exam dates under "Academic year 2022/2023").
+  let headerSeasonExplicit = false;
+  let ubcSessionYear: number | undefined;
+  // "2019 Winter Session" is UBC's academic year only when its Term 1 / Term 2
+  // lines with month ranges follow; at Toronto "2024 WINTER SESSION" is the
+  // January–April term (2026-09-26).
+  const ubcStyle = lines.some((l) => MONTH_RANGE_RE.test(l) && /\bterm\s*[12]\b/i.test(l));
+  const maxOrdinal = Math.max(1, ...lines.map((l) => ordinalOf(l) ?? 0).filter((n) => n < 4));
+  const readTermLine = (line: string): TermRead | undefined => {
+    if (!TERM_WORD_RE.test(line) && !YEAR_PART_RE.test(line) && !SLASH_ORDINAL_RE.test(line) && !/\bsession\s*:/i.test(line)) return undefined;
+    const flat = line.replace(/\s{2,}/g, ' ').trim();
+    // A course row never opens a term ("ENGL 2010   Intermediate Writing").
+    if (leadCode(line.replace(/\s{2,}/g, '  ').trim())) return undefined;
+    // Long lines are prose — unless bilingual (the Latin half before a
+    // separator decides) or made only of term words, years and an ordinal.
+    const latin = flat.split(/\s+[/|]\s+/)[0]!;
+    // JNTU's "B.Tech III Year I Semester (R18) Regular Examinations, November
+    // 2021" is a header despite its length: a term word, a month or ordinal,
+    // a year, and no other long number.
+    const headerLike = latin.length < 120 && (ordinalOf(latin) !== undefined || MONTH_YEAR_RE.test(latin) || MONTH_RANGE_RE.test(latin)) && !/\d{5,}/.test(latin);
+    if (latin.length >= 60 && !headerLike && !/^[A-Za-z .,()':/-]*(?:19|20)\d{2}[A-Za-z .,()':/-]*$/.test(latin.replace(/\b(?:I{1,3}|IV|[1-4])\b/g, ' '))) return undefined;
+    // UBC's "2019 Winter Session" is the academic year, its Term 1 the fall
+    // and Term 2 the spring; "winter" must not read as a season there.
+    const ubc = ubcStyle ? (/^((?:19|20)\d{2})\s+winter\s+session\b/i.exec(flat) ?? /\bwinter\s+session\s+((?:19|20)\d{2})\b/i.exec(flat)) : null;
+    if (ubc) {
+      ubcSessionYear = Number(ubc[1]);
+      academicRange = { first: ubcSessionYear, second: ubcSessionYear + 1 };
+      return { year: ubcSessionYear };
+    }
+    // Uniandes' "Periodo 2019-10" (first semester), "-20" (second), "-19" (summer).
+    const periodo = /^per[ií]odo\s+((?:19|20)\d{2})-(10|20|19)\b/i.exec(flat);
+    if (periodo) return { year: Number(periodo[1]), season: periodo[2] === '10' ? 'spring' : periodo[2] === '20' ? 'fall' : 'summer', explicit: true };
+    const monthRange = MONTH_RANGE_RE.exec(flat);
+    if (monthRange) {
+      // The range's middle month places it: Jul–Nov (IIT Madras) is the fall,
+      // Jan–Apr the spring, May–Jul the summer.
+      const monthNo = (m: string) => ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m.slice(0, 3).toLowerCase()) + 1;
+      const from = monthNo(monthRange[1]!);
+      const to = monthNo(/[-–—]\s*([a-z]{3})/i.exec(monthRange[0])?.[1] ?? monthRange[1]!);
+      const mid = (from + (to < from ? to + 12 : to)) / 2;
+      const season: Season = mid < 5 ? 'spring' : mid < 8 ? 'summer' : 'fall';
+      return { year: Number(monthRange[2]), season, explicit: true };
+    }
+    // An examination month names the term (VTU "Examination: December 2021 /
+    // January 2022", Anna "Month & Year of Exam: NOV/DEC 2015"): the FIRST
+    // month and the year beside it — December is the fall's exam.
+    const monthYear = MONTH_YEAR_RE.exec(flat);
+    if (monthYear && !FALL_RE.test(flat) && !SUMMER_RE.test(flat) && !/\bspring\b/i.test(flat)) {
+      const m = monthYear[1]!.toLowerCase();
+      // An EXAMINATION month is the end of its term: India's odd semester sits
+      // its exams in November–January, the even one in April–August.
+      const exam = /\bexam/i.test(flat);
+      const season: Season = exam
+        ? /^(nov|dec|jan|feb)/.test(m) ? 'fall' : 'spring'
+        : /^(jan|feb|mar|apr|may)/.test(m) ? 'spring' : /^(jun|jul)/.test(m) ? 'summer' : 'fall';
+      return { year: Number(monthYear[2]), season, explicit: true };
+    }
+    // Years: Gregorian first; a Gregorian year in parentheses or marked G.C. /
+    // A.D. beats an Ethiopian or Nepali year beside it; a Solar Hijri year
+    // (1397–1398) converts — Iran's first semester starts in September of
+    // year + 621, its second in February of year + 622.
+    const hint = GREGORIAN_HINT_RE.exec(flat);
+    let year: number | undefined = hint ? Number(hint[1] ?? hint[2]) : undefined;
+    // The hinted year may itself be a range ("(2019/20 G.C.)").
+    let range = hint ? ACADEMIC_YEAR_RE.exec(hint[0]) : ACADEMIC_YEAR_RE.exec(flat);
+    if (year === undefined && range) year = Number(range[1]);
+    if (year === undefined) {
+      const y = YEAR_RE.exec(flat);
+      if (y) year = Number(y[1]);
+    }
+    let hijri = false;
+    if (year === undefined) {
+      const h = SOLAR_HIJRI_YEAR_RE.exec(flat);
+      if (h) {
+        hijri = true;
+        year = Number(h[1]) + 621;
+        const hr = /\b(13[5-9]\d|14[0-2]\d)\s*[-–/]\s*(13[5-9]\d|14[0-2]\d|\d{2})\b/.exec(flat);
+        if (hr) range = [hr[0], hr[1]!, hr[2]!] as unknown as RegExpExecArray;
       }
     }
+    const ordinal = ordinalOf(flat);
+    if (year === undefined) {
+      // "Level-1 Term-I" under an earlier "Session: 2018-2019" (BUET): the
+      // session is the admission year; Level N is N − 1 years on.
+      if (ordinal === undefined || academicRange === undefined) return undefined;
+      const level = /\blevel\s*[-:]?\s*([1-6])\b/i.exec(flat);
+      const offset = level ? Number(level[1]) - 1 : 0;
+      return { year: (ordinal === 1 ? academicRange.first : academicRange.second) + offset, season: ordinal === 1 ? 'fall' : ordinal === 2 ? 'spring' : 'summer', explicit: true };
+    }
+    const secondYear = (r: RegExpExecArray): number => {
+      const raw = r[2]!;
+      const n = raw.length === 4 ? Number(raw) : Number(String(r[1]).slice(0, 2) + raw);
+      return hijri ? n + 621 : n;
+    };
+    if (range) academicRange = { first: year, second: secondYear(range) };
+    else if (!ordinal || !/\bsession\b/i.test(flat)) academicRange = undefined;
+    const wpi = WPI_TERM_RE.exec(line);
+    if (wpi) return { year, season: /^[AB]$/i.test(wpi[1]!) ? 'fall' : 'spring', explicit: true };
+    const season = seasonOf(ubcStyle ? flat.replace(/winter\s+session/i, '') : flat);
+    if (season !== undefined) {
+      // "Spring 2023-2024", "Sommersemester 2023", "Second Semester 1397-1398":
+      // the spring and summer belong to the range's second year.
+      if (range && season !== 'fall') return { year: secondYear(range), season, explicit: true };
+      return { year, season, explicit: true };
+    }
+    if (ordinal === undefined && range && /\b(academic\s+year|session|year)\b/i.test(flat)) return { year, season: 'fall' }; // a whole academic year (KU Leuven "Academic year 2022-2023"): it opens in the fall — not explicit, a dated row may override it
+    if (ordinal !== undefined) {
+      if (range) return ordinal === 1 ? { year, season: 'fall' } : ordinal === 2 ? { year: secondYear(range), season: 'spring' } : { year: secondYear(range), season: 'summer' };
+      // One calendar year, numbered terms: in calendar order — the first is
+      // the spring, the last the fall, a middle one the summer (UNSW's three
+      // terms). Thailand's "First Semester 2022" (August–December) is the one
+      // documented exception (DECISIONS.md, 2026-09-26).
+      if (ubcSessionYear !== undefined && year === ubcSessionYear) return ordinal === 1 ? { year, season: 'fall' } : { year: year + 1, season: 'spring' };
+      if (maxOrdinal >= 3) return { year, season: ordinal === 1 ? 'spring' : ordinal === 2 ? 'summer' : 'fall', explicit: true };
+      return { year, season: ordinal === 1 ? 'spring' : ordinal === 2 ? 'fall' : 'summer', explicit: true };
+    }
+    return { year };
   };
   /** Level markers on one line. True when the line was only a marker and is
    * done with. */
   const readLevelMarkers = (flat: string, lead: Lead): boolean => {
+    // A level named in one cell of a wider line (HKUST "Career: Postgraduate",
+    // CU Boulder "Academic Career: Graduate", "Program: Master's Program",
+    // "GRADUATE STUDENT'S WORK RECORD", Brazil's "PÓS-GRADUAÇÃO", the UK's
+    // "FHEQ Level 7") — public transcript keys, 2026-09-26.
+    if (!lead) {
+      for (const cell of flat.split(/\s{2,}/)) {
+        const m = CELL_LEVEL_RE.exec(cell.trim());
+        if (m) {
+          const word = (m[1] ?? m[2] ?? m[3] ?? '').toLowerCase();
+          blockLevel = /^(undergraduate|bachelor|graduação|grado|licenciatura|[456])$/.test(word) ? 'undergraduate' : 'graduate';
+          break;
+        }
+      }
+    }
     const levelBlock = LEVEL_BLOCK_RE.exec(flat);
     if (levelBlock && !/\d{2,}/.test(flat.slice(0, 12))) {
       const word = levelBlock.slice(1).find((g) => g !== undefined) ?? '';
@@ -779,24 +1642,24 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     ) {
       degreeBlock = 2; // a table header: the values follow on the next line(s)
     }
-    const namesDegree = NAMES_DEGREE_RE.test(flat) && !NOT_AWARDED_RE.test(flat);
+    const namesDegree = namesDegreeIn(flat) && !NOT_AWARDED_RE.test(flat);
     // "Master of Science" / "Major: … Status: IN PROGRESS - NOT CONFERRED":
     // the status line under a bare degree name in the block (2026-09-20).
     const notConferred =
       NOT_CONFERRED_STATUS_RE.test(flat) || (degreeBlock > 0 && !CONFER_RE.test(flat) && NOT_CONFERRED_STATUS_RE.test(lines[lineIndex + 1] ?? ''));
     const conferredHere = namesDegree && (CONFER_RE.test(flat) || degreeBlock > 0) && !NOT_COMPLETE_RE.test(flat) && !notConferred;
     if (degreeBlock > 0 && !lead) degreeBlock -= 1;
-    if (conferredHere && GRAD_DEGREE_RE.test(flat)) blockConferredGrad = true;
+    if (conferredHere && gradDegreeIn(flat)) blockConferredGrad = true;
     // Named, not necessarily conferred: "Degree Sought: Bachelor of Science"
     // still says this record covers an undergraduate degree.
-    if (namesDegree && /\bbachelor/i.test(flat)) bachelorsNamed = true;
+    if (namesDegree && bachelorsIn(flat)) bachelorsNamed = true;
     // A dated degree line without a degree name ("Degree Completion Date:
     // 05/17/2024") is remembered: the degree name may follow it.
     if (!namesDegree && DEGREE_DATE_LINE_RE.test(flat) && !NOT_YET_RE.test(flat)) {
-      const d = dateOnLine(flat);
+      const d = dateAfterLabel(flat);
       if (d !== undefined) recentDegreeDate = { date: d, at: lineIndex };
     }
-    if (namesDegree && /\bbachelor/i.test(flat) && !NOT_COMPLETE_RE.test(flat) && bachelorsConferredOn === undefined) {
+    if (namesDegree && bachelorsIn(flat) && !NOT_COMPLETE_RE.test(flat) && bachelorsConferredOn === undefined) {
       // The bachelor's date (2026-09-05; widened 2026-09-06, late evening):
       // on the degree line itself when it says conferred/awarded (or sits in a
       // degrees-awarded block); else on a labelled line within the next six
@@ -807,12 +1670,12 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // ("Expected graduation: May 2027") never counts.
       if (conferredHere) {
         bachelorsConferred = true;
-        bachelorsConferredOn = dateOnLine(flat) ?? looseDateOnLine(flat);
+        bachelorsConferredOn = dateAfterLabel(flat) ?? looseDateOnLine(flat);
       }
       for (let k = 1; k <= 6 && bachelorsConferredOn === undefined; k++) {
         const later = lines[lineIndex + k];
-        if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim()) || GRAD_DEGREE_NAME_RE.test(later)) break;
-        if (DEGREE_DATE_LINE_RE.test(later) && !NOT_YET_RE.test(later)) bachelorsConferredOn = dateOnLine(later);
+        if (later === undefined || leadCode(later.replace(/\s{2,}/g, '  ').trim()) || gradDegreeNameIn(later)) break;
+        if (DEGREE_DATE_LINE_RE.test(later) && !NOT_YET_RE.test(later)) bachelorsConferredOn = dateAfterLabel(later);
         // A bare "Date:" right under "Degree Completed: Bachelor of Science"
         // is that degree's date (UMass Amherst, DGS 2026-09-13) — but only
         // when the degree line itself said completed/conferred/awarded, so a
@@ -836,12 +1699,26 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       return lineIndex;
     }
     let rowLevel: Level | undefined;
-    if (lead.tokens.length > 0 && ROW_LEVEL_RE.test(lead.tokens[0]!)) {
-      rowLevel = /^U/.test(lead.tokens[0]!) ? 'undergraduate' : 'graduate';
-      lead.tokens.shift();
-    }
     const into: RowScan = { titleParts: [] };
-    scanTokens(lead.tokens, into);
+    // The header's column order first (2026-09-26); the position-free scan
+    // when there is no header or the row does not fit it.
+    const mapped = scanWithMap(lead.tokens, into);
+    let cellTerm: { year?: number; season?: Season } | undefined;
+    // A term cell before the code (Unicamp "1S/2022   MO 417   …").
+    if (lead.preCell !== undefined && !lead.date) {
+      const pre = rowTermOf([lead.preCell]);
+      if (pre.year !== undefined) cellTerm = pre;
+    }
+    if (mapped) {
+      rowLevel = mapped.level;
+      if (mapped.year !== undefined || mapped.season !== undefined) cellTerm = { year: mapped.year ?? cellTerm?.year, season: mapped.season ?? cellTerm?.season };
+    } else {
+      if (lead.tokens.length > 0 && ROW_LEVEL_RE.test(lead.tokens[0]!)) {
+        rowLevel = /^U/.test(lead.tokens[0]!) ? 'undergraduate' : 'graduate';
+        lead.tokens.shift();
+      }
+      scanTokens(lead.tokens, into);
+    }
     let usedContinuation = false;
     if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined && into.titleParts.length > 0) {
       // Two-line rows (2026-09-04): some registrars print the code + title on
@@ -880,6 +1757,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         if (after !== undefined) lineIndex += 1; // consumed as a title, never as a row
       }
     }
+    if (inProgressBlock && into.grade === undefined && into.rawGrade === undefined) into.grade = 'IP';
     const confidence = confidences?.[lineIndex];
     // OCR-only sanity check: real credit values come in half-credit steps, so
     // "3.6" is a misread ("3.0" with a 0→6 confusion) — flag, never silently fix.
@@ -891,17 +1769,29 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const yearLine = withoutCode(usedContinuation ? `${line} ${lines[lineIndex + 1] ?? ''}` : line);
     // A year inside the title ("Lab for CS 2000", 2026-09-20) is not the row's.
     const yearMatch = YEAR_RE.exec(yearLine);
-    const rowYear = yearMatch && !into.titleParts.includes(yearMatch[1]!) ? yearMatch : null;
+    // A date on the row (a semester-ending date before the code, a result
+    // date after the grade — KTH, Peradeniya, 2026-09-26) places the row by
+    // termOfDate when no term header covers it; a header's year is never
+    // overridden by a row's date.
+    const rowDate = lead.date ? (dateOnLine(lead.date) ?? isoOrEuropeanDate(lead.date)) : isoOrEuropeanDate(yearLine) ?? (currentYear === undefined ? dateOnLine(yearLine) : undefined);
+    if (cellTerm === undefined && rowDate !== undefined && (currentYear === undefined || lead.date !== undefined)) {
+      const t = termOfDate(rowDate);
+      cellTerm = { year: t.year, season: t.season };
+    }
+    const rowYear = cellTerm === undefined && rowDate === undefined && yearMatch && !into.titleParts.includes(yearMatch[1]!) ? yearMatch : null;
     courses.push({
       // "CS5321" / "CS-5321" → "CS 5321". Subject words are two letters or
       // more, so Columbia's "COMS W4111" keeps its capital on the number.
-      courseId: lead.code.replace(/^([A-Z]{2,}(?: [A-Z]{2,})?)[- ]?(\d)/, '$1 $2'),
+      // "CS5321" / "CS-5321" → "CS 5321". A second word of one or two letters is
+      // part of the number (Columbia "COMS W4111", BITS "SS ZG519"), and
+      // IIIT Hyderabad's "CS1.301" stays as printed (2026-09-26).
+      courseId: /^[A-Z]{2}\d\.\d{3}$/.test(lead.code) ? lead.code : lead.code.replace(/^([A-Z]{2,}(?: [A-Z]{3,})?)[- ]?(\d{2,})/, '$1 $2'),
       title: into.titleParts.join(' ').slice(0, 90) || undefined,
       credits: into.credits,
       grade: into.grade,
       rawGrade: into.rawGrade,
-      year: rowYear ? Number(rowYear[1]) : currentYear,
-      season: rowYear ? (seasonOf(yearLine) ?? currentSeason) : currentSeason,
+      year: cellTerm?.year ?? (rowYear ? Number(rowYear[1]) : currentYear),
+      season: cellTerm?.season ?? (rowYear ? (seasonOf(yearLine) ?? currentSeason) : currentSeason),
       lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
     });
     rowLevels.push(rowLevel ?? blockLevel);
@@ -916,6 +1806,14 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // tests below ask whether the line is a course row, and the row reader
     // needs the tokens.
     const lead = leadCode(flat);
+    if (!lead) {
+      const header = readColumnHeader(flat);
+      if (header) {
+        columnKinds = header;
+        if ((globalThis as any).__DEBUG_COLUMNS) console.log('HEADER', JSON.stringify(flat), header);
+        continue;
+      }
+    }
     if (readLevelMarkers(flat, lead)) continue;
     readDegreeSignals(flat, lead, lineIndex);
     lineIndex = readCourseRow(line, flat, lead, lineIndex);
@@ -936,7 +1834,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const levels = new Set(courses.map((c) => c.level).filter((l) => l !== undefined));
   const degreeConferred =
     blockConferredGrad ||
-    lines.some((l) => CONFER_RE.test(l) && GRAD_DEGREE_RE.test(l) && !NOT_COMPLETE_RE.test(l) && !NOT_CONFERRED_STATUS_RE.test(l)) ||
+    lines.some((l) => CONFER_RE.test(l) && gradDegreeIn(l) && !NOT_COMPLETE_RE.test(l) && !NOT_CONFERRED_STATUS_RE.test(l)) ||
     undefined;
   // Quarter system (2026-09-11): the word "quarter" in a term header ("Fall
   // Quarter 2023", "Autumn Qtr 2023 Graduate") or in a credits heading
@@ -945,12 +1843,17 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // term headers that use Autumn AND Winter AND Spring (a three-season year is
   // a quarter calendar; a semester school says Fall), and WPI's lettered
   // seven-week terms (two or more of A–D).
+  const legendIndex = lines.findIndex((l) => /^\s*(?:transcript\s+key|legend|key\s+to\s+(?:the\s+)?transcript|guide\s+to\s+transcript|explanation\s+of\s+(?:the\s+)?transcript|grading\s+(?:system|scale|key))\b/i.test(l.replace(/\s{2,}/g, ' ').trim()));
+  const legendStart = legendIndex < 0 ? lines.length : legendIndex;
   const termHeaders = lines.filter((l) => TERM_WORD_RE.test(l) && YEAR_RE.test(l) && l.replace(/\s{2,}/g, ' ').length < 60);
   const autumnWinterSpring = [/\bautumn\b/i, /\bwinter\b/i, /\bspring\b/i].every((re) => termHeaders.some((l) => re.test(l)));
   const wpiTerms = new Set(termHeaders.map((l) => WPI_TERM_RE.exec(l)?.[1]?.toUpperCase()).filter((t) => t !== undefined));
   const quarterSystem =
     lines.some((l) => /\b(fall|spring|summer|autumn|winter)\s+(quarter|qtr)\b/i.test(l) && YEAR_RE.test(l)) ||
-    lines.some((l) => /\b(quarter|qtr)\s+(units?|hours?|hrs?|credits?)\b/i.test(l)) ||
+    // A credits heading that says quarter — a column header or a short label,
+    // never legend prose ("prior transcripts show quarter hours", Utah / Ohio
+    // State keys, 2026-09-26) and nothing at or after a legend heading.
+    lines.slice(0, legendStart).some((l) => /\b(quarter|qtr)\s+(units?|hours?|hrs?|credits?)\b/i.test(l) && l.replace(/\s{2,}/g, ' ').trim().length < 60 && !/\b(is|are|was|were|show|shown|prior|converted|conversion|equal|equals)\b/i.test(l)) ||
     autumnWinterSpring ||
     wpiTerms.size >= 2
       ? (true as const)

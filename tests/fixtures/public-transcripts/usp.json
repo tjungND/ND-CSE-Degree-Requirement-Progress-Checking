@@ -1,0 +1,23 @@
+[
+ "UNIVERSIDADE DE SÃO PAULO",
+ "Instituto de Matemática e Estatística",
+ "HISTÓRICO ESCOLAR",
+ "Nome:   SAMPLE STUDENT   Nº USP:   000000000",
+ "Curso:   Bacharelado em Ciência da Computação   Ingresso:   1º Sem/2019",
+ "Situação:   Formado   Data da Colação de Grau:   15/12/2023",
+ "Disciplina   Créditos Aula   Créditos Trabalho   Média   Freq.   Situação",
+ "1º Sem/2019",
+ "MAC0110   Introdução à Computação   4   0   8.5   95   A",
+ "MAT0111   Cálculo Diferencial e Integral I   6   0   7.0   88   A",
+ "MAE0119   Introdução à Estatística e Ciência de Dados   4   2   6.3   80   A",
+ "MAC0329   Álgebra Booleana e Aplicações   4   0   4.2   90   RN",
+ "2º Sem/2019",
+ "MAC0121   Algoritmos e Estruturas de Dados I   4   0   9.1   100   A",
+ "MAT0122   Álgebra Linear I   4   0   5.8   70   RF",
+ "MAC0329   Álgebra Booleana e Aplicações   4   0   7.5   92   A",
+ "2º Sem/2023",
+ "MAC0499   Trabalho de Formatura Supervisionado   0   8   9.5   100   A",
+ "MAC0460   Introdução ao Aprendizado de Máquina   4   0   -   -   MA",
+ "Total de Créditos Aula:   152   Total de Créditos Trabalho:   24   Média Ponderada:   7.8",
+ "Situação: A - Aprovado, RN - Reprovado por Nota, RF - Reprovado por Frequência, MA - Matriculado, T - Trancado."
+]

@@ -1,6 +1,17 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-22 (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-09-26 (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-09-26: **the transcript import was checked against 93 public sample transcripts** (registrar
+keys, templates, credential-evaluator samples from 39 countries) and the parser rewritten where
+they broke it: a column-header reader, a legend reader, term headers in a dozen calendars, new
+course-code shapes, day-first dates, more degree wording, PeopleSoft transfer blocks. 88 of 93
+fixtures read as expected; the other five wait on **seven questions for the DGS** listed in the
+2026-09-26 DECISIONS rows (code-less Chinese transcripts, Thailand's calendar, unit-based credits,
+per-row quarter conversions, Extension credit, adjacent-line conferral, grade scales beyond the
+legend). Real sample PDFs were NOT downloaded (the rule needs the DGS's yes per file); the research
+plan's needs-download list names 40-odd registrar PDFs worth fetching for end-to-end layout tests.
+
 
 2026-09-22: **the Graduate School's two rules are in** (DECISIONS rows of 2026-09-22, both marked
 "relaying the Graduate School"): at most six credits may count toward two degrees, with the

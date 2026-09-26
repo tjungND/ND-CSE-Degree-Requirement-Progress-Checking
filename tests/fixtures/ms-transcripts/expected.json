@@ -114,9 +114,9 @@
    "CPSC 6140 | Human and Computer Interaction | 3 | A- | fall 2024 | graduate",
    "CPSC 6430 | Machine Learning: Implementation and Evaluation | 3 | A | spring 2025 | graduate",
    "CPSC 8400 | Design and Analysis of Algorithms | 3 | A | fall 2025 | graduate",
-   "CPSC 8130 | MSCS Ready, Course | 2 | A | fall 2025 | graduate",
+   "CPSC 8130 | MSCS Ready, Course 5: Introduction to Computer Organization | 2 | A | fall 2025 | graduate",
    "CPSC 8910 | Master's Thesis Research | 7 | S | fall 2025 | graduate",
-   "CPSC 8140 | MSCS Ready, Course | 2 | A | spring 2026 | graduate",
+   "CPSC 8140 | MSCS Ready, Course 6: Operating Systems | 2 | A | spring 2026 | graduate",
    "CPSC 8910 | Master's Thesis Research | 7 | S | spring 2026 | graduate"
   ]
  },
@@ -418,7 +418,7 @@
    "CSCI 5471 | Modern Cryptography | 3 | A | spring 2024 | graduate",
    "CSCI 5521 | Introduction to Machine Learning | 3 | IP | fall 2024 | graduate",
    "CSCI 5523 | Introduction to Data Mining | 3 | IP | fall 2024 | graduate",
-   "CSCI 8760 | Plan | 1 | B | fall 2024 | graduate"
+   "CSCI 8760 | Plan B Project | 1 | IP | fall 2024 | graduate"
   ]
  },
  "ncsu_combined": {
@@ -432,7 +432,7 @@
    "CSC 116 | Introduction to Programming - Java | 3 | A- | fall 2020 | undergraduate",
    "CSC 216 | Software Development Fundamentals | 4 | A- | fall 2020 | undergraduate",
    "CSC 226 | Discrete Mathematics for Computer Scientists | 3 | A- | spring 2021 | undergraduate",
-   "CSC 230 | and Software Tools | 3 | A | spring 2021 | undergraduate",
+   "CSC 230 | C and Software Tools | 3 | A | spring 2021 | undergraduate",
    "CSC 236 | Computer Organization and Assembly Language | 3 | B+ | fall 2021 | undergraduate",
    "CSC 316 | Data Structures and Algorithms | 3 | B+ | fall 2021 | undergraduate",
    "CSC 326 | Software Engineering | 3 | B+ | spring 2022 | undergraduate",
@@ -830,6 +830,7 @@
    "SWE 276P | Capstone Project in Software Engineering | 4 | A | spring 2024 | graduate",
    "SWE 275P | Curricular Practical Training | 0.5 | A | spring 2024 | graduate",
    "SWE 290P | Advisement | 0.3 | A | fall 2024 | graduate",
+   "IN4MATX 231 | User Interface Design and Evaluation | 4 | A | fall 2024 | graduate",
    "COMPSCI 222 | Principles of Data Management | 4 | A | fall 2024 | graduate",
    "SWE 298 | Thesis Supervision | 5.6 | S | fall 2024 | graduate",
    "SWE 298 | Thesis Supervision | 5.6 | S | fall 2024 | graduate"
@@ -959,7 +960,7 @@
    "CSCI 576 | Multimedia Systems Design | 4 | A- | spring 2024 | graduate",
    "CSCI 577A | Software Engineering | 4 | A | spring 2024 | graduate",
    "CSCI 577B | Software Engineering | 4 | A- | spring 2024 | graduate",
-   "CSCI 580 | Graphics Rendering | 4 | A | fall 2024 | graduate",
+   "CSCI 580 | 3-D Graphics and Rendering | 4 | A | fall 2024 | graduate",
    "CSCI 585 | Database Systems | 4 | A- | fall 2024 | graduate"
   ]
  },

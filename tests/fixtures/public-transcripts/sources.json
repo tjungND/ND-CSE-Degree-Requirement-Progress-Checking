@@ -1,0 +1,746 @@
+{
+ "uw-madison": {
+  "institution": "University of Wisconsin–Madison",
+  "country": "US",
+  "url": "https://kb.wisc.edu/registrar/102294",
+  "kind": "transcript key/legend (HTML); rows composed to the key's layout; verifier removed an invented 'r' repeat prefix",
+  "lens": "us-public",
+  "from": "us-public/verify/uw-madison.corrected.json"
+ },
+ "uw-seattle": {
+  "institution": "University of Washington (Seattle)",
+  "country": "US",
+  "url": "https://registrar.washington.edu/transcripts/legend/",
+  "kind": "transcript legend (HTML); rows composed (numeric 4.0-scale grades, W5)",
+  "lens": "us-public",
+  "from": "us-public/uw-seattle.json"
+ },
+ "michigan-state": {
+  "institution": "Michigan State University",
+  "country": "US",
+  "url": "https://reg.msu.edu/transcripts/TranscriptKey.aspx",
+  "kind": "transcript key (search-index snippet only; page body not served); rows composed",
+  "lens": "us-public",
+  "from": "us-public/michigan-state.json"
+ },
+ "ohio-state": {
+  "institution": "The Ohio State University",
+  "country": "US",
+  "url": "https://registrar.osu.edu/student-hub/transcripts-and-verifications/transcript-key/",
+  "kind": "transcript key (HTML); rows composed (A–E scale, K transfer block, legend page)",
+  "lens": "us-public",
+  "from": "us-public/ohio-state.json"
+ },
+ "utah": {
+  "institution": "The University of Utah",
+  "country": "US",
+  "url": "https://registrar.utah.edu/transcripts/transcript-key.php",
+  "kind": "transcript key (HTML); rows composed (PeopleSoft Attempted/Earned/Grade/Points, legend page)",
+  "lens": "us-public",
+  "from": "us-public/utah.json"
+ },
+ "utk": {
+  "institution": "The University of Tennessee, Knoxville",
+  "country": "US",
+  "url": "https://onestop.utk.edu/registration-records/transcripts-academic-history/",
+  "kind": "online transcript key (HTML); rows composed (Banner Self-Service grade-before-credits order)",
+  "lens": "us-public",
+  "from": "us-public/utk.json"
+ },
+ "colorado": {
+  "institution": "University of Colorado Boulder",
+  "country": "US",
+  "url": "https://www.colorado.edu/registrar/media/1065",
+  "kind": "Guide to Transcript Evaluation (PDF, partly legible); rows composed",
+  "lens": "us-public",
+  "from": "us-public/colorado.json"
+ },
+ "cincinnati": {
+  "institution": "University of Cincinnati",
+  "country": "US",
+  "url": "https://www.uc.edu/about/registrar/transcripts-diplomas-verifications/transcript-ordering/transcript-legend.html",
+  "kind": "transcript legend (HTML); rows composed (quarter blocks, conversion line, semester blocks)",
+  "lens": "us-public",
+  "from": "us-public/cincinnati.json"
+ },
+ "minnesota": {
+  "institution": "University of Minnesota Twin Cities",
+  "country": "US",
+  "url": "https://policy.umn.edu/education/gradingtranscripts",
+  "kind": "grading & transcripts policy (HTML); rows composed (S/N scale, 'Plan B Project')",
+  "lens": "us-public",
+  "from": "us-public/minnesota.json"
+ },
+ "illinois": {
+  "institution": "University of Illinois Urbana-Champaign",
+  "country": "US",
+  "url": "https://registrar.illinois.edu/transcript-key/",
+  "kind": "transcript key (HTML); rows composed (Banner grade-first layout, R column, tiled name)",
+  "lens": "us-public",
+  "from": "us-public/illinois.json"
+ },
+ "penn-state": {
+  "institution": "The Pennsylvania State University",
+  "country": "US",
+  "url": "https://www.registrar.psu.edu/transcripts/transcript-keys/all-credit.cfm",
+  "kind": "transcript key (HTML); rows composed (LionPATH Attempted/Earned, SA/UN, DF, XF)",
+  "lens": "us-public",
+  "from": "us-public/penn-state.json"
+ },
+ "cmu": {
+  "institution": "Carnegie Mellon University",
+  "country": "US",
+  "url": "https://www.cmu.edu/hub/registrar/student-records/transcripts/legend.html",
+  "kind": "registrar transcript legend (HTML); rows composed (12-unit courses, R/X/N/O tokens)",
+  "lens": "us-private",
+  "from": "us-private/cmu.json"
+ },
+ "penn": {
+  "institution": "University of Pennsylvania",
+  "country": "US",
+  "url": "https://srfs.upenn.edu/student-records/transcript-key",
+  "kind": "registrar transcript key (HTML); rows composed (course units, I*)",
+  "lens": "us-private",
+  "from": "us-private/penn.json"
+ },
+ "cwru": {
+  "institution": "Case Western Reserve University",
+  "country": "US",
+  "url": "https://case.edu/registrar/grading-transcripts/grading-and-transcript-keys",
+  "kind": "registrar grading key (HTML); rows composed",
+  "lens": "us-private",
+  "from": "us-private/cwru.json"
+ },
+ "uchicago": {
+  "institution": "University of Chicago",
+  "country": "US",
+  "url": "https://registrar.uchicago.edu/records/transcripts/transcript-key",
+  "kind": "registrar transcript key (HTML); rows composed (100/050 units, NGR/W/R)",
+  "lens": "us-private",
+  "from": "us-private/uchicago.json"
+ },
+ "bu": {
+  "institution": "Boston University",
+  "country": "US",
+  "url": "https://www.bu.edu/reg/academics/grades-gpa",
+  "kind": "registrar grades page (HTML); rows composed (P*/F*)",
+  "lens": "us-private",
+  "from": "us-private/bu.json"
+ },
+ "vanderbilt": {
+  "institution": "Vanderbilt University",
+  "country": "US",
+  "url": "https://registrar.vanderbilt.edu/transcripts/transcript-key.php",
+  "kind": "registrar transcript key (HTML); rows composed",
+  "lens": "us-private",
+  "from": "us-private/vanderbilt.json"
+ },
+ "tulane": {
+  "institution": "Tulane University",
+  "country": "US",
+  "url": "https://registrar.tulane.edu/transcripts-diplomas/transcript-key",
+  "kind": "registrar transcript key (HTML); rows composed (parenthesised no-credit values)",
+  "lens": "us-private",
+  "from": "us-private/tulane.json"
+ },
+ "illinois-tech": {
+  "institution": "Illinois Institute of Technology",
+  "country": "US",
+  "url": "https://www.iit.edu/registrar/students-and-alumni/grade-legend",
+  "kind": "registrar grade legend (HTML); rows composed",
+  "lens": "us-private",
+  "from": "us-private/illinois-tech.json"
+ },
+ "depaul": {
+  "institution": "DePaul University",
+  "country": "US",
+  "url": "https://catalog.depaul.edu/student-handbooks/graduate/graduate-academic-policies/grades/",
+  "kind": "graduate catalog grades page (HTML); rows composed (two-decimal Earned 0.00, IN/R/M/FX; 'Confer Date' label is PeopleSoft's, unverified for DePaul)",
+  "lens": "us-private",
+  "from": "us-private/depaul.json"
+ },
+ "rit": {
+  "institution": "Rochester Institute of Technology",
+  "country": "US",
+  "url": "https://www.rit.edu/policies/d050",
+  "kind": "grading policy D05.0 (HTML); rows composed",
+  "lens": "us-private",
+  "from": "us-private/rit.json"
+ },
+ "marquette": {
+  "institution": "Marquette University",
+  "country": "US",
+  "url": "https://www.marquette.edu/central/registrar/grades-and-transcripts.php",
+  "kind": "registrar grades and transcripts page (HTML); rows composed (FA/WF, AB/BC/CD)",
+  "lens": "us-private",
+  "from": "us-private/marquette.json"
+ },
+ "mit": {
+  "institution": "Massachusetts Institute of Technology",
+  "country": "US",
+  "url": "https://catalog.mit.edu/mit/procedures/academic-performance-grades/",
+  "kind": "MIT Bulletin grades page (HTML); rows composed (6.5840-style subjects, IAP, units; 'Fall Term 2022-2023' header shape unverified)",
+  "lens": "us-private",
+  "from": "us-private/mit.json"
+ },
+ "washu": {
+  "institution": "Washington University in St. Louis",
+  "country": "US",
+  "url": "https://registrar.washu.edu/student-records-resources/transcripts/transcript-contents/",
+  "kind": "registrar 'Transcript Contents' page (HTML); rows composed; verifier separated the repeat marker R from the grade cell",
+  "lens": "us-private",
+  "from": "us-private/verify/washu.corrected.json"
+ },
+ "villanova": {
+  "institution": "Villanova University",
+  "country": "US",
+  "url": "https://www.villanova.edu/university/enrollment-management/registrar/enrollment-verifications-transcripts/transcript-key.html",
+  "kind": "registrar transcript key (HTML); rows composed ('Transfer Credits' heading, (P) pass)",
+  "lens": "us-private",
+  "from": "us-private/villanova.json"
+ },
+ "binghamton_peoplesoft_key": {
+  "institution": "Binghamton University (SUNY)",
+  "country": "US",
+  "url": "https://www.binghamton.edu/registrar/student/transcripts/transcript-key.html",
+  "kind": "transcript key (HTML); rows composed (PeopleSoft transfer block, Confer Date, 0F, B*, three-decimal hours)",
+  "lens": "us-systems",
+  "from": "us-systems/binghamton_peoplesoft_key.json"
+ },
+ "binghamton_peoplesoft_key_2dp": {
+  "institution": "Binghamton University (SUNY)",
+  "country": "US",
+  "url": "https://www.binghamton.edu/registrar/student/transcripts/transcript-key.html",
+  "kind": "same record printed with two-decimal hours (exposes the 0.00 Earned cell)",
+  "lens": "us-systems",
+  "from": "us-systems/binghamton_peoplesoft_key_2dp.json"
+ },
+ "illinois_banner_selfservice": {
+  "institution": "University of Illinois Urbana-Champaign",
+  "country": "US",
+  "url": "https://registrar.illinois.edu/academic-records/transcripts/transcript-key/",
+  "kind": "transcript key (HTML) + 2015 Banner key; rows composed in Banner Self-Service 'Academic Transcript' layout",
+  "lens": "us-systems",
+  "from": "us-systems/illinois_banner_selfservice.json"
+ },
+ "penn_state_lionpath_key": {
+  "institution": "The Pennsylvania State University",
+  "country": "US",
+  "url": "https://www.registrar.psu.edu/transcripts/transcript-keys/all-credit.cfm",
+  "kind": "transcript key (HTML); rows composed (LionPATH campus lines, transfer block)",
+  "lens": "us-systems",
+  "from": "us-systems/penn_state_lionpath_key.json"
+ },
+ "indiana_iu_indianapolis_key": {
+  "institution": "Indiana University (IU Indianapolis)",
+  "country": "US",
+  "url": "https://registrar.indiana.edu/transcript/",
+  "kind": "transcript explanation (HTML); rows composed (X-marked retake, T transfer row, 'Campus:' line)",
+  "lens": "us-systems",
+  "from": "us-systems/indiana_iu_indianapolis_key.json"
+ },
+ "slcc_banner_official_key": {
+  "institution": "Salt Lake Community College",
+  "country": "US",
+  "url": "https://www.slcc.edu/registrar/docs/transcript-key.pdf",
+  "kind": "transcript key (PDF, read as text); rows composed in Banner official layout; verifier joined the 'Fall 2017: Utah Valley University' cells as Banner prints them",
+  "lens": "us-systems",
+  "from": "us-systems/verify/slcc_banner_official_key.corrected.json"
+ },
+ "uci_notations": {
+  "institution": "University of California, Irvine",
+  "country": "US",
+  "url": "https://www.reg.uci.edu/services/transcripts/notations.html",
+  "kind": "transcript notations (HTML); rows composed (credit-code column, IN4MATX)",
+  "lens": "us-systems",
+  "from": "us-systems/uci_notations.json"
+ },
+ "ucsc_transcript_guide": {
+  "institution": "University of California, Santa Cruz",
+  "country": "US",
+  "url": "https://docs.google.com/document/d/1VPsacRK2g4nJ6-6TrSDilu75AcnmxIuRqF4qHJ76t0w/",
+  "kind": "registrar graduate transcript guide (Google Doc); rows composed",
+  "lens": "us-systems",
+  "from": "us-systems/ucsc_transcript_guide.json"
+ },
+ "uc_berkeley_extension_guide": {
+  "institution": "UC Berkeley Extension",
+  "country": "US",
+  "url": "https://extension.berkeley.edu/static/studentservices/transcripts-details/",
+  "kind": "guide to the official transcript (HTML); rows composed (X-prefixed dotted codes, NR/RD/NC)",
+  "lens": "us-systems",
+  "from": "us-systems/uc_berkeley_extension_guide.json"
+ },
+ "iit-kanpur": {
+  "institution": "Indian Institute of Technology Kanpur",
+  "country": "India",
+  "url": "https://www.iitk.ac.in/spgc/acreq/2.htm",
+  "kind": "official grade legend (HTML); rows composed ('2019-20/I' semesters, units, A* S X I)",
+  "lens": "india",
+  "from": "india/iit-kanpur.json"
+ },
+ "bits-pilani": {
+  "institution": "Birla Institute of Technology and Science, Pilani",
+  "country": "India",
+  "url": "https://bits-pilani-wilp.ac.in/resource/education-policy.php",
+  "kind": "official grade legend (HTML); rows composed (First/Second Semester 2021-2022, Summer Term)",
+  "lens": "india",
+  "from": "india/bits-pilani.json"
+ },
+ "bits-pilani-wilp": {
+  "institution": "BITS Pilani (Work Integrated Learning Programmes)",
+  "country": "India",
+  "url": "https://bits-pilani-wilp.ac.in/resource/education-policy.php",
+  "kind": "official grade legend (HTML); rows composed ('SS ZG519' codes)",
+  "lens": "india",
+  "from": "india/bits-pilani-wilp.json"
+ },
+ "iiit-hyderabad": {
+  "institution": "International Institute of Information Technology, Hyderabad",
+  "country": "India",
+  "url": "https://www.iiit.ac.in/curriculum-cse/",
+  "kind": "official curriculum page (codes, titles, credits, Monsoon/Spring); grade letters not sourced from a legend",
+  "lens": "india",
+  "from": "india/iiit-hyderabad.json"
+ },
+ "anna-university": {
+  "institution": "Anna University, Chennai",
+  "country": "India",
+  "url": "https://www.scholaro.com/db/Countries/India/Grading-System/Anna-University-27831",
+  "kind": "credential-evaluator grade key (R2013 scale); rows composed (Result PASS/RA, NOV/DEC exam months, PIN on name line)",
+  "lens": "india",
+  "from": "india/anna-university.json"
+ },
+ "university-of-mumbai": {
+  "institution": "University of Mumbai",
+  "country": "India",
+  "url": "https://www.scholaro.com/db/Countries/India/Grading-System",
+  "kind": "credential-evaluator grade key; rows composed (Sem V/VI, obtained/max marks, C*G column)",
+  "lens": "india",
+  "from": "india/university-of-mumbai.json"
+ },
+ "jntu-hyderabad": {
+  "institution": "Jawaharlal Nehru Technological University Hyderabad",
+  "country": "India",
+  "url": "https://www.nuffic.nl/en/education-systems/india/grades-and-study-results",
+  "kind": "credential-evaluator UGC scale; memorandum-of-grades layout composed (Internals/Externals/Total before Grade/Credits)",
+  "lens": "india",
+  "from": "india/jntu-hyderabad.json"
+ },
+ "vtu": {
+  "institution": "Visvesvaraya Technological University",
+  "country": "India",
+  "url": "https://vtu.ac.in/en/be-btech/",
+  "kind": "official regulations index; statement-of-marks layout composed (18CS51 codes, Internal/External/Total/Result)",
+  "lens": "india",
+  "from": "india/vtu.json"
+ },
+ "iit-madras": {
+  "institution": "Indian Institute of Technology Madras",
+  "country": "India",
+  "url": "https://www.cse.iitm.ac.in/courses.php",
+  "kind": "official course list; grade card composed (S/A/B/C/D/E/U, JUL-NOV / JAN-MAY)",
+  "lens": "india",
+  "from": "india/iit-madras.json"
+ },
+ "university-of-delhi": {
+  "institution": "University of Delhi",
+  "country": "India",
+  "url": "https://www.nuffic.nl/en/education-systems/india/grades-and-study-results",
+  "kind": "credential-evaluator UGC scale; CBCS grade card composed (8-digit paper codes, dd/mm/yyyy award date)",
+  "lens": "india",
+  "from": "india/university-of-delhi.json"
+ },
+ "sjtu-lifelong-template": {
+  "institution": "Shanghai Jiao Tong University (Lifelong Education College)",
+  "country": "China",
+  "url": "https://nec.sjtu.edu.cn/UpFile/files/2024328135756408.doc",
+  "kind": "official transcript-of-records TEMPLATE (.doc) with blank student fields; course rows verbatim",
+  "lens": "east-asia",
+  "from": "east-asia/sjtu-lifelong-template.json"
+ },
+ "nankai-graduate-record": {
+  "institution": "Nankai University",
+  "country": "China",
+  "url": "https://www.mianfeiwendang.com/doc/96e48aa6afbe4075894a4571",
+  "kind": "institutional template mirror (GRADUATE STUDENT'S WORK RECORD form); header and grading note from the form, rows illustrative",
+  "lens": "east-asia",
+  "from": "east-asia/nankai-graduate-record.json"
+ },
+ "chesicc-verification-report": {
+  "institution": "CHESICC / CSSD verification report (Zhejiang University record)",
+  "country": "China",
+  "url": "https://www.chsi.com.cn/en/pvr/brief_chesat.jsp",
+  "kind": "official description of the verification report (fields); rows illustrative; verifier separated label and value cells",
+  "lens": "east-asia",
+  "from": "east-asia/verify/chesicc-verification-report.corrected.json"
+ },
+ "hkust": {
+  "institution": "Hong Kong University of Science and Technology",
+  "country": "Hong Kong",
+  "url": "https://registry.hkust.edu.hk/transcript-grading",
+  "kind": "official transcript grade key (HTML); rows illustrative ('2022-23 Fall', PA/PS/DI, Career: Postgraduate)",
+  "lens": "east-asia",
+  "from": "east-asia/hkust.json"
+ },
+ "utokyo": {
+  "institution": "The University of Tokyo",
+  "country": "Japan",
+  "url": "https://www.u-tokyo.ac.jp/en/current-students/academic_transcript_en.html",
+  "kind": "official transcript listing page (HTML); rows illustrative ('4860-1005' codes, S/A semesters)",
+  "lens": "east-asia",
+  "from": "east-asia/utokyo.json"
+ },
+ "nus": {
+  "institution": "National University of Singapore",
+  "country": "Singapore",
+  "url": "https://www.nus.edu.sg/registrar/docs/info/administrative-policies-procedures/transcript-information-grade-legend.pdf",
+  "kind": "official grade legend (PDF, facts from the search summary); rows illustrative (Semester 1/2 AY2022/2023, CS/CU)",
+  "lens": "east-asia",
+  "from": "east-asia/nus.json"
+ },
+ "nthu-taiwan": {
+  "institution": "National Tsing Hua University",
+  "country": "Taiwan",
+  "url": "https://registra.site.nthu.edu.tw/var/file/211/1211/img/158229666.pdf",
+  "kind": "official transcript explanation (PDF, partly readable); rows illustrative (six-digit course numbers, ROC semesters)",
+  "lens": "east-asia",
+  "from": "east-asia/nthu-taiwan.json"
+ },
+ "ntu-taiwan": {
+  "institution": "National Taiwan University",
+  "country": "Taiwan",
+  "url": "https://www.aca.ntu.edu.tw/w/acaEN/UAADService_21080315531294856",
+  "kind": "official e-transcript information page; rows illustrative (100-point scores, 'Academic Year 108 (2019-2020) 1st Semester')",
+  "lens": "east-asia",
+  "from": "east-asia/ntu-taiwan.json"
+ },
+ "kaist-korea": {
+  "institution": "Korea Advanced Institute of Science and Technology",
+  "country": "South Korea",
+  "url": "https://www.scholaro.com/db/Countries/South-Korea/Grading-System",
+  "kind": "credential-evaluator grading reference (no official sample reachable); rows illustrative; verifier moved the classification column after the grade",
+  "lens": "east-asia",
+  "from": "east-asia/verify/kaist-korea.corrected.json"
+ },
+ "chulalongkorn": {
+  "institution": "Chulalongkorn University",
+  "country": "Thailand",
+  "url": "https://www.reg.chula.ac.th/document/CLLA_regundergrad%202565.pdf",
+  "kind": "official regulation (facts from the search summary); rows illustrative (seven-digit course numbers, First/Second Semester, GPAX)",
+  "lens": "east-asia",
+  "from": "east-asia/chulalongkorn.json"
+ },
+ "up-diliman": {
+  "institution": "University of the Philippines Diliman",
+  "country": "Philippines",
+  "url": "https://www.nuffic.nl/en/education-systems/philippines/grades-and-study-results",
+  "kind": "credential-evaluator description of the 1.0–5.0 scale; TOR rows illustrative (grade before credits, INC/DRP, Midyear)",
+  "lens": "east-asia",
+  "from": "east-asia/up-diliman.json"
+ },
+ "hust-vietnam": {
+  "institution": "Hanoi University of Science and Technology",
+  "country": "Vietnam",
+  "url": "https://www.nuffic.nl/en/education-systems/vietnam/grades-and-study-results",
+  "kind": "credential-evaluator grading reference; bilingual rows illustrative (integer credits, 10-point and 4-point scores)",
+  "lens": "east-asia",
+  "from": "east-asia/hust-vietnam.json"
+ },
+ "itb-indonesia": {
+  "institution": "Institut Teknologi Bandung",
+  "country": "Indonesia",
+  "url": "https://www.scholaro.com/db/Countries/Indonesia/Grading-System",
+  "kind": "credential-evaluator grading reference (ITB scale); bilingual rows illustrative (A/AB/B/BC, SKS)",
+  "lens": "east-asia",
+  "from": "east-asia/itb-indonesia.json"
+ },
+ "universiti-malaya": {
+  "institution": "Universiti Malaya",
+  "country": "Malaysia",
+  "url": "https://aasd.um.edu.my/transcript-application",
+  "kind": "official transcript-application page + Scholaro Malaysia scale; rows illustrative ('Semester 1 Session 2022/2023')",
+  "lens": "east-asia",
+  "from": "east-asia/universiti-malaya.json"
+ },
+ "peradeniya_eng": {
+  "institution": "University of Peradeniya, Faculty of Engineering",
+  "country": "Sri Lanka",
+  "url": "https://raw.githubusercontent.com/gihanjayatilaka/eng.pdn.ac.lk-unofficial-interim-transcript-template/master/transcript.tex",
+  "kind": "student-made LaTeX template of the faculty's interim transcript (placeholder student; real course codes/titles; placeholder grades replaced from the template's own legend)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/peradeniya_eng.json"
+ },
+ "metu": {
+  "institution": "Middle East Technical University",
+  "country": "Turkey",
+  "url": "https://oidb.metu.edu.tr/en/course-credit-system",
+  "kind": "registrar grading/credit legend (HTML); rows composed (AA–FF, ECTS column); verifier replaced an invented '(3-0)3' credit cell",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/verify/metu.corrected.json"
+ },
+ "bilkent": {
+  "institution": "Bilkent University",
+  "country": "Turkey",
+  "url": "https://catalog.bilkent.edu.tr/general/grading.html",
+  "kind": "registrar grading legend (HTML); rows composed (Credits | ECTS | Grade, FX/FZ/T/P)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/bilkent.json"
+ },
+ "kaust": {
+  "institution": "King Abdullah University of Science and Technology",
+  "country": "Saudi Arabia",
+  "url": "https://registrar.kaust.edu.sa/student-records",
+  "kind": "registrar grading legend (HTML); rows composed",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/kaust.json"
+ },
+ "kfupm": {
+  "institution": "King Fahd University of Petroleum & Minerals",
+  "country": "Saudi Arabia",
+  "url": "https://registrar.kfupm.edu.sa/transcripts-certificates/",
+  "kind": "registrar transcript page (term codes); rows composed ('Term 191 First Semester 2019-2020', NP = No Grade-Pass)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/kfupm.json"
+ },
+ "aub": {
+  "institution": "American University of Beirut",
+  "country": "Lebanon",
+  "url": "https://www.aub.edu.lb/Registrar/Pages/academic-information.aspx",
+  "kind": "registrar grading legend (HTML); rows composed ('Spring 2018-2019' headers, PR)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/aub.json"
+ },
+ "lums": {
+  "institution": "Lahore University of Management Sciences",
+  "country": "Pakistan",
+  "url": "https://www.scholaro.com/db/countries/pakistan/grading-system",
+  "kind": "credential-evaluator grading table; rows composed ('Fall Semester 2019-2020')",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/lums.json"
+ },
+ "buet": {
+  "institution": "Bangladesh University of Engineering and Technology",
+  "country": "Bangladesh",
+  "url": "https://en.wikipedia.org/wiki/Academic_grading_in_Bangladesh",
+  "kind": "secondary grading reference; rows composed ('Level-1 Term-I' + 'Session: 2018-2019', 'B.Sc. Engineering')",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/buet.json"
+ },
+ "sharif": {
+  "institution": "Sharif University of Technology",
+  "country": "Iran",
+  "url": "https://www.scholaro.com/db/countries/iran/grading-system",
+  "kind": "credential-evaluator 0–20 scale; rows composed (Solar Hijri semesters, Theoretical/Practical credit columns, YYYY/MM/DD date)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/sharif.json"
+ },
+ "cairo": {
+  "institution": "Cairo University, Faculty of Engineering",
+  "country": "Egypt",
+  "url": "https://www.scholaro.com/db/Countries/Egypt/Grading-System/Cairo-University-13334",
+  "kind": "credential-evaluator grading table; per-year statement composed (no codes, word grades, marks out of a full mark)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/cairo.json"
+ },
+ "unilag": {
+  "institution": "University of Lagos",
+  "country": "Nigeria",
+  "url": "https://monoed.africa/blog/grading-system-nigeria-universities-polytechnics",
+  "kind": "third-party Nigerian grading guide; rows composed ('2018/2019 Session First Semester 100 Level')",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/unilag.json"
+ },
+ "aau": {
+  "institution": "Addis Ababa University",
+  "country": "Ethiopia",
+  "url": "https://www.scholaro.com/db/countries/ethiopia/grading-system",
+  "kind": "credential-evaluator grading table; rows composed ('Academic Year 2012 E.C. (2019/20 G.C.) Semester I')",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/aau.json"
+ },
+ "ug_ghana": {
+  "institution": "University of Ghana",
+  "country": "Ghana",
+  "url": "https://www.scholaro.com/db/countries/ghana/grading-system",
+  "kind": "credential-evaluator grading table; rows composed ('First Semester 2019/2020 Level 100')",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/ug_ghana.json"
+ },
+ "usp": {
+  "institution": "Universidade de São Paulo",
+  "country": "Brazil",
+  "url": "https://www.esalq.usp.br/siesalq/sites/default/files/Historico-com-media-suja.pdf",
+  "kind": "registrar tutorial (format facts only; screenshot of a real student not used); rows composed ('1º Sem/2019', Créditos Aula/Trabalho, Média, Situação)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/usp.json"
+ },
+ "unicamp": {
+  "institution": "Universidade Estadual de Campinas",
+  "country": "Brazil",
+  "url": "https://www.dac.unicamp.br/portal/vida-academica/pos-graduacao/avaliacao-e-frequencia",
+  "kind": "registrar grading legend (graduate); rows composed ('1S/2022', CH hours column, A–E concepts)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/unicamp.json"
+ },
+ "uchile": {
+  "institution": "Universidad de Chile",
+  "country": "Chile",
+  "url": "https://www.scholaro.com/db/countries/chile/grading-system",
+  "kind": "credential-evaluator 1.0–7.0 scale; rows composed ('Semestre Otoño/Primavera 2019', Spanish titles)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/uchile.json"
+ },
+ "uniandes": {
+  "institution": "Universidad de los Andes",
+  "country": "Colombia",
+  "url": "https://www.scholaro.com/db/countries/colombia/grading-system",
+  "kind": "credential-evaluator 0–5 scale; rows composed ('Periodo 2019-10', Spanish titles, 'Promedio acumulado' totals)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/uniandes.json"
+ },
+ "unam": {
+  "institution": "Universidad Nacional Autónoma de México",
+  "country": "Mexico",
+  "url": "https://www.dgae-siae.unam.mx/faq.html",
+  "kind": "registrar FAQ on the historia académica; rows composed (4-digit claves, Calif./Tipo de Examen/Periodo/Créditos order)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/unam.json"
+ },
+ "tribhuvan_ioe": {
+  "institution": "Tribhuvan University, Institute of Engineering",
+  "country": "Nepal",
+  "url": "https://www.scholaro.com/db/countries/nepal/grading-system",
+  "kind": "credential-evaluator grading table; rows composed ('Year/Part: I/I … 2075 B.S. (2019 A.D.)', Full/Pass/Obtained marks)",
+  "lens": "mideast-africa-latam",
+  "from": "mideast-africa-latam/tribhuvan_ioe.json"
+ },
+ "waterloo": {
+  "institution": "University of Waterloo",
+  "country": "Canada",
+  "url": "https://uwaterloo.ca/registrar/transcripts/transcript-legend",
+  "kind": "registrar transcript legend (HTML); rows composed (percent grades, 0.50 units, Attempted/Earned/Grade)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/waterloo.json"
+ },
+ "toronto": {
+  "institution": "University of Toronto",
+  "country": "Canada",
+  "url": "https://www.registrar.utoronto.ca/records-academics/transcripts/grading-scales-notations/",
+  "kind": "registrar grading scales and notations (HTML); rows composed (CSC108H1 codes, FALL-WINTER SESSION headers)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/toronto.json"
+ },
+ "mcgill": {
+  "institution": "McGill University",
+  "country": "Canada",
+  "url": "https://www.mcgill.ca/student-records/transcripts/key",
+  "kind": "registrar transcript key page (HTML); rows composed (integer credits, Remarks column, HH)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/mcgill.json"
+ },
+ "ubc": {
+  "institution": "University of British Columbia",
+  "country": "Canada",
+  "url": "https://vancouver.calendar.ubc.ca/campus-wide-policies-and-regulations/grading-practices/course-standings",
+  "kind": "academic calendar course standings (HTML); rows composed ('2019 Winter Session', Term 1/2 month ranges)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/ubc.json"
+ },
+ "sheffield": {
+  "institution": "University of Sheffield",
+  "country": "UK",
+  "url": "https://sheffield.ac.uk/post-study-support/certificates-verification/transcripts/definitions",
+  "kind": "registry transcript definitions (HTML); rows composed (Credits | Level | Mark | Outcome, 'Award:' lines)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/sheffield.json"
+ },
+ "qmul-hear": {
+  "institution": "Queen Mary University of London (HEAR)",
+  "country": "UK",
+  "url": "http://www.qmul.ac.uk/registry-services/student-information/my-studies-/my-documents/gradintelligence/available-documents/hear---your-digital-transcript/hear---understanding-your-transcript/",
+  "kind": "registry 'HEAR - understanding your transcript' (HTML); rows composed (FHEQ Level column, 'Academic Year 2022/23')",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/qmul-hear.json"
+ },
+ "auckland": {
+  "institution": "University of Auckland",
+  "country": "New Zealand",
+  "url": "https://uoa.custhelp.com/app/answers/detail/a_id/2873/~/grading-scale-letter-or-gpa-on-official-transcript",
+  "kind": "official 'grading scale on official transcript' answer (HTML); rows composed (15-point courses, CPL, 'Semester One 2020', 'Summer School')",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/auckland.json"
+ },
+ "unsw": {
+  "institution": "UNSW Sydney",
+  "country": "Australia",
+  "url": "https://www.unsw.edu.au/student/managing-your-studies/academic-life/grades-results-academic-standing/guide",
+  "kind": "official grades guide (HTML); rows composed (HD/DN/CR/PS/FL with marks, Term 1/2/3, 'Research Project A')",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/unsw.json"
+ },
+ "sydney": {
+  "institution": "University of Sydney",
+  "country": "Australia",
+  "url": "https://www.sydney.edu.au/students/guide-to-grades.html",
+  "kind": "official guide to grades (HTML); rows composed (HD/DI/CR/PS/FA with marks, Semester 1/2)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/sydney.json"
+ },
+ "kuleuven": {
+  "institution": "KU Leuven",
+  "country": "Belgium",
+  "url": "https://www.kuleuven.be/english/education/student/examinations/grading-system",
+  "kind": "official grading system page (HTML); rows composed (H02A5A codes, /20 marks, 'Degree obtained')",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/kuleuven.json"
+ },
+ "erasmus-ects-tor": {
+  "institution": "Erasmus/ECTS Transcript of Records template (Heidelberg sending, Florence receiving)",
+  "country": "EU",
+  "url": "https://www.zuv.uni-heidelberg.de/md/zuv/international/erasmus/down/transcript_of_recordsincoming.pdf",
+  "kind": "blank ECTS ToR form (PDF, columns from the ECTS template convention); rows composed",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/erasmus-ects-tor.json"
+ },
+ "tum-tor": {
+  "institution": "Technical University of Munich (German Transcript of Records)",
+  "country": "Germany",
+  "url": "https://www.uni-bielefeld.de/themen/campus-support/bis-prufungsverwaltung/leistungsubersicht-und-tr/",
+  "kind": "campus-management help pages on the Leistungsübersicht / ToR (HTML); rows composed (integer credits, '1,7' grades, bestanden, Wintersemester, dd.mm.yyyy exam dates)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/tum-tor.json"
+ },
+ "eth": {
+  "institution": "ETH Zurich",
+  "country": "Switzerland",
+  "url": "https://ethz.ch/en/studies/study-certifications/diploma-programmes/transcripts.html",
+  "kind": "registrar transcript page (HTML); rows composed ('252-0027-00L' codes, 1–6 quarter-step grades)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/eth.json"
+ },
+ "polimi": {
+  "institution": "Politecnico di Milano",
+  "country": "Italy",
+  "url": "https://www.polimi.it/en/students/certificates-and-forms",
+  "kind": "certificates page (HTML); rows composed in the online-career convention (academic-year cell, 6-digit code, CFU, 28/30, 30L, idoneo, dd/mm/yyyy)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/polimi.json"
+ },
+ "kth": {
+  "institution": "KTH Royal Institute of Technology",
+  "country": "Sweden",
+  "url": "https://www.aalto.fi/en/programmes/nordic-masters-programme-in-cold-climate-engineering/planning-your-studies",
+  "kind": "Nordic Five Tech grade-conversion page (KTH page refused connection); Ladok-style rows composed (result dates, no term headers)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/kth.json"
+ },
+ "dtu": {
+  "institution": "Technical University of Denmark",
+  "country": "Denmark",
+  "url": "https://student.dtu.dk/en/rules/exam/assessment-forms-and-grading",
+  "kind": "official assessment and grading rules (HTML); rows composed (7-point scale, BE/IB, E23/F24 exam periods)",
+  "lens": "europe-canada-anz",
+  "from": "europe-canada-anz/dtu.json"
+ }
+}

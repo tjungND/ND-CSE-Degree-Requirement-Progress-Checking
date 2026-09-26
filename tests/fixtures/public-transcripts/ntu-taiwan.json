@@ -1,0 +1,22 @@
+[
+ "NATIONAL TAIWAN UNIVERSITY",
+ "TRANSCRIPT OF ACADEMIC RECORD",
+ "Name: SAMPLE STUDENT   Student ID: 000000000   Date of Birth: XX/XX/XXXX",
+ "College: College of Electrical Engineering and Computer Science   Department: Computer Science and Information Engineering   Level: Undergraduate",
+ "Degree: Bachelor of Science in Engineering   Date of Graduation: June 2023",
+ "Academic Year 108 (2019-2020) 1st Semester",
+ "Course No.   Course Title   Credits   Score",
+ "CSIE1000   Introduction to Computer   3   88",
+ "CSIE1212   Data Structures and Algorithms   3   92",
+ "MATH1201   Calculus 1   4   78",
+ "PE 1001   Physical Education   1   Pass",
+ "Academic Year 108 (2019-2020) 2nd Semester",
+ "CSIE2122   Operating Systems   3   85",
+ "CSIE2124   Computer Networks   3   90",
+ "MATH1202   Calculus 2   4   81",
+ "Academic Year 109 (2020-2021) 1st Semester",
+ "CSIE3310   Computer Architecture   3   95",
+ "CSIE3110   Compiler Design   3   67",
+ "Average Score: 84.5   Total Credits: 27",
+ "Grading: 100-point scale; 60 is the passing score for undergraduate courses and 70 for graduate courses."
+]

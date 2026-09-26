@@ -1,0 +1,23 @@
+[
+ "DTU   Technical University of Denmark",
+ "Danmarks Tekniske Universitet   Transcript of records",
+ "Name:   SAMPLE STUDENT   Student number: 000000000   CPR: 000000000",
+ "Programme:   MSc in Computer Science and Engineering   Enrolled:   01.09.2023",
+ "Course no.   Course title   ECTS   Grade   Exam period",
+ "02180   Introduction to Artificial Intelligence   5   10   E23",
+ "02110   Algorithms and Data Structures 2   7.5   7   E23",
+ "02223   Model-Based Systems Engineering   5   12   E23",
+ "02456   Deep Learning   5   12   E23",
+ "02159   Operating Systems   5   4   E23",
+ "02141   Computer Science Modelling   10   02   F24",
+ "02246   Model Checking   7.5   BE   F24",
+ "02291   System Integration   5   7   F24",
+ "02458   Cognitive Modelling   5   00   F24",
+ "02807   Computational Tools for Data Science   5   12   E24",
+ "02458   Cognitive Modelling   5   4   E24",
+ "42186   Model-based Machine Learning   5   IB   E24",
+ "02830   Advanced Project in Digital Media Engineering   10   10   E24",
+ "Total ECTS passed:   72.5",
+ "The 7-point grading scale: 12 excellent, 10 very good, 7 good, 4 fair, 02 adequate, 00 inadequate, -3 unacceptable; 02 is the lowest passing grade. BE = Passed, IB = Not passed (pass/fail courses).",
+ "Exam period: E = Autumn (efterår), F = Spring (forår), followed by the year; e.g. E23 = Autumn 2023, F24 = Spring 2024. Special registrations: SYG ill, EM not met, IG not approved, AB awaiting decision passed, AI awaiting decision not passed."
+]

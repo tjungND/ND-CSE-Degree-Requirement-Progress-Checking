@@ -1,0 +1,21 @@
+[
+ "UNIVERSIDAD NACIONAL AUTÓNOMA DE MÉXICO",
+ "Dirección General de Administración Escolar",
+ "HISTORIA ACADÉMICA",
+ "Nombre:   SAMPLE STUDENT   Número de cuenta:   000000000",
+ "Plantel:   Facultad de Ingeniería   Carrera:   Ingeniería en Computación   Plan:   1222",
+ "Clave   Asignatura   Calif.   Tipo de Examen   Periodo   Créditos",
+ "0001   Álgebra   8   ORD   2019-1   8",
+ "0002   Cálculo y Geometría Analítica   7   ORD   2019-1   10",
+ "0003   Fundamentos de Programación   9   ORD   2019-1   8",
+ "0004   Química   NA   ORD   2019-1   8",
+ "0004   Química   6   EXT   2019-2   8",
+ "0005   Álgebra Lineal   10   ORD   2019-2   8",
+ "0006   Programación Orientada a Objetos   NP   ORD   2019-2   8",
+ "1621   Estructuras de Datos y Algoritmos I   9   ORD   2020-1   8",
+ "2103   Sistemas Operativos   8   ORD   2021-2   8",
+ "ASIGNATURAS SUJETAS A VALIDACION",
+ "2303   Compiladores   9   ORD   2023-2   8",
+ "Créditos obtenidos:   436   Promedio:   8.72   Avance:   99.5%",
+ "Calificaciones: escala 5 a 10 (6 mínima aprobatoria); NA No Acreditada; NP No Presentada. ORD ordinario, EXT extraordinario."
+]
