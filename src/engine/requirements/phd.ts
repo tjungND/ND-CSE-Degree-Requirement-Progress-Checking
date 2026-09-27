@@ -116,7 +116,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: 'At most 9 credits at 6xxxx from outside CSE',
       capId: 'noncse',
-      capLabel: 'non-CSE cap credits',
+      capLabel: 'non-CSE allowance credits',
       limitKey: 'phd_noncse_6xxxx_credits_max',
       section: '§4.2',
       quote:
@@ -159,7 +159,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       extraDetail: ctx.classified.some(
         (c) => c.entry.origin === 'transfer' && isNotreDameInstitution(c.entry.institution) && !c.ndMastersCredit && c.pool === 'regular' && c.ineligibleReason === undefined,
       )
-        ? ['Notre Dame coursework you took as an undergraduate counts toward the 60 and the 24, but not here: these nine are graduate credits earned at Notre Dame — in the Ph.D., or in your Notre Dame MSCSE (DGS 2026-09-13, 2026-09-22)']
+        ? ['Notre Dame coursework you took as an undergraduate counts toward the 60 and the 24, but not here: these nine are graduate credits earned at Notre Dame — in the Ph.D., or in your Notre Dame MSCSE (Graduate School; §4.2)']
         : undefined,
     }),
   );
@@ -186,7 +186,11 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
         ctx,
         extraDetail:
           spent > 0 && base !== undefined
-            ? [`${formatCredits(spent)} of the ${formatCredits(base)} credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so ${formatCredits(Math.max(0, base - spent))} ${Math.max(0, base - spent) === 1 ? 'credit' : 'credits'} can still count toward both your bachelor’s degree and the Ph.D.`]
+            ? [
+                base - spent <= 0
+                  ? `All ${formatCredits(base)} shared credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so none can also count toward the Ph.D.`
+                  : `${formatCredits(spent)} of the ${formatCredits(base)} credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so ${formatCredits(base - spent)} ${base - spent === 1 ? 'credit' : 'credits'} can still count toward both your bachelor’s degree and the Ph.D.`,
+              ]
             : undefined,
       }),
     );
@@ -483,7 +487,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
     const detail = done
       ? `Satisfied by ${done}.`
       : confirmed
-        ? `Satisfied by ${confirmed} — confirmed in the DGS’s external-course rules (§4.4.1 allows a course from a previous institution).`
+        ? `Satisfied by ${confirmed} — confirmed in the DGS’s course rules (§4.4.1 allows a course from a previous institution).`
         : ip
           ? `${ip} is in progress.`
           : pending
@@ -615,7 +619,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   } else if (combined.distinctCount >= groupsReq && qualifying.length + inProgress.length >= coursesReq) {
     status = 'in_progress';
     add(
-      `${qualifying.length} done (${def.distinctCount} distinct groups) with ${inProgress.length} in progress — on track for ${groupsReq} distinct groups`,
+      `${qualifying.length} of ${coursesReq} done, in ${def.distinctCount} different group${def.distinctCount === 1 ? '' : 's'}; the ${inProgress.length} in progress would complete it`,
     );
   } else {
     status = 'unmet';
@@ -631,11 +635,13 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   }
   if (belowFloor.length > 0) {
     add(
-      `below the ${floor} floor: ${belowFloor.join(', ')} — you may retake the course to replace the grade or take another course (§4.4.2)`,
+      `${belowFloor.join(', ')} ${belowFloor.length === 1 ? 'is' : 'are'} below the ${floor} floor — retake ${belowFloor.length === 1 ? 'it' : 'them'} or take another course (§4.4.2)`,
     );
   }
   for (const suggestion of def.suggestions) add(suggestion);
-  add('The approved course list is on the course rules page');
+  // "The approved course list is on the course rules page" left the row on
+  // 2026-09-26 (clarity review): the "See the specialization categories →"
+  // link directly above the detail is that pointer (2026-09-04).
   // Which group each flexible course should be set to (DGS request
   // 2026-09-08): the ones no OTHER course of theirs already covers. Read off
   // the best matching over everything they have, so a suggestion is never one
@@ -771,8 +777,8 @@ function candidacyRow(ctx: Ctx): RequirementResult {
   // they started the MS program." Both are the record's entry term — the
   // opening dialog's answer says which — and the line names the start so a
   // wrong entry term is noticed.
-  if (ctx.student.background?.graduate === 'nd-mscse-transfer') parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — a transfer into the Ph.D. keeps that clock (DGS 2026-09-26)`);
-  else if (ctx.student.ndMasters !== undefined) parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (DGS 2026-09-26)`);
+  if (ctx.student.background?.graduate === 'nd-mscse-transfer') parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — a transfer into the Ph.D. keeps that clock (§4.5)`);
+  else if (ctx.student.ndMasters !== undefined) parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (§4.5)`);
   // The exam's two conditions (red-team F8, DGS 2026-09-12). §4.5: "All
   // coursework for the Ph.D. must be completed (or in progress the same
   // semester) before the candidacy exam can be taken." §2.2: "Continuation in
@@ -788,16 +794,26 @@ function candidacyRow(ctx: Ctx): RequirementResult {
   // cannot be checked, and this line used to throw on a null.
   const candidacyGpa = usableGpa(ctx.student.gpa);
   const gpaShort = gpaMin !== undefined && candidacyGpa !== undefined && candidacyGpa < gpaMin;
+  // The precondition in the student's terms (clarity review 2026-09-26):
+  // what must be true, and where they stand — the §s last.
   const conditions: string[] = [];
-  if (courseworkShort) conditions.push(`§4.5 requires all Ph.D. coursework completed or in progress the same semester (you show ${formatCredits(regularDone)} of ${regularMin} regular credits)`);
-  if (gpaShort) conditions.push(`§2.2 requires a ${gpaMin!.toFixed(1)} cumulative GPA for admission to candidacy (yours is ${candidacyGpa!.toFixed(2)})`);
+  const shortfalls: string[] = [];
+  if (courseworkShort) {
+    conditions.push(`your ${regularMin} regular-course credits are complete or in progress — you have ${formatCredits(regularDone)} of ${regularMin} (§4.5)`);
+    shortfalls.push(`${formatCredits(regularDone)} of ${regularMin} regular credits`);
+  }
+  if (gpaShort) {
+    conditions.push(`your cumulative GPA is ${gpaMin!.toFixed(1)} or higher — it is ${candidacyGpa!.toFixed(2)} (§2.2)`);
+    shortfalls.push(`a ${candidacyGpa!.toFixed(2)} GPA`);
+  }
   let status = r.status;
   if (conditions.length > 0) {
     if (ctx.student.milestones.candidacyPassed !== undefined) {
       status = status === 'met' ? 'needs_dgs_review' : status;
-      parts.push(`but ${conditions.join(', and ')} — confirm with the DGS that the exam could be taken`);
+      const sections = [courseworkShort ? '§4.5' : undefined, gpaShort ? '§2.2' : undefined].filter((x): x is string => x !== undefined).join(' and ');
+      parts.push(`You show ${shortfalls.join(' and ')} — ${sections} require${shortfalls.length === 1 ? 's' : ''} ${shortfalls.length === 1 ? 'that' : 'both'} before the exam; confirm with the DGS that it could be taken`);
     } else {
-      parts.push(`Not yet available: ${conditions.join(', and ')}`);
+      parts.push(`You can take the exam once ${conditions.join(', and once ')}`);
     }
   }
   return {
@@ -864,7 +880,7 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
           ? `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). §4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
           : `Defense passed ${m.defensePassed}. Submit the final dissertation electronically per the Graduate School's procedures (§4.7).`
         : m.candidacyPassed === undefined
-          ? `Not started — the defense comes after the Oral Candidacy Exam (§4.5) and the readers’ approval (§4.6); three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`
+          ? `Not started — the defense comes after the Oral Candidacy Exam (§4.5) and the readers’ approval (§4.6).${gpaGate}`
           : `Not yet: three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`,
       citation: {
         section: '§4.7',
@@ -904,7 +920,7 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
     detail = `${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame.`;
   } else {
     status = 'not_applicable';
-    detail = `Passing the Oral Candidacy Exam (OCE) can also earn the MSCSE (§4.5) once ${reqReg} regular course credits and ${reqRes} research credits are completed at Notre Dame — ${doneReg} of ${reqReg} and ${doneRes} of ${reqRes} so far.`;
+    detail = `Pass the Oral Candidacy Exam (OCE) and you can also receive the MSCSE (§4.5). Needed first, at Notre Dame: ${reqReg} regular-course credits (${doneReg} so far) and ${reqRes} research credits (${doneRes} so far).`;
   }
   return {
     id: 'phd.msAlongTheWay',

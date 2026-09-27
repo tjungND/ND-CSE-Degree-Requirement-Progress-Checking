@@ -335,7 +335,10 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
   const entry = tp.useEntryTerm && tp.entryTerm ? tp.entryTerm.term : args.student.entryTerm;
   const priorCount = tp.courses.filter((c) => c.origin === 'nd' && termIndex(c.term) < termIndex(entry)).length;
   box.append(
-    el('h3', {}, `Found ${plural(tp.courses.length, 'course')} — untick anything that shouldn't count, then add`),
+    // The heading asks for the check a student can do — is each row read
+    // right? — not for a verdict (clarity review 2026-09-26): what counts is
+    // worked out after the add.
+    el('h3', {}, `Found ${plural(tp.courses.length, 'course')} — check the rows, untick any that are wrong, then add`),
   );
   if (tp.warnings.length > 0) {
     // What the parser skipped or could not place — persistent, inside the
@@ -372,7 +375,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         // states (trim review 2026-09-18, P-30).
         args.student.entryTermInferred === undefined
           ? ` Replace the entry term you entered (${termLabel(args.student.entryTerm)}) with this transcript’s reading, ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. Left unticked, your own entry term is kept.`
-          : ` Set your entry term to ${termLabel(tp.entryTerm.term)} — ${tp.entryTerm.how}. Check it.`,
+          : ` Your first semester in the program looks like ${termLabel(tp.entryTerm.term)} (${tp.entryTerm.how}). Every deadline is counted from it — untick this if you started in a different semester.`,
       ),
     );
     if (tp.entryTerm.alternative) box.append(el('p', { class: 'hint warn' }, `Note: ${tp.entryTerm.alternative.why}.`));
@@ -387,19 +390,24 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         { class: 'hint bachelors-line' },
         // The §5.2 rule is under the field it governs, one card down
         // (trim review 2026-09-18, P-13).
-        `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date} — “Bachelor’s degree awarded” under Your standing will be set to ${termLabel(bs.term)}.`,
+        `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date}, so ${termLabel(bs.term)} will be recorded as the semester you finished your bachelor’s — change it under Your standing if that is wrong.`,
       ),
     );
   }
   if (priorCount > 0) {
+    // A lead and visible bullets (clarity review 2026-09-26; the 2026-09-18
+    // trim's "three parallel clauses as one list" made a list the eye can see).
+    const can =
+      args.student.program === 'phd'
+        ? ['satisfy a core-knowledge area (§4.4.1)', 'count toward your credits, if you took it at Notre Dame as an undergraduate (§4.2)', 'transfer, if you took it as a graduate student elsewhere (§5.2)']
+        : ['count toward your credits, if you took it at Notre Dame as an undergraduate (§3.2)', 'transfer, if you took it as a graduate student elsewhere (§5.2)'];
     box.append(
       el(
-        'p',
+        'div',
         { class: 'hint prior-note' },
-        // Three parallel clauses as one list, every § kept (trim review 2026-09-18, P-31).
-        args.student.program === 'phd'
-          ? `${plural(priorCount, 'course')} dated before ${termLabel(entry)} are filed as coursework from before you entered: no residency counts, but they can still satisfy core knowledge (§4.4.1), count toward the credits if taken at Notre Dame as an undergraduate (§4.2), or transfer as graduate courses from elsewhere under §5.2. Undergraduate courses that cannot matter start unticked.`
-          : `${plural(priorCount, 'course')} dated before ${termLabel(entry)} are filed as coursework from before you entered: no residency counts, but they can still count toward the credits if taken at Notre Dame as an undergraduate (§3.2) or transfer as graduate courses from elsewhere under §5.2. Undergraduate courses that cannot matter start unticked.`,
+        `${plural(priorCount, 'course')} dated before ${termLabel(entry)} are listed separately as coursework from before you entered (no residency counts). Each can still do one of these:`,
+        el('ul', {}, ...can.map((t) => el('li', {}, t))),
+        'A course that can do none of these starts unticked.',
       ),
     );
   }
@@ -431,9 +439,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
     const note = tp.duplicate[i]
       ? 'already entered'
       : c.origin === 'transfer'
-        ? 'transfer'
+        ? 'listed as transfer credit on your ND transcript'
         : prior
-          ? `before entry — prior ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student)) === 'bachelors' ? 'undergraduate' : args.student.ndMasters !== undefined ? 'MSCSE' : 'graduate'} coursework`
+          ? `taken before ${termLabel(entry)}, as ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student)) === 'bachelors' ? 'an undergraduate' : args.student.ndMasters !== undefined ? 'an MSCSE student' : 'a graduate student'}`
           : '';
     table.append(
       el(
@@ -477,7 +485,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
       el(
         'fieldset',
         { class: 'gpa-choice group' },
-        el('legend', { class: 'label' }, 'Cumulative GPA for the §2.2 check'),
+        el('legend', { class: 'label' }, 'Cumulative GPA for the minimum-GPA check (§2.2)'),
         el(
           'p',
           { class: 'hint' },
@@ -496,7 +504,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         'label',
         { class: 'attest' },
         cb,
-        ` Use the transcript's ${tp.undergraduateGpa !== undefined ? 'graduate-level ' : ''}cumulative GPA (${tp.gpa.toFixed(2)}) for the §2.2 check${tp.undergraduateGpa !== undefined ? ` — the undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used` : ''}`,
+        ` Use the transcript's ${tp.undergraduateGpa !== undefined ? 'graduate-level ' : ''}cumulative GPA (${tp.gpa.toFixed(2)}) for the minimum-GPA check (§2.2)${tp.undergraduateGpa !== undefined ? ` — the undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used` : ''}`,
       ),
     );
   } else if (tp.undergraduateGpa !== undefined) {
@@ -615,19 +623,19 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
   // term and the bachelor's term together — it used to follow each
   // (trim review 2026-09-18, P-90). The unfinished-M.S. clause keeps
   // its own, different instruction.
-  const toCheck = (appliedEntry ? 1 : 0) + (bachelorsSet ? 1 : 0);
+  // What was read from the transcript, in the student's words (clarity
+  // review 2026-09-26): the count, then the one or two settings to confirm.
+  const read: string[] = [];
+  if (appliedEntry) read.push(`your first semester (${termLabel(appliedEntry)})`);
+  if (bachelorsSet) read.push(`your bachelor’s semester (${termLabel(bachelorsSet)})`);
   args.toast(
-    `Added ${plural(picked.length, 'course')} from the transcript` +
-      (appliedEntry ? `; entry term set to ${termLabel(appliedEntry)}` : '') +
-      (priorAdded > 0 ? `; ${priorAdded} filed as coursework from before you entered the program` : '') +
+    `Added ${plural(picked.length, 'course')} from the transcript${priorAdded > 0 ? ` (${priorAdded} from before you entered)` : ''}.` +
+      (read.length > 0 ? ` ${read.length === 1 ? 'One thing was' : 'Two things were'} read from your transcript — ${read.join(' and ')} — please confirm ${read.length === 1 ? 'it' : 'them'} under Your standing.` : '') +
       (priorSet === 'completed'
-        ? '; Prior graduate study set to “Completed prior M.S. or Ph.D.” from the degree awarded on your transcript'
+        ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the degree awarded on your transcript.'
         : priorSet === 'unfinished'
-          ? '; Prior graduate study set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it'
+          ? ' Prior graduate study was set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it.'
           : '') +
-      (bachelorsSet ? `; “Bachelor’s degree awarded” set to ${termLabel(bachelorsSet)} from your transcript` : '') +
-      (ndMastersSet ? '; ticked “I already hold the MSCSE from Notre Dame” from the degree on your transcript — the §4.5 along-the-way row is left out for you' : '') +
-      (toCheck === 2 ? ' — check both under Your standing' : toCheck === 1 ? ' — check it under Your standing' : '') +
-      '.',
+      (ndMastersSet ? ' “I already hold the MSCSE from Notre Dame” was ticked from the degree on your transcript — the §4.5 along-the-way row is left out for you.' : ''),
   );
 }

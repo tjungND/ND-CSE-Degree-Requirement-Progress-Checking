@@ -61,7 +61,7 @@ describe('processingItems', () => {
     assert.equal(items.count, 4, 'transfer + two milestones + the met-requirements line');
     assert.equal(items.count, items.lines.length, 'the chip counts exactly what the card lists');
     assert.match(items.lines.at(-1)!, /^\d+ requirements met so far — the request lists each with the courses, semesters or dates that meet it, for the record$/);
-    assert.match(items.lines[0]!, /^CS 50300 \(Purdue University\) — transfer credit pre-approved by the DGS, to be processed \(§5\.2\)$/);
+    assert.match(items.lines[0]!, /^CS 50300 \(Purdue University\) — transfer credit approved by the DGS in the course rules, to be processed \(§5\.2\)$/);
     const headings = items.met.map((t) => t.heading);
     assert.ok(headings.includes('Cumulative GPA of at least 3.0 (§2.2)'), JSON.stringify(headings));
     assert.ok(headings.includes(`${OCE_FULL} passed (§4.5)`), JSON.stringify(headings));
@@ -115,7 +115,7 @@ describe('gradAdminRequest', () => {
     assert.match(built.text, /^Subject: Processing request \(degree self-check\) — Ph\.D\., entered Fall 2026\n\nDear Grad Admin,\n\n/);
     assert.match(built.text, /The DGS, in cc, decides eligibility; this request is only for processing what has already been decided\./);
     assert.match(built.text, /\nAttached: my original transcripts as PDFs\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO PROCESS/);
-    assert.match(built.text, /\nTRANSFER CREDIT TO PROCESS \(§5\.2\) — RULED TRANSFERABLE BY THE DGS IN THE EXTERNAL-COURSE RULES\nUniversity\tCourse\tTitle\tCredits\tND credits\tGrade\tTerm\nPurdue University\tCS 50300\tOperating Systems\t3\t\tA\tFall 2024\n/);
+    assert.match(built.text, /\nTRANSFER CREDIT TO PROCESS \(§5\.2\) — APPROVED BY THE DGS IN THE COURSE RULES\nUniversity\tCourse\tTitle\tCredits\tND credits\tGrade\tTerm\nPurdue University\tCS 50300\tOperating Systems\t3\t\tA\tFall 2024\n/);
     assert.match(built.text, /\nMET — CUMULATIVE GPA OF AT LEAST 3\.0 \(§2\.2\)\nWhat\tEvidence\nCumulative GPA\t3\.50\n/);
     assert.match(built.text, /\nMET — UNDER CONTINUOUS ADVISOR SUPERVISION \(§2\.3\)\nWhat\tEvidence\nAdvisor\tProf\. Example\nDate\t2026-09-10\n/);
     assert.match(built.text, /\nMET — ORAL CANDIDACY EXAM \(OCE\) PASSED \(§4\.5\)\nWhat\tEvidence\nDate\t2029-04-01\n/);

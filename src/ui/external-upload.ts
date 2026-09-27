@@ -361,7 +361,7 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
     !slots.includes('masters') ? null : el(
       'details',
       { class: 'combined-note', 'data-key': 'transcripts.shape', open: coursesInSlot(args.student, 'masters').length > 0 || preview !== undefined || background?.samePlace === true },
-      el('summary', {}, 'Two degrees from another university (a 4+1 or 5+1)? Open this first.'),
+      el('summary', {}, 'Did one university give you both a bachelor’s and a master’s (a 4+1 or 5+1)? Open this first.'),
       el('strong', {}, 'A bachelor’s and a master’s from the same university'),
       ' (a 4+1 or 5+1) come as two transcripts or one. ',
       el('strong', {}, 'Two transcripts:'),
@@ -526,7 +526,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       } else if (kept.rows.length === 0) {
         previewError =
           args.student.program === 'phd'
-            ? `All ${mapped.length} courses read from this transcript were left out — none matched the Alg / OS / Comp Arch core keywords, and none are in the DGS’s external-course rules. Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2); if a course belongs to a core area under a different title, add it by hand below.`
+            ? `All ${mapped.length} courses read from this transcript were left out — none matched the Alg / OS / Comp Arch core keywords, and none are in the DGS’s course rules. Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2); if a course belongs to a core area under a different title, add it by hand below.`
             : `All ${mapped.length} courses read from this transcript were left out: every one of them was taken as an undergraduate student, and undergraduate credits do not transfer (§5.2), whether or not the course itself is a graduate course. If you took any of them after your bachelor’s degree was awarded, add it by hand below and set “Taken as” to Grad student.`;
       }
       render();
@@ -1019,10 +1019,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             { class: 'hint warn mixed-note' },
             el('strong', {}, 'How “Taken as” was filled in: '),
             levelNote(p),
-            ' “Taken as” is your status at the time, not the course’s level: a graduate-level course (for example a 500- or 600-level one) that you took before your bachelor’s degree was awarded was taken as an undergraduate student, so it counts as undergraduate coursework. Please double-check every row before adding — ',
+            ' “Taken as” is your status when you took the course, not the course’s level: a graduate-level course (a 500- or 600-level one, say) taken before your bachelor’s degree was awarded still counts as undergraduate coursework. Check every row before adding. ',
             student.program === 'phd'
-                ? 'rows taken as an undergraduate student can only satisfy §4.4.1 core knowledge (no transfer credit, §5.2) and the ones that cannot matter start unticked; rows taken as a graduate student are §5.2 transfer candidates.'
-                : 'rows taken as an undergraduate student bring no transfer credit (§5.2) and satisfy nothing else in the MSCSE, so they are not offered; rows taken as a graduate student are §5.2 transfer candidates.',
+                ? 'Undergraduate rows: no transfer credit (§5.2); they can only satisfy a core-knowledge area (§4.4.1), and the ones that cannot start unticked. Graduate rows: transfer candidates (§5.2).'
+                : 'Undergraduate rows: no transfer credit (§5.2) and nothing else in the MSCSE, so they are not offered. Graduate rows: transfer candidates (§5.2).',
           ),
         ]
       : p.slot === 'bachelors'
@@ -1305,7 +1305,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             toast(
               `Added ${ready.length} course${ready.length === 1 ? '' : 's'} from ${university}` +
                 (p.mixedLevels ? ` (${undergraduateRows} undergraduate, ${graduateRows} graduate${p.termPrefill ? ', by the two-year rule where the transcript did not say' : ''})` : '') +
-                (matched > 0 ? ` — ${matched} already in the DGS’s external-course rules` : '') +
+                (matched > 0 ? ` — ${matched} already in the DGS’s course rules` : '') +
                 (skipped > 0 ? `; ${skipped} skipped (incomplete — missing a grade, credits or year)` : '') +
                 (refiledToProgram > 0
                   ? `; ${refiledToProgram} of them are dated from your entry term on, so they are filed as this program's coursework, not as transfer credit`

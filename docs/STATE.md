@@ -2,6 +2,17 @@
 
 Last updated: 2026-09-26 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-26 (late): **the clarity pass** — the DGS asked whether the post-import screens could be made
+easier to understand and then said to make the recommended changes. Seven reviewers, verified and
+consolidated into twelve proposals; the wording and structure items that need no decision are in
+(course lines lead with their status — “waiting for the DGS”, “approved by the DGS” — one word per
+concept, the §5.2 rule stated once above every prior-graduate group with the sheet’s numbers, the
+previews and toast in the student’s words, the Approvals row saying each reason once, a key line
+and glossary definitions, a dozen row sentences, one display bug); the strings are W-CL1–W-CL30 in
+`docs/WORDING-REVIEW.md`. **Waiting on the DGS** (DECISIONS row of the same evening): a Next-steps
+list under the dial, Credit/Qualifier sub-lines, the report column’s order and folds, seven pill
+questions, gating the MSCSE-transfer sentence, and one sheet cell (`CSE 30321` level 6).
+
 2026-09-26 (evening): **whose eighth semester** — the DGS's rule for §4.5: a finished Notre Dame
 MSCSE does not count (the OCE clock starts at the Ph.D. entry); a transfer into the Ph.D. from an
 unfinished MSCSE keeps the MSCSE's clock. The engine already counted from the entry term; what was

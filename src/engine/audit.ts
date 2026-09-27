@@ -225,13 +225,24 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     for (const id of r.pendingBy ?? []) note(id, r, 'later');
   }
 
-  const courseLines = alloc.perCourse.map((p) => ({
-    courseId: p.course.entry.courseId,
-    term: p.course.entry.term,
-    text: p.explanation,
-    mark: p.mark,
-    counts: feeds.get(p.course.entry.courseId) ?? [],
-  }));
+  // The rows name course IDS, so two entries of one number — a refused earlier
+  // attempt beside a pending one (the Notre Dame transcript's own transfer
+  // block plus the source transcript, 2026-09-26) — would both carry the
+  // pending entry's "Will count toward" list. The lists go to the entries that
+  // can still count; only when every entry of a number is refused do they all
+  // keep them (a core-area row may still name such a course).
+  const canCount = (p: (typeof alloc.perCourse)[number]): boolean => p.mark !== 'excluded';
+  const courseLines = alloc.perCourse.map((p) => {
+    const id = p.course.entry.courseId;
+    const aLiveSibling = !canCount(p) && alloc.perCourse.some((q) => q !== p && q.course.entry.courseId === id && canCount(q));
+    return {
+      courseId: id,
+      term: p.course.entry.term,
+      text: p.explanation,
+      mark: p.mark,
+      counts: aLiveSibling ? [] : (feeds.get(id) ?? []),
+    };
+  });
 
   // The degree's decider, said once at the boundary (2026-09-11): for an
   // MSCSE student every "DGS" in what follows is the ADGS. Handbook quotes

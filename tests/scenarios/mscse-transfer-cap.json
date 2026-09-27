@@ -93,7 +93,7 @@
       "detailIncludes": [
         "0 of 9 transfer credits counted",
         "9 more pending review",
-        "Not yet reviewed by the ADGS"
+        "Waiting for the ADGS"
       ]
     },
     "ms.credits.regular": {
@@ -106,8 +106,8 @@
   },
   "expectCourseLines": {
     "CS 51000": [
-      "pending ADGS review — candidate for transfer credit (§5.2)",
-      "your “transfer approved” checkbox cannot apply to it yet"
+      "waiting for the ADGS — would count",
+      "cannot cover this course"
     ]
   }
 }

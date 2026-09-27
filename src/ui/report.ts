@@ -472,7 +472,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
   const AFTER_CANDIDACY = ['phd.dissertation.approval', 'phd.dissertation.defense'];
   const candidacyPassed = report.requirements.some((r) => r.id === 'phd.candidacy' && r.status === 'met');
   const unreachable = (r: RequirementResult): boolean =>
-    /^Not yet available:/.test(r.detail) || (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed);
+    /^(?:Not yet available:|You can take the exam once)/.test(r.detail) || (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed);
   const DEADLINE_RANK: Record<string, number> = { overdue: 0, due_soon: 1, upcoming: 3, done: 4 };
   const rank = (r: RequirementResult): number => {
     const byDeadline = r.deadline ? DEADLINE_RANK[r.deadline.state] ?? 3 : undefined;
@@ -536,6 +536,14 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
  * handbook sentences quoted in the engine. */
 function glossary(program: 'mscse' | 'phd'): HTMLElement {
   const entries: [string, string, string][] = [
+    // The pill words, defined once (clarity review 2026-09-26); no pill is
+    // renamed. The decider's title is the tab's own (P-60).
+    ['Met', 'Satisfied by what you have entered.', ''],
+    ['In progress', 'Not satisfied yet; nothing is late.', ''],
+    ['Conditionally met', 'Satisfied once the approval the row names is recorded.', ''],
+    ['Overdue', `The handbook’s deadline has passed — talk to the ${program === 'mscse' ? 'ADGS' : 'DGS'}.`, ''],
+    ['Not started', 'A stage that begins after an earlier one, such as the dissertation after the candidacy exam.', ''],
+    ['Not used yet · Does not apply', 'An allowance you have not drawn on, or a row that is not part of your score.', ''],
     ['Cumulative GPA', 'The grade-point average over all your graduate coursework at Notre Dame, as the registrar computes it; continuation, candidacy and graduation require at least 3.0.', '§2.2'],
     ['Regular course', 'A lecture-style course. Only regular courses count toward the 24 regular-course credits; seminars, research, independent study and project credits count toward the total only.', program === 'mscse' ? '§3.2' : '§4.2'],
     ['Full-time', 'A semester in which you are registered for the full-time credit load (9 or more credits, or research-heavy terms you mark yourself).', '§2.1.2'],
@@ -582,7 +590,7 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
       'dl',
       {},
       ...entries.flatMap(([term, text, section]) => [
-        el('dt', {}, term, ' ', el('span', { class: 'chip-note' }, section)),
+        el('dt', {}, term, ...(section ? [' ', el('span', { class: 'chip-note' }, section)] : [])),
         el('dd', {}, text),
       ]),
     ),

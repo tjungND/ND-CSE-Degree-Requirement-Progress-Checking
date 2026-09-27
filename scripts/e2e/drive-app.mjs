@@ -383,7 +383,7 @@ export async function driveApp(s, baseUrl) {
     };
   })())`));
   console.log('  over-cap warning:', JSON.stringify(overCap));
-  if (overCap.warn.length === 0 || !/over the cap/.test(overCap.warn.join(' '))) {
+  if (overCap.warn.length === 0 || !/beyond the allowance/.test(overCap.warn.join(' '))) {
     throw new Error('credits the cap discards must be a warning line: ' + JSON.stringify(overCap));
   }
   await s.shotElement('over-cap-warning', '#shot-overcap');

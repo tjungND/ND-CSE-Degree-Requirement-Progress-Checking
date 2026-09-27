@@ -350,7 +350,9 @@ export function actionItems(report: AuditReport): ActionItems {
   }
   const categories = byId.get('phd.qualifier.categories');
   if (categories && isOpen(categories.status)) {
-    const below = /below the [A-Z][+-]? floor: ([^—]+)/.exec(textOf(categories));
+    // "CSE 60111 (B-) is below the B floor — retake it …" (2026-09-26); the
+    // older "below the B floor: CSE 60111 (B-) — …" still parses.
+    const below = /(?:^|\. )([^.]+?) (?:is|are) below the [A-Z][+-]? floor —/.exec(textOf(categories)) ?? /below the [A-Z][+-]? floor: ([^—]+)/.exec(textOf(categories));
     out.student.push(
       below
         ? `Retake or replace ${below[1]!.trim()} — a specialization course below the grade floor ${section(categories)}.`
@@ -401,18 +403,21 @@ export function actionItems(report: AuditReport): ActionItems {
     if ('warn' in part) continue; // a warning is not a course to chase
     for (const item of part.items) {
       const m = /^(.+?) \((.+)\)$/.exec(item);
-      const course = m ? m[1]! : item;
       const reason = m ? m[2]! : '';
+      // Several courses may share one reason on the row (2026-09-26); each
+      // gets its own to-do here.
+      for (const course of (m ? m[1]! : item).split(/,\s*/)) {
       // Decided by the DGS already (ruled transferable in the ExternalCourses
       // tab): processing is the Grad Admin's, not another DGS decision.
-      if (/^pre-approved/i.test(reason)) {
+      if (/^approved by the DGS/i.test(reason)) {
         processingCourses.push(course);
-        out.gradAdmin.push(`Process the transfer credit for ${course} — pre-approved by the DGS (§5.2).`);
+        out.gradAdmin.push(`Process the transfer credit for ${course} — approved by the DGS (§5.2).`);
         continue;
       }
       pendingCourses.push(course);
       if (/advisor/i.test(reason)) out.advisor.push(`Approve ${course} — ${reason.replace(/ — needs advisor \+ DGS approval/, '')}.`);
       if (/DGS|review|rules sheet|transfer/i.test(reason)) out.dgs.push(`Decide on ${course} — ${reason}.`);
+      }
     }
   }
   // One name per course: the approvals row lists a course under one lead, but
@@ -514,7 +519,7 @@ const REWRITES: [RegExp, string][] = [
   // The §4.4.2 retake advice is written for the student; the advisor needs the
   // course, the grade and the §, and the to-do list already says "Retake or
   // replace …" (trim review 2026-09-18, P-22).
-  [/^below the ([A-Z][+-]?) floor: (.+?) — you may retake the course to replace the grade or take another course \((§[\d.]+)\)$/i, 'below the $1 floor ($3): $2'],
+  [/^(.+?) (?:is|are) below the ([A-Z][+-]?) floor — retake (?:it|them) or take another course \((§[\d.]+)\)$/i, 'below the $2 floor ($3): $1'],
   // "one card per core area below" is the page describing its own layout; the
   // email has no cards (trim review 2026-09-18, P-40).
   [/ — one card per core area below\)/, ')'],

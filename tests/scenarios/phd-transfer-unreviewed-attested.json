@@ -57,14 +57,14 @@
       "detailIncludes": [
         "0 of 24 transfer credits counted",
         "6 more pending review",
-        "Not yet reviewed by the DGS: CS 51000, CS 52000"
+        "Waiting for the DGS: CS 51000, CS 52000"
       ]
     }
   },
   "expectCourseLines": {
     "CS 51000": [
-      "candidate for transfer credit (§5.2)",
-      "your “transfer approved” checkbox cannot apply to it yet",
+      "waiting for the DGS — would count",
+      "cannot cover this course",
       "credits shown as your transcript prints them"
     ]
   }

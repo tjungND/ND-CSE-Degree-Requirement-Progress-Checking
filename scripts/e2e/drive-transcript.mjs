@@ -43,7 +43,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   const entryLine = await s.evalJs(`document.querySelector('.transcript-preview .entry-term-line')?.textContent ?? ''`);
   const entryTicked = await s.evalJs(`document.querySelector('.transcript-preview .use-entry-term')?.checked`);
   console.log('  entry-term line:', entryLine.slice(0, 120), '| ticked:', entryTicked);
-  if (!entryLine.includes('Set your entry term to Fall 2026') || !entryLine.includes('first graduate-level term') || entryTicked !== true) {
+  if (!entryLine.includes('Your first semester in the program looks like Fall 2026') || !entryLine.includes('first graduate-level term') || entryTicked !== true) {
     throw new Error('the preview must offer the entry term read from the transcript, ticked');
   }
   const priorNote = await s.evalJs(`document.querySelector('.transcript-preview .prior-note')?.textContent ?? ''`);
@@ -52,13 +52,13 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     `[...document.querySelectorAll('.transcript-preview table tr')].slice(1).map(tr => tr.querySelector('.cid').textContent + ':' + (tr.querySelector('input[type=checkbox]').checked ? 'on' : 'off') + ':' + tr.cells[5].textContent)`,
   );
   console.log('  preview ticks:', JSON.stringify(ticks));
-  if (!ticks.includes('MATH 10550:off:before entry — prior undergraduate coursework')) throw new Error('an irrelevant undergraduate course must start unticked');
-  if (!ticks.includes('CSE 30321:on:before entry — prior undergraduate coursework')) throw new Error('a core-title undergraduate course must start ticked');
+  if (!ticks.includes('MATH 10550:off:taken before Fall 2026, as an undergraduate')) throw new Error('an irrelevant undergraduate course must start unticked: ' + ticks.slice(0, 200));
+  if (!ticks.includes('CSE 30321:on:taken before Fall 2026, as an undergraduate')) throw new Error('a core-title undergraduate course must start ticked');
   if (!ticks.includes('CSE 60641:on:')) throw new Error('a program course must start ticked without a prior note');
   // The dated bachelor's award (2026-09-06) fills "Bachelor's degree awarded" on add; the preview says so.
   const bsLine = await s.evalJs(`document.querySelector('.transcript-preview .bachelors-line')?.textContent ?? ''`);
   console.log('  bachelor’s line:', bsLine.slice(0, 140));
-  if (!bsLine.includes('Bachelor of Science awarded 2021-05-16') || !bsLine.includes('will be set to Spring 2021')) throw new Error('the preview must announce the bachelor’s award term: ' + bsLine.slice(0, 160));
+  if (!bsLine.includes('Bachelor of Science awarded 2021-05-16') || !bsLine.includes('Spring 2021 will be recorded as the semester you finished your bachelor’s')) throw new Error('the preview must announce the bachelor’s award term: ' + bsLine.slice(0, 160));
   await s.shot('transcript-preview');
 
   await s.evalJs(
@@ -81,7 +81,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   const bsSeason = await s.evalJs(`document.querySelector('[data-key="standing.bachelors.season"]')?.value`);
   const bsNote = await s.evalJs(`document.querySelector('.bachelors-note')?.textContent ?? ''`);
   console.log('  bachelor’s award from the transcript:', bsSeason, bsYear, '|', bsNote.slice(0, 90));
-  if (!addToast.includes('“Bachelor’s degree awarded” set to Spring 2021')) throw new Error('the add toast must say the award term was set: ' + addToast.slice(0, 220));
+  if (!addToast.includes('your bachelor’s semester (Spring 2021)') || !addToast.includes('confirm them under Your standing')) throw new Error('the add toast must say the award term was set: ' + addToast.slice(0, 220));
   if (bsYear !== '2021' || bsSeason !== 'spring' || !bsNote.startsWith('Spring 2021 was read from your transcript')) throw new Error(`standing card: bachelor’s award ${bsSeason} ${bsYear} — ${bsNote.slice(0, 100)}`);
   // The Notre Dame row now names what it added and offers Remove (2026-09-06),
   // like a previous-university slot — and the import stays available.
@@ -283,23 +283,23 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     if (attest.box && attest.note !== '' && !/^This box cannot settle .* — not reviewed yet/.test(attest.note)) throw new Error('the note names only what the box cannot settle: ' + attest.note.slice(0, 120));
     console.log('  §5.2 checkbox ' + (attest.box ? 'shown (a reviewed course exists)' : 'hidden (nothing reviewed yet)') + (attest.note ? '; note: ' + attest.note.slice(0, 60) : ''));
   }
-  const candidates = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('pending DGS review — candidate for transfer credit (§5.2)'));
+  const candidates = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('waiting for the DGS — '));
   const wouldCount = candidates.filter((l) => l.includes('would count toward regular courses'));
   if (purdueLines.length !== 3 || candidates.length !== 3 || wouldCount.length < 2) {
-    throw new Error('expected the 3 Purdue lines to be amber transfer candidates, at least two "would count toward regular courses … if the DGS approves it" (the sandbox has no ExternalCourses tab)');
+    throw new Error('expected the 3 Purdue lines to be amber "waiting for the DGS" lines, at least two "would count toward regular courses … if approved" (the sandbox has no ExternalCourses tab)');
   }
   const groupHint = await s.evalJs(`(() => {
     const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('Purdue University — Previous Master’s Transcript'));
     return h?.nextElementSibling?.matches('p.hint') ? h.nextElementSibling.textContent : '';
   })()`);
-  if (!groupHint.includes('only CSE-related courses transfer') || !groupHint.includes('every graduate course here is a candidate')) {
+  if (!groupHint.includes('normally CSE-related ones') || !groupHint.includes('every graduate course here is a candidate') || !groupHint.includes('after your bachelor’s degree, within')) {
     throw new Error('the transfer group must explain the candidate rule once above the table: ' + groupHint.slice(0, 160));
   }
 
   // 3c) The graduate-status rule (DGS 2026-09-06): set the bachelor's award to
   //     Spring 2024 by hand — every Purdue row (Fall 2023 / Spring 2024) is then
   //     "not counted — taken before / in the term your bachelor's degree was
-  //     awarded", the candidate hint disappears, and only the core-sounding
+  //     awarded", the §5.2 paragraph stays, and only the core-sounding
   //     titles stay in the review request. Then back to 2021.
   const setBachelorsYear = async (year) => {
     await s.evalJs(`(() => { const y = document.querySelector('[data-key="standing.bachelors.year"]'); y.value = '${year}'; y.dispatchEvent(new Event('change')); })()`);
@@ -311,8 +311,11 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if (ruleLines.length !== 3 || ruleLines.some((l) => l.includes('mark-counts'))) throw new Error('rule lines: ' + JSON.stringify(ruleLines));
   if (!ruleLines.some((l) => l.startsWith('CS 50300') && l.includes('not counted — taken before your bachelor’s degree was awarded (Spring 2024)'))) throw new Error('CS 50300 (Fall 2023) must be excluded by the award term');
   if (!ruleLines.some((l) => l.startsWith('CS 58000') && l.includes('taken in the term your bachelor’s degree was awarded (Spring 2024)'))) throw new Error('CS 58000 (Spring 2024) must be excluded as taken in the award term');
-  const hintGone = await s.evalJs(`(() => { const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('Purdue University — Previous Master’s Transcript')); return !(h?.nextElementSibling?.matches('p.hint')); })()`);
-  if (!hintGone) throw new Error('the candidate hint must disappear when no row is a candidate');
+  // The §5.2 paragraph stays above the group even when every row is refused
+  // (clarity review 2026-09-26): a student whose courses were all excluded
+  // used to see three struck-through rows and no rule at all.
+  const hintStays = await s.evalJs(`(() => { const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('Purdue University — Previous Master’s Transcript')); return h?.nextElementSibling?.matches('p.hint') && h.nextElementSibling.textContent.includes('Transfer credit (§5.2)'); })()`);
+  if (!hintStays) throw new Error('the §5.2 paragraph must stay above the group when every row is refused');
   const bsNoteChosen = await s.evalJs(`document.querySelector('.bachelors-note')?.textContent ?? ''`);
   if (bsNoteChosen.includes('read from your transcript')) throw new Error('a hand-set award term is no longer "read from your transcript"');
   const reviewAfterRule = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
@@ -321,7 +324,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   await s.shotElement('bachelors-rule', '#shot-coursework');
   await setBachelorsYear('2021');
   const candidatesBack = await groupLines('Purdue University — Previous Master’s Transcript');
-  if (!candidatesBack.every((l) => l.includes('candidate for transfer credit'))) throw new Error('back to 2021: the rows must be candidates again: ' + JSON.stringify(candidatesBack));
+  if (!candidatesBack.every((l) => l.includes('waiting for the DGS'))) throw new Error('back to 2021: the rows must be waiting for the DGS again: ' + JSON.stringify(candidatesBack));
   if (!(await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`)).includes(`Initiate the review request for ${5 + p30321} courses`)) throw new Error(`back to 2021: ${5 + p30321} courses expected in the request`);
   console.log('  bachelor’s award Spring 2024 → all three Purdue rows excluded (§5.2 status), 5 in the request; back to 2021 → candidates again');
   const priorNdLines = await groupLines('ND, before entering the program — undergraduate coursework');
@@ -339,7 +342,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     `[...document.querySelectorAll('.req')].map(e => e.textContent).find(t => t.includes('transfer credits counted')) ?? ''`,
   );
   console.log('  transfer row mentions:', transferDetail.slice(0, 140));
-  if (!transferDetail.includes('Not yet reviewed by the DGS')) {
+  if (!transferDetail.includes('Waiting for the DGS')) {
     throw new Error('the §5.2 transfer row does not mention the unreviewed external courses');
   }
   await s.shot('external-added');
@@ -699,7 +702,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  CSE 40166:', after40166.replace(/\s+/g, ' ').slice(0, 190));
   const provisional = {};
   for (const [id, text] of [['CSE 40113', after40113], ['CSE 40166', after40166]]) {
-    provisional[id] = /pending ADGS review — would count toward regular courses \(3 cr\) once approved/.test(text);
+    provisional[id] = /waiting for the ADGS — would count toward regular courses \(3 cr\) once approved/.test(text);
     if (!provisional[id] && !/counts toward regular courses \(3 cr\)/.test(text)) throw new Error(id + ' must be counted, provisionally or in full: ' + text.slice(0, 200));
     if (!/uses the 40000-level allowance \(6 credits, §3\.2\)/.test(text)) throw new Error(id + ' must cite the MSCSE allowance: ' + text.slice(0, 200));
   }

@@ -79,10 +79,10 @@
   },
   "expectCourseLines": {
     "CS 51000": [
-      "not counted — completed outside the 5-year window before admission (five-year window, §5.2)"
+      "not counted — completed more than 5 years before you entered"
     ],
     "CS 52000": [
-      "pending ADGS review — candidate for transfer credit (§5.2)"
+      "waiting for the ADGS — would count"
     ]
   }
 }

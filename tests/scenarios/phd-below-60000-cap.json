@@ -20,7 +20,7 @@
     "attestations": { "dgsApproved4xxxx": true }
   },
   "expect": {
-    "phd.cap.fourk": { "status": "met", "detailIncludes": ["6 of the 6 credits below the 60000 level used", "CSE 40567: 3 credits not counted — over the cap"] },
+    "phd.cap.fourk": { "status": "met", "detailIncludes": ["6 of the 6 credits below the 60000 level used", "CSE 40567: 3 credits not counted — beyond the allowance"] },
     "phd.credits.regular": { "status": "unmet", "detailIncludes": ["9 of 24"] }
   },
   "expectCourseLines": {

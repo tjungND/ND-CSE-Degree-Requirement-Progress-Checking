@@ -612,7 +612,7 @@ describe('undergraduate Notre Dame coursework', () => {
     assert.match(lineFor(s, 'CSE 60321'), /^not counted — over the allowance for coursework counted toward two degrees — 6 of its 6 credits already used by the courses counted toward your bachelor’s degree and your MSCSE \(Graduate School\)/);
     assert.match(lineFor(s, 'CSE 60770'), /counted toward your MSCSE — counts in full toward the Ph\.D\./);
     assert.match(detail(s, 'phd.cap.sharedbs'), /0 of the 0 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
-    assert.match(detail(s, 'phd.cap.sharedbs'), /6 of the 6 credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE/);
+    assert.match(detail(s, 'phd.cap.sharedbs'), /All 6 shared credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE/);
     // One 'both' course (3 credits) leaves three: the 'bs' course fits.
     const half = student([ug('CSE 60641', 'both'), ug('CSE 60321', 'bs')], held);
     assert.match(lineFor(half, 'CSE 60321'), /^counts toward regular courses \(3 cr\); counts toward both your bachelor’s degree and the Ph\.D\./);
@@ -681,7 +681,7 @@ describe('undergraduate Notre Dame coursework', () => {
     // plain yes for it, and a yes needs no one's approval (DGS 2026-09-18).
     it('a 40000-level course the sheet gates on approval is provisional until the box is ticked', () => {
       const s = ms([ug('CSE 40437')]);
-      assert.match(lineFor(s, 'CSE 40437'), /^pending ADGS review — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/); // the ADGS decides for the MSCSE (2026-09-11)
+      assert.match(lineFor(s, 'CSE 40437'), /^waiting for the ADGS — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/); // the ADGS decides for the MSCSE (2026-09-11)
       assert.match(lineFor(ms([ug('CSE 40437')], { attestations: { dgsApproved4xxxx: true } }), 'CSE 40437'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
     });
   });

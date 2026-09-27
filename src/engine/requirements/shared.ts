@@ -95,7 +95,7 @@ export function advisorRow(ctx: Ctx): RequirementResult {
  * keep the two in step. */
 export type SignOffActor = 'dgs' | 'advisor' | 'gradAdmin';
 export function signOffActors(reason: string): SignOffActor[] {
-  if (/^pre-approved/i.test(reason)) return ['gradAdmin'];
+  if (/^approved by the DGS/i.test(reason)) return ['gradAdmin'];
   const actors: SignOffActor[] = [];
   if (/advisor/i.test(reason)) actors.push('advisor');
   if (/DGS|rules sheet/i.test(reason)) actors.push('dgs');
@@ -147,7 +147,13 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   for (const key of ['dgs', 'advisor,dgs', 'advisor', 'dgs,gradAdmin', 'advisor,dgs,gradAdmin', 'gradAdmin']) {
     const list = groups.get(key);
     if (list === undefined || list.length === 0) continue;
-    parts.push({ lead: LEADS[key]!, items: list.map((c) => `${c.entry.courseId} (${c.approvalPending})`) });
+    // One item per REASON, the courses that share it listed together
+    // (clarity review 2026-09-26): four transfers with the same 40-word
+    // reason used to print it four times. advisor-summary.ts splits the
+    // course list back up.
+    const byReason = new Map<string, string[]>();
+    for (const c of list) byReason.set(c.approvalPending!, [...(byReason.get(c.approvalPending!) ?? []), c.entry.courseId]);
+    parts.push({ lead: LEADS[key]!, items: [...byReason].map(([reason, ids]) => `${ids.join(', ')} (${reason})`) });
   }
   // "tick the box", not "the attestation": the student never sees that word —
   // the card is "Approvals you already have" (trim review 2026-09-18, P-55).

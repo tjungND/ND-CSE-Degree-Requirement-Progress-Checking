@@ -19,8 +19,11 @@ import { joinedDetail, missingParamDetail, countedCourseIds } from './context.ts
  * except when every pending course is already ruled transferable: then the row
  * is "in progress" until the Grad Admin has processed it (DGS 2026-09-07). */
 export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyCompleted: string; section: string }): RequirementResult {
+  // §5.2's own sentence (clarity review 2026-09-26): the row applies these
+  // five conditions, so the § chip shows them; §4.2's summary sentence used
+  // to sit here.
   const quote =
-    'Courses from a M.S. degree earned at Notre Dame or another institution within the last five years prior to admission may be used to satisfy the course requirement.';
+    'A student may transfer credits earned at another accredited university only if: 1) the student is in degree status at Notre Dame; 2) the courses taken are graduate courses appropriate to the Notre Dame graduate program and the student had graduate student status when they took these courses; 3) the courses were completed within a five-year period prior to admission to a graduate degree program at Notre Dame or while enrolled in a graduate degree program at Notre Dame; 4) grades of "B" (3.0 on 4.0 scale) or better were achieved; and 5) the transfer is recommended by the DGS and approved by the Graduate School.';
   // Undergraduate courses are invisible here (DGS request 2026-09-04): they
   // can never transfer (§5.2), so this card neither lists nor counts them —
   // their core-knowledge role shows on the coursework list and the core rows.
@@ -111,29 +114,29 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     });
     for (const p of excluded) parts.push(`${p.course.entry.courseId}: ${p.excludedReason ?? 'not counted'}`);
     if (status === 'not_applicable') {
-      parts.push('Nothing here needs a DGS decision — none of the courses you entered can transfer under §5.2, for the reasons on their lines');
+      parts.push('Nothing here needs a decision by the DGS — none of the courses you entered can transfer under §5.2, for the reason on each course’s line');
     }
     if (status !== 'met') {
       if (preApproved.length > 0) {
         parts.push(
-          `Pre-approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')} — final once the Grad Admin has processed the transfer; send the Grad Admin the processing request (§5.2)`,
+          `Approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')} — final once the Grad Admin has recorded the transfer; send the Grad Admin the processing request (§5.2)`,
         );
       }
       if (caseByCase.length > 0) {
         parts.push(
-          `Needs DGS approval: ${caseByCase.map((c) => c.entry.courseId).join(', ')}`,
+          `Waiting for the DGS’s approval, decided case by case: ${caseByCase.map((c) => c.entry.courseId).join(', ')}`,
         );
       }
       // A row whose transferable cell is blank is none of the three above, and
       // used to go unnamed here (found reviewing the dgs_approval change).
       if (listedUndecided.length > 0) {
         parts.push(
-          `Reviewed by the DGS, but transferability not yet decided: ${listedUndecided.map((c) => c.entry.courseId).join(', ')}`,
+          `Listed in the course rules, decision still open: ${listedUndecided.map((c) => c.entry.courseId).join(', ')}`,
         );
       }
       if (unreviewed.length > 0) {
         parts.push(
-          `Not yet reviewed by the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} — the transcripts card has a copy-ready request to email${ctx.student.attestations.transferApproved ? '; your “transfer approved” checkbox cannot settle a course until it has a row in the rules sheet' : ''}`,
+          `Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} — send the review request from the Transcripts card${ctx.student.attestations.transferApproved ? '; the box “The DGS explicitly approved my transfer credit” cannot cover a course the DGS has not reviewed' : ''}`,
         );
       }
     }
@@ -143,7 +146,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
   const ndMasters = ctx.classified.filter((c) => c.ndMastersCredit && !c.superseded);
   if (ndMasters.length > 0) {
     parts.push(
-      `Your Notre Dame MSCSE coursework (${ndMasters.map((c) => c.entry.courseId).join(', ')}) is not transfer credit: a move from a master’s to a Ph.D. in the same discipline counts all the credits toward the Ph.D., beyond this cap and without transfer approval (Graduate School), so it is counted on its own lines and not here`,
+      `Your Notre Dame MSCSE courses (${ndMasters.map((c) => c.entry.courseId).join(', ')}) are not transfer credit, so they are not counted here. The Graduate School counts all of a Notre Dame master’s credits toward a Ph.D. in the same discipline — outside this allowance and with no transfer approval. Each course’s own line shows how it counts`,
     );
   }
   // The counted transfer courses — what the processing request tables (2026-09-06).

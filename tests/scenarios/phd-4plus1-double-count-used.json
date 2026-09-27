@@ -127,8 +127,8 @@
       "status": "met",
       "detailIncludes": [
         "0 of the 0 credits that may still count toward both your bachelor’s degree and the Ph.D. used",
-        "CSE 60321: 3 credits not counted — over the cap",
-        "6 of the 6 credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so 0 credits can still count toward both your bachelor’s degree and the Ph.D."
+        "CSE 60321: 3 credits not counted — beyond the allowance",
+        "All 6 shared credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so none can also count toward the Ph.D."
       ]
     },
     "phd.credits.regular": {
@@ -146,7 +146,7 @@
     "phd.transfer": {
       "status": "not_applicable",
       "detailIncludes": [
-        "Your Notre Dame MSCSE coursework (CSE 60868, CSE 68901) is not transfer credit"
+        "Your Notre Dame MSCSE courses (CSE 60868, CSE 68901) are not transfer credit"
       ]
     }
   },

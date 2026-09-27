@@ -84,6 +84,6 @@ describe('the multi-cap order search does not blow up', () => {
     const report = audit(studentWithPriorMasters(6) as never, rules, '2027-06-01');
     const byId = new Map(report.requirements.map((r) => [r.id, r]));
     assert.equal(byId.get('phd.cap.noncse')?.status, 'met');
-    assert.match(byId.get('phd.cap.noncse')?.detail ?? '', /9 of the 9 non-CSE cap credits used/);
+    assert.match(byId.get('phd.cap.noncse')?.detail ?? '', /9 of the 9 non-CSE allowance credits used/);
   });
 });

@@ -169,7 +169,7 @@ describe('actionItems: the rest of the rules', () => {
         req('phd.timeLimit', 'All requirements complete within 8 years', 'cannot_evaluate', "Cannot evaluate — the rules sheet is missing 'phd_time_limit_years'. Ask the DGS to add it to the Parameters tab", 'Residence and time — §4.3', '§4.3'),
         {
           ...req('phd.qualifier.categories', 'Three specialization courses from three distinct groups, each B or higher', 'in_progress', '', 'Qualifying examination — §4.4', '§4.4.2'),
-          detailParts: ['3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups', 'below the B floor: CSE 60111 (B-) — you may retake the course to replace the grade or take another course (§4.4.2)', 'The approved course list is on the course rules page'],
+          detailParts: ['3 of 3 done, in 2 different groups; the 1 in progress would complete it', 'CSE 60111 (B-) is below the B floor — retake it or take another course (§4.4.2)'],
         },
         req('phd.qualifier.core.os', 'Core knowledge: Operating Systems', 'needs_dgs_review', 'CS 50300 (Purdue) — not yet reviewed by the DGS.', 'Qualifying examination — §4.4', '§4.4.1'),
         req('phd.qualifier.core.algorithms', 'Core knowledge: Algorithms', 'unmet', 'No course yet.', 'Qualifying examination — §4.4', '§4.4.1'),
@@ -272,12 +272,12 @@ describe('whyFor re-voices the engine detail for the advisor', () => {
     assert.equal(whyFor(req('x', 'x', 'unmet', 'Overdue — the 8-year limit passed at the start of Fall 2034 (approximate). Talk to the DGS.')), 'Overdue — the 8-year limit passed at the start of Fall 2034 (approximate).');
     const spec: RequirementResult = {
       ...req('x', 'x', 'in_progress'),
-      detailParts: ['3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups', 'below the B floor: CSE 60111 (B-) — you may retake the course to replace the grade or take another course (§4.4.2)', 'The approved course list is on the course rules page'],
+      detailParts: ['3 of 3 done, in 2 different groups; the 1 in progress would complete it', 'CSE 60111 (B-) is below the B floor — retake it or take another course (§4.4.2)'],
     };
     const why = whyFor(spec);
-    assert.ok(why.includes('3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups.'), why);
+    assert.ok(why.includes('3 of 3 done, in 2 different groups; the 1 in progress would complete it.'), why);
     assert.ok(why.includes('Below the B floor (§4.4.2): CSE 60111 (B-).'), why);
-    assert.equal(whyFor(spec, true), '3 done (2 distinct groups) with 1 in progress — on track for 3 distinct groups.');
+    assert.equal(whyFor(spec, true), '3 of 3 done, in 2 different groups; the 1 in progress would complete it.');
     assert.equal(whyFor(req('x', 'x', 'unmet', 'Cumulative GPA 2.80 is below the 3.0 minimum — you cannot receive a degree or defend until it recovers (§2.2).')), 'Cumulative GPA 2.80 is below the 3.0 minimum — I cannot receive a degree or defend until it recovers (§2.2).');
     assert.equal(whyFor(req('x', 'x', 'in_progress', '§4.2 expects these during the first year — you are in semester 2.')), '§4.2 expects these during the first year — I am in semester 2.');
   });
@@ -311,7 +311,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
             {
               lead: 'Courses pending approval',
               items: [
-                'CS 50300 (pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2))',
+                'CS 50300 (approved by the DGS in the course rules — send the Grad Admin the processing request (§5.2))',
                 'CS 77777 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))',
               ],
             },
@@ -326,7 +326,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     assert.deepEqual(todo.gradAdmin, [
       'Process the MSCSE awarded along the way (§4.5).',
       'Record the completed qualifier once my form arrives (§4.4).',
-      'Process the transfer credit for CS 50300 — pre-approved by the DGS (§5.2).',
+      'Process the transfer credit for CS 50300 — approved by the DGS (§5.2).',
     ]);
     assert.deepEqual(todo.dgs, ['Decide on CS 77777 — transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2).']);
     assert.ok(todo.student.includes('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).'));

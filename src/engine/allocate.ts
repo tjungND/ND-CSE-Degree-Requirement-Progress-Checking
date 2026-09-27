@@ -733,7 +733,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     return {
       ...extBase,
       notTransferCredit: true,
-      ineligibleReason: `not counted — dated before your entry term (${termLabel(entry)}), but your record shows no prior graduate program, so it is not §5.2 transfer credit either: check the entry term under Your standing (it starts out as the coming fall), or set “Prior graduate study” if you were in another graduate program${coreNote}`,
+      ineligibleReason: `not counted — dated before your entry term (${termLabel(entry)}) with no earlier graduate program on your record, so it is not §5.2 transfer credit either. To fix: check the entry term under Your standing (it starts out as the coming fall), or change your earlier degrees there${coreNote}`,
     };
   }
   if (c.degreeLevel === 'bachelors') {
@@ -819,7 +819,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     return {
       ...extBase,
       // The university as the student's record spells it (DGS 2026-09-06, late evening: no upper-cased sheet spelling in student-facing text).
-      ineligibleReason: `not counted — the DGS has ruled this ${c.institution ?? external?.university} course non-transferable (external-course rules)${coreNote}`,
+      ineligibleReason: `not counted — the DGS decided this ${c.institution ?? external?.university} course does not transfer (course rules, §5.2)${coreNote}`,
     };
   }
   // §5.2 (verbatim): "A student may transfer credits earned at another
@@ -861,7 +861,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
     return {
       ...extBase,
-      ineligibleReason: `not counted — completed outside the ${windowYears}-year window before admission (five-year window, §5.2)${coreNote}`,
+      ineligibleReason: `not counted — completed more than ${windowYears} years before you entered (before ${termLabel(shiftTermYears(entry, -windowYears))}; §5.2)${coreNote}`,
     };
   }
   // An earlier Notre Dame course keeps its own Courses-tab verdict on top
@@ -910,7 +910,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // (2026-09-11).
   const creditSystemNote =
     external === undefined && creditSystem === undefined && !isNotreDameInstitution(c.institution)
-      ? '; credits shown as your transcript prints them — if your university uses quarters or trimesters, the DGS’s ruling converts them (§5.2 pro-rata)'
+      ? '; credits shown as your transcript prints them — if your university uses quarters or trimesters, the DGS’s decision converts them (§5.2 pro-rata)'
       : '';
   // §4.2 caps credits "taken from a department other than CSE" at nine,
   // wherever they were taken — and a transcript from elsewhere spells the
@@ -944,16 +944,16 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     approvalPending: attested
       ? undefined
       : transferable === 'yes'
-        ? `pre-approved in the DGS’s external-course rules — to have it processed, send the Grad Admin the processing request (§5.2)${coreNote}${projectNote}`
+        ? `approved by the DGS in the course rules — send the Grad Admin the processing request (§5.2)${coreNote}${projectNote}`
         : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
           // program 2026-09-09): the sheet has looked at the course and
           // ruled that this one needs an approval. Unlike a blank cell,
           // that IS a decision; what is open is this student's case.
           needsApproval(transferable)
-          ? `transfer — needs DGS approval (§5.2)${coreNote}${projectNote}`
+          ? `waiting for the DGS — this course needs the DGS’s approval, decided case by case (§5.2)${coreNote}${projectNote}`
           : external
-            ? `transfer — reviewed by the DGS, but transferability is not yet decided (§5.2)${coreNote}${projectNote}`
-            : `transfer — not yet reviewed by the DGS${attestedButUnreviewed ? ', so your “transfer approved” checkbox cannot apply to it yet' : ''}; an external course counts only once the DGS has explicitly approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
+            ? `waiting for the DGS — listed in the course rules, decision still open (§5.2)${coreNote}${projectNote}`
+            : `waiting for the DGS — not yet reviewed${attestedButUnreviewed ? ', so the box “The DGS explicitly approved my transfer credit” cannot cover it yet' : ''}; an external course counts only once the DGS has approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
   };
 }
 
@@ -1481,22 +1481,26 @@ function buildExplanation(
     const capWord = transferCandidate.capLimit !== undefined ? `${transferCandidate.capLimit}-credit ` : '';
     const fate =
       counted > 0 && excluded === 0
-        ? `would count toward ${poolName} (${formatCredits(counted)} cr) if the DGS approves it`
+        ? `would count toward ${poolName} (${formatCredits(counted)} cr) if approved`
         : counted > 0
-          ? `would count ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} if the DGS approves it (the ${capWord}transfer cap limits the rest)`
-          : `counts only if the DGS picks it — the candidates together exceed the ${cc.caps.includes('noncse') ? 'non-CSE cap or the ' : ''}${capWord}transfer cap`;
+          ? `would count ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} if approved (the ${capWord}transfer allowance limits the rest)`
+          : `counts only if the DGS picks it — together the candidates exceed the ${cc.caps.includes('noncse') ? 'non-CSE allowance or the ' : ''}${capWord}transfer allowance`;
     const coreNote = /; (the same review can confirm|satisfies) [^;]*core-knowledge requirement[^;]*/.exec(cc.approvalPending ?? '')?.[0] ?? '';
     // The two facts the pending text carries that the student must see on the
     // line itself (2026-09-11): a ticked checkbox that cannot apply to an
     // unreviewed course, and credits printed in a system the sheet does not
     // know yet.
-    const checkboxNote = /your “transfer approved” checkbox cannot apply to it yet/.test(cc.approvalPending ?? '') ? '; your “transfer approved” checkbox cannot apply to it yet — the DGS has not reviewed this course' : '';
+    const checkboxNote = /cannot cover it yet/.test(cc.approvalPending ?? '') ? '; the box “The DGS explicitly approved my transfer credit” cannot cover this course — the DGS has not reviewed it' : '';
     const creditNote = /; credits shown as your transcript prints them[^;]*/.exec(cc.approvalPending ?? '')?.[0] ?? '';
     return {
       // A Notre Dame course here is one from the student's EARLIER Notre Dame
       // program (red-team wording table, 2026-09-12): say so, since its
       // "Where" cell reads Taken at Notre Dame.
-      explanation: `pending DGS review — candidate for transfer credit${isNotreDameInstitution(cc.entry.institution) ? ' from your earlier Notre Dame program' : ''} (§5.2); ${fate}${checkboxNote}${creditNote}${coreNote}`,
+      // The status first, in the words the Approvals row and the emails use
+      // (clarity review 2026-09-26): what is being waited for, then what the
+      // course would do. "Candidate" is the DGS's word for it; the §5.2
+      // paragraph above the group says it once.
+      explanation: `waiting for the DGS — ${fate}${isNotreDameInstitution(cc.entry.institution) ? ' — a course from your earlier Notre Dame program' : ''} (§5.2)${checkboxNote}${creditNote}${coreNote}`,
       mark: 'pending',
     };
   }
@@ -1504,16 +1508,16 @@ function buildExplanation(
   // is not "pending DGS review": it is pre-approved and waits only for the
   // Grad Admin's processing (DGS 2026-09-07 — until then one line said both
   // "would count … once approved" and "pre-approved").
-  const preApproved = cc.tier === 'provisional' && /^pre-approved/.test(cc.approvalPending ?? '');
+  const preApproved = cc.tier === 'provisional' && /^approved by the DGS/.test(cc.approvalPending ?? '');
   const lead = preApproved
-    ? 'pre-approved by the DGS — will count'
+    ? 'approved by the DGS — will count'
     : cc.tier === 'provisional'
-      ? 'pending DGS review — would count'
+      ? 'waiting for the DGS — would count'
       : cc.tier === 'in_progress'
         ? 'in progress — will count'
         : 'counts';
   const tail = preApproved
-    ? ' as transfer credit once the Grad Admin has processed it'
+    ? ' as transfer credit once the Grad Admin has recorded it'
     : cc.tier === 'provisional'
       ? ' once approved'
       : cc.tier === 'in_progress'
@@ -1523,7 +1527,7 @@ function buildExplanation(
   if (spillsToTotal) {
     mark = markForTier(cc.tier);
     const how = counted > 0 ? `${lead} ${formatCredits(counted)} of ${formatCredits(total)} credits toward ${poolName} and ${formatCredits(excluded)} toward the total-credit requirement only${tail}` : `${lead} toward the total-credit requirement only (${formatCredits(excluded)} cr)${tail}`;
-    parts.push(`${how} — ${excludedReason ?? 'over the non-CSE cap'} — the allowance limits regular-course credit, not the total`);
+    parts.push(`${how} — ${excludedReason ?? 'beyond the non-CSE allowance'} — the allowance limits regular-course credit, not the total`);
     return { explanation: parts.join('; '), mark };
   }
   if (counted > 0 && excluded > 0) {
@@ -1543,7 +1547,7 @@ function buildExplanation(
     }
     if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
       parts.push(
-        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the ${cc.convertedFrom ?? 'quarter'} system at ${creditSystemFactorLabel(cc.conversionFactor ?? 1)}${cc.creditSystemSource === 'transcript' ? ` — your transcript says ${cc.convertedFrom ?? 'quarter'} terms; the DGS’s ruling for the university can correct this` : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
+        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the ${cc.convertedFrom ?? 'quarter'} system at ${creditSystemFactorLabel(cc.conversionFactor ?? 1)}${cc.creditSystemSource === 'transcript' ? ` — your transcript says ${cc.convertedFrom ?? 'quarter'} terms; the DGS’s decision for the university can correct this` : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
       );
     }
     // The cap covers both levels below 60000 since 2026-09-09, so the line
@@ -1604,6 +1608,6 @@ function buildExplanation(
     return { explanation: parts.join('; '), mark };
   }
   // The pre-approved note's opening repeats the lead: keep its instruction.
-  if (cc.approvalPending) parts.push(preApproved ? cc.approvalPending.replace(/^pre-approved in the DGS’s external-course rules — to have it processed, send/, 'send') : cc.approvalPending);
+  if (cc.approvalPending) parts.push(preApproved ? cc.approvalPending.replace(/^approved by the DGS in the course rules — send/, 'send') : cc.approvalPending);
   return { explanation: parts.join('; '), mark };
 }

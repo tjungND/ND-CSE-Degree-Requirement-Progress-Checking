@@ -51,7 +51,7 @@ export function loadRulesWithCard(root: HTMLElement, nowIso: string): Promise<Lo
       courses: makeStep('Reading the course list'),
       parameters: makeStep('Reading the parameters'),
       categories: makeStep('Reading the categories'),
-      ...(EXTERNAL_TAB_CONFIGURED ? { external: makeStep('Reading the external-course rules') } : {}),
+      ...(EXTERNAL_TAB_CONFIGURED ? { external: makeStep('Reading the course rules') } : {}),
     };
     const steps = {
       clock: makeStep('Checking today’s date at Notre Dame'),

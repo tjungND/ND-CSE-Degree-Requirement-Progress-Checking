@@ -687,6 +687,31 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   // ---------- standing ----------
 
+  /** What the earlier-degrees answer means for THIS student, one sentence
+   * with the numbers from the Parameters tab (clarity review 2026-09-26) —
+   * in place of "(§5.2 transfer caps, the MSCSE already held and the
+   * Integrated 4+1 follow from this.)", which named the rules and not the
+   * consequence. */
+  function backgroundConsequence(): string {
+    const b = student.background;
+    if (!b) return ' (§5.2 transfer allowances, the MSCSE already held and the Integrated 4+1 follow from this.)';
+    const n = (key: string): string => {
+      const v = rules.parameters.number(key);
+      return v === undefined ? 'a number of' : String(v);
+    };
+    const finished = n(student.program === 'mscse' ? 'ms_transfer_completed_ms_credits_max' : 'phd_transfer_completed_ms_credits_max');
+    const unfinished = n('transfer_unfinished_ms_credits_max');
+    if (b.graduate === 'elsewhere') {
+      return b.finished
+        ? ` You finished a graduate degree elsewhere, so up to ${finished} credits from it may transfer (§5.2); it would be ${unfinished} if that program were unfinished.`
+        : ` Your earlier graduate program was not finished, so up to ${unfinished} credits from it may transfer (§5.2); it would be ${finished} after a finished degree.`;
+    }
+    if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') {
+      return ` Your Notre Dame MSCSE coursework is not transfer credit — each course’s own line says how it counts${b.graduate === 'nd-4plus1' ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
+    }
+    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree, so up to ${unfinished} credits from another university may transfer (§5.2); your deadlines count from the semester you started the MSCSE.`;
+    return ` No graduate degree before this program, so up to ${unfinished} credits from another university may transfer (§5.2).`;
+  }
   function standingCard(): HTMLElement {
     // The entry term drives the §4.3 residency count and every deadline. When
     // the student sets it, the "inferred/assumed" flag clears and every Notre
@@ -748,7 +773,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           student.program === 'phd'
             // The four deadlines are each a report row with a Deadline chip;
             // the §s stay (trim review 2026-09-18, P-11).
-            ? 'The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term. If you started in the Notre Dame MSCSE and transferred into the Ph.D. before finishing it, this is the semester you started the MSCSE; if you finished the MSCSE first, it is the semester you started the Ph.D. (§4.5, DGS 2026-09-26).'
+            ? 'The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term. Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE. Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).'
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
@@ -765,7 +790,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('strong', {}, 'Earlier degrees: '),
       student.background ? describeBackground(student.background) + ' — ' : 'not answered yet — ',
       el('button', { class: 'btn tiny link', 'data-key': changeKey, onclick: () => openBackgroundDialog(student, update, changeKey) }, student.background ? 'Change' : 'Answer two questions'),
-      '. (§5.2 transfer caps, the MSCSE already held and the Integrated 4+1 follow from this.)',
+      '.',
+      backgroundConsequence(),
     );
     // Bachelor's degree awarded (DGS 2026-09-06): graduate-level courses dated
     // in or before this term earn no transfer credit — §5.2 needs graduate
@@ -874,7 +900,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             // Whose semester 1 (DGS 2026-09-26): the MSCSE start for a transfer
             // into the Ph.D., the Ph.D. start after a finished MSCSE.
             (student.program === 'phd'
-              ? ' If you started in the Notre Dame MSCSE and transferred into the Ph.D. before finishing it, this is the semester you started the MSCSE; if you finished the MSCSE first, it is the semester you started the Ph.D. (§4.5, DGS 2026-09-26).'
+              ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE. Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).'
               : ''),
         ),
       bsBeforeLine ? fieldset('Bachelor’s degree awarded', bsBeforeLine) : fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),
@@ -964,6 +990,22 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   /** The §5.2 transfer cap that applies to this student, as the engine reads
    * it (audit.ts capSpecs) — for the coursework card's explanation. */
+  function totalCreditsWord(): string {
+    const v = rules.parameters.number(student.program === 'mscse' ? 'ms_total_credits_min' : 'phd_total_credits_min');
+    return v === undefined ? 'required' : String(v);
+  }
+  function regularCreditsWord(): string {
+    const v = rules.parameters.number(student.program === 'mscse' ? 'ms_regular_credits_min' : 'phd_regular_credits_min');
+    return v === undefined ? 'required' : String(v);
+  }
+  function fourkCreditsWord(): string {
+    const v = rules.parameters.number(student.program === 'mscse' ? 'ms_4xxxx_credits_max' : 'phd_4xxxx_cse_credits_max');
+    return v === undefined ? 'a limited number of' : String(v);
+  }
+  function sharedCreditsWord(): string {
+    const v = rules.parameters.number('ms_bs_double_count_credits_max');
+    return v === undefined ? 'a limited number of' : String(v);
+  }
   function transferCapLimit(): string {
     const key =
       student.program === 'mscse'
@@ -1062,13 +1104,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       }
       g.entries.push(e);
     }
-    /** Does at least one course of this group carry the engine's "candidate
-     * for transfer credit" line (an unreviewed graduate course the handbook
-     * does not rule out)? */
-    const hasTransferCandidate = (entries: { c: CourseEntry }[]): boolean =>
-      entries.some(({ c }) =>
-        courseLines.some((l) => l.courseId === c.courseId && termIndex(l.term) === termIndex(c.term) && l.text.includes('candidate for transfer credit')),
+    /** §5.2 said once, above every prior-graduate group (clarity review
+     * 2026-09-26; until then it appeared only while a group still held a
+     * candidate, so a student whose every course was refused saw three
+     * struck-through rows and no rule). The three conditions the page checks
+     * are named with their numbers from the Parameters tab; the cap, the CSE
+     * norm and the two approvals stay as the DGS worded them (2026-09-06,
+     * trimmed 2026-09-18). "Candidate" is the DGS's word. */
+    const transferRule = (fromNotreDame: boolean): string => {
+      const windowYears = rules.parameters.number(student.program === 'mscse' ? 'ms_transfer_window_years' : 'phd_transfer_window_years');
+      const floor = rules.parameters.gradeLetter('transfer_min_grade');
+      const cutoff = windowYears === undefined ? undefined : termLabel({ season: student.entryTerm.season, year: student.entryTerm.year - windowYears });
+      const window = windowYears === undefined ? 'within the years §5.2 allows (the number is missing from the rules sheet)' : `within ${windowYears} years before you entered (${cutoff} or later)`;
+      const grade = floor === undefined ? 'with the grade §5.2 requires (missing from the rules sheet)' : `with a grade of ${floor} or better`;
+      return (
+        `Transfer credit (§5.2): a graduate course from ${fromNotreDame ? 'your earlier Notre Dame program' : 'another university'} can count toward this degree if you took it after your bachelor’s degree, ${window}, and ${grade} — this page checks those three. ` +
+        `Which courses transfer (normally CSE-related ones, up to ${transferCapLimit()} credits) is the DGS’s decision, and the Graduate School confirms it. ` +
+        `Until the DGS decides, every graduate course here is a candidate: the review request in the Transcripts card asks for the decisions, and the processing request below the milestones then has the Grad Admin record the credit.`
       );
+    };
     const card = el(
       'section',
       { class: 'card' },
@@ -1078,6 +1132,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       gpaNote,
       courseForm(),
       el('h3', { class: 'subhead', id: 'nd-courses' }, 'ND'),
+      // The marks defined once, above the first table, and the one handbook
+      // term that decides most of the credits (clarity review 2026-09-26).
+      el(
+        'p',
+        { class: 'hint course-key' },
+        `Key: ✓ counts · ◐ in progress · ● pending approval · ✕ does not count. A regular course is a lecture course — one the course rules list as regular; seminars, research and project credits count toward the ${totalCreditsWord()} total but not toward the ${regularCreditsWord()} regular-course credits (${student.program === 'mscse' ? '§3.2' : '§4.2'}).`,
+      ),
       nd.length > 0
         ? courseTable(courseLines, nd)
         : el('p', { class: 'empty' }, 'No ND courses yet. Import your transcript above, or add one here.'),
@@ -1089,32 +1150,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               { class: 'hint' },
               (g.nd
                 ? student.program === 'phd'
-                  ? `Notre Dame coursework you took as an undergraduate is listed here when it can count toward this degree — 60000-level courses, CSE courses below that inside the allowance your degree allows, and anything relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1). Say next to each course which degrees it has already counted toward; the report then says what each one does.`
-                  : `Notre Dame coursework you took as an undergraduate is listed here when it can count toward the MSCSE — 60000-level courses in full, CSE courses below that inside §3.2’s allowance. Up to 6 credits may apply to both your bachelor’s degree and your MSCSE (§3.5): this page chose them for you — your 40000-level CSE courses first, best grade first, saving 60000-level coursework for the graduate degree — and each line says whether the course will apply to both degrees or to your MSCSE only.`
+                  ? `Notre Dame courses you took as an undergraduate appear here when they can do something for the Ph.D.: earn credit (60000-level courses in full; up to ${fourkCreditsWord()} credits of CSE courses below that, §4.2), or show you already know a core area — Algorithms, Operating Systems, Computer Architecture (§4.4.1). Where a course could earn credit, say next to it whether your bachelor’s degree already used it — no course may count toward three degrees.`
+                  : `Notre Dame courses you took as an undergraduate appear here when they can count toward the MSCSE: 60000-level courses in full, and CSE courses below that inside §3.2’s allowance. Up to ${sharedCreditsWord()} credits may apply to both your bachelor’s degree and your MSCSE (§3.5). This page chose them for you — your 40000-level CSE courses first, best grade first, keeping 60000-level coursework for the graduate degree — and each course’s line says whether it will apply to both degrees or to your MSCSE only.`
                 : student.program === 'phd'
                   ? `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`
                   : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), and they satisfy nothing else in the MSCSE — so none of them is listed here`) +
               `${g.hidden > 0 ? ` ${plural(g.hidden, 'other course')} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown.` : ''}`,
             )
-          : hasTransferCandidate(g.entries)
-            ? el(
-                'p',
-                { class: 'hint' },
-                // DGS 2026-09-06: every unreviewed graduate course is a candidate;
-                // the DGS decides which ones transfer, CSE-related only, within
-                // the cap — the lines below never rank the candidates. Said only
-                // above a group that still holds a candidate (a group whose only
-                // course the handbook rules out — grade, five-year window — would
-                // contradict it). Coursework from an EARLIER NOTRE DAME degree
-                // gets the same paragraph (2026-09-09): §5.2's last sentence
-                // covers it — "These five requirements also apply to the
-                // transfer of credits earned in another program at Notre Dame"
-                // — and a student who never left Notre Dame is the one most
-                // likely to assume their own courses simply carry over.
-                // Trimmed 2026-09-18 (P-87): same facts, the DGS named less often.
-                `Transfer credit (§5.2) is decided by the DGS course by course — normally only CSE-related courses transfer, at most ${transferCapLimit()} credits in total, and the Graduate School confirms the DGS’s recommendation. Until the DGS has ruled, every graduate course here is a candidate: the review request below asks for the rulings; the processing request below the milestones then has the Grad Admin transfer the credit.`,
-              )
-            : null,
+          : el('p', { class: 'hint' }, transferRule(g.nd)),
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
           : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),
@@ -1302,7 +1345,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const levelSel = el('select', { 'data-key': 'course.new.level' });
     // "… student" (DGS 2026-09-06, late evening): the choice is the student's
     // status at the time, never the course's level.
-    levelSel.append(option('', 'Grad student — after your bachelor’s degree was awarded (§5.2 transfer candidate)', true));
+    levelSel.append(option('', 'Grad student — after your bachelor’s degree was awarded (can transfer, §5.2)', true));
     levelSel.append(
       option(
         'bachelors',
@@ -1733,7 +1776,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       n === 0
         ? inactiveButton(
             attrs,
-            'Nothing to process yet — this button becomes active as soon as any requirement is met, or a transfer credit the DGS has ruled transferable, a milestone date, or the MSCSE along the way appears in your record.',
+            'Nothing to process yet — this button becomes active as soon as any requirement is met, or a transfer credit the DGS has approved, a milestone date, or the MSCSE along the way appears in your record.',
             toast,
             label,
           )

@@ -80,6 +80,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       section: '§3.2',
       quote: REGULAR_QUOTE,
       extraDetail: ['Register for CSE 68902 (project) or CSE 68901 (thesis direction)'],
+      extraDetailWhenShort: true,
     }),
   );
 
@@ -148,7 +149,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       group: COURSEWORK,
       title: 'At most 9 credits from outside CSE',
       capId: 'noncse',
-      capLabel: 'non-CSE cap credits',
+      capLabel: 'non-CSE allowance credits',
       limitKey: 'ms_noncse_credits_max',
       section: '§3.2',
       quote:
@@ -184,7 +185,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
     satisfied = fullTime.map((r) => termLabel(r.term));
   } else {
     status = 'in_progress';
-    detail = `No full-time term yet — a term counts once its entered credits reach ${floor} (§2.1.2), or mark a research-heavy term as full-time.`;
+    detail = `No full-time semester yet. A semester counts once the courses you entered for it add up to ${floor} credits (§2.1.2); if you were full-time on research, tick that semester under Your standing (Full-time terms).`;
   }
   return {
     id: 'ms.residency',

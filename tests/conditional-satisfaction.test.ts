@@ -66,12 +66,12 @@ describe('credits a cap discards are warnings, not prose (R2)', () => {
     const row = over.report.requirements.find((r) => r.id === 'phd.cap.fourk')!;
     const warnings = (row.detailParts ?? []).filter((p) => typeof p === 'object' && 'warn' in p);
     assert.equal(warnings.length, 1, JSON.stringify(row.detailParts));
-    assert.match((warnings[0] as { warn: string }).warn, /CSE 40567: 3 credits not counted — over the cap/);
+    assert.match((warnings[0] as { warn: string }).warn, /CSE 40567: 3 credits not counted — beyond the allowance/);
   });
 
   it('…and the prose detail is unchanged, so the copied messages still read as before', () => {
     const row = over.report.requirements.find((r) => r.id === 'phd.cap.noncse')!;
-    assert.match(row.detail, /PSY 60119: 3 credits over the cap — count toward the total-credit requirement only/);
+    assert.match(row.detail, /PSY 60119: 3 credits beyond the allowance — count toward the total-credit requirement only/);
   });
 
   it('a row with discarded credits never presents as an unqualified pass', () => {

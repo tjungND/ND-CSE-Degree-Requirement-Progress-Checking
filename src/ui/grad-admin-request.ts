@@ -177,7 +177,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const lines = [
     ...transfers.map(
       (t) =>
-        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${t.state === 'approved' ? 'approved by the DGS for my case (§5.2), to be processed' : 'pre-approved by the DGS, to be processed (§5.2)'}`,
+        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${t.state === 'approved' ? 'approved by the DGS for my case (§5.2), to be processed' : 'approved by the DGS in the course rules, to be processed (§5.2)'}`,
     ),
     ...milestones.map((m) => `${m.label} ${m.date} (${m.section})`),
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
@@ -254,7 +254,7 @@ export function gradAdminRequest(
     sections.push({
       // The "Attached:" line above already says the transcripts are attached
       // (trim review 2026-09-18, P-43).
-      heading: 'Transfer credit to process (§5.2) — ruled transferable by the DGS in the external-course rules',
+      heading: 'Transfer credit to process (§5.2) — approved by the DGS in the course rules',
       columns: TRANSFER_COLUMNS,
       table: pre.map(transferRow),
     });

@@ -106,7 +106,9 @@ export function joinedDetail(parts: DetailPart[]): { detail: string; detailParts
     typeof p === 'string' ? p : 'warn' in p ? p.warn : `${p.lead}: ${p.items.join('; ')}`;
   const structured = parts.some((p) => typeof p !== 'string');
   return {
-    detail: parts.map(flat).join('. ') + (parts.length > 0 ? '.' : ''),
+    // A closing period only where the last part has none (a part ending in
+    // "the Ph.D." used to reach the emails as "the Ph.D..", 2026-09-26).
+    detail: parts.map(flat).join('. ') + (parts.length > 0 && !/[.!?]$/.test(flat(parts[parts.length - 1]!)) ? '.' : ''),
     detailParts: parts.length > 1 || structured ? parts : undefined,
   };
 }
@@ -128,6 +130,11 @@ export function thresholdRow(args: {
   unit?: string;
   provisionalCourses?: string[];
   extraDetail?: string[];
+  /** Advice about what to register for: shown only while the definite and
+   * in-progress credits together are still short of the minimum (a student
+   * with the six project credits in progress was told to register for them,
+   * clarity review 2026-09-26). */
+  extraDetailWhenShort?: true;
   /** The courses whose definite credits count here (processing request, 2026-09-06). */
   satisfiedBy?: string[];
   /** The courses whose credits will count here once passed/approved (2026-09-08). */
@@ -162,7 +169,8 @@ export function thresholdRow(args: {
   // a finished student was still being told "Register for CSE 68902 (project)
   // or CSE 68901 (thesis direction)" beside their own completed six credits
   // (2026-09-11).
-  if (status !== 'met') parts.push(...(args.extraDetail ?? []));
+  const stillShort = required === undefined || sums.definite + sums.in_progress < required;
+  if (status !== 'met' && (!args.extraDetailWhenShort || stillShort)) parts.push(...(args.extraDetail ?? []));
   return {
     id: args.id,
     group: args.group,
@@ -247,14 +255,14 @@ export function capRow(args: {
     // "never scientific notation, never '2.6666666666666665'"). These three
     // were raw (red-team 2026-09-13): one ordinary quarter-system transfer
     // course, converted by the sheet's own pro-rata factor, printed
-    // "2.666666668 of the 9 non-CSE cap credits used".
+    // "2.666666668 of the 9 non-CSE allowance credits used".
     .map((p) => ({
       warn:
         p.excluded > 0
-          ? `${p.course.entry.courseId}: ${formatCredits(p.excluded)} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — over the cap`
+          ? `${p.course.entry.courseId}: ${formatCredits(p.excluded)} ${p.excluded === 1 ? 'credit' : 'credits'} not counted — beyond the allowance`
           : // The non-CSE allowance limits regular-course credit only (F1,
             // 2026-09-12): what it refuses still counts toward the total.
-            `${p.course.entry.courseId}: ${formatCredits(p.overCapToTotal ?? 0)} ${p.overCapToTotal === 1 ? 'credit' : 'credits'} over the cap — count toward the total-credit requirement only`,
+            `${p.course.entry.courseId}: ${formatCredits(p.overCapToTotal ?? 0)} ${p.overCapToTotal === 1 ? 'credit' : 'credits'} beyond the allowance — count toward the total-credit requirement only`,
     }));
 
   let status: Status;
@@ -274,7 +282,11 @@ export function capRow(args: {
     label = 'Not used yet';
     parts.push(`${formatCredits(0)} of the ${formatCredits(usage.limit)} ${args.capLabel} used`);
   } else {
-    const pending = relevant.filter((c) => c.approvalPending);
+    // Only a course the allowance actually admits is worth an approval: one
+    // refused as beyond it is told so on its own line, not sent to seek an
+    // approval that cannot help (clarity review 2026-09-26).
+    const admitted = (c: (typeof relevant)[number]): boolean => (args.ctx.alloc.perCourse.find((p) => p.course === c)?.countedRegular ?? 0) > 0;
+    const pending = relevant.filter((c) => c.approvalPending && admitted(c));
     status = args.approvalDriven && pending.length > 0 ? 'needs_dgs_review' : 'met';
     parts.push(`${formatCredits(usage.used)} of the ${formatCredits(usage.limit)} ${args.capLabel} used`);
     if (pending.length > 0) {

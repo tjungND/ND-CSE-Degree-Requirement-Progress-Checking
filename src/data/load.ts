@@ -45,7 +45,7 @@ export const TAB_LABELS: Record<TabName, string> = {
   courses: 'the course list',
   parameters: 'the parameters',
   categories: 'the categories',
-  external: 'the external-course rules',
+  external: 'the course rules',
 };
 
 /** The published-CSV URL of each tab (data/sheet-urls.json), typed once. */
