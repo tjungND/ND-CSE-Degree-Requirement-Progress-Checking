@@ -426,6 +426,28 @@ describe('a university whose name is printed only as an image (2026-09-08)', () 
     assert.equal(parseExternalTranscript(['Purdue University', ...JHU]).universityGuessed, undefined, 'a name read as text is not a guess');
   });
 
+  it('Rensselaer, whose name is only a vector wordmark, is guessed from the registrar’s address (DGS 2026-09-28)', () => {
+    // The text layer of an RPI transcript, as the app's layout stage reads it
+    // (a sanitized copy; the rows were blacked out). "Rensselaer" appears
+    // nowhere in the text — only the ZIP+4 and the registrar's phone do.
+    const rpi = [
+      'ACADEMIC RECORD', '10/17/2024', 'Student Name:   DEGREES AWARDED:   DATE:',
+      'Office of the Registrar', 'Troy, New York 12180-3590', 'Tel: 518-276-6231 Fax: 518-276-6180',
+      'Official Transcript',
+      'Course #   Course Title   Att Grd Ern Qpts   Course #   Course Title   Att Grd Ern Qpts',
+      'CSCI 6140   Computer Operating Systems   4.00 A 4.00 16.00',
+      'Page   1',
+    ];
+    const r = parseExternalTranscript(rpi);
+    assert.equal(r.university, 'Rensselaer Polytechnic Institute');
+    assert.equal(r.universityGuessed, true, 'a guess, so the student can correct it');
+    assert.equal(parseExternalTranscript(['Rensselaer Polytechnic Institute', ...rpi]).universityGuessed, undefined, 'the name printed as text is not a guess');
+    // The phone alone is enough (page 2 repeats it, the ZIP may wrap), but a
+    // different Troy address is not Rensselaer.
+    assert.equal(parseExternalTranscript(rpi.map((l) => l.replace('12180-3590', '12180'))).university, 'Rensselaer Polytechnic Institute');
+    assert.equal(parseExternalTranscript(rpi.map((l) => l.replace('12180-3590', '12180').replace('518-276-6231', '518-244-2000'))).university, undefined);
+  });
+
   it('the degree heading on a line of its own opens the degree block', () => {
     // "JHU Degree and Date Conferred" with the values BELOW it — the
     // column-gap test alone missed it, and the M.S. then read as not

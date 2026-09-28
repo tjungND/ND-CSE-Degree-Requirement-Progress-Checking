@@ -555,6 +555,12 @@ const NAME_ONLY_IN_IMAGE: readonly (readonly [RegExp, string])[] = [
   [/\bTUM\b/, 'Technical University of Munich'],
   [/\bKAIST\b/, 'Korea Advanced Institute of Science and Technology'],
   [/\bPOSTECH\b/, 'Pohang University of Science and Technology'],
+  // Rensselaer prints its name only as the red wordmark, drawn as vector art
+  // with no text behind it; the only text naming the school is the registrar's
+  // address block — "Troy, New York 12180-3590 / Tel: 518-276-6231" — so the
+  // ZIP+4 and the registrar's phone stand in for the name (DGS 2026-09-28,
+  // from a sanitized transcript).
+  [/\b12180-3590\b|\b518[-.\s]276[-.\s]6231\b/, 'Rensselaer Polytechnic Institute'],
 ];
 
 /** The name a WATERMARK spells out (DGS 2026-09-12). UC San Diego tiles

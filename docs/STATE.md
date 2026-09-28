@@ -1,6 +1,8 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-26 (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-09-28 (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-09-28 (later): a Rensselaer transcript names its school (the wordmark is vector art; the registrar's ZIP+4 / phone now stand in for it, as a guess the student can edit).
 
 2026-09-28: every course with a core or specialization role shows it on a Qualifier line of its own (DGS: a plain ✓ course had lost it to the folded link row).
 

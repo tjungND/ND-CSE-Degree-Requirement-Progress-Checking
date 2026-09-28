@@ -311,6 +311,10 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   INSTITUTIONS" block names the transcript. A name from the table sets `universityGuessed`, which
   leaves the preview's box EDITABLE; a name read as text stays locked. `plausible` also drops a
   cell that is only a generic word ("UNIVERSITY") or that repeats one (a page watermark).
+  Since 2026-09-26 the table also holds brand-only headers (KU Leuven, ETH, KTH, TUM, KAIST …),
+  and since 2026-09-28 one entry keyed on an ADDRESS rather than an acronym: Rensselaer draws its
+  wordmark as vector art, so its ZIP+4 (12180-3590) or registrar phone (518-276-6231) is the only
+  text that names it. Prefer a unique ZIP+4 or phone over a city name — Troy, NY has three colleges.
 - **`transferable` has four values** (2026-09-08; `adgs_approval` added 2026-09-12): `Transferable = 'yes' | 'no' | 'dgs_approval' | 'adgs_approval'`
   in data/types.ts, replacing the old boolean — the compiler flags every comparison the change
   invalidated (allocate.ts three, phd.ts's transferRow, grad-admin-request.ts); `grep '\.transferable'`
