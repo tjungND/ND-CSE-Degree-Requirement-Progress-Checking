@@ -4,6 +4,7 @@ import { formatCredits } from '../credits.ts';
 import type { Parameters, Rules } from '../../data/types.ts';
 import type { AllocationResult, CapId, ClassifiedCourse, CourseAllocation } from '../allocate.ts';
 import { usableGpa } from '../ranges.ts';
+import { openDeadline } from '../status.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
 import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm } from '../term.ts';
@@ -82,7 +83,7 @@ export function timeLimitRow(
       status = 'in_progress';
       detail = ''; // the deadline chip carries the when (2026-09-03)
       // A semester, never a date (DGS request 2026-09-05).
-      deadline = { date, approx: true, state: 'upcoming', label: `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)` };
+      deadline = openDeadline(date, ctx.today, `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)`);
     }
   }
   return {

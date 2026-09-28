@@ -45,13 +45,34 @@ export function isOverdue(r: RequirementResult): boolean {
 export function isNotStarted(r: RequirementResult): boolean {
   return r.status === 'unmet' && /^Not started\b/.test(r.detail);
 }
-/** The pill's word: the engine's override, else "Overdue" / "Not started", else the status word. */
+/** An open row whose deadline falls in this semester or the next (DGS
+ * 2026-09-28: "students need to see the alert … the deadline is next
+ * semester"). The engine sets the horizon (openDeadline in status.ts); the
+ * pill carries it in words and in its own colour. */
+export function isDueSoon(r: RequirementResult): boolean {
+  return r.status !== 'met' && r.deadline?.state === 'due_soon' && r.deadline.horizon !== undefined;
+}
+/** "due this semester" / "due next semester" — the pill's suffix and the
+ * copied messages' highlight (DGS 2026-09-28). */
+export function dueWording(r: RequirementResult): string | undefined {
+  return isDueSoon(r) ? `due ${r.deadline!.horizon} semester` : undefined;
+}
+/** The pill's word: the engine's override, else "Overdue" / "Not started",
+ * else the status word — with " · due next semester" (or "this") appended
+ * while the row's deadline is that close (DGS 2026-09-28). */
 export function pillLabel(r: RequirementResult): string {
+  const due = dueWording(r);
+  return due ? `${statusWord(r)} · ${due}` : statusWord(r);
+}
+/** The pill's word without the deadline suffix — what the Grad Admin request
+ * prints as the row's standing (DGS 2026-09-28). */
+export function statusWord(r: RequirementResult): string {
   return r.statusLabel ?? (isOverdue(r) ? 'Overdue' : isNotStarted(r) ? 'Not started' : STATUS_LABEL[r.status]);
 }
-/** Extra pill classes for the two display-only states. */
+/** Extra pill classes for the display-only states: overdue, not started, and
+ * the deadline alert (s-duesoon, which colours the pill whatever its word). */
 function pillState(r: RequirementResult): string {
-  return isOverdue(r) ? ' s-overdue' : isNotStarted(r) ? ' s-notstarted' : '';
+  return `${isOverdue(r) ? ' s-overdue' : isNotStarted(r) ? ' s-notstarted' : ''}${isDueSoon(r) ? ' s-duesoon' : ''}`;
 }
 
 /** The rows the headline counts: informational rows (the per-course sign-off
@@ -622,6 +643,8 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
     ['In progress', 'Not satisfied yet; nothing is late.', ''],
     ['Conditionally met', 'Satisfied once the approval the row names is recorded.', ''],
     ['Overdue', `The handbook’s deadline has passed — talk to the ${program === 'mscse' ? 'ADGS' : 'DGS'}.`, ''],
+    // The deadline alert (DGS 2026-09-28): one semester's notice, in the pill's own colour.
+    ['Due this semester · Due next semester', 'The handbook’s deadline for that row falls in the current semester or the one after — plan for it now.', ''],
     ['Not started', 'A stage that begins after an earlier one, such as the dissertation after the candidacy exam.', ''],
     ['Not used yet · Does not apply', 'An allowance you have not drawn on, or a row that is not part of your score.', ''],
     ['Cumulative GPA', 'The grade-point average over all your graduate coursework at Notre Dame, as the registrar computes it; continuation, candidacy and graduation require at least 3.0.', '§2.2'],

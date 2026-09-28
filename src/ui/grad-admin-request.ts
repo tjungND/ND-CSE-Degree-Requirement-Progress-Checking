@@ -14,7 +14,11 @@
 // components are done, the MSCSE along the way once its row is met, and EVERY
 // requirement the self-check shows as met, each as a table of what satisfies
 // it — the courses, the semesters, the date (DGS request, later that evening)
-// — with the DGS in cc. Like the review request, the student's own words stay
+// — with the DGS in cc. Since 2026-09-28 (DGS) the request also carries the
+// requirements still open — in progress and not started, each in the page's
+// own colour (green / amber / grey; red for overdue, blue for conditionally
+// met) — and highlights any deadline that falls in this semester or the next,
+// so the Grad Admin sees what is coming. Like the review request, the student's own words stay
 // above a marker line and the tables below it are not to be modified. Never
 // the word "audit" (the page is a self-check).
 import { formatCredits } from '../engine/credits.ts';
@@ -27,6 +31,7 @@ import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
 import { esc, plural, programLabel, programShort } from './email-html.ts';
 import { formatYmdLong } from './handbook.ts';
+import { isDueSoon, isNotStarted, isOverdue, scoredRows, statusWord } from './report.ts';
 
 export { selfCheckFileName } from './state.ts';
 
@@ -83,6 +88,20 @@ export interface MetTable {
   rows: string[][];
 }
 
+/** The page's pill colours, named for the Grad Admin request (DGS
+ * 2026-09-28: "green, amber, and gray"; red for a passed deadline and blue for
+ * a conditional row are the page's own). */
+export type StandingColor = 'green' | 'amber' | 'grey' | 'red' | 'blue';
+
+/** One requirement, met or not, as the Grad Admin request prints it: the
+ * page's status word, its colour, what meets it so far, and its deadline —
+ * flagged when it falls in this semester or the next, or has passed. */
+export interface StandingTable extends MetTable {
+  word: string;
+  color: StandingColor;
+  deadline?: { text: string; alert?: 'this' | 'next' | 'passed' };
+}
+
 export interface ProcessingItems {
   transfers: ProcessingTransfer[];
   milestones: { label: string; date: string; section: string }[];
@@ -92,6 +111,12 @@ export interface ProcessingItems {
   /** Every met requirement (scored rows only), each with the courses,
    * semesters or date that satisfy it. */
   met: MetTable[];
+  /** Every scored requirement, met or not (DGS 2026-09-28), in the order the
+   * request prints them: overdue first, then met, conditionally met, in
+   * progress, not started, cannot evaluate. */
+  standing: StandingTable[];
+  /** The counts behind the standing list, and the sentence that states them. */
+  tally: { met: number; conditional: number; inProgress: number; notStarted: number; cannot: number; overdue: number; dueSoon: number; text: string };
   /** The card's item lines, one per processable thing. */
   lines: string[];
   /** transfers + milestones + the MSCSE + the qualifier form + every met
@@ -102,11 +127,14 @@ export interface ProcessingItems {
 
 const COURSE_COLUMNS = ['Course', 'Title', 'Credits', 'Grade', 'Term', 'Where'];
 
-/** The table for one met requirement (DGS 2026-09-06 evening): the courses
- * the engine says satisfy it; the semesters for residency; the date for a
- * milestone; the figure for the GPA; otherwise the row's own detail. */
+/** The table for one requirement (DGS 2026-09-06 evening): the courses the
+ * engine says satisfy it — or, for an open row, the ones counted so far; the
+ * semesters for residency; the date for a milestone; the figure for the GPA;
+ * otherwise the row's own detail (which, for an open row, says what is still
+ * missing). */
 function metTable(r: RequirementResult, student: Student): MetTable {
   const heading = `${r.title} (${r.citation.section})`;
+  const evidence = r.status === 'met' ? 'Evidence' : 'Progress';
   const byId = new Map<string, CourseEntry>();
   for (const c of student.courses) byId.set(c.courseId, c);
   const ids = r.satisfiedBy ?? [];
@@ -129,10 +157,32 @@ function metTable(r: RequirementResult, student: Student): MetTable {
       const names = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
       rows.unshift([names.length > 1 ? 'Advisors' : 'Advisor', names.length > 0 ? names.join(' and ') : 'name not entered']);
     }
-    return { heading, columns: ['What', 'Evidence'], rows };
+    return { heading, columns: ['What', evidence], rows };
   }
-  if (r.id === 'shared.gpa') return { heading, columns: ['What', 'Evidence'], rows: [['Cumulative GPA', student.gpa !== undefined ? student.gpa.toFixed(2) : 'not entered']] };
-  return { heading, columns: ['Evidence'], rows: [[r.detail || 'met']] };
+  if (r.id === 'shared.gpa') return { heading, columns: ['What', evidence], rows: [['Cumulative GPA', student.gpa !== undefined ? student.gpa.toFixed(2) : 'not entered']] };
+  return { heading, columns: [evidence], rows: [[r.detail || statusWord(r).toLowerCase()]] };
+}
+
+/** The page's colour for a row's pill (report.ts / style.css), by name. */
+function standingColor(r: RequirementResult): StandingColor {
+  if (isOverdue(r)) return 'red';
+  if (r.status === 'met') return 'green';
+  if (r.status === 'needs_dgs_review') return 'blue';
+  if (isNotStarted(r) || r.status === 'cannot_evaluate') return 'grey';
+  return 'amber';
+}
+const STANDING_ORDER: Record<StandingColor, number> = { red: 0, green: 1, blue: 2, amber: 3, grey: 4 };
+
+/** Every scored requirement as the request prints it (DGS 2026-09-28). */
+function standingTable(r: RequirementResult, student: Student): StandingTable {
+  const d = r.deadline;
+  // A done deadline is the milestone's own date, already in the table.
+  const deadline = d && d.state !== 'done' && r.status !== 'met' ? { text: d.label, ...(isOverdue(r) ? { alert: 'passed' as const } : isDueSoon(r) ? { alert: d.horizon } : {}) } : undefined;
+  const table = metTable(r, student);
+  // A row whose only "progress" would be its own status word (the years limit,
+  // whose deadline chip says everything) prints no table.
+  const rows = table.rows.length === 1 && table.rows[0]!.length === 1 && table.rows[0]![0] === statusWord(r).toLowerCase() ? [] : table.rows;
+  return { ...table, rows, word: statusWord(r), color: standingColor(r), ...(deadline ? { deadline } : {}) };
 }
 
 /** `classified` — the engine's classification of the student's courses, when
@@ -172,9 +222,36 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const msAlongTheWay = byId.get('phd.msAlongTheWay')?.status === 'met';
   // A pass attested under the earlier rules (2026-09-21) was recorded back then; no form to chase.
   const qualifierFormDue = byId.get('phd.qualifier')?.status === 'met' && !student.milestones.qualifierFormFiled && student.attestations.qualifierPassedUnderPriorRules !== true;
+  // Every scored row, met or not (DGS 2026-09-28); the Approvals row is the
+  // DGS's errand list, not a standing. Overdue rows lead, then the page's
+  // order of colours; within a colour, the report's own order.
+  // The transfer row is left out too: the transfer sections above carry what
+  // the Grad Admin may process, and a course still waiting for the DGS must
+  // not reach them by another door (2026-09-08).
+  const standing = scoredRows(report)
+    .filter((r) => r.group !== 'Approvals' && !r.id.endsWith('.transfer'))
+    .map((r) => standingTable(r, student))
+    .sort((a, b) => STANDING_ORDER[a.color] - STANDING_ORDER[b.color] || (a.word === 'Not started' ? 0 : 1) - (b.word === 'Not started' ? 0 : 1));
   const met = report.requirements
     .filter((r) => r.status === 'met' && !r.informational && r.group !== 'Approvals')
     .map((r) => metTable(r, student));
+  const tally = {
+    met: standing.filter((s) => s.color === 'green').length,
+    conditional: standing.filter((s) => s.color === 'blue').length,
+    inProgress: standing.filter((s) => s.color === 'amber').length,
+    notStarted: standing.filter((s) => s.color === 'grey' && s.word === 'Not started').length,
+    cannot: standing.filter((s) => s.color === 'grey' && s.word !== 'Not started').length,
+    overdue: standing.filter((s) => s.color === 'red').length,
+    dueSoon: standing.filter((s) => s.deadline?.alert === 'this' || s.deadline?.alert === 'next').length,
+  };
+  const tallyText = [
+    `${plural(tally.met, 'requirement')} met`,
+    ...(tally.overdue > 0 ? [`${tally.overdue} overdue`] : []),
+    ...(tally.conditional > 0 ? [`${tally.conditional} conditionally met`] : []),
+    `${tally.inProgress} in progress`,
+    `${tally.notStarted} not started`,
+    ...(tally.cannot > 0 ? [`${tally.cannot} cannot be evaluated`] : []),
+  ].join(', ');
   const lines = [
     ...transfers.map(
       (t) =>
@@ -184,7 +261,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
     ...(msAlongTheWay ? ['MSCSE along the way — the self-check shows its requirements met (§4.5)'] : []),
     ...(met.length > 0
-      ? [`${plural(met.length, 'requirement')} met so far — the request lists each with the courses, semesters or dates that meet it, for the record`]
+      ? [`${tallyText} — the request lists every requirement with its standing, what meets it so far and its deadline${tally.dueSoon > 0 ? ` (${plural(tally.dueSoon, 'deadline')} in this semester or the next, highlighted)` : ''}, for the record`]
       : []),
   ];
   return {
@@ -194,6 +271,8 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     msAlongTheWay,
     qualifierFormDue,
     met,
+    standing,
+    tally: { ...tally, text: tallyText },
     lines,
     // The met requirements are ONE line on the card, so they are one item in
     // the chip (2026-09-08): "8 items" above two lines was never explainable.
@@ -247,7 +326,7 @@ export function gradAdminRequest(
     t.grade,
     t.termText,
   ];
-  type Section = { heading: string; columns?: string[]; table?: string[][]; lines?: string[] };
+  type Section = { heading: string; badge?: { word: string; color: StandingColor }; deadline?: StandingTable['deadline']; columns?: string[]; table?: string[][]; lines?: string[] };
   const sections: Section[] = [];
   const pre = items.transfers.filter((t) => t.state === 'pre-approved');
   const approved = items.transfers.filter((t) => t.state === 'approved');
@@ -275,14 +354,26 @@ export function gradAdminRequest(
       lines: ['The self-check shows the requirements for the MSCSE along the way met (the Oral Candidacy Exam (OCE) passed, the M.S. coursework completed at Notre Dame) — please process the award.'],
     });
   }
-  // Every met requirement, with what satisfies it (2026-09-06 evening).
-  for (const t of items.met) sections.push({ heading: `Met — ${t.heading}`, columns: t.columns, table: t.rows });
+  // Every requirement, met or not, with what satisfies it so far (2026-09-06
+  // evening; the open rows since 2026-09-28): the page's status word as a
+  // coloured badge, and the deadline highlighted when it is this semester,
+  // next semester, or already past.
+  sections.push({
+    heading: 'My standing, requirement by requirement',
+    lines: [`${items.tally.text}.`, ...(items.tally.dueSoon > 0 ? [`${plural(items.tally.dueSoon, 'deadline')} in this semester or the next — highlighted below.`] : [])],
+  });
+  for (const t of items.standing) sections.push({ heading: t.heading, badge: { word: t.word, color: t.color }, deadline: t.deadline, ...(t.rows.length > 0 ? { columns: t.columns, table: t.rows } : {}) });
 
   // ---- plain text ----
+  // Plain text has no colour: the badge is a [WORD] tag before the heading,
+  // and a near or passed deadline a "!!" line under it.
+  const textDeadline = (d: StandingTable['deadline']): string =>
+    !d ? '' : d.alert === 'passed' ? `!! DEADLINE PASSED: ${d.text}\n` : d.alert ? `!! DEADLINE ${d.alert.toUpperCase()} SEMESTER: ${d.text}\n` : `Deadline: ${d.text}\n`;
   const textSection = (s: Section): string =>
-    `${s.heading.toUpperCase()}\n` +
+    `${s.badge ? `[${s.badge.word.toUpperCase()}] ${s.heading}` : s.heading.toUpperCase()}\n` +
+    textDeadline(s.deadline) +
     (s.table && s.columns ? `${s.columns.join('\t')}\n${s.table.map((r) => r.join('\t')).join('\n')}\n` : '') +
-    (s.lines ? s.lines.map((l) => `- ${l}`).join('\n') + '\n' : '') +
+    (s.lines && s.lines.length > 0 ? s.lines.map((l) => `- ${l}`).join('\n') + '\n' : '') +
     '\n';
   const text =
     `Subject: ${subject}\n\nDear Grad Admin,\n\n${intro}\n${standing}\n${attached ? `${attached}\n` : ''}\nThank you!\n\n` +
@@ -295,8 +386,28 @@ export function gradAdminRequest(
     `<table border="1" cellspacing="0" cellpadding="4"><tr>${columns.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>` +
     rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') +
     '</table>';
+  // Inline styles: mail clients keep no stylesheet. The colours are the
+  // page's pills (style.css) and its deadline chips.
+  const BADGE: Record<StandingColor, string> = {
+    green: 'background:#e4f2ea;color:#10693f',
+    amber: 'background:#fbeedd;color:#8e5108',
+    grey: 'background:#eef0f3;color:#5a6472',
+    red: 'background:#fbe9e7;color:#a81e14',
+    blue: 'background:#e7eef9;color:#1f4e8c',
+  };
+  const htmlBadge = (b: { word: string; color: StandingColor }): string =>
+    `<span style="display:inline-block;padding:1px 8px;border-radius:99px;font-weight:bold;font-size:12px;${BADGE[b.color]}">${esc(b.word)}</span> `;
+  const htmlDeadline = (d: StandingTable['deadline']): string =>
+    !d
+      ? ''
+      : d.alert === 'passed'
+        ? `<p style="margin:2px 0 6px;padding:4px 8px;background:#fbe9e7;color:#7a1f1f;border-left:4px solid #a81e14"><strong>Deadline passed:</strong> ${esc(d.text)}</p>`
+        : d.alert
+          ? `<p style="margin:2px 0 6px;padding:4px 8px;background:#ffe3c9;color:#8a3a00;border-left:4px solid #e0863a"><strong>Deadline ${d.alert} semester:</strong> ${esc(d.text)}</p>`
+          : `<p style="margin:2px 0 6px">Deadline: ${esc(d.text)}</p>`;
   const htmlSection = (s: Section): string =>
-    `<p><strong>${esc(s.heading)}</strong></p>` +
+    `<p>${s.badge ? htmlBadge(s.badge) : ''}<strong>${esc(s.heading)}</strong></p>` +
+    htmlDeadline(s.deadline) +
     (s.table && s.columns ? htmlTable(s.columns, s.table) : '') +
     (s.lines ? `<ul>${s.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : '');
   const html =

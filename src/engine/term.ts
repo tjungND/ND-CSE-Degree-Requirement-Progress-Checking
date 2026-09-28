@@ -77,6 +77,19 @@ export function semesterSeq(t: Term): number {
   return t.year * 2; // spring and summer both map to the year's spring slot
 }
 
+/** How near an open deadline is, in SEMESTERS (DGS 2026-09-28: "When a
+ * deadline is approaching soon, 1 semester before, students need to see the
+ * alert"): 'this' when the deadline falls in the current semester, 'next'
+ * when it falls in the one after, undefined when it is further off. Counted
+ * on fall/spring slots (semesterSeq), so a summer date belongs to the spring
+ * before it: in Spring 2027 a deadline "before Fall 2027" is next semester,
+ * and one "by the end of Spring 2027" is this semester. A date already past
+ * is the caller's overdue branch, never a horizon. */
+export function deadlineHorizon(deadlineIso: string, today: string): 'this' | 'next' | undefined {
+  const gap = semesterSeq(termOfDate(deadlineIso)) - semesterSeq(termOfDate(today));
+  return gap <= 0 ? 'this' : gap === 1 ? 'next' : undefined;
+}
+
 /** A summer entry term is normalized to the following fall (decision Q17c). */
 export function normalizeEntryTerm(entry: Term): { term: Term; normalized: boolean } {
   if (entry.season === 'summer') return { term: { season: 'fall', year: entry.year }, normalized: true };

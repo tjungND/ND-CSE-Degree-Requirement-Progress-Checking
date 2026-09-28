@@ -389,7 +389,11 @@ table.courses .feeds-hidden .counts-toward.now { display: none; }
    "Due by" / "Overdue —", and the whole chip carries the state colour. */
 .chip { font-size: 13px; color: var(--muted); }
 .chip.deadline { display: inline-block; padding: 2px 8px; border-radius: 6px; background: #f3f5f8; color: var(--ink); }
-.chip.deadline.d-due_soon { background: #fff3dc; color: #6b4d10; }
+/* The deadline alert (DGS 2026-09-28): a deadline in this semester or the
+   next turns the chip AND the row's pill (.s-duesoon) a deeper orange than the
+   in-progress amber, with a hairline so the two never read as one colour;
+   #8a3a00 on #ffe3c9 measures 6.4:1. */
+.chip.deadline.d-due_soon { background: #ffe3c9; color: #8a3a00; }
 .chip.deadline.d-overdue { background: #fbe9e7; color: #7a1f1f; }
 .course-link { font-size: 13px; color: var(--navy); font-weight: 600; }
 /* "Needs your attention" (item 27) */
@@ -435,6 +439,8 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .req.s-unmet { border-left-color: var(--warn); }
 .pill.s-unmet { background: #fbeedd; color: var(--warn); }
 .req.s-unmet:has(.pill.s-overdue) { border-left-color: var(--bad); }
+.pill.s-duesoon { background: #ffe3c9; color: #8a3a00; box-shadow: inset 0 0 0 1px #e0863a; }
+.req:has(.pill.s-duesoon) { border-left-color: #e0863a; }
 .pill.s-overdue { background: #fbe9e7; color: var(--bad); }
 /* A stage that has not begun (the dissertation rows before the OCE, DGS 2026-09-22): grey, not amber. */
 .req.s-unmet:has(.pill.s-notstarted) { border-left-color: var(--line); }

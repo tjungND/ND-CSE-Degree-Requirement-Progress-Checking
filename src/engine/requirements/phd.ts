@@ -7,7 +7,7 @@ import { isInProgress, isPassed, meetsGradeFloor, passesCreditFloor } from '../g
 import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
 import { usableGpa } from '../ranges.ts';
 import { shortName } from '../short-names.ts';
-import { combineAll, deadlineStatus } from '../status.ts';
+import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status, Term } from '../types.ts';
 import type { Ctx } from './context.ts';
@@ -417,15 +417,10 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
       }
       deadline = { date: effectiveDate, approx: true, state: 'overdue', label: overdueLabel };
     } else if (extendedTerm) {
-      deadline = {
-        date: effectiveDate,
-        approx: true,
-        state: 'upcoming',
-        label: `Due by the end of ${termLabel(extendedTerm)} — the DGS’s one-semester extension (approximate)`,
-      };
+      deadline = openDeadline(effectiveDate, ctx.today, `Due by the end of ${termLabel(extendedTerm)} — the DGS’s one-semester extension (approximate)`);
       parts.push(`Deadline extended by one semester by the DGS — now the end of ${termLabel(extendedTerm)}; a further extension is the DGS’s to grant`);
     } else {
-      deadline = { date, approx: true, state: 'upcoming', label: `Due by the end of ${termLabel(term)} (approximate)` };
+      deadline = openDeadline(date, ctx.today, `Due by the end of ${termLabel(term)} (approximate)`);
     }
   }
   return {

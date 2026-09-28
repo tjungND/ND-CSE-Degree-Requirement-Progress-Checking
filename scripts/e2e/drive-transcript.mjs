@@ -138,9 +138,9 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  unlisted ND course → review request offered');
   // The Grad Admin button is active on met requirements alone (DGS 2026-09-06, late evening):
   // nothing to transfer and no milestone yet, but the GPA and Notre Dame-credit rows are met.
-  const gaState = JSON.parse(await s.evalJs(`JSON.stringify((() => { const card = document.querySelector('.grad-admin-request'); const b = card?.querySelector('[data-key="gradadmin.copy"]'); return { inactive: b?.getAttribute('aria-disabled'), chip: card?.querySelector('.chip-note')?.textContent, line: [...(card?.querySelectorAll('.review-line') ?? [])].map(e => e.textContent).find(t => / met so far — /.test(t)) ?? '' }; })())`));
+  const gaState = JSON.parse(await s.evalJs(`JSON.stringify((() => { const card = document.querySelector('.grad-admin-request'); const b = card?.querySelector('[data-key="gradadmin.copy"]'); return { inactive: b?.getAttribute('aria-disabled'), chip: card?.querySelector('.chip-note')?.textContent, line: [...(card?.querySelectorAll('.review-line') ?? [])].map(e => e.textContent).find(t => / met, /.test(t)) ?? '' }; })())`));
   console.log('  Grad Admin card after the ND import:', JSON.stringify(gaState));
-  if (gaState.inactive === 'true' || !/^\d+ requirements? met so far — /.test(gaState.line)) throw new Error('the Grad Admin button must be active on met requirements alone: ' + JSON.stringify(gaState));
+  if (gaState.inactive === 'true' || !/^\d+ requirements? met, \d+ in progress, \d+ not started — /.test(gaState.line)) throw new Error('the Grad Admin button must be active on met requirements alone: ' + JSON.stringify(gaState));
   await s.shotElement('grad-admin-met-only', '.grad-admin-request');
   await s.shot('nd-review');
   // Copy → the check-before-you-send dialog (2026-09-06 evening): the DGS by

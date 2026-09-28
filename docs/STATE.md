@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-28 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-28 (evening): the deadline alert — a deadline in this semester or the next colours the row's pill and names the semester ("In progress · due next semester"), replacing the 120-day rule; the Grad Admin request lists every requirement (met / in progress / not started, coloured) and highlights near or passed deadlines (DGS items 1–2 of 2026-09-28).
+
 2026-09-28 (later): a Rensselaer transcript names its school (the wordmark is vector art; the registrar's ZIP+4 / phone now stand in for it, as a guess the student can edit).
 
 2026-09-28: every course with a core or specialization role shows it on a Qualifier line of its own (DGS: a plain ✓ course had lost it to the folded link row).

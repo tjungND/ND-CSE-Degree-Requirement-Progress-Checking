@@ -53,6 +53,17 @@ export async function driveApp(s, baseUrl) {
   if ((await s.evalJs(`document.querySelector('.dial .dial-arc:not(.dial-arc-conditional)')?.getAttribute('stroke')`)) === 'var(--bad)') {
     throw new Error('a student who is simply not finished must not see a red dial');
   }
+  // The deadline alert (DGS 2026-09-28): the example entered last fall, so
+  // its qualifier's four semesters end next semester — the pill says so in
+  // words, in its own colour, and the chip under it carries the same state.
+  const dueSoon = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('.req:has(.pill.s-duesoon)')].map((req) => ({
+    title: req.querySelector('.req-title')?.textContent.trim().slice(0, 40), pill: req.querySelector('.pill').textContent, chip: req.querySelector('.chip.deadline')?.className,
+  })))`));
+  console.log('  due-soon rows:', JSON.stringify(dueSoon));
+  if (dueSoon.length === 0 || !dueSoon.every((r) => /^(In progress|Not started) · due (this|next) semester$/.test(r.pill) && /d-due_soon/.test(r.chip ?? ''))) throw new Error('the example must show the deadline alert on its qualifier row: ' + JSON.stringify(dueSoon));
+  if (!(await s.evalJs(`!!document.querySelector('.pill.s-duesoon.s-in_progress, .pill.s-duesoon.s-unmet')`))) throw new Error('the alert colours the pill on top of its status class');
+  await s.evalJs(`document.querySelector('.req:has(.pill.s-duesoon)').id = 'shot-due-soon'`);
+  await s.shotElement('due-soon-row', '#shot-due-soon');
   // Every requirement a course feeds, under its credit sentence (2026-09-08):
   // one course routinely serves several, and the sentence names only the pool.
   const feeds = JSON.parse(await s.evalJs(`JSON.stringify((() => {
@@ -432,7 +443,10 @@ export async function driveApp(s, baseUrl) {
   await s.shotElement('grad-admin-card', '.grad-admin-request');
   await s.evalJs(`document.querySelector('[data-key="gradadmin.copy"]').click()`);
   await s.waitFor(`document.querySelector('dialog.copy-check[open]')`);
-  const gaDlg = JSON.parse(await s.evalJs(`JSON.stringify((() => { const d = document.querySelector('dialog.copy-check'); return { title: d.querySelector('h2').textContent, to: [...d.querySelectorAll('.copy-to')].map(p => p.textContent), subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 200) }; })())`));
+  const gaDlg = JSON.parse(await s.evalJs(`JSON.stringify((() => { const d = document.querySelector('dialog.copy-check'); return { title: d.querySelector('h2').textContent, to: [...d.querySelectorAll('.copy-to')].map(p => p.textContent), subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 200), full: d.querySelector('textarea').value }; })())`));
+  // The standing list (DGS 2026-09-28): every requirement with a [WORD] tag,
+  // and the near deadline highlighted.
+  if (!/\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- \d+ requirements met, \d+ in progress, \d+ not started\.\n- 1 deadline in this semester or the next — highlighted below\.\n/.test(gaDlg.full) || !/\n\[MET\] /.test(gaDlg.full) || !/\n\[IN PROGRESS\] Qualifying examination — all components \(§4\.4\)\n!! DEADLINE NEXT SEMESTER: Due by the end of Spring \d{4} \(approximate\)\n/.test(gaDlg.full) || !/\n\[NOT STARTED\] Dissertation defense passed/.test(gaDlg.full)) throw new Error('Grad Admin request must list the standing with tags and the highlighted deadline: ' + gaDlg.full.slice(gaDlg.full.indexOf('MY STANDING'), gaDlg.full.indexOf('MY STANDING') + 400));
   console.log('  Grad Admin dialog:', gaDlg.title, '|', JSON.stringify(gaDlg.to), '|', gaDlg.subject);
   if (!gaDlg.title.startsWith('Processing request') || !gaDlg.to[0].startsWith('To: Graduate Program Administrator') || !(gaDlg.to[1] ?? '').startsWith('Cc: Director of Graduate Studies') || !/^Subject: Processing request \(degree self-check\) — Ph\.D\., entered Fall \d{4}$/.test(gaDlg.subject) || !gaDlg.text.includes('Dear Grad Admin,')) throw new Error('Grad Admin dialog: ' + JSON.stringify(gaDlg));
   // Two numbered steps for a student with no transfer credit (P-45, 2026-09-18;
@@ -454,7 +468,7 @@ export async function driveApp(s, baseUrl) {
   const gaLead = await s.evalJs(`document.querySelector('dialog.copy-check .copy-lead strong')?.textContent ?? ''`);
   if (!/copied to your clipboard\.$|blocked the clipboard\.$/.test(gaLead)) throw new Error('Grad Admin dialog must lead with the copied-to-clipboard line: ' + gaLead);
   const gaText = await s.evalJs(`document.querySelector('dialog.copy-check textarea').value`);
-  if (!gaText.includes('(You may edit anything above this line)') || !gaText.includes('(DO NOT MODIFY ANYTHING BELOW THIS LINE)') || !gaText.includes('MET — CUMULATIVE GPA OF AT LEAST 3.0 (§2.2)')) throw new Error('Grad Admin text must carry the markers and the met-requirement tables: ' + gaText.slice(0, 300));
+  if (!gaText.includes('(You may edit anything above this line)') || !gaText.includes('(DO NOT MODIFY ANYTHING BELOW THIS LINE)') || !gaText.includes('[MET] Cumulative GPA of at least 3.0 (§2.2)')) throw new Error('Grad Admin text must carry the markers and the standing list: ' + gaText.slice(0, 300));
   await s.shot('grad-admin-dialog');
   await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
   await s.waitFor(`!document.querySelector('dialog.copy-check')`);

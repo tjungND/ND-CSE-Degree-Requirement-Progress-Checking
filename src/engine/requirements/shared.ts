@@ -1,6 +1,7 @@
 // §2 requirements shared by both programs.
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../ranges.ts';
 import { coursesNeedingDgsReviewFor } from '../review.ts';
+import { openDeadline } from '../status.ts';
 import { startOfTerm, termLabel } from '../term.ts';
 import type { DetailPart, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
@@ -71,7 +72,7 @@ export function advisorRow(ctx: Ctx): RequirementResult {
       ? { date: start, approx: true, state: 'done', label: 'Complete' }
       : ctx.today > start
         ? { date: start, approx: true, state: 'overdue', label: `Overdue — was expected by the start of ${termLabel(ctx.entry)}` }
-        : { date: start, approx: true, state: 'upcoming', label: `Due by the start of ${termLabel(ctx.entry)}` }
+        : openDeadline(start, ctx.today, `Due by the start of ${termLabel(ctx.entry)}`)
     : undefined;
   if (advisorIdentified || names.length > 0) {
     status = 'met';

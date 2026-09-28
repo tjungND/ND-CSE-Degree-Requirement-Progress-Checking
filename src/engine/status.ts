@@ -6,7 +6,18 @@
 //   provisional — needs someone's sign-off: dgs_approval rows, unknown courses,
 //                 free-text non-CSE courses, any transfer (§5.2)
 // A threshold row's status is the certainty of the worst credit actually needed.
+import { deadlineHorizon } from './term.ts';
 import type { DeadlineInfo, Status } from './types.ts';
+
+/** An OPEN deadline (today is not past it): 'due_soon' with its horizon when
+ * it falls in this semester or the next (DGS 2026-09-28 — one semester's
+ * notice, replacing the 120-day rule), else 'upcoming'. Every row with a
+ * deadline builds its open state here, so the alert means the same thing on
+ * every row. */
+export function openDeadline(date: string, today: string, label: string): DeadlineInfo {
+  const horizon = deadlineHorizon(date, today);
+  return { date, approx: true, label, ...(horizon ? { state: 'due_soon', horizon } : { state: 'upcoming' }) };
+}
 
 export type Tier = 'definite' | 'in_progress' | 'provisional';
 
@@ -64,7 +75,6 @@ export function deadlineStatus(args: {
   today: string;
   deadlineLabel: string; // human phrase, e.g. "the end of Spring 2030" — a semester, never a date (2026-09-05)
   extension?: { date: string; label: string };
-  dueSoonDays?: number;
 }): { status: Status; deadline: DeadlineInfo; lateNote?: string } {
   const { doneOn, deadline, today, deadlineLabel, extension } = args;
   const approxSuffix = deadline.approx ? ' (approximate)' : '';
@@ -104,18 +114,12 @@ export function deadlineStatus(args: {
       },
     };
   }
-  const dueSoonDays = args.dueSoonDays ?? 120;
-  const msLeft = Date.parse(effectiveDate) - Date.parse(today);
-  const soon = msLeft <= dueSoonDays * 24 * 3600 * 1000;
+  // "Due soon" is one semester's notice (DGS 2026-09-28), not a count of days.
   return {
     status: 'in_progress',
     deadline: {
-      ...deadline,
-      date: effectiveDate,
-      state: soon ? 'due_soon' : 'upcoming',
-      label: extension
-        ? `Due by ${extension.label}${approxSuffix} — the DGS’s one-semester extension of ${deadlineLabel}`
-        : `Due by ${deadlineLabel}${approxSuffix}`,
+      ...openDeadline(effectiveDate, today, extension ? `Due by ${extension.label}${approxSuffix} — the DGS’s one-semester extension of ${deadlineLabel}` : `Due by ${deadlineLabel}${approxSuffix}`),
+      approx: deadline.approx,
     },
   };
 }

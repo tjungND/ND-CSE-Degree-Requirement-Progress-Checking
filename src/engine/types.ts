@@ -262,6 +262,11 @@ export interface DeadlineInfo extends ApproxDate {
   state: DeadlineState;
   /** e.g. "Due by the end of Spring 2030 (approximate)" / "Past due — …" */
   label: string;
+  /** Set with state 'due_soon' (DGS 2026-09-28): the deadline falls in the
+   * current semester ('this') or the one after ('next'). The pill, the next
+   * steps and the Grad Admin request alert on it; "due soon" was 120 days
+   * before. */
+  horizon?: 'this' | 'next';
 }
 
 /** One statement of a requirement's detail: plain prose, a lead sentence with
