@@ -399,6 +399,12 @@ table.courses .feeds-hidden .counts-toward.now { display: none; }
 .attention li { margin: 3px 0; font-size: 13px; }
 .attention li a { color: var(--navy); font-weight: 600; }
 .attention-next { color: var(--muted); }
+.attention ol.next-steps { margin: 0 0 6px; padding-left: 20px; }
+.attention ol.next-steps li { margin: 3px 0; font-size: 13px; }
+.attention ol.next-steps li a { color: var(--navy); font-weight: 600; }
+.attention-empty { margin: 0; font-size: 13px; }
+.subline.coursework-line { margin-top: 4px; color: var(--ink); }
+.summary-mobile .next-first { margin: 6px 0 0; font-size: 13px; }
 .attention-overdue { color: var(--bad); font-weight: 600; }
 /* "Terms used here" (item 28) */
 .glossary { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 13px; }

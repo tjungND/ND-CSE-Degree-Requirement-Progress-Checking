@@ -4,6 +4,17 @@
 import { formatCredits } from '../engine/credits.ts';
 import type { AuditReport, Contribution, RequirementResult, Status } from '../engine/types.ts';
 import { el } from './dom.ts';
+import type { NextStep } from './next-steps.ts';
+
+/** What the record calls for next (DGS 2026-09-27, clarity proposal 1),
+ * handed in by renderReport / renderSummary and read by the dial and the
+ * attention list. */
+export interface NextInfo {
+  sentence?: string;
+  steps: NextStep[];
+  nearest?: string;
+}
+let currentNext: NextInfo | undefined;
 
 // Plain words in sentence case (usability review 2026-09-05, item 16): no
 // abbreviations — "N/A" became "Does not apply" — and the pill CSS no longer
@@ -164,7 +175,10 @@ function dial(report: AuditReport, untouched = false): HTMLElement {
           'All automatic checks pass — the DGS still confirms eligibility, and the Grad Admin processes it: send the processing request before you file.',
         )
       : null;
-  return el('div', { class: 'scorehead' }, svg, el('div', {}, headline, subline));
+  // The coursework sentence under the headline on every record with courses
+  // (DGS 2026-09-27; P-10's all-met sentence stays above it).
+  const coursework = currentNext?.sentence && !untouched ? el('div', { class: 'subline coursework-line' }, currentNext.sentence) : null;
+  return el('div', { class: 'scorehead' }, svg, el('div', {}, headline, subline, coursework));
 }
 
 function meters(report: AuditReport): HTMLElement {
@@ -362,12 +376,16 @@ function courseListLink(r: RequirementResult): HTMLElement | undefined {
  * time at the TOP of the page on phones and small tablets, where the full
  * report sits below every input card (usability review 2026-09-05, item 2).
  * The links jump between the two halves of the page. */
-export function renderSummary(report: AuditReport): HTMLElement {
+export function renderSummary(report: AuditReport, next?: NextInfo): HTMLElement {
+  currentNext = next;
+  // The first step travels with the summary on a phone (2026-09-27).
+  const first = next?.steps[0];
   return el(
     'section',
     { class: 'summary-mobile', 'aria-label': 'Your result so far' },
     dial(report),
     meters(report),
+    first ? el('p', { class: 'next-first' }, el('strong', {}, 'Next: '), first.href ? el('a', { href: first.href }, first.text) : first.text) : null,
     el('a', { class: 'jump-link', href: '#report' }, 'See the full report ↓'),
   );
 }
@@ -381,7 +399,8 @@ export function scoreLine(report: AuditReport): string {
   return `${met} of ${scored} met${conditional > 0 ? ` · ${conditional} conditionally met` : ''}`;
 }
 
-export function renderReport(report: AuditReport, untouched = false): HTMLElement {
+export function renderReport(report: AuditReport, untouched = false, next?: NextInfo): HTMLElement {
+  currentNext = next;
   // "Your report", matching the column's own label in app.ts and the page's
   // second-person voice — not "Audit report", the one place a screen reader
   // was told this is the audit the page says three times it is not (trim
@@ -522,6 +541,11 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
   const rows = report.requirements
     .filter((r) => {
       if (r.informational || r.unscored || unreachable(r)) return false;
+      // Actions, not progress (DGS 2026-09-27): a credit threshold that is
+      // simply not reached yet leaves — the meters show it — unless its
+      // deadline is close; a missing input, a decision waiting, a passed or
+      // near deadline, and anything the page cannot evaluate stay.
+      if (r.status === 'unmet' && r.progress && !(r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue')) return false;
       if (ORDER.includes(r.status)) return true;
       // …and an in_progress row whose deadline is close is exactly what the
       // student needs to see, whatever its status says (B5).
@@ -536,7 +560,17 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
       if (da && db && da !== db) return da < db ? -1 : 1;
       return ORDER.indexOf(a.status) - ORDER.indexOf(b.status);
     });
-  if (rows.length === 0) return null;
+  const steps = currentNext?.steps ?? [];
+  if (rows.length === 0 && steps.length === 0) {
+    // Nothing to do: say so, with the nearest deadline (DGS 2026-09-27).
+    if (!currentNext?.sentence) return null;
+    return el(
+      'section',
+      { class: 'attention attention-clear', 'aria-labelledby': 'attention-title' },
+      el('h3', { id: 'attention-title' }, 'Next steps'),
+      el('p', { class: 'attention-empty' }, `Nothing to do right now${currentNext.nearest ? ` — your next deadline is ${currentNext.nearest}` : ''}.`),
+    );
+  }
   // Cut at a sentence when there is one inside 110 characters; otherwise at a
   // word, with an ellipsis (2026-09-08 — the qualifier row's only full stops
   // are inside "§4.4.1", so it used to break mid-word with no sign of it).
@@ -551,7 +585,12 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
   return el(
     'section',
     { class: 'attention', 'aria-labelledby': 'attention-title' },
-    el('h3', { id: 'attention-title' }, `Needs your attention (${rows.length})`),
+    // "Next steps" (DGS 2026-09-27): the record-level steps first, numbered,
+    // then the rows that need something from the student.
+    el('h3', { id: 'attention-title' }, `Next steps (${steps.length + rows.length})`),
+    steps.length > 0
+      ? el('ol', { class: 'next-steps' }, ...steps.map((s) => el('li', {}, s.href ? el('a', { href: s.href }, s.text) : s.text)))
+      : null,
     el(
       'ul',
       {},

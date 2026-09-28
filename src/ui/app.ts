@@ -46,6 +46,7 @@ import { createToasts } from './toasts.ts';
 import { gradAdminRequest } from './grad-admin-request.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, reqAnchorId, scoreLine } from './report.ts';
+import { courseworkSentence, nearestDeadline, nextSteps } from './next-steps.ts';
 import { sheetSourceLine, sheetSourceNote } from './sheet-source.ts';
 import {
   type Refusal,
@@ -428,6 +429,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // The engine's classification of the record, once per render: the review
     // card, the milestones card and the Grad Admin request all read it.
     const { classified } = classify(student, rules);
+    // What the record calls for next (DGS 2026-09-27): read once here, drawn
+    // under the dial, in the phone summary and as the numbered list.
+    const next = {
+      sentence: courseworkSentence(report),
+      steps: nextSteps({
+        report,
+        student,
+        reviewCount: coursesNeedingDgsReviewFor(classified, student).length,
+        processingCount: gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa }, classified).items.count,
+      }),
+      nearest: nearestDeadline(report),
+    };
     clear(root);
     root.append(
       // Landmarks + a skip link (usability review 2026-09-05, item 7): header
@@ -461,7 +474,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // "Getting started" between the student and the first control when
         // there is not (blue-team B1, 2026-09-18). An untouched record shows it
         // at the bottom with the rest of the report instead.
-        untouched ? null : renderSummary(report),
+        untouched ? null : renderSummary(report, next),
         el(
           'div',
           { class: 'layout' },
@@ -482,7 +495,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             { class: 'audit-col', id: 'report', tabindex: '-1', 'aria-label': 'Your report' },
             // The warnings live inside the report since 2026-09-27, folded
             // under the meters (report.ts).
-            renderReport(report, untouched),
+            renderReport(report, untouched, next),
             // The finish card that stood here (R7, 2026-09-18: Reset at the
             // end for a shared machine) repeated the storage card's sentence
             // and its Save button; the DGS removed it on 2026-09-22 — Reset
@@ -894,7 +907,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
     const card = el(
       'section',
-      { class: 'card' },
+      { class: 'card', id: 'standing' },
       el('h2', {}, el('span', { class: 'step-no' }, '2. '), 'Your standing ', el('span', { class: 'chip-note' }, currentSemesterChip())),
       // A fieldset with a legend (item 5): the two controls share one question.
       fieldset(enteredProgramLabel(), el('div', { class: 'pair' }, seasonSel, yearInput)),
@@ -1276,7 +1289,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('div', { class: 'review-line', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, courseId), `${where ? ` (${where})` : ''} — ${reason}`);
     return el(
       'div',
-      { class: 'card dgs-review' },
+      { class: 'card dgs-review', id: 'dgs-review' },
       el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, what)),
       el(
         'p',
@@ -1834,7 +1847,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           );
     return el(
       'section',
-      { class: 'card grad-admin-request' },
+      { class: 'card grad-admin-request', id: 'grad-admin' },
       el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, plural(n, 'item'))),
       // Two people, two jobs (DGS 2026-09-06; the button sentence DGS
       // 2026-09-15). While there is nothing to send, the paragraph told the
@@ -1874,7 +1887,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const a = student.attestations;
     const card = el(
       'section',
-      { class: 'card' },
+      { class: 'card', id: 'milestones' },
       el('h2', {}, el('span', { class: 'step-no' }, '4. '), 'Milestones ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§2.3, §3.4' : '§2.3, §4.4–4.7')),
       // "Optional" once, leading (2026-09-05 item 11; trim review 2026-09-18, P-41).
       el('p', { class: 'hint' }, 'Every date here is optional — enter a date once it has happened.'),
