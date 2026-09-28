@@ -255,7 +255,9 @@ describe('what a DGS ruling changes in the engine', () => {
     assert.match(classified[0]?.approvalPending ?? '', /approved by the DGS in the course rules/);
     const l = audit(student([{ courseId: 'CS 50300' }]), rules, '2026-09-01').courseLines.find((c) => c.courseId === 'CS 50300')!;
     assert.ok(l.text.startsWith('approved by the DGS — will count toward regular courses (3 cr) as transfer credit once the Grad Admin has recorded it; send the Grad Admin the processing request (§5.2)'), l.text);
-    assert.match(l.text, /; satisfies the Operating Systems core-knowledge requirement \(§4\.4\.1\) — confirmed by the DGS$/, 'the fixture row also confirms a core area');
+    // The core area is the line's second, qualifier line since 2026-09-27.
+    assert.equal(l.qualifier?.text, 'satisfies the Operating Systems core-knowledge requirement (§4.4.1) — confirmed by the DGS', 'the fixture row also confirms a core area');
+    assert.equal(l.qualifier?.mark, 'counts');
     assert.doesNotMatch(l.text, /pending DGS review|once approved|transfer credit \(§5\.2\);/);
     assert.equal(l.mark, 'pending', 'amber until processed');
     const report = audit(student([{ courseId: 'CS 50300' }]), rules, '2026-09-01');
@@ -392,13 +394,20 @@ describe('graduate student status — §5.2 criterion 2 (DGS 2026-09-06)', () =>
   // 2026-09-11: a line that says "not counted" is never green, whatever core
   // area it also earns — that fact has its own §4.4.1 row. Keyword titles stay
   // amber (a review could still confirm them).
-  it('marks: a "not counted" line is red even with a confirmed core area; a keyword title amber', () => {
+  it('marks: a "not counted" credit line is red; the core area is a qualifier line with its own mark — green when confirmed, amber for a keyword title (DGS 2026-09-27)', () => {
     const confirmed = line(withBachelors([{ courseId: 'IFT-2125', title: 'Introduction à l’algorithmique', institution: 'Université de Montréal', term: { season: 'fall', year: 2023 } }]), 'IFT-2125')!;
     assert.match(confirmed.text, /^not counted — taken before/);
-    assert.match(confirmed.text, /confirmed by the DGS/);
+    assert.doesNotMatch(confirmed.text, /core-knowledge/);
     assert.equal(confirmed.mark, 'excluded');
-    assert.equal(line(withBachelors([{ courseId: 'CS 51000', title: 'Algorithms', term: { season: 'fall', year: 2023 } }]), 'CS 51000')!.mark, 'excluded');
-    assert.equal(line(withBachelors([{ courseId: 'CS 52300', title: 'Compilers', term: { season: 'fall', year: 2023 } }]), 'CS 52300')!.mark, 'excluded');
+    assert.match(confirmed.qualifier?.text ?? '', /^satisfies the Algorithms core-knowledge requirement \(§4\.4\.1\) — confirmed by the DGS$/);
+    assert.equal(confirmed.qualifier?.mark, 'counts');
+    const keyword = line(withBachelors([{ courseId: 'CS 51000', title: 'Algorithms', term: { season: 'fall', year: 2023 } }]), 'CS 51000')!;
+    assert.equal(keyword.mark, 'excluded');
+    assert.match(keyword.qualifier?.text ?? '', /^may still satisfy the Algorithms core-knowledge requirement \(§4\.4\.1\) after DGS review$/);
+    assert.equal(keyword.qualifier?.mark, 'pending');
+    const plain = line(withBachelors([{ courseId: 'CS 52300', title: 'Compilers', term: { season: 'fall', year: 2023 } }]), 'CS 52300')!;
+    assert.equal(plain.mark, 'excluded');
+    assert.equal(plain.qualifier, undefined);
   });
 
   it('an award term that is not before the entry term is warned about', () => {

@@ -120,6 +120,11 @@ export interface CourseAllocation {
   overCapToTotal?: number;
   explanation: string; // the per-course line shown to the student
   mark: CourseMark;
+  /** What the course does for the Ph.D. qualifier (§4.4.1), when that is a
+   * separate fact from the credit (DGS 2026-09-27): its own line, its own
+   * mark. Absent on the MSCSE tab and on a line that is only about the
+   * qualifier. */
+  qualifier?: { mark: CourseMark; text: string };
 }
 
 export interface AllocationResult {
@@ -1442,7 +1447,29 @@ const markForTier = (tier: Tier): CourseMark =>
  * count … when passed", amber; a definite credit "counts toward …", green;
  * a credit that earns nothing "not counted — …", red. The mark is what the
  * page paints; the words carry the same fact for print and copies. */
-function buildExplanation(
+/** The line as two: what the course does for CREDIT, and — for a Ph.D.
+ * student's course that also serves §4.4.1 — what it does for the QUALIFIER,
+ * each with its own mark (DGS 2026-09-27: "2 is fine"). Until then one line
+ * carried both, and a red ✕ sat beside "satisfies the … core-knowledge
+ * requirement" while the §4.4.1 card read Met from the same course. The core
+ * clause the classifier appends ("; satisfies the … core-knowledge requirement
+ * (§4.4.1) …") moves to the second line; a line that consists of that clause
+ * alone (an undergraduate course that never claimed credit) stays as it was,
+ * and so does the 2026-09-11 rule that a "not counted" credit line is never
+ * green — the qualifier line is where the green goes. */
+function buildExplanation(...args: Parameters<typeof buildExplanationText>): { explanation: string; mark: CourseMark; qualifier?: { mark: CourseMark; text: string } } {
+  const r = buildExplanationText(...args);
+  const m = /; ((?:the same review can confirm|satisfies|may still satisfy) [^;]*core-knowledge requirement[^;]*)/.exec(r.explanation);
+  if (!m) return r;
+  const text = (r.explanation.slice(0, m.index) + r.explanation.slice(m.index + m[0].length)).trim();
+  if (text === '') return r;
+  const clause = m[1]!;
+  const qualifierMark: CourseMark = /^satisfies/.test(clause) ? 'counts' : 'pending';
+  const mark: CourseMark = /^not counted yet/.test(text) ? 'pending' : /^not counted/.test(text) ? 'excluded' : r.mark;
+  return { explanation: text, mark, qualifier: { mark: qualifierMark, text: clause } };
+}
+
+function buildExplanationText(
   cc: ClassifiedCourse,
   counted: number,
   excluded: number,

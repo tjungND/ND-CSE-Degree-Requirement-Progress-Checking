@@ -240,6 +240,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       term: p.course.entry.term,
       text: p.explanation,
       mark: p.mark,
+      ...(p.qualifier ? { qualifier: p.qualifier } : {}),
       counts: aLiveSibling ? [] : (feeds.get(id) ?? []),
     };
   });
@@ -252,7 +253,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     reviewFlags,
     program: p,
     requirements: rows.map((r) => decisionWordingDeep(p, r)),
-    courseLines: courseLines.map((l) => ({ ...l, text: decisionWording(p, l.text) })),
+    courseLines: courseLines.map((l) => ({ ...l, text: decisionWording(p, l.text), ...(l.qualifier ? { qualifier: { ...l.qualifier, text: decisionWording(p, l.qualifier.text) } } : {}) })),
     summary,
     warnings: warnings.map((w) => decisionWording(p, w)),
     tracks: specialTracks(student, classified).map((t) => ({ ...t, text: decisionWording(p, t.text) })),

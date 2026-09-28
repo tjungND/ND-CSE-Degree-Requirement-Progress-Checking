@@ -355,6 +355,9 @@ export interface CourseLine {
    * (earns nothing). "Taken", "in progress" and "pending approval" were one
    * amber mark until the DGS asked for them to be told apart. */
   mark: CourseMark;
+  /** The course's second line — what it does for the Ph.D. qualifier
+   * (§4.4.1) — with its own mark (DGS 2026-09-27). */
+  qualifier?: { mark: CourseMark; text: string };
 }
 
 export interface AuditReport {

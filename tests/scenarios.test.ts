@@ -53,11 +53,13 @@ describe('scenarios', () => {
       for (const [courseId, subs] of Object.entries(sc.expectCourseLines ?? {})) {
         const lines = report.courseLines.filter((l) => l.courseId === courseId);
         assert.ok(lines.length > 0, `no course line for ${courseId}`);
-        const hit = lines.some((l) => subs.every((s) => l.text.includes(s)));
+        // The credit line and, since 2026-09-27, the qualifier line together.
+        const whole = (l: (typeof lines)[number]): string => `${l.text}${l.qualifier ? ` ${l.qualifier.text}` : ''}`;
+        const hit = lines.some((l) => subs.every((s) => whole(l).includes(s)));
         assert.ok(
           hit,
           `no line for ${courseId} contains all of ${JSON.stringify(subs)}; got: ${lines
-            .map((l) => l.text)
+            .map(whole)
             .join(' | ')}`,
         );
       }

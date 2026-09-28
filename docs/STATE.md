@@ -2,6 +2,13 @@
 
 Last updated: 2026-09-26 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-27: **clarity proposals 2 and 3 approved by the DGS and done** — a course cell shows
+Credit and Qualifier on two lines with their own marks, and the report column opens with the
+score: the warnings and the §3.5/§3.6 note are closed folds under the meters, a plain ✓ course's
+"Counts toward" links sit behind a toggle. The collapse policy is in the handoff. Still waiting:
+proposals 1 (Next steps), 4 (seven pill questions), 5 (gating the MSCSE-transfer sentence), the
+`CSE 30321` sheet cell and the two typed numbers.
+
 2026-09-26 (late): **the clarity pass** — the DGS asked whether the post-import screens could be made
 easier to understand and then said to make the recommended changes. Seven reviewers, verified and
 consolidated into twelve proposals; the wording and structure items that need no decision are in

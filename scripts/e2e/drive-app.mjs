@@ -396,7 +396,8 @@ export async function driveApp(s, baseUrl) {
 
   // §3.6 Transition to Computing (2026-09-10, promised 2026-08-31): a student
   // who enters a 50000-level bridge course is told the audit does not model
-  // their track and sent to the DGS — above the dial, and NOT in the amber
+  // their track and sent to the DGS — a closed fold under the meters since
+  // 2026-09-27 (it stood above the dial before), and NOT in the amber
   // warnings box, because nothing is wrong.
   if (await s.evalJs(`document.querySelectorAll('.track-note').length > 0`)) throw new Error('the example student is on no special track — no note should show');
   await s.evalJs(`(() => { const o = document.querySelector('[data-key="course.new.origin"]'); o.value = 'nd'; o.dispatchEvent(new Event('change')); const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CSE 50501'; id.dispatchEvent(new Event('change')); document.querySelector('[data-key="course.new.add"]').click(); })()`);
@@ -409,7 +410,7 @@ export async function driveApp(s, baseUrl) {
   console.log('  §3.6 note:', JSON.stringify(track.text.slice(0, 96)));
   if (!/Transition to Computing \(§3\.6\)/.test(track.text)) throw new Error('the §3.6 note must name the track and its section: ' + track.text);
   if (!/DGS/.test(track.text)) throw new Error('the §3.6 note must send the student to the DGS: ' + track.text);
-  if (!track.beforeDial) throw new Error('the track note belongs above the dial — the score means something different once you read it');
+  if (track.beforeDial) throw new Error('the track note sits below the dial since 2026-09-27 (DGS: the score first, the explanation folded)');
   if (track.inWarnings) throw new Error('the track note is not a warning: nothing is wrong with the record');
   await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card, .audit')].find(c => c.querySelector('.track-note')); c.id = 'shot-track'; })()`);
   await s.shotElement('track-note', '#shot-track');

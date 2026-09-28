@@ -94,6 +94,9 @@ function groupsOf(rule: { categoryGroups?: string[] }, rules: Rules): string[] {
 }
 
 
+/** Whether every course shows its "Counts toward" links (session-only, 2026-09-27). */
+let showFeeds = false;
+
 export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): void {
   // Sheet-driven contacts (2026-09-04): must run before ANYTHING renders —
   // the consent notice below already shows the DGS's name and address.
@@ -477,9 +480,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           el(
             'div',
             { class: 'audit-col', id: 'report', tabindex: '-1', 'aria-label': 'Your report' },
-            report.warnings.length > 0
-              ? el('div', { class: 'warnings', role: 'note', 'data-keep-dgs': '' }, ...report.warnings.map((w) => el('div', {}, `⚠ ${w}`)))
-              : null,
+            // The warnings live inside the report since 2026-09-27, folded
+            // under the meters (report.ts).
             renderReport(report, untouched),
             // The finish card that stood here (R7, 2026-09-18: Reset at the
             // end for a shared machine) repeated the storage card's sentence
@@ -1134,6 +1136,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('h3', { class: 'subhead', id: 'nd-courses' }, 'ND'),
       // The marks defined once, above the first table, and the one handbook
       // term that decides most of the credits (clarity review 2026-09-26).
+      // One toggle for the "Counts toward" link rows (DGS 2026-09-27, "3 is
+      // fine"): a plain ✓ course hides its list until asked — 35 links stood
+      // on the first screen — while a conditional line ("Will count toward")
+      // always shows its own. Session-only, never saved; print shows them all.
+      el(
+        'label',
+        { class: 'check feeds-toggle' },
+        (() => {
+          const cb = el('input', { type: 'checkbox', 'data-key': 'courses.feeds', onchange: (e) => { showFeeds = (e.target as HTMLInputElement).checked; update(() => {}); } }) as HTMLInputElement;
+          cb.checked = showFeeds;
+          return cb;
+        })(),
+        ' Show which requirements each course feeds',
+      ),
       el(
         'p',
         { class: 'hint course-key' },
@@ -1559,7 +1575,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // core area now, amber = in progress or counted only until an approval,
       // red = earns nothing. A shape per colour, and a spoken word, so the
       // meaning does not rest on colour alone (WCAG 1.4.1).
-      const countsCell = el('td', { class: 'counts cell-note', 'data-keep-dgs': '' }, ...(line ? [statusMark(line.mark), line.text] : []));
+      const countsCell = el('td', { class: `counts cell-note${line?.mark === 'counts' && !showFeeds ? ' feeds-hidden' : ''}`, 'data-keep-dgs': '' });
+      if (line?.qualifier) {
+        // Credit and qualifier on two labelled lines, each with its own mark
+        // (DGS 2026-09-27): the handbook keeps the two apart, so one course
+        // is routinely ✕ for credit and ✓ or ● for §4.4.1.
+        countsCell.append(
+          el('div', { class: 'credit-line' }, statusMark(line.mark), el('span', { class: 'line-label' }, 'Credit: '), line.text),
+          el('div', { class: 'qualifier-line' }, statusMark(line.qualifier.mark), el('span', { class: 'line-label' }, 'Qualifier: '), line.qualifier.text),
+        );
+      } else if (line) countsCell.append(statusMark(line.mark), line.text);
       // One course routinely serves several requirements, and the sentence
       // above names only the credit pool (DGS request 2026-09-08). List the
       // rest, each linking to its card, and say which are still conditional.
@@ -1709,7 +1734,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       }
       // Strike through only courses that count NOTHING — a course partly over
       // a cap still counts its allowed credits.
-      const countsNothing = line?.mark === 'excluded';
+      // …and a course with a qualifier line of its own is not struck through:
+      // it still does something for the degree (2026-09-27).
+      const countsNothing = line?.mark === 'excluded' && line.qualifier === undefined;
       // Remove: a named button, and an Undo instead of a confirm dialog
       // (usability review 2026-09-05, item 25) — the row comes back in place.
       const removeButton = el(

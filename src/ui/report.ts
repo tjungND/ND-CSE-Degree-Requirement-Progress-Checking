@@ -394,21 +394,43 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
   // something different once you know a required bridge year counts toward
   // almost nothing. Deliberately NOT a warning: nothing is wrong, and the
   // note changes no verdict — it names what the page cannot decide.
+  // …folded since 2026-09-27 (DGS: "3 is fine"): the score comes first, and
+  // the note opens on demand under the meters, its summary saying what it is
+  // about. A closed <details> keeps the text, the role and the data-keep-dgs.
   const trackNotes = report.tracks.map((t) =>
     el(
-      'div',
-      { class: 'track-note', role: 'note', 'data-keep-dgs': '' },
-      el('strong', {}, `${t.title} (${t.section})`),
-      ' ',
-      t.text,
+      'details',
+      { class: 'track-note', role: 'note', 'data-keep-dgs': '', 'data-key': `report.track.${t.section}` },
+      el('summary', {}, el('strong', {}, `${t.title} (${t.section})`), ' — how your courses are counted here'),
+      el('p', {}, t.text),
     ),
   );
+  // The warnings — a course dated after this semester, an award term not
+  // before the entry term — were two identical 30-word boxes above the score
+  // (2026-09-13: "yes, but get a warning"). Since 2026-09-27 they are one
+  // folded line under the meters, the count in the summary, each sentence
+  // inside; the box keeps its class, role and data-keep-dgs.
+  const warningsFold =
+    report.warnings.length === 0
+      ? null
+      : el(
+          'details',
+          { class: 'warnings', role: 'note', 'data-keep-dgs': '', 'data-key': 'report.warnings' },
+          el(
+            'summary',
+            {},
+            `⚠ ${report.warnings.length === 1 ? 'One thing' : `${report.warnings.length} things`} to check` +
+              (report.warnings.every((w) => /is dated .* which is after /.test(w)) ? ' — a course dated after this semester' : ''),
+          ),
+          ...report.warnings.map((w) => el('div', { class: 'warning-line' }, `⚠ ${w}`)),
+        );
 
   panel.append(
     el('a', { class: 'jump-link back-link', href: '#main' }, '↑ Back to your inputs'),
-    ...trackNotes,
     dial(report, untouched),
     meters(report),
+    ...(warningsFold ? [warningsFold] : []),
+    ...trackNotes,
     ...attentionBlock,
     // The glossary defines words used a screen later, not nine thousand pixels
     // later (2026-09-08); it is a closed <details>, so it costs about 30 px.
