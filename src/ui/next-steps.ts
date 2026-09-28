@@ -13,6 +13,9 @@ export interface NextStep {
   text: string;
   /** The place on the page where the step is done, as a fragment link. */
   href?: string;
+  /** Requirement rows this step already says everything about — the
+   * attention list leaves them out rather than list them twice. */
+  covers?: string[];
 }
 
 export interface NextStepsInput {
@@ -66,14 +69,14 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   if (student.bachelorsAwardedInferred && student.bachelorsAwarded) settings.push(`bachelor’s degree ${termLabel(student.bachelorsAwarded)}`);
   if (settings.length > 0) steps.push({ text: `Check what your transcript set — ${settings.join(', ')} (Your standing).`, href: '#standing' });
   // 2. The decisions the DGS has to make.
-  if (reviewCount > 0) steps.push({ text: `Send the review request for ${plural(reviewCount, 'course')} — the DGS decides.`, href: '#dgs-review' });
+  if (reviewCount > 0) steps.push({ text: `Send the review request for ${plural(reviewCount, 'course')} — the DGS decides.`, href: '#dgs-review', covers: ['phd.transfer', 'ms.transfer', 'shared.approvals'] });
   // 3. The advisor, and the plan-of-study box — neither waits for the DGS.
   const advisor = report.requirements.find((r) => r.id === 'shared.advisor');
-  if (advisor && advisor.status !== 'met') steps.push({ text: 'Enter your advisor’s name under Milestones.', href: '#milestones' });
+  if (advisor && advisor.status !== 'met') steps.push({ text: 'Enter your advisor’s name under Milestones.', href: '#milestones', covers: ['shared.advisor'] });
   if (hasCourses && !student.attestations.advisorApprovedPlan) steps.push({ text: 'Confirm your advisor approved your plan of study and tick the box under Approvals.', href: '#milestones' });
   // 4. After the DGS answers; and what the Grad Admin can already record.
   const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
-  if (approvals?.status === 'needs_dgs_review') steps.push({ text: 'When the DGS answers, tick the approvals, then send the processing request — the Grad Admin records it.', href: '#grad-admin' });
+  if (approvals?.status === 'needs_dgs_review') steps.push({ text: 'When the DGS answers, tick the approvals, then send the processing request — the Grad Admin records it.', href: '#grad-admin', covers: ['shared.approvals'] });
   if (processingCount > 0) steps.push({ text: `Send the processing request (${plural(processingCount, 'item')}) — the Grad Admin records it.`, href: '#grad-admin' });
   // 5. The advisor summary, any time.
   if (hasCourses) steps.push({ text: 'Send the summary to your advisor whenever you like.' });

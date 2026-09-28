@@ -538,9 +538,12 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
     if (r.status === 'cannot_evaluate') return -1;
     return byDeadline ?? 2 + ORDER.indexOf(r.status) / 10;
   };
+  // A row a numbered step already covers (the advisor, the transfer and
+  // approvals rows) is not listed a second time.
+  const covered = new Set((currentNext?.steps ?? []).flatMap((s) => s.covers ?? []));
   const rows = report.requirements
     .filter((r) => {
-      if (r.informational || r.unscored || unreachable(r)) return false;
+      if (r.informational || r.unscored || unreachable(r) || covered.has(r.id)) return false;
       // Actions, not progress (DGS 2026-09-27): a credit threshold that is
       // simply not reached yet leaves — the meters show it — unless its
       // deadline is close; a missing input, a decision waiting, a passed or

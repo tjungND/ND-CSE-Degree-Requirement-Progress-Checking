@@ -44,6 +44,9 @@ describe('next steps (DGS 2026-09-27)', () => {
       'Send the summary to your advisor whenever you like.',
     ]);
     assert.deepEqual(steps.map((x) => x.href), ['#standing', '#dgs-review', '#milestones', '#milestones', '#grad-admin', undefined]);
+    // The rows a step covers leave the attention list (no double listing).
+    assert.deepEqual(steps[1]?.covers, ['phd.transfer', 'ms.transfer', 'shared.approvals']);
+    assert.deepEqual(steps[2]?.covers, ['shared.advisor']);
   });
   it('a settled record has only the advisor summary left; an empty record has nothing', () => {
     const s: Student = { ...phdStudent(), courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
