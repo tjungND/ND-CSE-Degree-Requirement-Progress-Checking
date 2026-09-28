@@ -714,6 +714,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree, so up to ${unfinished} credits from another university may transfer (§5.2); your deadlines count from the semester you started the MSCSE.`;
     return ` No graduate degree before this program, so up to ${unfinished} credits from another university may transfer (§5.2).`;
   }
+  /** The whose-semester sentence, only for a student who came through the
+   * Notre Dame MSCSE (DGS 2026-09-27, clarity proposal 5); it stood on every
+   * Ph.D. record before. */
+  function mscseClockSentence(): string {
+    const cameThroughMscse = student.program === 'phd' && (student.background?.graduate === 'nd-mscse-transfer' || student.ndMasters !== undefined);
+    return cameThroughMscse ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE. Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).' : '';
+  }
   function standingCard(): HTMLElement {
     // The entry term drives the §4.3 residency count and every deadline. When
     // the student sets it, the "inferred/assumed" flag clears and every Notre
@@ -775,7 +782,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           student.program === 'phd'
             // The four deadlines are each a report row with a Deadline chip;
             // the §s stay (trim review 2026-09-18, P-11).
-            ? 'The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term. Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE. Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).'
+            ? `The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term.${mscseClockSentence()}`
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
@@ -902,7 +909,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             // Whose semester 1 (DGS 2026-09-26): the MSCSE start for a transfer
             // into the Ph.D., the Ph.D. start after a finished MSCSE.
             (student.program === 'phd'
-              ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE. Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).'
+              ? mscseClockSentence()
               : ''),
         ),
       bsBeforeLine ? fieldset('Bachelor’s degree awarded', bsBeforeLine) : fieldset('Bachelor’s degree awarded (required)', el('div', { class: 'pair' }, bsSeason, bsYear)),

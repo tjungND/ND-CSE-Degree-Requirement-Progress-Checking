@@ -2,6 +2,15 @@
 
 Last updated: 2026-09-26 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-27 (later): **clarity proposals 4a–4f and 5 done, 6 fixed in the sheet, 7 refused** — the
+transfer row's pill is "Waiting for the DGS" with the action first; the along-the-way MSCSE reads
+"Not started" (or "Does not apply" for a master's from elsewhere); the MSCSE advisor row has §2.3's
+deadline; the 24-credit title is short; the qualifier umbrella states "N of 5 parts done"; the
+headline counts the qualifier once and the allowances are meters in their own group (12 checks,
+plus 3 allowances); the MSCSE-transfer sentence shows only for a student who came through the
+MSCSE. The §3.5 note's 6 stays in the code (DGS: the Graduate School's number; the qualifier's group count was already a sheet key). **Still open:** proposals 1 (Next steps) and
+4g (a per-course approval control) — the DGS asked for examples of 4g.
+
 2026-09-27: **clarity proposals 2 and 3 approved by the DGS and done** — a course cell shows
 Credit and Qualifier on two lines with their own marks, and the report column opens with the
 score: the warnings and the §3.5/§3.6 note are closed folds under the meters, a plain ✓ course's

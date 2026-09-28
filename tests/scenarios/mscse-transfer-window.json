@@ -65,7 +65,7 @@
     "ms.transfer": {
       "status": "needs_dgs_review",
       "detailIncludes": [
-        "0 of 9 transfer credits counted",
+        "0 of the 9 credits you may transfer are counted",
         "3 more pending review"
       ]
     },

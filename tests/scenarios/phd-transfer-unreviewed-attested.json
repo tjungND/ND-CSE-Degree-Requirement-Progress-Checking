@@ -55,7 +55,7 @@
     "phd.transfer": {
       "status": "needs_dgs_review",
       "detailIncludes": [
-        "0 of 24 transfer credits counted",
+        "0 of the 24 credits you may transfer are counted",
         "6 more pending review",
         "Waiting for the DGS: CS 51000, CS 52000"
       ]

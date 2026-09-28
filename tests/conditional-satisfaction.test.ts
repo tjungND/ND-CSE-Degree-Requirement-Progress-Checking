@@ -95,7 +95,8 @@ describe('the dashboard tells the three states apart (R2)', () => {
   it('the summary counts conditional satisfaction on its own, disjoint from met', () => {
     for (const { name, report } of reports) {
       const { met, conditional, scored } = report.summary;
-      const rows = report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
+      // The qualifier's parts and the allowances are shown but not counted (2026-09-27).
+      const rows = report.requirements.filter((r) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable');
       assert.equal(met, rows.filter((r) => r.status === 'met').length, name);
       assert.equal(conditional, rows.filter((r) => r.status === 'needs_dgs_review').length, name);
       assert.ok(met + conditional <= scored, name);
@@ -140,8 +141,15 @@ describe('the one row that must not read "Conditionally met" (W-CS2)', () => {
         overridden.set(r.statusLabel, (overridden.get(r.statusLabel) ?? new Set()).add(r.id));
       }
     }
-    assert.deepEqual([...overridden.keys()].sort(), ['Eligibility at risk', 'Not used yet']);
+    // …and, since 2026-09-27 (DGS, clarity proposal 4): the transfer row reads
+    // "Waiting for the DGS" (ADGS on the M.S. tab) while a course is
+    // unreviewed — an allowance has nothing to "meet" — and the along-the-way
+    // MSCSE reads "Not started" until the OCE.
+    const allowed = ['Eligibility at risk', 'Not started', 'Not used yet', 'Waiting for the ADGS', 'Waiting for the DGS'];
+    for (const label of overridden.keys()) assert.ok(allowed.includes(label), label);
     assert.deepEqual([...(overridden.get('Eligibility at risk') ?? [])], ['phd.dissertation.defense']);
     for (const id of overridden.get('Not used yet') ?? []) assert.match(id, /\.cap\./, id);
+    for (const id of overridden.get('Not started') ?? []) assert.equal(id, 'phd.msAlongTheWay');
+    for (const id of [...(overridden.get('Waiting for the DGS') ?? []), ...(overridden.get('Waiting for the ADGS') ?? [])]) assert.match(id, /\.transfer$/, id);
   });
 });

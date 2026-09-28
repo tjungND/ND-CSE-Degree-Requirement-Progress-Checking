@@ -1,7 +1,7 @@
 // §2 requirements shared by both programs.
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../ranges.ts';
 import { coursesNeedingDgsReviewFor } from '../review.ts';
-import { startOfTerm } from '../term.ts';
+import { startOfTerm, termLabel } from '../term.ts';
 import type { DetailPart, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { joinedDetail, missingParamDetail } from './context.ts';
@@ -62,16 +62,26 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   const names = [advisorName, advisorName2].filter((n): n is string => !!n);
   let status: RequirementResult['status'];
   let detail: string;
+  // §2.3's "by the beginning of their first semester" is a deadline for an
+  // MSCSE student (DGS 2026-09-27): the row reads Overdue once that day has
+  // passed with no advisor entered, and the dial counts it.
+  const start = startOfTerm(ctx.entry).date;
+  const deadline: RequirementResult['deadline'] | undefined = ms
+    ? advisorIdentified || names.length > 0
+      ? { date: start, approx: true, state: 'done', label: 'Complete' }
+      : ctx.today > start
+        ? { date: start, approx: true, state: 'overdue', label: `Overdue — was expected by the start of ${termLabel(ctx.entry)}` }
+        : { date: start, approx: true, state: 'upcoming', label: `Due by the start of ${termLabel(ctx.entry)}` }
+    : undefined;
   if (advisorIdentified || names.length > 0) {
     status = 'met';
     // Two advisors are one supervision (DGS 2026-09-22): "Advisors: A and B".
     detail = `${names.length > 1 ? 'Advisors' : 'Advisor'}${names.length > 0 ? `: ${names.join(' and ')}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}.`;
   } else {
     status = 'unmet';
-    const start = startOfTerm(ctx.entry).date;
     detail = ms
       ? ctx.today > start
-        ? `No advisor entered — was expected by your first semester. Talk to the DGS.`
+        ? `No advisor entered yet — talk to the DGS.`
         : `Identify a thesis or project advisor by the beginning of your first semester (§2.3).`
       : `No advisor entered yet.`;
   }
@@ -81,6 +91,7 @@ export function advisorRow(ctx: Ctx): RequirementResult {
     title: ms ? 'A project or thesis advisor is identified' : 'Under continuous advisor supervision',
     status,
     detail,
+    ...(deadline ? { deadline } : {}),
     citation: { section: '§2.3', quote },
   };
 }

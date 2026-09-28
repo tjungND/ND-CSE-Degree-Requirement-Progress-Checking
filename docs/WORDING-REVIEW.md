@@ -131,3 +131,9 @@ The FERPA sentence stays.
 
 | W-CL31 | course cell, two lines (DGS 2026-09-27) | Credit: ✕ not counted — taken before your bachelor’s degree was awarded (Spring 2021), so not as a graduate student (§5.2) · Qualifier: ● may still satisfy the Operating Systems core-knowledge requirement (§4.4.1) after DGS review |
 | W-CL32 | report column folds (DGS 2026-09-27) | ⚠ 2 things to check — a course dated after this semester ▸ · Integrated B.S. + M.S. (§3.5) — how your courses are counted here ▸ · Show which requirements each course feeds (toggle above the coursework table) |
+| W-CL33 | transfer row (DGS 2026-09-27, 4a) | pill: Waiting for the DGS · Waiting for the DGS: CS 50300, CS 59000 (6 credits) — send the review request from the Transcripts card · 0 of the 24 credits you may transfer are counted (§5.2 allowance for a completed prior degree) |
+| W-CL34 | along-the-way MSCSE (4b) | pill: Not started · (master’s from elsewhere) You already hold a master’s degree, so the MSCSE along the way does not apply (§4.5). |
+| W-CL35 | MSCSE advisor row (4c) | Overdue — was expected by the start of Fall 2026 · Due by the start of Fall 2026 · No advisor entered yet — talk to the ADGS. |
+| W-CL36 | 24-credit row (4d) | At least 24 credits of regular courses at the 60000 level or higher · Up to 6 approved CSE 4xxxx credits may count inside these (§4.2) |
+| W-CL37 | qualifier umbrella (4e) | 3 of 5 parts done — still open: specialization (§4.4.2), the research component (§4.4.3) (one card per part below) |
+| W-CL38 | allowances (4f) | group heading “Allowances — §4.2”; meter “3 of 9 used”; fold “What this degree requires — 12 checks, plus 3 allowances” |

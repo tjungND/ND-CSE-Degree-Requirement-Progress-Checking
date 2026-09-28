@@ -183,7 +183,10 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // must be able to tell "not finished" from "cannot be judged yet" (red-team
   // 2026-09-13): a blank rules-sheet cell elsewhere used to make a student who
   // had finished everything read "Overdue — the 8-year limit passed".
-  const isScored = (r: RequirementResult) => !r.informational && r.status !== 'not_applicable';
+  // The qualifier's five parts and the allowances are shown but not counted
+  // (DGS 2026-09-27): the headline used to count the qualifier six times and
+  // grow by one when an allowance was first drawn on.
+  const isScored = (r: RequirementResult) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable';
   const otherRows = rows.filter(isScored);
   const others = {
     allMet: otherRows.every((r) => r.status === 'met'),

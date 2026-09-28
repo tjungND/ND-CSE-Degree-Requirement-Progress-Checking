@@ -149,7 +149,7 @@
     "phd.transfer": {
       "status": "met",
       "detailIncludes": [
-        "transfer credits counted"
+        "credits you may transfer are counted"
       ]
     },
     "phd.credits.regular": {

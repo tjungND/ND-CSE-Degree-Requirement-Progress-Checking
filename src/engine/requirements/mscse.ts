@@ -8,6 +8,7 @@ import { fullTimeTermRecords } from './residency.ts';
 import { transferRow } from './transfer.ts';
 
 const COURSEWORK = 'Coursework — §3.2';
+const ALLOWANCES = 'Allowances — §3.2, §3.5'; // meters, not verdicts (DGS 2026-09-27)
 const TIME = 'Residence and time — §3.3';
 const PROJECT_THESIS = 'M.S. project or thesis — §3.4';
 
@@ -105,7 +106,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
   rows.push(
     capRow({
       id: 'ms.cap.fourk',
-      group: COURSEWORK,
+      group: ALLOWANCES,
       title: 'At most 6 credits from CSE courses below the 60000 level',
       capId: 'fourk',
       capLabel: 'credits below the 60000 level',
@@ -123,7 +124,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
     rows.push(
       capRow({
         id: 'ms.cap.sharedbs',
-        group: COURSEWORK,
+        group: ALLOWANCES,
         title: 'At most 6 credits shared with your bachelor\u2019s degree',
         capId: 'sharedbs',
         capLabel: 'credits shared with your bachelor\u2019s degree',
@@ -146,7 +147,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
   rows.push(
     capRow({
       id: 'ms.cap.noncse',
-      group: COURSEWORK,
+      group: ALLOWANCES,
       title: 'At most 9 credits from outside CSE',
       capId: 'noncse',
       capLabel: 'non-CSE allowance credits',

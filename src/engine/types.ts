@@ -285,6 +285,16 @@ export interface RequirementResult {
   statusLabel?: string;
   /** Informational rows (e.g. MSCSE-along-the-way) are excluded from the score. */
   informational?: boolean;
+  /** Shown with its own pill but not counted in the headline (DGS 2026-09-27):
+   * the five parts of the qualifier — the umbrella row is the one that counts,
+   * and it names the parts still open, so these stay out of the attention
+   * list too. Everything else (feeds, emails, the qualifier's own logic) is
+   * unchanged. */
+  unscored?: true;
+  /** An allowance — §3.2 / §4.2's caps, §3.5's shared credits — not a
+   * requirement (DGS 2026-09-27): drawn as a meter with no pill, in its own
+   * group, never counted in the headline. */
+  allowance?: true;
   detail: string;
   /** When the detail was built from several independent statements, they are
    * also kept separately so the UI can render a long detail as a bulleted

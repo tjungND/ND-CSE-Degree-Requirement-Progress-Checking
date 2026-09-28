@@ -69,7 +69,7 @@
     "phd.transfer": {
       "status": "needs_dgs_review",
       "detailIncludes": [
-        "0 of 6 transfer credits counted",
+        "0 of the 6 credits you may transfer are counted",
         "6 more pending review"
       ]
     },

@@ -95,7 +95,15 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         : ctx.student.priorMs === 'unfinished'
           ? 'a prior program that was not completed'
           : 'a student with no prior graduate degree';
-    parts.push(`${formatCredits(counted)} of ${cap} transfer credits counted (§5.2 allowance for ${capFor})${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`);
+    // The action first (DGS 2026-09-27): the courses waiting for the DGS and
+    // what to do, then the count against the allowance.
+    if (unreviewed.length > 0) {
+      const credits = unreviewed.reduce((sum, c) => sum + (c.entry.credits ?? 0), 0);
+      parts.push(
+        `Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} (${formatCredits(credits)} credits) — send the review request from the Transcripts card${ctx.student.attestations.transferApproved ? '; the box “The DGS explicitly approved my transfer credit” cannot cover a course the DGS has not reviewed' : ''}`,
+      );
+    }
+    parts.push(`${formatCredits(counted)} of the ${cap} credits you may transfer are counted (§5.2 allowance for ${capFor})${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`);
     // Only courses under §5.2's own cap belong on this row: Notre Dame
     // coursework taken as an undergraduate is filed as 'transfer' but is not
     // transfer credit (2026-09-10), and its lines used to be repeated here.
@@ -134,11 +142,6 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
           `Listed in the course rules, decision still open: ${listedUndecided.map((c) => c.entry.courseId).join(', ')}`,
         );
       }
-      if (unreviewed.length > 0) {
-        parts.push(
-          `Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} — send the review request from the Transcripts card${ctx.student.attestations.transferApproved ? '; the box “The DGS explicitly approved my transfer credit” cannot cover a course the DGS has not reviewed' : ''}`,
-        );
-      }
     }
   }
   // The student's own Notre Dame MSCSE (Graduate School through the DGS,
@@ -159,6 +162,9 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     title: 'Transfer credit from prior graduate study',
     shortTitle: 'Transfer credit (§5.2)',
     status,
+    // An allowance has nothing to "meet": the pill says what is happening
+    // (DGS 2026-09-27) — "Waiting for the DGS" while a course is unreviewed.
+    ...(status === 'needs_dgs_review' ? { statusLabel: 'Waiting for the DGS' } : {}),
     ...joinedDetail(parts),
     citation: { section: opts.section, quote },
   };

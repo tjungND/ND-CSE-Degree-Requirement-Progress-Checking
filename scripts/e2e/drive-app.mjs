@@ -38,7 +38,7 @@ export async function driveApp(s, baseUrl) {
   console.log('  first visit:', JSON.stringify(firstVisit));
   if (!/^Getting started/.test(firstVisit.headline)) throw new Error('an untouched record must not lead with "0 of N met": ' + firstVisit.headline);
   if (!firstVisit.folded || firstVisit.open !== false || !firstVisit.attentionInside) throw new Error('the attention list must be folded on a first visit: ' + JSON.stringify(firstVisit));
-  if (!/checks$/.test(firstVisit.summary)) throw new Error('the fold must name what it holds: ' + firstVisit.summary);
+  if (!/checks(, plus \d+ allowances?)?$/.test(firstVisit.summary)) throw new Error('the fold must name what it holds: ' + firstVisit.summary);
   if (firstVisit.dialStroke === 'var(--bad)') throw new Error('an empty record must not paint the dial red');
   await s.shot('app-initial-phd');
   await checkSheetLink(s, 'app');
@@ -344,6 +344,8 @@ export async function driveApp(s, baseUrl) {
     const row = [...document.querySelectorAll('.req')].find((r) => /below the 60000 level/.test(r.querySelector('.req-title')?.textContent ?? ''));
     return {
       pill: row?.querySelector('.pill')?.textContent ?? '',
+      meter: row?.querySelector('.allowance-meter')?.textContent ?? '',
+      detail: row?.textContent ?? '',
       status: [...(row?.classList ?? [])].find((c) => c.startsWith('s-')) ?? '',
       headline: document.querySelector('.audit .headline, .scorehead .headline')?.textContent ?? '',
       sticky: document.querySelector('.sticky-score')?.textContent ?? '',
@@ -352,12 +354,14 @@ export async function driveApp(s, baseUrl) {
     };
   })())`));
   console.log('  conditional satisfaction:', JSON.stringify({ ...cond, headline: cond.headline.slice(0, 80) }));
-  if (cond.pill !== 'Conditionally met') throw new Error('the cap row must read "Conditionally met": ' + cond.pill);
+  // Since 2026-09-27 (DGS, clarity proposal 4f) an allowance is a meter, not
+  // a verdict: no pill, never in the headline count. The row still carries
+  // its status class and names the course waiting for approval; the
+  // dashboard's conditional count is pinned by tests/conditional-satisfaction.test.ts.
+  if (cond.pill !== '') throw new Error('an allowance row has no pill: ' + cond.pill);
+  if (!/\d+(\.\d+)? of \d+ used/.test(cond.meter)) throw new Error('the allowance row must show its meter: ' + cond.meter);
   if (cond.status !== 's-needs_dgs_review') throw new Error('…without changing the underlying status: ' + cond.status);
-  if (!/\d+ conditionally met/.test(cond.headline)) throw new Error('the headline must count it on its own: ' + cond.headline);
-  if (!/conditionally met/.test(cond.sticky)) throw new Error('the sticky bar must name it too: ' + cond.sticky);
-  if (!cond.keyItems.some((t) => /conditionally met/.test(t))) throw new Error('the status key must list it: ' + JSON.stringify(cond.keyItems));
-  if (!/^[1-9]/.test(cond.condBand)) throw new Error('the ring must carry a conditional band: ' + cond.condBand);
+  if (!/needs approval: CSE 40243/.test(cond.detail)) throw new Error('the allowance row must name the course waiting for approval: ' + cond.detail.slice(0, 200));
   // The mobile summary is display:none at this width — take the visible one.
   await s.evalJs(`(() => {
     const n = [...document.querySelectorAll('.scorehead')].find((e) => e.getBoundingClientRect().width > 0);

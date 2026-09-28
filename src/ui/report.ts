@@ -45,8 +45,12 @@ function pillState(r: RequirementResult): string {
 
 /** The rows the headline counts: informational rows (the per-course sign-off
  * list, the along-the-way M.S.) and "does not apply" rows are outside the score. */
+/** The allowances (meters, not verdicts — 2026-09-27). */
+function allowanceCount(report: AuditReport): number {
+  return report.requirements.filter((r) => r.allowance).length;
+}
 export function scoredRows(report: AuditReport): RequirementResult[] {
-  return report.requirements.filter((r) => !r.informational && r.status !== 'not_applicable');
+  return report.requirements.filter((r) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable');
 }
 
 /** A requirement id as an element-id fragment: `phd.qualifier.core.os` → `phd-qualifier-core-os`. */
@@ -205,12 +209,24 @@ function meters(report: AuditReport): HTMLElement {
   return box;
 }
 
+/** An allowance's standing as a small meter in the pill's place (DGS
+ * 2026-09-27): "3 of 9 used". */
+function allowanceMeter(r: RequirementResult): HTMLElement {
+  const p = r.progress;
+  if (!p) return el('span', { class: 'allowance-meter' }, r.statusLabel ?? '');
+  const fill = el('i', {});
+  fill.style.width = `${Math.min(100, p.need > 0 ? (p.have / p.need) * 100 : 0)}%`;
+  const have = Math.round(p.have * 100) / 100;
+  return el('span', { class: 'allowance-meter', 'aria-label': `${have} of ${p.need} ${p.unit} used` }, el('span', { class: 'bar', 'aria-hidden': 'true' }, fill), `${have} of ${p.need} used`);
+}
+
 function requirementCard(r: RequirementResult): HTMLElement {
   // A row may override the WORDING without changing its status or its place in
   // the counts (W-CS2): the §4.7 defense past §4.3's limit reads "Eligibility
   // at risk", since "Conditionally met" would promise a degree that may be
   // forfeit.
-  const pill = el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}${pillState(r)}` }, pillLabel(r));
+  // An allowance is a meter, not a verdict (DGS 2026-09-27).
+  const pill = r.allowance ? allowanceMeter(r) : el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}${pillState(r)}` }, pillLabel(r));
   // The rule itself, on the output side (DGS request 2026-09-03): clicking the
   // § chip reveals the handbook sentence this verdict is checked against. A
   // disclosure button (usability review 2026-09-05, item 24): its expanded
@@ -384,7 +400,7 @@ export function renderReport(report: AuditReport, untouched = false): HTMLElemen
             el(
               'details',
               { class: 'attention-fold', 'data-key': 'report.attention' },
-              el('summary', {}, `What this degree requires — ${scoredRows(report).length} checks`),
+              el('summary', {}, `What this degree requires — ${scoredRows(report).length} checks${allowanceCount(report) > 0 ? `, plus ${allowanceCount(report)} allowance${allowanceCount(report) === 1 ? '' : 's'}` : ''}`),
               attention,
             ),
           ]
@@ -505,7 +521,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
   };
   const rows = report.requirements
     .filter((r) => {
-      if (r.informational || unreachable(r)) return false;
+      if (r.informational || r.unscored || unreachable(r)) return false;
       if (ORDER.includes(r.status)) return true;
       // …and an in_progress row whose deadline is close is exactly what the
       // student needs to see, whatever its status says (B5).

@@ -306,6 +306,9 @@ export function capRow(args: {
     title: args.title,
     status,
     ...(label ? { statusLabel: label } : {}),
+    // An allowance, drawn as a meter (DGS 2026-09-27).
+    allowance: true,
+    ...(usage?.limit !== undefined ? { progress: { have: usage.used, need: usage.limit, unit: 'credits' } } : {}),
     ...joinedDetail(parts),
     citation: { section: args.section, quote: args.quote },
     ...(contributions.length > 0 ? { contributions } : {}),

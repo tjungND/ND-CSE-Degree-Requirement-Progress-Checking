@@ -17,6 +17,7 @@ import { transferRow } from './transfer.ts';
 import { spentOnBachelorsAndMasters } from '../allocate.ts';
 
 const COURSEWORK = 'Coursework — §4.2';
+const ALLOWANCES = 'Allowances — §4.2'; // meters, not verdicts (DGS 2026-09-27)
 const TIME = 'Residence and time — §4.3';
 const QUALIFIER = 'Qualifying examination — §4.4';
 const CANDIDACY = 'Oral Candidacy Exam (OCE) — §4.5'; // the DGS's name for the §4.5 examination (2026-09-06); the handbook quotes below stay verbatim
@@ -62,8 +63,12 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       // sentence (red-team wording table, DGS 2026-09-12): a student planning
       // from the title alone should not plan against a floor the app does not
       // enforce.
-      title: '24 credit hours of regular courses (60000 level or higher; up to 6 approved CSE 4xxxx credits may count inside them)',
+      // The allowance left the title on 2026-09-27 (DGS: it wrapped to three
+      // lines everywhere) for a sentence on every unmet card; the cap card
+      // states it permanently.
+      title: 'At least 24 credits of regular courses at the 60000 level or higher',
       shortTitle: '24 regular-course credits',
+      extraDetail: [`Up to ${ctx.params.number('phd_4xxxx_cse_credits_max') ?? 'a limited number of'} approved CSE 4xxxx credits may count inside these (§4.2)`],
       sums: ctx.alloc.regular,
       satisfiedBy: countedCourseIds(ctx, (p) => p.countedRegular),
       pendingBy: pendingCourseIds(ctx, (p) => p.countedRegular),
@@ -89,7 +94,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   rows.push(
     capRow({
       id: 'phd.cap.fourk',
-      group: COURSEWORK,
+      group: ALLOWANCES,
       title: 'At most 6 credits from CSE courses below the 60000 level',
       capId: 'fourk',
       capLabel: 'credits below the 60000 level',
@@ -113,7 +118,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   rows.push(
     capRow({
       id: 'phd.cap.noncse',
-      group: COURSEWORK,
+      group: ALLOWANCES,
       title: 'At most 9 credits at 6xxxx from outside CSE',
       capId: 'noncse',
       capLabel: 'non-CSE allowance credits',
@@ -175,7 +180,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     rows.push(
       capRow({
         id: 'phd.cap.sharedbs',
-        group: COURSEWORK,
+        group: ALLOWANCES,
         title: 'At most 6 credits counted toward two degrees (your bachelor’s and the Ph.D.)',
         capId: 'sharedbs',
         capLabel: 'credits that may still count toward both your bachelor’s degree and the Ph.D.',
@@ -199,11 +204,9 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   rows.push(transferRow(ctx, { id: 'phd.transfer', group: COURSEWORK, capKeyCompleted: 'phd_transfer_completed_ms_credits_max', section: '§4.2, §5.2' }));
   rows.push(residencyRow(ctx));
 
-  const qualifierChildren = [
-    ...coreRows(ctx),
-    categoriesRow(ctx),
-    researchQualifierRow(ctx),
-  ];
+  // The five parts carry their own pills but the umbrella is what the
+  // headline counts (DGS 2026-09-27: it counted the qualifier six times).
+  const qualifierChildren = [...coreRows(ctx), categoriesRow(ctx), researchQualifierRow(ctx)].map((c) => ({ ...c, unscored: true as const }));
   // §4.2 conditions the qualifier on nine regular credits at Notre Dame (F3,
   // 2026-09-12): the umbrella cannot read "met" while that row is not.
   if (qualifierPassedUnderPriorRules(ctx)) {
@@ -365,7 +368,14 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
     'Students must complete all three components of the qualifier requirement within four (4) semesters of starting; the DGS may extend the deadline on a case-by-case basis.';
   const semesters = ctx.params.number('qualifier_deadline_semesters');
   let status = combineAll([...children.map((c) => c.status), ...(ndCredits ? [ndCredits.status] : [])]);
-  const parts: string[] = ['Three components: core knowledge (§4.4.1 — one card per core area below), category specialization (§4.4.2), research (§4.4.3)'];
+  // The standing first (DGS 2026-09-27): how many parts are done and which
+  // are still open — the first sentence used to describe the page layout.
+  const partName = (c: RequirementResult): string =>
+    c.id === 'phd.qualifier.categories' ? 'specialization (§4.4.2)' : c.id === 'phd.qualifier.research' ? 'the research component (§4.4.3)' : `${c.title.replace(/^Core knowledge:\s*/, '')} core knowledge (§4.4.1)`;
+  const open = children.filter((c) => c.status !== 'met');
+  const parts: string[] = [
+    `${children.length - open.length} of ${children.length} parts done${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''} (one card per part below)`,
+  ];
   if (ndCredits && ndCredits.status !== 'met') {
     // §4.2: "all Ph.D. students must take at least nine (9) credits at Notre
     // Dame in order to satisfy the qualifying examination". Said once (trim
@@ -909,6 +919,7 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   const doneRes = ctx.alloc.ndResearch.definite;
   let status: Status;
   let detail: string;
+  let statusLabel: string | undefined;
   if (reqReg === undefined || reqRes === undefined) {
     status = 'cannot_evaluate';
     detail = missingParamDetail(reqReg === undefined ? 'ms_regular_credits_min' : 'ms_project_credits_min');
@@ -918,12 +929,19 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   } else if (passed) {
     status = 'in_progress';
     detail = `${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame.`;
+  } else if (ctx.student.priorMs === 'completed') {
+    // A student who already holds a master’s from elsewhere: “does not apply”
+    // (DGS 2026-09-27); otherwise the stage has simply not started.
+    status = 'not_applicable';
+    detail = 'You already hold a master’s degree, so the MSCSE along the way does not apply (§4.5).';
   } else {
     status = 'not_applicable';
+    statusLabel = 'Not started';
     detail = `Pass the Oral Candidacy Exam (OCE) and you can also receive the MSCSE (§4.5). Needed first, at Notre Dame: ${reqReg} regular-course credits (${doneReg} so far) and ${reqRes} research credits (${doneRes} so far).`;
   }
   return {
     id: 'phd.msAlongTheWay',
+    ...(statusLabel ? { statusLabel } : {}),
     group: CANDIDACY,
     title: 'MSCSE awarded along the way',
     status,

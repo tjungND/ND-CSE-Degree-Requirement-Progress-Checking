@@ -339,7 +339,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   );
   if (!copyBtn) throw new Error('the combined review request button is missing/wrong');
   const transferDetail = await s.evalJs(
-    `[...document.querySelectorAll('.req')].map(e => e.textContent).find(t => t.includes('transfer credits counted')) ?? ''`,
+    `[...document.querySelectorAll('.req')].map(e => e.textContent).find(t => t.includes('credits you may transfer are counted')) ?? ''`,
   );
   console.log('  transfer row mentions:', transferDetail.slice(0, 140));
   if (!transferDetail.includes('Waiting for the DGS')) {

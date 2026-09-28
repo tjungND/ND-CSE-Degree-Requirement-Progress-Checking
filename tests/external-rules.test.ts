@@ -345,7 +345,7 @@ describe('what a DGS ruling changes in the engine', () => {
     s.attestations.transferApproved = true;
     const report = audit(s, rules, '2026-09-01');
     const transfer = report.requirements.find((r) => r.id === 'phd.transfer');
-    assert.match(transfer?.detail ?? '', /2\.5 of 24 transfer credits counted/);
+    assert.match(transfer?.detail ?? '', /2\.5 of the 24 credits you may transfer are counted/);
     const line = report.courseLines.find((l) => l.courseId === '30240233');
     assert.match(line?.text ?? '', /counted as 2\.5 ND credits/);
   });
