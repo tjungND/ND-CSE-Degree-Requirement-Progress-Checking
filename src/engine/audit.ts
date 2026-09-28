@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { allocate, classify, spentOnBachelorsAndMasters, type CapSpec } from './allocate.ts';
+import { allocate, classify, decidedCaseByCase, spentOnBachelorsAndMasters, type CapSpec } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
@@ -244,6 +244,11 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       text: p.explanation,
       mark: p.mark,
       ...(p.qualifier ? { qualifier: p.qualifier } : {}),
+      // The tick box belongs on a course the sheet decides case by case
+      // (DGS 2026-09-27), and only while the course can still count.
+      ...(decidedCaseByCase(p.course, student.program) && p.course.ineligibleReason === undefined
+        ? { approvable: true as const, ...(p.course.entry.dgsApproved ? { approved: true as const } : {}) }
+        : {}),
       counts: aLiveSibling ? [] : (feeds.get(id) ?? []),
     };
   });

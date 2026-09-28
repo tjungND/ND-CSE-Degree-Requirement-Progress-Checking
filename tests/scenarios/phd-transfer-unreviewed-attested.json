@@ -19,9 +19,7 @@
     "priorMs": "completed",
     "gpa": 3.7,
     "milestones": {},
-    "attestations": {
-      "transferApproved": true
-    },
+    "attestations": {},
     "courses": [
       {
         "courseId": "CS 51000",
@@ -34,7 +32,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CS 52000",
@@ -47,7 +46,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       }
     ]
   },
@@ -64,7 +64,6 @@
   "expectCourseLines": {
     "CS 51000": [
       "waiting for the DGS — would count",
-      "cannot cover this course",
       "credits shown as your transcript prints them"
     ]
   }

@@ -2,6 +2,14 @@
 
 Last updated: 2026-09-26 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-27 (night): **4g done as the DGS specified** — the DGS's approval lives on the course
+(`CourseEntry.dgsApproved`), offered only where the sheet decides the course case by case; a
+sheet `yes` counts outright (no tick), a course not in the sheet goes to the DGS through the
+review request first (no tick settles it), then the student revisits the page, which reads the
+latest rules, ticks the courses the DGS approved for them and sends the processing request. The
+three record-level boxes are gone (old files migrate on load). The review card states the process.
+**Nothing open** from the clarity review now.
+
 2026-09-27 (later still): **clarity proposal 1 done** — a "Next steps" block under the dial (the
 coursework sentence, the numbered record-level steps, then the rows that need an action; the
 former "Needs your attention" refiltered from status to action), `src/ui/next-steps.ts`. **Still

@@ -19,9 +19,7 @@
     "priorMs": "none",
     "gpa": 3.8,
     "milestones": {},
-    "attestations": {
-      "dgsApproved4xxxx": true
-    },
+    "attestations": {},
     "courses": [
       {
         "courseId": "CSE 40113",
@@ -34,7 +32,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "undergraduate"
+        "registeredLevel": "undergraduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60641",

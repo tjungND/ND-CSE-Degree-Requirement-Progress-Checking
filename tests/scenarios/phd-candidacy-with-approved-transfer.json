@@ -99,15 +99,14 @@
         },
         "grade": "A",
         "origin": "transfer",
-        "institution": "Purdue University"
+        "institution": "Purdue University",
+        "dgsApproved": true
       }
     ],
     "milestones": {
       "candidacyPassed": "2028-05-01"
     },
-    "attestations": {
-      "transferApproved": true
-    }
+    "attestations": {}
   },
   "expect": {
     "phd.credits.regular": {

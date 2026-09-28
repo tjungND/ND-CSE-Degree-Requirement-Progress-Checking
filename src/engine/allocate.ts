@@ -43,6 +43,9 @@ export interface ClassifiedCourse {
   /** Needs advisor/DGS sign-off (dgs_approval row, unknown course, non-CSE, transfer). */
   approvalPending?: string;
   unknown?: boolean;
+  /** A `yes` in the sheet for a transfer course (DGS 2026-09-27): counted
+   * outright, with this note on its line — the Grad Admin still records it. */
+  approvedNote?: string;
   superseded?: boolean;
   /** Who said the credits were quarter hours: the DGS's ExternalCourses row,
    * or the transcript's own term headers (2026-09-11). */
@@ -180,10 +183,11 @@ function undergradLevelEligible(level: number, courseId: string, rule: RuleCours
  * course counts outright (or the matching checkbox is ticked), else the
  * approval-pending reason the course line carries. `level` is whatever the
  * caller reads as the course's level — the row's own, or the number's digit. */
-function approvalStatus(counts: Counts | undefined, level: number | undefined, isCse: boolean, attestations: Attestations): string | undefined {
-  const approvalAttested =
-    ((level === 4 || level === 5) && attestations.dgsApproved4xxxx === true) ||
-    (!isCse && attestations.dgsApprovedNonCse === true);
+function approvalStatus(counts: Counts | undefined, approved: boolean): string | undefined {
+  // `approved` is the course's own tick (DGS 2026-09-27): it settles a
+  // case-by-case verdict and nothing else — a `yes` needs none, a blank cell
+  // is the DGS's to fill first.
+  const approvalAttested = approved;
   return counts === undefined
     ? 'the course rules do not say whether it counts — needs DGS review'
     : needsCourseApproval(counts)
@@ -209,7 +213,7 @@ function priorNdShape(
   courseId: string,
   rule: RuleCourse,
   program: Program,
-  attestations: Attestations,
+  approved: boolean,
 ): { pool: Pool; caps: CapId[]; approvalPending?: string } | { ineligibleReason: string } {
   const counts = program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
   const programName = program === 'mscse' ? 'MSCSE' : 'Ph.D.';
@@ -227,7 +231,7 @@ function priorNdShape(
   // Nearly every 40000-level row says `dgs_approval` for the MSCSE, which is
   // what makes an earlier Notre Dame undergraduate 40000-level course
   // something that MAY count — listed, never counted silently.
-  const approvalPending = approvalStatus(counts, rule.level, isCse, attestations);
+  const approvalPending = approvalStatus(counts, approved);
   const shape =(pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
   // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
   if (program === 'mscse' && isMsProjectCourse(courseId)) return shape('project', []);
@@ -271,6 +275,16 @@ function tierFor(grade: Grade, provisional: boolean): Tier {
   if (provisional) return 'provisional'; // worst uncertainty dominates
   if (isInProgress(grade)) return 'in_progress';
   return 'definite';
+}
+
+/** Whether the sheet decides this course case by case — `dgs_approval` /
+ * `adgs_approval` in the Courses tab for a Notre Dame course, or in the
+ * ExternalCourses tab for a course from elsewhere — so that the DGS's answer
+ * for THIS student is recorded on the course (DGS 2026-09-27). */
+export function decidedCaseByCase(c: ClassifiedCourse, program: Program): boolean {
+  if (c.entry.origin === 'transfer' && !isNotreDameInstitution(c.entry.institution)) return needsApproval(c.transferable);
+  if (!c.rule) return false;
+  return needsCourseApproval(program === 'mscse' ? c.rule.countsTowardMscse : c.rule.countsTowardPhd);
 }
 
 /** Classify every course. Returns classified courses in a stable order
@@ -509,12 +523,13 @@ export function classify(student: Student, rules: Rules, today?: string): {
             ineligibleReason: `not counted — below the 60000 level (${program === 'mscse' ? '§3.2' : '§4.2'}; DGS decision 2026-08-31)`,
           };
         }
-        const attested = attestations.dgsApprovedNonCse === true;
+        // Not in the Courses tab: no tick can settle it (DGS 2026-09-27) —
+        // the review request takes it to the DGS, who enters it in the sheet.
         return {
           ...base,
           pool: 'regular',
           caps: ['noncse'],
-          tier: tierFor(grade, !attested),
+          tier: tierFor(grade, true),
           // Not in the Courses tab, same as an unlisted CSE course below
           // (2026-09-09). §4.4.1 core knowledge reads this flag to offer the
           // DGS a course whose TITLE names a core area, and it was set only on
@@ -523,9 +538,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
           // course from another university, and an unlisted CSE course, both
           // could. §4.4.1 puts no department limit on the course.
           unknown: true,
-          approvalPending: attested
-            ? undefined
-            : `non-CSE course — needs advisor + DGS approval (${program === 'mscse' ? '§3.2' : '§4.2'})`,
+          approvalPending: `not in the course rules yet — send the review request so the DGS can enter it; a course from outside CSE also needs your advisor’s approval (${program === 'mscse' ? '§3.2' : '§4.2'})`,
         };
       }
       // Unknown CSE course: never silently counted or rejected (CLAUDE.md).
@@ -559,7 +572,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
         caps,
         tier: 'provisional',
         unknown: true,
-        approvalPending: 'not in the course rules — counted provisionally; needs DGS review',
+        approvalPending: 'not in the course rules yet — send the review request so the DGS can enter it',
       };
     }
 
@@ -579,7 +592,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
     // and this did not, so the one bridge course the sheet permits for a Ph.D.
     // (CSE 50502, `dgs_approval`) could never be cleared: it stayed amber and
     // stayed in the review request whatever the student ticked.
-    const approvalPending = approvalStatus(counts, level, isCse, attestations);
+    const approvalPending = approvalStatus(counts, c.dgsApproved === true);
     const tier = tierFor(grade, approvalPending !== undefined);
 
     if (program === 'mscse' && isMsProjectCourse(c.courseId)) {
@@ -785,7 +798,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // A course the sheet does not list is counted provisionally and sent for
   // review, as any unlisted Notre Dame course is (never guess).
   if (program === 'phd' && isNotreDameInstitution(c.institution) && student.ndMasters !== undefined) {
-    const shape = rule ? priorNdShape(c.courseId, rule, program, attestations) : undefined;
+    const shape = rule ? priorNdShape(c.courseId, rule, program, c.dgsApproved === true) : undefined;
     const isProject = (shape !== undefined && !('ineligibleReason' in shape) && shape.pool === 'project') || rule?.courseType === 'project' || isMsProjectCourse(c.courseId);
     if (shape && 'ineligibleReason' in shape && !isProject) {
       return { ...extBase, notTransferCredit: true, ndMastersCredit: true, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
@@ -809,7 +822,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
       caps: [...shapeCaps, ...(unlistedNonCse && !shapeCaps.includes('noncse') ? ['noncse' as CapId] : [])],
       tier: tierFor(grade, rule === undefined || shapeApproval !== undefined),
       ...(rule === undefined
-        ? { unknown: true as const, approvalPending: `not in the course rules — counted provisionally; needs DGS review${unlistedNonCse && attestations.dgsApprovedNonCse !== true ? '; non-CSE course — needs advisor + DGS approval (§4.2)' : ''}` }
+        ? { unknown: true as const, approvalPending: `not in the course rules yet — send the review request so the DGS can enter it${unlistedNonCse ? '; a course from outside CSE also needs your advisor’s approval (§4.2)' : ''}` }
         : shapeApproval !== undefined
           ? { approvalPending: shapeApproval }
           : {}),
@@ -873,7 +886,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // of §5.2's (2026-09-09): the §5.2 cap says how MUCH may transfer, the
   // sheet row says what the course IS — regular, project, research — and
   // §4.2's level rules still apply to it.
-  const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, program, attestations) : undefined;
+  const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, program, c.dgsApproved === true) : undefined;
   // A master's project or thesis does not transfer into EITHER degree (DGS
   // 2026-09-11: "Master's project is not a regular course. It cannot be
   // transferred, so it should not count toward PhD." — and §3.4's own
@@ -906,8 +919,12 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // stays pending whatever is ticked (DGS 2026-09-11: "Do not let
   // never-reviewed courses count even with the checkbox checked").
   const reviewed = isNotreDameInstitution(c.institution) ? rule !== undefined : external !== undefined && transferable !== undefined;
-  const attested = attestations.transferApproved === true && reviewed;
-  const attestedButUnreviewed = attestations.transferApproved === true && !reviewed;
+  // The course's own tick (DGS 2026-09-27) settles a `dgs_approval` verdict;
+  // a `yes` verdict needs no tick and counts outright — the processing
+  // request still carries it to the Grad Admin; a course with no verdict is
+  // the DGS's to enter, whatever is ticked.
+  const attested = needsApproval(transferable) && c.dgsApproved === true;
+  const approvedForAll = transferable === 'yes';
   // A university with no ExternalCourses row has no credit system on
   // record, so its credits are shown as the transcript prints them. Say
   // so while the course is unreviewed — a quarter-system transcript would
@@ -935,7 +952,8 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     transferable,
     pool: isProject ? 'total_only' : (shape?.pool ?? 'regular'),
     caps: ['transfer', ...(shape?.caps ?? []), ...nonCseCap],
-    tier: tierFor(grade, !attested),
+    tier: tierFor(grade, !attested && !approvedForAll),
+    ...(approvedForAll && !attested ? { approvedNote: `approved by the DGS in the course rules — send the Grad Admin the processing request to have it recorded (§5.2)${coreNote}${projectNote}` } : {}),
     // §5.2 "pro-rata" for non-semester systems: the DGS's fixed value for
     // this course wins; otherwise a quarter university's credits are
     // converted from what the transcript prints (DGS 2026-09-08), which is
@@ -946,11 +964,9 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
         ? { creditsConverted: true as const, convertedFrom: creditSystem, conversionFactor, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
         : { conversionMissingKey: conversionKey }
       : {}),
-    approvalPending: attested
+    approvalPending: attested || approvedForAll
       ? undefined
-      : transferable === 'yes'
-        ? `approved by the DGS in the course rules — send the Grad Admin the processing request (§5.2)${coreNote}${projectNote}`
-        : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
+      : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
           // program 2026-09-09): the sheet has looked at the course and
           // ruled that this one needs an approval. Unlike a blank cell,
           // that IS a decision; what is open is this student's case.
@@ -958,7 +974,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
           ? `waiting for the DGS — this course needs the DGS’s approval, decided case by case (§5.2)${coreNote}${projectNote}`
           : external
             ? `waiting for the DGS — listed in the course rules, decision still open (§5.2)${coreNote}${projectNote}`
-            : `waiting for the DGS — not yet reviewed${attestedButUnreviewed ? ', so the box “The DGS explicitly approved my transfer credit” cannot cover it yet' : ''}; an external course counts only once the DGS has approved it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
+            : `waiting for the DGS — not in the course rules yet; send the review request so the DGS can enter it (§5.2)${creditSystemNote}${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
   };
 }
 
@@ -1004,7 +1020,7 @@ function classifyPriorNdUndergraduate(
   // offered the two answers that can be true of them (app.ts).
   const askedWhichDegrees = program === 'phd';
   const holdsNdMasters = student.ndMasters !== undefined;
-  const shape = rule ? priorNdShape(c.courseId, rule, program, attestations) : undefined;
+  const shape = rule ? priorNdShape(c.courseId, rule, program, c.dgsApproved === true) : undefined;
   if (shape && 'ineligibleReason' in shape) {
     return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
   }
@@ -1136,7 +1152,7 @@ function classifyPriorNdUndergraduate(
   // then twelve credits of EE 60xxx touched no cap and no checkbox).
   const unlistedNonCse = rule === undefined && deptOf(c.courseId) !== 'CSE';
   const nonCseApproval =
-    unlistedNonCse && attestations.dgsApprovedNonCse !== true ? `non-CSE course — needs advisor + DGS approval (${program === 'mscse' ? '§3.2' : '§4.2'})` : undefined;
+    unlistedNonCse ? `non-CSE course — needs advisor + DGS approval (${program === 'mscse' ? '§3.2' : '§4.2'})` : undefined;
   // Counted, but the DGS is asked: not in the rules sheet at all, or in
   // it with a verdict that names an approval this student has not
   // attested (2026-09-11) — "they may count, subject to all other
@@ -1517,7 +1533,6 @@ function buildExplanationText(
     // line itself (2026-09-11): a ticked checkbox that cannot apply to an
     // unreviewed course, and credits printed in a system the sheet does not
     // know yet.
-    const checkboxNote = /cannot cover it yet/.test(cc.approvalPending ?? '') ? '; the box “The DGS explicitly approved my transfer credit” cannot cover this course — the DGS has not reviewed it' : '';
     const creditNote = /; credits shown as your transcript prints them[^;]*/.exec(cc.approvalPending ?? '')?.[0] ?? '';
     return {
       // A Notre Dame course here is one from the student's EARLIER Notre Dame
@@ -1527,7 +1542,7 @@ function buildExplanationText(
       // (clarity review 2026-09-26): what is being waited for, then what the
       // course would do. "Candidate" is the DGS's word for it; the §5.2
       // paragraph above the group says it once.
-      explanation: `waiting for the DGS — ${fate}${isNotreDameInstitution(cc.entry.institution) ? ' — a course from your earlier Notre Dame program' : ''} (§5.2)${checkboxNote}${creditNote}${coreNote}`,
+      explanation: `waiting for the DGS — ${fate}${isNotreDameInstitution(cc.entry.institution) ? ' — a course from your earlier Notre Dame program' : ''} (§5.2)${creditNote}${coreNote}`,
       mark: 'pending',
     };
   }
@@ -1543,10 +1558,13 @@ function buildExplanationText(
       : cc.tier === 'in_progress'
         ? 'in progress — will count'
         : 'counts';
+  const unlisted = /^not in the course rules yet/.test(cc.approvalPending ?? '');
   const tail = preApproved
     ? ' as transfer credit once the Grad Admin has recorded it'
     : cc.tier === 'provisional'
-      ? ' once approved'
+      ? unlisted
+        ? ' once the DGS has added it to the course rules'
+        : ' once approved'
       : cc.tier === 'in_progress'
         ? ' when passed'
         : '';
@@ -1591,6 +1609,7 @@ function buildExplanationText(
       );
     }
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
+    if (cc.approvedNote) parts.push(cc.approvedNote);
     // What the course WILL apply to — said in those words (DGS 2026-09-11:
     // "clear enough for students to know that courses WILL apply to both BS &
     // MSCSE or WILL apply to only MSCSE, instead of 'already counted'").
@@ -1604,7 +1623,7 @@ function buildExplanationText(
     if (cc.ndMastersCredit) parts.push(`from your Notre Dame MSCSE — counts in full toward the Ph.D. without transfer approval (Graduate School: a move from a master’s to a Ph.D. in the same discipline counts all the credits, beyond §5.2’s cap)${cc.pool === 'total_only' ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : ''}`);
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved
     // lead says "as transfer credit"); say it once.
-    if (cc.caps.includes('transfer') && !preApproved && !/^transfer/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');
+    if (cc.caps.includes('transfer') && !preApproved && !cc.approvedNote && !/^transfer/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');
   } else {
     const reason = excludedReason ?? 'not counted';
     // An undergraduate course that satisfies (green) or may satisfy (amber) a

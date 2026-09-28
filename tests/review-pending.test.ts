@@ -31,7 +31,7 @@ const reasonOf = (s: Student, external: Row[], courseId: string) =>
 describe('coursesNeedingDgsReview — courses from another university', () => {
   it('no row: a graduate course is pending and needs a new row; below the grade floor only a core-sounding title is', () => {
     assert.deepEqual(ids(student([purdue('CS 51000', 'Data Mining')]), []), ['CS 51000:new-row']);
-    assert.equal(reasonOf(student([purdue('CS 51000', 'Data Mining')]), [], 'CS 51000'), 'not yet reviewed by the DGS');
+    assert.equal(reasonOf(student([purdue('CS 51000', 'Data Mining')]), [], 'CS 51000'), 'not in the course rules yet — the DGS enters it');
     assert.deepEqual(ids(student([purdue('CS 51000', 'Data Mining', { grade: 'C' })]), []), []);
     assert.deepEqual(ids(student([purdue('CS 50300', 'Operating Systems', { grade: 'C' })]), []), ['CS 50300:new-row']);
     assert.match(reasonOf(student([purdue('CS 50300', 'Operating Systems', { grade: 'C' })]), [], 'CS 50300')!, /no transfer credit, but the title suggests/);
@@ -41,8 +41,8 @@ describe('coursesNeedingDgsReview — courses from another university', () => {
     // The regression: before the fix any row counted as "ruled" and the course dropped out for good.
     const blank = [row('CS 51000'), row('CS 50300')];
     assert.deepEqual(ids(student([purdue('CS 51000', 'Data Mining'), purdue('CS 50300', 'Operating Systems')]), blank), ['CS 50300:decide', 'CS 51000:decide']);
-    assert.equal(reasonOf(student([purdue('CS 51000', 'Data Mining')]), blank, 'CS 51000'), 'transferability not yet decided');
-    assert.match(reasonOf(student([purdue('CS 50300', 'Operating Systems')]), blank, 'CS 50300')!, /transferability not yet decided, and no core area recorded/);
+    assert.equal(reasonOf(student([purdue('CS 51000', 'Data Mining')]), blank, 'CS 51000'), 'listed in the course rules, decision still open (§5.2)');
+    assert.match(reasonOf(student([purdue('CS 50300', 'Operating Systems')]), blank, 'CS 50300')!, /decision still open \(§5\.2\), and no core area recorded/);
   });
 
   it('a blank row for an undergraduate course: pending only while a core-sounding title has no core-area decision', () => {
@@ -74,23 +74,23 @@ describe('coursesNeedingDgsReview — courses from another university', () => {
     assert.deepEqual(ids(s, caseRow), ['STAT 51200:decide'], 'it needs a DECISION, not a new sheet row');
     // No pronoun, and no instruction: this reason is a column of the e-mail
     // the student sends the DGS, so it must read the same way to both of them.
-    assert.equal(reasonOf(s, caseRow, 'STAT 51200'), 'transfer needs DGS approval (§5.2)');
+    assert.equal(reasonOf(s, caseRow, 'STAT 51200'), 'listed as case by case — needs the DGS’s approval for you (§5.2)');
     // A core-sounding title with no core-area decision adds its half to the
     // same line rather than replacing it.
     const both = student([purdue('CS 50300', 'Operating Systems')]);
     assert.match(
       reasonOf(both, [row('CS 50300', { transferable_PhD: 'dgs_approval' })], 'CS 50300')!,
-      /^transfer needs DGS approval \(§5\.2\), and no core area recorded/,
+      /needs the DGS’s approval for you \(§5\.2\), and no core area recorded/,
     );
     // `yes` and `no` still close the transfer half.
     assert.deepEqual(ids(s, [row('STAT 51200', { transferable: 'yes', satisfies_core_area: 'none' })]), []);
     assert.deepEqual(ids(s, [row('STAT 51200', { transferable: 'no', satisfies_core_area: 'none' })]), []);
-    // And so does the student's own attestation that the approval came
-    // through — otherwise the report says "met" while the card still asks the
-    // DGS to decide the same course (2026-09-08).
-    const attested = { ...s, attestations: { transferApproved: true } };
+    // And so does the tick on the course itself (per course since 2026-09-27)
+    // — otherwise the report says "met" while the card still asks the DGS to
+    // decide the same course (2026-09-08).
+    const attested = { ...s, courses: s.courses.map((c) => ({ ...c, dgsApproved: true as const })) };
     assert.deepEqual(ids(attested, caseRow), []);
-    // …but a listed row whose cell is BLANK is not a decision, so the box
+    // …but a listed row whose cell is BLANK is not a decision, so the tick
     // cannot close it (ruling 2026-09-11; red-team F5, 2026-09-12).
     assert.deepEqual(ids(attested, [row('STAT 51200')]), ['STAT 51200:decide'], 'a blank cell stays asked whatever is ticked');
   });
@@ -119,7 +119,7 @@ describe('coursesNeedingDgsReview — courses from another university', () => {
     const ms: Student = { ...phd, program: 'mscse' };
     assert.deepEqual(ids(phd, split), [], 'pre-approved for a Ph.D. student');
     assert.deepEqual(ids(ms, split), ['STAT 51200:decide'], 'the MSCSE side still needs an approval');
-    assert.equal(reasonOf(ms, split, 'STAT 51200'), 'transfer needs ADGS approval (§5.2)'); // the ADGS decides for the MSCSE (2026-09-11)
+    assert.equal(reasonOf(ms, split, 'STAT 51200'), 'listed as case by case — needs the ADGS’s approval for you (§5.2)'); // the ADGS decides for the MSCSE (2026-09-11)
   });
 
   it('the old single column still fills both programs', () => {
@@ -153,7 +153,7 @@ describe('coursesNeedingDgsReview — Notre Dame coursework', () => {
     const pending = coursesNeedingDgsReview(s, buildRules());
     assert.deepEqual(pending.map((p) => `${p.course.entry.courseId}:${p.kind}:${p.unlisted ? 'new-row' : 'decide'}`), ['CSE 69999:nd:new-row', 'MATH 60610:nd:new-row']);
     assert.equal(pending[0]!.reason, 'not in the course rules yet');
-    assert.match(pending[1]!.reason, /non-CSE course/);
+    assert.match(pending[1]!.reason, /outside CSE|non-CSE course/);
   });
 
   it('prior Notre Dame coursework: a Courses-tab core area decides §4.4.1; otherwise a core-sounding undergraduate title is asked about', () => {
@@ -181,9 +181,10 @@ describe('coursesNeedingDgsReview — Notre Dame coursework', () => {
       entryTerm: { season: 'fall', year: 2026 },
       bachelorsAwarded: { season: 'spring', year: 2026 },
       priorMs: 'none',
-      courses: [ug('CSE 40437', 'Social Sensing and Cyber-Physical Systems'), ug('CSE 40600', 'CSE Service Projects'), ug('CSE 20110', 'Discrete Mathematics')],
+      // The tick sits on the course since 2026-09-27.
+      courses: [{ ...ug('CSE 40437', 'Social Sensing and Cyber-Physical Systems'), ...(attested ? { dgsApproved: true as const } : {}) }, ug('CSE 40600', 'CSE Service Projects'), ug('CSE 20110', 'Discrete Mathematics')],
       milestones: {},
-      attestations: attested ? { dgsApproved4xxxx: true } : {},
+      attestations: {},
     });
     const pending = coursesNeedingDgsReview(ms(false), buildRules());
     // CSE 40600 is `no` in the sheet and CSE 20110 too low to count: neither is a decision to make.

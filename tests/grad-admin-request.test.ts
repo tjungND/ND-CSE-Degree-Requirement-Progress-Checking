@@ -36,14 +36,14 @@ const build = (s: Student) => gradAdminRequest(audit(s, rules, opts.todayIso), s
 describe('processingItems', () => {
   // `dgs_approval` (DGS 2026-09-08): the DGS has ruled on the COURSE but not on
   // this student, so the Grad Admin has nothing to process until they do.
-  it('a course the DGS decides case by case is not processable until the student attests the approval', () => {
+  it('a course the DGS decides case by case is not processable until the tick on that course records the approval (per course since 2026-09-27)', () => {
     const withCase = student({ courses: [purdue('STAT 51200', 'Applied Regression Analysis')] });
     const items = processingItems(audit(withCase, rules, opts.todayIso), withCase, rules);
     assert.deepEqual(items.transfers.map((t) => t.courseId), [], 'nothing for the Grad Admin yet');
     assert.doesNotMatch(build(withCase).text, /STAT 51200/, 'and it stays out of the processing request');
     // Once the DGS's approval has come through and the student says so, it is
     // processed like any other approved transfer.
-    const attested = { ...withCase, attestations: { transferApproved: true } };
+    const attested = { ...withCase, courses: withCase.courses.map((c) => ({ ...c, dgsApproved: true as const })) };
     const after = processingItems(audit(attested, rules, opts.todayIso), attested, rules);
     assert.deepEqual(after.transfers.map((t) => `${t.courseId}:${t.state}`), ['STAT 51200:approved']);
   });
@@ -73,10 +73,11 @@ describe('processingItems', () => {
     assert.deepEqual(oce.rows, [['Date', '2029-04-01']]);
   });
 
-  it('the §5.2 attestation moves the transfers to "already approved"; an M.S. student lists only §3.4 milestones', () => {
-    const s = student({ attestations: { transferApproved: true } });
+  it('a tick changes nothing for a yes course and cannot settle an unlisted one (2026-09-27); an M.S. student lists only §3.4 milestones', () => {
+    const s = student();
+    for (const c of s.courses) c.dgsApproved = true;
     const items = processingItems(audit(s, rules, opts.todayIso), s, rules);
-    assert.deepEqual(items.transfers.map((t) => `${t.courseId}:${t.state}`), ['CS 50300:approved', 'CS 77777:approved']);
+    assert.deepEqual(items.transfers.map((t) => `${t.courseId}:${t.state}`), ['CS 50300:pre-approved']);
     const ms = student({ program: 'mscse', milestones: { thesisDefensePassed: '2028-04-01', candidacyPassed: '2029-04-01' } });
     const msItems = processingItems(audit(ms, rules, opts.todayIso), ms, rules);
     assert.deepEqual(msItems.milestones.map((m) => m.section), ['§3.4']);

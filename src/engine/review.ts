@@ -138,9 +138,14 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           // repeated there.
           reason:
             c.unknown === true
-              ? c.approvalPending !== undefined && !/not in the course rules/.test(c.approvalPending) // the verdict's words (P-54, 2026-09-18)
-                ? `not in the course rules yet; ${c.approvalPending}`
-                : 'not in the course rules yet'
+              ? (() => {
+                  // The verdict's words (P-54, 2026-09-18), minus the line's own
+                  // "send the review request" lead — the card IS the request;
+                  // what stays is any second fact (a non-CSE course's advisor
+                  // approval, 2026-09-27).
+                  const rest = (c.approvalPending ?? '').replace(/^not in the course rules yet — send the review request so the DGS can enter it/, '').replace(/^;\s*/, '');
+                  return rest !== '' ? `not in the course rules yet; ${rest}` : 'not in the course rules yet';
+                })()
               : (c.approvalPending ?? 'needs DGS review'),
           unlisted: c.rule === undefined,
         });
@@ -165,7 +170,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // surface already treats that attestation as closing the §5.2 question
       // (allocate.ts clears `approvalPending`, and the §5.2 row reads "met"),
       // and the card used to go on asking anyway (2026-09-08).
-      const transferAttested = student.attestations.transferApproved === true;
+      const transferAttested = c.entry.dgsApproved === true; // the course's own tick (2026-09-27)
       // …but only for a course the DGS has reviewed (a verdict in the sheet):
       // a listed row with a BLANK verdict stays pending whatever is ticked
       // (2026-09-11 ruling; red-team F5, 2026-09-12).
@@ -175,7 +180,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // Why the course is decided case by case — its relevance to the
       // student's research — is settled between the advisor and the DGS (DGS
       // 2026-09-08), so the student is told only that the decision is open.
-      const transferReason = caseByCase ? 'transfer needs DGS approval (§5.2)' : 'transferability not yet decided';
+      const transferReason = caseByCase ? 'listed as case by case — needs the DGS’s approval for you (§5.2)' : 'listed in the course rules, decision still open (§5.2)';
       const reason =
         transferUndecided && coreUndecided
           ? `${transferReason}, and no core area recorded although the title suggests a §4.4.1 core area`
@@ -209,7 +214,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
     // given). And a course that counts WITHOUT being transfer credit — Notre
     // Dame coursework taken as an undergraduate, which never draws the
     // transfer cap — is not a §5.2 request at all.
-    const transferSettled = fromNotreDame && c.rule !== undefined && student.attestations.transferApproved === true && c.approvalPending === undefined;
+    const transferSettled = fromNotreDame && c.rule !== undefined && c.approvalPending === undefined;
     const notTransferCredit = fromNotreDame && !c.caps.includes('transfer') && c.ineligibleReason === undefined && c.approvalPending === undefined;
     if (transferSettled || notTransferCredit) continue;
     const pending = (bachelors ? keyword : c.ineligibleReason === undefined || keyword) || needsApprovalOnTop;
@@ -241,10 +246,10 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         course: c,
         kind: 'external',
         reason: bachelors
-          ? 'title suggests a §4.4.1 core area — not yet reviewed by the DGS'
+          ? 'not in the course rules yet; the title suggests a §4.4.1 core area'
           : c.ineligibleReason !== undefined
-            ? 'no transfer credit, but the title suggests a §4.4.1 core area — not yet reviewed by the DGS'
-            : 'not yet reviewed by the DGS',
+            ? 'no transfer credit, but the title suggests a §4.4.1 core area — not in the course rules yet'
+            : 'not in the course rules yet — the DGS enters it',
         unlisted: true,
       });
     }

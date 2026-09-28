@@ -48,6 +48,12 @@ export interface CourseEntry {
    * entry term changes — the level, not the term, decides bachelor's vs
    * master's prior coursework. */
   registeredLevel?: 'undergraduate' | 'graduate';
+  /** The DGS approved THIS course for this student (DGS 2026-09-27). Ticked
+   * on the course itself; the engine honours it only on a course the sheet
+   * decides case by case (`dgs_approval` / `adgs_approval`) — a course the
+   * sheet says `yes` to needs no tick, and a course not in the sheet cannot
+   * be settled by one (it goes to the DGS through the review request first). */
+  dgsApproved?: true;
   /** True on every row the Notre Dame transcript import added (2026-09-06) —
    * program courses, pre-entry prior coursework and the transcript's own
    * transfer-credit block alike — so the "Remove" button next to that import
@@ -115,6 +121,9 @@ export interface Milestones {
  * footer reminds students that real approvals live with the DGS office. */
 export interface Attestations {
   advisorApprovedPlan?: boolean; // §3.2/§4.2 "approval of their advisor"
+  /** Deprecated 2026-09-27: the DGS's approvals are recorded on each course
+   * (`CourseEntry.dgsApproved`). Kept so old saved files still load; state.ts
+   * maps a ticked box onto every course it covered and clears it. */
   dgsApproved4xxxx?: boolean; // §3.2/§4.2
   dgsApprovedNonCse?: boolean; // §3.2/§4.2
   transferApproved?: boolean; // §5.2 DGS + Graduate School
@@ -368,6 +377,11 @@ export interface CourseLine {
   /** The course's second line — what it does for the Ph.D. qualifier
    * (§4.4.1) — with its own mark (DGS 2026-09-27). */
   qualifier?: { mark: CourseMark; text: string };
+  /** The sheet decides this course case by case, so the DGS's approval for
+   * this student is recorded on the course (DGS 2026-09-27): the row shows
+   * the tick box, `approved` says whether it is ticked. */
+  approvable?: true;
+  approved?: true;
 }
 
 export interface AuditReport {

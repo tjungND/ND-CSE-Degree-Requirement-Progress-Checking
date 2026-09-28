@@ -116,7 +116,11 @@ export function signOffActors(reason: string): SignOffActor[] {
 /** Advisory row aggregating every course that still needs a human sign-off
  * (dgs_approval rows, unknown courses, free-text non-CSE, transfers). */
 export function approvalsRow(ctx: Ctx): RequirementResult {
-  const pending = ctx.classified.filter((c) => !c.superseded && c.approvalPending && c.pool !== 'none');
+  // A course the review request still asks about — a `yes` transfer whose
+  // §4.4.1 core area is unrecorded — belongs here too, though nothing is
+  // pending on its line (2026-09-27: a `yes` counts outright).
+  const stillWithDgs = new Set(coursesNeedingDgsReviewFor(ctx.classified, ctx.student).map((p) => p.course.entry.courseId));
+  const pending = ctx.classified.filter((c) => !c.superseded && c.pool !== 'none' && (c.approvalPending !== undefined || stillWithDgs.has(c.entry.courseId)));
   // §3.2/§4.2: "All courses taken by a student must have the approval of their
   // advisor." — self-attested via the plan-of-study checkbox (decision Q21).
   const planUnconfirmed =
@@ -128,10 +132,10 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   // A pre-approved transfer whose §4.4.1 core area the DGS has not recorded is
   // still in the review request (review.ts), so it belongs to the DGS too: the
   // reason string alone cannot tell, hence the second source here.
-  const stillWithDgs = new Set(coursesNeedingDgsReviewFor(ctx.classified, ctx.student).map((p) => p.course.entry.courseId));
   const ACTOR_ORDER = ['advisor', 'dgs', 'gradAdmin'] as const;
+  const reasonOf = (c: (typeof pending)[number]): string => c.approvalPending ?? 'the DGS has still to record its core-knowledge area (§4.4.1)';
   const actorsOf = (c: (typeof pending)[number]): SignOffActor[] => {
-    const actors = new Set<SignOffActor>(signOffActors(c.approvalPending!));
+    const actors = new Set<SignOffActor>(signOffActors(reasonOf(c)));
     if (stillWithDgs.has(c.entry.courseId)) actors.add('dgs');
     return ACTOR_ORDER.filter((a) => actors.has(a));
   };
@@ -163,7 +167,7 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     // reason used to print it four times. advisor-summary.ts splits the
     // course list back up.
     const byReason = new Map<string, string[]>();
-    for (const c of list) byReason.set(c.approvalPending!, [...(byReason.get(c.approvalPending!) ?? []), c.entry.courseId]);
+    for (const c of list) byReason.set(reasonOf(c), [...(byReason.get(reasonOf(c)) ?? []), c.entry.courseId]);
     parts.push({ lead: LEADS[key]!, items: [...byReason].map(([reason, ids]) => `${ids.join(', ')} (${reason})`) });
   }
   // "tick the box", not "the attestation": the student never sees that word —
@@ -174,7 +178,7 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
       `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the box below the milestones`,
     );
   }
-  if (parts.length > 0) parts.push('Once approved, tick the box under “Approvals you already have”');
+  if (parts.length > 0) parts.push('When the DGS answers, tick the box next to each course it approved for you');
   const joined = parts.length === 0 ? { detail: 'No entered course that counts toward the degree is waiting on anyone.' } : joinedDetail(parts);
   return {
     id: 'shared.approvals',

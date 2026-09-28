@@ -30,7 +30,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CS 52000",
@@ -43,7 +44,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CS 53000",
@@ -56,7 +58,8 @@
         "grade": "B+",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CS 54000",
@@ -69,7 +72,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60641",
@@ -83,9 +87,7 @@
       }
     ],
     "milestones": {},
-    "attestations": {
-      "transferApproved": true
-    }
+    "attestations": {}
   },
   "expect": {
     "ms.transfer": {
@@ -106,8 +108,7 @@
   },
   "expectCourseLines": {
     "CS 51000": [
-      "waiting for the ADGS — would count",
-      "cannot cover this course"
+      "waiting for the ADGS — would count"
     ]
   }
 }

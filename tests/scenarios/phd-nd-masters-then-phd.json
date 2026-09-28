@@ -49,7 +49,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60111",
@@ -62,7 +63,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60321",
@@ -75,7 +77,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 68901",
@@ -88,7 +91,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 63801",
@@ -122,9 +126,7 @@
       }
     ],
     "milestones": {},
-    "attestations": {
-      "transferApproved": true
-    }
+    "attestations": {}
   },
   "expect": {
     "phd.transfer": {

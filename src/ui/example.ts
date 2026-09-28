@@ -53,14 +53,14 @@ export function exampleFor(program: Program, todayIso: string): Student {
       gpa: 3.6,
       // The 40000-level pair is deliberate: §3.2 allows six credits and this
       // record uses exactly six, so the cap reads as met rather than unused.
-      attestations: { ...EXAMPLE_ATTESTATIONS, dgsApproved4xxxx: true },
+      attestations: { ...EXAMPLE_ATTESTATIONS },
       courses: [
         { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'A', origin: 'nd', fromExample: true },
         { courseId: 'CSE 60535', title: 'Computer Vision', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'A-', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 40113', title: 'Design/Analysis of Algorithms', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'B+', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 40113', dgsApproved: true, title: 'Design/Analysis of Algorithms', credits: 3, term: { season: 'fall', year: lastYear }, grade: 'B+', origin: 'nd', fromExample: true },
         { courseId: 'CSE 60770', title: 'Secure Software Engineering', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'A', origin: 'nd', fromExample: true },
         { courseId: 'CSE 60424', title: 'Graduate Human Computer Interaction', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'B+', origin: 'nd', fromExample: true },
-        { courseId: 'CSE 40166', title: 'Computer Graphics', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'B', origin: 'nd', fromExample: true },
+        { courseId: 'CSE 40166', dgsApproved: true, title: 'Computer Graphics', credits: 3, term: { season: 'spring', year: thisYear }, grade: 'B', origin: 'nd', fromExample: true },
         { courseId: 'CSE 60625', title: 'Advanced Topics in Machine Learning', credits: 3, term: { season: 'fall', year: thisYear }, grade: 'IP', origin: 'nd', fromExample: true },
         { courseId: 'CSE 68902', title: 'Thesis Project', credits: 6, term: { season: 'fall', year: thisYear }, grade: 'IP', origin: 'nd', fromExample: true },
       ],

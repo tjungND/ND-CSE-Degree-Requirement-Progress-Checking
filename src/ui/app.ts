@@ -436,7 +436,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       steps: nextSteps({
         report,
         student,
-        reviewCount: coursesNeedingDgsReviewFor(classified, student).length,
+        review: (() => {
+          const pending = coursesNeedingDgsReviewFor(classified, student);
+          return { unlisted: pending.filter((p) => p.unlisted).length, caseByCase: pending.filter((p) => !p.unlisted).length };
+        })(),
         processingCount: gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa }, classified).items.count,
       }),
       nearest: nearestDeadline(report),
@@ -1302,6 +1305,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // said by the dialog and the Grad Admin card (trim review 2026-09-18, P-5).
         '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email.',
       ),
+      // The process (DGS 2026-09-27): a course not in the course rules is
+      // entered by the DGS after this request — yes, no, or case by case —
+      // and the page reads the updated rules on its next visit; a
+      // case-by-case course needs the DGS's answer for this student,
+      // recorded by the tick on the course.
+      el(
+        'p',
+        { class: 'hint process-note' },
+        `A course that is not in the course rules yet goes to the ${deciderTitle(student.program)} through this request; the ${deciderTitle(student.program)} enters it — yes, no, or case by case — and this page reads the updated rules the next time you open it. A course marked case by case needs the ${deciderTitle(student.program)}’s answer for you: send this request, then tick the box next to the course once it is approved.`,
+      ),
       ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
       ...notes.map((t) => el('div', { class: 'review-line review-note', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, 'Note'), ` — ${t}`)),
       el(
@@ -1618,6 +1631,27 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           list.append(el('a', { class: 'req-link', href: `#${reqAnchorId(r.id)}`, title: r.long }, r.title));
         });
         countsCell.append(list);
+      }
+      // The DGS's case-by-case approval, recorded on the course it concerns
+      // (DGS 2026-09-27): only a course the sheet marks dgs_approval /
+      // adgs_approval carries the box; a course not in the sheet goes to the
+      // DGS through the review request first, and a `yes` needs no tick.
+      if (line?.approvable) {
+        const cb = el('input', {
+          type: 'checkbox',
+          'data-key': `course.${index}.approved`,
+          onchange: (e) =>
+            update((s) => {
+              const entry = s.courses[index];
+              if (!entry) return;
+              if ((e.target as HTMLInputElement).checked) entry.dgsApproved = true;
+              else delete entry.dgsApproved;
+            }),
+        }) as HTMLInputElement;
+        cb.checked = line.approved === true;
+        // The cell keeps "DGS" verbatim (its lines are already worded by
+        // the engine), so the label names the decider itself.
+        countsCell.append(el('label', { class: 'attest course-approval' }, cb, ` The ${deciderTitle(student.program)} approved this course for me`));
       }
       const rowChoices = rule ? groupsOf(rule, rules) : [];
       if (rowChoices.length > 1 && student.program === 'phd') {
@@ -1953,36 +1987,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // The two-roles sentence is the next card's opening (trim review 2026-09-18, P-16).
       el('p', { class: 'hint' }, 'Tick only what has actually been approved.'),
       attestation('My advisor approved my plan of study (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
-      attestation('The DGS approved my course(s) below the 60000 level (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApproved4xxxx, (v, s) => (s.attestations.dgsApproved4xxxx = v)),
-      attestation('The DGS approved my non-CSE course(s) (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.dgsApprovedNonCse, (v, s) => (s.attestations.dgsApprovedNonCse = v)),
     );
-    // §5.2 (DGS 2026-09-12, red-team F5): an external course counts only once
-    // the DGS has EXPLICITLY approved it. The checkbox records that approval
-    // (and the Graduate School's processing) for courses the DGS has
-    // reviewed — a `yes` or a "needs approval" verdict in the rules sheet.
-    // It is shown only when it can settle something: with no reviewed
-    // transfer course it is a dead control, so the explanation stands alone.
-    {
-      const transfers = classified.filter(
-        (c) => c.entry.origin === 'transfer' && c.entry.degreeLevel !== 'bachelors' && !c.superseded && c.caps.includes('transfer'),
-      );
-      const reviewed = transfers.filter((c) => c.reviewed === true);
-      const unreviewed = transfers.filter((c) => c.reviewed !== true).map((c) => c.entry.courseId);
-      if (reviewed.length > 0) {
-        card.append(attestation('The DGS explicitly approved my transfer credit (§5.2)', a.transferApproved, (v, s) => (s.attestations.transferApproved = v)));
-      }
-      // Only what the box cannot do (DGS 2026-09-13: the rule itself is
-      // obvious from the "Ask the DGS to review" card, so it is not repeated).
-      if (reviewed.length > 0 && unreviewed.length > 0) {
-        card.append(
-          el(
-            'p',
-            { class: 'hint attest-note', 'data-key': 'attest.transfer.note' },
-            `This box cannot settle ${unreviewed.join(', ')} — not reviewed yet; send the review request from the “Ask the DGS to review” card.`,
-          ),
-        );
-      }
-    }
+    // The DGS's course approvals left this card on 2026-09-27: each is a tick
+    // on the course it concerns, shown only where the sheet decides the
+    // course case by case (the coursework table).
     if (student.program === 'phd') {
       card.append(
         attestation('The DGS extended my qualifier deadline (§4.4)', a.qualifierExtensionGranted, (v, s) => (s.attestations.qualifierExtensionGranted = v)),

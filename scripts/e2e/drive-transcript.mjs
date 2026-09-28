@@ -272,16 +272,16 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // "I already hold the MSCSE from Notre Dame" box is not offered (DGS 2026-09-13).
   if (await s.evalJs(`[...document.querySelectorAll('label.check')].some(l => /already hold the MSCSE from Notre Dame/.test(l.textContent))`)) throw new Error('the ND-MSCSE box must not show beside another university’s master’s transcript');
   console.log('  ND-MSCSE box hidden while a Purdue master’s is on the record');
-  // §5.2 explicit approval (DGS 2026-09-12, red-team F5): with a transfer
-  // course on the record the rule is stated beside the approvals, and the
-  // checkbox appears only when a reviewed course exists for it to settle.
+  // The DGS's approval is a tick on the course it concerns, offered only where
+  // the sheet decides the course case by case (DGS 2026-09-27); the sandbox
+  // has no ExternalCourses tab, so no Purdue row offers one, and the three
+  // record-level boxes are gone from the milestones card.
   {
-    const attest = JSON.parse(await s.evalJs(`JSON.stringify({ note: document.querySelector('[data-key="attest.transfer.note"]')?.textContent ?? '', box: !!document.querySelector('[data-key^="attest.the-dgs-explicitly-approved"]') })`));
-    // The rule is not restated here (DGS 2026-09-13); the note appears only
-    // beside a shown box, naming the courses it cannot settle.
-    if (!attest.box && attest.note !== '') throw new Error('no §5.2 box → no note: ' + attest.note.slice(0, 120));
-    if (attest.box && attest.note !== '' && !/^This box cannot settle .* — not reviewed yet/.test(attest.note)) throw new Error('the note names only what the box cannot settle: ' + attest.note.slice(0, 120));
-    console.log('  §5.2 checkbox ' + (attest.box ? 'shown (a reviewed course exists)' : 'hidden (nothing reviewed yet)') + (attest.note ? '; note: ' + attest.note.slice(0, 60) : ''));
+    const boxes = await s.evalJs(`JSON.stringify({ perCourse: document.querySelectorAll('[data-key^="course."][data-key$=".approved"]').length, old: document.querySelectorAll('[data-key^="attest.the-dgs-approved"], [data-key^="attest.the-dgs-explicitly-approved"]').length })`);
+    const { perCourse, old } = JSON.parse(boxes);
+    if (perCourse !== 0) throw new Error('an unlisted course must not offer the approval tick: ' + perCourse);
+    if (old !== 0) throw new Error('the record-level DGS boxes must be gone: ' + old);
+    console.log('  approval ticks: none offered (nothing in the sheet is case by case here); record-level boxes gone');
   }
   const candidates = purdueLines.filter((l) => l.includes('mark-pending') && l.includes('waiting for the DGS — '));
   const wouldCount = candidates.filter((l) => l.includes('would count toward regular courses'));

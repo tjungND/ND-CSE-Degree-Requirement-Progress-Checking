@@ -79,8 +79,10 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // The attestation makes the row "met" only when it has settled every
     // course: a never-reviewed course stays pending whatever is ticked
     // (2026-09-11), and the row must say so rather than read met beside it.
+    // Every course settled (2026-09-27: by the sheet's `yes`, or by the tick on
+    // a case-by-case course) and something counted → met.
     status = pending.length === 0
-      ? ctx.student.attestations.transferApproved
+      ? counted > 0
         ? 'met'
         : 'not_applicable'
         : preApproved.length === pending.length
@@ -100,7 +102,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     if (unreviewed.length > 0) {
       const credits = unreviewed.reduce((sum, c) => sum + (c.entry.credits ?? 0), 0);
       parts.push(
-        `Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} (${formatCredits(credits)} credits) — send the review request from the Transcripts card${ctx.student.attestations.transferApproved ? '; the box “The DGS explicitly approved my transfer credit” cannot cover a course the DGS has not reviewed' : ''}`,
+        `Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} (${formatCredits(credits)} credits) — send the review request from the Transcripts card`,
       );
     }
     parts.push(`${formatCredits(counted)} of the ${cap} credits you may transfer are counted (§5.2 allowance for ${capFor})${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`);
@@ -123,6 +125,12 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     for (const p of excluded) parts.push(`${p.course.entry.courseId}: ${p.excludedReason ?? 'not counted'}`);
     if (status === 'not_applicable') {
       parts.push('Nothing here needs a decision by the DGS — none of the courses you entered can transfer under §5.2, for the reason on each course’s line');
+    }
+    // A `yes` in the course rules counts outright (2026-09-27); the Grad
+    // Admin still records it, so the row says which courses to send.
+    const approvedForAll = transfers.filter((c) => !c.superseded && c.transferable === 'yes' && c.ineligibleReason === undefined);
+    if (approvedForAll.length > 0) {
+      parts.push(`Approved by the DGS in the course rules: ${approvedForAll.map((c) => c.entry.courseId).join(', ')} — send the Grad Admin the processing request to have the credit recorded (§5.2)`);
     }
     if (status !== 'met') {
       if (preApproved.length > 0) {

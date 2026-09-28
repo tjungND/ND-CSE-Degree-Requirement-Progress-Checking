@@ -361,7 +361,7 @@ describe('non-CSE courses', () => {
     assert.equal(pending.length, 1);
     assert.equal(pending[0]!.unlisted, true, 'it needs a new Courses-tab row');
     assert.match(pending[0]!.reason, /not in the course rules yet/);
-    assert.match(pending[0]!.reason, /non-CSE course/);
+    assert.match(pending[0]!.reason, /outside CSE|non-CSE course/);
   });
 
   // CLAUDE.md: "A missing parameter renders 'cannot evaluate', never a
@@ -381,12 +381,12 @@ describe('non-CSE courses', () => {
 
   // "counts" is third-person; only "would count" / "will count" take the bare
   // verb. A passed course partly over a cap read "count 1 of 4 credits".
-  it('a passed course partly over the cap keeps its verb', () => {
+  it('a course partly over the cap keeps its verb (an unlisted non-CSE course is provisional since 2026-09-27 — no tick settles it)', () => {
     const courses = [course('MATH 60610', 'A', 4), course('ACMS 60842', 'B', 4), course('EE 60566', 'C', 4)];
-    const report = audit(nonCseStudent(courses, { dgsApprovedNonCse: true }), buildRules(), '2027-06-01');
+    const report = audit(nonCseStudent(courses), buildRules(), '2027-06-01');
     const partial = report.courseLines.find((l) => /of 4 credits/.test(l.text));
     assert.ok(partial, 'one course should be partly over the 9-credit cap');
-    assert.match(partial!.text, /^counts 1 of 4 credits toward regular courses and 3 toward the total-credit requirement only/);
+    assert.match(partial!.text, /^waiting for the DGS — would count 1 of 4 credits toward regular courses and 3 toward the total-credit requirement only/);
     assert.match(partial!.text, /over the 9-credit non-CSE cap \(§4\.2\) — the allowance limits regular-course credit, not the total/);
   });
 });
@@ -457,17 +457,23 @@ describe('50000-level bridge courses', () => {
   // put both levels under one cap (2026-09-09), but it still only cleared
   // level 4 — so the one bridge course the sheet permits could never be
   // approved, and stayed amber and in the review request for good.
-  it('the below-60000 approval checkbox clears a 50000-level course', () => {
+  it('the tick on a 50000-level course the sheet decides case by case clears it (per course since 2026-09-27)', () => {
     const before = audit(bridgeStudent(), buildRules(), '2027-06-01');
     assert.equal(before.requirements.find((r) => r.id === 'phd.credits.regular')?.status, 'unmet');
     assert.match(before.courseLines.find((l) => l.courseId === 'CSE 50502')!.text, /needs advisor \+ DGS approval/);
+    assert.equal(before.courseLines.find((l) => l.courseId === 'CSE 50502')!.approvable, true, 'the row offers the tick');
 
-    const after = audit(bridgeStudent({ dgsApproved4xxxx: true }), buildRules(), '2027-06-01');
+    const ticked = bridgeStudent();
+    ticked.courses[0]!.dgsApproved = true;
+    const after = audit(ticked, buildRules(), '2027-06-01');
     const line = after.courseLines.find((l) => l.courseId === 'CSE 50502');
     assert.equal(line?.mark, 'counts');
+    assert.equal(line?.approved, true);
     assert.match(line!.text, /^counts toward regular courses \(3 cr\)/);
     assert.match(after.requirements.find((r) => r.id === 'phd.credits.regular')!.detail, /3 of 24/);
-    assert.equal(coursesNeedingDgsReview(bridgeStudent({ dgsApproved4xxxx: true }), buildRules()).length, 0);
+    assert.equal(coursesNeedingDgsReview(ticked, buildRules()).length, 0);
+    // The old record-level box no longer settles anything.
+    assert.equal(audit(bridgeStudent({ dgsApproved4xxxx: true }), buildRules(), '2027-06-01').courseLines.find((l) => l.courseId === 'CSE 50502')?.mark, 'pending');
   });
 
   // The line names the course's OWN level: the cap covers both, and a bridge
@@ -679,10 +685,10 @@ describe('undergraduate Notre Dame coursework', () => {
     // CSE 40437 is the fixture's 40000-level row that says adgs_approval for
     // the MSCSE; CSE 40113 used to play this part, but the live sheet says
     // plain yes for it, and a yes needs no one's approval (DGS 2026-09-18).
-    it('a 40000-level course the sheet gates on approval is provisional until the box is ticked', () => {
+    it('a 40000-level course the sheet gates on approval is provisional until its own box is ticked (per course since 2026-09-27)', () => {
       const s = ms([ug('CSE 40437')]);
       assert.match(lineFor(s, 'CSE 40437'), /^waiting for the ADGS — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/); // the ADGS decides for the MSCSE (2026-09-11)
-      assert.match(lineFor(ms([ug('CSE 40437')], { attestations: { dgsApproved4xxxx: true } }), 'CSE 40437'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
+      assert.match(lineFor(ms([{ ...ug('CSE 40437'), dgsApproved: true as const }]), 'CSE 40437'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
     });
   });
 

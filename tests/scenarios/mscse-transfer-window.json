@@ -30,7 +30,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CS 52000",
@@ -43,7 +44,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60641",
@@ -57,9 +59,7 @@
       }
     ],
     "milestones": {},
-    "attestations": {
-      "transferApproved": true
-    }
+    "attestations": {}
   },
   "expect": {
     "ms.transfer": {

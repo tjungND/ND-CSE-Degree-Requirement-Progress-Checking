@@ -19,7 +19,7 @@
 // the word "audit" (the page is a self-check).
 import { formatCredits } from '../engine/credits.ts';
 import type { Rules } from '../data/types.ts';
-import { classify, type ClassifiedCourse } from '../engine/allocate.ts';
+import { classify, decidedCaseByCase, type ClassifiedCourse } from '../engine/allocate.ts';
 import { termLabel } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, Milestones, RequirementResult, Student } from '../engine/types.ts';
 import { DO_NOT_MODIFY_MARKER, EDITABLE_MARKER, MARKER_DIVIDER } from '../transcript/external.ts';
@@ -140,7 +140,8 @@ function metTable(r: RequirementResult, student: Student): MetTable {
  * render); otherwise it is computed here. */
 export function processingItems(report: AuditReport, student: Student, rules: Rules, classified?: readonly ClassifiedCourse[]): ProcessingItems {
   classified ??= classify(student, rules).classified;
-  const attested = student.attestations.transferApproved === true;
+  // The DGS's approval for this student is on the course (2026-09-27).
+  const approvedForMe = (c: ClassifiedCourse): boolean => c.entry.dgsApproved === true && decidedCaseByCase(c, student.program);
   const transfers: ProcessingTransfer[] = classified
     .filter(
       (c) =>
@@ -151,7 +152,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
         // A course that still needs an approval is NOT processable
         // (2026-09-08). Only `yes` for this student's program, or their
         // attestation that the approval came through, reaches the Grad Admin.
-        (c.transferable === 'yes' || attested),
+        (c.transferable === 'yes' || approvedForMe(c)),
     )
     .map((c) => ({
       courseId: c.entry.courseId,
@@ -161,7 +162,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
       ndCredits: c.effectiveCredits,
       grade: c.entry.grade,
       termText: termLabel(c.entry.term),
-      state: attested ? 'approved' : 'pre-approved',
+      state: approvedForMe(c) ? 'approved' : 'pre-approved',
     }));
   const milestones = MILESTONE_FIELDS.filter((f) => f.program === 'both' || f.program === student.program).flatMap((f) => {
     const date = student.milestones[f.key];

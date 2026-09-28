@@ -1,30 +1,102 @@
 {
   "name": "mscse-noncse-ten",
-  "description": "MSCSE student with 9 non-CSE credits plus a 10th: the 10th credit is excluded by the §3.2 nine-credit cap and the report names the excluded course. DGS approval for non-CSE courses is attested.",
+  "description": "MSCSE student with 9 non-CSE credits plus a 10th: the 10th credit is excluded by the §3.2 nine-credit cap and the report names the excluded course. DGS approval for non-CSE courses is attested. (2026-09-27: a course not in the course rules is the DGS’s to enter — no tick settles it — so the allowance row waits for the DGS.)",
   "today": "2027-06-01",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default"
+  },
   "student": {
     "schemaVersion": 1,
     "program": "mscse",
     "msOption": "project",
-    "entryTerm": { "season": "fall", "year": 2026 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
     "priorMs": "none",
     "gpa": 3.8,
     "courses": [
-      { "courseId": "ACMS 60855", "title": "Spatio-Temporal Statistics", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
-      { "courseId": "MATH 60610", "title": "Basic Discrete Mathematics", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" },
-      { "courseId": "EE 67432", "title": "Digital Signal Processing", "credits": 3, "term": { "season": "spring", "year": 2027 }, "grade": "A-", "origin": "nd" },
-      { "courseId": "PHYS 60050", "title": "Colloquium Methods", "credits": 1, "term": { "season": "spring", "year": 2027 }, "grade": "A", "origin": "nd" },
-      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+      {
+        "courseId": "ACMS 60855",
+        "title": "Spatio-Temporal Statistics",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "MATH 60610",
+        "title": "Basic Discrete Mathematics",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "EE 67432",
+        "title": "Digital Signal Processing",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A-",
+        "origin": "nd",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "PHYS 60050",
+        "title": "Colloquium Methods",
+        "credits": 1,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
     ],
     "milestones": {},
-    "attestations": { "dgsApprovedNonCse": true }
+    "attestations": {}
   },
   "expect": {
-    "ms.cap.noncse": { "status": "met", "detailIncludes": ["PHYS 60050", "beyond the allowance — count toward the total-credit requirement only"] },
-    "ms.credits.regular": { "status": "unmet", "detailIncludes": ["12 of 24"] }
+    "ms.cap.noncse": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "PHYS 60050",
+        "beyond the allowance — count toward the total-credit requirement only"
+      ]
+    },
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24"
+      ]
+    }
   },
   "expectCourseLines": {
-    "PHYS 60050": ["toward the total-credit requirement only", "9-credit"]
+    "PHYS 60050": [
+      "toward the total-credit requirement only",
+      "9-credit"
+    ]
   }
 }

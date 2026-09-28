@@ -19,9 +19,7 @@
     "priorMs": "completed",
     "gpa": 3.7,
     "milestones": {},
-    "attestations": {
-      "transferApproved": true
-    },
+    "attestations": {},
     "ndMasters": {
       "term": {
         "season": "spring",
@@ -41,7 +39,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60111",
@@ -55,7 +54,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60321",
@@ -69,7 +69,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 68902",
@@ -83,7 +84,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60770",

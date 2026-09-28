@@ -119,6 +119,30 @@ export type Refusal = { key: string; text: string; message: string };
  * work, so one impossible number drops out of it rather than taking the other
  * ninety with it — and `loadLocal()` reads the same code, where throwing would
  * silently discard everything already on the device. */
+/** Files from before 2026-09-27 recorded the DGS's approvals as three
+ * record-level boxes. Each ticked box is mapped onto every course it covered
+ * (the engine honours the mark only on a course the sheet decides case by
+ * case, so nothing counts that did not before) and the box is cleared. */
+function migrateApprovalBoxes(d: { courses: Record<string, unknown>[]; attestations?: Record<string, unknown> }): void {
+  const old = d.attestations;
+  if (!old) return;
+  const fourk = old['dgsApproved4xxxx'] === true;
+  const noncse = old['dgsApprovedNonCse'] === true;
+  const transfer = old['transferApproved'] === true;
+  if (!fourk && !noncse && !transfer) return;
+  for (const c of d.courses) {
+    const id = String(c['courseId'] ?? '');
+    const level = Number(/\b(\d)\d{4}\b/.exec(id)?.[1]);
+    const cse = /^CSE\b/.test(id);
+    const fromNd = c['origin'] === 'nd' || /notre dame/i.test(String(c['institution'] ?? ''));
+    const graduateTransfer = c['origin'] === 'transfer' && c['degreeLevel'] !== 'bachelors';
+    if ((fourk && fromNd && cse && (level === 4 || level === 5)) || (noncse && !cse) || (transfer && graduateTransfer)) c['dgsApproved'] = true;
+  }
+  delete old['dgsApproved4xxxx'];
+  delete old['dgsApprovedNonCse'];
+  delete old['transferApproved'];
+}
+
 export function validateStudent(data: unknown, refusals: Refusal[] = []): Student {
   const d = data as Partial<Student> & { state?: unknown };
   if (d && typeof d === 'object' && 'student' in (d as object)) {
@@ -179,7 +203,9 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
       delete e['fromNdTranscript']; // likewise a hint (which rows the transcript import added)
     if (e['fromExample'] !== undefined && e['fromExample'] !== true) delete e['fromExample']; // and which came from "Load example"
     if (e['countedToward'] !== undefined && !COUNTED_TOWARD.includes(e['countedToward'] as string)) delete e['countedToward'];
+    if (e['dgsApproved'] !== undefined && e['dgsApproved'] !== true) delete e['dgsApproved']; // the DGS's approval of this course (2026-09-27)
   });
+  migrateApprovalBoxes(d as unknown as { courses: Record<string, unknown>[]; attestations?: Record<string, unknown> });
   // The cumulative GPA is the one number in a file the engine reads straight
   // through to a verdict, so it is range-checked here as well as in the form
   // (R1, 2026-09-18): a hand-edited 35 used to render "35.00 meets the 3.0

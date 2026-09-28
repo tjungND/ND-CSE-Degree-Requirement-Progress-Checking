@@ -73,7 +73,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "ECE 60146",
@@ -85,7 +86,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "INFO 51000",
@@ -97,7 +99,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "MENG 50100",
@@ -109,7 +112,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "TELE 52000",
@@ -121,7 +125,8 @@
         "grade": "A",
         "origin": "transfer",
         "institution": "Purdue University",
-        "degreeLevel": "masters"
+        "degreeLevel": "masters",
+        "dgsApproved": true
       },
       {
         "courseId": "CSE 60641",
@@ -135,9 +140,7 @@
       }
     ],
     "milestones": {},
-    "attestations": {
-      "transferApproved": true
-    }
+    "attestations": {}
   },
   "expect": {
     "phd.cap.noncse": {

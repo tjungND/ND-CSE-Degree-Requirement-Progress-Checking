@@ -34,13 +34,13 @@ describe('next steps (DGS 2026-09-27)', () => {
     s.bachelorsAwarded = { season: 'spring', year: 2021 };
     s.bachelorsAwardedInferred = { how: 'the Bachelor of Science awarded 2021-05-16' };
     const r = report([row('shared.advisor', 'unmet'), row('shared.approvals', 'needs_dgs_review')]);
-    const steps = nextSteps({ report: r, student: s, reviewCount: 2, processingCount: 0 });
+    const steps = nextSteps({ report: r, student: s, review: { unlisted: 1, caseByCase: 1 }, processingCount: 0 });
     assert.deepEqual(steps.map((x) => x.text), [
       'Check what your transcript set — first semester Fall 2026, bachelor’s degree Spring 2021 (Your standing).',
-      'Send the review request for 2 courses — the DGS decides.',
+      'Send the review request: 1 course is not in the course rules yet, and 1 needs the DGS’s approval for you.',
       'Enter your advisor’s name under Milestones.',
       'Confirm your advisor approved your plan of study and tick the box under Approvals.',
-      'When the DGS answers, tick the approvals, then send the processing request — the Grad Admin records it.',
+      'When the DGS answers, come back to this page — it reads the latest course rules — and tick the box next to each course approved for you; then send the processing request, and the Grad Admin records it.',
       'Send the summary to your advisor whenever you like.',
     ]);
     assert.deepEqual(steps.map((x) => x.href), ['#standing', '#dgs-review', '#milestones', '#milestones', '#grad-admin', undefined]);
@@ -52,9 +52,9 @@ describe('next steps (DGS 2026-09-27)', () => {
     const s: Student = { ...phdStudent(), courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
     s.attestations.advisorApprovedPlan = true;
     const r = report([row('shared.advisor', 'met'), row('shared.approvals', 'not_applicable')]);
-    assert.deepEqual(nextSteps({ report: r, student: s, reviewCount: 0, processingCount: 0 }).map((x) => x.text), ['Send the summary to your advisor whenever you like.']);
-    assert.deepEqual(nextSteps({ report: r, student: s, reviewCount: 0, processingCount: 2 }).map((x) => x.text), ['Send the processing request (2 items) — the Grad Admin records it.', 'Send the summary to your advisor whenever you like.']);
-    assert.deepEqual(nextSteps({ report: report([row('shared.advisor', 'met')]), student: phdStudent(), reviewCount: 0, processingCount: 0 }), []);
+    assert.deepEqual(nextSteps({ report: r, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }).map((x) => x.text), ['Send the summary to your advisor whenever you like.']);
+    assert.deepEqual(nextSteps({ report: r, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 2 }).map((x) => x.text), ['Send the processing request (2 items) — the Grad Admin records it.', 'Send the summary to your advisor whenever you like.']);
+    assert.deepEqual(nextSteps({ report: report([row('shared.advisor', 'met')]), student: phdStudent(), review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }), []);
   });
   it('the nearest deadline still ahead names the row and its chip', () => {
     const r = report([
