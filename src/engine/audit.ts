@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { allocate, classify, decidedCaseByCase, spentOnBachelorsAndMasters, type CapSpec } from './allocate.ts';
+import { allocate, classify, decidedCaseByCase, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
@@ -235,21 +235,37 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // can still count; only when every entry of a number is refused do they all
   // keep them (a core-area row may still name such a course).
   const canCount = (p: (typeof alloc.perCourse)[number]): boolean => p.mark !== 'excluded';
+  // A Notre Dame course taken in the program never gets the classifier's
+  // core-knowledge clause, so its qualifier roles showed only in the folded
+  // link row (DGS 2026-09-28: "it does not say it counts toward core
+  // knowledge … Is this an error?"). Its second line is read off the rows it
+  // feeds instead — a core area, a specialization group — with a mark of its
+  // own: green now, blue while the course is in progress, amber while it
+  // waits on an approval.
+  const qualifierFromFeeds = (p: (typeof alloc.perCourse)[number], counts: { id: string; long: string; when: 'now' | 'later' }[]): { mark: CourseMark; text: string } | undefined => {
+    const roles = counts.filter((x) => x.id.startsWith('phd.qualifier.core.') || x.id === 'phd.qualifier.categories');
+    if (roles.length === 0) return undefined;
+    const parts = roles.map((x) => (x.id === 'phd.qualifier.categories' ? 'specialization course (§4.4.2)' : `${x.long.replace(/^Core knowledge:\s*/, '')} core knowledge (§4.4.1)`));
+    const mark: CourseMark = roles.some((x) => x.when === 'now') ? 'counts' : p.mark === 'in_progress' ? 'in_progress' : 'pending';
+    return { mark, text: parts.join(' · ') };
+  };
   const courseLines = alloc.perCourse.map((p) => {
     const id = p.course.entry.courseId;
     const aLiveSibling = !canCount(p) && alloc.perCourse.some((q) => q !== p && q.course.entry.courseId === id && canCount(q));
+    const counts = aLiveSibling ? [] : (feeds.get(id) ?? []);
+    const qualifier = p.qualifier ?? qualifierFromFeeds(p, counts);
     return {
       courseId: id,
       term: p.course.entry.term,
       text: p.explanation,
       mark: p.mark,
-      ...(p.qualifier ? { qualifier: p.qualifier } : {}),
+      ...(qualifier ? { qualifier } : {}),
       // The tick box belongs on a course the sheet decides case by case
       // (DGS 2026-09-27), and only while the course can still count.
       ...(decidedCaseByCase(p.course, student.program) && p.course.ineligibleReason === undefined
         ? { approvable: true as const, ...(p.course.entry.dgsApproved ? { approved: true as const } : {}) }
         : {}),
-      counts: aLiveSibling ? [] : (feeds.get(id) ?? []),
+      counts,
     };
   });
 

@@ -396,6 +396,18 @@ describe('graduate student status — §5.2 criterion 2 (DGS 2026-09-06)', () =>
   // 2026-09-11: a line that says "not counted" is never green, whatever core
   // area it also earns — that fact has its own §4.4.1 row. Keyword titles stay
   // amber (a review could still confirm them).
+  it('a Notre Dame course taken in the program gets its qualifier line from the rows it feeds (DGS 2026-09-28)', () => {
+    const s = student([]);
+    s.courses = [{ courseId: 'CSE 60321', title: 'Advanced Computer Architecture', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }, { courseId: 'CSE 60641', title: 'Graduate Operating Systems', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'IP', origin: 'nd' }];
+    const report = audit(s, rules, '2026-11-01');
+    const arch = report.courseLines.find((l) => l.courseId === 'CSE 60321')!;
+    assert.equal(arch.text, 'counts toward regular courses (3 cr)');
+    assert.equal(arch.qualifier?.mark, 'counts');
+    assert.match(arch.qualifier?.text ?? '', /^Computer Architecture core knowledge \(§4\.4\.1\)/);
+    const os = report.courseLines.find((l) => l.courseId === 'CSE 60641')!;
+    assert.equal(os.qualifier?.mark, 'in_progress', 'blue while the course is in progress');
+    assert.match(os.qualifier?.text ?? '', /Operating Systems core knowledge/);
+  });
   it('marks: a "not counted" credit line is red; the core area is a qualifier line with its own mark — green when confirmed, amber for a keyword title (DGS 2026-09-27)', () => {
     const confirmed = line(withBachelors([{ courseId: 'IFT-2125', title: 'Introduction à l’algorithmique', institution: 'Université de Montréal', term: { season: 'fall', year: 2023 } }]), 'IFT-2125')!;
     assert.match(confirmed.text, /^not counted — taken before/);

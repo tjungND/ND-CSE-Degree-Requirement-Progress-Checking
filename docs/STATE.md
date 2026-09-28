@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-26 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-28: every course with a core or specialization role shows it on a Qualifier line of its own (DGS: a plain ✓ course had lost it to the folded link row).
+
 2026-09-27 (night): **4g done as the DGS specified** — the DGS's approval lives on the course
 (`CourseEntry.dgsApproved`), offered only where the sheet decides the course case by case; a
 sheet `yes` counts outright (no tick), a course not in the sheet goes to the DGS through the
