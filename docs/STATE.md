@@ -1,6 +1,8 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-28 (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-09-29 (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-09-29: a qualifier component still open after the §4.4 deadline reads Overdue like its umbrella (DGS bug report; the components share the umbrella's deadline).
 
 2026-09-28 (night, later): every requirement in the advisor summary and the Grad Admin request is one block — a bordered card in its colour in HTML, the tag line with its lines indented beneath in text (DGS: which text belongs to which requirement).
 

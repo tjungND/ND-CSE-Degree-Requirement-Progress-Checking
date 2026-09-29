@@ -35,6 +35,10 @@ describe('scenarios', () => {
         for (const sub of exp.detailExcludes ?? []) {
           assert.ok(!row.detail.includes(sub), `detail of ${id} must not mention "${sub}" — got: ${row.detail}`);
         }
+        // `deadlineState` (2026-09-29): the chip's state — what the pill's
+        // "Overdue" and the deadline alert hang on.
+        const wantDeadline = (exp as { deadlineState?: string }).deadlineState;
+        if (wantDeadline !== undefined) assert.equal(row.deadline?.state ?? 'none', wantDeadline, `deadline state of ${id}`);
       }
 
       if (sc.expectTracks !== undefined) {

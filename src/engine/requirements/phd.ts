@@ -9,7 +9,7 @@ import { usableGpa } from '../ranges.ts';
 import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
-import type { DetailPart, Grade, RequirementResult, Status, Term } from '../types.ts';
+import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { capRow, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
@@ -207,6 +207,12 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   // The five parts carry their own pills but the umbrella is what the
   // headline counts (DGS 2026-09-27: it counted the qualifier six times).
   const qualifierChildren = [...coreRows(ctx), categoriesRow(ctx), researchQualifierRow(ctx)].map((c) => ({ ...c, unscored: true as const }));
+  // §4.4's four semesters bind EVERY component (DGS 2026-09-29: a core area
+  // still open after the umbrella's deadline read "In progress" while the
+  // umbrella read "Overdue"): each open component carries the umbrella's
+  // deadline, and reads Overdue once it has passed. The research component
+  // keeps its own, earlier, §4.4.3 deadline.
+  const qualifierDue = qualifierDeadline(ctx);
   // §4.2 conditions the qualifier on nine regular credits at Notre Dame (F3,
   // 2026-09-12): the umbrella cannot read "met" while that row is not.
   if (qualifierPassedUnderPriorRules(ctx)) {
@@ -217,8 +223,9 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     // what counts — and the current rule's three components do not apply.
     rows.push(...qualifierRowsPassedUnderPriorRules(ctx, qualifierChildren));
   } else {
-    rows.push(qualifierUmbrellaRow(ctx, qualifierChildren, rows.find((r) => r.id === 'phd.credits.nd')));
-    rows.push(...qualifierChildren);
+    const dated = qualifierChildren.map((c) => withQualifierDeadline(c, qualifierDue));
+    rows.push(qualifierUmbrellaRow(ctx, dated, rows.find((r) => r.id === 'phd.credits.nd'), qualifierDue));
+    rows.push(...dated);
   }
   rows.push(candidacyRow(ctx));
   rows.push(...dissertationRows(ctx));
@@ -363,10 +370,58 @@ export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEv
 /** §4.4: "Students must complete all three components of the qualiﬁer
  * requirement within four (4) semesters of starting; the DGS may extend the
  * deadline on a case-by-case basis." */
-function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits?: RequirementResult): RequirementResult {
+/** The §4.4 deadline — "within four (4) semesters of starting", plus the
+ * DGS's ONE-semester extension (2026-09-13) — computed once for the umbrella
+ * and its components. Undefined while the rules sheet lacks the parameter. */
+interface QualifierDeadline {
+  term: Term;
+  extendedTerm?: Term;
+  effectiveDate: string;
+  passed: boolean;
+  /** The chip: overdue once passed, else open (due soon / upcoming). */
+  deadline: DeadlineInfo;
+}
+function qualifierDeadline(ctx: Ctx): QualifierDeadline | undefined {
+  const semesters = ctx.params.number('qualifier_deadline_semesters');
+  if (semesters === undefined) return undefined;
+  const term = nthSemester(ctx.entry, semesters);
+  const date = endOfTerm(term).date;
+  // §4.4's extension is ONE additional semester (DGS 2026-09-13) — the term
+  // after the four, not an open-ended waiver. Once that semester is over the
+  // row goes overdue like any other.
+  const extendedTerm = ctx.student.attestations.qualifierExtensionGranted ? nthSemester(ctx.entry, semesters + 1) : undefined;
+  const effectiveDate = extendedTerm ? endOfTerm(extendedTerm).date : date;
+  const passed = ctx.today > effectiveDate;
+  const deadline: DeadlineInfo = passed
+    ? {
+        date: effectiveDate,
+        approx: true,
+        state: 'overdue',
+        label: extendedTerm
+          ? `Overdue — the DGS’s one-semester extension ran out at the end of ${termLabel(extendedTerm)} (approximate)`
+          : `Overdue — was due by the end of ${termLabel(term)} (approximate)`,
+      }
+    : extendedTerm
+      ? openDeadline(effectiveDate, ctx.today, `Due by the end of ${termLabel(extendedTerm)} — the DGS’s one-semester extension (approximate)`)
+      : openDeadline(date, ctx.today, `Due by the end of ${termLabel(term)} (approximate)`);
+  return { term, extendedTerm, effectiveDate, passed, deadline };
+}
+
+/** A component of the qualifier under the umbrella's deadline (DGS
+ * 2026-09-29): an open core-knowledge or specialization row carries the same
+ * chip as the umbrella and, once the deadline has passed, reads Overdue —
+ * decision Q17b as for the umbrella: in progress is not done. A met,
+ * conditionally met or unevaluable row is left alone, and so is the research
+ * component, whose own §4.4.3 deadline comes first. */
+function withQualifierDeadline(c: RequirementResult, due: QualifierDeadline | undefined): RequirementResult {
+  if (due === undefined || c.id === 'phd.qualifier.research') return c;
+  if (c.status !== 'unmet' && c.status !== 'in_progress') return c;
+  return { ...c, ...(due.passed ? { status: 'unmet' as const } : {}), deadline: due.deadline };
+}
+
+function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits: RequirementResult | undefined, due: QualifierDeadline | undefined): RequirementResult {
   const quote =
     'Students must complete all three components of the qualifier requirement within four (4) semesters of starting; the DGS may extend the deadline on a case-by-case basis.';
-  const semesters = ctx.params.number('qualifier_deadline_semesters');
   let status = combineAll([...children.map((c) => c.status), ...(ndCredits ? [ndCredits.status] : [])]);
   // The standing first (DGS 2026-09-27): how many parts are done and which
   // are still open — the first sentence used to describe the page layout.
@@ -383,31 +438,22 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
     parts.push(`§4.2 also requires at least nine credits of regular courses taken at Notre Dame before the examination — ${ndCredits.detail.split('.')[0]}`);
   }
   let deadline: RequirementResult['deadline'];
-  if (semesters === undefined) {
+  if (due === undefined) {
     status = 'cannot_evaluate';
     parts.push(missingParamDetail('qualifier_deadline_semesters'));
   } else {
-    const term = nthSemester(ctx.entry, semesters);
-    const date = endOfTerm(term).date;
-    // §4.4's extension is ONE additional semester (DGS 2026-09-13) — the term
-    // after the four, not an open-ended waiver. Once that semester is over the
-    // row goes overdue like any other.
-    const extendedTerm = ctx.student.attestations.qualifierExtensionGranted ? nthSemester(ctx.entry, semesters + 1) : undefined;
-    const effectiveDate = extendedTerm ? endOfTerm(extendedTerm).date : date;
+    const { term, extendedTerm, effectiveDate, passed } = due;
     if (status === 'met') {
       deadline = { date: effectiveDate, approx: true, state: 'done', label: 'Complete' };
       if (!ctx.student.milestones.qualifierFormFiled) {
         parts.push('Remember to file the qualifier completion form with the Grad Admin (§4.4)');
       }
-    } else if (ctx.today > effectiveDate) {
+    } else if (passed) {
       // Decision Q17b: a deadline past with the work incomplete is unmet, even
       // when a component is still in progress (matching deadlineStatus()).
       // A deadline cannot make a MISSING PARAMETER into a missed requirement,
       // though (red-team 2026-09-13): "cannot evaluate" survives the override,
       // so a blank rules-sheet cell never reads as "overdue — forfeiture".
-      const overdueLabel = extendedTerm
-        ? `Overdue — the DGS’s one-semester extension ran out at the end of ${termLabel(extendedTerm)} (approximate)`
-        : `Overdue — was due by the end of ${termLabel(term)} (approximate)`;
       if (status === 'cannot_evaluate') {
         parts.push(`The deadline (${extendedTerm ? `the DGS’s extension, the end of ${termLabel(extendedTerm)}` : `the end of ${termLabel(term)}`}) has passed, but a component above cannot be evaluated until the rules sheet is complete — so this row cannot be judged either`);
       } else {
@@ -415,12 +461,10 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
         // The deadline chip carries the when (2026-09-03).
         parts.push(`Overdue — talk to the DGS`);
       }
-      deadline = { date: effectiveDate, approx: true, state: 'overdue', label: overdueLabel };
-    } else if (extendedTerm) {
-      deadline = openDeadline(effectiveDate, ctx.today, `Due by the end of ${termLabel(extendedTerm)} — the DGS’s one-semester extension (approximate)`);
-      parts.push(`Deadline extended by one semester by the DGS — now the end of ${termLabel(extendedTerm)}; a further extension is the DGS’s to grant`);
+      deadline = due.deadline;
     } else {
-      deadline = openDeadline(date, ctx.today, `Due by the end of ${termLabel(term)} (approximate)`);
+      deadline = due.deadline;
+      if (extendedTerm) parts.push(`Deadline extended by one semester by the DGS — now the end of ${termLabel(extendedTerm)}; a further extension is the DGS’s to grant`);
     }
   }
   return {

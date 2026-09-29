@@ -1,0 +1,90 @@
+{
+  "name": "phd-qualifier-components-overdue",
+  "description": "DGS 2026-09-29: §4.4's four semesters bind every component. Entered Fall 2022, no extension: the deadline was the end of Spring 2024. On 2024-09-01 the umbrella is overdue — and so are the still-open components (Computer Architecture core knowledge, the specialization row), which used to read 'In progress' beside it. Met components carry no deadline.",
+  "today": "2024-09-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2022
+    },
+    "priorMs": "none",
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "none"
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "title": "Graduate Operating Systems",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "title": "Complexity and Algorithms",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2022-09-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier": {
+      "status": "unmet",
+      "deadlineState": "overdue",
+      "detailIncludes": [
+        "2 of 5 parts done",
+        "Computer Architecture core knowledge (§4.4.1)",
+        "Overdue — talk to the DGS"
+      ]
+    },
+    "phd.qualifier.core.os": {
+      "status": "met",
+      "deadlineState": "none",
+      "detailIncludes": [
+        "CSE 60641"
+      ]
+    },
+    "phd.qualifier.core.algorithms": {
+      "status": "met",
+      "deadlineState": "none",
+      "detailIncludes": [
+        "CSE 60111"
+      ]
+    },
+    "phd.qualifier.core.architecture": {
+      "status": "unmet",
+      "deadlineState": "overdue",
+      "detailIncludes": [
+        "No Computer Architecture course yet"
+      ]
+    },
+    "phd.qualifier.categories": {
+      "status": "unmet",
+      "deadlineState": "overdue"
+    },
+    "phd.qualifier.research": {
+      "status": "unmet",
+      "deadlineState": "overdue"
+    }
+  }
+}

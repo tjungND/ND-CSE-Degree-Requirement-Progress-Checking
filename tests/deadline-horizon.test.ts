@@ -58,6 +58,34 @@ describe('the alert on the page and in the Grad Admin request', () => {
     assert.equal(isDueSoon(second), false);
   });
 
+  it('every component of the qualifier is under the umbrella’s deadline (DGS 2026-09-29: a core area read "In progress" beside an overdue umbrella)', () => {
+    const rows = (today: string) => entered(today).requirements;
+    // Fall 2025 entry, no courses: after the end of Spring 2027 the umbrella AND each open core row and the specialization row read Overdue.
+    const late = rows('2027-08-20');
+    for (const id of ['phd.qualifier', 'phd.qualifier.core.os', 'phd.qualifier.core.algorithms', 'phd.qualifier.core.architecture', 'phd.qualifier.categories']) {
+      const r = late.find((x) => x.id === id)!;
+      assert.equal(r.status, 'unmet', id);
+      assert.equal(r.deadline?.state, 'overdue', id);
+      assert.equal(pillLabel(r), 'Overdue', id);
+      assert.equal(r.deadline?.label, 'Overdue — was due by the end of Spring 2027 (approximate)', id);
+    }
+    // Before the deadline the components carry the same open chip — and the same alert.
+    const third = rows('2026-09-28').find((x) => x.id === 'phd.qualifier.core.os')!;
+    assert.equal(third.deadline?.state, 'due_soon');
+    assert.equal(pillLabel(third), 'In progress · due next semester');
+    // The research component keeps its own, earlier, §4.4.3 deadline.
+    const research = rows('2026-09-28').find((x) => x.id === 'phd.qualifier.research')!;
+    assert.match(research.deadline?.label ?? '', /18 months after entry/);
+    // A met component has no chip; the DGS's one-semester extension moves the components' deadline with the umbrella's.
+    const withOs = audit(phdStudent({ entryTerm: { season: 'fall', year: 2025 }, attestations: { qualifierExtensionGranted: true }, courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2025 }, grade: 'A', origin: 'nd' }] }), rules, '2027-08-20').requirements;
+    assert.equal(withOs.find((x) => x.id === 'phd.qualifier.core.os')!.status, 'met');
+    assert.equal(withOs.find((x) => x.id === 'phd.qualifier.core.os')!.deadline, undefined);
+    const arch = withOs.find((x) => x.id === 'phd.qualifier.core.architecture')!;
+    assert.notEqual(arch.status, 'met', 'still open');
+    assert.equal(arch.deadline?.state, 'due_soon', 'the extension runs to the end of Fall 2027 — this semester');
+    assert.equal(pillLabel(arch), 'In progress · due this semester');
+  });
+
   it('a passed deadline reads Overdue, never "due this semester"', () => {
     const late = qualifier('2027-08-20');
     assert.equal(late.deadline?.state, 'overdue');
