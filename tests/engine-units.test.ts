@@ -650,7 +650,7 @@ describe('undergraduate Notre Dame coursework', () => {
 
   it('a course from ANOTHER university taken before the degree is untouched by any of this', () => {
     const s = student([ug('CS 50300', undefined, 'Purdue University')]);
-    assert.match(lineFor(s, 'CS 50300'), /taken as an undergraduate student — no transfer credit \(§5\.2\)/);
+    assert.match(lineFor(s, 'CS 50300'), /^not counted — taken as an undergraduate student, so it brings no transfer credit \(§5\.2\)/);
   });
 
   // The MSCSE side of the same transcript (DGS 2026-09-11). The question a

@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-29 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-29 (later still): an undergraduate course from another university reads ✕ no transfer credit on its Credit line and carries its DGS-confirmed core area on the Qualifier line alone (DGS bug report: the core clause led a green credit line and was repeated).
+
 2026-09-29 (later): the course-rules page's schedule tables fit their card at every width above the phone layout — no 980 px floor, wrapping titles (DGS: all columns without a horizontal scroll, like All courses).
 
 2026-09-29: a qualifier component still open after the §4.4 deadline reads Overdue like its umbrella (DGS bug report; the components share the umbrella's deadline).

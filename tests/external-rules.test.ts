@@ -266,14 +266,16 @@ describe('what a DGS ruling changes in the engine', () => {
     // with nothing else entered it reads as if no transfer courses exist.
     assert.equal(transfer?.status, 'not_applicable');
     assert.match(transfer?.detail ?? '', /No transfer courses entered/);
-    // The per-course line focuses on the core knowledge the DGS confirmed.
+    // The per-course line (DGS 2026-09-29): a red credit line — no transfer
+    // credit, with its reason (the student's status, not the course's level,
+    // DGS 2026-09-07) — and the core area the DGS confirmed on the qualifier
+    // line alone, green. Until then the core clause led a green credit line
+    // and, since 2026-09-28, showed a second time on the qualifier line.
     const line = report.courseLines.find((l) => l.courseId === 'CS 50300');
-    assert.match(line?.text ?? '', /satisfies the .* core-knowledge requirement \(§4\.4\.1\) — confirmed by the DGS/);
-    // 2026-09-06 dropped "no transfer credit" from the line; the DGS put it
-    // back on 2026-09-07 WITH its reason (the student's status, not the
-    // course's level). The line is still painted green — a core area earned.
-    assert.match(line?.text ?? '', /; taken as an undergraduate student — no transfer credit \(§5\.2\)$/);
-    assert.equal(line?.mark, 'counts');
+    assert.equal(line?.text, 'not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)');
+    assert.equal(line?.mark, 'excluded');
+    assert.equal(line?.qualifier?.text, 'satisfies the Operating Systems core-knowledge requirement (§4.4.1) — confirmed by the DGS');
+    assert.equal(line?.qualifier?.mark, 'counts');
   });
 
   it('transferable=no → not counted, with the DGS ruling named', () => {
@@ -441,6 +443,29 @@ describe('graduate student status — §5.2 criterion 2 (DGS 2026-09-06)', () =>
     assert.equal(os.qualifier?.mark, 'in_progress', 'blue while the course is in progress');
     assert.match(os.qualifier?.text ?? '', /Operating Systems core knowledge/);
   });
+  it('an undergraduate course from another university: the credit line is the cross, the core area the qualifier line — once (DGS 2026-09-29)', () => {
+    const s = student([{ courseId: 'CS 50300', title: 'Operating Systems', degreeLevel: 'bachelors', term: { season: 'spring', year: 2023 } }]);
+    const rep = audit(s, rules, '2026-09-01');
+    const l = rep.courseLines.find((c) => c.courseId === 'CS 50300')!;
+    assert.equal(l.text, 'not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)');
+    assert.equal(l.mark, 'excluded');
+    assert.equal(l.qualifier?.text, 'satisfies the Operating Systems core-knowledge requirement (§4.4.1) — confirmed by the DGS');
+    assert.equal(l.qualifier?.mark, 'counts');
+    assert.equal((`${l.text} ${l.qualifier?.text}`.match(/core-knowledge/g) ?? []).length, 1, 'the core area is said once');
+    assert.equal(rep.requirements.find((r) => r.id === 'phd.qualifier.core.os')?.status, 'met', 'the §4.4.1 card still reads Met from it');
+    // A keyword title with no ruling yet: the cross stays, the qualifier line is amber and asks for the review.
+    const kw = audit(student([{ courseId: 'CS 25100', title: 'Algorithms', degreeLevel: 'bachelors', term: { season: 'spring', year: 2023 } }]), rules, '2026-09-01').courseLines.find((c) => c.courseId === 'CS 25100')!;
+    assert.equal(kw.text, 'not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)');
+    assert.equal(kw.mark, 'excluded');
+    assert.equal(kw.qualifier?.text, 'may still satisfy the Algorithms core-knowledge requirement (§4.4.1) — pending DGS review, send the review request');
+    assert.equal(kw.qualifier?.mark, 'pending');
+    // No core-sounding title, no ruling: one red line that says so.
+    const plain = audit(student([{ courseId: 'CS 18000', title: 'Problem Solving', degreeLevel: 'bachelors', term: { season: 'spring', year: 2023 } }]), rules, '2026-09-01').courseLines.find((c) => c.courseId === 'CS 18000')!;
+    assert.equal(plain.text, 'not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2); not relevant to the core knowledge requirement (§4.4.1)');
+    assert.equal(plain.mark, 'excluded');
+    assert.equal(plain.qualifier, undefined);
+  });
+
   it('marks: a "not counted" credit line is red; the core area is a qualifier line with its own mark — green when confirmed, amber for a keyword title (DGS 2026-09-27)', () => {
     const confirmed = line(withBachelors([{ courseId: 'IFT-2125', title: 'Introduction à l’algorithmique', institution: 'Université de Montréal', term: { season: 'fall', year: 2023 } }]), 'IFT-2125')!;
     assert.match(confirmed.text, /^not counted — taken before/);

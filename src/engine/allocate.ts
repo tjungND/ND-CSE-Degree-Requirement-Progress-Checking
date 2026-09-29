@@ -765,22 +765,27 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     // transfer credit" named the wrong rule for it.
     const nd = isNotreDameInstitution(c.institution);
     const levelReason = `${levelOf(c, rule)}0000-level — only CSE 40000-level courses (up to 6 credits, with approval), 50000-level CSE courses listed in the course rules and 60000-level courses can count (${program === 'mscse' ? '§3.2' : '§4.2'})`;
-    const ugNote = nd ? `; not eligible for degree credit at the ${levelReason}` : '; taken as an undergraduate student — no transfer credit (§5.2)';
+    // The credit verdict FIRST, the core clause after "; " (DGS 2026-09-29:
+    // "the credit should be a cross with a note that no transfer credit for
+    // courses taken as an undergrad") — the shape buildExplanation() splits
+    // into a red credit line and a qualifier line of its own. Until then the
+    // core clause led the line, the wrapper left it there, and the same clause
+    // showed twice under a green tick once every in-program course got a
+    // qualifier line from its feeds (2026-09-28).
+    const credit = nd ? `not counted — not eligible for degree credit at the ${levelReason}` : `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)`;
     // For an MSCSE student there is no §4.4.1 to demonstrate: an
     // undergraduate course from another university can do nothing here,
     // and saying so once is the whole line (DGS 2026-09-11).
-    if (!qualifierApplies) {
-      return { ...extBase, ineligibleReason: nd ? `not counted — not eligible for degree credit at the ${levelReason}` : `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)` };
-    }
+    if (!qualifierApplies) return { ...extBase, ineligibleReason: credit };
     return {
       ...extBase,
       ineligibleReason: confirmedArea
-        ? `satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS${ugNote}`
+        ? `${credit}; satisfies the ${confirmedArea} core-knowledge requirement (§4.4.1) — confirmed by the DGS`
         : ndCoreArea
-          ? `satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules${ugNote}`
+          ? `${credit}; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules`
           : suggested
-            ? `may satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review; send the review request${ugNote}`
-            : `not relevant to the core knowledge requirement (§4.4.1)${ugNote}`,
+            ? `${credit}; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review, send the review request`
+            : `${credit}; not relevant to the core knowledge requirement (§4.4.1)`,
     };
   }
   // THE STUDENT'S OWN NOTRE DAME MSCSE, on a Ph.D. record — the Graduate
