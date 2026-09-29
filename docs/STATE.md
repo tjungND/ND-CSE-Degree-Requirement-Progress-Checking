@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-28 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-28 (night, later): every requirement in the advisor summary and the Grad Admin request is one block — a bordered card in its colour in HTML, the tag line with its lines indented beneath in text (DGS: which text belongs to which requirement).
+
 2026-09-28 (night): the three emails rebuilt on one skeleton (student line, action list first, programs on the subject — with a new transfer-term question for MSCSE→Ph.D. transfers), the DGS request split into no-reply / reply-needed, the Grad Admin request with a checklist and one course table, the advisor summary stacked with its actions first, the core rows collapsed, the allowance as a meter, and the to-do voice bug fixed (DGS: all 13 suggestions).
 
 2026-09-28 (evening, later): the advisor summary takes the Grad Admin request's style — badges / [WORD] tags in the page's colours, the deadline on its own highlighted line — from one set of helpers in email-html.ts (DGS).

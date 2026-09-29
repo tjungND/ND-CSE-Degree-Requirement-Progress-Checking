@@ -29,7 +29,7 @@ import type { AuditReport, CourseEntry, Milestones, RequirementResult, Student }
 import { DO_NOT_MODIFY_MARKER, EDITABLE_MARKER, MARKER_DIVIDER } from '../transcript/external.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
-import { ACTION_HEADING, STUDENT_LINE, esc, htmlBadge, htmlDeadline, plural, programLabel, studentLineHtml, textDeadline, type StandingColor } from './email-html.ts';
+import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, studentLineHtml, textRequirementBlock, type StandingColor } from './email-html.ts';
 import type { ProgramHistory } from './program-history.ts';
 import { formatYmdLong } from './handbook.ts';
 import { deadlineAlert, isNotStarted, standingColor, scoredRows, statusWord } from './report.ts';
@@ -449,11 +449,18 @@ export function gradAdminRequest(
   // Plain text has no colour: the badge is a [WORD] tag before the heading,
   // and a near or passed deadline a "!!" line under it (email-html.ts — the
   // advisor summary prints the same).
+  // A standing row is a block (email-html.ts, DGS 2026-09-28 evening): the
+  // tag and the heading, its deadline and evidence lines indented beneath.
+  // The heading is "title (§)"; the block wants them apart.
+  const split = (heading: string): { title: string; section: string } => {
+    const m = /^(.*) \((§[^)]*)\)$/.exec(heading);
+    return m ? { title: m[1]!, section: m[2]! } : { title: heading, section: '' };
+  };
   const textSection = (s: Section): string =>
-    `${s.badge ? `[${s.badge.word.toUpperCase()}] ${s.heading}` : s.heading.toUpperCase()}\n` +
-    (s.deadline ? `${textDeadline(s.deadline.text, s.deadline.alert)}\n` : '') +
-    (s.plain && s.plain.length > 0 ? s.plain.join('\n') + '\n' : '') +
-    (s.table && s.columns ? `${s.columns.join('\t')}\n${s.table.map((r) => r.join('\t')).join('\n')}\n` : '') +
+    (s.badge
+      ? `${textRequirementBlock({ word: s.badge.word, ...split(s.heading), lines: s.plain, deadline: s.deadline ? { text: s.deadline.text, alert: s.deadline.alert } : undefined })}\n`
+      : `${s.heading.toUpperCase()}\n`) +
+    (s.table && s.columns ? `${s.table.length > 0 && s.badge ? '    ' : ''}${s.columns.join('\t')}\n${s.table.map((r) => `${s.badge ? '    ' : ''}${r.join('\t')}`).join('\n')}\n` : '') +
     (s.lines && s.lines.length > 0 ? s.lines.map((l) => `- ${l}`).join('\n') + '\n' : '') +
     '\n';
   // The same skeleton as the other two emails (DGS 2026-09-28): the student
@@ -473,10 +480,9 @@ export function gradAdminRequest(
     '</table>';
   // The badge and the deadline box are the shared style (email-html.ts).
   const htmlSection = (s: Section): string =>
-    `<p>${s.badge ? `${htmlBadge(s.badge.word, s.badge.color)} ` : ''}<strong>${esc(s.heading)}</strong></p>` +
-    (s.deadline ? htmlDeadline(s.deadline.text, s.deadline.alert) : '') +
-    (s.plain && s.plain.length > 0 ? `<p style="margin:2px 0 6px">${s.plain.map(esc).join('<br>')}</p>` : '') +
-    (s.table && s.columns ? htmlTable(s.columns, s.table) : '') +
+    (s.badge
+      ? htmlRequirementBlock({ word: s.badge.word, color: s.badge.color, ...split(s.heading), lines: s.plain, deadline: s.deadline ? { text: s.deadline.text, alert: s.deadline.alert } : undefined }).replace(/<\/div>$/, (s.table && s.columns ? htmlTable(s.columns, s.table) : '') + '</div>')
+      : `<p><strong>${esc(s.heading)}</strong></p>` + (s.table && s.columns ? htmlTable(s.columns, s.table) : '')) +
     (s.lines ? `<ul>${s.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : '');
   const actionsHtml = items.actions.length > 0 ? `<p><strong>${esc(ACTION_HEADING)}</strong></p><ol>${items.actions.map((a) => `<li>${esc(a)}</li>`).join('')}</ol>` : '';
   const html =

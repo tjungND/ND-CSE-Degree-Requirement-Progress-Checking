@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AuditReport, RequirementResult } from '../src/engine/types.ts';
 import { actionItems, advisorSummary, approvalItems, whyFor } from '../src/ui/advisor-summary.ts';
-import { BADGE_STYLE, htmlBadge } from '../src/ui/email-html.ts';
+import { BADGE_STYLE, htmlRequirementBlock } from '../src/ui/email-html.ts';
 
 function req(id: string, title: string, status: RequirementResult['status'], detail = '', group = 'Coursework — §4.2', section = '§4.2'): RequirementResult {
   return { id, group, title, status, detail, citation: { section, quote: 'quote' } };
@@ -52,24 +52,27 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     const basic = text.indexOf('\nBASIC REQUIREMENTS — §2.2–2.3\n');
     const coursework = text.indexOf('\nCOURSEWORK — §4.2\n');
     assert.ok(basic >= 0 && coursework > basic, 'sections in handbook order');
-    assert.match(text, /\n  \[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'met rows carry their Why (DGS 2026-09-22)');
-    assert.match(text, /\n  \[IN PROGRESS\] 60 total credits of courses & research \(§4\.2\) — 14 of 60 credits complete\. 9 in progress\.\n/);
-    assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\) — 12 of 24 credits complete\. 3 in progress\.\n/, 'no course list — the summary is enough (DGS 2026-09-23)');
-    assert.match(text, /\n  \[CONDITIONALLY MET\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
+    assert.match(text, /\n  \[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\)\n      Why: Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'met rows carry their Why (DGS 2026-09-22)');
+    assert.match(text, /\n  \[IN PROGRESS\] 60 total credits of courses & research \(§4\.2\)\n      Why: 14 of 60 credits complete\. 9 in progress\.\n/);
+    assert.match(text, /\n  \[IN PROGRESS\] 24 credit hours of regular courses \(§4\.2\)\n      Why: 12 of 24 credits complete\. 3 in progress\.\n/, 'no course list — the summary is enough (DGS 2026-09-23)');
+    assert.match(text, /\n  \[CONDITIONALLY MET\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\)\n      Why: Needs approval: MATH 60610\.\n/);
     assert.doesNotMatch(text, /Transfer credit from prior graduate study/, '"does not apply" rows are left out');
     assert.doesNotMatch(text, /\nAPPROVALS\n|Courses still to be approved or processed/, 'the sign-off list feeds the to-do lists, not a section');
     assert.doesNotMatch(text, /Courses counted|COURSES COUNTED/, 'no course list (DGS 2026-09-23)');
   });
 
   it('HTML: stacked rows, not a five-column table (DGS 2026-09-28) — the badge and the title on one line, the why beneath', () => {
-    assert.ok(html.includes(`<p><strong>Basic requirements — §2.2–2.3</strong></p><p style="margin:6px 0 2px">${htmlBadge('Met', 'green')} <strong>Cumulative GPA of at least 3.0</strong> (§2.2)<br>Cumulative GPA 3.50 meets the 3.0 minimum.</p>`), html);
-    assert.ok(html.includes(`${htmlBadge('In progress', 'amber')} <strong>60 total credits of courses &amp; research</strong> (§4.2)<br>14 of 60 credits complete. 9 in progress.</p>`));
-    assert.ok(html.includes(`${htmlBadge('In progress', 'amber')} <strong>24 credit hours of regular courses</strong> (§4.2)<br>12 of 24 credits complete. 3 in progress.</p>`), html);
+    // One bordered block per requirement (DGS 2026-09-28, evening: "hard to
+    // see which text is for which requirement"): the why lives INSIDE the block.
+    assert.ok(html.includes(`<p><strong>Basic requirements — §2.2–2.3</strong></p>${htmlRequirementBlock({ word: 'Met', color: 'green', title: 'Cumulative GPA of at least 3.0', section: '§2.2', lines: ['Cumulative GPA 3.50 meets the 3.0 minimum.'] })}`), html);
+    assert.ok(html.includes(htmlRequirementBlock({ word: 'In progress', color: 'amber', title: '60 total credits of courses & research', section: '§4.2', lines: ['14 of 60 credits complete. 9 in progress.'] })));
+    assert.ok(html.includes(htmlRequirementBlock({ word: 'In progress', color: 'amber', title: '24 credit hours of regular courses', section: '§4.2', lines: ['12 of 24 credits complete. 3 in progress.'] })), html);
+    assert.match(html, /border-left:4px solid #10693f;background:#f7f8fa/, 'the block’s left rule is the row’s colour, as on the page');
     assert.doesNotMatch(html, /<table/, 'no tables in the advisor summary any more');
     assert.match(BADGE_STYLE.green, /^background:#e4f2ea;color:#10693f$/, 'the page’s met pill');
     // A met row lists its courses too — the Why cell is otherwise empty for it.
     const metWithCourses = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.credits.nd', title: 'Nine at ND', contributions: [{ courseId: 'CSE 60770', credits: 3 }] }] }, opts);
-    assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'contributions are not listed');
+    assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\)\n      Why: Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'contributions are not listed');
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).text, /\nDear Prof\. X and Prof\. Y,\n[\s\S]*\nACTION REQUESTED — WHAT I NEED FROM YOU, MY ADVISORS\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X'] }).text, /\nDear Prof\. X,\n[\s\S]*\nACTION REQUESTED — WHAT I NEED FROM YOU, MY ADVISOR\n/);
     assert.match(advisorSummary(report, { ...opts, advisors: ['Prof. X', 'Prof. Y'] }).html, /<p>Dear Prof\. X and Prof\. Y,<\/p>/);
@@ -80,14 +83,14 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     // A seminar already taken is dropped (DGS 2026-09-23); the open one stays.
     // Two open course statements in a row become bullets; one does not.
     const seminar = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.seminar', title: 'Seminar', detail: 'CSE 63801: done (Fall 2026). CSE 63802: in progress (Spring 2027).' }] }, opts).text;
-    assert.match(seminar, /\[MET\] Seminar \(§2\.2\) — CSE 63802: in progress \(Spring 2027\)\.\n/);
+    assert.match(seminar, /\[MET\] Seminar \(§2\.2\)\n      Why: CSE 63802: in progress \(Spring 2027\)\.\n/);
     const twoOpen = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.seminar', title: 'Seminar', detail: 'CSE 63801: not yet. CSE 63802: in progress (Spring 2027).' }] }, opts).text;
-    assert.match(twoOpen, /\[MET\] Seminar \(§2\.2\) — CSE 63801: not yet\. CSE 63802: in progress \(Spring 2027\)\.\n/, 'no bullets (DGS 2026-09-23)');
+    assert.match(twoOpen, /\[MET\] Seminar \(§2\.2\)\n      Why: CSE 63801: not yet\. CSE 63802: in progress \(Spring 2027\)\.\n/, 'no bullets (DGS 2026-09-23)');
     // The categories row names the groups satisfied, not the courses (DGS 2026-09-23).
     const cats = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.qualifier.categories', title: 'Categories', detail: '', detailParts: [{ lead: '3 qualifying courses covering 2 distinct groups', items: ['CSE 60641 Graduate Operating Systems → Systems and Software', 'CSE 60321 Advanced Computer Architecture → Architecture', 'CSE 60876 Research Methods → Architecture (flexible course — your assignment)'] }] }] }, opts).text;
-    assert.match(cats, /\[MET\] Categories \(§2\.2\) — 3 qualifying courses covering 2 distinct groups: Systems and Software, Architecture\.\n/);
+    assert.match(cats, /\[MET\] Categories \(§2\.2\)\n      Why: 3 qualifying courses covering 2 distinct groups: Systems and Software, Architecture\.\n/);
     // Conditionally met is blue, as on the page (the Grad Admin request's colour, 2026-09-28; amber before).
-    assert.ok(html.includes(`${htmlBadge('Conditionally met', 'blue')} <strong>At most 9 credits at 6xxxx from outside CSE</strong>`));
+    assert.ok(html.includes(htmlRequirementBlock({ word: 'Conditionally met', color: 'blue', title: 'At most 9 credits at 6xxxx from outside CSE', section: '§4.2', lines: ['Needs approval: MATH 60610.'] })));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });
 
@@ -116,7 +119,7 @@ describe('advisor summary: the 2026-09-28 format items', () => {
   it('three met core-knowledge rows collapse into one line with the areas and their courses', () => {
     const core = (area: string, id: string, course: string) => req(`phd.qualifier.core.${id}`, `Core knowledge: ${area}`, 'met', `Satisfied by ${course}.`, 'Qualifying examination — §4.4', '§4.4.1');
     const r = advisorSummary({ ...report, requirements: [...report.requirements, core('Operating Systems', 'os', 'CSE 60641'), core('Algorithms', 'algorithms', 'CSE 60111'), core('Computer Architecture', 'architecture', 'CSE 60321')] }, opts);
-    assert.match(r.text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[MET\] Core knowledge: all three areas \(§4\.4\.1\) — Operating Systems: CSE 60641; Algorithms: CSE 60111; Computer Architecture: CSE 60321\.\n\n/);
+    assert.match(r.text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[MET\] Core knowledge: all three areas \(§4\.4\.1\)\n      Why: Operating Systems: CSE 60641; Algorithms: CSE 60111; Computer Architecture: CSE 60321\.\n\n/);
     assert.equal((r.text.match(/Core knowledge/g) ?? []).length, 1, 'one line, not three');
     // One of them open: nothing collapses.
     const open = advisorSummary({ ...report, requirements: [...report.requirements, core('Operating Systems', 'os', 'CSE 60641'), core('Algorithms', 'algorithms', 'CSE 60111'), { ...core('Computer Architecture', 'architecture', ''), status: 'unmet', detail: 'Not yet.' }] }, opts);
@@ -126,8 +129,8 @@ describe('advisor summary: the 2026-09-28 format items', () => {
   it('an allowance is a meter, as on the page (DGS 2026-09-28): "3 of 9 used" in grey, its first sentence not repeated', () => {
     const cap = { ...req('phd.cap.nonCse', 'At most 9 credits at 6xxxx from outside CSE', 'needs_dgs_review', '3 of the 9 non-CSE allowance credits used. Needs approval: MATH 60610.', 'Allowances — §4.2', '§4.2'), allowance: true as const, progress: { have: 3, need: 9, unit: 'credits' } };
     const r = advisorSummary({ ...report, requirements: [...report.requirements.filter((x) => x.id !== 'phd.cap.nonCse'), cap] }, opts);
-    assert.match(r.text, /\n  \[3 OF 9 USED\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\) — Needs approval: MATH 60610\.\n/);
-    assert.ok(r.html.includes(`${htmlBadge('3 of 9 used', 'grey')} <strong>At most 9 credits at 6xxxx from outside CSE</strong> (§4.2)<br>Needs approval: MATH 60610.</p>`), r.html);
+    assert.match(r.text, /\n  \[3 OF 9 USED\] At most 9 credits at 6xxxx from outside CSE \(§4\.2\)\n      Why: Needs approval: MATH 60610\.\n/);
+    assert.ok(r.html.includes(htmlRequirementBlock({ word: '3 of 9 used', color: 'grey', title: 'At most 9 credits at 6xxxx from outside CSE', section: '§4.2', lines: ['Needs approval: MATH 60610.'] })), r.html);
     const unused = advisorSummary({ ...report, requirements: [{ ...cap, status: 'not_applicable' as const, statusLabel: 'Not used yet', progress: undefined, detail: '' }] }, opts);
     assert.doesNotMatch(unused.text, /At most 9 credits/, '"does not apply" rows stay out, meter or not');
   });
@@ -172,10 +175,10 @@ describe('advisor summary: deadlines on the rows that have them', () => {
 
   it('subject line adds the passed deadline; the deadline is a line of its own under the row, "!!" when passed (the Grad Admin request’s style, 2026-09-28); semesters, never dates', () => {
     assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 4 requirements in progress, 1 deadline passed\n/);
-    assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[OVERDUE\] Research component: a significant research contribution \(§4\.4\.3\)\n    !! DEADLINE PASSED: was due during Spring 2028\n/);
+    assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[OVERDUE\] Research component: a significant research contribution \(§4\.4\.3\)\n      !! DEADLINE PASSED: was due during Spring 2028\n/);
     // The next open deadline is named up top (DGS 2026-09-28) — the passed one is not "next".
     assert.match(text, /\nNext deadline: Oral Candidacy Exam \(OCE\) passed \(§4\.5\) — Due by the end of Spring 2030\.\n\nACTION REQUESTED/);
-    assert.match(text, /\nOCE — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\)\n    Deadline: Due by the end of Spring 2030\n  \[MET\] Something already done \(§4\.5\) — Done\.\n/, 'a far deadline is stated without the alert; the full OCE name went to the next-deadline line');
+    assert.match(text, /\nOCE — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\)\n      Deadline: Due by the end of Spring 2030\n  \[MET\] Something already done \(§4\.5\)\n      Why: Done\.\n/, 'a far deadline is stated without the alert; the full OCE name went to the next-deadline line');
     for (const dueLine of text.split('\n').filter((l: string) => /\bdue\b/i.test(l))) {
       assert.doesNotMatch(dueLine, /\d{4}-\d{2}-\d{2}/, `no ISO date in a deadline line: ${dueLine}`);
     }
@@ -183,14 +186,10 @@ describe('advisor summary: deadlines on the rows that have them', () => {
     assert.match(text, /^Deadlines are counted from Fall 2026 and given by semester; they are approximate — the registrar's calendar sets the exact dates\.$/m);
   });
 
-  it('HTML: the deadline box under the row — red when passed, plain when far off', () => {
-    assert.ok(
-      html.includes(
-        `<p style="margin:6px 0 2px">${htmlBadge('Overdue', 'red')} <strong>Research component: a significant research contribution</strong> (§4.4.3)</p><p style="margin:2px 0 6px;padding:4px 8px;background:#fbe9e7;color:#7a1f1f;border-left:4px solid #a81e14"><strong>Deadline passed:</strong> was due during Spring 2028</p>`,
-      ),
-      html,
-    );
-    assert.ok(html.includes('<p style="margin:2px 0 6px"><strong>Deadline:</strong> Due by the end of Spring 2030</p>'));
+  it('HTML: the deadline box inside the row’s block — red when passed, plain when far off', () => {
+    assert.ok(html.includes(htmlRequirementBlock({ word: 'Overdue', color: 'red', title: 'Research component: a significant research contribution', section: '§4.4.3', deadline: { text: 'was due during Spring 2028', alert: 'passed' } })), html);
+    assert.ok(html.includes(htmlRequirementBlock({ word: 'In progress', color: 'amber', title: 'OCE passed', section: '§4.5', deadline: { text: 'Due by the end of Spring 2030', alert: undefined } })), html);
+    assert.ok(html.includes('<p style="margin:6px 0 0"><strong>Deadline:</strong> Due by the end of Spring 2030</p></div>'));
   });
 
   it('a deadline in the next semester: the "!!" line, the orange box, and a count in the headline (DGS 2026-09-28)', () => {
@@ -206,8 +205,9 @@ describe('advisor summary: deadlines on the rows that have them', () => {
     };
     const r = advisorSummary(soon, opts);
     assert.match(r.text, /\n1 of 4 requirements met · 3 in progress · 1 conditionally met · 1 deadline in this semester or the next\.\n/);
-    assert.match(r.text, /\n  \[IN PROGRESS\] Qualifying examination — all components \(§4\.4\) — 3 of 5 parts done\.\n    !! DEADLINE NEXT SEMESTER: Due by the end of Spring 2027\n/);
-    assert.ok(r.html.includes('<p style="margin:2px 0 6px;padding:4px 8px;background:#ffe3c9;color:#8a3a00;border-left:4px solid #e0863a"><strong>Deadline next semester:</strong> Due by the end of Spring 2027</p>'));
+    assert.match(r.text, /\n  \[IN PROGRESS\] Qualifying examination — all components \(§4\.4\)\n      !! DEADLINE NEXT SEMESTER: Due by the end of Spring 2027\n      Why: 3 of 5 parts done\.\n/);
+    assert.ok(r.html.includes(htmlRequirementBlock({ word: 'In progress', color: 'amber', title: 'Qualifying examination — all components', section: '§4.4', lines: ['3 of 5 parts done.'], deadline: { text: 'Due by the end of Spring 2027', alert: 'next' } })), r.html);
+    assert.ok(r.html.includes(' (§4.4)</p><p style="margin:6px 0 0;padding:4px 8px;background:#ffe3c9;color:#8a3a00;border-left:4px solid #e0863a"><strong>Deadline next semester:</strong> Due by the end of Spring 2027</p><p style="margin:4px 0 0">3 of 5 parts done.</p></div>'), 'the box sits right under the title, the why after it, all inside the block');
     assert.match(r.text, /\nNext deadline: Qualifying examination — all components \(§4\.4\) — Due by the end of Spring 2027 \(next semester\)\.\n/);
     assert.doesNotMatch(r.text, /\(approximate\)/, 'said once in the footnote');
   });

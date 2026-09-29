@@ -21,7 +21,7 @@ import type { AuditReport, DetailPart, RequirementResult, Status } from '../engi
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
-import { ACTION_HEADING, STUDENT_LINE, esc, htmlBadge, htmlDeadline, plural, programLabel, programShort, studentLineHtml, textDeadline, type DeadlineAlert, type StandingColor } from './email-html.ts';
+import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, programShort, studentLineHtml, textRequirementBlock, type DeadlineAlert, type StandingColor } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
 import type { ProgramHistory } from './program-history.ts';
 import { deadlineAlert, isNotStarted, scoredRows, standingColor, statusWord } from './report.ts';
@@ -172,14 +172,14 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const salutation = advisors.length > 0 ? advisors.join(' and ') : 'Advisor';
 
   // ---- plain text ----
-  // The row as the Grad Admin request prints one (2026-09-28): the [WORD]
-  // tag, the title and its §, the why after a dash; the deadline on a line
-  // of its own beneath, "!!" when it is this semester, next semester or past.
+  // The row as a block (DGS 2026-09-28, evening): the [WORD] tag and the
+  // title on one line, the deadline and the why indented beneath it — the
+  // same block the Grad Admin request prints (email-html.ts).
   const line = (r: RequirementResult): string => {
     const tag = tagFor(r);
     const due = deadlineOf(r);
     const why = whyCell(r);
-    return `[${tag.word.toUpperCase()}] ${r.title} (${r.citation.section})${why ? ` — ${why}` : ''}${due ? `\n    ${textDeadline(due.text, due.alert)}` : ''}`;
+    return textRequirementBlock({ word: tag.word, title: r.title, section: r.citation.section, lines: why ? [`Why: ${why}`] : [], deadline: due }, '  ');
   };
   const todoText = (heading: string, items: string[]) =>
     `${heading}\n${items.length > 0 ? items.map((i) => `- ${i}`).join('\n') : '- Nothing at the moment.'}\n\n`;
@@ -196,7 +196,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `Subject: ${subject}\n\nDear ${salutation},\n\n${STUDENT_LINE}\n\n${intro}\n${standing}\n${earlier ? `${earlier}\n` : ''}${counts}.\n${nextDeadline ? `${nextDeadline}\n` : ''}\n` +
     actionsText +
     'MY STANDING, REQUIREMENT BY REQUIREMENT\n\n' +
-    sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map((r) => `  ${line(r)}`).join('\n')}\n\n`).join('') +
+    sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map(line).join('\n')}\n\n`).join('') +
     todoText('WHAT I NEED TO DO', todo.student) +
     (todo.dgs.length > 0 ? todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) : '') +
@@ -204,18 +204,16 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `Thank you!\n\n${deadlineNote ? `${deadlineNote}\n` : ''}${statusNote}\n`;
 
   // ---- HTML ----
-  // Stacked, not a five-column table (DGS 2026-09-28): the badge and the
-  // title on one line, the why beneath, the deadline box under that — the
-  // Grad Admin request's form, which reads in every mail client and on a
-  // phone (email-html.ts).
+  // One bordered block per requirement, not a five-column table (DGS
+  // 2026-09-28, twice: stacked, then "hard to see which text is for which
+  // requirement"): the badge and the title on the block's first line, the
+  // why and the deadline box inside it — email-html.ts, shared with the Grad
+  // Admin request.
   const htmlRow = (r: RequirementResult): string => {
     const tag = tagFor(r);
     const due = deadlineOf(r);
     const why = whyCell(r);
-    return (
-      `<p style="margin:6px 0 2px">${htmlBadge(tag.word, tag.color)} <strong>${esc(r.title)}</strong> (${esc(r.citation.section)})${why ? `<br>${esc(why)}` : ''}</p>` +
-      (due ? htmlDeadline(due.text, due.alert) : '')
-    );
+    return htmlRequirementBlock({ word: tag.word, color: tag.color, title: r.title, section: r.citation.section, lines: why ? [why] : [], deadline: due });
   };
   const htmlSection = (s: { heading: string; rows: RequirementResult[] }): string => `<p><strong>${esc(s.heading)}</strong></p>${s.rows.map(htmlRow).join('')}`;
   const todoHtml = (heading: string, items: string[]) =>

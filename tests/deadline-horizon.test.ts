@@ -71,10 +71,10 @@ describe('the alert on the page and in the Grad Admin request', () => {
     const built = gradAdminRequest(audit(s, rules, today), s, rules, { todayIso: today, entryTerm: 'Fall 2025', priorStudy: 'No prior graduate study', gpa: s.gpa });
     assert.equal(built.items.tally.dueSoon, 1, 'the qualifier umbrella; its parts are unscored');
     assert.match(built.text, /\n- 1 deadline in this semester or the next — highlighted below\.\n/);
-    assert.match(built.text, /\n\[IN PROGRESS\] Qualifying examination — all components \(§4\.4\)\n!! DEADLINE NEXT SEMESTER: Due by the end of Spring 2027 \(approximate\)\n/);
+    assert.match(built.text, /\n\[IN PROGRESS\] Qualifying examination — all components \(§4\.4\)\n    !! DEADLINE NEXT SEMESTER: Due by the end of Spring 2027 \(approximate\)\n/);
     assert.match(built.html, /<p style="[^"]*background:#ffe3c9;color:#8a3a00;border-left:4px solid #e0863a"><strong>Deadline next semester:<\/strong> Due by the end of Spring 2027 \(approximate\)<\/p>/);
     // A row whose deadline is further off states it without the highlight.
-    assert.match(built.text, /\n\[IN PROGRESS\] Oral Candidacy Exam \(OCE\) passed \(§4\.5\)\nDeadline: Due by the end of Spring 2029 — semester 8 \(approximate\)\n/);
+    assert.match(built.text, /\n\[IN PROGRESS\] Oral Candidacy Exam \(OCE\) passed \(§4\.5\)\n    Deadline: Due by the end of Spring 2029 — semester 8 \(approximate\)\n/);
     assert.doesNotMatch(built.text, /!! DEADLINE [A-Z]+ SEMESTER: Due by the end of Spring 2029/);
   });
 });

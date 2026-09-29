@@ -86,6 +86,43 @@ export function htmlDeadline(text: string, alert: DeadlineAlert, block = true): 
   return block ? `<p style="margin:2px 0 6px;padding:4px 8px;${style}">${inner}</p>` : `<span style="display:inline-block;padding:2px 6px;${style}">${inner}</span>`;
 }
 
+/** The colour of a block's left rule — the badge's own text colour, as the
+ * page's cards carry their status colour on the left edge (style.css .req). */
+const RULE_COLOR: Record<StandingColor, string> = { green: '#10693f', amber: '#8e5108', grey: '#5a6472', red: '#a81e14', blue: '#1f4e8c' };
+
+/** One requirement as a BLOCK (DGS 2026-09-28, evening: "it's hard to see
+ * which text is for which requirement" once the tables were gone): the
+ * badge and the title on the first line, its explanation lines and its
+ * deadline box INSIDE the same bordered card, a gap before the next. Inline
+ * styles only — mail clients keep no stylesheet; Gmail (Notre Dame's mail)
+ * keeps a div's border, padding and background. */
+export function htmlRequirementBlock(opts: { word: string; color: StandingColor; title: string; section: string; lines?: string[]; deadline?: { text: string; alert: DeadlineAlert } }): string {
+  const lines = (opts.lines ?? []).filter((l) => l !== '');
+  return (
+    `<div style="margin:0 0 10px;padding:6px 10px;border-left:4px solid ${RULE_COLOR[opts.color]};background:#f7f8fa">` +
+    `<p style="margin:0">${htmlBadge(opts.word, opts.color)} <strong>${esc(opts.title)}</strong> (${esc(opts.section)})</p>` +
+    // The deadline right under the title (it is the alert), the explanation after it — the plain text's order.
+    (opts.deadline ? htmlDeadline(opts.deadline.text, opts.deadline.alert).replace(/^<p style="margin:2px 0 6px/, '<p style="margin:6px 0 0') : '') +
+    (lines.length > 0 ? `<p style="margin:4px 0 0">${lines.map(esc).join('<br>')}</p>` : '') +
+    '</div>'
+  );
+}
+
+/** The same block in plain text: the [WORD] tag and the title on one line,
+ * every line that belongs to it indented beneath — the indentation is what
+ * says "this is about that". `indent` is the title line's own indentation
+ * (the advisor summary nests rows under section headings); the body sits
+ * four spaces further in. */
+export function textRequirementBlock(opts: { word: string; title: string; section: string; lines?: string[]; deadline?: { text: string; alert: DeadlineAlert } }, indent = ''): string {
+  const body = indent + '    ';
+  const lines = (opts.lines ?? []).filter((l) => l !== '');
+  return (
+    `${indent}[${opts.word.toUpperCase()}] ${opts.title} (${opts.section})` +
+    (opts.deadline ? `\n${body}${textDeadline(opts.deadline.text, opts.deadline.alert)}` : '') +
+    lines.map((l) => `\n${body}${l}`).join('')
+  );
+}
+
 /** The deadline line in plain text: "!! DEADLINE NEXT SEMESTER: …",
  * "!! DEADLINE PASSED: …", or "Deadline: …" when it is further off. */
 export function textDeadline(text: string, alert: DeadlineAlert): string {
