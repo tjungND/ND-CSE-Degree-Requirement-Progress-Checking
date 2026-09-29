@@ -145,8 +145,12 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
 - Claude NEVER pushes, opens PRs or uses "Continue in → Claude Code on the Web". The DGS merges and
   pushes himself: after every shippable commit, end the reply with the exact line for him to paste
   into Terminal, with the real branch name (`git branch --show-current`) filled in —
-  `cd ~/degree-audit-app && git pull --ff-only && git merge --ff-only <branch> && git push` —
-  and tell him what it deploys. Never rewrite history that has been pushed.
+  `cd ~/degree-audit-app && git pull --ff-only && git merge --no-edit <branch> && git push` —
+  and tell him what it deploys. (The second merge is deliberately NOT `--ff-only` — DGS
+  2026-09-28: the sheet-sync Action's six-hourly snapshot commit on `main` kept landing between
+  Claude's merge and his push, and a fast-forward was then impossible; a plain merge fast-forwards
+  when it can and otherwise makes the same merge commit Claude would have made. A conflict cannot
+  arise: only the Action writes `data/snapshot.json`.) Never rewrite history that has been pushed.
 - FERPA: never open a real transcript. Sanitized copies only, kept outside the repo under neutral
   names; never let a student's name into code, fixtures, docs or commit messages.
 - Wording: "Grad Admin" is the Graduate Program Administrator; every student-facing string Claude

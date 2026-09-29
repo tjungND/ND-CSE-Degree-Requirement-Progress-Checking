@@ -666,7 +666,8 @@ queue. Recent commits, newest first:
 - The cycle: the DGS asks → Claude changes, verifies, shows the result → revisions → Claude commits on
   the branch (fetching and merging `origin/main` first, since the sheet-sync Action commits there) →
   Claude ends with the one Terminal line the DGS pastes to merge and push:
-  `cd ~/degree-audit-app && git pull --ff-only && git merge --ff-only <branch> && git push`.
+  `cd ~/degree-audit-app && git pull --ff-only && git merge --no-edit <branch> && git push`
+  (no `--ff-only` on the second merge since 2026-09-28 — the snapshot commits kept blocking it).
   GitHub Pages deploys `main` within a minute or two.
 - Claude never pushes; "Continue in → Claude Code on the Web" and "Create PR" would push a branch, so
   they are not used for this repo.
