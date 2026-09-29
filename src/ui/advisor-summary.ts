@@ -6,9 +6,12 @@
 // Shape (DGS request 2026-09-06, replacing the attention-first design of the
 // same morning): the requirements in HANDBOOK ORDER — one section per group
 // (§2.2–2.3, §4.2, §4.3, §4.4, §4.5, §4.6–4.7; §3.x for the M.S.), each row
-// coloured by status — green when met, amber while in progress or awaiting a
-// DGS decision, red when not yet met or not evaluable — with its "why" and
-// deadline (semesters, DGS 2026-09-05); then three TO-DO lists derived from
+// in the page's own colour — the Grad Admin request's style, since 2026-09-28
+// (DGS: "Use the same style as in the texts for Grad Admin"): a badge in HTML,
+// a [WORD] tag in text (green met, amber in progress, grey not started, red
+// overdue, blue conditionally met — email-html.ts), with its "why" and its
+// deadline (semesters, DGS 2026-09-05) on a line of its own, highlighted when
+// it falls in this semester or the next, or has passed; then three TO-DO lists derived from
 // the same rows: what the student, the advisor, the DGS (eligibility) and,
 // since 2026-09-06, the Grad Admin (processing) each need to do.
 // Kept from the morning's design: the subject line with the headline facts,
@@ -18,9 +21,9 @@ import type { AuditReport, DetailPart, RequirementResult, Status } from '../engi
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
-import { esc, plural, programLabel, programShort } from './email-html.ts';
+import { esc, htmlBadge, htmlDeadline, plural, programLabel, programShort, textDeadline, type DeadlineAlert, type StandingColor } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
-import { isNotStarted, scoredRows } from './report.ts';
+import { deadlineAlert, isNotStarted, scoredRows, standingColor, statusWord } from './report.ts';
 
 export interface AdvisorSummaryOptions {
   todayIso: string;
@@ -33,25 +36,6 @@ export interface AdvisorSummaryOptions {
    * heading says "my advisors" when there are two. Empty = "Dear Advisor,". */
   advisors?: string[];
 }
-
-/** The page's palette, inline because email clients drop stylesheets. */
-export const COLORS = { green: '#10693f', amber: '#8e5108', red: '#a81e14', grey: '#5b6472' } as const;
-type Color = keyof typeof COLORS;
-
-/** Status word (the page's) and colour per status. */
-const STATUS_TAG: Record<Status, { word: string; color: Color }> = {
-  met: { word: 'MET', color: 'green' },
-  in_progress: { word: 'IN PROGRESS', color: 'amber' },
-  // The page's word since W-CS1 (2026-09-18); the email matched it in the trim
-  // review (P-59). The Why column still names who must approve.
-  needs_dgs_review: { word: 'CONDITIONALLY MET', color: 'amber' },
-  // "Not yet" and "In progress" were two words for one thing to the reader
-  // (DGS 2026-09-22: "If they are the same, choose 'In progress'"); a passed
-  // deadline is the one case that is not the same, and reads OVERDUE (tagFor).
-  unmet: { word: 'IN PROGRESS', color: 'amber' },
-  cannot_evaluate: { word: 'CANNOT EVALUATE', color: 'red' },
-  not_applicable: { word: 'DOES NOT APPLY', color: 'green' },
-};
 
 export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions): { text: string; html: string; subject: string } {
   const rows = report.requirements;
@@ -85,6 +69,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const standing =
     `${programLabel(report.program)}; entered ${opts.entryTerm}; ${prior}; ` +
     `cumulative GPA ${opts.gpa !== undefined ? opts.gpa.toFixed(2) : 'not entered yet'}.`;
+  // A deadline in this semester or the next is counted in the headline too
+  // (DGS 2026-09-28), as the Grad Admin request counts it.
+  const dueSoon = scored.filter((r) => ['this', 'next'].includes(deadlineAlert(r) ?? '')).length;
   const counts = [
     `${n.met} of ${n.scored} requirements met`,
     ...(open > 0 ? [`${open} in progress`] : []),
@@ -92,6 +79,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     ...(notStarted > 0 ? [`${notStarted} not started`] : []),
     ...(n.waiting > 0 ? [`${n.waiting} conditionally met`] : []),
     ...(n.unchecked > 0 ? [`${n.unchecked} cannot be evaluated`] : []),
+    ...(dueSoon > 0 ? [`${plural(dueSoon, 'deadline')} in this semester or the next`] : []),
   ].join(' · ');
 
   // ---- sections in handbook order ----
@@ -116,18 +104,11 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     : '';
   const statusNote = `Alpha version under testing. ${BETA_NOTICE} Checked against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`;
 
-  // The tag: the page's per-row label when the engine set one (W-CS2,
-  // "Eligibility at risk" for a defense past §4.3's limit), else the status
-  // word — so the advisor never reads "conditionally met" for a row the page
-  // shows as at risk (trim review 2026-09-18, P-59).
-  const tagFor = (r: RequirementResult): { word: string; color: Color } =>
-    r.statusLabel
-      ? { word: r.statusLabel.toUpperCase(), color: STATUS_TAG[r.status].color }
-      : r.status === 'unmet' && r.deadline?.state === 'overdue'
-        ? { word: 'OVERDUE', color: 'red' }
-        : isNotStarted(r)
-          ? { word: 'NOT STARTED', color: 'grey' }
-          : STATUS_TAG[r.status];
+  // The tag: the page's pill word (report.ts statusWord — the engine's
+  // per-row label when it set one, W-CS2 "Eligibility at risk"; else Overdue,
+  // Not started, or the status word) in the page's pill colour (standingColor).
+  // Since 2026-09-28 the same pair the Grad Admin request prints.
+  const tagFor = (r: RequirementResult): { word: string; color: StandingColor } => ({ word: statusWord(r), color: standingColor(r) });
   // Met rows carry their Why too (DGS 2026-09-22): a one-line summary of what
   // met them. The "Courses counted" lists (2026-09-22), the bullet lists and
   // the seminar semesters (2026-09-23, morning) were all taken out again the
@@ -156,11 +137,14 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const salutation = advisors.length > 0 ? advisors.join(' and ') : 'Advisor';
 
   // ---- plain text ----
+  // The row as the Grad Admin request prints one (2026-09-28): the [WORD]
+  // tag, the title and its §, the why after a dash; the deadline on a line
+  // of its own beneath, "!!" when it is this semester, next semester or past.
   const line = (r: RequirementResult): string => {
     const tag = tagFor(r);
     const due = deadlineOf(r);
-    const parts = [whyCell(r), due ? `${due.text}.` : ''].filter(Boolean);
-    return `[${tag.word}] ${r.title} (${r.citation.section})${parts.length ? ` — ${parts.join(' ')}` : ''}`;
+    const why = whyCell(r);
+    return `[${tag.word.toUpperCase()}] ${r.title} (${r.citation.section})${why ? ` — ${why}` : ''}${due ? `\n    ${textDeadline(due.text, due.alert)}` : ''}`;
   };
   const todoText = (heading: string, items: string[]) =>
     `${heading}\n${items.length > 0 ? items.map((i) => `- ${i}`).join('\n') : '- Nothing at the moment.'}\n\n`;
@@ -179,7 +163,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `Thank you!\n\n${deadlineNote ? `${deadlineNote}\n` : ''}${statusNote}\n`;
 
   // ---- HTML ----
-  const colored = (color: Color, inner: string) => `<span style="color:${COLORS[color]};font-weight:bold">${inner}</span>`;
+  // One table per section still; the Status cell is the page's pill as a
+  // badge and the Deadline cell the highlighted box, both the Grad Admin
+  // request's (email-html.ts, 2026-09-28).
   const htmlSection = (s: { heading: string; rows: RequirementResult[] }): string => {
     const withDeadline = s.rows.some((r) => deadlineOf(r) !== undefined);
     return (
@@ -189,10 +175,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
         .map((r) => {
           const tag = tagFor(r);
           const due = deadlineOf(r);
-          const dueCell = due ? (due.passed ? colored('red', esc(due.text)) : esc(due.text)) : '';
           return (
-            `<tr><td>${colored(tag.color, esc(tag.word))}</td><td>${colored(tag.color, esc(r.title))}</td><td>${esc(r.citation.section)}</td>` +
-            `<td>${esc(whyCell(r))}</td>${withDeadline ? `<td>${dueCell}</td>` : ''}</tr>`
+            `<tr><td>${htmlBadge(tag.word, tag.color)}</td><td><strong>${esc(r.title)}</strong></td><td>${esc(r.citation.section)}</td>` +
+            `<td>${esc(whyCell(r))}</td>${withDeadline ? `<td>${due ? htmlDeadline(due.text, due.alert, false) : ''}</td>` : ''}</tr>`
           );
         })
         .join('') +
@@ -217,15 +202,14 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   return { text: decisionWording(report.program, shortenAfterFirst(text)), html: decisionWording(report.program, shortenAfterFirst(html)), subject: decisionWording(report.program, subject) };
 }
 
-/** "Due by the end of Spring 2028" / "Deadline passed (was due during Spring
- * 2028)": a SEMESTER, never a date (DGS 2026-09-05); the footnote says once
- * that semesters are approximate, so the lines do not repeat it. */
-function deadlineOf(r: RequirementResult): { text: string; passed: boolean } | undefined {
-  const d = r.deadline;
-  if (!d || d.state === 'done' || r.status === 'met') return undefined;
-  return d.state === 'overdue'
-    ? { text: `Deadline passed (was due ${dueTermPhrase(d.date)})`, passed: true }
-    : { text: `Due ${dueTermPhrase(d.date)}`, passed: false };
+/** "Due by the end of Spring 2028" / "was due during Spring 2028": a
+ * SEMESTER, never a date (DGS 2026-09-05); the footnote says once that
+ * semesters are approximate, so the lines do not repeat it. The alert
+ * (this semester, next semester, passed) is the page's (report.ts). */
+function deadlineOf(r: RequirementResult): { text: string; alert: DeadlineAlert } | undefined {
+  const alert = deadlineAlert(r);
+  if (alert === null) return undefined;
+  return { text: alert === 'passed' ? `was due ${dueTermPhrase(r.deadline!.date)}` : `Due ${dueTermPhrase(r.deadline!.date)}`, alert };
 }
 
 // ---------- the three to-do lists ----------

@@ -2,6 +2,7 @@
 // status pills + deadline chips + § citations. (The "Copy summary for advisor"
 // email lives in advisor-summary.ts — string building only, no DOM.)
 import { formatCredits } from '../engine/credits.ts';
+import type { DeadlineAlert, StandingColor } from './email-html.ts';
 import type { AuditReport, Contribution, RequirementResult, Status } from '../engine/types.ts';
 import { el } from './dom.ts';
 import type { NextStep } from './next-steps.ts';
@@ -64,10 +65,28 @@ export function pillLabel(r: RequirementResult): string {
   const due = dueWording(r);
   return due ? `${statusWord(r)} · ${due}` : statusWord(r);
 }
-/** The pill's word without the deadline suffix — what the Grad Admin request
- * prints as the row's standing (DGS 2026-09-28). */
+/** The pill's word without the deadline suffix — what the copied messages
+ * print as the row's standing (DGS 2026-09-28). */
 export function statusWord(r: RequirementResult): string {
   return r.statusLabel ?? (isOverdue(r) ? 'Overdue' : isNotStarted(r) ? 'Not started' : STATUS_LABEL[r.status]);
+}
+/** The pill's colour, named, for the copied messages (style.css is the
+ * source: overdue red, met green, conditional blue, not started and cannot
+ * evaluate grey, everything open amber). */
+export function standingColor(r: RequirementResult): StandingColor {
+  if (isOverdue(r)) return 'red';
+  if (r.status === 'met') return 'green';
+  if (r.status === 'needs_dgs_review') return 'blue';
+  if (isNotStarted(r) || r.status === 'cannot_evaluate' || r.status === 'not_applicable') return 'grey';
+  return 'amber';
+}
+/** A row's deadline as the copied messages flag it: this semester, next
+ * semester, passed, or (undefined) further off; null when there is none to
+ * print (no deadline, done, or the row is met). */
+export function deadlineAlert(r: RequirementResult): DeadlineAlert | null {
+  const d = r.deadline;
+  if (!d || d.state === 'done' || r.status === 'met') return null;
+  return isOverdue(r) ? 'passed' : isDueSoon(r) ? d.horizon : undefined;
 }
 /** Extra pill classes for the display-only states: overdue, not started, and
  * the deadline alert (s-duesoon, which colours the pill whatever its word). */

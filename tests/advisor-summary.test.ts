@@ -8,7 +8,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AuditReport, RequirementResult } from '../src/engine/types.ts';
-import { COLORS, actionItems, advisorSummary, whyFor } from '../src/ui/advisor-summary.ts';
+import { actionItems, advisorSummary, whyFor } from '../src/ui/advisor-summary.ts';
+import { BADGE_STYLE, htmlBadge } from '../src/ui/email-html.ts';
 
 function req(id: string, title: string, status: RequirementResult['status'], detail = '', group = 'Coursework — §4.2', section = '§4.2'): RequirementResult {
   return { id, group, title, status, detail, citation: { section, quote: 'quote' } };
@@ -60,14 +61,12 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.doesNotMatch(text, /Courses counted|COURSES COUNTED/, 'no course list (DGS 2026-09-23)');
   });
 
-  it('HTML: one table per section; status word and requirement name in the status colour', () => {
+  it('HTML: one table per section; the status word as the page’s pill (a badge, the Grad Admin request’s style — 2026-09-28)', () => {
     assert.match(html, /<p><strong>Basic requirements — §2\.2–2\.3<\/strong><\/p><table[^>]*><tr><th>Status<\/th><th>Requirement<\/th><th>§<\/th><th>Why<\/th><\/tr>/);
-    const green = `<span style="color:${COLORS.green};font-weight:bold">`;
-    const amber = `<span style="color:${COLORS.amber};font-weight:bold">`;
-    const red = `<span style="color:${COLORS.red};font-weight:bold">`;
-    assert.ok(html.includes(`<td>${green}MET</span></td><td>${green}Cumulative GPA of at least 3.0</span></td>`));
-    assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}60 total credits of courses &amp; research</span></td><td>§4.2</td><td>14 of 60 credits complete. 9 in progress.</td>`));
-    assert.ok(html.includes(`<td>${amber}IN PROGRESS</span></td><td>${amber}24 credit hours of regular courses</span></td><td>§4.2</td><td>12 of 24 credits complete. 3 in progress.</td>`), html);
+    assert.ok(html.includes(`<td>${htmlBadge('Met', 'green')}</td><td><strong>Cumulative GPA of at least 3.0</strong></td>`));
+    assert.ok(html.includes(`<td>${htmlBadge('In progress', 'amber')}</td><td><strong>60 total credits of courses &amp; research</strong></td><td>§4.2</td><td>14 of 60 credits complete. 9 in progress.</td>`));
+    assert.ok(html.includes(`<td>${htmlBadge('In progress', 'amber')}</td><td><strong>24 credit hours of regular courses</strong></td><td>§4.2</td><td>12 of 24 credits complete. 3 in progress.</td>`), html);
+    assert.match(BADGE_STYLE.green, /^background:#e4f2ea;color:#10693f$/, 'the page’s met pill');
     // A met row lists its courses too — the Why cell is otherwise empty for it.
     const metWithCourses = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.credits.nd', title: 'Nine at ND', contributions: [{ courseId: 'CSE 60770', credits: 3 }] }] }, opts);
     assert.match(metWithCourses.text, /\[MET\] Nine at ND \(§2\.2\) — Cumulative GPA 3\.50 meets the 3\.0 minimum\.\n/, 'contributions are not listed');
@@ -87,7 +86,8 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     // The categories row names the groups satisfied, not the courses (DGS 2026-09-23).
     const cats = advisorSummary({ ...report, requirements: [{ ...report.requirements[0]!, id: 'phd.qualifier.categories', title: 'Categories', detail: '', detailParts: [{ lead: '3 qualifying courses covering 2 distinct groups', items: ['CSE 60641 Graduate Operating Systems → Systems and Software', 'CSE 60321 Advanced Computer Architecture → Architecture', 'CSE 60876 Research Methods → Architecture (flexible course — your assignment)'] }] }] }, opts).text;
     assert.match(cats, /\[MET\] Categories \(§2\.2\) — 3 qualifying courses covering 2 distinct groups: Systems and Software, Architecture\.\n/);
-    assert.ok(html.includes(`<td>${amber}CONDITIONALLY MET</span></td>`));
+    // Conditionally met is blue, as on the page (the Grad Admin request's colour, 2026-09-28; amber before).
+    assert.ok(html.includes(`<td>${htmlBadge('Conditionally met', 'blue')}</td>`));
     assert.doesNotMatch(html, /Transfer credit from prior graduate study/);
   });
 
@@ -130,10 +130,10 @@ describe('advisor summary: deadlines on the rows that have them', () => {
   };
   const { text, html } = advisorSummary(withDeadlines, opts);
 
-  it('subject line adds the passed deadline; rows say their semester, never a date', () => {
+  it('subject line adds the passed deadline; the deadline is a line of its own under the row, "!!" when passed (the Grad Admin request’s style, 2026-09-28); semesters, never dates', () => {
     assert.match(text, /^Subject: Degree self-check — Ph\.D\., entered Fall 2026 — 4 requirements in progress, 1 deadline passed\n/);
-    assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[OVERDUE\] Research component: a significant research contribution \(§4\.4\.3\) — Deadline passed \(was due during Spring 2028\)\.\n/);
-    assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\) — Due by the end of Spring 2030\.\n  \[MET\] Something already done \(§4\.5\) — Done\.\n/);
+    assert.match(text, /\nQUALIFYING EXAMINATION — §4\.4\n  \[OVERDUE\] Research component: a significant research contribution \(§4\.4\.3\)\n    !! DEADLINE PASSED: was due during Spring 2028\n/);
+    assert.match(text, /\nORAL CANDIDACY EXAM \(OCE\) — §4\.5\n  \[IN PROGRESS\] OCE passed \(§4\.5\)\n    Deadline: Due by the end of Spring 2030\n  \[MET\] Something already done \(§4\.5\) — Done\.\n/, 'a far deadline is stated without the alert');
     for (const dueLine of text.split('\n').filter((l: string) => /\bdue\b/i.test(l))) {
       assert.doesNotMatch(dueLine, /\d{4}-\d{2}-\d{2}/, `no ISO date in a deadline line: ${dueLine}`);
     }
@@ -141,11 +141,30 @@ describe('advisor summary: deadlines on the rows that have them', () => {
     assert.match(text, /^Deadlines are counted from Fall 2026 and given by semester; they are approximate — the registrar's calendar sets the exact dates\.$/m);
   });
 
-  it('HTML: a Deadline column only on sections that need one; a passed deadline in red', () => {
+  it('HTML: a Deadline column only on sections that need one; a passed deadline in the red box', () => {
     assert.match(html, /<p><strong>Qualifying examination — §4\.4<\/strong><\/p><table[^>]*><tr><th>Status<\/th><th>Requirement<\/th><th>§<\/th><th>Why<\/th><th>Deadline<\/th><\/tr>/);
-    assert.ok(html.includes(`<td><span style="color:${COLORS.red};font-weight:bold">Deadline passed (was due during Spring 2028)</span></td>`));
+    assert.ok(html.includes('<td><span style="display:inline-block;padding:2px 6px;background:#fbe9e7;color:#7a1f1f;border-left:4px solid #a81e14"><strong>Deadline passed:</strong> was due during Spring 2028</span></td>'));
     assert.ok(html.includes('<td>Due by the end of Spring 2030</td>'));
+    assert.ok(html.includes(`<td>${htmlBadge('Overdue', 'red')}</td><td><strong>Research component: a significant research contribution</strong></td>`));
     assert.match(html, /<p><strong>Basic requirements — §2\.2–2\.3<\/strong><\/p><table[^>]*><tr><th>Status<\/th><th>Requirement<\/th><th>§<\/th><th>Why<\/th><\/tr>/);
+  });
+
+  it('a deadline in the next semester: the "!!" line, the orange box, and a count in the headline (DGS 2026-09-28)', () => {
+    const soon: AuditReport = {
+      ...report,
+      requirements: [
+        ...report.requirements,
+        {
+          ...req('phd.qualifier', 'Qualifying examination — all components', 'in_progress', '3 of 5 parts done.', 'Qualifying examination — §4.4', '§4.4'),
+          deadline: { date: '2027-05-31', approx: true, state: 'due_soon', horizon: 'next', label: 'Due by the end of Spring 2027 (approximate)' },
+        },
+      ],
+    };
+    const r = advisorSummary(soon, opts);
+    assert.match(r.text, /\n1 of 4 requirements met · 3 in progress · 1 conditionally met · 1 deadline in this semester or the next\.\n/);
+    assert.match(r.text, /\n  \[IN PROGRESS\] Qualifying examination — all components \(§4\.4\) — 3 of 5 parts done\.\n    !! DEADLINE NEXT SEMESTER: Due by the end of Spring 2027\n/);
+    assert.ok(r.html.includes('<td><span style="display:inline-block;padding:2px 6px;background:#ffe3c9;color:#8a3a00;border-left:4px solid #e0863a"><strong>Deadline next semester:</strong> Due by the end of Spring 2027</span></td>'));
+    assert.doesNotMatch(r.text, /\(approximate\)/, 'said once in the footnote');
   });
 
   it('to-dos: the passed research deadline asks the advisor to decide and the DGS to rule on an extension', () => {

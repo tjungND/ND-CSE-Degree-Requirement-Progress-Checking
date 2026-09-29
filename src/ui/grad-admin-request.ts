@@ -29,9 +29,9 @@ import type { AuditReport, CourseEntry, Milestones, RequirementResult, Student }
 import { DO_NOT_MODIFY_MARKER, EDITABLE_MARKER, MARKER_DIVIDER } from '../transcript/external.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
-import { esc, plural, programLabel, programShort } from './email-html.ts';
+import { esc, htmlBadge, htmlDeadline, plural, programLabel, programShort, textDeadline, type StandingColor } from './email-html.ts';
 import { formatYmdLong } from './handbook.ts';
-import { isDueSoon, isNotStarted, isOverdue, scoredRows, statusWord } from './report.ts';
+import { deadlineAlert, isNotStarted, standingColor, scoredRows, statusWord } from './report.ts';
 
 export { selfCheckFileName } from './state.ts';
 
@@ -87,11 +87,6 @@ export interface MetTable {
   columns: string[];
   rows: string[][];
 }
-
-/** The page's pill colours, named for the Grad Admin request (DGS
- * 2026-09-28: "green, amber, and gray"; red for a passed deadline and blue for
- * a conditional row are the page's own). */
-export type StandingColor = 'green' | 'amber' | 'grey' | 'red' | 'blue';
 
 /** One requirement, met or not, as the Grad Admin request prints it: the
  * page's status word, its colour, what meets it so far, and its deadline —
@@ -163,21 +158,13 @@ function metTable(r: RequirementResult, student: Student): MetTable {
   return { heading, columns: [evidence], rows: [[r.detail || statusWord(r).toLowerCase()]] };
 }
 
-/** The page's colour for a row's pill (report.ts / style.css), by name. */
-function standingColor(r: RequirementResult): StandingColor {
-  if (isOverdue(r)) return 'red';
-  if (r.status === 'met') return 'green';
-  if (r.status === 'needs_dgs_review') return 'blue';
-  if (isNotStarted(r) || r.status === 'cannot_evaluate') return 'grey';
-  return 'amber';
-}
 const STANDING_ORDER: Record<StandingColor, number> = { red: 0, green: 1, blue: 2, amber: 3, grey: 4 };
 
 /** Every scored requirement as the request prints it (DGS 2026-09-28). */
 function standingTable(r: RequirementResult, student: Student): StandingTable {
-  const d = r.deadline;
   // A done deadline is the milestone's own date, already in the table.
-  const deadline = d && d.state !== 'done' && r.status !== 'met' ? { text: d.label, ...(isOverdue(r) ? { alert: 'passed' as const } : isDueSoon(r) ? { alert: d.horizon } : {}) } : undefined;
+  const alert = deadlineAlert(r);
+  const deadline = alert === null ? undefined : { text: r.deadline!.label, ...(alert ? { alert } : {}) };
   const table = metTable(r, student);
   // A row whose only "progress" would be its own status word (the years limit,
   // whose deadline chip says everything) prints no table.
@@ -366,12 +353,11 @@ export function gradAdminRequest(
 
   // ---- plain text ----
   // Plain text has no colour: the badge is a [WORD] tag before the heading,
-  // and a near or passed deadline a "!!" line under it.
-  const textDeadline = (d: StandingTable['deadline']): string =>
-    !d ? '' : d.alert === 'passed' ? `!! DEADLINE PASSED: ${d.text}\n` : d.alert ? `!! DEADLINE ${d.alert.toUpperCase()} SEMESTER: ${d.text}\n` : `Deadline: ${d.text}\n`;
+  // and a near or passed deadline a "!!" line under it (email-html.ts — the
+  // advisor summary prints the same).
   const textSection = (s: Section): string =>
     `${s.badge ? `[${s.badge.word.toUpperCase()}] ${s.heading}` : s.heading.toUpperCase()}\n` +
-    textDeadline(s.deadline) +
+    (s.deadline ? `${textDeadline(s.deadline.text, s.deadline.alert)}\n` : '') +
     (s.table && s.columns ? `${s.columns.join('\t')}\n${s.table.map((r) => r.join('\t')).join('\n')}\n` : '') +
     (s.lines && s.lines.length > 0 ? s.lines.map((l) => `- ${l}`).join('\n') + '\n' : '') +
     '\n';
@@ -386,28 +372,10 @@ export function gradAdminRequest(
     `<table border="1" cellspacing="0" cellpadding="4"><tr>${columns.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>` +
     rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') +
     '</table>';
-  // Inline styles: mail clients keep no stylesheet. The colours are the
-  // page's pills (style.css) and its deadline chips.
-  const BADGE: Record<StandingColor, string> = {
-    green: 'background:#e4f2ea;color:#10693f',
-    amber: 'background:#fbeedd;color:#8e5108',
-    grey: 'background:#eef0f3;color:#5a6472',
-    red: 'background:#fbe9e7;color:#a81e14',
-    blue: 'background:#e7eef9;color:#1f4e8c',
-  };
-  const htmlBadge = (b: { word: string; color: StandingColor }): string =>
-    `<span style="display:inline-block;padding:1px 8px;border-radius:99px;font-weight:bold;font-size:12px;${BADGE[b.color]}">${esc(b.word)}</span> `;
-  const htmlDeadline = (d: StandingTable['deadline']): string =>
-    !d
-      ? ''
-      : d.alert === 'passed'
-        ? `<p style="margin:2px 0 6px;padding:4px 8px;background:#fbe9e7;color:#7a1f1f;border-left:4px solid #a81e14"><strong>Deadline passed:</strong> ${esc(d.text)}</p>`
-        : d.alert
-          ? `<p style="margin:2px 0 6px;padding:4px 8px;background:#ffe3c9;color:#8a3a00;border-left:4px solid #e0863a"><strong>Deadline ${d.alert} semester:</strong> ${esc(d.text)}</p>`
-          : `<p style="margin:2px 0 6px">Deadline: ${esc(d.text)}</p>`;
+  // The badge and the deadline box are the shared style (email-html.ts).
   const htmlSection = (s: Section): string =>
-    `<p>${s.badge ? htmlBadge(s.badge) : ''}<strong>${esc(s.heading)}</strong></p>` +
-    htmlDeadline(s.deadline) +
+    `<p>${s.badge ? `${htmlBadge(s.badge.word, s.badge.color)} ` : ''}<strong>${esc(s.heading)}</strong></p>` +
+    (s.deadline ? htmlDeadline(s.deadline.text, s.deadline.alert) : '') +
     (s.table && s.columns ? htmlTable(s.columns, s.table) : '') +
     (s.lines ? `<ul>${s.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : '');
   const html =
