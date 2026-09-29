@@ -297,6 +297,14 @@ async function checkPhone(s, page, readyExpr, width = 390) {
       .slice(0, 3).map((c) => (c.textContent || '').trim().slice(0, 40)))`);
     const out = JSON.parse(spill);
     if (out.length > 0) throw new Error(`a schedule cell runs past its card at ${width} px: ${out.join(' | ')}`);
+  } else if (page.startsWith('courses')) {
+    // Above the card breakpoint the schedule tables fit their card with every
+    // column in view — no sideways scroll, as in All courses (DGS 2026-09-29).
+    // The 980 px floor and the one-line titles used to overflow a 1,030 px card.
+    const scrollers = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('.schedule-overview .table-scroll')].map((d) => ({ client: d.clientWidth, scroll: d.scrollWidth })))`));
+    const wide = scrollers.filter((d) => d.scroll > d.client);
+    if (wide.length > 0) throw new Error(`a schedule table scrolls sideways at ${width} px: ${JSON.stringify(wide)}`);
+    if (scrollers.length > 0) console.log(`  schedule tables fit their cards at ${width} px (${scrollers.map((d) => d.scroll + '/' + d.client).join(', ')})`);
   }
   if (width < 600 && page === 'app') {
     // Usability pass 2026-09-08: one field per line in the add-a-course form,

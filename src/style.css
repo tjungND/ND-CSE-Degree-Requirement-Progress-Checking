@@ -519,7 +519,21 @@ html.embed .courses-page .overview > p, html.embed .courses-page .legend li, htm
 /* The schedule cards hold a seven-column table, so they take the whole row
    until the window can fit two of them side by side (2026-09-09). */
 .ov-grid.two > .ov-card { flex: 1 1 min(100%, 1100px); }
-.schedule-table { font-size: 13px; }
+/* The schedule tables fit their card at every width above the phone layout
+   (DGS 2026-09-29: "shows all the columns without horizontal scrolls, just
+   like All courses"): no 980 px floor — that is the sort-header table's — and
+   titles and column heads wrap when the card is narrow, as they do in All
+   courses. Until then a title could not wrap ("one course, one line", DGS
+   2026-09-09), so a 1,200 px table sat in a 1,030 px card and scrolled
+   sideways — in the ND page's column, and whenever two semester cards share
+   a row. */
+table.course-rules.schedule-table { font-size: 13px; min-width: 0; } /* the class alone loses to `table.course-rules` on specificity */
+/* Just above the card breakpoint (861–1000 px) the seven columns share under
+   800 px: tighter cell padding is what keeps a "Case by case" pill from being
+   the one thing that cannot shrink. */
+@media (max-width: 1000px) {
+  table.course-rules.schedule-table th, table.course-rules.schedule-table td { padding-left: 4px; padding-right: 4px; }
+}
 /* The schedule tables collapse only where they become a stack of cards taller
    than the section that follows them (trim review P-20, 2026-09-18). Whether
    each one is open is set in courses-page.ts by the window width, so at 861 px
@@ -530,11 +544,11 @@ html.embed .courses-page .overview > p, html.embed .courses-page .legend li, htm
   .sched-details > summary { display: list-item; cursor: pointer; font-weight: 600; color: var(--navy); padding: 4px 0; font-size: 14px; }
 }
 @media print { .sched-details > summary { display: none; } }
-.schedule-table th[scope='col'] { white-space: nowrap; }
-.schedule-table td.cell-title { white-space: nowrap; }
-/* One course, one line: the card grows to its longest course instead of
-   wrapping every title (DGS 2026-09-09). Once the cards are full width the text
-   has to wrap again — see the 860 px block. */
+.schedule-table th[scope='col'], .schedule-table td.cell-title { white-space: normal; }
+/* One course, one line in the OVERVIEW lists: the card grows to its longest
+   course instead of wrapping every title (DGS 2026-09-09; the schedule
+   tables left this rule on 2026-09-29, see above). Once the cards are full
+   width the text has to wrap again — see the 860 px block. */
 .ov-item { white-space: nowrap; }
 .ov-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
 .ov-list { display: flex; flex-direction: column; gap: 3px; }
