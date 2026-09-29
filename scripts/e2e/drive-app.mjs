@@ -158,6 +158,28 @@ export async function driveApp(s, baseUrl) {
   console.log('  already holds the MSCSE (earlier-degrees answer) → the §4.5 along-the-way row is gone');
   await answerGraduate('none'); // put it back
   await s.waitFor(`!!document.getElementById('req-phd-msAlongTheWay')`);
+  // A transfer from the MSCSE into the Ph.D. asks WHEN (DGS 2026-09-28): the
+  // term goes on the emails' subject lines; the entry term is untouched.
+  await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
+  await s.evalJs(`document.querySelector('[data-key="background.graduate.nd-mscse-transfer"]').click()`);
+  const transferAsk = JSON.parse(await s.evalJs(`JSON.stringify((() => { const y = document.querySelector('[data-key="background.transferred.year"]'); const box = y?.closest('fieldset'); return { shown: !!box && !box.hidden, legend: box?.querySelector('legend')?.textContent.slice(0, 40) }; })())`));
+  console.log('  transfer question:', JSON.stringify(transferAsk));
+  if (!transferAsk.shown || !/^When did you transfer into the Ph\.D\./.test(transferAsk.legend)) throw new Error('choosing "transferred into the Ph.D." must ask for the transfer term: ' + JSON.stringify(transferAsk));
+  await s.evalJs(`(() => { const se = document.querySelector('[data-key="background.transferred.season"]'); se.value = 'spring'; se.dispatchEvent(new Event('change')); const y = document.querySelector('[data-key="background.transferred.year"]'); y.value = '2027'; y.dispatchEvent(new Event('change')); document.querySelector('[data-key="background.save"]').click(); })()`);
+  await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
+  const bgLine = await s.evalJs(`document.querySelector('[data-key="standing.background"]')?.textContent ?? ''`);
+  if (!/transferred into the Ph\.D\. from the Notre Dame MSCSE in Spring 2027/.test(bgLine)) throw new Error('the standing line must name the transfer term: ' + bgLine);
+  // The dialog opens after the clipboard write: wait for it.
+  await s.evalJs(`document.querySelector('[data-key="save.copy"]').click()`);
+  await s.waitFor(`!!document.querySelector('dialog.copy-check')`);
+  const advSubject = await s.evalJs(`document.querySelector('dialog.copy-check .copy-subject')?.textContent ?? ''`);
+  await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
+  await s.waitFor(`!document.querySelector('dialog.copy-check')`);
+  console.log('  advisor subject with the transfer:', advSubject);
+  if (!/^Subject: Degree self-check — Ph\.D\. \(transferred Spring 2027 from the Notre Dame MSCSE, entered Fall \d{4}\) — /.test(advSubject)) throw new Error('the subject must carry the transfer (DGS 2026-09-28): ' + advSubject);
+  await answerGraduate('none'); // put it back
+  await s.waitFor(`!!document.getElementById('req-phd-msAlongTheWay')`);
 
   // Manual course from another university (2026-09-06 evening): the University
   // box offers the ExternalCourses tab's universities and Title-Cases what is
@@ -457,7 +479,8 @@ export async function driveApp(s, baseUrl) {
   // the Ph.D. example has none.
   const gaSteps = await s.evalJs(`[...document.querySelectorAll('dialog.copy-check ol.copy-steps li')].map(li => (li.querySelector('strong') ? '*' : '') + li.textContent)`);
   console.log('  Grad Admin dialog steps:', JSON.stringify(gaSteps.map((t) => t.slice(0, 70))));
-  if (gaSteps.length !== 2 || !/^Send it\./.test(gaSteps[1]) || gaSteps.some((t) => /ORIGINAL transcripts/.test(t))) throw new Error('Grad Admin dialog steps (no transfer → no attach step): ' + JSON.stringify(gaSteps));
+  // Three since 2026-09-28: open/paste, fill in the Student line (name, netID, NDID), send.
+  if (gaSteps.length !== 3 || !/^Fill in your name, netID and NDID/.test(gaSteps[1]) || !/^Send it\./.test(gaSteps[2]) || gaSteps.some((t) => /ORIGINAL transcripts/.test(t))) throw new Error('Grad Admin dialog steps (no transfer → no attach step): ' + JSON.stringify(gaSteps));
   // "Open in my email app" (DGS 2026-09-13): a mailto: to the Grad Admin with
   // the DGS in cc and the subject; the body is the message itself only while
   // the address stays short enough for every client.

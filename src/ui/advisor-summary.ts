@@ -21,8 +21,9 @@ import type { AuditReport, DetailPart, RequirementResult, Status } from '../engi
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
-import { esc, htmlBadge, htmlDeadline, plural, programLabel, programShort, textDeadline, type DeadlineAlert, type StandingColor } from './email-html.ts';
+import { ACTION_HEADING, STUDENT_LINE, esc, htmlBadge, htmlDeadline, plural, programLabel, programShort, studentLineHtml, textDeadline, type DeadlineAlert, type StandingColor } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
+import type { ProgramHistory } from './program-history.ts';
 import { deadlineAlert, isNotStarted, scoredRows, standingColor, statusWord } from './report.ts';
 
 export interface AdvisorSummaryOptions {
@@ -31,6 +32,9 @@ export interface AdvisorSummaryOptions {
   /** The "Prior graduate study" choice as the page labels it. */
   priorStudy: string;
   gpa?: number;
+  /** The Notre Dame programs (DGS 2026-09-28): `compact` for the subject,
+   * `earlier` for the standing paragraph. Optional for older callers. */
+  history?: ProgramHistory;
   /** The advisors' names from the Milestones card (DGS 2026-09-22): the
    * salutation names them — "Dear Prof. X and Prof. Y," — and the to-do
    * heading says "my advisors" when there are two. Empty = "Dear Advisor,". */
@@ -62,7 +66,8 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
       : open > 0
         ? `${plural(open, 'requirement')} in progress${n.overdue > 0 ? `, ${plural(n.overdue, 'deadline')} passed` : ''}`
         : `${n.met} of ${n.scored} met${n.waiting > 0 ? `, ${n.waiting} conditionally met` : ''}`;
-  const subject = `Degree self-check — ${programShort(report.program)}, entered ${opts.entryTerm} — ${headlineFact}`;
+  const subject = `Degree self-check — ${opts.history?.compact ?? `${programShort(report.program)}, entered ${opts.entryTerm}`} — ${headlineFact}`;
+  const earlier = opts.history?.earlier ?? '';
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
   const intro = `Here is my current standing from the CSE degree self-check tool, as of ${asOf}.`;
   const prior = opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
@@ -88,8 +93,23 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   // are left out; the per-course sign-off list ("Approvals") feeds the to-do
   // lists instead of standing as a section.
   const listed = rows.filter((r) => !r.informational && r.status !== 'not_applicable' && r.group !== 'Approvals');
+  // Three met core-knowledge rows read as one line (DGS 2026-09-28: "collapse
+  // groups of met rows"): the areas and their courses, nothing lost.
+  const core = listed.filter((r) => r.id.startsWith('phd.qualifier.core.'));
+  const coreCollapsed = core.length === 3 && core.every((r) => r.status === 'met');
+  const collapsedCore: RequirementResult | undefined = coreCollapsed
+    ? {
+        ...core[0]!,
+        id: 'phd.qualifier.core',
+        title: 'Core knowledge: all three areas',
+        detail: core.map((r) => `${r.title.replace(/^Core knowledge:\s*/, '')}: ${whyFor(r).replace(/^Satisfied by /, '').replace(/\.$/, '')}`).join('; ') + '.',
+        detailParts: undefined,
+        shortDetailParts: undefined,
+      }
+    : undefined;
+  const sectioned = coreCollapsed ? listed.flatMap((r) => (r.id === core[0]!.id ? [collapsedCore!] : core.includes(r) ? [] : [r])) : listed;
   const sections: { heading: string; rows: RequirementResult[] }[] = [];
-  for (const r of listed) {
+  for (const r of sectioned) {
     let s = sections.find((x) => x.heading === r.group);
     if (!s) {
       s = { heading: r.group, rows: [] };
@@ -108,13 +128,28 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   // per-row label when it set one, W-CS2 "Eligibility at risk"; else Overdue,
   // Not started, or the status word) in the page's pill colour (standingColor).
   // Since 2026-09-28 the same pair the Grad Admin request prints.
-  const tagFor = (r: RequirementResult): { word: string; color: StandingColor } => ({ word: statusWord(r), color: standingColor(r) });
+  // An allowance is a meter, not a verdict — as on the page since 2026-09-27
+  // (DGS 2026-09-28: "let's use the meter"): "3 of 9 used", grey.
+  const meterWord = (r: RequirementResult): string | undefined =>
+    r.allowance ? (r.progress ? `${Math.round(r.progress.have * 100) / 100} of ${r.progress.need} used` : (r.statusLabel ?? 'Not used yet')) : undefined;
+  const tagFor = (r: RequirementResult): { word: string; color: StandingColor } => {
+    const meter = meterWord(r);
+    return meter ? { word: meter, color: 'grey' } : { word: statusWord(r), color: standingColor(r) };
+  };
   // Met rows carry their Why too (DGS 2026-09-22): a one-line summary of what
   // met them. The "Courses counted" lists (2026-09-22), the bullet lists and
   // the seminar semesters (2026-09-23, morning) were all taken out again the
   // same day — DGS: "Advisors don't need to know the course details. Summary
   // in the why column is enough." The categories row names the groups only.
-  const whyCell = (r: RequirementResult): string => whyFor(r);
+  const whyCell = (r: RequirementResult): string => (r.allowance ? whyFor(r).replace(/^\d+(?:\.\d+)? of the \d+ [^.]*used\.\s*/, '') : whyFor(r));
+  // The nearest open deadline (DGS 2026-09-28: the advisor's part first, with
+  // the next deadline): the row and its semester phrase.
+  const nextDue = listed
+    .filter((r) => deadlineOf(r) !== undefined && deadlineOf(r)!.alert !== 'passed')
+    .sort((a, b) => (a.deadline!.date < b.deadline!.date ? -1 : 1))[0];
+  const nextDeadline = nextDue
+    ? `Next deadline: ${nextDue.title} (${nextDue.citation.section}) — ${deadlineOf(nextDue)!.text}${deadlineOf(nextDue)!.alert ? ` (${deadlineOf(nextDue)!.alert} semester)` : ''}.`
+    : '';
   // The DGS and Grad Admin lists print only when they hold something; two
   // headings announcing that two absent people have nothing to do were filler
   // for the advisor. One sentence keeps all four parties accounted for (trim
@@ -149,49 +184,52 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const todoText = (heading: string, items: string[]) =>
     `${heading}\n${items.length > 0 ? items.map((i) => `- ${i}`).join('\n') : '- Nothing at the moment.'}\n\n`;
   const pendingText = nothingPending();
-  // Sign-off before the footnotes: a letter ends with "Thank you!", and the
-  // deadline note and the alpha notice read as footnotes below it, as in the
-  // Grad Admin request (trim review 2026-09-18, P-73).
+  // The same skeleton as the other two emails (DGS 2026-09-28): the student
+  // line, the standing, then the reader's own numbered actions — what I need
+  // from my advisor — and the next deadline, BEFORE the standing list; my
+  // own to-dos and the other parties' after it. Sign-off before the
+  // footnotes (trim review 2026-09-18, P-73).
+  const actionsTitle = `${ACTION_HEADING} — what I need from you, my advisor${twoAdvisors ? 's' : ''}`;
+  const actionsHeading = actionsTitle.toUpperCase();
+  const actionsText = `${actionsHeading}\n${todo.advisor.length > 0 ? todo.advisor.map((i, k) => `${k + 1}. ${i}`).join('\n') : 'Nothing at the moment.'}\n\n`;
   const text =
-    `Subject: ${subject}\n\nDear ${salutation},\n\n${intro}\n${standing}\n${counts}.\n\n` +
+    `Subject: ${subject}\n\nDear ${salutation},\n\n${STUDENT_LINE}\n\n${intro}\n${standing}\n${earlier ? `${earlier}\n` : ''}${counts}.\n${nextDeadline ? `${nextDeadline}\n` : ''}\n` +
+    actionsText +
+    'MY STANDING, REQUIREMENT BY REQUIREMENT\n\n' +
     sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map((r) => `  ${line(r)}`).join('\n')}\n\n`).join('') +
     todoText('WHAT I NEED TO DO', todo.student) +
-    todoText(twoAdvisors ? 'WHAT I NEED FROM YOU, MY ADVISORS' : 'WHAT I NEED FROM YOU, MY ADVISOR', todo.advisor) +
     (todo.dgs.length > 0 ? todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) : '') +
     (pendingText ? `${pendingText}\n\n` : '') +
     `Thank you!\n\n${deadlineNote ? `${deadlineNote}\n` : ''}${statusNote}\n`;
 
   // ---- HTML ----
-  // One table per section still; the Status cell is the page's pill as a
-  // badge and the Deadline cell the highlighted box, both the Grad Admin
-  // request's (email-html.ts, 2026-09-28).
-  const htmlSection = (s: { heading: string; rows: RequirementResult[] }): string => {
-    const withDeadline = s.rows.some((r) => deadlineOf(r) !== undefined);
+  // Stacked, not a five-column table (DGS 2026-09-28): the badge and the
+  // title on one line, the why beneath, the deadline box under that — the
+  // Grad Admin request's form, which reads in every mail client and on a
+  // phone (email-html.ts).
+  const htmlRow = (r: RequirementResult): string => {
+    const tag = tagFor(r);
+    const due = deadlineOf(r);
+    const why = whyCell(r);
     return (
-      `<p><strong>${esc(s.heading)}</strong></p>` +
-      `<table border="1" cellspacing="0" cellpadding="4"><tr><th>Status</th><th>Requirement</th><th>§</th><th>Why</th>${withDeadline ? '<th>Deadline</th>' : ''}</tr>` +
-      s.rows
-        .map((r) => {
-          const tag = tagFor(r);
-          const due = deadlineOf(r);
-          return (
-            `<tr><td>${htmlBadge(tag.word, tag.color)}</td><td><strong>${esc(r.title)}</strong></td><td>${esc(r.citation.section)}</td>` +
-            `<td>${esc(whyCell(r))}</td>${withDeadline ? `<td>${due ? htmlDeadline(due.text, due.alert, false) : ''}</td>` : ''}</tr>`
-          );
-        })
-        .join('') +
-      `</table>`
+      `<p style="margin:6px 0 2px">${htmlBadge(tag.word, tag.color)} <strong>${esc(r.title)}</strong> (${esc(r.citation.section)})${why ? `<br>${esc(why)}` : ''}</p>` +
+      (due ? htmlDeadline(due.text, due.alert) : '')
     );
   };
+  const htmlSection = (s: { heading: string; rows: RequirementResult[] }): string => `<p><strong>${esc(s.heading)}</strong></p>${s.rows.map(htmlRow).join('')}`;
   const todoHtml = (heading: string, items: string[]) =>
     `<p><strong>${esc(heading)}</strong></p><ul>${(items.length > 0 ? items : ['Nothing at the moment.']).map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
+  const actionsHtml =
+    `<p><strong>${esc(actionsTitle)}</strong></p>` +
+    (todo.advisor.length > 0 ? `<ol>${todo.advisor.map((i) => `<li>${esc(i)}</li>`).join('')}</ol>` : '<p>Nothing at the moment.</p>');
   const html =
-    `<p>Subject: ${esc(subject)}</p><p>Dear ${esc(salutation)},</p>` +
-    `<p>${esc(intro)}<br>${esc(standing)}<br><strong>${esc(counts)}.</strong></p>` +
+    `<p>Subject: ${esc(subject)}</p><p>Dear ${esc(salutation)},</p>${studentLineHtml()}` +
+    `<p>${esc(intro)}<br>${esc(standing)}${earlier ? `<br>${esc(earlier)}` : ''}<br><strong>${esc(counts)}.</strong>${nextDeadline ? `<br>${esc(nextDeadline)}` : ''}</p>` +
+    actionsHtml +
+    `<p><strong>My standing, requirement by requirement</strong></p>` +
     sections.map(htmlSection).join('') +
     todoHtml('What I need to do', todo.student) +
-    todoHtml(twoAdvisors ? 'What I need from you, my advisors' : 'What I need from you, my advisor', todo.advisor) +
     (todo.dgs.length > 0 ? todoHtml('What the DGS needs to do', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoHtml('What the Grad Admin needs to do', todo.gradAdmin) : '') +
     (pendingText ? `<p>${esc(pendingText)}</p>` : '') +
@@ -399,8 +437,12 @@ export function actionItems(report: AuditReport): ActionItems {
         continue;
       }
       pendingCourses.push(course);
-      if (/advisor/i.test(reason)) out.advisor.push(`Approve ${course} — ${reason.replace(/ — needs advisor \+ DGS approval/, '')}.`);
-      if (/DGS|review|rules sheet|transfer/i.test(reason)) out.dgs.push(`Decide on ${course} — ${reason}.`);
+      // Each list in its reader's own words (DGS 2026-09-28): the page's
+      // reason is written for the student ("send the review request", "your
+      // advisor"), and used to land verbatim in front of the advisor and the DGS.
+      const item = approvalItems(course, reason, report.program);
+      if (item.advisor) out.advisor.push(item.advisor);
+      if (item.dgs) out.dgs.push(item.dgs);
       }
     }
   }
@@ -427,6 +469,35 @@ export function actionItems(report: AuditReport): ActionItems {
     dgs: dedupe(out.dgs),
     gradAdmin: dedupe(out.gradAdmin),
   };
+}
+
+/** The advisor's and the DGS's to-do for one course still waiting on them,
+ * from the approvals row's reason (allocate.ts / review.ts wording). The
+ * facts are read off the reason — unlisted, non-CSE, below the 60000 level,
+ * case by case, a §5.2 recommendation — and each line is written for its
+ * reader (DGS 2026-09-28). */
+export function approvalItems(course: string, reason: string, program: 'mscse' | 'phd'): { advisor?: string; dgs?: string } {
+  const section = /\((§[^)]*)\)\s*$/.exec(reason)?.[1] ?? (program === 'mscse' ? '§3.2' : '§4.2');
+  const unlisted = /not in the course rules/i.test(reason);
+  const nonCse = /outside CSE|non-CSE/i.test(reason);
+  const below = /below the 60000|4xxxx|allowance for courses below/i.test(reason) || /advisor \+ [A-Z]+ approval per the course rules/.test(reason);
+  const caseByCase = /case by case/i.test(reason);
+  const transfer = /§5\.2|transfer/i.test(reason) && !nonCse && !below;
+  const what = nonCse ? ' — a course from outside CSE' : below ? ' — a course below the 60000 level' : '';
+  const out: { advisor?: string; dgs?: string } = {};
+  if (/advisor/i.test(reason)) out.advisor = `Approve ${course}${what ? `${what},` : ''} for my plan of study (${section}).`;
+  if (/DGS|review|rules sheet|transfer|case by case/i.test(reason)) {
+    out.dgs = unlisted
+      ? `Enter ${course} in the course rules — it is not listed yet${nonCse ? '; a course from outside CSE also needs my advisor’s approval' : ''} (${section}).`
+      : caseByCase
+        ? `Decide on ${course} for me — the course rules say case by case (${section}).`
+        : transfer
+          ? `Recommend the transfer credit for ${course} (§5.2).`
+          : /approval/i.test(reason)
+            ? `Approve ${course} for me${what} (${section}).`
+            : `Decide on ${course} — ${firstPerson(reason)}.`;
+  }
+  return out;
 }
 
 /** "Matthew Morrison" → "Prof. Matthew Morrison"; "Dr. Hu" / "Professor Hu" / "Prof. Hu" unchanged. */

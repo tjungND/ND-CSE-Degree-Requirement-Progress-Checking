@@ -184,11 +184,13 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
   it('details: one table per transcript, below the line (2026-09-06: tables, not bullet lines)', () => {
     const { text } = built;
     assert.match(text, /Course details:/);
-    const header = 'Course | Title | Credits | Grade | Term | Why it needs a decision';
-    assert.match(text, new RegExp(`Notre Dame:\\n${header.replace(/[|]/g, '\\|')}\\nMATH 60610 \\| Real Analysis I \\| 3 \\| A \\| Fall 2026 \\| not in the course rules yet\\n`));
-    assert.match(text, /Previous Master\u2019s Transcript \u2014 Purdue University:\n[^\n]*\nCS 50300 \| Operating Systems \| 3 \| A \| Fall 2023 \| not yet reviewed by the DGS/u);
-    assert.match(text, /CSE 40567 \|  \| 3 \| B \| Fall 2026 \| needs advisor \+ DGS approval/u);
-    assert.match(text, /CS 51400 \| .* \| 1 \| B\+ \| Fall 2024 \| transferability not yet decided/u);
+    // "Please decide" (the sheet's questions) beside "Why" since 2026-09-28; a
+    // caller that passes no `ask` leaves the decide cell empty.
+    const header = 'Course | Title | Credits | Grade | Term | Please decide | Why';
+    assert.match(text, new RegExp(`Notre Dame:\\n${header.replace(/[|]/g, '\\|')}\\nMATH 60610 \\| Real Analysis I \\| 3 \\| A \\| Fall 2026 \\|  \\| not in the course rules yet\\n`));
+    assert.match(text, /Previous Master\u2019s Transcript \u2014 Purdue University:\n[^\n]*\nCS 50300 \| Operating Systems \| 3 \| A \| Fall 2023 \|  \| not yet reviewed by the DGS/u);
+    assert.match(text, /CSE 40567 \|  \| 3 \| B \| Fall 2026 \|  \| needs advisor \+ DGS approval/u);
+    assert.match(text, /CS 51400 \| .* \| 1 \| B\+ \| Fall 2024 \|  \| transferability not yet decided/u);
   });
 
   it('html flavor: real tables (tabs do not survive HTML email), entities escaped, one details table per transcript', () => {
@@ -198,10 +200,41 @@ describe('the combined review request (one email for everything, 2026-09-03)', (
     assert.ok(html.includes('<tr><td>MATH 60610</td><td>Real Analysis I</td></tr>'));
     assert.ok(html.includes('<tr><td>Purdue University</td><td>CS 50300</td><td>Operating Systems</td></tr>'));
     assert.ok(html.includes('<p><strong>Notre Dame:</strong></p><table'));
-    assert.ok(html.includes('<tr><th>Course</th><th>Title</th><th>Credits</th><th>Grade</th><th>Term</th><th>Why it needs a decision</th></tr>'));
-    assert.ok(html.includes('<tr><td>CSE 40567</td><td></td><td>3</td><td>B</td><td>Fall 2026</td><td>needs advisor + DGS approval per the course rules</td></tr>'));
+    assert.ok(html.includes('<tr><th>Course</th><th>Title</th><th>Credits</th><th>Grade</th><th>Term</th><th>Please decide</th><th>Why</th></tr>'));
+    assert.ok(html.includes('<tr><td>CSE 40567</td><td></td><td>3</td><td>B</td><td>Fall 2026</td><td></td><td>needs advisor + DGS approval per the course rules</td></tr>'));
     assert.ok(html.includes('Data &amp; &quot;Structures&quot; &lt;II&gt;'), 'titles are HTML-escaped');
     assert.ok(!html.includes('<II>'), 'no raw markup leaks from titles');
+  });
+
+  it('the same skeleton as the other emails (DGS 2026-09-28): the student line, the programs in the subject, and a numbered action list split by whether a reply is needed', () => {
+    const r = buildCombinedReviewRequest({
+      priorStudy: 'No prior graduate degree',
+      history: { compact: 'Ph.D. (transferred Spring 2025 from the Notre Dame MSCSE, entered Fall 2023)', earlier: '' },
+      nd: [
+        { courseId: 'MATH 60610', title: 'Real Analysis I', credits: 3, grade: 'A', termText: 'Fall 2026', reason: 'not in the course rules yet; a course from outside CSE also needs your advisor’s approval (§4.2)', unlisted: true, ask: { needsRow: true, replyNeeded: false, decide: ['counts toward the Ph.D.: yes / no / case by case', 'core area (§4.4.1), if any'] } },
+        { courseId: 'CSE 40567', credits: 3, grade: 'B', termText: 'Fall 2026', reason: 'needs advisor + DGS approval per the course rules', unlisted: false, ask: { needsRow: false, replyNeeded: true, decide: ['approve it for me (the allowance for courses below the 60000 level)'] } },
+      ],
+      external: [
+        { institution: 'Purdue University', courseId: 'STAT 51200', title: 'Applied Regression Analysis', credits: 3, grade: 'A', termText: 'Fall 2023', slotLabel: 'Previous Master’s', reason: 'listed as case by case — needs the DGS’s approval for you (§5.2)', unlisted: false, ask: { needsRow: false, replyNeeded: true, decide: ['approve the transfer for me — the course rules say case by case (§5.2)'] } },
+        { institution: 'Purdue University', courseId: 'CS 51400', title: 'Data Structures II', credits: 1, grade: 'B+', termText: 'Fall 2024', slotLabel: 'Previous Master’s', reason: 'listed in the course rules, decision still open (§5.2)', unlisted: false, ask: { needsRow: false, replyNeeded: false, decide: ['transferable to the Ph.D. (§5.2): yes / no / case by case — the row is blank'] } },
+      ],
+    });
+    assert.equal(r.subject, 'Course review request (degree self-check) — Ph.D. (transferred Spring 2025 from the Notre Dame MSCSE, entered Fall 2023)');
+    assert.match(r.text, /^Subject: [^\n]+\n\nDear DGS,\n\nStudent: \[your name, netID and NDID\]\n\nCould you review/);
+    assert.match(
+      r.text,
+      /\nACTION REQUESTED\nA\. Please enter or complete these in the course rules — no reply needed; the self-check reads the rules the next time I open it:\n1\. MATH 60610 Real Analysis I \(Notre Dame, Fall 2026\) — new row: counts toward the Ph\.D\.: yes \/ no \/ case by case; core area \(§4\.4\.1\), if any\n2\. CS 51400 Data Structures II \(Purdue University, Fall 2024\) — complete the row: transferable to the Ph\.D\. \(§5\.2\): yes \/ no \/ case by case — the row is blank\nB\. Please decide these for me — a reply is needed:\n3\. CSE 40567 \(Notre Dame, Fall 2026\) — approve it for me \(the allowance for courses below the 60000 level\)\n4\. STAT 51200 Applied Regression Analysis \(Purdue University, Fall 2023\) — approve the transfer for me — the course rules say case by case \(§5\.2\)\n\nThank you!\n/,
+    );
+    // The student is writing: the engine's "your advisor" reads "my advisor" here.
+    assert.match(r.text, /\| not in the course rules yet; a course from outside CSE also needs my advisor’s approval \(§4\.2\)\n/);
+    assert.doesNotMatch(r.text, /your advisor/);
+    assert.match(r.html, /<p>Dear DGS,<\/p><p>Student: <strong>\[your name, netID and NDID\]<\/strong><\/p>/);
+    assert.match(r.html, /<p><strong>Action requested<\/strong><\/p><p>A\. Please enter or complete[^<]*<\/p><ol start="1"><li>MATH 60610 Real Analysis I/);
+    assert.match(r.html, /<p>B\. Please decide these for me — a reply is needed:<\/p><ol start="3"><li>CSE 40567/);
+    // The earlier programs, when there are any, sit in the standing lines.
+    const withEarlier = buildCombinedReviewRequest({ priorStudy: 'No prior graduate degree', nd: [], external: [], history: { compact: 'Ph.D., entered Fall 2025; B.S. at Notre Dame CSE, awarded Spring 2025', earlier: 'Earlier Notre Dame programs: B.S. at Notre Dame CSE, awarded Spring 2025.' } });
+    assert.match(withEarlier.text, /\nEarlier Notre Dame programs: B\.S\. at Notre Dame CSE, awarded Spring 2025\.\nPrior graduate study: No prior graduate degree\.\n/);
+    assert.doesNotMatch(withEarlier.text, /ACTION REQUESTED/, 'no items, no list');
   });
 
   it('a section with no unlisted rows disappears entirely', () => {

@@ -25,6 +25,12 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
   it('no answer yet: every row, as before the questions', () => {
     assert.deepEqual(priorSlotsFor(undefined), ['bachelors', 'masters', 'phd']);
   });
+  it('a transfer from the MSCSE keeps its transfer term when given, and is complete without it (DGS 2026-09-28)', () => {
+    assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', transferredTerm: { season: 'spring', year: 2025 } }, 'phd'), { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', transferredTerm: { season: 'spring', year: 2025 } });
+    assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse-transfer' }, 'phd'), { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer' });
+    assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse', transferredTerm: { season: 'spring', year: 2025 } }, 'phd'), { bachelors: 'elsewhere', graduate: 'nd-mscse' }, 'a term left over from another answer is dropped');
+  });
+
   it('an answer is complete only when every question that applies is answered', () => {
     assert.equal(completeBackground({ bachelors: 'elsewhere' }, 'phd'), undefined);
     assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true }, 'phd'), undefined, 'finished? still open');

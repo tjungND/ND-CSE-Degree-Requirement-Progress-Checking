@@ -23,10 +23,24 @@ import { termIndex } from './term.ts';
 import { isNotreDameInstitution, needsApproval } from '../data/external.ts';
 import type { Rules } from '../data/types.ts';
 import { classify, levelOf, type ClassifiedCourse } from './allocate.ts';
-import { decisionWording } from './decider.ts';
+import { decisionWording, needsCourseApproval } from './decider.ts';
 import { CORE_TITLE_RE } from './core-title.ts';
 import { passesCreditFloor } from './grades.ts';
 import type { Student } from './types.ts';
+
+/** What the review request asks the DGS to do about one course (DGS
+ * 2026-09-28: the request now says which items need a reply). */
+export interface ReviewAsk {
+  /** The course has no row in the sheet: the DGS enters one. */
+  needsRow: boolean;
+  /** The DGS must answer THIS student — a course decided case by case, a
+   * §5.2 recommendation, an allowance approval. Entering or completing a
+   * sheet row needs no reply: the page reads the rules on its next visit. */
+  replyNeeded: boolean;
+  /** The decisions, as the sheet's own columns or the answer wanted:
+   * "counts toward the Ph.D.: yes / no / case by case". */
+  decide: string[];
+}
 
 export interface PendingDgsReview {
   course: ClassifiedCourse;
@@ -40,6 +54,7 @@ export interface PendingDgsReview {
    * not), or no ExternalCourses row. A course with a row needs a decision in
    * that row, not another row. */
   unlisted: boolean;
+  ask: ReviewAsk;
 }
 
 /** What the "Ask the DGS to review" card's chip and its copy button both say
@@ -110,6 +125,13 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
   // (DGS 2026-09-11).
   const qualifierApplies = student.program === 'phd';
   const coreTitle = (c: ClassifiedCourse) => qualifierApplies && CORE_TITLE_RE.test(c.entry.title ?? '');
+  // The sheet's questions, as the request words them (DGS 2026-09-28).
+  const degree = student.program === 'mscse' ? 'MSCSE' : 'Ph.D.';
+  const COUNTS = `counts toward the ${degree}: yes / no / case by case`;
+  const CORE = 'core area (§4.4.1), if any';
+  const GROUP = 'specialization group (§4.4.2), if any';
+  const TRANSFERABLE = `transferable to the ${degree} (§5.2): yes / no / case by case`;
+  const forMe = (what: string): ReviewAsk => ({ needsRow: false, replyNeeded: true, decide: [what] });
 
   for (const c of classified) {
     if (c.superseded) continue;
@@ -136,6 +158,14 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           // approval of the student's advisor and DGS". The unlisted-CSE
           // note already says it is missing from the sheet, so it is not
           // repeated there.
+          ask:
+            c.unknown === true
+              ? { needsRow: true, replyNeeded: false, decide: [COUNTS, ...(qualifierApplies ? [CORE, GROUP] : [])] }
+              : needsCourseApproval(student.program === 'mscse' ? c.rule?.countsTowardMscse : c.rule?.countsTowardPhd)
+                ? forMe('approve it for me — the course rules say case by case')
+                : /advisor \+ .* approval per the course rules/.test(c.approvalPending ?? '')
+                  ? forMe('approve it for me (the allowance for courses below the 60000 level)')
+                  : { needsRow: false, replyNeeded: false, decide: [`${COUNTS} — the row is blank`] },
           reason:
             c.unknown === true
               ? (() => {
@@ -187,7 +217,17 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           : transferUndecided
             ? transferReason
             : 'reviewed by the DGS, but no core area recorded — the title suggests a §4.4.1 core area';
-      (fromNotreDame ? priorNd : external).push({ course: c, kind: fromNotreDame ? 'priorNd' : 'external', reason, unlisted: false });
+      // A case-by-case course needs the DGS's answer for this student; a
+      // blank cell needs the row completed, nothing more.
+      const ask: ReviewAsk = {
+        needsRow: false,
+        replyNeeded: transferUndecided && caseByCase,
+        decide: [
+          ...(transferUndecided ? [caseByCase ? 'approve the transfer for me — the course rules say case by case (§5.2)' : `${TRANSFERABLE} — the row is blank`] : []),
+          ...(coreUndecided ? [CORE] : []),
+        ],
+      };
+      (fromNotreDame ? priorNd : external).push({ course: c, kind: fromNotreDame ? 'priorNd' : 'external', reason, unlisted: false, ask });
       continue;
     }
 
@@ -223,9 +263,27 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // Asked about as a NOTRE DAME course — a row for the Courses tab when
       // it is not listed there (its core_area then decides §4.4.1); the §5.2
       // transfer part stays a per-student recommendation.
+      // The row is the DGS's to enter; the §5.2 recommendation (or the
+      // allowance approval) is an answer for this student.
+      const recommendation = bachelors
+        ? needsApprovalOnTop
+          ? ['approve it for me (the allowance for courses below the 60000 level)']
+          : []
+        : c.ndMastersCredit
+          ? needsApprovalOnTop
+            ? ['approve it for me — the course rules say case by case']
+            : []
+          : c.ineligibleReason === undefined
+            ? ['recommend the transfer credit for me (§5.2)']
+            : [];
       priorNd.push({
         course: c,
         kind: 'priorNd',
+        ask: {
+          needsRow: c.rule === undefined,
+          replyNeeded: recommendation.length > 0,
+          decide: [...(c.rule === undefined ? [COUNTS, ...(qualifierApplies ? [CORE, GROUP] : [])] : []), ...recommendation],
+        },
         reason:
           `taken at Notre Dame before entering the program (${bachelors ? 'undergraduate' : c.ndMastersCredit ? 'MSCSE' : 'graduate'}) — ` +
           (c.rule === undefined
@@ -245,6 +303,11 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       external.push({
         course: c,
         kind: 'external',
+        ask: {
+          needsRow: true,
+          replyNeeded: false,
+          decide: [...(!bachelors && c.ineligibleReason === undefined ? [TRANSFERABLE] : []), ...(keyword ? [CORE] : [])],
+        },
         reason: bachelors
           ? 'not in the course rules yet; the title suggests a §4.4.1 core area'
           : c.ineligibleReason !== undefined

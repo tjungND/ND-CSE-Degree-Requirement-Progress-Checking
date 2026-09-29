@@ -238,3 +238,32 @@ describe('the review request skips a course no ruling can help', () => {
     assert.deepEqual(asked(ms), []);
   });
 });
+
+describe('what the request asks of the DGS — ReviewAsk (DGS 2026-09-28: the request says which items need a reply)', () => {
+  const askOf = (s: Student, external: Row[] | undefined, courseId: string) =>
+    coursesNeedingDgsReview(s, external === undefined ? buildRules() : buildRules({ external })).find((p) => p.course.entry.courseId === courseId)?.ask;
+
+  it('a course with no row: a new row, no reply — the sheet’s own questions; a blank row: complete it, no reply', () => {
+    assert.deepEqual(askOf(student([purdue('CS 51000', 'Data Mining')]), [], 'CS 51000'), { needsRow: true, replyNeeded: false, decide: ['transferable to the Ph.D. (§5.2): yes / no / case by case'] });
+    assert.deepEqual(askOf(student([purdue('CS 50300', 'Operating Systems')]), [], 'CS 50300'), { needsRow: true, replyNeeded: false, decide: ['transferable to the Ph.D. (§5.2): yes / no / case by case', 'core area (§4.4.1), if any'] });
+    assert.deepEqual(askOf(student([purdue('CS 50300', 'Operating Systems', { grade: 'C' })]), [], 'CS 50300'), { needsRow: true, replyNeeded: false, decide: ['core area (§4.4.1), if any'] }, 'no transfer credit below the floor — only the core area');
+    assert.deepEqual(askOf(student([purdue('CS 51000', 'Data Mining')]), [row('CS 51000')], 'CS 51000'), { needsRow: false, replyNeeded: false, decide: ['transferable to the Ph.D. (§5.2): yes / no / case by case — the row is blank'] });
+    assert.deepEqual(askOf(student([purdue('CS 50300', 'Operating Systems')]), [row('CS 50300', { transferable: 'yes' })], 'CS 50300'), { needsRow: false, replyNeeded: false, decide: ['core area (§4.4.1), if any'] });
+  });
+
+  it('a course the rules decide case by case: an answer for this student — a reply', () => {
+    assert.deepEqual(askOf(student([purdue('STAT 51200', 'Applied Regression Analysis')]), [row('STAT 51200', { transferable: 'dgs_approval' })], 'STAT 51200'), { needsRow: false, replyNeeded: true, decide: ['approve the transfer for me — the course rules say case by case (§5.2)'] });
+  });
+
+  it('Notre Dame coursework: an unlisted course asks for the row and the qualifier columns; a listed case-by-case row asks for the answer', () => {
+    const math: CourseEntry = { courseId: 'MATH 60610', title: 'Basic Linear Algebra', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' };
+    assert.deepEqual(askOf(student([math]), undefined, 'MATH 60610'), { needsRow: true, replyNeeded: false, decide: ['counts toward the Ph.D.: yes / no / case by case', 'core area (§4.4.1), if any', 'specialization group (§4.4.2), if any'] });
+    // CSE 40567 is a 4xxxx course the fixture Courses tab lists with dgs_approval (the allowance's own approval).
+    const cse4 = { ...math, courseId: 'CSE 40567', title: undefined };
+    const a = askOf(student([cse4]), undefined, 'CSE 40567');
+    assert.equal(a?.needsRow, false);
+    assert.equal(a?.replyNeeded, true);
+    assert.equal(a?.decide.length, 1);
+    assert.match(a!.decide[0]!, /^approve it for me/);
+  });
+});

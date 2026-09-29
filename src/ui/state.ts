@@ -76,6 +76,8 @@ function validBackground(v: unknown): Student['background'] {
     ...(bachelors === 'nd-cse' && typeof o['ndIntegrated'] === 'boolean' ? { ndIntegrated: o['ndIntegrated'] as boolean } : {}),
     graduate,
     ...(graduate === 'elsewhere' ? { samePlace: o['samePlace'] === true, finished: o['finished'] === true } : {}),
+    // The transfer term (2026-09-28): kept when well-formed, dropped otherwise — the answer stands without it.
+    ...(graduate === 'nd-mscse-transfer' && validTerm(o['transferredTerm']) ? { transferredTerm: { season: (o['transferredTerm'] as Term).season, year: (o['transferredTerm'] as Term).year } } : {}),
   };
 }
 function validNdMasters(v: unknown): Student['ndMasters'] {

@@ -7,6 +7,7 @@
 import { joinSpacedSubject } from '../data/assemble.ts';
 import { expandInstitutionAbbreviations, normalizeCourseId, normalizeUniversity } from '../data/external.ts';
 import { shortenAfterFirst } from '../ui/first-mention.ts';
+import { ACTION_HEADING, STUDENT_LINE, studentLineHtml } from '../ui/email-html.ts';
 import { termIndex, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
@@ -1992,6 +1993,10 @@ interface ReviewRequestCourse {
   grade: string;
   termText: string;
   slotLabel?: string;
+  /** What the DGS is asked to do (engine/review.ts ReviewAsk, 2026-09-28).
+   * Optional for older callers: then a new row is asked for when `unlisted`,
+   * with no reply. */
+  ask?: { needsRow: boolean; replyNeeded: boolean; decide: string[] };
 }
 
 /** Shared assembly for the copy-ready review requests (decisions 2026-09-03).
@@ -2008,6 +2013,10 @@ function buildReviewRequest(opts: {
   intro: string;
   /** Extra context lines shown right under the intro (e.g. prior graduate study). */
   context: readonly string[];
+  /** The numbered "Action requested" list (DGS 2026-09-28): what the reader
+   * must do, grouped — a group with no items is skipped. Items are numbered
+   * straight through the groups. */
+  actions: readonly { heading: string; items: readonly string[] }[];
   /** Sheet-paste sections (one per tab); a section with no rows is skipped. */
   sections: readonly { rowsIntro: string; rows: readonly (readonly string[])[] }[];
   detailsTitle: string;
@@ -2028,18 +2037,30 @@ function buildReviewRequest(opts: {
   const editable = EDITABLE_MARKER;
   const marker = DO_NOT_MODIFY_MARKER;
   const divider = MARKER_DIVIDER;
+  // The same skeleton as the other two emails (DGS 2026-09-28): the student
+  // line, the intro and standing, then the numbered actions — the reader's
+  // own — above the sign-off; the sheet rows and details below the line.
+  const actionGroups = opts.actions.filter((g) => g.items.length > 0);
+  let n = 0;
+  const actionsText = actionGroups.length === 0 ? '' : `${ACTION_HEADING.toUpperCase()}\n` + actionGroups.map((g) => `${g.heading}\n${g.items.map((i) => `${++n}. ${i}`).join('\n')}\n`).join('') + '\n';
+  n = 0;
+  const actionsHtml =
+    actionGroups.length === 0
+      ? ''
+      : `<p><strong>${esc(ACTION_HEADING)}</strong></p>` +
+        actionGroups.map((g) => `<p>${esc(g.heading)}</p><ol start="${n + 1}">${g.items.map((i) => (++n, `<li>${esc(i)}</li>`)).join('')}</ol>`).join('');
   const text =
-    `Subject: ${opts.subject}\n\n${greeting}\n\n${opts.intro}\n\n` +
+    `Subject: ${opts.subject}\n\n${greeting}\n\n${STUDENT_LINE}\n\n${opts.intro}\n` +
     opts.context.map((c) => `${c}\n`).join('') +
-    `\nThank you!\n\n${editable}\n${divider}\n${marker}\n\n` +
+    `\n${actionsText}Thank you!\n\n${editable}\n${divider}\n${marker}\n\n` +
     sections.map((s) => `${s.rowsIntro}\n\n${s.rows.map((r) => r.join('\t')).join('\n')}\n\n`).join('') +
     `${opts.detailsTitle}\n\n` +
     groups.map((g) => `${g.heading}\n${pipeRow(opts.detailHeaders)}\n${g.rows.map(pipeRow).join('\n')}`).join('\n\n') +
     `\n`;
   const html =
-    `<p>${esc(`Subject: ${opts.subject}`)}</p><p>${esc(greeting)}</p><p>${esc(opts.intro)}</p>` +
-    (opts.context.length > 0 ? `<p>${opts.context.map((c) => esc(c)).join('<br>')}</p>` : '') +
-    `<p>Thank you!</p><p><strong>${esc(editable)}</strong></p><hr><p><strong>${esc(marker)}</strong></p>` +
+    `<p>${esc(`Subject: ${opts.subject}`)}</p><p>${esc(greeting)}</p>${studentLineHtml()}<p>${esc(opts.intro)}` +
+    (opts.context.length > 0 ? `<br>${opts.context.map((c) => esc(c)).join('<br>')}` : '') +
+    `</p>${actionsHtml}<p>Thank you!</p><p><strong>${esc(editable)}</strong></p><hr><p><strong>${esc(marker)}</strong></p>` +
     sections
       .map(
         (s) =>
@@ -2124,8 +2145,15 @@ export function buildCombinedReviewRequest(opts: {
   external: readonly PendingReviewCourse[];
   /** Notes for the DGS that are not about one course (2026-09-12). */
   notes?: readonly string[];
+  /** The Notre Dame programs (src/ui/program-history.ts, DGS 2026-09-28):
+   * `compact` for the subject, `earlier` for the standing lines. Optional
+   * for older callers. */
+  history?: { compact: string; earlier: string };
 }): { text: string; html: string; subject: string } {
-  const detail = (c: PendingReviewCourse): string[] => [c.courseId, c.title ?? '', String(c.credits), c.grade, c.termText, c.reason];
+  // The student is writing to the DGS: "your advisor" is "my advisor".
+  const voiced = (reason: string): string => reason.replace(/\byour advisor/g, 'my advisor').replace(/\bYour advisor/g, 'My advisor');
+  const askOf = (c: PendingReviewCourse) => c.ask ?? { needsRow: c.unlisted, replyNeeded: false, decide: [] };
+  const detail = (c: PendingReviewCourse): string[] => [c.courseId, c.title ?? '', String(c.credits), c.grade, c.termText, askOf(c).decide.join('; '), voiced(c.reason)];
   // One row per course for the sheet; every attempt still shown in the details.
   const ndRows = oncePerCourse(opts.nd, (c) => normalizeCourseId(c.courseId));
   const extRows = oncePerCourse(opts.external, (c) => `${normalizeUniversity(c.institution ?? '')}|${normalizeCourseId(c.courseId)}`);
@@ -2145,18 +2173,50 @@ export function buildCombinedReviewRequest(opts: {
     }
     g.rows.push(detail(c));
   }
+  // The action list (DGS 2026-09-28): A — rows to enter or complete, which
+  // need no reply because the page reads the sheet; B — decisions for this
+  // student, which do. A course can be in both (prior Notre Dame coursework
+  // with no row AND a §5.2 recommendation to give).
+  const all = [...opts.nd, ...opts.external];
+  const name = (c: PendingReviewCourse): string => `${c.courseId}${c.title ? ` ${c.title}` : ''} (${c.institution ?? 'Notre Dame'}, ${c.termText})`;
+  // One item per course (a course taken twice is asked about once), listed
+  // or not — unlike the paste-ready rows, which are for unlisted courses only.
+  const distinct = (courses: readonly PendingReviewCourse[]): PendingReviewCourse[] => {
+    const seen = new Set<string>();
+    return courses.filter((c) => {
+      const key = `${normalizeUniversity(c.institution ?? '')}|${normalizeCourseId(c.courseId)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const sheetItems = distinct(all)
+    .map((c) => {
+      const a = askOf(c);
+      // The sheet's part of the ask: everything that is not an answer for the student.
+      const decide = a.decide.filter((d) => !/\bfor me\b/.test(d));
+      return decide.length === 0 ? '' : `${name(c)} — ${a.needsRow ? 'new row: ' : 'complete the row: '}${decide.join('; ')}`;
+    })
+    .filter((s) => s !== '');
+  const replyItems = distinct(all.filter((c) => askOf(c).replyNeeded)).map((c) => `${name(c)} — ${askOf(c).decide.filter((d) => /\bfor me\b/.test(d)).join('; ')}`);
+  const history = opts.history;
   return buildReviewRequest({
-    subject: 'Course review request (degree self-check)',
+    subject: `Course review request (degree self-check)${history ? ` — ${history.compact}` : ''}`,
     intro:
       'Could you review these courses for the degree self-check? ' +
       'It cannot count them until they are decided in the course rules.',
     context: [
+      ...(history?.earlier ? [history.earlier] : []),
       // (No second full stop after a label that ends in one — "…or Ph.D.".)
       `Prior graduate study: ${opts.priorStudy}${opts.priorStudy.endsWith('.') ? '' : '.'}`,
       // The "whichever apply" hedge instructs the student and lives in the
       // dialog step; the reader sees the attachments (trim review 2026-09-18, P-14).
       'My transcripts are attached.',
       ...(opts.notes ?? []).map((n) => `Please also check: ${n}`),
+    ],
+    actions: [
+      { heading: 'A. Please enter or complete these in the course rules — no reply needed; the self-check reads the rules the next time I open it:', items: sheetItems },
+      { heading: 'B. Please decide these for me — a reply is needed:', items: replyItems },
     ],
     // The reader owns the sheet (DGS 2026-09-03 wording, shortened in the trim
     // review 2026-09-18, P-15); naming no owner also keeps "the DGS's sheet"
@@ -2172,7 +2232,7 @@ export function buildCombinedReviewRequest(opts: {
       },
     ],
     detailsTitle: 'Course details:',
-    detailHeaders: ['Course', 'Title', 'Credits', 'Grade', 'Term', 'Why it needs a decision'],
+    detailHeaders: ['Course', 'Title', 'Credits', 'Grade', 'Term', 'Please decide', 'Why'],
     detailGroups: groups,
   });
 }

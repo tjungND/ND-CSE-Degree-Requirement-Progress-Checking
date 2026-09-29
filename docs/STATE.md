@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-28 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-28 (night): the three emails rebuilt on one skeleton (student line, action list first, programs on the subject — with a new transfer-term question for MSCSE→Ph.D. transfers), the DGS request split into no-reply / reply-needed, the Grad Admin request with a checklist and one course table, the advisor summary stacked with its actions first, the core rows collapsed, the allowance as a meter, and the to-do voice bug fixed (DGS: all 13 suggestions).
+
 2026-09-28 (evening, later): the advisor summary takes the Grad Admin request's style — badges / [WORD] tags in the page's colours, the deadline on its own highlighted line — from one set of helpers in email-html.ts (DGS).
 
 2026-09-28 (evening): the deadline alert — a deadline in this semester or the next colours the row's pill and names the semester ("In progress · due next semester"), replacing the 120-day rule; the Grad Admin request lists every requirement (met / in progress / not started, coloured) and highlights near or passed deadlines (DGS items 1–2 of 2026-09-28).

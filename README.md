@@ -160,8 +160,14 @@ then reads "are effective as of <date>" instead — and keeps doing so until you
 Students import prior coursework (Previous Undergraduate / Master's / Ph.D. transcripts) and the app
 checks them against the **ExternalCourses** tab. When a student emails you a
 review request (the app writes ONE request covering their Notre Dame and
-external courses together), the email states their prior-graduate-study choice
-(§5.2 caps), notes that their transcript PDFs are attached, and everything
+external courses together), the email names the student (a line they fill in
+with their name, netID and NDID), their Notre Dame programs and entry terms in
+the subject, their prior-graduate-study choice (§5.2 caps), notes that their
+transcript PDFs are attached, and opens with a numbered **Action requested**
+list in two parts (since 2026-09-28): **A** — rows to enter or complete in the
+sheet, which need no reply because the page reads the sheet on its next visit;
+**B** — decisions for that student (`dgs_approval` courses, §5.2
+recommendations), which do need a reply. Everything
 below its "(DO NOT MODIFY ANYTHING BELOW THIS LINE)" divider is
 machine-readable — one tab-separated table per sheet tab, plus course details
 grouped per transcript. Paste the ExternalCourses table straight into that tab

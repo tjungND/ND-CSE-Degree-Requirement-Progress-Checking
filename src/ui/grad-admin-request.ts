@@ -29,9 +29,12 @@ import type { AuditReport, CourseEntry, Milestones, RequirementResult, Student }
 import { DO_NOT_MODIFY_MARKER, EDITABLE_MARKER, MARKER_DIVIDER } from '../transcript/external.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
-import { esc, htmlBadge, htmlDeadline, plural, programLabel, programShort, textDeadline, type StandingColor } from './email-html.ts';
+import { ACTION_HEADING, STUDENT_LINE, esc, htmlBadge, htmlDeadline, plural, programLabel, studentLineHtml, textDeadline, type StandingColor } from './email-html.ts';
+import type { ProgramHistory } from './program-history.ts';
 import { formatYmdLong } from './handbook.ts';
 import { deadlineAlert, isNotStarted, standingColor, scoredRows, statusWord } from './report.ts';
+import { whyFor } from './advisor-summary.ts';
+import { compareTerm } from '../engine/term.ts';
 
 export { selfCheckFileName } from './state.ts';
 
@@ -95,6 +98,24 @@ export interface StandingTable extends MetTable {
   word: string;
   color: StandingColor;
   deadline?: { text: string; alert?: 'this' | 'next' | 'passed' };
+  /** What the request prints under the heading (DGS 2026-09-28: no filler
+   * tables): "Evidence: …" for a met row, "Progress: …" for an open one,
+   * nothing for a row with nothing to say. */
+  lines: string[];
+  /** The courses this row counts, for the one course table (DGS 2026-09-28:
+   * the same courses used to print under three rows). */
+  courseIds: string[];
+}
+
+/** One row of the course table: a course and every requirement it counts toward. */
+export interface CountedCourse {
+  courseId: string;
+  title: string;
+  credits: string;
+  grade: string;
+  term: string;
+  where: string;
+  countsToward: string[];
 }
 
 export interface ProcessingItems {
@@ -110,6 +131,10 @@ export interface ProcessingItems {
    * request prints them: overdue first, then met, conditionally met, in
    * progress, not started, cannot evaluate. */
   standing: StandingTable[];
+  /** Every course a standing row counts, once, with the rows it feeds. */
+  courses: CountedCourse[];
+  /** The numbered "Action requested" list (DGS 2026-09-28). */
+  actions: string[];
   /** The counts behind the standing list, and the sentence that states them. */
   tally: { met: number; conditional: number; inProgress: number; notStarted: number; cannot: number; overdue: number; dueSoon: number; text: string };
   /** The card's item lines, one per processable thing. */
@@ -166,10 +191,51 @@ function standingTable(r: RequirementResult, student: Student): StandingTable {
   const alert = deadlineAlert(r);
   const deadline = alert === null ? undefined : { text: r.deadline!.label, ...(alert ? { alert } : {}) };
   const table = metTable(r, student);
-  // A row whose only "progress" would be its own status word (the years limit,
-  // whose deadline chip says everything) prints no table.
-  const rows = table.rows.length === 1 && table.rows[0]!.length === 1 && table.rows[0]![0] === statusWord(r).toLowerCase() ? [] : table.rows;
-  return { ...table, rows, word: statusWord(r), color: standingColor(r), ...(deadline ? { deadline } : {}) };
+  const met = r.status === 'met';
+  const lead = met ? 'Evidence' : 'Progress';
+  // The lines (DGS 2026-09-28: "drop the filler tables"): a course-based row
+  // points at the one course table; a residency row keeps its semesters as
+  // a table; a milestone row says its date only when there is one; a row
+  // whose only progress would be its status word says nothing.
+  const courseIds = table.columns === COURSE_COLUMNS ? table.rows.map((row) => row[0]!) : [];
+  // The detail re-voiced for an email from the student (advisor-summary.ts
+  // whyFor: "you" → "I", page instructions dropped).
+  const why = whyFor(r);
+  const lines: string[] = [];
+  if (courseIds.length > 0) lines.push(`${lead}: ${met ? '' : why ? `${why} ` : ''}${courseIds.join(', ')} (in the course table above).`);
+  else if (table.columns[0] === 'What') {
+    const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+    const facts = table.rows.filter((row) => row[1] !== 'not entered' && row[1] !== 'name not entered').map((row) => `${lower(row[0]!)} ${row[1]}`);
+    if (facts.length > 0) lines.push(`${lead}: ${facts.join('; ')}.`);
+    else if (!met && why && !/^Not started\b/.test(why)) lines.push(`${lead}: ${why}`);
+  } else if (table.columns[0] === 'Semester') {
+    // kept as a table below
+  } else if (why && why.toLowerCase() !== `${statusWord(r).toLowerCase()}.` && !/^Not started\b/.test(why)) lines.push(`${lead}: ${why}`);
+  const rows = table.columns[0] === 'Semester' ? table.rows : [];
+  return { ...table, rows, word: statusWord(r), color: standingColor(r), ...(deadline ? { deadline } : {}), lines, courseIds };
+}
+
+/** The one course table: every course a standing row counts, with the rows
+ * it feeds (their short titles and §). */
+function countedCourses(standing: StandingTable[], report: AuditReport, student: Student): CountedCourse[] {
+  const byId = new Map(report.requirements.map((r) => [`${r.title} (${r.citation.section})`, r]));
+  const out = new Map<string, CountedCourse>();
+  // In the report's order, so "Counts toward" reads the way the page does.
+  const ordered = [...standing].sort((a, b) => report.requirements.findIndex((r) => `${r.title} (${r.citation.section})` === a.heading) - report.requirements.findIndex((r) => `${r.title} (${r.citation.section})` === b.heading));
+  for (const t of ordered) {
+    const r = byId.get(t.heading);
+    const label = r ? `${r.shortTitle ?? r.title} (${r.citation.section})` : t.heading;
+    for (const id of t.courseIds) {
+      const c = student.courses.find((x) => x.courseId === id);
+      if (!c) continue;
+      const row = out.get(id) ?? { courseId: id, title: c.title ?? '', credits: formatCredits(c.credits), grade: c.grade, term: termLabel(c.term), where: c.origin === 'nd' ? 'Notre Dame' : (c.institution ?? 'another university'), countsToward: [] };
+      if (!row.countsToward.includes(label)) row.countsToward.push(label);
+      out.set(id, row);
+    }
+  }
+  // Term order, then id — a transcript's own order.
+  const termOf = (id: string) => student.courses.find((x) => x.courseId === id)!.term;
+  return [...out.values()].sort((a, b) => compareTerm(termOf(a.courseId), termOf(b.courseId)) || a.courseId.localeCompare(b.courseId));
 }
 
 /** `classified` — the engine's classification of the student's courses, when
@@ -239,6 +305,19 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     `${tally.notStarted} not started`,
     ...(tally.cannot > 0 ? [`${tally.cannot} cannot be evaluated`] : []),
   ].join(', ');
+  const courses = countedCourses(standing, report, student);
+  // The numbered actions (DGS 2026-09-28): one per processable thing, and
+  // the standing on file last.
+  const actions = [
+    ...transfers.map(
+      (t) =>
+        `${t.state === 'approved' ? 'Check that the transfer credit is on my record for' : 'Process the transfer credit for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}) — ${t.state === 'approved' ? 'approved by the DGS for my case' : 'approved by the DGS in the course rules'} (§5.2).`,
+    ),
+    ...milestones.map((m) => `Record the milestone: ${m.label}, ${m.date} (${m.section}).`),
+    ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
+    ...(msAlongTheWay ? ['Process the MSCSE along the way — the self-check shows its requirements met (§4.5).'] : []),
+    ...(met.length > 0 ? [`Keep my standing below on file: ${tallyText}.`] : []),
+  ];
   const lines = [
     ...transfers.map(
       (t) =>
@@ -259,6 +338,8 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     qualifierFormDue,
     met,
     standing,
+    courses,
+    actions,
     tally: { ...tally, text: tallyText },
     lines,
     // The met requirements are ONE line on the card, so they are one item in
@@ -273,6 +354,9 @@ export interface GradAdminRequestOptions {
   /** The "Prior graduate study" choice as the page labels it. */
   priorStudy: string;
   gpa?: number;
+  /** The Notre Dame programs (DGS 2026-09-28): `compact` for the subject,
+   * `earlier` for the standing paragraph. Optional for older callers. */
+  history?: ProgramHistory;
 }
 
 export function gradAdminRequest(
@@ -283,7 +367,7 @@ export function gradAdminRequest(
   classified?: readonly ClassifiedCourse[],
 ): { subject: string; text: string; html: string; items: ProcessingItems } {
   const items = processingItems(report, student, rules, classified);
-  const subject = `Processing request (degree self-check) — ${programShort(report.program)}, entered ${opts.entryTerm}`;
+  const subject = `Processing request (degree self-check) — ${opts.history?.compact ?? `${programLabel(report.program).replace(/ \(Handbook §\d\)$/, '')}, entered ${opts.entryTerm}`}`;
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
   const prior = opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
   // "in cc" said once, in the intro; the closing's "The DGS is in cc." repeated
@@ -300,6 +384,7 @@ export function gradAdminRequest(
   // transcript (P-45); the dialog step and the card hint follow the same
   // condition (app.ts, items.transfers.length > 0).
   const attached = items.transfers.length > 0 ? 'Attached: my original transcripts as PDFs.' : '';
+  const earlier = opts.history?.earlier ?? '';
   const closing =
     'Generated by the CSE degree self-check tool (alpha version under testing; informational only — every decision rests with the DGS).';
 
@@ -313,7 +398,7 @@ export function gradAdminRequest(
     t.grade,
     t.termText,
   ];
-  type Section = { heading: string; badge?: { word: string; color: StandingColor }; deadline?: StandingTable['deadline']; columns?: string[]; table?: string[][]; lines?: string[] };
+  type Section = { heading: string; badge?: { word: string; color: StandingColor }; deadline?: StandingTable['deadline']; columns?: string[]; table?: string[][]; lines?: string[]; plain?: string[] };
   const sections: Section[] = [];
   const pre = items.transfers.filter((t) => t.state === 'pre-approved');
   const approved = items.transfers.filter((t) => t.state === 'approved');
@@ -328,6 +413,15 @@ export function gradAdminRequest(
   }
   if (approved.length > 0) {
     sections.push({ heading: 'Transfer credit already approved (§5.2) — please check it is on my record', columns: TRANSFER_COLUMNS, table: approved.map(transferRow) });
+  }
+  // ONE course table (DGS 2026-09-28): every course a requirement counts,
+  // with the requirements it feeds — the standing rows point here.
+  if (items.courses.length > 0) {
+    sections.push({
+      heading: 'Courses counted so far',
+      columns: ['Course', 'Title', 'Credits', 'Grade', 'Term', 'Where', 'Counts toward'],
+      table: items.courses.map((c) => [c.courseId, c.title, c.credits, c.grade, c.term, c.where, c.countsToward.join('; ')]),
+    });
   }
   if (items.qualifierFormDue) {
     sections.push({
@@ -349,7 +443,7 @@ export function gradAdminRequest(
     heading: 'My standing, requirement by requirement',
     lines: [`${items.tally.text}.`, ...(items.tally.dueSoon > 0 ? [`${plural(items.tally.dueSoon, 'deadline')} in this semester or the next — highlighted below.`] : [])],
   });
-  for (const t of items.standing) sections.push({ heading: t.heading, badge: { word: t.word, color: t.color }, deadline: t.deadline, ...(t.rows.length > 0 ? { columns: t.columns, table: t.rows } : {}) });
+  for (const t of items.standing) sections.push({ heading: t.heading, badge: { word: t.word, color: t.color }, deadline: t.deadline, plain: t.lines, ...(t.rows.length > 0 ? { columns: t.columns, table: t.rows } : {}) });
 
   // ---- plain text ----
   // Plain text has no colour: the badge is a [WORD] tag before the heading,
@@ -358,11 +452,16 @@ export function gradAdminRequest(
   const textSection = (s: Section): string =>
     `${s.badge ? `[${s.badge.word.toUpperCase()}] ${s.heading}` : s.heading.toUpperCase()}\n` +
     (s.deadline ? `${textDeadline(s.deadline.text, s.deadline.alert)}\n` : '') +
+    (s.plain && s.plain.length > 0 ? s.plain.join('\n') + '\n' : '') +
     (s.table && s.columns ? `${s.columns.join('\t')}\n${s.table.map((r) => r.join('\t')).join('\n')}\n` : '') +
     (s.lines && s.lines.length > 0 ? s.lines.map((l) => `- ${l}`).join('\n') + '\n' : '') +
     '\n';
+  // The same skeleton as the other two emails (DGS 2026-09-28): the student
+  // line, the intro and standing, the numbered actions, the sign-off; the
+  // tables below the line.
+  const actionsText = items.actions.length > 0 ? `${ACTION_HEADING.toUpperCase()}\n${items.actions.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\n` : '';
   const text =
-    `Subject: ${subject}\n\nDear Grad Admin,\n\n${intro}\n${standing}\n${attached ? `${attached}\n` : ''}\nThank you!\n\n` +
+    `Subject: ${subject}\n\nDear Grad Admin,\n\n${STUDENT_LINE}\n\n${intro}\n${standing}\n${earlier ? `${earlier}\n` : ''}${attached ? `${attached}\n` : ''}\n${actionsText}Thank you!\n\n` +
     `${EDITABLE_MARKER}\n${MARKER_DIVIDER}\n${DO_NOT_MODIFY_MARKER}\n\n` +
     (sections.length > 0 ? sections.map(textSection).join('') : 'Nothing to process yet.\n\n') +
     `${closing}\n`;
@@ -376,10 +475,12 @@ export function gradAdminRequest(
   const htmlSection = (s: Section): string =>
     `<p>${s.badge ? `${htmlBadge(s.badge.word, s.badge.color)} ` : ''}<strong>${esc(s.heading)}</strong></p>` +
     (s.deadline ? htmlDeadline(s.deadline.text, s.deadline.alert) : '') +
+    (s.plain && s.plain.length > 0 ? `<p style="margin:2px 0 6px">${s.plain.map(esc).join('<br>')}</p>` : '') +
     (s.table && s.columns ? htmlTable(s.columns, s.table) : '') +
     (s.lines ? `<ul>${s.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : '');
+  const actionsHtml = items.actions.length > 0 ? `<p><strong>${esc(ACTION_HEADING)}</strong></p><ol>${items.actions.map((a) => `<li>${esc(a)}</li>`).join('')}</ol>` : '';
   const html =
-    `<p>Subject: ${esc(subject)}</p><p>Dear Grad Admin,</p><p>${esc(intro)}<br>${esc(standing)}${attached ? `<br><strong>${esc(attached)}</strong>` : ''}</p><p>Thank you!</p>` +
+    `<p>Subject: ${esc(subject)}</p><p>Dear Grad Admin,</p>${studentLineHtml()}<p>${esc(intro)}<br>${esc(standing)}${earlier ? `<br>${esc(earlier)}` : ''}${attached ? `<br><strong>${esc(attached)}</strong>` : ''}</p>${actionsHtml}<p>Thank you!</p>` +
     `<p><strong>${esc(EDITABLE_MARKER)}</strong></p><hr><p><strong>${esc(DO_NOT_MODIFY_MARKER)}</strong></p>` +
     (sections.length > 0 ? sections.map(htmlSection).join('') : '<p>Nothing to process yet.</p>') +
     `<p>${esc(closing)}</p>`;

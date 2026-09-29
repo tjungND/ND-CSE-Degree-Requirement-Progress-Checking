@@ -44,6 +44,8 @@ import { createFocusKeeper } from './focus-keeper.ts';
 import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
 import { createToasts } from './toasts.ts';
 import { gradAdminRequest } from './grad-admin-request.ts';
+import { programHistory } from './program-history.ts';
+import { FILL_IN_STEP } from './email-html.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, reqAnchorId, scoreLine } from './report.ts';
 import { courseworkSentence, nearestDeadline, nextSteps } from './next-steps.ts';
@@ -1273,6 +1275,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       termText: termLabel(p.course.entry.term),
       reason: p.reason,
       unlisted: p.unlisted,
+      ask: p.ask,
     });
     // Notre Dame courses (program coursework and prior coursework) feed the
     // Courses-tab rows; other universities the ExternalCourses rows.
@@ -1328,14 +1331,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             onclick: () => {
               // Copy, then the check-before-you-send dialog (DGS request 2026-09-06 evening).
               void import('../transcript/external.ts').then(({ buildCombinedReviewRequest }) => {
-                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes });
+                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes, history: programHistory(student) });
                 return copyDialog({
                   what: 'Review request',
                   recipient: { role: decider.role, name: decider.name, email: decider.email },
                   subject: built.subject,
                   text: built.text,
                   html: built.html,
-                  steps: [{ text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply). The DGS cannot review the courses without them.', emphasis: true }],
+                  steps: [
+                    { text: FILL_IN_STEP },
+                    { text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply). The DGS cannot review the courses without them.', emphasis: true },
+                  ],
                   returnFocusKey: 'review.copy',
                 });
               });
@@ -1843,7 +1849,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // request above); the Grad Admin processes what has been decided and keeps
   // the official record. Placed after the milestones, whose dates it reports.
   function askGradAdminCard(report: ReturnType<typeof audit>, classified: readonly ClassifiedCourse[]): HTMLElement {
-    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa }, classified);
+    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, history: programHistory(student) }, classified);
     const n = built.items.count;
     const decider = deciderContact(student.program);
     // The Grad Admin needs the original transcripts only to process §5.2
@@ -1872,7 +1878,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   subject: built.subject,
                   text: built.text,
                   html: built.html,
-                  steps: needsTranscripts ? [{ text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply).', emphasis: true }] : [],
+                  steps: [{ text: FILL_IN_STEP }, ...(needsTranscripts ? [{ text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply).', emphasis: true }] : [])],
                   returnFocusKey: 'gradadmin.copy',
                 });
               },
@@ -2046,13 +2052,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'data-key': key,
         onclick: () => {
           const advisors = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
-          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, advisors });
+          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, advisors, history: programHistory(student) });
           void copyDialog({
             what: 'Summary for your advisor',
             recipient: { role: advisors.length > 1 ? 'Your advisors' : 'Your advisor', name: advisors.length > 0 ? advisors.join(' and ') : 'name not entered under Milestones' },
             subject: built.subject,
             text: built.text,
             html: built.html,
+            steps: [{ text: FILL_IN_STEP }],
             returnFocusKey: key,
           });
         },

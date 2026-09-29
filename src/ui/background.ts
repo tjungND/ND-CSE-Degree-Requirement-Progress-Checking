@@ -5,9 +5,11 @@
 // MSCSE already held, the Integrated 4+1), which used to be controls of
 // their own. A Notre Dame degree of either kind is on the same insideND
 // transcript as the current program, so it never needs a row of its own.
-import type { Program, Student } from '../engine/types.ts';
+import { termLabel } from '../engine/term.ts';
+import type { Program, Season, Student, Term } from '../engine/types.ts';
 import { openModal, returnFocusTo } from './copy-dialog.ts';
-import { el } from './dom.ts';
+import { el, option } from './dom.ts';
+import { SEASONS } from './state.ts';
 
 export type BachelorsFrom = 'nd-cse' | 'nd-other' | 'elsewhere';
 /** `nd-mscse-transfer` (DGS 2026-09-26): no degree — the student began in the
@@ -27,6 +29,9 @@ export interface Background {
   /** A graduate degree elsewhere: finished (the §5.2 cap is 24 credits) or
    * not (6). */
   finished?: boolean;
+  /** `nd-mscse-transfer` only (DGS 2026-09-28): when the student moved into
+   * the Ph.D. — named on the copied emails beside the MSCSE entry term. */
+  transferredTerm?: Term;
 }
 export type PriorSlot = 'bachelors' | 'masters' | 'phd';
 
@@ -65,6 +70,9 @@ export function completeBackground(b: Partial<Background> | undefined, program: 
     ...(asksIntegrated ? { ndIntegrated: b.ndIntegrated === true } : {}),
     graduate: b.graduate,
     ...(b.graduate === 'elsewhere' ? { samePlace: b.samePlace === true, finished: b.finished === true } : {}),
+    // The transfer term is asked but not required: the answer is complete
+    // without it, and the emails then say "term not entered".
+    ...(b.graduate === 'nd-mscse-transfer' && b.transferredTerm ? { transferredTerm: b.transferredTerm } : {}),
   };
 }
 
@@ -97,7 +105,7 @@ export function describeBackground(b: Background): string {
         : b.graduate === 'nd-4plus1'
           ? 'the MSCSE at Notre Dame (4+1)'
           : b.graduate === 'nd-mscse-transfer'
-          ? 'none — transferred into the Ph.D. from the Notre Dame MSCSE (deadlines count from the MSCSE start)'
+          ? `none — transferred into the Ph.D. from the Notre Dame MSCSE${b.transferredTerm ? ` in ${termLabel(b.transferredTerm)}` : ''} (deadlines count from the MSCSE start)`
           : b.graduate === 'nd-other'
             ? 'Notre Dame, another department'
             : `${b.finished ? 'finished' : 'not finished'}, at ${b.samePlace ? 'the same university as the bachelor’s (a 4+1 or 5+1)' : 'another university'}`;
@@ -146,6 +154,24 @@ export function backgroundQuestions(
   const integratedBox = el('fieldset', { class: 'field group background-followup' });
   const elsewhereBox = el('fieldset', { class: 'field group background-followup' });
   const finishedBox = el('fieldset', { class: 'field group background-followup' });
+  const transferBox = el('fieldset', { class: 'field group background-followup' });
+  // The transfer term (DGS 2026-09-28): a season and a year, kept only when
+  // the year is a real one; the entry term is not touched.
+  const termControls = (): HTMLElement => {
+    const current = state.transferredTerm;
+    const season = el('select', { 'data-key': `${prefix}.transferred.season`, 'aria-label': 'Semester of the transfer' }) as HTMLSelectElement;
+    season.append(...SEASONS.map((se) => option(se, se[0]!.toUpperCase() + se.slice(1), (current?.season ?? 'fall') === se)));
+    const year = el('input', { type: 'number', min: '2000', max: '2100', step: '1', 'data-key': `${prefix}.transferred.year`, 'aria-label': 'Year of the transfer', placeholder: 'year' }) as HTMLInputElement;
+    if (current) year.value = String(current.year);
+    const pick = (): void => {
+      const y = Number(year.value);
+      state.transferredTerm = Number.isInteger(y) && y >= 2000 && y <= 2100 ? { season: season.value as Season, year: y } : undefined;
+      onChange(state);
+    };
+    season.onchange = pick;
+    year.onchange = pick;
+    return el('div', { class: 'term-pick' }, season, ' ', year);
+  };
   const renderFollowUps = (): void => {
     integratedBox.replaceChildren(
       el('legend', { class: 'label' }, 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)'),
@@ -171,6 +197,11 @@ export function backgroundQuestions(
     );
     elsewhereBox.hidden = state.graduate !== 'elsewhere';
     finishedBox.hidden = state.graduate !== 'elsewhere' || (sequential && state.samePlace === undefined);
+    transferBox.replaceChildren(
+      el('legend', { class: 'label' }, 'When did you transfer into the Ph.D.? (Your entry term stays the MSCSE’s — every deadline counts from it; the transfer term is named on the emails you send.)'),
+      termControls(),
+    );
+    transferBox.hidden = state.graduate !== 'nd-mscse-transfer';
     // The graduate-degree family waits for the bachelor's answer (and the
     // 4+1 follow-up, when it is asked).
     graduateBox.hidden = sequential && (state.bachelors === undefined || (program === 'mscse' && state.bachelors === 'nd-cse' && state.ndIntegrated === undefined));
@@ -185,6 +216,7 @@ export function backgroundQuestions(
         state.samePlace = undefined;
         state.finished = undefined;
       }
+      if (v !== 'nd-mscse-transfer') state.transferredTerm = undefined;
       renderFollowUps();
       onChange(state);
     }),
@@ -208,6 +240,7 @@ export function backgroundQuestions(
     graduateBox,
     elsewhereBox,
     finishedBox,
+    transferBox,
   );
 }
 

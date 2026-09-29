@@ -161,7 +161,8 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  copy dialog:', dlg.title, '|', dlg.to, '|', dlg.subject);
   if (!/^Review request (copied — check it before you send|— copy it yourself \(the clipboard was blocked\))$/.test(dlg.title)) throw new Error('copy dialog title: ' + dlg.title);
   if (dlg.dgsEmail === '' || !dlg.to.startsWith('To: Director of Graduate Studies') || !dlg.to.includes(dlg.dgsEmail)) throw new Error('copy dialog recipient: ' + dlg.to);
-  if (dlg.subject !== 'Subject: Course review request (degree self-check)' || !dlg.text.startsWith('Subject: Course review request')) throw new Error('copy dialog subject/text: ' + dlg.subject + ' | ' + dlg.text);
+  // The subject carries the Notre Dame programs since 2026-09-28.
+  if (!/^Subject: Course review request \(degree self-check\) — Ph\.D\., entered Fall \d{4}$/.test(dlg.subject) || !dlg.text.startsWith('Subject: Course review request')) throw new Error('copy dialog subject/text: ' + dlg.subject + ' | ' + dlg.text);
   // The emphasised lead line (DGS request 2026-09-06, late evening) sits right above the message and says it is on the clipboard.
   if (!/^(✓ This message has been copied to your clipboard\.|The following message was NOT copied — your browser blocked the clipboard\.)$/.test(dlg.lead) || !dlg.leadBeforeMessage) throw new Error('copy dialog lead line: ' + JSON.stringify(dlg.lead) + ' before message: ' + dlg.leadBeforeMessage);
   // Numbered steps (2026-09-06 evening): paste, attach the ORIGINAL transcripts (emphasised), send.

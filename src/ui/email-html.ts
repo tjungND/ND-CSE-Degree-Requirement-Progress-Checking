@@ -30,6 +30,22 @@ export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
+/** The line every copied email opens with, for the student to complete in
+ * their mail client (DGS 2026-09-28: "let students add name, netID, and
+ * NDID"). The app stores none of these — FERPA — so the placeholder is the
+ * whole of what the page knows. */
+export const STUDENT_LINE = 'Student: [your name, netID and NDID]';
+/** The same line in the HTML flavour: the placeholder emphasised so it is
+ * seen before the message is sent. */
+export function studentLineHtml(): string {
+  return `<p>Student: <strong>[your name, netID and NDID]</strong></p>`;
+}
+/** The copy dialog's first step, shared by the three emails. */
+export const FILL_IN_STEP = 'Fill in your name, netID and NDID on the "Student:" line.';
+/** The heading of the numbered list of what THIS reader must do — the same
+ * skeleton in all three emails (DGS 2026-09-28). */
+export const ACTION_HEADING = 'Action requested';
+
 /** The page's pill colours, named (DGS 2026-09-28: "green, amber, and gray";
  * red for a passed deadline and blue for a conditional row are the page's
  * own). `standingColor` in report.ts picks one per row. */
