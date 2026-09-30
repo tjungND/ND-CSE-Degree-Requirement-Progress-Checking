@@ -182,8 +182,17 @@ async function checkDialog(s, baseUrl) {
   await s.shot('consent-answered');
   await s.evalJs(`document.querySelector('[data-key="consent.finished.yes"]').click()`);
   await s.settle();
-  if (await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`)) throw new Error('opening dialog: the button must be live once every family is answered');
-  if (!(await s.evalJs(`document.querySelector('.consent-hint')?.hidden === true`))) throw new Error('opening dialog: the "answer the questions" hint must go once the button is live');
+  // Every question answered, the notice not yet acknowledged (2026-09-29): the
+  // button waits for the tick INSIDE the notice, and the hint says so.
+  if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must wait for the acknowledgement tick');
+  const hintText = await s.evalJs(`document.querySelector('.consent-hint')?.textContent ?? ''`);
+  if (hintText !== 'Tick the box under the notice to continue.') throw new Error('opening dialog: the hint must name the tick: ' + hintText);
+  if (!(await s.evalJs(`!!document.querySelector('.consent-warning [data-key="consent.ack"]')`))) throw new Error('opening dialog: the acknowledgement must sit inside the notice');
+  await s.evalJs(`document.querySelector('[data-key="consent.ack"]').click()`);
+  await s.settle();
+  if (await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`)) throw new Error('opening dialog: the button must be live once every family is answered and the notice ticked');
+  if (!(await s.evalJs(`document.querySelector('.consent-hint')?.hidden === true`))) throw new Error('opening dialog: the hint must go once the button is live');
+  if ((await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.textContent`)) !== 'Continue') throw new Error('opening dialog: the button reads "Continue" since 2026-09-29');
   // Three visible steps, each numbered by the CSS counter (getComputedStyle
   // returns the counter expression, not its value, so the check is that the
   // number is there and that exactly three steps show).

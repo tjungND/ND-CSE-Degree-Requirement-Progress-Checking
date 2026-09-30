@@ -633,6 +633,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
       document.querySelector('[data-key="consent.graduate.elsewhere"]').click();
       document.querySelector('[data-key="consent.sameplace.no"]').click();
       document.querySelector('[data-key="consent.finished.yes"]').click();
+      document.querySelector('[data-key="consent.ack"]').click();
       document.querySelector('.consent-overlay button.btn').click();
     })()`);
     await s.waitFor(`!document.querySelector('.consent-overlay')`);

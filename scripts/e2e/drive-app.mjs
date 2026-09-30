@@ -514,6 +514,7 @@ export async function driveApp(s, baseUrl) {
     document.querySelector('[data-key="consent.program.mscse"]').click();
     document.querySelector('[data-key="consent.bachelors.elsewhere"]').click();
     document.querySelector('[data-key="consent.graduate.none"]').click();
+    document.querySelector('[data-key="consent.ack"]').click();
     document.querySelector('.consent-overlay button.btn').click();
   })()`);
   await s.waitFor(`!document.querySelector('.consent-overlay')`);

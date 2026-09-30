@@ -99,6 +99,11 @@ html.embed dialog.consent-overlay::backdrop { background: transparent; }
    rather than a red headline (DGS 2026-09-29: "ugly"): the red kept, on a
    light ground behind a red rule. */
 .consent-box .consent-warning { color: var(--bad); font-weight: 600; background: #fbe9e7; border-left: 4px solid var(--bad); border-radius: 6px; padding: 8px 12px; margin: 10px 0 12px; }
+.consent-box .consent-warning > p { margin: 0; }
+/* The acknowledgement lives in the notice it acknowledges (DGS 2026-09-29):
+   a tick box on the note's own ground, in the page's ink, not the red. */
+.consent-ack { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(168, 30, 20, 0.25); color: var(--ink); font-weight: 600; font-size: 14px; cursor: pointer; }
+.consent-ack input[type='checkbox'] { margin: 3px 0 0; flex: none; width: 16px; height: 16px; accent-color: var(--navy); }
 /* The opening and Change dialogs' questions as numbered steps, each answer an
    option row with a bold head and a lighter note (DGS 2026-09-29: the old
    dialog was three bare radio lists of long sentences). The counter runs
@@ -856,6 +861,8 @@ tr.ocr-low td { background: #fff7e0; }
   .radios input[type="radio"], .attest input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; flex: none; }
   .choice { min-height: 44px; }
   .choice input[type='radio'] { width: 20px; height: 20px; margin-top: 1px; }
+  .consent-ack { min-height: 44px; }
+  .consent-ack input[type='checkbox'] { width: 20px; height: 20px; margin-top: 1px; }
   .btn.tiny { min-height: 32px; }
   .save-buttons .btn { flex: 1 1 auto; }
   /* iOS Safari zooms the page when a focused control's text is smaller than 16 px. */

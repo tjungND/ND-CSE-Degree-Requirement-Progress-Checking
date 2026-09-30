@@ -55,7 +55,8 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
       }
       // The notice carries the program choice since 2026-09-18 (blue-team B2):
       // for a record this browser has never seen, nothing is pre-selected and
-      // "I understand — continue" stays inactive until the student answers, so
+      // "Continue" stays inactive until the student answers and ticks the
+      // acknowledgement inside the notice (2026-09-29), so
       // the drivers answer it the way a Ph.D. student would. A returning record
       // arrives pre-selected and the button is live from the start.
       // The earlier-degrees questions (2026-09-22) are answered the way the
@@ -63,6 +64,13 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
       // elsewhere at a different university — every previous row shows.
       await evalJs(`(() => {
         const btn = document.querySelector('.consent-overlay button.btn');
+        // The acknowledgement first (2026-09-29): a returning record arrives
+        // with its answers pre-selected, and the button is live as soon as the
+        // notice is ticked — answering the questions again here would REPLACE
+        // the saved program with the Ph.D. (which is how the MSCSE checks broke
+        // the day the tick arrived).
+        const ack = document.querySelector('[data-key="consent.ack"]');
+        if (ack && !ack.checked) ack.click();
         if (btn.hasAttribute('disabled')) {
           document.querySelector('[data-key="consent.program.phd"]').click();
           document.querySelector('[data-key="consent.bachelors.elsewhere"]')?.click();

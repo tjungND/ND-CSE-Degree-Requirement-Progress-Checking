@@ -123,7 +123,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // again for the emptied record: program and earlier degrees are chosen
   // there and nowhere else.
   const openOpeningDialog = (prefill: Student | undefined): void => {
-  const agreeButton = el('button', { class: 'btn primary', autofocus: true }, 'I understand — continue');
+  // "Continue" (DGS 2026-09-29): the acknowledgement is a tick box INSIDE the
+  // notice it acknowledges — "I understand — continue" at the foot of the
+  // dialog read as the answer to the questions, not to the warning above them.
+  const agreeButton = el('button', { class: 'btn primary', autofocus: true }, 'Continue');
+  const ack = el('input', { type: 'checkbox', 'data-key': 'consent.ack', onchange: () => gate() }) as HTMLInputElement;
   // The program choice lives here (blue-team B2, 2026-09-18). It used to be a
   // SILENT default — emptyStudent() says `program: 'phd'` and nothing asked —
   // so an MSCSE student who missed the segmented control at the top read
@@ -164,13 +168,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // each family") — a record saved before the questions existed is asked
   // them on its next visit, like a new one.
   let chosenBackground: Partial<Background> | undefined = prefill?.background;
-  const isReady = (): boolean => chosenProgram !== undefined && completeBackground(chosenBackground, chosenProgram) !== undefined;
+  const answered = (): boolean => chosenProgram !== undefined && completeBackground(chosenBackground, chosenProgram) !== undefined;
+  const isReady = (): boolean => ack.checked && answered();
   // Why the button waits, said beside it (DGS 2026-09-29: a grey button with
-  // no reason was the dialog's last line).
-  const hint = el('span', { class: 'consent-hint' }, 'Answer the questions above to continue.');
+  // no reason was the dialog's last line) — the tick, the questions, or both.
+  const hint = el('span', { class: 'consent-hint' });
   const gate = (): void => {
     if (isReady()) agreeButton.removeAttribute('disabled');
     else agreeButton.setAttribute('disabled', 'disabled');
+    hint.textContent = !ack.checked && !answered() ? 'Tick the box under the notice and answer the questions to continue.' : !ack.checked ? 'Tick the box under the notice to continue.' : 'Answer the questions above to continue.';
     hint.hidden = isReady();
   };
   // The questions depend on the program (an MSCSE student cannot already hold
@@ -206,11 +212,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'div',
       { class: 'consent-box' },
       el('h2', { id: 'consent-title' }, 'Before you continue'),
-      // In red (DGS 2026-09-22): the one sentence a tester must not miss.
+      // In red (DGS 2026-09-22): the one sentence a tester must not miss —
+      // with the acknowledgement it asks for right under it (DGS 2026-09-29).
       el(
-        'p',
+        'div',
         { class: 'consent-warning' },
-        'This tool has not been approved by the department yet. It is for testing and informational purposes only.',
+        el('p', {}, 'This tool has not been approved by the department yet. It is for testing and informational purposes only.'),
+        el('label', { class: 'consent-ack' }, ack, el('span', {}, 'I understand — this tool is under testing and not yet approved by the department.')),
       ),
       // Open invitation for feedback (DGS wording, 2026-09-05). The coverage
       // caveat (COVERAGE_NOTICE) was shown here from 2026-09-05 until the DGS had
