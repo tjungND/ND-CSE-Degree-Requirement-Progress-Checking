@@ -1347,7 +1347,9 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
 
 - **"New handbook year"**: new PDF in `docs/` (keep old), update `CLAUDE.md` filename, diff
   §3/§4 old-vs-new, route numbers→Parameters tab, course lists→Courses tab, structure→code
-  (quote the new sentence), update `HANDBOOK_EDITION` and `HANDBOOK_URL` in `src/ui/handbook.ts`
+  (quote the new sentence), update `HANDBOOK_EDITION` in `src/ui/handbook.ts` (`HANDBOOK_URL` is the
+  DGS's permanent Google Drive link since 2026-09-30 — new editions are new versions of the same
+  file, so the address stays; the same address is written into index.html and courses.html)
   (the masthead, footer and copied summary all read from there), then grep for the old edition
   string to catch stragglers, log decisions.
 - **"Course X should count for Y"**: that's a SHEET edit, not code. Say so.

@@ -7,8 +7,12 @@ import type { RulesDate } from '../data/types.ts';
 import { el } from './dom.ts';
 
 export const HANDBOOK_EDITION = 'July 2026';
-export const HANDBOOK_URL =
-  'https://cse.nd.edu/wp-content/uploads/sites/7/2026/07/CSE-Graduate-Handbook-July2026.pdf';
+/** The DGS's PERMANENT link to the handbook (DGS 2026-09-30): a Google Drive
+ * file whose future editions are uploaded as new versions of the same file,
+ * so the link never changes — only HANDBOOK_EDITION does when a new edition
+ * arrives. (Until then the link was the cse.nd.edu upload of the July 2026
+ * PDF, which a new edition would have replaced with a new address.) */
+export const HANDBOOK_URL = 'https://drive.google.com/open?id=1SpxGErmfwWvU4dTEkAy_3LJvzm_DUxA_&usp=drive_fs';
 export const HANDBOOK_TITLE = `CSE Graduate Studies Handbook (${HANDBOOK_EDITION})`;
 
 /** A link to the official handbook PDF, opening in a new tab. */

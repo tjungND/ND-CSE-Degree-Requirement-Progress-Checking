@@ -1,6 +1,8 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-29 (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-09-30 (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-09-30: the handbook link is the DGS's permanent Google Drive link (new editions become new versions of the same file).
 
 2026-09-29 (evening, later): the acknowledgement is a tick box inside the notice and the button reads “Continue” (DGS: the old button did not read as the answer to the warning).
 
