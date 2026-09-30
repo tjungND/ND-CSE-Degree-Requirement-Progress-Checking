@@ -110,7 +110,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
   });
 
   it('closes with the alpha/no-warranty notice and the handbook edition; no deadline footnote without deadlines', () => {
-    assert.match(text, /\nThank you!\n\nAlpha version under testing\. Informational only, no warranty — not an official degree audit; every final decision rests with the DGS\. Checked against the CSE Graduate Studies Handbook, July 2026 \(https:\/\/[^)]+\)\.\n$/);
+    assert.match(text, /\nThank you!\n\nAlpha version under testing\. Informational only, no warranty — not an official degree audit; every final decision rests with the DGS\. Checked against the CSE Graduate Studies Handbook \(https:\/\/[^)]+\)\.\n$/);
     assert.doesNotMatch(text, /transcript-PDF|Not all cases are covered|Deadlines are counted from/);
   });
 });

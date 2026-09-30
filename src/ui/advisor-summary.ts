@@ -22,7 +22,7 @@ import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
 import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, programShort, studentLineHtml, textRequirementBlock, type DeadlineAlert, type StandingColor } from './email-html.ts';
-import { BETA_NOTICE, HANDBOOK_EDITION, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
+import { BETA_NOTICE, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
 import type { ProgramHistory } from './program-history.ts';
 import { deadlineAlert, isNotStarted, scoredRows, standingColor, statusWord } from './report.ts';
 
@@ -122,7 +122,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const deadlineNote = listed.some((r) => deadlineOf(r) !== undefined)
     ? `Deadlines are counted from ${opts.entryTerm} and given by semester; they are approximate — the registrar's calendar sets the exact dates.`
     : '';
-  const statusNote = `Alpha version under testing. ${BETA_NOTICE} Checked against the CSE Graduate Studies Handbook, ${HANDBOOK_EDITION} (${HANDBOOK_URL}).`;
+  const statusNote = `Alpha version under testing. ${BETA_NOTICE} Checked against the CSE Graduate Studies Handbook (${HANDBOOK_URL}).`;
 
   // The tag: the page's pill word (report.ts statusWord — the engine's
   // per-row label when it set one, W-CS2 "Eligibility at risk"; else Overdue,
