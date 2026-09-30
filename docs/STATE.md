@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-29 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-29 (evening): the opening dialog redesigned — numbered steps, option rows with a bold head and a lighter note, the notice as a note box, a hint beside the waiting button (DGS: ugly and not intuitive) — and a real bug fixed on the way: “Did you finish that degree?” never appeared after “same university?”, so the button never came alive for a degree elsewhere.
+
 2026-09-29 (later still): an undergraduate course from another university reads ✕ no transfer credit on its Credit line and carries its DGS-confirmed core area on the Qualifier line alone (DGS bug report: the core clause led a green credit line and was repeated).
 
 2026-09-29 (later): the course-rules page's schedule tables fit their card at every width above the phone layout — no 980 px floor, wrapping titles (DGS: all columns without a horizontal scroll, like All courses).

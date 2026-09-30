@@ -86,7 +86,7 @@ dialog.consent-overlay { max-width: min(560px, calc(100vw - 32px)); width: 100%;
 dialog.consent-overlay::backdrop { background: #f7f8fa; }
 dialog.consent-overlay .consent-box { max-width: none; border: 1px solid #d9dde3; box-shadow: none; padding: 18px 22px; }
 dialog.consent-overlay .consent-box h2 { color: var(--navy); font-size: 18px; }
-dialog.consent-overlay .consent-box > .btn { margin-left: 0; }
+dialog.consent-overlay .consent-box > .btn, dialog.consent-overlay .consent-actions > .btn { margin-left: 0; }
 /* Safari does not focus a radio on a mouse click, so focus rests on the dialog
    itself and the first key press drew a ring round the whole card. The ring
    says nothing there; controls inside keep theirs. */
@@ -95,7 +95,36 @@ dialog.consent:focus, dialog.consent:focus-visible { outline: none; }
 html.embed dialog.consent-overlay::backdrop { background: transparent; }
 .consent-box { background: #fff; border-radius: 12px; max-width: 540px; padding: 22px 26px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
 .consent-box h2 { margin-top: 0; }
-.consent-box .consent-warning { color: var(--bad); font-weight: 700; }
+/* The one sentence a tester must not miss (DGS 2026-09-22), as a note box
+   rather than a red headline (DGS 2026-09-29: "ugly"): the red kept, on a
+   light ground behind a red rule. */
+.consent-box .consent-warning { color: var(--bad); font-weight: 600; background: #fbe9e7; border-left: 4px solid var(--bad); border-radius: 6px; padding: 8px 12px; margin: 10px 0 12px; }
+/* The opening and Change dialogs' questions as numbered steps, each answer an
+   option row with a bold head and a lighter note (DGS 2026-09-29: the old
+   dialog was three bare radio lists of long sentences). The counter runs
+   over the fieldsets that are shown — a hidden one makes no box and adds
+   nothing — so the steps read 1, 2, 3 whichever families the program asks. */
+.consent-box { counter-reset: step; }
+fieldset.field.group.step { margin: 16px 0 0; counter-increment: step; }
+legend.step-title { font-size: 15px; font-weight: 700; color: var(--navy); margin: 0 0 8px; padding: 0; }
+legend.step-title::before { content: counter(step) '. '; }
+.choices { display: flex; flex-direction: column; gap: 6px; }
+.choices.inline { flex-direction: row; flex-wrap: wrap; }
+.choices.inline .choice { flex: 1 1 120px; }
+.choice { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; font-size: 14.5px; line-height: 1.35; }
+.choice:hover { border-color: var(--navy); }
+.choice:has(input:checked) { border-color: var(--navy); background: #eef2f8; box-shadow: inset 0 0 0 1px var(--navy); }
+.choice:has(input:focus-visible) { outline: 2px solid var(--navy); outline-offset: 2px; }
+.choice input[type='radio'] { margin: 3px 0 0; flex: none; width: 16px; height: 16px; accent-color: var(--navy); }
+.choice-text { display: flex; flex-direction: column; min-width: 0; }
+.choice-head { font-weight: 600; color: var(--ink); }
+.choice-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
+/* A follow-up hangs under its step: a left rule, no number, a smaller question. */
+fieldset.field.group.background-followup { margin: 10px 0 0 12px; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); }
+legend.followup-title { font-size: 13.5px; font-weight: 600; color: var(--ink); margin: 0 0 6px; padding: 0; }
+.consent-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 18px; }
+.consent-hint { font-size: 13px; color: var(--muted); }
+.consent-hint[hidden] { display: none; }
 /* The check-before-you-send dialog behind every copy button (2026-09-06 evening). */
 dialog.copy-check { max-width: min(760px, calc(100vw - 32px)); width: 100%; }
 dialog.copy-check .consent-box { max-width: none; }
@@ -337,8 +366,7 @@ table.courses .feeds-hidden .counts-toward.now { display: none; }
 .program-name { display: inline-block; background: var(--navy); color: #fff; font-weight: 700; font-size: 1.05rem; letter-spacing: 0.01em; padding: 8px 16px; border-radius: 999px; }
 /* The program choice inside the opening notice (blue-team B2, 2026-09-18):
    the question the page used to answer silently with "Ph.D.". */
-.consent-program-group { margin: 14px 0 16px; }
-.consent-program .radio { padding: 3px 0; }
+.consent-program-group { margin: 14px 0 0; }
 .consent-box .btn.primary[disabled] { opacity: 0.55; cursor: not-allowed; }
 /* The footer's five things, each with a heading and two of them behind a
    disclosure (blue-team B9, 2026-09-18) — it was ~1,900 characters of unbroken
@@ -826,6 +854,8 @@ tr.ocr-low td { background: #fff7e0; }
   .radios { gap: 8px; }
   .radios .radio, .attest { display: flex; align-items: flex-start; gap: 8px; min-height: 44px; padding: 4px 0; }
   .radios input[type="radio"], .attest input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+  .choice { min-height: 44px; }
+  .choice input[type='radio'] { width: 20px; height: 20px; margin-top: 1px; }
   .btn.tiny { min-height: 32px; }
   .save-buttons .btn { flex: 1 1 auto; }
   /* iOS Safari zooms the page when a focused control's text is smaller than 16 px. */

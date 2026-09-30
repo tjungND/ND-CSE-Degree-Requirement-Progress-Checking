@@ -167,9 +167,28 @@ async function checkDialog(s, baseUrl) {
   await s.settle();
   if (!(await stillOpen())) throw new Error('opening dialog: Escape must not close it');
   if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must wait for the answers');
-  await s.evalJs(`(() => { for (const k of ['consent.program.phd', 'consent.bachelors.elsewhere', 'consent.graduate.none']) document.querySelector('[data-key="' + k + '"]')?.click(); })()`);
+  // The follow-ups appear one at a time and each must be VISIBLE before it
+  // is answered (2026-09-29: "Did you finish that degree?" never appeared
+  // after "same university?", and the drivers had clicked the hidden input).
+  const shown = (key) => s.evalJs(`(() => { const f = document.querySelector('[data-key="${key}"]')?.closest('fieldset'); return !!f && !f.hidden && getComputedStyle(f).display !== 'none'; })()`);
+  await s.evalJs(`(() => { for (const k of ['consent.program.phd', 'consent.bachelors.elsewhere', 'consent.graduate.elsewhere']) document.querySelector('[data-key="' + k + '"]')?.click(); })()`);
+  await s.settle();
+  if (!(await shown('consent.sameplace.no'))) throw new Error('opening dialog: "same university?" must follow "a degree elsewhere"');
+  if (await shown('consent.finished.yes')) throw new Error('opening dialog: "finished?" must wait for "same university?"');
+  await s.evalJs(`document.querySelector('[data-key="consent.sameplace.no"]').click()`);
+  await s.settle();
+  if (!(await shown('consent.finished.yes'))) throw new Error('opening dialog: "finished?" must appear once "same university?" is answered');
+  if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must still wait for "finished?"');
+  await s.shot('consent-answered');
+  await s.evalJs(`document.querySelector('[data-key="consent.finished.yes"]').click()`);
   await s.settle();
   if (await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`)) throw new Error('opening dialog: the button must be live once every family is answered');
+  if (!(await s.evalJs(`document.querySelector('.consent-hint')?.hidden === true`))) throw new Error('opening dialog: the "answer the questions" hint must go once the button is live');
+  // Three visible steps, each numbered by the CSS counter (getComputedStyle
+  // returns the counter expression, not its value, so the check is that the
+  // number is there and that exactly three steps show).
+  const steps = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('dialog.consent legend.step-title')].filter((l) => l.closest('fieldset') && !l.closest('fieldset').hidden).map((l) => getComputedStyle(l, '::before').content))`));
+  if (steps.length !== 3 || !steps.every((c) => /counter\(step\)/.test(c))) throw new Error('opening dialog: three numbered steps expected — ' + JSON.stringify(steps));
   await key(s, 'Escape', 'Escape', 27);
   await key(s, 'Escape', 'Escape', 27);
   await s.settle();

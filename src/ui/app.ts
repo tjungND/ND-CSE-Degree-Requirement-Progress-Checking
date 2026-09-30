@@ -29,7 +29,7 @@ import {
 } from '../engine/ranges.ts';
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
-import { applyBackground, backgroundQuestions, completeBackground, describeBackground, openBackgroundDialog, type Background } from './background.ts';
+import { applyBackground, backgroundQuestions, choiceRow, completeBackground, describeBackground, openBackgroundDialog, type Background } from './background.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
@@ -131,25 +131,29 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // limit) and a footer saying 0 of 17 met. This dialog is already a forced
   // interaction on every visit; asking here removes the whole failure class.
   // A returning student's answer is pre-selected, so it stays one click.
-  const programRadios = el('div', { class: 'radios consent-program' });
+  // Option rows like the questions below them (DGS 2026-09-29): a bold head
+  // and the handbook chapter as the lighter line.
+  const programRadios = el('div', { class: 'choices consent-program' });
   let chosenProgram: Program | undefined = prefill?.program;
-  for (const [value, label] of [
-    ['phd', 'Ph.D. in Computer Science and Engineering (Handbook §4)'],
-    ['mscse', 'M.S. in Computer Science and Engineering — MSCSE (Handbook §3)'],
-  ] as [Program, string][]) {
-    const radio = el('input', {
-      type: 'radio',
-      name: 'consent-program',
-      value,
-      'data-key': `consent.program.${value}`,
-      onchange: () => {
-        chosenProgram = value;
-        renderQuestions();
-        gate();
-      },
-    }) as HTMLInputElement;
-    radio.checked = prefill?.program === value;
-    programRadios.append(el('label', { class: 'radio' }, radio, ` ${label}`));
+  for (const [value, head, sub] of [
+    ['phd', 'Ph.D. in Computer Science and Engineering', 'Handbook §4'],
+    ['mscse', 'M.S. in Computer Science and Engineering (MSCSE)', 'Handbook §3'],
+  ] as [Program, string, string][]) {
+    programRadios.append(
+      choiceRow({
+        name: 'consent-program',
+        value,
+        head,
+        sub,
+        dataKey: `consent.program.${value}`,
+        checked: prefill?.program === value,
+        onChange: () => {
+          chosenProgram = value;
+          renderQuestions();
+          gate();
+        },
+      }),
+    );
   }
   // Nothing is pre-selected for a student with no record on this device, and
   // the button stays inactive until they answer — the report must not render
@@ -161,9 +165,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // them on its next visit, like a new one.
   let chosenBackground: Partial<Background> | undefined = prefill?.background;
   const isReady = (): boolean => chosenProgram !== undefined && completeBackground(chosenBackground, chosenProgram) !== undefined;
+  // Why the button waits, said beside it (DGS 2026-09-29: a grey button with
+  // no reason was the dialog's last line).
+  const hint = el('span', { class: 'consent-hint' }, 'Answer the questions above to continue.');
   const gate = (): void => {
     if (isReady()) agreeButton.removeAttribute('disabled');
     else agreeButton.setAttribute('disabled', 'disabled');
+    hint.hidden = isReady();
   };
   // The questions depend on the program (an MSCSE student cannot already hold
   // the MSCSE; a Notre Dame CSE bachelor's asks about the 4+1 only for the
@@ -215,9 +223,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         mailto(DGS.email),
         ').',
       ),
-      el('fieldset', { class: 'field group consent-program-group' }, el('legend', { class: 'label' }, 'Which degree are you working toward?'), programRadios),
+      el('fieldset', { class: 'field group step consent-program-group' }, el('legend', { class: 'step-title' }, 'Which degree are you working toward?'), programRadios),
       backgroundBlock,
-      agreeButton,
+      el('div', { class: 'consent-actions' }, agreeButton, hint),
     ),
   );
   // The page behind the opening dialog is hidden until it closes (DGS

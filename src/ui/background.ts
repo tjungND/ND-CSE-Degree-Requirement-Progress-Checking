@@ -41,20 +41,39 @@ export const BACHELORS_OPTIONS: [BachelorsFrom, string][] = [
   ['nd-other', 'Notre Dame — another department'],
 ];
 /** The graduate-degree answers a program can give: an MSCSE student cannot
- * already hold the MSCSE. */
+ * already hold the MSCSE. Each label is the option's HEAD line; the detail
+ * that used to follow it in the same sentence is in GRADUATE_NOTES (DGS
+ * 2026-09-29: the dialog read as a wall of long radio labels). */
 export function graduateOptions(program: Program): [GraduateBefore, string][] {
   return [
     ['none', 'No'],
-    ['elsewhere', 'Yes, at another university (a master’s, or Ph.D. study)'],
+    ['elsewhere', 'Yes, at another university'],
     ...(program === 'phd'
       ? ([
-          ['nd-mscse', 'Yes, the MSCSE at Notre Dame — as a regular master’s student'],
-          ['nd-4plus1', 'Yes, the MSCSE at Notre Dame — through the Integrated B.S. + M.S. (4+1) program'],
-          ['nd-mscse-transfer', 'Not a degree — I started in the MSCSE at Notre Dame and transferred into the Ph.D. before finishing it'],
+          ['nd-mscse', 'Yes, the MSCSE at Notre Dame'],
+          ['nd-4plus1', 'Yes, the MSCSE at Notre Dame, through the Integrated 4+1'],
+          ['nd-mscse-transfer', 'I transferred into the Ph.D. from the Notre Dame MSCSE'],
         ] as [GraduateBefore, string][])
       : []),
     ['nd-other', 'Yes, at Notre Dame in another department'],
   ];
+}
+/** The lighter second line under a graduate-degree option. */
+export const GRADUATE_NOTES: Partial<Record<GraduateBefore, string>> = {
+  elsewhere: 'a master’s, or Ph.D. study',
+  'nd-mscse': 'as a regular master’s student',
+  'nd-4plus1': 'the Integrated B.S. + M.S. program',
+  'nd-mscse-transfer': 'not a degree — you started in the MSCSE and moved into the Ph.D. before finishing it',
+};
+
+/** One selectable option row (DGS 2026-09-29: the opening dialog's radios
+ * were long sentences beside bare buttons). The whole row is the label — a
+ * bold head, a lighter note under it — and CSS paints the chosen one. The
+ * input keeps the data-key the drivers click. */
+export function choiceRow(opts: { name: string; value: string; head: string; sub?: string; dataKey: string; checked: boolean; onChange: () => void }): HTMLElement {
+  const input = el('input', { type: 'radio', name: opts.name, value: opts.value, 'data-key': opts.dataKey, onchange: opts.onChange }) as HTMLInputElement;
+  input.checked = opts.checked;
+  return el('label', { class: 'choice' }, input, el('span', { class: 'choice-text' }, el('span', { class: 'choice-head' }, opts.head), ...(opts.sub ? [el('span', { class: 'choice-sub' }, opts.sub)] : [])));
 }
 
 /** A complete answer for this program, or undefined while a question that
@@ -140,17 +159,17 @@ export function backgroundQuestions(
 ): HTMLElement {
   const state: Partial<Background> = { ...(current ?? {}) };
   if (program === 'mscse' && (state.graduate === 'nd-mscse' || state.graduate === 'nd-4plus1' || state.graduate === 'nd-mscse-transfer')) state.graduate = undefined;
-  const radios = (name: string, options: [string, string][], chosen: string | undefined, pick: (v: string) => void): HTMLElement => {
-    const box = el('div', { class: 'radios' });
+  // Option rows (choiceRow), one per answer; a yes/no pair sits side by side.
+  const radios = (name: string, options: [string, string][], chosen: string | undefined, pick: (v: string) => void, notes: Partial<Record<string, string>> = {}, inline = false): HTMLElement => {
+    const box = el('div', { class: inline ? 'choices inline' : 'choices' });
     for (const [value, label] of options) {
-      const r = el('input', { type: 'radio', name: `${prefix}-${name}`, value, 'data-key': `${prefix}.${name}.${value}`, onchange: () => pick(value) }) as HTMLInputElement;
-      r.checked = chosen === value;
-      box.append(el('label', { class: 'radio' }, r, ` ${label}`));
+      box.append(choiceRow({ name: `${prefix}-${name}`, value, head: label, sub: notes[value], dataKey: `${prefix}.${name}.${value}`, checked: chosen === value, onChange: () => pick(value) }));
     }
     return box;
   };
   const yesNo = (name: string, chosen: boolean | undefined, pick: (v: boolean) => void): HTMLElement =>
-    radios(name, [['yes', 'Yes'], ['no', 'No']], chosen === undefined ? undefined : chosen ? 'yes' : 'no', (v) => pick(v === 'yes'));
+    radios(name, [['yes', 'Yes'], ['no', 'No']], chosen === undefined ? undefined : chosen ? 'yes' : 'no', (v) => pick(v === 'yes'), {}, true);
+  // The follow-ups nest under their step (a left rule, no number of their own).
   const integratedBox = el('fieldset', { class: 'field group background-followup' });
   const elsewhereBox = el('fieldset', { class: 'field group background-followup' });
   const finishedBox = el('fieldset', { class: 'field group background-followup' });
@@ -174,7 +193,7 @@ export function backgroundQuestions(
   };
   const renderFollowUps = (): void => {
     integratedBox.replaceChildren(
-      el('legend', { class: 'label' }, 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)'),
+      el('legend', { class: 'followup-title' }, 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)'),
       yesNo('ndintegrated', state.ndIntegrated, (v) => {
         state.ndIntegrated = v;
         onChange(state);
@@ -182,14 +201,20 @@ export function backgroundQuestions(
     );
     integratedBox.hidden = !(program === 'mscse' && state.bachelors === 'nd-cse');
     elsewhereBox.replaceChildren(
-      el('legend', { class: 'label' }, 'Was it at the same university as your bachelor’s (a 4+1 or 5+1 program)?'),
+      el('legend', { class: 'followup-title' }, 'Was it at the same university as your bachelor’s (a 4+1 or 5+1 program)?'),
       yesNo('sameplace', state.samePlace, (v) => {
         state.samePlace = v;
+        // Re-decide what shows: in the opening dialog "Did you finish it?"
+        // waits for this answer, and until 2026-09-29 nothing re-rendered
+        // here, so it never appeared — the button stayed grey for every
+        // student with a degree from another university. (The drivers had
+        // clicked the hidden input and never noticed.)
+        renderFollowUps();
         onChange(state);
       }),
     );
     finishedBox.replaceChildren(
-      el('legend', { class: 'label' }, 'Did you finish that degree? (§5.2 allows 24 transfer credits after a finished master’s, 6 otherwise)'),
+      el('legend', { class: 'followup-title' }, 'Did you finish that degree? (§5.2 allows 24 transfer credits after a finished master’s, 6 otherwise)'),
       yesNo('finished', state.finished, (v) => {
         state.finished = v;
         onChange(state);
@@ -198,7 +223,7 @@ export function backgroundQuestions(
     elsewhereBox.hidden = state.graduate !== 'elsewhere';
     finishedBox.hidden = state.graduate !== 'elsewhere' || (sequential && state.samePlace === undefined);
     transferBox.replaceChildren(
-      el('legend', { class: 'label' }, 'When did you transfer into the Ph.D.? (Your entry term stays the MSCSE’s — every deadline counts from it; the transfer term is named on the emails you send.)'),
+      el('legend', { class: 'followup-title' }, 'When did you transfer into the Ph.D.? (Your entry term stays the MSCSE’s — every deadline counts from it; the transfer term is named on the emails you send.)'),
       termControls(),
     );
     transferBox.hidden = state.graduate !== 'nd-mscse-transfer';
@@ -206,20 +231,27 @@ export function backgroundQuestions(
     // 4+1 follow-up, when it is asked).
     graduateBox.hidden = sequential && (state.bachelors === undefined || (program === 'mscse' && state.bachelors === 'nd-cse' && state.ndIntegrated === undefined));
   };
+  // A numbered step (CSS counts the visible ones): the question is the heading.
   const graduateBox = el(
     'fieldset',
-    { class: 'field group' },
-    el('legend', { class: 'label' }, 'Did you hold, or start, a graduate degree before this program?'),
-    radios('graduate', graduateOptions(program), state.graduate, (v) => {
-      state.graduate = v as GraduateBefore;
-      if (v !== 'elsewhere') {
-        state.samePlace = undefined;
-        state.finished = undefined;
-      }
-      if (v !== 'nd-mscse-transfer') state.transferredTerm = undefined;
-      renderFollowUps();
-      onChange(state);
-    }),
+    { class: 'field group step' },
+    el('legend', { class: 'step-title' }, 'Did you hold, or start, a graduate degree before this program?'),
+    radios(
+      'graduate',
+      graduateOptions(program),
+      state.graduate,
+      (v) => {
+        state.graduate = v as GraduateBefore;
+        if (v !== 'elsewhere') {
+          state.samePlace = undefined;
+          state.finished = undefined;
+        }
+        if (v !== 'nd-mscse-transfer') state.transferredTerm = undefined;
+        renderFollowUps();
+        onChange(state);
+      },
+      GRADUATE_NOTES,
+    ),
   );
   renderFollowUps();
   return el(
@@ -227,8 +259,8 @@ export function backgroundQuestions(
     { class: 'background-questions' },
     el(
       'fieldset',
-      { class: 'field group' },
-      el('legend', { class: 'label' }, 'Where is your bachelor’s degree from?'),
+      { class: 'field group step' },
+      el('legend', { class: 'step-title' }, 'Where is your bachelor’s degree from?'),
       radios('bachelors', BACHELORS_OPTIONS, state.bachelors, (v) => {
         state.bachelors = v as BachelorsFrom;
         if (v !== 'nd-cse') state.ndIntegrated = undefined;
