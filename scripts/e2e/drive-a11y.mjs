@@ -186,7 +186,7 @@ async function checkDialog(s, baseUrl) {
   // button waits for the tick INSIDE the notice, and the hint says so.
   if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must wait for the acknowledgement tick');
   const hintText = await s.evalJs(`document.querySelector('.consent-hint')?.textContent ?? ''`);
-  if (hintText !== 'Tick the box under the notice to continue.') throw new Error('opening dialog: the hint must name the tick: ' + hintText);
+  if (hintText !== 'To continue, acknowledge the notice at the top by checking its box.') throw new Error('opening dialog: the hint must say the notice at the top needs acknowledging: ' + hintText);
   if (!(await s.evalJs(`!!document.querySelector('.consent-warning [data-key="consent.ack"]')`))) throw new Error('opening dialog: the acknowledgement must sit inside the notice');
   await s.evalJs(`document.querySelector('[data-key="consent.ack"]').click()`);
   await s.settle();

@@ -39,10 +39,12 @@ body {
 }
 .masthead-main { min-width: 0; }
 .masthead-tools { grid-column: 1 / -1; }
-/* The second column holds the contacts card on courses.html only; the self-check
-   page has nothing there, so its intro wrapped 400 px short of the rule beneath
-   it (DGS 2026-09-19). One column here. */
-#app:not(.courses-page) .masthead { grid-template-columns: minmax(0, 1fr); }
+/* The second column holds the contacts card on BOTH pages from 900 px up (the
+   self-check page since 2026-09-30, DGS: "just like in the course rule page").
+   Below that the card is at the end of the page and the column would be empty,
+   so the masthead is one column — the intro must not wrap 400 px short of the
+   rule beneath it (DGS 2026-09-19). */
+@media (max-width: 900px) { .masthead { grid-template-columns: minmax(0, 1fr); } }
 .eyebrow { color: var(--gold-text); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .masthead h1 { margin: 2px 0 6px; color: var(--navy); font-size: 28px; }
 .masthead .sub { margin: 0; color: var(--muted); }
@@ -151,6 +153,15 @@ dialog.copy-check .consent-box { max-width: none; }
 /* The footer lives in the grid, under the inputs column (DGS 2026-09-19); the
    report column spans both rows so the footer fills what it left empty. */
 .layout > .legal { grid-column: 1; grid-row: 2; margin-top: 4px; }
+/* Two auto rows let the report column, which spans both, hand its extra height
+   to BOTH rows equally — so whenever the report ran longer than the inputs, the
+   inputs' row grew and an empty band opened between the last card and the
+   footer (DGS 2026-09-30, 174 px on an empty record at 2,000 px, more with a
+   fuller report). With the second row flexible, a spanning item's overflow goes
+   to that row alone: the first row is exactly the inputs' height and the footer
+   sits right under the last card. Two-column widths only — below 900 px every
+   item has a row of its own. */
+@media (min-width: 901px) { .layout { grid-template-rows: auto 1fr; } }
 /* The report flows with the page (DGS request 2026-09-03): no inner
  * scrollbar — the whole column is visible by scrolling the page itself. */
 .layout > .audit-col { grid-row: 1 / span 2; }

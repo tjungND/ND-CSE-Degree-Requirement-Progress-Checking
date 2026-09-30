@@ -583,6 +583,11 @@ export async function driveApp(s, baseUrl) {
   if (privacy.finishCard) throw new Error('the finish card must be gone (DGS 2026-09-22)');
   if (!privacy.clearAtEnd || !privacy.clearAtTop) throw new Error('Reset must be in the storage card and the tools row: ' + JSON.stringify(privacy));
   if (privacy.toolsOrder !== 'tools.example,tools.save,tools.load,tools.print,save.copy,tools.reset') throw new Error('tools row order: ' + privacy.toolsOrder);
+  // The who-to-contact card sits top right at desk width, as on the course
+  // rules page (DGS 2026-09-30); one card in the document.
+  const contactPlace = JSON.parse(await s.evalJs(`JSON.stringify({ inMasthead: !!document.querySelector('.masthead .contact-card'), atEnd: !!document.querySelector('footer .contact-card'), cards: document.querySelectorAll('.contact-card').length, win: innerWidth })`));
+  if (!contactPlace.inMasthead || contactPlace.atEnd || contactPlace.cards !== 1) throw new Error('the who-to-contact card belongs top right at desk width, once: ' + JSON.stringify(contactPlace));
+  await s.shotElement('masthead-contacts', '.masthead');
 
   // The example banner tells the truth about whose rows these are (interface
   // review R5, 2026-09-18). `isExample` used to be a flag on the whole record:

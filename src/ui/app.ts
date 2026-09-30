@@ -176,7 +176,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   const gate = (): void => {
     if (isReady()) agreeButton.removeAttribute('disabled');
     else agreeButton.setAttribute('disabled', 'disabled');
-    hint.textContent = !ack.checked && !answered() ? 'Tick the box under the notice and answer the questions to continue.' : !ack.checked ? 'Tick the box under the notice to continue.' : 'Answer the questions above to continue.';
+    // DGS 2026-09-30: say that the notice at the top must be acknowledged.
+    hint.textContent =
+      !ack.checked && !answered()
+        ? 'To continue, acknowledge the notice at the top by checking its box, and answer the questions.'
+        : !ack.checked
+          ? 'To continue, acknowledge the notice at the top by checking its box.'
+          : 'Answer the questions above to continue.';
     hint.hidden = isReady();
   };
   // The questions depend on the program (an MSCSE student cannot already hold
@@ -429,6 +435,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return notices;
   }
 
+  // The Who-to-contact card lives in one of two places by width, as on the
+  // course rules page (DGS 2026-09-30: "move the contacts to the top right
+  // corner, just like in the course rule page"): the masthead's right-hand
+  // column from 900 px up, the end of the page below that and in the frame.
+  // Two empty hosts, one node moved between them — one card in the document,
+  // no duplicate heading. (B1 of 2026-09-18 had put it at the end in every
+  // mode; the DGS wants it back at the top on a desk.)
+  const contactHost = el('div', { class: 'contact-host' });
+  const mainContactHost = el('div', { class: 'contact-host' });
+  const contactNode = contactCard();
+  const placeContact = (wide: boolean): void => {
+    (wide && !isEmbedded() ? contactHost : mainContactHost).append(contactNode);
+  };
+  const wideEnough = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 900px)') : undefined;
+  placeContact(wideEnough ? wideEnough.matches : true);
+  wideEnough?.addEventListener?.('change', (ev) => placeContact((ev as MediaQueryListEvent).matches));
+
   function render(): void {
     const memo = rememberFocus();
     let report = audit(student, rules, todayIso);
@@ -616,11 +639,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             )
           : null,
       ),
-      // The Who-to-contact card is at the END of the page (B1, 2026-09-18).
-      // It was three reference links and three mailto links above the first
-      // control a student could type into, and the report already names people
-      // by role where they matter. Embedded mode has put it in the footer
-      // since 2026-09-16; now every mode does.
+      // The Who-to-contact card's desk-width host (DGS 2026-09-30) — the
+      // masthead's right-hand column, as on the course rules page. Below
+      // 900 px and in the frame the card is at the end of the page instead
+      // (B1 of 2026-09-18 kept for those).
+      embed ? null : contactHost,
       el(
         'div',
         { class: 'masthead-tools' },
@@ -2234,7 +2257,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Embedded, the way out of the frame — and, with the contact card moved
       // off the top, the place the contacts now live (DGS 2026-09-16).
       isEmbedded() ? el('div', { class: 'embed-exit-line' }, openFullPageLink('Open the full self-check page'), ' — the same tool in its own window.') : null,
-      contactCard(),
+      // The card's narrow-width and embed host (the desk host is in the masthead).
+      mainContactHost,
     );
   }
 
