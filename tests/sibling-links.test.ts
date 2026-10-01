@@ -3,7 +3,7 @@
 // iframe src names it; anything but an http(s) URL is ignored.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { allowedHostPage, siblingAnchorAttrs, siblingLink } from '../src/ui/sibling-links.ts';
+import { DEFAULT_HOST_PAGES, allowedHostPage, siblingAnchorAttrs, siblingLink } from '../src/ui/sibling-links.ts';
 
 describe('links between the two pages', () => {
   it('standalone: the sibling file next to this one', () => {
@@ -35,9 +35,20 @@ describe('links between the two pages', () => {
     assert.deepEqual(siblingLink('self-check', '?self_check_url=https://evil.example/'), { href: './index.html' });
   });
 
-  it('anchor attributes combine both embed rules', () => {
-    assert.deepEqual(siblingAnchorAttrs('course-rules', '', {}), { href: './courses.html' });
-    assert.deepEqual(siblingAnchorAttrs('course-rules', '?embed=1', { target: '_top', rel: 'noopener' }), { href: './courses.html', target: '_top', rel: 'noopener' });
-    assert.deepEqual(siblingAnchorAttrs('course-rules', '?embed=1&course_rules_url=https://cse.nd.edu/rules/', { target: '_top', rel: 'noopener' }), { href: 'https://cse.nd.edu/rules/', target: '_top', rel: 'noopener' });
+  // DGS 2026-09-30: embedded, a cross-link goes to the ND page that frames the
+  // sibling — not to the bare app page — unless the iframe src names another.
+  it('embedded with no host page named: the ND page that frames the sibling, in the top window', () => {
+    assert.deepEqual(siblingLink('self-check', '?embed=1', true), { href: 'https://sites.nd.edu/csedept/degree-requirement-self-checking/', target: '_top' });
+    assert.deepEqual(siblingLink('course-rules', '?embed=1', true), { href: 'https://sites.nd.edu/csedept/courses-and-rules/', target: '_top' });
+    assert.deepEqual(siblingLink('course-rules', '?embed=1&course_rules_url=https://cse.nd.edu/rules/', true), { href: 'https://cse.nd.edu/rules/', target: '_top' }, 'a named host page still wins');
+    assert.deepEqual(siblingLink('course-rules', '?course_rules_url=https://evil.example/', true), { href: DEFAULT_HOST_PAGES['course-rules'], target: '_top' }, 'a refused host falls back to the ND page, not to the bare file');
+    for (const url of Object.values(DEFAULT_HOST_PAGES)) assert.equal(allowedHostPage(url), true, 'the defaults pass their own allowlist: ' + url);
+  });
+
+  it('anchor attributes: a host page opens in the top window; standalone, the sibling file', () => {
+    assert.deepEqual(siblingAnchorAttrs('course-rules', '', false), { href: './courses.html' });
+    assert.deepEqual(siblingAnchorAttrs('course-rules', '?embed=1', true), { href: 'https://sites.nd.edu/csedept/courses-and-rules/', target: '_top', rel: 'noopener' });
+    assert.deepEqual(siblingAnchorAttrs('course-rules', '?embed=1&course_rules_url=https://cse.nd.edu/rules/', true), { href: 'https://cse.nd.edu/rules/', target: '_top', rel: 'noopener' });
+    assert.deepEqual(siblingAnchorAttrs('self-check', '?self_check_url=https://cse.nd.edu/self-check/', false), { href: 'https://cse.nd.edu/self-check/', target: '_top', rel: 'noopener' }, 'a named host page is honoured standalone too, as before');
   });
 });

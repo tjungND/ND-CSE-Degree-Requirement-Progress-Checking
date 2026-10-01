@@ -5,6 +5,8 @@ import { formatCredits } from '../engine/credits.ts';
 import type { DeadlineAlert, StandingColor } from './email-html.ts';
 import type { AuditReport, Contribution, RequirementResult, Status } from '../engine/types.ts';
 import { el } from './dom.ts';
+import { isEmbedded } from './embed.ts';
+import { siblingAnchorAttrs } from './sibling-links.ts';
 import type { NextStep } from './next-steps.ts';
 
 /** What the record calls for next (DGS 2026-09-27, clarity proposal 1),
@@ -409,6 +411,11 @@ function courseListLink(r: RequirementResult): HTMLElement | undefined {
     href = './courses.html?program=phd&type=regular&view=phd';
   }
   if (!href) return undefined;
+  // Embedded, the link goes to the ND page that frames the course rules, in
+  // the top window (DGS 2026-09-30) — the filter is lost, since the ND page
+  // cannot pass a query string into its frame, but the student stays on the
+  // ND site rather than landing on the bare app page.
+  if (isEmbedded()) return el('a', { class: 'course-link', ...siblingAnchorAttrs('course-rules', window.location.search, true) }, label);
   return el('a', { class: 'course-link', href }, label);
 }
 

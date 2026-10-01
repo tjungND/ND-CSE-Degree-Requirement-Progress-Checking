@@ -517,19 +517,26 @@ A student's entries may not come back. The embedded tool says so at the top and 
 "Save my progress to a file" and at the full page — but linking students straight to the full
 page is the kinder option.
 
-### E6. Let the two WordPress pages link to each other (1 minute)
+### E6. The two WordPress pages link to each other (nothing to do, unless a page moves)
 
 Each page links to the other ("See the course rules page", "The degree self-check tool applies
-these same rules…"). In `?embed=1` mode those links leave the frame, but they would land on the
-bare app page — so name your two WordPress pages in the shortcode's `src` and the links go there
-instead, in the top window:
+these same rules…", the report's "See the courses …" links). In `?embed=1` mode those links
+leave the frame and go to the ND page that frames the sibling, in the top window — by default
+the two pages on sites.nd.edu (`DEFAULT_HOST_PAGES` in `src/ui/sibling-links.ts`, DGS
+2026-09-30): `…/csedept/courses-and-rules/` and `…/csedept/degree-requirement-self-checking/`.
+If a page moves, either update that map (Track B) or name the new page in the shortcode's
+`src`, which wins over the default:
 
 ```
-[iframe src="…/index.html?embed=1&course_rules_url=https://cse.nd.edu/<your-course-rules-page>/" …]
-[iframe src="…/courses.html?embed=1&self_check_url=https://cse.nd.edu/<your-self-check-page>/" …]
+[iframe src="…/index.html?embed=1&course_rules_url=https://sites.nd.edu/csedept/<new-course-rules-page>/" …]
+[iframe src="…/courses.html?embed=1&self_check_url=https://sites.nd.edu/csedept/<new-self-check-page>/" …]
 ```
 
-Only `http(s)` URLs are accepted; anything else in the query string is ignored (2026-09-16).
+Only `https` URLs on an nd.edu host are accepted; anything else in the query string is ignored
+(2026-09-16, tightened 2026-09-18). One limit: a WordPress page cannot pass a query string or
+anchor into its frame, so a cross-link lands at the top of the ND page — the report's "See the
+courses for this area" link, which filters the course list on the full page, cannot filter it
+there.
 
 ## Where things live
 
