@@ -17,7 +17,7 @@ import { clear, el, inactiveButton, option } from './dom.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
-import { embedTargetAttrs, isEmbedded, openFullPageLink, placeInFrame } from './embed.ts';
+import { isEmbedded, openFullPageLink, placeInFrame } from './embed.ts';
 import { deciderTitle } from '../engine/decider.ts';
 import {
   BACHELORS_YEAR_RANGE,
@@ -612,7 +612,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 'See where you stand, requirement by requirement, against the ',
                 handbookLink(),
                 '; every check cites its section. The courses that count are on the ',
-                el('a', siblingAnchorAttrs('course-rules', window.location.search, embedTargetAttrs()), 'course rules page'),
+                el('a', siblingAnchorAttrs('course-rules', window.location.search, isEmbedded()), 'course rules page'),
                 '.',
               ),
               el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(termOfDate(todayIso)), todayIso)),
@@ -692,7 +692,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // footer and the copied summary, which render in their own order.
         el('strong', {}, RULES_ACCURACY_NOTICE.replace(/\.$/, '')),
         ' (see the ',
-        el('a', siblingAnchorAttrs('course-rules', window.location.search, embedTargetAttrs()), 'course rules page'),
+        el('a', siblingAnchorAttrs('course-rules', window.location.search, isEmbedded()), 'course rules page'),
         '). ',
         BETA_SCOPE_NOTICE,
         ...reportToDgs(' Error reports, suggestions, and feedback are all welcome — please email'),

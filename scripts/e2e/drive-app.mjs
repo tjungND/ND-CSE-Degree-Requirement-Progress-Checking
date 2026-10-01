@@ -704,6 +704,10 @@ async function driveAppEmbed(s, baseUrl) {
   // The masthead's intro (and its course-rules link) is not rendered in embed mode since 2026-09-16 (DGS: no text at the top).
   if (m.exit !== '_top') throw new Error('a link would load a whole page inside the frame: ' + JSON.stringify(m));
   if (m.coursesTarget !== undefined) throw new Error('embed mode must not render the masthead intro: ' + JSON.stringify(m));
+  // The report's "See the courses …" links go to the ND course-rules page in
+  // the top window when embedded (DGS 2026-09-30), not to the bare app page.
+  const courseLinks = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('a.course-link')].map((a) => ({ href: a.getAttribute('href'), target: a.getAttribute('target') })))`));
+  if (courseLinks.length === 0 || !courseLinks.every((l) => l.href === 'https://sites.nd.edu/csedept/courses-and-rules/' && l.target === '_top')) throw new Error('embedded course-list links must go to the ND course-rules page: ' + JSON.stringify(courseLinks.slice(0, 2)));
   if (m.heights === 0) throw new Error('the self-check tool must broadcast its height in embed mode (DGS 2026-09-16)');
   if (!m.stickyHidden) throw new Error('the bottom score bar must be hidden in embed mode: ' + JSON.stringify(m));
   await s.shot('app-embed');
@@ -801,7 +805,12 @@ export async function driveCourses(s, baseUrl) {
     await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
     const plain = await s.evalJs(`[...document.querySelectorAll('a')].find(a => /degree self-check tool/.test(a.textContent))?.getAttribute('href')`);
     if (plain !== './index.html') throw new Error('standalone cross-link must be the sibling file: ' + plain);
-    console.log('  cross-links: host page in the top window when named, sibling file otherwise');
+    // Embedded with nothing named (the live ND page's own iframe src, 2026-09-30):
+    // the ND page that frames the self-check, in the top window.
+    await s.open(new URL('courses.html?embed=1', baseUrl).href, '.all-courses table.course-rules');
+    const dflt = JSON.parse(await s.evalJs(`JSON.stringify((() => { const a = [...document.querySelectorAll('a')].find(a => /degree self-check tool/.test(a.textContent)); return { href: a?.getAttribute('href'), target: a?.getAttribute('target') }; })())`));
+    if (dflt.href !== 'https://sites.nd.edu/csedept/degree-requirement-self-checking/' || dflt.target !== '_top') throw new Error('embedded cross-link must default to the ND page in the top window: ' + JSON.stringify(dflt));
+    console.log('  cross-links: host page in the top window when named, the ND page by default when embedded, sibling file standalone');
   }
   // Qualifier-card courses (DGS 2026-09-17): a course offered this semester
   // links to its schedule row; one not offered links to its All-courses row;

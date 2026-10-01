@@ -20,6 +20,15 @@ export interface SiblingLink {
 
 export const SIBLING_PARAM: Record<SiblingPage, string> = { 'self-check': 'self_check_url', 'course-rules': 'course_rules_url' };
 const RELATIVE: Record<SiblingPage, string> = { 'self-check': './index.html', 'course-rules': './courses.html' };
+/** The ND pages that frame the two apps today (DGS 2026-09-30: "if they link
+ * to the other in the embed mode, they should go to the ND pages, not the
+ * full pages"). In embed mode a cross-link goes here unless the iframe src
+ * names a host page itself (SIBLING_PARAM), which still wins — so a page moved
+ * on the ND site works either by editing the iframe's address or this map. */
+export const DEFAULT_HOST_PAGES: Record<SiblingPage, string> = {
+  'self-check': 'https://sites.nd.edu/csedept/degree-requirement-self-checking/',
+  'course-rules': 'https://sites.nd.edu/csedept/courses-and-rules/',
+};
 
 /** Which hosts this parameter may name: Notre Dame, and nowhere else.
  *
@@ -43,18 +52,21 @@ export function allowedHostPage(raw: string): boolean {
   return u.hostname === 'nd.edu' || u.hostname.endsWith('.nd.edu');
 }
 
-/** The link for `page`, given this page's query string (`location.search`). */
-export function siblingLink(page: SiblingPage, search: string): SiblingLink {
+/** The link for `page`, given this page's query string (`location.search`)
+ * and whether this page is embedded: a host page named in the query string;
+ * else, embedded, the ND page that frames the sibling (DEFAULT_HOST_PAGES);
+ * else the sibling file next to this one. */
+export function siblingLink(page: SiblingPage, search: string, embedded = false): SiblingLink {
   const raw = new URLSearchParams(search).get(SIBLING_PARAM[page])?.trim() ?? '';
   if (allowedHostPage(raw)) return { href: raw, target: '_top' };
+  if (embedded) return { href: DEFAULT_HOST_PAGES[page], target: '_top' };
   return { href: RELATIVE[page] };
 }
 
-/** Anchor attributes for the sibling link, combining the two embed rules
- * (both 2026-09-16): a host page named in the query string wins and opens in
- * the top window; otherwise the relative sibling file, which in `?embed=1`
- * mode also leaves the frame (`embedAttrs`, from embed.ts). */
-export function siblingAnchorAttrs(page: SiblingPage, search: string, embedAttrs: Record<string, string>): Record<string, string> {
-  const link = siblingLink(page, search);
-  return link.target ? { href: link.href, target: '_top', rel: 'noopener' } : { href: link.href, ...embedAttrs };
+/** Anchor attributes for the sibling link: a host page — named in the query
+ * string, or the ND page by default when embedded (2026-09-30) — opens in the
+ * top window; standalone, the relative sibling file. */
+export function siblingAnchorAttrs(page: SiblingPage, search: string, embedded: boolean): Record<string, string> {
+  const link = siblingLink(page, search, embedded);
+  return link.target ? { href: link.href, target: '_top', rel: 'noopener' } : { href: link.href };
 }

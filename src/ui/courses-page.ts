@@ -18,7 +18,7 @@ import { rowSchedule, scheduleTerms, type RowFreshness, type RowSchedule } from 
 import { LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs } from './contacts.ts';
 import { clear, el, option } from './dom.ts';
 import { SIBLING_PARAM, allowedHostPage, siblingAnchorAttrs } from './sibling-links.ts';
-import { embedTargetAttrs, isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnchorScrollRelay } from './embed.ts';
+import { isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnchorScrollRelay } from './embed.ts';
 import { formatYmdLong, handbookLink, rulesDateLine } from './handbook.ts';
 import { ndDateOnly } from '../data/rules-date.ts';
 import { sheetSourceLine } from './sheet-source.ts'; // sheetSourceNote is the self-check page's now (trim review P-12)
@@ -497,7 +497,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                 'The Graduate Studies Committee and the DGS set them under the ',
                 handbookLink(),
                 '; the DGS and the Grad Admin use them to decide whether your courses satisfy the degree requirements. The ',
-                el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
+                el('a', siblingAnchorAttrs('self-check', window.location.search, isEmbedded()), 'degree self-check tool'),
                 ' applies them to your coursework.',
               ),
               el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(currentTerm), todayIso)),
@@ -836,7 +836,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         'Ph.D. students must pass a course in each area below — at Notre Dame or ',
         el('strong', {}, 'at a previous institution, undergraduate or graduate'),
         ' (§4.4.1: “either at Notre Dame or at their previous institution”). A course from a previous institution counts once the DGS has confirmed it; the ',
-        el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
+        el('a', siblingAnchorAttrs('self-check', window.location.search, isEmbedded()), 'degree self-check tool'),
         ' prepares that review request from your imported transcripts.',
       ),
       el('div', { class: 'ov-grid' }, ...coreCards),
@@ -852,7 +852,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         `${catRule.charAt(0).toUpperCase()}${catRule.slice(1)} (§4.4.2). A course listed under more than one category appears in each of their cards below, but can fill only `,
         el('strong', {}, 'one'),
         ' of them; the ',
-        el('a', siblingAnchorAttrs('self-check', window.location.search, embedTargetAttrs()), 'degree self-check tool'),
+        el('a', siblingAnchorAttrs('self-check', window.location.search, isEmbedded()), 'degree self-check tool'),
         ' settles which.',
       ),
       el('div', { class: 'ov-grid' }, ...groupCards),
