@@ -552,12 +552,12 @@ ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px;
 .courses-page .muted { color: var(--muted); }
 .courses-page .small { font-size: 12.5px; }
 .courses-page .sub a { color: inherit; text-decoration: underline; }
-/* A text column, not the whole window. At 1400 px these paragraphs ran 148 to
-   193 characters a line and the legend key 206 on one (trim review P-17,
-   2026-09-18); the masthead's own intro has been capped since it was written.
-   Not in the frame, where the host's column is the cap. */
-.courses-page .overview > p, .courses-page .legend li, .courses-page .legend-key, .courses-page .count { max-width: 70ch; }
-html.embed .courses-page .overview > p, html.embed .courses-page .legend li, html.embed .courses-page .legend-key, html.embed .courses-page .count { max-width: none; }
+/* No reading measure on this page's paragraphs either (DGS 2026-09-30, after
+   the same ruling for the self-check page on 2026-09-19): the 70ch cap of the
+   trim review (P-17, 2026-09-18) made the text stop two thirds of the way
+   across while the card grids beneath ran to the edge, which read as stray
+   line breaks — in the ND page's frame as much as on the full page. A
+   paragraph fills its column, at any width, in both modes. */
 .ov-grid { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
 .ov-grid > .ov-card { flex: 0 1 auto; min-width: min(100%, 260px); max-width: 100%; } /* content width: a card left alone on a row must not stretch across it */
 /* The schedule cards hold a seven-column table, so they take the whole row

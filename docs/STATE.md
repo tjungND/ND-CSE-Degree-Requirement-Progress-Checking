@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-30 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-09-30 (night): the course rules page's paragraphs reach the edge in both modes — the 70ch cap of P-17 is gone (DGS).
+
 2026-09-30 (later still): the blank band under the inputs on a wide window is gone (the footer's grid row is the flexible one); the Who-to-contact card sits top right at desk width on the self-check page too; the opening dialog's hint says to acknowledge the notice at the top (DGS items 1–3).
 
 2026-09-30 (later): the handbook title names no edition any more (DGS: the version is in the document).
