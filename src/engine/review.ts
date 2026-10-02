@@ -163,7 +163,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
               ? { needsRow: true, replyNeeded: false, decide: [COUNTS, ...(qualifierApplies ? [CORE, GROUP] : [])] }
               : needsCourseApproval(student.program === 'mscse' ? c.rule?.countsTowardMscse : c.rule?.countsTowardPhd)
                 ? forMe('approve it for me — the course rules say case by case')
-                : /advisor \+ .* approval per the course rules/.test(c.approvalPending ?? '')
+                : /advisor \+ .* approval per (?:the course rules|§3\.2)/.test(c.approvalPending ?? '')
                   ? forMe('approve it for me (the allowance for courses below the 60000 level)')
                   : { needsRow: false, replyNeeded: false, decide: [`${COUNTS} — the row is blank`] },
           reason:

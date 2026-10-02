@@ -1,0 +1,34 @@
+{
+  "name": "mscse-advisor-overdue-after-first-semester",
+  "description": "§2.3 (September 2026 edition): the same student in January, the first semester over and no advisor entered — Overdue, and the detail names the ADGS's exception.",
+  "today": "2027-01-15",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "priorMs": "none",
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "none"
+    },
+    "milestones": {},
+    "attestations": {},
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "courses": []
+  },
+  "expect": {
+    "shared.advisor": {
+      "status": "unmet",
+      "deadlineState": "overdue",
+      "detailIncludes": [
+        "No advisor entered yet",
+        "exception is the ADGS’s to grant (§2.3)"
+      ]
+    }
+  }
+}

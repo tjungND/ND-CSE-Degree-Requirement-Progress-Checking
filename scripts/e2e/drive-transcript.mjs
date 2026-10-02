@@ -697,7 +697,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // `adgs_approval` (counted provisionally, listed for the ADGS) for the
   // MSCSE — the DGS changes such cells (2026-09-16: both became yes). The
   // step accepts either verdict and pins what does not depend on it.
-  await s.waitFor(`/pending ADGS review|counts toward regular courses/.test(${lineOf('CSE 40113')})`);
+  await s.waitFor(`/pending ADGS review|waiting for the ADGS|counts toward regular courses/.test(${lineOf('CSE 40113')})`);
   const after40113 = await s.evalJs(lineOf('CSE 40113'));
   const after40166 = await s.evalJs(lineOf('CSE 40166'));
   console.log('  CSE 40113:', after40113.replace(/\s+/g, ' ').slice(0, 190));

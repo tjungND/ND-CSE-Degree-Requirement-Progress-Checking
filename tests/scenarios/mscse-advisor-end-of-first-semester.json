@@ -1,0 +1,33 @@
+{
+  "name": "mscse-advisor-end-of-first-semester",
+  "description": "§2.3 (September 2026 edition, DGS 2026-10-02): an M.S. student identifies an advisor by the END of the first semester, unless the ADGS grants an exception. Entered Fall 2026, no advisor: in November the row is in progress and due this semester; the July 2026 text (\"by the beginning\") would have had it overdue since August.",
+  "today": "2026-11-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "priorMs": "none",
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "none"
+    },
+    "milestones": {},
+    "attestations": {},
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "courses": []
+  },
+  "expect": {
+    "shared.advisor": {
+      "status": "unmet",
+      "deadlineState": "due_soon",
+      "detailIncludes": [
+        "by the end of your first semester (§2.3)"
+      ]
+    }
+  }
+}

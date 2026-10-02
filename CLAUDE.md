@@ -37,7 +37,9 @@ touching code and without the original author.
 - **Maintainable by a stranger.** Plain, commented code; docs written for a future DGS.
 
 ## Sources of truth (read these before touching rule logic)
-1. `docs/CSE-Graduate-Handbook-July2026.pdf` — §3 (MSCSE) and §4 (Ph.D.). When code and
+1. `policy-sources/CSE-Graduate-Handbook-live.pdf` — the current edition (“Updated September
+   2026”; the DGS replaces this file in place when a new edition is adopted, 2026-10-02 — the July
+   2026 PDF it replaced is in git history under `docs/`). §3 (MSCSE) and §4 (Ph.D.). When code and
    handbook disagree, the handbook wins; flag the discrepancy instead of silently choosing.
 2. Google Sheet **CSE-Degree-Checking-Rules** (renamed from CSE-Degree-Audit-Rules, 2026-09-05) — the DGS-editable data (tabs Courses, Parameters,
    Categories). Published-CSV URLs: `data/sheet-urls.json`. Schema: `data/README.md`.

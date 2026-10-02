@@ -345,9 +345,10 @@ Approve the commands it proposes (`npm test`, `npm run build`, …) when it asks
 
 ### B4. Prompts for the asks you will actually get
 
-- **New handbook year.** Put the new PDF in `docs/` (keep the old one) and update the file name in
-  `CLAUDE.md`. Then: *"Diff §3 and §4 of docs/CSE-Graduate-Handbook-July2027.pdf against the
-  July 2026 PDF. List every rule that changed. Propose Parameters/Courses/Categories edits for
+- **New handbook year.** Replace `policy-sources/CSE-Graduate-Handbook-live.pdf` with the new
+  edition (git keeps the old one) and say so. Then: *"Diff §2.3, §3, §4 and §5.2 of
+  policy-sources/CSE-Graduate-Handbook-live.pdf against the previous edition in git history
+  (git show HEAD~1:policy-sources/CSE-Graduate-Handbook-live.pdf). List every rule that changed. Propose Parameters/Courses/Categories edits for
   the numbers and lists, and code changes only for changed structure."* Nothing in
   `src/ui/handbook.ts` changes for a new edition: the link is the DGS's permanent Google Drive
   file (upload the new PDF as a new version of that file) and the title names no edition

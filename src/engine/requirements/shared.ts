@@ -2,7 +2,7 @@
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../ranges.ts';
 import { coursesNeedingDgsReviewFor } from '../review.ts';
 import { openDeadline } from '../status.ts';
-import { startOfTerm, termLabel } from '../term.ts';
+import { endOfTerm, termLabel } from '../term.ts';
 import type { DetailPart, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { joinedDetail, missingParamDetail } from './context.ts';
@@ -50,29 +50,32 @@ export function gpaRow(ctx: Ctx): RequirementResult {
   };
 }
 
-/** §2.3: "M.S. students, with assistance from the DGS, are expected to identify
- * a thesis or project advisor by the beginning of their first semester." /
+/** §2.3 (September 2026 edition): "M.S. students, with assistance from the
+ * ADGS, are expected to identify a thesis or project advisor by the end of
+ * their first semester, unless an exception is granted by the ADGS." /
  * "Continuous advisor supervision is required throughout the duration of the
- * Ph.D. program." */
+ * Ph.D. program." (The July 2026 edition said "by the beginning of their
+ * first semester"; the engine followed it until 2026-10-02.) */
 export function advisorRow(ctx: Ctx): RequirementResult {
   const ms = ctx.student.program === 'mscse';
   const quote = ms
-    ? 'M.S. students, with assistance from the DGS, are expected to identify a thesis or project advisor by the beginning of their first semester.'
+    ? 'M.S. students, with assistance from the ADGS, are expected to identify a thesis or project advisor by the end of their first semester, unless an exception is granted by the ADGS.'
     : 'Continuous advisor supervision is required throughout the duration of the Ph.D. program.';
   const { advisorIdentified, advisorName, advisorName2 } = ctx.student.milestones;
   const names = [advisorName, advisorName2].filter((n): n is string => !!n);
   let status: RequirementResult['status'];
   let detail: string;
-  // §2.3's "by the beginning of their first semester" is a deadline for an
-  // MSCSE student (DGS 2026-09-27): the row reads Overdue once that day has
-  // passed with no advisor entered, and the dial counts it.
-  const start = startOfTerm(ctx.entry).date;
+  // §2.3's "by the end of their first semester" is a deadline for an MSCSE
+  // student (DGS 2026-09-27; the end, not the start, since the September 2026
+  // edition — DGS 2026-10-02): the row reads Overdue once that semester is
+  // over with no advisor entered, and the dial counts it.
+  const end = endOfTerm(ctx.entry).date;
   const deadline: RequirementResult['deadline'] | undefined = ms
     ? advisorIdentified || names.length > 0
-      ? { date: start, approx: true, state: 'done', label: 'Complete' }
-      : ctx.today > start
-        ? { date: start, approx: true, state: 'overdue', label: `Overdue — was expected by the start of ${termLabel(ctx.entry)}` }
-        : openDeadline(start, ctx.today, `Due by the start of ${termLabel(ctx.entry)}`)
+      ? { date: end, approx: true, state: 'done', label: 'Complete' }
+      : ctx.today > end
+        ? { date: end, approx: true, state: 'overdue', label: `Overdue — was expected by the end of ${termLabel(ctx.entry)}` }
+        : openDeadline(end, ctx.today, `Due by the end of ${termLabel(ctx.entry)}`)
     : undefined;
   if (advisorIdentified || names.length > 0) {
     status = 'met';
@@ -81,9 +84,9 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   } else {
     status = 'unmet';
     detail = ms
-      ? ctx.today > start
-        ? `No advisor entered yet — talk to the DGS.`
-        : `Identify a thesis or project advisor by the beginning of your first semester (§2.3).`
+      ? ctx.today > end
+        ? `No advisor entered yet — talk to the DGS; an exception is the DGS’s to grant (§2.3).`
+        : `Identify a thesis or project advisor by the end of your first semester (§2.3).`
       : `No advisor entered yet.`;
   }
   return {
