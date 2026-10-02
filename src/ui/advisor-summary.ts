@@ -536,7 +536,7 @@ function flatten(p: DetailPart, r?: RequirementResult): string {
   if ('warn' in p) return p.warn;
   const items =
     r?.id === 'phd.qualifier.categories'
-      ? [...new Set(p.items.map((i) => i.replace(/^.*→\s*/, '').replace(/\s*\(flexible course[^)]*\)/, '').trim()))]
+      ? [...new Set(p.items.filter((i) => !/ — (?:in progress|that group is already covered)/.test(i)).map((i) => i.replace(/^.*→\s*/, '').replace(/\s*\(flexible course[^)]*\)/, '').trim()))]
       : p.items;
   return `${p.lead}: ${items.join(r?.id === 'phd.qualifier.categories' ? ', ' : '; ')}`;
 }

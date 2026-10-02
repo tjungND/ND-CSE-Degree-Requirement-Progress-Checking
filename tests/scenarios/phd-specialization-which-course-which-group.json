@@ -1,0 +1,94 @@
+{
+  "name": "phd-specialization-which-course-which-group",
+  "description": "DGS 2026-10-02: the specialization row names which passed course fills which group, and which course in progress may fill which — passed courses keep the groups they hold, a course in progress whose group is already covered says so, and the lead counts only the courses in progress that are needed.",
+  "today": "2026-10-02",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "none"
+    },
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "title": "Graduate Operating Systems",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "title": "Advanced Computer Architecture",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "title": "Secure Software Engineering",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "title": "Research Methods",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "title": "Complexity and Algorithms",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "B-",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.qualifier.categories": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "2 of 3 done, in 2 different groups; 1 of the 2 courses in progress would complete it",
+        "CSE 60641 Graduate Operating Systems → Systems and Software",
+        "CSE 60321 Advanced Computer Architecture → Architecture",
+        "CSE 60770 Secure Software Engineering → Systems and Software — in progress; that group is already covered",
+        "CSE 60876 Research Methods → ",
+        "— in progress; counts with a B or higher",
+        "CSE 60111 (B-) is below the B floor"
+      ]
+    }
+  }
+}

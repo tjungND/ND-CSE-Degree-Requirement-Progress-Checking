@@ -665,21 +665,47 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     const lead = `${qualifying.length} qualifying courses covering ${def.distinctCount} distinct groups`;
     const entries = [...def.assignment.entries()];
     add({ lead, items: entries.map(assignmentLine(false)) }, { lead, items: entries.map(assignmentLine(true)) });
-  } else if (combined.distinctCount >= groupsReq && qualifying.length + inProgress.length >= coursesReq) {
-    status = 'in_progress';
-    add(
-      `${qualifying.length} of ${coursesReq} done, in ${def.distinctCount} different group${def.distinctCount === 1 ? '' : 's'}; the ${inProgress.length} in progress would complete it`,
-    );
   } else {
-    status = 'unmet';
-    add(
-      `${qualifying.length} qualifying course${qualifying.length === 1 ? '' : 's'} covering ${def.distinctCount} distinct group${def.distinctCount === 1 ? '' : 's'} — ${groupsReq} distinct groups and ${coursesReq} courses with a grade of ${floor} or higher are required`,
+    // Which course fills which group — and which course in progress may fill
+    // which (DGS 2026-10-02: "show which courses satisfy which categories, and
+    // which in-progress courses may satisfy which categories"). One matching
+    // over both, the passed courses placed FIRST: an augmenting-path matching
+    // never unmatches a course once matched, so every group a passed course
+    // holds today is the group it is shown under, and the courses in progress
+    // fill what is left.
+    const display = matchDistinctGroups(
+      [...qualifying.map((c) => ({ ...c, sortKey: `0|${c.sortKey}` })), ...inProgress.map((c) => ({ ...c, sortKey: `1|${c.sortKey}` }))],
+      allGroups,
     );
-    if (def.missingGroups.length > 0) {
-      add(
-        `still open: ${def.missingGroups.map(groupName).join(', ')}`,
-        `still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
+    const item = (short: boolean, cand: GroupCandidate, done: boolean): string => {
+      const nameOf = (g: string) => (short ? shortName(groupName(g)) : groupName(g));
+      const g = display.assignment.get(cand.courseId);
+      const head = `${cand.courseId}${cand.title ? ` ${cand.title}` : ''} → ${g ? nameOf(g) : cand.groups.map(nameOf).join(' or ')}`;
+      const flex = g && cand.groups.length > 1 ? ' (flexible course — your assignment)' : '';
+      if (done) return g ? `${head}${flex}` : `${head} — that group is already covered`;
+      return g ? `${head}${flex} — in progress; counts with a ${floor} or higher` : `${head} — in progress; that group is already covered`;
+    };
+    const items = (short: boolean) => [...qualifying.map((c) => item(short, c, true)), ...inProgress.map((c) => item(short, c, false))];
+    const withItems = (lead: string) => (qualifying.length + inProgress.length > 0 ? add({ lead, items: items(false) }, { lead, items: items(true) }) : add(lead));
+    if (combined.distinctCount >= groupsReq && qualifying.length + inProgress.length >= coursesReq) {
+      status = 'in_progress';
+      // How many of the courses in progress are needed — the ones the matching
+      // gives a group of their own — not how many there are (2026-10-02).
+      const needed = inProgress.filter((c) => display.assignment.has(c.courseId)).length;
+      withItems(
+        `${qualifying.length} of ${coursesReq} done, in ${def.distinctCount} different group${def.distinctCount === 1 ? '' : 's'}; ${needed === inProgress.length ? `the ${inProgress.length === 1 ? 'course' : `${inProgress.length} courses`} in progress would complete it` : `${needed} of the ${inProgress.length} courses in progress would complete it`}`,
       );
+    } else {
+      status = 'unmet';
+      withItems(
+        `${qualifying.length} qualifying course${qualifying.length === 1 ? '' : 's'} covering ${def.distinctCount} distinct group${def.distinctCount === 1 ? '' : 's'} — ${groupsReq} distinct groups and ${coursesReq} courses with a grade of ${floor} or higher are required`,
+      );
+      if (def.missingGroups.length > 0) {
+        add(
+          `still open: ${def.missingGroups.map(groupName).join(', ')}`,
+          `still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
+        );
+      }
     }
   }
   if (belowFloor.length > 0) {
