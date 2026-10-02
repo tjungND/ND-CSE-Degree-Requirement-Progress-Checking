@@ -26,7 +26,7 @@ const reports: { name: string; report: AuditReport }[] = allScenarios().map((sc)
  * absence is the handbook's — the DGS ruled on 2026-09-18 that this row keeps
  * its verdict while `phd.cap.fourk` and `ms.cap.sharedbs` gained theirs. If
  * this list ever grows, the reason belongs in docs/DECISIONS.md first. */
-const MET_MAY_NAME_AN_APPROVAL = new Set(['ms.cap.fourk']);
+const MET_MAY_NAME_AN_APPROVAL = new Set<string>(); // empty since 2026-10-02: §3.2 gained its approval clause (September 2026 edition)
 
 // What makes an outstanding approval LOAD-BEARING. A surplus note is not:
 // "24 of 24 credits complete. 3 pending review/approval." is met on the
@@ -49,13 +49,11 @@ describe('no row reads "Met" while an approval it depends on is outstanding (R2)
     assert.deepEqual(offenders, [], `a "Met" pill above an outstanding approval:\n${offenders.join('\n')}`);
   });
 
-  it('and the one documented exception is still exactly one row', () => {
-    // Pins the decision rather than the code: if §3.2 ever gains an approval
-    // clause, this test is what says the exception has to be revisited.
+  it('and no row is exempt any more — §3.2 gained its approval clause in the September 2026 edition (DGS 2026-10-02)', () => {
     const exempt = reports.flatMap(({ report }) =>
       report.requirements.filter((r) => r.status === 'met' && /needs approval/i.test(r.detail)).map((r) => r.id),
     );
-    assert.deepEqual([...new Set(exempt)].sort(), ['ms.cap.fourk']);
+    assert.deepEqual([...new Set(exempt)].sort(), []);
   });
 });
 

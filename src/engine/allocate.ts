@@ -197,6 +197,19 @@ function approvalStatus(counts: Counts | undefined, approved: boolean): string |
       : undefined;
 }
 
+/** §3.2 (September 2026 edition, DGS 2026-10-02): "Up to six (6) credits at
+ * the 40000 level may count toward both the graduate school's 30-credit
+ * requirement and the department's 24-credit regular course requirement,
+ * subject to approval by the advisor and the ADGS." So for an MSCSE student a
+ * listed CSE course below the 60000 level needs that approval even where its
+ * row says `yes` — the handbook's requirement, not the sheet's — and the
+ * course's own tick records it, as for a case-by-case verdict. (The July 2026
+ * edition named no approval, and these credits counted outright.) */
+function msBelowSixtyApproval(program: Program, counts: Counts | undefined, approved: boolean): string | undefined {
+  if (program !== 'mscse' || counts !== 'yes' || approved) return undefined;
+  return 'needs advisor + {{ADGS}} approval per §3.2 (a course below the 60000 level)';
+}
+
 /** How an EARLIER NOTRE DAME course may count once it transfers in under §5.2
  * (2026-09-09), read from its own Courses-tab row — the same reading classify()
  * makes for a course taken in the program. Until this existed every transfer
@@ -231,7 +244,9 @@ function priorNdShape(
   // Nearly every 40000-level row says `dgs_approval` for the MSCSE, which is
   // what makes an earlier Notre Dame undergraduate 40000-level course
   // something that MAY count — listed, never counted silently.
-  const approvalPending = approvalStatus(counts, approved);
+  const approvalPending =
+    approvalStatus(counts, approved) ??
+    (rule.courseType === 'regular' && (rule.level === 4 || rule.level === 5) && isCse ? msBelowSixtyApproval(program, counts, approved) : undefined);
   const shape =(pool: Pool, caps: CapId[]) => ({ pool, caps, ...(approvalPending !== undefined ? { approvalPending } : {}) });
   // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
   if (program === 'mscse' && isMsProjectCourse(courseId)) return shape('project', []);
@@ -284,6 +299,9 @@ function tierFor(grade: Grade, provisional: boolean): Tier {
 export function decidedCaseByCase(c: ClassifiedCourse, program: Program): boolean {
   if (c.entry.origin === 'transfer' && !isNotreDameInstitution(c.entry.institution)) return needsApproval(c.transferable);
   if (!c.rule) return false;
+  // §3.2's approval for an MSCSE credit below the 60000 level (2026-10-02) is
+  // decided for this student like a case-by-case verdict, tick and all.
+  if (program === 'mscse' && c.rule.courseType === 'regular' && (c.rule.level === 4 || c.rule.level === 5) && deptOf(c.entry.courseId) === 'CSE') return true;
   return needsCourseApproval(program === 'mscse' ? c.rule.countsTowardMscse : c.rule.countsTowardPhd);
 }
 
@@ -614,7 +632,9 @@ export function classify(student: Student, rules: Rules, today?: string): {
               ineligibleReason: `not counted — non-CSE ${level}0000-level courses do not count (DGS decision 2026-08-31)`,
             };
           }
-          return { ...base, pool: 'regular', caps: ['fourk'], tier, approvalPending };
+          // §3.2's own approval for the MSCSE (2026-10-02), where the sheet asked none.
+          const pending = approvalPending ?? msBelowSixtyApproval(program, counts, c.dgsApproved === true);
+          return { ...base, pool: 'regular', caps: ['fourk'], tier: tierFor(grade, pending !== undefined), ...(pending !== undefined ? { approvalPending: pending } : {}) };
         }
         const caps: CapId[] = isCse ? [] : ['noncse'];
         return { ...base, pool: 'regular', caps, tier, approvalPending };

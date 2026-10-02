@@ -98,11 +98,15 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
     }),
   );
 
-  // §3.2: "Up to six (6) credits at the 40000 level may be used to satisfy the
-  // course requirement." Per the DGS (2026-08-31): CSE 4xxxx only, counted
-  // inside the 24; non-CSE 40000-level courses do not count at all. The same
-  // six credits also carry any CSE 50000-level course the rules sheet permits
-  // (DGS 2026-09-09) — the sheet's permission does not lift §3.2's limit.
+  // §3.2 (September 2026 edition): "Up to six (6) credits at the 40000 level
+  // may count toward both the graduate school's 30-credit requirement and the
+  // department's 24-credit regular course requirement, subject to approval by
+  // the advisor and the ADGS." Per the DGS (2026-08-31): CSE 4xxxx only,
+  // counted inside the 24; non-CSE 40000-level courses do not count at all.
+  // The same six credits also carry any CSE 50000-level course the rules
+  // sheet permits (DGS 2026-09-09) — the sheet's permission does not lift
+  // §3.2's limit. The approval clause is new (2026-10-02): the row reads
+  // Conditionally met while a course it admits still waits for it.
   rows.push(
     capRow({
       id: 'ms.cap.fourk',
@@ -112,8 +116,10 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       capLabel: 'credits below the 60000 level',
       limitKey: 'ms_4xxxx_credits_max',
       section: '§3.2',
-      quote: 'Up to six (6) credits at the 40000 level may be used to satisfy the course requirement.',
+      quote:
+        'Up to six (6) credits at the 40000 level may count toward both the graduate school’s 30-credit requirement and the department’s 24-credit regular course requirement, subject to approval by the advisor and the ADGS.',
       ctx,
+      approvalDriven: true,
     }),
   );
 
@@ -141,20 +147,24 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
     );
   }
 
-  // §3.2: "Up to nine (9) credits taken from a department other than CSE may be
-  // used to satisfy the course requirement, subject to approval by the advisor
-  // and the DGS."
+  // §3.2 (September 2026 edition): "Up to nine (9) credits at the 60000 level
+  // or higher taken from a department other than CSE may count toward both the
+  // graduate school's 30-credit requirement and the department's 24-credit
+  // regular course requirement, subject to approval by the advisor and the
+  // ADGS." The level floor is new in the text (2026-10-02) but not in the
+  // engine: non-CSE courses below the 60000 level have never counted for the
+  // MSCSE (DGS 2026-08-31, allocate.ts).
   rows.push(
     capRow({
       id: 'ms.cap.noncse',
       group: ALLOWANCES,
-      title: 'At most 9 credits from outside CSE',
+      title: 'At most 9 credits from outside CSE (60000 level or higher)',
       capId: 'noncse',
       capLabel: 'non-CSE allowance credits',
       limitKey: 'ms_noncse_credits_max',
       section: '§3.2',
       quote:
-        'Up to nine (9) credits taken from a department other than CSE may be used to satisfy the course requirement, subject to approval by the advisor and the DGS.',
+        'Up to nine (9) credits at the 60000 level or higher taken from a department other than CSE may count toward both the graduate school’s 30-credit requirement and the department’s 24-credit regular course requirement, subject to approval by the advisor and the ADGS.',
       ctx,
       approvalDriven: true,
     }),

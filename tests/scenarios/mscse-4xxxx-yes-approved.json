@@ -1,0 +1,70 @@
+{
+  "name": "mscse-4xxxx-yes-approved",
+  "description": "§3.2 (September 2026 edition): the same CSE 40113 with the ADGS's approval recorded on the course — it counts, inside the six-credit allowance, and the allowance row reads Met.",
+  "today": "2027-03-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "priorMs": "none",
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "none"
+    },
+    "milestones": {
+      "advisorIdentified": "2026-09-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {},
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "courses": [
+      {
+        "courseId": "CSE 40113",
+        "title": "Design/Analysis of Algorithms",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "CSE 60641",
+        "title": "Graduate Operating Systems",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "ms.cap.fourk": {
+      "status": "met",
+      "detailIncludes": [
+        "3 of the 6 credits below the 60000 level used"
+      ]
+    },
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 24 credits complete"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 40113": [
+      "counts toward regular courses (3 cr)"
+    ]
+  }
+}
