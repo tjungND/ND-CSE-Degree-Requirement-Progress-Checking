@@ -1,6 +1,8 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-09-30 (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-10-02 (this session, branch `claude/setup-handoff-review-c38220`).
+
+2026-10-02: the handbook's September 2026 edition replaces the July 2026 PDF as the source of truth, at `policy-sources/CSE-Graduate-Handbook-live.pdf` (the DGS replaces that file in place for future editions). A sentence-level diff of §2.3, §3, §4 and §5.2 found three rule changes the 2026-09-12 review did not cover — the MSCSE advisor deadline (end of the first semester, ADGS exception), §3.2's 4xxxx credits now subject to advisor + ADGS approval, and §3.2's non-CSE allowance limited to the 60000 level or higher — put to the DGS for a decision; not yet in the engine.
 
 2026-09-30 (night, later): embedded cross-links between the two pages go to the ND pages that frame them (defaults in sibling-links.ts; the iframe query parameter still overrides).
 
@@ -360,7 +362,7 @@ in progress, amber ● pending approval, red ✕ does not count.
 2026-09-12: a deep-review session, asked to check the engine against the documents in the DGS's
 separate rules folder (outside the repo) — a September revision draft of the CSE handbook, the
 Grad School's Academic Code, the DGS Handbook, and the 4+1 guidance memo. None of the four is
-promoted into docs/ yet; docs/CSE-Graduate-Handbook-July2026.pdf stays the coded-against source of
+promoted into docs/ yet; docs/CSE-Graduate-Handbook-July2026.pdf stays the coded-against source of [superseded 2026-10-02: the September 2026 edition is now `policy-sources/CSE-Graduate-Handbook-live.pdf`, the source of truth — see that day's entries]
 truth (**remind the DGS, next time he says the handbook has been revised, that this still needs a
 docs/DECISIONS.md / docs/HANDBOOK-REVISIONS.md entry and the PDF swapped in**). A 20-agent workflow
 diffed the two handbooks line by line and extracted the other two documents, then paired a
