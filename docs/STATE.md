@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-02 (this session, branch `claude/setup-handoff-review-c38220`).
 
+2026-10-02 (later): a course below §4.4.2's B floor says so on its Qualifier line (DGS: the specialization outcome was missing from the line).
+
 2026-10-02: the handbook's September 2026 edition replaces the July 2026 PDF as the source of truth, at `policy-sources/CSE-Graduate-Handbook-live.pdf` (the DGS replaces that file in place for future editions). A sentence-level diff of §2.3, §3, §4 and §5.2 found three rule changes the 2026-09-12 review did not cover — the MSCSE advisor deadline (end of the first semester, ADGS exception), §3.2's 4xxxx credits now subject to advisor + ADGS approval, and §3.2's non-CSE allowance limited to the 60000 level or higher — put to the DGS, who said “Make all three changes” — done the same day: the MSCSE advisor deadline is the end of the first semester, every MSCSE credit below the 60000 level needs the advisor’s and the ADGS’s approval (tick on the course), and the non-CSE allowance row quotes the 60000-level floor the engine already applied.
 
 2026-09-30 (night, later): embedded cross-links between the two pages go to the ND pages that frame them (defaults in sibling-links.ts; the iframe query parameter still overrides).

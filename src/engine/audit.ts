@@ -7,12 +7,13 @@ import { allocate, classify, decidedCaseByCase, spentOnBachelorsAndMasters, type
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
-import type { AuditReport, RequirementResult, Student } from './types.ts';
+import type { AuditReport, Grade, RequirementResult, Student } from './types.ts';
 import type { Ctx } from './requirements/context.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
 import { formatCredits } from './credits.ts';
+import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 
 /** Requirement id ↔ plan-inventory mapping (docs/DECISIONS.md, plan §1):
  *   shared.gpa=S1  shared.advisor=S2  shared.approvals=advisory
@@ -242,11 +243,24 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // feeds instead — a core area, a specialization group — with a mark of its
   // own: green now, blue while the course is in progress, amber while it
   // waits on an approval.
+  // §4.4.2's grade floor, said on the course's own line (DGS 2026-10-02: a
+  // C in a specialization-group course showed only its core-knowledge role,
+  // so nothing told the student the course does NOT serve the specialization
+  // requirement; the categories row said so, five cards away).
+  const categoryFloor = params.gradeLetter('category_min_grade');
+  const groupCodes = new Set(rules.categoryGroups.map((g) => g.code));
   const qualifierFromFeeds = (p: (typeof alloc.perCourse)[number], counts: { id: string; long: string; when: 'now' | 'later' }[]): { mark: CourseMark; text: string } | undefined => {
     const roles = counts.filter((x) => x.id.startsWith('phd.qualifier.core.') || x.id === 'phd.qualifier.categories');
-    if (roles.length === 0) return undefined;
-    const parts = roles.map((x) => (x.id === 'phd.qualifier.categories' ? 'specialization course (§4.4.2)' : `${x.long.replace(/^Core knowledge:\s*/, '')} core knowledge (§4.4.1)`));
-    const mark: CourseMark = roles.some((x) => x.when === 'now') ? 'counts' : p.mark === 'in_progress' ? 'in_progress' : 'pending';
+    const grade = p.course.entry.grade;
+    const inAGroup = (p.course.rule?.categoryGroups ?? []).some((g) => groupCodes.has(g));
+    const belowFloor =
+      student.program === 'phd' && inAGroup && !roles.some((x) => x.id === 'phd.qualifier.categories') && categoryFloor !== undefined && isPassed(grade) && !isInProgress(grade) && !meetsGradeFloor(grade, categoryFloor as Grade);
+    if (roles.length === 0 && !belowFloor) return undefined;
+    const parts = [
+      ...roles.map((x) => (x.id === 'phd.qualifier.categories' ? 'specialization course (§4.4.2)' : `${x.long.replace(/^Core knowledge:\s*/, '')} core knowledge (§4.4.1)`)),
+      ...(belowFloor ? [`specialization course (§4.4.2): not counted — ${grade} is below the ${categoryFloor} floor`] : []),
+    ];
+    const mark: CourseMark = roles.some((x) => x.when === 'now') ? 'counts' : roles.length === 0 ? 'excluded' : p.mark === 'in_progress' ? 'in_progress' : 'pending';
     return { mark, text: parts.join(' · ') };
   };
   const courseLines = alloc.perCourse.map((p) => {

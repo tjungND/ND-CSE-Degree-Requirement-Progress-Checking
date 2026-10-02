@@ -1,0 +1,57 @@
+{
+  "name": "phd-specialization-below-floor-line",
+  "description": "DGS 2026-10-02: CSE 60111 with a C satisfies Algorithms core knowledge (§4.4.1, a pass suffices) and counts for credit, but §4.4.2 needs a B or higher — the course's Qualifier line now says so instead of showing the core role alone; the categories row already excluded it.",
+  "today": "2026-10-02",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "none"
+    },
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60111",
+        "title": "Complexity and Algorithms",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "C",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.qualifier.core.algorithms": {
+      "status": "met",
+      "detailIncludes": [
+        "CSE 60111"
+      ]
+    },
+    "phd.qualifier.categories": {
+      "status": "unmet",
+      "detailIncludes": [
+        "CSE 60111 (C) is below the B floor"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60111": [
+      "counts toward regular courses (3 cr)",
+      "Algorithms core knowledge (§4.4.1)",
+      "specialization course (§4.4.2): not counted — C is below the B floor"
+    ]
+  }
+}
