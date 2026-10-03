@@ -76,6 +76,9 @@ function validBackground(v: unknown): Student['background'] {
     ...(bachelors === 'nd-cse' && typeof o['ndIntegrated'] === 'boolean' ? { ndIntegrated: o['ndIntegrated'] as boolean } : {}),
     graduate,
     ...(graduate === 'elsewhere' ? { samePlace: o['samePlace'] === true, finished: o['finished'] === true } : {}),
+    // A degree at Notre Dame in another department asks "finished?" since
+    // 2026-10-03; a file from before then has no answer, and the dialog asks.
+    ...(graduate === 'nd-other' && typeof o['finished'] === 'boolean' ? { finished: o['finished'] as boolean } : {}),
     // The transfer term (2026-09-28): kept when well-formed, dropped otherwise — the answer stands without it.
     ...(graduate === 'nd-mscse-transfer' && validTerm(o['transferredTerm']) ? { transferredTerm: { season: (o['transferredTerm'] as Term).season, year: (o['transferredTerm'] as Term).year } } : {}),
   };
@@ -145,6 +148,25 @@ function migrateApprovalBoxes(d: { courses: Record<string, unknown>[]; attestati
   delete old['transferApproved'];
 }
 
+/** The §4.4 extension became a NUMBER of semesters on 2026-10-03 (DGS: "DGS may
+ * give any number of semesters as extensions"); a ticked box from before
+ * reads as one semester. */
+function migrateExtensionBox(attestations: Record<string, unknown> | undefined): void {
+  if (!attestations) return;
+  if (attestations['qualifierExtensionGranted'] === true && typeof attestations['qualifierExtensionSemesters'] !== 'number') {
+    attestations['qualifierExtensionSemesters'] = 1;
+  }
+  delete attestations['qualifierExtensionGranted'];
+  const n = attestations['qualifierExtensionSemesters'];
+  if (n !== undefined && !(typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 20)) delete attestations['qualifierExtensionSemesters'];
+  if (attestations['transferRecorded'] !== undefined && typeof attestations['transferRecorded'] !== 'boolean') delete attestations['transferRecorded'];
+}
+
+/** A small whole number of semesters (leaves, accommodations), or undefined. */
+function validSemesterCount(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 20 ? v : undefined;
+}
+
 export function validateStudent(data: unknown, refusals: Refusal[] = []): Student {
   const d = data as Partial<Student> & { state?: unknown };
   if (d && typeof d === 'object' && 'student' in (d as object)) {
@@ -161,6 +183,11 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
   if (!validTerm(d.entryTerm)) {
     throw new Error('This file has no valid entry term.');
   }
+  // Admissions are in fall and spring only (DGS 2026-10-03): a summer entry
+  // term in an older record is an early start whose official matriculation is
+  // that year's fall, so it is read as the fall — the engine's own
+  // normalisation, applied to the stored value so the form shows what counts.
+  if (d.entryTerm.season === 'summer') d.entryTerm = { season: 'fall', year: d.entryTerm.year };
   if (!Array.isArray(d.courses)) throw new Error('This file has no course list.');
   // Which degrees a course has already counted toward (2026-09-10). A value
   // the app does not know is dropped, never thrown on — an unanswered course
@@ -204,10 +231,13 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     if (e['fromNdTranscript'] !== undefined && e['fromNdTranscript'] !== true)
       delete e['fromNdTranscript']; // likewise a hint (which rows the transcript import added)
     if (e['fromExample'] !== undefined && e['fromExample'] !== true) delete e['fromExample']; // and which came from "Load example"
+    if (e['fromUnofficialTranscript'] !== undefined && e['fromUnofficialTranscript'] !== true) delete e['fromUnofficialTranscript']; // and which came from an unofficial transcript
+    if (e['transcriptMark'] !== undefined && (typeof e['transcriptMark'] !== 'string' || e['transcriptMark'].trim() === '')) delete e['transcriptMark']; // the mark as the transcript printed it
     if (e['countedToward'] !== undefined && !COUNTED_TOWARD.includes(e['countedToward'] as string)) delete e['countedToward'];
     if (e['dgsApproved'] !== undefined && e['dgsApproved'] !== true) delete e['dgsApproved']; // the DGS's approval of this course (2026-09-27)
   });
   migrateApprovalBoxes(d as unknown as { courses: Record<string, unknown>[]; attestations?: Record<string, unknown> });
+  migrateExtensionBox((d as { attestations?: Record<string, unknown> }).attestations);
   // The cumulative GPA is the one number in a file the engine reads straight
   // through to a verdict, so it is range-checked here as well as in the form
   // (R1, 2026-09-18): a hand-edited 35 used to render "35.00 meets the 3.0
@@ -245,6 +275,13 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
       ? { integratedBsMsInferred: { how: (raw['integratedBsMsInferred'] as { how: string }).how } }
       : {}),
     ndDegrees: validNdDegrees(raw['ndDegrees']),
+    // The policy review's standing facts (2026-10-03): leaves and
+    // accommodations (semester counts), a readmission term, the non-degree
+    // answer — each kept only when well-formed.
+    leaveSemesters: validSemesterCount(raw['leaveSemesters']),
+    accommodationSemesters: validSemesterCount(raw['accommodationSemesters']),
+    readmittedTerm: validTerm(raw['readmittedTerm']) ? { season: (raw['readmittedTerm'] as Term).season, year: (raw['readmittedTerm'] as Term).year } : undefined,
+    ...(typeof raw['ndNonDegree'] === 'boolean' ? { ndNonDegree: raw['ndNonDegree'] as boolean } : { ndNonDegree: undefined }),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},
     courses: d.courses,

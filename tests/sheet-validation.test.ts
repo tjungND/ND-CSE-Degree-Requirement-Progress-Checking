@@ -98,6 +98,19 @@ describe('last_offered dates the schedule columns', () => {
 });
 
 describe('sheet validation', () => {
+  // §3.6.1's guard (DGS 2026-10-03, P1-levels-grades-credits-4): the engine
+  // refuses a CSE 5xxxx course on the MSCSE tab whatever the cell says, so a
+  // cell that is not 'no' is flagged to the DGS as a cell with no effect.
+  it('a 50000-level CSE row whose counts_toward_mscse is not no draws a warning', () => {
+    const texts = fixtureCsvTexts();
+    const cols = texts.courses.split('\n')[0]!.split(',');
+    const mk = (counts: string) => {
+      const cells = cols.map((c) => ({ course_id: 'CSE 59999', title: 'Bridge test', level: '5', credit_min: '3', credit_max: '3', credits_default: '3', course_type: 'regular', counts_toward_mscse: counts, counts_toward_phd: 'no' } as Record<string, string>)[c] ?? '');
+      return rulesFromCsvTexts({ ...texts, courses: `${texts.courses.trimEnd()}\n${cells.join(',')}\n` }, meta);
+    };
+    assert.ok(mk('yes').issues.some((i) => i.severity === 'warning' && /CSE 59999\): a 50000-level CSE course, but counts_toward_mscse is 'yes'\. §3\.6\.1/.test(i.message)));
+    assert.ok(!mk('no').issues.some((i) => /CSE 59999\): a 50000-level CSE course/.test(i.message)));
+  });
   it('unknown enum value → row skipped with a plain-English message', () => {
     const texts = fixtureCsvTexts();
     const courses = texts.courses.replace(

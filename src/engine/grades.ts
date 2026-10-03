@@ -20,25 +20,41 @@ export const GRADE_POINTS: Partial<Record<Grade, number>> = {
   'C-': 1.667,
   D: 1,
   F: 0,
+  // Academic Code §4.3: "I 0.000 (until Incomplete is removed)" — an
+  // outstanding Incomplete counts as zero quality points in the GPA.
+  I: 0,
 };
 
-export const GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'S', 'U', 'IP'];
+/** The grades the form offers and the engine accepts. I (Incomplete) and W
+ * (withdrawn) joined on 2026-10-03: both are registrations (Academic Code
+ * §3.3's full-time count sees them), neither earns credit. */
+export const GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'S', 'U', 'IP', 'I', 'W'];
 
+/** Registered, no final grade yet: IP, and an Incomplete — until it lapses
+ * (Academic Code §4.4: 30 days to finish + 14 to report, then an F), which the
+ * classifier decides against today's date, since it needs the term. */
 export function isInProgress(grade: Grade): boolean {
-  return grade === 'IP';
+  return grade === 'IP' || grade === 'I';
+}
+
+/** Withdrawn (Academic Code §4.2): a registration that earns nothing. */
+export function isWithdrawn(grade: Grade): boolean {
+  return grade === 'W';
 }
 
 /** Passed = a final, non-failing grade. */
 export function isPassed(grade: Grade): boolean {
   if (grade === 'S') return true;
-  if (grade === 'U' || grade === 'F' || grade === 'IP') return false;
+  if (grade === 'U' || grade === 'F' || grade === 'IP' || grade === 'I' || grade === 'W') return false;
   return (GRADE_POINTS[grade] ?? 0) > 0;
 }
 
-/** Does `grade` meet a letter floor like "B" (§4.4.2)? S counts as meeting it. */
+/** Does `grade` meet a letter floor like "B" (§4.4.2)? S counts as meeting it
+ * (DGS 2026-08-31, for §4.4.2 — the §5.2 transfer floor is handled apart in
+ * the classifier since 2026-10-03: an S cannot show a B there). */
 export function meetsGradeFloor(grade: Grade, floor: Grade): boolean {
   if (grade === 'S') return true;
-  if (grade === 'U' || grade === 'F' || grade === 'IP') return false;
+  if (grade === 'U' || grade === 'F' || grade === 'IP' || grade === 'I' || grade === 'W') return false;
   const got = GRADE_POINTS[grade];
   const need = GRADE_POINTS[floor];
   if (got === undefined || need === undefined) return false;

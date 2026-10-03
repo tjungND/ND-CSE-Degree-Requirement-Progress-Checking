@@ -1,0 +1,78 @@
+{
+  "name": "phd-incomplete-lapsed",
+  "description": "Policy review 2026-10-03 (Academic Code §4.4): an Incomplete must be made up within 30 days after grades were due, plus 14 for the instructor to report, or it becomes an F. On 2027-06-01 a Fall 2026 I is long past that date: the course is counted only provisionally (the Graduate School may have extended it, or the grade may have been posted) and the review request asks the DGS to confirm; the two A courses count as usual. The I row is still a registration for residency.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "I",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    }
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 24",
+        "3 pending review/approval"
+      ]
+    },
+    "phd.residency": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "1 of 4 semesters"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "waiting for the DGS",
+      "Incomplete (I) past its deadline (about 2027-02-13)",
+      "Academic Code §4.4"
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "name": "phd-transfer-pass-fail-grade",
+  "description": "DGS 2026-10-03: a transfer course graded S (pass/fail) cannot show the B §5.2 requires, so even a course the DGS pre-approved in the course rules is held for the DGS — counted provisionally, the §5.2 row waiting for the DGS, and the review request asking the DGS to decide whether it transfers.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "PURDUE UNIVERSITY",
+          "course_id": "CS 50300",
+          "course_title": "Operating Systems",
+          "satisfies_core_area": "os",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "completed",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CS 50300",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "S",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2020
+    }
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Waiting for the DGS",
+      "detailIncludes": [
+        "Waiting for the DGS: CS 50300 — graded pass/fail, which cannot show the B §5.2 requires"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24",
+        "3 pending review/approval"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CS 50300": [
+      "waiting for the DGS",
+      "graded S (pass/fail), which cannot show the B that §5.2 requires"
+    ]
+  }
+}

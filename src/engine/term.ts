@@ -141,12 +141,26 @@ export function addYearsIso(iso: string, years: number): string {
   return addMonthsIso(iso, years * 12);
 }
 
-/** The last day of the fall/spring term AFTER the one `iso` falls in — "one
- * additional semester" (DGS 2026-09-13: a §4.4 qualifier extension is granted
- * one semester at a time). Summers are not semesters here, as everywhere else
- * in this file, so a summer date extends to the coming fall. */
-export function endOfNextSemester(iso: string): string {
-  return endOfTerm(nthSemester(termOfDate(iso), 2)).date;
+/** Calendar days after an ISO date (Academic Code §4.4's "30 calendar days …
+ * then 14 calendar days" for an Incomplete). */
+export function addDaysIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The last day of the fall/spring term `semesters` after the one `iso` falls
+ * in — a §4.4 qualifier extension of that many semesters (DGS 2026-09-13: one
+ * at a time; DGS 2026-10-03: "DGS may give any number of semesters as
+ * extensions"). Summers are not semesters here, as everywhere else in this
+ * file: a summer date belongs to the spring slot before it (as semesterSeq
+ * reads it), so a July deadline extended by one semester ends the coming
+ * December — not the following May, which nthSemester's summer→fall
+ * normalisation used to produce (policy review 2026-10-03, P1-deadlines-c1). */
+export function endOfNextSemester(iso: string, semesters = 1): string {
+  const t = termOfDate(iso);
+  const base: Term = t.season === 'summer' ? { season: 'spring', year: t.year } : t;
+  return endOfTerm(nthSemester(base, 1 + semesters)).date;
 }
 
 /** Shift a term by whole years (for the §5.2 five-year transfer window). */

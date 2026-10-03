@@ -31,7 +31,8 @@
         "origin": "transfer",
         "institution": "Notre-Dame",
         "degreeLevel": "bachelors",
-        "countedToward": "neither"
+        "countedToward": "neither",
+        "registeredLevel": "graduate"
       }
     ],
     "milestones": {},

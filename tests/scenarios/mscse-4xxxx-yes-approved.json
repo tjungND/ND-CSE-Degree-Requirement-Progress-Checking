@@ -1,6 +1,6 @@
 {
   "name": "mscse-4xxxx-yes-approved",
-  "description": "§3.2 (September 2026 edition): the same CSE 40113 with the ADGS's approval recorded on the course — it counts, inside the six-credit allowance, and the allowance row reads Met.",
+  "description": "A yes row with the course’s tick set anyway: since 2026-10-03 a yes is the ADGS’s pre-approval (DGS, P1-levels-grades-credits-8), so the tick settles nothing and the line carries no “as you ticked” label — the course counts inside the six-credit allowance exactly as without the tick (mscse-4xxxx-yes-counts-outright). The tick matters only on an adgs_approval row.",
   "today": "2027-03-01",
   "rules": {
     "base": "default"
@@ -53,6 +53,9 @@
       "status": "met",
       "detailIncludes": [
         "3 of the 6 credits below the 60000 level used"
+      ],
+      "detailExcludes": [
+        "as you ticked"
       ]
     },
     "ms.credits.regular": {
@@ -64,7 +67,8 @@
   },
   "expectCourseLines": {
     "CSE 40113": [
-      "counts toward regular courses (3 cr)"
+      "counts toward regular courses (3 cr)",
+      "uses the 40000-level allowance (6 credits, §3.2)"
     ]
   }
 }

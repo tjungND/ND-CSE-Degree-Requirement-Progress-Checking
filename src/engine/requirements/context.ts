@@ -7,7 +7,7 @@ import { usableGpa } from '../ranges.ts';
 import { openDeadline } from '../status.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
-import { addYearsIso, deadlineTermLabel, dueTermPhrase, startOfTerm } from '../term.ts';
+import { addMonthsIso, compareTerm, deadlineTermLabel, dueTermPhrase, startOfTerm, termLabel } from '../term.ts';
 import type { Contribution, DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
 
 export interface Ctx {
@@ -16,9 +16,42 @@ export interface Ctx {
   today: string;
   /** Entry term normalized (summer entry → the following fall, decision Q17c). */
   entry: Term;
+  /** The term the DEPARTMENT's qualifier clocks run from — §4.4's four
+   * semesters, §4.4.3's eighteen months, §4.2's first-year seminars. The entry
+   * term, except for a student who transferred into the Ph.D. from the
+   * unfinished Notre Dame MSCSE: then the term of the transfer (DGS
+   * 2026-10-03: "qualifier clock runs from the transfer"), while the Graduate
+   * School's clocks (§4.3 eight years, §4.5 eighth semester) keep the MSCSE
+   * start (DGS 2026-09-26). */
+  qualifierEntry: Term;
+  /** Semesters added to the §4.3 limit and §4.5's eighth semester for approved
+   * leaves of absence and childbirth/adoption accommodations (DGS 2026-10-03). */
+  clockShift: number;
+  /** Academic Code Appendix A: a Ph.D. student enrolled in Spring 2020 has nine
+   * years (A.5) and a ninth-semester candidacy deadline (A.4) — applied from
+   * the entry term alone (DGS 2026-10-03: "Just read the admission term"). */
+  covidCohort: boolean;
   alloc: AllocationResult;
   classified: ClassifiedCourse[];
   params: Parameters;
+}
+
+/** The last day a Ph.D. student enrolled in Spring 2020 could have been
+ * admitted by: an entry term on or before Spring 2020. */
+export const COVID_COHORT_LAST_ENTRY: Term = { season: 'spring', year: 2020 };
+export function isCovidCohort(student: Student, entry: Term): boolean {
+  return student.program === 'phd' && compareTerm(entry, COVID_COHORT_LAST_ENTRY) <= 0;
+}
+
+/** The sentence a shifted clock carries, or '' when nothing moved it. */
+export function clockShiftNote(ctx: Ctx): string {
+  const parts: string[] = [];
+  const leave = ctx.student.leaveSemesters ?? 0;
+  const accommodation = ctx.student.accommodationSemesters ?? 0;
+  if (leave > 0) parts.push(`${leave} semester${leave === 1 ? '' : 's'} on an approved leave of absence`);
+  if (accommodation > 0) parts.push(`${accommodation} childbirth/adoption accommodation semester${accommodation === 1 ? '' : 's'}`);
+  if (ctx.covidCohort) parts.push(`one year for students enrolled in Spring 2020 (Academic Code Appendix A)`);
+  return parts.length > 0 ? ` — extended by ${parts.join(' and ')}` : '';
 }
 
 export function missingParamDetail(key: string): string {
@@ -48,25 +81,55 @@ export function defendGpaNote(ctx: Ctx): string {
  * from "cannot be judged yet" (red-team 2026-09-13): a blank rules-sheet cell
  * elsewhere used to make a student who had finished everything read "Overdue
  * — the 8-year limit passed". */
+/** The degree's time-limit date: `years` from the entry term's nominal start,
+ * plus six months per semester of approved leave or accommodation, plus a year
+ * for the COVID cohort (Academic Code §6.2.6 "unless interrupted by approved
+ * medical leave(s) and/or approved childbirth accommodation(s)"; Appendix A.5). */
+export function timeLimitDate(ctx: Ctx, years: number): string {
+  return addMonthsIso(startOfTerm(ctx.entry).date, years * 12 + ctx.clockShift * 6 + (ctx.covidCohort ? 12 : 0));
+}
+
 export function timeLimitRow(
   ctx: Ctx,
   others: { allMet: boolean; anyCannotEvaluate: boolean },
-  args: { id: string; group: string; title: string; yearsKey: string; section: string; quote: string },
+  args: {
+    id: string;
+    group: string;
+    title: string;
+    yearsKey: string;
+    section: string;
+    quote: string;
+    /** The date the LAST requirement was completed, when the record holds one
+     * (the Ph.D.'s official submission, else the defense; the MSCSE's thesis
+     * defense or project report) — a completion after the limit cannot read
+     * "complete within the limit" (policy review 2026-10-03). */
+    completedOn?: string;
+  },
 ): RequirementResult {
   const years = ctx.params.number(args.yearsKey);
   let status: Status;
   let detail: string;
   let deadline: RequirementResult['deadline'];
+  let statusLabel: string | undefined;
   if (years === undefined) {
     status = 'cannot_evaluate';
     detail = missingParamDetail(args.yearsKey);
   } else {
     // Shown as a semester, never a date (DGS request 2026-09-05): eight years
     // from the entry term's start is the start of a term.
-    const date = addYearsIso(startOfTerm(ctx.entry).date, years);
-    if (others.allMet) {
+    const date = timeLimitDate(ctx, years);
+    const shiftNote = clockShiftNote(ctx);
+    if (others.allMet && args.completedOn !== undefined && args.completedOn > date) {
+      // Finished, but after the limit (Academic Code §6.2.6 / §6.1.4): the
+      // Graduate School decides eligibility (dissertation completion status,
+      // an extension) — the same "Eligibility at risk" the defense row shows.
+      status = 'needs_dgs_review';
+      statusLabel = 'Eligibility at risk';
+      detail = `Every requirement is complete, but the last one was dated ${args.completedOn}, after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}. ${args.section} makes that a forfeiture of degree eligibility unless the Graduate School granted an extension — confirm it with the DGS.`;
+      deadline = { date, approx: true, state: 'done', label: `Done ${args.completedOn} — after the limit` };
+    } else if (others.allMet) {
       status = 'met';
-      detail = `All requirements are complete within the ${years}-year limit.`;
+      detail = `All requirements are complete within the ${years}-year limit${shiftNote}.`;
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date && others.anyCannotEvaluate) {
       // A missing rules-sheet value is not a missed deadline (red-team
@@ -77,13 +140,19 @@ export function timeLimitRow(
       deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date) {
       status = 'unmet';
-      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate). Talk to the DGS.`;
+      // What a passed limit means at the Graduate School (Academic Code
+      // §6.2.6.1 / DGS Handbook §3.19): dissertation completion status or an
+      // eligibility extension, applied for through the Graduate School — the
+      // DGS advises, the Graduate School decides (policy review 2026-10-03).
+      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}. ${ctx.student.program === 'phd' ? 'After the eighth year a student may apply to the Graduate School for dissertation completion status (Academic Code §6.2.6.1) — talk to the DGS.' : 'Talk to the DGS about an eligibility extension from the Graduate School.'}`;
       deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else {
       status = 'in_progress';
-      detail = ''; // the deadline chip carries the when (2026-09-03)
+      // The deadline chip carries the when (2026-09-03); the detail says only
+      // what moved it, if anything (leaves, accommodations, Appendix A).
+      detail = shiftNote !== '' ? `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}.` : '';
       // A semester, never a date (DGS request 2026-09-05).
-      deadline = openDeadline(date, ctx.today, `Due ${dueTermPhrase(date)} — ${years} years after entry (approximate)`);
+      deadline = openDeadline(date, ctx.today, `Due ${dueTermPhrase(date)} — ${years} years after entry${shiftNote !== '' ? ', extended' : ''} (approximate)`);
     }
   }
   return {
@@ -91,6 +160,7 @@ export function timeLimitRow(
     group: args.group,
     title: args.title,
     status,
+    ...(statusLabel ? { statusLabel } : {}),
     detail,
     deadline,
     citation: { section: args.section, quote: args.quote },
@@ -292,6 +362,12 @@ export function capRow(args: {
     parts.push(`${formatCredits(usage.used)} of the ${formatCredits(usage.limit)} ${args.capLabel} used`);
     if (pending.length > 0) {
       parts.push(`needs approval: ${pending.map((c) => c.entry.courseId).join(', ')}`);
+    }
+    // A tick is what cleared these (P1-levels-grades-credits-30, 2026-10-03):
+    // the row stays Met, and says the approval is the student's own word.
+    const ticked = relevant.filter((c) => c.tickApproved && admitted(c));
+    if (ticked.length > 0) {
+      parts.push(`approved by the DGS, as you ticked: ${ticked.map((c) => c.entry.courseId).join(', ')} — the DGS office holds the record`);
     }
     parts.push(...excludedLines);
   }

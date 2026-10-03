@@ -1,0 +1,91 @@
+{
+  "name": "phd-qualifier-clock-from-transfer",
+  "description": "DGS 2026-10-03: for a student who moved from the unfinished MSCSE into the Ph.D., the department’s qualifier clocks (§4.4 fourth-semester deadline, §4.4.3, the seminars) run from the TRANSFER term, while §4.3’s eight years and §4.5’s eighth semester keep the MSCSE entry (DGS 2026-09-26). Entered the MSCSE Fall 2024, transferred Fall 2026: on 2026-10-03 the qualifier is due by the end of Spring 2028, not overdue since Spring 2026.",
+  "today": "2026-10-03",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "nd-mscse-transfer",
+      "transferredTerm": {
+        "season": "fall",
+        "year": 2026
+      }
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    }
+  },
+  "expect": {
+    "phd.qualifier": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "The four semesters are counted from your transfer into the Ph.D. in Fall 2026"
+      ]
+    },
+    "phd.seminar": {
+      "status": "unmet"
+    },
+    "phd.timeLimit": {
+      "status": "in_progress"
+    }
+  }
+}

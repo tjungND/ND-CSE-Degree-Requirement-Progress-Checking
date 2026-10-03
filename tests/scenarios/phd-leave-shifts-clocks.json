@@ -1,0 +1,125 @@
+{
+  "name": "phd-leave-shifts-clocks",
+  "description": "DGS 2026-10-03 (policy review, Academic Code §5.1 and §6.2.6): semesters on an approved leave of absence push the eight-year limit and the eighth-semester candidacy deadline out by the same count (a six-week separation does not, so it is not asked). Entered Fall 2022, two semesters on leave: without the leave the Oral Candidacy Exam was due by the end of the eighth semester, Spring 2026 — already past on 2026-10-03 — and with it the deadline moves two semesters later, so the row is still in progress and says why.",
+  "today": "2026-10-03",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2022
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {
+      "advisorIdentified": "2022-10-01",
+      "advisorName": "Prof. Example",
+      "researchQualifierPassed": "2024-03-01"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "leaveSemesters": 2,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    }
+  },
+  "expect": {
+    "phd.candidacy": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "2 semesters on an approved leave of absence"
+      ]
+    },
+    "phd.timeLimit": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "extended by 2 semesters on an approved leave of absence"
+      ]
+    }
+  }
+}

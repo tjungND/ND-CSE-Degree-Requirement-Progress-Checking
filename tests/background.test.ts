@@ -35,7 +35,9 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
     assert.equal(completeBackground({ bachelors: 'elsewhere' }, 'phd'), undefined);
     assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true }, 'phd'), undefined, 'finished? still open');
     assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true, finished: false }, 'phd'), { bachelors: 'elsewhere', graduate: 'elsewhere', samePlace: true, finished: false });
-    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', graduate: 'none', samePlace: true }, 'phd'), { bachelors: 'nd-cse', graduate: 'none' });
+    // A Notre Dame CSE bachelor's is asked about the 4+1 on BOTH tabs since 2026-10-03 (a Ph.D. student's undergraduate 60000-level courses count only through it).
+    assert.equal(completeBackground({ bachelors: 'nd-cse', graduate: 'none', samePlace: true }, 'phd'), undefined, '4+1? still open');
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: false, graduate: 'none', samePlace: true }, 'phd'), { bachelors: 'nd-cse', ndIntegrated: false, graduate: 'none' });
     // An MSCSE student with a Notre Dame CSE bachelor's is asked about the 4+1; one cannot already hold the MSCSE.
     assert.equal(completeBackground({ bachelors: 'nd-cse', graduate: 'none' }, 'mscse'), undefined);
     assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' }, 'mscse'), { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' });
@@ -45,7 +47,7 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
     assert.ok(graduateOptions('phd').some(([v]) => v === 'nd-mscse-transfer'));
     assert.ok(!graduateOptions('mscse').some(([v]) => v === 'nd-mscse-transfer'));
     assert.equal(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse-transfer' }, 'mscse'), undefined);
-    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' }, 'phd'), { bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' });
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'nd-mscse-transfer' }, 'phd'), { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'nd-mscse-transfer' });
     assert.deepEqual(priorSlotsFor({ bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' }), []);
     const s = { ...phdStudent(), program: 'phd' as const };
     applyBackground(s, { bachelors: 'nd-cse', graduate: 'nd-mscse-transfer' });

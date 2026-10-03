@@ -74,11 +74,19 @@ export function deadlineStatus(args: {
   deadline: { date: string; approx: boolean };
   today: string;
   deadlineLabel: string; // human phrase, e.g. "the end of Spring 2030" — a semester, never a date (2026-09-05)
-  extension?: { date: string; label: string };
+  /** The DGS's extension: its end date, that date as a semester phrase, and
+   * how many semesters it is (DGS 2026-10-03: any number; the wording names it). */
+  extension?: { date: string; label: string; semesters?: number };
+  /** What a LATE completion means, when it is not "confirm the DGS extended
+   * the deadline" — §4.5's candidacy exam has no DGS extension; a late pass
+   * means probation and discontinued funding at the Graduate School (Academic
+   * Code §6.2.8; policy review 2026-10-03). */
+  lateWording?: string;
 }): { status: Status; deadline: DeadlineInfo; lateNote?: string } {
-  const { doneOn, deadline, today, deadlineLabel, extension } = args;
+  const { doneOn, deadline, today, deadlineLabel, extension, lateWording } = args;
   const approxSuffix = deadline.approx ? ' (approximate)' : '';
   const effectiveDate = extension?.date ?? deadline.date;
+  const extensionWord = extension?.semesters !== undefined && extension.semesters !== 1 ? `${extension.semesters}-semester` : 'one-semester';
   if (doneOn) {
     if (doneOn <= deadline.date) {
       return {
@@ -89,16 +97,16 @@ export function deadlineStatus(args: {
     if (extension && doneOn <= extension.date) {
       return {
         status: 'met',
-        deadline: { ...deadline, state: 'done', label: `Done ${doneOn} — within the DGS’s one-semester extension` },
-        lateNote: `completed after ${deadlineLabel}${approxSuffix}, within the one-semester extension the DGS granted (${extension.label})`,
+        deadline: { ...deadline, state: 'done', label: `Done ${doneOn} — within the DGS’s ${extensionWord} extension` },
+        lateNote: `completed after ${deadlineLabel}${approxSuffix}, within the ${extensionWord} extension the DGS granted (${extension.label})`,
       };
     }
     return {
       status: 'needs_dgs_review',
       deadline: { ...deadline, state: 'done', label: `Done ${doneOn} — after ${extension ? extension.label : deadlineLabel}` },
       lateNote: extension
-        ? `completed after ${extension.label}${approxSuffix} — later than the one-semester extension allows; confirm with the DGS`
-        : `completed after ${deadlineLabel}${approxSuffix} — confirm the DGS extended the deadline`,
+        ? `completed after ${extension.label}${approxSuffix} — later than the ${extensionWord} extension allows; confirm with the DGS`
+        : `completed after ${deadlineLabel}${approxSuffix} — ${lateWording ?? 'confirm the DGS extended the deadline'}`,
     };
   }
   if (today > effectiveDate) {
@@ -109,7 +117,7 @@ export function deadlineStatus(args: {
         date: effectiveDate,
         state: 'overdue',
         label: extension
-          ? `Overdue — the DGS’s one-semester extension ran out at ${extension.label}${approxSuffix}`
+          ? `Overdue — the DGS’s ${extensionWord} extension ran out at ${extension.label}${approxSuffix}`
           : `Overdue — the deadline was ${deadlineLabel}${approxSuffix}`,
       },
     };
@@ -118,7 +126,7 @@ export function deadlineStatus(args: {
   return {
     status: 'in_progress',
     deadline: {
-      ...openDeadline(effectiveDate, today, extension ? `Due by ${extension.label}${approxSuffix} — the DGS’s one-semester extension of ${deadlineLabel}` : `Due by ${deadlineLabel}${approxSuffix}`),
+      ...openDeadline(effectiveDate, today, extension ? `Due by ${extension.label}${approxSuffix} — the DGS’s ${extensionWord} extension of ${deadlineLabel}` : `Due by ${deadlineLabel}${approxSuffix}`),
       approx: deadline.approx,
     },
   };

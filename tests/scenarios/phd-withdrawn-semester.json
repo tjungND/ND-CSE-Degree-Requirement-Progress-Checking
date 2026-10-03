@@ -1,0 +1,100 @@
+{
+  "name": "phd-withdrawn-semester",
+  "description": "Policy review 2026-10-03 (Academic Code §3.8 / §5.5): a semester in which every registration was withdrawn is a full withdrawal, not a semester of residence — nine W credits never make Fall 2026 full-time automatically, and the residency row says so; Spring 2027’s nine graded credits count, so the run is one semester. A single W beside graded courses stays a registration (phd-residency-ignores-rejected-rows).",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "W",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "W",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "W",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    }
+  },
+  "expect": {
+    "phd.residency": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "1 of 4 semesters",
+        "Fall 2026: every course withdrawn — not counted as residence"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "not counted — withdrawn (W) — earns no credit; it still counts as a registration"
+    ]
+  }
+}

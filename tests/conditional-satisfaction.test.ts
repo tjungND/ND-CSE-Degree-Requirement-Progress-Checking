@@ -143,11 +143,17 @@ describe('the one row that must not read "Conditionally met" (W-CS2)', () => {
     // "Waiting for the DGS" (ADGS on the M.S. tab) while a course is
     // unreviewed — an allowance has nothing to "meet" — and the along-the-way
     // MSCSE reads "Not started" until the OCE.
-    const allowed = ['Eligibility at risk', 'Not started', 'Not used yet', 'Waiting for the ADGS', 'Waiting for the DGS'];
+    // …and, since 2026-10-03 (policy review): "Eligibility at risk" also on the
+    // Ph.D.'s official submission, the MSCSE's thesis defense and project
+    // report, and the two time-limit rows, each when its date is after the
+    // degree's limit; "Graduate School approval pending" on the transfer row
+    // once the DGS has decided and only §5.2's criterion 5 is left.
+    const allowed = ['Eligibility at risk', 'Not started', 'Not used yet', 'Waiting for the ADGS', 'Waiting for the DGS', 'Graduate School approval pending'];
     for (const label of overridden.keys()) assert.ok(allowed.includes(label), label);
-    assert.deepEqual([...(overridden.get('Eligibility at risk') ?? [])], ['phd.dissertation.defense']);
+    for (const id of overridden.get('Eligibility at risk') ?? []) assert.ok(['phd.dissertation.defense', 'phd.dissertation.submitted', 'ms.thesis.defense', 'ms.project.report', 'phd.timeLimit', 'ms.timeLimit'].includes(id), id);
+    assert.ok((overridden.get('Eligibility at risk') ?? new Set()).has('phd.dissertation.defense'));
     for (const id of overridden.get('Not used yet') ?? []) assert.match(id, /\.cap\./, id);
     for (const id of overridden.get('Not started') ?? []) assert.equal(id, 'phd.msAlongTheWay');
-    for (const id of [...(overridden.get('Waiting for the DGS') ?? []), ...(overridden.get('Waiting for the ADGS') ?? [])]) assert.match(id, /\.transfer$/, id);
+    for (const id of [...(overridden.get('Waiting for the DGS') ?? []), ...(overridden.get('Waiting for the ADGS') ?? []), ...(overridden.get('Graduate School approval pending') ?? [])]) assert.match(id, /\.transfer$/, id);
   });
 });

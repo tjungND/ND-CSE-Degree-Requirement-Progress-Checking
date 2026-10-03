@@ -1237,6 +1237,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   // Notre Dame rows keep their registered level so a later
                   // entry-term change can re-file them (prior-nd.ts).
                   registeredLevel: isNotreDameInstitution(university) ? r.level : undefined,
+                  // The emails warn which transcripts were unofficial (DGS 2026-10-03).
+                  ...(p.unofficial ? { fromUnofficialTranscript: true as const } : {}),
+                  // The mark as printed, when the student mapped it to a letter (2026-10-03).
+                  ...(r.rawGrade ? { transcriptMark: r.rawGrade } : {}),
                   ...((p.creditSystem === 'quarter' || p.creditSystem === 'trimester') && !isNotreDameInstitution(university) ? { creditSystem: p.creditSystem } : {}),
                 });
               }

@@ -713,7 +713,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // undergraduate level, so nothing marks the student as a 4+1: the standing
   // card asks, the course earns nothing until answered, and "Yes" counts it.
   const before60641 = await s.evalJs(lineOf('CSE 60641'));
-  if (!/earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program; if you were, say so in the earlier-degrees questions/.test(before60641)) {
+  if (!/earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program(?: \(§3\.5\))?; if you were, say so in the earlier-degrees questions/.test(before60641)) {
     throw new Error('unanswered 4+1: the 60000-level undergraduate course must earn nothing and say why: ' + before60641.slice(0, 220));
   }
   // The 4+1 is answered in the earlier-degrees questions since 2026-09-22.
@@ -721,14 +721,17 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
   await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.yes"]').click(); document.querySelector('[data-key="background.save"]').click();`);
   await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
-  await s.waitFor(`/counts toward regular courses/.test(${lineOf('CSE 60641')})`);
-  console.log('  4+1 asked; answered Yes → the senior-year 60000-level course counts');
+  // Since 2026-10-03 a 4+1 course applied to the MSCSE alone, registered UG on
+  // the transcript, counts provisionally until the ADGS confirms the UG→GR move
+  // ("would count toward regular courses … once approved"); the shared pair counts outright.
+  await s.waitFor(`/(counts|would count) toward regular courses/.test(${lineOf('CSE 60641')})`);
+  console.log('  4+1 asked; answered Yes → the senior-year 60000-level course counts (or waits for the UG→GR confirmation)');
   const after60641 = await s.evalJs(lineOf('CSE 60641'));
   console.log('  CSE 60641:', after60641.replace(/\s+/g, ' ').slice(0, 190));
   // §3.5's senior-year graduate course: saved for the graduate degree and
   // said so; the two 40000-level courses are the ones applied to both.
-  if (!/counts toward regular courses \(3 cr\)/.test(after60641) || !/will apply to your MSCSE only/.test(after60641)) {
-    throw new Error('a 60000-level senior-year course must count in full, for the MSCSE only: ' + after60641.slice(0, 200));
+  if (!/(counts|would count) toward regular courses \(3 cr\)/.test(after60641) || !/will apply to your MSCSE only/.test(after60641)) {
+    throw new Error('a 60000-level senior-year course must count (in full, or once the UG→GR move is confirmed), for the MSCSE only: ' + after60641.slice(0, 200));
   }
   for (const [id, text] of [['CSE 40113', after40113], ['CSE 40166', after40166]]) {
     if (!/will apply to both your bachelor’s degree and your MSCSE/.test(text)) throw new Error(id + ' must say it applies to both degrees: ' + text.slice(0, 200));
@@ -753,7 +756,8 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // The program tabs are the one place "Ph.D. §4" belongs on this page.
   const tabLabels = await s.evalJs(`JSON.stringify([...document.querySelectorAll('.tabs button')].map(b => b.textContent.trim()))`);
   const pageText = (await s.evalJs(`document.querySelector('#app').innerText`)).split('\n').filter((line) => !JSON.parse(tabLabels).includes(line.trim())).join('\n');
-  const offending = pageText.split('\n').filter((line) => FORBIDDEN.test(line));
+  // A Graduate School citation (“Academic Code §4.4”) is not the CSE handbook's §4 (2026-10-03).
+  const offending = pageText.split('\n').filter((line) => FORBIDDEN.test(line.replace(/(?:Academic Code|DGS Handbook) §\d+(?:\.\d+)*/g, '')));
   if (offending.length > 0) throw new Error('the MSCSE tab must not mention the qualifying examination:\n  ' + offending.slice(0, 6).join('\n  '));
   console.log('  MSCSE tab: no §4.4.1 / §4.4.2 anywhere on the page (' + pageText.length + ' characters checked)');
   // …and the decider is the ADGS (DGS 2026-09-11): outside the contact card,

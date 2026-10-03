@@ -39,6 +39,9 @@ export interface AdvisorSummaryOptions {
    * salutation names them — "Dear Prof. X and Prof. Y," — and the to-do
    * heading says "my advisors" when there are two. Empty = "Dear Advisor,". */
   advisors?: string[];
+  /** The unofficial-transcript warning (email-html.ts unofficialTranscriptNote;
+   * DGS 2026-10-03), when any imported external transcript was unofficial. */
+  unofficialNote?: string;
 }
 
 export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions): { text: string; html: string; subject: string } {
@@ -193,7 +196,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const actionsHeading = actionsTitle.toUpperCase();
   const actionsText = `${actionsHeading}\n${todo.advisor.length > 0 ? todo.advisor.map((i, k) => `${k + 1}. ${i}`).join('\n') : 'Nothing at the moment.'}\n\n`;
   const text =
-    `Subject: ${subject}\n\nDear ${salutation},\n\n${STUDENT_LINE}\n\n${intro}\n${standing}\n${earlier ? `${earlier}\n` : ''}${counts}.\n${nextDeadline ? `${nextDeadline}\n` : ''}\n` +
+    `Subject: ${subject}\n\nDear ${salutation},\n\n${STUDENT_LINE}\n\n${intro}\n${standing}\n${earlier ? `${earlier}\n` : ''}${opts.unofficialNote ? `${opts.unofficialNote}\n` : ''}${counts}.\n${nextDeadline ? `${nextDeadline}\n` : ''}\n` +
     actionsText +
     'MY STANDING, REQUIREMENT BY REQUIREMENT\n\n' +
     sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map(line).join('\n')}\n\n`).join('') +
@@ -223,7 +226,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     (todo.advisor.length > 0 ? `<ol>${todo.advisor.map((i) => `<li>${esc(i)}</li>`).join('')}</ol>` : '<p>Nothing at the moment.</p>');
   const html =
     `<p>Subject: ${esc(subject)}</p><p>Dear ${esc(salutation)},</p>${studentLineHtml()}` +
-    `<p>${esc(intro)}<br>${esc(standing)}${earlier ? `<br>${esc(earlier)}` : ''}<br><strong>${esc(counts)}.</strong>${nextDeadline ? `<br>${esc(nextDeadline)}` : ''}</p>` +
+    `<p>${esc(intro)}<br>${esc(standing)}${earlier ? `<br>${esc(earlier)}` : ''}${opts.unofficialNote ? `<br><strong>${esc(opts.unofficialNote)}</strong>` : ''}<br><strong>${esc(counts)}.</strong>${nextDeadline ? `<br>${esc(nextDeadline)}` : ''}</p>` +
     actionsHtml +
     `<p><strong>My standing, requirement by requirement</strong></p>` +
     sections.map(htmlSection).join('') +

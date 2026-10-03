@@ -80,9 +80,16 @@ export interface ParsedTranscript {
 }
 
 const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'S', 'U'];
-/** Grades that appear on transcripts but earn nothing / need a human decision
- * ('I' becomes an F after 30 days per §5.1 — a human should decide). */
-const SKIP_GRADES = new Set(['W', 'WF', 'WP', 'AU', 'NR', 'X', 'NG', 'I']);
+/** Grades that appear on transcripts but are not registrations the audit can
+ * use: audits (V is Notre Dame's audit grade, AU other registrars' — Academic
+ * Code §4.3: no credit; DGS Handbook §3.12: not toward the nine full-time
+ * hours either), and rows with no grade shown. Withdrawals (W, WF, WP) and
+ * Incompletes (I) are KEPT since 2026-10-03 (policy review): both are
+ * registrations the full-time count must see (§3.3); the engine says what each
+ * earns — nothing for a W, and for an I nothing once its 30 + 14 days are up
+ * unless the Graduate School extended it (§4.4). */
+const SKIP_GRADES = new Set(['AU', 'V', 'NR', 'X', 'NG']);
+const WITHDRAWN_GRADES = new Set(['W', 'WF', 'WP']);
 
 const TERM_RE = /\b(Fall|Spring|Summer)\s+(?:Semester\s+|Session\s+)?(\d{4})\b/i;
 /** A long title Banner wrapped onto the line after its course row — words
@@ -246,11 +253,21 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       grade = 'S';
       tokens.pop();
       popCreditsBeforeGrade();
-    } else if (SKIP_GRADES.has(tailUpper) && !(tailUpper === 'I' && decimals.length < 2)) {
+    } else if (WITHDRAWN_GRADES.has(tailUpper)) {
+      // Withdrawn: kept as a W (2026-10-03) — a registration that earns no
+      // credit, which the engine and the full-time count read as such.
+      grade = 'W';
+      tokens.pop();
+      popCreditsBeforeGrade();
+    } else if (tailUpper === 'I' && decimals.length >= 2) {
       // A lone trailing "I" on a row with only a credit value is a Roman
       // numeral in the title ("Calculus I   3.000" in the official PDF's
       // transfer block), not an Incomplete — a graded row carries quality
-      // points too (2026-09-05).
+      // points too (2026-09-05). A real Incomplete is kept as an I (2026-10-03).
+      grade = 'I';
+      tokens.pop();
+      popCreditsBeforeGrade();
+    } else if (SKIP_GRADES.has(tailUpper)) {
       skipped.push(`${courseId} (${tailUpper})`);
       return;
     } else if (tailUpper === 'TR') {
@@ -454,7 +471,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   }
 
   if (skipped.length > 0) {
-    warnings.push(`Skipped (withdrawn/audit/no grade shown): ${skipped.join(', ')}.`);
+    warnings.push(`Skipped (audited, or no grade shown): ${skipped.join(', ')} — an audit earns no credit and does not count toward full-time status (Academic Code §4.3; DGS Handbook §3.12).`);
   }
 
   // De-duplicate identical rows (the same course line can appear in both a term
@@ -524,29 +541,35 @@ function inferEntryTerm(args: {
 }): EntryTermInference | undefined {
   const { courses, admitTerms, newStudentTerms, degreesAwarded } = args;
   const byIndex = (a: Term, b: Term) => termIndex(a) - termIndex(b);
+  // Admissions are in fall and spring (DGS 2026-10-03): a summer admit-term or
+  // first term is an early start whose official matriculation is that fall.
+  const fallFor = (t: Term): Term => (t.season === 'summer' ? { season: 'fall', year: t.year } : t);
   if (admitTerms.length > 0) {
-    const sorted = [...admitTerms].sort(byIndex);
+    const sorted = [...admitTerms].map(fallFor).sort(byIndex);
     const earliest = sorted[0]!;
     const latest = sorted[sorted.length - 1]!;
     if (termIndex(earliest) === termIndex(latest)) return { term: latest, how: 'the admit-term line on your transcript' };
     // Two admissions (DGS 2026-09-26): with a master's degree awarded between
     // them, the later one is the Ph.D. entry — the finished MSCSE does not
     // count toward §4.5's eight semesters. Without one the student
-    // transferred into the Ph.D. mid-way and keeps the MSCSE's clock, so the
-    // EARLIER admission is the entry term; the later is offered as the other
-    // reading (earlier deadlines are the safe mistake).
+    // transferred into the Ph.D. mid-way — from the Notre Dame MSCSE, or from
+    // another Notre Dame graduate program, whose clock the Graduate School does
+    // not reset either (DGS Handbook §3.15; DGS 2026-10-03: read the
+    // matriculation term rather than ask) — and keeps the earlier clock, so
+    // the EARLIER admission is the entry term; the later is offered as the
+    // other reading (earlier deadlines are the safe mistake).
     const mastersBetween = degreesAwarded.some(
       (d) => d.level === 'masters' && d.date !== undefined && termIndex(termOfDate(d.date)) >= termIndex(earliest) && termIndex(termOfDate(d.date)) < termIndex(latest),
     );
     if (mastersBetween) return { term: latest, how: 'the later admit-term line on your transcript — the admission after your master’s degree' };
     return {
       term: earliest,
-      how: 'the earlier of the admit-term lines on your transcript',
+      how: 'the earlier of the admit-term lines on your transcript — your matriculation at the Graduate School, which a transfer between Notre Dame programs does not reset',
       alternative: {
         term: latest,
         why:
           `your transcript states a later admission, ${termLabel(latest)}. If you finished a master’s degree before that admission, the entry term is ${termLabel(latest)}; ` +
-          `a transfer from the MSCSE into the Ph.D. keeps the earlier term (DGS 2026-09-26), so ${termLabel(earliest)} is set until you change it`,
+          `a transfer into the Ph.D. from the MSCSE or from another Notre Dame graduate program keeps the earlier term (DGS 2026-09-26; DGS Handbook §3.15), so ${termLabel(earliest)} is set until you change it`,
       },
     };
   }
@@ -578,7 +601,7 @@ function inferEntryTerm(args: {
     const startedBeforeTheDegree =
       bachelors !== undefined && gradTerms[0] !== undefined && termIndex(gradTerms[0]) <= termIndex(termOfDate(bachelors.date!));
     const afterLastDegree = last !== undefined ? gradTerms.filter((t) => termIndex(t) > termIndex(termOfDate(last.date!))) : [];
-    const chosen =
+    const chosenRaw =
       marked.length > 0
         ? { term: marked[marked.length - 1]!, how: 'the term your transcript marks as your admission at the graduate level' }
         : startedBeforeTheDegree && afterLastDegree.length > 0
@@ -587,6 +610,8 @@ function inferEntryTerm(args: {
               how: `the first term after your ${last!.name} was awarded — your transcript has graduate-level courses from before your bachelor's degree, which is the 4+1 pattern (§3.5)`,
             }
           : { term: gradTerms[0]!, how: 'the first graduate-level term on your transcript' };
+    // An early-start summer reads as that year's fall (DGS 2026-10-03).
+    const chosen = chosenRaw.term.season === 'summer' ? { term: fallFor(chosenRaw.term), how: `${chosenRaw.how} — a summer start, so your official matriculation is that fall` } : chosenRaw;
     // A degree awarded after the chosen term, with graduate-level terms
     // continuing past it, supports the other reading.
     let alternative: EntryTermInference['alternative'];
@@ -616,7 +641,7 @@ function inferEntryTerm(args: {
   if (lastDegree) {
     const awardTerm = termOfDate(lastDegree.date!);
     const after = allTerms.filter((t) => termIndex(t) > termIndex(awardTerm));
-    if (after.length > 0) return { term: after[0]!, how: `the first term after your ${lastDegree.name} was awarded` };
+    if (after.length > 0) return { term: fallFor(after[0]!), how: `the first term after your ${lastDegree.name} was awarded${after[0]!.season === 'summer' ? ' — a summer start, so your official matriculation is that fall' : ''}` };
   }
-  return { term: allTerms[0]!, how: 'the earliest term on your transcript' };
+  return { term: fallFor(allTerms[0]!), how: `the earliest term on your transcript${allTerms[0]!.season === 'summer' ? ' — a summer start, so your official matriculation is that fall' : ''}` };
 }

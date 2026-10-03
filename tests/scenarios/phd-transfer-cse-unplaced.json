@@ -1,0 +1,87 @@
+{
+  "name": "phd-transfer-cse-unplaced",
+  "description": "DGS 2026-10-03 (P1-transfer-eligibility-23): a transferred non-CSE course may draw on §4.2’s nine-credit allowance, but only as the sheet rules — the ExternalCourses verdict (yes / no / dgs_approval / adgs_approval) decides whether it counts, and the row’s is_cse cell or the cse_subject_codes list decides which side of the nine it is on. Here the Parameters tab has no cse_subject_codes list and the row has no is_cse cell, so a pre-approved MA 51100 cannot be placed: it is held for the DGS (provisional, the §5.2 row “Waiting for the DGS”, the review request asking for the is_cse cell) instead of counting as CSE by default, which is what it did before.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "parameters": {
+        "cse_subject_codes": null
+      },
+      "external": [
+        {
+          "university": "PURDUE UNIVERSITY",
+          "course_id": "MA 51100",
+          "course_title": "Linear Algebra with Applications",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2020
+    },
+    "priorMs": "completed",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "MA 51100",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Waiting for the DGS",
+      "detailIncludes": [
+        "Waiting for the DGS: MA 51100 — the course rules do not say whether it is a CSE course"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24",
+        "3 pending review/approval"
+      ]
+    },
+    "phd.cap.noncse": {
+      "status": "not_applicable"
+    }
+  },
+  "expectCourseLines": {
+    "MA 51100": [
+      "waiting for the DGS",
+      "the course rules do not say whether this is a CSE course"
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "name": "phd-nd-other-department-masters",
+  "description": "DGS 2026-10-03: only the MSCSE is the same graduate program as the CSE Ph.D. A master’s finished in ANOTHER Notre Dame department is another graduate program — its courses are §5.2 transfer credit like a course from another university (the 24-credit allowance for a completed degree, the DGS’s ruling in the ExternalCourses tab, the nine-credit non-CSE allowance), never “from your Notre Dame MSCSE”.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "completed",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "ACMS 60855",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "nd-other",
+      "finished": true
+    }
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Waiting for the DGS: ACMS 60855",
+        "0 of the 24 credits you may transfer are counted"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "ACMS 60855": [
+      "waiting for the DGS",
+      "a course from your earlier Notre Dame program (§5.2)"
+    ]
+  }
+}

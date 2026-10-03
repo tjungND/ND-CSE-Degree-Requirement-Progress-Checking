@@ -1,6 +1,6 @@
 {
-  "name": "phd-nd-4xxxx-outside-window",
-  "description": "DGS 2026-09-14: §5.2's five-year window binds Notre Dame's own CSE 40000-level coursework too. A Ph.D. student who entered Fall 2026 with a CSE 40113 (algorithms core) from Fall 2019 — more than five years before admission — earns no credit for it, while §4.4.1 still sees it; the same course from Fall 2022 would count (the 2026-09-10 rules).",
+  "name": "phd-nd-4xxxx-no-window",
+  "description": "DGS 2026-10-03, reversing 2026-09-14: §5.2’s five-year window binds TRANSFER credit, and a Notre Dame undergraduate’s own coursework is not transfer credit — so a Ph.D. student who entered Fall 2026 with a CSE 40113 (algorithms core) from Fall 2019, not used by the bachelor’s degree, counts it inside §4.2’s six-credit 40000-level allowance like any other, and §4.4.1 sees it as before. (Until the student answers which degree used it, the line asks — the earlier fixture of this name asserted the window.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -33,7 +33,8 @@
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
         "registeredLevel": "undergraduate",
-        "dgsApproved": true
+        "dgsApproved": true,
+        "countedToward": "neither"
       },
       {
         "courseId": "CSE 60641",
@@ -51,20 +52,29 @@
     "phd.credits.regular": {
       "status": "unmet",
       "detailIncludes": [
-        "3 of 24"
+        "6 of 24"
       ]
     },
     "phd.cap.fourk": {
-      "status": "not_applicable"
+      "status": "met",
+      "detailIncludes": [
+        "3 of the 6"
+      ]
     },
     "phd.transfer": {
       "status": "not_applicable"
+    },
+    "phd.qualifier.core.algorithms": {
+      "status": "met",
+      "detailIncludes": [
+        "CSE 40113"
+      ]
     }
   },
   "expectCourseLines": {
     "CSE 40113": [
-      "not counted — taken more than 5 years before admission (Fall 2019",
-      "applies to earlier Notre Dame coursework too"
+      "counts toward regular courses (3 cr)",
+      "not used by an earlier degree — counts in full"
     ]
   }
 }

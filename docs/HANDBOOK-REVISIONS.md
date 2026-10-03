@@ -132,6 +132,18 @@ up to 6 credits (whether 40xxx or 60xxx courses) counted towards both degrees. �
 So §5.2 criterion 2 does not bar this coursework, and the credits do not pass through §5.2 at all.
 The app implements it.
 
+**Three Graduate School texts that do not agree with each other (policy review 2026-10-02,
+P1-transfer-eligibility-c7 — for the committee to put to the Graduate School).** The Academic
+Code's §4.6 (last paragraph) is uncapped: *"With advanced approval from the graduate program of
+study, [a Notre Dame undergraduate] may use this coursework to meet graduate program requirements.
+These credits cannot be used to satisfy both undergraduate and graduate degree requirements"* — the
+only six it names is the integrated program's double-count allowance. The DGS Handbook's §3.14
+instead says such a student *"may request to transfer up to six hours of this coursework"*, and the
+Graduate School's 4+1 guidance says the extra credits *"must be officially transferred"* (moved
+UG→GR before the bachelor's is conferred). The Code governs, and the app follows it (in full, with
+the UG→GR move confirmed by the DGS since 2026-10-03); the committee may want the Graduate School
+to reconcile the six-hour sentence and the "transfer" framing with the Code.
+
 **What the handbook should now say**, because none of this is in it:
 
 - In §3.5 or §4.2: *"Coursework at the 60000 level or above taken while an undergraduate at Notre
@@ -142,7 +154,11 @@ The app implements it.
   degrees. A course counted toward both the bachelor's degree and the MSCSE cannot also be counted
   toward the Ph.D."*
 - In §3.5, the department's own limit: *"At most six credits may be counted toward both the bachelor's
-  degree and the MSCSE."*
+  degree and the MSCSE."* — and that the six may be **40000-level** CSE courses, for any Notre Dame
+  undergraduate: §3.5 names only 60000-level courses and the Academic Code's §4.6 only an integrated
+  program's graduate-level credits. The rule rests on the Graduate School's written answer to the
+  DGS (email from Maureen Collins, 2026-09-10; DGS 2026-10-03, policy review P1-units-4plus1-12) and
+  should be written into §3.5 so students and the Graduate School read it in the same place.
 - And the WINDOW's edges, which §3.5 leaves to the reader (DGS 2026-09-11): its sentence names "the
   second semester of the junior year and the senior year", which the app reads as the three
   fall/spring semesters ending with the term the bachelor's degree was awarded. Two cases the
@@ -317,3 +333,62 @@ withdrawn from the handbook — see below.
    student to confirm, as it does for §3.2/§4.2 and §5.2), or say plainly that registering the
    course in the junior/senior year IS the approval, in which case the sentence should not read as
    a condition the student must separately obtain.
+
+
+## 10. What the policy-compliance review of 2026-10-02 found the handbook does not say
+
+The review of the engine against the Graduate School's Academic Code, the DGS Handbook and the
+4+1 guidance (fixes applied 2026-10-03, `docs/DECISIONS.md`) left these for the handbook's own text,
+not the app's:
+
+1. **The bachelor's + Ph.D. six credits.** §4.2 is silent; the Graduate School's 2026-09-22 answer
+   to the department allows six credits to count toward a Notre Dame bachelor's and the Ph.D., but
+   the Academic Code's §4.6 writes its six-credit exception for an integrated bachelor's/MASTER'S
+   program only. The app now counts such a course provisionally and asks the DGS to confirm. The
+   handbook should state the rule (or the Graduate School should), so the DGS is not confirming it
+   student by student.
+2. **The UG→GR move for 4+1 coursework.** The Graduate School's guidance requires the extra graduate
+   courses to be moved from undergraduate to graduate registration, with the advising dean's and
+   the Graduate School's approval, before the bachelor's is conferred. §3.5 never mentions the
+   form. A sentence naming it — and that the shared one or two courses do not need it — would let
+   students (and the app) read the transcript instead of asking.
+3. **§3.5's "senior year" and "CSE".** The September text lets the shared courses come from the
+   junior spring onward but the additional ones only from the senior year, and names CSE courses
+   both times. Is a junior-spring course that is NOT shared really excluded, and is a non-CSE
+   6xxxx course really outside §3.5? The app treats both as the ADGS's to approve.
+4. **The qualifier extension.** §4.4 says "the DGS may extend the deadline" without a unit. The
+   DGS reads it as any number of semesters (2026-10-03); the handbook could say so.
+5. **Which start the clocks use after an MSCSE → Ph.D. transfer.** §4.4 says "of starting"; the
+   DGS reads the qualifier clocks from the transfer and §4.3/§4.5 from the MSCSE entry
+   (2026-09-26, 2026-10-03). Two different starts for one student deserve a sentence.
+6. **MSCSE and Ph.D. as one graduate program.** The Graduate School's position (DGS 2026-10-03)
+   decides how an unfinished MSCSE's credits, and a 4+1's MSCSE courses, count toward the Ph.D. —
+   none of it is in §4.2 or §5.2.
+7. **The Graduate School's steps the handbook leaves implicit** — RCR training before candidacy
+   (Academic Code §6.2.4), the application-for-candidacy form and its calendar deadline (§6.2.9),
+   the official submission of the dissertation as the act that completes the degree inside the
+   eight years (§6.2.12), dissertation completion status after the eighth year (§6.2.6.1), the
+   30 + 14 days of an Incomplete (§4.4), leaves and accommodations extending the limits (§5.1,
+   §5.4) — are now rows or inputs in the app. §4 could point to them in one paragraph.
+8. **Transfer credit timing and finality.** §5.2 says neither that the Graduate School considers a
+   transfer only after the first semester nor that the credit is final only when the Graduate
+   School has approved it (its criterion 5 implies the second). The app says both.
+9. **Two transfer cases no document caps** (for the Graduate School as much as the committee):
+   the Academic Code's §4.6 and CSE §5.2 state six credits for an unfinished MASTER'S and 9/24
+   for a completed degree. They say nothing about (a) an unfinished Ph.D. elsewhere, and (b)
+   graduate courses taken outside any program by a student with no earlier graduate program. The
+   app uses the six as the conservative default in both, says so on the §5.2 row, and (for b, DGS
+   2026-10-03) holds every such course for the DGS. The handbook should state both figures once
+   the Graduate School has answered.
+10a. **§4.2's "at least nine credits of regular courses at Notre Dame".** The DGS reads it as nine
+    credits earned during the graduate program (2026-09-13), and, because the Graduate School treats
+    the MSCSE and the Ph.D. as one graduate program, a 4+1's fifth-year MSCSE courses count while
+    their senior-year (pre-bachelor's) courses do not (DGS 2026-10-03, P1-units-4plus1-c8). The
+    sentence could say "during the graduate program" so the two readings of "at Notre Dame" stop
+    needing a ruling.
+10. **The flat 60.** §4.2 attributes "a total of sixty (60) credits of courses and research" to the
+    Graduate School, but the Academic Code's §6.2.1 requires "sixty (60) credit hours, or a minimum
+    of 30 credit hours beyond a previously awarded master's degree" and lets programs require more.
+    The department's 60-for-everyone is therefore the department's own, stricter rule (with the
+    24-credit transfer cap, a student with a prior master's earns at least 36 at Notre Dame). §4.2
+    should say it is the department's requirement rather than the Graduate School's.

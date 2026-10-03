@@ -1,0 +1,82 @@
+{
+  "name": "phd-transfer-unfinished-phd",
+  "description": "Policy review 2026-10-03 (P1-transfer-eligibility-c4, DGS: fix as suggested): a student who left a Ph.D. program elsewhere unfinished. The Academic Code’s §4.6 and CSE §5.2 state the six-credit allowance for an unfinished MASTER’S and no figure for an unfinished Ph.D., so the six stays as the conservative default and the §5.2 row says so — the DGS may put the case to the Graduate School (HANDBOOK-REVISIONS §10 item 9). The pre-approved course itself counts as before, pending the Graduate School’s approval.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "PURDUE UNIVERSITY",
+          "course_id": "CS 50300",
+          "course_title": "Operating Systems",
+          "satisfies_core_area": "os",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "priorMs": "unfinished",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "elsewhere",
+      "samePlace": true,
+      "finished": false
+    },
+    "courses": [
+      {
+        "courseId": "CS 50300",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "phd"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "in_progress",
+      "statusLabel": "Graduate School approval pending",
+      "detailIncludes": [
+        "3 of the 6 credits you may transfer are counted",
+        "the Academic Code states this six for an unfinished master’s (§4.6) and no figure for an unfinished Ph.D."
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 24"
+      ]
+    }
+  }
+}

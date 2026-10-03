@@ -1,0 +1,79 @@
+{
+  "name": "phd-qualifier-extension-semesters",
+  "description": "DGS 2026-10-03: §4.4’s “the DGS may extend the deadline” is not limited to one semester — the DGS may grant any number, so the Approvals box takes a count (records saved with the old one-semester tick read as 1). Entered Fall 2024, qualifier due by the end of the fourth semester (Spring 2026); a three-semester extension runs to the end of Fall 2027, so on 2026-10-03 the qualifier is still in progress and the wording names the three semesters.",
+  "today": "2026-10-03",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {
+      "qualifierExtensionSemesters": 3
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    }
+  },
+  "expect": {
+    "phd.qualifier": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "Deadline extended by 3 semesters by the DGS — now the end of Fall 2027"
+      ]
+    }
+  }
+}

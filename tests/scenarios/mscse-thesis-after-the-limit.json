@@ -1,0 +1,137 @@
+{
+  "name": "mscse-thesis-after-the-limit",
+  "description": "Policy review 2026-10-03 (Academic Code §6.1.4): a master’s thesis defended after §3.3’s five-year limit cannot read “complete within the limit” — entered Fall 2020, the limit passed at Fall 2025, the defense is dated 2026-03-01 — so the thesis row and the time-limit row read “Eligibility at risk” and send the student to the DGS for the Graduate School’s eligibility extension.",
+  "today": "2026-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2020
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "milestones": {
+      "advisorIdentified": "2020-11-01",
+      "advisorName": "Prof. Example",
+      "thesisApprovedByReaders": "2026-02-01",
+      "thesisDefensePassed": "2026-03-01"
+    },
+    "attestations": {
+      "advisorApprovedPlan": true
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2020
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 68901",
+        "credits": 6,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "S",
+        "origin": "nd"
+      }
+    ],
+    "msOption": "thesis",
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2020
+    }
+  },
+  "expect": {
+    "ms.thesis.defense": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Eligibility at risk"
+    },
+    "ms.timeLimit": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Eligibility at risk",
+      "detailIncludes": [
+        "after the 5-year limit passed"
+      ]
+    }
+  }
+}

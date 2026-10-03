@@ -15,10 +15,14 @@ export interface Term {
   year: number;
 }
 
-/** IP = in progress (registered, no final grade yet). S/U = satisfactory/unsatisfactory. */
+/** IP = in progress (registered, no final grade yet). S/U = satisfactory/unsatisfactory.
+ * I = Incomplete and W = withdrawn (Academic Code §4.3), kept since 2026-10-03
+ * (policy review): both are REGISTRATIONS the full-time count must see (§3.3),
+ * neither earns credit — an I becomes an F 30 + 14 days after grades were due
+ * (§4.4) unless the Graduate School extended it, and the classifier says so. */
 export type Grade =
   | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D' | 'F'
-  | 'S' | 'U' | 'IP';
+  | 'S' | 'U' | 'IP' | 'I' | 'W';
 
 export type CoreArea = 'os' | 'algorithms' | 'architecture';
 export type CategoryGroup = 'alg' | 'hcc' | 'arch' | 'dsai' | 'sys';
@@ -61,6 +65,18 @@ export interface CourseEntry {
    * Absent on rows saved before this flag existed; those are removed one by
    * one in the table, as before. */
   fromNdTranscript?: true;
+  /** True on every row an external transcript import added when that
+   * transcript was marked UNOFFICIAL (DGS 2026-10-03, P1-transfer-eligibility-16):
+   * the three generated emails then say which transcripts (bachelor's,
+   * master's, prior Ph.D. — the row's degreeLevel) were unofficial copies, since
+   * §5.2 adds credit only on an official transcript. */
+  fromUnofficialTranscript?: true;
+  /** Transfer rows only (P1-transfer-eligibility-7, 2026-10-03): the grade as
+   * the transcript PRINTED it when the app could not map it to its own scale
+   * (a numeric or foreign mark) and the student chose the letter. The course
+   * line then says the letter is the student's own reading, for the DGS to
+   * check against §5.2's B. */
+  transcriptMark?: string;
   /** True on every row "Load example" seeded (interface review R5,
    * 2026-09-18). `isExample` was a flag on the WHOLE record, so adding one
    * real course of your own left the banner still saying "Nothing here came
@@ -108,10 +124,22 @@ export interface Milestones {
   /** A second advisor (co-advisor), when the student has two (DGS 2026-09-22). */
   advisorName2?: string;
   researchQualifierPassed?: string; // §4.4.3
+  /** §4.4.3: the advisor filed a FAIL — the DGS's committee then has six
+   * months for its final judgement (policy review, 2026-10-03). */
+  researchQualifierFailed?: string;
   qualifierFormFiled?: string; // §4.4
   candidacyPassed?: string; // §4.5
+  /** Academic Code §6.2.4: the Responsible Conduct of Research and ethics
+   * training modules are required of every Ph.D. student, and the DGS
+   * Handbook (§3.22.3) lists them among the conditions for admission to
+   * candidacy (policy review, 2026-10-03). */
+  rcrTrainingCompleted?: string;
   dissertationApprovedForDefense?: string; // §4.6
   defensePassed?: string; // §4.7
+  /** Academic Code §6.2.6/§6.2.12: the OFFICIAL SUBMISSION of the dissertation
+   * is the last requirement inside the eight years, and it is due by the
+   * Graduate School calendar's deadline (policy review, 2026-10-03). */
+  dissertationSubmitted?: string;
   thesisApprovedByReaders?: string; // §3.4 thesis option
   thesisDefensePassed?: string; // §3.4 thesis option
   projectReportAccepted?: string; // §3.4 project option
@@ -130,7 +158,21 @@ export interface Attestations {
   /** Deprecated 2026-09-03 (retired with the claim path — see
    * claimedCoreArea). Kept so old saved files still load; ignored. */
   corePassedElsewhere?: CoreArea[];
+  /** Deprecated 2026-10-03: the §4.4 extension is a NUMBER of semesters now
+   * (`qualifierExtensionSemesters`; DGS: "DGS may give any number of
+   * semesters as extensions"). A ticked box in an older file reads as one
+   * semester (state.ts migrates it). */
   qualifierExtensionGranted?: boolean; // §4.4 "the DGS may extend the deadline"
+  /** §4.4 "the DGS may extend the deadline on a case-by-case basis": how many
+   * additional semesters the DGS granted (DGS 2026-10-03). Applies to the
+   * §4.4 four-semester deadline and to §4.4.3's eighteen months alike, as the
+   * boolean did. */
+  qualifierExtensionSemesters?: number;
+  /** §5.2 criterion 5: the Graduate School approved the transfer and the Grad
+   * Admin recorded it (policy review, 2026-10-03). Until this is ticked the
+   * §5.2 row stays "approved by the DGS — Graduate School approval pending";
+   * the credits themselves count as the DGS's `yes` or tick decided. */
+  transferRecorded?: boolean;
   /** The student passed the qualifying examination under the requirements in
    * force when they took it — the rule changed several times in four years
    * (DGS 2026-09-21). Offered only to students in their third year or later;
@@ -240,6 +282,30 @@ export interface Student {
     undergraduateGpa?: number;
   };
   fullTimeTermOverrides?: Term[]; // decision Q8 residency override
+  /** Fall/spring semesters spent on an APPROVED LEAVE OF ABSENCE (Academic
+   * Code §5.1; the DGS Handbook §3.4/§3.7.2: a leave "stops the clock").
+   * Each one pushes the §4.3 eight-year limit and §4.5's eighth semester
+   * out by a semester (DGS 2026-10-03). Six-week medical and crisis
+   * separations do NOT count (DGS Handbook §3.5/§3.6: they "will count
+   * towards doctoral students' degree time limit"). */
+  leaveSemesters?: number;
+  /** Childbirth/adoption accommodations taken (Academic Code §5.4; DGS
+   * Handbook §3.7.2: "the accommodation extends it … by a semester"): each
+   * adds a semester to the same two clocks (DGS 2026-10-03). */
+  accommodationSemesters?: number;
+  /** The student withdrew and was READMITTED in this term (Academic Code
+   * §5.5, policy review 2026-10-03). The clocks keep the original entry term
+   * ("from the time of matriculation"); coursework and milestones from before
+   * an interruption of five years or more are routed to the DGS — the Code
+   * forfeits their credit. */
+  readmittedTerm?: Term;
+  /** The Notre Dame graduate courses dated before the entry term, with no
+   * earlier graduate program on the record, were taken as a NON-DEGREE
+   * (unclassified) student (Academic Code §2.3: at most 12 such credits may
+   * count toward the degree). Asked only when such courses exist (DGS
+   * 2026-10-03); `true` routes them to the DGS inside the 12-credit limit,
+   * `false` or unanswered leaves them refused with the reason. */
+  ndNonDegree?: boolean;
   /** Set only by "Load example" (2026-09-08). The record is saved like any
    * other, so without a marker a student returning the next day cannot tell
    * the demo from their own work. Never written by a transcript import, and

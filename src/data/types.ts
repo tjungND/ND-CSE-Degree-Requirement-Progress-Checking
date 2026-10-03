@@ -211,6 +211,11 @@ export const DISPLAY_PARAMETER_KEYS = [
   'contact_adgs_email',
   'contact_grad_admin_name',
   'contact_grad_admin_email',
+  // Optional (policy review 2026-10-03): this year's Graduate School deadlines
+  // for the application-for-candidacy form, quoted in the candidacy rows'
+  // sentence about the form. Blank or missing → the sentence names the
+  // Graduate School calendar without dates.
+  'candidacy_form_deadlines',
   // `current_semester` / `offered_semester` were read here until 2026-09-14;
   // the schedule is now dated per row by the Courses tab's `last_offered`
   // (DGS). A sheet that still carries the row is not told anything.

@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-bachelors-then-phd",
-  "description": "A Ph.D. student who did a REGULAR bachelor's at Notre Dame (not the 4+1) and entered the Ph.D. straight after. DGS 2026-09-12 (red-team F7): \"If the student was just a BS (not 4+1 BS/MS integration), the 60xxx courses taken as an undergrad student do not count toward credits of MSCSE or PhD. They may qualify for the core knowledge and specialization category requirements of PhD students even without credit transfer.\" So the undergraduate CSE 60641 / CSE 60111 earn no credit — the lines say why and how a 4+1 would answer — while §4.4.1 core knowledge and the §4.4.2 groups are still satisfied by them (any Notre Dame course, 2026-09-11). Until 2026-09-12 this fixture counted them in full under the Graduate School's 2026-09-10 answer, which the DGS has now narrowed to the Integrated program.",
+  "description": "A Ph.D. student who did a REGULAR bachelor's at Notre Dame (not the 4+1) and entered the Ph.D. straight after. DGS 2026-09-12 (red-team F7): \"If the student was just a BS (not 4+1 BS/MS integration), the 60xxx courses taken as an undergrad student do not count toward credits of MSCSE or PhD. They may qualify for the core knowledge and specialization category requirements of PhD students even without credit transfer.\" Policy review 2026-10-03: the Academic Code’s last §4.6 paragraph lets ANY Notre Dame undergraduate’s graduate coursework meet graduate program requirements with the program’s advance approval, and CSE §4.2 says nothing against it — so the undergraduate CSE 60641 / CSE 60111 are no longer refused but routed to the DGS (provisional, 6 pending credits), the lines saying why and how a 4+1 would answer — while §4.4.1 core knowledge and the §4.4.2 groups are still satisfied by them (any Notre Dame course, 2026-09-11). Until 2026-09-12 this fixture counted them in full under the Graduate School's 2026-09-10 answer, which the DGS has now narrowed to the Integrated program.",
   "today": "2026-09-09",
   "rules": {
     "base": "default"
@@ -30,7 +30,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "undergraduate"
+        "registeredLevel": "undergraduate",
+        "countedToward": "neither"
       },
       {
         "courseId": "CSE 60111",
@@ -43,7 +44,8 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "masters",
-        "registeredLevel": "graduate"
+        "registeredLevel": "graduate",
+        "countedToward": "neither"
       },
       {
         "courseId": "CSE 63801",
@@ -83,7 +85,8 @@
     "phd.credits.regular": {
       "status": "unmet",
       "detailIncludes": [
-        "3 of 24"
+        "3 of 24",
+        "6 pending review/approval"
       ]
     },
     "phd.transfer": {
@@ -107,12 +110,14 @@
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program",
+      "waiting for the DGS — would count toward regular courses (3 cr) once approved",
+      "taken as an undergraduate outside the Integrated 4+1 program — the Academic Code (§4.6) lets it meet Ph.D. requirements only with the program’s advance approval; the DGS decides",
       "say so in the earlier-degrees questions (Your standing → Change)",
-      "still satisfies the Operating Systems core-knowledge requirement"
+      "Operating Systems core knowledge (§4.4.1)"
     ],
     "CSE 60111": [
-      "taken as an undergraduate earns Ph.D. credit only for a student who was in the Integrated B.S. + M.S. (4+1) program"
+      "waiting for the DGS",
+      "taken as an undergraduate outside the Integrated 4+1 program"
     ]
   }
 }

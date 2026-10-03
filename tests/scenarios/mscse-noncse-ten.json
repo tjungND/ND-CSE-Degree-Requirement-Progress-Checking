@@ -1,6 +1,6 @@
 {
   "name": "mscse-noncse-ten",
-  "description": "MSCSE student with 9 non-CSE credits plus a 10th: the 10th credit is excluded by the §3.2 nine-credit cap and the report names the excluded course. DGS approval for non-CSE courses is attested. (2026-09-27: a course not in the course rules is the DGS’s to enter — no tick settles it — so the allowance row waits for the DGS.)",
+  "description": "MSCSE student with 9 non-CSE credits plus a 10th: the 10th credit is excluded by the §3.2 nine-credit cap and the report names the excluded course. Since 2026-10-03 the excluded credit counts toward NOTHING on the MSCSE — §3.2’s September 2026 text counts the nine “toward both” the 30 and the 24, so there is no total-only spill (the Ph.D.’s §4.2 keeps it). DGS approval for non-CSE courses is attested. (2026-09-27: a course not in the course rules is the DGS’s to enter — no tick settles it — so the allowance row waits for the DGS.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -83,7 +83,7 @@
       "status": "needs_dgs_review",
       "detailIncludes": [
         "PHYS 60050",
-        "beyond the allowance — count toward the total-credit requirement only"
+        "1 credit not counted — beyond the allowance"
       ]
     },
     "ms.credits.regular": {
@@ -95,8 +95,7 @@
   },
   "expectCourseLines": {
     "PHYS 60050": [
-      "toward the total-credit requirement only",
-      "9-credit"
+      "not counted — over the 9-credit non-CSE cap (§3.2)"
     ]
   }
 }

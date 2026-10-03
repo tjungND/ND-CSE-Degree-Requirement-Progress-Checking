@@ -85,6 +85,33 @@ export function validateCourses(
       });
     }
 
+    // §3.6.1: "CSE 50xxx courses are preparatory and do not count toward the
+    // MSCSE degree requirements" — the engine refuses a CSE 5xxxx course on the
+    // MSCSE tab whatever this cell says (DGS 2026-10-03), so anything but `no`
+    // here is a cell with no effect.
+    if (c.level === 5 && /^CSE\b/i.test(c.courseId) && c.countsTowardMscse !== undefined && c.countsTowardMscse !== 'no') {
+      issues.push({
+        severity: 'warning',
+        tab: 'Courses',
+        row: c.sheetRow,
+        column: 'counts_toward_mscse',
+        message: `Courses row ${c.sheetRow} (${c.courseId}): a 50000-level CSE course, but counts_toward_mscse is '${c.countsTowardMscse}'. §3.6.1 says CSE 50xxx courses do not count toward the MSCSE, so the app refuses it on the MSCSE tab whatever this cell says — set it to 'no'.`,
+      });
+    }
+
+    // Below the 40000 level nothing earns graduate credit (Academic Code §4.1),
+    // whatever the verdict cell says — the engine refuses such a course since
+    // 2026-10-03, so a `yes` or an approval here is a cell with no effect.
+    if (c.level !== undefined && c.level < 4 && (c.countsTowardMscse !== undefined && c.countsTowardMscse !== 'no' || c.countsTowardPhd !== undefined && c.countsTowardPhd !== 'no')) {
+      issues.push({
+        severity: 'warning',
+        tab: 'Courses',
+        row: c.sheetRow,
+        column: 'counts_toward_mscse / counts_toward_phd',
+        message: `Courses row ${c.sheetRow} (${c.courseId}): level ${c.level}, but a counts_toward cell is not 'no'. No course below the 40000 level earns graduate credit (Academic Code §4.1), so the app counts it toward nothing — set both cells to 'no'.`,
+      });
+    }
+
     // Semantic sniff: a research/seminar-titled course typed 'regular' would
     // count toward the 24 regular credits (§3.2/§4.2) — almost certainly a
     // sheet mistake (the live sheet has several such rows).

@@ -1,0 +1,83 @@
+{
+  "name": "phd-transfer-awaits-graduate-school",
+  "description": "Policy review 2026-10-03 (§5.2, criterion 5; Academic Code §4.5): a transfer the DGS pre-approved in the course rules is counted, but the credit is final only once the Graduate School has approved it and the Grad Admin has recorded it — so the §5.2 row reads “Graduate School approval pending” (in progress, not met) until the student ticks that it was recorded, and its line says when the request can go: after the first semester, before the conferral semester.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "PURDUE UNIVERSITY",
+          "course_id": "CS 50300",
+          "course_title": "Operating Systems",
+          "satisfies_core_area": "os",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CS 50300",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2020
+    }
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "in_progress",
+      "statusLabel": "Graduate School approval pending",
+      "detailIncludes": [
+        "Approved by the DGS in the course rules: CS 50300",
+        "after your first semester",
+        "Final once the Graduate School has approved the transfer and the Grad Admin has recorded it (§5.2, criterion 5)"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 24"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CS 50300": [
+      "counts toward regular courses (3 cr)",
+      "send the Grad Admin the processing request"
+    ]
+  }
+}

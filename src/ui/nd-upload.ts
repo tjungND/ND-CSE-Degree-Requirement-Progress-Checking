@@ -163,7 +163,8 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
         gpa: transcriptGpa,
         undergraduateGpa: inRange(parsed.cumulativeGpaByLevel?.undergraduate, GPA_RANGE) ? parsed.cumulativeGpaByLevel?.undergraduate : undefined,
         programGpa: earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? programGpa : undefined,
-        gpaChoice: transcriptGpa !== undefined ? 'transcript' : earlierGraduateWork && inRange(programGpa, GPA_RANGE) ? 'program' : 'none',
+        // The registrar's figure only (2026-10-03); the program-only average is information.
+        gpaChoice: transcriptGpa !== undefined ? 'transcript' : 'none',
         entryTerm: parsed.entryTerm,
         // Ticked by default only while the entry term on the record is still
         // assumed or read from an earlier import: a term the student typed
@@ -313,7 +314,9 @@ const bachelorsTermFor = (degrees: DegreeAwarded[], student: Student): Term | un
 
 /** Credit-weighted GPA of the graded Notre Dame courses from the entry term
  * on — this program's courses only (letter grades; S/U and in-progress rows
- * carry no points). Undefined when nothing is graded yet. */
+ * carry no points; an Incomplete counts as 0.000 until it is removed,
+ * Academic Code §4.3 — GRADE_POINTS carries that). Undefined when nothing is
+ * graded yet. Information only since 2026-10-03: §2.2 reads the registrar's figure. */
 function gpaOfProgramCourses(courses: ParsedCourse[], entry: Term): number | undefined {
   let points = 0;
   let hours = 0;
@@ -473,14 +476,13 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
   );
   // The GPA for the §2.2 check (combined-transcript bug report 2026-09-05).
   if (tp.gpa !== undefined && tp.programGpa !== undefined) {
-    // Two defensible figures: the registrar's graduate cumulative GPA (which
-    // folds in an earlier graduate program at Notre Dame) or this program's
-    // courses alone — the student picks, the transcript's figure by default.
-    const radio = (value: typeof tp.gpaChoice, label: string, note: string) => {
-      const r = el('input', { type: 'radio', name: 'gpa-choice', value, 'data-key': `preview.gpa.${value}`, onchange: () => (tp.gpaChoice = value) });
-      r.checked = tp.gpaChoice === value;
-      return el('label', { class: 'attest gpa-option' }, r, ` ${label} `, el('span', { class: 'hint-inline' }, note));
-    };
+    // One figure (policy review 2026-10-03, replacing the 2026-09-05 choice):
+    // the registrar's graduate cumulative GPA is the Academic Code's one
+    // "cumulative GPA" (§4.5) and decides §2.2; this program's own average is
+    // shown for information, and the §2.2 row asks the DGS when the two
+    // straddle the minimum.
+    const cb = el('input', { type: 'checkbox', 'data-key': 'preview.gpa', onchange: (e) => (tp.gpaChoice = (e.target as HTMLInputElement).checked ? 'transcript' : 'none') });
+    cb.checked = tp.gpaChoice === 'transcript';
     box.append(
       el(
         'fieldset',
@@ -489,11 +491,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         el(
           'p',
           { class: 'hint' },
-          `Your transcript's graduate-level cumulative GPA includes graduate courses taken at Notre Dame before ${termLabel(entry)} (an earlier program). The handbook's "cumulative GPA" is the registrar's figure; if the two straddle 3.0, ask the DGS which applies.${tp.undergraduateGpa !== undefined ? ` The undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used.` : ''}`,
+          `Your transcript's graduate-level cumulative GPA (${tp.gpa.toFixed(2)}) includes graduate courses taken at Notre Dame before ${termLabel(entry)} (an earlier program). The Academic Code reads that one cumulative figure (§4.5), so it is the one used for §2.2; this program's courses alone average ${tp.programGpa.toFixed(2)}, shown for information. If the two fall on different sides of 3.0 the report asks the DGS.${tp.undergraduateGpa !== undefined ? ` The undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used.` : ''}`,
         ),
-        radio('transcript', `Use the transcript's graduate cumulative GPA (${tp.gpa.toFixed(2)})`, '— as the registrar computes it, all graduate coursework at Notre Dame'),
-        radio('program', `Use this program's courses only (${tp.programGpa.toFixed(2)})`, `— computed from the graded rows from ${termLabel(entry)} on`),
-        radio('none', 'Leave the GPA field as it is', ''),
+        el('label', { class: 'attest' }, cb, ` Use the transcript's graduate cumulative GPA (${tp.gpa.toFixed(2)}) for the minimum-GPA check (§2.2)`),
       ),
     );
   } else if (tp.gpa !== undefined) {

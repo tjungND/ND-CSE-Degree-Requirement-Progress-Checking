@@ -316,7 +316,15 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 
 .attest { display: block; margin: 6px 0; font-size: 13px; }
 .ft-terms { margin-top: 8px; }
-.ft-term { display: inline-block; margin-right: 14px; font-size: 13px; }
+/* Since 2026-10-03 the Full-time terms fieldset lists EVERY semester from the
+   entry term (DGS), so it is a grid of rows rather than one inline run — each
+   row at least 24 px tall with an 18 px box, which keeps axe's target-size
+   (WCAG 2.5.8) satisfied at every width without enlarging the boxes further. */
+fieldset.ft-terms:not(.clock-fields):not(.nondegree) { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 16px; }
+fieldset.ft-terms:not(.clock-fields):not(.nondegree) > legend, fieldset.ft-terms:not(.clock-fields):not(.nondegree) > .hint, fieldset.ft-terms:not(.clock-fields):not(.nondegree) > p { grid-column: 1 / -1; }
+.ft-term { display: flex; align-items: flex-start; gap: 6px; min-height: 24px; margin: 0; font-size: 13px; }
+.ft-term input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none; }
+.ft-auto { display: flex; align-items: flex-start; gap: 6px; min-height: 24px; font-size: 13px; }
 
 .save-card { border-left: 4px solid var(--gold); }
 .save-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -874,6 +882,10 @@ tr.ocr-low td { background: #fff7e0; }
   .choice input[type='radio'] { width: 20px; height: 20px; margin-top: 1px; }
   .consent-ack { min-height: 44px; }
   .consent-ack input[type='checkbox'] { width: 20px; height: 20px; margin-top: 1px; }
+  /* The Full-time terms fieldset lists every semester since 2026-10-03, so its
+     boxes need the same touch target (axe target-size on the phone layout). */
+  .ft-term { display: flex; align-items: flex-start; gap: 8px; min-height: 44px; padding: 4px 0; margin-right: 0; }
+  .ft-term input[type='checkbox'] { width: 20px; height: 20px; margin-top: 2px; flex: none; }
   .btn.tiny { min-height: 32px; }
   .save-buttons .btn { flex: 1 1 auto; }
   /* iOS Safari zooms the page when a focused control's text is smaller than 16 px. */

@@ -1,9 +1,11 @@
 // §3 — Requirements for the Master of Science Degree (MSCSE).
 // Every builder quotes the handbook sentence it implements.
-import { termLabel } from '../term.ts';
+import { deadlineTermLabel, termLabel } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitRow } from './context.ts';
+import { defendedBelowGpaNote } from './shared.ts';
+import { capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
+import { candidacyFormSentence } from './phd.ts';
 import { fullTimeTermRecords } from './residency.ts';
 import { transferRow } from './transfer.ts';
 
@@ -125,7 +127,12 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
 
   // §3.5, through the DGS (2026-09-10): "an ND 4+1 student can have up to 6
   // credits (whether 40xxx or 60xxx courses) counted towards both degrees."
-  // The row appears only for a student who has such a course.
+  // The 40000-level sharing is not in §3.5's text nor the Academic Code's: it
+  // is the Graduate School's written answer to the DGS (email, Maureen
+  // Collins, 2026-09-10; DGS 2026-10-03, P1-units-4plus1-12), for ANY Notre
+  // Dame undergraduate, subject to the Courses tab's verdict on each course —
+  // so the row says where the rule comes from. The row appears only for a
+  // student who has such a course.
   if (ctx.classified.some((c) => c.caps.includes('sharedbs'))) {
     rows.push(
       capRow({
@@ -137,7 +144,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
         limitKey: 'ms_bs_double_count_credits_max',
         section: '\u00a73.5',
         quote:
-          'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE courses at the 6xxxx level, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree.',
+          'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE regular courses at the 60000 level or higher, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree. — §3.5 names 60000-level courses; that up to six credits of 40000-level CSE courses may count toward both degrees too, subject to the course rules, is the Graduate School’s written answer to the DGS (email, 2026-09-10; DGS 2026-10-03)',
         ctx,
         // "With approval of the instructor and DGS" — §3.5's own first words,
         // quoted on this card. A shared course still waiting on an approval no
@@ -192,12 +199,18 @@ function residencyRow(ctx: Ctx): RequirementResult {
     detail = missingParamDetail('fulltime_credits_min');
   } else if (fullTime.length > 0) {
     status = 'met';
-    detail = `Full-time (${floor}+ credits, §2.1.2) in ${fullTime.map((r) => termLabel(r.term)).join(', ')}.`;
+    detail = `Full-time (${floor}+ credits, §2.1.2${fullTime.some((r) => r.term.season === 'summer') ? '; a summer session counts with any registration after a full-time academic-year semester, Academic Code §3.6' : ''}) in ${fullTime.map((r) => termLabel(r.term)).join(', ')}.`;
     satisfied = fullTime.map((r) => termLabel(r.term));
   } else {
     status = 'in_progress';
-    detail = `No full-time semester yet. A semester counts once the courses you entered for it add up to ${floor} credits (§2.1.2); if you were full-time on research, tick that semester under Your standing (Full-time terms).`;
+    // A summer session counts too (§3.3 "or for one summer session"): the
+    // Academic Code (§3.6) treats a student who was full-time in the academic
+    // year as full-time in the summer with any registration — the engine
+    // applies that; the nine credits are "per semester" (policy review 2026-10-03).
+    detail = `No full-time semester yet. A semester counts once the courses you entered for it add up to ${floor} credits (§2.1.2); if you were full-time on research, tick that semester under Your standing (Full-time terms). A summer session counts with any registration after a full-time academic-year semester (Academic Code §3.6).`;
   }
+  const withdrawnOnly = records.filter((r) => r.withdrawnOnly).map((r) => termLabel(r.term));
+  if (withdrawnOnly.length > 0) detail += ` ${withdrawnOnly.join(', ')}: every course withdrawn — not counted; if you were registered full-time at census, tick the semester under Full-time terms, or ask the DGS.`;
   return {
     id: 'ms.residency',
     group: TIME,
@@ -214,7 +227,11 @@ function residencyRow(ctx: Ctx): RequirementResult {
 export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the M.S. degree within 5 years results in forfeiture of degree eligibility.';
-  // The same row as the Ph.D.'s, with the master's key and quote.
+  // The same row as the Ph.D.'s, with the master's key and quote — and the
+  // thesis defense or project report as the last dated requirement (policy
+  // review 2026-10-03: a defense after the limit used to close the row).
+  const m = ctx.student.milestones;
+  const completedOn = [m.thesisDefensePassed, m.projectReportAccepted].filter((d): d is string => d !== undefined).sort().pop();
   return timeLimitRow(ctx, others, {
     id: 'ms.timeLimit',
     group: TIME,
@@ -222,6 +239,7 @@ export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEva
     yearsKey: 'ms_time_limit_years',
     section: '§3.3',
     quote,
+    completedOn,
   });
 }
 
@@ -249,6 +267,18 @@ function optionRows(ctx: Ctx): RequirementResult[] {
   // "in one of two ways"): either finished satisfies both (F4, 2026-09-12).
   const eitherDone = option === 'undecided' && (m.thesisDefensePassed !== undefined || m.projectReportAccepted !== undefined);
   const alternative = option === 'undecided' ? ' Either route satisfies §3.4 — pick yours under Your standing.' : '';
+  // §3.3: "Failure to complete all requirements for the M.S. degree within 5
+  // years results in forfeiture of degree eligibility." A thesis defense or a
+  // project report dated after the limit cannot simply read Met — the same
+  // guard the Ph.D. defense has had since 2026-09-13 (policy review 2026-10-03).
+  const years = ctx.params.number('ms_time_limit_years');
+  const limitDate = years === undefined ? undefined : timeLimitDate(ctx, years);
+  const late = (date: string | undefined): boolean => limitDate !== undefined && date !== undefined && date > limitDate;
+  const lateNote = (date: string) => ` — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). §3.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS.`;
+  // The master's degree needs admission to master's candidacy — a Graduate
+  // School form by its calendar deadline (Academic Code §6.1.6) — said once
+  // the route is complete (policy review 2026-10-03).
+  const formNote = ` ${candidacyFormSentence(ctx, 'master’s')}.`;
 
   if (option === 'thesis' || option === 'undecided') {
     // §3.4: "Upon acceptance of the thesis by the thesis defense examination
@@ -258,9 +288,17 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       'Upon acceptance of the thesis by the thesis defense examination committee (advisor and two readers), the student must successfully pass the oral thesis defense examination.';
     let status: Status;
     let detail: string;
+    const lateDefense = late(m.thesisDefensePassed);
+    // §2.2 for a thesis defense already dated (policy review 2026-10-03,
+    // P1-gpa-10): passed while the cumulative GPA was below the minimum goes to
+    // the DGS rather than reading Met. (§2.2 names the thesis; the project
+    // report below is not gated.)
+    const gpaAtDefense = m.thesisDefensePassed ? defendedBelowGpaNote(ctx) : '';
     if (m.thesisDefensePassed || eitherDone) {
-      status = 'met';
-      detail = m.thesisDefensePassed ? `Thesis defense passed ${m.thesisDefensePassed}${m.thesisApprovedByReaders ? ` (thesis approved by the readers ${m.thesisApprovedByReaders})` : ''}.` : `Not needed — the project route is complete (project report accepted ${m.projectReportAccepted}).${alternative}`;
+      status = lateDefense || gpaAtDefense !== '' ? 'needs_dgs_review' : 'met';
+      detail = m.thesisDefensePassed
+        ? `Thesis defense passed ${m.thesisDefensePassed}${m.thesisApprovedByReaders ? ` (thesis approved by the readers ${m.thesisApprovedByReaders})` : ''}${lateDefense ? lateNote(m.thesisDefensePassed) : '.'}${gpaAtDefense}${lateDefense ? '' : formNote}`
+        : `Not needed — the project route is complete (project report accepted ${m.projectReportAccepted}).${alternative}`;
     } else {
       status = 'unmet';
       detail = `Not yet passed.${alternative}${defendGpaNote(ctx)}`;
@@ -270,6 +308,7 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       group: PROJECT_THESIS,
       title: 'Thesis accepted and oral defense passed (thesis option)',
       status,
+      ...(lateDefense ? { statusLabel: 'Eligibility at risk' } : {}),
       detail,
       citation: { section: '§3.4', quote },
     });
@@ -280,13 +319,15 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     // by the advisor to satisfy the project requirement."
     const quote =
       'The project report and deliverables must be accepted and approved by the advisor to satisfy the project requirement.';
+    const lateReport = late(m.projectReportAccepted);
     rows.push({
       id: 'ms.project.report',
       group: PROJECT_THESIS,
       title: 'Project report accepted by the advisor (project option)',
-      status: m.projectReportAccepted || eitherDone ? 'met' : 'unmet',
+      status: m.projectReportAccepted || eitherDone ? (lateReport ? 'needs_dgs_review' : 'met') : 'unmet',
+      ...(lateReport ? { statusLabel: 'Eligibility at risk' } : {}),
       detail: m.projectReportAccepted
-        ? `Project report accepted ${m.projectReportAccepted}.`
+        ? `Project report accepted ${m.projectReportAccepted}${lateReport ? lateNote(m.projectReportAccepted) : `.${formNote}`}`
         : eitherDone
           ? `Not needed — the thesis route is complete (defense passed ${m.thesisDefensePassed}).${alternative}`
           : `Not yet: the written project report and deliverables must be accepted and approved by your advisor (§3.4).${alternative}`,

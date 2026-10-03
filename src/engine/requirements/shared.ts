@@ -1,5 +1,5 @@
 // §2 requirements shared by both programs.
-import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../ranges.ts';
+import { GPA_RANGE, formatValue, inRange, rangeSpan, usableGpa } from '../ranges.ts';
 import { coursesNeedingDgsReviewFor } from '../review.ts';
 import { openDeadline } from '../status.ts';
 import { endOfTerm, termLabel } from '../term.ts';
@@ -12,6 +12,30 @@ const GROUP = 'Basic requirements — §2.2–2.3';
 /** §2.2: "Continuation in a CSE graduate degree program, admission to degree
  * candidacy, and graduation require maintenance of at least a 3.0 (B)
  * cumulative GPA." */
+/** A GPA as the student entered it or the transcript printed it — up to three
+ * decimals, never rounded (policy review 2026-10-03: 2.996 printed as "3.00"
+ * beside "is below the 3.0 minimum"). */
+export function gpaText(gpa: number): string {
+  const three = gpa.toFixed(3); // "2.900", "2.996", "3.500"
+  return three.endsWith('0') ? three.slice(0, -1) : three; // at least two decimals, as a transcript prints them
+}
+
+/** §2.2 for a defense ALREADY dated (policy review 2026-10-03, P1-gpa-10 —
+ * mirroring the candidacy row): "A student whose cumulative GPA is below 3.0
+ * may not defend their thesis or dissertation." A defense date entered while
+ * the cumulative GPA is below the minimum is not a met row: the row goes to
+ * the DGS with this sentence. Empty when it does not apply — no minimum in
+ * the sheet, no usable GPA (an off-scale figure gates nothing, R1), or a GPA
+ * at or above it. The M.S. project route is not gated: §2.2 names the thesis
+ * and the dissertation only. */
+export function defendedBelowGpaNote(ctx: Ctx): string {
+  const min = ctx.params.number('gpa_min');
+  const gpa = usableGpa(ctx.student.gpa);
+  return min !== undefined && gpa !== undefined && gpa < min
+    ? ` You show a ${gpaText(gpa)} GPA — §2.2 requires a cumulative GPA of ${min.toFixed(1)} or higher to defend; confirm with the DGS that the defense could be held.`
+    : '';
+}
+
 export function gpaRow(ctx: Ctx): RequirementResult {
   const quote =
     'Continuation in a CSE graduate degree program, admission to degree candidacy, and graduation require maintenance of at least a 3.0 (B) cumulative GPA.';
@@ -35,10 +59,28 @@ export function gpaRow(ctx: Ctx): RequirementResult {
     detail = `Cumulative GPA ${formatValue(gpa, GPA_RANGE)} is outside the ${rangeSpan(GPA_RANGE)} range, so the §2.2 check cannot be made — correct it under Coursework.`;
   } else if (gpa >= min) {
     status = 'met';
-    detail = `Cumulative GPA ${gpa.toFixed(2)} meets the ${min.toFixed(1)} minimum.`;
+    detail = `Cumulative GPA ${gpaText(gpa)} meets the ${min.toFixed(1)} minimum.`;
   } else {
     status = 'unmet';
-    detail = `Cumulative GPA ${gpa.toFixed(2)} is below the ${min.toFixed(1)} minimum — you cannot receive a degree or defend until it recovers (§2.2).`;
+    detail = `Cumulative GPA ${gpaText(gpa)} is below the ${min.toFixed(1)} minimum — you cannot receive a degree or defend until it recovers (§2.2).`;
+  }
+  // One cumulative GPA (Academic Code §4.5: "the ratio of accumulated earned
+  // quality points to the accumulated graded semester credit hours", over
+  // every Notre Dame course): the registrar's figure decides §2.2. When an
+  // earlier Notre Dame graduate program sits inside it and this program's
+  // courses alone fall on the other side of the minimum, the DGS is asked
+  // rather than the student choosing a figure (policy review 2026-10-03,
+  // replacing the 2026-09-05 choice).
+  const gs = ctx.student.gpaSource;
+  if (min !== undefined && gpa !== undefined && inRange(gpa, GPA_RANGE) && gs !== undefined) {
+    const other = gs.basis === 'transcript-graduate' ? gs.programGpa : gs.transcriptGpa;
+    if (other !== undefined && inRange(other, GPA_RANGE) && other >= min !== gpa >= min) {
+      status = 'needs_dgs_review';
+      detail =
+        gs.basis === 'transcript-graduate'
+          ? `${detail} Your transcript’s cumulative GPA includes an earlier graduate program at Notre Dame; this program’s courses alone average ${gpaText(other)}, on the other side of the minimum — the Academic Code reads one cumulative GPA (§4.5), so confirm your standing with the DGS.`
+          : `${detail} This figure was computed from this program’s courses alone; your transcript’s cumulative GPA is ${gpaText(other)}, on the other side of the minimum, and the Academic Code reads that registrar’s figure (§4.5) — confirm your standing with the DGS.`;
+    }
   }
   return {
     id: 'shared.gpa',
@@ -183,7 +225,12 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     );
   }
   if (parts.length > 0) parts.push('When the DGS answers, tick the box next to each course it approved for you');
-  const joined = parts.length === 0 ? { detail: 'No entered course that counts toward the degree is waiting on anyone.' } : joinedDetail(parts);
+  // Courses a tick cleared stay named here (P1-levels-grades-credits-30,
+  // 2026-10-03): the approval is the student's own word; the DGS office
+  // holds the record.
+  const ticked = ctx.classified.filter((c) => !c.superseded && c.pool !== 'none' && c.tickApproved).map((c) => c.entry.courseId);
+  const tickedNote = ticked.length > 0 ? ` Approved by the DGS, as you ticked: ${ticked.join(', ')} — the DGS office holds the record.` : '';
+  const joined = parts.length === 0 ? { detail: `No entered course that counts toward the degree is waiting on anyone.${tickedNote}` } : joinedDetail(parts);
   return {
     id: 'shared.approvals',
     group: 'Approvals',

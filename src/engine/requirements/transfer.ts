@@ -8,7 +8,7 @@
 // Parameters tab, one key per degree and prior-degree state.
 import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { formatCredits } from '../credits.ts';
-import { compareTerm } from '../term.ts';
+import { compareTerm, semesterNumber, termOfDate } from '../term.ts';
 import type { RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { joinedDetail, missingParamDetail, countedCourseIds } from './context.ts';
@@ -63,13 +63,27 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // credit waits for the Grad Admin's processing, so the row is "in
     // progress", not "needs DGS review" (DGS 2026-09-07).
     const pending = transfers.filter((c) => !c.superseded && c.approvalPending);
-    const preApproved = pending.filter((c) => c.transferable === 'yes');
+    // Held for the DGS whatever the sheet says (policy review 2026-10-03): a
+    // pass/fail grade, a course taken elsewhere after admission, a lapsed
+    // Incomplete, credit from before a readmission after five years or more.
+    // The sheet's `yes` does not settle these, so they are never "approved".
+    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.cseUnknown || c.incompleteLapsed || c.interrupted);
+    const heldReason = (c: (typeof pending)[number]): string =>
+      [
+        ...(c.passFailGrade ? ['graded pass/fail, which cannot show the B §5.2 requires'] : []),
+        ...(c.afterAdmission ? ['taken after admission — the department and the Graduate School must have approved it in advance (DGS Handbook §3.14)'] : []),
+        ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (§4.6)'] : []),
+        ...(c.cseUnknown ? ['the course rules do not say whether it is a CSE course, so §4.2’s nine-credit non-CSE allowance cannot be applied yet'] : []),
+        ...(c.incompleteLapsed ? ['an Incomplete past its deadline (Academic Code §4.4)'] : []),
+        ...(c.interrupted ? ['taken before a readmission after five years or more (Academic Code §5.5)'] : []),
+      ].join('; ');
+    const preApproved = pending.filter((c) => c.transferable === 'yes' && !held.includes(c));
     // Ruled `dgs_approval` / `adgs_approval`: the sheet says this one needs an
     // approval, so it is neither pre-approved nor unreviewed (2026-09-08,
     // split by program 2026-09-09).
-    const caseByCase = pending.filter((c) => needsApproval(c.transferable));
-    const unreviewed = pending.filter((c) => !c.external);
-    const listedUndecided = pending.filter((c) => c.external && c.transferable === undefined);
+    const caseByCase = pending.filter((c) => needsApproval(c.transferable) && !held.includes(c));
+    const unreviewed = pending.filter((c) => !c.external && !held.includes(c));
+    const listedUndecided = pending.filter((c) => c.external && c.transferable === undefined && !held.includes(c));
     // "Needs DGS review" only while the DGS actually has a course to decide
     // (2026-09-09 — the sibling shared.approvals row already worked this way).
     // With every entered course excluded on its own terms — taken before the
@@ -81,24 +95,45 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // (2026-09-11), and the row must say so rather than read met beside it.
     // Every course settled (2026-09-27: by the sheet's `yes`, or by the tick on
     // a case-by-case course) and something counted → met.
+    // …and "met" only once the Graduate School has approved and the Grad
+    // Admin recorded the transfer (§5.2 criterion 5: "recommended by the DGS
+    // and approved by the Graduate School" — policy review 2026-10-03,
+    // refining 2026-09-27: the credits still count as the DGS's `yes` or tick
+    // decided; this row's pill waits for the Graduate School).
+    const recorded = ctx.student.attestations.transferRecorded === true;
     status = pending.length === 0
       ? counted > 0
-        ? 'met'
+        ? recorded
+          ? 'met'
+          : 'in_progress'
         : 'not_applicable'
         : preApproved.length === pending.length
           ? 'in_progress'
           : 'needs_dgs_review';
+    const firstSemesterDone = semesterNumber(ctx.entry, termOfDate(ctx.today)) >= 2;
+    const processWhen = firstSemesterDone
+      ? 'send the Grad Admin the processing request — the Graduate School considers it only after your first semester (done) and before the semester your degree is conferred (§5.2)'
+      : 'send the Grad Admin the processing request once your first semester is complete — the Graduate School considers a transfer request only then, and before the semester your degree is conferred (§5.2)';
     // The cap's name says whose cap it is. A student with no prior graduate
     // program at all is under the smaller cap too, but is not "a prior program
     // that was not completed" (2026-09-11).
+    // An UNFINISHED PH.D. elsewhere (policy review 2026-10-03, DGS: fix as
+    // suggested): the Code's §4.6 and CSE §5.2 state the six for an unfinished
+    // MASTER'S and no figure at all for an unfinished Ph.D. — the six stays as
+    // the conservative default and the row says so; the question is with the
+    // Graduate School (docs/HANDBOOK-REVISIONS.md §10).
+    const unfinishedPhd = ctx.student.priorMs === 'unfinished' && transfers.some((c) => !c.superseded && c.entry.degreeLevel === 'phd');
     const capFor =
       ctx.student.priorMs === 'completed'
         ? 'a completed prior degree'
         : ctx.student.priorMs === 'unfinished'
-          ? 'a prior program that was not completed'
-          : 'a student with no prior graduate degree';
+          ? unfinishedPhd
+            ? 'a prior program that was not completed — the Academic Code states this six for an unfinished master’s (§4.6) and no figure for an unfinished Ph.D., so the six is the conservative default here; the DGS may put your case to the Graduate School'
+            : 'a prior program that was not completed'
+          : 'a student with no prior graduate degree — no document states this allowance, so the six of an unfinished program is the meter and the DGS decides each course (DGS 2026-10-03)';
     // The action first (DGS 2026-09-27): the courses waiting for the DGS and
     // what to do, then the count against the allowance.
+    for (const c of held) parts.push(`Waiting for the DGS: ${c.entry.courseId} — ${heldReason(c)}; the review request asks`);
     if (unreviewed.length > 0) {
       const credits = unreviewed.reduce((sum, c) => sum + (c.entry.credits ?? 0), 0);
       parts.push(
@@ -128,14 +163,17 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     }
     // A `yes` in the course rules counts outright (2026-09-27); the Grad
     // Admin still records it, so the row says which courses to send.
-    const approvedForAll = transfers.filter((c) => !c.superseded && c.transferable === 'yes' && c.ineligibleReason === undefined);
+    const approvedForAll = transfers.filter((c) => !c.superseded && c.transferable === 'yes' && c.ineligibleReason === undefined && c.approvalPending === undefined);
     if (approvedForAll.length > 0) {
-      parts.push(`Approved by the DGS in the course rules: ${approvedForAll.map((c) => c.entry.courseId).join(', ')} — send the Grad Admin the processing request to have the credit recorded (§5.2)`);
+      parts.push(`Approved by the DGS in the course rules: ${approvedForAll.map((c) => c.entry.courseId).join(', ')} — ${recorded ? 'recorded by the Grad Admin, as you ticked under Approvals (§5.2)' : processWhen}`);
+    }
+    if (pending.length === 0 && counted > 0 && !recorded) {
+      parts.push('Final once the Graduate School has approved the transfer and the Grad Admin has recorded it (§5.2, criterion 5) — then tick “The Graduate School approved my transfer credit” under Approvals');
     }
     if (status !== 'met') {
       if (preApproved.length > 0) {
         parts.push(
-          `Approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')} — final once the Grad Admin has recorded the transfer; send the Grad Admin the processing request (§5.2)`,
+          `Approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')} — final once the Graduate School has approved and the Grad Admin has recorded the transfer; ${processWhen}`,
         );
       }
       if (caseByCase.length > 0) {
@@ -153,11 +191,13 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     }
   }
   // The student's own Notre Dame MSCSE (Graduate School through the DGS,
-  // 2026-09-22): its coursework is not transfer credit and is not on this row.
+  // 2026-09-22; DGS 2026-10-03: "the graduate school treats MS and PhD the
+  // same graduate program"): its coursework is Ph.D. coursework, not transfer
+  // credit, and is not on this row.
   const ndMasters = ctx.classified.filter((c) => c.ndMastersCredit && !c.superseded);
   if (ndMasters.length > 0) {
     parts.push(
-      `Your Notre Dame MSCSE courses (${ndMasters.map((c) => c.entry.courseId).join(', ')}) are not transfer credit, so they are not counted here. The Graduate School counts all of a Notre Dame master’s credits toward a Ph.D. in the same discipline — outside this allowance and with no transfer approval. Each course’s own line shows how it counts`,
+      `Your Notre Dame MSCSE courses (${ndMasters.map((c) => c.entry.courseId).join(', ')}) are not transfer credit, so they are not counted here: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so MSCSE coursework not applied to your bachelor’s degree counts as Ph.D. coursework — outside this allowance and with no transfer approval. Each course’s own line shows how it counts`,
     );
   }
   // The counted transfer courses — what the processing request tables (2026-09-06).
@@ -171,8 +211,14 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     shortTitle: 'Transfer credit (§5.2)',
     status,
     // An allowance has nothing to "meet": the pill says what is happening
-    // (DGS 2026-09-27) — "Waiting for the DGS" while a course is unreviewed.
-    ...(status === 'needs_dgs_review' ? { statusLabel: 'Waiting for the DGS' } : {}),
+    // (DGS 2026-09-27) — "Waiting for the DGS" while a course is unreviewed,
+    // and (2026-10-03) "Graduate School approval pending" once the DGS has
+    // decided and only §5.2's criterion 5 is left.
+    ...(status === 'needs_dgs_review'
+      ? { statusLabel: 'Waiting for the DGS' }
+      : status === 'in_progress' && transfers.length > 0 && !transfers.some((c) => !c.superseded && c.approvalPending)
+        ? { statusLabel: 'Graduate School approval pending' }
+        : {}),
     ...joinedDetail(parts),
     citation: { section: opts.section, quote },
   };

@@ -1,0 +1,76 @@
+{
+  "name": "phd-readmitted-after-five-years",
+  "description": "Policy review 2026-10-03 (Academic Code §5.5): a student readmitted after an interruption of five years or more forfeits the credit from before it unless the program rules otherwise — so the pre-readmission courses count only provisionally, the review request asks the DGS to rule on them, and the report warns; the clocks still run from the original matriculation (§6.2.6).",
+  "today": "2026-10-03",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2019
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2019
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2020
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "readmittedTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2019
+    }
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24",
+        "6 pending review/approval"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "waiting for the DGS",
+      "taken before an interruption of five years or more (readmitted Fall 2026)",
+      "Academic Code §5.5"
+    ]
+  }
+}

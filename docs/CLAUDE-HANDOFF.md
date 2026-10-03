@@ -1312,6 +1312,86 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   random configurations). `tests/allocator-blowup.test.ts` fails in seconds if anyone brings the
   enumeration back.
 
+## The policy-compliance review's changes (2026-10-03) — what a later session must know
+
+The review of 2026-10-02 (workflow; report at the artifact “Policy Compliance Review”, data under
+`policy-sources/.review/`, git-excluded) compared the engine with the Graduate School's Academic
+Code, the DGS Handbook 2025–26 and the 4+1 guidance. The DGS had the 8 fix-first and 53 conflict
+findings applied, with 20 rulings of his own (`docs/DECISIONS.md`, 2026-10-03). The shape of what
+changed, so nobody undoes it by accident:
+
+- **Grades.** `Grade` has `'I'` and `'W'` (`grades.ts`: I is in progress until
+  `incompleteDeadline(term)` = end of term + 44 days, then `incompleteLapsed` → provisional and a
+  review ask; W earns nothing but is a registration). The ND import keeps W and I rows; `SKIP_GRADES`
+  is AU/V/NR/X/NG. `isInProgress` is true for IP and I.
+- **Classification flags** (`allocate.ts` `ClassifiedCourse`): `passFailGrade`, `afterAdmission`, `noPriorProgram` (priorMs 'none' + a course from another university — held for the DGS, P1-transfer-eligibility-11), `cseUnknown` (a transfer the sheet cannot place inside or outside CSE — held, P1-transfer-eligibility-23),
+  `nonDegree`, `ugToGrUnverified`, `interrupted`, `withdrawn`, `incompleteDue`, `incompleteLapsed`.
+  `classify(student, rules, today?)` — `today` matters (lapsed Incompletes, readmission); the review
+  builder takes it too (`coursesNeedingDgsReview(student, rules, today?)`; the UI uses the audit's
+  `classified` through `coursesNeedingDgsReviewFor`). Transfer courses with any of the first two
+  flags, a lapsed I or `interrupted` are **held for the DGS** whatever the ExternalCourses tab says
+  (`heldForDgs` in the transfer branch; the §5.2 row's `held` bucket). The §5.2 row's cap wording (`capFor`) names the two cases no document caps: no prior program, and an unfinished Ph.D. elsewhere (`unfinishedPhd`).
+- **Caps.** `CapId` adds `nondegree` (`NON_DEGREE_CREDITS_MAX = 12`, Academic Code §2.3 — a Graduate
+  School number in code, like §3.5's six). `allocate(classified, caps, { nonCseSpillsToTotal })` —
+  true for the Ph.D. only (MSCSE non-CSE overflow counts toward nothing, §3.2 September text).
+  `fourk` is drawn by every level-4/5 course whatever its type; a listed row below level 4 counts
+  nothing (`validate.ts` warns the DGS when such a row says it counts).
+- **Prior Notre Dame coursework** (`classifyPriorNdUndergraduate`): no five-year window (DGS);
+  a non-4+1's 6xxxx on the Ph.D. tab is provisional (`plainBachelorsApproval`, Academic Code §4.6
+  last paragraph), still refused on the MSCSE (§3.5); `sectionThreeFiveApproval` (MSCSE: unshared
+  junior-spring, or non-CSE); `ugToGrUnverified` (registeredLevel ≠ 'graduate' and not one of the
+  shared pair → provisional, Graduate School 4+1 guidance); `bsPhdDoubleCount` (a 'bs' course inside
+  the Ph.D.'s six is provisional until the DGS confirms). MSCSE courses on a Ph.D. record are
+  Ph.D. coursework — one graduate program (DGS 2026-10-03); another ND department's master's is
+  another program (`background.graduate === 'nd-other'` asks `finished`; priorMs completed/unfinished).
+  Non-degree: `student.ndNonDegree` (asked only when a pre-entry ND graduate course is detected,
+  `nonDegreeQuestion` in app.ts).
+- **Ctx** (`context.ts`): `qualifierEntry` (the transfer term for `nd-mscse-transfer`, else entry —
+  §4.4, §4.4.3 and the seminars use it; §4.3/§4.5 use `entry`), `clockShift` (= leaveSemesters +
+  accommodationSemesters), `covidCohort` (entry ≤ Spring 2020, from the entry term, no tick box),
+  `timeLimitDate(ctx, years)`, `clockShiftNote(ctx)`. `timeLimitRow` takes `completedOn` — a
+  completion after the limit → `needs_dgs_review` 'Eligibility at risk' on the row AND the limit
+  row (audit.ts `completeOrLate` lets that row count as complete for `allMet`).
+- **New rows / ids.** `phd.rcr` (CANDIDACY group; `milestones.rcrTrainingCompleted`) and
+  `phd.dissertation.submitted` (`milestones.dissertationSubmitted`; `phdTimeLimitRow`'s
+  `completedOn` = submission else defense). `milestones.researchQualifierFailed` (six-month
+  remediation, §4.4.3). `attestations.transferRecorded` (the §5.2 row is met only with it; else
+  'Graduate School approval pending'); `attestations.qualifierExtensionSemesters` (a number;
+  `qualifierExtensionGranted` is migrated to 1 by `state.ts`). `student.leaveSemesters`,
+  `accommodationSemesters`, `readmittedTerm` (five-year gap → `interrupted` courses + warning).
+  Optional display key `candidacy_form_deadlines` (DISPLAY_PARAMETER_KEYS; data/README.md).
+- **Entry term.** Fall and spring only (`entrySeasonOptions`); a saved or imported summer entry
+  reads as that fall (`state.ts`, `parse.ts` `fallFor`), with an early-start warning. The entry-term
+  handler re-infers the MSCSE/other-program facts only while `student.background` is undefined.
+- **Residency** (`residency.ts`): `fullTimeRecordsFrom(classified, student, floor)` is what both the
+  engine and the standing card's Full-time terms fieldset read (the fieldset lists every fall/spring
+  — and summers on the MSCSE — from entry to today). W/I count as registrations; only a SAME-term
+  duplicate is dropped; a summer with any registration is full-time when the adjacent fall/spring
+  was; a term in which every course was withdrawn (`withdrawnOnly`) is never automatic.
+- **4+1 thesis/project credit** (P1-units-4plus1-17, DGS 2026-10-03): no refusal of a pre-bachelor's CSE 68901/68902 on the MSCSE tab any more — it lands in the project pool through `classifyPriorNdUndergraduate` like any 6xxxx course (fixture `mscse-4plus1-thesis-course-counts`).
+- **Defense GPA gate** (P1-gpa-10): `defendedBelowGpaNote(ctx)` in `shared.ts` (next to `gpaText`; context.ts would make a cycle) — a dated `phd.dissertation.defense` or `ms.thesis.defense` with the GPA below `gpa_min` is needs_dgs_review with that sentence; `ms.project.report` is not gated.
+- **MSCSE `yes` = pre-approval** (P1-levels-grades-credits-8, DGS 2026-10-03, revising 2026-10-02 (2)): `msBelowSixtyApproval` is gone; `approvalStatus` alone decides on both tabs, so a `yes` row below the 60000 level counts outright inside the allowance and only `adgs_approval` / `dgs_approval` rows carry the tick.
+- **§3.6.1 guard** (P1-levels-grades-credits-4): the MSCSE refuses a CSE level-5 course in `classify()` and `priorNdShape` whatever the cell says; `validate.ts` warns about a cell that is not `no`.
+- **Ticked approvals** (P1-levels-grades-credits-30): `tickApproved` is set wherever the course's own tick settled a case-by-case verdict (ND branch, transfer branch, prior-ND rows); the line builder, `capRow` and `approvalsRow` print the “as you ticked” label from it.
+- **Credits as printed** (P1-units-4plus1-c7): `creditsAsPrinted` on a transfer whose effective credit system is unknown and `nd_credits` is unset; the line builder prints the note from the flag (the pending text no longer carries it).
+- **Transfer marks** (P1-transfer-eligibility-7): `CourseEntry.transcriptMark` keeps the mark as printed when the student chose the letter; the line says so. A 4+1's counted 6xxxx undergraduate course carries `approvedNote` naming the sheet's yes as the Code's advance approval (P1-transfer-eligibility-24).
+- **Unofficial transcripts** (P1-transfer-eligibility-16): `CourseEntry.fromUnofficialTranscript` is set by the external import when the PDF was marked unofficial; `unofficialTranscriptNote(courses)` in `email-html.ts` builds the one sentence the review request (`buildCombinedReviewRequest`'s `unofficial`), the advisor summary (`opts.unofficialNote`) and the Grad Admin request (computed from `student.courses`) carry.
+- **Status wording** (`status.ts`): `deadlineStatus` takes `extension.semesters` and `lateWording`
+  (the candidacy row's late pass cites Academic Code §6.2.8, not a DGS extension).
+- **Tests.** The scenario runner asserts `statusLabel` when a fixture pins it. 17 fixtures from the
+  review (`phd-rcr-*`, `phd-transfer-awaits-graduate-school`, `phd-leave-shifts-clocks`,
+  `phd-covid-cohort-extension`, `phd-qualifier-extension-semesters`, `phd-incomplete-*`,
+  `phd-withdrawn-semester`, `phd-transfer-pass-fail-grade`, `phd-transfer-taken-after-admission`,
+  `phd-nd-non-degree-before-admission`, `phd-nd-other-department-masters`,
+  `phd-qualifier-clock-from-transfer`, `phd-readmitted-after-five-years`,
+  `mscse-thesis-after-the-limit`, `phd-ms-along-the-way-gpa-gate`); `phd-nd-4xxxx-no-window`
+  replaced `…-outside-window`. The e2e §3-leak check strips “Academic Code §…” and “DGS Handbook §…”
+  citations before looking for the CSE handbook's §3.
+- **Re-checking the report.** `policy-sources/.review/render_report.py result.json out.html`
+  renders the artifact page from the result JSON; each finding carries `resolution`
+  (`{status: fixed | ruled | updated | contradicts | open | out-of-scope, note}` — `updated` = a related change made the row's description stale, `contradicts` = for the DGS) and the page opens on the unaddressed view. The reconciliation inputs/outputs of 2026-10-03 are in the scratchpad's `reconcile/` folder (prompt, slices, outputs).
+  Re-publish to the same artifact URL (STATE.md has it) rather than making a new one.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

@@ -82,11 +82,12 @@ describe('transcript parsing', () => {
 
   it('handles retakes, repeat markers, and withdrawn courses', () => {
     const attempts = parsed.courses.filter((c) => c.courseId === 'CSE 60111');
-    assert.equal(attempts.length, 1, 'the W attempt is skipped, the A- retake kept');
-    assert.equal(attempts[0]?.grade, 'A-');
+    // Since 2026-10-03 a W row is KEPT as grade 'W' (a registration for residency, Academic Code §3.3), beside the A- retake.
+    assert.equal(attempts.length, 2, 'the W attempt is kept as a W row, the A- retake kept');
+    assert.deepEqual(attempts.map((a) => a.grade).sort(), ['A-', 'W']);
     const arch = parsed.courses.find((c) => c.courseId === 'CSE 60321');
     assert.equal(arch?.grade, 'B-', "the trailing 'R' repeat marker is ignored");
-    assert.ok(parsed.warnings.some((w) => w.includes('CSE 60111 (W)')));
+    assert.ok(!parsed.warnings.some((w) => w.includes('CSE 60111 (W)')), 'a kept W row is no longer a skipped-row warning');
   });
 
   it('marks transfer-section courses with origin and institution', () => {
@@ -262,7 +263,7 @@ describe('combined transcript: entry term, levels and degrees (2026-09-05)', () 
   it('two admit terms: the earlier one unless a master’s was awarded between them (DGS 2026-09-26 — a transfer into the Ph.D. keeps the MSCSE clock)', () => {
     const transfer = parseTranscript(['University of Notre Dame', 'Admit Term: Fall 2022', 'Admit Term: Fall 2024']);
     assert.deepEqual(transfer.entryTerm?.term, { season: 'fall', year: 2022 });
-    assert.equal(transfer.entryTerm?.how, 'the earlier of the admit-term lines on your transcript');
+    assert.equal(transfer.entryTerm?.how, 'the earlier of the admit-term lines on your transcript — your matriculation at the Graduate School, which a transfer between Notre Dame programs does not reset');
     assert.deepEqual(transfer.entryTerm?.alternative?.term, { season: 'fall', year: 2024 });
     const finished = parseTranscript(['University of Notre Dame', 'Admit Term: Fall 2022', 'Degree Awarded: Master of Science in Computer Science and Engineering   May 19, 2024', 'Admit Term: Fall 2024']);
     assert.deepEqual(finished.entryTerm?.term, { season: 'fall', year: 2024 });

@@ -1,0 +1,142 @@
+{
+  "name": "mscse-thesis-defense-below-gpa-floor",
+  "description": "Policy review 2026-10-03 (P1-gpa-10): the MSCSE thesis defense under the same §2.2 bar — “may not defend their thesis or dissertation”. A thesis defense dated while the cumulative GPA is 2.9 goes to the ADGS (the MSCSE tab’s wording) instead of reading Met, inside the five-year limit; mscse-project-report-below-gpa-floor shows the project route is not gated.",
+  "today": "2026-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "thesis",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 2.9,
+    "attestations": {
+      "advisorApprovedPlan": true
+    },
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example",
+      "thesisApprovedByReaders": "2026-03-15",
+      "thesisDefensePassed": "2026-04-01"
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 68901",
+        "credits": 6,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "S",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "shared.gpa": {
+      "status": "unmet",
+      "detailIncludes": [
+        "2.90"
+      ]
+    },
+    "ms.thesis.defense": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Thesis defense passed 2026-04-01",
+        "You show a 2.90 GPA — §2.2 requires a cumulative GPA of 3.0 or higher to defend; confirm with the ADGS that the defense could be held."
+      ],
+      "detailExcludes": [
+        "forfeiture"
+      ]
+    }
+  }
+}

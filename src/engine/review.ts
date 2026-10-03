@@ -81,6 +81,10 @@ export function undergraduateGraduateCourseworkFlag(student: Student, rules: Rul
 export function undergraduateGraduateCourseworkFlagFor(classified: readonly ClassifiedCourse[], student: Student): string | undefined {
   const awarded = student.bachelorsAwarded;
   if (awarded === undefined) return undefined;
+  // §3.5's "one or two" is the Integrated program's rule; a plain bachelor's
+  // graduate coursework waits for the DGS course by course since 2026-10-03
+  // (Academic Code §4.6), so there is nothing to presume about it here.
+  if (student.integratedBsMs !== true) return undefined;
   const counted = classified.filter(
     (c) =>
       c.entry.origin === 'transfer' &&
@@ -109,8 +113,9 @@ export function undergraduateGraduateCourseworkFlagFor(classified: readonly Clas
 /** The courses the review request asks the DGS about, in the order the
  * request lists them: Notre Dame program coursework, Notre Dame coursework
  * from before entry, then other universities. */
-export function coursesNeedingDgsReview(student: Student, rules: Rules): PendingDgsReview[] {
-  const { classified } = classify(student, rules);
+export function coursesNeedingDgsReview(student: Student, rules: Rules, today?: string): PendingDgsReview[] {
+  // `today` (2026-10-03): a lapsed Incomplete is only known against a date.
+  const { classified } = classify(student, rules, today);
   return coursesNeedingDgsReviewFor(classified, student);
 }
 /** The same, over courses already classified — what audit() hands the
@@ -148,8 +153,16 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // student, on a course the sheet does not list, whose title names an
       // area. Otherwise the DGS was being asked to approve something inert.
       const couldStillEarnACoreArea = qualifierApplies && c.unknown === true && coreTitle(c);
-      if (!passesCreditFloor(c.entry.grade) && !couldStillEarnACoreArea) continue;
+      // A lapsed Incomplete has no passing grade yet — that is the question (2026-10-03).
+      if (!passesCreditFloor(c.entry.grade) && !couldStillEarnACoreArea && !c.incompleteLapsed) continue;
       if (c.unknown === true || c.approvalPending !== undefined) {
+        // The two record-level facts no sheet row can settle (policy review
+        // 2026-10-03): a lapsed Incomplete, and coursework from before a
+        // readmission after five years or more.
+        const heldAsks = [
+          ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
+          ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),
+        ];
         nd.push({
           course: c,
           kind: 'nd',
@@ -160,12 +173,14 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           // repeated there.
           ask:
             c.unknown === true
-              ? { needsRow: true, replyNeeded: false, decide: [COUNTS, ...(qualifierApplies ? [CORE, GROUP] : [])] }
-              : needsCourseApproval(student.program === 'mscse' ? c.rule?.countsTowardMscse : c.rule?.countsTowardPhd)
-                ? forMe('approve it for me — the course rules say case by case')
-                : /advisor \+ .* approval per (?:the course rules|§3\.2)/.test(c.approvalPending ?? '')
-                  ? forMe('approve it for me (the allowance for courses below the 60000 level)')
-                  : { needsRow: false, replyNeeded: false, decide: [`${COUNTS} — the row is blank`] },
+              ? { needsRow: true, replyNeeded: heldAsks.length > 0, decide: [COUNTS, ...(qualifierApplies ? [CORE, GROUP] : []), ...heldAsks] }
+              : heldAsks.length > 0
+                ? { needsRow: false, replyNeeded: true, decide: heldAsks }
+                : needsCourseApproval(student.program === 'mscse' ? c.rule?.countsTowardMscse : c.rule?.countsTowardPhd)
+                  ? forMe('approve it for me — the course rules say case by case')
+                  : /advisor \+ .* approval per (?:the course rules|§3\.2)/.test(c.approvalPending ?? '')
+                    ? forMe('approve it for me (the allowance for courses below the 60000 level)')
+                    : { needsRow: false, replyNeeded: false, decide: [`${COUNTS} — the row is blank`] },
           reason:
             c.unknown === true
               ? (() => {
@@ -189,6 +204,18 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
     // Prior Notre Dame coursework whose Courses-tab row names a core area is
     // decided for §4.4.1 already (2026-09-05) — no ruling to ask for.
     const coreDecidedByCoursesTab = fromNotreDame && c.rule?.coreArea !== undefined;
+    // What no sheet verdict can settle, so the DGS is asked for THIS student
+    // whatever the row says (policy review 2026-10-03): a pass/fail transfer
+    // grade, a course taken elsewhere after admission, a lapsed Incomplete,
+    // credit from before a readmission after five years or more.
+    const heldAsks = [
+      ...(c.passFailGrade ? ['decide whether this S (pass/fail) course transfers — it cannot show the B §5.2 requires'] : []),
+      ...(c.afterAdmission ? ['confirm the department and the Graduate School approved this course before I took it (taken after admission, DGS Handbook §3.14)'] : []),
+      ...(c.noPriorProgram ? ['decide whether this course transfers, and how much — I had no earlier graduate program, and the Academic Code states no transfer allowance for that case (§4.6)'] : []),
+      ...(c.cseUnknown ? ['say whether this counts as a CSE course for §4.2’s nine-credit non-CSE allowance (the is_cse cell on its row)'] : []),
+      ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
+      ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),
+    ];
 
     if (c.external !== undefined) {
       // Ruled — or merely listed. Pending while transferability is undecided
@@ -206,7 +233,8 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // (2026-09-11 ruling; red-team F5, 2026-09-12).
       const transferUndecided = (c.transferable === undefined || (caseByCase && !transferAttested)) && !bachelors && c.ineligibleReason === undefined;
       const coreUndecided = c.external.satisfiesCoreArea === undefined && !coreDecidedByCoursesTab && coreTitle(c);
-      if (!transferUndecided && !coreUndecided) continue;
+      const held = heldAsks.length > 0 && !bachelors && c.ineligibleReason === undefined;
+      if (!transferUndecided && !coreUndecided && !held) continue;
       // Why the course is decided case by case — its relevance to the
       // student's research — is settled between the advisor and the DGS (DGS
       // 2026-09-08), so the student is told only that the decision is open.
@@ -216,14 +244,17 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           ? `${transferReason}, and no core area recorded although the title suggests a §4.4.1 core area`
           : transferUndecided
             ? transferReason
-            : 'reviewed by the DGS, but no core area recorded — the title suggests a §4.4.1 core area';
+            : coreUndecided
+              ? 'reviewed by the DGS, but no core area recorded — the title suggests a §4.4.1 core area'
+              : (c.approvalPending ?? 'needs the DGS’s decision');
       // A case-by-case course needs the DGS's answer for this student; a
       // blank cell needs the row completed, nothing more.
       const ask: ReviewAsk = {
         needsRow: false,
-        replyNeeded: transferUndecided && caseByCase,
+        replyNeeded: (transferUndecided && caseByCase) || held,
         decide: [
           ...(transferUndecided ? [caseByCase ? 'approve the transfer for me — the course rules say case by case (§5.2)' : `${TRANSFERABLE} — the row is blank`] : []),
+          ...(held ? heldAsks : []),
           ...(coreUndecided ? [CORE] : []),
         ],
       };
@@ -265,7 +296,20 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // transfer part stays a per-student recommendation.
       // The row is the DGS's to enter; the §5.2 recommendation (or the
       // allowance approval) is an answer for this student.
-      const recommendation = bachelors
+      // The per-student questions the policy review added (2026-10-03) —
+      // non-degree coursework, a 4+1 extra's UG→GR move, the BS + Ph.D.
+      // double count, a plain bachelor's 60000-level course, §3.5's window —
+      // all carry their own approvalPending sentence, which is the ask.
+      const policyAsks = [
+        ...(c.nonDegree ? ['rule on my non-degree coursework — at most 12 credits may count (Academic Code §2.3)'] : []),
+        ...(c.ugToGrUnverified ? ['confirm this course was moved from UG to GR and transferred before my bachelor’s was conferred (Graduate School 4+1 guidance)'] : []),
+        ...(c.caps.includes('sharedbs') && student.program === 'phd' && c.entry.countedToward === 'bs' ? ['confirm it may count toward both my bachelor’s degree and the Ph.D. (the Graduate School’s 2026-09-22 answer)'] : []),
+        ...(bachelors && !c.ugToGrUnverified && !c.caps.includes('sharedbs') && c.approvalPending !== undefined && /advance approval|§3\.5/.test(c.approvalPending) ? ['approve it for me (Academic Code §4.6 / §3.5)'] : []),
+        ...heldAsks,
+      ];
+      const recommendation = policyAsks.length > 0
+        ? policyAsks
+        : bachelors
         ? needsApprovalOnTop
           ? ['approve it for me (the allowance for courses below the 60000 level)']
           : []
@@ -285,12 +329,14 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           decide: [...(c.rule === undefined ? [COUNTS, ...(qualifierApplies ? [CORE, GROUP] : [])] : []), ...recommendation],
         },
         reason:
-          `taken at Notre Dame before entering the program (${bachelors ? 'undergraduate' : c.ndMastersCredit ? 'MSCSE' : 'graduate'}) — ` +
+          `taken at Notre Dame before entering the program (${bachelors ? 'undergraduate' : c.ndMastersCredit ? 'MSCSE' : c.nonDegree ? 'non-degree' : 'graduate'}) — ` +
           (c.rule === undefined
             ? qualifierApplies
-              ? 'not in the course rules yet; does it cover a §4.4.1 core area?'
-              : 'not in the course rules yet'
-            : bachelors && needsApprovalOnTop
+              ? `not in the course rules yet; does it cover a §4.4.1 core area?${policyAsks.length > 0 ? ` ${c.approvalPending}` : ''}`
+              : `not in the course rules yet${policyAsks.length > 0 ? `; ${c.approvalPending}` : ''}`
+            : policyAsks.length > 0
+              ? (c.approvalPending ?? 'needs the DGS’s decision')
+              : bachelors && needsApprovalOnTop
               ? `may count toward the ${student.program === 'mscse' ? 'MSCSE (§3.2)' : 'Ph.D. (§4.2)'} inside the allowance for courses below the 60000 level — ${c.approvalPending}`
               : c.ndMastersCredit
                 ? // Not transfer credit (Graduate School 2026-09-22): what is
@@ -305,14 +351,16 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         kind: 'external',
         ask: {
           needsRow: true,
-          replyNeeded: false,
-          decide: [...(!bachelors && c.ineligibleReason === undefined ? [TRANSFERABLE] : []), ...(keyword ? [CORE] : [])],
+          replyNeeded: heldAsks.length > 0 && !bachelors,
+          decide: [...(!bachelors && c.ineligibleReason === undefined ? [TRANSFERABLE] : []), ...(!bachelors ? heldAsks : []), ...(keyword ? [CORE] : [])],
         },
         reason: bachelors
           ? 'not in the course rules yet; the title suggests a §4.4.1 core area'
           : c.ineligibleReason !== undefined
             ? 'no transfer credit, but the title suggests a §4.4.1 core area — not in the course rules yet'
-            : 'not in the course rules yet — the DGS enters it',
+            : heldAsks.length > 0
+              ? `not in the course rules yet — the DGS enters it; ${(c.approvalPending ?? '').replace(/^waiting for the DGS — /, '')}`
+              : 'not in the course rules yet — the DGS enters it',
         unlisted: true,
       });
     }

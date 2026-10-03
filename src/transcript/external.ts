@@ -2149,6 +2149,8 @@ export function buildCombinedReviewRequest(opts: {
    * `compact` for the subject, `earlier` for the standing lines. Optional
    * for older callers. */
   history?: { compact: string; earlier: string };
+  /** The unofficial-transcript warning (src/ui/email-html.ts; DGS 2026-10-03). */
+  unofficial?: string;
 }): { text: string; html: string; subject: string } {
   // The student is writing to the DGS: "your advisor" is "my advisor".
   const voiced = (reason: string): string => reason.replace(/\byour advisor/g, 'my advisor').replace(/\bYour advisor/g, 'My advisor');
@@ -2212,6 +2214,7 @@ export function buildCombinedReviewRequest(opts: {
       // The "whichever apply" hedge instructs the student and lives in the
       // dialog step; the reader sees the attachments (trim review 2026-09-18, P-14).
       'My transcripts are attached.',
+      ...(opts.unofficial ? [opts.unofficial] : []),
       ...(opts.notes ?? []).map((n) => `Please also check: ${n}`),
     ],
     actions: [

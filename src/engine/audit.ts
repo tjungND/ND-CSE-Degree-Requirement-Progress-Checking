@@ -3,12 +3,12 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { allocate, classify, decidedCaseByCase, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
-import { normalizeEntryTerm, termLabel, compareTerm } from './term.ts';
+import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq } from './term.ts';
 import type { AuditReport, Grade, RequirementResult, Student } from './types.ts';
-import type { Ctx } from './requirements/context.ts';
+import { isCovidCohort, type Ctx } from './requirements/context.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
@@ -58,9 +58,11 @@ export const REQUIREMENT_IDS = [
   'phd.qualifier.core.architecture',
   'phd.qualifier.categories',
   'phd.qualifier.research',
+  'phd.rcr',
   'phd.candidacy',
   'phd.dissertation.approval',
   'phd.dissertation.defense',
+  'phd.dissertation.submitted',
   'phd.msAlongTheWay',
 ] as const;
 
@@ -93,9 +95,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const { classified, warnings } = classify(student, rules, today);
 
   const num = (key: string) => params.number(key);
+  // Academic Code §2.3's limit on coursework earned in non-degree status — a
+  // Graduate School number kept in code (policy review 2026-10-03).
+  const nonDegreeCap: CapSpec = { id: 'nondegree', limit: NON_DEGREE_CREDITS_MAX, label: `${NON_DEGREE_CREDITS_MAX}-credit allowance for non-degree coursework`, section: 'Academic Code §2.3' };
   const capSpecs: CapSpec[] =
     student.program === 'mscse'
       ? [
+          nonDegreeCap,
           { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: capLabel(num('ms_4xxxx_credits_max'), 'cap on courses below the 60000 level'), section: '§3.2' },
           { id: 'noncse', limit: num('ms_noncse_credits_max'), label: capLabel(num('ms_noncse_credits_max'), 'non-CSE cap'), section: '§3.2' },
           // §3.5's limit on coursework shared with the bachelor's (2026-09-10).
@@ -113,6 +119,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           },
         ]
       : [
+          nonDegreeCap,
           { id: 'fourk', limit: num('phd_4xxxx_cse_credits_max'), label: capLabel(num('phd_4xxxx_cse_credits_max'), 'cap on courses below the 60000 level'), section: '§4.2' },
           { id: 'noncse', limit: num('phd_noncse_6xxxx_credits_max'), label: capLabel(num('phd_noncse_6xxxx_credits_max'), 'non-CSE cap'), section: '§4.2' },
           // The Graduate School's six credits that may count toward two degrees
@@ -130,13 +137,25 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           },
         ];
 
-  const alloc = allocate(classified, capSpecs);
+  // Non-CSE credit the nine-credit allowance refuses: into the total for the
+  // Ph.D. (F1, 2026-09-12), nowhere for the MSCSE (DGS 2026-10-03 — §3.2's
+  // September text counts the nine "toward both" the 30 and the 24).
+  const alloc = allocate(classified, capSpecs, { nonCseSpillsToTotal: student.program === 'phd' });
 
+  // The department's qualifier clocks run from the Ph.D.'s own start: for a
+  // transfer from the unfinished MSCSE, the term of the transfer (DGS
+  // 2026-10-03), while §4.3 and §4.5 keep the MSCSE's entry (DGS 2026-09-26).
+  const transferred = student.background?.graduate === 'nd-mscse-transfer' ? student.background.transferredTerm : undefined;
+  const qualifierEntry = transferred !== undefined && compareTerm(transferred, entry) > 0 ? normalizeEntryTerm(transferred).term : entry;
+  const clockShift = Math.max(0, Math.floor(student.leaveSemesters ?? 0)) + Math.max(0, Math.floor(student.accommodationSemesters ?? 0));
   const ctx: Ctx = {
     student,
     rules,
     today,
     entry,
+    qualifierEntry,
+    clockShift,
+    covidCohort: isCovidCohort(student, entry),
     alloc,
     classified,
     params,
@@ -149,8 +168,53 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   }
 
   if (normalized) {
+    // Admissions are in fall and spring only (DGS 2026-10-03); a student who
+    // starts in the summer is an early-start student whose official
+    // matriculation is the fall, so every clock — the five-year window
+    // included — counts from it.
     warnings.push(
-      `You entered in a summer session — semester counting starts with ${termLabel(entry)} (decision Q17c).`,
+      `You started in a summer session — Notre Dame admits in fall and spring, so an early-start summer counts from your official matriculation in ${termLabel(entry)}: every deadline and the §5.2 window are counted from it.`,
+    );
+  }
+  // A leave of absence lasts at most two consecutive semesters (Academic Code
+  // §5.1); a student who did not return must be readmitted, and the program
+  // may reject earlier credits (DGS Handbook §3.3). More than two is not
+  // necessarily wrong (two separate leaves), so the record is sent to the DGS
+  // rather than refused.
+  if ((student.leaveSemesters ?? 0) > 2) {
+    warnings.push(
+      `${student.leaveSemesters} semesters on leave: the Graduate School grants a leave of absence for at most two consecutive semesters (Academic Code §5.1) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3). Confirm your standing with the DGS.`,
+    );
+  }
+  if (student.readmittedTerm !== undefined) {
+    const interrupted = classified.some((c) => c.interrupted);
+    warnings.push(
+      interrupted
+        ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (§5.5), so those courses wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation.`
+        : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation (Academic Code §6.2.6); the program may have reviewed your earlier credits at readmission (DGS Handbook §3.3) — confirm with the DGS that they all stand.`,
+    );
+  }
+  // A 4+1's graduate credits beyond the shared pair must be moved from UG to
+  // GR registration and transferred BEFORE the bachelor's degree is conferred
+  // (Graduate School 4+1 guidance): a current senior is told while there is
+  // still time (policy review 2026-10-03).
+  if (student.bachelorsAwarded !== undefined && compareTerm(student.bachelorsAwarded, termOfDate(today)) >= 0 && classified.some((c) => c.ugToGrUnverified)) {
+    warnings.push(
+      `Before your bachelor’s degree is conferred (${termLabel(student.bachelorsAwarded)}): the graduate courses you are counting beyond the shared pair must be moved from undergraduate (UG) to graduate (GR) registration with the Graduate School’s transfer-of-credit form, approved by your advising dean and the Graduate School — after conferral they cannot be (Graduate School 4+1 guidance). Ask the Grad Admin for the form.`,
+    );
+  }
+  // CSE §5.1: "The department and the Graduate School will review a student
+  // who receives more than one grade of I in a semester or a grade of I in two
+  // or more consecutive semesters, to determine their eligibility for
+  // continued support and enrollment."
+  const incompleteTerms = classified.filter((c) => c.entry.grade === 'I' && c.entry.origin === 'nd' && !c.superseded).map((c) => c.entry.term);
+  const perTerm = new Map<number, number>();
+  for (const t of incompleteTerms) perTerm.set(semesterSeq(t), (perTerm.get(semesterSeq(t)) ?? 0) + 1);
+  const twoInOne = [...perTerm.values()].some((n) => n > 1);
+  const consecutive = [...perTerm.keys()].some((seq) => perTerm.has(seq + 1));
+  if (twoInOne || consecutive) {
+    warnings.push(
+      `${twoInOne ? 'More than one Incomplete in one semester' : 'Incompletes in two consecutive semesters'}: the department and the Graduate School review such a record for continued support and enrollment (§5.1) — talk to the DGS.`,
     );
   }
   // The bachelor's award term (2026-09-06) must precede the entry term — a
@@ -189,8 +253,12 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // grow by one when an allowance was first drawn on.
   const isScored = (r: RequirementResult) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable';
   const otherRows = rows.filter(isScored);
+  // A requirement completed AFTER the limit reads "Eligibility at risk" rather
+  // than met (policy review 2026-10-03) — for the time-limit row it is still
+  // complete, so that row can say the same thing instead of "Overdue".
+  const completeOrLate = (r: RequirementResult) => r.status === 'met' || (r.status === 'needs_dgs_review' && r.statusLabel === 'Eligibility at risk');
   const others = {
-    allMet: otherRows.every((r) => r.status === 'met'),
+    allMet: otherRows.every(completeOrLate),
     anyCannotEvaluate: otherRows.some((r) => r.status === 'cannot_evaluate'),
   };
   rows.push(student.program === 'mscse' ? msTimeLimitRow(ctx, others) : phdTimeLimitRow(ctx, others));

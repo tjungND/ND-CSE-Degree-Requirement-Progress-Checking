@@ -289,7 +289,9 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // state is exposed, and its name says what it does — the tooltip alone
   // reached neither keyboard nor touch users.
   const quoteId = `rule-quote-${idSlug(r.id)}`;
-  const quote = el('div', { class: 'rule-quote hidden', id: quoteId }, `Handbook ${r.citation.section}: “${r.citation.quote}”`);
+  // "Handbook §…" for the CSE handbook's sections; a row whose source is the
+  // Graduate School (phd.cap.sharedbs, since 2026-10-03) names it as is.
+  const quote = el('div', { class: 'rule-quote hidden', id: quoteId }, `${r.citation.section.startsWith('§') ? `Handbook ${r.citation.section}` : r.citation.section}: “${r.citation.quote}”`);
   const cite = el(
     'button',
     {

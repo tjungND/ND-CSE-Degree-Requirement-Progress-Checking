@@ -1,6 +1,6 @@
 {
-  "name": "mscse-4xxxx-yes-needs-approval",
-  "description": "§3.2 (September 2026 edition, DGS 2026-10-02): credits below the 60000 level count toward the MSCSE only \"subject to approval by the advisor and the ADGS\". CSE 40113's row says yes for the MSCSE, so under the July 2026 text it counted outright; now it waits for the approval (recorded by the course's tick) and the allowance row is Conditionally met. CSE 40567 (adgs/dgs_approval in the sheet) behaves as before.",
+  "name": "mscse-4xxxx-yes-counts-outright",
+  "description": "DGS 2026-10-03 (P1-levels-grades-credits-8: “They are the same. A yes is a pre-approval for MSCSE too. adgs_approval means the course may count after ADGS approval, for which a per-course tick box will be needed. Even with yes, 4xxxx/5xxxx courses are still subject to the allowance limit.”) — reversing the 2026-10-02 reading of §3.2’s “subject to approval by the advisor and the ADGS” as a per-student tick on every credit below the 60000 level. CSE 40113’s row says yes for the MSCSE, so it counts outright inside the six-credit allowance, with no tick; the advisor’s approval is the plan-of-study box. (As mscse-4xxxx-yes-needs-approval this fixture asserted the tick from 2026-10-02 to 2026-10-03.)",
   "today": "2027-03-01",
   "rules": {
     "base": "default"
@@ -49,23 +49,23 @@
   },
   "expect": {
     "ms.cap.fourk": {
-      "status": "needs_dgs_review",
+      "status": "met",
       "detailIncludes": [
-        "needs approval: CSE 40113"
+        "3 of the 6 credits below the 60000 level used"
       ]
     },
     "ms.credits.regular": {
       "status": "unmet",
       "detailIncludes": [
-        "3 of 24 credits complete",
-        "3 pending review/approval"
+        "6 of 24 credits complete"
       ]
     }
   },
   "expectCourseLines": {
     "CSE 40113": [
-      "waiting for the ADGS",
-      "needs advisor + ADGS approval per §3.2 (a course below the 60000 level)"
+      "counts toward regular courses (3 cr)",
+      "uses the 40000-level allowance (6 credits, §3.2)"
     ]
-  }
+  },
+  "expectReviewEmpty": true
 }

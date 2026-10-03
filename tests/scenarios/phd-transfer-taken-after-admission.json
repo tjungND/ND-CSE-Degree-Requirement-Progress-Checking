@@ -1,0 +1,83 @@
+{
+  "name": "phd-transfer-taken-after-admission",
+  "description": "Policy review 2026-10-03 (DGS Handbook §3.14): a course taken at another university AFTER admission transfers only if the department and the Graduate School approved it beforehand, so a transfer row dated after the entry term is held for the DGS — counted provisionally, with the review request asking the DGS to confirm the prior approval — even when the course rules pre-approve the course itself.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "PURDUE UNIVERSITY",
+          "course_id": "CS 50300",
+          "course_title": "Operating Systems",
+          "satisfies_core_area": "os",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "completed",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CS 50300",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2020
+    }
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Waiting for the DGS",
+      "detailIncludes": [
+        "Waiting for the DGS: CS 50300 — taken after admission"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24",
+        "3 pending review/approval"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CS 50300": [
+      "waiting for the DGS",
+      "taken Spring 2027, after you entered",
+      "DGS Handbook §3.14"
+    ]
+  }
+}

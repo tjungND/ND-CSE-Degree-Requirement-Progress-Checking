@@ -1,6 +1,6 @@
 {
   "name": "phd-noncse-transfer-cap",
-  "description": "§4.2 caps credits ‘taken from a department other than CSE’ at nine wherever they were taken, and another university’s transcript spells the department every way there is (DGS 2026-09-09: ‘CompSci, CompS, CS, CE, ECE, CSYE etc. all can mean CSE in fact’). The sheet decides, and since 2026-09-18 the fixture carries the live sheet’s own answer: `cse_subject_codes` now lists ECE outright, so CS and ECE are both CSE by code here and the row’s `is_cse` cell agrees with the list rather than overriding it (the override itself is unit-tested in tests/engine-units.test.ts, ‘a per-course is_cse ruling wins over the list, both ways’, against its own code list — do not read this scenario as that test). INFO, MENG and TELE are outside the list, so they share the nine credits and the last of them is over the cap.",
+  "description": "§4.2 caps credits ‘taken from a department other than CSE’ at nine wherever they were taken, and another university’s transcript spells the department every way there is (DGS 2026-09-09: ‘CompSci, CompS, CS, CE, ECE, CSYE etc. all can mean CSE in fact’). The sheet decides, and since 2026-09-18 the fixture carries the live sheet’s own answer: `cse_subject_codes` now lists ECE outright, so CS and ECE are both CSE by code here and the row’s `is_cse` cell agrees with the list rather than overriding it (the override itself is unit-tested in tests/engine-units.test.ts, ‘a per-course is_cse ruling wins over the list, both ways’, against its own code list — do not read this scenario as that test). INFO, MENG and TELE are outside the list, so they share the nine credits and the last of them is over the cap. (2026-10-03: the §5.2 row is final only once the Graduate School has approved the transfer and the Grad Admin has recorded it — attested here; phd-transfer-awaits-graduate-school covers the wait.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default",
@@ -140,7 +140,9 @@
       }
     ],
     "milestones": {},
-    "attestations": {}
+    "attestations": {
+      "transferRecorded": true
+    }
   },
   "expect": {
     "phd.cap.noncse": {

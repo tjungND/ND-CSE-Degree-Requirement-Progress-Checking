@@ -211,7 +211,10 @@ export async function driveApp(s, baseUrl) {
   // else citing §3 on this page is a leak.
   {
     const tabs = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('.tabs button')].map(b => b.textContent.trim()))`));
-    const lines = (await s.evalJs(`document.querySelector('#app').innerText`)).split('\n').map((l) => l.trim()).filter((l) => /§3(\.\d)*\b/.test(l) && !tabs.includes(l));
+    // A citation of the Graduate School's Academic Code or the DGS Handbook is
+    // not the CSE handbook's §3 (policy review 2026-10-03): strip those first.
+    const cse = (l) => l.replace(/(?:Academic Code|DGS Handbook) §\d+(?:\.\d+)*/g, '');
+    const lines = (await s.evalJs(`document.querySelector('#app').innerText`)).split('\n').map((l) => l.trim()).filter((l) => /§3(\.\d)*\b/.test(cse(l)) && !tabs.includes(l));
     const allowed = (l) => /§3\.5/.test(l) || /along the way/i.test(l) || /Sections 3 and 4|Section 3 of the/.test(l) === false && /MSCSE/.test(l) && /§3\.2/.test(l);
     const leaks = lines.filter((l) => !allowed(l));
     if (leaks.length) throw new Error('the Ph.D. tab cites §3 where it need not:\n  ' + leaks.slice(0, 6).join('\n  '));

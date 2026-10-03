@@ -1,0 +1,89 @@
+{
+  "name": "phd-transfer-no-prior-program",
+  "description": "DGS 2026-10-03 (P1-transfer-eligibility-11: “route such courses to DGS review”): a student with NO earlier graduate program who enters a graduate course from another university. The Academic Code’s §4.6 states a transfer allowance only for an unfinished program (6) and a completed one (9/24), none for courses taken outside any program — so even a course the DGS pre-approved in the course rules is held for the DGS: counted provisionally, the §5.2 row “Waiting for the DGS” with the six of the unfinished case as its meter (decision 2026-08-31), and the review request asking the DGS to decide. §4.4.1 still sees the confirmed core area.",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "PURDUE UNIVERSITY",
+          "course_id": "CS 50300",
+          "course_title": "Operating Systems",
+          "satisfies_core_area": "os",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CS 50300",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Waiting for the DGS",
+      "detailIncludes": [
+        "Waiting for the DGS: CS 50300 — taken outside any degree program",
+        "0 of the 6 credits you may transfer are counted",
+        "no document states this allowance"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24",
+        "3 pending review/approval"
+      ]
+    },
+    "phd.qualifier.core.os": {
+      "status": "met"
+    }
+  },
+  "expectCourseLines": {
+    "CS 50300": [
+      "waiting for the DGS",
+      "taken outside any degree program",
+      "Academic Code states a transfer allowance only for an unfinished or a completed program (§4.6)",
+      "satisfies the Operating Systems core-knowledge requirement (§4.4.1) — confirmed by the DGS"
+    ]
+  }
+}

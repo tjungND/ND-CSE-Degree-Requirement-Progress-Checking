@@ -1,6 +1,6 @@
 {
   "name": "phd-residency-ignores-rejected-rows",
-  "description": "Residency counts registered credits from rows the audit accepts as registrations (DGS 2026-09-11). A withdrawn ‘W’ row and an exact same-term duplicate both read “not counted” on their lines and used to add their credits to the semester anyway, making two six-credit semesters full-time. The incomplete id “CSE 6xxxx” is a number the student has not finished typing: warned about, never counted; “cse60641” is CSE 60641.",
+  "description": "Residency counts registered credits from rows the audit accepts as registrations (DGS 2026-09-11), refined by the policy review of 2026-10-03: a withdrawn ‘W’ row IS a registration (Academic Code §3.3 counts what the student “registers for”), so Spring 2027’s two A courses plus the W reach nine credits and the semester is full-time; an exact same-term duplicate and an incomplete course number (“CSE 6xxxx”, a number the student has not finished typing) still add nothing, so Fall 2026 stays at six credits. Before 2026-10-03 the W row was dropped and both semesters stayed below the floor.",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -104,7 +104,7 @@
     "phd.residency": {
       "status": "in_progress",
       "detailIncludes": [
-        "0 of 4 semesters"
+        "1 of 4 semesters"
       ]
     }
   },

@@ -1,0 +1,70 @@
+{
+  "name": "phd-incomplete-open",
+  "description": "Policy review 2026-10-03 (Academic Code §4.4): an Incomplete still inside its make-up window counts like an in-progress course, and its line says by about when the work is due (30 days after grades were due, plus 14 for the instructor to report).",
+  "today": "2026-12-20",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "I",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    }
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 24",
+        "3 in progress"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "Incomplete (I): complete the work by about"
+    ]
+  }
+}

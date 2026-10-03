@@ -1,0 +1,201 @@
+{
+  "name": "phd-rcr-and-submission-done",
+  "description": "Policy review 2026-10-03 (Academic Code §6.2.4 and §6.2.12): two Graduate School steps the department’s handbook leaves implicit — the Responsible Conduct of Research (RCR) training that admission to candidacy requires, and the official submission of the dissertation to the Graduate School, which is what completes the degree inside the §4.3 eight-year limit (the defense alone does not). Both dated here, inside the limit: the RCR row and the submission row read met, and the time-limit row counts the degree complete.",
+  "today": "2032-01-15",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "milestones": {
+      "advisorIdentified": "2026-10-01",
+      "advisorName": "Prof. Example",
+      "researchQualifierPassed": "2027-11-01",
+      "rcrTrainingCompleted": "2027-09-15",
+      "candidacyPassed": "2029-04-01",
+      "dissertationApprovedForDefense": "2031-10-01",
+      "defensePassed": "2031-11-10",
+      "dissertationSubmitted": "2031-12-01"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2028
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2028
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2029
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2029
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2030
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63802",
+        "credits": 1,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "S",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "S",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "S",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "spring",
+          "year": 2028
+        },
+        "grade": "S",
+        "origin": "nd"
+      }
+    ],
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    }
+  },
+  "expect": {
+    "phd.rcr": {
+      "status": "met",
+      "detailIncludes": [
+        "2027-09-15"
+      ]
+    },
+    "phd.dissertation.submitted": {
+      "status": "met",
+      "detailIncludes": [
+        "Submitted 2031-12-01"
+      ]
+    },
+    "phd.dissertation.defense": {
+      "status": "met"
+    },
+    "phd.candidacy": {
+      "status": "met"
+    },
+    "phd.timeLimit": {
+      "status": "met",
+      "detailIncludes": [
+        "All requirements are complete within the 8-year limit"
+      ]
+    }
+  }
+}

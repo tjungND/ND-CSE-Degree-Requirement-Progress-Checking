@@ -24,6 +24,8 @@ describe('scenarios', () => {
         const row = byId.get(id);
         assert.ok(row, `requirement ${id} missing from the ${sc.student.program} report`);
         assert.equal(row.status, exp.status, `status of ${id} (detail: ${row.detail})`);
+        // `statusLabel` (2026-10-03): the chip's override wording, when the fixture pins it.
+        if (exp.statusLabel !== undefined) assert.equal(row.statusLabel, exp.statusLabel, `statusLabel of ${id}`);
         for (const sub of exp.detailIncludes ?? []) {
           assert.ok(
             row.detail.includes(sub),
@@ -47,7 +49,7 @@ describe('scenarios', () => {
 
       // `expectReviewEmpty`: the DGS review request has nothing to ask (2026-09-11).
       if (sc.expectReviewEmpty === true) {
-        const pending = coursesNeedingDgsReview(sc.student, rules);
+        const pending = coursesNeedingDgsReview(sc.student, rules, sc.today);
         assert.deepEqual(pending.map((p) => `${p.course.entry.courseId} — ${p.reason}`), [], 'the review request must be empty');
       }
       for (const id of sc.expectAbsent ?? []) {

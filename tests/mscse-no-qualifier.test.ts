@@ -45,7 +45,9 @@ const courses: CourseEntry[] = [
 const student = (program: Student['program']): Student =>
   phdStudent({ program, bachelorsAwarded: { season: 'spring', year: 2026 }, priorMs: 'completed', gpa: 3.7, courses });
 
-const offending = (strings: string[]): string[] => strings.filter((t) => FORBIDDEN.test(t));
+// A Graduate School citation (“Academic Code §4.1”, “DGS Handbook §4…”) is not the CSE handbook's §4 (2026-10-03).
+const cseOnly = (t: string): string => t.replace(/(?:Academic Code|DGS Handbook) §\d+(?:\.\d+)*/g, '');
+const offending = (strings: string[]): string[] => strings.filter((t) => FORBIDDEN.test(cseOnly(t)));
 
 // DGS 2026-09-11: "the ADGS will make decisions in the approval chain of MSCSE
 // students … ADGS decides them for MSCSE students, and DGS decides them for

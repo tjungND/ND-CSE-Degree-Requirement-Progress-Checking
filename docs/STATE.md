@@ -1,6 +1,35 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-10-02 (this session, branch `claude/setup-handoff-review-c38220`).
+Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
+
+2026-10-03 (later, defense GPA gate): a Ph.D. or MSCSE thesis defense dated while the cumulative GPA is below 3.0 goes to the DGS instead of reading Met, mirroring the candidacy row (P1-gpa-10, DGS); the project route is not gated.
+
+2026-10-03 (later, yes = pre-approval): on the MSCSE tab a `yes` row below the 60000 level counts outright with no tick, as on the Ph.D. tab (DGS, P1-levels-grades-credits-8, revising 2026-10-02 (2)); `adgs_approval` keeps the tick.
+
+2026-10-03 (later, §3.6.1 guard): a CSE 5xxxx course is refused on the MSCSE tab whatever the sheet cell says, and the diagnostics warn about such a cell (P1-levels-grades-credits-4, DGS); -25, -28, -29, -3 fine.
+
+2026-10-03 (later, ticks): a course whose tick settled a case-by-case approval keeps saying so on its line, on the allowance row and on the Approvals row (P1-levels-grades-credits-30, DGS); flag `tickApproved`.
+
+2026-10-03 (later, credits as printed): the “credits shown as your transcript prints them” note appears on every course from another university whose credit system is unknown (no row, a blank or rejected `credit_system`), unless `nd_credits` fixes the number — not only when the row is missing (DGS, P1-units-4plus1-c7); flag `creditsAsPrinted`, test `tests/credit-system-note.test.ts`.
+
+2026-10-03 (later, 68901/68902): a 4+1’s pre-bachelor’s CSE 68901/68902 counts toward the MSCSE project/thesis six (DGS, P1-units-4plus1-17, reversing 2026-09-12); fixture renamed `mscse-4plus1-thesis-course-counts`.
+
+2026-10-03 (later, reconciliation): every unaddressed finding of the policy review re-read against the day’s decisions (six agents; no contradictions; 174 rows marked fixed / updated / ruled by a related change) and the code leftovers it found fixed — two handbook quotes brought to the September text, the below-40000 refusal citing Academic Code §4.1, the rule-quote prefix, the standing card’s 4+1 sentence, three live-sheet notes.
+
+2026-10-03 (later, two more): the 40000-level sharing with the bachelor’s degree is cited to the Graduate School’s written answer to the DGS (email, 2026-09-10) on the allowance row and the course lines (P1-units-4plus1-12, DGS); P1-transfer-eligibility-c8 consistent.
+
+2026-10-03 (later, six more): P1-transfer-eligibility-24 (the sheet’s yes declared the Code’s advance approval, said on the line), -3 (the window parameter cites §5.2), -7 (a student-chosen letter for an unmapped mark is said on the line), -c7 (HANDBOOK-REVISIONS §4), -5 and -9 consistent.
+
+2026-10-03 (later, emails): the three generated emails warn which imported external transcripts were unofficial copies (P1-transfer-eligibility-16, DGS); c6, 1 and 10 confirmed as fine. The report's revision note is a daily list behind a selector.
+
+2026-10-03 (later again): a transferred course the sheet cannot place inside or outside CSE (no `is_cse` cell, no `cse_subject_codes` list) is held for the DGS instead of counting as CSE by default (P1-transfer-eligibility-23); P1-transfer-eligibility-21 confirmed as fine. The report folds the Fix-first list and prints ids as plain text.
+
+2026-10-03 (later still): the §5.2 row names the gap for an unfinished Ph.D. elsewhere (the Code states the six for an unfinished master’s only); the flat 60 is recorded as the department’s own rule in HANDBOOK-REVISIONS (P1-transfer-eligibility-c4 and -20, DGS: as suggested).
+
+2026-10-03 (later): a transfer course on the record of a student with no earlier graduate program is held for the DGS (P1-transfer-eligibility-11, DGS: “route such courses to DGS review”); fixture `phd-transfer-no-prior-program`.
+
+2026-10-03: the policy-compliance review's fixes (DGS: the 8 fix-first and the 53 conflict findings, 20 of them with his own ruling — `docs/DECISIONS.md` 2026-10-03 rows). The engine now knows grades I and W; the Graduate School's RCR training (`phd.rcr`) and the dissertation's official submission (`phd.dissertation.submitted`) are rows; the §5.2 row is met only once the Graduate School approved and the Grad Admin recorded the transfer; leaves, accommodations, a readmission term, the COVID cohort (from the entry term) and a qualifier extension in semesters move the clocks; MSCSE → Ph.D. transfers run the qualifier clocks from the transfer; the MSCSE and Ph.D. are one graduate program (another ND department's master's is not); summer entry is gone (early start → that fall); a non-4+1's undergraduate 6xxxx course goes to the DGS on the Ph.D. tab; the UG→GR move and the bachelor's + Ph.D. six are confirmed by the DGS; the Full-time terms fieldset lists every semester. 17 new scenario fixtures. The report (artifact “Policy Compliance Review”, https://claude.ai/artifact/1mPvEVFWcigpbwgyy9EQbJ) carries a resolution per finding and a view of what is still open; its data is under `policy-sources/.review/` (git-excluded). Uncommitted until the DGS has seen the screenshots.
+
 
 2026-10-02 (later): a course below §4.4.2's B floor says so on its Qualifier line (DGS: the specialization outcome was missing from the line).
 

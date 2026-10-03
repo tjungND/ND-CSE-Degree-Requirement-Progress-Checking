@@ -78,17 +78,39 @@ export function choiceRow(opts: { name: string; value: string; head: string; sub
 
 /** A complete answer for this program, or undefined while a question that
  * applies is still open. */
+/** Which bachelor's answers ask the Integrated 4+1 follow-up: a Notre Dame
+ * CSE bachelor's, for BOTH programs since 2026-10-03 (a Ph.D. student whose
+ * master's year became the Ph.D.'s first could not say they were in the 4+1,
+ * and lost every senior-year graduate course — policy review). A Ph.D.
+ * student who holds the MSCSE through the 4+1 (`nd-4plus1`) has answered it
+ * already. */
+function asksIntegratedFor(b: Partial<Background>, program: Program): boolean {
+  if (b.bachelors !== 'nd-cse') return false;
+  return program === 'mscse' || b.graduate !== 'nd-4plus1';
+}
+/** Which graduate answers ask "Did you finish it?": a degree elsewhere, and a
+ * degree at Notre Dame in another department (2026-10-03) — the Academic
+ * Code's §4.6 caps run on a FINISHED master's or Ph.D. (9 / 24) against an
+ * unfinished one (6), and another Notre Dame department is "another graduate
+ * program at Notre Dame" (DGS: "they need to be properly treated as another
+ * graduate program"). */
+function asksFinishedFor(b: Partial<Background>): boolean {
+  return b.graduate === 'elsewhere' || b.graduate === 'nd-other';
+}
+
 export function completeBackground(b: Partial<Background> | undefined, program: Program): Background | undefined {
   if (!b || b.bachelors === undefined || b.graduate === undefined) return undefined;
   if (program === 'mscse' && (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1' || b.graduate === 'nd-mscse-transfer')) return undefined;
-  const asksIntegrated = program === 'mscse' && b.bachelors === 'nd-cse';
+  const asksIntegrated = asksIntegratedFor(b, program);
   if (asksIntegrated && b.ndIntegrated === undefined) return undefined;
   if (b.graduate === 'elsewhere' && (b.samePlace === undefined || b.finished === undefined)) return undefined;
+  if (b.graduate === 'nd-other' && b.finished === undefined) return undefined;
   return {
     bachelors: b.bachelors,
     ...(asksIntegrated ? { ndIntegrated: b.ndIntegrated === true } : {}),
     graduate: b.graduate,
     ...(b.graduate === 'elsewhere' ? { samePlace: b.samePlace === true, finished: b.finished === true } : {}),
+    ...(b.graduate === 'nd-other' ? { finished: b.finished === true } : {}),
     // The transfer term is asked but not required: the answer is complete
     // without it, and the emails then say "term not entered".
     ...(b.graduate === 'nd-mscse-transfer' && b.transferredTerm ? { transferredTerm: b.transferredTerm } : {}),
@@ -124,9 +146,9 @@ export function describeBackground(b: Background): string {
         : b.graduate === 'nd-4plus1'
           ? 'the MSCSE at Notre Dame (4+1)'
           : b.graduate === 'nd-mscse-transfer'
-          ? `none — transferred into the Ph.D. from the Notre Dame MSCSE${b.transferredTerm ? ` in ${termLabel(b.transferredTerm)}` : ''} (deadlines count from the MSCSE start)`
+          ? `none — transferred into the Ph.D. from the Notre Dame MSCSE${b.transferredTerm ? ` in ${termLabel(b.transferredTerm)}` : ''} (the §4.3 and §4.5 clocks count from the MSCSE start, the §4.4 qualifier clocks from the transfer)`
           : b.graduate === 'nd-other'
-            ? 'Notre Dame, another department'
+            ? `Notre Dame, another department (${b.finished ? 'finished' : 'not finished'})`
             : `${b.finished ? 'finished' : 'not finished'}, at ${b.samePlace ? 'the same university as the bachelor’s (a 4+1 or 5+1)' : 'another university'}`;
   return `Bachelor’s: ${bs} · Graduate degree before this program: ${grad}`;
 }
@@ -136,11 +158,17 @@ export function describeBackground(b: Background): string {
  * infer these once an answer exists. */
 export function applyBackground(s: Student, b: Background): void {
   s.background = b;
-  s.priorMs = b.graduate === 'elsewhere' ? (b.finished ? 'completed' : 'unfinished') : 'none';
+  // A graduate degree elsewhere, or at Notre Dame in another department
+  // (2026-10-03), is a prior graduate program under §5.2: 9 / 24 credits after
+  // a finished degree, 6 after an unfinished one. The CSE MSCSE is not —
+  // the Graduate School treats it as the same program as the Ph.D.
+  s.priorMs = b.graduate === 'elsewhere' || b.graduate === 'nd-other' ? (b.finished ? 'completed' : 'unfinished') : 'none';
   s.priorMsInferred = undefined;
   const holdsNdMscse = s.program === 'phd' && (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1');
   s.ndMasters = holdsNdMscse ? { ...(s.ndMasters?.term ? { term: s.ndMasters.term } : {}) } : undefined;
-  s.integratedBsMs = s.program === 'phd' ? b.graduate === 'nd-4plus1' : b.bachelors === 'nd-cse' && b.ndIntegrated === true;
+  // Integrated 4+1: the MSCSE through the 4+1, or the answer to the follow-up
+  // (asked of every student with a Notre Dame CSE bachelor's since 2026-10-03).
+  s.integratedBsMs = b.graduate === 'nd-4plus1' || (b.bachelors === 'nd-cse' && b.ndIntegrated === true);
   s.integratedBsMsInferred = undefined;
 }
 
@@ -193,13 +221,16 @@ export function backgroundQuestions(
   };
   const renderFollowUps = (): void => {
     integratedBox.replaceChildren(
-      el('legend', { class: 'followup-title' }, 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)'),
+      el('legend', { class: 'followup-title' }, program === 'mscse' ? 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)' : 'Were you in Notre Dame’s Integrated B.S. + M.S. (4+1) program as an undergraduate? (§3.5)'),
       yesNo('ndintegrated', state.ndIntegrated, (v) => {
         state.ndIntegrated = v;
         onChange(state);
       }),
     );
-    integratedBox.hidden = !(program === 'mscse' && state.bachelors === 'nd-cse');
+    // Asked of every student with a Notre Dame CSE bachelor's (2026-10-03);
+    // for the Ph.D. it sits under the graduate-degree question, which may
+    // already have answered it (the MSCSE through the 4+1).
+    integratedBox.hidden = !asksIntegratedFor(state, program) || (program === 'phd' && sequential && state.graduate === undefined);
     elsewhereBox.replaceChildren(
       el('legend', { class: 'followup-title' }, 'Was it at the same university as your bachelor’s (a 4+1 or 5+1 program)?'),
       yesNo('sameplace', state.samePlace, (v) => {
@@ -214,21 +245,25 @@ export function backgroundQuestions(
       }),
     );
     finishedBox.replaceChildren(
-      el('legend', { class: 'followup-title' }, 'Did you finish that degree? (§5.2 allows 24 transfer credits after a finished master’s, 6 otherwise)'),
+      el('legend', { class: 'followup-title' }, `Did you finish that degree? (§5.2 allows ${program === 'mscse' ? '9' : '24'} transfer credits after a finished master’s or Ph.D., 6 otherwise)`),
       yesNo('finished', state.finished, (v) => {
         state.finished = v;
         onChange(state);
       }),
     );
     elsewhereBox.hidden = state.graduate !== 'elsewhere';
-    finishedBox.hidden = state.graduate !== 'elsewhere' || (sequential && state.samePlace === undefined);
+    // Asked for a degree elsewhere and for one at Notre Dame in another
+    // department alike (2026-10-03: the other department is "another graduate
+    // program at Notre Dame", with the Code's 9 / 24 after a finished degree).
+    finishedBox.hidden = !asksFinishedFor(state) || (sequential && state.graduate === 'elsewhere' && state.samePlace === undefined);
     transferBox.replaceChildren(
-      el('legend', { class: 'followup-title' }, 'When did you transfer into the Ph.D.? (Your entry term stays the MSCSE’s — every deadline counts from it; the transfer term is named on the emails you send.)'),
+      el('legend', { class: 'followup-title' }, 'When did you transfer into the Ph.D.? (Your entry term stays the MSCSE’s — the §4.3 eight years and §4.5’s eighth semester count from it; the §4.4 qualifier clocks and the first-year seminars count from this transfer term.)'),
       termControls(),
     );
     transferBox.hidden = state.graduate !== 'nd-mscse-transfer';
-    // The graduate-degree family waits for the bachelor's answer (and the
-    // 4+1 follow-up, when it is asked).
+    // The graduate-degree family waits for the bachelor's answer (and, for
+    // the MSCSE, the 4+1 follow-up); for the Ph.D. the 4+1 follow-up comes
+    // after the graduate question, since that question may answer it.
     graduateBox.hidden = sequential && (state.bachelors === undefined || (program === 'mscse' && state.bachelors === 'nd-cse' && state.ndIntegrated === undefined));
   };
   // A numbered step (CSS counts the visible ones): the question is the heading.
@@ -242,11 +277,11 @@ export function backgroundQuestions(
       state.graduate,
       (v) => {
         state.graduate = v as GraduateBefore;
-        if (v !== 'elsewhere') {
-          state.samePlace = undefined;
-          state.finished = undefined;
-        }
+        if (v !== 'elsewhere') state.samePlace = undefined;
+        if (v !== 'elsewhere' && v !== 'nd-other') state.finished = undefined;
         if (v !== 'nd-mscse-transfer') state.transferredTerm = undefined;
+        // The MSCSE through the 4+1 answers the Ph.D.'s 4+1 follow-up.
+        if (program === 'phd' && v === 'nd-4plus1') state.ndIntegrated = undefined;
         renderFollowUps();
         onChange(state);
       },
@@ -254,6 +289,9 @@ export function backgroundQuestions(
     ),
   );
   renderFollowUps();
+  // The MSCSE asks the 4+1 question right under the bachelor's answer (it
+  // decides which transcript rows show); the Ph.D. asks it after the graduate
+  // question, which may answer it (2026-10-03).
   return el(
     'div',
     { class: 'background-questions' },
@@ -268,8 +306,7 @@ export function backgroundQuestions(
         onChange(state);
       }),
     ),
-    integratedBox,
-    graduateBox,
+    ...(program === 'mscse' ? [integratedBox, graduateBox] : [graduateBox, integratedBox]),
     elsewhereBox,
     finishedBox,
     transferBox,

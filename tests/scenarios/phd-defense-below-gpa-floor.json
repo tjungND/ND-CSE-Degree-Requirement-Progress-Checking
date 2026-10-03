@@ -1,0 +1,198 @@
+{
+  "name": "phd-defense-below-gpa-floor",
+  "description": "Policy review 2026-10-03 (P1-gpa-10, DGS: apply the suggested fix): §2.2 — “A student whose cumulative GPA is below 3.0 may not defend their thesis or dissertation.” Until now a defense DATE entered while the GPA was below 3.0 read Met with no note (only the unmet row carried the “may not defend” gate, fixture gpa-floor). Mirroring the candidacy row, the dated defense now goes to the DGS and says why, inside the eight-year limit — so the pill is the ordinary “Conditionally met”, not the late-defense “Eligibility at risk”.",
+  "today": "2031-12-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 2.8,
+    "attestations": {},
+    "milestones": {
+      "advisorIdentified": "2026-10-01",
+      "advisorName": "Prof. Example",
+      "researchQualifierPassed": "2027-11-01",
+      "rcrTrainingCompleted": "2027-09-15",
+      "candidacyPassed": "2029-04-01",
+      "dissertationApprovedForDefense": "2031-10-01",
+      "defensePassed": "2031-11-10"
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2028
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2028
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2029
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2029
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2030
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63802",
+        "credits": 1,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "S",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "S",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "S",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 9,
+        "term": {
+          "season": "spring",
+          "year": 2028
+        },
+        "grade": "S",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "shared.gpa": {
+      "status": "unmet",
+      "detailIncludes": [
+        "2.80"
+      ]
+    },
+    "phd.dissertation.defense": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Defense passed 2031-11-10.",
+        "You show a 2.80 GPA — §2.2 requires a cumulative GPA of 3.0 or higher to defend; confirm with the DGS that the defense could be held."
+      ],
+      "detailExcludes": [
+        "forfeiture"
+      ]
+    },
+    "phd.candidacy": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "a 2.80 GPA"
+      ]
+    }
+  }
+}

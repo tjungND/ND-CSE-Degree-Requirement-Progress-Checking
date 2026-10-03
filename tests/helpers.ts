@@ -18,7 +18,7 @@ export interface ScenarioFile {
   today: string;
   rules: { base: 'default'; patch?: RulesPatch };
   student: Student;
-  expect: Record<string, { status: string; detailIncludes?: string[]; detailExcludes?: string[] }>;
+  expect: Record<string, { status: string; statusLabel?: string; detailIncludes?: string[]; detailExcludes?: string[] }>;
   /** The §3.5 / §3.6 track notes the report must carry, by section (2026-09-10). */
   expectTracks?: string[];
   /** Requirement ids that must NOT be in the report at all — a row the student

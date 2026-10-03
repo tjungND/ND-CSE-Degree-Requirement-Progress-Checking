@@ -446,6 +446,21 @@ describe('is a transferred course a CSE course?', () => {
 // live row itself — dgs_approval for the Ph.D., no for the MSCSE — so the
 // two sides below are the sheet's own cells, not an invented pair.
 describe('50000-level bridge courses', () => {
+  // §3.6.1's own guard (DGS 2026-10-03, P1-levels-grades-credits-4): on the
+  // MSCSE tab a CSE 5xxxx course is refused whatever the sheet's cell says, so
+  // a future sheet edit cannot contradict the handbook. The Ph.D. side still
+  // follows the cell.
+  it('the MSCSE refuses a 50000-level CSE course even when the sheet says yes (§3.6.1)', () => {
+    const rules = buildRules({ courses: [{ course_id: 'CSE 50502', set: { counts_toward_mscse: 'yes' } }] });
+    const ms: Student = { ...phdStudent({ bachelorsAwarded: { season: 'spring', year: 2026 }, gpa: 3.5, courses: [{ courseId: 'CSE 50502', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] }), program: 'mscse' };
+    const line = audit(ms, rules, '2027-06-01').courseLines.find((l) => l.courseId === 'CSE 50502')!;
+    assert.equal(line.mark, 'excluded');
+    assert.match(line.text, /^not counted — a 50000-level CSE course is preparatory and does not count toward the MSCSE, whatever the course rules say \(§3\.6\.1\)/);
+    assert.equal(audit(ms, rules, '2027-06-01').requirements.find((r) => r.id === 'ms.credits.regular')?.detail.startsWith('0 of 24'), true);
+    // The Ph.D. is untouched: dgs_approval on the live row, cleared by the tick.
+    const phd = phdStudent({ bachelorsAwarded: { season: 'spring', year: 2026 }, gpa: 3.5, courses: [{ courseId: 'CSE 50502', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd', dgsApproved: true }] });
+    assert.match(audit(phd, rules, '2027-06-01').courseLines.find((l) => l.courseId === 'CSE 50502')!.text, /^counts toward regular courses \(3 cr\)/);
+  });
   const bridgeStudent = (attestations: Student['attestations'] = {}): Student => phdStudent({
     bachelorsAwarded: { season: 'spring', year: 2026 },
     gpa: 3.5,
@@ -559,9 +574,13 @@ describe('undergraduate Notre Dame coursework', () => {
     courses,
     ...over,
   });
+  // Registered GR: the transcript's evidence that a 4+1's extra graduate course
+  // was moved from UG to GR before the bachelor's was conferred (Graduate
+  // School 4+1 guidance; policy review 2026-10-03) — the clean path these
+  // tests exercise. A UG-registered row waits for the DGS (its own test below).
   const ug = (courseId: string, countedToward?: CourseEntry['countedToward'], institution = 'University of Notre Dame'): CourseEntry => ({
     courseId, credits: 3, term: { season: 'fall', year: 2024 }, grade: 'A', origin: 'transfer',
-    institution, degreeLevel: 'bachelors', registeredLevel: 'undergraduate', countedToward,
+    institution, degreeLevel: 'bachelors', registeredLevel: 'graduate', countedToward,
   });
   const held = { ndMasters: { term: { season: 'spring' as const, year: 2026 } }, priorMs: 'completed' as const };
   const report = (s: Student) => audit(s, rules, '2027-06-01');
@@ -576,14 +595,28 @@ describe('undergraduate Notre Dame coursework', () => {
     assert.match(detail(s, 'phd.transfer'), /No transfer courses entered/, 'this is not transfer credit');
   });
 
-  it('a regular bachelor’s (not a 4+1) earns no credit for the same course, which still serves §4.4.1 and §4.4.2 (DGS 2026-09-12, F7)', () => {
-    const s = student([ug('CSE 60641'), ug('CSE 60111')], { integratedBsMs: undefined });
-    assert.match(lineFor(s, 'CSE 60641'), /^not counted — a 60000-level course taken as an undergraduate earns Ph\.D\. credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program; if you were, say so in the earlier-degrees questions \(Your standing → Change\); it still satisfies the Operating Systems core-knowledge requirement/);
-    assert.match(detail(s, 'phd.credits.regular'), /0 of 24/);
+  // The UG→GR move (Graduate School 4+1 guidance: the extras "must be … moved
+  // from undergraduate level (UG) to graduate level (GR)" and transferred
+  // "before the students' bachelor's degree is awarded"): a row the transcript
+  // still registers UG is counted provisionally and sent to the DGS (2026-10-03).
+  it('a 60000-level course the transcript still registers UG waits for the DGS — the UG→GR move is not shown', () => {
+    const s = student([{ ...ug('CSE 60641', 'neither'), registeredLevel: 'undergraduate' }]);
+    assert.match(lineFor(s, 'CSE 60641'), /^waiting for the DGS — would count toward regular courses \(3 cr\) once approved; .*moved from undergraduate \(UG\) to graduate \(GR\) registration/);
+    assert.match(detail(s, 'phd.credits.regular'), /0 of 24 credits complete\. 3 pending review\/approval/);
+    assert.ok(coursesNeedingDgsReview(s, rules).some((p) => p.course.entry.courseId === 'CSE 60641' && p.ask.decide.some((d) => /UG to GR/.test(d))), 'in the review request');
+  });
+
+  it('a regular bachelor’s (not a 4+1) is routed to the DGS for the same course on the Ph.D. tab — the Academic Code (§4.6) allows it with the program’s advance approval (2026-10-03); it still serves §4.4.1 and §4.4.2', () => {
+    const s = student([ug('CSE 60641', 'neither'), ug('CSE 60111', 'neither')], { integratedBsMs: undefined });
+    assert.match(lineFor(s, 'CSE 60641'), /^waiting for the DGS — would count toward regular courses \(3 cr\) once approved; not used by an earlier degree; taken as an undergraduate outside the Integrated 4\+1 program — the Academic Code \(§4\.6\) lets it meet Ph\.D\. requirements only with the program’s advance approval; the DGS decides\. If you were in the 4\+1, say so in the earlier-degrees questions \(Your standing → Change\)/);
+    assert.match(detail(s, 'phd.credits.regular'), /0 of 24 credits complete\. 6 pending review\/approval/);
     assert.match(detail(s, 'phd.qualifier.core.os'), /Satisfied by CSE 60641 \(Notre Dame, before entering the program\)/);
     assert.match(detail(s, 'phd.qualifier.categories'), /2 qualifying courses covering 2 distinct groups/);
-    const answeredNo = student([ug('CSE 60641')], { integratedBsMs: false });
+    const answeredNo = student([ug('CSE 60641', 'neither')], { integratedBsMs: false });
     assert.doesNotMatch(lineFor(answeredNo, 'CSE 60641'), /say so in the earlier-degrees questions/, 'an answered "No" is not nagged');
+    // The MSCSE keeps the refusal: §3.5 grants the benefit to integrated students only.
+    const ms = student([ug('CSE 60641')], { program: 'mscse', integratedBsMs: undefined, bachelorsAwarded: { season: 'spring', year: 2025 } });
+    assert.match(lineFor(ms, 'CSE 60641'), /^not counted — a 60000-level course taken as an undergraduate earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program \(§3\.5\)/);
   });
 
   it('below the 60000 level it draws on §4.2’s six credits; below 40000 it counts nothing', () => {
@@ -601,14 +634,19 @@ describe('undergraduate Notre Dame coursework', () => {
     const asked = student([ug('CSE 60641')]);
     assert.match(lineFor(asked, 'CSE 60641'), /^not counted yet — say, next to the course, whether your bachelor’s degree used this course\. At most 6 credits may count toward two degrees \(Graduate School\)/);
     assert.equal(report(asked).courseLines.find((l) => l.courseId === 'CSE 60641')?.mark, 'pending');
-    assert.match(lineFor(student([ug('CSE 60641', 'neither')]), 'CSE 60641'), /^counts toward regular courses \(3 cr\); not used by an earlier degree — counts in full/);
+    assert.match(lineFor(student([ug('CSE 60641', 'neither')]), 'CSE 60641'), /^counts toward regular courses \(3 cr\); counted on the course rules’ yes, which is the program’s advance approval for graduate coursework taken as an undergraduate \(Academic Code §4\.6\); not used by an earlier degree — counts in full/);
     const three = student([ug('CSE 60641', 'bs'), ug('CSE 60111', 'bs'), ug('CSE 60321', 'bs')]);
     // Same term, same grade: the allocator fills in course-id order, so the
-    // highest-numbered of the three is the one over the allowance.
-    assert.match(lineFor(three, 'CSE 60111'), /^counts toward regular courses \(3 cr\); counts toward both your bachelor’s degree and the Ph\.D\. — inside the 6 credits that may count toward two degrees \(Graduate School\)/);
+    // highest-numbered of the three is the one over the allowance. A course
+    // the bachelor's used counts PROVISIONALLY since 2026-10-03: the Academic
+    // Code's §4.6 writes the six-credit exception for an integrated
+    // bachelor's/master's program, and the BS + Ph.D. six rests on the
+    // Graduate School's 2026-09-22 answer — so the DGS confirms each.
+    assert.match(lineFor(three, 'CSE 60111'), /^waiting for the DGS — would count toward regular courses \(3 cr\) once approved; counts toward both your bachelor’s degree and the Ph\.D\. — inside the 6 credits that may count toward two degrees \(Graduate School\); the Graduate School’s 2026-09-22 answer to the department allows the sharing, but the Academic Code does not yet state it/);
     assert.match(lineFor(three, 'CSE 60641'), /^not counted — over the 6-credit allowance for coursework counted toward two degrees \(Graduate School\)/);
     assert.match(detail(three, 'phd.cap.sharedbs'), /6 of the 6 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
-    assert.match(detail(three, 'phd.credits.regular'), /6 of 24/);
+    assert.equal(report(three).requirements.find((r) => r.id === 'phd.cap.sharedbs')?.status, 'needs_dgs_review');
+    assert.match(detail(three, 'phd.credits.regular'), /0 of 24 credits complete\. 6 pending review\/approval/);
     // No course draws on the allowance → no row.
     assert.equal(report(student([ug('CSE 60641', 'neither')])).requirements.find((r) => r.id === 'phd.cap.sharedbs'), undefined);
   });
@@ -616,12 +654,13 @@ describe('undergraduate Notre Dame coursework', () => {
   it('a 4+1 whose bachelor’s-and-MSCSE courses used the six credits has none left for a bachelor’s-only course', () => {
     const s = student([ug('CSE 60641', 'both'), ug('CSE 60111', 'both'), ug('CSE 60321', 'bs'), ug('CSE 60770', 'mscse')], held);
     assert.match(lineFor(s, 'CSE 60321'), /^not counted — over the allowance for coursework counted toward two degrees — 6 of its 6 credits already used by the courses counted toward your bachelor’s degree and your MSCSE \(Graduate School\)/);
-    assert.match(lineFor(s, 'CSE 60770'), /counted toward your MSCSE — counts in full toward the Ph\.D\./);
+    // MSCSE coursework is Ph.D. coursework (DGS 2026-10-03: one graduate program).
+    assert.match(lineFor(s, 'CSE 60770'), /counted toward your MSCSE — counts in full as Ph\.D\. coursework: the Graduate School treats the CSE MSCSE and Ph\.D\. as one graduate program/);
     assert.match(detail(s, 'phd.cap.sharedbs'), /0 of the 0 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
     assert.match(detail(s, 'phd.cap.sharedbs'), /All 6 shared credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE/);
-    // One 'both' course (3 credits) leaves three: the 'bs' course fits.
+    // One 'both' course (3 credits) leaves three: the 'bs' course fits — provisionally (2026-10-03).
     const half = student([ug('CSE 60641', 'both'), ug('CSE 60321', 'bs')], held);
-    assert.match(lineFor(half, 'CSE 60321'), /^counts toward regular courses \(3 cr\); counts toward both your bachelor’s degree and the Ph\.D\./);
+    assert.match(lineFor(half, 'CSE 60321'), /^waiting for the DGS — would count toward regular courses \(3 cr\) once approved; counts toward both your bachelor’s degree and the Ph\.D\./);
     assert.match(detail(half, 'phd.cap.sharedbs'), /3 of the 3 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
   });
 
@@ -636,10 +675,12 @@ describe('undergraduate Notre Dame coursework', () => {
     const both = student([ug('CSE 60641', 'both')], held);
     assert.match(lineFor(both, 'CSE 60641'), /already counted toward your bachelor’s degree AND your master’s/);
     assert.match(detail(both, 'phd.credits.regular'), /0 of 24/);
-    for (const answer of ['bs', 'mscse', 'neither'] as const) {
+    for (const answer of ['mscse', 'neither'] as const) {
       const s = student([ug('CSE 60641', answer)], held);
       assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses/, `answer ${answer} should count`);
     }
+    // 'bs' counts too, provisionally — the BS + Ph.D. double count waits for the DGS (2026-10-03).
+    assert.match(lineFor(student([ug('CSE 60641', 'bs')], held), 'CSE 60641'), /^waiting for the DGS — would count toward regular courses/);
   });
 
   it('§4.4.1 and §4.4.2 come with the credit', () => {
@@ -673,7 +714,7 @@ describe('undergraduate Notre Dame coursework', () => {
       assert.match(lineFor(s, 'CSE 40113'), /will apply to both your bachelor’s degree and your MSCSE/);
       assert.match(lineFor(s, 'CSE 40243'), /will apply to both your bachelor’s degree and your MSCSE/); // A- beats B
       assert.match(lineFor(s, 'CSE 40567'), /^not counted — over the 6-credit cap on courses below the 60000 level \(§3\.2\)/); // the B: third 40xxx, over §3.2's six
-      assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses \(3 cr\); will apply to your MSCSE only$/);
+      assert.match(lineFor(s, 'CSE 60641'), /^counts toward regular courses \(3 cr\); counted on the course rules’ yes, which is the program’s advance approval for graduate coursework taken as an undergraduate \(Academic Code §4\.6\); will apply to your MSCSE only$/);
       assert.match(detail(s, 'ms.cap.sharedbs'), /6 of the 6 credits shared with your bachelor’s degree used/);
     });
     it('with no 40000-level course the shared credits come from 60000-level coursework, earliest first', () => {
@@ -688,7 +729,7 @@ describe('undergraduate Notre Dame coursework', () => {
     it('a 40000-level course the sheet gates on approval is provisional until its own box is ticked (per course since 2026-09-27)', () => {
       const s = ms([ug('CSE 40437')]);
       assert.match(lineFor(s, 'CSE 40437'), /^waiting for the ADGS — would count toward regular courses \(3 cr\) once approved; uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/); // the ADGS decides for the MSCSE (2026-09-11)
-      assert.match(lineFor(ms([{ ...ug('CSE 40437'), dgsApproved: true as const }]), 'CSE 40437'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); will apply to both/);
+      assert.match(lineFor(ms([{ ...ug('CSE 40437'), dgsApproved: true as const }]), 'CSE 40437'), /^counts toward regular courses \(3 cr\); uses the 40000-level allowance \(6 credits, §3\.2\); approved by the ADGS for you, as you ticked on the course \(the course rules say case by case; the ADGS office holds the record\); will apply to both/);
     });
   });
 

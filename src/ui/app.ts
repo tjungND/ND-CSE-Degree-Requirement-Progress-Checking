@@ -6,6 +6,8 @@ import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { classify, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { fullTimeRecordsFrom } from '../engine/requirements/residency.ts';
+import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
 import type { Rules } from '../data/types.ts';
 import { coursesNeedingDgsReviewFor, reviewRequestSummary, undergraduateGraduateCourseworkFlagFor, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
@@ -45,7 +47,7 @@ import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
 import { createToasts } from './toasts.ts';
 import { gradAdminRequest } from './grad-admin-request.ts';
 import { programHistory } from './program-history.ts';
-import { FILL_IN_STEP } from './email-html.ts';
+import { FILL_IN_STEP, unofficialTranscriptNote } from './email-html.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, reqAnchorId, scoreLine } from './report.ts';
 import { courseworkSentence, nearestDeadline, nextSteps } from './next-steps.ts';
@@ -74,6 +76,17 @@ const PRIOR_LABELS: Record<Student['priorMs'], string> = {
 /** The three semesters as <option>s for a season dropdown, `selected` marked. */
 function seasonOptions(selected?: Season): HTMLOptionElement[] {
   return SEASONS.map((se) => option(se, se[0]!.toUpperCase() + se.slice(1), selected === se));
+}
+/** The ENTRY term's seasons: fall and spring only (DGS 2026-10-03 — "Admissions
+ * happen in Spring and Fall only"); a summer start is an early start whose
+ * official matriculation is that fall, and state.ts reads a stored summer as
+ * the fall. */
+function entrySeasonOptions(selected?: Season): HTMLOptionElement[] {
+  return (['fall', 'spring'] as const).map((se) => option(se, se[0]!.toUpperCase() + se.slice(1), (selected === 'summer' ? 'fall' : selected) === se));
+}
+/** How a grade reads in the dropdown and the table (I and W since 2026-10-03). */
+function gradeLabel(g: string): string {
+  return g === 'IP' ? 'In progress' : g === 'I' ? 'I (incomplete)' : g === 'W' ? 'W (withdrawn)' : g;
 }
 
 /** A §4.4.2 group's short name (short-names.ts) from its code, or the code
@@ -526,7 +539,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             'div',
             { class: 'inputs', id: 'inputs' },
             transcriptsCard(),
-            standingCard(),
+            standingCard(classified),
             coursesCard(report.courseLines),
             askDgsCard(classified),
             milestonesCard(classified),
@@ -766,9 +779,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : ` Your earlier graduate program was not finished, so up to ${unfinished} credits from it may transfer (§5.2); it would be ${finished} after a finished degree.`;
     }
     if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') {
-      return ` Your Notre Dame MSCSE coursework is not transfer credit — each course’s own line says how it counts${b.graduate === 'nd-4plus1' ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
+      // DGS 2026-10-03: "Within CSE, the graduate school treats MS and PhD the
+      // same graduate program" — so the MSCSE's coursework is Ph.D. coursework.
+      return ` Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${b.graduate === 'nd-4plus1' ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
     }
-    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree, so up to ${unfinished} credits from another university may transfer (§5.2); your deadlines count from the semester you started the MSCSE.`;
+    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree, so up to ${unfinished} credits from another university may transfer (§5.2); your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and §4.5’s eighth semester count from the semester you started the MSCSE; the §4.4 qualifier clocks from your transfer.`;
+    if (b.graduate === 'nd-other') {
+      // Another Notre Dame department is "another graduate program at Notre
+      // Dame" (Academic Code §4.6; DGS 2026-10-03) — the §5.2 caps apply.
+      return b.finished
+        ? ` You finished a graduate degree at Notre Dame in another department — another graduate program under §5.2, so up to ${finished} credits from it may transfer; it would be ${unfinished} if that program were unfinished.`
+        : ` Your earlier Notre Dame program in another department was not finished — another graduate program under §5.2, so up to ${unfinished} credits from it may transfer; it would be ${finished} after a finished degree.`;
+    }
     return ` No graduate degree before this program, so up to ${unfinished} credits from another university may transfer (§5.2).`;
   }
   /** The whose-semester sentence, only for a student who came through the
@@ -776,9 +798,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * Ph.D. record before. */
   function mscseClockSentence(): string {
     const cameThroughMscse = student.program === 'phd' && (student.background?.graduate === 'nd-mscse-transfer' || student.ndMasters !== undefined);
-    return cameThroughMscse ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE. Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).' : '';
+    return cameThroughMscse ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE (§4.3, §4.5 count from it; the §4.4 qualifier clocks from your transfer). Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).' : '';
   }
-  function standingCard(): HTMLElement {
+  function standingCard(classified: readonly ClassifiedCourse[]): HTMLElement {
     // The entry term drives the §4.3 residency count and every deadline. When
     // the student sets it, the "inferred/assumed" flag clears and every Notre
     // Dame course is re-filed as program or prior coursework (2026-09-05).
@@ -794,8 +816,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Whether their Notre Dame master's was earned BEFORE this program or
         // along the way turns on the same term, so it is re-read first and the
         // cap follows it (2026-09-10 — a 4+1 correcting the term got 6).
-        deriveNdMasters(s);
-        derivePriorMs(s);
+        // …unless the earlier-degrees questions are answered: the answer
+        // settles both facts, and re-deriving them from ANY Notre Dame
+        // conferral let a master's from another department flip a Ph.D. record
+        // into the own-MSCSE path (policy review 2026-10-03; the import path
+        // has had this guard since 2026-09-22).
+        if (s.background === undefined) {
+          deriveNdMasters(s);
+          derivePriorMs(s);
+        }
         if (moved.toPrior + moved.toProgram > 0) {
           window.setTimeout(
             () =>
@@ -814,7 +843,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'data-key': 'standing.season',
       onchange: (e) => setEntry((s) => void (s.entryTerm.season = (e.target as HTMLSelectElement).value as Season)),
     });
-    seasonSel.append(...seasonOptions(student.entryTerm.season));
+    seasonSel.append(...entrySeasonOptions(student.entryTerm.season));
     // The entry term is the hinge of every deadline in §4 (and §3.3's five
     // years), so a year outside 2000–2040 is refused rather than ignored: the
     // old handler fell back to the stored year and said nothing (R1).
@@ -839,7 +868,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           student.program === 'phd'
             // The four deadlines are each a report row with a Deadline chip;
             // the §s stay (trim review 2026-09-18, P-11).
-            ? `The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term.${mscseClockSentence()}`
+            ? `The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term — your matriculation at the Graduate School, which a transfer from another Notre Dame program does not reset.${mscseClockSentence()}`
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
@@ -988,9 +1017,121 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       card.append(fieldset('Project or thesis option (§3.4)', optGroup));
     }
 
-    const ftTerms = fullTimeTerms();
+    const ftTerms = fullTimeTerms(classified);
     if (ftTerms) card.append(ftTerms);
+    card.append(clockFields());
+    const nonDegree = nonDegreeQuestion(classified);
+    if (nonDegree) card.append(nonDegree);
     return card;
+  }
+
+  /** The facts that move a clock, or send a record to the DGS (policy review
+   * 2026-10-03): semesters on an approved leave of absence and childbirth/
+   * adoption accommodations (each pushes the §4.3 limit and §4.5's eighth
+   * semester out by a semester — Academic Code §6.2.6, §5.4; DGS Handbook §3.4,
+   * §3.7.2), and a readmission after a withdrawal (Academic Code §5.5). */
+  function clockFields(): HTMLElement {
+    const phd = student.program === 'phd';
+    const count = (key: 'leaveSemesters' | 'accommodationSemesters', label: string, hint: string): HTMLElement => {
+      const input = el('input', {
+        type: 'number',
+        min: '0',
+        max: '20',
+        step: '1',
+        value: student[key] === undefined ? '' : String(student[key]),
+        'data-key': `standing.${key}`,
+        'aria-label': label,
+        onchange: (e) => {
+          const raw = (e.target as HTMLInputElement).value.trim();
+          const n = Number(raw);
+          update((s) => void (s[key] = raw === '' || !Number.isInteger(n) || n < 0 ? undefined : Math.min(20, n)));
+        },
+      });
+      return el('div', { class: 'field' }, el('label', { class: 'label' }, label, input), el('p', { class: 'hint field-hint' }, hint));
+    };
+    const readmitted = student.readmittedTerm;
+    const reSeason = el('select', { 'aria-label': 'Readmitted — semester', 'data-key': 'standing.readmitted.season' });
+    reSeason.append(...entrySeasonOptions(readmitted?.season ?? 'fall'));
+    const setReadmitted = (year: number | undefined): void =>
+      update((s) => void (s.readmittedTerm = year === undefined ? undefined : { season: (reSeason as HTMLSelectElement).value as Season, year }));
+    const { input: reYear, error: reYearError } = rangedNumber({
+      key: 'standing.readmitted.year',
+      range: TERM_YEAR_RANGE,
+      value: readmitted ? String(readmitted.year) : '',
+      allowEmpty: true,
+      attrs: { 'aria-label': 'Readmitted — year', placeholder: 'year' },
+      commit: setReadmitted,
+    }, refusedValues, toast);
+    reSeason.addEventListener('change', () => {
+      const text = (reYear as HTMLInputElement).value;
+      if (text !== '' && inRange(Number(text), TERM_YEAR_RANGE)) setReadmitted(Number(text));
+    });
+    return el(
+      'fieldset',
+      { class: 'ft-terms clock-fields' },
+      el('legend', { class: 'label' }, `Leaves, accommodations and readmission (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
+      count(
+        'leaveSemesters',
+        'Semesters on an approved leave of absence',
+        `Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves ${phd ? 'the eight-year limit (§4.3) and the eighth-semester candidacy deadline (§4.5)' : 'the five-year limit (§3.3)'} out by a semester (DGS Handbook §3.4, §3.7.2). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).`,
+      ),
+      count(
+        'accommodationSemesters',
+        'Childbirth or adoption accommodation semesters',
+        `Semesters of the Graduate School’s childbirth and adoption accommodation (Academic Code §5.4): each extends ${phd ? 'the eight-year limit and the eighth-semester deadline' : 'the five-year limit'} by a semester (DGS Handbook §3.7.2).`,
+      ),
+      el(
+        'div',
+        { class: 'field' },
+        el('span', { class: 'label' }, 'Readmitted after a withdrawal — semester (leave blank if it does not apply)'),
+        el('div', { class: 'pair' }, reSeason, reYear),
+        reYearError,
+        el(
+          'p',
+          { class: 'hint field-hint' },
+          'If you withdrew and were readmitted, enter the readmission semester. Every clock still counts from your original entry term (Academic Code §6.2.6: “from the time of matriculation”); after an interruption of five years or more the Code forfeits the credit for earlier courses and examinations (§5.5), so those wait for the DGS.',
+        ),
+      ),
+    );
+  }
+
+  /** Academic Code §2.3's non-degree coursework: asked only when the record
+   * holds Notre Dame graduate courses from before the entry term with no
+   * earlier graduate program to explain them (DGS 2026-10-03: "Ask the
+   * question only when such courses are detected based on the admission term"). */
+  function nonDegreeQuestion(classified: readonly ClassifiedCourse[]): HTMLElement | null {
+    const detected = classified.filter(
+      (c) =>
+        c.entry.origin === 'transfer' &&
+        isNotreDameInstitution(c.entry.institution) &&
+        c.entry.degreeLevel !== 'bachelors' &&
+        termIndex(c.entry.term) < termIndex(student.entryTerm) &&
+        student.priorMs === 'none' &&
+        student.ndMasters === undefined &&
+        student.background?.graduate !== 'nd-mscse-transfer',
+    );
+    if (detected.length === 0 && student.ndNonDegree === undefined) return null;
+    const radiosEl = radios(
+      'standing.ndNonDegree',
+      [
+        ['', 'Not answered'],
+        ['yes', 'Yes — I was a non-degree (unclassified) student then'],
+        ['no', 'No'],
+      ],
+      student.ndNonDegree === undefined ? '' : student.ndNonDegree ? 'yes' : 'no',
+      (value) => update((s) => void (s.ndNonDegree = value === '' ? undefined : value === 'yes')),
+    );
+    return el(
+      'fieldset',
+      { class: 'ft-terms nondegree' },
+      el('legend', { class: 'label' }, 'Notre Dame graduate courses before you were admitted (Academic Code §2.3)'),
+      el(
+        'p',
+        { class: 'hint' },
+        `${plural(detected.length, 'course')} on your record ${detected.length === 1 ? 'is' : 'are'} dated before your entry term with no earlier graduate program to explain ${detected.length === 1 ? 'it' : 'them'} (${detected.map((c) => c.entry.courseId).join(', ')}). Were you a non-degree (unclassified) student at Notre Dame when you took ${detected.length === 1 ? 'it' : 'them'}? If so, up to 12 such credits may count toward the degree (Academic Code §2.3) — the DGS decides, and the review request asks.`,
+      ),
+      radiosEl,
+    );
   }
 
   // The chip beside "2. Your standing" is the semester we are in TODAY, not
@@ -1009,29 +1150,49 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   }
 
   /** The full-time-terms fieldset, or null while the record has no term to list. */
-  function fullTimeTerms(): HTMLElement | null {
+  function fullTimeTerms(classified: readonly ClassifiedCourse[]): HTMLElement | null {
     // Residency (decision Q8): ≥9 entered credits marks a term full-time
     // automatically; these checkboxes cover research-heavy terms that aren't.
     // Only terms from the entry term on: residence is counted in THIS program
     // (2026-09-05 — the engine's residency.ts applies the same guard).
-    const entryIndex = termIndex(student.entryTerm);
+    // EVERY fall and spring from the entry term to the current semester is
+    // listed (policy review 2026-10-03; DGS: "List every fall/spring … so a
+    // research-only term can be ticked") — a semester with no course row was
+    // never shown, so a research-only semester could not be ticked and the
+    // Ph.D. run broke there. Summers appear on the MSCSE tab only (§3.3's "one
+    // summer session"); on the Ph.D. tab a summer tick changes nothing (§4.3).
+    const entry = normalizeEntryTerm(student.entryTerm).term;
+    const now = termOfDate(todayIso);
     const terms = new Map<number, Term>();
-    for (const c of student.courses) if (c.origin === 'nd' && termIndex(c.term) >= entryIndex) terms.set(termIndex(c.term), c.term);
-    for (const t of student.fullTimeTermOverrides ?? []) if (termIndex(t) >= entryIndex) terms.set(termIndex(t), t);
+    for (let seq = semesterSeq(entry); seq <= semesterSeq(now); seq++) {
+      const t: Term = { season: seq % 2 === 1 ? 'fall' : 'spring', year: Math.floor(seq / 2) };
+      terms.set(termIndex(t), t);
+    }
+    const withSummers = student.program === 'mscse';
+    for (const c of student.courses) if (c.origin === 'nd' && termIndex(c.term) >= termIndex(entry) && (withSummers || c.term.season !== 'summer')) terms.set(termIndex(c.term), c.term);
+    for (const t of student.fullTimeTermOverrides ?? []) if (termIndex(t) >= termIndex(entry) && (withSummers || t.season !== 'summer')) terms.set(termIndex(t), t);
+    if (withSummers) {
+      for (const t of [...terms.values()]) if (t.season === 'spring' && termIndex({ season: 'summer', year: t.year }) <= termIndex(now)) terms.set(termIndex({ season: 'summer', year: t.year }), { season: 'summer', year: t.year });
+    }
     if (terms.size === 0) return null;
     // A fieldset whose legend is the question (item 5); a term counted
     // automatically is stated as text, not as a disabled ticked box (item 11).
-    const box = el('fieldset', { class: 'ft-terms' }, el('legend', { class: 'label' }, `Full-time terms (for residency, ${student.program === 'mscse' ? '§3.3' : '§4.3'})`));
-    const byTermCredits = new Map<number, number>();
-    for (const c of student.courses) {
-      if (c.origin !== 'nd' || termIndex(c.term) < entryIndex) continue;
-      byTermCredits.set(termIndex(c.term), (byTermCredits.get(termIndex(c.term)) ?? 0) + c.credits);
-    }
+    const box = el(
+      'fieldset',
+      { class: 'ft-terms' },
+      el('legend', { class: 'label' }, `Full-time terms (for residency, ${student.program === 'mscse' ? '§3.3' : '§4.3'})`),
+      el('p', { class: 'hint' }, `A semester counts automatically once the courses entered for it add up to ${fullTimeFloor} registered credits (§2.1.2; withdrawn and incomplete courses are registrations too). Tick a semester you were registered full-time on research or in courses not entered here.`),
+    );
+    // What the ENGINE counts, so the card and the report agree (2026-10-03):
+    // superseded same-term duplicates and unrecognised grades are out, a W
+    // or an I is in.
+    const records = new Map(fullTimeRecordsFrom(classified, student, fullTimeFloor).map((r) => [termIndex(r.term), r] as const));
     for (const [key, t] of [...terms.entries()].sort((a, b) => a[0] - b[0])) {
-      const auto = (byTermCredits.get(key) ?? 0) >= fullTimeFloor;
+      const rec = records.get(key);
       const overridden = (student.fullTimeTermOverrides ?? []).some((o) => termIndex(o) === key);
+      const auto = rec !== undefined && rec.fullTime && !overridden;
       if (auto) {
-        box.append(el('span', { class: 'ft-term ft-auto' }, el('span', { class: 'ft-check', 'aria-hidden': 'true' }, '✓'), ` ${termLabel(t)} — counted automatically (${fullTimeFloor}+ credits entered)`));
+        box.append(el('span', { class: 'ft-term ft-auto' }, el('span', { class: 'ft-check', 'aria-hidden': 'true' }, '✓'), ` ${termLabel(t)} — counted automatically (${rec.term.season === 'summer' && rec.credits < fullTimeFloor ? 'a summer session after a full-time semester, Academic Code §3.6' : `${fullTimeFloor}+ registered credits entered`})`));
         continue;
       }
       const cb = el('input', {
@@ -1047,7 +1208,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         },
       });
       cb.checked = overridden;
-      box.append(el('label', { class: 'ft-term' }, cb, ` ${termLabel(t)}`));
+      box.append(el('label', { class: 'ft-term' }, cb, ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`));
     }
     return box;
   }
@@ -1106,9 +1267,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : el(
             'p',
             { class: 'hint gpa-note' },
+            // §2.2 reads the registrar's cumulative GPA (Academic Code §4.5);
+            // this program's own average is information, and the §2.2 row
+            // asks the DGS when the two straddle the minimum (policy review 2026-10-03).
             gs.basis === 'transcript-graduate'
-              ? `From your transcript's graduate-level cumulative GPA${gs.programGpa !== undefined ? ` (this program's courses alone average ${gs.programGpa.toFixed(2)})` : ''}${gs.undergraduateGpa !== undefined ? `; the undergraduate GPA (${gs.undergraduateGpa.toFixed(2)}) is not used` : ''}.`
-              : `Computed from this program's graded courses only${gs.transcriptGpa !== undefined ? ` — your transcript's graduate-level cumulative GPA is ${gs.transcriptGpa.toFixed(2)}, which includes earlier graduate coursework at Notre Dame; the DGS decides which figure §2.2 uses` : ''}.`,
+              ? `From your transcript's graduate-level cumulative GPA — the registrar's figure, which §2.2 reads (Academic Code §4.5)${gs.programGpa !== undefined ? `; for information, this program's courses alone average ${gs.programGpa.toFixed(2)}` : ''}${gs.undergraduateGpa !== undefined ? `; the undergraduate GPA (${gs.undergraduateGpa.toFixed(2)}) is not used` : ''}.`
+              : `Computed from this program's graded courses only — a figure from an older import${gs.transcriptGpa !== undefined ? `; §2.2 reads the registrar's cumulative GPA, ${gs.transcriptGpa.toFixed(2)} on your transcript (Academic Code §4.5), so re-import the transcript or type that figure` : ''}.`,
           );
     const priorNdCourseworkWord = (c: CourseEntry): string =>
       c.degreeLevel === 'bachelors'
@@ -1180,13 +1344,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const transferRule = (fromNotreDame: boolean): string => {
       const windowYears = rules.parameters.number(student.program === 'mscse' ? 'ms_transfer_window_years' : 'phd_transfer_window_years');
       const floor = rules.parameters.gradeLetter('transfer_min_grade');
-      const cutoff = windowYears === undefined ? undefined : termLabel({ season: student.entryTerm.season, year: student.entryTerm.year - windowYears });
+      // The same term the engine measures from (allocate.ts normalises the
+      // entry term), so the two can never drift (policy review 2026-10-03).
+      const entry = normalizeEntryTerm(student.entryTerm).term;
+      const cutoff = windowYears === undefined ? undefined : termLabel({ season: entry.season, year: entry.year - windowYears });
       const window = windowYears === undefined ? 'within the years §5.2 allows (the number is missing from the rules sheet)' : `within ${windowYears} years before you entered (${cutoff} or later)`;
-      const grade = floor === undefined ? 'with the grade §5.2 requires (missing from the rules sheet)' : `with a grade of ${floor} or better`;
+      const grade = floor === undefined ? 'with the grade §5.2 requires (missing from the rules sheet)' : `with a grade of ${floor} or better (a pass/fail grade cannot show it, so the DGS decides those)`;
       return (
         `Transfer credit (§5.2): a graduate course from ${fromNotreDame ? 'your earlier Notre Dame program' : 'another university'} can count toward this degree if you took it after your bachelor’s degree, ${window}, and ${grade} — this page checks those three. ` +
-        `Which courses transfer (normally CSE-related ones, up to ${transferCapLimit()} credits) is the DGS’s decision, and the Graduate School confirms it. ` +
-        `Until the DGS decides, every graduate course here is a candidate: the review request in the Transcripts card asks for the decisions, and the processing request below the milestones then has the Grad Admin record the credit.`
+        `Which courses transfer (normally CSE-related ones, up to ${transferCapLimit()} credits) is the DGS’s recommendation; the Graduate School approves it, and the Grad Admin records the credit once your university’s official transcript has reached the Graduate School. ` +
+        `Until the DGS decides, every graduate course here is a candidate: the review request in the Transcripts card asks for the decisions at any time; the processing request below the milestones goes to the Grad Admin after your first semester — the Graduate School considers transfer requests only then, and before the semester your degree is conferred.`
       );
     };
     const card = el(
@@ -1370,7 +1537,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             onclick: () => {
               // Copy, then the check-before-you-send dialog (DGS request 2026-09-06 evening).
               void import('../transcript/external.ts').then(({ buildCombinedReviewRequest }) => {
-                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes, history: programHistory(student) });
+                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes, history: programHistory(student), unofficial: unofficialTranscriptNote(student.courses) });
                 return copyDialog({
                   what: 'Review request',
                   recipient: { role: decider.role, name: decider.name, email: decider.email },
@@ -1419,7 +1586,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     });
     const termYearError = errorLine('new-course-year-error');
     const gradeSel = el('select', { 'data-key': 'course.new.grade' });
-    for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, g === 'IP'));
+    for (const g of GRADES) gradeSel.append(option(g, gradeLabel(g), g === 'IP'));
     const originSel = el('select', { 'data-key': 'course.new.origin' });
     originSel.append(option('nd', 'Taken at Notre Dame', true), option('transfer', 'From another university'));
     // University: offered from the ExternalCourses tab, Title-Cased on leaving
@@ -1826,7 +1993,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 ? 'Choose one: this course counts only toward your MSCSE, or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5) — once two 3-credit courses are shared, the rest can only count toward the MSCSE. Nothing counts until you choose. Most 40000-level courses also need your advisor’s and the DGS’s approval, so they are listed in the review request.'
                 : holdsNdMasters
                   ? 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it. No course may count toward three degrees, and at most 6 credits may count toward two (Graduate School): the courses that counted toward both your bachelor’s and your MSCSE use up that allowance, and a course only your bachelor’s used draws on what is left. This answer decides it.'
-                  : 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full for a 4+1 student, and up to 6 credits below it. At most 6 credits may count toward two degrees (Graduate School), so say whether your bachelor’s degree used this course. This answer decides it.',
+                  : 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full for a 4+1 student (with the DGS’s approval otherwise, Academic Code §4.6), and up to 6 credits below it. At most 6 credits may count toward two degrees (Graduate School), so say whether your bachelor’s degree used this course. This answer decides it.',
             ),
           );
         }
@@ -1869,7 +2036,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Short form in the cell, full name as the tooltip (DGS 2026-09-07).
         el('td', { class: 'cell-meta', 'data-label': 'Term' }, el('abbr', { class: 'term', title: termLabel(c.term) }, termShort(c.term))),
         el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
-        el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? 'In progress' : c.grade),
+        el('td', { class: 'cell-meta', 'data-label': 'Grade' }, gradeLabel(c.grade)),
         countsCell,
         el('td', { class: 'cell-remove' }, removeButton),
       );
@@ -2008,10 +2175,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     } else {
       card.append(
         dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
+        // A FAIL within the 18 months starts the DGS committee's six months
+        // (§4.4.3; policy review 2026-10-03).
+        dateField('Research qualifier failed — advisor filed a fail, if that happened (§4.4.3)', 'researchQualifierFailed'),
         // "(DGS office)" dropped (trim review 2026-09-18, P-51): the handbook's
         // phrase for the desk the page calls the Grad Admin, one card above
         // "two people, two jobs"; phd.ts and the advisor summary already read this way.
         dateField('Qualifier completion form filed with the Grad Admin (§4.4)', 'qualifierFormFiled'),
+        // Academic Code §6.2.4; a candidacy condition per the DGS Handbook §3.22.3 (2026-10-03).
+        dateField('Responsible Conduct of Research and ethics training completed (Graduate School)', 'rcrTrainingCompleted'),
         dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed'),
       );
       // §4.6 opens "After satisfying the above requirements": nobody has a
@@ -2019,10 +2191,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // appear once the OCE is dated — or when a loaded record already
       // carries either date, so nothing on file is ever hidden (trim review
       // 2026-09-18, P-64). The §4.6/§4.7 report rows are unchanged.
-      if (m.candidacyPassed || m.dissertationApprovedForDefense || m.defensePassed) {
+      if (m.candidacyPassed || m.dissertationApprovedForDefense || m.defensePassed || m.dissertationSubmitted) {
         card.append(
           dateField('Dissertation approved for defense by all readers (§4.6)', 'dissertationApprovedForDefense'),
           dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
+          // The official submission is the last requirement inside the eight
+          // years (Academic Code §6.2.6/§6.2.12; policy review 2026-10-03).
+          dateField('Final dissertation submitted to the Graduate School (Academic Code §6.2.12)', 'dissertationSubmitted'),
         );
       }
     }
@@ -2033,13 +2208,36 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('p', { class: 'hint' }, 'Tick only what has actually been approved.'),
       attestation('My advisor approved my plan of study (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
     );
+    // §5.2 criterion 5 — the Graduate School's approval — recorded here once
+    // the Grad Admin has processed the transfer (policy review 2026-10-03);
+    // shown only while the record has transfer courses.
+    if (classified.some((c) => c.entry.origin === 'transfer' && c.caps.includes('transfer'))) {
+      card.append(attestation('The Graduate School approved my transfer credit and the Grad Admin recorded it (§5.2)', a.transferRecorded, (v, s) => (s.attestations.transferRecorded = v)));
+    }
     // The DGS's course approvals left this card on 2026-09-27: each is a tick
     // on the course it concerns, shown only where the sheet decides the
     // course case by case (the coursework table).
     if (student.program === 'phd') {
-      card.append(
-        attestation('The DGS extended my qualifier deadline (§4.4)', a.qualifierExtensionGranted, (v, s) => (s.attestations.qualifierExtensionGranted = v)),
-      );
+      // A NUMBER of semesters since 2026-10-03 (DGS: "DGS may give any number
+      // of semesters as extensions"); the old tick box read as one.
+      const extension = el('input', {
+        type: 'number',
+        min: '0',
+        max: '20',
+        step: '1',
+        value: a.qualifierExtensionSemesters === undefined ? (a.qualifierExtensionGranted ? '1' : '') : String(a.qualifierExtensionSemesters),
+        'data-key': 'attest.qualifier-extension-semesters',
+        'aria-label': 'Semesters by which the DGS extended my qualifier deadline (§4.4)',
+        onchange: (e) => {
+          const raw = (e.target as HTMLInputElement).value.trim();
+          const n = Number(raw);
+          update((s) => {
+            s.attestations.qualifierExtensionSemesters = raw === '' || !Number.isInteger(n) || n <= 0 ? undefined : Math.min(20, n);
+            s.attestations.qualifierExtensionGranted = undefined;
+          });
+        },
+      });
+      card.append(el('label', { class: 'attest attest-number' }, 'The DGS extended my qualifier deadline (§4.4) by this many semesters: ', extension));
       // The qualifier rule changed several times in four years (DGS
       // 2026-09-21): from the third year on, a student may attest that they
       // passed the examination under the requirements in force at the time.
@@ -2091,7 +2289,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'data-key': key,
         onclick: () => {
           const advisors = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
-          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, advisors, history: programHistory(student) });
+          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, advisors, history: programHistory(student), unofficialNote: unofficialTranscriptNote(student.courses) });
           void copyDialog({
             what: 'Summary for your advisor',
             recipient: { role: advisors.length > 1 ? 'Your advisors' : 'Your advisor', name: advisors.length > 0 ? advisors.join(' and ') : 'name not entered under Milestones' },
