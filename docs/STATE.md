@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-03 (merge): this branch merged `origin/main`, which had the other session's specialization-row change (2026-10-02 evening, below). Both sessions had numbered a new wording row W-CL67; the specialization row is now W-CL89 in `docs/WORDING-REVIEW.md` (the policy-review rows W-CL67–W-CL88 kept the numbers given to the DGS). Next free number: W-CL90.
+
 2026-10-03 (later, defense GPA gate): a Ph.D. or MSCSE thesis defense dated while the cumulative GPA is below 3.0 goes to the DGS instead of reading Met, mirroring the candidacy row (P1-gpa-10, DGS); the project route is not gated.
 
 2026-10-03 (later, yes = pre-approval): on the MSCSE tab a `yes` row below the 60000 level counts outright with no tick, as on the Ph.D. tab (DGS, P1-levels-grades-credits-8, revising 2026-10-02 (2)); `adgs_approval` keeps the tick.
@@ -30,6 +32,8 @@ Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-
 
 2026-10-03: the policy-compliance review's fixes (DGS: the 8 fix-first and the 53 conflict findings, 20 of them with his own ruling — `docs/DECISIONS.md` 2026-10-03 rows). The engine now knows grades I and W; the Graduate School's RCR training (`phd.rcr`) and the dissertation's official submission (`phd.dissertation.submitted`) are rows; the §5.2 row is met only once the Graduate School approved and the Grad Admin recorded the transfer; leaves, accommodations, a readmission term, the COVID cohort (from the entry term) and a qualifier extension in semesters move the clocks; MSCSE → Ph.D. transfers run the qualifier clocks from the transfer; the MSCSE and Ph.D. are one graduate program (another ND department's master's is not); summer entry is gone (early start → that fall); a non-4+1's undergraduate 6xxxx course goes to the DGS on the Ph.D. tab; the UG→GR move and the bachelor's + Ph.D. six are confirmed by the DGS; the Full-time terms fieldset lists every semester. 17 new scenario fixtures. The report (artifact “Policy Compliance Review”, https://claude.ai/artifact/1mPvEVFWcigpbwgyy9EQbJ) carries a resolution per finding and a view of what is still open; its data is under `policy-sources/.review/` (git-excluded). Uncommitted until the DGS has seen the screenshots.
 
+
+2026-10-02 (evening): the specialization row lists which course fills which group, and which course in progress may fill which (DGS).
 
 2026-10-02 (later): a course below §4.4.2's B floor says so on its Qualifier line (DGS: the specialization outcome was missing from the line).
 
