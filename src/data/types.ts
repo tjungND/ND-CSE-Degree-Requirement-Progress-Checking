@@ -194,7 +194,12 @@ export interface RulesDate {
 // (6 = §3.5's two 3-credit courses), listed here so it raises no "the app does
 // not know this key" warning, and the engine will read it again the day the
 // allowance comes back. Delete both if the Graduate School refuses.
-const PARKED_PARAMETER_KEYS = ['phd_senior_grad_credits_max'] as const;
+// `ms_thesis_readers_min` (§3.4's two readers; DGS Handbook §3.21.3) was a
+// required key that nothing read — no reader count is checked, the thesis row
+// checks the defense — so a missing row was an error for a number nothing
+// uses. Parked on 2026-10-04 (DGS, policy review P1-sheet-6: "Move this to the
+// parked list"); read it here again if a reader count is ever checked.
+const PARKED_PARAMETER_KEYS = ['phd_senior_grad_credits_max', 'ms_thesis_readers_min'] as const;
 
 export const DISPLAY_PARAMETER_KEYS = [
   // Optional override for the dated line on both pages (YYYY-MM-DD or free
@@ -234,11 +239,11 @@ export const KNOWN_PARAMETER_KEYS = [
   // §3.5, through the DGS (2026-09-10): "an ND 4+1 student can have up to 6
   // credits (whether 40xxx or 60xxx courses) counted towards both degrees" —
   // how much of an MSCSE student's coursework may also have counted toward
-  // their bachelor's. The Ph.D. has no equivalent: its limit is that no course
-  // may count toward all three degrees.
+  // their bachelor's. The Ph.D. has the same six (Graduate School, 2026-09-22),
+  // less whatever the bachelor's and the MSCSE already shared; no course may
+  // count toward all three degrees.
   'ms_bs_double_count_credits_max',
   'ms_time_limit_years',
-  'ms_thesis_readers_min',
   'ms_transfer_completed_ms_credits_max',
   'ms_transfer_window_years',
   // §5.2 pro-rata factors for credits "not earned on the semester system" —

@@ -191,11 +191,18 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // ADGS/DGS/Grad Admin"): an undergraduate-looking number, or a title that
   // suggests independent study, research or a seminar. Carried to the review
   // request and the processing request; nothing is counted or refused on it.
+  // The number is checked on every course from another institution that
+  // could count — `yes`, case by case, or not in the rules yet (DGS
+  // 2026-10-04, after IIT CS 455: "If you notice such courses that look like
+  // undergrad courses from another institution, raise warnings to
+  // DGS/ADGS/Grad Admin"); the title on a `yes` only.
   const staffChecks: string[] = [];
   for (const cc of classified) {
     const c = cc.entry;
-    if (c.origin !== 'transfer' || isNotreDameInstitution(c.institution) || cc.transferable !== 'yes' || cc.pool === 'none' || cc.superseded) continue;
-    staffChecks.push(...transferCourseChecks(c.courseId, c.institution ?? cc.external?.university ?? 'another university', c.title ?? cc.external?.title, student.program === 'mscse' ? '§3.2' : '§4.2'));
+    if (c.origin !== 'transfer' || isNotreDameInstitution(c.institution) || cc.pool === 'none' || cc.superseded) continue;
+    const verdict = cc.transferable === 'yes' ? 'yes' : cc.transferable === 'dgs_approval' || cc.transferable === 'adgs_approval' ? 'case' : cc.transferable === undefined ? 'unlisted' : undefined;
+    if (verdict === undefined) continue; // the rules say no
+    staffChecks.push(...transferCourseChecks(c.courseId, c.institution ?? cc.external?.university ?? 'another university', c.title ?? cc.external?.title, student.program === 'mscse' ? '§3.2' : '§4.2', verdict));
   }
   // Academic Code §4.1: three credits at the 60000 level or higher in every
   // full-time semester, unless the associate dean permitted otherwise — routed

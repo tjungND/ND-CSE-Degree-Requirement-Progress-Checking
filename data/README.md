@@ -68,7 +68,7 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `ms_4xxxx_credits_max` | 6 | §3.2 | |
 | `ms_noncse_credits_max` | 9 | §3.2 | |
 | `ms_time_limit_years` | 5 | §3.3 | |
-| `ms_thesis_readers_min` | 2 | §3.4 | thesis option only |
+| `ms_thesis_readers_min` | 2 | §3.4 | **Parked — the app does not read this today** (2026-10-04, DGS). The two thesis readers besides the advisor (§3.4; DGS Handbook §3.21.3). No reader count is checked — the thesis row checks the defense — so the row may stay or go; a missing row is not an error. Thesis option only. |
 | `quarter_credit_factor` | 0.66 | §5.2 | quarter hours → semester hours — the DGS Handbook's §3.14 pro-rata table (quarter × .66; DGS 2026-09-12) |
 | `trimester_credit_factor` | 0.88 | §5.2 | trimester hours → semester hours — the same table (trimester × .88) |
 | `ms_transfer_window_years` | 5 | §5.2 | prior graduate coursework — §5.2's five-year window applies to the MSCSE too (DGS 2026-09-11) |
@@ -210,11 +210,13 @@ into `sheet-urls.json` as `external`. Until then the app runs without it.
   two identical filter choices otherwise)
 - a `Categories` tab with no core areas, or no specialization groups, fails the load like an empty
   tab instead of rendering a page whose §4.4.1 section is silently empty (2026-09-18)
-- an `ExternalCourses` row ruled `yes` (either program) whose course number looks undergraduate (a
-  4- or 5-digit number under 5000 / 50000, or a 3-digit number in the 100s, 300s or 400s — the 200s
-  are the University of California's graduate courses) or whose title suggests independent study,
-  research, a thesis or a seminar → a WARNING (2026-10-04, the DGS's own corrected mistakes). Only
+- an `ExternalCourses` row ruled `yes` or case by case (either program) whose course number looks
+  undergraduate (a 4- or 5-digit number under 5000 / 50000, or a 3-digit number in the 100s, 300s or
+  400s — the 200s are the University of California's graduate courses), or a row ruled `yes` whose
+  title suggests independent study, research, a thesis or a seminar → a WARNING (2026-10-04, the
+  DGS's own corrected mistakes). Only
   graduate courses transfer (Academic Code §4.6), and a transferred `yes` counts toward the
   regular-course credits. A guess from the number and title, so nothing is refused: for a student
-  who has such a course, the same check is copied to the review request (for the DGS/ADGS) and the
-  processing request (for the Grad Admin) — `src/data/course-checks.ts`.
+  who has such a course — or an undergraduate-numbered course not in the tab yet — the same check is
+  copied to the review request (for the DGS/ADGS) and the processing request (for the Grad Admin) —
+  `src/data/course-checks.ts`.

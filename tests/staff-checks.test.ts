@@ -28,21 +28,25 @@ describe('the two guesses', () => {
   });
 });
 
-describe('the sheet check warns the DGS about a `yes` row only', () => {
+describe('the sheet check warns the DGS', () => {
   const header = 'university,course_id,course_title,satisfies_core_area,transferable_PhD,transferable_MSCSE,is_cse,nd_credits,credit_system,decided_on,notes';
-  it('an undergraduate number and a special-problems title, each a warning; a case-by-case row none', () => {
+  it('an undergraduate number on any row that lets the course count (yes or case by case); a non-regular title on a yes row only', () => {
     const csv = [
       header,
       'GEORGIA INSTITUTE OF TECHNOLOGY,ECE 4804,Special Topics,none,yes,no,yes,,semester,2026-10-04,',
-      'GEORGIA INSTITUTE OF TECHNOLOGY,CS 8903,Special Problems,none,yes,adgs_approval,yes,,semester,2026-10-04,',
+      'GEORGIA INSTITUTE OF TECHNOLOGY,CS 8903,Special Problems,none,yes,no,yes,,semester,2026-10-04,',
       'ILLINOIS INSTITUTE OF TECHNOLOGY,CS 430,Introduction Algorithms,none,no,adgs_approval,yes,,semester,2026-10-04,',
+      'ILLINOIS INSTITUTE OF TECHNOLOGY,CS 597,Reading and Special Problems,none,no,adgs_approval,yes,,semester,2026-10-04,',
+      'ILLINOIS INSTITUTE OF TECHNOLOGY,CS 455,Data Communication,none,no,no,yes,,semester,2026-10-04,',
     ].join('\n');
     const issues: SheetIssue[] = [];
     parseExternalTab(csv, [{ code: 'os', name: 'Operating Systems' }], issues);
     const warnings = issues.filter((i) => i.severity === 'warning').map((i) => i.message);
-    assert.equal(warnings.length, 2, warnings.join('\n'));
-    assert.match(warnings[0]!, /^ExternalCourses row 2: GEORGIA INSTITUTE OF TECHNOLOGY ECE 4804 transfers for the Ph\.D\. \(yes\), but its number looks like an undergraduate course — only graduate courses transfer \(Academic Code §4\.6\)\./);
+    assert.equal(warnings.length, 3, warnings.join('\n'));
+    assert.match(warnings[0]!, /^ExternalCourses row 2: GEORGIA INSTITUTE OF TECHNOLOGY ECE 4804 may count for the Ph\.D\. \(yes\), but its number looks like an undergraduate course — only graduate courses transfer \(Academic Code §4\.6\)\./);
     assert.match(warnings[1]!, /^ExternalCourses row 3: GEORGIA INSTITUTE OF TECHNOLOGY CS 8903 “Special Problems” transfers for the Ph\.D\. \(yes\) and would count toward the regular-course credits/);
+    assert.match(warnings[2]!, /^ExternalCourses row 4: ILLINOIS INSTITUTE OF TECHNOLOGY CS 430 may count for the MSCSE \(case by case\), but its number looks like an undergraduate course/);
+    // CS 597 is case by case (its title is the decider's to read); CS 455 is no for both.
   });
 });
 
@@ -82,6 +86,17 @@ describe('the review and processing requests carry the checks for a student’s 
     // The Graduate School's own rows keep their section (it printed "()" until 2026-10-04).
     assert.match(text, /\[IN PROGRESS\] Responsible Conduct of Research and ethics training complete \(Academic Code §6\.2\.4\)\n/);
     assert.doesNotMatch(text, /\(\)/);
+  });
+
+  it('an undergraduate number on a case-by-case or an unlisted course is flagged too, worded for the decision still to come', () => {
+    const caseRules = buildRules({
+      external: [{ university: 'ILLINOIS INSTITUTE OF TECHNOLOGY', course_id: 'CS 455', course_title: 'Data Communication', satisfies_core_area: 'none', transferable_PhD: 'dgs_approval', transferable_MSCSE: 'adgs_approval', is_cse: 'yes' }],
+    });
+    const iit = (courseId: string, title: string) => transferCourse(courseId, title, { institution: 'Illinois Institute of Technology', degreeLevel: 'masters' });
+    const s = phdStudent({ priorMs: 'completed', bachelorsAwarded: { season: 'spring', year: 2022 }, courses: [iit('CS 455', 'Data Communication'), iit('CS 351', 'Systems Programming')] });
+    const checks = audit(s, caseRules, '2027-01-15').staffChecks ?? [];
+    assert.ok(checks.includes('CS 455 (Illinois Institute of Technology): the course rules decide it case by case, but its number looks like an undergraduate course — only graduate courses transfer (Academic Code §4.6). Check that it is the graduate version before approving it.'), JSON.stringify(checks));
+    assert.ok(checks.includes('CS 351 (Illinois Institute of Technology): it is not in the course rules yet, but its number looks like an undergraduate course — only graduate courses transfer (Academic Code §4.6). Check that it is the graduate version before approving it.'), JSON.stringify(checks));
   });
 
   it('nothing for a student with no such course', () => {

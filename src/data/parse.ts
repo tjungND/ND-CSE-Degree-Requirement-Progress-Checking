@@ -556,19 +556,26 @@ export function parseExternalTab(
         `ExternalCourses row ${rowNum} (${university} ${courseId}): credit_system must be 'quarter', 'trimester', 'semester' or blank — got '${system}'. That cell is ignored (credits count as printed).`);
     }
 
-    // A `yes` the DGS may not have meant (2026-10-04, P1-sheet-48 / -c2;
-    // course-checks.ts): an undergraduate-looking number, or a title that
-    // suggests independent study, research or a seminar. Warnings only.
+    // A ruling the DGS may not have meant (2026-10-04, P1-sheet-48 / -c2 and
+    // IIT CS 455; course-checks.ts): an undergraduate-looking number on any row
+    // that lets the course count (yes or case by case), or — on a `yes` — a title
+    // that suggests independent study, research or a seminar. Warnings only.
+    const countsAs = (t: Transferable | undefined): string | undefined =>
+      t === 'yes' ? 'yes' : t === 'dgs_approval' || t === 'adgs_approval' ? 'case by case' : undefined;
+    const counting = [
+      countsAs(rule.transferablePhd) ? `the Ph.D. (${countsAs(rule.transferablePhd)})` : '',
+      countsAs(rule.transferableMscse) ? `the MSCSE (${countsAs(rule.transferableMscse)})` : '',
+    ].filter(Boolean);
+    if (counting.length > 0 && looksUndergraduateNumber(courseId)) {
+      issues.push({
+        severity: 'warning',
+        tab: 'ExternalCourses',
+        row: rowNum,
+        message: `ExternalCourses row ${rowNum}: ${university} ${courseId} may count for ${counting.join(' and ')}, but its number looks like an undergraduate course — only graduate courses transfer (Academic Code §4.6). Check that it is the graduate version.`,
+      });
+    }
     if (rule.transferablePhd === 'yes' || rule.transferableMscse === 'yes') {
       const which = [rule.transferablePhd === 'yes' ? 'Ph.D.' : '', rule.transferableMscse === 'yes' ? 'MSCSE' : ''].filter(Boolean).join(' and ');
-      if (looksUndergraduateNumber(courseId)) {
-        issues.push({
-          severity: 'warning',
-          tab: 'ExternalCourses',
-          row: rowNum,
-          message: `ExternalCourses row ${rowNum}: ${university} ${courseId} transfers for the ${which} (yes), but its number looks like an undergraduate course — only graduate courses transfer (Academic Code §4.6). Check that it is the graduate version.`,
-        });
-      }
       if (looksNonRegularTitle(rule.title)) {
         issues.push({
           severity: 'warning',
