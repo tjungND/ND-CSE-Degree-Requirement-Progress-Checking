@@ -101,7 +101,11 @@ export function gpaRow(ctx: Ctx): RequirementResult {
  * their first semester, unless an exception is granted by the ADGS." /
  * "Continuous advisor supervision is required throughout the duration of the
  * Ph.D. program." (The July 2026 edition said "by the beginning of their
- * first semester"; the engine followed it until 2026-10-02.) */
+ * first semester"; the engine followed it until 2026-10-02.) §2.5.2's
+ * proper-progress list agrees since the DGS corrected it on 2026-10-03
+ * (P1-deadlines-18): "Obtaining a thesis/project advisor by the end of the
+ * first semester of the program" — it used to say "at the start of the
+ * program". */
 export function advisorRow(ctx: Ctx): RequirementResult {
   const ms = ctx.student.program === 'mscse';
   const quote = ms
