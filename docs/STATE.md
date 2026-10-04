@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
-2026-10-03 (display, DGS): result cards show only what is satisfied by what — the rule, reasons, next steps and the rule quote sit behind one “Details” selector per card (engine `{ note }` parts); uncommon inputs sit behind one-line question selectors (`rareFold`); every section names its document (“CSE §”, “Academic Code §”, “DGS Handbook §”; `src/ui/citations.ts`). A standing rule in CLAUDE.md. Also P1-gpa-8 (exam vs admission conditions), -13 (handbook item), -c4 (“graduate-level”); -12, -14, -2, -3, -c5 fine.
+2026-10-03 (display, DGS): result cards show only what is satisfied by what — the rule, reasons, next steps and the rule quote sit behind one “Details” selector per card (engine `{ note }` parts); uncommon inputs sit behind one-line question selectors (`rareFold`); every section names its document (“CSE §”, “Academic Code §”, “DGS Handbook §”; `src/ui/citations.ts`). A standing rule in CLAUDE.md. Also P1-gpa-8 (exam vs admission conditions), -13 (handbook item), -c4 (“graduate-level”); -12, -14, -2, -3, -c5 fine; P1-deadlines-24, -25 fine. Approved by the DGS and committed as 18cf4a2 (`origin/main` had nothing new). No Changelog-tab row: no rule behaviour changed — no expected status moved in any scenario — and the tab takes engine-logic changes only (DGS 2026-09-23).
 
 2026-10-03 (merge): this branch merged `origin/main`, which had the other session's specialization-row change (2026-10-02 evening, below). Both sessions had numbered a new wording row W-CL67; the specialization row is now W-CL89 in `docs/WORDING-REVIEW.md` (the policy-review rows W-CL67–W-CL88 kept the numbers given to the DGS). Next free number: W-CL94.
 
