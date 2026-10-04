@@ -61,6 +61,14 @@ The `*.sample.csv` files here show this exact schema in miniature (they double a
 for the test suite's fixtures in `tests/fixtures/rules/`).
 
 ### Tab `Parameters` — every number the handbook states, so a future DGS can change it without code
+
+The CSE handbook's numbers — the department's, which a DGS may tune. A number set above the
+department (the Graduate School's Academic Code or DGS Handbook: the 15-credit semester maximum,
+the eighth-semester admission to candidacy, …) is deliberately NOT a row here; it lives in the
+code beside the sentence it comes from, and changing it is a Track B change (README § A5b lists
+them; DGS 2026-09-27, 2026-10-04). The quarter and trimester factors below are the one exception
+(DGS 2026-09-12).
+
 | `key` | `value` | `handbook_section` | `notes` |
 |---|---|---|---|
 | `ms_regular_credits_min` | 24 | §3.2 | |

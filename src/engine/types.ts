@@ -149,6 +149,34 @@ export interface Milestones {
   projectReportAccepted?: string; // §3.4 project option
 }
 
+/** The milestone DATES (the advisor names are not). */
+export type MilestoneDateKey = Exclude<keyof Milestones, 'advisorName' | 'advisorName2'>;
+
+/** A milestone date's deadline, for the Milestones card (DGS 2026-10-04: "In
+ * the Milestones, next to all the dates, specify the deadlines."). The same
+ * date the requirement row counts against — extensions, leaves and the
+ * transfer clocks included — said without the row's state words. */
+export interface MilestoneDeadline {
+  /** "by the end of Spring 2030" / "before Fall 2034" / "by mid-Spring 2028";
+   * absent when the milestone has no deadline of its own. */
+  due?: string;
+  /** The same point without the preposition: "the end of Spring 2030". */
+  point?: string;
+  /** Why that date — "semester 8 (§4.5)" — or, with no `due`, the whole
+   * sentence ("No deadline of its own — …"). */
+  basis: string;
+  /** A clause said while the deadline is to be met or was met, and left out
+   * once it has passed (the Graduate School calendar's graduation dates). */
+  also?: string;
+  /** ISO date of the deadline in force. */
+  date?: string;
+  /** Where the record stands against it: dated on or before (done) or after
+   * (late); not dated, and still open, due this semester or the next
+   * (due_soon), or past (overdue). Absent when nothing is to be said. */
+  state?: 'done' | 'late' | 'open' | 'due_soon' | 'overdue';
+  horizon?: 'this' | 'next';
+}
+
 /** Self-attested approvals (decision Q21) — clearly labeled in the UI; the legal
  * footer reminds students that real approvals live with the DGS office. */
 export interface Attestations {
@@ -521,4 +549,7 @@ export interface AuditReport {
    * nothing is wrong, and no verdict changes — the note names what the page
    * cannot decide and sends the student to the DGS. */
   tracks: SpecialTrack[];
+  /** Each milestone date's deadline, for the Milestones card (DGS
+   * 2026-10-04); a key is absent when the rules sheet lacks its parameter. */
+  milestoneDeadlines?: Partial<Record<MilestoneDateKey, MilestoneDeadline>>;
 }

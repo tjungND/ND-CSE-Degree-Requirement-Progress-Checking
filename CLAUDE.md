@@ -27,9 +27,12 @@ touching code and without the original author.
   Pages and also works if copied to any plain web host or embedded in an `<iframe>` on
   cse.nd.edu. Use relative asset paths.
 - **Policy lives in the sheet, structure lives in code.** Which courses count, their core-area
-  and specialization-group tags, and every numeric threshold come from the Google Sheet. The
-  *shape* of the requirements comes from the handbook and is implemented in code with a comment
-  quoting the handbook sentence and its § number.
+  and specialization-group tags, and every numeric threshold the DEPARTMENT sets come from the
+  Google Sheet. A number set above the department — the Graduate School's Academic Code or DGS
+  Handbook — lives in code beside its quoted sentence, never as a Parameters key (DGS 2026-09-27,
+  2026-10-04; README § A5b lists them, and a new one is added there). The *shape* of the
+  requirements comes from the handbook and is implemented in code with a comment quoting the
+  handbook sentence and its § number.
 - **Never guess.** If a course is not in the sheet, or the sheet says `dgs_approval`, tell the
   student "needs DGS review" rather than silently counting or rejecting it. A missing
   parameter renders "cannot evaluate", never a default.

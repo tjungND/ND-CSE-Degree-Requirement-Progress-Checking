@@ -14,7 +14,8 @@ import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
-import type { AuditReport, CourseEntry, CourseLine, Program, Season, Student, Term } from '../engine/types.ts';
+import type { AuditReport, CourseEntry, CourseLine, MilestoneDateKey, MilestoneDeadline, Program, Season, Student, Term } from '../engine/types.ts';
+import { deadlineText } from './milestone-deadline.ts';
 import { clear, el, inactiveButton, option } from './dom.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
@@ -547,7 +548,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             standingCard(classified),
             coursesCard(report.courseLines),
             askDgsCard(classified, report),
-            milestonesCard(classified),
+            milestonesCard(classified, report),
             askGradAdminCard(report, classified),
             saveCard(report),
             diagnosticsCard(),
@@ -2222,8 +2223,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
-  function milestonesCard(classified: readonly ClassifiedCourse[]): HTMLElement {
+  function milestonesCard(classified: readonly ClassifiedCourse[], report: AuditReport): HTMLElement {
     const m = student.milestones;
+    // Every date with its deadline beside it (DGS 2026-10-04: "In the
+    // Milestones, next to all the dates, specify the deadlines.") — the
+    // engine's own date for the matching row (report.milestoneDeadlines).
+    const dateField = (label: string, key: MilestoneDateKey): HTMLElement => datedField(label, key, report.milestoneDeadlines?.[key]);
     const a = student.attestations;
     const card = el(
       'section',
@@ -2397,17 +2402,31 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el('label', { class: 'attest' }, cb, ` ${label}`);
   }
 
-  function dateField(label: string, key: keyof Student['milestones']): HTMLElement {
+  /** A milestone date box with its deadline beside it (DGS 2026-10-04): the
+   * label on its own line, then the box and the deadline side by side, so
+   * every deadline starts at the same place (a wrapping <label> pushed each
+   * one past its own label's width). The label names the box through `for`;
+   * the deadline is tied to it by aria-describedby, so the box's accessible
+   * name stays the label. */
+  function datedField(label: string, key: MilestoneDateKey, deadline: MilestoneDeadline | undefined): HTMLElement {
     const value = (student.milestones[key] as string | undefined) ?? '';
-    return field(
-      label,
+    const inputId = `milestone-${key}`;
+    const noteId = `deadline-${key}`;
+    const note = deadlineNote(deadline, noteId);
+    return el(
+      'div',
+      { class: 'field dated' },
+      el('label', { class: 'label', for: inputId }, label),
       el('input', {
         type: 'date',
+        id: inputId,
         value,
         'data-key': `milestone.${key}`,
+        ...(note ? { 'aria-describedby': noteId } : {}),
         onchange: (e) =>
           update((s) => void ((s.milestones as Record<string, string | undefined>)[key] = (e.target as HTMLInputElement).value || undefined)),
       }),
+      note,
     );
   }
 
@@ -2698,4 +2717,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   if (loadRefusals.length > 0) applyRefusals(refusedValues, loadRefusals);
   render();
   for (const r of loadRefusals) toast(r.message);
+}
+
+function deadlineNote(d: MilestoneDeadline | undefined, id: string): HTMLElement | null {
+  if (!d) return null;
+  return el('span', { class: `ms-deadline${d.state ? ` ms-${d.state}` : ''}`, id }, deadlineText(d));
 }

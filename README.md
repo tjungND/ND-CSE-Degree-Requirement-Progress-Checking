@@ -33,8 +33,8 @@ Google Sheet (you edit)  ──publish-to-web CSV──►  static web page (stu
 
 | You want to… | Read | Needs |
 |---|---|---|
-| Change which courses count, their tags, or a number in the handbook | **[Track A](#track-a--updating-the-rules-no-programming)** | Edit access to the Google Sheet. Nothing else — no GitHub, no code. |
-| Change what the app *does* (a new requirement, new handbook structure, UI, transcript parsing, a re-published sheet) | **[Track B](#track-b--changing-the-app-with-claude-code-or-codex)** | Access to this repository, Node.js, and an AI coding agent (Claude Code or Codex). |
+| Change which courses count, their tags, or a number the **department** sets (the CSE handbook's) | **[Track A](#track-a--updating-the-rules-no-programming)** | Edit access to the Google Sheet. Nothing else — no GitHub, no code. |
+| Change what the app *does* (a new requirement, new handbook structure, UI, transcript parsing, a re-published sheet) — or a number set **above the department**, by the Graduate School ([list](#a5b-numbers-the-sheet-does-not-hold)) | **[Track B](#track-b--changing-the-app-with-claude-code-or-codex)** | Access to this repository, Node.js, and an AI coding agent (Claude Code or Codex). |
 
 Both tracks share the [yearly routine](#the-yearly-routine-both-tracks), [embedding the pages
 in a WordPress page](#embedding-these-pages-in-a-wordpress-page), [where things
@@ -47,7 +47,11 @@ below.
    transcript PDFs are parsed on the student's own computer. This is the FERPA story, and the page
    promises it to students.
 2. **Policy lives in the sheet, structure lives in code.** Never hard-code a course number or a
-   threshold.
+   threshold the department sets. The sheet holds **only what the department controls**: which
+   courses count, their tags, and the CSE handbook's numbers. A number set above the department —
+   by the Graduate School's Academic Code or its DGS Handbook — is not the DGS's to tune, so it
+   lives in the code beside the sentence it comes from, and changing it is a Track B change
+   ([A5b](#a5b-numbers-the-sheet-does-not-hold) lists them).
 3. **The app never guesses.** Anything the sheet does not settle shows "needs DGS review"; a
    missing number shows "cannot evaluate", never a silent pass.
 
@@ -141,6 +145,40 @@ recognized.
 4. **Caution:** a Parameters change applies to **every student immediately**; there is no
    per-cohort grandfathering. If a new number must apply only to new students, that is a code
    change — Track B.
+5. The Parameters tab holds the **department's** numbers only. If the number you want to change
+   is not there, it is probably the Graduate School's — see A5b.
+
+### A5b. Numbers the sheet does not hold
+
+The sheet governs only what can be controlled and adjusted **at the department level**. Numbers
+set at a higher level — the Graduate School's Academic Code and its DGS Handbook — are kept in
+the code, each beside the sentence it comes from, and are deliberately **not** Parameters rows:
+a DGS cannot change them, and a sheet row would suggest otherwise (DGS rulings 2026-09-27 and
+2026-10-04). To change one — when the Graduate School revises its rules — use
+**[Track B — Changing the app with Claude Code or Codex](#track-b--changing-the-app-with-claude-code-or-codex)**.
+
+| Number | Where it comes from | Where it lives in the code |
+|---|---|---|
+| Admission to doctoral candidacy by the end of the **8th** semester | DGS Handbook §3.22.3; Academic Code §5.7.3 | `ADMISSION_DEADLINE_SEMESTER`, `src/engine/requirements/phd.ts` |
+| **4** consecutive full-time semesters before admission to candidacy | DGS Handbook §3.22.3 | `ADMISSION_FULL_TIME_SEMESTERS`, `src/engine/requirements/phd.ts` |
+| At most **15** credits of graduate courses in a fall or spring, **10** in a summer | Academic Code §3.8; DGS Handbook §3.9 | `SEMESTER_GRADUATE_CREDITS_MAX`, `SUMMER_CREDITS_MAX`, `src/engine/allocate.ts` |
+| At least **3** graduate-level credits in a full-time semester | Academic Code §4.1 | `GRADUATE_LEVEL_CREDITS_MIN`, `src/engine/requirements/residency.ts` |
+| At most **12** credits earned in non-degree status | Academic Code §2.3 | `NON_DEGREE_CREDITS_MAX`, `src/engine/allocate.ts` |
+| An Incomplete becomes an F **30 + 14** days after grades are due | Academic Code §4.4 | `INCOMPLETE_GRACE_DAYS`, `src/engine/allocate.ts` |
+| A grade of **C** or better for credit | Academic Code §4.3 | `passesCreditFloor`, `src/engine/grades.ts` |
+| The **6** credits of §3.5's note on courses shared with a bachelor's degree | the Graduate School | `src/engine/tracks.ts` |
+| One more year and a 9th semester for students enrolled in **Spring 2020** or earlier | Academic Code Appendix A | `COVID_COHORT_LAST_ENTRY`, `src/engine/requirements/context.ts` |
+| Credit from before an interruption of **five years** or more is forfeited | Academic Code §5.5 | `src/engine/allocate.ts` (readmission) |
+
+One exception, by the DGS's ruling of 2026-09-12: the quarter and trimester credit factors
+(`quarter_credit_factor`, `trimester_credit_factor`, the DGS Handbook's §3.14 pro-rata table) are
+Parameters rows.
+
+The department's own numbers — the CSE handbook's credit totals, caps, deadlines, the qualifier,
+the GPA minimum, the full-time credit floor — stay in the **Parameters** tab (A5). When a CSE
+handbook number and a Graduate School number say the same thing (the four semesters of §4.3's
+residency, the eighth semester of §4.5's exam), the sheet row is the department's and the code
+constant is the Graduate School's: changing the sheet changes only the department's rule.
 
 ### A6. Log the change and date it
 
@@ -413,6 +451,8 @@ follow them.
 
 1. **New handbook.** Numbers → **Parameters** tab (Track A). New or retired courses → **Courses**
    tab (Track A). Changed *structure* of a requirement → Track B, recipe "New handbook year".
+   **New Academic Code or DGS Handbook** from the Graduate School → Track B: its numbers live in
+   the code ([A5b](#a5b-numbers-the-sheet-does-not-hold)), not in the sheet.
 2. **Let the app check your work.** Open the app → **Rules-sheet diagnostics** (A7).
 3. **Log it** on the sheet's Changelog tab.
 4. Nothing else — the app picks the sheet up automatically.

@@ -1,0 +1,22 @@
+{
+  "name": "phd-research-pass-after-fail",
+  "description": "§4.4.3: the advisor files a FAIL inside the 18 months (2026-12-01, Fall 2025 entry), and the DGS's committee has six months for its final judgement; the pass comes on 2027-05-01, inside those six months but after the 18 months (mid-Spring 2027). The fail met §4.4.3's timing and started the committee's clock (policy review 2026-10-03), so the pass is on time: the row reads Met. It used to go to the DGS with “confirm the DGS extended the deadline” — an extension the student never needed (review of the Milestones deadlines, 2026-10-04).",
+  "today": "2027-05-02",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2025 },
+    "priorMs": "none",
+    "courses": [],
+    "milestones": { "advisorIdentified": "2025-09-01", "advisorName": "Prof. Example", "researchQualifierFailed": "2026-12-01", "researchQualifierPassed": "2027-05-01" },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.research": {
+      "status": "met",
+      "detailIncludes": ["Research qualifier passed 2027-05-01 — after a fail on 2026-12-01, within the DGS’s committee’s six months"],
+      "detailExcludes": ["confirm the DGS extended the deadline"]
+    }
+  }
+}

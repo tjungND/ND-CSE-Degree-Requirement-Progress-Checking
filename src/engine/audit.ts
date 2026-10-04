@@ -15,6 +15,7 @@ import { isNotreDameInstitution } from '../data/external.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
+import { msMilestoneDeadlines, phdMilestoneDeadlines } from './requirements/milestone-deadlines.ts';
 import { formatCredits } from './credits.ts';
 import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 
@@ -328,6 +329,8 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   };
   rows.push(student.program === 'mscse' ? msTimeLimitRow(ctx, others) : phdTimeLimitRow(ctx, others));
   rows.push(approvalsRow(ctx));
+  // The deadline beside each date in the Milestones card (DGS 2026-10-04).
+  const milestoneDeadlines = student.program === 'phd' ? phdMilestoneDeadlines(ctx, rows) : msMilestoneDeadlines(ctx);
 
   const scored = rows.filter(isScored);
   // Conditional satisfaction gets its own number (interface review R2,
@@ -429,5 +432,6 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     summary,
     warnings: warnings.map((w) => decisionWording(p, w)),
     tracks: specialTracks(student, classified).map((t) => ({ ...t, text: decisionWording(p, t.text) })),
+    milestoneDeadlines,
   };
 }

@@ -1143,3 +1143,19 @@ html.embed .banner.embed-storage { margin: 12px 0 0; font-size: 13px; }
 /* The loading card is a centred 560 px box on a full page; in a frame that is
    about to be sized to it, centring it leaves the frame's own margins doubled. */
 html.embed .load-card { margin: 12px auto; }
+
+/* A milestone date with its deadline beside it (DGS 2026-10-04). The note
+   goes under the box when the card itself is narrow (a container query on
+   #milestones, 480 px); its colour follows the report's
+   deadline chips: due soon in the chip's orange, passed or late in red. */
+#milestones { container-type: inline-size; } /* the note's place follows the CARD's width, not the window's (the card is narrowest at 901-1120 px) */
+.dated { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; row-gap: 2px; align-items: center; }
+.dated > .label { grid-column: 1 / -1; margin-bottom: 1px; }
+.dated > input { justify-self: start; } /* the box keeps its own width when the note goes under it */
+.ms-deadline { min-width: 0; max-width: 560px; font-size: 13px; line-height: 1.35; color: var(--muted); }
+@container (max-width: 480px) {
+  .dated { grid-template-columns: minmax(0, 1fr); }
+  .ms-deadline { margin-top: 2px; }
+}
+.ms-deadline.ms-due_soon { color: #8a3a00; font-weight: 600; }
+.ms-deadline.ms-overdue, .ms-deadline.ms-late { color: var(--bad); font-weight: 600; }

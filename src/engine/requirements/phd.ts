@@ -273,7 +273,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
 export function qualifierPriorRulesEligible(entry: Term, todayIso: string): boolean {
   return compareTerm(termOfDate(todayIso), nthSemester(entry, 5)) >= 0;
 }
-function qualifierPassedUnderPriorRules(ctx: Ctx): boolean {
+export function qualifierPassedUnderPriorRules(ctx: Ctx): boolean {
   return ctx.student.attestations.qualifierPassedUnderPriorRules === true && qualifierPriorRulesEligible(ctx.entry, ctx.today);
 }
 function qualifierRowsPassedUnderPriorRules(ctx: Ctx, children: RequirementResult[]): RequirementResult[] {
@@ -481,7 +481,7 @@ export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEv
 /** The §4.4 deadline — "within four (4) semesters of starting", plus the
  * DGS's ONE-semester extension (2026-09-13) — computed once for the umbrella
  * and its components. Undefined while the rules sheet lacks the parameter. */
-interface QualifierDeadline {
+export interface QualifierDeadline {
   term: Term;
   extendedTerm?: Term;
   effectiveDate: string;
@@ -489,7 +489,7 @@ interface QualifierDeadline {
   /** The chip: overdue once passed, else open (due soon / upcoming). */
   deadline: DeadlineInfo;
 }
-function qualifierDeadline(ctx: Ctx): QualifierDeadline | undefined {
+export function qualifierDeadline(ctx: Ctx): QualifierDeadline | undefined {
   const semesters = ctx.params.number('qualifier_deadline_semesters');
   if (semesters === undefined) return undefined;
   // "Within four (4) semesters of starting" — the Ph.D.'s start, which for a
@@ -941,6 +941,28 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
           ? // The deadline chip carries the when; the pill says Overdue.
             [{ note: 'Overdue — talk to your advisor and the DGS' }]
           : ['The advisor’s Research-Qualifier form is not filed yet'];
+  // A pass recorded AFTER a fail is measured against the committee's six
+  // months, not the 18: the fail met §4.4.3's timing and started the
+  // committee's clock (2026-10-03), so a pass inside those six months is on
+  // time — it used to go to the DGS asking to "confirm the DGS extended the
+  // deadline", an extension the student never needed (review of the
+  // Milestones deadlines, 2026-10-04). A pass dated before the fail, or one
+  // the 18 months (or the DGS's extension) already covers, is unchanged.
+  if (m.researchQualifierPassed && failedOn && remediationDue && failedOn <= m.researchQualifierPassed && r.status !== 'met') {
+    const afterFail = deadlineStatus({
+      doneOn: m.researchQualifierPassed,
+      deadline: { date: remediationDue, approx: true },
+      today: ctx.today,
+      deadlineLabel: `${deadlineTerm(remediationDue).when === 'during' ? `mid-${termLabel(deadlineTerm(remediationDue).term)}` : deadlineTermLabel(remediationDue)} — six months after the fail`,
+      lateWording: 'after the DGS’s committee’s six months; confirm the outcome with the DGS (§4.4.3)',
+    });
+    status = afterFail.status;
+    deadline = afterFail.deadline;
+    parts =
+      afterFail.status === 'met'
+        ? [`Research qualifier passed ${m.researchQualifierPassed} — after a fail on ${failedOn}, within the DGS’s committee’s six months`]
+        : [`Passed ${m.researchQualifierPassed}`, ...(afterFail.lateNote ? [{ note: upper(afterFail.lateNote) }] : [])];
+  }
   if (m.researchQualifierPassed === undefined && failedOn !== undefined && remediationDue !== undefined) {
     const inWindow = ctx.today <= remediationDue;
     if (inWindow) {
@@ -998,7 +1020,7 @@ function rcrRow(ctx: Ctx): RequirementResult {
  * the COVID cohort (DGS 2026-10-03, Item 15: "apply the 1-year extension if
  * the admission is in Spring 2020 or before"; Appendix A.4 itself extends only
  * the exam — "by the end of the ninth semester"). */
-function eighthSemester(ctx: Ctx, sem: number): { effectiveSem: number; term: Term; date: string } {
+export function eighthSemester(ctx: Ctx, sem: number): { effectiveSem: number; term: Term; date: string } {
   const effectiveSem = sem + ctx.clockShift + (ctx.covidCohort ? 1 : 0);
   const term = nthSemester(ctx.entry, effectiveSem);
   return { effectiveSem, term, date: endOfTerm(term).date };
@@ -1137,7 +1159,7 @@ function candidacyRow(ctx: Ctx): RequirementResult {
  * Handbook §3.22.3), kept in code like the Academic Code's other numbers
  * (SEMESTER_GRADUATE_CREDITS_MAX, NON_DEGREE_CREDITS_MAX): the rules sheet
  * carries the department's policy, and these are not the department's. */
-const ADMISSION_DEADLINE_SEMESTER = 8;
+export const ADMISSION_DEADLINE_SEMESTER = 8;
 const ADMISSION_FULL_TIME_SEMESTERS = 4;
 
 /** Admission to doctoral candidacy — a step of its own after the OCE (DGS

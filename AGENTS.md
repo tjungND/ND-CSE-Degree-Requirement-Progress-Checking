@@ -11,7 +11,9 @@ The non-negotiables, spelled out in `CLAUDE.md`:
 - No backend, database, login, analytics, or runtime network call other than the read-only fetch
   of the rules sheet. Student data — including uploaded transcript PDFs — never leaves the browser.
 - Policy lives in the Google Sheet, structure lives in code. Never hard-code a course number or a
-  threshold; quote the handbook sentence and its § above every requirement.
+  threshold the department sets; a number set above the department (the Graduate School's
+  Academic Code or DGS Handbook) lives in code beside its quoted sentence, never as a Parameters
+  key (README § A5b lists them). Quote the handbook sentence and its § above every requirement.
 - Never guess: unknown course, missing parameter, or unapproved item ⇒ "needs DGS review" or
   "cannot evaluate", never a silent default.
 - Plan before non-trivial changes and ask the DGS every policy question you cannot settle from the
