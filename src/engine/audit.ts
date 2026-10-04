@@ -140,6 +140,20 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           },
         ];
 
+  // On probation (Academic Code §5.7.2; DGS 2026-10-04, policy review
+  // P2-ac-5b-6.1-3 — "a rare case", asked under Your standing behind a
+  // selector): the probation letter's stipulations and date govern, and may be
+  // earlier than any deadline this page computes (an OCE "by the end of next
+  // semester", say). Said at the top; no row is recomputed.
+  const probation = student.probationLetterDeadline;
+  if (probation !== undefined) {
+    warnings.push(
+      probation < today
+        ? `On probation: the deadline in your probation letter, ${probation}, has passed. Confirm your standing with the DGS — missing the letter’s stipulations can lead to dismissal (Academic Code §5.7.2, §5.8).`
+        : `On probation: the deadline in your probation letter is ${probation}. The letter’s stipulations and that date govern — the deadlines on this page do not extend them, and missing them can lead to dismissal (Academic Code §5.7.2, §5.8).`,
+    );
+  }
+
   // Academic Code §3.8's maximal registration (DGS 2026-10-03,
   // P1-residency-enrollment-c4: "cap a semester's credits"): at most 15
   // credits of graduate courses count from a fall or spring semester, 10 from

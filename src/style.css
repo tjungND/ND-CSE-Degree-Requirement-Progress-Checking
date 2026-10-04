@@ -262,6 +262,8 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 .gpa-option { display: block; }
 .gpa-note { margin-top: -6px; }
 .ft-auto { color: var(--muted); }
+/* A semester with courses that did not reach full-time (DGS 2026-10-04): shown, in the warnings' amber. */
+.ft-term.ft-warn { background: #fbeedd; border-left: 3px solid var(--warn); border-radius: 4px; padding: 2px 6px; color: #6b4d10; }
 .ft-check { color: var(--ok); font-weight: 700; }
 .pair { display: flex; gap: 6px; }
 .pair input { width: 90px; }

@@ -103,8 +103,14 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // Residence is counted from the entry term: the full-time checkboxes list
   // the program terms only (never the undergraduate Fall 2024 / Spring 2025).
   // (A term counted automatically reads "✓ Fall 2027 — counted automatically (9+ credits entered)" since 2026-09-05.)
-  const ftTerms = await s.evalJs(`[...document.querySelectorAll('.ft-term')].map(e => e.textContent.trim().replace(/^✓\\s*/, '').replace(/\\s[—(].*$/, ''))`);
+  // A semester with courses that did not reach full-time is highlighted with a
+  // "⚠" (DGS 2026-10-04) and says why; the selector opens for it.
+  const ftTerms = await s.evalJs(`[...document.querySelectorAll('.ft-term')].map(e => e.textContent.trim().replace(/^[✓⚠]\\s*/, '').replace(/\\s[—(].*$/, ''))`);
   console.log('  full-time term checkboxes:', JSON.stringify(ftTerms));
+  const ftWarned = JSON.parse(await s.evalJs(`JSON.stringify({ warned: [...document.querySelectorAll('.ft-term.ft-warn')].map(e => e.textContent.trim()), open: document.querySelector('details.rare[data-key="rare.fulltime"]')?.open ?? null })`));
+  console.log('  full-time terms highlighted:', JSON.stringify(ftWarned));
+  if (ftWarned.warned.some((t) => !/^⚠ .* — (not full-time|every course withdrawn)/.test(t))) throw new Error('a highlighted semester must say why: ' + JSON.stringify(ftWarned.warned));
+  if (ftWarned.warned.length > 0 && ftWarned.open !== true) throw new Error('a semester that was not full-time must open the Full-time terms selector');
   if (JSON.stringify(ftTerms) !== JSON.stringify(['Fall 2026', 'Spring 2027', 'Fall 2027'])) {
     throw new Error('residency terms must start at the entry term');
   }

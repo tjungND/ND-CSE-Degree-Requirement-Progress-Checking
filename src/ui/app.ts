@@ -1028,6 +1028,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const ftTerms = fullTimeTerms(classified);
     if (ftTerms) card.append(ftTerms);
     card.append(clockFields());
+    card.append(probationField());
     const nonDegree = nonDegreeQuestion(classified);
     if (nonDegree) card.append(nonDegree);
     return card;
@@ -1038,6 +1039,38 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * adoption accommodations (each pushes the §4.3 limit and §4.5's eighth
    * semester out by a semester — Academic Code §6.2.6, §5.4; DGS Handbook §3.4,
    * §3.7.2), and a readmission after a withdrawal (Academic Code §5.5). */
+  /** On probation, with a deadline in the letter (Academic Code §5.7.2) — a
+   * rare case (DGS 2026-10-04, policy review P2-ac-5b-6.1-3), behind a
+   * selector that is open once a date is on file. The report says at the top
+   * that the letter's date governs; nothing is recomputed. */
+  function probationField(): HTMLElement {
+    const input = el('input', {
+      type: 'date',
+      value: student.probationLetterDeadline ?? '',
+      'data-key': 'standing.probation',
+      'aria-label': 'Deadline in your probation letter',
+      onchange: (e) => {
+        const v = (e.target as HTMLInputElement).value;
+        update((s) => void (s.probationLetterDeadline = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined));
+      },
+    });
+    return rareFold(
+      'probation',
+      'On probation, with a deadline in the letter?',
+      student.probationLetterDeadline !== undefined,
+      el(
+        'div',
+        { class: 'field' },
+        el('label', { class: 'label' }, 'Deadline in your probation letter (Academic Code §5.7.2)', input),
+        el(
+          'p',
+          { class: 'hint field-hint' },
+          'Only if you are on probation. The letter’s stipulations and its deadline govern — they can come before the deadlines on this page (the candidacy exam by the end of next semester, say), and missing them can lead to dismissal (Academic Code §5.8). Leave blank otherwise.',
+        ),
+      ),
+    );
+  }
+
   function clockFields(): HTMLElement {
     const phd = student.program === 'phd';
     const count = (key: 'leaveSemesters' | 'accommodationSemesters', label: string, hint: string): HTMLElement => {
@@ -1210,6 +1243,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const records = new Map(fullTimeRecordsFrom(classified, student, fullTimeFloor).map((r) => [termIndex(r.term), r] as const));
     let autoCount = 0;
     let tickedCount = 0;
+    // Semesters with courses that did not reach full-time (DGS 2026-10-04:
+    // "do not hide them. Show those semesters with warning highlights") —
+    // they break a residency run, so they are shown, highlighted, and open the
+    // selector by themselves.
+    let partTimeCount = 0;
     for (const [key, t] of [...terms.entries()].sort((a, b) => a[0] - b[0])) {
       const rec = records.get(key);
       const overridden = (student.fullTimeTermOverrides ?? []).some((o) => termIndex(o) === key);
@@ -1233,15 +1271,33 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         },
       });
       cb.checked = overridden;
-      box.append(el('label', { class: 'ft-term' }, cb, ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`));
+      const partTime = !overridden && fullTimeFloor !== undefined && rec !== undefined && rec.credits > 0;
+      if (partTime) partTimeCount += 1;
+      const partTimeText = !partTime
+        ? ''
+        : rec!.withdrawnOnly
+          ? ' — every course withdrawn; tick only if you were registered full-time at census'
+          : t.season === 'summer'
+            ? ` — not full-time: ${rec!.credits} registered credits entered, and neither that spring nor that fall was full-time`
+            : ` — not full-time: ${rec!.credits} of ${fullTimeFloor} registered credits entered`;
+      box.append(
+        el(
+          'label',
+          { class: partTime ? 'ft-term ft-warn' : 'ft-term' },
+          cb,
+          partTime
+            ? ` ⚠ ${termLabel(t)}${partTimeText}`
+            : ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`,
+        ),
+      );
     }
     // The common case is every semester counted from the courses entered; the
     // list, and its ticks for a research-only semester, sit behind a selector
     // that says how many counted (DGS 2026-10-03). Open once a tick is on file.
     return rareFold(
       'fulltime',
-      `Full-time semesters for residency: ${autoCount} of ${terms.size} counted from your courses${tickedCount > 0 ? `, ${tickedCount} ticked by you` : ''}`,
-      tickedCount > 0,
+      `Full-time semesters for residency: ${autoCount} of ${terms.size} counted from your courses${tickedCount > 0 ? `, ${tickedCount} ticked by you` : ''}${partTimeCount > 0 ? `, ${partTimeCount} not full-time` : ''}`,
+      tickedCount > 0 || partTimeCount > 0,
       box,
     );
   }

@@ -303,6 +303,13 @@ export interface Student {
    * an interruption of five years or more are routed to the DGS — the Code
    * forfeits their credit. */
   readmittedTerm?: Term;
+  /** The deadline in a probation letter, when the student is on probation
+   * (Academic Code §5.7.2: "A student on probation must complete the
+   * stipulations outlined in the probation letter within the required
+   * timeframe or will be dismissed"). A rare case (DGS 2026-10-04, policy
+   * review P2-ac-5b-6.1-3): the letter's date governs, and no row is
+   * recomputed — the report says so at the top. ISO date. */
+  probationLetterDeadline?: string;
   /** The Notre Dame graduate courses dated before the entry term, with no
    * earlier graduate program on the record, were taken as a NON-DEGREE
    * (unclassified) student (Academic Code §2.3: at most 12 such credits may

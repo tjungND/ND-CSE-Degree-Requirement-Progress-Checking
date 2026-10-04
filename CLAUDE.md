@@ -146,8 +146,9 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
   calling it done — `npx tsc --noEmit`, `npm test`, `npm run build`, `npm run e2e`, and look at the
   screenshots — and check Safari's engine too when layout changed (`E2E_BROWSER=webkit npm run e2e`;
   Chromium alone missed a Safari-only bug on 2026-09-06). Show the result (screenshot or preview)
-  before committing; the
-  DGS may ask for revisions first.
+  in the reply that delivers it. Since 2026-10-04 (DGS: "From now on, commit and give the line to
+  merge and push without my approval") a verified batch is committed at once and the reply ends with
+  the merge-and-push line; revisions the DGS asks for afterwards are new commits.
 - Commit on the session's branch under the DGS's own git identity (Taeho Jung <tjung@nd.edu>, the
   global git config on his Macs) with the change explained in the message. Before each commit that
   the DGS will ship, run `git fetch origin && git merge origin/main` (the sheet-sync Action commits

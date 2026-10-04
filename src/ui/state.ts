@@ -292,6 +292,9 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     // Approved credit overloads (Academic Code §3.8, 2026-10-03): well-formed
     // terms only; an empty or malformed list is dropped.
     creditOverloadTerms: validTermList(raw['creditOverloadTerms']),
+    // A probation letter's deadline (2026-10-04): an ISO date or nothing.
+    probationLetterDeadline:
+      typeof raw['probationLetterDeadline'] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw['probationLetterDeadline']) ? raw['probationLetterDeadline'] : undefined,
     ...(typeof raw['ndNonDegree'] === 'boolean' ? { ndNonDegree: raw['ndNonDegree'] as boolean } : { ndNonDegree: undefined }),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},
