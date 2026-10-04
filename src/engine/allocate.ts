@@ -702,6 +702,21 @@ export function classify(student: Student, rules: Rules, today?: string): {
     // credits field. The course keeps its place in the table and earns
     // nothing, which is what 0 credits means.
     if (c.credits === 0) {
+      // A course the course rules list at zero credits (credit_min =
+      // credit_max = 0) is right as entered — above all the summer
+      // "Independent Summer Research" section every stipend-funded student
+      // registers for (Academic Code §3.6: "must register for their
+      // program's zero-credit 'Independent Summer Research' section"). No
+      // warning, nothing to correct (policy review 2026-10-04, P2-ac-1-3-15).
+      if (rule !== undefined && rule.creditMax === 0 && (rule.creditMin ?? 0) === 0) {
+        return {
+          ...base,
+          ineligibleReason:
+            c.term.season === 'summer'
+              ? 'zero-credit summer registration (Academic Code §3.6) — counts toward nothing, as expected'
+              : 'a zero-credit course in the course rules — counts toward nothing, as expected',
+        };
+      }
       warnings.push(`${c.courseId} is entered with 0 credits, so it counts toward nothing. Check the credit hours on your transcript and correct the row.`);
       return { ...base, ineligibleReason: 'not counted — entered with 0 credits; check the credit hours on your transcript' };
     }

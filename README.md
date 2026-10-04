@@ -170,6 +170,8 @@ a DGS cannot change them, and a sheet row would suggest otherwise (DGS rulings 2
 | Quarter credit hours × **0.66**, trimester credit hours × **0.88** (§5.2's pro-rata conversion) | DGS Handbook §3.14 | `QUARTER_CREDIT_FACTOR`, `TRIMESTER_CREDIT_FACTOR`, `src/data/external.ts` |
 | One more year and a 9th semester for students enrolled in **Spring 2020** or earlier | Academic Code Appendix A | `COVID_COHORT_LAST_ENTRY`, `src/engine/requirements/context.ts` |
 | Credit from before an interruption of **five years** or more is forfeited | Academic Code §5.5 | `src/engine/allocate.ts` (readmission) |
+| Probation: a cumulative GPA below **3.0** in any two semesters, or a **U** in research in two consecutive semesters; dismissal grounds: a semester GPA below **2.5**, below **3.0** in two consecutive semesters, or **three** consecutive U grades in research | Academic Code §5.7.3, §5.8 | `PROBATION_CUMULATIVE_GPA`, `DISMISSAL_TERM_GPA`, `DISMISSAL_TWO_TERMS_GPA`, `PROBATION_RESEARCH_U`, `DISMISSAL_RESEARCH_U`, `src/engine/audit.ts` |
+| The master's examination by the end of the term after the coursework; after a fail, **one** retake by the end of the following semester | Academic Code §6.1.5 | `src/engine/requirements/mscse.ts` (optionRows) |
 
 (The two credit factors were Parameters rows from 2026-09-12 until the DGS moved them into the code
 on 2026-10-04; a sheet that still has a `quarter_credit_factor` or `trimester_credit_factor` row is

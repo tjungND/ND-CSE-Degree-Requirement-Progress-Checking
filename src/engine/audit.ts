@@ -12,7 +12,7 @@ import { isCovidCohort, type Ctx } from './requirements/context.ts';
 import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
 import { transferCourseChecks } from '../data/course-checks.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
-import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
+import { advisorReviewFlag, advisorRow, approvalsRow, gpaRow, gpaText } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
 import { msMilestoneDeadlines, phdMilestoneDeadlines } from './requirements/milestone-deadlines.ts';
@@ -93,6 +93,27 @@ function sharedDegreesCap(base: number | undefined, spent: number): CapSpec {
         : capLabel(limit, 'allowance for coursework counted toward two degrees'),
     section: 'Graduate School',
   };
+}
+
+/** The Graduate School's numbers for its probation and dismissal grounds
+ * (Academic Code §5.7.3, §5.8) — kept in code, not on the sheet, as the
+ * Graduate School's (DGS 2026-10-04; README § A5b). */
+export const PROBATION_CUMULATIVE_GPA = 3.0; // §5.7.3: "A cumulative grade point average below 3.0 in any two semesters"
+export const DISMISSAL_TERM_GPA = 2.5; // §5.8: "A semester G.P.A. below 2.5 in any single semester"
+export const DISMISSAL_TWO_TERMS_GPA = 3.0; // §5.8: "or below 3.0 for two consecutive semesters"
+export const PROBATION_RESEARCH_U = 2; // §5.7.3: "Earning a U in research for two consecutive semesters"
+export const DISMISSAL_RESEARCH_U = 3; // §5.8: "three consecutive U grades in research"
+
+/** The longest run of consecutive fall/spring semesters in `seqs` (semesterSeq). */
+function longestRun(seqs: number[]): number[] {
+  const sorted = [...new Set(seqs)].sort((a, b) => a - b);
+  let best: number[] = [];
+  let run: number[] = [];
+  for (const s of sorted) {
+    run = run.length > 0 && run[run.length - 1]! + 1 === s ? [...run, s] : [s];
+    if (run.length > best.length) best = run;
+  }
+  return best;
 }
 
 export function audit(student: Student, rules: Rules, today: string): AuditReport {
@@ -230,6 +251,11 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     reviewFlags.push(graduateFlag);
     warnings.push(`${graduateFlag} This is included in the review request.`);
   }
+  // A Ph.D. advisor who is not tenured or tenure-track CSE faculty, or whose
+  // status the student is not sure of (CSE §2.3; Academic Code §6.2.7 —
+  // policy review 2026-10-04, P2-ac-6.2-app-8): the DGS's written approval.
+  const advisorFlag = advisorReviewFlag(ctx);
+  if (advisorFlag) reviewFlags.push(advisorFlag);
 
   if (normalized) {
     // Admissions are in fall and spring only (DGS 2026-10-03); a student who
@@ -281,6 +307,53 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       `${twoInOne ? 'More than one Incomplete in one semester' : 'Incompletes in two consecutive semesters'}: the department and the Graduate School review such a record for continued support and enrollment (§5.1) — talk to the DGS.`,
     );
   }
+  // The Graduate School's probation and dismissal grounds (Academic Code
+  // §5.7.3, §5.8 — policy review 2026-10-04, P2-ac-5b-6.1-4, -6, -7; DGS:
+  // "apply the suggested handling"). Said at the top, no row recomputed. The
+  // GPA figures are the transcript's own, kept per term by the Notre Dame
+  // import (student.termGpas) — never computed from entered grades (decision
+  // 2026-08-31); a hand-entered record gets no GPA line. Fall and spring only:
+  // whether a summer counts as one of the "semesters" is the DGS's call.
+  const gpaTerms = (student.termGpas ?? []).filter((t) => t.term.season !== 'summer').sort((a, b) => compareTerm(a.term, b.term));
+  const listGpas = (ts: typeof gpaTerms, pick: (t: (typeof gpaTerms)[number]) => number | undefined) => ts.map((t) => `${termLabel(t.term)}: ${gpaText(pick(t)!)}`).join(', ');
+  const cumulativeBelow = gpaTerms.filter((t) => t.cumulativeGpa !== undefined && t.cumulativeGpa < PROBATION_CUMULATIVE_GPA);
+  if (cumulativeBelow.length >= 2) {
+    warnings.push(
+      `Your transcript shows a cumulative GPA below ${PROBATION_CUMULATIVE_GPA.toFixed(1)} in ${cumulativeBelow.length} semesters (${listGpas(cumulativeBelow, (t) => t.cumulativeGpa)}) — a Graduate School probation trigger (Academic Code §5.7.3); confirm your standing with the DGS.`,
+    );
+  }
+  const termBelowDismissal = gpaTerms.filter((t) => t.termGpa !== undefined && t.termGpa < DISMISSAL_TERM_GPA);
+  if (termBelowDismissal.length > 0) {
+    warnings.push(
+      `Your transcript shows a semester GPA below ${DISMISSAL_TERM_GPA.toFixed(1)} (${listGpas(termBelowDismissal, (t) => t.termGpa)}) — the Academic Code lists this as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.`,
+    );
+  }
+  const termBelowThree = gpaTerms.filter((t) => t.termGpa !== undefined && t.termGpa < DISMISSAL_TWO_TERMS_GPA);
+  const lowRun = longestRun(termBelowThree.map((t) => semesterSeq(t.term)));
+  if (lowRun.length >= 2) {
+    const inRun = termBelowThree.filter((t) => lowRun.includes(semesterSeq(t.term)));
+    warnings.push(
+      `Your transcript shows a semester GPA below ${DISMISSAL_TWO_TERMS_GPA.toFixed(1)} in ${lowRun.length} consecutive semesters (${listGpas(inRun, (t) => t.termGpa)}) — the Academic Code lists this as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.`,
+    );
+  }
+  // U in research (§5.7.3 item 3, §5.8): a Notre Dame course the course rules
+  // type research or project, graded U, in consecutive fall/spring semesters.
+  const researchU = classified.filter(
+    (c) => c.entry.origin === 'nd' && c.entry.grade === 'U' && c.entry.term.season !== 'summer' && (c.rule?.courseType === 'research' || c.rule?.courseType === 'project'),
+  );
+  const uRun = longestRun(researchU.map((c) => semesterSeq(c.entry.term)));
+  if (uRun.length >= PROBATION_RESEARCH_U) {
+    const terms = [...new Map(researchU.filter((c) => uRun.includes(semesterSeq(c.entry.term))).map((c) => [semesterSeq(c.entry.term), c.entry.term])).values()]
+      .sort(compareTerm)
+      .map(termLabel)
+      .join(', ');
+    warnings.push(
+      uRun.length >= DISMISSAL_RESEARCH_U
+        ? `A U in research in ${uRun.length} consecutive semesters (${terms}) — the Academic Code lists three consecutive U grades in research as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.`
+        : `A U in research in two consecutive semesters (${terms}) — a Graduate School probation trigger (Academic Code §5.7.3); a third in a row is a ground for dismissal (Academic Code §5.8). Talk to the DGS.`,
+    );
+  }
+
   // The bachelor's award term (2026-09-06) must precede the entry term — a
   // later or equal one would file the whole record as pre-graduate.
   if (student.bachelorsAwarded !== undefined && compareTerm(student.bachelorsAwarded, entry) >= 0) {

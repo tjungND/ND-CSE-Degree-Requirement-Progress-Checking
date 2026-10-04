@@ -58,6 +58,7 @@ export const MILESTONE_FIELDS: readonly MilestoneField[] = [
   { key: 'defensePassed', label: 'Dissertation defense passed', section: '§4.7', program: 'phd' },
   { key: 'dissertationSubmitted', label: 'Final dissertation submitted to the Graduate School', section: 'Academic Code §6.2.12', program: 'phd' },
   { key: 'thesisDefensePassed', label: 'Thesis defense passed', section: '§3.4', program: 'mscse' },
+  { key: 'thesisDefenseFailed', label: 'Thesis defense failed (first attempt)', section: 'Academic Code §6.1.5', program: 'mscse' },
   { key: 'projectReportAccepted', label: 'Project report accepted by advisor', section: '§3.4', program: 'mscse' },
 ];
 

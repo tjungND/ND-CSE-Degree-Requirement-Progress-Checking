@@ -865,11 +865,11 @@ describe('suspect course entries the report warns about', () => {
 describe('two advisors', () => {
   const rules = buildRules();
   it('the §2.3 row names both, joined with "and"', () => {
-    const s = phdStudent({ milestones: { advisorName: 'Prof. A', advisorName2: 'Prof. B' } });
+    const s = phdStudent({ milestones: { advisorName: 'Prof. A', advisorName2: 'Prof. B', advisorTtt: 'yes' } });
     const row = audit(s, rules, '2027-06-01').requirements.find((r) => r.id === 'shared.advisor')!;
     assert.equal(row.status, 'met');
     assert.equal(row.detail, 'Advisors: Prof. A and Prof. B.');
-    const one = audit(phdStudent({ milestones: { advisorName: 'Prof. A' } }), rules, '2027-06-01').requirements.find((r) => r.id === 'shared.advisor')!;
+    const one = audit(phdStudent({ milestones: { advisorName: 'Prof. A', advisorTtt: 'yes' } }), rules, '2027-06-01').requirements.find((r) => r.id === 'shared.advisor')!;
     assert.equal(one.detail, 'Advisor: Prof. A.');
   });
 });

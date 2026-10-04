@@ -188,8 +188,25 @@ const MILESTONE_DATE_LABELS: Record<string, string> = {
   defensePassed: 'Dissertation defense passed',
   dissertationSubmitted: 'Final dissertation submitted',
   thesisDefensePassed: 'Thesis defense passed',
+  thesisDefenseFailed: 'Thesis defense failed',
   projectReportAccepted: 'Project report accepted',
 };
+
+/** The per-term GPA figures an import stored (2026-10-04). */
+function validTermGpas(raw: unknown): Student['termGpas'] {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw.flatMap((t) => {
+    if (!t || typeof t !== 'object') return [];
+    const r = t as Record<string, unknown>;
+    if (!validTerm(r['term'])) return [];
+    const term = { season: (r['term'] as Term).season, year: (r['term'] as Term).year };
+    const termGpa = inRange(r['termGpa'], GPA_RANGE) ? (r['termGpa'] as number) : undefined;
+    const cumulativeGpa = inRange(r['cumulativeGpa'], GPA_RANGE) ? (r['cumulativeGpa'] as number) : undefined;
+    if (termGpa === undefined && cumulativeGpa === undefined) return [];
+    return [{ term, ...(termGpa !== undefined ? { termGpa } : {}), ...(cumulativeGpa !== undefined ? { cumulativeGpa } : {}) }];
+  });
+  return out.length > 0 ? out : undefined;
+}
 
 /** A real calendar date written YYYY-MM-DD — what a date box stores. */
 function isIsoDate(v: string): boolean {
@@ -215,6 +232,8 @@ function validMilestones(raw: unknown, refusals: Refusal[]): Student['milestones
   // it, silently — the defense date stands for both.
   delete out['dissertationApprovedForDefense'];
   delete out['thesisApprovedByReaders'];
+  // The advisor's faculty-status answers (2026-10-04): one of three words or nothing.
+  for (const k of ['advisorTtt', 'advisorTtt2']) if (out[k] !== undefined && !['yes', 'no', 'unsure'].includes(out[k] as string)) delete out[k];
   for (const [key, label] of Object.entries(MILESTONE_DATE_LABELS)) {
     const v = out[key];
     if (v === undefined) continue;
@@ -344,6 +363,9 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     // terms only; an empty or malformed list is dropped.
     creditOverloadTerms: validTermList(raw['creditOverloadTerms']),
     // A probation letter's deadline (2026-10-04): an ISO date or nothing.
+    // A Notre Dame transcript's per-term GPA figures (2026-10-04): well-formed
+    // terms and figures on the 0.00–4.00 scale only; anything else is dropped.
+    termGpas: validTermGpas(raw['termGpas']),
     probationLetterDeadline:
       typeof raw['probationLetterDeadline'] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw['probationLetterDeadline']) ? raw['probationLetterDeadline'] : undefined,
     ...(typeof raw['ndNonDegree'] === 'boolean' ? { ndNonDegree: raw['ndNonDegree'] as boolean } : { ndNonDegree: undefined }),

@@ -2261,6 +2261,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('p', { class: 'hint' }, 'Every date here is optional — enter a date once it has happened.'),
     );
 
+    // Ph.D.: is the advisor tenured or tenure-track CSE faculty? (CSE §2.3;
+    // Academic Code §6.2.7 — policy review 2026-10-04, P2-ac-6.2-app-8.) The
+    // app cannot see faculty status, so the student answers it; "no" or "not
+    // sure" goes to the DGS. Asked of every Ph.D. student, under the name.
+    const tttQuestion = (which: 'advisorTtt' | 'advisorTtt2', legend: string): HTMLElement | null =>
+      student.program === 'phd'
+        ? fieldset(
+            legend,
+            radios(`milestone.${which}`, [['yes', 'Yes'], ['no', 'No'], ['unsure', 'Not sure']], m[which] ?? '', (v) =>
+              update((s) => void (s.milestones[which] = v as 'yes' | 'no' | 'unsure')),
+            ),
+            'inline',
+          )
+        : null;
     card.append(
       field(
         'Advisor name (§2.3)',
@@ -2270,6 +2284,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           onchange: (e) => update((s) => void (s.milestones.advisorName = (e.target as HTMLInputElement).value || undefined)),
         }),
       ),
+      ...[tttQuestion('advisorTtt', 'Is your advisor tenured or tenure-track CSE faculty? (§2.3)')].filter((q): q is HTMLElement => q !== null),
       // A student may have two advisors (DGS 2026-09-22); the second box is
       // optional and the two names read as one supervision everywhere.
       // Uncommon: behind a selector unless a second name is on file (DGS 2026-10-03).
@@ -2285,6 +2300,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             onchange: (e) => update((s) => void (s.milestones.advisorName2 = (e.target as HTMLInputElement).value || undefined)),
           }),
         ),
+        tttQuestion('advisorTtt2', 'Is your co-advisor tenured or tenure-track CSE faculty?'),
       ),
       dateField('Advisor identified on (§2.3)', 'advisorIdentified'),
     );
@@ -2294,6 +2310,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (opt !== 'project') {
         card.append(
           dateField('Thesis defense passed (§3.4)', 'thesisDefensePassed'),
+          // A failed first attempt (Academic Code §6.1.5: one retake, by the
+          // end of the following semester) — uncommon, so behind a selector
+          // (policy review 2026-10-04, P2-ac-5b-6.1-12).
+          rareFold('thesis-failed', 'Did you fail a thesis defense attempt?', !!m.thesisDefenseFailed, dateField('Thesis defense failed — the first attempt (Academic Code §6.1.5)', 'thesisDefenseFailed')),
         );
       }
       if (opt !== 'thesis') {

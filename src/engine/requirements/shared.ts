@@ -106,6 +106,34 @@ export function gpaRow(ctx: Ctx): RequirementResult {
  * (P1-deadlines-18): "Obtaining a thesis/project advisor by the end of the
  * first semester of the program" — it used to say "at the start of the
  * program". */
+/** Whether a Ph.D. student's advisor is tenured or tenure-track CSE faculty,
+ * as the student answers it (policy review 2026-10-04, P2-ac-6.2-app-8; DGS:
+ * "apply the suggested handling"). CSE §2.3: "A research advisor must be a
+ * Tenure and Tenure Track (TTT) faculty member of the department. Exceptions
+ * to this policy require approval of the DGS." Academic Code §6.2.7:
+ * "Advisors and dissertation directors are chosen from the tenured and
+ * tenure-track faculty of the student's program", a non-TTT member only as a
+ * co-director with a TTT one. The app cannot see faculty status, so it asks;
+ * 'yes' for any advisor on record is enough, 'no' or 'not sure' for every
+ * one goes to the DGS, and an unanswered question is a missing input. */
+export function advisorTttState(ctx: Ctx): 'yes' | 'no' | 'unanswered' {
+  const m = ctx.student.milestones;
+  const answers = [...(m.advisorName || m.advisorIdentified ? [m.advisorTtt] : []), ...(m.advisorName2 ? [m.advisorTtt2] : [])];
+  if (answers.some((a) => a === 'yes')) return 'yes';
+  if (answers.length > 0 && answers.every((a) => a === 'no' || a === 'unsure')) return 'no';
+  return 'unanswered';
+}
+
+/** The review-request note for an advisor the DGS must approve (Ph.D.). */
+export function advisorReviewFlag(ctx: Ctx): string | undefined {
+  if (ctx.student.program !== 'phd' || advisorTttState(ctx) !== 'no') return undefined;
+  const m = ctx.student.milestones;
+  const who = (name: string | undefined, answer: 'yes' | 'no' | 'unsure' | undefined) =>
+    `${name ?? 'my advisor'} — ${answer === 'unsure' ? 'not sure whether tenured or tenure-track CSE faculty' : 'not tenured or tenure-track CSE faculty'}`;
+  const listed = [who(m.advisorName, m.advisorTtt), ...(m.advisorName2 ? [who(m.advisorName2, m.advisorTtt2)] : [])];
+  return `Advisor’s faculty status: ${listed.join('; ')}. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — a non-TTT or outside advisor needs the DGS’s written approval.`;
+}
+
 export function advisorRow(ctx: Ctx): RequirementResult {
   const ms = ctx.student.program === 'mscse';
   const quote = ms
@@ -131,6 +159,17 @@ export function advisorRow(ctx: Ctx): RequirementResult {
     status = 'met';
     // Two advisors are one supervision (DGS 2026-09-22): "Advisors: A and B".
     parts.push(`${names.length > 1 ? 'Advisors' : 'Advisor'}${names.length > 0 ? `: ${names.join(' and ')}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}`);
+    // Ph.D.: a tenured or tenure-track CSE advisor (2026-10-04, advisorTttState).
+    if (!ms) {
+      const ttt = advisorTttState(ctx);
+      if (ttt === 'unanswered') {
+        status = 'cannot_evaluate';
+        parts.push({ note: 'Answer under Milestones whether your advisor is tenured or tenure-track CSE faculty — a dissertation director must be (§2.3; Academic Code §6.2.7)' });
+      } else if (ttt === 'no') {
+        status = 'needs_dgs_review';
+        parts.push({ note: 'A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7); a non-TTT or outside advisor needs the DGS’s written approval — this is in the review request; ask the DGS' });
+      }
+    }
   } else {
     status = 'unmet';
     // The fact, and what to do about it behind the card's Details (DGS 2026-10-03).

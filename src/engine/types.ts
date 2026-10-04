@@ -123,6 +123,11 @@ export interface Milestones {
   advisorName?: string;
   /** A second advisor (co-advisor), when the student has two (DGS 2026-09-22). */
   advisorName2?: string;
+  /** Ph.D.: is the advisor (and the co-advisor) tenured or tenure-track CSE
+   * faculty, as the student answers it (CSE §2.3; Academic Code §6.2.7 —
+   * policy review 2026-10-04, P2-ac-6.2-app-8). */
+  advisorTtt?: 'yes' | 'no' | 'unsure';
+  advisorTtt2?: 'yes' | 'no' | 'unsure';
   researchQualifierPassed?: string; // §4.4.3
   /** §4.4.3: the advisor filed a FAIL — the DGS's committee then has six
    * months for its final judgement (policy review, 2026-10-03). */
@@ -152,11 +157,24 @@ export interface Milestones {
   // defense date stands for both; a saved file that still carries it loads
   // with it dropped (state.ts validMilestones).
   thesisDefensePassed?: string; // §3.4 thesis option
+  /** A FAILED first thesis-defense attempt (Academic Code §6.1.5: one retake,
+   * by the end of the following semester — policy review 2026-10-04,
+   * P2-ac-5b-6.1-12). */
+  thesisDefenseFailed?: string;
   projectReportAccepted?: string; // §3.4 project option
 }
 
+/** One graduate term's GPA figures as the transcript prints them. */
+export interface TermGpa {
+  term: Term;
+  /** The term's own GPA ("Current Term" row). */
+  termGpa?: number;
+  /** The cumulative GPA after the term ("Cumulative" row). */
+  cumulativeGpa?: number;
+}
+
 /** The milestone DATES (the advisor names are not). */
-export type MilestoneDateKey = Exclude<keyof Milestones, 'advisorName' | 'advisorName2'>;
+export type MilestoneDateKey = Exclude<keyof Milestones, 'advisorName' | 'advisorName2' | 'advisorTtt' | 'advisorTtt2'>;
 
 /** A milestone date's deadline, for the Milestones card (DGS 2026-10-04: "In
  * the Milestones, next to all the dates, specify the deadlines."). The same
@@ -319,6 +337,14 @@ export interface Student {
     programGpa?: number;
     undergraduateGpa?: number;
   };
+  /** Each GRADUATE term's GPA and cumulative GPA as a Notre Dame transcript
+   * prints them (its "Term Totals (Graduate)" block: "Current Term" and
+   * "Cumulative" rows), set by the transcript import and nothing else — never
+   * computed from entered grades (decision 2026-08-31: the transcript is the
+   * truth). Read for the Graduate School's probation and dismissal grounds
+   * (Academic Code §5.7.3, §5.8; policy review 2026-10-04); a record without
+   * it gets no such line. */
+  termGpas?: TermGpa[];
   fullTimeTermOverrides?: Term[]; // decision Q8 residency override
   /** Semesters for which the student says a credit overload was approved
    * (the Registrar's eForm, DGS Handbook §3.10.1): Academic Code §3.8's

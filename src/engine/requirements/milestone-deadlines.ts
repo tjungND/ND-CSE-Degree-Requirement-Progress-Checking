@@ -184,7 +184,18 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
     const theLimit = `the ${years}-year limit (§3.3)${clockShiftNote(ctx)}`;
     const thesisDone = !!m.thesisDefensePassed;
     const projectDone = !!m.projectReportAccepted;
-    out.thesisDefensePassed = at(ctx, limit, theLimit, m.thesisDefensePassed, !thesisDone && projectDone ? false : 'auto');
+    // After a failed first attempt the retake is due by the end of the
+    // following semester (Academic Code §6.1.5, 2026-10-04) — that, not the
+    // five years, is the defense's deadline then; the fail box carries it
+    // without a state.
+    if (m.thesisDefenseFailed) {
+      const retakeDue = endOfNextSemester(m.thesisDefenseFailed, 1);
+      out.thesisDefensePassed = at(ctx, retakeDue, 'the one retake, by the end of the semester after the fail (Academic Code §6.1.5)', m.thesisDefensePassed);
+      out.thesisDefenseFailed = at(ctx, retakeDue, 'the one retake after a fail, by the end of the following semester (Academic Code §6.1.5)', undefined, false);
+    } else {
+      out.thesisDefensePassed = at(ctx, limit, theLimit, m.thesisDefensePassed, !thesisDone && projectDone ? false : 'auto');
+      out.thesisDefenseFailed = { basis: 'No deadline of its own — after a failed attempt, one retake is allowed, by the end of the following semester (Academic Code §6.1.5)' };
+    }
     out.projectReportAccepted = at(ctx, limit, theLimit, m.projectReportAccepted, !projectDone && thesisDone ? false : 'auto');
   }
   return out;

@@ -27,7 +27,7 @@ function ready(milestones: Milestones, over: Partial<Student> = {}): Student {
     gpa: 3.6,
     courses: REGULAR.map((id, i) => ndCourse(id, { term: terms[Math.floor(i / 2)]! })),
     fullTimeTermOverrides: terms,
-    milestones: { advisorIdentified: '2026-10-01', advisorName: 'Prof. Example', rcrTrainingCompleted: '2027-09-15', ...milestones },
+    milestones: { advisorIdentified: '2026-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes', rcrTrainingCompleted: '2027-09-15', ...milestones },
     ...over,
   });
 }

@@ -29,3 +29,12 @@ describe('parked parameter keys', () => {
     assert.deepEqual(buildRules().issues.filter((i) => /ms_thesis_readers_min/.test(i.message)), []);
   });
 });
+
+describe('candidacy_committee_additional_members_min is parked too (DGS 2026-10-04)', () => {
+  it('not required, listed so a sheet that keeps it is not warned, and a sheet without it has no issue', () => {
+    assert.equal((KNOWN_PARAMETER_KEYS as readonly string[]).includes('candidacy_committee_additional_members_min'), false);
+    assert.equal((DISPLAY_PARAMETER_KEYS as readonly string[]).includes('candidacy_committee_additional_members_min'), true);
+    assert.deepEqual(buildRules({ parameters: { candidacy_committee_additional_members_min: null } }).issues.filter((i) => /candidacy_committee/.test(i.message)), []);
+    assert.deepEqual(buildRules().issues.filter((i) => /candidacy_committee/.test(i.message)), []);
+  });
+});

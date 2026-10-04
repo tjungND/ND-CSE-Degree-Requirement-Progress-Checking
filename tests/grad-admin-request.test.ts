@@ -27,7 +27,7 @@ const student = (extra: Partial<Student> = {}): Student => phdStudent({
       courseId, credits: 3, term: { season: (i % 2 === 0 ? 'fall' : 'spring') as 'fall' | 'spring', year: 2026 + Math.floor(i / 2) + (i % 2) }, grade: 'A' as const, origin: 'nd' as const,
     })),
   ],
-  milestones: { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example', candidacyPassed: '2029-04-01' },
+  milestones: { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example', advisorTtt: 'yes', candidacyPassed: '2029-04-01' },
   ...extra,
 });
 const opts = { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 };

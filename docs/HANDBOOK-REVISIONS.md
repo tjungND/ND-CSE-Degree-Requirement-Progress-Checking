@@ -398,3 +398,12 @@ not the app's:
     handbook gives is "each B or higher". The app applies the per-course B and replaces a retaken grade
     (policy review P1-gpa-13; DGS 2026-10-03, "apply the suggested fix"). §4.4.2 should either define the
     aggregate and its threshold or say "the grade used for the B requirement".
+12. **§3.4 and Academic Code §6.1.5 — is the project or thesis the master's examination?** The Code
+    requires "an oral and/or written master's examination" by the end of the term after the coursework,
+    allows "an equivalent requirement in lieu" (DGS Handbook §3.21.2), forfeits eligibility on a fail
+    "unless the program recommends a retake", and allows one retake by the end of the following
+    semester. §3.4 never says the project report or the thesis defense IS that examination, nor whether
+    the one-term timing applies to it. The app reads them as the examination (policy review
+    2026-10-04, P2-ac-5b-6.1-11 and -12: a note once that term is over, and one dated retake after a
+    failed thesis defense); §3.4 should say so in one sentence, and say how a failed project report is
+    handled, if at all.

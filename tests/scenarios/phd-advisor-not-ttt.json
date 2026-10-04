@@ -1,0 +1,33 @@
+{
+  "name": "phd-advisor-not-ttt",
+  "description": "CSE §2.3 (“A research advisor must be a Tenure and Tenure Track (TTT) faculty member of the department. Exceptions to this policy require approval of the DGS”) and Academic Code §6.2.7 (policy review 2026-10-04, P2-ac-6.2-app-8; DGS: “Apply the suggested handling”). A Ph.D. student answers “not sure” for the advisor’s faculty status: the advisor row is Conditionally met and the question goes to the DGS in the review request, instead of reading Met.",
+  "today": "2027-01-15",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "courses": [],
+    "milestones": {
+      "advisorIdentified": "2026-09-10",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "unsure"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "shared.advisor": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Advisor: Prof. Example (since 2026-09-10)",
+        "a non-TTT or outside advisor needs the DGS’s written approval"
+      ]
+    }
+  }
+}

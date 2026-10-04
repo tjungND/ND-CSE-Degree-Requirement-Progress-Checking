@@ -13,7 +13,7 @@
 // shown to the student for confirmation before anything is added (never guess).
 import { joinSpacedSubject } from '../data/assemble.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
-import type { Grade, Season, Term } from '../engine/types.ts';
+import type { Grade, Season, Term, TermGpa } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
 
 /** The level the student was registered at when taking the course — the
@@ -77,6 +77,12 @@ export interface ParsedTranscript {
   degreesAwarded: DegreeAwarded[];
   /** The current program's entry term, when the transcript supports a reading (2026-09-05). */
   entryTerm?: EntryTermInference;
+  /** Each GRADUATE term's "Current Term" and "Cumulative" GPA from its "Term
+   * Totals (Graduate)" block (policy review 2026-10-04: Academic Code
+   * §5.7.3's "cumulative grade point average below 3.0 in any two semesters"
+   * and §5.8's "semester G.P.A. below 2.5 … or below 3.0 for two consecutive
+   * semesters"). Empty when the layout prints no such rows. */
+  termGpas?: TermGpa[];
 }
 
 const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'S', 'U'];
@@ -88,7 +94,12 @@ const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'
  * registrations the full-time count must see (§3.3); the engine says what each
  * earns — nothing for a W, and for an I nothing once its 30 + 14 days are up
  * unless the Graduate School extended it (§4.4). */
-const SKIP_GRADES = new Set(['AU', 'V', 'NR', 'X', 'NG']);
+const SKIP_GRADES = new Set(['AU', 'V', 'X', 'NG']);
+/** "NR — Not reported" (Academic Code §4.3): the course was taken and its
+ * grade is not in yet, so the row is kept as in progress — its registration
+ * and credits count until the grade arrives — rather than skipped like an
+ * audit (policy review 2026-10-04, P2-ac-4-11). */
+const NOT_REPORTED_GRADES = new Set(['NR']);
 const WITHDRAWN_GRADES = new Set(['W', 'WF', 'WP']);
 
 const TERM_RE = /\b(Fall|Spring|Summer)\s+(?:Semester\s+|Session\s+)?(\d{4})\b/i;
@@ -188,6 +199,10 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   let totalsLevel: RegisteredLevel | undefined;
   const courses: ParsedCourse[] = [];
   const skipped: string[] = [];
+  /** NR rows kept as in progress (2026-10-04). */
+  const notReported: string[] = [];
+  /** Each graduate term's figures, by term index (2026-10-04). */
+  const termGpaByIndex = new Map<number, TermGpa>();
 
   // Signals for the entry-term reading and the per-course level (2026-09-05).
   const admitTerms: Term[] = [];
@@ -267,6 +282,11 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       grade = 'I';
       tokens.pop();
       popCreditsBeforeGrade();
+    } else if (NOT_REPORTED_GRADES.has(tailUpper)) {
+      grade = 'IP';
+      tokens.pop();
+      popCreditsBeforeGrade();
+      if (term) notReported.push(`${courseId} (${termLabel(term)})`);
     } else if (SKIP_GRADES.has(tailUpper)) {
       skipped.push(`${courseId} (${tailUpper})`);
       return;
@@ -427,11 +447,32 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       noteGpa(Number(labeledGpa[1]));
       continue;
     }
-    if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper) || (/^CUMULATIVE\b/.test(upper) && totalsLevel !== undefined)) {
+    // A graduate term's own rows under "Term Totals (Graduate)": "Current
+    // Term … GPA" and "Cumulative … GPA" (Banner's web transcript) — kept per
+    // term for Academic Code §5.7.3 / §5.8 (policy review 2026-10-04). The
+    // term's GPA is the last ≤ 4.334 figure on the row, as for the totals.
+    const lastGpaOn = (): number | undefined => {
       const nums = line.match(/\d+\.\d{1,3}/g);
-      if (nums && nums.length > 0) {
-        const last = Number(nums[nums.length - 1]);
-        if (last <= 4.334) noteGpa(last);
+      if (!nums || nums.length === 0) return undefined;
+      const last = Number(nums[nums.length - 1]);
+      return last <= 4.334 ? last : undefined;
+    };
+    const termRow = (field: 'termGpa' | 'cumulativeGpa', value: number | undefined): void => {
+      if (term === undefined || totalsLevel !== 'graduate' || value === undefined) return;
+      const key = termIndex(term);
+      const entry = termGpaByIndex.get(key) ?? { term };
+      entry[field] = value;
+      termGpaByIndex.set(key, entry);
+    };
+    if (/^CURRENT\s+TERM\b/.test(upper) && totalsLevel !== undefined) {
+      termRow('termGpa', lastGpaOn());
+      continue;
+    }
+    if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper) || (/^CUMULATIVE\b/.test(upper) && totalsLevel !== undefined)) {
+      const last = lastGpaOn();
+      if (last !== undefined) {
+        noteGpa(last);
+        if (/^CUMULATIVE\b/.test(upper)) termRow('cumulativeGpa', last);
       }
       continue;
     }
@@ -473,6 +514,9 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   if (skipped.length > 0) {
     warnings.push(`Skipped (audited, or no grade shown): ${skipped.join(', ')} — an audit earns no credit and does not count toward full-time status (Academic Code §4.3; DGS Handbook §3.12).`);
   }
+  if (notReported.length > 0) {
+    warnings.push(`Grade not reported yet (NR): ${notReported.join(', ')} — added as in progress, so the registration and its credits count until the grade arrives; ask the instructor or the Registrar.`);
+  }
 
   // De-duplicate identical rows (the same course line can appear in both a term
   // listing and a summary block).
@@ -507,6 +551,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     warnings,
     degreesAwarded,
     entryTerm: inferEntryTerm({ courses: unique, admitTerms, newStudentTerms, degreesAwarded }),
+    ...(termGpaByIndex.size > 0 ? { termGpas: [...termGpaByIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v) } : {}),
   };
 }
 

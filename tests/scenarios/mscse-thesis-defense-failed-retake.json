@@ -1,0 +1,117 @@
+{
+  "name": "mscse-thesis-defense-failed-retake",
+  "description": "Academic Code §6.1.5 (policy review 2026-10-04, P2-ac-5b-6.1-12; DGS: “Apply the suggested handling”): “Failure in either one or both parts of the examination results in automatic forfeiture of degree eligibility, unless the program recommends a retake” — one retake, by the end of the following semester. An MSCSE thesis student failed the defense on 2026-04-20; in Fall 2026 the row reads In progress with the retake due by the end of Fall 2026, instead of the bare “Not yet passed” of a student who never sat it.",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "thesis",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example",
+      "thesisDefenseFailed": "2026-04-20"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.thesis.defense": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "Thesis defense failed 2026-04-20 — one retake allowed",
+        "only one retake is allowed, by the end of the following semester"
+      ],
+      "deadlineState": "due_soon"
+    }
+  }
+}

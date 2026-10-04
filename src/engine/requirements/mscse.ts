@@ -1,7 +1,8 @@
 // §3 — Requirements for the Master of Science Degree (MSCSE).
 // Every builder quotes the handbook sentence it implements.
-import { deadlineTermLabel, termLabel } from '../term.ts';
-import type { DetailPart, RequirementResult, Status } from '../types.ts';
+import { openDeadline } from '../status.ts';
+import { compareTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, termLabel } from '../term.ts';
+import type { DeadlineInfo, DetailPart, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { defendedBelowGpaNote } from './shared.ts';
 import { noteOf, joinedDetail, capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
@@ -296,6 +297,28 @@ function optionRows(ctx: Ctx): RequirementResult[] {
   // School form by its calendar deadline (Academic Code §6.1.6) — said once
   // the route is complete (policy review 2026-10-03).
   const formNote: DetailPart = { note: candidacyFormSentence(ctx, 'master’s') };
+  // Academic Code §6.1.5 (policy review 2026-10-04, P2-ac-5b-6.1-11; DGS:
+  // "apply the suggested handling"): "By the end of the term following
+  // completion of the coursework required by the program, the degree
+  // candidate must have taken an oral and/or written master's examination" —
+  // for CSE, the project report or the thesis defense, the "equivalent
+  // requirement in lieu" (DGS Handbook §3.21.2). Once the 24 regular-course
+  // credits are complete, the term after the last of them; past its end with
+  // neither route dated, an open route row says so. No status changes.
+  const regularMin = ctx.params.number('ms_regular_credits_min');
+  const lastRegular =
+    regularMin !== undefined && ctx.alloc.regular.definite >= regularMin
+      ? ctx.classified
+          .filter((c) => c.pool === 'regular' && c.tier === 'definite' && !c.superseded && c.ineligibleReason === undefined)
+          .map((c) => c.entry.term)
+          .sort(compareTerm)
+          .pop()
+      : undefined;
+  const examDue = lastRegular ? endOfNextSemester(endOfTerm(lastRegular).date, 1) : undefined;
+  const examNote: DetailPart[] =
+    examDue !== undefined && ctx.today > examDue && !m.thesisDefensePassed && !m.projectReportAccepted
+      ? [{ note: `Academic Code §6.1.5 expects the master’s examination — for CSE, the project report or the thesis defense — by the end of the term after your coursework, here ${deadlineTermLabel(examDue)} (approximate); confirm your timeline with the DGS` }]
+      : [];
 
   if (option === 'thesis' || option === 'undecided') {
     // §3.4: "Upon acceptance of the thesis by the thesis defense examination
@@ -311,21 +334,44 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     // the DGS rather than reading Met. (§2.2 names the thesis; the project
     // report below is not gated.)
     const gpaAtDefense = m.thesisDefensePassed ? defendedBelowGpaNote(ctx) : '';
+    // A failed first attempt (Academic Code §6.1.5, policy review 2026-10-04,
+    // P2-ac-5b-6.1-12): "Failure in either one or both parts of the
+    // examination results in automatic forfeiture of degree eligibility,
+    // unless the program recommends a retake" — one retake, "by the end of the
+    // following semester". The retake decision is the program's, so the row
+    // says so and dates the window; a missed window reads Overdue.
+    const failedOn = m.thesisDefenseFailed;
+    const retakeDue = failedOn ? endOfNextSemester(failedOn, 1) : undefined;
+    const retakeRule = 'Academic Code §6.1.5: a failed master’s examination forfeits degree eligibility unless the program recommends a retake; only one retake is allowed, by the end of the following semester — the DGS decides';
+    let deadline: DeadlineInfo | undefined;
     if (m.thesisDefensePassed || eitherDone) {
       status = lateDefense || gpaAtDefense !== '' ? 'needs_dgs_review' : 'met';
+      const retakeLate = failedOn !== undefined && retakeDue !== undefined && m.thesisDefensePassed !== undefined && m.thesisDefensePassed > retakeDue;
+      if (retakeLate) status = 'needs_dgs_review';
       parts = m.thesisDefensePassed
         ? [
             // No readers' date of its own since 2026-10-04 (DGS: "Apply the
             // same to MSCSE thesis") — the defense stands for both.
-            `Thesis defense passed ${m.thesisDefensePassed}${lateDefense ? lateFact : ''}`,
+            `Thesis defense passed ${m.thesisDefensePassed}${failedOn ? ` — the retake, after a failed attempt on ${failedOn}` : ''}${lateDefense ? lateFact : ''}`,
             ...(lateDefense ? [lateRule] : []),
+            ...(retakeLate ? [{ note: `The retake was due by ${deadlineTermLabel(retakeDue!)} (approximate), the end of the semester after the fail (Academic Code §6.1.5) — confirm with the DGS` }] : []),
             ...noteOf(gpaAtDefense),
             ...(lateDefense ? [] : [formNote]),
           ]
         : [`Not needed — the project route is complete (project report accepted ${m.projectReportAccepted})`, ...alternative];
+    } else if (failedOn !== undefined && retakeDue !== undefined) {
+      if (ctx.today <= retakeDue) {
+        status = 'in_progress';
+        parts = [`Thesis defense failed ${failedOn} — one retake allowed`, { note: retakeRule }, ...alternative];
+        deadline = openDeadline(retakeDue, ctx.today, `Retake due by ${deadlineTermLabel(retakeDue)} (approximate)`);
+      } else {
+        status = 'unmet';
+        parts = [`Thesis defense failed ${failedOn}, and no retake is recorded`, { note: `${retakeRule}; talk to the DGS` }, ...alternative];
+        deadline = { date: retakeDue, approx: true, state: 'overdue', label: `Overdue — the retake was due by ${deadlineTermLabel(retakeDue)} (approximate)` };
+      }
     } else {
       status = 'unmet';
-      parts = ['Not yet passed', ...alternative, ...noteOf(defendGpaNote(ctx))];
+      parts = ['Not yet passed', ...alternative, ...noteOf(defendGpaNote(ctx)), ...examNote];
     }
     rows.push({
       id: 'ms.thesis.defense',
@@ -334,6 +380,7 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       status,
       ...(lateDefense ? { statusLabel: 'Eligibility at risk' } : {}),
       ...joinedDetail(parts),
+      ...(deadline ? { deadline } : {}),
       citation: { section: '§3.4', quote },
     });
   }
@@ -355,7 +402,7 @@ function optionRows(ctx: Ctx): RequirementResult[] {
           ? [`Project report accepted ${m.projectReportAccepted}${lateReport ? lateFact : ''}`, lateReport ? lateRule : formNote]
           : eitherDone
             ? [`Not needed — the thesis route is complete (defense passed ${m.thesisDefensePassed})`, ...alternative]
-            : ['Not yet accepted', { note: 'The written project report and deliverables must be accepted and approved by your advisor (§3.4)' }, ...alternative],
+            : ['Not yet accepted', { note: 'The written project report and deliverables must be accepted and approved by your advisor (§3.4)' }, ...alternative, ...examNote],
       ),
       citation: { section: '§3.4', quote },
     });

@@ -199,7 +199,11 @@ export interface RulesDate {
 // checks the defense — so a missing row was an error for a number nothing
 // uses. Parked on 2026-10-04 (DGS, policy review P1-sheet-6: "Move this to the
 // parked list"); read it here again if a reader count is ever checked.
-const PARKED_PARAMETER_KEYS = ['phd_senior_grad_credits_max', 'ms_thesis_readers_min'] as const;
+// `candidacy_committee_additional_members_min` (§4.5's "at least three (3)
+// additional voting members") was required and read by nothing; parked the
+// same day (DGS: "The app doesn't need to count the number of committee
+// members", P2-dh-3.21-3.24-15).
+const PARKED_PARAMETER_KEYS = ['phd_senior_grad_credits_max', 'ms_thesis_readers_min', 'candidacy_committee_additional_members_min'] as const;
 
 export const DISPLAY_PARAMETER_KEYS = [
   // Optional override for the dated line on both pages (YYYY-MM-DD or free
@@ -275,7 +279,6 @@ export const KNOWN_PARAMETER_KEYS = [
   'category_min_grade',
   'research_qualifier_deadline_months',
   'candidacy_deadline_semester',
-  'candidacy_committee_additional_members_min',
   'gpa_min',
   // The subject codes that mean "a CSE course" on ANOTHER university's
   // transcript (DGS 2026-09-09; the live list is now "CS; CSCI; COMPSCI; CSE;

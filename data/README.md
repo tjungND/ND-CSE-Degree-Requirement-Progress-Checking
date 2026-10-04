@@ -94,7 +94,7 @@ code on 2026-10-04 (DGS); a sheet that still carries `quarter_credit_factor` or
 | `category_min_grade` | `B` | §4.4.2 | |
 | `research_qualifier_deadline_months` | 18 | §4.4.3 | |
 | `candidacy_deadline_semester` | 8 | §4.5 | before the end of the eighth semester |
-| `candidacy_committee_additional_members_min` | 3 | §4.5 | beyond advisor/co-advisor |
+| `candidacy_committee_additional_members_min` | 3 | §4.5 | **Parked — the app does not read this today** (2026-10-04, DGS: “The app doesn’t need to count the number of committee members”). §4.5’s voting members beyond the advisor/co-advisor. A missing row is not an error; read it again if the committee is ever counted. |
 | `gpa_min` | 3.0 | §2.2 | |
 | `ms_total_credits_min` | 30 | §3.2 | |
 | `phd_nd_credits_min` | 9 | §4.2 | at least nine credits of regular courses at Notre Dame |

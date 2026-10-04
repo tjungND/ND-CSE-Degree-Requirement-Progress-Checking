@@ -14,7 +14,7 @@ import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { GRADE_POINTS } from '../engine/grades.ts';
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../engine/ranges.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
-import type { CourseEntry, Student, Term } from '../engine/types.ts';
+import type { CourseEntry, Student, Term, TermGpa } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { el, inactiveButton, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { plural } from './email-html.ts';
@@ -57,6 +57,10 @@ export interface NdPreview {
   entryTerm?: EntryTermInference;
   useEntryTerm: boolean;
   degreesAwarded: DegreeAwarded[];
+  /** Each graduate term's GPA figures as printed (2026-10-04; Academic Code
+   * §5.7.3, §5.8) — stored on the record with the import, replaced by the
+   * next one, never typed. */
+  termGpas?: TermGpa[];
   /** Parser warnings, shown inside the preview (not as vanishing toasts). */
   warnings: string[];
 }
@@ -172,6 +176,10 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
         // there are manual inputs") — the box then starts unticked.
         useEntryTerm: parsed.entryTerm !== undefined && args.student.entryTermInferred !== undefined,
         degreesAwarded: parsed.degreesAwarded,
+        // Only figures on the 0.00–4.00 scale (R1, 2026-09-18).
+        termGpas: parsed.termGpas
+          ?.map((t) => ({ term: t.term, ...(inRange(t.termGpa, GPA_RANGE) ? { termGpa: t.termGpa } : {}), ...(inRange(t.cumulativeGpa, GPA_RANGE) ? { cumulativeGpa: t.cumulativeGpa } : {}) }))
+          .filter((t) => t.termGpa !== undefined || t.cumulativeGpa !== undefined),
         warnings: [...parsed.warnings, ...gpaWarning],
       };
       args.render();
@@ -248,7 +256,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
             // back where it was, so the table order and the course.N.remove
             // keys are exactly as before the Remove.
             const removed = args.student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.fromNdTranscript === true);
-            const before = { gpa: args.student.gpa, gpaSource: args.student.gpaSource, priorMs: args.student.priorMs, inferred: args.student.priorMsInferred };
+            const before = { gpa: args.student.gpa, gpaSource: args.student.gpaSource, termGpas: args.student.termGpas, priorMs: args.student.priorMs, inferred: args.student.priorMsInferred };
             args.setFocusAfterRender('import.nd');
             args.update((s) => {
               s.courses = s.courses.filter((c) => c.fromNdTranscript !== true);
@@ -256,6 +264,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
                 s.gpa = undefined; // the transcript's figure — a hand-typed GPA has no gpaSource and stays
                 s.gpaSource = undefined;
               }
+              s.termGpas = undefined; // the transcript's own figures go with it (2026-10-04)
               if (
                 s.priorMsInferred === true &&
                 !s.courses.some((c) => c.origin === 'transfer' && (c.degreeLevel === 'masters' || c.degreeLevel === 'phd'))
@@ -272,6 +281,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
                   for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
                   s.gpa = before.gpa;
                   s.gpaSource = before.gpaSource;
+                  s.termGpas = before.termGpas;
                   s.priorMs = before.priorMs;
                   s.priorMsInferred = before.inferred;
                 }),
@@ -607,6 +617,9 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
     }
     if (s.background === undefined) derivePriorMs(s);
     if (s.priorMs !== before) priorSet = s.priorMs;
+    // The transcript's per-term figures replace any earlier import's
+    // (2026-10-04); a layout that prints none clears them.
+    s.termGpas = tp.termGpas && tp.termGpas.length > 0 ? tp.termGpas : undefined;
     if (tp.gpaChoice === 'transcript' && tp.gpa !== undefined) {
       s.gpa = tp.gpa;
       s.gpaSource = { basis: 'transcript-graduate', programGpa: tp.programGpa, undergraduateGpa: tp.undergraduateGpa };

@@ -8,7 +8,10 @@ import type { Program, Student } from '../engine/types.ts';
 /** What "Load example" fills in BESIDE the courses. Kept here so removing the
  * example rows can take these back too — but only where the student has not
  * since changed them, since a value they edited is theirs (R5, 2026-09-18). */
-export const EXAMPLE_MILESTONES: Student['milestones'] = { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example' };
+// advisorTtt (2026-10-04): the example's advisor is tenured or tenure-track
+// CSE faculty, so its Ph.D. advisor row reads Met as a real one would; the
+// MSCSE is not asked, and the answer is unused there.
+export const EXAMPLE_MILESTONES: Student['milestones'] = { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example', advisorTtt: 'yes' };
 export const EXAMPLE_ATTESTATIONS: Student['attestations'] = { advisorApprovedPlan: true };
 
 /** The example for the program the student is actually looking at (DGS
