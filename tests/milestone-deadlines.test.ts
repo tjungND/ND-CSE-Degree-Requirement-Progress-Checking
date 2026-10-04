@@ -20,7 +20,7 @@ const fall = (year: number) => ({ season: 'fall' as const, year });
 const spring = (year: number) => ({ season: 'spring' as const, year });
 
 const PHD_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'researchQualifierPassed', 'researchQualifierFailed', 'qualifierFormFiled', 'rcrTrainingCompleted', 'candidacyPassed', 'candidacyAdmitted', 'defensePassed', 'dissertationSubmitted'];
-const MS_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'thesisApprovedByReaders', 'thesisDefensePassed', 'projectReportAccepted'];
+const MS_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'thesisDefensePassed', 'projectReportAccepted'];
 
 describe('every date in the card has its deadline', () => {
   it('Ph.D., a Fall 2026 entrant in the first semester', () => {
@@ -162,14 +162,13 @@ describe('where the record stands against it', () => {
     assert.equal(deadlineText(d.advisorIdentified!), 'Due by the end of Fall 2025 — your first semester (§2.3)');
   });
 
-  it('MSCSE: once one route is complete, the other route and the readers’ box raise nothing', () => {
+  it('MSCSE: once one route is complete, the other route raises nothing', () => {
     const sc = allScenarios().find((x) => x.name === 'mscse-thesis-complete')!;
-    const s: Student = { ...sc.student, milestones: { ...sc.student.milestones, thesisApprovedByReaders: undefined } };
+    const s: Student = sc.student;
     for (const today of ['2031-05-01', '2031-10-01']) {
       const r = audit(s, buildRules(sc.rules.patch), today);
       assert.equal(r.requirements.find((x) => x.id === 'ms.timeLimit')!.status, 'met');
       for (const [k, v] of Object.entries(r.milestoneDeadlines ?? {})) assert.ok(v!.state !== 'overdue' && v!.state !== 'due_soon' && v!.state !== 'late', `${k} at ${today}: ${v!.state}`);
-      assert.equal(r.milestoneDeadlines!.thesisApprovedByReaders!.state, 'done', 'the defense covers the readers’ approval before it (§3.4)');
       assert.equal(r.milestoneDeadlines!.projectReportAccepted!.state, undefined);
     }
   });

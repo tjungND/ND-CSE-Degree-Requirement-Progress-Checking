@@ -147,7 +147,10 @@ export interface Milestones {
    * is the last requirement inside the eight years, and it is due by the
    * Graduate School calendar's deadline (policy review, 2026-10-03). */
   dissertationSubmitted?: string;
-  thesisApprovedByReaders?: string; // §3.4 thesis option
+  // `thesisApprovedByReaders` (§3.4) was removed on 2026-10-04 with the
+  // Ph.D.'s readers' date (DGS: "Apply the same to MSCSE thesis") — the thesis
+  // defense date stands for both; a saved file that still carries it loads
+  // with it dropped (state.ts validMilestones).
   thesisDefensePassed?: string; // §3.4 thesis option
   projectReportAccepted?: string; // §3.4 project option
 }

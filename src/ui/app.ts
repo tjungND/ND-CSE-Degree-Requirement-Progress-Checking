@@ -441,7 +441,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         notices.push(
           inferred === 'project'
             ? 'Project or thesis option set to “M.S. project” from your record (a Master’s project course or an accepted project report). Change it under Your standing if that is wrong.'
-            : 'Project or thesis option set to “M.S. thesis” from your record (thesis direction, readers’ approval or a defense). Change it under Your standing if that is wrong.',
+            : 'Project or thesis option set to “M.S. thesis” from your record (thesis direction or a defense). Change it under Your standing if that is wrong.',
         );
       }
     }
@@ -2293,7 +2293,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const opt = student.msOption ?? 'undecided';
       if (opt !== 'project') {
         card.append(
-          dateField('Thesis approved by both readers (§3.4)', 'thesisApprovedByReaders'),
           dateField('Thesis defense passed (§3.4)', 'thesisDefensePassed'),
         );
       }

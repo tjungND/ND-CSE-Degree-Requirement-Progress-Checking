@@ -57,7 +57,6 @@ export const MILESTONE_FIELDS: readonly MilestoneField[] = [
   { key: 'rcrTrainingCompleted', label: 'Responsible Conduct of Research and ethics training completed', section: 'Academic Code §6.2.4', program: 'phd' },
   { key: 'defensePassed', label: 'Dissertation defense passed', section: '§4.7', program: 'phd' },
   { key: 'dissertationSubmitted', label: 'Final dissertation submitted to the Graduate School', section: 'Academic Code §6.2.12', program: 'phd' },
-  { key: 'thesisApprovedByReaders', label: 'Thesis approved by both readers', section: '§3.4', program: 'mscse' },
   { key: 'thesisDefensePassed', label: 'Thesis defense passed', section: '§3.4', program: 'mscse' },
   { key: 'projectReportAccepted', label: 'Project report accepted by advisor', section: '§3.4', program: 'mscse' },
 ];

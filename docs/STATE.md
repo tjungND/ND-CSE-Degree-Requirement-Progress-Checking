@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
-2026-10-04 (readers’ approval removed, DGS): the Ph.D. row “Dissertation unanimously approved for defense by the readers” (§4.6) and its date are gone — the committee approves the dissertation and passes the defense at the same time, so the defense row (§4.7) stands for both; a saved file with the old date loads without it. Open question for the DGS: the same for the MSCSE’s “Thesis approved by both readers (§3.4)”?
+2026-10-04 (readers’ approval removed, DGS): the Ph.D. row “Dissertation unanimously approved for defense by the readers” (§4.6) and its date are gone — the committee approves the dissertation and passes the defense at the same time, so the defense row (§4.7) stands for both; a saved file with the old date loads without it. The same for the MSCSE’s “Thesis approved by both readers (§3.4)” (DGS: “Apply the same to MSCSE thesis”): the thesis defense stands for both.
 
 2026-10-04 (opening notice, DGS): Enter clicks “Continue” once it is live (the notice ticked and every question answered); a typed transfer year is taken first; links, buttons, drop-downs keep their own Enter.
 

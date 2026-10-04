@@ -176,16 +176,14 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
   out.advisorIdentified = at(ctx, endOfTerm(ctx.entry).date, 'your first semester (§2.3)', m.advisorIdentified, onRecord ? 'done' : 'auto');
   // §3.3: "Failure to complete all requirements for the M.S. degree within 5
   // years results in forfeiture of degree eligibility." §3.4 completes the
-  // degree by either route: once one is complete, the other route's boxes
-  // carry the date without a state, and a defense dated covers the readers'
-  // approval that comes before it (review of the card, 2026-10-04).
+  // degree by either route: once one is complete, the other route's box
+  // carries the date without a state (review of the card, 2026-10-04).
   const years = ctx.params.number('ms_time_limit_years');
   if (years !== undefined) {
     const limit = timeLimitDate(ctx, years);
     const theLimit = `the ${years}-year limit (§3.3)${clockShiftNote(ctx)}`;
     const thesisDone = !!m.thesisDefensePassed;
     const projectDone = !!m.projectReportAccepted;
-    out.thesisApprovedByReaders = at(ctx, limit, theLimit, m.thesisApprovedByReaders, m.thesisApprovedByReaders ? 'auto' : thesisDone ? 'done' : projectDone ? false : 'auto');
     out.thesisDefensePassed = at(ctx, limit, theLimit, m.thesisDefensePassed, !thesisDone && projectDone ? false : 'auto');
     out.projectReportAccepted = at(ctx, limit, theLimit, m.projectReportAccepted, !projectDone && thesisDone ? false : 'auto');
   }

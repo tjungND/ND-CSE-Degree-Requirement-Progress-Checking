@@ -259,15 +259,15 @@ export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEva
 }
 
 /** Which §3.4 route the record itself shows (2026-09-12): a Master's project
- * course or an accepted project report → project; thesis direction, a
- * readers' approval or a defense → thesis; both or neither → undefined. The
+ * course or an accepted project report → project; thesis direction or a
+ * defense → thesis; both or neither → undefined. The
  * page pre-fills "Project or thesis option" from this and says so; the
  * student's own choice always wins. */
 export function inferMsOption(student: Ctx['student']): 'project' | 'thesis' | undefined {
   const m = student.milestones;
   const ids = new Set(student.courses.map((c) => c.courseId.toUpperCase().replace(/\s+/g, ' ')));
   const project = ids.has('CSE 68902') || m.projectReportAccepted !== undefined;
-  const thesis = ids.has('CSE 68901') || m.thesisDefensePassed !== undefined || m.thesisApprovedByReaders !== undefined;
+  const thesis = ids.has('CSE 68901') || m.thesisDefensePassed !== undefined;
   if (project && !thesis) return 'project';
   if (thesis && !project) return 'thesis';
   return undefined;
@@ -315,7 +315,9 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       status = lateDefense || gpaAtDefense !== '' ? 'needs_dgs_review' : 'met';
       parts = m.thesisDefensePassed
         ? [
-            `Thesis defense passed ${m.thesisDefensePassed}${m.thesisApprovedByReaders ? ` (thesis approved by the readers ${m.thesisApprovedByReaders})` : ''}${lateDefense ? lateFact : ''}`,
+            // No readers' date of its own since 2026-10-04 (DGS: "Apply the
+            // same to MSCSE thesis") — the defense stands for both.
+            `Thesis defense passed ${m.thesisDefensePassed}${lateDefense ? lateFact : ''}`,
             ...(lateDefense ? [lateRule] : []),
             ...noteOf(gpaAtDefense),
             ...(lateDefense ? [] : [formNote]),

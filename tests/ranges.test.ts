@@ -215,10 +215,10 @@ describe('a saved file cannot carry a milestone date the form could not hold (20
   });
 });
 
-describe('a saved file with the readers’-approval date (removed 2026-10-04)', () => {
+describe('a saved file with a readers’-approval date (both removed 2026-10-04)', () => {
   it('loads without it, silently — the defense date stands for both', () => {
     const refusals: { key: string; text: string; message: string }[] = [];
-    const s = validateStudent({ ...studentWith(3.4), milestones: { dissertationApprovedForDefense: '2031-10-01', defensePassed: '2031-11-10' } }, refusals);
+    const s = validateStudent({ ...studentWith(3.4), milestones: { dissertationApprovedForDefense: '2031-10-01', thesisApprovedByReaders: '2028-04-20', defensePassed: '2031-11-10' } }, refusals);
     assert.deepEqual(s.milestones, { defensePassed: '2031-11-10' });
     assert.deepEqual(refusals, []);
     assert.equal(audit(s, rules, TODAY).requirements.some((r) => r.id === 'phd.dissertation.approval'), false);
