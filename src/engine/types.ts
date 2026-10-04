@@ -282,6 +282,10 @@ export interface Student {
     undergraduateGpa?: number;
   };
   fullTimeTermOverrides?: Term[]; // decision Q8 residency override
+  /** Semesters for which the student says a credit overload was approved
+   * (the Registrar's eForm, DGS Handbook §3.10.1): Academic Code §3.8's
+   * 15-credit (summer: 10) maximum is not applied to them (2026-10-03). */
+  creditOverloadTerms?: Term[];
   /** Fall/spring semesters spent on an APPROVED LEAVE OF ABSENCE (Academic
    * Code §5.1; the DGS Handbook §3.4/§3.7.2: a leave "stops the clock").
    * Each one pushes the §4.3 eight-year limit and §4.5's eighth semester

@@ -10,14 +10,26 @@
 // transcript — are not residence in this one. (A transcript import already
 // files pre-entry courses as prior coursework; this guard covers courses
 // entered by hand and entry terms changed afterwards.)
+import { levelOf } from '../allocate.ts';
 import { compareTerm, semesterSeq, termIndex } from '../term.ts';
-import type { Term } from '../types.ts';
+import { termLabel } from '../term.ts';
+import type { DetailPart, Term } from '../types.ts';
 import type { Ctx } from './context.ts';
+
+/** Academic Code §4.1: "full-time degree-seeking graduate students are
+ * expected to register for at least three hours of credit at the 60000 level
+ * or higher every semester that they are enrolled, except with the permission
+ * of the associate dean for academic affairs in the Graduate School." A
+ * Graduate School number, kept in code like §2.3's twelve (policy review
+ * 2026-10-03, P1-residency-enrollment-c5). */
+export const GRADUATE_LEVEL_CREDITS_MIN = 3;
 
 export interface FullTimeTermRecord {
   term: Term;
   fullTime: boolean;
   credits: number;
+  /** Of `credits`, those at the 60000 level or higher (Academic Code §4.1). */
+  graduateCredits: number;
   /** Every registration in the term was withdrawn (policy review 2026-10-03):
    * a full withdrawal (Academic Code §3.8/§5.5), not a semester of residence —
    * the term is never counted automatically, and the rows say so. */
@@ -35,7 +47,7 @@ export function fullTimeTermRecords(ctx: Ctx): FullTimeTermRecord[] {
 export function fullTimeRecordsFrom(classified: readonly Ctx['classified'][number][], student: Ctx['student'], floor: number | undefined): FullTimeTermRecord[] {
   const ctx = { classified, student } as const;
   const entryIndex = termIndex(ctx.student.entryTerm);
-  const byTerm = new Map<number, { term: Term; credits: number; withdrawn: number; rows: number }>();
+  const byTerm = new Map<number, { term: Term; credits: number; graduate: number; withdrawn: number; rows: number }>();
   // Registered credits come from rows the audit accepts as registrations
   // (2026-09-11): a duplicate entry of the same course, or a row whose grade
   // the app does not recognise, used to add its credits here while its own
@@ -56,8 +68,9 @@ export function fullTimeRecordsFrom(classified: readonly Ctx['classified'][numbe
     }
     if (c.origin !== 'nd' || termIndex(c.term) < entryIndex) continue;
     const key = termIndex(c.term);
-    const rec = byTerm.get(key) ?? { term: c.term, credits: 0, withdrawn: 0, rows: 0 };
+    const rec = byTerm.get(key) ?? { term: c.term, credits: 0, graduate: 0, withdrawn: 0, rows: 0 };
     rec.credits += c.credits;
+    if (levelOf(c, cc.rule) >= 6) rec.graduate += c.credits;
     rec.rows += 1;
     if (cc.withdrawn) rec.withdrawn += 1;
     byTerm.set(key, rec);
@@ -65,7 +78,7 @@ export function fullTimeRecordsFrom(classified: readonly Ctx['classified'][numbe
   for (const t of ctx.student.fullTimeTermOverrides ?? []) {
     const key = termIndex(t);
     if (key < entryIndex) continue;
-    if (!byTerm.has(key)) byTerm.set(key, { term: t, credits: 0, withdrawn: 0, rows: 0 });
+    if (!byTerm.has(key)) byTerm.set(key, { term: t, credits: 0, graduate: 0, withdrawn: 0, rows: 0 });
   }
   const overrides = new Set((ctx.student.fullTimeTermOverrides ?? []).map((t) => termIndex(t)));
   const records = [...byTerm.values()].sort((a, b) => termIndex(a.term) - termIndex(b.term));
@@ -86,6 +99,7 @@ export function fullTimeRecordsFrom(classified: readonly Ctx['classified'][numbe
     return {
       term: rec.term,
       credits: rec.credits,
+      graduateCredits: rec.graduate,
       fullTime: academicYearFullTime(rec) || summerContinuing,
       ...(withdrawnOnly ? { withdrawnOnly: true as const } : {}),
     };
@@ -106,4 +120,38 @@ export function longestFullTimeRun(records: { term: Term; fullTime: boolean }[])
     if (run.length > best.length) best = run;
   }
   return best;
+}
+
+/** The fall and spring semesters a student was full-time in by the courses
+ * entered (the floor reached, not a tick) with fewer than three credits at the
+ * 60000 level or higher — Academic Code §4.1's expectation, which only the
+ * Graduate School's associate dean can waive. The term still counts toward
+ * residence ("never fail the term", policy review 2026-10-03,
+ * P1-residency-enrollment-c5); the residency rows send it to the DGS. */
+export function belowGraduateLevelTerms(records: FullTimeTermRecord[], floor: number | undefined): FullTimeTermRecord[] {
+  if (floor === undefined) return [];
+  return records.filter(
+    (r) => r.term.season !== 'summer' && !r.withdrawnOnly && r.credits >= floor && r.graduateCredits < GRADUATE_LEVEL_CREDITS_MIN,
+  );
+}
+
+/** What a residency row says about those semesters: the terms as the fact,
+ * the rule as a note (DGS 2026-10-03: explanations behind "Details"). */
+export function graduateLevelParts(records: FullTimeTermRecord[], floor: number | undefined): DetailPart[] {
+  const terms = belowGraduateLevelTerms(records, floor).map((r) => termLabel(r.term));
+  if (terms.length === 0) return [];
+  return [
+    `${terms.join(', ')}: fewer than ${GRADUATE_LEVEL_CREDITS_MIN} credits at the 60000 level or higher`,
+    {
+      note: `The Graduate School expects every full-time graduate student to register for at least ${GRADUATE_LEVEL_CREDITS_MIN} credits at the 60000 level or higher each semester, unless its associate dean for academic affairs allowed otherwise (Academic Code §4.1); the semester still counts here, and the review request asks the DGS`,
+    },
+  ];
+}
+
+/** The same, as one line for the DGS's review request. */
+export function graduateLevelFlag(records: FullTimeTermRecord[], floor: number | undefined): string | undefined {
+  const below = belowGraduateLevelTerms(records, floor);
+  if (below.length === 0) return undefined;
+  const what = below.map((r) => `${termLabel(r.term)} (${r.graduateCredits} of ${r.credits} credits)`).join(', ');
+  return `Fewer than ${GRADUATE_LEVEL_CREDITS_MIN} credits at the 60000 level or higher in a full-time semester: ${what}. Academic Code §4.1 expects at least ${GRADUATE_LEVEL_CREDITS_MIN} every semester unless the Graduate School’s associate dean for academic affairs permitted otherwise.`;
 }

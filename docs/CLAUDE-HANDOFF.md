@@ -1332,7 +1332,13 @@ changed, so nobody undoes it by accident:
   flags, a lapsed I or `interrupted` are **held for the DGS** whatever the ExternalCourses tab says
   (`heldForDgs` in the transfer branch; the §5.2 row's `held` bucket). The §5.2 row's cap wording (`capFor`) names the two cases no document caps: no prior program, and an unfinished Ph.D. elsewhere (`unfinishedPhd`).
 - **Caps.** `CapId` adds `nondegree` (`NON_DEGREE_CREDITS_MAX = 12`, Academic Code §2.3 — a Graduate
-  School number in code, like §3.5's six). `allocate(classified, caps, { nonCseSpillsToTotal })` —
+  School number in code, like §3.5's six) and, per semester, `term:<termIndex>` (Academic Code §3.8:
+  `SEMESTER_GRADUATE_CREDITS_MAX = 15` credits of 60000–90000-level courses in a fall or spring,
+  `SUMMER_CREDITS_MAX = 10` of any course in a summer — DGS 2026-10-03, P1-residency-enrollment-c4).
+  `overMaxTerms()` is pure (the milestones card reads it for the overload tick, `Student.creditOverloadTerms`);
+  `registrationCaps()` attaches a cap to the audit's own classified courses of each semester over the
+  maximum that is not ticked, so the courses entered first fill it. Residency's three graduate-level
+  credits a semester (`GRADUATE_LEVEL_CREDITS_MIN = 3`, Academic Code §4.1) live in `residency.ts`. `allocate(classified, caps, { nonCseSpillsToTotal })` —
   true for the Ph.D. only (MSCSE non-CSE overflow counts toward nothing, §3.2 September text).
   `fourk` is drawn by every level-4/5 course whatever its type; a listed row below level 4 counts
   nothing (`validate.ts` warns the DGS when such a row says it counts).

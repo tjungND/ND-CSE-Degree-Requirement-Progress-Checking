@@ -32,6 +32,7 @@ import { decisionWording } from '../engine/decider.ts';
 import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, studentLineHtml, textRequirementBlock, unofficialTranscriptNote, type StandingColor } from './email-html.ts';
 import type { ProgramHistory } from './program-history.ts';
 import { formatYmdLong } from './handbook.ts';
+import { allRequirementsMet } from './next-steps.ts';
 import { deadlineAlert, isNotStarted, standingColor, scoredRows, statusWord } from './report.ts';
 import { whyFor } from './advisor-summary.ts';
 import { compareTerm } from '../engine/term.ts';
@@ -439,6 +440,16 @@ export function gradAdminRequest(
     sections.push({
       heading: 'MSCSE along the way (§4.5)',
       lines: ['The self-check shows the requirements for the MSCSE along the way met (the Oral Candidacy Exam (OCE) passed, the M.S. coursework completed at Notre Dame) — please process the award.'],
+    });
+  }
+  // Once every requirement is met, the Graduate School's last condition in
+  // the student's own words (Academic Code §3.7; DGS Handbook §3.23.1 —
+  // policy review 2026-10-03, P1-residency-enrollment-c6). A reminder, not an
+  // item to process: the count is unchanged.
+  if (allRequirementsMet(report)) {
+    sections.push({
+      heading: 'Semester of graduation (Academic Code §3.7)',
+      lines: ['I will be registered for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester I graduate.'],
     });
   }
   // Every requirement, met or not, with what satisfies it so far (2026-09-06

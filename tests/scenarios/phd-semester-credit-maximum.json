@@ -1,0 +1,90 @@
+{
+  "name": "phd-semester-credit-maximum",
+  "description": "DGS 2026-10-03 (P1-residency-enrollment-c4): “cap a semester’s credits by following the graduate school’s academic code and the DGS handbook.” Academic Code §3.8: no more than 15 credit hours of graduate courses (60000-90000) in a fall or spring semester, 10 in a summer session (DGS Handbook §3.9: “may not”). Six 3-credit 60000-level courses entered for Fall 2026 make 18: the first five count, the sixth is over the maximum, so the regular-course row reads 15 of 24. A ticked credit overload (creditOverloadTerms) would lift the cap; tests/residency-enrollment.test.ts pins that and the summer’s 10.",
+  "today": "2027-01-15",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 4.0,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "15 of 24"
+      ]
+    }
+  }
+}

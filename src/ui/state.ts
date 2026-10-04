@@ -34,6 +34,14 @@ function validTerm(t: unknown): t is Student['entryTerm'] {
   return !!term && typeof term['year'] === 'number' && SEASONS.includes(term['season'] as never);
 }
 
+/** A list of terms, each well-formed (2026-10-03: approved credit overloads);
+ * undefined when nothing usable is left. */
+function validTermList(v: unknown): Term[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v.filter((t) => validTerm(t)).map((t) => ({ season: (t as Term).season, year: (t as Term).year }));
+  return out.length > 0 ? out : undefined;
+}
+
 /** The entryTermInferred flag of a saved file, when well-formed; otherwise
  * undefined — a file that carries no flag was saved by a student who set (or
  * accepted) the term, so it must NOT inherit emptyStudent()'s "assumed". */
@@ -281,6 +289,9 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     leaveSemesters: validSemesterCount(raw['leaveSemesters']),
     accommodationSemesters: validSemesterCount(raw['accommodationSemesters']),
     readmittedTerm: validTerm(raw['readmittedTerm']) ? { season: (raw['readmittedTerm'] as Term).season, year: (raw['readmittedTerm'] as Term).year } : undefined,
+    // Approved credit overloads (Academic Code §3.8, 2026-10-03): well-formed
+    // terms only; an empty or malformed list is dropped.
+    creditOverloadTerms: validTermList(raw['creditOverloadTerms']),
     ...(typeof raw['ndNonDegree'] === 'boolean' ? { ndNonDegree: raw['ndNonDegree'] as boolean } : { ndNonDegree: undefined }),
     milestones: d.milestones ?? {},
     attestations: d.attestations ?? {},

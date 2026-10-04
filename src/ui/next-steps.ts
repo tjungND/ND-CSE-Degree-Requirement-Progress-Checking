@@ -31,6 +31,16 @@ export interface NextStepsInput {
 
 const plural = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
+/** Every scored requirement met outright — the moment the semester of
+ * graduation is the next thing (the headline's own count). */
+export function allRequirementsMet(report: AuditReport): boolean {
+  return report.summary.scored > 0 && report.summary.met === report.summary.scored;
+}
+
+/** Academic Code §3.7 and DGS Handbook §3.23.1, as a step. */
+export const GRADUATION_SEMESTER_STEP =
+  'Register for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester you graduate (Academic Code §3.7).';
+
 /** The reason after "not counted — ", cut at the first semicolon: the line's
  * own words, never re-summarised. */
 function reasonOf(line: CourseLine): string {
@@ -89,7 +99,15 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
   if (approvals?.status === 'needs_dgs_review' || reviewCount > 0) steps.push({ text: 'When the DGS answers, come back to this page — it reads the latest course rules — and tick the box next to each course approved for you; then send the processing request, and the Grad Admin records it.', href: '#grad-admin', covers: ['shared.approvals'] });
   if (processingCount > 0) steps.push({ text: `Send the processing request (${plural(processingCount, 'item')}) — the Grad Admin records it.`, href: '#grad-admin' });
-  // 5. The advisor summary, any time.
+  // 5. Once every requirement is met: what the Graduate School checks in the
+  // semester of graduation, which no row shows (policy review 2026-10-03,
+  // P1-residency-enrollment-c6). Academic Code §3.7: "Degree students must
+  // register and complete the ND Roll Call process during the semester in
+  // which they plan to graduate; this includes the summer session." DGS
+  // Handbook §3.23.1: "at least one credit hour during the semester of
+  // graduation (or for a zero-credit course, during the summer session)".
+  if (allRequirementsMet(report)) steps.push({ text: GRADUATION_SEMESTER_STEP });
+  // 6. The advisor summary, any time.
   if (hasCourses) steps.push({ text: 'Send the summary to your advisor whenever you like.' });
   return steps;
 }

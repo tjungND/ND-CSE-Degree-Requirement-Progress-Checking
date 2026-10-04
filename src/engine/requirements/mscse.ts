@@ -6,7 +6,7 @@ import type { Ctx } from './context.ts';
 import { defendedBelowGpaNote } from './shared.ts';
 import { noteOf, joinedDetail, capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
 import { candidacyFormSentence } from './phd.ts';
-import { fullTimeTermRecords } from './residency.ts';
+import { fullTimeTermRecords, graduateLevelParts } from './residency.ts';
 import { transferRow } from './transfer.ts';
 
 const COURSEWORK = 'Coursework — §3.2';
@@ -217,6 +217,12 @@ function residencyRow(ctx: Ctx): RequirementResult {
   }
   const withdrawnOnly = records.filter((r) => r.withdrawnOnly).map((r) => termLabel(r.term));
   if (withdrawnOnly.length > 0) parts.push(`${withdrawnOnly.join(', ')}: every course withdrawn — not counted`, { note: 'If you were registered full-time at census, tick the semester under Full-time terms, or ask the DGS' });
+  // Academic Code §4.1 (policy review 2026-10-03, P1-residency-enrollment-c5).
+  const belowGraduate = graduateLevelParts(records, floor);
+  if (belowGraduate.length > 0) {
+    parts.push(...belowGraduate);
+    if (status === 'met') status = 'needs_dgs_review';
+  }
   return {
     id: 'ms.residency',
     group: TIME,

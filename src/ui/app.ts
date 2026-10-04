@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { classify, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { classify, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { fullTimeRecordsFrom } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
 import type { Rules } from '../data/types.ts';
@@ -313,7 +313,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // from the server this page came from when it answers, and read in Notre
   // Dame's own zone either way — never the device's idea of the calendar.
   const todayIso = today.iso;
-  const fullTimeFloor = rules.parameters.number('fulltime_credits_min') ?? 9;
+  // No default (policy review 2026-10-03, P1-residency-enrollment-c7): with
+  // the Parameters row missing the residency rows cannot be evaluated, and
+  // the Full-time terms list says so instead of counting from a built-in 9.
+  const fullTimeFloor = rules.parameters.number('fulltime_credits_min');
   // The universities the ExternalCourses tab knows, for both University
   // boxes (manual course form, previous-transcript preview) — one
   // datalist per page (2026-09-06 evening). Built once, like the course list
@@ -1193,7 +1196,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'fieldset',
       { class: 'ft-terms' },
       el('legend', { class: 'label' }, `Full-time terms (for residency, ${student.program === 'mscse' ? '§3.3' : '§4.3'})`),
-      el('p', { class: 'hint' }, `A semester counts automatically once the courses entered for it add up to ${fullTimeFloor} registered credits (§2.1.2; withdrawn and incomplete courses are registrations too). Tick a semester you were registered full-time on research or in courses not entered here.`),
+      el(
+        'p',
+        { class: 'hint' },
+        fullTimeFloor === undefined
+          ? 'The course rules do not give the full-time credit floor (fulltime_credits_min), so no semester is counted from your courses until the DGS adds it. Tick each semester you were registered full-time.'
+          : `A semester counts automatically once the courses entered for it add up to ${fullTimeFloor} registered credits (§2.1.2; withdrawn and incomplete courses are registrations too). Tick a semester you were registered full-time on research or in courses not entered here.`,
+      ),
     );
     // What the ENGINE counts, so the card and the report agree (2026-10-03):
     // superseded same-term duplicates and unrecognised grades are out, a W
@@ -1208,7 +1217,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (overridden) tickedCount += 1;
       if (auto) {
         autoCount += 1;
-        box.append(el('span', { class: 'ft-term ft-auto' }, el('span', { class: 'ft-check', 'aria-hidden': 'true' }, '✓'), ` ${termLabel(t)} — counted automatically (${rec.term.season === 'summer' && rec.credits < fullTimeFloor ? 'a summer session after a full-time semester, Academic Code §3.6' : `${fullTimeFloor}+ registered credits entered`})`));
+        box.append(el('span', { class: 'ft-term ft-auto' }, el('span', { class: 'ft-check', 'aria-hidden': 'true' }, '✓'), ` ${termLabel(t)} — counted automatically (${rec.term.season === 'summer' && (fullTimeFloor === undefined || rec.credits < fullTimeFloor) ? 'a summer session after a full-time semester, Academic Code §3.6' : `${fullTimeFloor}+ registered credits entered`})`));
         continue;
       }
       const cb = el('input', {
@@ -2245,6 +2254,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // shown only while the record has transfer courses.
     if (classified.some((c) => c.entry.origin === 'transfer' && c.caps.includes('transfer'))) {
       card.append(attestation('The Graduate School approved my transfer credit and the Grad Admin recorded it (§5.2)', a.transferRecorded, (v, s) => (s.attestations.transferRecorded = v)));
+    }
+    // Academic Code §3.8's semester maximum (2026-10-03): a semester over it —
+    // or one already ticked — offers the overload tick, behind a selector that
+    // is open once a tick is on file (an uncommon case, DGS 2026-10-03).
+    const overloadTicked = student.creditOverloadTerms ?? [];
+    const overloadTerms = new Map<number, Term>();
+    for (const o of overMaxTerms(classified, student, normalizeEntryTerm(student.entryTerm).term)) overloadTerms.set(termIndex(o.term), o.term);
+    for (const t of overloadTicked) overloadTerms.set(termIndex(t), t);
+    if (overloadTerms.size > 0) {
+      const ticks = [...overloadTerms.entries()]
+        .sort((x, y) => x[0] - y[0])
+        .map(([key, t]) =>
+          attestation(`A credit overload was approved for me in ${termLabel(t)} (Academic Code §3.8)`, overloadTicked.some((o) => termIndex(o) === key), (v, s) => {
+            const list = (s.creditOverloadTerms ?? []).filter((o) => termIndex(o) !== key);
+            if (v) list.push(t);
+            s.creditOverloadTerms = list.length > 0 ? list : undefined;
+          }),
+        );
+      card.append(rareFold('overload', 'Was a credit overload approved for you?', overloadTicked.length > 0, ...ticks));
     }
     // The DGS's course approvals left this card on 2026-09-27: each is a tick
     // on the course it concerns, shown only where the sheet decides the

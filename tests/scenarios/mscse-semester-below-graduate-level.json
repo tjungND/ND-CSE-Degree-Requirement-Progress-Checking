@@ -1,0 +1,61 @@
+{
+  "name": "mscse-semester-below-graduate-level",
+  "description": "DGS 2026-10-03 (P1-residency-enrollment-c5, suggested fix): Academic Code §4.1 expects every full-time graduate student to register for at least 3 credits at the 60000 level or higher each semester, unless the Graduate School’s associate dean for academic affairs permits otherwise. A Fall 2026 of three 40000-level courses (9 credits) is still full-time and still counts toward the MSCSE’s one semester of residence, but the row goes to the DGS instead of Met and names the semester; the review request carries the same note.",
+  "today": "2027-01-15",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.8,
+    "courses": [
+      {
+        "courseId": "CSE 40113",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 40567",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 40243",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.residency": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Fall 2026: fewer than 3 credits at the 60000 level or higher",
+        "Academic Code §4.1"
+      ]
+    }
+  }
+}

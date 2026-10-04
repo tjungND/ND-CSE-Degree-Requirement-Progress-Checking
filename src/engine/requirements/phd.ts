@@ -12,7 +12,7 @@ import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSe
 import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { noteOf, capRow, clockShiftNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
-import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
+import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun } from './residency.ts';
 import { defendedBelowGpaNote, gpaText } from './shared.ts';
 import { transferRow } from './transfer.ts';
 import { spentOnBachelorsAndMasters } from '../allocate.ts';
@@ -383,8 +383,22 @@ function residencyRow(ctx: Ctx): RequirementResult {
     // the run restarts silently otherwise (policy review 2026-10-03).
     const withdrawnOnly = records.filter((r) => r.withdrawnOnly).map((r) => termLabel(r.term));
     if (withdrawnOnly.length > 0) parts.push(`${withdrawnOnly.join(', ')}: every course withdrawn — not counted as residence`, { note: 'If you were registered full-time at census, tick the semester under Full-time terms, or ask the DGS' });
+    // Academic Code §4.1's three graduate-level credits a semester (policy
+    // review 2026-10-03, P1-residency-enrollment-c5): the semester still
+    // counts, the row goes to the DGS.
+    const belowGraduate = graduateLevelParts(records, floor);
+    if (belowGraduate.length > 0) {
+      parts.push(...belowGraduate);
+      if (status === 'met') status = 'needs_dgs_review';
+    }
     if (status === 'in_progress' && run > 0 && records.some((r) => r.term.season !== 'summer' && !r.fullTime)) {
       parts.push({ note: 'A fall or spring semester that was not full-time restarts the run; a semester not registered at all needs readmission through the department and the Graduate School (Academic Code §3.1), which may reject earlier credits (DGS Handbook §3.3) — ask the DGS' });
+      // The Graduate School's own residency rule is "normally full-time status
+      // for four semesters" (Academic Code §6.2.2) — consecutiveness comes from
+      // §4.3 and the DGS Handbook's candidacy list (§3.22.3) — so a broken run
+      // is where an exception can matter (DGS 2026-10-03, P1-residency-enrollment-7:
+      // "the row could note that the Graduate School's rule says 'normally'").
+      parts.push({ note: 'The Graduate School’s own rule asks for four full-time semesters “normally” (Academic Code §6.2.2), so an exception is possible — ask the DGS' });
     }
   }
   return {

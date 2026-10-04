@@ -3,12 +3,13 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq } from './term.ts';
 import type { AuditReport, Grade, RequirementResult, Student } from './types.ts';
 import { isCovidCohort, type Ctx } from './requirements/context.ts';
+import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
@@ -137,6 +138,23 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           },
         ];
 
+  // Academic Code §3.8's maximal registration (DGS 2026-10-03,
+  // P1-residency-enrollment-c4: "cap a semester's credits"): at most 15
+  // credits of graduate courses count from a fall or spring semester, 10 from
+  // a summer session, unless the student marks the semester's credit overload
+  // as approved. Usually a duplicate row or a wrong credit value — the warning
+  // says which semester.
+  const overMax = overMaxTerms(classified, student, entry);
+  capSpecs.push(...registrationCaps(overMax));
+  for (const o of overMax) {
+    if (o.overloadApproved) continue;
+    const excess = o.credits - o.max;
+    const summer = o.term.season === 'summer';
+    warnings.push(
+      `${termLabel(o.term)}: ${formatCredits(o.credits)} credits of ${summer ? 'courses' : 'graduate courses (60000 level or higher)'} are entered — the Graduate School allows at most ${o.max} in ${summer ? 'the summer session' : 'a semester'} (Academic Code §3.8; DGS Handbook §3.9), so ${formatCredits(excess)} ${excess === 1 ? 'credit is' : 'credits are'} not counted. Check for a duplicate row or a wrong credit value; if a credit overload was approved for you, tick it under Approvals you already have.`,
+    );
+  }
+
   // Non-CSE credit the nine-credit allowance refuses: into the total for the
   // Ph.D. (F1, 2026-09-12), nowhere for the MSCSE (DGS 2026-10-03 — §3.2's
   // September text counts the nine "toward both" the 30 and the 24).
@@ -165,6 +183,14 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   if (ugFlag) {
     reviewFlags.push(ugFlag);
     warnings.push(`${ugFlag} This is included in the review request.`);
+  }
+  // Academic Code §4.1: three credits at the 60000 level or higher in every
+  // full-time semester, unless the associate dean permitted otherwise — routed
+  // to the DGS, never a failed term (policy review 2026-10-03, P1-residency-enrollment-c5).
+  const graduateFlag = graduateLevelFlag(fullTimeTermRecords(ctx), params.number('fulltime_credits_min'));
+  if (graduateFlag) {
+    reviewFlags.push(graduateFlag);
+    warnings.push(`${graduateFlag} This is included in the review request.`);
   }
 
   if (normalized) {

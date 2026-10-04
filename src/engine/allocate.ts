@@ -23,8 +23,76 @@ import type { Attestations, CourseEntry, Grade, Program, Student, Term } from '.
  * earned by a student while in non-degree status may be counted toward a degree
  * program." A Graduate School number, so it lives in code (as §3.5's six does,
  * DGS 2026-09-27), not in the Parameters tab. */
-export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs' | 'nondegree';
+export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs' | 'nondegree' | `term:${number}`;
 export const NON_DEGREE_CREDITS_MAX = 12;
+
+/** `term:<termIndex>` (2026-10-03): Academic Code §3.8 "Maximal Registration"
+ * — "During each semester of the academic year, a graduate student should not
+ * register for more than 15 credit hours of graduate courses, i.e., 60000
+ * through 90000-level courses. In the summer session, a graduate student
+ * should not register for more than 10 credit hours." The DGS Handbook (§3.9)
+ * says "may not"; a credit overload is the Registrar's eForm (§3.10.1).
+ * DGS 2026-10-03 (P1-residency-enrollment-c4): "Change the code and cap a
+ * semester's credits by following the graduate school's academic code and
+ * the DGS handbook." Graduate School numbers, in code like §2.3's twelve. */
+export const SEMESTER_GRADUATE_CREDITS_MAX = 15;
+export const SUMMER_CREDITS_MAX = 10;
+
+/** A Notre Dame semester of the program whose countable registrations exceed
+ * §3.8's maximum: graduate courses (60000-90000) in a fall or spring, every
+ * course in a summer session. */
+export interface OverMaxTerm {
+  term: Term;
+  credits: number;
+  max: number;
+  /** The student ticked "a credit overload was approved" for this term: no cap. */
+  overloadApproved: boolean;
+  /** The courses the cap applies to, in the order entered. */
+  courses: ClassifiedCourse[];
+}
+
+/** The semesters over §3.8's maximum. Pure — the audit turns each one the
+ * student has not marked as an approved overload into a cap (registrationCaps);
+ * the milestones card reads it to offer the overload tick. Only courses that
+ * could count are summed (a W, a failed grade, an ineligible row or a same-term
+ * duplicate takes nothing from the cap), and only from the entry term on — an
+ * undergraduate semester before the program is not a graduate registration. */
+export function overMaxTerms(classified: readonly ClassifiedCourse[], student: Student, entry: Term): OverMaxTerm[] {
+  const approved = new Set((student.creditOverloadTerms ?? []).map((t) => termIndex(t)));
+  const byTerm = new Map<number, { term: Term; credits: number; courses: ClassifiedCourse[] }>();
+  for (const cc of classified) {
+    const c = cc.entry;
+    if (c.origin !== 'nd' || termIndex(c.term) < termIndex(entry)) continue;
+    if (cc.pool === 'none' || cc.superseded || cc.withdrawn || cc.unrecognizedGrade || !passesCreditFloor(c.grade)) continue;
+    if (c.term.season !== 'summer' && !(levelOf(c, cc.rule) >= 6)) continue;
+    const key = termIndex(c.term);
+    const rec = byTerm.get(key) ?? { term: c.term, credits: 0, courses: [] };
+    rec.credits += c.credits;
+    rec.courses.push(cc);
+    byTerm.set(key, rec);
+  }
+  const out: OverMaxTerm[] = [];
+  for (const [key, rec] of [...byTerm.entries()].sort((a, b) => a[0] - b[0])) {
+    const max = rec.term.season === 'summer' ? SUMMER_CREDITS_MAX : SEMESTER_GRADUATE_CREDITS_MAX;
+    if (rec.credits > max) out.push({ term: rec.term, credits: rec.credits, max, overloadApproved: approved.has(key), courses: rec.courses });
+  }
+  return out;
+}
+
+/** The caps for those semesters, attached to their courses (the audit's own
+ * classified list). The allocator then counts at most `max` credits from the
+ * semester — the courses entered first fill it — and each line beyond it reads
+ * "over the 15-credit semester maximum for Fall 2026 (Academic Code §3.8)". */
+export function registrationCaps(over: readonly OverMaxTerm[]): CapSpec[] {
+  const caps: CapSpec[] = [];
+  for (const o of over) {
+    if (o.overloadApproved) continue;
+    const id: CapId = `term:${termIndex(o.term)}`;
+    caps.push({ id, limit: o.max, label: `${o.max}-credit ${o.term.season === 'summer' ? 'summer-session' : 'semester'} maximum for ${termLabel(o.term)}`, section: 'Academic Code §3.8' });
+    for (const cc of o.courses) if (!cc.caps.includes(id)) cc.caps = [...cc.caps, id];
+  }
+  return caps;
+}
 
 /** Academic Code §4.4: an Incomplete has "30 calendar days from when grades
  * were due … The instructor of record then has 14 calendar days to report the
