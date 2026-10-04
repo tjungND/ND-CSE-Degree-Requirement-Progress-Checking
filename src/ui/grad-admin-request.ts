@@ -53,6 +53,7 @@ export const MILESTONE_FIELDS: readonly MilestoneField[] = [
   { key: 'researchQualifierPassed', label: 'Research qualifier passed — advisor filed the form', section: '§4.4.3', program: 'phd' },
   { key: 'qualifierFormFiled', label: 'Qualifier completion form filed with the Grad Admin', section: '§4.4', program: 'phd' },
   { key: 'candidacyPassed', label: 'Oral Candidacy Exam (OCE) passed', section: '§4.5', program: 'phd' },
+  { key: 'candidacyAdmitted', label: 'Admitted to doctoral candidacy', section: 'Academic Code §6.2.9', program: 'phd' },
   { key: 'rcrTrainingCompleted', label: 'Responsible Conduct of Research and ethics training completed', section: 'Academic Code §6.2.4', program: 'phd' },
   { key: 'dissertationApprovedForDefense', label: 'Dissertation approved for defense by all readers', section: '§4.6', program: 'phd' },
   { key: 'defensePassed', label: 'Dissertation defense passed', section: '§4.7', program: 'phd' },
@@ -67,6 +68,7 @@ const ROW_MILESTONE: Record<string, keyof Milestones> = {
   'shared.advisor': 'advisorIdentified',
   'phd.qualifier.research': 'researchQualifierPassed',
   'phd.candidacy': 'candidacyPassed',
+  'phd.candidacyAdmission': 'candidacyAdmitted',
   'phd.dissertation.approval': 'dissertationApprovedForDefense',
   'phd.dissertation.defense': 'defensePassed',
   'phd.dissertation.submitted': 'dissertationSubmitted',
@@ -129,6 +131,11 @@ export interface ProcessingItems {
   advisorName?: string;
   msAlongTheWay: boolean;
   qualifierFormDue: boolean;
+  /** Every condition for admission to doctoral candidacy is met and no
+   * admission date is entered: "The program must initiate the Application for
+   * Admission to Doctoral Candidacy form" (DGS Handbook §3.22.3; DGS
+   * 2026-10-04 — admission is a step of its own after the OCE). */
+  candidacyApplicationDue: boolean;
   /** Every met requirement (scored rows only), each with the courses,
    * semesters or date that satisfy it. */
   met: MetTable[];
@@ -280,6 +287,11 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const msAlongTheWay = byId.get('phd.msAlongTheWay')?.status === 'met';
   // A pass attested under the earlier rules (2026-09-21) was recorded back then; no form to chase.
   const qualifierFormDue = byId.get('phd.qualifier')?.status === 'met' && !student.milestones.qualifierFormFiled && student.attestations.qualifierPassedUnderPriorRules !== true;
+  // The engine's admission row opens its note with "Every condition is met"
+  // when only the application is left (phd.ts candidacyAdmissionRow).
+  const admission = byId.get('phd.candidacyAdmission');
+  const candidacyApplicationDue =
+    admission !== undefined && (admission.status === 'in_progress' || admission.status === 'unmet') && (admission.detailParts ?? []).some((p) => typeof p === 'object' && 'note' in p && p.note.startsWith('Every condition is met'));
   // Every scored row, met or not (DGS 2026-09-28); the Approvals row is the
   // DGS's errand list, not a standing. Overdue rows lead, then the page's
   // order of colours; within a colour, the report's own order.
@@ -321,6 +333,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...milestones.map((m) => `Record the milestone: ${m.label}, ${m.date} (${m.section}).`),
     ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
     ...(msAlongTheWay ? ['Process the MSCSE along the way — the self-check shows its requirements met (§4.5).'] : []),
+    ...(candidacyApplicationDue ? ['Initiate my Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3).'] : []),
     ...(met.length > 0 ? [`Keep my standing below on file: ${tallyText}.`] : []),
   ];
   const lines = [
@@ -331,6 +344,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...milestones.map((m) => `${m.label} ${m.date} (${m.section})`),
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
     ...(msAlongTheWay ? ['MSCSE along the way — the self-check shows its requirements met (§4.5)'] : []),
+    ...(candidacyApplicationDue ? ['Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3)'] : []),
     ...(met.length > 0
       ? [`${tallyText} — the request lists every requirement with its standing, what meets it so far and its deadline${tally.dueSoon > 0 ? ` (${plural(tally.dueSoon, 'deadline')} in this semester or the next, highlighted)` : ''}, for the record`]
       : []),
@@ -341,6 +355,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     advisorName: [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n).join(' and ') || undefined,
     msAlongTheWay,
     qualifierFormDue,
+    candidacyApplicationDue,
     met,
     standing,
     courses,
@@ -349,7 +364,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     lines,
     // The met requirements are ONE line on the card, so they are one item in
     // the chip (2026-09-08): "8 items" above two lines was never explainable.
-    count: transfers.length + milestones.length + (qualifierFormDue ? 1 : 0) + (msAlongTheWay ? 1 : 0) + (met.length > 0 ? 1 : 0),
+    count: transfers.length + milestones.length + (qualifierFormDue ? 1 : 0) + (msAlongTheWay ? 1 : 0) + (candidacyApplicationDue ? 1 : 0) + (met.length > 0 ? 1 : 0),
   };
 }
 
@@ -446,6 +461,14 @@ export function gradAdminRequest(
     sections.push({
       heading: 'MSCSE along the way (§4.5)',
       lines: ['The self-check shows the requirements for the MSCSE along the way met (the Oral Candidacy Exam (OCE) passed, the M.S. coursework completed at Notre Dame) — please process the award.'],
+    });
+  }
+  if (items.candidacyApplicationDue) {
+    sections.push({
+      heading: 'Admission to doctoral candidacy (Academic Code §6.2.9)',
+      lines: [
+        'The self-check shows every condition for admission to doctoral candidacy met — the Oral Candidacy Exam (OCE) passed, four consecutive full-time semesters, the coursework complete with a cumulative GPA of 3.0 or better, and the Responsible Conduct of Research training — please initiate the Application for Admission to Doctoral Candidacy.',
+      ],
     });
   }
   // Once every requirement is met, the Graduate School's last condition in

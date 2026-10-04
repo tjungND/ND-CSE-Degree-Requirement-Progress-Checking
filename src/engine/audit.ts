@@ -28,7 +28,8 @@ import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
  *   phd.residency=P8  phd.timeLimit=P9  phd.qualifier=P10
  *   phd.qualifier.core.{os,algorithms,architecture}=P10a
  *   phd.qualifier.categories=P10b  phd.qualifier.research=P10c
- *   phd.candidacy=P11  phd.dissertation.approval=P12
+ *   phd.candidacy=P11 (the OCE)  phd.candidacyAdmission=P11a (admission to
+ *   candidacy, Academic Code §6.2.9 — DGS 2026-10-04)  phd.dissertation.approval=P12
  *   phd.dissertation.defense=P13  phd.msAlongTheWay=P14 */
 export const REQUIREMENT_IDS = [
   'shared.gpa',
@@ -63,6 +64,7 @@ export const REQUIREMENT_IDS = [
   'phd.qualifier.research',
   'phd.rcr',
   'phd.candidacy',
+  'phd.candidacyAdmission',
   'phd.dissertation.approval',
   'phd.dissertation.defense',
   'phd.dissertation.submitted',
@@ -316,7 +318,10 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // A requirement completed AFTER the limit reads "Eligibility at risk" rather
   // than met (policy review 2026-10-03) — for the time-limit row it is still
   // complete, so that row can say the same thing instead of "Overdue".
-  const completeOrLate = (r: RequirementResult) => r.status === 'met' || (r.status === 'needs_dgs_review' && r.statusLabel === 'Eligibility at risk');
+  // So is a milestone done late against its OWN deadline only (a late OCE or
+  // admission to candidacy, 2026-10-04): the §4.3 question is whether
+  // everything was done within the limit.
+  const completeOrLate = (r: RequirementResult) => r.status === 'met' || (r.status === 'needs_dgs_review' && (r.statusLabel === 'Eligibility at risk' || r.completedLate === true));
   const others = {
     allMet: otherRows.every(completeOrLate),
     anyCannotEvaluate: otherRows.some((r) => r.status === 'cannot_evaluate'),

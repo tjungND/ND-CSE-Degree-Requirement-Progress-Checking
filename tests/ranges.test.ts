@@ -193,3 +193,24 @@ describe('a saved file cannot carry a GPA the form would refuse (R1)', () => {
     assert.deepEqual(refusals, []);
   });
 });
+
+describe('a saved file cannot carry a milestone date the form could not hold (2026-10-04)', () => {
+  // A hand-edited "2028-13-45" read Met beside a blank date box, and an empty
+  // string printed "Admitted to doctoral candidacy ." with its field hidden.
+  it('keeps real dates, drops an empty one silently, and drops and reports the rest', () => {
+    const refusals: { key: string; text: string; message: string }[] = [];
+    const s = validateStudent(
+      {
+        ...studentWith(3.4),
+        milestones: { advisorName: 'Prof. Example', candidacyPassed: '2028-04-01', candidacyAdmitted: '', defensePassed: '2028-13-45', dissertationSubmitted: '05/01/2028', rcrTrainingCompleted: null },
+      },
+      refusals,
+    );
+    assert.deepEqual(s.milestones, { advisorName: 'Prof. Example', candidacyPassed: '2028-04-01' });
+    assert.deepEqual(
+      refusals.map((r) => r.key),
+      ['milestone.defensePassed', 'milestone.dissertationSubmitted'],
+    );
+    assert.equal(refusals[0]!.message, 'Dissertation defense passed: “2028-13-45” in the file is not a date (YYYY-MM-DD), so it was not loaded — enter it again under Milestones.');
+  });
+});

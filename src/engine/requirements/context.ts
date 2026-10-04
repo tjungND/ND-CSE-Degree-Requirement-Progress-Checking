@@ -147,9 +147,12 @@ export function timeLimitRow(
     } else if (ctx.today > date && others.anyCannotEvaluate) {
       // A missing rules-sheet value is not a missed deadline (red-team
       // 2026-09-13): a student who has finished everything used to read
-      // "Overdue — forfeiture" because one unrelated parameter was blank.
+      // "Overdue — forfeiture" because one unrelated parameter was blank. Nor
+      // is a date missing from the record (2026-10-04: the admission to
+      // candidacy of a record whose dissertation milestones are dated), so
+      // the sentence names both and leaves "which" to that row.
       status = 'cannot_evaluate';
-      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value`];
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated yet — a value is missing from the rules sheet or from your record, and that row says which — so whether everything was finished in time cannot be judged`];
       deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date) {
       status = 'unmet';

@@ -1,0 +1,35 @@
+{
+  "name": "phd-oce-before-candidacy-admission",
+  "description": "Policy review P2-dh-3.21-3.24-16 (DGS 2026-10-04: “OCE and doctoral candidacy are two different things. One can pass OCE first and then enter the doctoral candidacy later. Passing OCE is one of the requirements of doctoral candidacy.”). A Fall 2024 entrant passes the Oral Candidacy Exam in semester 3 with the coursework, the GPA and the RCR training done, but only three full-time semesters: the OCE row is Met, and the admission-to-candidacy row waits for the fourth consecutive full-time semester (DGS Handbook §3.22.3). It used to read the exam date as the admission itself.",
+  "today": "2026-01-15",
+  "rules": { "base": "default" },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": { "season": "fall", "year": 2024 },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2024 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "spring", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60876", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 98900", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "S", "origin": "nd" }
+    ],
+    "milestones": { "advisorIdentified": "2024-10-01", "advisorName": "Prof. Example", "rcrTrainingCompleted": "2025-09-01", "candidacyPassed": "2025-12-10" },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.candidacy": { "status": "met", "detailIncludes": ["Oral Candidacy Exam (OCE) passed 2025-12-10", "one of the conditions for admission to doctoral candidacy"] },
+    "phd.candidacyAdmission": {
+      "status": "in_progress",
+      "detailIncludes": ["Oral Candidacy Exam (OCE): passed 2025-12-10", "4 consecutive full-time semesters: 3 so far (Fall 2024–Fall 2025)", "Coursework: 24 of 24 regular-course credits complete", "Cumulative GPA of 3.0 or better: 3.70", "Responsible Conduct of Research training: done 2025-09-01"],
+      "detailExcludes": ["Every condition is met"]
+    },
+    "phd.residency": { "status": "in_progress" }
+  }
+}

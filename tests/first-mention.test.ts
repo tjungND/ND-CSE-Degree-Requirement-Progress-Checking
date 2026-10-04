@@ -18,6 +18,12 @@ describe('shortenAfterFirst — the OCE first-mention rule', () => {
     assert.equal(shortenAfterFirst(`${OCE_FULL}; then the Oral Candidacy Exam again; OCE stays.`), `${OCE_FULL}; then the OCE again; OCE stays.`);
   });
 
+  it('matches whole words only — a quoted "doctoral candidacy examination" is not a mention (2026-10-04)', () => {
+    const quote = 'pass the written and oral parts of the doctoral candidacy examination';
+    assert.equal(shortenAfterFirst(`${OCE_FULL} passed. ${quote}. ${OCE_FULL} again.`), `${OCE_FULL} passed. ${quote}. OCE again.`);
+    assert.equal(shortenAfterFirst(`${quote}; ${OCE_FULL}`), `${quote}; ${OCE_FULL}`);
+  });
+
   it('leaves text without a mention alone and is idempotent', () => {
     assert.equal(shortenAfterFirst('No exam here.'), 'No exam here.');
     const once = shortenAfterFirst(`${OCE_FULL} and ${OCE_FULL}`);

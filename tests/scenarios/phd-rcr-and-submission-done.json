@@ -1,6 +1,6 @@
 {
   "name": "phd-rcr-and-submission-done",
-  "description": "Policy review 2026-10-03 (Academic Code §6.2.4 and §6.2.12): two Graduate School steps the department’s handbook leaves implicit — the Responsible Conduct of Research (RCR) training that admission to candidacy requires, and the official submission of the dissertation to the Graduate School, which is what completes the degree inside the §4.3 eight-year limit (the defense alone does not). Both dated here, inside the limit: the RCR row and the submission row read met, and the time-limit row counts the degree complete.",
+  "description": "Policy review 2026-10-03 (Academic Code §6.2.4 and §6.2.12): two Graduate School steps the department’s handbook leaves implicit — the Responsible Conduct of Research (RCR) training that admission to candidacy requires, and the official submission of the dissertation to the Graduate School, which is what completes the degree inside the §4.3 eight-year limit (the defense alone does not). Both dated here, inside the limit, with the admission to candidacy (its own row since 2026-10-04): the RCR, admission and submission rows read met, and the time-limit row counts the degree complete.",
   "today": "2032-01-15",
   "rules": {
     "base": "default"
@@ -20,6 +20,7 @@
       "researchQualifierPassed": "2027-11-01",
       "rcrTrainingCompleted": "2027-09-15",
       "candidacyPassed": "2029-04-01",
+      "candidacyAdmitted": "2029-05-01",
       "dissertationApprovedForDefense": "2031-10-01",
       "defensePassed": "2031-11-10",
       "dissertationSubmitted": "2031-12-01"
@@ -190,6 +191,12 @@
     },
     "phd.candidacy": {
       "status": "met"
+    },
+    "phd.candidacyAdmission": {
+      "status": "met",
+      "detailIncludes": [
+        "Admitted to doctoral candidacy 2029-05-01"
+      ]
     },
     "phd.timeLimit": {
       "status": "met",

@@ -175,6 +175,53 @@ function validSemesterCount(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 20 ? v : undefined;
 }
 
+/** The milestone dates a saved file may carry, with the name its toast gives
+ * each (the Milestones card's labels, shortened). */
+const MILESTONE_DATE_LABELS: Record<string, string> = {
+  advisorIdentified: 'Advisor identified',
+  researchQualifierPassed: 'Research qualifier passed',
+  researchQualifierFailed: 'Research qualifier failed',
+  qualifierFormFiled: 'Qualifier completion form filed',
+  candidacyPassed: 'Oral Candidacy Exam (OCE) passed',
+  candidacyAdmitted: 'Admitted to doctoral candidacy',
+  rcrTrainingCompleted: 'Responsible Conduct of Research training completed',
+  dissertationApprovedForDefense: 'Dissertation approved for defense',
+  defensePassed: 'Dissertation defense passed',
+  dissertationSubmitted: 'Final dissertation submitted',
+  thesisApprovedByReaders: 'Thesis approved by both readers',
+  thesisDefensePassed: 'Thesis defense passed',
+  projectReportAccepted: 'Project report accepted',
+};
+
+/** A real calendar date written YYYY-MM-DD — what a date box stores. */
+function isIsoDate(v: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return false;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]);
+}
+
+/** Milestone dates are checked on load like every other figure (review of the
+ * candidacy split, 2026-10-04): a hand-edited "2028-13-45" read Met with a
+ * blank date box, and an empty string printed "Admitted to doctoral candidacy
+ * ." with its field hidden. An empty value is "not entered" and is dropped
+ * silently; anything else that is not a real YYYY-MM-DD date is dropped and
+ * reported. The advisor names, and any key this version does not know, pass
+ * through. */
+function validMilestones(raw: unknown, refusals: Refusal[]): Student['milestones'] {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
+  for (const [key, label] of Object.entries(MILESTONE_DATE_LABELS)) {
+    const v = out[key];
+    if (v === undefined) continue;
+    if (typeof v === 'string' && isIsoDate(v)) continue;
+    delete out[key];
+    if (v === null || v === '') continue;
+    refusals.push({ key: `milestone.${key}`, text: String(v), message: `${label}: “${String(v)}” in the file is not a date (YYYY-MM-DD), so it was not loaded — enter it again under Milestones.` });
+  }
+  return out as Student['milestones'];
+}
+
 export function validateStudent(data: unknown, refusals: Refusal[] = []): Student {
   const d = data as Partial<Student> & { state?: unknown };
   if (d && typeof d === 'object' && 'student' in (d as object)) {
@@ -296,7 +343,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     probationLetterDeadline:
       typeof raw['probationLetterDeadline'] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw['probationLetterDeadline']) ? raw['probationLetterDeadline'] : undefined,
     ...(typeof raw['ndNonDegree'] === 'boolean' ? { ndNonDegree: raw['ndNonDegree'] as boolean } : { ndNonDegree: undefined }),
-    milestones: d.milestones ?? {},
+    milestones: validMilestones(d.milestones, refusals),
     attestations: d.attestations ?? {},
     courses: d.courses,
     // A file the student loads is THEIR record, whatever it was saved from

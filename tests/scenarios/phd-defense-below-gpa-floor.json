@@ -1,6 +1,6 @@
 {
   "name": "phd-defense-below-gpa-floor",
-  "description": "Policy review 2026-10-03 (P1-gpa-10, DGS: apply the suggested fix): §2.2 — “A student whose cumulative GPA is below 3.0 may not defend their thesis or dissertation.” Until now a defense DATE entered while the GPA was below 3.0 read Met with no note (only the unmet row carried the “may not defend” gate, fixture gpa-floor). Mirroring the candidacy row, the dated defense now goes to the DGS and says why, inside the eight-year limit — so the pill is the ordinary “Conditionally met”, not the late-defense “Eligibility at risk”.",
+  "description": "Policy review 2026-10-03 (P1-gpa-10, DGS: apply the suggested fix): §2.2 — “A student whose cumulative GPA is below 3.0 may not defend their thesis or dissertation.” Until now a defense DATE entered while the GPA was below 3.0 read Met with no note (only the unmet row carried the “may not defend” gate, fixture gpa-floor). Mirroring the candidacy row (whose GPA gate is the dated admission’s since 2026-10-04, when the OCE and admission to candidacy became two rows — so the admission here goes to the DGS too), the dated defense now goes to the DGS and says why, inside the eight-year limit — so the pill is the ordinary “Conditionally met”, not the late-defense “Eligibility at risk”.",
   "today": "2031-12-01",
   "rules": {
     "base": "default"
@@ -25,6 +25,7 @@
       "researchQualifierPassed": "2027-11-01",
       "rcrTrainingCompleted": "2027-09-15",
       "candidacyPassed": "2029-04-01",
+      "candidacyAdmitted": "2029-05-01",
       "dissertationApprovedForDefense": "2031-10-01",
       "defensePassed": "2031-11-10"
     },
@@ -189,9 +190,16 @@
       ]
     },
     "phd.candidacy": {
+      "status": "met",
+      "detailExcludes": [
+        "GPA"
+      ]
+    },
+    "phd.candidacyAdmission": {
       "status": "needs_dgs_review",
       "detailIncludes": [
-        "a 2.80 GPA"
+        "Admitted to doctoral candidacy 2029-05-01",
+        "You show a 2.80 GPA — §2.2 requires a 3.0 for admission to candidacy; confirm your admission with the DGS"
       ]
     }
   }

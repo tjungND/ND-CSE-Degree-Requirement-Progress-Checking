@@ -129,6 +129,10 @@ export interface Milestones {
   researchQualifierFailed?: string;
   qualifierFormFiled?: string; // §4.4
   candidacyPassed?: string; // §4.5
+  /** Admitted to doctoral candidacy by the Graduate School — a step of its own
+   * after the OCE (Academic Code §6.2.9; DGS Handbook §3.22.3; DGS 2026-10-04:
+   * "OCE and doctoral candidacy are two different things"). */
+  candidacyAdmitted?: string;
   /** Academic Code §6.2.4: the Responsible Conduct of Research and ethics
    * training modules are required of every Ph.D. student, and the DGS
    * Handbook (§3.22.3) lists them among the conditions for admission to
@@ -404,6 +408,11 @@ export interface RequirementResult {
    * requirement (DGS 2026-09-27): drawn as a meter with no pill, in its own
    * group, never counted in the headline. */
   allowance?: true;
+  /** Done, but after the row's own deadline, and that lateness is the only
+   * reason it reads Needs DGS review (a late OCE or admission to candidacy —
+   * 2026-10-04): the row keeps its own question for the DGS, while the
+   * eight-year row counts it complete. */
+  completedLate?: true;
   detail: string;
   /** When the detail was built from several independent statements, they are
    * also kept separately so the UI can render a long detail as a bulleted

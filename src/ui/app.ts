@@ -1120,12 +1120,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       count(
         'leaveSemesters',
         'Semesters on an approved leave of absence',
-        `Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves ${phd ? 'the eight-year limit (§4.3) and the eighth-semester candidacy deadline (§4.5)' : 'the five-year limit (§3.3)'} out by a semester (DGS Handbook §3.4, §3.7.2). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).`,
+        `Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves ${phd ? 'the eight-year limit (§4.3) and the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3)' : 'the five-year limit (§3.3)'} out by a semester (DGS Handbook §3.4, §3.7.2). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).`,
       ),
       count(
         'accommodationSemesters',
         'Childbirth or adoption accommodation semesters',
-        `Semesters of the Graduate School’s childbirth and adoption accommodation (Academic Code §5.4): each extends ${phd ? 'the eight-year limit and the eighth-semester deadline' : 'the five-year limit'} by a semester (DGS Handbook §3.7.2).`,
+        `Semesters of the Graduate School’s childbirth and adoption accommodation (Academic Code §5.4): each extends ${phd ? 'the eight-year limit and the eighth-semester deadlines for the OCE and for admission to candidacy' : 'the five-year limit'} by a semester (DGS Handbook §3.7.2).`,
       ),
       el(
         'div',
@@ -2287,12 +2287,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed'),
       );
       // §4.6 opens "After satisfying the above requirements": nobody has a
-      // dissertation date without an OCE date, so the two dissertation fields
-      // appear once the OCE is dated — or when a loaded record already
+      // dissertation date without an OCE date, so the admission and
+      // dissertation fields appear once the OCE is dated — or when a loaded record already
       // carries either date, so nothing on file is ever hidden (trim review
       // 2026-09-18, P-64). The §4.6/§4.7 report rows are unchanged.
-      if (m.candidacyPassed || m.dissertationApprovedForDefense || m.defensePassed || m.dissertationSubmitted) {
+      if (m.candidacyPassed || m.candidacyAdmitted || m.dissertationApprovedForDefense || m.defensePassed || m.dissertationSubmitted) {
         card.append(
+          // Admission to candidacy is the Graduate School's own step after the
+          // OCE (DGS 2026-10-04: "OCE and doctoral candidacy are two different
+          // things"), so it appears with the fields that follow the OCE.
+          dateField('Admitted to doctoral candidacy by the Graduate School (Academic Code §6.2.9)', 'candidacyAdmitted'),
           dateField('Dissertation approved for defense by all readers (§4.6)', 'dissertationApprovedForDefense'),
           dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
           // The official submission is the last requirement inside the eight

@@ -567,13 +567,18 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
    * engine writes "Not yet available: …" wherever a requirement names its own
    * precondition. The dissertation pair does not, so they are named here: a
    * student cannot have readers approve a dissertation, or defend it, before
-   * the §4.5 candidacy exam they come after. This is a PRESENTATION judgement
+   * the §4.5 candidacy exam they come after — nor be admitted to candidacy
+   * (DGS 2026-10-04). This is a PRESENTATION judgement
    * about what belongs on a to-do list, not a rule — both rows stay in the
    * report, with their verdicts unchanged. */
   const AFTER_CANDIDACY = ['phd.dissertation.approval', 'phd.dissertation.defense'];
   const candidacyPassed = report.requirements.some((r) => r.id === 'phd.candidacy' && r.status === 'met');
+  // Admission waits only for the OCE to be DATED: a late pass (or one the DGS
+  // must confirm for coursework) still leaves the application to make — as the
+  // advisor summary and the processing request say (2026-10-04).
+  const oceOpen = report.requirements.some((r) => r.id === 'phd.candidacy' && (r.status === 'in_progress' || r.status === 'unmet'));
   const unreachable = (r: RequirementResult): boolean =>
-    /^(?:Not yet available:|You can take the exam once)/.test(r.detail) || (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed);
+    /^(?:Not yet available:|You can take the exam once)/.test(r.detail) || (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed) || (r.id === 'phd.candidacyAdmission' && oceOpen);
   const DEADLINE_RANK: Record<string, number> = { overdue: 0, due_soon: 1, upcoming: 3, done: 4 };
   const rank = (r: RequirementResult): number => {
     const byDeadline = r.deadline ? DEADLINE_RANK[r.deadline.state] ?? 3 : undefined;
@@ -688,6 +693,8 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
           ['Specialization (category specialization)', 'Three courses from three distinct specialization groups, each passed with a B or higher. A course may count for both core knowledge and specialization.', '§4.4.2'],
           ['Research qualifier', 'Within 18 months of entering the program, your research advisor determines whether you have passed the research component and files the form.', '§4.4.3'],
           ['Oral Candidacy Exam (OCE)', 'The candidacy examination of §4.5, sometimes called the dissertation proposal: a written proposal and an oral exam before your committee. It must be taken before the end of your eighth semester in the program.', '§4.5'],
+          // A separate step since DGS 2026-10-04 ("OCE and doctoral candidacy are two different things").
+          ['Admission to doctoral candidacy', 'The Graduate School’s own step after the OCE, applied for through the Grad Admin: it needs the OCE passed, four consecutive full-time semesters, the coursework complete with a cumulative GPA of 3.0 or better, and the Responsible Conduct of Research training — all by the end of your eighth semester.', 'Academic Code §6.2.9'],
           ['Transfer credit', 'Courses from an M.S. earned at Notre Dame or elsewhere within the five years before admission may count toward the course requirement, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
         ] as [string, string, string][])
       : ([

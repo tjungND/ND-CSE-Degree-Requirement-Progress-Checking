@@ -1,6 +1,6 @@
 {
   "name": "phd-rcr-pending-after-oce",
-  "description": "Policy review 2026-10-03: the Oral Candidacy Exam is passed but no RCR training date is entered — admission to candidacy is the Graduate School’s act and needs the RCR modules (Academic Code §6.2.4; DGS Handbook §3.22.3), so the RCR row stays open and the candidacy row says what is still needed; the dissertation submission row reads “Not started” until the defense.",
+  "description": "Policy review 2026-10-03: the Oral Candidacy Exam is passed but no RCR training date is entered — admission to candidacy is the Graduate School’s act and needs the RCR modules (Academic Code §6.2.4; DGS Handbook §3.22.3), so the RCR row stays open and the admission-to-candidacy row (its own row since 2026-10-04) lists it among the conditions still open; the dissertation submission row reads “Not started” until the defense.",
   "today": "2030-06-01",
   "rules": {
     "base": "default"
@@ -124,6 +124,17 @@
     },
     "phd.candidacy": {
       "status": "met"
+    },
+    "phd.candidacyAdmission": {
+      "status": "unmet",
+      "detailIncludes": [
+        "Oral Candidacy Exam (OCE): passed 2029-04-01",
+        "Responsible Conduct of Research training: not yet",
+        "Overdue"
+      ],
+      "detailExcludes": [
+        "Every condition is met"
+      ]
     }
   }
 }

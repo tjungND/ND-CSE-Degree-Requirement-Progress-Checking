@@ -17,6 +17,7 @@
     "milestones": {
       "researchQualifierPassed": "2027-11-01",
       "candidacyPassed": "2030-04-01",
+      "candidacyAdmitted": "2030-05-01",
       "dissertationApprovedForDefense": "2035-11-01",
       "defensePassed": "2036-01-15"
     },

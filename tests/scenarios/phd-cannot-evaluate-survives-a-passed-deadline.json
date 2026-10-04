@@ -23,6 +23,6 @@
   "expect": {
     "phd.qualifier.categories": { "status": "cannot_evaluate", "detailIncludes": ["category_courses_required"] },
     "phd.qualifier": { "status": "cannot_evaluate", "detailIncludes": ["cannot be evaluated until the rules sheet is complete"], "detailExcludes": ["Overdue — talk to the DGS"] },
-    "phd.timeLimit": { "status": "cannot_evaluate", "detailIncludes": ["cannot be evaluated until the rules sheet is complete"], "detailExcludes": ["Overdue"] }
+    "phd.timeLimit": { "status": "cannot_evaluate", "detailIncludes": ["cannot be evaluated yet — a value is missing from the rules sheet or from your record"], "detailExcludes": ["Overdue"] }
   }
 }

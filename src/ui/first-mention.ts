@@ -9,8 +9,10 @@ export const OCE_SHORT = 'OCE';
 
 /** Case-insensitive (the advisor summary upper-cases section headings), with
  * or without the bracketed acronym, so a later bare "Oral Candidacy Exam"
- * shortens too. A lone "OCE" never matches. */
-const OCE_RE = /Oral Candidacy Exam(?: \(OCE\))?/gi;
+ * shortens too. A lone "OCE" never matches. Whole words only (2026-10-04):
+ * without the boundaries the Academic Code's "the doctoral candidacy
+ * examination", quoted on the admission-to-candidacy row, read "doctOCEination". */
+const OCE_RE = /\bOral Candidacy Exam\b(?: \(OCE\))?/gi;
 
 /** The text with the first mention kept as written and every later one
  * replaced by the short form. Idempotent. */

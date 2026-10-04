@@ -40,7 +40,10 @@ const COURSEWORK = 'Coursework — §4.2';
 const ALLOWANCES = 'Allowances — §4.2'; // meters, not verdicts (DGS 2026-09-27)
 const TIME = 'Residence and time — §4.3';
 const QUALIFIER = 'Qualifying examination — §4.4';
-const CANDIDACY = 'Oral Candidacy Exam (OCE) — §4.5'; // the DGS's name for the §4.5 examination (2026-09-06); the handbook quotes below stay verbatim
+// The DGS's name for the §4.5 examination (2026-09-06); the handbook quotes
+// below stay verbatim. "and candidacy" since admission to candidacy became a
+// row of its own (DGS 2026-10-04).
+const CANDIDACY = 'Oral Candidacy Exam (OCE) and candidacy — §4.5';
 const DISSERTATION = 'Dissertation and defense — §4.6–4.7';
 
 /** Taken at Notre Dame for §4.2's nine: in this program, or in the student's
@@ -254,6 +257,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   }
   rows.push(rcrRow(ctx));
   rows.push(candidacyRow(ctx));
+  rows.push(candidacyAdmissionRow(ctx));
   rows.push(...dissertationRows(ctx));
   // §4.5's MSCSE cannot be earned twice. A Ph.D. student who already holds the
   // Notre Dame MSCSE (their master's before this program) has no along-the-way
@@ -988,8 +992,59 @@ function rcrRow(ctx: Ctx): RequirementResult {
   };
 }
 
+/** The eighth semester of enrollment, as both candidacy rows count it: moved
+ * out by every semester of approved leave or accommodation (DGS 2026-10-03;
+ * Academic Code §6.2.8 counts "semester of enrollment"), and by one more for
+ * the COVID cohort (DGS 2026-10-03, Item 15: "apply the 1-year extension if
+ * the admission is in Spring 2020 or before"; Appendix A.4 itself extends only
+ * the exam — "by the end of the ninth semester"). */
+function eighthSemester(ctx: Ctx, sem: number): { effectiveSem: number; term: Term; date: string } {
+  const effectiveSem = sem + ctx.clockShift + (ctx.covidCohort ? 1 : 0);
+  const term = nthSemester(ctx.entry, effectiveSem);
+  return { effectiveSem, term, date: endOfTerm(term).date };
+}
+
+/** Whose eighth semester, and what moved it — the notes both candidacy rows
+ * carry while they are open. */
+function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: boolean, row: 'oce' | 'admission'): DetailPart[] {
+  const parts: DetailPart[] = [];
+  // Whose eighth semester (DGS 2026-09-26): "when someone has a completed MS
+  // degree at CSE@ND, their OCE clock starts when they enter the PhD program.
+  // However, when someone initially started as an MS in our department but
+  // has transferred into PhD program in the middle, the OCE clock starts when
+  // they started the MS program." Both are the record's entry term — the
+  // opening dialog's answer says which — and the line names the start so a
+  // wrong entry term is noticed. The Graduate School's admission deadline
+  // keeps the same clock (2026-10-04, a default: one entry term counts both
+  // eighth semesters), and says so without the §4.4 qualifier clause.
+  if (ctx.student.background?.graduate === 'nd-mscse-transfer')
+    parts.push({
+      note:
+        row === 'oce'
+          ? `Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — a transfer into the Ph.D. keeps that clock (§4.5); the §4.4 qualifier clocks count from the transfer`
+          : `Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — as for the Oral Candidacy Exam (OCE), a transfer into the Ph.D. keeps that clock`,
+    });
+  else if (ctx.student.ndMasters !== undefined)
+    parts.push({
+      note:
+        row === 'oce'
+          ? `Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (§4.5)`
+          : `Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — as for the Oral Candidacy Exam (OCE), the MSCSE you finished before it is not counted`,
+    });
+  const shift = clockShiftNote(ctx);
+  if (shift !== '' && open) parts.push({ note: `Semester ${sem} is counted as semester ${effectiveSem}${shift}` });
+  return parts;
+}
+
 /** §4.5: "The candidacy exam must be taken before the end of the eighth
- * semester in the program." */
+ * semester in the program."
+ *
+ * The EXAM only (DGS 2026-10-04, P2-dh-3.21-3.24-16: "OCE and doctoral
+ * candidacy are two different things. One can pass OCE first and then enter
+ * the doctoral candidacy later. Passing OCE is one of the requirements of
+ * doctoral candidacy."). Admission to candidacy — with the GPA, the four
+ * full-time semesters, the RCR training and the Graduate School's form — is
+ * the next row. */
 function candidacyRow(ctx: Ctx): RequirementResult {
   const quote = 'The candidacy exam must be taken before the end of the eighth semester in the program.';
   const sem = ctx.params.number('candidacy_deadline_semester');
@@ -1003,108 +1058,231 @@ function candidacyRow(ctx: Ctx): RequirementResult {
       citation: { section: '§4.5', quote },
     };
   }
-  // The eighth semester moves out by every semester of approved leave or
-  // accommodation (DGS 2026-10-03; Academic Code §6.2.8 counts "semester of
-  // enrollment"), and by one more for the COVID cohort (Appendix A.4: "by the
-  // end of the ninth semester").
-  const effectiveSem = sem + ctx.clockShift + (ctx.covidCohort ? 1 : 0);
-  const term = nthSemester(ctx.entry, effectiveSem);
-  const date = endOfTerm(term).date;
+  const m = ctx.student.milestones;
+  // An admission dated with no exam date: the record says the exam was
+  // passed (admission requires it) but not when — a missing input, never an
+  // overdue exam (review of the split, 2026-10-04).
+  if (m.candidacyAdmitted && !m.candidacyPassed) {
+    return {
+      id: 'phd.candidacy',
+      group: CANDIDACY,
+      title: 'Oral Candidacy Exam (OCE) passed',
+      status: 'cannot_evaluate',
+      ...joinedDetail([`Admitted to doctoral candidacy ${m.candidacyAdmitted}`, { note: 'Enter the date you passed the Oral Candidacy Exam (OCE) under Milestones — admission to candidacy requires it (Academic Code §6.2.9)' }]),
+      citation: { section: '§4.5', quote },
+    };
+  }
+  const { effectiveSem, term, date } = eighthSemester(ctx, sem);
+  const passed = m.candidacyPassed || undefined;
   const r = deadlineStatus({
-    doneOn: ctx.student.milestones.candidacyPassed,
+    doneOn: passed,
     deadline: { date, approx: true },
     today: ctx.today,
     deadlineLabel: `the end of ${termLabel(term)} — semester ${effectiveSem}`,
     // §4.5 gives the DGS no extension to grant (that is §4.4's); a late pass
     // is still a pass, and the Graduate School's consequence is probation and
     // discontinued funding (Academic Code §6.2.8; policy review 2026-10-03).
-    lateWording: 'passed after the eighth semester — the Graduate School may have placed you on probation and discontinued University funding (Academic Code §6.2.8); confirm your standing with the DGS',
+    // "you" as the subject, so the emails' "I" reads right (2026-10-04).
+    lateWording: 'you may have been placed on probation and lost University funding (Academic Code §6.2.8); confirm your standing with the DGS',
   });
   // The pass is the fact; every other sentence is a note (DGS 2026-10-03).
   const parts: DetailPart[] = [];
-  if (r.status === 'met') parts.push(`Oral Candidacy Exam (OCE) passed ${ctx.student.milestones.candidacyPassed}`);
-  else if (r.status === 'needs_dgs_review')
-    parts.push(`Passed ${ctx.student.milestones.candidacyPassed}`, ...(r.lateNote ? [{ note: r.lateNote.charAt(0).toUpperCase() + r.lateNote.slice(1) }] : []));
+  if (r.status === 'met') parts.push(`Oral Candidacy Exam (OCE) passed ${passed}`);
+  else if (r.status === 'needs_dgs_review') parts.push(`Passed ${passed}`, ...(r.lateNote ? [{ note: r.lateNote.charAt(0).toUpperCase() + r.lateNote.slice(1) }] : []));
   else if (r.status === 'unmet')
     // The deadline chip carries the when; policy (coursework-before-exam,
     // committee make-up) lives behind the § chip (2026-09-03). What a missed
     // eighth semester means at the Graduate School: probation and the end of
-    // University funding, not forfeiture (Academic Code §6.2.8/§5.7.3).
-    parts.push({ note: `Overdue — the Graduate School places a student not admitted to candidacy by the end of the eighth semester on probation and discontinues University funding (Academic Code §6.2.8); talk to the DGS` });
-  // Whose eighth semester (DGS 2026-09-26): "when someone has a completed MS
-  // degree at CSE@ND, their OCE clock starts when they enter the PhD program.
-  // However, when someone initially started as an MS in our department but
-  // has transferred into PhD program in the middle, the OCE clock starts when
-  // they started the MS program." Both are the record's entry term — the
-  // opening dialog's answer says which — and the line names the start so a
-  // wrong entry term is noticed.
-  if (ctx.student.background?.graduate === 'nd-mscse-transfer') parts.push({ note: `Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — a transfer into the Ph.D. keeps that clock (§4.5); the §4.4 qualifier clocks count from the transfer` });
-  else if (ctx.student.ndMasters !== undefined) parts.push({ note: `Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (§4.5)` });
-  const shift = clockShiftNote(ctx);
-  if (shift !== '' && r.status !== 'met') parts.push({ note: `Semester ${sem} is counted as semester ${effectiveSem}${shift}` });
-  // The Graduate School's own prerequisites for admission to candidacy, which
-  // the exam date alone does not show (DGS Handbook §3.22.3; Academic Code
-  // §6.2.4, §6.2.9 — policy review 2026-10-03).
-  if (r.status !== 'met' || ctx.student.milestones.rcrTrainingCompleted === undefined) {
-    if (ctx.student.milestones.rcrTrainingCompleted === undefined) parts.push({ note: 'Admission to candidacy also needs the Responsible Conduct of Research and ethics training modules (Academic Code §6.2.4; DGS Handbook §3.22.3) — see the RCR row' });
-  }
-  parts.push({ note: candidacyFormSentence(ctx, 'doctoral') });
-  // The exam's two conditions (red-team F8, DGS 2026-09-12). §4.5: "All
+    // University funding, not forfeiture (Academic Code §6.2.8/§5.7.3) — for
+    // the EXAM here; the admission row says the same of admission.
+    parts.push({ note: 'Overdue — the Graduate School places a student who has not passed the candidacy exam by the end of the eighth semester on probation and discontinues University funding (Academic Code §6.2.8); talk to the DGS' });
+  parts.push(...eighthSemesterNotes(ctx, sem, effectiveSem, r.status !== 'met', 'oce'));
+  // The exam's one condition (red-team F8, DGS 2026-09-12). §4.5: "All
   // coursework for the Ph.D. must be completed (or in progress the same
-  // semester) before the candidacy exam can be taken." §2.2: "Continuation in
-  // a CSE graduate degree program, admission to degree candidacy, and
-  // graduation require maintenance of at least a 3.0 (B) cumulative GPA."
-  // A date entered while either is unmet is not a met row: it goes to the DGS.
+  // semester) before the candidacy exam can be taken." A date entered while it
+  // is unmet is not a met row: it goes to the DGS. §2.2's 3.0 GPA gates
+  // ADMISSION to candidacy, not sitting the exam (P1-gpa-8, DGS 2026-10-03),
+  // so it is the admission row's since the split (DGS 2026-10-04).
   const regularMin = ctx.params.number('phd_regular_credits_min');
   const regularDone = ctx.alloc.regular.definite + ctx.alloc.regular.in_progress;
   const courseworkShort = regularMin !== undefined && regularDone < regularMin;
-  const gpaMin = ctx.params.number('gpa_min');
-  // Through usableGpa: a figure off the 0.00–4.00 scale gates nothing and is
-  // quoted nowhere (R1, 2026-09-18) — the §2.2 row above has already said it
-  // cannot be checked, and this line used to throw on a null.
-  const candidacyGpa = usableGpa(ctx.student.gpa);
-  const gpaShort = gpaMin !== undefined && candidacyGpa !== undefined && candidacyGpa < gpaMin;
-  // The precondition in the student's terms (clarity review 2026-09-26):
-  // what must be true, and where they stand — the §s last.
-  // The two conditions are not the same kind (policy review P1-gpa-8, DGS
-  // 2026-10-03 "apply the suggested fix"): §4.5 puts the coursework before the
-  // EXAM; §2.2's 3.0 gates ADMISSION to candidacy, not sitting the exam.
   const credits = `${formatCredits(regularDone)} of ${regularMin}`;
-  const gpaNow = candidacyGpa === undefined ? '' : gpaText(candidacyGpa);
-  const gpaFloor = gpaMin === undefined ? '' : gpaMin.toFixed(1);
   let status = r.status;
-  if (courseworkShort || gpaShort) {
-    if (ctx.student.milestones.candidacyPassed !== undefined) {
+  if (courseworkShort) {
+    if (passed !== undefined) {
       status = status === 'met' ? 'needs_dgs_review' : status;
-      parts.push({
-        note:
-          courseworkShort && gpaShort
-            ? `You show ${credits} regular credits and a ${gpaNow} GPA — §4.5 requires the credits before the exam, and §2.2 a ${gpaFloor} for admission to candidacy; confirm with the DGS`
-            : courseworkShort
-              ? `You show ${credits} regular credits — §4.5 requires that before the exam; confirm with the DGS that it could be taken`
-              : `You show a ${gpaNow} GPA — §2.2 requires a ${gpaFloor} for admission to candidacy; confirm your admission with the DGS`,
-      });
+      parts.push({ note: `You show ${credits} regular credits — §4.5 requires that before the exam; confirm with the DGS that it could be taken` });
     } else {
-      const exam = `your ${regularMin} regular-course credits are complete or in progress — you have ${credits} (§4.5)`;
-      const admission = `your cumulative GPA is ${gpaFloor} or higher — it is ${gpaNow} (§2.2)`;
-      parts.push({
-        note:
-          courseworkShort && gpaShort
-            ? `You can take the exam once ${exam}, and be admitted to candidacy once ${admission}`
-            : courseworkShort
-              ? `You can take the exam once ${exam}`
-              : `You can be admitted to candidacy once ${admission}`,
-      });
+      // The precondition in the student's terms (clarity review 2026-09-26).
+      parts.push({ note: `You can take the exam once your ${regularMin} regular-course credits are complete or in progress — you have ${credits} (§4.5)` });
     }
   }
+  // Passing is not admission (DGS 2026-10-04): say so while the next row is open.
+  if (passed !== undefined && !m.candidacyAdmitted)
+    parts.push({ note: 'Passing the Oral Candidacy Exam (OCE) is one of the conditions for admission to doctoral candidacy, a separate step with the Graduate School — the next row' });
   return {
     id: 'phd.candidacy',
     group: CANDIDACY,
     title: 'Oral Candidacy Exam (OCE) passed',
     status,
+    // Late is the only question: done, for the eight-year row (2026-10-04).
+    ...(status === 'needs_dgs_review' && r.status === 'needs_dgs_review' && !courseworkShort ? { completedLate: true as const } : {}),
     ...(parts.length > 0 ? joinedDetail(parts) : { detail: '' }),
     deadline: r.deadline,
     citation: { section: '§4.5', quote },
+  };
+}
+
+/** The Graduate School's own numbers for admission to doctoral candidacy (DGS
+ * Handbook §3.22.3), kept in code like the Academic Code's other numbers
+ * (SEMESTER_GRADUATE_CREDITS_MAX, NON_DEGREE_CREDITS_MAX): the rules sheet
+ * carries the department's policy, and these are not the department's. */
+const ADMISSION_DEADLINE_SEMESTER = 8;
+const ADMISSION_FULL_TIME_SEMESTERS = 4;
+
+/** Admission to doctoral candidacy — a step of its own after the OCE (DGS
+ * 2026-10-04, P2-dh-3.21-3.24-16: "OCE and doctoral candidacy are two
+ * different things. One can pass OCE first and then enter the doctoral
+ * candidacy later. Passing OCE is one of the requirements of doctoral
+ * candidacy."). The CSE handbook names it only in §2.2 ("admission to degree
+ * candidacy … require[s] … at least a 3.0 (B) cumulative GPA"); the conditions
+ * are the Graduate School's.
+ *
+ * Academic Code §6.2.9: "To qualify for admission to doctoral candidacy, a
+ * student must: be in a doctoral program, complete the program coursework and
+ * language requirements with a cumulative G.P.A. of 3.0 or better, pass the
+ * written and oral parts of the doctoral candidacy examination, and have the
+ * dissertation proposal approved (if this is not part of the candidacy exam)."
+ * The DGS Handbook's list (§3.22.3) adds "Have been enrolled in the program
+ * for at least four consecutive semesters at full-time status" and "Completed
+ * all training modules for the Responsible Conduct of Research and Ethics
+ * requirements", and: "Students must be admitted to degree candidacy by the
+ * end of their eighth semester or risk the loss of Graduate School funding."
+ * Academic Code §5.7.3 adds probation for "a failure to … be admitted to
+ * doctoral degree candidacy by the end of the eighth semester" — a trigger
+ * Appendix A.4 drops for students enrolled in Spring 2020, so their row names
+ * only the funding risk.
+ *
+ * CSE has no language requirement (§5.3), and its written candidacy exam IS
+ * the dissertation proposal (§4.5), so the OCE covers the proposal. The
+ * coursework is the OCE row's own measure — the regular-course credits
+ * (2026-09-12) — here COMPLETED, not in progress ("complete the program
+ * coursework"). A dated admission is the Graduate School's decision: the row
+ * reads Met, except that §2.2's GPA keeps its gate (2026-09-12 seventh,
+ * P1-gpa-8: a date entered while the GPA is short goes to the DGS) and a date
+ * before the OCE's goes to the DGS. A record whose dissertation milestones
+ * are dated but whose admission is not is missing a date — no "apply now",
+ * no probation (review of the split, 2026-10-04). */
+function candidacyAdmissionRow(ctx: Ctx): RequirementResult {
+  const quote =
+    'To qualify for admission to doctoral candidacy, a student must: be in a doctoral program, complete the program coursework and language requirements with a cumulative G.P.A. of 3.0 or better, pass the written and oral parts of the doctoral candidacy examination, and have the dissertation proposal approved (if this is not part of the candidacy exam).';
+  const citation = { section: 'Academic Code §6.2.9', quote };
+  const base = { id: 'phd.candidacyAdmission', group: CANDIDACY, title: 'Admitted to doctoral candidacy', shortTitle: 'Admission to candidacy' };
+  const m = ctx.student.milestones;
+  const sem = ADMISSION_DEADLINE_SEMESTER;
+  const { effectiveSem, term, date } = eighthSemester(ctx, sem);
+  const admitted = m.candidacyAdmitted || undefined;
+  if (!admitted && (m.dissertationApprovedForDefense || m.defensePassed || m.dissertationSubmitted)) {
+    return {
+      ...base,
+      status: 'cannot_evaluate',
+      ...joinedDetail(['Admission date not entered', { note: 'Your dissertation milestones are dated, so enter the date you were admitted to doctoral candidacy under Milestones' }]),
+      citation,
+    };
+  }
+  // For the Spring 2020 cohort Appendix A.4 replaces §5.7.3's admission
+  // trigger with the exam by the ninth semester, so only the DGS Handbook's
+  // funding risk is said (review of the split, 2026-10-04).
+  const probation = ctx.covidCohort ? '' : 'you may have been placed on probation (Academic Code §5.7.3), and ';
+  const r = deadlineStatus({
+    doneOn: admitted,
+    deadline: { date, approx: true },
+    today: ctx.today,
+    deadlineLabel: `the end of ${termLabel(term)} — semester ${effectiveSem}`,
+    lateWording: `${probation}admission after the eighth semester risks the loss of Graduate School funding (DGS Handbook §3.22.3); confirm your standing with the DGS`,
+  });
+  const parts: DetailPart[] = [];
+  let status = r.status;
+  let completedLate = false;
+  const gpaMin = ctx.params.number('gpa_min');
+  // Through usableGpa: a figure off the 0.00–4.00 scale is quoted nowhere
+  // (R1, 2026-09-18) — the §2.2 row has already said it cannot be checked.
+  const gpa = usableGpa(ctx.student.gpa);
+  if (admitted) {
+    parts.push(`Admitted to doctoral candidacy ${admitted}`);
+    if (r.lateNote) parts.push({ note: r.lateNote.charAt(0).toUpperCase() + r.lateNote.slice(1) });
+    completedLate = r.status === 'needs_dgs_review';
+    if (m.candidacyPassed && m.candidacyPassed > admitted) {
+      status = 'needs_dgs_review';
+      completedLate = false;
+      parts.push({ note: `The admission date is before the Oral Candidacy Exam (OCE) date (${m.candidacyPassed}) — passing the OCE comes first (Academic Code §6.2.9); check both dates, and confirm with the DGS if both are right` });
+    }
+    // §2.2's gate on a dated candidacy (2026-09-12 seventh; P1-gpa-8's wording).
+    if (gpaMin !== undefined && gpa !== undefined && gpa < gpaMin) {
+      status = 'needs_dgs_review';
+      completedLate = false;
+      parts.push({ note: `You show a ${gpaText(gpa)} GPA — §2.2 requires a ${gpaMin.toFixed(1)} for admission to candidacy; confirm your admission with the DGS` });
+    }
+  } else {
+    // The conditions, each with where the record stands (the facts), in the
+    // order a student meets them.
+    const conditions: { text: string; done: boolean }[] = [];
+    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}` : 'not yet'}`, done: !!m.candidacyPassed });
+    const floor = ctx.params.number('fulltime_credits_min');
+    if (floor === undefined) conditions.push({ text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: cannot be checked — the rules sheet is missing 'fulltime_credits_min'`, done: false });
+    else {
+      const records = fullTimeTermRecords(ctx);
+      const run = maxConsecutiveFullTime(records);
+      const runTerms = longestFullTimeRun(records);
+      const span = runTerms.length > 0 ? ` (${termLabel(runTerms[0]!)}${runTerms.length > 1 ? `–${termLabel(runTerms[runTerms.length - 1]!)}` : ''})` : '';
+      conditions.push({
+        text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: ${run >= ADMISSION_FULL_TIME_SEMESTERS ? `done${span}` : `${run} so far${span}`}`,
+        done: run >= ADMISSION_FULL_TIME_SEMESTERS,
+      });
+    }
+    const regularMin = ctx.params.number('phd_regular_credits_min');
+    if (regularMin === undefined) conditions.push({ text: `Coursework: cannot be checked — the rules sheet is missing 'phd_regular_credits_min'`, done: false });
+    else {
+      const definite = ctx.alloc.regular.definite;
+      const ip = ctx.alloc.regular.in_progress;
+      conditions.push({
+        text: `Coursework: ${formatCredits(definite)} of ${regularMin} regular-course credits complete${ip > 0 && definite < regularMin ? `, ${formatCredits(ip)} in progress` : ''}`,
+        done: definite >= regularMin,
+      });
+    }
+    if (gpaMin === undefined) conditions.push({ text: `Cumulative GPA: cannot be checked — the rules sheet is missing 'gpa_min'`, done: false });
+    else
+      conditions.push({
+        text: `Cumulative GPA of ${gpaMin.toFixed(1)} or better: ${gpa === undefined ? (ctx.student.gpa === undefined ? 'not entered' : 'cannot be checked — see the GPA row') : gpa >= gpaMin ? gpaText(gpa) : `${gpaText(gpa)} — below it`}`,
+        done: gpa !== undefined && gpa >= gpaMin,
+      });
+    conditions.push({ text: `Responsible Conduct of Research training: ${m.rcrTrainingCompleted ? `done ${m.rcrTrainingCompleted}` : 'not yet'}`, done: !!m.rcrTrainingCompleted });
+    parts.push(...conditions.map((c) => c.text));
+    const dates = ctx.rules.parameters.raw.get('candidacy_form_deadlines')?.value.trim();
+    const form = `the Grad Admin submits the Graduate School’s Application for Admission to Doctoral Candidacy by the Graduate School calendar’s deadline for the semester${dates ? ` (${dates})` : ''} (Academic Code §6.2.9; DGS Handbook §3.22.3)`;
+    // "a student" rather than "you" as an object, so the emails' first person
+    // reads right; the page-only instruction is its own note, which the emails
+    // drop (2026-10-04).
+    if (conditions.every((c) => c.done)) parts.push({ note: `Every condition is met: apply now — ${form}` }, { note: 'Enter the date under Milestones once you are admitted' });
+    else parts.push({ note: `The Graduate School admits a student to doctoral candidacy once every condition above is met — the Oral Candidacy Exam (OCE) is one of them; then ${form}` });
+    parts.push({ note: 'In CSE the written part of the candidacy exam is the dissertation proposal (§4.5), so passing the OCE covers the proposal’s approval; CSE has no language requirement (§5.3)' });
+    // §5.7.3: the Graduate School "may" place a student on probation.
+    if (r.status === 'unmet')
+      parts.push({
+        note: ctx.covidCohort
+          ? 'Overdue — a student not admitted to doctoral candidacy by the deadline risks the loss of Graduate School funding (DGS Handbook §3.22.3); talk to the DGS'
+          : 'Overdue — the Graduate School may place a student not admitted to doctoral candidacy by the end of the eighth semester on probation (Academic Code §5.7.3), and the student risks the loss of Graduate School funding (DGS Handbook §3.22.3); talk to the DGS',
+      });
+  }
+  parts.push(...eighthSemesterNotes(ctx, sem, effectiveSem, r.status !== 'met', 'admission'));
+  return {
+    ...base,
+    status,
+    // Late is the only question: done, for the eight-year row (2026-10-04).
+    ...(completedLate ? { completedLate: true as const } : {}),
+    ...joinedDetail(parts),
+    deadline: r.deadline,
+    citation,
   };
 }
 

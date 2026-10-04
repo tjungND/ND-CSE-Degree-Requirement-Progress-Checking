@@ -405,6 +405,23 @@ export function actionItems(report: AuditReport): ActionItems {
     // Code §6.2.8), not the DGS's call (P1-page-text-ui-7).
     if (overdue(candidacy)) out.dgs.push(`Advise the student on the Graduate School’s consequence for the missed Oral Candidacy Exam (OCE) deadline ${section(candidacy)}.`);
   } else if (candidacy?.status === 'needs_dgs_review') out.dgs.push(`Confirm the late Oral Candidacy Exam (OCE) ${section(candidacy)}.`);
+  // Admission to candidacy, the Graduate School's own step after the OCE (DGS
+  // 2026-10-04). Its to-dos start once the OCE is DATED — met, or a late or
+  // short-coursework pass waiting for the DGS — so the summary agrees with the
+  // processing request; before that, the OCE's own items are the work. The
+  // engine opens the row's note with "Every condition is met" when only the
+  // application is left.
+  const admission = byId.get('phd.candidacyAdmission');
+  const oceDated = candidacy?.status === 'met' || candidacy?.status === 'needs_dgs_review';
+  if (admission && oceDated) {
+    if (isOpen(admission.status)) {
+      if (/Every condition is met/.test(textOf(admission))) {
+        out.student.push(`Apply for admission to doctoral candidacy through the Grad Admin${due(admission)} ${section(admission)}.`);
+        out.gradAdmin.push('Submit my Application for Admission to Doctoral Candidacy to the Graduate School (DGS Handbook §3.22.3).');
+      } else out.student.push(`Complete the remaining conditions for admission to doctoral candidacy${due(admission)} ${section(admission)}.`);
+      if (overdue(admission)) out.dgs.push(`Advise the student on the Graduate School’s consequence for the missed candidacy-admission deadline (DGS Handbook §3.22.3).`);
+    } else if (admission.status === 'needs_dgs_review') out.dgs.push(`Confirm my admission to doctoral candidacy ${section(admission)}.`);
+  }
   if (candidacy?.status === 'met') {
     const approval = byId.get('phd.dissertation.approval');
     if (approval && isOpen(approval.status)) out.student.push(`Get the dissertation approved for defense by all readers ${section(approval)}.`);
@@ -575,6 +592,8 @@ function dropsFromEmail(statement: string, r: RequirementResult): boolean {
   // advisor needs (DGS 2026-09-23); the ones still open stay.
   if (/^[A-Z]{2,5} \d{5}: done\b/.test(statement)) return true;
   if (/^(Talk to|Ask the DGS|Ask your advisor)\b/i.test(statement)) return true;
+  // "Enter the date … under Milestones" is the page's own form (2026-10-04).
+  if (/^Enter the date\b.*\bunder Milestones\b/i.test(statement)) return true;
   if (/^Overdue\b/i.test(statement) && r.deadline?.state === 'overdue') return true;
   return false;
 }

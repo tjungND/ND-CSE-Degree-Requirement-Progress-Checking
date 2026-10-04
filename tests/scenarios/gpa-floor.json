@@ -1,6 +1,6 @@
 {
   "name": "gpa-floor",
-  "description": "Cumulative GPA below 3.0: the §2.2 floor is unmet and the defense rows carry the 'may not defend' gate note. Since 2026-10-03 (P1-gpa-8) the candidacy row keeps the two conditions apart: the coursework comes before the EXAM (§4.5), the 3.0 before ADMISSION to candidacy (§2.2).",
+  "description": "Cumulative GPA below 3.0: the §2.2 floor is unmet and the defense rows carry the 'may not defend' gate note. Since 2026-10-03 (P1-gpa-8) the coursework comes before the EXAM (§4.5), the 3.0 before ADMISSION to candidacy (§2.2) — and since 2026-10-04 (DGS: “OCE and doctoral candidacy are two different things”) the 3.0 is on the admission row, not the OCE row.",
   "today": "2027-01-10",
   "rules": { "base": "default" },
   "student": {
@@ -21,10 +21,9 @@
     "phd.dissertation.defense": { "status": "unmet", "detailIncludes": ["may not defend"] },
     "phd.candidacy": {
       "status": "in_progress",
-      "detailIncludes": [
-        "You can take the exam once your 24 regular-course credits are complete or in progress",
-        "and be admitted to candidacy once your cumulative GPA is 3.0 or higher — it is 2.90 (§2.2)"
-      ]
-    }
+      "detailIncludes": ["You can take the exam once your 24 regular-course credits are complete or in progress — you have 3 of 24 (§4.5)"],
+      "detailExcludes": ["GPA"]
+    },
+    "phd.candidacyAdmission": { "status": "in_progress", "detailIncludes": ["Cumulative GPA of 3.0 or better: 2.90 — below it"] }
   }
 }
