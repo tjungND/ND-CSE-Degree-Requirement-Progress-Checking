@@ -153,9 +153,11 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     }),
   );
 
-  // §4.2: "Regardless of any credits transferred, all Ph.D. students must take
-  // at least nine (9) credits at Notre Dame in order to satisfy the qualifying
-  // examination described in section 4.4."
+  // §4.2 (September 2026 edition): "Regardless of any credits transferred, all
+  // Ph.D. students must take at least nine (9) credits of regular courses at
+  // Notre Dame in order to satisfy the qualifying examination described in
+  // section 4.4." (The July text lacked "of regular courses"; the DGS's
+  // 2026-09-11 reading is now the handbook's own — P1-page-text-engine-3.)
   rows.push(
     thresholdRow({
       id: 'phd.credits.nd',
@@ -506,8 +508,8 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
     { note: 'One card per part below' },
   ];
   if (ndCredits && ndCredits.status !== 'met') {
-    // §4.2: "all Ph.D. students must take at least nine (9) credits at Notre
-    // Dame in order to satisfy the qualifying examination". Said once (trim
+    // §4.2: "all Ph.D. students must take at least nine (9) credits of regular
+    // courses at Notre Dame in order to satisfy the qualifying examination". Said once (trim
     // review 2026-09-18, P-24); the tail is the credits row's own first sentence.
     parts.push({ note: `§4.2 also requires at least nine credits of regular courses taken at Notre Dame before the examination — ${ndCredits.detail.split('.')[0]}` });
   }

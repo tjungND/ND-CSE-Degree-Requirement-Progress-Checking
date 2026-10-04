@@ -28,6 +28,6 @@
     "ms.credits.project": { "status": "unmet", "detailIncludes": ["3 of 6"] }
   },
   "expectCourseLines": {
-    "CSE 68902": ["not counted", "does not transfer into the MSCSE"]
+    "CSE 68902": ["not counted", "does not transfer into the MSCSE (§3.2, §5.2)"]
   }
 }

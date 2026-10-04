@@ -1173,10 +1173,14 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   const shape = isNotreDameInstitution(c.institution) && rule ? priorNdShape(c.courseId, rule, program, c.dgsApproved === true) : undefined;
   // A master's project or thesis does not transfer into EITHER degree (DGS
   // 2026-09-11: "Master's project is not a regular course. It cannot be
-  // transferred, so it should not count toward PhD." — and §3.4's own
-  // "(CSE 68901) earned at Notre Dame", DGS decision 2026-09-12, reads the
-  // same way for the MSCSE: it must be earned in the program, not
-  // transferred in from an earlier one). Until 2026-09-11 a prior Notre
+  // transferred, so it should not count toward PhD." — and §3.2's own
+  // "six (6) credits hours of Masters project (CSE 68902) or Masters thesis
+  // direction (CSE 68901) earned at Notre Dame", DGS decision 2026-09-12,
+  // reads the same way for the MSCSE: it must be earned at Notre Dame, not
+  // transferred in from another program. (The clause is §3.2's; §3.4 was
+  // cited here until 2026-10-03, P1-page-text-engine-23. A 4+1 student's
+  // pre-bachelor's 68901/68902 is not a transfer: it counts toward the MSCSE
+  // when the bachelor's did not use it — classifyPriorNdUndergraduate.) Until 2026-09-11 a prior Notre
   // Dame CSE 68902 drew six of the twenty-four and read, on a Ph.D.
   // report, "counts toward the project/thesis requirement". Said before
   // the sheet's own verdict, because it holds whatever the row says.
@@ -1190,7 +1194,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     return {
       ...extBase,
       transferable,
-      ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the MSCSE (§3.4, §5.2)${coreNote}`,
+      ineligibleReason: `not counted — a master’s project or thesis is not a regular course and does not transfer into the MSCSE (§3.2, §5.2)${coreNote}`,
     };
   }
   const projectNote = isProject ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : '';
@@ -1389,8 +1393,13 @@ function classifyPriorNdUndergraduate(
   // A 4+1's pre-bachelor's CSE 68901/68902 DOES satisfy the MSCSE project or
   // thesis requirement (DGS 2026-10-03, P1-units-4plus1-17: "pre-bachelor
   // 68901/68902 can be used to satisfy MSCSE thesis/project requirements"),
-  // reversing the 2026-09-12 reading of §3.4's "earned at Notre Dame" as
-  // "while enrolled". It flows through the same path as any other 60000-level
+  // reversing the 2026-09-12 reading of §3.2's "earned at Notre Dame" as
+  // "while enrolled". The condition, in the DGS's words (2026-10-03,
+  // P1-page-text-engine-23): "For the 4+1 students, 68901/68902 can be taken
+  // before BS is awarded and still count towards MSCSE, given that they have
+  // not been applied to BS" — which is why the course is never one of the
+  // shared pair (bsShared takes regular courses only) and why it needs the
+  // UG→GR move the 4+1 guidance requires of coursework kept off the bachelor's. It flows through the same path as any other 60000-level
   // course taken as an undergraduate — the sheet row's pool ('project') puts
   // it toward the six, never the 24; it is never one of §3.5's shared pair
   // (bsShared takes regular courses only); the UG→GR move is confirmed like
