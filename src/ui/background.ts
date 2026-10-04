@@ -147,7 +147,7 @@ export function describeBackground(b: Background): string {
         : b.graduate === 'nd-4plus1'
           ? 'the MSCSE at Notre Dame (4+1)'
           : b.graduate === 'nd-mscse-transfer'
-          ? `none — transferred into the Ph.D. from the Notre Dame MSCSE${b.transferredTerm ? ` in ${termLabel(b.transferredTerm)}` : ''} (the §4.3 and §4.5 clocks count from the MSCSE start, the §4.4 qualifier clocks from the transfer)`
+          ? `none — transferred into the Ph.D. from the Notre Dame MSCSE${b.transferredTerm ? ` in ${termLabel(b.transferredTerm)}` : ''} (the §4.3 and §4.5 clocks and admission to candidacy count from the MSCSE start, the §4.4 qualifier clocks and the first-year seminars from the transfer)`
           : b.graduate === 'nd-other'
             ? `Notre Dame, another department (${b.finished ? 'finished' : 'not finished'})`
             : `${b.finished ? 'finished' : 'not finished'}, at ${b.samePlace ? 'the same university as the bachelor’s (a 4+1 or 5+1)' : 'another university'}`;
@@ -258,7 +258,7 @@ export function backgroundQuestions(
     // program at Notre Dame", with the Code's 9 / 24 after a finished degree).
     finishedBox.hidden = !asksFinishedFor(state) || (sequential && state.graduate === 'elsewhere' && state.samePlace === undefined);
     transferBox.replaceChildren(
-      el('legend', { class: 'followup-title' }, 'When did you transfer into the Ph.D.? (Your entry term stays the MSCSE’s — the §4.3 eight years and §4.5’s eighth semester count from it; the §4.4 qualifier clocks and the first-year seminars count from this transfer term.)'),
+      el('legend', { class: 'followup-title' }, 'When did you transfer into the Ph.D.? (Your entry term stays the MSCSE’s — the §4.3 eight years and the eighth semester for the OCE (§4.5) and for admission to candidacy count from it; the §4.4 qualifier clocks and the first-year seminars count from this transfer term.)'),
       termControls(),
     );
     transferBox.hidden = state.graduate !== 'nd-mscse-transfer';

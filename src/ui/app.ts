@@ -791,7 +791,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // same graduate program" — so the MSCSE's coursework is Ph.D. coursework.
       return ` Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${b.graduate === 'nd-4plus1' ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
     }
-    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree, so up to ${unfinished} credits from another university may transfer (§5.2); your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and §4.5’s eighth semester count from the semester you started the MSCSE; the §4.4 qualifier clocks from your transfer.`;
+    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree, so up to ${unfinished} credits from another university may transfer (§5.2); your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and the eighth semester for the OCE and for admission to candidacy count from the semester you started the MSCSE; the §4.4 qualifier clocks and the first-year seminars (§4.2) from your transfer.`;
     if (b.graduate === 'nd-other') {
       // Another Notre Dame department is "another graduate program at Notre
       // Dame" (Academic Code §4.6; DGS 2026-10-03) — the §5.2 caps apply.
@@ -806,7 +806,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * Ph.D. record before. */
   function mscseClockSentence(): string {
     const cameThroughMscse = student.program === 'phd' && (student.background?.graduate === 'nd-mscse-transfer' || student.ndMasters !== undefined);
-    return cameThroughMscse ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE (§4.3, §4.5 count from it; the §4.4 qualifier clocks from your transfer). Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).' : '';
+    return cameThroughMscse ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE (§4.3, §4.5 and admission to candidacy count from it; the §4.4 qualifier clocks and the first-year seminars from your transfer). Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).' : '';
   }
   function standingCard(classified: readonly ClassifiedCourse[]): HTMLElement {
     // The entry term drives the §4.3 residency count and every deadline. When
@@ -876,7 +876,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           student.program === 'phd'
             // The four deadlines are each a report row with a Deadline chip;
             // the §s stay (trim review 2026-09-18, P-11).
-            ? `The residency count (§4.3) and every deadline (§4.3, §4.4, §4.4.3, §4.5) are counted from this term — your matriculation at the Graduate School, which a transfer from another Notre Dame program does not reset.${mscseClockSentence()}`
+            ? `The residency count (§4.3) and every deadline (§4.2’s first-year seminars, §4.3, §4.4, §4.4.3, §4.5 and admission to candidacy) are counted from this term — your matriculation at the Graduate School, which a transfer from another Notre Dame program does not reset.${mscseClockSentence()}`
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
         )
