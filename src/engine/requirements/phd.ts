@@ -1167,7 +1167,19 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
 
 /** §4.5: "The Ph.D. candidacy exam can be used by Ph.D. students to satisfy
  * both the M.S. thesis requirement and the Ph.D. candidacy exam simultaneously,
- * thus earning the MSCSE degree on successfully passing the candidacy exam." */
+ * thus earning the MSCSE degree on successfully passing the candidacy exam,
+ * given that all the credits used to satisfy the requirements were earned at
+ * Notre Dame."
+ *
+ * Who can earn it (DGS 2026-10-03, P1-deadlines-20, reversing the 2026-09-27
+ * (b) "does not apply" for a student who already holds a master's from
+ * another university): "Let's allow MSCSE along the way IF the student earned
+ * enough credits at Notre Dame ... the student who had MS and transferred
+ * credits cannot get MSCSE since they will likely not have enough credits
+ * earned at ND. If they did so, even after the transfer, they can still earn
+ * MSCSE along the way." So the earlier master's decides nothing: the credits
+ * earned here do, and transferred credits never count toward them. The card
+ * shows those credits in every state; the rule sits in its Details. */
 function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   const quote =
     'The Ph.D. candidacy exam can be used by Ph.D. students to satisfy both the M.S. thesis requirement and the Ph.D. candidacy exam simultaneously, thus earning the MSCSE degree on successfully passing the candidacy exam, given that all the credits used to satisfy the requirements were earned at Notre Dame.';
@@ -1186,6 +1198,44 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   // The credits and the exam are the facts; the conditions, the Grad Admin's
   // step and the Graduate School form are notes (DGS 2026-10-03).
   let parts: DetailPart[];
+  // "Earned at Notre Dame: 9 of 24 regular-course credits and 0 of 6 research
+  // credits" — a count that has reached its number drops the "of 24".
+  const countOf = (done: number, req: number, unit: string): string => (done >= req ? `${done} ${unit}` : `${done} of ${req} ${unit}`);
+  const earnedLine =
+    reqReg === undefined || reqRes === undefined
+      ? ''
+      : `Earned at Notre Dame: ${countOf(doneReg, reqReg, 'regular-course credits')} and ${countOf(doneRes, reqRes, 'research credits')}`;
+  // The rule behind the count, and — for a student with a master's from
+  // another university or credits transferred in — why those do not help.
+  const whatCounts: DetailPart = {
+    note: `Only credits earned at Notre Dame count toward this award: ${reqReg} regular-course credits and ${reqRes} research credits — research and dissertation, thesis direction or project courses, not independent study (§4.5)`,
+  };
+  // The 24 may include the 40000-level allowance (DGS 2026-10-03: "the 40xxx
+  // allowance can be used to satisfy the 24 regular course credits
+  // requirement"). The count is the Ph.D.'s own Notre Dame regular credits,
+  // so it is §4.2's allowance — approved CSE courses below the 60000 level,
+  // capped by phd_4xxxx_cse_credits_max — and only graded courses are earned.
+  const fourkMax = ctx.params.number('phd_4xxxx_cse_credits_max');
+  const countNotes: DetailPart[] = [
+    ...(fourkMax !== undefined && fourkMax > 0
+      ? [{ note: `Up to ${fourkMax} of the ${reqReg} regular-course credits may be approved CSE courses below the 60000 level — the same allowance as the Ph.D.’s (§4.2)` }]
+      : []),
+    // Said only where it explains a gap: a course in progress at Notre Dame
+    // while a count is still short.
+    ...(reqReg !== undefined && reqRes !== undefined && (doneReg < reqReg || doneRes < reqRes) && ctx.alloc.ndRegular.in_progress + ctx.alloc.ndResearch.in_progress > 0
+      ? [{ note: 'A course in progress joins the count once it is graded' }]
+      : []),
+  ];
+  const transferred = ctx.alloc.transfer.definite + ctx.alloc.transfer.in_progress + ctx.alloc.transfer.provisional;
+  const heldMasters = ctx.student.priorMs === 'completed';
+  const transferNotes: DetailPart[] =
+    heldMasters && transferred > 0
+      ? [{ note: 'A master’s degree from another university does not rule this award out, but the credits transferred from it count toward the Ph.D., not toward this award (DGS 2026-10-03)' }]
+      : heldMasters
+        ? [{ note: 'A master’s degree from another university does not rule this award out (DGS 2026-10-03)' }]
+        : transferred > 0
+          ? [{ note: 'Credits transferred from another university count toward the Ph.D., not toward this award' }]
+          : [];
   let statusLabel: string | undefined;
   // The award is a degree conferral, so it needs what every degree needs
   // (policy review 2026-10-03): the 3.0 cumulative GPA (§2.2; Academic Code
@@ -1208,31 +1258,33 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
         ...(afterMsLimit ? [`the exam came more than ${msYears} years after you entered, and the master’s five-year limit may apply to the award (Academic Code §6.1.4; DGS Handbook §3.21.1)`] : []),
       ].join(', and ');
     parts = [
-      `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame`,
+      `Oral Candidacy Exam (OCE) passed ${passed}`,
+      earnedLine,
       { note: `${why.charAt(0).toUpperCase()}${why.slice(1)} — confirm with the DGS before the award is requested` },
+      whatCounts,
+      ...countNotes,
+      ...transferNotes,
     ];
   } else if (passed && doneReg >= reqReg && doneRes >= reqRes) {
     status = 'met';
     parts = [
-      `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame`,
+      `Oral Candidacy Exam (OCE) passed ${passed}`,
+      earnedLine,
       { note: 'The Grad Admin processes the MSCSE award; it is in the processing request (§4.5)' },
       { note: candidacyFormSentence(ctx, 'master’s') },
+      whatCounts,
+      ...countNotes,
+      ...transferNotes,
     ];
   } else if (passed) {
     status = 'in_progress';
-    parts = [`${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame`];
-  } else if (ctx.student.priorMs === 'completed') {
-    // A student who already holds a master’s from elsewhere: “does not apply”
-    // (DGS 2026-09-27); otherwise the stage has simply not started.
-    status = 'not_applicable';
-    parts = ['You already hold a master’s degree, so the MSCSE along the way does not apply (§4.5)'];
+    parts = [`Oral Candidacy Exam (OCE) passed ${passed}`, earnedLine, whatCounts, ...countNotes, ...transferNotes];
   } else {
+    // Before the OCE, for every student the row covers — a master's from
+    // another university included since 2026-10-03 (above).
     status = 'not_applicable';
     statusLabel = 'Not started';
-    parts = [
-      { note: 'Pass the Oral Candidacy Exam (OCE) and you can also receive the MSCSE (§4.5)' },
-      `Needed first, at Notre Dame: ${reqReg} regular-course credits (${doneReg} so far) and ${reqRes} research credits (${doneRes} so far)`,
-    ];
+    parts = [earnedLine, { note: 'Pass the Oral Candidacy Exam (OCE) and you can also receive the MSCSE (§4.5)' }, whatCounts, ...countNotes, ...transferNotes];
   }
   return {
     id: 'phd.msAlongTheWay',

@@ -1,0 +1,146 @@
+{
+  "name": "phd-ms-along-the-way-prior-masters-met",
+  "description": "DGS 2026-10-03 (P1-deadlines-20): a student with a master’s from another university and a transferred course still earns the along-the-way MSCSE when the credits earned at Notre Dame are enough — 24 regular-course credits and 6 research credits here, with the OCE passed and a 3.0+ GPA. The transferred course counts toward the Ph.D., never toward this award.",
+  "today": "2029-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "priorMs": "completed",
+    "gpa": 3.9,
+    "courses": [
+      {
+        "courseId": "CS 50300",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2028
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2028
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2029
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 6,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "S",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2026-09-01",
+      "advisorName": "Prof. Example",
+      "candidacyPassed": "2029-04-15"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.msAlongTheWay": {
+      "status": "met",
+      "detailIncludes": [
+        "Oral Candidacy Exam (OCE) passed 2029-04-15",
+        "Earned at Notre Dame: 24 regular-course credits and 6 research credits",
+        "does not rule this award out"
+      ],
+      "detailExcludes": [
+        "does not apply"
+      ]
+    }
+  }
+}

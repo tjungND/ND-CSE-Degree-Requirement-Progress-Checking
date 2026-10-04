@@ -1,0 +1,86 @@
+{
+  "name": "phd-ms-along-the-way-prior-masters",
+  "description": "DGS 2026-10-03 (P1-deadlines-20), reversing 2026-09-27 (b): a student who already holds a master’s from another university is no longer told the along-the-way MSCSE “does not apply”. Before the OCE the row reads Not started like anyone else’s, its fact is the credits earned at Notre Dame (3 of 24 regular, 0 of 6 research — the two Spring 2027 courses are in progress and join the count once graded), and its Details say the earlier master’s does not rule the award out while the credits transferred from it do not count toward it (§4.5: “given that all the credits used to satisfy the requirements were earned at Notre Dame”).",
+  "today": "2027-04-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "courses": [
+      {
+        "courseId": "CS 50300",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "degreeLevel": "masters",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "IP",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.msAlongTheWay": {
+      "status": "not_applicable",
+      "statusLabel": "Not started",
+      "detailIncludes": [
+        "Earned at Notre Dame: 3 of 24 regular-course credits and 0 of 6 research credits",
+        "does not rule this award out",
+        "count toward the Ph.D., not toward this award",
+        "Only credits earned at Notre Dame count toward this award",
+        "A course in progress joins the count once it is graded",
+        "Up to 6 of the 24 regular-course credits may be approved CSE courses below the 60000 level"
+      ],
+      "detailExcludes": [
+        "does not apply"
+      ]
+    }
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "name": "phd-ms-along-the-way-4xxxx",
+  "description": "DGS 2026-10-03 (P1-deadlines-20): “the 40xxx allowance can be used to satisfy the 24 regular course credits requirement” of the along-the-way MSCSE. Six 60000-level courses (18 credits) plus two approved CSE 40000-level courses — CSE 40113, a ‘yes’ row, and CSE 40567, a ‘dgs_approval’ row the student ticked as approved — make the 24 at Notre Dame. A third ticked 40000-level course (CSE 40243) is over §4.2’s six-credit allowance and does not count, so the count stays at 24. The Details name the allowance.",
+  "today": "2029-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.9,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2028
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 40113",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 40567",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "CSE 40243",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "A",
+        "origin": "nd",
+        "dgsApproved": true
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 6,
+        "term": {
+          "season": "fall",
+          "year": 2027
+        },
+        "grade": "S",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2026-09-01",
+      "advisorName": "Prof. Example",
+      "candidacyPassed": "2029-04-15"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.msAlongTheWay": {
+      "status": "met",
+      "detailIncludes": [
+        "Earned at Notre Dame: 24 regular-course credits and 6 research credits",
+        "Up to 6 of the 24 regular-course credits may be approved CSE courses below the 60000 level"
+      ],
+      "detailExcludes": [
+        "joins the count once it is graded"
+      ]
+    },
+    "phd.cap.fourk": {
+      "status": "met",
+      "detailIncludes": [
+        "CSE 40243: 3 credits not counted"
+      ]
+    }
+  }
+}
