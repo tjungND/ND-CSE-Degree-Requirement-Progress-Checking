@@ -9,12 +9,12 @@ import { classify, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCo
 import { fullTimeRecordsFrom } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
 import type { Rules } from '../data/types.ts';
-import { coursesNeedingDgsReviewFor, reviewRequestSummary, undergraduateGraduateCourseworkFlagFor, type PendingDgsReview } from '../engine/review.ts';
+import { coursesNeedingDgsReviewFor, reviewRequestSummary, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
-import type { CourseEntry, CourseLine, Program, Season, Student, Term } from '../engine/types.ts';
+import type { AuditReport, CourseEntry, CourseLine, Program, Season, Student, Term } from '../engine/types.ts';
 import { clear, el, inactiveButton, option } from './dom.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
@@ -546,7 +546,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             transcriptsCard(),
             standingCard(classified),
             coursesCard(report.courseLines),
-            askDgsCard(classified),
+            askDgsCard(classified, report),
             milestonesCard(classified),
             askGradAdminCard(report, classified),
             saveCard(report),
@@ -1495,16 +1495,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // — plus external courses the ExternalCourses tab has not ruled on. The
   // student MUST email the request to the DGS and the Graduate Program
   // Administrator; the page itself sends nothing.
-  function askDgsCard(classified: readonly ClassifiedCourse[]): HTMLElement | null {
+  function askDgsCard(classified: readonly ClassifiedCourse[], report: AuditReport): HTMLElement | null {
     // Which courses need a DGS decision, and why, is the engine's call
     // (src/engine/review.ts, 2026-09-06 evening — with the test matrix that
     // pins it); this card only lists them and builds the copy-ready request.
     const pending = coursesNeedingDgsReviewFor(classified, student);
     const n = pending.length;
-    // Notes that are not about one course (2026-09-12): a 4+1 with many
-    // undergraduate graduate-level courses counted.
-    const flags = undergraduateGraduateCourseworkFlagFor(classified, student);
-    const notes = flags ? [flags] : [];
+    // Notes that are not about one course: the audit's review flags (a 4+1
+    // with many undergraduate graduate-level courses counted, 2026-09-12; a
+    // full-time semester without three graduate-level credits, Academic Code
+    // §4.1, 2026-10-03 — whose warning says it is in this request) and the
+    // checks on a `yes` the DGS may not have meant (2026-10-04, P1-sheet-48 /
+    // -c2). Read from the report, so the page and the request say the same.
+    const notes = [...(report.reviewFlags ?? []), ...(report.staffChecks ?? [])];
     if (n === 0 && notes.length === 0) return null;
     const what = reviewRequestSummary(n, notes.length > 0);
     const decider = deciderContact(student.program);

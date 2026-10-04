@@ -497,7 +497,10 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
                 el('strong', {}, 'Official course rules. '),
                 'The Graduate Studies Committee and the DGS set them under the ',
                 handbookLink(),
-                '; the DGS and the Grad Admin use them to decide whether your courses satisfy the degree requirements. The ',
+                // Who does what (policy review 2026-10-03, P1-page-text-ui-10, DGS: apply
+                // the suggested fix; it replaces the 2026-09-01 wording that named the
+                // Grad Admin as a decider): the DGS decides, the Grad Admin processes.
+                '; the DGS (the ADGS for MSCSE students) uses them to decide whether your courses satisfy the degree requirements, and the Grad Admin processes what is decided. The ',
                 el('a', siblingAnchorAttrs('self-check', window.location.search, isEmbedded()), 'degree self-check tool'),
                 ' applies them to your coursework.',
               ),

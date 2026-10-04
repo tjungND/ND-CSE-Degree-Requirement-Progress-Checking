@@ -4,6 +4,7 @@
 // "note rows" at the bottom of a tab are skipped silently.
 import { parseTermCode } from '../engine/term.ts';
 import type { Term } from '../engine/types.ts';
+import { looksNonRegularTitle, looksUndergraduateNumber } from './course-checks.ts';
 import { parseCsv } from './csv.ts';
 import { normalizeCourseId, normalizeUniversity } from './external.ts';
 import type { CourseType, Counts, ExternalRule, RuleCourse, SheetIssue, Transferable } from './types.ts';
@@ -553,6 +554,29 @@ export function parseExternalTab(
     else if (system !== '') {
       err(rowNum, 'credit_system',
         `ExternalCourses row ${rowNum} (${university} ${courseId}): credit_system must be 'quarter', 'trimester', 'semester' or blank — got '${system}'. That cell is ignored (credits count as printed).`);
+    }
+
+    // A `yes` the DGS may not have meant (2026-10-04, P1-sheet-48 / -c2;
+    // course-checks.ts): an undergraduate-looking number, or a title that
+    // suggests independent study, research or a seminar. Warnings only.
+    if (rule.transferablePhd === 'yes' || rule.transferableMscse === 'yes') {
+      const which = [rule.transferablePhd === 'yes' ? 'Ph.D.' : '', rule.transferableMscse === 'yes' ? 'MSCSE' : ''].filter(Boolean).join(' and ');
+      if (looksUndergraduateNumber(courseId)) {
+        issues.push({
+          severity: 'warning',
+          tab: 'ExternalCourses',
+          row: rowNum,
+          message: `ExternalCourses row ${rowNum}: ${university} ${courseId} transfers for the ${which} (yes), but its number looks like an undergraduate course — only graduate courses transfer (Academic Code §4.6). Check that it is the graduate version.`,
+        });
+      }
+      if (looksNonRegularTitle(rule.title)) {
+        issues.push({
+          severity: 'warning',
+          tab: 'ExternalCourses',
+          row: rowNum,
+          message: `ExternalCourses row ${rowNum}: ${university} ${courseId} “${rule.title}” transfers for the ${which} (yes) and would count toward the regular-course credits, but its title suggests independent study, research or a seminar, which are not regular courses (§3.2, §4.2). Check it.`,
+        });
+      }
     }
 
     // Two rows for the same university + course: the LAST row wins (DGS

@@ -14,8 +14,8 @@ phd_nd_credits_min,9,§4.2,at least nine credits at Notre Dame
 phd_seminar_courses,"CSE 63801, CSE 63802",§4.2,required in year one
 phd_4xxxx_cse_credits_max,6,§4.2,
 phd_noncse_6xxxx_credits_max,9,§4.2,
-quarter_credit_factor,0.66,§5.2,"Quarter hours → semester hours: the DGS Handbook's §5.2 pro-rata table (quarter × .66)"
-trimester_credit_factor,0.88,§5.2,"Trimester hours → semester hours: the DGS Handbook's §5.2 pro-rata table (trimester × .88)"
+quarter_credit_factor,0.66,§5.2,"Quarter hours → semester hours: the DGS Handbook's §3.14 pro-rata table (quarter × .66)"
+trimester_credit_factor,0.88,§5.2,"Trimester hours → semester hours: the DGS Handbook's §3.14 pro-rata table (trimester × .88)"
 ms_transfer_window_years,5,§5.2,prior M.S. coursework (the §5.2 five-year window applies to the MSCSE too — DGS 2026-09-11)
 phd_transfer_window_years,5,§4.2,prior M.S. coursework
 phd_transfer_completed_ms_credits_max,24,§5.2,completed prior M.S./Ph.D.
@@ -32,7 +32,7 @@ research_qualifier_deadline_months,18,§4.4.3,
 candidacy_deadline_semester,8,§4.5,before the end of the eighth semester
 candidacy_committee_additional_members_min,3,§4.5,beyond advisor/co-advisor
 gpa_min,3,§2.2,
-cse_subject_codes,CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE,§4.2,Subject codes on ANOTHER university's transcript that mean a CSE course. Anything else counts against the nine-credit non-CSE allowance; an ExternalCourses is_cse cell overrides this list for one course.
+cse_subject_codes,CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE; ECE,"§3.2, §4.2",Subject codes on ANOTHER university's transcript that mean a CSE course (ECE included: the department reads 'a department other than CSE' as 'outside computing'; DGS 2026-10-04). Anything else counts against the nine-credit non-CSE allowance; an ExternalCourses is_cse cell overrides this list for one course.
 Every number the handbook states lives here so a future DGS can change it without touching code. Add rows freely; keep the key names stable because the app reads them by name.,,,
 rules_effective_date,2026-09-01,,OPTIONAL override — leave this row out and both pages date the rules automatically (see data/README.md); add it only to show a different date
 current_semester,FA26,,"OPTIONAL. The semester this whole sheet is current for, as the code the pages print (FA26 / SP27; fall or spring only). The course-rules page reads offered_now / offered_next against it, so it is REQUIRED before the schedule cards show anything — and when you move it forward, check those two columns, or an old schedule is republished under a new semester's name"

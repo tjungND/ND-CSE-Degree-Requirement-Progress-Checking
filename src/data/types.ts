@@ -243,7 +243,7 @@ export const KNOWN_PARAMETER_KEYS = [
   'ms_transfer_window_years',
   // §5.2 pro-rata factors for credits "not earned on the semester system" —
   // on the sheet, not in code (DGS 2026-09-12): 0.66 and 0.88, the DGS
-  // Handbook's §5.2 pro-rata table.
+  // Handbook's §3.14 pro-rata table (CSE §5.2 says only “pro-rata basis”).
   'quarter_credit_factor',
   'trimester_credit_factor',
   'phd_total_credits_min',
@@ -268,7 +268,10 @@ export const KNOWN_PARAMETER_KEYS = [
   'candidacy_committee_additional_members_min',
   'gpa_min',
   // The subject codes that mean "a CSE course" on ANOTHER university's
-  // transcript (DGS 2026-09-09): "CS; CSCI; COMPSCI; CSYE". §4.2 caps credits
+  // transcript (DGS 2026-09-09; the live list is now "CS; CSCI; COMPSCI; CSE;
+  // CMSC; EECS; CSYE; ECE" — ECE on purpose, the department reading "a
+  // department other than CSE" as "outside computing", DGS 2026-10-04). §4.2
+  // (and §3.2 for the MSCSE) caps credits
   // "taken from a department other than CSE" at nine, and until this existed
   // the app could not tell one department from another on a transcript it did
   // not write. A code the list does not name is treated as outside CSE — say

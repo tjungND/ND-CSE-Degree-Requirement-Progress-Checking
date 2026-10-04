@@ -303,7 +303,15 @@ function qualifierRowsPassedUnderPriorRules(ctx: Ctx, children: RequirementResul
 }
 
 /** §4.2: "Two credits of Research Seminar (CSE 63801 and CSE 63802) are
- * required and expected to be taken during the ﬁrst year of the program." */
+ * required and expected to be taken during the ﬁrst year of the program."
+ *
+ * The first year is a requirement, not only an expectation (DGS 2026-10-04,
+ * P1-sheet-9: "Make this a requirement."): both seminars are due by the end of
+ * the program's second semester — counted from the Ph.D.'s own start, the
+ * transfer term for a student who came from the MSCSE (DGS 2026-10-03, with
+ * the §4.4 qualifier clocks). "The first year" is the handbook's own phrase,
+ * so its two semesters are written here, not on the sheet. A seminar passed
+ * after that goes to the DGS; a missing one reads Overdue once it is past. */
 function seminarRow(ctx: Ctx): RequirementResult {
   const quote =
     'Two credits of Research Seminar (CSE 63801 and CSE 63802) are required and expected to be taken during the first year of the program.';
@@ -311,10 +319,15 @@ function seminarRow(ctx: Ctx): RequirementResult {
   let status: Status;
   const parts: DetailPart[] = [];
   const satisfied: string[] = [];
+  let deadline: DeadlineInfo | undefined;
   if (wanted === undefined) {
     status = 'cannot_evaluate';
     parts.push(missingParamDetail('phd_seminar_courses'));
   } else {
+    const dueTerm = nthSemester(ctx.qualifierEntry, 2);
+    const dueDate = endOfTerm(dueTerm).date;
+    const dueLabel = `the end of ${termLabel(dueTerm)} — the first year`;
+    const passedIn: Term[] = [];
     const states = wanted.map((id) => {
       const entries = ctx.classified.filter((c) => !c.superseded && c.entry.courseId === id);
       // §4.2 names this a credit requirement (2 credits), so a passed grade
@@ -322,26 +335,42 @@ function seminarRow(ctx: Ctx): RequirementResult {
       // 2026-09-12) — unlike §4.4.1 core knowledge, which only asks "passed".
       // A seminar entry the allocator refused (an unrecognised duplicate, a
       // lapsed Incomplete) does not satisfy it either (policy review 2026-10-03).
-      const passed = entries.some((c) => passesCreditFloor(c.entry.grade) && isPassed(c.entry.grade) && c.ineligibleReason === undefined);
+      const passedEntry = entries.find((c) => passesCreditFloor(c.entry.grade) && isPassed(c.entry.grade) && c.ineligibleReason === undefined);
       const ip = entries.some((c) => isInProgress(c.entry.grade) && !c.incompleteLapsed);
-      if (passed) satisfied.push(id);
+      if (passedEntry) {
+        satisfied.push(id);
+        passedIn.push(passedEntry.entry.term);
+      }
       // The semester it was taken (DGS 2026-09-22, for the advisor summary):
       // "CSE 63801: done (Fall 2026)".
-      const taken = entries.find((c) => (passed ? passesCreditFloor(c.entry.grade) && isPassed(c.entry.grade) : isInProgress(c.entry.grade)));
-      parts.push(`${id}: ${passed ? 'done' : ip ? 'in progress' : 'not yet'}${taken ? ` (${termLabel(taken.entry.term)})` : ''}`);
-      return passed ? 'met' : ip ? 'in_progress' : 'unmet';
+      const taken = passedEntry ?? entries.find((c) => isInProgress(c.entry.grade));
+      parts.push(`${id}: ${passedEntry ? 'done' : ip ? 'in progress' : 'not yet'}${taken ? ` (${termLabel(taken.entry.term)})` : ''}`);
+      return passedEntry ? 'met' : ip ? 'in_progress' : 'unmet';
     });
-    status = states.every((s) => s === 'met')
-      ? 'met'
-      : states.every((s) => s !== 'unmet')
-        ? 'in_progress'
-        : 'unmet';
-    // "The first year of the program" counts from the Ph.D.'s own start for a
-    // student who transferred from the MSCSE (DGS 2026-10-03, with the §4.4
-    // qualifier clocks).
-    const sem = semesterNumber(ctx.qualifierEntry, termOfDate(ctx.today));
-    if (status !== 'met' && sem > 2) {
-      parts.push({ note: `§4.2 expects these during the first year — you are in semester ${sem}${compareTerm(ctx.qualifierEntry, ctx.entry) !== 0 ? ` of the Ph.D., counted from your transfer in ${termLabel(ctx.qualifierEntry)}` : ''}` });
+    const transferNote: DetailPart[] =
+      compareTerm(ctx.qualifierEntry, ctx.entry) !== 0
+        ? [{ note: `The first year is counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)}` }]
+        : [];
+    if (states.every((x) => x === 'met')) {
+      // Done: on time when the later of the two was passed by the end of the
+      // first year; after it, the DGS confirms.
+      const last = passedIn.reduce((a, b) => (compareTerm(a, b) >= 0 ? a : b));
+      if (compareTerm(last, dueTerm) <= 0) {
+        status = 'met';
+        deadline = { date: dueDate, approx: true, state: 'done', label: `Done ${termLabel(last)}` };
+      } else {
+        status = 'needs_dgs_review';
+        deadline = { date: dueDate, approx: true, state: 'done', label: `Done ${termLabel(last)} — after ${dueLabel}` };
+        parts.push({ note: `Taken after ${dueLabel} (approximate) — §4.2 requires both seminars in the first year of the program; confirm with the DGS` }, ...transferNote);
+      }
+    } else if (ctx.today > dueDate) {
+      status = 'unmet';
+      deadline = { date: dueDate, approx: true, state: 'overdue', label: `Overdue — was due by ${dueLabel} (approximate)` };
+      parts.push({ note: '§4.2 requires both seminars in the first year of the program; talk to the DGS about taking the missing one' }, ...transferNote);
+    } else {
+      status = states.every((x) => x !== 'unmet') ? 'in_progress' : 'unmet';
+      deadline = openDeadline(dueDate, ctx.today, `Due by ${dueLabel} (approximate)`);
+      parts.push(...transferNote);
     }
   }
   return {
@@ -351,6 +380,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
     shortTitle: 'Research seminar (2 cr)',
     status,
     ...joinedDetail(parts),
+    ...(deadline ? { deadline } : {}),
     ...(satisfied.length > 0 ? { satisfiedBy: satisfied } : {}),
     citation: { section: '§4.2', quote },
   };

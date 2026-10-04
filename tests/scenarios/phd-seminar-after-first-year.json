@@ -1,0 +1,43 @@
+{
+  "name": "phd-seminar-after-first-year",
+  "description": "DGS 2026-10-04 (P1-sheet-9): “Make this a requirement.” §4.2: “Two credits of Research Seminar (CSE 63801 and CSE 63802) are required and expected to be taken during the first year of the program.” The first year is now a deadline — the end of the program’s second semester (Spring 2027 for a Fall 2026 entrant). This student passed CSE 63801 in Fall 2026 but has no CSE 63802 in September 2027, so the row is Overdue rather than merely unmet; a seminar passed after the first year would go to the DGS (tests/seminar-first-year.test.ts).",
+  "today": "2027-09-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.8,
+    "courses": [
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.seminar": {
+      "status": "unmet",
+      "deadlineState": "overdue",
+      "detailIncludes": [
+        "CSE 63801: done (Fall 2026)",
+        "CSE 63802: not yet",
+        "§4.2 requires both seminars in the first year of the program"
+      ]
+    }
+  }
+}

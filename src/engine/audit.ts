@@ -10,6 +10,8 @@ import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq } f
 import type { AuditReport, Grade, RequirementResult, Student } from './types.ts';
 import { isCovidCohort, type Ctx } from './requirements/context.ts';
 import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
+import { transferCourseChecks } from '../data/course-checks.ts';
+import { isNotreDameInstitution } from '../data/external.ts';
 import { advisorRow, approvalsRow, gpaRow } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
@@ -183,6 +185,17 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   if (ugFlag) {
     reviewFlags.push(ugFlag);
     warnings.push(`${ugFlag} This is included in the review request.`);
+  }
+  // A `yes` in the ExternalCourses tab the DGS may not have meant (DGS
+  // 2026-10-04, P1-sheet-48 / -c2: "a warning needs to be shown to
+  // ADGS/DGS/Grad Admin"): an undergraduate-looking number, or a title that
+  // suggests independent study, research or a seminar. Carried to the review
+  // request and the processing request; nothing is counted or refused on it.
+  const staffChecks: string[] = [];
+  for (const cc of classified) {
+    const c = cc.entry;
+    if (c.origin !== 'transfer' || isNotreDameInstitution(c.institution) || cc.transferable !== 'yes' || cc.pool === 'none' || cc.superseded) continue;
+    staffChecks.push(...transferCourseChecks(c.courseId, c.institution ?? cc.external?.university ?? 'another university', c.title ?? cc.external?.title, student.program === 'mscse' ? '§3.2' : '§4.2'));
   }
   // Academic Code §4.1: three credits at the 60000 level or higher in every
   // full-time semester, unless the associate dean permitted otherwise — routed
@@ -383,6 +396,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const p = student.program;
   return {
     reviewFlags,
+    ...(staffChecks.length > 0 ? { staffChecks } : {}),
     program: p,
     requirements: rows.map((r) => decisionWordingDeep(p, r)),
     courseLines: courseLines.map((l) => ({ ...l, text: decisionWording(p, l.text), ...(l.qualifier ? { qualifier: { ...l.qualifier, text: decisionWording(p, l.qualifier.text) } } : {}) })),

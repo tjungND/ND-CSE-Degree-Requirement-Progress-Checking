@@ -33,6 +33,18 @@ const student = (extra: Partial<Student> = {}): Student => phdStudent({
 const opts = { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 };
 const build = (s: Student) => gradAdminRequest(audit(s, rules, opts.todayIso), s, rules, opts);
 
+describe('re-voicing for an email from the student', () => {
+  // The engine speaks to the student ("your"); the processing request is the
+  // student writing (advisor-summary.ts firstPerson). The seminar row's note for
+  // an MSCSE→Ph.D. transfer is one such sentence (2026-10-04).
+  it('“your transfer” reads “my transfer”', () => {
+    const s = student({ background: { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', transferredTerm: { season: 'spring', year: 2027 } } });
+    const built = build(s);
+    assert.match(built.text, /The first year is counted from my transfer into the Ph\.D\. in Spring 2027/);
+    assert.doesNotMatch(built.text, /\byour transfer\b/);
+  });
+});
+
 describe('processingItems', () => {
   // `dgs_approval` (DGS 2026-09-08): the DGS has ruled on the COURSE but not on
   // this student, so the Grad Admin has nothing to process until they do.
@@ -62,7 +74,8 @@ describe('processingItems', () => {
     assert.equal(items.count, items.lines.length, 'the chip counts exactly what the card lists');
     // Since 2026-09-28 the line tallies the open rows too, and the request
     // lists every requirement with its standing.
-    assert.match(items.lines.at(-1)!, /^\d+ requirements met, 1 overdue, \d+ in progress, 1 not started — the request lists every requirement with its standing, what meets it so far and its deadline, for the record$/);
+    // Two overdue since 2026-10-04: this student has no research seminar past the first year (P1-sheet-9).
+    assert.match(items.lines.at(-1)!, /^\d+ requirements met, 2 overdue, \d+ in progress, 1 not started — the request lists every requirement with its standing, what meets it so far and its deadline, for the record$/);
     assert.deepEqual(items.standing.map((t) => t.color).filter((c, i, a) => a.indexOf(c) === i), ['red', 'green', 'amber', 'grey'], 'overdue first, then the page’s colours (grey: the dissertation submission, "Not started", since 2026-10-03)');
     assert.ok(!items.standing.some((t) => /Transfer credit from prior/.test(t.heading)), 'the transfer row is the transfer sections’ business');
     assert.match(items.lines[0]!, /^CS 50300 \(Purdue University\) — transfer credit approved by the DGS in the course rules, to be processed \(§5\.2\)$/);
@@ -124,20 +137,23 @@ describe('gradAdminRequest', () => {
     assert.match(built.text, /\n\nDear Grad Admin,\n\nStudent: \[your name, netID and NDID\]\n\nCould you process/);
     assert.match(
       built.text,
-      /\nAttached: my original transcripts as PDFs\.\n\nACTION REQUESTED\n1\. Process the transfer credit for CS 50300 Operating Systems \(Purdue University, Fall 2024, 3 credits\) — approved by the DGS in the course rules \(§5\.2\)\.\n2\. Record the milestone: Advisor identified, 2026-09-10 \(§2\.3\)\.\n3\. Record the milestone: Oral Candidacy Exam \(OCE\) passed, 2029-04-01 \(§4\.5\)\.\n4\. Keep my standing below on file: 5 requirements met, 1 overdue, 7 in progress, 1 not started\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO PROCESS/,
+      /\nAttached: my original transcripts as PDFs\.\n\nACTION REQUESTED\n1\. Process the transfer credit for CS 50300 Operating Systems \(Purdue University, Fall 2024, 3 credits\) — approved by the DGS in the course rules \(§5\.2\)\.\n2\. Record the milestone: Advisor identified, 2026-09-10 \(§2\.3\)\.\n3\. Record the milestone: Oral Candidacy Exam \(OCE\) passed, 2029-04-01 \(§4\.5\)\.\n4\. Keep my standing below on file: 5 requirements met, 2 overdue, 6 in progress, 1 not started\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO PROCESS/,
     );
     // ONE course table, each course with every requirement it feeds (DGS 2026-09-28).
     assert.match(built.text, /\nCOURSES COUNTED SO FAR\nCourse\tTitle\tCredits\tGrade\tTerm\tWhere\tCounts toward\nCS 50300\tOperating Systems\t3\tA\tFall 2024\tPurdue University\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\)\nCSE 60641\t\t3\tA\tFall 2026\tNotre Dame\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\); 9 regular credits at ND \(§4\.2\)\n/);
     assert.equal((built.text.match(/CSE 60876\t/g) ?? []).length, 1, 'a course prints once, not under every row it feeds');
     assert.match(built.text, /\nTRANSFER CREDIT TO PROCESS \(§5\.2\) — APPROVED BY THE DGS IN THE COURSE RULES\nUniversity\tCourse\tTitle\tCredits\tND credits\tGrade\tTerm\nPurdue University\tCS 50300\tOperating Systems\t3\t\tA\tFall 2024\n/);
     // The standing list (DGS 2026-09-28): a [WORD] tag per row in plain text.
-    assert.match(built.text, /\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- \d+ requirements met, 1 overdue, \d+ in progress, 1 not started\.\n\n\[OVERDUE\] Qualifying examination — all components \(§4\.4\)\n    !! DEADLINE PASSED: Overdue — was due by the end of Spring 2028 \(approximate\)\n/);
+    // The seminar row leads the overdue rows since 2026-10-04 (P1-sheet-9: the first year is a requirement).
+    assert.match(built.text, /\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- \d+ requirements met, 2 overdue, \d+ in progress, 1 not started\.\n\n\[OVERDUE\] 2 credits of Research Seminar in year one \(§4\.2\)\n    !! DEADLINE PASSED: Overdue — was due by the end of Spring 2027 — the first year \(approximate\)\n/);
+    assert.match(built.text, /\n\[OVERDUE\] Qualifying examination — all components \(§4\.4\)\n    !! DEADLINE PASSED: Overdue — was due by the end of Spring 2028 \(approximate\)\n/);
     // Lines, not filler tables (DGS 2026-09-28): what meets a row, or its progress re-voiced for an email.
     assert.match(built.text, /\n\[MET\] Cumulative GPA of at least 3\.0 \(§2\.2\)\n    Evidence: cumulative GPA 3\.50\.\n/);
     assert.match(built.text, /\n\[MET\] Under continuous advisor supervision \(§2\.3\)\n    Evidence: advisor Prof\. Example; date 2026-09-10\.\n/);
     assert.match(built.text, /\n\[MET\] OCE passed \(§4\.5\)\n    Evidence: date 2029-04-01\.\n/, 'the full OCE name went to the action list, its first mention');
     assert.match(built.text, /\n\[MET\] At least 9 credits of regular courses taken at Notre Dame \(§4\.2\)\n    Evidence: CSE 60641, CSE 60111, [^\n]*CSE 60876 \(in the course table above\)\.\n/);
-    assert.match(built.text, /\n\[IN PROGRESS\] 2 credits of Research Seminar in year one \(§4\.2\)\n    Progress: CSE 63801: not yet\. CSE 63802: not yet\. §4\.2 expects these during the first year — I am in semester 6\.\n/, 're-voiced: "I am", not "you are"');
+    // The seminar row is Overdue since 2026-10-04 (P1-sheet-9); the second-person re-voicing is checked below with a transfer student.
+    assert.match(built.text, /\n\[OVERDUE\] 2 credits of Research Seminar in year one \(§4\.2\)\n    !! DEADLINE PASSED: Overdue — was due by the end of Spring 2027 — the first year \(approximate\)\n    Progress: CSE 63801: not yet\. CSE 63802: not yet\. §4\.2 requires both seminars in the first year of the program; talk to the DGS about taking the missing one\.\n/);
     assert.match(built.text, /\n\[IN PROGRESS\] Dissertation defense passed \(§4\.7\)\n    Progress: Not yet passed[^\n]*\n/);
     assert.match(built.text, /\n\[IN PROGRESS\] All requirements complete within 8 years \(§4\.3\)\n    Deadline: Due before Fall 2034 — 8 years after entry \(approximate\)\n\n/, 'a far deadline is stated, not highlighted; no empty progress table');
     assert.match(built.text, /\nGenerated by the CSE degree self-check tool \(alpha version under testing; informational only — every decision rests with the DGS\)\.\n$/);
@@ -168,7 +184,7 @@ describe('gradAdminRequest', () => {
     assert.equal(built.items.count, built.items.lines.length, 'the chip counts exactly what the card lists');
     assert.ok(built.items.met.length >= 1, 'the met GPA row alone activates the Grad Admin button');
     // (the GPA row is met, so the standing list still follows the marker)
-    assert.match(built.text, /\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- 1 requirement met, 1 overdue, \d+ in progress, 3 not started\.\n\n\[OVERDUE\]/);
+    assert.match(built.text, /\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- 1 requirement met, 2 overdue, \d+ in progress, 3 not started\.\n\n\[OVERDUE\]/);
     assert.match(built.text, /\n\[NOT STARTED\] Dissertation defense passed \(§4\.7\)\n/);
     assert.match(built.html, /<span style="[^"]*background:#eef0f3;color:#5a6472">Not started<\/span>/);
   });

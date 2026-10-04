@@ -407,6 +407,12 @@ export function gradAdminRequest(
   ];
   type Section = { heading: string; badge?: { word: string; color: StandingColor }; deadline?: StandingTable['deadline']; columns?: string[]; table?: string[][]; lines?: string[]; plain?: string[] };
   const sections: Section[] = [];
+  // A `yes` in the course rules the DGS may not have meant (DGS 2026-10-04,
+  // P1-sheet-48 / -c2: "a warning needs to be shown to ADGS/DGS/Grad Admin"):
+  // the first thing below the line, before the transfer tables. Not an item to process.
+  if ((report.staffChecks ?? []).length > 0) {
+    sections.push({ heading: 'Please check before processing', lines: report.staffChecks! });
+  }
   const pre = items.transfers.filter((t) => t.state === 'pre-approved');
   const approved = items.transfers.filter((t) => t.state === 'approved');
   if (pre.length > 0) {
@@ -470,7 +476,9 @@ export function gradAdminRequest(
   // tag and the heading, its deadline and evidence lines indented beneath.
   // The heading is "title (§)"; the block wants them apart.
   const split = (heading: string): { title: string; section: string } => {
-    const m = /^(.*) \((§[^)]*)\)$/.exec(heading);
+    // A section of the Graduate School's documents too — "(Academic Code
+    // §6.2.4)" read as no section and printed "()" (2026-10-04).
+    const m = /^(.*) \(((?:Academic Code |DGS Handbook )?§[^)]*)\)$/.exec(heading);
     return m ? { title: m[1]!, section: m[2]! } : { title: heading, section: '' };
   };
   const textSection = (s: Section): string =>

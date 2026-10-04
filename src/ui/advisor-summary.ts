@@ -340,7 +340,15 @@ export function actionItems(report: AuditReport): ActionItems {
     if (!r || r.status === 'met' || r.status === 'not_applicable') continue;
     if (overdue(r)) {
       out.student.push(`Ask the DGS about the time limit${due(r)} ${section(r)}.`);
-      out.dgs.push(`Decide how to handle the passed time limit ${section(r)}.`);
+      // The Graduate School decides a passed limit — dissertation completion
+      // status or an eligibility extension (Academic Code §6.2.6.1; DGS Handbook
+      // §3.19) — so the DGS's item is to advise (policy review 2026-10-03,
+      // P1-page-text-ui-7).
+      out.dgs.push(
+        id === 'phd.timeLimit'
+          ? `Advise the student on applying to the Graduate School for dissertation completion status or an eligibility extension ${section(r)}.`
+          : `Advise the student on applying to the Graduate School for an eligibility extension ${section(r)}.`,
+      );
     } else if (r.deadline) out.student.push(`Complete all requirements${due(r)} ${section(r)}.`);
   }
 
@@ -393,7 +401,9 @@ export function actionItems(report: AuditReport): ActionItems {
   const candidacy = byId.get('phd.candidacy');
   if (candidacy && isOpen(candidacy.status)) {
     out.student.push(`Take the Oral Candidacy Exam (OCE)${due(candidacy)} ${section(candidacy)}.`);
-    if (overdue(candidacy)) out.dgs.push(`Decide how to handle the passed Oral Candidacy Exam (OCE) deadline ${section(candidacy)}.`);
+    // A missed eighth semester is the Graduate School's probation (Academic
+    // Code §6.2.8), not the DGS's call (P1-page-text-ui-7).
+    if (overdue(candidacy)) out.dgs.push(`Advise the student on the Graduate School’s consequence for the missed Oral Candidacy Exam (OCE) deadline ${section(candidacy)}.`);
   } else if (candidacy?.status === 'needs_dgs_review') out.dgs.push(`Confirm the late Oral Candidacy Exam (OCE) ${section(candidacy)}.`);
   if (candidacy?.status === 'met') {
     const approval = byId.get('phd.dissertation.approval');

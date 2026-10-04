@@ -611,7 +611,7 @@ describe('credit_system: quarter hours become Notre Dame hours', () => {
   it('converts the credits the transcript prints — the exact value, whatever the course is worth', () => {
     const four = classify(usc('CSCI 570', 4), rules).classified[0]!;
     // The factor is the sheet's `quarter_credit_factor` (2026-09-12): 0.66,
-    // the DGS Handbook's §5.2 pro-rata table.
+    // the DGS Handbook's §3.14 pro-rata table.
     assert.ok(Math.abs((four.effectiveCredits ?? 0) - 4 * 0.66) < 1e-9);
     assert.equal(four.creditsConverted, true);
     assert.equal(four.conversionFactor, 0.66);

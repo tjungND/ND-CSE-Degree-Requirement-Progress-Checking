@@ -1419,6 +1419,13 @@ changed, so nobody undoes it by accident:
   dialog (`background.ts`) — a new dialog or pop-up must do the same. The decider rule spares
   "DGS Handbook" (decider.ts, first-mention.ts).
 
+- **Staff checks (2026-10-04).** `src/data/course-checks.ts` guesses, from the course number and title, a `yes`
+  ExternalCourses row the DGS may not have meant (an undergraduate number; independent study, research, a
+  thesis or a seminar). The parser warns on the row (sync log); `audit()` puts the student's own cases in
+  `AuditReport.staffChecks`, which the review card adds to its notes beside `reviewFlags` and the
+  processing request prints first below the line. Warnings only — never a verdict. The review card reads
+  `report.reviewFlags` (it used to recompute the 4+1 flag alone, which left later flags off the email).
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

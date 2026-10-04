@@ -399,7 +399,10 @@ function priorNdShape(
   // The id decides for §3.2's two project courses, here as in the program (2026-09-11).
   if (program === 'mscse' && isMsProjectCourse(courseId)) return shape('project', []);
   if (belowSixty && !isCse) {
-    return { ineligibleReason: `not counted — non-CSE ${rule.level}0000-level courses do not count (DGS decision 2026-08-31)` };
+    // Cited to the degree's own section, not the decision date (policy review
+    // 2026-10-03, P1-page-text-engine-20): §3.2/§4.2 admit non-CSE credit only
+    // "at the 60000 level or higher".
+    return { ineligibleReason: `not counted — non-CSE ${rule.level}0000-level courses do not count (${program === 'mscse' ? '§3.2' : '§4.2'})` };
   }
   // §3.2 (September 2026) caps non-CSE credit at nine toward the 30 as well as
   // the 24, so for the MSCSE every non-CSE course draws it, seminars and
@@ -743,7 +746,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
         if (level === 4) {
           return {
             ...base,
-            ineligibleReason: 'not counted — non-CSE 40000-level courses do not count (DGS decision 2026-08-31)',
+            ineligibleReason: `not counted — non-CSE 40000-level courses do not count (${program === 'mscse' ? '§3.2' : '§4.2'})`,
           };
         }
         if (!(level >= 6)) {
@@ -874,7 +877,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
     if (belowSixty && !isCse) {
       return {
         ...base,
-        ineligibleReason: `not counted — non-CSE ${level}0000-level courses do not count (DGS decision 2026-08-31)`,
+        ineligibleReason: `not counted — non-CSE ${level}0000-level courses do not count (${program === 'mscse' ? '§3.2' : '§4.2'})`,
       };
     }
     // A `yes` is the pre-approval on both tabs (DGS 2026-10-03); the allowance

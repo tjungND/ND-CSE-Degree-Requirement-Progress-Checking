@@ -494,6 +494,12 @@ export interface AuditReport {
   /** Notes for the DGS that are not about one course (2026-09-12): copied
    * into the review request and shown in its card. */
   reviewFlags?: string[];
+  /** Checks for the people who decide and process (DGS 2026-10-04): a course
+   * the ExternalCourses tab lets transfer (`yes`) whose number looks
+   * undergraduate or whose title suggests a non-regular course
+   * (data/course-checks.ts). Copied into the review request (notes) and the
+   * processing request; nothing is counted or refused on them. */
+  staffChecks?: string[];
   /** §3.5 / §3.6 tracks this audit does not model, recognised from the
    * student's own coursework (2026-09-10, promised 2026-08-31). Not warnings:
    * nothing is wrong, and no verdict changes — the note names what the page

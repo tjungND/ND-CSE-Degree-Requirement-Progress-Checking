@@ -117,7 +117,7 @@ export function htmlRequirementBlock(opts: { word: string; color: StandingColor;
   const lines = (opts.lines ?? []).filter((l) => l !== '');
   return (
     `<div style="margin:0 0 10px;padding:6px 10px;border-left:4px solid ${RULE_COLOR[opts.color]};background:#f7f8fa">` +
-    `<p style="margin:0">${htmlBadge(opts.word, opts.color)} <strong>${esc(opts.title)}</strong> (${esc(opts.section)})</p>` +
+    `<p style="margin:0">${htmlBadge(opts.word, opts.color)} <strong>${esc(opts.title)}</strong>${opts.section ? ` (${esc(opts.section)})` : ''}</p>` +
     // The deadline right under the title (it is the alert), the explanation after it — the plain text's order.
     (opts.deadline ? htmlDeadline(opts.deadline.text, opts.deadline.alert).replace(/^<p style="margin:2px 0 6px/, '<p style="margin:6px 0 0') : '') +
     (lines.length > 0 ? `<p style="margin:4px 0 0">${lines.map(esc).join('<br>')}</p>` : '') +
@@ -134,7 +134,7 @@ export function textRequirementBlock(opts: { word: string; title: string; sectio
   const body = indent + '    ';
   const lines = (opts.lines ?? []).filter((l) => l !== '');
   return (
-    `${indent}[${opts.word.toUpperCase()}] ${opts.title} (${opts.section})` +
+    `${indent}[${opts.word.toUpperCase()}] ${opts.title}${opts.section ? ` (${opts.section})` : ''}` +
     (opts.deadline ? `\n${body}${textDeadline(opts.deadline.text, opts.deadline.alert)}` : '') +
     lines.map((l) => `\n${body}${l}`).join('')
   );

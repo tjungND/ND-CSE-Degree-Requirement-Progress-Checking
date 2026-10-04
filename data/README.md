@@ -69,7 +69,7 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `ms_noncse_credits_max` | 9 | §3.2 | |
 | `ms_time_limit_years` | 5 | §3.3 | |
 | `ms_thesis_readers_min` | 2 | §3.4 | thesis option only |
-| `quarter_credit_factor` | 0.66 | §5.2 | quarter hours → semester hours — the DGS Handbook's §5.2 pro-rata table (quarter × .66; DGS 2026-09-12) |
+| `quarter_credit_factor` | 0.66 | §5.2 | quarter hours → semester hours — the DGS Handbook's §3.14 pro-rata table (quarter × .66; DGS 2026-09-12) |
 | `trimester_credit_factor` | 0.88 | §5.2 | trimester hours → semester hours — the same table (trimester × .88) |
 | `ms_transfer_window_years` | 5 | §5.2 | prior graduate coursework — §5.2's five-year window applies to the MSCSE too (DGS 2026-09-11) |
 | `phd_regular_credits_min` | 24 | §4.2 | 60000-level or higher |
@@ -92,7 +92,7 @@ for the test suite's fixtures in `tests/fixtures/rules/`).
 | `phd_nd_credits_min` | 9 | §4.2 | at least nine credits of regular courses at Notre Dame |
 | `phd_senior_grad_credits_max` | 6 | §3.5 | **Parked — the app does not read this today.** It sized §3.5's transfer allowance for a 4+1's junior/senior-year 6xxxx courses, withdrawn on 2026-09-10 when the DGS took the question to the Graduate School (§5.2 criterion 2 is their rule). The row is kept so the value survives if they allow it; see the top of `docs/STATE.md`. Delete the row if they refuse |
 | `ms_bs_double_count_credits_max` | 6 | §3.5 | how much of an MSCSE student's coursework may ALSO have counted toward their bachelor's degree — §3.5's "one or two 3-credit CSE courses", or their 40000-level equivalent (Graduate School via the DGS, 2026-09-10). The Ph.D. has no equivalent cap: its limit is that no course counts toward all three degrees |
-| `cse_subject_codes` | `CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE; ECE` | §4.2 | the subject codes that mean a CSE course on **another university's** transcript. §4.2 caps credits from outside CSE at nine wherever they were taken, and other schools spell the department every way there is. A code this list does not name counts against the allowance; an ExternalCourses `is_cse` cell overrides it for one course. Notre Dame's own courses are decided by their own subject, never by this list. With the key missing **or its cell blank**, no transferred course is placed inside or outside CSE and the allowance is not applied to any of them Blank or missing (2026-10-03): a transferred course whose row has no `is_cse` cell is then held for the DGS — “the course rules do not say whether this is a CSE course” — rather than placed on either side of the nine. |
+| `cse_subject_codes` | `CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE; ECE` | §3.2, §4.2 | the subject codes that mean a CSE course on **another university's** transcript. §4.2 (and §3.2 for the MSCSE) caps credits from outside CSE at nine wherever they were taken, and other schools spell the department every way there is. `ECE` is listed on purpose: the department reads “a department other than CSE” as “outside computing”, so an ECE course is inside CSE whatever its topic (DGS 2026-10-04; rule a single course otherwise with its `is_cse` cell). A code this list does not name counts against the allowance; an ExternalCourses `is_cse` cell overrides it for one course. Notre Dame's own courses are decided by their own subject, never by this list. With the key missing **or its cell blank**, the app places no transferred course inside or outside CSE: since 2026-10-03 a transferred course whose row has no `is_cse` cell is then held for the DGS — “the course rules do not say whether this is a CSE course” — rather than placed on either side of the nine. |
 | `ms_transfer_completed_ms_credits_max` | 9 | §5.2 | completed prior M.S./Ph.D. |
 | `phd_transfer_completed_ms_credits_max` | 24 | §5.2 | completed prior M.S./Ph.D. |
 | `transfer_unfinished_ms_credits_max` | 6 | §5.2 | unfinished prior M.S. |
@@ -210,3 +210,11 @@ into `sheet-urls.json` as `external`. Until then the app runs without it.
   two identical filter choices otherwise)
 - a `Categories` tab with no core areas, or no specialization groups, fails the load like an empty
   tab instead of rendering a page whose §4.4.1 section is silently empty (2026-09-18)
+- an `ExternalCourses` row ruled `yes` (either program) whose course number looks undergraduate (a
+  4- or 5-digit number under 5000 / 50000, or a 3-digit number in the 100s, 300s or 400s — the 200s
+  are the University of California's graduate courses) or whose title suggests independent study,
+  research, a thesis or a seminar → a WARNING (2026-10-04, the DGS's own corrected mistakes). Only
+  graduate courses transfer (Academic Code §4.6), and a transferred `yes` counts toward the
+  regular-course credits. A guess from the number and title, so nothing is refused: for a student
+  who has such a course, the same check is copied to the review request (for the DGS/ADGS) and the
+  processing request (for the Grad Admin) — `src/data/course-checks.ts`.

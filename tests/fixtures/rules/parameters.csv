@@ -14,8 +14,8 @@ phd_nd_credits_min,9,§4.2,at least nine credits of regular courses at Notre Dam
 phd_seminar_courses,"CSE 63801, CSE 63802",§4.2,required in year one
 phd_4xxxx_cse_credits_max,6,§4.2,
 phd_noncse_6xxxx_credits_max,9,§4.2,
-quarter_credit_factor,0.66,§5.2,"Quarter hours to semester hours. DGS Handbook 5.2 pro-rata table: quarter credit hours x .66 = semester credit hours (DGS 2026-09-12, replacing the earlier =2/3)."
-trimester_credit_factor,0.88,§5.2,Trimester hours to semester hours. DGS Handbook 5.2 pro-rata table: trimester credit hours x .88 = semester credit hours (DGS 2026-09-12).
+quarter_credit_factor,0.66,§5.2,"Quarter hours to semester hours. DGS Handbook §3.14 pro-rata table: quarter credit hours x .66 = semester credit hours (DGS 2026-09-12, replacing the earlier =2/3)."
+trimester_credit_factor,0.88,§5.2,Trimester hours to semester hours. DGS Handbook §3.14 pro-rata table: trimester credit hours x .88 = semester credit hours (DGS 2026-09-12).
 ms_transfer_window_years,5,§5.2,"prior graduate coursework. The five-year window in 5.2 (""completed within a five-year period prior to admission"") applies to the MSCSE as well as the PhD - DGS 2026-09-11. One key per degree so the two can differ if the Graduate School ever distinguishes them; the PhD's is phd_transfer_window_years."
 phd_transfer_window_years,5,§4.2,prior M.S. coursework
 phd_transfer_completed_ms_credits_max,24,§5.2,completed prior M.S./Ph.D. → to an ND Ph.D.
@@ -32,5 +32,5 @@ research_qualifier_deadline_months,18,§4.4.3,
 candidacy_deadline_semester,8,§4.5,before the end of the eighth semester
 candidacy_committee_additional_members_min,3,§4.5,beyond advisor/co-advisor
 gpa_min,3,§2.2,
-cse_subject_codes,CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE; ECE,§4.2,Subject codes that mean a CSE course on ANOTHER university's transcript. 4.2 caps credits from outside CSE at nine wherever they were taken. A code not listed here counts against those nine; an is_cse cell in ExternalCourses overrides this list for one course. Blank or missing = a transferred course with no is_cse cell is held for the DGS (it cannot be placed inside or outside CSE; 2026-10-03).
+cse_subject_codes,CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE; ECE,"§3.2, §4.2",Subject codes that mean a CSE course on ANOTHER university's transcript. 4.2 (and 3.2 for the MSCSE) caps credits from outside CSE at nine wherever they were taken. ECE is listed on purpose: the department reads 'a department other than CSE' as 'outside computing' (DGS 2026-10-04). A code not listed here counts against those nine; an is_cse cell in ExternalCourses overrides this list for one course. Blank or missing = a transferred course with no is_cse cell is held for the DGS (it cannot be placed inside or outside CSE; 2026-10-03).
 Every number the handbook states lives here so a future DGS can change it without touching code. Add rows freely; keep the key names stable because the app reads them by name.,,,
