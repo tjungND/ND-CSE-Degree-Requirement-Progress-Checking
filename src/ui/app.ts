@@ -6,7 +6,7 @@ import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { classify, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
-import { fullTimeRecordsFrom } from '../engine/requirements/residency.ts';
+import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
 import type { Rules } from '../data/types.ts';
 import { coursesNeedingDgsReviewFor, reviewRequestSummary, type PendingDgsReview } from '../engine/review.ts';
@@ -1223,6 +1223,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   /** The full-time-terms fieldset, or null while the record has no term to list. */
   function fullTimeTerms(classified: readonly ClassifiedCourse[]): HTMLElement | null {
+    // The MSCSE's summer floor (DGS Handbook §10.3.2; DGS 2026-10-04), the same
+    // one the residency row reads; undefined on the Ph.D. tab. Read here, not
+    // once at start: the program can change under Reset.
+    const summerFloor = summerFullTimeFloor(student.program, (k) => rules.parameters.number(k));
     // Residency (decision Q8): ≥9 entered credits marks a term full-time
     // automatically; these checkboxes cover research-heavy terms that aren't.
     // Only terms from the entry term on: residence is counted in THIS program
@@ -1258,13 +1262,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         { class: 'hint' },
         fullTimeFloor === undefined
           ? 'The course rules do not give the full-time credit floor (fulltime_credits_min), so no semester is counted from your courses until the DGS adds it. Tick each semester you were registered full-time.'
-          : `A semester counts automatically once the courses entered for it add up to ${fullTimeFloor} registered credits (§2.1.2; withdrawn and incomplete courses are registrations too). Tick a semester you were registered full-time on research or in courses not entered here.`,
+          : `A semester counts automatically once the courses entered for it add up to ${fullTimeFloor} registered credits (§2.1.2; withdrawn and incomplete courses are registrations too)${summerFloor !== undefined ? `; a summer session at ${summerFloor} (DGS Handbook §10.3.2)` : ''}. Tick a semester you were registered full-time on research or in courses not entered here.`,
       ),
     );
     // What the ENGINE counts, so the card and the report agree (2026-10-03):
     // superseded same-term duplicates and unrecognised grades are out, a W
     // or an I is in.
-    const records = new Map(fullTimeRecordsFrom(classified, student, fullTimeFloor).map((r) => [termIndex(r.term), r] as const));
+    const records = new Map(fullTimeRecordsFrom(classified, student, fullTimeFloor, summerFloor).map((r) => [termIndex(r.term), r] as const));
     let autoCount = 0;
     let tickedCount = 0;
     // Semesters with courses that did not reach full-time (DGS 2026-10-04:
@@ -1279,7 +1283,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (overridden) tickedCount += 1;
       if (auto) {
         autoCount += 1;
-        box.append(el('span', { class: 'ft-term ft-auto' }, el('span', { class: 'ft-check', 'aria-hidden': 'true' }, '✓'), ` ${termLabel(t)} — counted automatically (${rec.term.season === 'summer' && (fullTimeFloor === undefined || rec.credits < fullTimeFloor) ? 'a summer session after a full-time semester, Academic Code §3.6' : `${fullTimeFloor}+ registered credits entered`})`));
+        // Why it counted, in the engine's order (residency.ts): the semester
+        // floor, a summer's own floor (DGS Handbook §10.3.2, MSCSE), or a
+        // summer beside a full-time spring or fall (Academic Code §3.6).
+        const why =
+          rec.term.season !== 'summer' || (fullTimeFloor !== undefined && rec.credits >= fullTimeFloor)
+            ? `${fullTimeFloor}+ registered credits entered`
+            : summerFloor !== undefined && rec.credits >= summerFloor
+              ? `${summerFloor}+ registered credits in a summer session, DGS Handbook §10.3.2`
+              : 'a summer session beside a full-time semester, Academic Code §3.6';
+        box.append(el('span', { class: 'ft-term ft-auto' }, el('span', { class: 'ft-check', 'aria-hidden': 'true' }, '✓'), ` ${termLabel(t)} — counted automatically (${why})`));
         continue;
       }
       const cb = el('input', {
@@ -1302,7 +1315,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : rec!.withdrawnOnly
           ? ' — every course withdrawn; tick only if you were registered full-time at census'
           : t.season === 'summer'
-            ? ` — not full-time: ${rec!.credits} registered credits entered, and neither that spring nor that fall was full-time`
+            ? ` — not full-time: ${summerFloor !== undefined ? `${rec!.credits} of ${summerFloor}` : rec!.credits} registered credits entered, and neither that spring nor that fall was full-time`
             : ` — not full-time: ${rec!.credits} of ${fullTimeFloor} registered credits entered`;
       box.append(
         el(

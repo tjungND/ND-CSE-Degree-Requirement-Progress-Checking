@@ -267,6 +267,12 @@ export const KNOWN_PARAMETER_KEYS = [
   'transfer_unfinished_ms_credits_max',
   'transfer_min_grade',
   'fulltime_credits_min',
+  // The MSCSE's summer session: full-time at this many registered credits on
+  // its own (DGS Handbook §10.3.2: "may include summer session if the student
+  // is registered for six or more credits"). A Parameters key by the DGS's
+  // choice (2026-10-04, P1-page-text-ui-9), like fulltime_credits_min — the
+  // department's full-time definition, never below the Graduate School's six.
+  'summer_fulltime_credits_min',
   'qualifier_deadline_semesters',
   'category_courses_required',
   'category_distinct_groups_required',

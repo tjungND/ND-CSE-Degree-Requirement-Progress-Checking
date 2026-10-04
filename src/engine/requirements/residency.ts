@@ -37,14 +37,34 @@ export interface FullTimeTermRecord {
 }
 
 export function fullTimeTermRecords(ctx: Ctx): FullTimeTermRecord[] {
-  return fullTimeRecordsFrom(ctx.classified, ctx.student, ctx.params.number('fulltime_credits_min'));
+  return fullTimeRecordsFrom(ctx.classified, ctx.student, ctx.params.number('fulltime_credits_min'), summerFullTimeFloor(ctx.student.program, (k) => ctx.params.number(k)));
+}
+
+/** The MSCSE's summer floor: DGS Handbook §10.3.2 — "The minimum residency
+ * requirement for the master's degree is one semester of registration and
+ * enrollment (may include summer session if the student is registered for six
+ * or more credits)." A Parameters key by the DGS's choice (2026-10-04,
+ * P1-page-text-ui-9: "Count a summer term automatically at six credits for the
+ * MSCSE residency row (a summer_fulltime_credits_min parameter)"), like
+ * `fulltime_credits_min`: the department's full-time definition, never below
+ * the Graduate School's six. The Ph.D.'s residency never counts a summer
+ * (§4.3), so the floor is the MSCSE's alone. */
+export function summerFullTimeFloor(program: Ctx['student']['program'], number: (key: string) => number | undefined): number | undefined {
+  return program === 'mscse' ? number('summer_fulltime_credits_min') : undefined;
 }
 
 /** The same, from the classified list and the record alone — what the
  * standing card's Full-time terms fieldset reads, so the card and the report
  * never disagree about which semester counted automatically (policy review
  * 2026-10-03: the card summed raw entered credits). */
-export function fullTimeRecordsFrom(classified: readonly Ctx['classified'][number][], student: Ctx['student'], floor: number | undefined): FullTimeTermRecord[] {
+export function fullTimeRecordsFrom(
+  classified: readonly Ctx['classified'][number][],
+  student: Ctx['student'],
+  floor: number | undefined,
+  /** The MSCSE's summer floor (`summerFullTimeFloor`); undefined for the
+   * Ph.D., or when the rules sheet lacks the key. */
+  summerFloor?: number,
+): FullTimeTermRecord[] {
   const ctx = { classified, student } as const;
   const entryIndex = termIndex(ctx.student.entryTerm);
   const byTerm = new Map<number, { term: Term; credits: number; graduate: number; withdrawn: number; rows: number }>();
@@ -96,11 +116,14 @@ export function fullTimeRecordsFrom(classified: readonly Ctx['classified'][numbe
       rec.term.season === 'summer' &&
       rec.credits > 0 &&
       records.some((o) => o.term.year === rec.term.year && o.term.season !== 'summer' && academicYearFullTime(o));
+    // …and, for the MSCSE, a summer of six or more registered credits on its
+    // own (DGS Handbook §10.3.2; DGS 2026-10-04 — `summerFullTimeFloor`).
+    const summerOnItsOwn = rec.term.season === 'summer' && summerFloor !== undefined && rec.credits >= summerFloor && !withdrawnOnly;
     return {
       term: rec.term,
       credits: rec.credits,
       graduateCredits: rec.graduate,
-      fullTime: academicYearFullTime(rec) || summerContinuing,
+      fullTime: academicYearFullTime(rec) || summerContinuing || summerOnItsOwn,
       ...(withdrawnOnly ? { withdrawnOnly: true as const } : {}),
     };
   });

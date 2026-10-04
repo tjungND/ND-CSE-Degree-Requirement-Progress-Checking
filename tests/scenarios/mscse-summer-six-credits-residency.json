@@ -1,0 +1,75 @@
+{
+  "name": "mscse-summer-six-credits-residency",
+  "description": "DGS Handbook §10.3.2: the master's residency “may include summer session if the student is registered for six or more credits” (policy review 2026-10-04, P1-page-text-ui-9; DGS: “Count a summer term automatically at six credits for the MSCSE residency row (a summer_fulltime_credits_min parameter)”). An MSCSE student part-time in Fall 2025 and Spring 2026 (3 credits each) with six credits in Summer 2026: the residency row reads Met on the summer, instead of “No full-time semester yet”.",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "summer",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "summer",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.residency": {
+      "status": "met",
+      "detailIncludes": [
+        "Full-time in Summer 2026",
+        "6 or more registered credits (DGS Handbook §10.3.2)"
+      ]
+    }
+  }
+}

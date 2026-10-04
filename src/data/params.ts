@@ -16,6 +16,8 @@ export function makeParameters(
   // rather than sending the DGS looking for a row that never turns amber
   // (2026-09-09).
   const MISSING_CONSEQUENCE: Record<string, string> = {
+    summer_fulltime_credits_min:
+      'the MSCSE residency row cannot count a summer session by its credits — it reads "cannot evaluate" for a student whose only registration that could count is a summer (a summer beside a full-time spring or fall still counts)',
     cse_subject_codes:
       'no course transferred from another university is placed inside or outside CSE, so §4.2’s nine-credit limit on courses "taken from a department other than CSE" is not applied to transfer credit at all',
   };

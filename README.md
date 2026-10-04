@@ -185,6 +185,10 @@ the GPA minimum, the full-time credit floor — stay in the **Parameters** tab (
 handbook number and a Graduate School number say the same thing (the four semesters of §4.3's
 residency, the eighth semester of §4.5's exam), the sheet row is the department's and the code
 constant is the Graduate School's: changing the sheet changes only the department's rule.
+One row is the other way round by the DGS's choice (2026-10-04): `summer_fulltime_credits_min`, the
+MSCSE's summer residency floor, is a sheet row although its six is the Graduate School's (DGS
+Handbook §10.3.2) — read, like `fulltime_credits_min`, as the department's own full-time definition,
+and never to be set below six.
 
 ### A6. Log the change and date it
 

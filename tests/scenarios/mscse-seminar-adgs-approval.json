@@ -1,0 +1,77 @@
+{
+  "name": "mscse-seminar-adgs-approval",
+  "description": "The DGS set CSE 63801/63802 to adgs_approval on the MSCSE (policy review 2026-10-04, P1-sheet-40: “If approved, they may count towards the 30 but not 24.”). An MSCSE student with CSE 63801 in Fall 2025: the course waits for the ADGS and its line says it would count toward the total only — no longer “the research seminar requirement”, which the MSCSE does not have; the 24 regular credits do not move.",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "courses": [
+        {
+          "course_id": "CSE 63801",
+          "set": {
+            "counts_toward_mscse": "adgs_approval"
+          }
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.total": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 30 credits complete",
+        "1 pending review/approval"
+      ]
+    },
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24 credits complete"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 63801": [
+      "waiting for the ADGS",
+      "would count toward the total-credit requirement only (1 cr) once approved"
+    ]
+  }
+}

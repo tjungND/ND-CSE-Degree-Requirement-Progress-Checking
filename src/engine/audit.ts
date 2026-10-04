@@ -201,7 +201,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // Non-CSE credit the nine-credit allowance refuses: into the total for the
   // Ph.D. (F1, 2026-09-12), nowhere for the MSCSE (DGS 2026-10-03 — §3.2's
   // September text counts the nine "toward both" the 30 and the 24).
-  const alloc = allocate(classified, capSpecs, { nonCseSpillsToTotal: student.program === 'phd' });
+  const alloc = allocate(classified, capSpecs, {
+    nonCseSpillsToTotal: student.program === 'phd',
+    // Only the Ph.D. has a research seminar requirement (§4.2); on the MSCSE a
+    // seminar the ADGS approves counts toward the 30, never the 24 (DGS
+    // 2026-10-04, P1-sheet-40).
+    seminarCourseIds: student.program === 'phd' ? (params.courseList('phd_seminar_courses') ?? []) : [],
+  });
 
   // The department's qualifier clocks run from the Ph.D.'s own start: for a
   // transfer from the unfinished MSCSE, the term of the transfer (DGS

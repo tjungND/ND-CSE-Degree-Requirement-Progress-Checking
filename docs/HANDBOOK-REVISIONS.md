@@ -428,4 +428,10 @@ not the app's:
     neither is the advisor, and on "no" or "not sure" sends the question to the ADGS, as it does every
     MSCSE decision (policy review 2026-10-04, P2-dh-10-19; decider rule of 2026-09-11). §3.4 should
     name the ADGS if that is who approves.
+16. **§3.3 — what is full-time in a summer session?** §3.3 lets the MSCSE's residency be "one summer session" in
+    full-time status but never says what full-time means in a summer; §2.1.2's nine credits are "per semester". The
+    Graduate School's form instructions do (DGS Handbook §10.3.2: "may include summer session if the student is
+    registered for six or more credits"), and the app now applies six through the Parameters key
+    `summer_fulltime_credits_min` (DGS 2026-10-04, P1-page-text-ui-9), besides Academic Code §3.6's summer beside a
+    full-time spring or fall. §3.3 should say "a summer session of six or more credits" in its own text.
 

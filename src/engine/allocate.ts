@@ -1634,7 +1634,15 @@ export function allocate(
    * 2026-09-12), nowhere for the MSCSE (§3.2, September 2026: the nine count
    * "toward both the graduate school's 30-credit requirement and the
    * department's 24-credit regular course requirement" — DGS 2026-10-03). */
-  opts: { nonCseSpillsToTotal: boolean } = { nonCseSpillsToTotal: true },
+  opts: {
+    nonCseSpillsToTotal: boolean;
+    /** The courses that fill §4.2's research seminar requirement — the
+     * Ph.D.'s `phd_seminar_courses`, none on the MSCSE, which has no seminar
+     * requirement. Any other seminar-type course counts toward the total only,
+     * and its line says so (policy review 2026-10-04, P1-sheet-40: SOC 63270,
+     * and on the MSCSE CSE 63801/63802, read "the research seminar requirement"). */
+    seminarCourseIds?: readonly string[];
+  } = { nonCseSpillsToTotal: true },
 ): AllocationResult {
   const capRoom = new Map<CapId, number>();
   const capUsage: AllocationResult['capUsage'] = new Map();
@@ -1746,7 +1754,17 @@ export function allocate(
       excluded: spillsToTotal ? 0 : excluded,
       ...(spillsToTotal ? { overCapToTotal: excluded } : {}),
       excludedReason,
-      ...buildExplanation(cc, counted, excluded, excludedReason, transferCandidate, unknownCap !== undefined, capById.get('fourk'), spillsToTotal),
+      ...buildExplanation(
+        cc,
+        counted,
+        excluded,
+        excludedReason,
+        transferCandidate,
+        unknownCap !== undefined,
+        capById.get('fourk'),
+        spillsToTotal,
+        (opts.seminarCourseIds ?? []).includes(cc.entry.courseId.toUpperCase().replace(/\s+/g, ' ')),
+      ),
     });
   };
 
@@ -1930,6 +1948,9 @@ function buildExplanationText(
   fourkCap?: CapSpec,
   /** The refused credits still count toward the total (the non-CSE cap, F1). */
   spillsToTotal = false,
+  /** The course fills the Ph.D.'s research seminar requirement (one of
+   * `phd_seminar_courses`); any other seminar-type course feeds the total only. */
+  fillsSeminar = false,
 ): { explanation: string; mark: CourseMark } {
   const parts: string[] = [];
   if (capLimitMissing) return { explanation: excludedReason ?? 'cannot be counted yet — a cap is missing from the rules sheet', mark: 'pending' };
@@ -1938,7 +1959,7 @@ function buildExplanationText(
       ? 'regular courses'
       : cc.pool === 'project'
         ? 'the project/thesis requirement'
-        : cc.pool === 'seminar'
+        : cc.pool === 'seminar' && fillsSeminar
           ? 'the research seminar requirement'
           : 'the total-credit requirement only';
   const total = cc.effectiveCredits ?? cc.entry.credits;

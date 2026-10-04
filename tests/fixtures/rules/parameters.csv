@@ -4,7 +4,7 @@ ms_regular_credits_min,24,§3.2,
 ms_project_credits_min,6,§3.2,CSE 68901 / 68902
 ms_4xxxx_credits_max,6,§3.2,
 ms_noncse_credits_max,9,§3.2,
-ms_bs_double_count_credits_max,6,§3.5,"How much of an MSCSE student's coursework may ALSO have counted toward their bachelor's degree - 3.5's one or two 3-credit courses, or their 40000-level equivalent (Graduate School via the DGS, 2026-09-10). The PhD has the same six (Graduate School 2026-09-22), less what the bachelor's and the MSCSE already shared; no course counts toward all three degrees."
+ms_bs_double_count_credits_max,6,§3.5; Academic Code §4.6,"How much of an MSCSE student's coursework may ALSO have counted toward their bachelor's degree - 3.5's one or two 3-credit courses, or their 40000-level equivalent (Graduate School via the DGS, 2026-09-10). The PhD has the same six (Graduate School 2026-09-22), less what the bachelor's and the MSCSE already shared; no course counts toward all three degrees."
 ms_time_limit_years,5,§3.3,
 ms_transfer_completed_ms_credits_max,9,§5.2,completed prior M.S./Ph.D. → to an ND M.S.
 phd_total_credits_min,60,§4.2,credits of courses and research
@@ -21,6 +21,7 @@ phd_time_limit_years,8,§4.3,
 transfer_unfinished_ms_credits_max,6,§5.2,unfinished prior M.S. → either program
 transfer_min_grade,B,§5.2,grade of B (3.0) or better required to transfer
 fulltime_credits_min,9,§2.1.2,full-time = at least nine credit hours per semester
+summer_fulltime_credits_min,6,§3.3,"MSCSE residency: a summer session counts as full-time on its own with at least this many registered credits - the Graduate School's figure is six (DGS Handbook 10.3.2); do not set it lower. A summer also counts with any registration beside a full-time spring or fall of the same year (Academic Code 3.6). The PhD never counts a summer (4.3)."
 qualifier_deadline_semesters,4,§4.4,DGS may extend
 category_courses_required,3,§4.4.2,
 category_distinct_groups_required,3,§4.4.2,

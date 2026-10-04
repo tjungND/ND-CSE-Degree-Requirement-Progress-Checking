@@ -195,6 +195,17 @@ function residencyRow(ctx: Ctx): RequirementResult {
   const records = fullTimeTermRecords(ctx);
   const fullTime = records.filter((r) => r.fullTime);
   const floor = ctx.params.number('fulltime_credits_min');
+  // A summer session on its own counts at `summer_fulltime_credits_min`
+  // registered credits (DGS Handbook §10.3.2: "may include summer session if
+  // the student is registered for six or more credits"; DGS 2026-10-04,
+  // P1-page-text-ui-9) — residency.ts summerFullTimeFloor.
+  const summerFloor = ctx.params.number('summer_fulltime_credits_min');
+  const summerNote: DetailPart = {
+    note:
+      summerFloor === undefined
+        ? 'A summer session counts with any registration beside a full-time spring or fall of the same year (Academic Code §3.6)'
+        : `A summer session counts with ${summerFloor} or more registered credits (DGS Handbook §10.3.2), or with any registration beside a full-time spring or fall of the same year (Academic Code §3.6)`,
+  };
   let status: Status;
   // The semesters are the fact; how they are counted is a note (DGS 2026-10-03).
   const parts: DetailPart[] = [];
@@ -205,18 +216,24 @@ function residencyRow(ctx: Ctx): RequirementResult {
   } else if (fullTime.length > 0) {
     status = 'met';
     parts.push(`Full-time in ${fullTime.map((r) => termLabel(r.term)).join(', ')}`, { note: `Full-time means ${floor} or more registered credits in the semester (§2.1.2)` });
-    if (fullTime.some((r) => r.term.season === 'summer')) parts.push({ note: 'A summer session counts with any registration after a full-time academic-year semester (Academic Code §3.6)' });
+    if (fullTime.some((r) => r.term.season === 'summer')) parts.push(summerNote);
     satisfied = fullTime.map((r) => termLabel(r.term));
+  } else if (summerFloor === undefined && records.some((r) => r.term.season === 'summer' && r.credits > 0)) {
+    // A summer with registration that only the summer floor could count, and
+    // no floor in the rules sheet: never a default (CLAUDE.md "Never guess").
+    status = 'cannot_evaluate';
+    parts.push(missingParamDetail('summer_fulltime_credits_min'), summerNote);
   } else {
     status = 'in_progress';
     // A summer session counts too (§3.3 "or for one summer session"): the
     // Academic Code (§3.6) treats a student who was full-time in the academic
-    // year as full-time in the summer with any registration — the engine
-    // applies that; the nine credits are "per semester" (policy review 2026-10-03).
+    // year as full-time in the summer with any registration, and the DGS
+    // Handbook (§10.3.2) a summer of six or more credits — the engine applies
+    // both; the nine credits are "per semester" (policy review 2026-10-03).
     parts.push(
       'No full-time semester yet',
       { note: `A semester counts once the courses you entered for it add up to ${floor} credits (§2.1.2); if you were full-time on research, tick that semester under Your standing (Full-time terms)` },
-      { note: 'A summer session counts with any registration after a full-time academic-year semester (Academic Code §3.6)' },
+      summerNote,
     );
   }
   const withdrawnOnly = records.filter((r) => r.withdrawnOnly).map((r) => termLabel(r.term));
