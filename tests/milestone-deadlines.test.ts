@@ -19,7 +19,7 @@ const mscse = (over: Partial<Student> = {}): Student => ({ schemaVersion: 1, pro
 const fall = (year: number) => ({ season: 'fall' as const, year });
 const spring = (year: number) => ({ season: 'spring' as const, year });
 
-const PHD_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'researchQualifierPassed', 'researchQualifierFailed', 'qualifierFormFiled', 'rcrTrainingCompleted', 'candidacyPassed', 'candidacyAdmitted', 'dissertationApprovedForDefense', 'defensePassed', 'dissertationSubmitted'];
+const PHD_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'researchQualifierPassed', 'researchQualifierFailed', 'qualifierFormFiled', 'rcrTrainingCompleted', 'candidacyPassed', 'candidacyAdmitted', 'defensePassed', 'dissertationSubmitted'];
 const MS_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'thesisApprovedByReaders', 'thesisDefensePassed', 'projectReportAccepted'];
 
 describe('every date in the card has its deadline', () => {
@@ -34,7 +34,6 @@ describe('every date in the card has its deadline', () => {
       rcrTrainingCompleted: 'Due by the end of Spring 2030 — a condition of admission to doctoral candidacy (DGS Handbook §3.22.3)',
       candidacyPassed: 'Due by the end of Spring 2030 — semester 8 (§4.5)',
       candidacyAdmitted: 'Due by the end of Spring 2030 — semester 8 (DGS Handbook §3.22.3)',
-      dissertationApprovedForDefense: 'Due before Fall 2034 — the 8-year limit (§4.3)',
       defensePassed: 'Due before Fall 2034 — the 8-year limit (§4.3); to graduate in a given semester, also by that semester’s date on the Graduate School calendar (DGS Handbook §3.22.4)',
       dissertationSubmitted: 'Due before Fall 2034 — the 8-year limit (§4.3); to graduate in a given semester, also by that semester’s date on the Graduate School calendar (Academic Code §6.2.12)',
     });
@@ -64,7 +63,7 @@ describe('the same date the requirement row counts against', () => {
     // The extension is named on the fail box too, not only on the pass box.
     assert.equal(deadlineText(d.researchQualifierFailed!), 'Due by the end of Fall 2026 — the advisor’s pass or fail, 18 months after entry, extended by the DGS by one semester (§4.4.3)');
     // The limit says what moved it.
-    assert.equal(deadlineText(d.dissertationApprovedForDefense!), 'Due by mid-Spring 2033 — the 8-year limit (§4.3) — extended by 1 semester on an approved leave of absence');
+    assert.equal(deadlineText(d.defensePassed!), 'Due by mid-Spring 2033 — the 8-year limit (§4.3) — extended by 1 semester on an approved leave of absence; to graduate in a given semester, also by that semester’s date on the Graduate School calendar (DGS Handbook §3.22.4)');
   });
   it('MSCSE: the advisor and the five years', () => {
     const r = audit(mscse(), rules, '2026-10-04');
@@ -74,7 +73,7 @@ describe('the same date the requirement row counts against', () => {
   });
   it('the Spring 2020 cohort: the limit names Appendix A', () => {
     const t = texts(phdStudent({ entryTerm: fall(2019) }), '2026-10-04');
-    assert.equal(t['dissertationApprovedForDefense'], 'Due before Fall 2028 — the 8-year limit (§4.3) — extended by one year for students enrolled in Spring 2020 (Academic Code Appendix A)');
+    assert.equal(t['defensePassed'], 'Due before Fall 2028 — the 8-year limit (§4.3) — extended by one year for students enrolled in Spring 2020 (Academic Code Appendix A); to graduate in a given semester, also by that semester’s date on the Graduate School calendar (DGS Handbook §3.22.4)');
   });
 });
 

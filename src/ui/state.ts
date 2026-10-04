@@ -185,7 +185,6 @@ const MILESTONE_DATE_LABELS: Record<string, string> = {
   candidacyPassed: 'Oral Candidacy Exam (OCE) passed',
   candidacyAdmitted: 'Admitted to doctoral candidacy',
   rcrTrainingCompleted: 'Responsible Conduct of Research training completed',
-  dissertationApprovedForDefense: 'Dissertation approved for defense',
   defensePassed: 'Dissertation defense passed',
   dissertationSubmitted: 'Final dissertation submitted',
   thesisApprovedByReaders: 'Thesis approved by both readers',
@@ -211,6 +210,11 @@ function isIsoDate(v: string): boolean {
 function validMilestones(raw: unknown, refusals: Refusal[]): Student['milestones'] {
   if (!raw || typeof raw !== 'object') return {};
   const out: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
+  // The readers'-approval date, removed on 2026-10-04 (DGS: the committee
+  // approves the dissertation and passes the defense at the same time): a
+  // file that still carries it loads without it, silently — the defense date
+  // stands for both.
+  delete out['dissertationApprovedForDefense'];
   for (const [key, label] of Object.entries(MILESTONE_DATE_LABELS)) {
     const v = out[key];
     if (v === undefined) continue;

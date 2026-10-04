@@ -238,8 +238,7 @@ describe('actionItems: the rest of the rules', () => {
         req('phd.qualifier.core.os', 'Core knowledge: Operating Systems', 'needs_dgs_review', 'CS 50300 (Purdue) — not yet reviewed by the DGS.', 'Qualifying examination — §4.4', '§4.4.1'),
         req('phd.qualifier.core.algorithms', 'Core knowledge: Algorithms', 'unmet', 'No course yet.', 'Qualifying examination — §4.4', '§4.4.1'),
         req('phd.candidacy', 'Oral Candidacy Exam (OCE) passed', 'met', 'Oral Candidacy Exam (OCE) passed 2029-04-01.', 'Oral Candidacy Exam (OCE) — §4.5', '§4.5'),
-        req('phd.dissertation.approval', 'Dissertation unanimously approved for defense by the readers', 'unmet', 'Not yet approved.', 'Dissertation and defense — §4.6–4.7', '§4.6'),
-        req('phd.dissertation.defense', 'Dissertation defense passed', 'unmet', 'Not yet.', 'Dissertation and defense — §4.6–4.7', '§4.7'),
+        req('phd.dissertation.defense', 'Dissertation defense passed', 'unmet', 'Not yet.', 'Dissertation and defense — §4.7', '§4.7'),
         {
           ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
           informational: true,
@@ -262,7 +261,6 @@ describe('actionItems: the rest of the rules', () => {
       'Register full-time for 3 more consecutive semesters (§4.3).',
       'Pass a course that covers Algorithms — core knowledge (§4.4.1).',
       'Retake or replace CSE 60111 (B-) — a specialization course below the grade floor (§4.4.2).',
-      'Get the dissertation approved for defense by all readers (§4.6).',
       'Defend the dissertation (§4.7).',
       'Send the DGS the review request for CS 51000, CSE 60999.',
     ]);

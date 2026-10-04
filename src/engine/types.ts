@@ -138,7 +138,10 @@ export interface Milestones {
    * Handbook (§3.22.3) lists them among the conditions for admission to
    * candidacy (policy review, 2026-10-03). */
   rcrTrainingCompleted?: string;
-  dissertationApprovedForDefense?: string; // §4.6
+  // `dissertationApprovedForDefense` (§4.6) was removed on 2026-10-04 (DGS:
+  // the committee approves the dissertation and passes the defense at the
+  // same time — the defense date stands for both); a saved file that still
+  // carries it loads with it dropped (state.ts validMilestones).
   defensePassed?: string; // §4.7
   /** Academic Code §6.2.6/§6.2.12: the OFFICIAL SUBMISSION of the dissertation
    * is the last requirement inside the eight years, and it is due by the

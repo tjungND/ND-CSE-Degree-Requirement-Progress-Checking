@@ -565,13 +565,14 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
   const ORDER: Status[] = ['cannot_evaluate', 'needs_dgs_review', 'unmet'];
   /** Rows nothing can be done about yet. Most say so in their own detail — the
    * engine writes "Not yet available: …" wherever a requirement names its own
-   * precondition. The dissertation pair does not, so they are named here: a
-   * student cannot have readers approve a dissertation, or defend it, before
-   * the §4.5 candidacy exam they come after — nor be admitted to candidacy
-   * (DGS 2026-10-04). This is a PRESENTATION judgement
-   * about what belongs on a to-do list, not a rule — both rows stay in the
-   * report, with their verdicts unchanged. */
-  const AFTER_CANDIDACY = ['phd.dissertation.approval', 'phd.dissertation.defense'];
+   * precondition. The dissertation defense does not, so it is named here: a
+   * student cannot defend a dissertation before the §4.5 candidacy exam it
+   * comes after — nor be admitted to candidacy before it (DGS 2026-10-04).
+   * (The readers' approval was a row here too until it was removed on
+   * 2026-10-04.) This is a PRESENTATION judgement about what belongs on a
+   * to-do list, not a rule — the rows stay in the report, with their
+   * verdicts unchanged. */
+  const AFTER_CANDIDACY = ['phd.dissertation.defense'];
   const candidacyPassed = report.requirements.some((r) => r.id === 'phd.candidacy' && r.status === 'met');
   // Admission waits only for the OCE to be DATED: a late pass (or one the DGS
   // must confirm for coursework) still leaves the application to make — as the

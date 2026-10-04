@@ -53,7 +53,7 @@ function extensionClause(extra: number): string {
 export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult[]): Deadlines {
   const m = ctx.student.milestones;
   const out: Deadlines = {};
-  const dissertationDated = !!(m.dissertationApprovedForDefense || m.defensePassed || m.dissertationSubmitted);
+  const dissertationDated = !!(m.defensePassed || m.dissertationSubmitted);
   // §2.3 sets no date for a Ph.D. advisor: "Continuous advisor supervision is
   // required throughout the duration of the Ph.D. program."
   out.advisorIdentified = { basis: 'No deadline of its own — continuous advisor supervision is required throughout the Ph.D. (§2.3)' };
@@ -157,7 +157,6 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
     // accommodations, the Spring 2020 cohort's year, Academic Code Appendix A).
     const theLimit = `the ${years}-year limit (§4.3)${clockShiftNote(ctx)}`;
     const calendar = (section: string) => `to graduate in a given semester, also by that semester’s date on the Graduate School calendar (${section})`;
-    out.dissertationApprovedForDefense = at(ctx, limit, theLimit, m.dissertationApprovedForDefense);
     out.defensePassed = at(ctx, limit, theLimit, m.defensePassed, 'auto', calendar('DGS Handbook §3.22.4'));
     out.dissertationSubmitted = at(ctx, limit, theLimit, m.dissertationSubmitted, 'auto', calendar('Academic Code §6.2.12'));
   }

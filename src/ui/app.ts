@@ -2318,14 +2318,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // dissertation date without an OCE date, so the admission and
       // dissertation fields appear once the OCE is dated — or when a loaded record already
       // carries either date, so nothing on file is ever hidden (trim review
-      // 2026-09-18, P-64). The §4.6/§4.7 report rows are unchanged.
-      if (m.candidacyPassed || m.candidacyAdmitted || m.dissertationApprovedForDefense || m.defensePassed || m.dissertationSubmitted) {
+      // 2026-09-18, P-64). No readers'-approval date since 2026-10-04 (DGS:
+      // the committee approves the dissertation and passes the defense at the
+      // same time — "Only the 'dissertation defense passed' is needed").
+      if (m.candidacyPassed || m.candidacyAdmitted || m.defensePassed || m.dissertationSubmitted) {
         card.append(
           // Admission to candidacy is the Graduate School's own step after the
           // OCE (DGS 2026-10-04: "OCE and doctoral candidacy are two different
           // things"), so it appears with the fields that follow the OCE.
           dateField('Admitted to doctoral candidacy by the Graduate School (Academic Code §6.2.9)', 'candidacyAdmitted'),
-          dateField('Dissertation approved for defense by all readers (§4.6)', 'dissertationApprovedForDefense'),
           dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
           // The official submission is the last requirement inside the eight
           // years (Academic Code §6.2.6/§6.2.12; policy review 2026-10-03).

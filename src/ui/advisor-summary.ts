@@ -5,7 +5,7 @@
 //
 // Shape (DGS request 2026-09-06, replacing the attention-first design of the
 // same morning): the requirements in HANDBOOK ORDER — one section per group
-// (§2.2–2.3, §4.2, §4.3, §4.4, §4.5, §4.6–4.7; §3.x for the M.S.), each row
+// (§2.2–2.3, §4.2, §4.3, §4.4, §4.5, §4.7; §3.x for the M.S.), each row
 // in the page's own colour — the Grad Admin request's style, since 2026-09-28
 // (DGS: "Use the same style as in the texts for Grad Admin"): a badge in HTML,
 // a [WORD] tag in text (green met, amber in progress, grey not started, red
@@ -423,8 +423,6 @@ export function actionItems(report: AuditReport): ActionItems {
     } else if (admission.status === 'needs_dgs_review') out.dgs.push(`Confirm my admission to doctoral candidacy ${section(admission)}.`);
   }
   if (candidacy?.status === 'met') {
-    const approval = byId.get('phd.dissertation.approval');
-    if (approval && isOpen(approval.status)) out.student.push(`Get the dissertation approved for defense by all readers ${section(approval)}.`);
     const defense = byId.get('phd.dissertation.defense');
     if (defense && isOpen(defense.status)) out.student.push(`Defend the dissertation ${section(defense)}.`);
   }

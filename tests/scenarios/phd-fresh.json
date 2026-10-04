@@ -28,7 +28,6 @@
     "phd.qualifier.core.os": { "status": "unmet" },
     "phd.qualifier.research": { "status": "in_progress", "detailIncludes": ["Research-Qualifier"] },
     "phd.candidacy": { "status": "in_progress" },
-    "phd.dissertation.approval": { "status": "unmet" },
     "phd.msAlongTheWay": { "status": "not_applicable" }
   }
 }

@@ -30,7 +30,9 @@ import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
  *   phd.qualifier.core.{os,algorithms,architecture}=P10a
  *   phd.qualifier.categories=P10b  phd.qualifier.research=P10c
  *   phd.candidacy=P11 (the OCE)  phd.candidacyAdmission=P11a (admission to
- *   candidacy, Academic Code §6.2.9 — DGS 2026-10-04)  phd.dissertation.approval=P12
+ *   candidacy, Academic Code §6.2.9 — DGS 2026-10-04)  (P12, the readers'
+ *   approval phd.dissertation.approval, removed 2026-10-04 — the defense row
+ *   stands for it)
  *   phd.dissertation.defense=P13  phd.msAlongTheWay=P14 */
 export const REQUIREMENT_IDS = [
   'shared.gpa',
@@ -66,7 +68,6 @@ export const REQUIREMENT_IDS = [
   'phd.rcr',
   'phd.candidacy',
   'phd.candidacyAdmission',
-  'phd.dissertation.approval',
   'phd.dissertation.defense',
   'phd.dissertation.submitted',
   'phd.msAlongTheWay',

@@ -137,7 +137,7 @@ describe('gradAdminRequest', () => {
     assert.match(built.text, /\n\nDear Grad Admin,\n\nStudent: \[your name, netID and NDID\]\n\nCould you process/);
     assert.match(
       built.text,
-      /\nAttached: my original transcripts as PDFs\.\n\nACTION REQUESTED\n1\. Process the transfer credit for CS 50300 Operating Systems \(Purdue University, Fall 2024, 3 credits\) — approved by the DGS in the course rules \(§5\.2\)\.\n2\. Record the milestone: Advisor identified, 2026-09-10 \(§2\.3\)\.\n3\. Record the milestone: Oral Candidacy Exam \(OCE\) passed, 2029-04-01 \(§4\.5\)\.\n4\. Keep my standing below on file: 5 requirements met, 2 overdue, 7 in progress, 1 not started\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO PROCESS/,
+      /\nAttached: my original transcripts as PDFs\.\n\nACTION REQUESTED\n1\. Process the transfer credit for CS 50300 Operating Systems \(Purdue University, Fall 2024, 3 credits\) — approved by the DGS in the course rules \(§5\.2\)\.\n2\. Record the milestone: Advisor identified, 2026-09-10 \(§2\.3\)\.\n3\. Record the milestone: Oral Candidacy Exam \(OCE\) passed, 2029-04-01 \(§4\.5\)\.\n4\. Keep my standing below on file: 5 requirements met, 2 overdue, 6 in progress, 1 not started\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO PROCESS/,
     );
     // ONE course table, each course with every requirement it feeds (DGS 2026-09-28).
     assert.match(built.text, /\nCOURSES COUNTED SO FAR\nCourse\tTitle\tCredits\tGrade\tTerm\tWhere\tCounts toward\nCS 50300\tOperating Systems\t3\tA\tFall 2024\tPurdue University\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\)\nCSE 60641\t\t3\tA\tFall 2026\tNotre Dame\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\); 9 regular credits at ND \(§4\.2\)\n/);
@@ -184,7 +184,7 @@ describe('gradAdminRequest', () => {
     assert.equal(built.items.count, built.items.lines.length, 'the chip counts exactly what the card lists');
     assert.ok(built.items.met.length >= 1, 'the met GPA row alone activates the Grad Admin button');
     // (the GPA row is met, so the standing list still follows the marker)
-    assert.match(built.text, /\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- 1 requirement met, 2 overdue, \d+ in progress, 3 not started\.\n\n\[OVERDUE\]/);
+    assert.match(built.text, /\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- 1 requirement met, 2 overdue, \d+ in progress, 2 not started\.\n\n\[OVERDUE\]/);
     assert.match(built.text, /\n\[NOT STARTED\] Dissertation defense passed \(§4\.7\)\n/);
     assert.match(built.html, /<span style="[^"]*background:#eef0f3;color:#5a6472">Not started<\/span>/);
   });

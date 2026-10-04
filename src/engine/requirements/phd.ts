@@ -44,7 +44,7 @@ const QUALIFIER = 'Qualifying examination — §4.4';
 // below stay verbatim. "and candidacy" since admission to candidacy became a
 // row of its own (DGS 2026-10-04).
 const CANDIDACY = 'Oral Candidacy Exam (OCE) and candidacy — §4.5';
-const DISSERTATION = 'Dissertation and defense — §4.6–4.7';
+const DISSERTATION = 'Dissertation and defense — §4.7';
 
 /** Taken at Notre Dame for §4.2's nine: in this program, or in the student's
  * own Notre Dame MSCSE (DGS 2026-09-22). */
@@ -1207,7 +1207,7 @@ function candidacyAdmissionRow(ctx: Ctx): RequirementResult {
   const sem = ADMISSION_DEADLINE_SEMESTER;
   const { effectiveSem, term, date } = eighthSemester(ctx, sem);
   const admitted = m.candidacyAdmitted || undefined;
-  if (!admitted && (m.dissertationApprovedForDefense || m.defensePassed || m.dissertationSubmitted)) {
+  if (!admitted && (m.defensePassed || m.dissertationSubmitted)) {
     return {
       ...base,
       status: 'cannot_evaluate',
@@ -1360,29 +1360,16 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
   };
   return [
     // §4.6: "Only a dissertation, which has been unanimously approved for
-    // defense by the readers, may be defended."
-    {
-      id: 'phd.dissertation.approval',
-      group: DISSERTATION,
-      title: 'Dissertation unanimously approved for defense by the readers',
-      status: m.dissertationApprovedForDefense ? 'met' : 'unmet',
-      // Before the Oral Candidacy Exam the dissertation stage has not begun
-      // (DGS 2026-09-22: "Dissertation does not start before OCE is passed");
-      // the leading "Not started" is what the page and the advisor summary
-      // read to show the grey pill, so keep it as the first words.
-      ...joinedDetail(
-        m.dissertationApprovedForDefense
-          ? [`Approved for defense ${m.dissertationApprovedForDefense}`]
-          : m.candidacyPassed === undefined
-            ? ['Not started', { note: 'The dissertation stage begins after the Oral Candidacy Exam is passed (§4.5)' }]
-            : ['Not yet approved'],
-      ),
-      citation: {
-        section: '§4.6',
-        quote: 'Only a dissertation, which has been unanimously approved for defense by the readers, may be defended.',
-      },
-    },
-    // §4.7: the dissertation defense.
+    // defense by the readers, may be defended." Not a row of its own since
+    // 2026-10-04 (DGS: "Practically, the committee approve the dissertation
+    // and pass the defense at the same time. Only the 'dissertation defense
+    // passed' is needed."): the defense row stands for both, and the readers'
+    // approval has no date of its own in the record.
+    // §4.7: the dissertation defense. Before the Oral Candidacy Exam the
+    // dissertation stage has not begun (DGS 2026-09-22: "Dissertation does
+    // not start before OCE is passed"); the leading "Not started" is what the
+    // page and the advisor summary read to show the grey pill, so keep it as
+    // the first words.
     {
       id: 'phd.dissertation.defense',
       group: DISSERTATION,
@@ -1405,7 +1392,7 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
               ]
             : [`Defense passed ${m.defensePassed}`, ...noteOf(gpaAtDefense), { note: 'Next: submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' }]
           : m.candidacyPassed === undefined
-            ? ['Not started', { note: 'The defense comes after the Oral Candidacy Exam (§4.5) and the readers’ approval (§4.6)' }, ...noteOf(gpaGate)]
+            ? ['Not started', { note: 'The defense comes after the Oral Candidacy Exam (§4.5)' }, ...noteOf(gpaGate)]
             : ['Not yet passed', { note: 'Three votes of four (or four of five) are required to pass (§4.7)' }, ...noteOf(gpaGate)],
       ),
       citation: {
