@@ -182,6 +182,11 @@ async function checkDialog(s, baseUrl) {
   await s.shot('consent-answered');
   await s.evalJs(`document.querySelector('[data-key="consent.finished.yes"]').click()`);
   await s.settle();
+  // Enter does nothing while the button waits (2026-10-04): the notice is not ticked yet.
+  await s.evalJs(`document.querySelector('[data-key="consent.finished.yes"]').focus()`);
+  await key(s, 'Enter', 'Enter', 13);
+  await s.settle();
+  if (!(await stillOpen())) throw new Error('opening dialog: Enter must not continue while the button is inactive');
   // Every question answered, the notice not yet acknowledged (2026-09-29): the
   // button waits for the tick INSIDE the notice, and the hint says so.
   if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must wait for the acknowledgement tick');
@@ -202,11 +207,14 @@ async function checkDialog(s, baseUrl) {
   await key(s, 'Escape', 'Escape', 27);
   await s.settle();
   if (!(await stillOpen())) throw new Error('opening dialog: Escape must not close it even once everything is answered');
-  await s.evalJs(`document.querySelector('dialog.consent .btn.primary').click()`);
+  // Enter on the tick box just ticked continues, as the button would (DGS
+  // 2026-10-04: "let an Enter key pressed by the user click the Continue button").
+  await s.evalJs(`document.querySelector('[data-key="consent.ack"]').focus()`);
+  await key(s, 'Enter', 'Enter', 13);
   await s.waitFor(`!document.querySelector('dialog.consent')`);
   const focusAfter = await s.evalJs(`document.activeElement?.tagName + ':' + (document.activeElement?.textContent ?? '').slice(0, 30)`);
   if (!focusAfter.startsWith('H1:')) throw new Error('opening dialog: focus did not land on the page heading after closing — ' + focusAfter);
-  console.log('  opening notice: focus inside, Tab contained, Escape never closes it, the button does, focus returns to the heading');
+  console.log('  opening notice: focus inside, Tab contained, Escape never closes it, Enter does nothing until the button is live and then continues like it, focus returns to the heading');
 }
 
 // 1b. The first screen belongs to the work, not the preamble (blue-team B1,

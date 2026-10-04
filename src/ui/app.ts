@@ -295,6 +295,29 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // refused, finds the notice opened again straight away.
   consentDialog.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') e.preventDefault();
+    // Enter continues once the button is live (DGS 2026-10-04: "let an Enter
+    // key pressed by the user click the Continue button"), wherever the focus
+    // is in the notice — the tick box just ticked, a choice — except where
+    // Enter already does something of its own: a link (the DGS's address), a
+    // button (Continue itself clicks natively), a drop-down or a text area.
+    // Not while an input method is composing, nor with a modifier held.
+    if (e.key !== 'Enter' || e.isComposing || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('a, button, select, textarea, summary')) return;
+    // A typed value (the year of a transfer) is taken first: leaving the box
+    // fires its change, which records the answer — so Continue never goes
+    // on with the value from before the edit, and goes on only if every
+    // answer is still complete.
+    if (target instanceof HTMLInputElement && target.type !== 'checkbox' && target.type !== 'radio') {
+      target.blur();
+      if (!isReady()) {
+        target.focus();
+        return;
+      }
+    }
+    if (!isReady()) return;
+    e.preventDefault();
+    agreeButton.click();
   });
   consentDialog.addEventListener('cancel', (e) => e.preventDefault());
   consentDialog.addEventListener('close', () => {
