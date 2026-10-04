@@ -62,7 +62,8 @@
       "status": "needs_dgs_review",
       "statusLabel": "Waiting for the DGS",
       "detailIncludes": [
-        "Waiting for the DGS: CS 50300 — taken after admission"
+        "Waiting for the DGS: CS 50300",
+        "CS 50300: Taken after admission"
       ]
     },
     "phd.credits.regular": {

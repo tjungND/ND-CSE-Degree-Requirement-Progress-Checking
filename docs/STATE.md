@@ -2,7 +2,9 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
-2026-10-03 (merge): this branch merged `origin/main`, which had the other session's specialization-row change (2026-10-02 evening, below). Both sessions had numbered a new wording row W-CL67; the specialization row is now W-CL89 in `docs/WORDING-REVIEW.md` (the policy-review rows W-CL67–W-CL88 kept the numbers given to the DGS). Next free number: W-CL90.
+2026-10-03 (display, DGS): result cards show only what is satisfied by what — the rule, reasons, next steps and the rule quote sit behind one “Details” selector per card (engine `{ note }` parts); uncommon inputs sit behind one-line question selectors (`rareFold`); every section names its document (“CSE §”, “Academic Code §”, “DGS Handbook §”; `src/ui/citations.ts`). A standing rule in CLAUDE.md. Also P1-gpa-8 (exam vs admission conditions), -13 (handbook item), -c4 (“graduate-level”); -12, -14, -2, -3, -c5 fine.
+
+2026-10-03 (merge): this branch merged `origin/main`, which had the other session's specialization-row change (2026-10-02 evening, below). Both sessions had numbered a new wording row W-CL67; the specialization row is now W-CL89 in `docs/WORDING-REVIEW.md` (the policy-review rows W-CL67–W-CL88 kept the numbers given to the DGS). Next free number: W-CL94.
 
 2026-10-03 (later, defense GPA gate): a Ph.D. or MSCSE thesis defense dated while the cumulative GPA is below 3.0 goes to the DGS instead of reading Met, mirroring the candidacy row (P1-gpa-10, DGS); the project route is not gated.
 

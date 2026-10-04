@@ -3,7 +3,8 @@
 // email lives in advisor-summary.ts — string building only, no DOM.)
 import { formatCredits } from '../engine/credits.ts';
 import type { DeadlineAlert, StandingColor } from './email-html.ts';
-import type { AuditReport, Contribution, RequirementResult, Status } from '../engine/types.ts';
+import type { AuditReport, Contribution, DetailPart, RequirementResult, Status } from '../engine/types.ts';
+import { sourceName, withoutCitations } from './citations.ts';
 import { el } from './dom.ts';
 import { isEmbedded } from './embed.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
@@ -283,79 +284,52 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // forfeit.
   // An allowance is a meter, not a verdict (DGS 2026-09-27).
   const pill = r.allowance ? allowanceMeter(r) : el('span', { class: `pill s-${r.status}${r.statusLabel ? ' s-alarm' : ''}${pillState(r)}` }, pillLabel(r));
-  // The rule itself, on the output side (DGS request 2026-09-03): clicking the
-  // § chip reveals the handbook sentence this verdict is checked against. A
-  // disclosure button (usability review 2026-09-05, item 24): its expanded
-  // state is exposed, and its name says what it does — the tooltip alone
-  // reached neither keyboard nor touch users.
-  const quoteId = `rule-quote-${idSlug(r.id)}`;
-  // "Handbook §…" for the CSE handbook's sections; a row whose source is the
-  // Graduate School (phd.cap.sharedbs, since 2026-10-03) names it as is.
-  const quote = el('div', { class: 'rule-quote hidden', id: quoteId }, `${r.citation.section.startsWith('§') ? `Handbook ${r.citation.section}` : r.citation.section}: “${r.citation.quote}”`);
-  const cite = el(
-    'button',
-    {
-      class: 'cite',
-      'aria-label': `${r.citation.section} — show the handbook rule behind this check`,
-      'aria-expanded': 'false',
-      'aria-controls': quoteId,
-      'data-key': `cite.${r.id}`,
-      onclick: () => {
-        const open = quote.classList.toggle('hidden') === false;
-        cite.setAttribute('aria-expanded', open ? 'true' : 'false');
-      },
-    },
-    r.citation.section,
-  );
-  // The § chip flows inline after the title's last word, so it reads as part
-  // of the requirement's name and a row with no deadline and no course link
-  // has no second line at all (trim review 2026-09-18, P-70). The chip keeps
-  // its target size, dashed underline, caret and aria wiring.
-  const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title, ' ', cite), pill);
-  // Built only when something goes into it (P-70): a deadline chip, a course
-  // link, or both.
+  // WHAT IS SATISFIED BY WHAT, and nothing else, on the card (DGS 2026-10-03:
+  // "In those cards, only need to show what are satisfied by what. Other
+  // supplementary explanation all need to be hidden with selectors. Apply
+  // this to future changes too."). Visible: the title, the status, the
+  // deadline, the row's facts without their citations, and the courses
+  // counted. Behind "Details": the engine's notes (rule, reason, next step,
+  // Graduate School forms), the course-list link and the rule quote with its
+  // source. The § chip that used to sit after the title lives there too.
+  const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title), pill);
   const chips = el('div', { class: 'req-chips' });
   if (r.deadline && r.status !== 'met') {
     // Deadlines in readable body-size type, coloured by state (usability
-    // review 2026-09-05, item 15). Item 15's "Deadline:" / "Deadline passed:"
-    // lead word is gone (trim review 2026-09-18, P-50): every label the engine
-    // writes already opens with "Due by" / "Due before" / "Overdue —", and the
-    // whole chip carries the state colour.
+    // review 2026-09-05, item 15; trim review 2026-09-18, P-50).
     chips.append(el('span', { class: `chip deadline d-${r.deadline.state}` }, r.deadline.label));
   }
-  // A link straight to the matching course list (item 29): the core-knowledge
-  // rows, the specialization row and the regular-course rows.
-  const courseLink = courseListLink(r);
-  if (courseLink) chips.append(courseLink);
-  // A long multi-statement detail reads better as bullets (DGS request
-  // 2026-09-04); short or single-statement details stay prose. A {lead,
-  // items} part renders as a nested two-layer list (one sub-bullet per item,
-  // DGS request 2026-09-04). The advisor summary keeps the joined `detail`.
   // Short §4.4.2 group names on the page, full ones in `detailParts` for the
-  // copied messages (DGS 2026-09-08).
-  const parts = r.shortDetailParts ?? r.detailParts ?? [];
-  const structured = parts.some((p) => typeof p !== 'string');
+  // copied messages (DGS 2026-09-08). A row with no parts is one fact.
+  const parts: DetailPart[] = r.shortDetailParts ?? r.detailParts ?? (r.detail ? [r.detail] : []);
+  const isNote = (p: DetailPart): p is { note: string } => typeof p === 'object' && 'note' in p;
+  const facts = parts.filter((p) => !isNote(p));
+  const notes = parts.filter(isNote).map((p) => p.note);
+  const sentence = (t: string): string => (/[.!?]$/.test(t) ? t : `${t}.`);
+  const fact = (t: string): string => sentence(withoutCitations(t));
+  // Several statements, or a structured one, read as bullets (DGS request
+  // 2026-09-04); one or two short ones stay prose.
+  const structured = facts.some((p) => typeof p !== 'string');
+  const factText = facts.filter((p): p is string => typeof p === 'string').map(fact);
   const detailNode =
-    parts.length > 0 && (structured || (parts.length > 1 && r.detail.length > 120))
-      ? el(
-          'ul',
-          { class: 'req-detail detail-list' },
-          ...parts.map((p) =>
-            typeof p === 'string'
-              ? el('li', {}, /[.!?]$/.test(p) ? p : `${p}.`)
-              : 'warn' in p
-                // Something the student is LOSING gets its own treatment, not
-                // the grey prose every other line is in (R2, 2026-09-18).
-                ? el('li', { class: 'detail-warn' }, /[.!?]$/.test(p.warn) ? p.warn : `${p.warn}.`)
-                : el(
-                    'li',
-                    {},
-                    `${p.lead}:`,
-                    el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, /[.!?]$/.test(i) ? i : `${i}.`))),
-                  ),
-          ),
-        )
-      : el('div', { class: 'req-detail', 'data-keep-dgs': '' }, r.detail);
+    facts.length === 0
+      ? null
+      : structured || (facts.length > 1 && factText.join(' ').length > 120)
+        ? el(
+            'ul',
+            { class: 'req-detail detail-list' },
+            ...facts.map((p) =>
+              typeof p === 'string'
+                ? el('li', {}, fact(p))
+                : 'warn' in p
+                  // Something the student is LOSING gets its own treatment (R2, 2026-09-18).
+                  ? el('li', { class: 'detail-warn' }, fact(p.warn))
+                  : 'note' in p
+                    ? null
+                    : el('li', {}, `${withoutCitations(p.lead)}:`, el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, fact(i))))),
+            ),
+          )
+        : el('div', { class: 'req-detail' }, factText.join(' '));
   // Which courses and credits a credit row is built from (DGS 2026-09-22),
   // folded so the card stays short: "Courses counted (4 · 12 credits)".
   // The data-key keeps a fold the student opened open across re-renders.
@@ -375,6 +349,19 @@ function requirementCard(r: RequirementResult): HTMLElement {
           ),
         )
       : null;
+  // Everything else, one selector per card. The rule quote names its document
+  // in full (DGS 2026-10-03: CSE handbook, Academic Code or DGS Handbook); on
+  // the MSCSE tab its "DGS" reads "ADGS" like the rest of the page (2026-09-11),
+  // while "DGS Handbook" stays the document's name (first-mention.ts).
+  const courseLink = courseListLink(r);
+  const more = el(
+    'details',
+    { class: 'req-more', 'data-key': `more.${r.id}` },
+    el('summary', {}, 'Details'),
+    notes.length > 0 ? el('ul', { class: 'req-notes' }, ...notes.map((n) => el('li', {}, sentence(n)))) : null,
+    courseLink ?? null,
+    el('p', { class: 'rule-quote' }, el('span', { class: 'rule-source' }, sourceName(r.citation.section)), `: “${r.citation.quote}”`),
+  );
   return el(
     'div',
     { class: `req s-${r.status}`, id: reqAnchorId(r.id) },
@@ -382,7 +369,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
     chips.childElementCount > 0 ? chips : null,
     detailNode,
     contribNode,
-    quote,
+    more,
   );
 }
 
@@ -485,8 +472,11 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
     el(
       'details',
       { class: 'track-note', role: 'note', 'data-keep-dgs': '', 'data-key': `report.track.${t.section}` },
-      el('summary', {}, el('strong', {}, `${t.title} (${t.section})`), ' — how your courses are counted here'),
+      el('summary', {}, el('strong', {}, t.title), ' — how your courses are counted here'),
       el('p', {}, t.text),
+      // The section moved from the summary into the note (DGS 2026-10-03:
+      // citations behind a selector in the report column).
+      el('p', { class: 'rule-source' }, `Source: ${sourceName(t.section)}`),
     ),
   );
   // The warnings — a course dated after this semester, an award term not
@@ -529,7 +519,9 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
   }
   for (const [group, rows] of groups) {
     const sub = rows.filter((r) => r.id.split('.').length > 2 && r.id.startsWith('phd.qualifier.'));
-    panel.append(el('h3', { class: 'group-head' }, group));
+    // The section reference after the dash is a citation: it lives in each
+    // card's Details now (DGS 2026-10-03). The copied messages keep it.
+    panel.append(el('h3', { class: 'group-head' }, group.replace(/ — (?:§|Academic Code|DGS Handbook).*$/, '')));
     for (const r of rows) {
       const card = requirementCard(r);
       if (sub.includes(r)) card.classList.add('req-sub');
@@ -675,6 +667,9 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
     ['Due this semester · Due next semester', 'The handbook’s deadline for that row falls in the current semester or the one after — plan for it now.', ''],
     ['Not started', 'A stage that begins after an earlier one, such as the dissertation after the candidacy exam.', ''],
     ['Not used yet · Does not apply', 'An allowance you have not drawn on, or a row that is not part of your score.', ''],
+    // Which document a section is from (DGS 2026-10-03) — the masthead says
+    // it too, but the embedded page has no masthead.
+    ['Section references (§)', 'CSE § is the CSE Graduate Handbook. Academic Code § is the Graduate School’s Academic Code, and DGS Handbook § is the Graduate School’s handbook for directors of graduate studies.', ''],
     ['Cumulative GPA', 'The grade-point average over all your graduate coursework at Notre Dame, as the registrar computes it; continuation, candidacy and graduation require at least 3.0.', '§2.2'],
     ['Regular course', 'A lecture-style course. Only regular courses count toward the 24 regular-course credits; seminars, research, independent study and project credits count toward the total only.', program === 'mscse' ? '§3.2' : '§4.2'],
     ['Full-time', 'A semester in which you are registered for the full-time credit load (9 or more credits, or research-heavy terms you mark yourself).', '§2.1.2'],
@@ -727,7 +722,7 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
     ),
     // The glossary's § chips are plain spans, not links; only the rows' §
     // buttons open the handbook text (trim review 2026-09-18, P-32).
-    el('p', { class: 'hint' }, 'Paraphrased; each requirement’s § button above opens the handbook’s own words.'),
+    el('p', { class: 'hint' }, 'Paraphrased; each requirement’s Details gives the rule in the document’s own words.'),
   );
 }
 

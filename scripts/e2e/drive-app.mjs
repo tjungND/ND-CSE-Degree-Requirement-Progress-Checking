@@ -105,28 +105,22 @@ export async function driveApp(s, baseUrl) {
   if (groups.needed.length === 0 || groups.covered.length === 0) throw new Error('the example should have both kinds: ' + JSON.stringify(groups));
 
   // A disclosure the student opened survives the next edit (2026-09-08):
-  // render() rebuilds the DOM, and used to restore focus to a § button whose
-  // quote had silently collapsed underneath it. The edit is a harmless
-  // full-time-term tick, put back straight afterwards.
-  await s.evalJs(`document.querySelector('.cite[aria-expanded]')?.click()`);
-  await s.waitFor(`document.querySelector('.cite[aria-expanded="true"]')`);
-  const citeKey = await s.evalJs(`document.querySelector('.cite[aria-expanded="true"]')?.dataset?.key ?? ''`);
+  // render() rebuilds the DOM. Since 2026-10-03 the disclosure is a card's
+  // "Details" (the rule, the reasons, the next steps — DGS: the card shows
+  // only what is satisfied by what). The edit is a harmless full-time-term
+  // tick, put back straight afterwards.
+  await s.evalJs(`document.querySelector('details.req-more > summary')?.click()`);
+  await s.waitFor(`document.querySelector('details.req-more[open]')`);
+  const moreKey = await s.evalJs(`document.querySelector('details.req-more[open]')?.dataset?.key ?? ''`);
   await s.evalJs(`document.querySelector('.ft-terms input[type="checkbox"]')?.click()`);
   await s.waitFor(`document.querySelectorAll('.req').length > 5`);
-  const reopened = JSON.parse(await s.evalJs(`JSON.stringify((() => {
-    const open = document.querySelector('.cite[aria-expanded="true"]');
-    if (!open) return null;
-    const quote = document.getElementById(open.getAttribute('aria-controls') ?? '');
-    return { key: open.dataset.key ?? '', quoteVisible: !!quote && !quote.classList.contains('hidden') };
-  })())`));
-  console.log('  disclosure after an edit:', JSON.stringify(reopened), '(opened:', citeKey + ')');
-  if (!reopened || reopened.key !== citeKey || reopened.quoteVisible !== true) {
-    throw new Error('an opened § quote must survive the next edit: ' + JSON.stringify(reopened));
-  }
+  const reopened = await s.evalJs(`document.querySelector('details.req-more[data-key="${moreKey}"]')?.open === true`);
+  console.log('  disclosure after an edit: still open =', reopened, '(opened:', moreKey + ')');
+  if (reopened !== true) throw new Error('an opened card Details must survive the next edit: ' + moreKey);
   await s.evalJs(`document.querySelector('.ft-terms input[type="checkbox"]')?.click()`); // put it back
   await s.waitFor(`document.querySelectorAll('.req').length > 5`);
-  await s.evalJs(`document.querySelector('.cite[aria-expanded="true"]')?.click()`); // and close the quote again
-  await s.waitFor(`!document.querySelector('.cite[aria-expanded="true"]')`);
+  await s.evalJs(`document.querySelector('details.req-more[data-key="${moreKey}"] > summary')?.click()`); // and close it again
+  await s.waitFor(`!document.querySelector('details.req-more[data-key="${moreKey}"]')?.open`);
   await s.shot('app-example-phd');
 
   // "Oral Candidacy Exam (OCE)" in full once on the page (plus the glossary,
@@ -199,7 +193,8 @@ export async function driveApp(s, baseUrl) {
   if (form.options.length > 0 && form.known !== form.options[0]) throw new Error('a known university typed in lower case must come back in its list spelling: ' + JSON.stringify(form));
   if (form.levels.length !== 2 || !form.levels[0].startsWith('=Grad student — after') || !form.levels[1].startsWith('bachelors=UG student — before')) throw new Error('level options: ' + JSON.stringify(form.levels));
   await s.evalJs(`(() => { const uni = document.querySelector('[data-key="course.new.institution"]'); uni.value = 'example institute of technology'; uni.dispatchEvent(new Event('change')); const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CS 53000'; id.dispatchEvent(new Event('change')); document.querySelector('[data-key="course.new.add"]').click(); })()`);
-  await s.waitFor(`[...document.querySelectorAll('h3.subhead')].some(h => h.textContent === 'Example Institute of Technology — graduate coursework (§5.2)')`);
+  // Sections carry their document since 2026-10-03 ("CSE §5.2").
+  await s.waitFor(`[...document.querySelectorAll('h3.subhead')].some(h => h.textContent === 'Example Institute of Technology — graduate coursework (CSE §5.2)')`);
   console.log('  a hand-typed course from another university lands under its Title-Cased heading');
   await s.evalJs(`(() => { const c = [...document.querySelectorAll('.card')].find(c => c.querySelector('h2')?.textContent.includes('Coursework')); c.id = 'shot-coursework'; })()`);
   await s.shotElement('manual-transfer-course', '#shot-coursework');
@@ -448,7 +443,8 @@ export async function driveApp(s, baseUrl) {
     return { text: n.textContent, beforeDial: !!(dial && (n.compareDocumentPosition(dial) & Node.DOCUMENT_POSITION_FOLLOWING)), inWarnings: !!n.closest('.warnings') };
   })())`));
   console.log('  §3.6 note:', JSON.stringify(track.text.slice(0, 96)));
-  if (!/Transition to Computing \(§3\.6\)/.test(track.text)) throw new Error('the §3.6 note must name the track and its section: ' + track.text);
+  // The section moved into the note itself on 2026-10-03 (DGS: citations behind a selector in the report column).
+  if (!/Transition to Computing — how your courses are counted here[\s\S]*Source: CSE Graduate Handbook §3\.6/.test(track.text)) throw new Error('the §3.6 note must name the track and its section: ' + track.text);
   if (!/DGS/.test(track.text)) throw new Error('the §3.6 note must send the student to the DGS: ' + track.text);
   if (track.beforeDial) throw new Error('the track note sits below the dial since 2026-09-27 (DGS: the score first, the explanation folded)');
   if (track.inWarnings) throw new Error('the track note is not a warning: nothing is wrong with the record');
@@ -471,7 +467,7 @@ export async function driveApp(s, baseUrl) {
   const gaDlg = JSON.parse(await s.evalJs(`JSON.stringify((() => { const d = document.querySelector('dialog.copy-check'); return { title: d.querySelector('h2').textContent, to: [...d.querySelectorAll('.copy-to')].map(p => p.textContent), subject: d.querySelector('.copy-subject').textContent, text: d.querySelector('textarea').value.slice(0, 200), full: d.querySelector('textarea').value }; })())`));
   // The standing list (DGS 2026-09-28): every requirement with a [WORD] tag,
   // and the near deadline highlighted.
-  if (!/\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- \d+ requirements met, \d+ in progress, \d+ not started\.\n- 1 deadline in this semester or the next — highlighted below\.\n/.test(gaDlg.full) || !/\n\[MET\] /.test(gaDlg.full) || !/\n\[IN PROGRESS\] Qualifying examination — all components \(§4\.4\)\n    !! DEADLINE NEXT SEMESTER: Due by the end of Spring \d{4} \(approximate\)\n/.test(gaDlg.full) || !/\n\[NOT STARTED\] Dissertation defense passed/.test(gaDlg.full)) throw new Error('Grad Admin request must list the standing with tags and the highlighted deadline: ' + gaDlg.full.slice(gaDlg.full.indexOf('MY STANDING'), gaDlg.full.indexOf('MY STANDING') + 400));
+  if (!/\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- \d+ requirements met, \d+ in progress, \d+ not started\.\n- 1 deadline in this semester or the next — highlighted below\.\n/.test(gaDlg.full) || !/\n\[MET\] /.test(gaDlg.full) || !/\n\[IN PROGRESS\] Qualifying examination — all components \((?:CSE )?§4\.4\)\n    !! DEADLINE NEXT SEMESTER: Due by the end of Spring \d{4} \(approximate\)\n/.test(gaDlg.full) || !/\n\[NOT STARTED\] Dissertation defense passed/.test(gaDlg.full)) throw new Error('Grad Admin request must list the standing with tags and the highlighted deadline: ' + gaDlg.full.slice(gaDlg.full.indexOf('MY STANDING'), gaDlg.full.indexOf('MY STANDING') + 400));
   console.log('  Grad Admin dialog:', gaDlg.title, '|', JSON.stringify(gaDlg.to), '|', gaDlg.subject);
   if (!gaDlg.title.startsWith('Processing request') || !gaDlg.to[0].startsWith('To: Graduate Program Administrator') || !(gaDlg.to[1] ?? '').startsWith('Cc: Director of Graduate Studies') || !/^Subject: Processing request \(degree self-check\) — Ph\.D\., entered Fall \d{4}$/.test(gaDlg.subject) || !gaDlg.text.includes('Dear Grad Admin,')) throw new Error('Grad Admin dialog: ' + JSON.stringify(gaDlg));
   // Two numbered steps for a student with no transfer credit (P-45, 2026-09-18;
@@ -494,19 +490,20 @@ export async function driveApp(s, baseUrl) {
   const gaLead = await s.evalJs(`document.querySelector('dialog.copy-check .copy-lead strong')?.textContent ?? ''`);
   if (!/copied to your clipboard\.$|blocked the clipboard\.$/.test(gaLead)) throw new Error('Grad Admin dialog must lead with the copied-to-clipboard line: ' + gaLead);
   const gaText = await s.evalJs(`document.querySelector('dialog.copy-check textarea').value`);
-  if (!gaText.includes('(You may edit anything above this line)') || !gaText.includes('(DO NOT MODIFY ANYTHING BELOW THIS LINE)') || !gaText.includes('[MET] Cumulative GPA of at least 3.0 (§2.2)')) throw new Error('Grad Admin text must carry the markers and the standing list: ' + gaText.slice(0, 300));
+  if (!gaText.includes('(You may edit anything above this line)') || !gaText.includes('(DO NOT MODIFY ANYTHING BELOW THIS LINE)') || !gaText.includes('[MET] Cumulative GPA of at least 3.0 (CSE §2.2)')) throw new Error('Grad Admin text must carry the markers and the standing list: ' + gaText.slice(0, 300));
   await s.shot('grad-admin-dialog');
   await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
   await s.waitFor(`!document.querySelector('dialog.copy-check')`);
 
-  // The rule on the output side (2026-09-03): clicking a § chip reveals the
-  // handbook sentence the verdict is checked against.
-  await s.evalJs(`document.querySelector('button.cite').click()`);
-  const quote = await s.evalJs(`document.querySelector('.rule-quote:not(.hidden)')?.textContent ?? ''`);
-  if (!quote.startsWith('Handbook §')) throw new Error('clicking the § chip did not reveal the handbook rule: ' + quote.slice(0, 60));
-  console.log('  § chip reveals the handbook rule');
+  // The rule on the output side (2026-09-03): since 2026-10-03 it sits in each
+  // card's Details, and names its document in full (DGS: CSE handbook,
+  // Academic Code or DGS Handbook).
+  await s.evalJs(`document.querySelector('details.req-more > summary').click()`);
+  const quote = await s.evalJs(`document.querySelector('details.req-more[open] .rule-quote')?.textContent ?? ''`);
+  if (!/^(?:CSE Graduate Handbook|Graduate School Academic Code|Graduate School DGS Handbook) §/.test(quote)) throw new Error('a card’s Details must give the rule with its document named: ' + quote.slice(0, 80));
+  console.log('  a card’s Details gives the rule:', quote.slice(0, 60));
   await s.shot('rule-quote');
-  await s.evalJs(`document.querySelector('button.cite').click()`); // close it again
+  await s.evalJs(`document.querySelector('details.req-more[open] > summary').click()`); // close it again
 
   // The program is chosen in the opening dialog; Reset brings it back (DGS
   // 2026-09-22). Reset empties the record, so "Load example" below fills a

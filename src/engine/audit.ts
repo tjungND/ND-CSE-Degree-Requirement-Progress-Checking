@@ -190,7 +190,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     const interrupted = classified.some((c) => c.interrupted);
     warnings.push(
       interrupted
-        ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (§5.5), so those courses wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation.`
+        ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (Academic Code §5.5), so those courses wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation.`
         : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation (Academic Code §6.2.6); the program may have reviewed your earlier credits at readmission (DGS Handbook §3.3) — confirm with the DGS that they all stand.`,
     );
   }

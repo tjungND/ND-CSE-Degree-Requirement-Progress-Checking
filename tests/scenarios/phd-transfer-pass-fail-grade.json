@@ -62,7 +62,8 @@
       "status": "needs_dgs_review",
       "statusLabel": "Waiting for the DGS",
       "detailIncludes": [
-        "Waiting for the DGS: CS 50300 — graded pass/fail, which cannot show the B §5.2 requires"
+        "Waiting for the DGS: CS 50300",
+        "CS 50300: Graded pass/fail, which cannot show the B §5.2 requires"
       ]
     },
     "phd.credits.regular": {

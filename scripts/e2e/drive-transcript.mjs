@@ -315,7 +315,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // The §5.2 paragraph stays above the group even when every row is refused
   // (clarity review 2026-09-26): a student whose courses were all excluded
   // used to see three struck-through rows and no rule at all.
-  const hintStays = await s.evalJs(`(() => { const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('Purdue University — Previous Master’s Transcript')); return h?.nextElementSibling?.matches('p.hint') && h.nextElementSibling.textContent.includes('Transfer credit (§5.2)'); })()`);
+  const hintStays = await s.evalJs(`(() => { const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('Purdue University — Previous Master’s Transcript')); return h?.nextElementSibling?.matches('p.hint') && h.nextElementSibling.textContent.includes('Transfer credit (CSE §5.2)'); })()`);
   if (!hintStays) throw new Error('the §5.2 paragraph must stay above the group when every row is refused');
   const bsNoteChosen = await s.evalJs(`document.querySelector('.bachelors-note')?.textContent ?? ''`);
   if (bsNoteChosen.includes('read from your transcript')) throw new Error('a hand-set award term is no longer "read from your transcript"');
@@ -562,7 +562,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  after ND Remove:', JSON.stringify(idsAfterRemove), '| GPA:', JSON.stringify(gpaAfterRemove), '|', removeToast.slice(0, 120));
   // The transcript's transfer-credit line (CS 50300 from Purdue, no degree
   // slot) had its own "graduate coursework (§5.2)" group — gone with it.
-  if (idsAfterRemove.length !== idsBefore.length - 6 || idsAfterRemove.some((id) => /^CSE 6/.test(id)) || headingsAfterRemove.includes('Purdue University — graduate coursework (§5.2)')) {
+  if (idsAfterRemove.length !== idsBefore.length - 6 || idsAfterRemove.some((id) => /^CSE 6/.test(id)) || headingsAfterRemove.includes('Purdue University — graduate coursework (CSE §5.2)')) {
     throw new Error('ND Remove must take back exactly the 6 transcript rows: ' + JSON.stringify(headingsAfterRemove));
   }
   if (!idsAfterRemove.includes('MATH 60610') || !idsAfterRemove.includes('CS 58000')) throw new Error('ND Remove must keep hand-typed and external rows');
@@ -706,14 +706,14 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   for (const [id, text] of [['CSE 40113', after40113], ['CSE 40166', after40166]]) {
     provisional[id] = /waiting for the ADGS — would count toward regular courses \(3 cr\) once approved/.test(text);
     if (!provisional[id] && !/counts toward regular courses \(3 cr\)/.test(text)) throw new Error(id + ' must be counted, provisionally or in full: ' + text.slice(0, 200));
-    if (!/uses the 40000-level allowance \(6 credits, §3\.2\)/.test(text)) throw new Error(id + ' must cite the MSCSE allowance: ' + text.slice(0, 200));
+    if (!/uses the 40000-level allowance \(6 credits, (?:CSE )?§3\.2\)/.test(text)) throw new Error(id + ' must cite the MSCSE allowance: ' + text.slice(0, 200));
   }
   // Only a 4+1's undergraduate 60000-level course earns credit (DGS
   // 2026-09-12, red-team F7). This fixture registers CSE 60641 at the
   // undergraduate level, so nothing marks the student as a 4+1: the standing
   // card asks, the course earns nothing until answered, and "Yes" counts it.
   const before60641 = await s.evalJs(lineOf('CSE 60641'));
-  if (!/earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program(?: \(§3\.5\))?; if you were, say so in the earlier-degrees questions/.test(before60641)) {
+  if (!/earns MSCSE credit only for a student who was in the Integrated B\.S\. \+ M\.S\. \(4\+1\) program(?: \((?:CSE )?§3\.5\))?; if you were, say so in the earlier-degrees questions/.test(before60641)) {
     throw new Error('unanswered 4+1: the 60000-level undergraduate course must earn nothing and say why: ' + before60641.slice(0, 220));
   }
   // The 4+1 is answered in the earlier-degrees questions since 2026-09-22.
@@ -763,7 +763,8 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // …and the decider is the ADGS (DGS 2026-09-11): outside the contact card,
   // the notices, the glossary and the footer, "DGS" alone must not appear.
   const dgsLines = (await s.evalJs(`(() => { const c = document.querySelector('#app').cloneNode(true); c.querySelectorAll('.contact-card, .notice-line, .notice-details, details.glossary, .print-header, footer, .tabs').forEach(e => e.remove()); return c.textContent; })()`))
-    .split(/[.!?]\s|\n/).map((l) => l.trim()).filter((l) => /\bDGS\b/.test(l));
+    // "DGS Handbook" is the Graduate School's document, not the decider (2026-10-03).
+    .split(/[.!?]\s|\n/).map((l) => l.trim()).filter((l) => /\bDGS\b(?! Handbook)/.test(l));
   if (dgsLines.length) throw new Error('the MSCSE tab must send the student to the ADGS, not the DGS:\n  ' + dgsLines.slice(0, 6).join('\n  '));
   const reviewHead = await s.evalJs(`document.querySelector('.dgs-review h2')?.textContent ?? ''`);
   // No review card at all when the live sheet has settled every course (both 40xxx rows are `yes` since 2026-09-16); when there is one it addresses the ADGS.

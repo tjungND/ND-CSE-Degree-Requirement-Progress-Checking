@@ -13,6 +13,7 @@
 import { mailto } from './contacts.ts';
 import { el } from './dom.ts';
 import { placeInFrame } from './embed.ts';
+import { labelCitations } from './citations.ts';
 
 export interface CopyRecipient {
   role: string;
@@ -149,7 +150,10 @@ export function returnFocusTo(dataKey?: string): void {
 /** Copy, then show the dialog — with the "copy it yourself" variant when the
  * clipboard was refused (the message is then focused and selected, so Cmd+C
  * works at once). */
-export async function copyDialog(opts: CopyDialogOptions): Promise<void> {
+export async function copyDialog(given: CopyDialogOptions): Promise<void> {
+  // Which document each section is from, in all three messages (DGS
+  // 2026-10-03): "CSE §4.2", "Academic Code §…", "DGS Handbook §…".
+  const opts: CopyDialogOptions = { ...given, subject: labelCitations(given.subject), text: labelCitations(given.text), html: labelCitations(given.html) };
   let copied = true;
   try {
     await writeClipboard(opts);

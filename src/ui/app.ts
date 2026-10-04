@@ -37,11 +37,12 @@ import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
 import { deriveNdMasters, derivePriorMs, isNotreDameCourse, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
+import { labelCitationsIn } from './citations.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
 import { confirmDialog, copyDialog, openModal, returnFocusTo } from './copy-dialog.ts';
 import { plural } from './email-html.ts';
 import { EXAMPLE_ATTESTATIONS, EXAMPLE_MILESTONES, exampleFor } from './example.ts';
-import { clearInvalid, errorLine, field, fieldset, labelWrap, markInvalid, radios } from './form-helpers.ts';
+import { rareFold, clearInvalid, errorLine, field, fieldset, labelWrap, markInvalid, radios } from './form-helpers.ts';
 import { createFocusKeeper } from './focus-keeper.ts';
 import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
 import { createToasts } from './toasts.ts';
@@ -299,6 +300,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     if (finished || !consentDialog.isConnected) return;
     if (openModal(consentDialog)) (consentDialog.querySelector<HTMLElement>('input:checked') ?? agreeButton).focus();
   });
+  labelCitationsIn(consentDialog); // outside the root: "CSE Handbook §4" on the program choices (DGS 2026-10-03)
   document.body.append(consentDialog);
   placeInFrame(consentDialog); // embed mode: at the top of the frame, not the middle of a tall page (DGS 2026-09-16)
   // Focus the first thing to answer while the button is inactive (it used to
@@ -579,6 +581,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // evening) — text nodes only, in document order, before focus is restored.
     applyFirstMentionRule(root);
     applyDeciderRule(root, student.program); // DGS → ADGS for an MSCSE student (2026-09-11)
+    labelCitationsIn(root); // "CSE §4.2" — which document a section is from (DGS 2026-10-03)
     watchScoreHeadlines();
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
@@ -624,7 +627,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 // four lines instead of six at 390 px (trim review 2026-09-18, P-25).
                 'See where you stand, requirement by requirement, against the ',
                 handbookLink(),
-                '; every check cites its section. The courses that count are on the ',
+                // Which document a section is from, once (DGS 2026-10-03); the
+                // embedded page carries the same key in the report's glossary.
+                '; every check cites its section (CSE § is that handbook; Academic Code § and DGS Handbook § are the Graduate School’s). The courses that count are on the ',
                 el('a', siblingAnchorAttrs('course-rules', window.location.search, isEmbedded()), 'course rules page'),
                 '.',
               ),
@@ -1066,7 +1071,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const text = (reYear as HTMLInputElement).value;
       if (text !== '' && inRange(Number(text), TERM_YEAR_RANGE)) setReadmitted(Number(text));
     });
-    return el(
+    // Uncommon: behind a selector, open once anything in it is set (DGS 2026-10-03).
+    const answered = (student.leaveSemesters ?? 0) > 0 || (student.accommodationSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
+    return rareFold(
+      'clocks',
+      'A leave of absence, a childbirth or adoption accommodation, or a readmission?',
+      answered,
+      el(
       'fieldset',
       { class: 'ft-terms clock-fields' },
       el('legend', { class: 'label' }, `Leaves, accommodations and readmission (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
@@ -1089,8 +1100,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'p',
           { class: 'hint field-hint' },
-          'If you withdrew and were readmitted, enter the readmission semester. Every clock still counts from your original entry term (Academic Code §6.2.6: “from the time of matriculation”); after an interruption of five years or more the Code forfeits the credit for earlier courses and examinations (§5.5), so those wait for the DGS.',
+          'If you withdrew and were readmitted, enter the readmission semester. Every clock still counts from your original entry term (Academic Code §6.2.6: “from the time of matriculation”); after an interruption of five years or more the Code forfeits the credit for earlier courses and examinations (Academic Code §5.5), so those wait for the DGS.',
         ),
+      ),
       ),
     );
   }
@@ -1187,11 +1199,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // superseded same-term duplicates and unrecognised grades are out, a W
     // or an I is in.
     const records = new Map(fullTimeRecordsFrom(classified, student, fullTimeFloor).map((r) => [termIndex(r.term), r] as const));
+    let autoCount = 0;
+    let tickedCount = 0;
     for (const [key, t] of [...terms.entries()].sort((a, b) => a[0] - b[0])) {
       const rec = records.get(key);
       const overridden = (student.fullTimeTermOverrides ?? []).some((o) => termIndex(o) === key);
       const auto = rec !== undefined && rec.fullTime && !overridden;
+      if (overridden) tickedCount += 1;
       if (auto) {
+        autoCount += 1;
         box.append(el('span', { class: 'ft-term ft-auto' }, el('span', { class: 'ft-check', 'aria-hidden': 'true' }, '✓'), ` ${termLabel(t)} — counted automatically (${rec.term.season === 'summer' && rec.credits < fullTimeFloor ? 'a summer session after a full-time semester, Academic Code §3.6' : `${fullTimeFloor}+ registered credits entered`})`));
         continue;
       }
@@ -1210,7 +1226,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       cb.checked = overridden;
       box.append(el('label', { class: 'ft-term' }, cb, ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`));
     }
-    return box;
+    // The common case is every semester counted from the courses entered; the
+    // list, and its ticks for a research-only semester, sit behind a selector
+    // that says how many counted (DGS 2026-10-03). Open once a tick is on file.
+    return rareFold(
+      'fulltime',
+      `Full-time semesters for residency: ${autoCount} of ${terms.size} counted from your courses${tickedCount > 0 ? `, ${tickedCount} ticked by you` : ''}`,
+      tickedCount > 0,
+      box,
+    );
   }
 
   // ---------- coursework ----------
@@ -1360,7 +1384,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'section',
       { class: 'card' },
       el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
-      field('Cumulative GPA (from your transcript, §2.2)', gpaInput),
+      // "Graduate-level" (P1-gpa-c4, DGS 2026-10-03): a 4+1 or combined-transcript student
+      // typing by hand must not enter the undergraduate or all-levels figure.
+      field('Graduate-level cumulative GPA (from your transcript, §2.2)', gpaInput),
       gpaError,
       gpaNote,
       courseForm(),
@@ -2150,13 +2176,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       ),
       // A student may have two advisors (DGS 2026-09-22); the second box is
       // optional and the two names read as one supervision everywhere.
-      field(
-        'Second advisor, if you have two (co-advisor)',
-        el('input', {
-          value: m.advisorName2 ?? '',
-          'data-key': 'milestone.advisorName2',
-          onchange: (e) => update((s) => void (s.milestones.advisorName2 = (e.target as HTMLInputElement).value || undefined)),
-        }),
+      // Uncommon: behind a selector unless a second name is on file (DGS 2026-10-03).
+      rareFold(
+        'coadvisor',
+        'A second advisor (co-advisor)?',
+        !!m.advisorName2,
+        field(
+          'Second advisor (co-advisor)',
+          el('input', {
+            value: m.advisorName2 ?? '',
+            'data-key': 'milestone.advisorName2',
+            onchange: (e) => update((s) => void (s.milestones.advisorName2 = (e.target as HTMLInputElement).value || undefined)),
+          }),
+        ),
       ),
       dateField('Advisor identified on (§2.3)', 'advisorIdentified'),
     );
@@ -2177,7 +2209,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
         // A FAIL within the 18 months starts the DGS committee's six months
         // (§4.4.3; policy review 2026-10-03).
-        dateField('Research qualifier failed — advisor filed a fail, if that happened (§4.4.3)', 'researchQualifierFailed'),
+        rareFold('rq-failed', 'Did the advisor file a research-qualifier fail?', !!m.researchQualifierFailed, dateField('Research qualifier failed — the advisor filed a fail (§4.4.3)', 'researchQualifierFailed')),
         // "(DGS office)" dropped (trim review 2026-09-18, P-51): the handbook's
         // phrase for the desk the page calls the Grad Admin, one card above
         // "two people, two jobs"; phd.ts and the advisor summary already read this way.
@@ -2237,7 +2269,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           });
         },
       });
-      card.append(el('label', { class: 'attest attest-number' }, 'The DGS extended my qualifier deadline (§4.4) by this many semesters: ', extension));
+      card.append(
+        rareFold(
+          'q-extension',
+          'Did the DGS extend your qualifier deadline?',
+          a.qualifierExtensionSemesters !== undefined || a.qualifierExtensionGranted === true,
+          el('label', { class: 'attest attest-number' }, 'The DGS extended my qualifier deadline (§4.4) by this many semesters: ', extension),
+        ),
+      );
       // The qualifier rule changed several times in four years (DGS
       // 2026-09-21): from the third year on, a student may attest that they
       // passed the examination under the requirements in force at the time.
@@ -2245,7 +2284,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // the engine, which says so in a warning.
       if (qualifierPriorRulesEligible(student.entryTerm, todayIso) || a.qualifierPassedUnderPriorRules) {
         card.append(
-          attestation('I passed the qualifying examination under the earlier requirements (§4.4, third year or later)', a.qualifierPassedUnderPriorRules, (v, s) => (s.attestations.qualifierPassedUnderPriorRules = v)),
+          rareFold(
+            'prior-rules',
+            'Passed the qualifying examination under the earlier requirements?',
+            a.qualifierPassedUnderPriorRules === true,
+            attestation('I passed the qualifying examination under the earlier requirements (§4.4, third year or later)', a.qualifierPassedUnderPriorRules, (v, s) => (s.attestations.qualifierPassedUnderPriorRules = v)),
+          ),
         );
       }
     }

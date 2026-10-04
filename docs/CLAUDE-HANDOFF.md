@@ -1392,6 +1392,27 @@ changed, so nobody undoes it by accident:
   (`{status: fixed | ruled | updated | contradicts | open | out-of-scope, note}` — `updated` = a related change made the row's description stale, `contradicts` = for the DGS) and the page opens on the unaddressed view. The reconciliation inputs/outputs of 2026-10-03 are in the scratchpad's `reconcile/` folder (prompt, slices, outputs).
   Re-publish to the same artifact URL (STATE.md has it) rather than making a new one.
 
+## What the student sees first (DGS 2026-10-03 — a standing rule)
+
+- **Result cards: facts only.** `requirementCard()` in `src/ui/report.ts` renders the row's FACTS (detail
+  parts that are not `{ note }`), passed through `withoutCitations()`, plus "Courses counted"; the notes,
+  the course-list link and the rule quote (`sourceName()` names the document) go in one
+  `details.req-more` ("Details", `data-key="more.<id>"`). In the engine, write an explanatory sentence
+  as `{ note: '…' }` — `joinedDetail` joins it into `detail` like any part, so the emails and
+  `detailIncludes` are unaffected. `noteOf()` (context.ts) turns the older " Note …." strings into parts.
+  `tests/citations.test.ts` fails if a visible fact on any fixture still cites a section. Group
+  headings drop their " — §…" on the page; the track notes carry a "Source:" line inside.
+- **Uncommon inputs: `rareFold(key, question, hasAnswer, …)`** (`src/ui/form-helpers.ts`), open when the
+  record already holds an answer (so nothing on file is hidden), `data-key="rare.<key>"`.
+- **Citations name their document.** Write a bare `§x.y` only for the CSE handbook; write
+  `Academic Code §…` / `DGS Handbook §…` for the Graduate School's (a bracket right after the name —
+  "the Academic Code (§4.6)" — counts as named). `labelCitationsIn()` runs in `render()` after the
+  first-mention and decider rules, on the course-rules page and on its table refresh; `copyDialog()`
+  labels the three emails. Anything appended outside the root misses that pass and labels itself:
+  the toasts (`toasts.ts`), the opening dialog (`app.ts`) and the earlier-degrees questions and
+  dialog (`background.ts`) — a new dialog or pop-up must do the same. The decider rule spares
+  "DGS Handbook" (decider.ts, first-mention.ts).
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

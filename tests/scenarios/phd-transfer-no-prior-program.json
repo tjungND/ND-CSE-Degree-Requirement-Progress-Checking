@@ -62,7 +62,8 @@
       "status": "needs_dgs_review",
       "statusLabel": "Waiting for the DGS",
       "detailIncludes": [
-        "Waiting for the DGS: CS 50300 — taken outside any degree program",
+        "Waiting for the DGS: CS 50300",
+        "CS 50300: Taken outside any degree program",
         "0 of the 6 credits you may transfer are counted",
         "no document states this allowance"
       ]
@@ -82,7 +83,7 @@
     "CS 50300": [
       "waiting for the DGS",
       "taken outside any degree program",
-      "Academic Code states a transfer allowance only for an unfinished or a completed program (§4.6)",
+      "Academic Code states a transfer allowance only for an unfinished or a completed program (Academic Code §4.6)",
       "satisfies the Operating Systems core-knowledge requirement (§4.4.1) — confirmed by the DGS"
     ]
   }

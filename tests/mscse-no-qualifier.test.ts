@@ -53,7 +53,8 @@ const offending = (strings: string[]): string[] => strings.filter((t) => FORBIDD
 // students … ADGS decides them for MSCSE students, and DGS decides them for
 // PhD students." So an MSCSE student is never sent to "the DGS".
 describe('the MSCSE is sent to the ADGS, never the DGS', () => {
-  const DGS_ALONE = /\bDGS\b/;
+  // "DGS Handbook" is the Graduate School's document, not the decider (2026-10-03).
+  const DGS_ALONE = /\bDGS\b(?! Handbook)/;
   const ms = student('mscse');
   const report = audit(ms, rules, '2027-06-01');
   it('no requirement detail, course line, warning, track note or review reason says "DGS"', () => {

@@ -84,7 +84,8 @@ describe('where the short forms are used, and where they are not', () => {
       nd('CSE 60641', { title: 'Graduate Operating Systems' }),
     ]);
     const row = audit(s, rules, '2027-03-01').requirements.find((r) => r.id === 'phd.qualifier.categories');
-    const flat = (p: unknown): string => (typeof p === 'string' ? p : `${(p as { lead: string }).lead}: ${(p as { items: string[] }).items.join('; ')}`);
+    const flat = (p: unknown): string =>
+      typeof p === 'string' ? p : typeof p === 'object' && p !== null && 'note' in p ? (p as { note: string }).note : `${(p as { lead: string }).lead}: ${(p as { items: string[] }).items.join('; ')}`;
     const onPage = (row?.shortDetailParts ?? []).map(flat).join(' | ');
     const inMessages = (row?.detailParts ?? []).map(flat).join(' | ');
     assert.match(onPage, /still open: .*DS\/AI/, onPage);
@@ -105,7 +106,7 @@ describe('where the short forms are used, and where they are not', () => {
     const row = audit(s, rules, '2027-03-01').requirements.find((r) => r.id === 'phd.qualifier.categories');
     assert.equal(row?.status, 'met', String(row?.detail));
     const items = [...(row?.detailParts ?? []), ...(row?.shortDetailParts ?? [])]
-      .flatMap((p) => (typeof p === 'string' ? [p] : 'warn' in p ? [p.warn] : p.items))
+      .flatMap((p) => (typeof p === 'string' ? [p] : 'warn' in p ? [p.warn] : 'note' in p ? [p.note] : p.items))
       .filter((i) => i.startsWith('CSE 60641'));
     assert.ok(items.length >= 2, JSON.stringify(items));
     for (const i of items) assert.match(i, /CSE 60641 Graduate Operating Systems →/, i);

@@ -62,3 +62,15 @@ export function clearInvalid(input: HTMLElement, error: HTMLElement, alsoDescrib
   if (alsoDescribedBy) input.setAttribute('aria-describedby', alsoDescribedBy);
   else input.removeAttribute('aria-describedby');
 }
+
+/** An uncommon case behind a selector (DGS 2026-10-03: "If something is not a
+ * common standard case, hide it with a selector. Apply this logic to the
+ * entire app."). The summary asks the question; the inputs sit inside. It
+ * starts open when the record already holds an answer in it, so nothing on
+ * file is ever hidden, and the `data-key` keeps a fold the student opened open
+ * across re-renders (focus-keeper.ts). */
+export function rareFold(key: string, summary: string, hasAnswer: boolean, ...children: (HTMLElement | null)[]): HTMLElement {
+  const fold = el('details', { class: 'rare', 'data-key': `rare.${key}` }, el('summary', {}, summary), ...children);
+  if (hasAnswer) (fold as HTMLDetailsElement).open = true;
+  return fold;
+}

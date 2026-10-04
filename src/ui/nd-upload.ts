@@ -491,7 +491,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         el(
           'p',
           { class: 'hint' },
-          `Your transcript's graduate-level cumulative GPA (${tp.gpa.toFixed(2)}) includes graduate courses taken at Notre Dame before ${termLabel(entry)} (an earlier program). The Academic Code reads that one cumulative figure (§4.5), so it is the one used for §2.2; this program's courses alone average ${tp.programGpa.toFixed(2)}, shown for information. If the two fall on different sides of 3.0 the report asks the DGS.${tp.undergraduateGpa !== undefined ? ` The undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used.` : ''}`,
+          `Your transcript's graduate-level cumulative GPA (${tp.gpa.toFixed(2)}) includes graduate courses taken at Notre Dame before ${termLabel(entry)} (an earlier program). The Academic Code reads that one cumulative figure (Academic Code §4.5), so it is the one used for §2.2; this program's courses alone average ${tp.programGpa.toFixed(2)}, shown for information. If the two fall on different sides of 3.0 the report asks the DGS.${tp.undergraduateGpa !== undefined ? ` The undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used.` : ''}`,
         ),
         el('label', { class: 'attest' }, cb, ` Use the transcript's graduate cumulative GPA (${tp.gpa.toFixed(2)}) for the minimum-GPA check (§2.2)`),
       ),

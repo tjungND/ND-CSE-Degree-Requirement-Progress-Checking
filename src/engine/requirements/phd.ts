@@ -11,7 +11,7 @@ import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { capRow, clockShiftNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
+import { noteOf, capRow, clockShiftNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, longestFullTimeRun } from './residency.ts';
 import { defendedBelowGpaNote, gpaText } from './shared.ts';
 import { transferRow } from './transfer.ts';
@@ -209,7 +209,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
         limitKey: 'ms_bs_double_count_credits_max',
         section: 'Graduate School (2026-09-22 answer)',
         quote:
-          'Only up to 6 credits may double-count towards two degrees. If 6 credits have double-counted to BS & MS, no more credits can double-count to BS & PhD later when the student pursues PhD. (The Graduate School’s answer to the department, through the DGS, 2026-09-22 — the Academic Code’s own §4.6 writes the six-credit exception for an integrated bachelor’s/master’s program only, so each such course waits for the DGS’s confirmation.)',
+          'Only up to 6 credits may double-count towards two degrees. If 6 credits have double-counted to BS & MS, no more credits can double-count to BS & PhD later when the student pursues PhD. (The Graduate School’s answer to the department, through the DGS, 2026-09-22 — Academic Code §4.6 writes the six-credit exception for an integrated bachelor’s/master’s program only, so each such course waits for the DGS’s confirmation.)',
         ctx,
         approvalDriven: true,
         extraDetail:
@@ -278,7 +278,11 @@ function qualifierRowsPassedUnderPriorRules(ctx: Ctx, children: RequirementResul
     group: QUALIFIER,
     title: 'Qualifying examination — all components',
     status: 'met',
-    detail: `Passed under the earlier qualifier requirements, as you attested under “Approvals you already have” — the Grad Admin’s record of the examination is what counts.${ctx.student.milestones.qualifierFormFiled ? '' : ' If the completion form is not on file, file it with the Grad Admin (§4.4).'}`,
+    ...joinedDetail([
+      'Passed under the earlier qualifier requirements, as you attested under “Approvals you already have”',
+      { note: 'The Grad Admin’s record of the examination is what counts' },
+      ...(ctx.student.milestones.qualifierFormFiled ? [] : [{ note: 'If the completion form is not on file, file it with the Grad Admin (§4.4)' }]),
+    ]),
     deadline: { date: ctx.today, approx: true, state: 'done', label: 'Complete' },
     citation: { section: '§4.4', quote },
   };
@@ -298,7 +302,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
     'Two credits of Research Seminar (CSE 63801 and CSE 63802) are required and expected to be taken during the first year of the program.';
   const wanted = ctx.params.courseList('phd_seminar_courses');
   let status: Status;
-  const parts: string[] = [];
+  const parts: DetailPart[] = [];
   const satisfied: string[] = [];
   if (wanted === undefined) {
     status = 'cannot_evaluate';
@@ -330,7 +334,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
     // qualifier clocks).
     const sem = semesterNumber(ctx.qualifierEntry, termOfDate(ctx.today));
     if (status !== 'met' && sem > 2) {
-      parts.push(`§4.2 expects these during the first year — you are in semester ${sem}${compareTerm(ctx.qualifierEntry, ctx.entry) !== 0 ? ` of the Ph.D., counted from your transfer in ${termLabel(ctx.qualifierEntry)}` : ''}`);
+      parts.push({ note: `§4.2 expects these during the first year — you are in semester ${sem}${compareTerm(ctx.qualifierEntry, ctx.entry) !== 0 ? ` of the Ph.D., counted from your transfer in ${termLabel(ctx.qualifierEntry)}` : ''}` });
     }
   }
   return {
@@ -353,21 +357,24 @@ function residencyRow(ctx: Ctx): RequirementResult {
   const required = ctx.params.number('phd_residency_semesters');
   const floor = ctx.params.number('fulltime_credits_min');
   let status: Status;
-  let detail: string;
+  // The semesters of the run are the fact; how a run counts and restarts is a
+  // note (DGS 2026-10-03).
+  const parts: DetailPart[] = [];
   let satisfied: string[] = [];
   if (required === undefined || floor === undefined) {
     status = 'cannot_evaluate';
-    detail = missingParamDetail(required === undefined ? 'phd_residency_semesters' : 'fulltime_credits_min');
+    parts.push(missingParamDetail(required === undefined ? 'phd_residency_semesters' : 'fulltime_credits_min'));
   } else {
     const records = fullTimeTermRecords(ctx);
     const run = maxConsecutiveFullTime(records);
+    const runTerms = longestFullTimeRun(records).map((t) => termLabel(t));
     if (run >= required) {
       status = 'met';
-      detail = `${run} consecutive full-time semesters (summers excluded, §4.3).`;
-      satisfied = longestFullTimeRun(records).map((t) => termLabel(t));
+      parts.push(`${run} consecutive full-time semesters: ${runTerms.join(', ')}`, { note: 'Summer sessions do not count toward the run (§4.3)' });
+      satisfied = runTerms;
     } else {
       status = 'in_progress';
-      detail = `Longest consecutive full-time run so far: ${run} of ${required} semesters.`;
+      parts.push(`Longest consecutive full-time run so far: ${run} of ${required} semesters${run > 0 ? ` (${runTerms.join(', ')})` : ''}`);
     }
     // A semester of nothing but withdrawals is a full withdrawal, not a
     // semester of residence — and a missed fall or spring needs readmission
@@ -375,9 +382,9 @@ function residencyRow(ctx: Ctx): RequirementResult {
     // student to reapply … and reject some or all past credits"). Said, since
     // the run restarts silently otherwise (policy review 2026-10-03).
     const withdrawnOnly = records.filter((r) => r.withdrawnOnly).map((r) => termLabel(r.term));
-    if (withdrawnOnly.length > 0) detail += ` ${withdrawnOnly.join(', ')}: every course withdrawn — not counted as residence; if you were registered full-time at census, tick the semester under Full-time terms, or ask the DGS.`;
+    if (withdrawnOnly.length > 0) parts.push(`${withdrawnOnly.join(', ')}: every course withdrawn — not counted as residence`, { note: 'If you were registered full-time at census, tick the semester under Full-time terms, or ask the DGS' });
     if (status === 'in_progress' && run > 0 && records.some((r) => r.term.season !== 'summer' && !r.fullTime)) {
-      detail += ' A fall or spring semester that was not full-time restarts the run; a semester not registered at all needs readmission through the department and the Graduate School (Academic Code §3.1), which may reject earlier credits (DGS Handbook §3.3) — ask the DGS.';
+      parts.push({ note: 'A fall or spring semester that was not full-time restarts the run; a semester not registered at all needs readmission through the department and the Graduate School (Academic Code §3.1), which may reject earlier credits (DGS Handbook §3.3) — ask the DGS' });
     }
   }
   return {
@@ -385,7 +392,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
     group: TIME,
     title: 'Four consecutive full-time semesters of residence',
     status,
-    detail,
+    ...joinedDetail(parts),
     ...(satisfied.length > 0 ? { satisfiedBy: satisfied } : {}),
     citation: { section: '§4.3', quote },
   };
@@ -479,14 +486,16 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
   const partName = (c: RequirementResult): string =>
     c.id === 'phd.qualifier.categories' ? 'specialization (§4.4.2)' : c.id === 'phd.qualifier.research' ? 'the research component (§4.4.3)' : `${c.title.replace(/^Core knowledge:\s*/, '')} core knowledge (§4.4.1)`;
   const open = children.filter((c) => c.status !== 'met');
-  const parts: string[] = [
-    `${children.length - open.length} of ${children.length} parts done${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''} (one card per part below)`,
+  // The standing is the fact; everything else is a note (DGS 2026-10-03).
+  const parts: DetailPart[] = [
+    `${children.length - open.length} of ${children.length} parts done${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''}`,
+    { note: 'One card per part below' },
   ];
   if (ndCredits && ndCredits.status !== 'met') {
     // §4.2: "all Ph.D. students must take at least nine (9) credits at Notre
     // Dame in order to satisfy the qualifying examination". Said once (trim
     // review 2026-09-18, P-24); the tail is the credits row's own first sentence.
-    parts.push(`§4.2 also requires at least nine credits of regular courses taken at Notre Dame before the examination — ${ndCredits.detail.split('.')[0]}`);
+    parts.push({ note: `§4.2 also requires at least nine credits of regular courses taken at Notre Dame before the examination — ${ndCredits.detail.split('.')[0]}` });
   }
   let deadline: RequirementResult['deadline'];
   if (due === undefined) {
@@ -497,7 +506,7 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
     if (status === 'met') {
       deadline = { date: effectiveDate, approx: true, state: 'done', label: 'Complete' };
       if (!ctx.student.milestones.qualifierFormFiled) {
-        parts.push('Remember to file the qualifier completion form with the Grad Admin (§4.4)');
+        parts.push({ note: 'Remember to file the qualifier completion form with the Grad Admin (§4.4)' });
       }
     } else if (passed) {
       // Decision Q17b: a deadline past with the work incomplete is unmet, even
@@ -510,16 +519,16 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
       } else {
         status = 'unmet';
         // The deadline chip carries the when (2026-09-03).
-        parts.push(`Overdue — talk to the DGS`);
+        parts.push({ note: 'Overdue — talk to the DGS' });
       }
       deadline = due.deadline;
     } else {
       deadline = due.deadline;
       if (extendedTerm) {
         const extra = qualifierExtensionSemesters(ctx);
-        parts.push(`Deadline extended by ${extra === 1 ? 'one semester' : `${extra} semesters`} by the DGS — now the end of ${termLabel(extendedTerm)}; a further extension is the DGS’s to grant`);
+        parts.push({ note: `Deadline extended by ${extra === 1 ? 'one semester' : `${extra} semesters`} by the DGS — now the end of ${termLabel(extendedTerm)}; a further extension is the DGS’s to grant` });
       }
-      if (compareTerm(ctx.qualifierEntry, ctx.entry) !== 0) parts.push(`The four semesters are counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)} (§4.4 “of starting”; DGS 2026-10-03)`);
+      if (compareTerm(ctx.qualifierEntry, ctx.entry) !== 0) parts.push({ note: `The four semesters are counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)} (§4.4 “of starting”; DGS 2026-10-03)` });
     }
   }
   return {
@@ -588,22 +597,23 @@ function coreRows(ctx: Ctx): RequirementResult[] {
     const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : pending ? 'needs_dgs_review' : 'unmet';
     // The course id alone (the detail may add "(Purdue University)" etc.).
     const bareId = (s: string) => s.replace(/ \(.*\)$/, '');
-    const detail = done
-      ? `Satisfied by ${done}.`
+    // Which course satisfies it is the fact; why it may is a note (DGS 2026-10-03).
+    const detailParts: DetailPart[] = done
+      ? [`Satisfied by ${done}`]
       : confirmed
-        ? `Satisfied by ${confirmed} — confirmed in the DGS’s course rules (§4.4.1 allows a course from a previous institution).`
+        ? [`Satisfied by ${confirmed} — confirmed in the DGS’s course rules`, { note: '§4.4.1 allows a course from a previous institution' }]
         : ip
-          ? `${ip} is in progress.`
+          ? [`${ip} is in progress`]
           : pending
-            ? `Pending review: ${pending} — its title suggests ${area.name}, and the DGS can confirm it (§4.4.1) via the review request.`
-            : `No ${area.name} course yet.`;
+            ? [`Pending review: ${pending}`, { note: `Its title suggests ${area.name}, and the DGS can confirm it (§4.4.1) via the review request` }]
+            : [`No ${area.name} course yet`];
     return {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,
       title: `Core knowledge: ${area.name}`,
       shortTitle: `Core: ${shortName(area.name)}`,
       status,
-      detail,
+      ...joinedDetail(detailParts),
       citation: { section: '§4.4.1', quote },
       ...(status === 'met' ? { satisfiedBy: [bareId((done ?? confirmed)!)] } : {}),
       // In progress, or waiting on the DGS: it will satisfy this area, and the
@@ -753,23 +763,22 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       );
     } else {
       status = 'unmet';
-      withItems(
-        `${qualifying.length} qualifying course${qualifying.length === 1 ? '' : 's'} covering ${def.distinctCount} distinct group${def.distinctCount === 1 ? '' : 's'} — ${groupsReq} distinct groups and ${coursesReq} courses with a grade of ${floor} or higher are required`,
-      );
+      // What is covered, and which groups are still open, are the facts; the
+      // rule is a note (DGS 2026-10-03).
+      withItems(`${qualifying.length} qualifying course${qualifying.length === 1 ? '' : 's'} covering ${def.distinctCount} distinct group${def.distinctCount === 1 ? '' : 's'}`);
       if (def.missingGroups.length > 0) {
         add(
           `still open: ${def.missingGroups.map(groupName).join(', ')}`,
           `still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
         );
       }
+      add({ note: `${groupsReq} distinct groups and ${coursesReq} courses with a grade of ${floor} or higher are required (§4.4.2)` });
     }
   }
   if (belowFloor.length > 0) {
-    add(
-      `${belowFloor.join(', ')} ${belowFloor.length === 1 ? 'is' : 'are'} below the ${floor} floor — retake ${belowFloor.length === 1 ? 'it' : 'them'} or take another course (§4.4.2)`,
-    );
+    add({ note: `${belowFloor.join(', ')} ${belowFloor.length === 1 ? 'is' : 'are'} below the ${floor} floor — retake ${belowFloor.length === 1 ? 'it' : 'them'} or take another course (§4.4.2)` });
   }
-  for (const suggestion of def.suggestions) add(suggestion);
+  for (const suggestion of def.suggestions) add({ note: suggestion });
   // "The approved course list is on the course rules page" left the row on
   // 2026-09-26 (clarity review): the "See the specialization categories →"
   // link directly above the detail is that pointer (2026-09-04).
@@ -862,37 +871,46 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
   const remediationDue = failedOn !== undefined ? addMonthsIso(failedOn, 6) : undefined;
   let status = r.status;
   let deadline = r.deadline;
-  let detail =
+  // Passed, failed or not yet filed is the fact; why late and what to do are
+  // notes (DGS 2026-10-03).
+  const upper = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  let parts: DetailPart[] =
     r.status === 'met'
       ? // A pass inside the DGS's extension is met, and says so: the record
         // keeps how late it was rather than reading like an on-time pass
         // (DGS 2026-09-13).
-        `Research qualifier passed ${m.researchQualifierPassed}${r.lateNote ? ` — ${r.lateNote}` : ''}.`
+        [`Research qualifier passed ${m.researchQualifierPassed}${r.lateNote ? ` — ${r.lateNote}` : ''}`]
       : r.status === 'needs_dgs_review'
-        ? `Passed ${m.researchQualifierPassed}, ${r.lateNote}.`
+        ? [`Passed ${m.researchQualifierPassed}`, ...(r.lateNote ? [{ note: upper(r.lateNote) }] : [])]
         : r.status === 'unmet'
-          ? // The deadline chip carries the when — the detail stays progress-only.
-            `Overdue — talk to your advisor and the DGS.`
-          : `The advisor's Research-Qualifier form is not filed yet.`;
+          ? // The deadline chip carries the when; the pill says Overdue.
+            [{ note: 'Overdue — talk to your advisor and the DGS' }]
+          : ['The advisor’s Research-Qualifier form is not filed yet'];
   if (m.researchQualifierPassed === undefined && failedOn !== undefined && remediationDue !== undefined) {
     const inWindow = ctx.today <= remediationDue;
     if (inWindow) {
       status = 'in_progress';
-      detail = `Research component failed ${failedOn} — remediation under way: the DGS’s committee decides within six months, by ${deadlineTerm(remediationDue).when === 'during' ? `mid-${termLabel(deadlineTerm(remediationDue).term)}` : deadlineTermLabel(remediationDue)} (§4.4.3).`;
+      parts = [
+        `Research component failed ${failedOn} — remediation under way`,
+        { note: `The DGS’s committee decides within six months, by ${deadlineTerm(remediationDue).when === 'during' ? `mid-${termLabel(deadlineTerm(remediationDue).term)}` : deadlineTermLabel(remediationDue)} (§4.4.3)` },
+      ];
       deadline = openDeadline(remediationDue, ctx.today, `Committee’s judgement due by ${deadlineTermLabel(remediationDue)} — six months after the fail (approximate)`);
     } else {
       status = 'needs_dgs_review';
-      detail = `Research component failed ${failedOn}, and the committee’s six months ran out at ${deadlineTermLabel(remediationDue)} (approximate) with no pass recorded — confirm the outcome with the DGS (§4.4.3).`;
+      parts = [
+        `Research component failed ${failedOn}, and the committee’s six months ran out at ${deadlineTermLabel(remediationDue)} (approximate) with no pass recorded`,
+        { note: 'Confirm the outcome with the DGS (§4.4.3)' },
+      ];
       deadline = { date: remediationDue, approx: true, state: 'overdue', label: `The committee’s six months ran out at ${deadlineTermLabel(remediationDue)}` };
     }
   }
-  if (status !== 'met' && compareTerm(ctx.qualifierEntry, ctx.entry) !== 0) detail += ` The ${months} months are counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)} (DGS 2026-10-03).`;
+  if (status !== 'met' && compareTerm(ctx.qualifierEntry, ctx.entry) !== 0) parts.push({ note: `The ${months} months are counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)} (DGS 2026-10-03)` });
   return {
     id: 'phd.qualifier.research',
     group: QUALIFIER,
     title: 'Research component: a significant research contribution',
     status,
-    detail,
+    ...joinedDetail(parts),
     deadline,
     citation: { section: '§4.4.3', quote },
   };
@@ -913,9 +931,8 @@ function rcrRow(ctx: Ctx): RequirementResult {
     title: 'Responsible Conduct of Research and ethics training complete',
     shortTitle: 'RCR training',
     status: done ? 'met' : 'in_progress',
-    detail: done
-      ? `Completed ${done}.`
-      : 'Complete the Graduate School’s Responsible Conduct of Research and ethics training modules — a Graduate School requirement for every Ph.D. student, and a condition of admission to candidacy (DGS Handbook §3.22.3); enter the date under Milestones once done.',
+    // The date is the fact; the instruction is a note (DGS 2026-10-03).
+    ...joinedDetail(done ? [`Completed ${done}`] : [{ note: 'Complete the Graduate School’s Responsible Conduct of Research and ethics training modules — a Graduate School requirement for every Ph.D. student, and a condition of admission to candidacy (DGS Handbook §3.22.3); enter the date under Milestones once done' }]),
     citation: { section: 'Academic Code §6.2.4', quote },
   };
 }
@@ -952,16 +969,17 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     // discontinued funding (Academic Code §6.2.8; policy review 2026-10-03).
     lateWording: 'passed after the eighth semester — the Graduate School may have placed you on probation and discontinued University funding (Academic Code §6.2.8); confirm your standing with the DGS',
   });
-  const parts: string[] = [];
+  // The pass is the fact; every other sentence is a note (DGS 2026-10-03).
+  const parts: DetailPart[] = [];
   if (r.status === 'met') parts.push(`Oral Candidacy Exam (OCE) passed ${ctx.student.milestones.candidacyPassed}`);
   else if (r.status === 'needs_dgs_review')
-    parts.push(`Passed ${ctx.student.milestones.candidacyPassed}, ${r.lateNote ?? ''}`);
+    parts.push(`Passed ${ctx.student.milestones.candidacyPassed}`, ...(r.lateNote ? [{ note: r.lateNote.charAt(0).toUpperCase() + r.lateNote.slice(1) }] : []));
   else if (r.status === 'unmet')
     // The deadline chip carries the when; policy (coursework-before-exam,
     // committee make-up) lives behind the § chip (2026-09-03). What a missed
     // eighth semester means at the Graduate School: probation and the end of
     // University funding, not forfeiture (Academic Code §6.2.8/§5.7.3).
-    parts.push(`Overdue — the Graduate School places a student not admitted to candidacy by the end of the eighth semester on probation and discontinues University funding (Academic Code §6.2.8); talk to the DGS`);
+    parts.push({ note: `Overdue — the Graduate School places a student not admitted to candidacy by the end of the eighth semester on probation and discontinues University funding (Academic Code §6.2.8); talk to the DGS` });
   // Whose eighth semester (DGS 2026-09-26): "when someone has a completed MS
   // degree at CSE@ND, their OCE clock starts when they enter the PhD program.
   // However, when someone initially started as an MS in our department but
@@ -969,17 +987,17 @@ function candidacyRow(ctx: Ctx): RequirementResult {
   // they started the MS program." Both are the record's entry term — the
   // opening dialog's answer says which — and the line names the start so a
   // wrong entry term is noticed.
-  if (ctx.student.background?.graduate === 'nd-mscse-transfer') parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — a transfer into the Ph.D. keeps that clock (§4.5); the §4.4 qualifier clocks count from the transfer`);
-  else if (ctx.student.ndMasters !== undefined) parts.push(`Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (§4.5)`);
+  if (ctx.student.background?.graduate === 'nd-mscse-transfer') parts.push({ note: `Semesters are counted from ${termLabel(ctx.entry)}, when you started the MSCSE — a transfer into the Ph.D. keeps that clock (§4.5); the §4.4 qualifier clocks count from the transfer` });
+  else if (ctx.student.ndMasters !== undefined) parts.push({ note: `Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (§4.5)` });
   const shift = clockShiftNote(ctx);
-  if (shift !== '' && r.status !== 'met') parts.push(`Semester ${sem} is counted as semester ${effectiveSem}${shift}`);
+  if (shift !== '' && r.status !== 'met') parts.push({ note: `Semester ${sem} is counted as semester ${effectiveSem}${shift}` });
   // The Graduate School's own prerequisites for admission to candidacy, which
   // the exam date alone does not show (DGS Handbook §3.22.3; Academic Code
   // §6.2.4, §6.2.9 — policy review 2026-10-03).
   if (r.status !== 'met' || ctx.student.milestones.rcrTrainingCompleted === undefined) {
-    if (ctx.student.milestones.rcrTrainingCompleted === undefined) parts.push('Admission to candidacy also needs the Responsible Conduct of Research and ethics training modules (Academic Code §6.2.4; DGS Handbook §3.22.3) — see the RCR row');
+    if (ctx.student.milestones.rcrTrainingCompleted === undefined) parts.push({ note: 'Admission to candidacy also needs the Responsible Conduct of Research and ethics training modules (Academic Code §6.2.4; DGS Handbook §3.22.3) — see the RCR row' });
   }
-  parts.push(candidacyFormSentence(ctx, 'doctoral'));
+  parts.push({ note: candidacyFormSentence(ctx, 'doctoral') });
   // The exam's two conditions (red-team F8, DGS 2026-09-12). §4.5: "All
   // coursework for the Ph.D. must be completed (or in progress the same
   // semester) before the candidacy exam can be taken." §2.2: "Continuation in
@@ -997,24 +1015,35 @@ function candidacyRow(ctx: Ctx): RequirementResult {
   const gpaShort = gpaMin !== undefined && candidacyGpa !== undefined && candidacyGpa < gpaMin;
   // The precondition in the student's terms (clarity review 2026-09-26):
   // what must be true, and where they stand — the §s last.
-  const conditions: string[] = [];
-  const shortfalls: string[] = [];
-  if (courseworkShort) {
-    conditions.push(`your ${regularMin} regular-course credits are complete or in progress — you have ${formatCredits(regularDone)} of ${regularMin} (§4.5)`);
-    shortfalls.push(`${formatCredits(regularDone)} of ${regularMin} regular credits`);
-  }
-  if (gpaShort) {
-    conditions.push(`your cumulative GPA is ${gpaMin!.toFixed(1)} or higher — it is ${gpaText(candidacyGpa!)} (§2.2)`);
-    shortfalls.push(`a ${gpaText(candidacyGpa!)} GPA`);
-  }
+  // The two conditions are not the same kind (policy review P1-gpa-8, DGS
+  // 2026-10-03 "apply the suggested fix"): §4.5 puts the coursework before the
+  // EXAM; §2.2's 3.0 gates ADMISSION to candidacy, not sitting the exam.
+  const credits = `${formatCredits(regularDone)} of ${regularMin}`;
+  const gpaNow = candidacyGpa === undefined ? '' : gpaText(candidacyGpa);
+  const gpaFloor = gpaMin === undefined ? '' : gpaMin.toFixed(1);
   let status = r.status;
-  if (conditions.length > 0) {
+  if (courseworkShort || gpaShort) {
     if (ctx.student.milestones.candidacyPassed !== undefined) {
       status = status === 'met' ? 'needs_dgs_review' : status;
-      const sections = [courseworkShort ? '§4.5' : undefined, gpaShort ? '§2.2' : undefined].filter((x): x is string => x !== undefined).join(' and ');
-      parts.push(`You show ${shortfalls.join(' and ')} — ${sections} require${shortfalls.length === 1 ? 's' : ''} ${shortfalls.length === 1 ? 'that' : 'both'} before the exam; confirm with the DGS that it could be taken`);
+      parts.push({
+        note:
+          courseworkShort && gpaShort
+            ? `You show ${credits} regular credits and a ${gpaNow} GPA — §4.5 requires the credits before the exam, and §2.2 a ${gpaFloor} for admission to candidacy; confirm with the DGS`
+            : courseworkShort
+              ? `You show ${credits} regular credits — §4.5 requires that before the exam; confirm with the DGS that it could be taken`
+              : `You show a ${gpaNow} GPA — §2.2 requires a ${gpaFloor} for admission to candidacy; confirm your admission with the DGS`,
+      });
     } else {
-      parts.push(`You can take the exam once ${conditions.join(', and once ')}`);
+      const exam = `your ${regularMin} regular-course credits are complete or in progress — you have ${credits} (§4.5)`;
+      const admission = `your cumulative GPA is ${gpaFloor} or higher — it is ${gpaNow} (§2.2)`;
+      parts.push({
+        note:
+          courseworkShort && gpaShort
+            ? `You can take the exam once ${exam}, and be admitted to candidacy once ${admission}`
+            : courseworkShort
+              ? `You can take the exam once ${exam}`
+              : `You can be admitted to candidacy once ${admission}`,
+      });
     }
   }
   return {
@@ -1059,15 +1088,19 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
     shortTitle: 'Dissertation submitted',
     status: m.dissertationSubmitted ? (lateSubmission ? 'needs_dgs_review' : 'met') : m.defensePassed ? 'in_progress' : 'unmet',
     ...(m.dissertationSubmitted && lateSubmission ? { statusLabel: 'Eligibility at risk' } : {}),
-    detail: m.dissertationSubmitted
-      ? lateSubmission
-        ? `Submitted ${m.dissertationSubmitted} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). The Academic Code counts the official submission inside the limit (§6.2.6), so confirm with the DGS that the Graduate School granted an extension or dissertation completion status.`
-        : `Submitted ${m.dissertationSubmitted}.`
-      : m.defensePassed
-        ? 'Submit the final, revised dissertation electronically through the Graduate School’s portal by the Graduate School calendar’s deadline for the graduation you want — the degree is conferred at the next graduation after an on-time submission (Academic Code §6.2.12).'
-        : m.candidacyPassed === undefined
-          ? 'Not started — the submission comes after the defense (§4.7).'
-          : 'Not started — the submission comes after the defense (§4.7).',
+    // The date is the fact; the rule and the next step are notes (DGS 2026-10-03).
+    ...joinedDetail(
+      m.dissertationSubmitted
+        ? lateSubmission
+          ? [
+              `Submitted ${m.dissertationSubmitted} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate)`,
+              { note: 'The Academic Code counts the official submission inside the limit (Academic Code §6.2.6), so confirm with the DGS that the Graduate School granted an extension or dissertation completion status' },
+            ]
+          : [`Submitted ${m.dissertationSubmitted}`]
+        : m.defensePassed
+          ? [{ note: 'Submit the final, revised dissertation electronically through the Graduate School’s portal by the Graduate School calendar’s deadline for the graduation you want — the degree is conferred at the next graduation after an on-time submission (Academic Code §6.2.12)' }]
+          : ['Not started', { note: 'The submission comes after the defense (§4.7)' }],
+    ),
     citation: {
       section: 'Academic Code §6.2.12',
       quote: 'To receive the degree at the next graduation, the doctoral candidate who has successfully defended his or her dissertation must submit it to the Graduate School on or before the deadline published in the Graduate School calendar.',
@@ -1085,11 +1118,13 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       // (DGS 2026-09-22: "Dissertation does not start before OCE is passed");
       // the leading "Not started" is what the page and the advisor summary
       // read to show the grey pill, so keep it as the first words.
-      detail: m.dissertationApprovedForDefense
-        ? `Approved for defense ${m.dissertationApprovedForDefense}.`
-        : m.candidacyPassed === undefined
-          ? 'Not started — the dissertation stage begins after the Oral Candidacy Exam is passed (§4.5).'
-          : 'Not yet approved.',
+      ...joinedDetail(
+        m.dissertationApprovedForDefense
+          ? [`Approved for defense ${m.dissertationApprovedForDefense}`]
+          : m.candidacyPassed === undefined
+            ? ['Not started', { note: 'The dissertation stage begins after the Oral Candidacy Exam is passed (§4.5)' }]
+            : ['Not yet approved'],
+      ),
       citation: {
         section: '§4.6',
         quote: 'Only a dissertation, which has been unanimously approved for defense by the readers, may be defended.',
@@ -1107,13 +1142,20 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       // pill is what a student reads first. The status is unchanged, so the row
       // still counts with the conditional ones on the dashboard.
       ...(m.defensePassed && lateDefense ? { statusLabel: 'Eligibility at risk' } : {}),
-      detail: m.defensePassed
-        ? lateDefense
-          ? `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate). §4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS.${gpaAtDefense} Then submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row.`
-          : `Defense passed ${m.defensePassed}.${gpaAtDefense} Next: submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row.`
-        : m.candidacyPassed === undefined
-          ? `Not started — the defense comes after the Oral Candidacy Exam (§4.5) and the readers’ approval (§4.6).${gpaGate}`
-          : `Not yet: three votes of four (or four of five) are required to pass (§4.7).${gpaGate}`,
+      ...joinedDetail(
+        m.defensePassed
+          ? lateDefense
+            ? [
+                `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate)`,
+                { note: '§4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS' },
+                ...noteOf(gpaAtDefense),
+                { note: 'Then submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' },
+              ]
+            : [`Defense passed ${m.defensePassed}`, ...noteOf(gpaAtDefense), { note: 'Next: submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' }]
+          : m.candidacyPassed === undefined
+            ? ['Not started', { note: 'The defense comes after the Oral Candidacy Exam (§4.5) and the readers’ approval (§4.6)' }, ...noteOf(gpaGate)]
+            : ['Not yet passed', { note: 'Three votes of four (or four of five) are required to pass (§4.7)' }, ...noteOf(gpaGate)],
+      ),
       citation: {
         section: '§4.7',
         quote: 'In defending the dissertation, the doctoral candidate supports its claims, procedures and results.',
@@ -1141,7 +1183,9 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   const doneReg = ctx.alloc.ndRegular.definite;
   const doneRes = ctx.alloc.ndResearch.definite;
   let status: Status;
-  let detail: string;
+  // The credits and the exam are the facts; the conditions, the Grad Admin's
+  // step and the Graduate School form are notes (DGS 2026-10-03).
+  let parts: DetailPart[];
   let statusLabel: string | undefined;
   // The award is a degree conferral, so it needs what every degree needs
   // (policy review 2026-10-03): the 3.0 cumulative GPA (§2.2; Academic Code
@@ -1156,31 +1200,39 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   const afterMsLimit = passed !== undefined && msLimit !== undefined && passed > msLimit;
   if (reqReg === undefined || reqRes === undefined) {
     status = 'cannot_evaluate';
-    detail = missingParamDetail(reqReg === undefined ? 'ms_regular_credits_min' : 'ms_project_credits_min');
+    parts = [missingParamDetail(reqReg === undefined ? 'ms_regular_credits_min' : 'ms_project_credits_min')];
   } else if (passed && doneReg >= reqReg && doneRes >= reqRes && (gpaShort || afterMsLimit)) {
     status = 'needs_dgs_review';
-    detail =
-      `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — but ` +
-      [
+    const why = [
         ...(gpaShort ? [gpa === undefined ? 'no cumulative GPA is entered, and the award needs at least the 3.0 minimum (§2.2)' : `your cumulative GPA is ${gpaText(gpa)}, below the 3.0 the award needs (§2.2)`] : []),
         ...(afterMsLimit ? [`the exam came more than ${msYears} years after you entered, and the master’s five-year limit may apply to the award (Academic Code §6.1.4; DGS Handbook §3.21.1)`] : []),
-      ].join(', and ') +
-      ' — confirm with the DGS before the award is requested.';
+      ].join(', and ');
+    parts = [
+      `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame`,
+      { note: `${why.charAt(0).toUpperCase()}${why.slice(1)} — confirm with the DGS before the award is requested` },
+    ];
   } else if (passed && doneReg >= reqReg && doneRes >= reqRes) {
     status = 'met';
-    detail = `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame — the Grad Admin processes the MSCSE award; it is in the processing request (§4.5). ${candidacyFormSentence(ctx, 'master’s')}.`;
+    parts = [
+      `Oral Candidacy Exam (OCE) passed ${passed}, with ${doneReg} regular course credits and ${doneRes} research credits completed at Notre Dame`,
+      { note: 'The Grad Admin processes the MSCSE award; it is in the processing request (§4.5)' },
+      { note: candidacyFormSentence(ctx, 'master’s') },
+    ];
   } else if (passed) {
     status = 'in_progress';
-    detail = `${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame.`;
+    parts = [`${doneReg} of ${reqReg} regular course credits and ${doneRes} of ${reqRes} research credits completed at Notre Dame`];
   } else if (ctx.student.priorMs === 'completed') {
     // A student who already holds a master’s from elsewhere: “does not apply”
     // (DGS 2026-09-27); otherwise the stage has simply not started.
     status = 'not_applicable';
-    detail = 'You already hold a master’s degree, so the MSCSE along the way does not apply (§4.5).';
+    parts = ['You already hold a master’s degree, so the MSCSE along the way does not apply (§4.5)'];
   } else {
     status = 'not_applicable';
     statusLabel = 'Not started';
-    detail = `Pass the Oral Candidacy Exam (OCE) and you can also receive the MSCSE (§4.5). Needed first, at Notre Dame: ${reqReg} regular-course credits (${doneReg} so far) and ${reqRes} research credits (${doneRes} so far).`;
+    parts = [
+      { note: 'Pass the Oral Candidacy Exam (OCE) and you can also receive the MSCSE (§4.5)' },
+      `Needed first, at Notre Dame: ${reqReg} regular-course credits (${doneReg} so far) and ${reqRes} research credits (${doneRes} so far)`,
+    ];
   }
   return {
     id: 'phd.msAlongTheWay',
@@ -1189,7 +1241,7 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
     title: 'MSCSE awarded along the way',
     status,
     informational: true,
-    detail,
+    ...joinedDetail(parts),
     citation: { section: '§4.5', quote },
   };
 }

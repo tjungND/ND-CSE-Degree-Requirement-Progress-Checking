@@ -32,7 +32,9 @@ export function decisionWording(program: Program, text: string): string {
       i % 2 === 1
         ? part.replace(/\{\{(A?DGS)\}\}/, '$1')
         : program === 'mscse'
-          ? part.replace(/\bDGS\b/g, 'ADGS')
+          ? // "DGS Handbook" is the Graduate School's document's name, not
+            // the decider (2026-10-03: it read "ADGS Handbook" on the MSCSE tab).
+            part.replace(/\bDGS\b(?! Handbook)/g, 'ADGS')
           : part,
     )
     .join('');

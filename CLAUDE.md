@@ -33,7 +33,9 @@ touching code and without the original author.
 - **Never guess.** If a course is not in the sheet, or the sheet says `dgs_approval`, tell the
   student "needs DGS review" rather than silently counting or rejecting it. A missing
   parameter renders "cannot evaluate", never a default.
-- **Cite everything.** Every requirement row the student sees shows the § it comes from.
+- **Cite everything.** Every requirement row carries the § it comes from — behind the card's "Details"
+  selector since 2026-10-03 (DGS), with its document named: "CSE §" is the CSE handbook, "Academic Code §"
+  and "DGS Handbook §" are the Graduate School's (`src/ui/citations.ts` labels bare sections on every surface).
 - **Maintainable by a stranger.** Plain, commented code; docs written for a future DGS.
 
 ## Sources of truth (read these before touching rule logic)
@@ -105,6 +107,12 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
   and redeployed only when the sheet content changed), CI tests, Pages deploy.
 
 ## Working rules
+- **What the student sees first (DGS 2026-10-03 — "apply this to future changes too").** A result card on
+  the right shows what is satisfied by what: the title, the status, the deadline, the facts and the courses
+  counted. Every explanation, reason, next step, Graduate School form and citation is written in the engine
+  as a `{ note }` detail part, which the card folds behind its "Details" selector (plain text in `detail`
+  and the emails). On the input side, anything that is not the common standard case goes behind a
+  `rareFold(...)` selector (`src/ui/form-helpers.ts`), open once the record holds an answer in it.
 - Start non-trivial work in plan mode; show the plan before writing code.
 - Before implementing or changing a requirement, quote the handbook sentence in a comment with
   its §, and check `docs/DECISIONS.md` for an existing interpretation.

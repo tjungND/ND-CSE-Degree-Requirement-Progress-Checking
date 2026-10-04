@@ -118,7 +118,8 @@
     "phd.dissertation.submitted": {
       "status": "unmet",
       "detailIncludes": [
-        "Not started — the submission comes after the defense (§4.7)"
+        "Not started",
+        "The submission comes after the defense (§4.7)"
       ]
     },
     "phd.candidacy": {

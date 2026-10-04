@@ -419,8 +419,11 @@ export function actionItems(report: AuditReport): ActionItems {
   const pendingCourses: string[] = [];
   const processingCourses: string[] = [];
   for (const part of approvals?.detailParts ?? []) {
-    if (typeof part === 'string') {
-      if (/plan of study/.test(part)) out.advisor.push(`Approve my plan of study (${report.program === 'mscse' ? '§3.2' : '§4.2'}).`);
+    // A statement — fact or note (the page folds notes, DGS 2026-10-03) — is
+    // not a course list; the plan-of-study one still makes an advisor to-do.
+    if (typeof part === 'string' || 'note' in part) {
+      const statement = typeof part === 'string' ? part : part.note;
+      if (/plan of study/.test(statement)) out.advisor.push(`Approve my plan of study (${report.program === 'mscse' ? '§3.2' : '§4.2'}).`);
       continue;
     }
     if ('warn' in part) continue; // a warning is not a course to chase
@@ -537,6 +540,8 @@ export function whyFor(r: RequirementResult, firstStatementOnly = false): string
 function flatten(p: DetailPart, r?: RequirementResult): string {
   if (typeof p === 'string') return p;
   if ('warn' in p) return p.warn;
+  // A note is explanation on the page (folded) and plain text in the messages.
+  if ('note' in p) return p.note;
   const items =
     r?.id === 'phd.qualifier.categories'
       ? [...new Set(p.items.filter((i) => !/ — (?:in progress|that group is already covered)/.test(i)).map((i) => i.replace(/^.*→\s*/, '').replace(/\s*\(flexible course[^)]*\)/, '').trim()))]
@@ -571,7 +576,7 @@ const REWRITES: [RegExp, string][] = [
   // "tick the box" since the trim review (P-55, 2026-09-18); "attestation" kept
   // so an older fixture still re-voices.
   [/^Confirm your advisor approved your plan of study \(([^)]*)\) and tick the (attestation|box).*$/i, 'Advisor approval of my plan of study ($1) is not yet recorded'],
-  [/^Enter your cumulative GPA\b.*$/i, 'Cumulative GPA not entered yet'],
+  [/^Enter your (?:graduate-level )?cumulative GPA\b.*$/i, 'Cumulative GPA not entered yet'],
   // The §4.4.2 retake advice is written for the student; the advisor needs the
   // course, the grade and the §, and the to-do list already says "Retake or
   // replace …" (trim review 2026-09-18, P-22).

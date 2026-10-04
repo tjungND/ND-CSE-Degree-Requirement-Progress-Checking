@@ -64,7 +64,8 @@
       "status": "needs_dgs_review",
       "statusLabel": "Waiting for the DGS",
       "detailIncludes": [
-        "Waiting for the DGS: MA 51100 — the course rules do not say whether it is a CSE course"
+        "Waiting for the DGS: MA 51100",
+        "MA 51100: The course rules do not say whether it is a CSE course"
       ]
     },
     "phd.credits.regular": {

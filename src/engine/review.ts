@@ -211,7 +211,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
     const heldAsks = [
       ...(c.passFailGrade ? ['decide whether this S (pass/fail) course transfers — it cannot show the B §5.2 requires'] : []),
       ...(c.afterAdmission ? ['confirm the department and the Graduate School approved this course before I took it (taken after admission, DGS Handbook §3.14)'] : []),
-      ...(c.noPriorProgram ? ['decide whether this course transfers, and how much — I had no earlier graduate program, and the Academic Code states no transfer allowance for that case (§4.6)'] : []),
+      ...(c.noPriorProgram ? ['decide whether this course transfers, and how much — I had no earlier graduate program, and the Academic Code states no transfer allowance for that case (Academic Code §4.6)'] : []),
       ...(c.cseUnknown ? ['say whether this counts as a CSE course for §4.2’s nine-credit non-CSE allowance (the is_cse cell on its row)'] : []),
       ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
       ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),

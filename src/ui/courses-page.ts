@@ -22,6 +22,7 @@ import { isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnc
 import { formatYmdLong, handbookLink, rulesDateLine } from './handbook.ts';
 import { ndDateOnly } from '../data/rules-date.ts';
 import { sheetSourceLine } from './sheet-source.ts'; // sheetSourceNote is the self-check page's now (trim review P-12)
+import { labelCitationsIn } from './citations.ts';
 
 // ---------- labels (sheet codes → words students understand) ----------
 
@@ -1252,6 +1253,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     const focused = (document.activeElement as HTMLElement | null)?.dataset['key'];
     clear(tableHost);
     tableHost.append(table());
+    labelCitationsIn(tableHost); // "CSE §4.4.1" (DGS 2026-10-03)
     if (focused?.startsWith('sort.')) tableHost.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
     clearButton?.classList.toggle('hidden', !filtersActive());
     filtersToUrl(filters, DEFAULTS);
@@ -1604,6 +1606,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     ),
     footer(),
   );
+  // Which document each section is from, on everything drawn above (DGS 2026-10-03).
+  labelCitationsIn(root);
   // A card link points at a row in the table below, and a filter the reader
   // left on can hide that row, so the click goes nowhere (review B-10,
   // 2026-09-18). Rather than a dead link, clear the filters and let the click

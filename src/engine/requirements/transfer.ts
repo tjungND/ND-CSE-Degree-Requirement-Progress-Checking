@@ -9,7 +9,7 @@
 import { isNotreDameInstitution, needsApproval } from '../../data/external.ts';
 import { formatCredits } from '../credits.ts';
 import { compareTerm, semesterNumber, termOfDate } from '../term.ts';
-import type { RequirementResult, Status } from '../types.ts';
+import type { DetailPart, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { joinedDetail, missingParamDetail, countedCourseIds } from './context.ts';
 
@@ -44,7 +44,10 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
       : 'transfer_unfinished_ms_credits_max';
   const cap = ctx.params.number(capKey);
   let status: Status;
-  const parts: string[] = [];
+  // Which courses are counted, waiting or refused, against how much, are the
+  // facts; the allowance's basis, the reasons and the instructions are notes
+  // (DGS 2026-10-03).
+  const parts: DetailPart[] = [];
   if (transfers.length === 0) {
     status = 'not_applicable';
     parts.push('No transfer courses entered');
@@ -72,7 +75,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
       [
         ...(c.passFailGrade ? ['graded pass/fail, which cannot show the B §5.2 requires'] : []),
         ...(c.afterAdmission ? ['taken after admission — the department and the Graduate School must have approved it in advance (DGS Handbook §3.14)'] : []),
-        ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (§4.6)'] : []),
+        ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (Academic Code §4.6)'] : []),
         ...(c.cseUnknown ? ['the course rules do not say whether it is a CSE course, so §4.2’s nine-credit non-CSE allowance cannot be applied yet'] : []),
         ...(c.incompleteLapsed ? ['an Incomplete past its deadline (Academic Code §4.4)'] : []),
         ...(c.interrupted ? ['taken before a readmission after five years or more (Academic Code §5.5)'] : []),
@@ -128,19 +131,18 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         ? 'a completed prior degree'
         : ctx.student.priorMs === 'unfinished'
           ? unfinishedPhd
-            ? 'a prior program that was not completed — the Academic Code states this six for an unfinished master’s (§4.6) and no figure for an unfinished Ph.D., so the six is the conservative default here; the DGS may put your case to the Graduate School'
+            ? 'a prior program that was not completed — the Academic Code states this six for an unfinished master’s (Academic Code §4.6) and no figure for an unfinished Ph.D., so the six is the conservative default here; the DGS may put your case to the Graduate School'
             : 'a prior program that was not completed'
           : 'a student with no prior graduate degree — no document states this allowance, so the six of an unfinished program is the meter and the DGS decides each course (DGS 2026-10-03)';
     // The action first (DGS 2026-09-27): the courses waiting for the DGS and
     // what to do, then the count against the allowance.
-    for (const c of held) parts.push(`Waiting for the DGS: ${c.entry.courseId} — ${heldReason(c)}; the review request asks`);
+    const upper = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+    for (const c of held) parts.push(`Waiting for the DGS: ${c.entry.courseId}`, { note: `${c.entry.courseId}: ${upper(heldReason(c))}; the review request asks` });
     if (unreviewed.length > 0) {
       const credits = unreviewed.reduce((sum, c) => sum + (c.entry.credits ?? 0), 0);
-      parts.push(
-        `Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} (${formatCredits(credits)} credits) — send the review request from the Transcripts card`,
-      );
+      parts.push(`Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} (${formatCredits(credits)} credits)`, { note: 'Send the review request from the Transcripts card' });
     }
-    parts.push(`${formatCredits(counted)} of the ${cap} credits you may transfer are counted (§5.2 allowance for ${capFor})${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`);
+    parts.push(`${formatCredits(counted)} of the ${cap} credits you may transfer are counted${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`, { note: `The ${cap} is §5.2’s allowance for ${capFor}` });
     // Only courses under §5.2's own cap belong on this row: Notre Dame
     // coursework taken as an undergraduate is filed as 'transfer' but is not
     // transfer credit (2026-09-10), and its lines used to be repeated here.
@@ -159,22 +161,20 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     });
     for (const p of excluded) parts.push(`${p.course.entry.courseId}: ${p.excludedReason ?? 'not counted'}`);
     if (status === 'not_applicable') {
-      parts.push('Nothing here needs a decision by the DGS — none of the courses you entered can transfer under §5.2, for the reason on each course’s line');
+      parts.push({ note: 'Nothing here needs a decision by the DGS — none of the courses you entered can transfer under §5.2, for the reason on each course’s line' });
     }
     // A `yes` in the course rules counts outright (2026-09-27); the Grad
     // Admin still records it, so the row says which courses to send.
     const approvedForAll = transfers.filter((c) => !c.superseded && c.transferable === 'yes' && c.ineligibleReason === undefined && c.approvalPending === undefined);
     if (approvedForAll.length > 0) {
-      parts.push(`Approved by the DGS in the course rules: ${approvedForAll.map((c) => c.entry.courseId).join(', ')} — ${recorded ? 'recorded by the Grad Admin, as you ticked under Approvals (§5.2)' : processWhen}`);
+      parts.push(`Approved by the DGS in the course rules: ${approvedForAll.map((c) => c.entry.courseId).join(', ')}${recorded ? ' — recorded by the Grad Admin, as you ticked under Approvals (§5.2)' : ''}`, ...(recorded ? [] : [{ note: upper(processWhen) }]));
     }
     if (pending.length === 0 && counted > 0 && !recorded) {
-      parts.push('Final once the Graduate School has approved the transfer and the Grad Admin has recorded it (§5.2, criterion 5) — then tick “The Graduate School approved my transfer credit” under Approvals');
+      parts.push({ note: 'Final once the Graduate School has approved the transfer and the Grad Admin has recorded it (§5.2, criterion 5) — then tick “The Graduate School approved my transfer credit” under Approvals' });
     }
     if (status !== 'met') {
       if (preApproved.length > 0) {
-        parts.push(
-          `Approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')} — final once the Graduate School has approved and the Grad Admin has recorded the transfer; ${processWhen}`,
-        );
+        parts.push(`Approved by the DGS: ${preApproved.map((c) => c.entry.courseId).join(', ')}`, { note: `Final once the Graduate School has approved and the Grad Admin has recorded the transfer; ${processWhen}` });
       }
       if (caseByCase.length > 0) {
         parts.push(
@@ -196,9 +196,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
   // credit, and is not on this row.
   const ndMasters = ctx.classified.filter((c) => c.ndMastersCredit && !c.superseded);
   if (ndMasters.length > 0) {
-    parts.push(
-      `Your Notre Dame MSCSE courses (${ndMasters.map((c) => c.entry.courseId).join(', ')}) are not transfer credit, so they are not counted here: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so MSCSE coursework not applied to your bachelor’s degree counts as Ph.D. coursework — outside this allowance and with no transfer approval. Each course’s own line shows how it counts`,
-    );
+    parts.push({ note: `Your Notre Dame MSCSE courses (${ndMasters.map((c) => c.entry.courseId).join(', ')}) are not transfer credit, so they are not counted here: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so MSCSE coursework not applied to your bachelor’s degree counts as Ph.D. coursework — outside this allowance and with no transfer approval. Each course’s own line shows how it counts` });
   }
   // The counted transfer courses — what the processing request tables (2026-09-06).
   const transferSatisfied = countedCourseIds(ctx, (p) => (p.course.caps.includes('transfer') ? p.countedRegular : 0));

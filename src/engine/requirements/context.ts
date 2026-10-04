@@ -76,6 +76,14 @@ export function defendGpaNote(ctx: Ctx): string {
     : '';
 }
 
+/** A sentence written for concatenation (" Note §2.2: … ." — leading space,
+ * closing period, or empty) as a note part, or nothing (DGS 2026-10-03: the
+ * card shows facts; notes sit behind its Details). */
+export function noteOf(sentence: string): DetailPart[] {
+  const text = sentence.trim().replace(/\.$/, '');
+  return text === '' ? [] : [{ note: text }];
+}
+
 /** The degree's time limit — §3.3's five years / §4.3's eight — as one row.
  * "Met" only when everything else already is, and able to tell "not finished"
  * from "cannot be judged yet" (red-team 2026-09-13): a blank rules-sheet cell
@@ -108,12 +116,14 @@ export function timeLimitRow(
 ): RequirementResult {
   const years = ctx.params.number(args.yearsKey);
   let status: Status;
-  let detail: string;
+  // Facts as strings, the rule and the advice as notes (DGS 2026-10-03: the
+  // card shows what is satisfied, the rest sits behind its Details).
+  let parts: DetailPart[] = [];
   let deadline: RequirementResult['deadline'];
   let statusLabel: string | undefined;
   if (years === undefined) {
     status = 'cannot_evaluate';
-    detail = missingParamDetail(args.yearsKey);
+    parts = [missingParamDetail(args.yearsKey)];
   } else {
     // Shown as a semester, never a date (DGS request 2026-09-05): eight years
     // from the entry term's start is the start of a term.
@@ -125,18 +135,21 @@ export function timeLimitRow(
       // an extension) — the same "Eligibility at risk" the defense row shows.
       status = 'needs_dgs_review';
       statusLabel = 'Eligibility at risk';
-      detail = `Every requirement is complete, but the last one was dated ${args.completedOn}, after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}. ${args.section} makes that a forfeiture of degree eligibility unless the Graduate School granted an extension — confirm it with the DGS.`;
+      parts = [
+        `Every requirement is complete, but the last one was dated ${args.completedOn}, after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
+        { note: `${args.section} makes that a forfeiture of degree eligibility unless the Graduate School granted an extension — confirm it with the DGS` },
+      ];
       deadline = { date, approx: true, state: 'done', label: `Done ${args.completedOn} — after the limit` };
     } else if (others.allMet) {
       status = 'met';
-      detail = `All requirements are complete within the ${years}-year limit${shiftNote}.`;
+      parts = [`All requirements are complete within the ${years}-year limit${shiftNote}`];
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date && others.anyCannotEvaluate) {
       // A missing rules-sheet value is not a missed deadline (red-team
       // 2026-09-13): a student who has finished everything used to read
       // "Overdue — forfeiture" because one unrelated parameter was blank.
       status = 'cannot_evaluate';
-      detail = `The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value.`;
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated until the rules sheet is complete — so whether everything was finished in time cannot be judged. Ask the DGS to fill in the missing value`];
       deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date) {
       status = 'unmet';
@@ -144,13 +157,16 @@ export function timeLimitRow(
       // §6.2.6.1 / DGS Handbook §3.19): dissertation completion status or an
       // eligibility extension, applied for through the Graduate School — the
       // DGS advises, the Graduate School decides (policy review 2026-10-03).
-      detail = `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}. ${ctx.student.program === 'phd' ? 'After the eighth year a student may apply to the Graduate School for dissertation completion status (Academic Code §6.2.6.1) — talk to the DGS.' : 'Talk to the DGS about an eligibility extension from the Graduate School.'}`;
+      parts = [
+        `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
+        { note: ctx.student.program === 'phd' ? 'After the eighth year a student may apply to the Graduate School for dissertation completion status (Academic Code §6.2.6.1) — talk to the DGS' : 'Talk to the DGS about an eligibility extension from the Graduate School' },
+      ];
       deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else {
       status = 'in_progress';
       // The deadline chip carries the when (2026-09-03); the detail says only
       // what moved it, if anything (leaves, accommodations, Appendix A).
-      detail = shiftNote !== '' ? `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}.` : '';
+      parts = shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : [];
       // A semester, never a date (DGS request 2026-09-05).
       deadline = openDeadline(date, ctx.today, `Due ${dueTermPhrase(date)} — ${years} years after entry${shiftNote !== '' ? ', extended' : ''} (approximate)`);
     }
@@ -161,7 +177,7 @@ export function timeLimitRow(
     title: args.title,
     status,
     ...(statusLabel ? { statusLabel } : {}),
-    detail,
+    ...joinedDetail(parts),
     deadline,
     citation: { section: args.section, quote: args.quote },
   };
@@ -174,7 +190,7 @@ export function timeLimitRow(
  * statements stay plain text. */
 export function joinedDetail(parts: DetailPart[]): { detail: string; detailParts?: DetailPart[] } {
   const flat = (p: DetailPart): string =>
-    typeof p === 'string' ? p : 'warn' in p ? p.warn : `${p.lead}: ${p.items.join('; ')}`;
+    typeof p === 'string' ? p : 'warn' in p ? p.warn : 'note' in p ? p.note : `${p.lead}: ${p.items.join('; ')}`;
   const structured = parts.some((p) => typeof p !== 'string');
   return {
     // A closing period only where the last part has none (a part ending in
@@ -216,7 +232,7 @@ export function thresholdRow(args: {
   const { sums, required } = args;
   const status = thresholdStatus(sums, required);
   const unit = args.unit ?? 'credits';
-  const parts: string[] = [];
+  const parts: DetailPart[] = [];
   if (required === undefined) {
     parts.push(missingParamDetail(args.requiredKey));
   } else {
@@ -241,7 +257,9 @@ export function thresholdRow(args: {
   // or CSE 68901 (thesis direction)" beside their own completed six credits
   // (2026-09-11).
   const stillShort = required === undefined || sums.definite + sums.in_progress < required;
-  if (status !== 'met' && (!args.extraDetailWhenShort || stillShort)) parts.push(...(args.extraDetail ?? []));
+  // Advice and rule sentences are explanation: behind the card's Details
+  // (DGS 2026-10-03), plain text in `detail`.
+  if (status !== 'met' && (!args.extraDetailWhenShort || stillShort)) parts.push(...(args.extraDetail ?? []).map((note) => ({ note })));
   return {
     id: args.id,
     group: args.group,
@@ -371,7 +389,8 @@ export function capRow(args: {
     }
     parts.push(...excludedLines);
   }
-  if (usage?.limit !== undefined) parts.push(...(args.extraDetail ?? []));
+  // What the number does not say on its own is explanation (DGS 2026-10-03).
+  if (usage?.limit !== undefined) parts.push(...(args.extraDetail ?? []).map((note) => ({ note })));
   // What each course draws on this allowance (2026-09-22): the regular-course
   // credits it counts, or every counted credit for a transfer cap.
   const contributions = courseContributions(args.ctx, (p) =>

@@ -354,7 +354,15 @@ export interface DeadlineInfo extends ApproxDate {
  * in the same grey prose as everything else). `detail` is unchanged either
  * way: a warning flattens to its own sentence, so the copied messages and the
  * scenario fixtures keep reading as before. */
-export type DetailPart = string | { lead: string; items: string[] } | { warn: string };
+/** One statement of a requirement row's detail. A plain string is a FACT —
+ * where the student stands, what satisfies the row by what. `{ note }` is
+ * EXPLANATION — the rule, a reason, a next step, a Graduate School form —
+ * which the page folds behind the card's "Details" selector (DGS 2026-10-03:
+ * "In those cards, only need to show what are satisfied by what. Other
+ * supplementary explanation all need to be hidden with selectors. Apply this
+ * to future changes too"). Every kind is plain text in `detail` and in the
+ * copied messages. */
+export type DetailPart = string | { lead: string; items: string[] } | { warn: string } | { note: string };
 
 export interface Contribution {
   courseId: string;

@@ -8,6 +8,9 @@
 // stale one would splice old rows into a replaced record. The stack is one
 // polite live region, so screen readers hear each message (a region created
 // per toast would not be announced). (Moved out of app.ts on 2026-09-20.)
+// Being outside the root, the stack misses the page's after-render citation
+// pass, so each message is labelled here ("CSE §4.4.2", citations.ts).
+import { labelCitations } from './citations.ts';
 import { el } from './dom.ts';
 import { isEmbedded, lastInteractionTop } from './embed.ts';
 
@@ -39,7 +42,7 @@ export function createToasts(setFocusAfterRender: (key: string) => void): Toasts
   let plainToastTimer: number | undefined;
   const toast = (msg: string): void => {
     plainToast?.remove();
-    const t = el('div', { class: 'toast show' }, msg);
+    const t = el('div', { class: 'toast show' }, labelCitations(msg));
     plainToast = t;
     placeToasts();
     toastStack.prepend(t);
@@ -55,7 +58,7 @@ export function createToasts(setFocusAfterRender: (key: string) => void): Toasts
   let noticeToast: HTMLElement | undefined;
   const notice = (msg: string): void => {
     noticeToast?.remove();
-    const t = el('div', { class: 'toast show auto-notice' }, msg);
+    const t = el('div', { class: 'toast show auto-notice' }, labelCitations(msg));
     noticeToast = t;
     placeToasts();
     toastStack.prepend(t);
@@ -83,7 +86,7 @@ export function createToasts(setFocusAfterRender: (key: string) => void): Toasts
       t.remove();
       undoToasts.delete(t);
     }
-    const t = el('div', { class: 'toast show has-action' }, msg, ' ');
+    const t = el('div', { class: 'toast show has-action' }, labelCitations(msg), ' ');
     const dismiss = (): void => {
       const timer = undoToasts.get(t);
       if (timer !== undefined) window.clearTimeout(timer);

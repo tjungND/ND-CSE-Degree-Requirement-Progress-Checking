@@ -392,3 +392,9 @@ not the app's:
     The department's 60-for-everyone is therefore the department's own, stricter rule (with the
     24-credit transfer cap, a student with a prior master's earns at least 36 at Notre Dame). §4.2
     should say it is the department's requirement rather than the Graduate School's.
+11. **§4.4.2's "category specialization course GPA".** On a retaken or substituted course, "the original
+    grade will be replaced by the new grade for purposes of computing the category specialization course
+    GPA" — but no such GPA is defined anywhere, and no threshold for it is stated; the only test the
+    handbook gives is "each B or higher". The app applies the per-course B and replaces a retaken grade
+    (policy review P1-gpa-13; DGS 2026-10-03, "apply the suggested fix"). §4.4.2 should either define the
+    aggregate and its threshold or say "the grade used for the B requirement".

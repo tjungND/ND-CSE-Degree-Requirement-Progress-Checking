@@ -39,14 +39,15 @@ export function applyDeciderRule(root: ParentNode, program: 'mscse' | 'phd'): vo
   const nodes: Text[] = [];
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const value = node.nodeValue;
-    if (!value || !/\bDGS\b/.test(value)) continue;
+    if (!value || !/\bDGS\b(?! Handbook)/.test(value)) continue;
     // The notices and the footer are rewritten too since 2026-09-15 (DGS: the
     // alpha notice names the ADGS on the MSCSE tab); the feedback address and
     // the contact card keep "DGS" by `data-keep-dgs`.
     if (node.parentElement?.closest('.contact-card, details.glossary, .print-header, [data-keep-dgs], select, textarea, script, style')) continue;
     nodes.push(node as Text);
   }
-  for (const node of nodes) node.nodeValue = node.nodeValue!.replace(/\bDGS\b/g, 'ADGS');
+  // "DGS Handbook" names the Graduate School's document, not the decider (2026-10-03).
+  for (const node of nodes) node.nodeValue = node.nodeValue!.replace(/\bDGS\b(?! Handbook)/g, 'ADGS');
 }
 
 export function applyFirstMentionRule(root: ParentNode, re: RegExp = OCE_RE, short: string = OCE_SHORT): void {

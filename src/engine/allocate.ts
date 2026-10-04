@@ -1160,7 +1160,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   //   meter (decision 2026-08-31), but no such course counts until the DGS says.
   const noPriorProgram = !fromNd && student.priorMs === 'none' && student.ndMasters === undefined;
   const heldForDgs: string[] = [
-    ...(noPriorProgram ? ['taken outside any degree program — you have no earlier graduate program on your record, and the Academic Code states a transfer allowance only for an unfinished or a completed program (§4.6), so the DGS decides whether, and how much, transfers'] : []),
+    ...(noPriorProgram ? ['taken outside any degree program — you have no earlier graduate program on your record, and the Academic Code states a transfer allowance only for an unfinished or a completed program (Academic Code §4.6), so the DGS decides whether, and how much, transfers'] : []),
     ...(passFail ? [`graded S (pass/fail), which cannot show the ${transferFloor} that §5.2 requires — the DGS decides whether it transfers`] : []),
     ...(afterAdmission ? [`taken ${termLabel(c.term)}, after you entered — a course taken elsewhere after admission needs the department’s and the Graduate School’s approval in advance (§5.2; DGS Handbook §3.14); the DGS confirms it was approved`] : []),
   ];
@@ -1466,7 +1466,7 @@ function classifyPriorNdUndergraduate(
   const sharedWithBachelors: CapId[] = bsShare === 'both' || (program === 'phd' && spent === 'bs') ? ['sharedbs'] : [];
   const bsPhdDoubleCount =
     program === 'phd' && spent === 'bs'
-      ? 'the Graduate School’s 2026-09-22 answer to the department allows the sharing, but the Academic Code does not yet state it (§4.6 writes the six-credit exception for an integrated bachelor’s/master’s program) — the DGS confirms'
+      ? 'the Graduate School’s 2026-09-22 answer to the department allows the sharing, but the Academic Code does not yet state it (Academic Code §4.6 writes the six-credit exception for an integrated bachelor’s/master’s program) — the DGS confirms'
       : undefined;
   const ugToGrApproval = ugToGrUnverified
     ? 'counts only if it was moved from undergraduate (UG) to graduate (GR) registration — approved by your advising dean and the Graduate School before your bachelor’s degree was conferred (Graduate School 4+1 guidance); your Notre Dame transcript does not show the move, so the DGS confirms it'
@@ -1947,7 +1947,7 @@ function buildExplanationText(
     // What the course WILL apply to — said in those words (DGS 2026-09-11:
     // "clear enough for students to know that courses WILL apply to both BS &
     // MSCSE or WILL apply to only MSCSE, instead of 'already counted'").
-    if (cc.bsShare === 'both') parts.push(`will apply to both your bachelor’s degree and your MSCSE — one of the courses chosen for the six credits shared with your bachelor’s degree (${levelOf(cc.entry, cc.rule) >= 6 ? '§3.5' : 'the Graduate School’s written answer to the DGS, 2026-09-10'})`);
+    if (cc.bsShare === 'both') parts.push(`will apply to both your bachelor’s degree and your MSCSE — one of the courses chosen for the six credits shared with your bachelor’s degree (${levelOf(cc.entry, cc.rule) >= 6 ? '§3.5' : 'the Graduate School’s written answer, 2026-09-10'})`);
     else if (cc.bsShare === 'mscse') parts.push('will apply to your MSCSE only');
     // The Ph.D.'s answers (Graduate School through the DGS, 2026-09-22): the
     // course's second degree is said on the line, with the rule that lets it.

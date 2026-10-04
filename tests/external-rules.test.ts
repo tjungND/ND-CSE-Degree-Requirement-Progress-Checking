@@ -305,7 +305,8 @@ describe('what a DGS ruling changes in the engine', () => {
     // "Graduate School approval pending", with nothing left for the DGS to decide.
     assert.equal(transfer?.status, 'in_progress', 'a yes counts outright (2026-09-27); the Graduate School’s approval is what is still open (2026-10-03)');
     assert.equal(transfer?.statusLabel, 'Graduate School approval pending');
-    assert.match(transfer?.detail ?? '', /Approved by the DGS in the course rules: CS 50300 — send the Grad Admin the processing request/);
+    // The course list is the fact; the processing instruction is a note behind the card's Details (2026-10-03).
+    assert.match(transfer?.detail ?? '', /Approved by the DGS in the course rules: CS 50300\. Send the Grad Admin the processing request/);
     const recorded = audit({ ...student([{ courseId: 'CS 50300' }]), attestations: { transferRecorded: true } }, rules, '2026-09-01');
     assert.equal(recorded.requirements.find((r) => r.id === 'phd.transfer')?.status, 'met', 'ticked “the Graduate School approved my transfer credit” → met');
     assert.doesNotMatch(transfer?.detail ?? '', /Not yet reviewed/);

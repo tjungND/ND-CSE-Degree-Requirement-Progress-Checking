@@ -7,6 +7,7 @@
 // transcript as the current program, so it never needs a row of its own.
 import { termLabel } from '../engine/term.ts';
 import type { Program, Season, Student, Term } from '../engine/types.ts';
+import { labelCitationsIn } from './citations.ts';
 import { openModal, returnFocusTo } from './copy-dialog.ts';
 import { el, option } from './dom.ts';
 import { SEASONS } from './state.ts';
@@ -265,6 +266,10 @@ export function backgroundQuestions(
     // the MSCSE, the 4+1 follow-up); for the Ph.D. the 4+1 follow-up comes
     // after the graduate question, since that question may answer it.
     graduateBox.hidden = sequential && (state.bachelors === undefined || (program === 'mscse' && state.bachelors === 'nd-cse' && state.ndIntegrated === undefined));
+    // These questions live in dialogs outside the page root, which the
+    // after-render citation pass never reaches: label them here ("CSE §5.2",
+    // DGS 2026-10-03, citations.ts).
+    for (const box of [integratedBox, elsewhereBox, finishedBox, transferBox]) labelCitationsIn(box);
   };
   // A numbered step (CSS counts the visible ones): the question is the heading.
   const graduateBox = el(
@@ -292,7 +297,7 @@ export function backgroundQuestions(
   // The MSCSE asks the 4+1 question right under the bachelor's answer (it
   // decides which transcript rows show); the Ph.D. asks it after the graduate
   // question, which may answer it (2026-10-03).
-  return el(
+  const questions = el(
     'div',
     { class: 'background-questions' },
     el(
@@ -311,6 +316,8 @@ export function backgroundQuestions(
     finishedBox,
     transferBox,
   );
+  labelCitationsIn(questions);
+  return questions;
 }
 
 /** The "Change" dialog on the Transcripts and standing cards: the same
@@ -348,6 +355,7 @@ export function openBackgroundDialog(student: Student, update: (fn: (s: Student)
     close();
   });
   dialog.addEventListener('close', () => dialog.remove());
+  labelCitationsIn(dialog); // outside the root, like the toasts (citations.ts)
   document.body.append(dialog);
   if (openModal(dialog)) (dialog.querySelector('input[type=radio]') as HTMLElement | null)?.focus();
 }

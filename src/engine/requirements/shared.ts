@@ -42,13 +42,15 @@ export function gpaRow(ctx: Ctx): RequirementResult {
   const min = ctx.params.number('gpa_min');
   const gpa = ctx.student.gpa;
   let status: RequirementResult['status'];
-  let detail: string;
+  // The GPA is the fact; what a low one means is a note (DGS 2026-10-03).
+  const parts: DetailPart[] = [];
   if (min === undefined) {
     status = 'cannot_evaluate';
-    detail = missingParamDetail('gpa_min');
+    parts.push(missingParamDetail('gpa_min'));
   } else if (gpa === undefined) {
     status = 'cannot_evaluate';
-    detail = `Enter your cumulative GPA from your transcript (transferred grades are not part of it, §5.2).`;
+    // The graduate career's figure (P1-gpa-c4, DGS 2026-10-03): the label and this line say so.
+    parts.push('Enter your graduate-level cumulative GPA from your transcript (transferred grades are not part of it, §5.2)');
   } else if (!inRange(gpa, GPA_RANGE)) {
     // A figure off the 4.00 scale is not a low GPA and not a high one — it is
     // no answer at all, so §2.2 cannot be checked (interface review R1,
@@ -56,13 +58,13 @@ export function gpaRow(ctx: Ctx): RequirementResult {
     // is the floor under a hand-edited save file, so the row can never read
     // "35.00 meets the 3.0 minimum" with a green pill again.
     status = 'cannot_evaluate';
-    detail = `Cumulative GPA ${formatValue(gpa, GPA_RANGE)} is outside the ${rangeSpan(GPA_RANGE)} range, so the §2.2 check cannot be made — correct it under Coursework.`;
+    parts.push(`Cumulative GPA ${formatValue(gpa, GPA_RANGE)} is outside the ${rangeSpan(GPA_RANGE)} range, so it cannot be checked — correct it under Coursework`);
   } else if (gpa >= min) {
     status = 'met';
-    detail = `Cumulative GPA ${gpaText(gpa)} meets the ${min.toFixed(1)} minimum.`;
+    parts.push(`Cumulative GPA ${gpaText(gpa)} meets the ${min.toFixed(1)} minimum`);
   } else {
     status = 'unmet';
-    detail = `Cumulative GPA ${gpaText(gpa)} is below the ${min.toFixed(1)} minimum — you cannot receive a degree or defend until it recovers (§2.2).`;
+    parts.push(`Cumulative GPA ${gpaText(gpa)} is below the ${min.toFixed(1)} minimum`, { note: 'You cannot receive a degree or defend until it recovers (§2.2)' });
   }
   // One cumulative GPA (Academic Code §4.5: "the ratio of accumulated earned
   // quality points to the accumulated graded semester credit hours", over
@@ -76,10 +78,12 @@ export function gpaRow(ctx: Ctx): RequirementResult {
     const other = gs.basis === 'transcript-graduate' ? gs.programGpa : gs.transcriptGpa;
     if (other !== undefined && inRange(other, GPA_RANGE) && other >= min !== gpa >= min) {
       status = 'needs_dgs_review';
-      detail =
+      parts.push({
+        note:
         gs.basis === 'transcript-graduate'
-          ? `${detail} Your transcript’s cumulative GPA includes an earlier graduate program at Notre Dame; this program’s courses alone average ${gpaText(other)}, on the other side of the minimum — the Academic Code reads one cumulative GPA (§4.5), so confirm your standing with the DGS.`
-          : `${detail} This figure was computed from this program’s courses alone; your transcript’s cumulative GPA is ${gpaText(other)}, on the other side of the minimum, and the Academic Code reads that registrar’s figure (§4.5) — confirm your standing with the DGS.`;
+          ? `Your transcript’s cumulative GPA includes an earlier graduate program at Notre Dame; this program’s courses alone average ${gpaText(other)}, on the other side of the minimum — the Academic Code reads one cumulative GPA (Academic Code §4.5), so confirm your standing with the DGS.`
+          : `This figure was computed from this program’s courses alone; your transcript’s cumulative GPA is ${gpaText(other)}, on the other side of the minimum, and the Academic Code reads that registrar’s figure (Academic Code §4.5) — confirm your standing with the DGS.`,
+      });
     }
   }
   return {
@@ -87,7 +91,7 @@ export function gpaRow(ctx: Ctx): RequirementResult {
     group: GROUP,
     title: 'Cumulative GPA of at least 3.0',
     status,
-    detail,
+    ...joinedDetail(parts),
     citation: { section: '§2.2', quote },
   };
 }
@@ -106,7 +110,7 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   const { advisorIdentified, advisorName, advisorName2 } = ctx.student.milestones;
   const names = [advisorName, advisorName2].filter((n): n is string => !!n);
   let status: RequirementResult['status'];
-  let detail: string;
+  const parts: DetailPart[] = [];
   // §2.3's "by the end of their first semester" is a deadline for an MSCSE
   // student (DGS 2026-09-27; the end, not the start, since the September 2026
   // edition — DGS 2026-10-02): the row reads Overdue once that semester is
@@ -122,21 +126,19 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   if (advisorIdentified || names.length > 0) {
     status = 'met';
     // Two advisors are one supervision (DGS 2026-09-22): "Advisors: A and B".
-    detail = `${names.length > 1 ? 'Advisors' : 'Advisor'}${names.length > 0 ? `: ${names.join(' and ')}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}.`;
+    parts.push(`${names.length > 1 ? 'Advisors' : 'Advisor'}${names.length > 0 ? `: ${names.join(' and ')}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}`);
   } else {
     status = 'unmet';
-    detail = ms
-      ? ctx.today > end
-        ? `No advisor entered yet — talk to the DGS; an exception is the DGS’s to grant (§2.3).`
-        : `Identify a thesis or project advisor by the end of your first semester (§2.3).`
-      : `No advisor entered yet.`;
+    // The fact, and what to do about it behind the card's Details (DGS 2026-10-03).
+    if (ms && ctx.today <= end) parts.push({ note: 'Identify a thesis or project advisor by the end of your first semester (§2.3)' });
+    else parts.push('No advisor entered yet', ...(ms ? [{ note: 'Talk to the DGS; an exception is the DGS’s to grant (§2.3)' }] : []));
   }
   return {
     id: 'shared.advisor',
     group: GROUP,
     title: ms ? 'A project or thesis advisor is identified' : 'Under continuous advisor supervision',
     status,
-    detail,
+    ...joinedDetail(parts),
     ...(deadline ? { deadline } : {}),
     citation: { section: '§2.3', quote },
   };
@@ -203,6 +205,11 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   const anyDgs = [...groups.keys()].some((key) => key.split(',').includes('dgs'));
   const status = anyDgs ? 'needs_dgs_review' : groups.size > 0 || planUnconfirmed ? 'in_progress' : 'not_applicable';
   const parts: DetailPart[] = [];
+  // The page's version (DGS 2026-10-03: the card shows what waits on whom; the
+  // reasons and the instructions sit behind its Details). The copied messages
+  // keep `parts`, with each reason beside its courses.
+  const pageParts: DetailPart[] = [];
+  const pageNotes: DetailPart[] = [];
   // {lead, items} → the report renders one nested bullet per course
   // (DGS request 2026-09-04); the prose flattens to the same sentence.
   for (const key of ['dgs', 'advisor,dgs', 'advisor', 'dgs,gradAdmin', 'advisor,dgs,gradAdmin', 'gradAdmin']) {
@@ -215,16 +222,19 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     const byReason = new Map<string, string[]>();
     for (const c of list) byReason.set(reasonOf(c), [...(byReason.get(reasonOf(c)) ?? []), c.entry.courseId]);
     parts.push({ lead: LEADS[key]!, items: [...byReason].map(([reason, ids]) => `${ids.join(', ')} (${reason})`) });
+    pageParts.push({ lead: LEADS[key]!, items: [...byReason].map(([, ids]) => ids.join(', ')) });
+    for (const [reason, ids] of byReason) pageNotes.push({ note: `${ids.join(', ')}: ${reason}` });
   }
   // "tick the box", not "the attestation": the student never sees that word —
   // the card is "Approvals you already have" (trim review 2026-09-18, P-55).
   // advisor-summary.ts REWRITES re-voices the first sentence; keep in step.
+  const instructions: DetailPart[] = [];
   if (planUnconfirmed) {
-    parts.push(
-      `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the box below the milestones`,
-    );
+    instructions.push({ note: `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the box below the milestones` });
   }
-  if (parts.length > 0) parts.push('When the DGS answers, tick the box next to each course it approved for you');
+  if (parts.length > 0 || instructions.length > 0) instructions.push({ note: 'When the DGS answers, tick the box next to each course it approved for you' });
+  parts.push(...instructions);
+  pageParts.push(...pageNotes, ...instructions);
   // Courses a tick cleared stay named here (P1-levels-grades-credits-30,
   // 2026-10-03): the approval is the student's own word; the DGS office
   // holds the record.
@@ -238,6 +248,7 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     status,
     informational: true,
     ...joined,
+    ...(pageNotes.length > 0 ? { shortDetailParts: pageParts } : {}),
     citation: {
       // The degree's own section only (DGS 2026-09-11: no §4 on the MSCSE tab).
       section: ctx.student.program === 'mscse' ? '§3.2/§5.2' : '§4.2/§5.2',
