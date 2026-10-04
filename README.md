@@ -176,8 +176,9 @@ a DGS cannot change them, and a sheet row would suggest otherwise (DGS rulings 2
 | Tuition scholarships through the **8th** year (doctoral) and the **5th** year (master's) — a note on the time-limit row | DGS Handbook §4.2.6 | `TUITION_SCHOLARSHIP_LAST_YEAR`, `src/engine/requirements/context.ts` |
 
 (The two credit factors were Parameters rows from 2026-09-12 until the DGS moved them into the code
-on 2026-10-04; a sheet that still has a `quarter_credit_factor` or `trimester_credit_factor` row is
-told in the diagnostics that the row is no longer read and can be deleted.)
+on 2026-10-04; both rows were deleted from the live sheet the same day, and a sheet that has a
+`quarter_credit_factor` or `trimester_credit_factor` row again is told in the diagnostics that the row is
+no longer read and can be deleted.)
 
 The department's own numbers — the CSE handbook's credit totals, caps, deadlines, the qualifier,
 the GPA minimum, the full-time credit floor — stay in the **Parameters** tab (A5). When a CSE

@@ -186,25 +186,6 @@ export interface RulesDate {
 
 /** Display-only parameter keys: read by the pages, never by the engine. Missing
  * is allowed (nothing shows, no warning); present → shown as given. */
-// PARKED: a key the sheet carries that the engine does not read today.
-// `phd_senior_grad_credits_max` was added and withdrawn on 2026-09-10, when the
-// DGS took the §5.2 question to the Graduate School: until they answer, no
-// credit earned before the bachelor's degree transfers, so there is no
-// allowance to size. The row stays in the Parameters tab with the DGS's value
-// (6 = §3.5's two 3-credit courses), listed here so it raises no "the app does
-// not know this key" warning, and the engine will read it again the day the
-// allowance comes back. Delete both if the Graduate School refuses.
-// `ms_thesis_readers_min` (§3.4's two readers; DGS Handbook §3.21.3) was a
-// required key that nothing read — no reader count is checked, the thesis row
-// checks the defense — so a missing row was an error for a number nothing
-// uses. Parked on 2026-10-04 (DGS, policy review P1-sheet-6: "Move this to the
-// parked list"); read it here again if a reader count is ever checked.
-// `candidacy_committee_additional_members_min` (§4.5's "at least three (3)
-// additional voting members") was required and read by nothing; parked the
-// same day (DGS: "The app doesn't need to count the number of committee
-// members", P2-dh-3.21-3.24-15).
-const PARKED_PARAMETER_KEYS = ['phd_senior_grad_credits_max', 'ms_thesis_readers_min', 'candidacy_committee_additional_members_min'] as const;
-
 export const DISPLAY_PARAMETER_KEYS = [
   // Optional override for the dated line on both pages (YYYY-MM-DD or free
   // text) → "Rules effective as of …". Without it the pages print the date the
@@ -228,17 +209,30 @@ export const DISPLAY_PARAMETER_KEYS = [
   // `current_semester` / `offered_semester` were read here until 2026-09-14;
   // the schedule is now dated per row by the Courses tab's `last_offered`
   // (DGS). A sheet that still carries the row is not told anything.
-  ...PARKED_PARAMETER_KEYS,
 ] as const;
 
-/** Keys the app once read and no longer does, because the number is not the
- * department's to set: it lives in the code beside its source (DGS
- * 2026-10-04: the sheet "only governs the data/parameters that can be
- * controlled/adjusted at the department level"; README § A5b). A sheet that
- * still carries one is told why, rather than "unknown key". */
+/** Keys the sheet once carried and the app no longer reads. All five rows were
+ * deleted from the live Parameters tab on 2026-10-04 (DGS: "remove any rows
+ * that are not needed any more"); a sheet that carries one again is told why,
+ * rather than "unknown key". Two are Graduate School numbers that now live in
+ * the code beside their source (DGS 2026-10-04: the sheet "only governs the
+ * data/parameters that can be controlled/adjusted at the department level";
+ * README § A5b). Three had been PARKED — kept in the sheet, read by nothing:
+ * - `ms_thesis_readers_min` (§3.4's two readers) was a required key nothing
+ *   read; parked 2026-10-04 (P1-sheet-6: "Move this to the parked list").
+ * - `candidacy_committee_additional_members_min` (§4.5's "at least three (3)
+ *   additional voting members"), the same (DGS 2026-10-04: "The app doesn't
+ *   need to count the number of committee members").
+ * - `phd_senior_grad_credits_max` sized §3.5's transfer allowance for a
+ *   4+1's junior/senior-year 6xxxx courses; withdrawn 2026-09-10 when the DGS
+ *   took §5.2 to the Graduate School, whose answer made that coursework count
+ *   in full rather than as transfer credit — no allowance left to size. */
 export const RETIRED_PARAMETER_KEYS: Readonly<Record<string, string>> = {
   quarter_credit_factor: 'the quarter factor (0.66) is the Graduate School’s — the DGS Handbook’s §3.14 pro-rata table — and has lived in the code since 2026-10-04 (README § A5b)',
   trimester_credit_factor: 'the trimester factor (0.88) is the Graduate School’s — the DGS Handbook’s §3.14 pro-rata table — and has lived in the code since 2026-10-04 (README § A5b)',
+  ms_thesis_readers_min: 'no reader count is checked; the thesis row checks the defense (DGS 2026-10-04)',
+  candidacy_committee_additional_members_min: 'the candidacy committee is not counted (DGS 2026-10-04: “The app doesn’t need to count the number of committee members”)',
+  phd_senior_grad_credits_max: 'the Graduate School’s answer made a 4+1’s pre-bachelor’s 60000-level coursework count in full, not as transfer credit, so there is no allowance to size (data/README.md, Tab Parameters)',
 };
 
 /** Parameter keys the app reads. Anything else in the sheet is ignored with a
