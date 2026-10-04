@@ -66,8 +66,10 @@ The CSE handbook's numbers — the department's, which a DGS may tune. A number 
 department (the Graduate School's Academic Code or DGS Handbook: the 15-credit semester maximum,
 the eighth-semester admission to candidacy, …) is deliberately NOT a row here; it lives in the
 code beside the sentence it comes from, and changing it is a Track B change (README § A5b lists
-them; DGS 2026-09-27, 2026-10-04). The quarter and trimester factors below are the one exception
-(DGS 2026-09-12).
+them; DGS 2026-09-27, 2026-10-04). The quarter and trimester factors of §5.2's pro-rata conversion
+(0.66 and 0.88, the DGS Handbook's §3.14 table) were rows here from 2026-09-12 and moved into the
+code on 2026-10-04 (DGS); a sheet that still carries `quarter_credit_factor` or
+`trimester_credit_factor` is told the row is no longer read.
 
 | `key` | `value` | `handbook_section` | `notes` |
 |---|---|---|---|
@@ -77,8 +79,6 @@ them; DGS 2026-09-27, 2026-10-04). The quarter and trimester factors below are t
 | `ms_noncse_credits_max` | 9 | §3.2 | |
 | `ms_time_limit_years` | 5 | §3.3 | |
 | `ms_thesis_readers_min` | 2 | §3.4 | **Parked — the app does not read this today** (2026-10-04, DGS). The two thesis readers besides the advisor (§3.4; DGS Handbook §3.21.3). No reader count is checked — the thesis row checks the defense — so the row may stay or go; a missing row is not an error. Thesis option only. |
-| `quarter_credit_factor` | 0.66 | §5.2 | quarter hours → semester hours — the DGS Handbook's §3.14 pro-rata table (quarter × .66; DGS 2026-09-12) |
-| `trimester_credit_factor` | 0.88 | §5.2 | trimester hours → semester hours — the same table (trimester × .88) |
 | `ms_transfer_window_years` | 5 | §5.2 | prior graduate coursework — §5.2's five-year window applies to the MSCSE too (DGS 2026-09-11) |
 | `phd_regular_credits_min` | 24 | §4.2 | 60000-level or higher |
 | `phd_total_credits_min` | 60 | §4.2 | "The graduate school requires a total of sixty (60) credits of courses and research for the Ph.D." |
@@ -172,7 +172,7 @@ column order, ready to paste straight into the sheet.
 | `transferable_MSCSE` | the same four values, or blank | The same question for an **MSCSE** student, answered separately (2026-09-09). The app reads whichever column matches the student's own program. The two approval words mean the same thing for now and both read as "needs DGS approval"; the sheet's own word is kept, so the MSCSE message can name the ADGS later without another sheet change |
 | `is_cse` | `yes` / `no` / blank | Is this a **CSE course**, for §4.2's nine-credit allowance for courses "taken from a department other than CSE"? Fill it in only where the subject code cannot settle it — `ECE` is a computing department at one university and a circuits department at another. Blank = the `cse_subject_codes` parameter decides; this cell wins over it (2026-09-09) |
 | `nd_credits` | number or blank | A **fixed** Notre Dame credit value for this one course (§5.2 pro-rata). It wins over the printed credits and over `credit_system`'s ×.66 / ×.88 conversion — so it must be **the figure the Graduate School approved** for the course, not the DGS's own rounding: the DGS Handbook's pro-rata table (quarter ×.66, trimester ×.88) is mandatory and the final number is the Graduate School's (policy review 2026-10-03, P1-units-4plus1-4). Use it only when one number is right every time — it cannot describe a course that is worth 2 credits one term and 4 the next; `credit_system` handles those. Blank = credits as printed, unless `credit_system` says otherwise |
-| `credit_system` | `quarter` / `trimester` / `semester` / blank | The system this **university** awards in. `quarter` / `trimester` convert whatever the student's own transcript prints by the Parameters tab's `quarter_credit_factor` / `trimester_credit_factor` (§5.2 pro-rata), so a course whose credits vary converts correctly every time. Set it on any one row of a university and it applies to every course from that university, listed here or not. Blank = credits count as printed Blank, or a value the diagnostics reject (2026-10-03): the course’s credits count as printed and its line says “credits shown as your transcript prints them …” until `credit_system` or `nd_credits` settles it. |
+| `credit_system` | `quarter` / `trimester` / `semester` / blank | The system this **university** awards in. `quarter` / `trimester` convert whatever the student's own transcript prints by the Graduate School's factors — × 0.66 / × 0.88, the DGS Handbook's §3.14 pro-rata table, kept in the code (README § A5b), so a course whose credits vary converts correctly every time. Set it on any one row of a university and it applies to every course from that university, listed here or not. Blank = credits count as printed Blank, or a value the diagnostics reject (2026-10-03): the course’s credits count as printed and its line says “credits shown as your transcript prints them …” until `credit_system` or `nd_credits` settles it. |
 | `decided_on`, `notes` | text | for the record |
 
 Anything a student uploads that has NO row here shows "not yet reviewed by the

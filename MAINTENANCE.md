@@ -158,8 +158,9 @@ when the answer depends on the student.
 
 Since 2026-09-08 the ExternalCourses tab has a `credit_system` column (`quarter` / `semester` /
 blank; `trimester` since 2026-09-12, × 0.88). Set it on any one row of a university and every course from that university converts from
-the credits printed on the student's transcript (by the Parameters tab's `quarter_credit_factor` /
-`trimester_credit_factor`, since 2026-09-12 — 0.66 and 0.88, the DGS Handbook's §3.14 pro-rata table) — the way to handle a
+the credits printed on the student's transcript (by 0.66 and 0.88, the DGS Handbook's §3.14 pro-rata
+table — Parameters rows from 2026-09-12, constants in `src/data/external.ts` since 2026-10-04, as
+Graduate School numbers; README § A5b) — the way to handle a
 course whose credits vary from term to term. `nd_credits` still means a FIXED value for one course
 and overrides the conversion.
 

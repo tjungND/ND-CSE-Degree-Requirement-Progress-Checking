@@ -1181,9 +1181,12 @@ const ADMISSION_FULL_TIME_SEMESTERS = 4;
  * requirements", and: "Students must be admitted to degree candidacy by the
  * end of their eighth semester or risk the loss of Graduate School funding."
  * Academic Code §5.7.3 adds probation for "a failure to … be admitted to
- * doctoral degree candidacy by the end of the eighth semester" — a trigger
- * Appendix A.4 drops for students enrolled in Spring 2020, so their row names
- * only the funding risk.
+ * doctoral degree candidacy by the end of the eighth semester". For students
+ * enrolled in Spring 2020, Appendix A.4 gives "a failure to pass candidacy
+ * exams by the end of the ninth semester" and does not mention admission; the
+ * DGS reads that silence as an oversight (2026-10-04: "ninth for both, and
+ * also mention probation"), so their row counts the ninth semester and names
+ * the probation too.
  *
  * CSE has no language requirement (§5.3), and its written candidacy exam IS
  * the dissertation proposal (§4.5), so the OCE covers the proposal. The
@@ -1212,16 +1215,16 @@ function candidacyAdmissionRow(ctx: Ctx): RequirementResult {
       citation,
     };
   }
-  // For the Spring 2020 cohort Appendix A.4 replaces §5.7.3's admission
-  // trigger with the exam by the ninth semester, so only the DGS Handbook's
-  // funding risk is said (review of the split, 2026-10-04).
-  const probation = ctx.covidCohort ? '' : 'you may have been placed on probation (Academic Code §5.7.3), and ';
+  // The Spring 2020 cohort: the ninth semester and Appendix A.4, read as
+  // covering admission too (DGS 2026-10-04, option C).
+  const semesterWord = ctx.covidCohort ? 'ninth' : 'eighth';
+  const probationCite = ctx.covidCohort ? 'Academic Code §5.7.3, Appendix A.4' : 'Academic Code §5.7.3';
   const r = deadlineStatus({
     doneOn: admitted,
     deadline: { date, approx: true },
     today: ctx.today,
     deadlineLabel: `the end of ${termLabel(term)} — semester ${effectiveSem}`,
-    lateWording: `${probation}admission after the eighth semester risks the loss of Graduate School funding (DGS Handbook §3.22.3); confirm your standing with the DGS`,
+    lateWording: `you may have been placed on probation (${probationCite}), and admission after the ${semesterWord} semester risks the loss of Graduate School funding (DGS Handbook §3.22.3); confirm your standing with the DGS`,
   });
   const parts: DetailPart[] = [];
   let status = r.status;
@@ -1291,9 +1294,7 @@ function candidacyAdmissionRow(ctx: Ctx): RequirementResult {
     // §5.7.3: the Graduate School "may" place a student on probation.
     if (r.status === 'unmet')
       parts.push({
-        note: ctx.covidCohort
-          ? 'Overdue — a student not admitted to doctoral candidacy by the deadline risks the loss of Graduate School funding (DGS Handbook §3.22.3); talk to the DGS'
-          : 'Overdue — the Graduate School may place a student not admitted to doctoral candidacy by the end of the eighth semester on probation (Academic Code §5.7.3), and the student risks the loss of Graduate School funding (DGS Handbook §3.22.3); talk to the DGS',
+        note: `Overdue — the Graduate School may place a student not admitted to doctoral candidacy by the end of the ${semesterWord} semester on probation (${probationCite}), and the student risks the loss of Graduate School funding (DGS Handbook §3.22.3); talk to the DGS`,
       });
   }
   parts.push(...eighthSemesterNotes(ctx, sem, effectiveSem, r.status !== 'met', 'admission'));

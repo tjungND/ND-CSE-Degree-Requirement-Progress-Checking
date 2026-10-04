@@ -1281,9 +1281,10 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `.attest-note` rule beside it when any transfer course exists. Old saved files with
   `transferApproved` still load; with nothing reviewed the value simply has no control.
 - **Credit systems** (F6, 2026-09-12): `CreditSystem` in data/external.ts is
-  quarter | semester | trimester; the factors are the Parameters keys `quarter_credit_factor` /
-  `trimester_credit_factor` (`creditSystemFactorKey`; a missing key → credits as printed plus a
-  line naming the key, `conversionMissingKey`); the parser
+  quarter | semester | trimester; the factors are the Graduate School's, in code since 2026-10-04
+  (`QUARTER_CREDIT_FACTOR` / `TRIMESTER_CREDIT_FACTOR`, `creditSystemFactor()`; they were the
+  Parameters keys `quarter_credit_factor` / `trimester_credit_factor` from 2026-09-12, now in
+  `RETIRED_PARAMETER_KEYS`, which the sheet check reports as no longer read); the parser
   sets `quarterSystem` or `trimesterSystem`; the preview keeps `p.creditSystem` and the select
   `ext.preview.creditsystem`; the classified course carries `convertedFrom` for the line.
 

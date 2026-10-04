@@ -227,6 +227,16 @@ export const DISPLAY_PARAMETER_KEYS = [
   ...PARKED_PARAMETER_KEYS,
 ] as const;
 
+/** Keys the app once read and no longer does, because the number is not the
+ * department's to set: it lives in the code beside its source (DGS
+ * 2026-10-04: the sheet "only governs the data/parameters that can be
+ * controlled/adjusted at the department level"; README § A5b). A sheet that
+ * still carries one is told why, rather than "unknown key". */
+export const RETIRED_PARAMETER_KEYS: Readonly<Record<string, string>> = {
+  quarter_credit_factor: 'the quarter factor (0.66) is the Graduate School’s — the DGS Handbook’s §3.14 pro-rata table — and has lived in the code since 2026-10-04 (README § A5b)',
+  trimester_credit_factor: 'the trimester factor (0.88) is the Graduate School’s — the DGS Handbook’s §3.14 pro-rata table — and has lived in the code since 2026-10-04 (README § A5b)',
+};
+
 /** Parameter keys the app reads. Anything else in the sheet is ignored with a
  * gentle warning; anything here that is missing makes its requirement
  * "cannot evaluate". Keep in sync with data/README.md. */
@@ -246,11 +256,6 @@ export const KNOWN_PARAMETER_KEYS = [
   'ms_time_limit_years',
   'ms_transfer_completed_ms_credits_max',
   'ms_transfer_window_years',
-  // §5.2 pro-rata factors for credits "not earned on the semester system" —
-  // on the sheet, not in code (DGS 2026-09-12): 0.66 and 0.88, the DGS
-  // Handbook's §3.14 pro-rata table (CSE §5.2 says only “pro-rata basis”).
-  'quarter_credit_factor',
-  'trimester_credit_factor',
   'phd_total_credits_min',
   'phd_regular_credits_min',
   'phd_nd_credits_min',

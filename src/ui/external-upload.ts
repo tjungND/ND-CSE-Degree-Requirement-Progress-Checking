@@ -11,7 +11,7 @@
 // transmits nothing — FERPA).
 import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
-import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
+import { creditSystemFactor, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { describeBackground, openBackgroundDialog, priorSlotsFor } from './background.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
@@ -971,20 +971,15 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // here (quarter 2026-09-11, trimester 2026-09-12 — §5.2:
             // "Credits not earned on the semester system, such as trimester
             // and quarter-hour credits, will be transferred on a pro-rata
-            // basis"). A quarter transcript's 4 credits are 2.67 Notre Dame
+            // basis"). A quarter transcript's 4 credits are 2.64 Notre Dame
             // credits, a trimester's 3.52; the DGS's row for the university
             // overrides whatever is chosen.
             const detected = p.creditSystem === 'quarter' || p.creditSystem === 'trimester';
-            // The factors come from the sheet's Parameters tab (DGS 2026-09-12).
-            const factorOf = (sys: 'quarter' | 'trimester') => args.rules.parameters.number(`${sys}_credit_factor`);
-            const at = (sys: 'quarter' | 'trimester') => {
-              const f = factorOf(sys);
-              return f === undefined ? 'factor not in the rules sheet yet' : `converted at ${f.toFixed(2)}`;
-            };
-            const example = (sys: 'quarter' | 'trimester') => {
-              const f = factorOf(sys);
-              return f === undefined ? 'cannot be converted until the DGS adds the factor' : `a 4-credit course counts ${(4 * f).toFixed(2)} Notre Dame credits`;
-            };
+            // The Graduate School's factors (DGS Handbook §3.14), in code
+            // since 2026-10-04 — they were sheet rows from 2026-09-12.
+            const factorOf = (sys: 'quarter' | 'trimester') => creditSystemFactor(sys) ?? 1;
+            const at = (sys: 'quarter' | 'trimester') => `converted at ${factorOf(sys).toFixed(2)}`;
+            const example = (sys: 'quarter' | 'trimester') => `a 4-credit course counts ${(4 * factorOf(sys)).toFixed(2)} Notre Dame credits`;
             const sel = el('select', { 'data-key': 'ext.preview.creditsystem' });
             for (const [value, label] of [
               ['semester', 'Semester hours — counted as printed'],

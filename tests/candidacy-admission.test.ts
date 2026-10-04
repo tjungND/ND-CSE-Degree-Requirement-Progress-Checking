@@ -181,13 +181,16 @@ describe('the eighth semester', () => {
     assert.equal(admission.deadline?.state, 'overdue');
     assert.match(admission.detail, /the Graduate School may place a student not admitted to doctoral candidacy by the end of the eighth semester on probation \(Academic Code §5\.7\.3\)/);
   });
-  it('the Spring 2020 cohort: the funding risk only — Appendix A.4 drops the admission trigger from §5.7.3', () => {
+  it('the Spring 2020 cohort: the ninth semester, with the probation (DGS 2026-10-04: Appendix A.4’s silence about admission is an oversight)', () => {
     const s = ready({ candidacyPassed: '2023-04-20' }, { entryTerm: fall(2019), fullTimeTermOverrides: [fall(2019), spring(2020), fall(2020), spring(2021)], courses: REGULAR.map((id, i) => ndCourse(id, { term: [fall(2019), spring(2020), fall(2020), spring(2021)][Math.floor(i / 2)]! })) });
     const { admission } = rows(s, '2026-10-04');
     assert.equal(admission.status, 'unmet');
     assert.equal(admission.deadline?.label, 'Overdue — the deadline was the end of Fall 2023 — semester 9 (approximate)');
-    assert.match(admission.detail, /Overdue — a student not admitted to doctoral candidacy by the deadline risks the loss of Graduate School funding \(DGS Handbook §3\.22\.3\)/);
-    assert.doesNotMatch(admission.detail, /§5\.7\.3/);
+    assert.match(admission.detail, /Overdue — the Graduate School may place a student not admitted to doctoral candidacy by the end of the ninth semester on probation \(Academic Code §5\.7\.3, Appendix A\.4\), and the student risks the loss of Graduate School funding \(DGS Handbook §3\.22\.3\)/);
+    // Admitted after the ninth semester: the late note names both.
+    const late = rows(ready({ candidacyPassed: '2023-04-20', candidacyAdmitted: '2024-03-01' }, { entryTerm: fall(2019), fullTimeTermOverrides: [fall(2019), spring(2020), fall(2020), spring(2021)], courses: REGULAR.map((id, i) => ndCourse(id, { term: [fall(2019), spring(2020), fall(2020), spring(2021)][Math.floor(i / 2)]! })) }), '2026-10-04').admission;
+    assert.equal(late.status, 'needs_dgs_review');
+    assert.match(late.detail, /you may have been placed on probation \(Academic Code §5\.7\.3, Appendix A\.4\), and admission after the ninth semester risks the loss of Graduate School funding/);
   });
   it('moves with an approved leave, as the OCE’s does', () => {
     const { oce, admission } = rows(ready({}, { leaveSemesters: 1 }), '2027-01-15');

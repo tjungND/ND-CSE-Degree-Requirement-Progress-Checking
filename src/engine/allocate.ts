@@ -10,7 +10,7 @@
 import { formatCredits } from './credits.ts';
 import { canonicalCourseId, isIncompleteCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { approverToken, needsCourseApproval } from './decider.ts';
-import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactorKey, creditSystemFactorLabel } from '../data/external.ts';
+import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactor, creditSystemFactorLabel } from '../data/external.ts';
 import type { Counts, ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, GRADE_POINTS, isInProgress, isPassed, isWithdrawn, meetsGradeFloor, passesCreditFloor } from './grades.ts';
@@ -150,11 +150,9 @@ export interface ClassifiedCourse {
   ndMastersCredit?: true;
   /** Which non-semester system the credits were converted from (F6, 2026-09-12). */
   convertedFrom?: 'quarter' | 'trimester';
-  /** The sheet's factor used for that conversion (DGS 2026-09-12: on the sheet). */
+  /** The factor used for that conversion — the Graduate School's (DGS Handbook
+   * §3.14), in code since 2026-10-04 (data/external.ts). */
   conversionFactor?: number;
-  /** The transcript announced a non-semester system but the sheet has no
-   * factor for it: credits stay as printed and the line says which key. */
-  conversionMissingKey?: string;
   /** MSCSE only: how a Notre Dame course taken as an undergraduate is applied
    * — to both degrees (inside §3.5's shared credits) or to the MSCSE alone.
    * Chosen by the app, never by the student (DGS 2026-09-11). */
@@ -479,8 +477,6 @@ export function classify(student: Student, rules: Rules, today?: string): {
   // them. One key per degree, because the Graduate School may yet distinguish
   // them and the sheet is where that belongs.
   const windowYears = params.number(program === 'mscse' ? 'ms_transfer_window_years' : 'phd_transfer_window_years');
-  // §5.2 pro-rata factors, read from the sheet (DGS 2026-09-12).
-  const creditFactors = { quarter: params.number('quarter_credit_factor'), trimester: params.number('trimester_credit_factor') };
   // Each course's governing Courses-tab row, resolved once.
   const ruleRows = new Map<CourseEntry, RuleCourse | undefined>();
   const ruleOf = (c: CourseEntry): RuleCourse | undefined => {
@@ -570,7 +566,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
   }
 
   // Everything the transfer branch reads, gathered once (see ClassifyEnv).
-  const env: ClassifyEnv = { rules, student, program, attestations, entry, transferFloor, windowYears, creditFactors, cseSubjectCodes, bsShared, today };
+  const env: ClassifyEnv = { rules, student, program, attestations, entry, transferFloor, windowYears, cseSubjectCodes, bsShared, today };
   // Readmission after a withdrawal (Academic Code §5.5: "Credit for any course
   // or examination will be forfeited if the student interrupts his or her
   // program of study for five years or more" — policy review 2026-10-03). The
@@ -919,7 +915,6 @@ interface ClassifyEnv {
   entry: Term;
   transferFloor: string | undefined;
   windowYears: number | undefined;
-  creditFactors: { quarter: number | undefined; trimester: number | undefined };
   cseSubjectCodes: string[] | undefined;
   bsShared: ReadonlySet<CourseEntry>;
   /** Today's date, when the caller has one (audit() does; review.ts does not). */
@@ -932,7 +927,7 @@ interface ClassifyEnv {
  * classify()'s transfer branch, moved out whole so the map
  * callback reads in one screen; nothing in it changed. */
 function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | undefined, base: ClassifiedCourse): ClassifiedCourse {
-  const { rules, student, program, attestations, entry, transferFloor, windowYears, cseSubjectCodes, creditFactors } = env;
+  const { rules, student, program, attestations, entry, transferFloor, windowYears, cseSubjectCodes } = env;
   const grade = c.grade;
   // The DGS's ExternalCourses ruling, when one exists. Attached to every
   // return path so §4.4.1 core knowledge sees it even when no credit counts.
@@ -942,8 +937,8 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // that, what the transcript itself announced at import (2026-09-11).
   const sheetCreditSystem = universityCreditSystem(rules.external, c.institution);
   const creditSystem = sheetCreditSystem ?? c.creditSystem;
-  const conversionKey = creditSystemFactorKey(creditSystem);
-  const conversionFactor = creditSystem === 'quarter' || creditSystem === 'trimester' ? creditFactors[creditSystem] : undefined;
+  // §5.2 pro-rata: the Graduate School's factors, in code (DGS 2026-10-04).
+  const conversionFactor = creditSystemFactor(creditSystem);
   const extBase: ClassifiedCourse = { ...base, external };
   // Prior NOTRE DAME coursework (2026-09-05 — an earlier Notre Dame degree
   // on a combined transcript): the Courses tab already says which §4.4.1
@@ -1316,10 +1311,8 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     // converted from what the transcript prints (DGS 2026-09-08), which is
     // the only thing that works when a course's credits vary by term.
     effectiveCredits: ndEquivalentCredits(c.credits, external, creditSystem, conversionFactor),
-    ...(external?.ndCredits === undefined && (creditSystem === 'quarter' || creditSystem === 'trimester')
-      ? conversionFactor !== undefined
-        ? { creditsConverted: true as const, convertedFrom: creditSystem, conversionFactor, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
-        : { conversionMissingKey: conversionKey }
+    ...(external?.ndCredits === undefined && (creditSystem === 'quarter' || creditSystem === 'trimester') && conversionFactor !== undefined
+      ? { creditsConverted: true as const, convertedFrom: creditSystem, conversionFactor, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
       : {}),
     approvalPending: settled
       ? undefined
@@ -2010,9 +2003,6 @@ function buildExplanationText(
   } else if (counted > 0) {
     mark = markForTier(cc.tier);
     parts.push(`${lead} toward ${poolName} (${formatCredits(counted)} cr)${tail}`);
-    if (cc.conversionMissingKey !== undefined) {
-      parts.push(`credits shown as your transcript prints them — cannot convert from the ${cc.convertedFrom ?? (cc.conversionMissingKey.startsWith('quarter') ? 'quarter' : 'trimester')} system: the rules sheet is missing '${cc.conversionMissingKey}' (§5.2 pro-rata); ask the DGS to add it to the Parameters tab`);
-    }
     if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
       parts.push(
         `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the ${cc.convertedFrom ?? 'quarter'} system at ${creditSystemFactorLabel(cc.conversionFactor ?? 1)}${cc.creditSystemSource === 'transcript' ? ` — your transcript says ${cc.convertedFrom ?? 'quarter'} terms; the DGS’s decision for the university can correct this` : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,

@@ -167,12 +167,13 @@ a DGS cannot change them, and a sheet row would suggest otherwise (DGS rulings 2
 | An Incomplete becomes an F **30 + 14** days after grades are due | Academic Code §4.4 | `INCOMPLETE_GRACE_DAYS`, `src/engine/allocate.ts` |
 | A grade of **C** or better for credit | Academic Code §4.3 | `passesCreditFloor`, `src/engine/grades.ts` |
 | The **6** credits of §3.5's note on courses shared with a bachelor's degree | the Graduate School | `src/engine/tracks.ts` |
+| Quarter credit hours × **0.66**, trimester credit hours × **0.88** (§5.2's pro-rata conversion) | DGS Handbook §3.14 | `QUARTER_CREDIT_FACTOR`, `TRIMESTER_CREDIT_FACTOR`, `src/data/external.ts` |
 | One more year and a 9th semester for students enrolled in **Spring 2020** or earlier | Academic Code Appendix A | `COVID_COHORT_LAST_ENTRY`, `src/engine/requirements/context.ts` |
 | Credit from before an interruption of **five years** or more is forfeited | Academic Code §5.5 | `src/engine/allocate.ts` (readmission) |
 
-One exception, by the DGS's ruling of 2026-09-12: the quarter and trimester credit factors
-(`quarter_credit_factor`, `trimester_credit_factor`, the DGS Handbook's §3.14 pro-rata table) are
-Parameters rows.
+(The two credit factors were Parameters rows from 2026-09-12 until the DGS moved them into the code
+on 2026-10-04; a sheet that still has a `quarter_credit_factor` or `trimester_credit_factor` row is
+told in the diagnostics that the row is no longer read and can be deleted.)
 
 The department's own numbers — the CSE handbook's credit totals, caps, deadlines, the qualifier,
 the GPA minimum, the full-time credit floor — stay in the **Parameters** tab (A5). When a CSE

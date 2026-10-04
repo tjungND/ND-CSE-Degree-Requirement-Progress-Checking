@@ -5,7 +5,7 @@
 // Bachelor's-level rule (core knowledge yes, transfer credit never).
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { findExternalRule, normalizeCourseId, normalizeUniversity } from '../src/data/external.ts';
+import { QUARTER_CREDIT_FACTOR, TRIMESTER_CREDIT_FACTOR, findExternalRule, normalizeCourseId, normalizeUniversity } from '../src/data/external.ts';
 import { buildCombinedReviewRequest } from '../src/transcript/external.ts';
 import { parseExternalTab } from '../src/data/parse.ts';
 import type { SheetIssue } from '../src/data/types.ts';
@@ -610,8 +610,8 @@ describe('credit_system: quarter hours become Notre Dame hours', () => {
 
   it('converts the credits the transcript prints — the exact value, whatever the course is worth', () => {
     const four = classify(usc('CSCI 570', 4), rules).classified[0]!;
-    // The factor is the sheet's `quarter_credit_factor` (2026-09-12): 0.66,
-    // the DGS Handbook's §3.14 pro-rata table.
+    // The factor is the Graduate School's — the DGS Handbook's §3.14 pro-rata
+    // table, 0.66 — in code since 2026-10-04 (it was a sheet row from 2026-09-12).
     assert.ok(Math.abs((four.effectiveCredits ?? 0) - 4 * 0.66) < 1e-9);
     assert.equal(four.creditsConverted, true);
     assert.equal(four.conversionFactor, 0.66);
@@ -643,12 +643,16 @@ describe('credit_system: quarter hours become Notre Dame hours', () => {
     assert.doesNotMatch(l.text, /2\.66666/);
   });
 
-  it('with the factor missing from the sheet, credits stay as printed and the line names the key (2026-09-12)', () => {
-    const noFactor = buildRules({ parameters: { quarter_credit_factor: null } });
-    const c = classify(usc('CSCI 570', 4), noFactor).classified[0]!;
-    assert.equal(c.effectiveCredits, undefined);
-    assert.equal(c.conversionMissingKey, 'quarter_credit_factor');
-    const l = audit(usc('CSCI 570', 4), noFactor, '2026-09-01').courseLines.find((x) => x.courseId === 'CSCI 570')!;
-    assert.match(l.text, /cannot convert from the quarter system: the rules sheet is missing 'quarter_credit_factor'/);
+  it('the factors are the Graduate School’s, in code: a sheet row neither sets nor removes them (DGS 2026-10-04)', () => {
+    assert.equal(QUARTER_CREDIT_FACTOR, 0.66);
+    assert.equal(TRIMESTER_CREDIT_FACTOR, 0.88);
+    // An old sheet that still carries the row, with another value: ignored, and the sheet check says why.
+    const oldSheet = buildRules({ parameters: { quarter_credit_factor: '0.5' } });
+    assert.ok(Math.abs((classify(usc('CSCI 570', 4), oldSheet).classified[0]?.effectiveCredits ?? 0) - 4 * 0.66) < 1e-9);
+    const issue = oldSheet.issues.find((i) => /quarter_credit_factor/.test(i.message))!;
+    assert.equal(issue.severity, 'warning');
+    assert.match(issue.message, /'quarter_credit_factor' is no longer read — the quarter factor \(0\.66\) is the Graduate School’s — the DGS Handbook’s §3\.14 pro-rata table — and has lived in the code since 2026-10-04 \(README § A5b\)\. Changing the row changes nothing; delete it\./);
+    // The current sheet has no row, and nothing is missing.
+    assert.deepEqual(buildRules().issues.filter((i) => /credit_factor/.test(i.message)), []);
   });
 });

@@ -2,7 +2,7 @@
 // undefined AND records a SheetIssue; the engine turns undefined into
 // "cannot evaluate — rules sheet is missing <key>" (never a silent pass).
 import type { Parameters, SheetIssue } from './types.ts';
-import { DISPLAY_PARAMETER_KEYS, KNOWN_PARAMETER_KEYS } from './types.ts';
+import { DISPLAY_PARAMETER_KEYS, KNOWN_PARAMETER_KEYS, RETIRED_PARAMETER_KEYS } from './types.ts';
 
 export function makeParameters(
   raw: Map<string, { value: string; section: string; row: number }>,
@@ -30,6 +30,18 @@ export function makeParameters(
     }
   }
   for (const [key, entry] of raw) {
+    // A key moved into the code (README § A5b): changing the row changes
+    // nothing, so the DGS is told to delete it (2026-10-04).
+    const retired = RETIRED_PARAMETER_KEYS[key];
+    if (retired !== undefined) {
+      issues.push({
+        severity: 'warning',
+        tab: 'Parameters',
+        row: entry.row,
+        message: `Parameters row ${entry.row}: '${key}' is no longer read — ${retired}. Changing the row changes nothing; delete it.`,
+      });
+      continue;
+    }
     if (!known.has(key) && !display.has(key)) {
       issues.push({
         severity: 'warning',
