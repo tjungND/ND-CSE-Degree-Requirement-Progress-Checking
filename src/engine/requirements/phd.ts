@@ -273,8 +273,12 @@ function qualifierPassedUnderPriorRules(ctx: Ctx): boolean {
   return ctx.student.attestations.qualifierPassedUnderPriorRules === true && qualifierPriorRulesEligible(ctx.entry, ctx.today);
 }
 function qualifierRowsPassedUnderPriorRules(ctx: Ctx, children: RequirementResult[]): RequirementResult[] {
-  const quote =
-    'Ph.D. students must pass a qualifying examination, which has three components: core knowledge, category specialization, and research.';
+  // No quote (DGS 2026-10-03, P1-page-text-engine-7: "Do not quote anything.
+  // Just state that those who passed the qualifier under earlier rules are not
+  // subject to the new rules."). The card used to show a paraphrase as if it
+  // were §4.4's own sentence; the exemption is the DGS's (2026-09-21), so it
+  // is stated as a note that names the section, and the citation carries no
+  // quote (report.ts then prints none).
   const umbrella: RequirementResult = {
     id: 'phd.qualifier',
     group: QUALIFIER,
@@ -282,11 +286,12 @@ function qualifierRowsPassedUnderPriorRules(ctx: Ctx, children: RequirementResul
     status: 'met',
     ...joinedDetail([
       'Passed under the earlier qualifier requirements, as you attested under “Approvals you already have”',
+      { note: 'Students who passed the qualifying examination under the earlier rules are not subject to the current requirements of §4.4 (DGS 2026-09-21)' },
       { note: 'The Grad Admin’s record of the examination is what counts' },
       ...(ctx.student.milestones.qualifierFormFiled ? [] : [{ note: 'If the completion form is not on file, file it with the Grad Admin (§4.4)' }]),
     ]),
     deadline: { date: ctx.today, approx: true, state: 'done', label: 'Complete' },
-    citation: { section: '§4.4', quote },
+    citation: { section: '§4.4', quote: '' },
   };
   const components = children.map((c) => ({
     ...c,

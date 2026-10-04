@@ -14,8 +14,11 @@ const ALLOWANCES = 'Allowances — §3.2, §3.5'; // meters, not verdicts (DGS 2
 const TIME = 'Residence and time — §3.3';
 const PROJECT_THESIS = 'M.S. project or thesis — §3.4';
 
+// The whole §3.2 sentence, "earned at Notre Dame" included — the clause the
+// engine applies to a transferred project/thesis course (policy review
+// 2026-10-03, P1-page-text-engine-5: the quote used to stop at "(CSE 68901).").
 const REGULAR_QUOTE =
-  'The MSCSE degree requires a minimum of twenty-four (24) credit hours of regular courses and six (6) credits hours of Masters project (CSE 68902) or Masters thesis direction (CSE 68901).';
+  'The MSCSE degree requires a minimum of twenty-four (24) credit hours of regular courses and six (6) credits hours of Masters project (CSE 68902) or Masters thesis direction (CSE 68901) earned at Notre Dame.';
 
 export function mscseRows(ctx: Ctx): RequirementResult[] {
   const rows: RequirementResult[] = [];

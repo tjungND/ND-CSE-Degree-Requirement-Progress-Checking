@@ -360,7 +360,10 @@ function requirementCard(r: RequirementResult): HTMLElement {
     el('summary', {}, 'Details'),
     notes.length > 0 ? el('ul', { class: 'req-notes' }, ...notes.map((n) => el('li', {}, sentence(n)))) : null,
     courseLink ?? null,
-    el('p', { class: 'rule-quote' }, el('span', { class: 'rule-source' }, sourceName(r.citation.section)), `: “${r.citation.quote}”`),
+    // A row that states its rule in a note carries no quote (phd.ts, the
+    // qualifier passed under the earlier rules — DGS 2026-10-03): no empty
+    // quotation marks.
+    r.citation.quote !== '' ? el('p', { class: 'rule-quote' }, el('span', { class: 'rule-source' }, sourceName(r.citation.section)), `: “${r.citation.quote}”`) : null,
   );
   return el(
     'div',
@@ -672,7 +675,9 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
     ['Section references (§)', 'CSE § is the CSE Graduate Handbook. Academic Code § is the Graduate School’s Academic Code, and DGS Handbook § is the Graduate School’s handbook for directors of graduate studies.', ''],
     ['Cumulative GPA', 'The grade-point average over all your graduate coursework at Notre Dame, as the registrar computes it; continuation, candidacy and graduation require at least 3.0.', '§2.2'],
     ['Regular course', 'A lecture-style course. Only regular courses count toward the 24 regular-course credits; seminars, research, independent study and project credits count toward the total only.', program === 'mscse' ? '§3.2' : '§4.2'],
-    ['Full-time', 'A semester in which you are registered for the full-time credit load (9 or more credits, or research-heavy terms you mark yourself).', '§2.1.2'],
+    // The handbook's own nine (§2.1.2), and the rules the residency count
+    // has applied since 2026-10-03 (second reconciliation pass).
+    ['Full-time', 'A semester in which you register for at least nine credit hours — withdrawn and incomplete courses count as registrations — or one you tick as full-time on research. A summer session with any registration counts when the spring before or the fall after was full-time (Academic Code §3.6).', '§2.1.2'],
     program === 'mscse'
       ? ['Residency', 'Registration in full-time status for one semester during the academic year, or for one summer session.', '§3.3']
       : ['Residency', 'Full-time status for four consecutive semesters, not counting summer sessions, counted from the term you entered the program.', '§4.3'],

@@ -768,7 +768,8 @@ describe('below the 40000 level, and the 4+1 flag (F8, 2026-09-12)', () => {
     const r = audit(base([{ courseId: 'CSE 30124', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }, { courseId: 'CSE 10101', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }]), rules, '2027-06-01');
     for (const id of ['CSE 30124', 'CSE 10101']) {
       const l = r.courseLines.find((c) => c.courseId === id)!;
-      assert.match(l.text, /^not counted — below the 40000 level; no course under 40000 earns graduate credit \(§4\.2\)/, id);
+      // Academic Code §4.1, like the listed-row refusals (second reconciliation pass, 2026-10-03).
+      assert.match(l.text, /^not counted — below the 40000 level; no course under 40000 earns graduate credit \(Academic Code §4\.1\)/, id);
     }
     assert.match(r.requirements.find((q) => q.id === 'phd.credits.regular')!.detail, /0 of 24/);
   });

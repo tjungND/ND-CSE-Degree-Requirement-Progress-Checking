@@ -415,6 +415,10 @@ export interface RequirementResult {
    * /^(\d+) of (\d+)/, so rewording the sentence silently deleted the bar. */
   progress?: { have: number; need: number; unit: string };
   deadline?: DeadlineInfo;
+  /** The rule's section and, normally, its sentence in the document's own
+   * words. An empty quote means the row states its rule in a note instead
+   * (DGS 2026-10-03: the qualifier passed under the earlier rules) — the
+   * card then prints no quotation. */
   citation: { section: string; quote: string };
   /** What satisfies the row right now — course ids for course-based rows,
    * semester labels for residency — so the Grad Admin's processing request

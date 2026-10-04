@@ -590,7 +590,10 @@ export function classify(student: Student, rules: Rules, today?: string): {
     (a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId),
   );
 
-  // §4.4.2 retakes / duplicate entries: credits count once. Applies to ND
+  // Retakes / duplicate entries: credits count once (DGS default 2026-08-31 —
+  // no document states it; §4.4.2's grade replacement is about the category
+  // specialization only, so the credit sentences no longer cite it: policy
+  // review 2026-10-03, P1-page-text-engine-17). Applies to ND
   // courses that are (or look like) regular courses; project/research/seminar
   // credits legitimately accumulate, and foreign transfer ids may collide with
   // ND numbering without being retakes.
@@ -627,7 +630,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
           ? inProgress[inProgress.length - 1]!
           : attempts[attempts.length - 1]!; // all failed → last one (earns nothing anyway)
     for (const a of attempts) if (a !== counted) supersededSet.add(a);
-    warnings.push(`${id} is entered ${attempts.length} times — its credits count once (§4.4.2 retake rule).`);
+    warnings.push(`${id} is entered ${attempts.length} times — its credits count once.`);
   }
 
   const classified: ClassifiedCourse[] = sorted.map((c): ClassifiedCourse => {
@@ -716,10 +719,10 @@ export function classify(student: Student, rules: Rules, today?: string): {
         // identifies neither row, so say what actually happened instead
         // (2026-09-11).
         ineligibleReason: countedIsLater
-          ? `superseded by the ${termLabel(countedAttempt.term)} retake — credits count once, and the retake grade replaces this one (§4.4.2)`
+          ? `superseded by the ${termLabel(countedAttempt.term)} retake — its credits count once${program === 'phd' && rule?.categoryGroups && rule.categoryGroups.length > 0 ? ', and for the category specialization the retake grade replaces this one (§4.4.2)' : ''}`
           : countedAttempt && compareTerm(countedAttempt.term, c.term) === 0
-            ? `entered twice for ${termLabel(c.term)} — credits count once (§4.4.2), so this duplicate row counts nothing. Remove it if it is not a second registration`
-            : `credits count once (§4.4.2) — the ${countedAttempt ? termLabel(countedAttempt.term) : 'other'} attempt of this course is the one counted`,
+            ? `entered twice for ${termLabel(c.term)} — its credits count once, so this duplicate row counts nothing. Remove it if it is not a second registration`
+            : `its credits count once — the ${countedAttempt ? termLabel(countedAttempt.term) : 'other'} attempt of this course is the one counted`,
       };
     }
 
@@ -783,8 +786,19 @@ export function classify(student: Student, rules: Rules, today?: string): {
       // The degree's own section (DGS 2026-09-11: no §4 on the MSCSE tab):
       // §3.6.1 says CSE 50xxx courses "do not count toward the MSCSE degree
       // requirements"; §4.2's six credits are the Ph.D.'s (policy review 2026-10-03).
+      // On the MSCSE tab no listing can make it count (§3.6.1's own guard,
+      // DGS 2026-10-03, P1-levels-grades-credits-4), so the line says what
+      // the listed course's line says instead of "counts only if listed"
+      // (second reconciliation pass, 2026-10-03).
       if (level === 5) {
-        return { ...base, unknown: true, ineligibleReason: `not counted — a 50000-level course counts only if the DGS has listed it in the course rules (${program === 'mscse' ? '§3.2, §3.6.1' : '§4.2'})` };
+        return {
+          ...base,
+          unknown: true,
+          ineligibleReason:
+            program === 'mscse'
+              ? 'not counted — a 50000-level CSE course is preparatory and does not count toward the MSCSE, whatever the course rules say (§3.6.1)'
+              : 'not counted — a 50000-level course counts only if the DGS has listed it in the course rules (§4.2)',
+        };
       }
       // No course below the 40000 level earns graduate credit (red-team F8,
       // DGS 2026-09-12): §3.2/§4.2 reach down only to "the 40000 level", and
@@ -792,7 +806,10 @@ export function classify(student: Student, rules: Rules, today?: string): {
       // "counted provisionally". A number the pattern cannot read (NaN) is
       // still an unknown course, not a refused one.
       if (level < 4) {
-        return { ...base, unknown: true, ineligibleReason: `not counted — below the 40000 level; no course under 40000 earns graduate credit (${program === 'mscse' ? '§3.2' : '§4.2'})` };
+        // The Graduate School's rule (Academic Code §4.1), as the two listed-row
+        // refusals say — P1-page-text-engine-16 left this unlisted one behind
+        // (second reconciliation pass, 2026-10-03).
+        return { ...base, unknown: true, ineligibleReason: 'not counted — below the 40000 level; no course under 40000 earns graduate credit (Academic Code §4.1)' };
       }
       const caps: CapId[] = level === 4 ? ['fourk'] : [];
       return {
