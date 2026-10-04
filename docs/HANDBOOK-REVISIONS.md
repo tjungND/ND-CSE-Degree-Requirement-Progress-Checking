@@ -414,4 +414,18 @@ not the app's:
     The app records one date, "Thesis topic approved", as a step before the defense (policy review
     2026-10-04, P2-ac-5b-6.1-14). §3.4 should say whether the program's approval is the advisor's, the
     ADGS's or a committee's, and how it is recorded.
+14. **§3.3 — seven years for a summer-session-only master's student?** Academic Code §6.1.4 (and the
+    DGS Handbook §3.19, §3.21.1): "A student attending summer session only must complete all
+    requirements within seven years." CSE §3.3 says five years, flat. The app now names the seven years
+    on the time-limit row when every Notre Dame term on the record is a summer session, and asks the
+    ADGS whether they apply, instead of reading Overdue after five (policy review 2026-10-04,
+    P2-dh-3.21-3.24-3). §3.3 should say whether the MSCSE admits summer-session-only students at all,
+    and if it does, give them the seven years in its own text.
+15. **§3.4 — the readers' written request: to the DGS or the ADGS?** §3.4 says a non-TTT or outside
+    thesis reader needs prior approval "by submitting a written request to the DGS", while the rest of
+    §3 sends MSCSE approvals to the ADGS (§2.3's advisor exception, §3.2's 40000-level and non-CSE
+    courses). The app asks the student whether both readers are tenured or tenure-track CSE faculty and
+    neither is the advisor, and on "no" or "not sure" sends the question to the ADGS, as it does every
+    MSCSE decision (policy review 2026-10-04, P2-dh-10-19; decider rule of 2026-09-11). §3.4 should
+    name the ADGS if that is who approves.
 

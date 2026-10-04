@@ -160,6 +160,11 @@ export interface Milestones {
    * his or her advisor, the student proposes a thesis topic for program
    * approval"; CSE §3.4(ii) — policy review 2026-10-04, P2-ac-5b-6.1-14). */
   thesisTopicApproved?: string;
+  /** MSCSE thesis option: are both official readers tenured or tenure-track
+   * CSE faculty, and is neither of them the advisor — as the student answers
+   * it (CSE §3.4; DGS Handbook §10.3.8 — policy review 2026-10-04,
+   * P2-dh-10-19). The readers themselves are not recorded. */
+  thesisReadersTtt?: 'yes' | 'no' | 'unsure';
   thesisDefensePassed?: string; // §3.4 thesis option
   /** A FAILED first thesis-defense attempt (Academic Code §6.1.5: one retake,
    * by the end of the following semester — policy review 2026-10-04,
@@ -177,8 +182,8 @@ export interface TermGpa {
   cumulativeGpa?: number;
 }
 
-/** The milestone DATES (the advisor names are not). */
-export type MilestoneDateKey = Exclude<keyof Milestones, 'advisorName' | 'advisorName2' | 'advisorTtt' | 'advisorTtt2'>;
+/** The milestone DATES (the advisor names and the faculty-status answers are not). */
+export type MilestoneDateKey = Exclude<keyof Milestones, 'advisorName' | 'advisorName2' | 'advisorTtt' | 'advisorTtt2' | 'thesisReadersTtt'>;
 
 /** A milestone date's deadline, for the Milestones card (DGS 2026-10-04: "In
  * the Milestones, next to all the dates, specify the deadlines."). The same

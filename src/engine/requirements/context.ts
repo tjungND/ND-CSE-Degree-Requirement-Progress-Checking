@@ -97,6 +97,27 @@ export function timeLimitDate(ctx: Ctx, years: number): string {
   return addMonthsIso(startOfTerm(ctx.entry).date, years * 12 + ctx.clockShift * 6 + (ctx.covidCohort ? 12 : 0));
 }
 
+/** DGS Handbook §4.2.6, Academic-Year Tuition Scholarships: "All doctoral
+ * students in good standing are eligible for tuition scholarships through the
+ * 8th year. … Master's students in good standing are eligible through the 5th
+ * year." The Graduate School's numbers, so they live here and not in the
+ * rules sheet (README § A5b). Said beside the degree's time limit, which the
+ * sheet sets — a note only; the app does not model funding (policy review
+ * 2026-10-04, P2-dh-4-5-4; DGS: "Apply suggested handling"). */
+export const TUITION_SCHOLARSHIP_LAST_YEAR = { phd: 8, mscse: 5 } as const;
+
+/** "5th", "8th", "21st". */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  return `${n}${tens >= 11 && tens <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
+}
+
+/** The tuition-scholarship sentence the time-limit row carries. */
+export function tuitionScholarshipNote(ctx: Ctx): DetailPart {
+  const phd = ctx.student.program === 'phd';
+  return { note: `${phd ? 'Doctoral' : 'Master’s'} students in good standing are eligible for Graduate School tuition scholarships through the ${ordinal(TUITION_SCHOLARSHIP_LAST_YEAR[ctx.student.program])} year (DGS Handbook §4.2.6)` };
+}
+
 export function timeLimitRow(
   ctx: Ctx,
   others: { allMet: boolean; anyCannotEvaluate: boolean },
@@ -112,6 +133,14 @@ export function timeLimitRow(
      * defense or project report) — a completion after the limit cannot read
      * "complete within the limit" (policy review 2026-10-03). */
     completedOn?: string;
+    /** A longer limit that may apply instead — the DGS confirms whether it
+     * does: the Graduate School's seven years for a master's student
+     * attending summer session only (Academic Code §6.1.4; policy review
+     * 2026-10-04, P2-dh-3.21-3.24-3). `why` is the fact on the record that
+     * raises it, `rule` the sentence with its citation. Past the row's own
+     * limit but inside this one, the row reads In progress against this one
+     * instead of Overdue, and the DGS is asked which applies. */
+    longer?: { years: number; why: string; rule: string };
   },
 ): RequirementResult {
   const years = ctx.params.number(args.yearsKey);
@@ -129,6 +158,21 @@ export function timeLimitRow(
     // from the entry term's start is the start of a term.
     const date = timeLimitDate(ctx, years);
     const shiftNote = clockShiftNote(ctx);
+    const longerDate = args.longer ? timeLimitDate(ctx, args.longer.years) : undefined;
+    // The longer limit's sentence, by whether `when` (a completion, or today)
+    // is still inside it.
+    const longerNote = (when: string): DetailPart[] =>
+      args.longer && longerDate
+        ? [
+            {
+              note:
+                when <= longerDate
+                  ? `${args.longer.why}: ${args.longer.rule}, until ${deadlineTermLabel(longerDate)} (approximate) — whether it applies to you is for the DGS to confirm`
+                  : `${args.longer.why}: ${args.longer.rule}, and that limit passed at ${deadlineTermLabel(longerDate)} too (approximate)`,
+            },
+          ]
+        : [];
+    const tuition = tuitionScholarshipNote(ctx);
     if (others.allMet && args.completedOn !== undefined && args.completedOn > date) {
       // Finished, but after the limit (Academic Code §6.2.6 / §6.1.4): the
       // Graduate School decides eligibility (dissertation completion status,
@@ -138,6 +182,7 @@ export function timeLimitRow(
       parts = [
         `Every requirement is complete, but the last one was dated ${args.completedOn}, after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
         { note: `${args.section} makes that a forfeiture of degree eligibility unless the Graduate School granted an extension — confirm it with the DGS` },
+        ...longerNote(args.completedOn),
       ];
       deadline = { date, approx: true, state: 'done', label: `Done ${args.completedOn} — after the limit` };
     } else if (others.allMet) {
@@ -152,8 +197,17 @@ export function timeLimitRow(
       // candidacy of a record whose dissertation milestones are dated), so
       // the sentence names both and leaves "which" to that row.
       status = 'cannot_evaluate';
-      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated yet — a value is missing from the rules sheet or from your record, and that row says which — so whether everything was finished in time cannot be judged`];
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated yet — a value is missing from the rules sheet or from your record, and that row says which — so whether everything was finished in time cannot be judged`, ...longerNote(ctx.today), tuition];
       deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
+    } else if (ctx.today > date && longerDate !== undefined && ctx.today <= longerDate) {
+      // Past the row's own limit, inside a longer one that may apply: the DGS
+      // confirms which (the caller puts the question in the review request),
+      // so the row runs against the longer limit — not "Overdue", and not
+      // "Conditionally met" either, since nothing is complete (policy review
+      // 2026-10-04).
+      status = 'in_progress';
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`, ...longerNote(ctx.today), tuition];
+      deadline = openDeadline(longerDate, ctx.today, `Due ${dueTermPhrase(longerDate)} if the ${args.longer!.years}-year limit applies (approximate)`);
     } else if (ctx.today > date) {
       status = 'unmet';
       // What a passed limit means at the Graduate School (Academic Code
@@ -163,15 +217,19 @@ export function timeLimitRow(
       parts = [
         `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
         { note: ctx.student.program === 'phd' ? 'After the eighth year a student may apply to the Graduate School for dissertation completion status (Academic Code §6.2.6.1) — talk to the DGS' : 'Talk to the DGS about an eligibility extension from the Graduate School' },
+        ...longerNote(ctx.today),
+        tuition,
       ];
       deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else {
       status = 'in_progress';
       // The deadline chip carries the when (2026-09-03); the detail says only
       // what moved it, if anything (leaves, accommodations, Appendix A).
-      parts = shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : [];
       // A semester, never a date (DGS request 2026-09-05).
       deadline = openDeadline(date, ctx.today, `Due ${dueTermPhrase(date)} — ${years} years after entry${shiftNote !== '' ? ', extended' : ''} (approximate)`);
+      // The tuition sentence once the limit is this semester or next — before
+      // that it is not news (and every email would carry it).
+      parts = [...(shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : []), ...longerNote(ctx.today), ...(deadline.state === 'due_soon' ? [tuition] : [])];
     }
   }
   return {

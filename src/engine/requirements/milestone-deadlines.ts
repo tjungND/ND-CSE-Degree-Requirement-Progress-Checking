@@ -12,6 +12,7 @@ import { addMonthsIso, deadlineHorizon, deadlineTerm, endOfNextSemester, endOfTe
 import type { MilestoneDateKey, MilestoneDeadline, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { clockShiftNote, timeLimitDate } from './context.ts';
+import { SUMMER_ONLY_MS_TIME_LIMIT_YEARS, summerSessionOnly } from './mscse.ts';
 import { ADMISSION_DEADLINE_SEMESTER, eighthSemester, qualifierDeadline, qualifierExtensionSemesters, qualifierPassedUnderPriorRules } from './phd.ts';
 
 type Deadlines = Partial<Record<MilestoneDateKey, MilestoneDeadline>>;
@@ -186,6 +187,18 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
     const theLimit = `the ${years}-year limit (§3.3)${clockShiftNote(ctx)}`;
     const thesisDone = !!m.thesisDefensePassed;
     const projectDone = !!m.projectReportAccepted;
+    // A summer-session-only record (Academic Code §6.1.4; 2026-10-04): the
+    // seven years may apply instead, as the DGS confirms — said beside the
+    // five while they are open, and the date an open box counts against once
+    // the five have passed inside the seven (the time-limit row then runs
+    // against the seven too, not Overdue). A dated box keeps the five, as the
+    // route rows do.
+    const seven = summerSessionOnly(ctx) ? timeLimitDate(ctx, SUMMER_ONLY_MS_TIME_LIMIT_YEARS) : undefined;
+    const sevenBasis = 'seven years if you attend summer sessions only, as the DGS confirms (Academic Code §6.1.4)';
+    const routeBox = (doneOn: string | undefined, state: StateRule): MilestoneDeadline =>
+      seven !== undefined && !doneOn && state === 'auto' && ctx.today > limit && ctx.today <= seven
+        ? at(ctx, seven, sevenBasis, undefined)
+        : at(ctx, limit, theLimit, doneOn, state, seven !== undefined ? `or ${duePhrase(seven)} if you attend summer sessions only — seven years (Academic Code §6.1.4), as the DGS confirms` : undefined);
     // After a failed first attempt the retake is due by the end of the
     // following semester (Academic Code §6.1.5, 2026-10-04) — that, not the
     // five years, is the defense's deadline then; the fail box carries it
@@ -195,10 +208,10 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
       out.thesisDefensePassed = at(ctx, retakeDue, 'the one retake, by the end of the semester after the fail (Academic Code §6.1.5)', m.thesisDefensePassed);
       out.thesisDefenseFailed = at(ctx, retakeDue, 'the one retake after a fail, by the end of the following semester (Academic Code §6.1.5)', undefined, false);
     } else {
-      out.thesisDefensePassed = at(ctx, limit, theLimit, m.thesisDefensePassed, !thesisDone && projectDone ? false : 'auto');
+      out.thesisDefensePassed = routeBox(m.thesisDefensePassed, !thesisDone && projectDone ? false : 'auto');
       out.thesisDefenseFailed = { basis: 'No deadline of its own — after a failed attempt, one retake is allowed, by the end of the following semester (Academic Code §6.1.5)' };
     }
-    out.projectReportAccepted = at(ctx, limit, theLimit, m.projectReportAccepted, !projectDone && thesisDone ? false : 'auto');
+    out.projectReportAccepted = routeBox(m.projectReportAccepted, !projectDone && thesisDone ? false : 'auto');
   }
   return out;
 }

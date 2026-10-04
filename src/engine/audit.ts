@@ -13,7 +13,7 @@ import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency
 import { transferCourseChecks } from '../data/course-checks.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
 import { advisorReviewFlag, advisorRow, approvalsRow, gpaRow, gpaText } from './requirements/shared.ts';
-import { mscseRows, msTimeLimitRow } from './requirements/mscse.ts';
+import { mscseRows, msTimeLimitRow, summerOnlyReviewFlag, thesisReadersReviewFlag } from './requirements/mscse.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
 import { msMilestoneDeadlines, phdMilestoneDeadlines } from './requirements/milestone-deadlines.ts';
 import { formatCredits } from './credits.ts';
@@ -258,6 +258,12 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // policy review 2026-10-04, P2-ac-6.2-app-8): the DGS's written approval.
   const advisorFlag = advisorReviewFlag(ctx);
   if (advisorFlag) reviewFlags.push(advisorFlag);
+  // MSCSE thesis readers who are not both tenured or tenure-track CSE faculty,
+  // or one of them the advisor, or the student is not sure (CSE §3.4; DGS
+  // Handbook §10.3.8 — policy review 2026-10-04, P2-dh-10-19): the DGS's prior
+  // approval. The request goes to the ADGS, so it says ADGS.
+  const readersFlag = thesisReadersReviewFlag(ctx);
+  if (readersFlag) reviewFlags.push(decisionWording(student.program, readersFlag));
 
   if (normalized) {
     // Admissions are in fall and spring only (DGS 2026-10-03); a student who
@@ -404,6 +410,11 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     anyCannotEvaluate: otherRows.some((r) => r.status === 'cannot_evaluate'),
   };
   rows.push(student.program === 'mscse' ? msTimeLimitRow(ctx, others) : phdTimeLimitRow(ctx, others));
+  // A summer-session-only record past the five years and inside the seven
+  // (Academic Code §6.1.4 — policy review 2026-10-04, P2-dh-3.21-3.24-3): the
+  // review request asks the DGS whether the seven years apply.
+  const summerFlag = summerOnlyReviewFlag(ctx, others);
+  if (summerFlag) reviewFlags.push(decisionWording(student.program, summerFlag));
   rows.push(approvalsRow(ctx));
   // The deadline beside each date in the Milestones card (DGS 2026-10-04).
   const milestoneDeadlines = student.program === 'phd' ? phdMilestoneDeadlines(ctx, rows) : msMilestoneDeadlines(ctx);
@@ -508,6 +519,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     summary,
     warnings: warnings.map((w) => decisionWording(p, w)),
     tracks: specialTracks(student, classified).map((t) => ({ ...t, text: decisionWording(p, t.text) })),
-    milestoneDeadlines,
+    // The MSCSE's summer-session sentence names the decider (2026-10-04).
+    milestoneDeadlines: decisionWordingDeep(p, milestoneDeadlines),
   };
 }

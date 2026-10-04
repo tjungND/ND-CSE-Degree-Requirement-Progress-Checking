@@ -173,8 +173,20 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   } else {
     status = 'unmet';
     // The fact, and what to do about it behind the card's Details (DGS 2026-10-03).
+    // Ph.D. (policy review 2026-10-04, P2-dh-3.14-3.20-23; DGS: "Apply
+    // suggested handling"): what being without an advisor can lead to — CSE
+    // §2.3: "Students who are not under the supervision of a faculty advisor
+    // may be subject to dismissal from the program"; DGS Handbook §3.17: "If
+    // the student and the DGS are unable to find an adviser, the student may
+    // be dismissed from the program." A note; the decision is the DGS's.
     if (ms && ctx.today <= end) parts.push({ note: 'Identify a thesis or project advisor by the end of your first semester (§2.3)' });
-    else parts.push('No advisor entered yet', ...(ms ? [{ note: 'Talk to the DGS; an exception is the DGS’s to grant (§2.3)' }] : []));
+    else
+      parts.push(
+        'No advisor entered yet',
+        ms
+          ? { note: 'Talk to the DGS; an exception is the DGS’s to grant (§2.3)' }
+          : { note: 'Enter your advisor under Milestones. A student who is not under the supervision of a faculty advisor may be subject to dismissal from the program (§2.3; DGS Handbook §3.17) — report any disruption to the DGS at once' },
+      );
   }
   return {
     id: 'shared.advisor',

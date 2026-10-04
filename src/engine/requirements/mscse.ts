@@ -238,6 +238,37 @@ function residencyRow(ctx: Ctx): RequirementResult {
   };
 }
 
+/** Academic Code §6.1.4 (also DGS Handbook §3.19 and §3.21.1): "A student
+ * attending summer session only must complete all requirements within seven
+ * years." The Graduate School's number, so it lives here and not in the
+ * rules sheet (README § A5b). */
+export const SUMMER_ONLY_MS_TIME_LIMIT_YEARS = 7;
+
+/** Does every Notre Dame term on the record fall in a summer session — the
+ * attendance pattern of a student "attending summer session only" (policy
+ * review 2026-10-04, P2-dh-3.21-3.24-3; DGS: "Apply suggested handling")?
+ * The engine sees the pattern; whether the student is in that category is
+ * the DGS's to confirm, so the time-limit row routes and never decides. The
+ * program's own courses (origin 'nd' — prior Notre Dame coursework is
+ * 'transfer') and any semester ticked full-time under Your standing. */
+export function summerSessionOnly(ctx: Ctx): boolean {
+  const terms = [...ctx.student.courses.filter((c) => c.origin === 'nd').map((c) => c.term), ...(ctx.student.fullTimeTermOverrides ?? [])];
+  return terms.length > 0 && terms.every((t) => t.season === 'summer');
+}
+
+/** The seven years as the time-limit row says them. */
+const SUMMER_ONLY_LIMIT = {
+  years: SUMMER_ONLY_MS_TIME_LIMIT_YEARS,
+  why: 'Every Notre Dame term on your record is a summer session',
+  rule: 'a student attending summer session only has seven years (Academic Code §6.1.4)',
+};
+
+/** The last dated §3.4 requirement — the thesis defense or the project report. */
+function lastMsRequirementDate(ctx: Ctx): string | undefined {
+  const m = ctx.student.milestones;
+  return [m.thesisDefensePassed, m.projectReportAccepted].filter((d): d is string => d !== undefined).sort().pop();
+}
+
 /** §3.3: "Failure to complete all requirements for the M.S. degree within
  * 5 years results in forfeiture of degree eligibility." */
 export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
@@ -246,8 +277,6 @@ export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEva
   // The same row as the Ph.D.'s, with the master's key and quote — and the
   // thesis defense or project report as the last dated requirement (policy
   // review 2026-10-03: a defense after the limit used to close the row).
-  const m = ctx.student.milestones;
-  const completedOn = [m.thesisDefensePassed, m.projectReportAccepted].filter((d): d is string => d !== undefined).sort().pop();
   return timeLimitRow(ctx, others, {
     id: 'ms.timeLimit',
     group: TIME,
@@ -255,8 +284,65 @@ export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEva
     yearsKey: 'ms_time_limit_years',
     section: '§3.3',
     quote,
-    completedOn,
+    completedOn: lastMsRequirementDate(ctx),
+    // The Graduate School's seven years, when the record shows summer
+    // sessions only — for the DGS to confirm (2026-10-04).
+    ...(summerSessionOnly(ctx) ? { longer: SUMMER_ONLY_LIMIT } : {}),
   });
+}
+
+/** The review-request line for a summer-session-only record past the five
+ * years and inside the seven (2026-10-04) — today, while something is still
+ * open, or at the last requirement's date once everything is complete. */
+export function summerOnlyReviewFlag(ctx: Ctx, others: { allMet: boolean }): string | undefined {
+  const years = ctx.params.number('ms_time_limit_years');
+  if (ctx.student.program !== 'mscse' || years === undefined || !summerSessionOnly(ctx)) return undefined;
+  const five = timeLimitDate(ctx, years);
+  const seven = timeLimitDate(ctx, SUMMER_ONLY_MS_TIME_LIMIT_YEARS);
+  const completedOn = lastMsRequirementDate(ctx);
+  if (others.allMet && (completedOn === undefined || completedOn <= five)) return undefined; // complete within the five
+  const when = others.allMet ? completedOn! : ctx.today;
+  if (when <= five || when > seven) return undefined;
+  return `Time limit: every Notre Dame term on my record is a summer session. The ${years} years of §3.3 passed at ${deadlineTermLabel(five)} (approximate); a student attending summer session only has seven years (Academic Code §6.1.4), until ${deadlineTermLabel(seven)} — please confirm whether they apply to me.`;
+}
+
+/** The MSCSE route the rows are built for: the student's choice, else the
+ * one the record shows (inferMsOption), else undecided. */
+function msRoute(ctx: Ctx): 'project' | 'thesis' | 'undecided' {
+  const chosen = ctx.student.msOption ?? 'undecided';
+  return chosen === 'undecided' ? (inferMsOption(ctx.student) ?? 'undecided') : chosen;
+}
+
+/** The thesis readers, as the student answers them (policy review
+ * 2026-10-04, P2-dh-10-19; DGS: "Apply suggested handling"). CSE §3.4: "Such
+ * readers are selected from among the Tenure and Tenure Track (TTT) faculty
+ * of the department. The appointment of a non-TTT faculty member from CSE or
+ * a faculty member from outside the department as a reader must have prior
+ * approval. The approval process must be initiated by the research advisor
+ * and the student by submitting a written request to the DGS. The research
+ * advisor may not be one of the two official readers." DGS Handbook §10.3.8:
+ * "The appointment of a reader from outside the student's program must have
+ * the Graduate School's prior approval." The app cannot see faculty status,
+ * so one question, asked on the thesis route only: 'no' or 'not sure' goes
+ * to the DGS. Unanswered changes nothing — the readers are nominated only
+ * once the advisor approves the thesis for reading, so for most of the
+ * program there is nothing to answer (the Ph.D. advisor's question, asked of
+ * every Ph.D. student, is a missing input when blank). The readers are not
+ * recorded (P2-dh-3.21-3.24-8, ignored the same day). */
+export function thesisReadersRouted(ctx: Ctx): 'no' | 'unsure' | undefined {
+  if (ctx.student.program !== 'mscse' || msRoute(ctx) !== 'thesis') return undefined;
+  const a = ctx.student.milestones.thesisReadersTtt;
+  return a === 'no' || a === 'unsure' ? a : undefined;
+}
+
+const READERS_RULE =
+  'Thesis readers come from the department’s tenured and tenure-track faculty, and your advisor may not be one of the two (§3.4): a non-TTT CSE reader or one from outside the department needs prior approval — you and your advisor send the DGS a written request — and a reader from outside the program needs the Graduate School’s prior approval too (DGS Handbook §10.3.8)';
+
+/** The review-request line for thesis readers who need an approval. */
+export function thesisReadersReviewFlag(ctx: Ctx): string | undefined {
+  const routed = thesisReadersRouted(ctx);
+  if (!routed) return undefined;
+  return `Thesis readers: ${routed === 'unsure' ? 'I am not sure whether both are tenured or tenure-track CSE faculty and neither is my advisor' : 'not both tenured or tenure-track CSE faculty, or one of them is my advisor'}. ${READERS_RULE.replace('your advisor may not', 'the advisor may not').replace('you and your advisor send', 'the advisor and the student send')}.`;
 }
 
 /** Which §3.4 route the record itself shows (2026-09-12): a Master's project
@@ -276,8 +362,7 @@ export function inferMsOption(student: Ctx['student']): 'project' | 'thesis' | u
 
 function optionRows(ctx: Ctx): RequirementResult[] {
   const rows: RequirementResult[] = [];
-  const chosen = ctx.student.msOption ?? 'undecided';
-  const option = chosen === 'undecided' ? (inferMsOption(ctx.student) ?? 'undecided') : chosen;
+  const option = msRoute(ctx);
   const m = ctx.student.milestones;
   // While no route is chosen or visible, the two rows are ALTERNATIVES (§3.4:
   // "in one of two ways"): either finished satisfies both (F4, 2026-09-12).
@@ -292,7 +377,11 @@ function optionRows(ctx: Ctx): RequirementResult[] {
   const late = (date: string | undefined): boolean => limitDate !== undefined && date !== undefined && date > limitDate;
   // When it was late is the fact; what that means is a note (DGS 2026-10-03).
   const lateFact = ` — after the ${years}-year limit, which passed at ${limitDate === undefined ? '' : deadlineTermLabel(limitDate)} (approximate)`;
-  const lateRule: DetailPart = { note: '§3.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS' };
+  // A summer-session-only record may have seven years instead (Academic Code
+  // §6.1.4, 2026-10-04) — the DGS confirms, so the sentence names it.
+  const lateRule: DetailPart = {
+    note: `§3.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension${summerSessionOnly(ctx) ? ' or the seven years of a student attending summer session only apply to you (Academic Code §6.1.4)' : ''}, so confirm it with the DGS`,
+  };
   // The master's degree needs admission to master's candidacy — a Graduate
   // School form by its calendar deadline (Academic Code §6.1.6) — said once
   // the route is complete (policy review 2026-10-03).
@@ -399,6 +488,20 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     } else {
       status = 'unmet';
       parts = ['Not yet passed', ...alternative, ...noteOf(defendGpaNote(ctx)), ...examNote];
+    }
+    // The readers' faculty status (CSE §3.4; DGS Handbook §10.3.8 — policy
+    // review 2026-10-04, P2-dh-10-19): 'no' or 'not sure' puts the question
+    // in the review request and the rule on the row; a passed defense then
+    // reads Conditionally met (needs_dgs_review) until the DGS confirms the
+    // approval. Before the defense the row stays In progress — "Conditionally
+    // met" would say a defense not yet held is satisfied. Unanswered on the
+    // thesis route, the question is pointed to until the defense is dated.
+    const readers = thesisReadersRouted(ctx);
+    if (readers) {
+      if (status === 'met') status = 'needs_dgs_review';
+      parts.push({ note: `${READERS_RULE} — this is in the review request; ask the DGS` });
+    } else if (option === 'thesis' && m.thesisReadersTtt === undefined && !m.thesisDefensePassed) {
+      parts.push({ note: 'Once your two readers are nominated, answer under Milestones whether both are tenured or tenure-track CSE faculty and neither is your advisor (§3.4)' });
     }
     rows.push({
       id: 'ms.thesis.defense',

@@ -2311,6 +2311,27 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         card.append(
           // Academic Code §6.1.7 (policy review 2026-10-04, P2-ac-5b-6.1-14).
           dateField('Thesis topic approved — proposed with your advisor’s approval (Academic Code §6.1.7)', 'thesisTopicApproved'),
+          // The readers' faculty status (CSE §3.4; DGS Handbook §10.3.8 —
+          // policy review 2026-10-04, P2-dh-10-19): on the thesis route only,
+          // behind a selector until the readers exist, so nobody answers
+          // "Not sure" before there is anyone to be sure about; "no" or "not
+          // sure" goes to the DGS.
+          ...(opt === 'thesis'
+            ? [
+                rareFold(
+                  'thesis-readers',
+                  'Have your two thesis readers been nominated?',
+                  m.thesisReadersTtt !== undefined,
+                  fieldset(
+                    'Are both readers tenured or tenure-track CSE faculty, and is neither of them your advisor? (§3.4)',
+                    radios('milestone.thesisReadersTtt', [['yes', 'Yes'], ['no', 'No'], ['unsure', 'Not sure']], m.thesisReadersTtt ?? '', (v) =>
+                      update((s) => void (s.milestones.thesisReadersTtt = v as 'yes' | 'no' | 'unsure')),
+                    ),
+                    'inline',
+                  ),
+                ),
+              ]
+            : []),
           dateField('Thesis defense passed (§3.4)', 'thesisDefensePassed'),
           // A failed first attempt (Academic Code §6.1.5: one retake, by the
           // end of the following semester) — uncommon, so behind a selector

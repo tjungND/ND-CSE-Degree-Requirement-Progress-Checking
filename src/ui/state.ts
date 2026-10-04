@@ -233,8 +233,9 @@ function validMilestones(raw: unknown, refusals: Refusal[]): Student['milestones
   // it, silently — the defense date stands for both.
   delete out['dissertationApprovedForDefense'];
   delete out['thesisApprovedByReaders'];
-  // The advisor's faculty-status answers (2026-10-04): one of three words or nothing.
-  for (const k of ['advisorTtt', 'advisorTtt2']) if (out[k] !== undefined && !['yes', 'no', 'unsure'].includes(out[k] as string)) delete out[k];
+  // The faculty-status answers — the advisor's and the thesis readers'
+  // (2026-10-04): one of three words or nothing.
+  for (const k of ['advisorTtt', 'advisorTtt2', 'thesisReadersTtt']) if (out[k] !== undefined && !['yes', 'no', 'unsure'].includes(out[k] as string)) delete out[k];
   for (const [key, label] of Object.entries(MILESTONE_DATE_LABELS)) {
     const v = out[key];
     if (v === undefined) continue;

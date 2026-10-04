@@ -1,0 +1,92 @@
+{
+  "name": "mscse-thesis-readers-not-ttt",
+  "description": "CSE §3.4 (“Such readers are selected from among the Tenure and Tenure Track (TTT) faculty of the department. The appointment of a non-TTT faculty member from CSE or a faculty member from outside the department as a reader must have prior approval … The research advisor may not be one of the two official readers”) and DGS Handbook §10.3.8 (an outside reader needs the Graduate School’s prior approval) — policy review 2026-10-04, P2-dh-10-19; DGS: “Apply suggested handling”. An MSCSE thesis student who passed the defense answers “No” to “Are both readers tenured or tenure-track CSE faculty, and is neither of them your advisor?”: the thesis defense row reads Conditionally met (needs_dgs_review) with the readers’ rule, and the question is in the review request, instead of Met with the readers never asked. (Before the defense the row stays In progress — tests/readers-summer-tuition.test.ts.)",
+  "today": "2026-12-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "thesis",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 68901",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example",
+      "thesisTopicApproved": "2026-05-01",
+      "thesisReadersTtt": "no",
+      "thesisDefensePassed": "2026-11-20"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.thesis.defense": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Thesis defense passed 2026-11-20",
+        "you and your advisor send the ADGS a written request",
+        "DGS Handbook §10.3.8"
+      ]
+    },
+    "ms.thesis.topic": {
+      "status": "met"
+    }
+  }
+}

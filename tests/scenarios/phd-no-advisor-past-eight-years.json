@@ -1,0 +1,37 @@
+{
+  "name": "phd-no-advisor-past-eight-years",
+  "description": "CSE §2.3 (“Students who are not under the supervision of a faculty advisor may be subject to dismissal from the program”) with DGS Handbook §3.17, and DGS Handbook §4.2.6 (“All doctoral students in good standing are eligible for tuition scholarships through the 8th year”) — policy review 2026-10-04, P2-dh-3.14-3.20-23 and P2-dh-4-5-4; DGS: “Apply suggested handling”. A Ph.D. student entered Fall 2017 with no advisor on record in Fall 2026: the advisor row says what being without an advisor can lead to, and the eight-year row that the Graduate School’s tuition scholarships run through the 8th year — notes only, no status change.",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2017
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "shared.advisor": {
+      "status": "unmet",
+      "detailIncludes": [
+        "No advisor entered yet",
+        "may be subject to dismissal from the program (§2.3; DGS Handbook §3.17)"
+      ]
+    },
+    "phd.timeLimit": {
+      "status": "unmet",
+      "detailIncludes": [
+        "Overdue — the 8-year limit passed",
+        "eligible for Graduate School tuition scholarships through the 8th year (DGS Handbook §4.2.6)"
+      ]
+    }
+  }
+}
