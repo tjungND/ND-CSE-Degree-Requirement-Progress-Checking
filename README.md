@@ -82,13 +82,13 @@ app skip that row and report it.
 |---|---|---|
 | `course_id` | e.g. `CSE 60641` | Department code, one space, five digits. The key. |
 | `course_type` | `regular` / `seminar` / `research` / `independent` / `project` | Only `regular` counts toward the 24 regular-course credits (§3.2, §4.2). Watch for research or thesis courses mistyped `regular`. |
-| `counts_toward_mscse`, `counts_toward_phd` | `yes` / `no` / `dgs_approval` | `dgs_approval` counts provisionally and tells the student to get sign-off. **Blank** makes the app say "needs DGS review". |
+| `counts_toward_mscse`, `counts_toward_phd` | `yes` / `no` / `dgs_approval` / `adgs_approval` | `dgs_approval` / `adgs_approval` count provisionally and tell the student to get the advisor's sign-off and the DGS's or the ADGS's — the cell names who, not the program (today MSCSE approvals are the ADGS's). **Blank** makes the app say "needs DGS review". |
 | `core_area` | `os` / `algorithms` / `architecture` / blank | Which §4.4.1 core-knowledge area the course satisfies. |
-| `category_group` | `alg` / `hcc` / `arch` / `dsai` / `sys` / `any` / `ineligible` / blank | Which §4.4.2 specialization group it belongs to. `any` = listed under every group, the student picks one (Research Methods). `ineligible` = can never satisfy the category requirement — all 40000-level courses are marked this way. |
+| `category_group` | one or more of `alg` / `hcc` / `arch` / `dsai` / `sys`, or `ineligible` / blank | Which §4.4.2 specialization group(s) it belongs to; with several, the student picks one. A course in every group names all five (Research Methods) — the old `any` was retired on 2026-09-18. `ineligible` = can never satisfy the category requirement — all 40000-level courses are marked this way. |
 | `active` | `yes` / `no` | `no` hides a retired course from the student's picker but keeps it recognized for students who took it. |
 | `rules_effective_term` | e.g. `Fall 2026` | First term this row applies. See A3. |
 | `dgs_reviewed` | `yes` / `no` | `yes` shows the row as **Confirmed** on the public course-rules page; anything else shows **Pending**. The audit engine ignores it — an unreviewed `yes` in `counts_toward_*` still counts. |
-| `notes` | text | Shown to the student on hover. Cite the § when relevant. |
+| `notes` | text | Your own working notes; not shown to students anywhere (since 2026-09-09). |
 
 `offered_now` and `offered_next` (`yes` / `no` / blank) say whether a course is on the schedule
 this semester and next; the course-rules page turns them into two cards at the top of the page.
