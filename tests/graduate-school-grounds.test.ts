@@ -10,6 +10,7 @@ import { describe, it } from 'node:test';
 import { audit } from '../src/engine/audit.ts';
 import type { Student, TermGpa } from '../src/engine/types.ts';
 import { parseTranscript } from '../src/transcript/parse.ts';
+import { labelCitations } from '../src/ui/citations.ts';
 import { validateStudent } from '../src/ui/state.ts';
 import { buildRules } from './helpers.ts';
 import { ndCourse, phdStudent } from './helpers/student.ts';
@@ -72,11 +73,11 @@ describe('Academic Code §5.7.3 and §5.8, from the transcript’s figures', () 
   });
   it('a semester GPA below 2.5: a dismissal ground', () => {
     const w = warningsOf(withGpas([{ term: fall(2025), termGpa: 3.4 }, { term: spring(2026), termGpa: 2.33 }]));
-    assert.ok(w.includes('Your transcript shows a semester GPA below 2.5 (Spring 2026: 2.33) — the Academic Code lists this as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.'), JSON.stringify(w));
+    assert.ok(w.includes('Your transcript shows a semester GPA below 2.5 (Spring 2026: 2.33) — the Academic Code lists this as a ground for dismissal (Academic Code §5.8, extreme under-performance); talk to the DGS.'), JSON.stringify(w));
   });
   it('a semester GPA below 3.0 in two consecutive semesters: a dismissal ground; not when they are apart', () => {
     const w = warningsOf(withGpas([{ term: fall(2025), termGpa: 2.8 }, { term: spring(2026), termGpa: 2.9 }]));
-    assert.ok(w.includes('Your transcript shows a semester GPA below 3.0 in 2 consecutive semesters (Fall 2025: 2.80, Spring 2026: 2.90) — the Academic Code lists this as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.'), JSON.stringify(w));
+    assert.ok(w.includes('Your transcript shows a semester GPA below 3.0 in 2 consecutive semesters (Fall 2025: 2.80, Spring 2026: 2.90) — the Academic Code lists this as a ground for dismissal (Academic Code §5.8, extreme under-performance); talk to the DGS.'), JSON.stringify(w));
     assert.equal(warningsOf(withGpas([{ term: fall(2025), termGpa: 2.8 }, { term: spring(2026), termGpa: 3.5 }, { term: fall(2026), termGpa: 2.9 }])).some((x) => /consecutive semesters/.test(x)), false);
   });
   it('a hand-entered record, with no transcript figures, gets no GPA line', () => {
@@ -87,7 +88,7 @@ describe('Academic Code §5.7.3 and §5.8, from the transcript’s figures', () 
     const two = warningsOf(phdStudent({ entryTerm: fall(2024), courses: [research(fall(2025)), research(spring(2026))] }));
     assert.ok(two.includes('A U in research in two consecutive semesters (Fall 2025, Spring 2026) — a Graduate School probation trigger (Academic Code §5.7.3); a third in a row is a ground for dismissal (Academic Code §5.8). Talk to the DGS.'), JSON.stringify(two));
     const three = warningsOf(phdStudent({ entryTerm: fall(2024), courses: [research(spring(2025)), research(fall(2025)), research(spring(2026))] }));
-    assert.ok(three.includes('A U in research in 3 consecutive semesters (Spring 2025, Fall 2025, Spring 2026) — the Academic Code lists three consecutive U grades in research as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.'), JSON.stringify(three));
+    assert.ok(three.includes('A U in research in 3 consecutive semesters (Spring 2025, Fall 2025, Spring 2026) — the Academic Code lists three consecutive U grades in research as a ground for dismissal (Academic Code §5.8, extreme under-performance); talk to the DGS.'), JSON.stringify(three));
     const apart = warningsOf(phdStudent({ entryTerm: fall(2024), courses: [research(fall(2024)), research(fall(2025))] }));
     assert.equal(apart.some((x) => /U in research/.test(x)), false);
   });
@@ -109,5 +110,16 @@ describe('the zero-credit Independent Summer Research registration (P2-ac-1-3-15
   it('a course the rules give credits, entered at 0, is still questioned', () => {
     const s = phdStudent({ courses: [ndCourse('CSE 60641', { credits: 0 })] });
     assert.ok(audit(s, rules, '2027-01-15').warnings.includes('CSE 60641 is entered with 0 credits, so it counts toward nothing. Check the credit hours on your transcript and correct the row.'));
+  });
+});
+
+describe('the page names each section’s document (src/ui/citations.ts)', () => {
+  it('§5.8 is the Academic Code’s on every dismissal line, never “CSE §5.8”', () => {
+    const lines = [
+      ...warningsOf(withGpas([{ term: fall(2025), termGpa: 2.4 }, { term: spring(2026), termGpa: 2.9 }])),
+      ...warningsOf(phdStudent({ entryTerm: fall(2024), courses: [spring(2025), fall(2025), spring(2026)].map((term) => ndCourse('CSE 98900', { term, credits: 9, grade: 'U' })) })),
+    ].filter((w) => /§5\.8/.test(w));
+    assert.equal(lines.length, 3);
+    for (const w of lines) assert.doesNotMatch(labelCitations(w), /CSE §5\.8/, w);
   });
 });

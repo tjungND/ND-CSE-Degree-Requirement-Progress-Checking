@@ -1,0 +1,88 @@
+{
+  "name": "mscse-thesis-topic-not-yet-approved",
+  "description": "Academic Code §6.1.7: “With the approval of his or her advisor, the student proposes a thesis topic for program approval” (CSE §3.4(ii); policy review 2026-10-04, P2-ac-5b-6.1-14; DGS: “Apply suggested handling”). An MSCSE thesis student with thesis direction in progress and no topic date: the thesis route now shows the topic as a step before the defense — “Not started”, not counted in the headline — instead of nothing before the defense.",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "thesis",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 68901",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.thesis.topic": {
+      "status": "unmet",
+      "detailIncludes": [
+        "Not started",
+        "Academic Code §6.1.7"
+      ]
+    },
+    "ms.thesis.defense": {
+      "status": "unmet"
+    }
+  }
+}

@@ -20,7 +20,7 @@ const fall = (year: number) => ({ season: 'fall' as const, year });
 const spring = (year: number) => ({ season: 'spring' as const, year });
 
 const PHD_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'researchQualifierPassed', 'researchQualifierFailed', 'qualifierFormFiled', 'rcrTrainingCompleted', 'candidacyPassed', 'candidacyAdmitted', 'defensePassed', 'dissertationSubmitted'];
-const MS_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'thesisDefensePassed', 'thesisDefenseFailed', 'projectReportAccepted'];
+const MS_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'thesisTopicApproved', 'thesisDefensePassed', 'thesisDefenseFailed', 'projectReportAccepted'];
 
 describe('every date in the card has its deadline', () => {
   it('Ph.D., a Fall 2026 entrant in the first semester', () => {

@@ -2309,6 +2309,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const opt = student.msOption ?? 'undecided';
       if (opt !== 'project') {
         card.append(
+          // Academic Code §6.1.7 (policy review 2026-10-04, P2-ac-5b-6.1-14).
+          dateField('Thesis topic approved — proposed with your advisor’s approval (Academic Code §6.1.7)', 'thesisTopicApproved'),
           dateField('Thesis defense passed (§3.4)', 'thesisDefensePassed'),
           // A failed first attempt (Academic Code §6.1.5: one retake, by the
           // end of the following semester) — uncommon, so behind a selector

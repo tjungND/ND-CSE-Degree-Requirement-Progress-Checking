@@ -407,3 +407,11 @@ not the app's:
     2026-10-04, P2-ac-5b-6.1-11 and -12: a note once that term is over, and one dated retake after a
     failed thesis defense); §3.4 should say so in one sentence, and say how a failed project report is
     handled, if at all.
+13. **§3.4(ii) — who approves the thesis topic?** Academic Code §6.1.7: "With the approval of his or her
+    advisor, the student proposes a thesis topic for program approval" — and §6.1.6 makes "program
+    approval of his or her thesis" a condition of master's candidacy. CSE §3.4(ii) names only the
+    advisor ("propose an M.S. thesis topic with the approval and supervision of their research advisor").
+    The app records one date, "Thesis topic approved", as a step before the defense (policy review
+    2026-10-04, P2-ac-5b-6.1-14). §3.4 should say whether the program's approval is the advisor's, the
+    ADGS's or a committee's, and how it is recorded.
+

@@ -260,15 +260,15 @@ export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEva
 }
 
 /** Which §3.4 route the record itself shows (2026-09-12): a Master's project
- * course or an accepted project report → project; thesis direction or a
- * defense → thesis; both or neither → undefined. The
+ * course or an accepted project report → project; thesis direction, an
+ * approved thesis topic or a defense → thesis; both or neither → undefined. The
  * page pre-fills "Project or thesis option" from this and says so; the
  * student's own choice always wins. */
 export function inferMsOption(student: Ctx['student']): 'project' | 'thesis' | undefined {
   const m = student.milestones;
   const ids = new Set(student.courses.map((c) => c.courseId.toUpperCase().replace(/\s+/g, ' ')));
   const project = ids.has('CSE 68902') || m.projectReportAccepted !== undefined;
-  const thesis = ids.has('CSE 68901') || m.thesisDefensePassed !== undefined;
+  const thesis = ids.has('CSE 68901') || m.thesisDefensePassed !== undefined || m.thesisTopicApproved !== undefined;
   if (project && !thesis) return 'project';
   if (thesis && !project) return 'thesis';
   return undefined;
@@ -319,6 +319,33 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     examDue !== undefined && ctx.today > examDue && !m.thesisDefensePassed && !m.projectReportAccepted
       ? [{ note: `Academic Code §6.1.5 expects the master’s examination — for CSE, the project report or the thesis defense — by the end of the term after your coursework, here ${deadlineTermLabel(examDue)} (approximate); confirm your timeline with the DGS` }]
       : [];
+
+  // The thesis topic (Academic Code §6.1.7: "With the approval of his or her
+  // advisor, the student proposes a thesis topic for program approval"; CSE
+  // §3.4(ii): "propose an M.S. thesis topic with the approval and supervision
+  // of their research advisor") — a step before the defense, shown on the
+  // thesis route and not counted in the headline (policy review 2026-10-04,
+  // P2-ac-5b-6.1-14; DGS: "Apply suggested handling"). "Not started" until
+  // dated; a passed defense comes after it, so the step reads done then.
+  if (option === 'thesis') {
+    const topic = m.thesisTopicApproved;
+    rows.push({
+      id: 'ms.thesis.topic',
+      group: PROJECT_THESIS,
+      title: 'Thesis topic approved (thesis option)',
+      shortTitle: 'Thesis topic approved',
+      status: topic || m.thesisDefensePassed ? 'met' : 'unmet',
+      unscored: true,
+      ...joinedDetail(
+        topic
+          ? [`Thesis topic approved ${topic}`]
+          : m.thesisDefensePassed
+            ? [`Approved before the thesis defense (passed ${m.thesisDefensePassed})`]
+            : ['Not started', { note: 'With your advisor’s approval you propose a thesis topic for the program’s approval (§3.4; Academic Code §6.1.7); enter the date under Milestones once it is approved' }],
+      ),
+      citation: { section: 'Academic Code §6.1.7', quote: 'With the approval of his or her advisor, the student proposes a thesis topic for program approval.' },
+    });
+  }
 
   if (option === 'thesis' || option === 'undecided') {
     // §3.4: "Upon acceptance of the thesis by the thesis defense examination

@@ -23,6 +23,7 @@ import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
  *   shared.gpa=S1  shared.advisor=S2  shared.approvals=advisory
  *   ms.credits.total=M1  ms.credits.regular=M2  ms.credits.project=M3
  *   ms.cap.fourk=M4  ms.cap.noncse=M5  ms.residency=M6  ms.timeLimit=M7
+ *   ms.thesis.topic=M8a (unscored, Academic Code §6.1.7 — 2026-10-04)
  *   ms.thesis.defense=M8  ms.project.report=M9
  *   phd.credits.total=P1  phd.credits.regular=P2  phd.seminar=P3
  *   phd.cap.noncse=P4  phd.cap.fourk=P5  phd.credits.nd=P6  phd.transfer=P7
@@ -47,6 +48,7 @@ export const REQUIREMENT_IDS = [
   'ms.transfer',
   'ms.residency',
   'ms.timeLimit',
+  'ms.thesis.topic',
   'ms.thesis.defense',
   'ms.project.report',
   'phd.credits.total',
@@ -325,7 +327,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const termBelowDismissal = gpaTerms.filter((t) => t.termGpa !== undefined && t.termGpa < DISMISSAL_TERM_GPA);
   if (termBelowDismissal.length > 0) {
     warnings.push(
-      `Your transcript shows a semester GPA below ${DISMISSAL_TERM_GPA.toFixed(1)} (${listGpas(termBelowDismissal, (t) => t.termGpa)}) — the Academic Code lists this as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.`,
+      `Your transcript shows a semester GPA below ${DISMISSAL_TERM_GPA.toFixed(1)} (${listGpas(termBelowDismissal, (t) => t.termGpa)}) — the Academic Code lists this as a ground for dismissal (Academic Code §5.8, extreme under-performance); talk to the DGS.`,
     );
   }
   const termBelowThree = gpaTerms.filter((t) => t.termGpa !== undefined && t.termGpa < DISMISSAL_TWO_TERMS_GPA);
@@ -333,7 +335,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   if (lowRun.length >= 2) {
     const inRun = termBelowThree.filter((t) => lowRun.includes(semesterSeq(t.term)));
     warnings.push(
-      `Your transcript shows a semester GPA below ${DISMISSAL_TWO_TERMS_GPA.toFixed(1)} in ${lowRun.length} consecutive semesters (${listGpas(inRun, (t) => t.termGpa)}) — the Academic Code lists this as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.`,
+      `Your transcript shows a semester GPA below ${DISMISSAL_TWO_TERMS_GPA.toFixed(1)} in ${lowRun.length} consecutive semesters (${listGpas(inRun, (t) => t.termGpa)}) — the Academic Code lists this as a ground for dismissal (Academic Code §5.8, extreme under-performance); talk to the DGS.`,
     );
   }
   // U in research (§5.7.3 item 3, §5.8): a Notre Dame course the course rules
@@ -349,7 +351,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       .join(', ');
     warnings.push(
       uRun.length >= DISMISSAL_RESEARCH_U
-        ? `A U in research in ${uRun.length} consecutive semesters (${terms}) — the Academic Code lists three consecutive U grades in research as a ground for dismissal (§5.8, extreme under-performance); talk to the DGS.`
+        ? `A U in research in ${uRun.length} consecutive semesters (${terms}) — the Academic Code lists three consecutive U grades in research as a ground for dismissal (Academic Code §5.8, extreme under-performance); talk to the DGS.`
         : `A U in research in two consecutive semesters (${terms}) — a Graduate School probation trigger (Academic Code §5.7.3); a third in a row is a ground for dismissal (Academic Code §5.8). Talk to the DGS.`,
     );
   }

@@ -156,6 +156,10 @@ export interface Milestones {
   // Ph.D.'s readers' date (DGS: "Apply the same to MSCSE thesis") — the thesis
   // defense date stands for both; a saved file that still carries it loads
   // with it dropped (state.ts validMilestones).
+  /** The thesis topic approved (Academic Code §6.1.7: "With the approval of
+   * his or her advisor, the student proposes a thesis topic for program
+   * approval"; CSE §3.4(ii) — policy review 2026-10-04, P2-ac-5b-6.1-14). */
+  thesisTopicApproved?: string;
   thesisDefensePassed?: string; // §3.4 thesis option
   /** A FAILED first thesis-defense attempt (Academic Code §6.1.5: one retake,
    * by the end of the following semester — policy review 2026-10-04,

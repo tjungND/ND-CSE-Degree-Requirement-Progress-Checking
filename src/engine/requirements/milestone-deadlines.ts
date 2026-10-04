@@ -174,6 +174,8 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
   // semester may be the ADGS's exception; the card does not call it late).
   const onRecord = !!(m.advisorIdentified || m.advisorName || m.advisorName2);
   out.advisorIdentified = at(ctx, endOfTerm(ctx.entry).date, 'your first semester (§2.3)', m.advisorIdentified, onRecord ? 'done' : 'auto');
+  // Academic Code §6.1.7 sets the topic no date: it comes before the defense.
+  out.thesisTopicApproved = { basis: 'No deadline of its own — it comes before the thesis defense (§3.4; Academic Code §6.1.7)' };
   // §3.3: "Failure to complete all requirements for the M.S. degree within 5
   // years results in forfeiture of degree eligibility." §3.4 completes the
   // degree by either route: once one is complete, the other route's box

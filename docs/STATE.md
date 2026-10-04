@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-04 (thesis topic, DGS): P2-ac-5b-6.1-14 applied — an MSCSE thesis student records the date the thesis topic was approved (Academic Code §6.1.7); an uncounted step “Thesis topic approved” sits before the defense row, “Not started” until dated. P2-dh-3.21-3.24-8 ignored (the readers are not tracked).
+
 2026-10-04 (policy-review batch, DGS): applied P2-ac-6.2-app-8 (the Ph.D. advisor’s tenured/tenure-track question), P2-ac-5b-6.1-11 (§6.1.5 timing note), P2-ac-4-11 (NR imported as in progress), P2-ac-1-3-15 (zero-credit summer research), P2-ac-5b-6.1-4/-6/-7 (probation and dismissal grounds from the transcript’s per-term GPAs and research U grades), P2-ac-5b-6.1-12 (thesis-defense retake); ruled P2-ac-6.2-app-11, P2-dh-front-1-2-4, P2-dh-4-5-2, P2-dh-3.21-3.24-15; parked `candidacy_committee_additional_members_min` (live sheet D22 says PARKED). Note for the next session: every Ph.D. record with an advisor reads “cannot evaluate” on the advisor row until the student answers the new question.
 
 2026-10-04 (readers’ approval removed, DGS): the Ph.D. row “Dissertation unanimously approved for defense by the readers” (§4.6) and its date are gone — the committee approves the dissertation and passes the defense at the same time, so the defense row (§4.7) stands for both; a saved file with the old date loads without it. The same for the MSCSE’s “Thesis approved by both readers (§3.4)” (DGS: “Apply the same to MSCSE thesis”): the thesis defense stands for both.

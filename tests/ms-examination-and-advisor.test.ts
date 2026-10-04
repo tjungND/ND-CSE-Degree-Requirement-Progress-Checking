@@ -6,6 +6,9 @@
 //   following semester (Academic Code §6.1.5).
 // P2-ac-6.2-app-8 — a Ph.D. advisor who is tenured or tenure-track CSE
 //   faculty (CSE §2.3; Academic Code §6.2.7), as the student answers it.
+// P2-ac-5b-6.1-14 — the thesis topic, proposed with the advisor's approval
+//   for the program's (Academic Code §6.1.7): an uncounted step before the
+//   defense.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { audit } from '../src/engine/audit.ts';
@@ -104,5 +107,37 @@ describe('a Ph.D. advisor who is tenured or tenure-track CSE faculty (§2.3; Aca
   });
   it('a saved file keeps only the three answers', () => {
     assert.deepEqual(validateStudent({ ...phd({}), milestones: { advisorName: 'Prof. A', advisorTtt: 'maybe', advisorTtt2: 'no' } }, []).milestones, { advisorName: 'Prof. A', advisorTtt2: 'no' });
+  });
+});
+
+describe('the thesis topic, approved before the defense (Academic Code §6.1.7)', () => {
+  const report = (s: Student, today = '2026-10-04') => audit(s, rules, today);
+  const topicRow = (s: Student, today?: string) => report(s, today).requirements.find((r) => r.id === 'ms.thesis.topic');
+  it('the thesis route shows it, “Not started” until dated, and it is not counted', () => {
+    const r = topicRow(ms('thesis'))!;
+    assert.equal(r.status, 'unmet');
+    assert.equal(r.unscored, true);
+    assert.match(r.detail, /^Not started\. With your advisor’s approval you propose a thesis topic for the program’s approval \(§3\.4; Academic Code §6\.1\.7\)/);
+    const withTopic = report(ms('thesis', { thesisTopicApproved: '2026-02-15' }));
+    assert.equal(withTopic.requirements.find((x) => x.id === 'ms.thesis.topic')!.detail, 'Thesis topic approved 2026-02-15.');
+    assert.equal(withTopic.summary.scored, report(ms('thesis')).summary.scored, 'the headline does not count it');
+  });
+  it('a passed defense means the topic came before it', () => {
+    const r = topicRow(ms('thesis', { thesisDefensePassed: '2026-11-20' }), '2027-01-15')!;
+    assert.equal(r.status, 'met');
+    assert.equal(r.detail, 'Approved before the thesis defense (passed 2026-11-20).');
+  });
+  it('the project route does not show it; an approved topic marks the thesis route when none is chosen', () => {
+    assert.equal(topicRow(ms('project')), undefined);
+    assert.equal(topicRow(ms('undecided')), undefined);
+    assert.ok(topicRow(ms('undecided', { thesisTopicApproved: '2026-02-15' })), 'the topic date is evidence of the thesis route');
+  });
+});
+
+describe('the topic’s sections name their documents', () => {
+  it('“§3.4” is the CSE handbook’s next to the Academic Code’s §6.1.7', async () => {
+    const { labelCitations } = await import('../src/ui/citations.ts');
+    const r = audit(ms('thesis'), rules, '2026-10-04').requirements.find((x) => x.id === 'ms.thesis.topic')!;
+    assert.match(labelCitations(r.detail), /\(CSE §3\.4; Academic Code §6\.1\.7\)/);
   });
 });
