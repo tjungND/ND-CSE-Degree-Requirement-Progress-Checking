@@ -19,8 +19,8 @@ const mscse = (over: Partial<Student> = {}): Student => ({ schemaVersion: 1, pro
 const fall = (year: number) => ({ season: 'fall' as const, year });
 const spring = (year: number) => ({ season: 'spring' as const, year });
 
-const PHD_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'researchQualifierPassed', 'researchQualifierFailed', 'qualifierFormFiled', 'rcrTrainingCompleted', 'candidacyPassed', 'candidacyAdmitted', 'defensePassed', 'dissertationSubmitted'];
-const MS_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'thesisTopicApproved', 'thesisDefensePassed', 'thesisDefenseFailed', 'projectReportAccepted'];
+const PHD_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'researchQualifierPassed', 'researchQualifierFailed', 'qualifierFormFiled', 'rcrTrainingCompleted', 'candidacyPassed', 'candidacyAdmitted', 'defensePassed', 'dissertationSubmitted', 'msCandidacyApplied'];
+const MS_KEYS: MilestoneDateKey[] = ['advisorIdentified', 'thesisTopicApproved', 'thesisDefensePassed', 'thesisDefenseFailed', 'projectReportAccepted', 'msCandidacyApplied'];
 
 describe('every date in the card has its deadline', () => {
   it('Ph.D., a Fall 2026 entrant in the first semester', () => {
@@ -36,6 +36,7 @@ describe('every date in the card has its deadline', () => {
       candidacyAdmitted: 'Due by the end of Spring 2030 — semester 8 (DGS Handbook §3.22.3)',
       defensePassed: 'Due before Fall 2034 — the 8-year limit (§4.3); to graduate in a given semester, also by that semester’s date on the Graduate School calendar (DGS Handbook §3.22.4)',
       dissertationSubmitted: 'Due before Fall 2034 — the 8-year limit (§4.3); to graduate in a given semester, also by that semester’s date on the Graduate School calendar (Academic Code §6.2.12)',
+      msCandidacyApplied: 'No date of its own — by the Graduate School calendar’s deadline for the semester you graduate in (Academic Code §6.1.6)',
     });
   });
 

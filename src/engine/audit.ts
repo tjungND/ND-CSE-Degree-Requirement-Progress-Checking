@@ -6,7 +6,7 @@ import type { Rules } from '../data/types.ts';
 import { NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
-import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq } from './term.ts';
+import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq, startOfTerm } from './term.ts';
 import type { AuditReport, Grade, RequirementResult, Student } from './types.ts';
 import { isCovidCohort, type Ctx } from './requirements/context.ts';
 import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
@@ -14,6 +14,7 @@ import { transferCourseChecks } from '../data/course-checks.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
 import { advisorReviewFlag, advisorRow, approvalsRow, gpaRow, gpaText } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow, summerOnlyReviewFlag, thesisReadersReviewFlag } from './requirements/mscse.ts';
+import { extensionReviewFlag } from './requirements/context.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
 import { msMilestoneDeadlines, phdMilestoneDeadlines } from './requirements/milestone-deadlines.ts';
 import { formatCredits } from './credits.ts';
@@ -39,6 +40,7 @@ export const REQUIREMENT_IDS = [
   'shared.gpa',
   'shared.advisor',
   'shared.approvals',
+  'shared.msCandidacy',
   'ms.credits.total',
   'ms.credits.regular',
   'ms.credits.project',
@@ -368,6 +370,24 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     );
   }
 
+  // A Notre Dame course entered as THIS program's coursework but dated before
+  // the entry term (policy review 2026-10-04, P2-dh-front-1-2-6, case b; DGS:
+  // "apply the suggested fix"): the page files a hand-added one as earlier
+  // coursework (app.ts), but a loaded file can carry one, and it would count
+  // with no word — transfer credit (§5.2) and non-degree credit (Academic Code
+  // §2.3) each have their own limit. Said, not refused. The saved entry term
+  // is the yardstick (a summer early start's courses are its own).
+  {
+    const before = student.courses.filter((c) => c.origin === 'nd' && compareTerm(c.term, student.entryTerm) < 0);
+    if (before.length > 0) {
+      const list = before.map((c) => `${c.courseId} (${termLabel(c.term)})`).join(', ');
+      const one = before.length === 1;
+      warnings.push(
+        `${list} ${one ? 'is' : 'are'} entered as coursework of this program but dated before your entry term (${termLabel(student.entryTerm)}). Coursework from before you entered counts only as transfer credit (§5.2) or as non-degree credit (Academic Code §2.3), each with its own limit — check the entry term, or remove ${one ? 'the course' : 'these courses'} and add ${one ? 'it' : 'them'} again so the page files ${one ? 'it' : 'them'} as earlier coursework.`,
+      );
+    }
+  }
+
   // The bachelor's award term (2026-09-06) must precede the entry term — a
   // later or equal one would file the whole record as pre-graduate.
   if (student.bachelorsAwarded !== undefined && compareTerm(student.bachelorsAwarded, entry) >= 0) {
@@ -421,6 +441,10 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // review request asks the DGS whether the seven years apply.
   const summerFlag = summerOnlyReviewFlag(ctx, others);
   if (summerFlag) reviewFlags.push(decisionWording(student.program, summerFlag));
+  // A Graduate School extension longer than it grants (DGS Handbook §3.19 —
+  // policy review 2026-10-04, P2-ac-6.2-app-7): the DGS confirms it.
+  const extensionFlag = extensionReviewFlag(ctx);
+  if (extensionFlag) reviewFlags.push(extensionFlag);
   rows.push(approvalsRow(ctx));
   // The deadline beside each date in the Milestones card (DGS 2026-10-04).
   const milestoneDeadlines = student.program === 'phd' ? phdMilestoneDeadlines(ctx, rows) : msMilestoneDeadlines(ctx);
@@ -512,6 +536,30 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     };
   });
 
+  // The semester of graduation (policy review 2026-10-04, P2-dh-3.21-3.24-24;
+  // DGS: "apply the suggested fix"). DGS Handbook §3.23.1: "Enrollment and
+  // registration for at least one credit hour during the semester of
+  // graduation (or for a zero-credit course, during the summer session)";
+  // Academic Code §3.7. Registered = a Notre Dame course entered for that term,
+  // of at least one credit in a fall or spring, of any credits in a summer —
+  // not a withdrawn or audited one. The report's next steps and the processing
+  // request say it; once the term has begun, an unregistered one is a warning.
+  let graduation: AuditReport['graduation'];
+  if (student.graduationTerm !== undefined) {
+    const t = student.graduationTerm;
+    const inTerm = classified.filter(
+      (cc) => cc.entry.origin === 'nd' && !cc.superseded && !cc.withdrawn && !cc.audited && !cc.unrecognizedGrade && compareTerm(cc.entry.term, t) === 0,
+    );
+    const credits = inTerm.reduce((sum, cc) => sum + cc.entry.credits, 0);
+    const registered = t.season === 'summer' ? inTerm.length > 0 : credits >= 1;
+    graduation = { term: t, registeredCredits: credits, registered };
+    if (!registered && today >= startOfTerm(t).date) {
+      warnings.push(
+        `You plan to graduate in ${termLabel(t)}, but no Notre Dame course${t.season === 'summer' ? '' : ' of at least one credit'} is entered for it — register for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in ${termLabel(t)}: the Graduate School confers the degree only then (Academic Code §3.7; DGS Handbook §3.23.1).`,
+      );
+    }
+  }
+
   // The degree's decider, said once at the boundary (2026-09-11): for an
   // MSCSE student every "DGS" in what follows is the ADGS. Handbook quotes
   // (`citation`) are left as written.
@@ -527,5 +575,6 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     tracks: specialTracks(student, classified).map((t) => ({ ...t, text: decisionWording(p, t.text) })),
     // The MSCSE's summer-session sentence names the decider (2026-10-04).
     milestoneDeadlines: decisionWordingDeep(p, milestoneDeadlines),
+    ...(graduation !== undefined ? { graduation } : {}),
   };
 }

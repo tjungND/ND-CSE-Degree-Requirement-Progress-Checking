@@ -199,6 +199,52 @@ export function advisorRow(ctx: Ctx): RequirementResult {
   };
 }
 
+/** The Application for Admission to Master's Degree Candidacy (policy review
+ * 2026-10-04, P2-dh-3.21-3.24-2, -4 and P2-dh-front-1-2-2; DGS: "Apply the
+ * suggested fix"). Academic Code §6.1.6: "Admission to candidacy is a
+ * prerequisite to receiving any graduate degree. It is the student's
+ * responsibility to apply for admission by submitting the appropriate form to
+ * the Graduate School office through either the program chair or the director
+ * of graduate studies. The applicable deadline is published in the Graduate
+ * School calendar." DGS Handbook §3.21.1: "A doctoral student who wishes to
+ * receive a master's degree must also apply for admission to master's degree
+ * candidacy." An uncounted step, shown once its conditions are in hand —
+ * `ready`: for the MSCSE a cumulative GPA at the minimum and 30 credits counting
+ * the ones in progress (the application is filed in the semester of
+ * graduation, before its grades), for a Ph.D. student the MSCSE along the way
+ * met — or once a date is entered; it is in the processing request while open. */
+export function msCandidacyApplicationRow(ctx: Ctx, args: { group: string; ready: boolean; alongTheWay: boolean }): RequirementResult | undefined {
+  const dated = ctx.student.milestones.msCandidacyApplied;
+  if (dated === undefined && !args.ready) return undefined;
+  const dates = ctx.rules.parameters.raw.get('candidacy_form_deadlines')?.value.trim();
+  const how = `the Grad Admin submits the Graduate School’s Application for Admission to Master’s Degree Candidacy by the Graduate School calendar’s deadline for the semester you graduate in${dates ? ` (${dates})` : ''} — it is in the processing request; enter the date under Milestones once it is submitted`;
+  return {
+    id: 'shared.msCandidacy',
+    group: args.group,
+    title: args.alongTheWay ? 'Application for admission to master’s degree candidacy (MSCSE along the way)' : 'Application for admission to master’s degree candidacy',
+    shortTitle: 'Master’s candidacy application',
+    status: dated !== undefined ? 'met' : 'unmet',
+    unscored: true,
+    ...joinedDetail(
+      dated !== undefined
+        ? [`Submitted ${dated}`]
+        : [
+            'Not submitted yet',
+            {
+              note: args.alongTheWay
+                ? `A Ph.D. student receiving a master’s degree applies for master’s degree candidacy too (DGS Handbook §3.21.1): ${how}`
+                : `Its conditions are in hand — a cumulative GPA of 3.0 or better and 30 credits, counting this semester’s (Academic Code §6.1.6; DGS Handbook §3.21.1): ${how}`,
+            },
+          ],
+    ),
+    citation: {
+      section: 'Academic Code §6.1.6',
+      quote:
+        'Admission to candidacy is a prerequisite to receiving any graduate degree. It is the student’s responsibility to apply for admission by submitting the appropriate form to the Graduate School office through either the program chair or the director of graduate studies. The applicable deadline is published in the Graduate School calendar.',
+    },
+  };
+}
+
 /** Who still has to act on a course counted provisionally (DGS 2026-09-07:
  * the row said "Needs DGS review" even when every course was pre-approved and
  * only the Grad Admin had anything left to do, and when the only thing missing

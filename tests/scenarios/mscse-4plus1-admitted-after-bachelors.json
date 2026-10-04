@@ -1,0 +1,92 @@
+{
+  "name": "mscse-4plus1-admitted-after-bachelors",
+  "description": "Graduate School 4+1 guidance: “Only six credits can be double-counted if a student starts the graduate program after the bachelor's degree has been awarded” (policy review 2026-10-04, P2-fourplusone-1; DGS: “Apply the suggested fix”). An MSCSE student who answered yes to the 4+1 but was admitted for Fall 2026, after the Spring 2026 bachelor’s: the two 40000-level courses still count toward both degrees; the extra 60000-level course from the senior year does not count.",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "integratedBsMs": true,
+    "integratedAdmitted": {
+      "season": "fall",
+      "year": 2026
+    },
+    "courses": [
+      {
+        "courseId": "CSE 40113",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 40243",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2026-09-10",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {
+      "dgsApproved4xxxx": true
+    }
+  },
+  "expect": {
+    "ms.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 24"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "not counted — you were admitted to the Integrated program for Fall 2026, after your bachelor’s degree (Spring 2026)"
+    ],
+    "CSE 40113": [
+      "will apply to both your bachelor’s degree and your MSCSE"
+    ]
+  }
+}

@@ -13,7 +13,7 @@ import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo }
 import type { Ctx } from './context.ts';
 import { noteOf, capRow, clockShiftNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun } from './residency.ts';
-import { defendedBelowGpaNote, gpaText } from './shared.ts';
+import { defendedBelowGpaNote, gpaText, msCandidacyApplicationRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
 import { spentOnBachelorsAndMasters } from '../allocate.ts';
 
@@ -263,7 +263,15 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   // Notre Dame MSCSE (their master's before this program) has no along-the-way
   // row at all — showing it would offer them a degree they hold and count
   // their credits from zero toward it (DGS 2026-09-09).
-  if (ctx.student.ndMasters === undefined) rows.push(msAlongTheWayRow(ctx));
+  if (ctx.student.ndMasters === undefined) {
+    const along = msAlongTheWayRow(ctx);
+    rows.push(along);
+    // The MSCSE along the way needs the master's candidacy application too
+    // (DGS Handbook §3.21.1; 2026-10-04): shown once the award's
+    // requirements are met, or once dated.
+    const candidacy = msCandidacyApplicationRow(ctx, { group: CANDIDACY, ready: along.status === 'met', alongTheWay: true });
+    if (candidacy) rows.push(candidacy);
+  }
   return rows;
 }
 

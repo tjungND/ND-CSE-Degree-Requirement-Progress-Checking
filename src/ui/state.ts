@@ -82,6 +82,10 @@ function validBackground(v: unknown): Student['background'] {
   return {
     bachelors,
     ...(bachelors === 'nd-cse' && typeof o['ndIntegrated'] === 'boolean' ? { ndIntegrated: o['ndIntegrated'] as boolean } : {}),
+    // The 4+1 admission term (2026-10-04): kept only beside a "yes".
+    ...(bachelors === 'nd-cse' && o['ndIntegrated'] === true && validTerm(o['integratedAdmittedTerm'])
+      ? { integratedAdmittedTerm: { season: (o['integratedAdmittedTerm'] as Term).season, year: (o['integratedAdmittedTerm'] as Term).year } }
+      : {}),
     graduate,
     ...(graduate === 'elsewhere' ? { samePlace: o['samePlace'] === true, finished: o['finished'] === true } : {}),
     // A degree at Notre Dame in another department asks "finished?" since
@@ -191,7 +195,20 @@ const MILESTONE_DATE_LABELS: Record<string, string> = {
   thesisDefensePassed: 'Thesis defense passed',
   thesisDefenseFailed: 'Thesis defense failed',
   projectReportAccepted: 'Project report accepted',
+  msCandidacyApplied: 'Master’s candidacy application submitted',
 };
+
+/** The attestations as loaded, with the Graduate School extension's term
+ * (2026-10-04) kept only when well-formed. */
+function validAttestationTerms(a: Student['attestations'] | undefined): Student['attestations'] {
+  const out: Student['attestations'] = { ...(a ?? {}) };
+  const t = (out as Record<string, unknown>)['timeLimitExtendedThrough'];
+  if (t !== undefined) {
+    if (validTerm(t)) out.timeLimitExtendedThrough = { season: t.season, year: t.year };
+    else delete out.timeLimitExtendedThrough;
+  }
+  return out;
+}
 
 /** The per-term GPA figures an import stored (2026-10-04). */
 function validTermGpas(raw: unknown): Student['termGpas'] {
@@ -361,6 +378,10 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     leaveSemesters: validSemesterCount(raw['leaveSemesters']),
     accommodationSemesters: validSemesterCount(raw['accommodationSemesters']),
     readmittedTerm: validTerm(raw['readmittedTerm']) ? { season: (raw['readmittedTerm'] as Term).season, year: (raw['readmittedTerm'] as Term).year } : undefined,
+    // 2026-10-04: the semester of graduation, and the 4+1 admission term —
+    // each kept only when well-formed.
+    graduationTerm: validTerm(raw['graduationTerm']) ? { season: (raw['graduationTerm'] as Term).season, year: (raw['graduationTerm'] as Term).year } : undefined,
+    integratedAdmitted: validTerm(raw['integratedAdmitted']) ? { season: (raw['integratedAdmitted'] as Term).season, year: (raw['integratedAdmitted'] as Term).year } : undefined,
     // Approved credit overloads (Academic Code §3.8, 2026-10-03): well-formed
     // terms only; an empty or malformed list is dropped.
     creditOverloadTerms: validTermList(raw['creditOverloadTerms']),
@@ -372,7 +393,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
       typeof raw['probationLetterDeadline'] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw['probationLetterDeadline']) ? raw['probationLetterDeadline'] : undefined,
     ...(typeof raw['ndNonDegree'] === 'boolean' ? { ndNonDegree: raw['ndNonDegree'] as boolean } : { ndNonDegree: undefined }),
     milestones: validMilestones(d.milestones, refusals),
-    attestations: d.attestations ?? {},
+    attestations: validAttestationTerms(d.attestations),
     courses: d.courses,
     // A file the student loads is THEIR record, whatever it was saved from
     // (2026-09-08) — the example marker never rides in on an import.

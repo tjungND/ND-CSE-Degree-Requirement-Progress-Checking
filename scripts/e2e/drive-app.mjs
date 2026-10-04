@@ -540,7 +540,10 @@ export async function driveApp(s, baseUrl) {
     return {
       program: JSON.parse(localStorage.getItem('cse-degree-audit/v1/student') ?? '{}').program ?? '',
       courses: [...document.querySelectorAll('table.courses .cid')].map((e) => e.textContent),
-      phdWords: /dissertation|Qualifying Examination|candidacy/i.test(txt),
+      // "candidacy" alone is the MSCSE's own word since 2026-10-04 (the
+      // Application for Admission to Master's Degree Candidacy): look for the
+      // Ph.D.'s kinds of candidacy instead.
+      phdWords: /dissertation|Qualifying Examination|doctoral candidacy|Oral Candidacy Exam/i.test(txt),
       futureGrades: (txt.match(/is still counted, but check the term/g) || []).length,
       rows: [...document.querySelectorAll('.req-title')].map((e) => e.textContent).join(' | '),
     };

@@ -88,7 +88,7 @@ function entrySeasonOptions(selected?: Season): HTMLOptionElement[] {
 }
 /** How a grade reads in the dropdown and the table (I and W since 2026-10-03). */
 function gradeLabel(g: string): string {
-  return g === 'IP' ? 'In progress' : g === 'I' ? 'I (incomplete)' : g === 'W' ? 'W (withdrawn)' : g;
+  return g === 'IP' ? 'In progress' : g === 'I' ? 'I (incomplete)' : g === 'W' ? 'W (withdrawn)' : g === 'V' ? 'V (audit)' : g;
 }
 
 /** A §4.4.2 group's short name (short-names.ts) from its code, or the code
@@ -2259,6 +2259,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
+  /** An optional term as a semester and a year (2026-10-04: the semester of
+   * graduation, the Graduate School's extension). The year box refuses an
+   * out-of-range value like every other year box; empty clears the term. */
+  function termPicker(key: string, label: string, current: Term | undefined, seasons: readonly Season[], set: (t: Term | undefined) => void): HTMLElement {
+    const season = el('select', { 'aria-label': `${label} — semester`, 'data-key': `${key}.season` });
+    season.append(...seasons.map((se) => option(se, se[0]!.toUpperCase() + se.slice(1), (current?.season ?? seasons[0]) === se)));
+    const commit = (year: number | undefined): void => set(year === undefined ? undefined : { season: (season as HTMLSelectElement).value as Season, year });
+    const { input: year, error } = rangedNumber(
+      { key: `${key}.year`, range: TERM_YEAR_RANGE, value: current ? String(current.year) : '', allowEmpty: true, attrs: { 'aria-label': `${label} — year`, placeholder: 'year' }, commit },
+      refusedValues,
+      toast,
+    );
+    season.addEventListener('change', () => {
+      const text = (year as HTMLInputElement).value;
+      if (text !== '' && inRange(Number(text), TERM_YEAR_RANGE)) commit(Number(text));
+    });
+    return el('div', { class: 'field' }, el('span', { class: 'label' }, label), el('div', { class: 'pair' }, season, year), error);
+  }
+
   function milestonesCard(classified: readonly ClassifiedCourse[], report: AuditReport): HTMLElement {
     const m = student.milestones;
     // Every date with its deadline beside it (DGS 2026-10-04: "In the
@@ -2355,6 +2374,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (opt !== 'thesis') {
         card.append(dateField('Project report accepted by advisor (§3.4)', 'projectReportAccepted'));
       }
+      // The master's candidacy application (Academic Code §6.1.6; policy
+      // review 2026-10-04) — every MSCSE student files it in the end.
+      card.append(dateField('Application for Admission to Master’s Degree Candidacy submitted to the Graduate School (Academic Code §6.1.6)', 'msCandidacyApplied'));
     } else {
       card.append(
         dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
@@ -2388,13 +2410,43 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           dateField('Final dissertation submitted to the Graduate School (Academic Code §6.2.12)', 'dissertationSubmitted'),
         );
       }
+      // The MSCSE along the way's candidacy application (DGS Handbook §3.21.1;
+      // 2026-10-04): once the award's requirements are met, or once dated.
+      if (m.msCandidacyApplied || report.requirements.some((r) => r.id === 'phd.msAlongTheWay' && r.status === 'met')) {
+        card.append(dateField('Application for Admission to Master’s Degree Candidacy submitted — the MSCSE along the way (DGS Handbook §3.21.1)', 'msCandidacyApplied'));
+      }
     }
+    // The semester of graduation (DGS Handbook §3.23.1; Academic Code §3.7 —
+    // policy review 2026-10-04, P2-dh-3.21-3.24-24): optional; the report
+    // checks that a course of at least one credit is entered for it.
+    card.append(
+      termPicker('milestone.graduationTerm', 'Semester you plan to graduate in (optional)', student.graduationTerm, ['fall', 'spring', 'summer'], (t) => update((s) => void (s.graduationTerm = t))),
+    );
 
     card.append(el('h2', { class: 'mt' }, 'Approvals you already have'));
     card.append(
       // The two-roles sentence is the next card's opening (trim review 2026-09-18, P-16).
       el('p', { class: 'hint' }, 'Tick only what has actually been approved.'),
       attestation('My advisor approved my plan of study (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
+    );
+    // The Graduate School's extension of the time limit (policy review
+    // 2026-10-04, P2-ac-6.2-app-7, P2-dh-3.14-3.20-27, P2-dh-10-10) — rare, so
+    // behind a selector, open once a term is on file.
+    card.append(
+      rareFold(
+        'time-extension',
+        `Did the Graduate School extend your ${student.program === 'phd' ? 'eight' : 'five'}-year time limit?`,
+        a.timeLimitExtendedThrough !== undefined,
+        termPicker(
+          'attest.timeLimitExtendedThrough',
+          student.program === 'phd'
+            ? 'The Graduate School extended my time limit — dissertation completion status or an eligibility extension (Academic Code §6.2.6.1; DGS Handbook §3.19) — through the end of:'
+            : 'The Graduate School extended my time limit — an eligibility extension (DGS Handbook §10.3.5) — through the end of:',
+          a.timeLimitExtendedThrough,
+          ['fall', 'spring', 'summer'],
+          (t) => update((s) => void (s.attestations.timeLimitExtendedThrough = t)),
+        ),
+      ),
     );
     // §5.2 criterion 5 — the Graduate School's approval — recorded here once
     // the Grad Admin has processed the transfer (policy review 2026-10-03);

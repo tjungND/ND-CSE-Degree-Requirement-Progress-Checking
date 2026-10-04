@@ -81,7 +81,7 @@ export function fullTimeRecordsFrom(
     ctx.classified.find((o) => o !== cc && !o.superseded && o.entry.courseId === cc.entry.courseId && o.entry.origin === 'nd');
   for (const cc of ctx.classified) {
     const c = cc.entry;
-    if (cc.unrecognizedGrade) continue;
+    if (cc.unrecognizedGrade || cc.audited) continue; // an audit is not a registration toward full-time status (DGS Handbook §3.12)
     if (cc.superseded) {
       const counted = countedAttempt(cc);
       if (counted === undefined || compareTerm(counted.entry.term, c.term) === 0) continue; // a true duplicate

@@ -1,6 +1,6 @@
 {
   "name": "mscse-4plus1-thesis-course-counts",
-  "description": "DGS 2026-10-03 (P1-units-4plus1-17: “pre-bachelor 68901/68902 can be used to satisfy MSCSE thesis/project requirements”), reversing the 2026-09-12 reading of §3.4’s “earned at Notre Dame” as “while enrolled”: a 4+1 student’s undergraduate CSE 68901 (M.S. Thesis Direction, registered GR on the transcript) counts toward the six project/thesis credits — never toward the 24, and never as one of §3.5’s shared pair, which takes regular courses only (the undergraduate CSE 60641 draws that as usual). Registered UG, or typed with no level, it would wait for the ADGS to confirm the UG→GR move like any other pre-bachelor’s 60000-level course. (Until 2026-10-03 this fixture, as mscse-4plus1-research-course-not-shared, asserted the refusal.)",
+  "description": "DGS 2026-10-03 (P1-units-4plus1-17: “pre-bachelor 68901/68902 can be used to satisfy MSCSE thesis/project requirements”), reversing the 2026-09-12 reading of §3.4’s “earned at Notre Dame” as “while enrolled”: a 4+1 student’s undergraduate CSE 68901 (M.S. Thesis Direction, registered GR on the transcript) counts toward the six project/thesis credits — never toward the 24, and never as one of §3.5’s shared pair, which takes regular courses only (the undergraduate CSE 60641 draws that as usual). Registered UG, or typed with no level, it would wait for the ADGS to confirm the UG→GR move like any other pre-bachelor’s 60000-level course. (Until 2026-10-03 this fixture, as mscse-4plus1-research-course-not-shared, asserted the refusal.) (Since 2026-10-04 the record says when the student was admitted to the Integrated program — Spring 2025, before the bachelor's — so courses beyond the shared six may count; P2-fourplusone-1.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -47,7 +47,11 @@
     ],
     "milestones": {},
     "attestations": {},
-    "integratedBsMs": true
+    "integratedBsMs": true,
+    "integratedAdmitted": {
+      "season": "spring",
+      "year": 2025
+    }
   },
   "expect": {
     "ms.credits.project": {

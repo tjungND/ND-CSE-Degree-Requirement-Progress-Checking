@@ -1,0 +1,125 @@
+{
+  "name": "mscse-candidacy-application-due",
+  "description": "Academic Code §6.1.6: “Admission to candidacy is a prerequisite to receiving any graduate degree … The applicable deadline is published in the Graduate School calendar” (policy review 2026-10-04, P2-dh-3.21-3.24-2, P2-dh-front-1-2-2; DGS: “Apply the suggested fix”). An MSCSE student with 24 graded regular credits and CSE 68902 (6) in progress in Spring 2027 and a 3.5 GPA: an uncounted step “Application for admission to master’s degree candidacy” appears, open, instead of nothing naming the form.",
+  "today": "2027-03-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 68902",
+        "credits": 6,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "shared.msCandidacy": {
+      "status": "unmet",
+      "detailIncludes": [
+        "Not submitted yet",
+        "Application for Admission to Master’s Degree Candidacy"
+      ]
+    }
+  }
+}

@@ -11,7 +11,7 @@
 import { addMonthsIso, deadlineHorizon, deadlineTerm, endOfNextSemester, endOfTerm, startOfTerm, termLabel, compareTerm } from '../term.ts';
 import type { MilestoneDateKey, MilestoneDeadline, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { clockShiftNote, timeLimitDate } from './context.ts';
+import { clockShiftNote, graduateSchoolExtensionClause, timeLimitDate } from './context.ts';
 import { SUMMER_ONLY_MS_TIME_LIMIT_YEARS, summerSessionOnly } from './mscse.ts';
 import { ADMISSION_DEADLINE_SEMESTER, eighthSemester, qualifierDeadline, qualifierExtensionSemesters, qualifierPassedUnderPriorRules } from './phd.ts';
 
@@ -50,6 +50,11 @@ function extensionClause(extra: number): string {
   return extra > 0 ? `, extended by the DGS by ${extra === 1 ? 'one semester' : `${extra} semesters`}` : '';
 }
 
+/** The master's candidacy application has no date of its own (Academic Code
+ * §6.1.6: "The applicable deadline is published in the Graduate School
+ * calendar") — 2026-10-04. */
+const MS_CANDIDACY_BASIS = 'No date of its own — by the Graduate School calendar’s deadline for the semester you graduate in (Academic Code §6.1.6)';
+
 /** The Ph.D.'s milestones. */
 export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult[]): Deadlines {
   const m = ctx.student.milestones;
@@ -58,6 +63,8 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
   // §2.3 sets no date for a Ph.D. advisor: "Continuous advisor supervision is
   // required throughout the duration of the Ph.D. program."
   out.advisorIdentified = { basis: 'No deadline of its own — continuous advisor supervision is required throughout the Ph.D. (§2.3)' };
+  // The MSCSE along the way's candidacy application (2026-10-04).
+  out.msCandidacyApplied = { basis: MS_CANDIDACY_BASIS };
 
   const fromTransfer = compareTerm(ctx.qualifierEntry, ctx.entry) !== 0;
   const qualifierMet = rows.find((r) => r.id === 'phd.qualifier')?.status === 'met';
@@ -156,7 +163,7 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
     const limit = timeLimitDate(ctx, years);
     // The limit's own words, with what moved it (clockShiftNote: leaves,
     // accommodations, the Spring 2020 cohort's year, Academic Code Appendix A).
-    const theLimit = `the ${years}-year limit (§4.3)${clockShiftNote(ctx)}`;
+    const theLimit = `the ${years}-year limit (§4.3)${clockShiftNote(ctx)}${graduateSchoolExtensionClause(ctx, years)}`;
     const calendar = (section: string) => `to graduate in a given semester, also by that semester’s date on the Graduate School calendar (${section})`;
     out.defensePassed = at(ctx, limit, theLimit, m.defensePassed, 'auto', calendar('DGS Handbook §3.22.4'));
     out.dissertationSubmitted = at(ctx, limit, theLimit, m.dissertationSubmitted, 'auto', calendar('Academic Code §6.2.12'));
@@ -175,6 +182,9 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
   // semester may be the ADGS's exception; the card does not call it late).
   const onRecord = !!(m.advisorIdentified || m.advisorName || m.advisorName2);
   out.advisorIdentified = at(ctx, endOfTerm(ctx.entry).date, 'your first semester (§2.3)', m.advisorIdentified, onRecord ? 'done' : 'auto');
+  // Academic Code §6.1.6 dates the master's candidacy application by the
+  // Graduate School calendar only (2026-10-04).
+  out.msCandidacyApplied = { basis: MS_CANDIDACY_BASIS };
   // Academic Code §6.1.7 sets the topic no date: it comes before the defense.
   out.thesisTopicApproved = { basis: 'No deadline of its own — it comes before the thesis defense (§3.4; Academic Code §6.1.7)' };
   // §3.3: "Failure to complete all requirements for the M.S. degree within 5
@@ -184,7 +194,7 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
   const years = ctx.params.number('ms_time_limit_years');
   if (years !== undefined) {
     const limit = timeLimitDate(ctx, years);
-    const theLimit = `the ${years}-year limit (§3.3)${clockShiftNote(ctx)}`;
+    const theLimit = `the ${years}-year limit (§3.3)${clockShiftNote(ctx)}${graduateSchoolExtensionClause(ctx, years)}`;
     const thesisDone = !!m.thesisDefensePassed;
     const projectDone = !!m.projectReportAccepted;
     // A summer-session-only record (Academic Code §6.1.4; 2026-10-04): the

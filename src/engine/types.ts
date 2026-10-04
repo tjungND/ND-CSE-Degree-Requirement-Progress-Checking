@@ -22,7 +22,11 @@ export interface Term {
  * (§4.4) unless the Graduate School extended it, and the classifier says so. */
 export type Grade =
   | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D' | 'F'
-  | 'S' | 'U' | 'IP' | 'I' | 'W';
+  | 'S' | 'U' | 'IP' | 'I' | 'W'
+  // An audit (Academic Code §2.4: "A recorded audit is graded V"; §4.3) —
+  // earns nothing and is not a registration toward full-time status (DGS
+  // Handbook §3.12). Policy review 2026-10-04, P2-ac-1-3-6 / P2-ac-4-10.
+  | 'V';
 
 export type CoreArea = 'os' | 'algorithms' | 'architecture';
 export type CategoryGroup = 'alg' | 'hcc' | 'arch' | 'dsai' | 'sys';
@@ -171,6 +175,12 @@ export interface Milestones {
    * P2-ac-5b-6.1-12). */
   thesisDefenseFailed?: string;
   projectReportAccepted?: string; // §3.4 project option
+  /** The Application for Admission to Master's Degree Candidacy submitted to
+   * the Graduate School (Academic Code §6.1.6: "Admission to candidacy is a
+   * prerequisite to receiving any graduate degree"; DGS Handbook §3.21.1) —
+   * the MSCSE's, or a Ph.D. student's for the MSCSE along the way (policy
+   * review 2026-10-04, P2-dh-3.21-3.24-2, -4, P2-dh-front-1-2-2). */
+  msCandidacyApplied?: string;
 }
 
 /** One graduate term's GPA figures as the transcript prints them. */
@@ -238,6 +248,13 @@ export interface Attestations {
    * §5.2 row stays "approved by the DGS — Graduate School approval pending";
    * the credits themselves count as the DGS's `yes` or tick decided. */
   transferRecorded?: boolean;
+  /** The Graduate School extended the degree's time limit — dissertation
+   * completion status after the eighth year (Academic Code §6.2.6.1: "for up
+   * to two semesters"; DGS Handbook §3.19: one year, renewable once) or an
+   * eligibility extension (DGS Handbook §10.3.5) — through the end of this
+   * term, as the student states it; the DGS confirms (policy review
+   * 2026-10-04, P2-ac-6.2-app-7, P2-dh-3.14-3.20-27, P2-dh-10-10). */
+  timeLimitExtendedThrough?: Term;
   /** The student passed the qualifying examination under the requirements in
    * force when they took it — the rule changed several times in four years
    * (DGS 2026-09-21). Offered only to students in their third year or later;
@@ -376,6 +393,20 @@ export interface Student {
    * an interruption of five years or more are routed to the DGS — the Code
    * forfeits their credit. */
   readmittedTerm?: Term;
+  /** The semester the student plans to graduate in (policy review 2026-10-04,
+   * P2-dh-3.21-3.24-24): the Graduate School confers a degree only on a
+   * student registered for at least one credit hour in it — a zero-credit
+   * course in a summer (Academic Code §3.7; DGS Handbook §3.23.1). */
+  graduationTerm?: Term;
+  /** MSCSE 4+1: the term the student was admitted (matriculated) into the
+   * Integrated B.S. + M.S. program, from the admission letter (Graduate School
+   * 4+1 guidance: "recognized dual-degree students … apply to the graduate
+   * program during their junior year for matriculation in their senior year";
+   * policy review 2026-10-04, P2-fourplusone-1). Beyond the six credits shared
+   * with the bachelor's, graduate coursework taken as an undergraduate counts
+   * only for a student admitted before the bachelor's was awarded, and only
+   * from this term on. */
+  integratedAdmitted?: Term;
   /** The deadline in a probation letter, when the student is on probation
    * (Academic Code §5.7.2: "A student on probation must complete the
    * stipulations outlined in the probation letter within the required
@@ -593,4 +624,8 @@ export interface AuditReport {
   /** Each milestone date's deadline, for the Milestones card (DGS
    * 2026-10-04); a key is absent when the rules sheet lacks its parameter. */
   milestoneDeadlines?: Partial<Record<MilestoneDateKey, MilestoneDeadline>>;
+  /** The semester of graduation the student entered, and whether a Notre Dame
+   * course of at least one credit (any credit in a summer) is entered for it
+   * (Academic Code §3.7; DGS Handbook §3.23.1 — 2026-10-04). */
+  graduation?: { term: Term; registeredCredits: number; registered: boolean };
 }

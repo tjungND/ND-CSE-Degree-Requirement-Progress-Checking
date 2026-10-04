@@ -1,0 +1,38 @@
+{
+  "name": "phd-dissertation-completion-status",
+  "description": "Academic Code §6.2.6.1 (“may apply for dissertation completion status for up to two semesters”) and DGS Handbook §3.19 / §10.3.5 — policy review 2026-10-04, P2-ac-6.2-app-7, P2-dh-3.14-3.20-27, P2-dh-10-10; DGS: “Apply the suggested fix”. A Ph.D. student who entered Fall 2020 (eight years end at the start of Fall 2028) and was granted dissertation completion status through Spring 2029, in March 2029: the time-limit row runs to the extension — In progress, “extended by the Graduate School through the end of Spring 2029” — instead of Overdue.",
+  "today": "2029-03-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2020
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [],
+    "milestones": {
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes"
+    },
+    "attestations": {
+      "timeLimitExtendedThrough": {
+        "season": "spring",
+        "year": 2029
+      }
+    }
+  },
+  "expect": {
+    "phd.timeLimit": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "extended by the Graduate School through the end of Spring 2029",
+        "Dissertation completion status lasts up to two semesters"
+      ]
+    }
+  }
+}

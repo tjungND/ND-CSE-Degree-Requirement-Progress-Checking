@@ -87,14 +87,17 @@ export interface ParsedTranscript {
 
 const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'S', 'U'];
 /** Grades that appear on transcripts but are not registrations the audit can
- * use: audits (V is Notre Dame's audit grade, AU other registrars' — Academic
- * Code §4.3: no credit; DGS Handbook §3.12: not toward the nine full-time
- * hours either), and rows with no grade shown. Withdrawals (W, WF, WP) and
+ * use: rows with no grade shown. Audits (V, Notre Dame's audit grade; AU,
+ * other registrars') are KEPT as V since 2026-10-04 (policy review
+ * P2-ac-4-10: "the audited course is not shown on the record at all") — the
+ * engine reads V as earning nothing and as no registration toward full-time
+ * status (Academic Code §4.3; DGS Handbook §3.12). Withdrawals (W, WF, WP) and
  * Incompletes (I) are KEPT since 2026-10-03 (policy review): both are
  * registrations the full-time count must see (§3.3); the engine says what each
  * earns — nothing for a W, and for an I nothing once its 30 + 14 days are up
  * unless the Graduate School extended it (§4.4). */
-const SKIP_GRADES = new Set(['AU', 'V', 'X', 'NG']);
+const SKIP_GRADES = new Set(['X', 'NG']);
+const AUDIT_GRADES = new Set(['V', 'AU']);
 /** "NR — Not reported" (Academic Code §4.3): the course was taken and its
  * grade is not in yet, so the row is kept as in progress — its registration
  * and credits count until the grade arrives — rather than skipped like an
@@ -280,6 +283,11 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       // transfer block), not an Incomplete — a graded row carries quality
       // points too (2026-09-05). A real Incomplete is kept as an I (2026-10-03).
       grade = 'I';
+      tokens.pop();
+      popCreditsBeforeGrade();
+    } else if (AUDIT_GRADES.has(tailUpper)) {
+      // An audit: kept as a V (2026-10-04), which counts toward nothing.
+      grade = 'V';
       tokens.pop();
       popCreditsBeforeGrade();
     } else if (NOT_REPORTED_GRADES.has(tailUpper)) {
@@ -512,7 +520,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   }
 
   if (skipped.length > 0) {
-    warnings.push(`Skipped (audited, or no grade shown): ${skipped.join(', ')} — an audit earns no credit and does not count toward full-time status (Academic Code §4.3; DGS Handbook §3.12).`);
+    warnings.push(`Skipped (no grade shown): ${skipped.join(', ')}.`);
   }
   if (notReported.length > 0) {
     warnings.push(`Grade not reported yet (NR): ${notReported.join(', ')} — added as in progress, so the registration and its credits count until the grade arrives; ask the instructor or the Registrar.`);

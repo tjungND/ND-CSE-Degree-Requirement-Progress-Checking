@@ -4,7 +4,8 @@ import { openDeadline } from '../status.ts';
 import { compareTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, termLabel } from '../term.ts';
 import type { DeadlineInfo, DetailPart, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { defendedBelowGpaNote } from './shared.ts';
+import { defendedBelowGpaNote, msCandidacyApplicationRow } from './shared.ts';
+import { usableGpa } from '../ranges.ts';
 import { noteOf, joinedDetail, capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
 import { candidacyFormSentence } from './phd.ts';
 import { fullTimeTermRecords, graduateLevelParts } from './residency.ts';
@@ -183,6 +184,16 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
 
   rows.push(residencyRow(ctx));
   rows.push(...optionRows(ctx));
+  // The Application for Admission to Master's Degree Candidacy (Academic Code
+  // §6.1.6; 2026-10-04): shown once a cumulative GPA at the minimum and 30
+  // credits, counting those in progress, are in hand — or once dated.
+  const gpaMin = ctx.params.number('gpa_min');
+  const gpa = usableGpa(ctx.student.gpa);
+  const totalMin = ctx.params.number('ms_total_credits_min');
+  const ready =
+    gpaMin !== undefined && gpa !== undefined && gpa >= gpaMin && totalMin !== undefined && ctx.alloc.total.definite + ctx.alloc.total.in_progress >= totalMin;
+  const candidacy = msCandidacyApplicationRow(ctx, { group: PROJECT_THESIS, ready, alongTheWay: false });
+  if (candidacy) rows.push(candidacy);
   return rows;
 }
 

@@ -725,7 +725,16 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // The 4+1 is answered in the earlier-degrees questions since 2026-09-22.
   await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
   await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
-  await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.yes"]').click(); document.querySelector('[data-key="background.save"]').click();`);
+  // Since 2026-10-04 (P2-fourplusone-1) the "Yes" asks when the student was
+  // admitted to the Integrated program: the senior fall, before the Spring 2026
+  // bachelor's — so the extra senior-year course may count.
+  await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.yes"]').click()`);
+  await s.waitFor(`document.querySelector('[data-key="background.admitted.year"]')`);
+  await s.evalJs(`(() => {
+    const season = document.querySelector('[data-key="background.admitted.season"]'); season.value = 'fall'; season.dispatchEvent(new Event('change'));
+    const year = document.querySelector('[data-key="background.admitted.year"]'); year.value = '2025'; year.dispatchEvent(new Event('change'));
+    document.querySelector('[data-key="background.save"]').click();
+  })()`);
   await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
   // Since 2026-10-03 a 4+1 course applied to the MSCSE alone, registered UG on
   // the transcript, counts provisionally until the ADGS confirms the UG→GR move

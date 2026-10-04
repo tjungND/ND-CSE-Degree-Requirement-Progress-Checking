@@ -61,6 +61,8 @@ export const MILESTONE_FIELDS: readonly MilestoneField[] = [
   { key: 'thesisDefensePassed', label: 'Thesis defense passed', section: '§3.4', program: 'mscse' },
   { key: 'thesisDefenseFailed', label: 'Thesis defense failed (first attempt)', section: 'Academic Code §6.1.5', program: 'mscse' },
   { key: 'projectReportAccepted', label: 'Project report accepted by advisor', section: '§3.4', program: 'mscse' },
+  // 2026-10-04: the MSCSE's, or the Ph.D.'s MSCSE along the way.
+  { key: 'msCandidacyApplied', label: 'Application for Admission to Master’s Degree Candidacy submitted', section: 'Academic Code §6.1.6', program: 'both' },
 ];
 
 /** Which milestone date a dated requirement row rests on. */
@@ -75,6 +77,7 @@ const ROW_MILESTONE: Record<string, keyof Milestones> = {
   'ms.thesis.topic': 'thesisTopicApproved',
   'ms.thesis.defense': 'thesisDefensePassed',
   'ms.project.report': 'projectReportAccepted',
+  'shared.msCandidacy': 'msCandidacyApplied',
 };
 
 export interface ProcessingTransfer {
@@ -136,6 +139,9 @@ export interface ProcessingItems {
    * Admission to Doctoral Candidacy form" (DGS Handbook §3.22.3; DGS
    * 2026-10-04 — admission is a step of its own after the OCE). */
   candidacyApplicationDue: boolean;
+  /** The master's candidacy application is open (2026-10-04): the row
+   * `shared.msCandidacy` shows and is not dated. */
+  msCandidacyDue: boolean;
   /** Every met requirement (scored rows only), each with the courses,
    * semesters or date that satisfy it. */
   met: MetTable[];
@@ -292,6 +298,9 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const admission = byId.get('phd.candidacyAdmission');
   const candidacyApplicationDue =
     admission !== undefined && (admission.status === 'in_progress' || admission.status === 'unmet') && (admission.detailParts ?? []).some((p) => typeof p === 'object' && 'note' in p && p.note.startsWith('Every condition is met'));
+  // The master's candidacy application (Academic Code §6.1.6; 2026-10-04):
+  // its row appears once the conditions are in hand and stays open until dated.
+  const msCandidacyDue = byId.get('shared.msCandidacy')?.status === 'unmet';
   // Every scored row, met or not (DGS 2026-09-28); the Approvals row is the
   // DGS's errand list, not a standing. Overdue rows lead, then the page's
   // order of colours; within a colour, the report's own order.
@@ -334,6 +343,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
     ...(msAlongTheWay ? ['Process the MSCSE along the way — the self-check shows its requirements met (§4.5).'] : []),
     ...(candidacyApplicationDue ? ['Initiate my Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3).'] : []),
+    ...(msCandidacyDue ? ['Initiate my Application for Admission to Master’s Degree Candidacy — the self-check shows its conditions in hand (Academic Code §6.1.6).'] : []),
     ...(met.length > 0 ? [`Keep my standing below on file: ${tallyText}.`] : []),
   ];
   const lines = [
@@ -345,6 +355,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
     ...(msAlongTheWay ? ['MSCSE along the way — the self-check shows its requirements met (§4.5)'] : []),
     ...(candidacyApplicationDue ? ['Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3)'] : []),
+    ...(msCandidacyDue ? ['Application for Admission to Master’s Degree Candidacy — the self-check shows its conditions in hand (Academic Code §6.1.6)'] : []),
     ...(met.length > 0
       ? [`${tallyText} — the request lists every requirement with its standing, what meets it so far and its deadline${tally.dueSoon > 0 ? ` (${plural(tally.dueSoon, 'deadline')} in this semester or the next, highlighted)` : ''}, for the record`]
       : []),
@@ -356,6 +367,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     msAlongTheWay,
     qualifierFormDue,
     candidacyApplicationDue,
+    msCandidacyDue,
     met,
     standing,
     courses,
@@ -364,7 +376,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     lines,
     // The met requirements are ONE line on the card, so they are one item in
     // the chip (2026-09-08): "8 items" above two lines was never explainable.
-    count: transfers.length + milestones.length + (qualifierFormDue ? 1 : 0) + (msAlongTheWay ? 1 : 0) + (candidacyApplicationDue ? 1 : 0) + (met.length > 0 ? 1 : 0),
+    count: transfers.length + milestones.length + (qualifierFormDue ? 1 : 0) + (msAlongTheWay ? 1 : 0) + (candidacyApplicationDue ? 1 : 0) + (msCandidacyDue ? 1 : 0) + (met.length > 0 ? 1 : 0),
   };
 }
 
@@ -471,14 +483,32 @@ export function gradAdminRequest(
       ],
     });
   }
-  // Once every requirement is met, the Graduate School's last condition in
-  // the student's own words (Academic Code §3.7; DGS Handbook §3.23.1 —
-  // policy review 2026-10-03, P1-residency-enrollment-c6). A reminder, not an
-  // item to process: the count is unchanged.
-  if (allRequirementsMet(report)) {
+  if (items.msCandidacyDue) {
+    sections.push({
+      heading: 'Admission to master’s degree candidacy (Academic Code §6.1.6)',
+      lines: [
+        report.program === 'phd'
+          ? 'The self-check shows the requirements for the MSCSE along the way met — please initiate my Application for Admission to Master’s Degree Candidacy as well (DGS Handbook §3.21.1), by the Graduate School calendar’s deadline for the semester I graduate in.'
+          : 'The self-check shows a cumulative GPA of 3.0 or better and 30 credits, counting this semester’s — please initiate my Application for Admission to Master’s Degree Candidacy by the Graduate School calendar’s deadline for the semester I graduate in.',
+      ],
+    });
+  }
+  // Once every requirement is met — or once the student named the semester —
+  // the Graduate School's last condition in the student's own words (Academic
+  // Code §3.7; DGS Handbook §3.23.1 — policy review 2026-10-03,
+  // P1-residency-enrollment-c6; the named semester 2026-10-04,
+  // P2-dh-3.21-3.24-24). A reminder, not an item to process: the count is unchanged.
+  const g = report.graduation;
+  if (g !== undefined || allRequirementsMet(report)) {
     sections.push({
       heading: 'Semester of graduation (Academic Code §3.7)',
-      lines: ['I will be registered for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester I graduate.'],
+      lines: [
+        g === undefined
+          ? 'I will be registered for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester I graduate.'
+          : g.registered
+            ? `I plan to graduate in ${termLabel(g.term)}; I am registered for it (${formatCredits(g.registeredCredits)} credits entered) and will complete ND Roll Call then.`
+            : `I plan to graduate in ${termLabel(g.term)}; I will register for at least one credit hour${g.term.season === 'summer' ? ' (a zero-credit course is enough in a summer session)' : ''} and complete ND Roll Call then.`,
+      ],
     });
   }
   // Every requirement, met or not, with what satisfies it so far (2026-09-06

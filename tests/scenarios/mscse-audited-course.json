@@ -1,0 +1,75 @@
+{
+  "name": "mscse-audited-course",
+  "description": "Academic Code §2.4 (“A recorded audit is graded V”), §4.3, and DGS Handbook §3.12 (audits “do not count toward the nine credit hours required for full-time status”) — policy review 2026-10-04, P2-ac-1-3-6 / P2-ac-4-10; DGS: “Apply the suggested fix”. An MSCSE student with two courses for credit and one audited in Fall 2025: the audit is on the record as V, earns nothing, and the semester is not full-time — instead of an audit the form could not hold.",
+  "today": "2026-03-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "V",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.residency": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "No full-time semester yet"
+      ]
+    },
+    "ms.credits.total": {
+      "status": "unmet",
+      "detailIncludes": [
+        "6 of 30"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60321": [
+      "audited (V) — earns no credit"
+    ]
+  }
+}

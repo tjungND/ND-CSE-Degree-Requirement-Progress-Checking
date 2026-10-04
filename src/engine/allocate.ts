@@ -13,7 +13,7 @@ import { approverToken, needsCourseApproval } from './decider.ts';
 import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactor, creditSystemFactorLabel } from '../data/external.ts';
 import type { Counts, ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
-import { GRADES, GRADE_POINTS, isInProgress, isPassed, isWithdrawn, meetsGradeFloor, passesCreditFloor } from './grades.ts';
+import { GRADES, GRADE_POINTS, isAudit, isInProgress, isPassed, isWithdrawn, meetsGradeFloor, passesCreditFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
 import { addDaysIso, compareTerm, endOfTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel, termOfDate } from './term.ts';
@@ -63,7 +63,7 @@ export function overMaxTerms(classified: readonly ClassifiedCourse[], student: S
   for (const cc of classified) {
     const c = cc.entry;
     if (c.origin !== 'nd' || termIndex(c.term) < termIndex(entry)) continue;
-    if (cc.pool === 'none' || cc.superseded || cc.withdrawn || cc.unrecognizedGrade || !passesCreditFloor(c.grade)) continue;
+    if (cc.pool === 'none' || cc.superseded || cc.withdrawn || cc.audited || cc.unrecognizedGrade || !passesCreditFloor(c.grade)) continue;
     if (c.term.season !== 'summer' && !(levelOf(c, cc.rule) >= 6)) continue;
     const key = termIndex(c.term);
     const rec = byTerm.get(key) ?? { term: c.term, credits: 0, courses: [] };
@@ -161,6 +161,9 @@ export interface ClassifiedCourse {
    * row is not a registration the residency count may use (2026-09-11). A W
    * or an I IS a registration since 2026-10-03 and is not flagged here. */
   unrecognizedGrade?: boolean;
+  /** Audited (grade V): earns nothing and is not a registration toward the
+   * semester's full-time status (residency.ts) — 2026-10-04. */
+  audited?: true;
   /** Withdrawn (W): a registration that earns nothing (Academic Code §4.2);
    * the full-time count still sees it (§3.3), and a semester of nothing but
    * withdrawals is sent to the DGS rather than counted (policy review 2026-10-03). */
@@ -648,6 +651,12 @@ export function classify(student: Student, rules: Rules, today?: string): {
     // still include it (§3.3) — residency.ts reads the flag (2026-10-03).
     if (isWithdrawn(grade)) {
       return { ...base, withdrawn: true, ineligibleReason: 'withdrawn (W) — earns no credit; it still counts as a registration for that semester’s full-time status (Academic Code §3.3)' };
+    }
+    // Audited (Academic Code §2.4, §4.3; DGS Handbook §3.12 — policy review
+    // 2026-10-04, P2-ac-1-3-6 / P2-ac-4-10): on the record, earning nothing,
+    // and not part of the semester's registered hours.
+    if (isAudit(grade)) {
+      return { ...base, audited: true, ineligibleReason: 'audited (V) — earns no credit and does not count toward the semester’s full-time status (Academic Code §2.4, §4.3; DGS Handbook §3.12)' };
     }
     // An Incomplete (Academic Code §4.4): in progress until 30 + 14 days after
     // the term's grades were due, then "changed permanently to a grade of F"
@@ -1485,6 +1494,39 @@ function classifyPriorNdUndergraduate(
       sectionThreeFiveApproval = '§3.5 names CSE courses — a graduate course from another department, taken as an undergraduate, counts toward the MSCSE only if the DGS approves it';
     } else if (bsShare === 'mscse' && semesterNumber(awardedTerm, c.term) === -1) {
       sectionThreeFiveApproval = '§3.5 lets a junior-spring graduate course count only as one of the one or two shared with your bachelor’s degree; this one is not shared, so it counts toward the MSCSE alone only if the DGS approves it';
+    }
+  }
+  // THE 4+1 ADMISSION TERM (Graduate School 4+1 guidance, paras 2–3; DGS
+  // Handbook §3.21.4 — policy review 2026-10-04, P2-fourplusone-1; DGS: "apply
+  // the suggested fix"): "In order to double count these credits, students
+  // must be recognized dual-degree students … apply to the graduate program
+  // during their junior year for matriculation in their senior year", and
+  // "Only six credits can be double-counted if a student starts the graduate
+  // program after the bachelor's degree has been awarded." So on the MSCSE a
+  // course beyond the six shared with the bachelor's counts only for a student
+  // admitted to the Integrated program before the bachelor's was awarded, and
+  // only from the admission term on. Unanswered, it waits for the answer —
+  // "not counted yet", the way a missing bachelor's award term does above.
+  if (program === 'mscse' && undergradLevel >= 6 && student.integratedBsMs === true && bsShare === 'mscse' && awardedTerm !== undefined) {
+    const admitted = student.integratedAdmitted;
+    if (admitted === undefined) {
+      return {
+        ...extBase,
+        ineligibleReason:
+          'not counted yet — say when you were admitted to the Integrated B.S. + M.S. program (Your standing → Change): beyond the six credits shared with your bachelor’s degree, the Graduate School counts such courses only for a student admitted before the bachelor’s degree was awarded, and only from the admission term on (4+1 guidance)',
+      };
+    }
+    if (compareTerm(admitted, awardedTerm) > 0) {
+      return {
+        ...extBase,
+        ineligibleReason: `not counted — you were admitted to the Integrated program for ${termLabel(admitted)}, after your bachelor’s degree (${termLabel(awardedTerm)}); the Graduate School counts only six credits — the ones shared with the bachelor’s — for a student who started the graduate program after the bachelor’s was awarded (4+1 guidance)`,
+      };
+    }
+    if (compareTerm(c.term, admitted) < 0) {
+      return {
+        ...extBase,
+        ineligibleReason: `not counted — taken before you were admitted to the Integrated program (${termLabel(admitted)}); beyond the six credits shared with your bachelor’s degree, only coursework from then on counts (4+1 guidance)`,
+      };
     }
   }
   // THE UG→GR MOVE (Graduate School 4+1 guidance; DGS Handbook §3.21.4): a

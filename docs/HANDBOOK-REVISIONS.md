@@ -434,4 +434,10 @@ not the app's:
     registered for six or more credits"), and the app now applies six through the Parameters key
     `summer_fulltime_credits_min` (DGS 2026-10-04, P1-page-text-ui-9), besides Academic Code §3.6's summer beside a
     full-time spring or fall. §3.3 should say "a summer session of six or more credits" in its own text.
+17. **§3.5 — when must a 4+1 student have been admitted?** The Graduate School's 4+1 guidance counts graduate
+    coursework beyond the six shared credits only for "recognized dual-degree students" admitted during the junior year for
+    the senior year, and "only six credits" for one who "starts the graduate program after the bachelor's degree has been
+    awarded". §3.5 says when to apply ("by the end of the fall semester of the senior year") but not that the extra
+    courses depend on it. The app now asks an MSCSE 4+1 student the admission term and counts the extras only from it
+    (policy review 2026-10-04, P2-fourplusone-1). §3.5 should say so in one sentence.
 

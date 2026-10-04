@@ -99,6 +99,14 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
   if (approvals?.status === 'needs_dgs_review' || reviewCount > 0) steps.push({ text: 'When the DGS answers, come back to this page — it reads the latest course rules — and tick the box next to each course approved for you; then send the processing request, and the Grad Admin records it.', href: '#grad-admin', covers: ['shared.approvals'] });
   if (processingCount > 0) steps.push({ text: `Send the processing request (${plural(processingCount, 'item')}) — the Grad Admin records it.`, href: '#grad-admin' });
+  // The master's candidacy application, once its conditions are in hand
+  // (Academic Code §6.1.6 — policy review 2026-10-04, P2-dh-front-1-2-2).
+  if (report.requirements.some((r) => r.id === 'shared.msCandidacy' && r.status === 'unmet'))
+    steps.push({
+      text: 'Ask the Grad Admin to submit your Application for Admission to Master’s Degree Candidacy by the Graduate School calendar’s deadline for the semester you graduate in — it is in the processing request (Academic Code §6.1.6).',
+      href: '#grad-admin',
+      covers: ['shared.msCandidacy'],
+    });
   // 5. Once every requirement is met: what the Graduate School checks in the
   // semester of graduation, which no row shows (policy review 2026-10-03,
   // P1-residency-enrollment-c6). Academic Code §3.7: "Degree students must
@@ -106,7 +114,14 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   // which they plan to graduate; this includes the summer session." DGS
   // Handbook §3.23.1: "at least one credit hour during the semester of
   // graduation (or for a zero-credit course, during the summer session)".
-  if (allRequirementsMet(report)) steps.push({ text: GRADUATION_SEMESTER_STEP });
+  // With the semester named (2026-10-04, P2-dh-3.21-3.24-24): no course of at
+  // least one credit entered for it is a step at any time; registered, the
+  // Roll Call reminder once everything is met.
+  const g = report.graduation;
+  if (g !== undefined && !g.registered)
+    steps.push({ text: `Register for at least one credit hour in ${termLabel(g.term)}${g.term.season === 'summer' ? ' (a zero-credit course is enough in a summer session)' : ''} and complete ND Roll Call — the Graduate School confers your degree only then (Academic Code §3.7).` });
+  else if (allRequirementsMet(report))
+    steps.push({ text: g !== undefined ? `Complete ND Roll Call in ${termLabel(g.term)}, the semester you graduate — you are registered for it (Academic Code §3.7).` : GRADUATION_SEMESTER_STEP });
   // 6. The advisor summary, any time.
   if (hasCourses) steps.push({ text: 'Send the summary to your advisor whenever you like.' });
   return steps;

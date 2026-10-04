@@ -1,0 +1,231 @@
+// Policy review 2026-10-04 (DGS: "Apply the suggested fix"):
+// P2-ac-1-3-6, P2-ac-4-10 — the audit grade V: on the record, earning nothing,
+//   not a registration toward full-time status (Academic Code §2.4, §4.3; DGS
+//   Handbook §3.12); the import keeps V/AU rows as V.
+// P2-dh-3.21-3.24-2, -4, P2-dh-front-1-2-2 — the Application for Admission to
+//   Master's Degree Candidacy (Academic Code §6.1.6; DGS Handbook §3.21.1): an
+//   uncounted step once its conditions are in hand, a milestone date, an item
+//   in the processing request and a next step.
+// P2-dh-3.21-3.24-24 — the semester of graduation: registered for at least one
+//   credit hour in it (a zero-credit course in a summer) — DGS Handbook §3.23.1.
+// P2-ac-6.2-app-7, P2-dh-3.14-3.20-27, P2-dh-10-10 — a Graduate School
+//   extension of the time limit, through the end of a term the student enters.
+// P2-fourplusone-1 — the 4+1 admission term: beyond the six shared credits, a
+//   course taken as an undergraduate counts only for a student admitted before
+//   the bachelor's, and only from the admission term on.
+// P2-dh-front-1-2-6 — a Notre Dame course entered as program coursework but
+//   dated before the entry term is said, not silently counted.
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { audit } from '../src/engine/audit.ts';
+import type { CourseEntry, Student, Term } from '../src/engine/types.ts';
+import { parseTranscript } from '../src/transcript/parse.ts';
+import { applyBackground, completeBackground } from '../src/ui/background.ts';
+import { processingItems } from '../src/ui/grad-admin-request.ts';
+import { nextSteps } from '../src/ui/next-steps.ts';
+import { validateStudent } from '../src/ui/state.ts';
+import { buildRules } from './helpers.ts';
+import { ndCourse, phdStudent } from './helpers/student.ts';
+
+const rules = buildRules();
+const fall = (year: number): Term => ({ season: 'fall', year });
+const spring = (year: number): Term => ({ season: 'spring', year });
+const summer = (year: number): Term => ({ season: 'summer', year });
+const REGULAR = ['CSE 60641', 'CSE 60111', 'CSE 60321', 'CSE 60427', 'CSE 60535', 'CSE 60762', 'CSE 60770', 'CSE 60876'];
+const ms = (over: Partial<Student> = {}): Student => ({
+  schemaVersion: 1,
+  program: 'mscse',
+  msOption: 'project',
+  entryTerm: fall(2025),
+  priorMs: 'none',
+  gpa: 3.5,
+  courses: [],
+  milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example' },
+  attestations: {},
+  ...over,
+});
+const row = (s: Student, id: string, today = '2027-03-01') => audit(s, rules, today).requirements.find((r) => r.id === id);
+const line = (s: Student, id: string, today = '2027-03-01') => audit(s, rules, today).courseLines.find((l) => l.courseId === id)!.text;
+
+describe('the audit grade V (Academic Code §2.4, §4.3; DGS Handbook §3.12)', () => {
+  it('earns nothing, is said on its line, and is no registration toward full-time status', () => {
+    const s = ms({ courses: [ndCourse('CSE 60641', { term: fall(2025) }), ndCourse('CSE 60111', { term: fall(2025) }), ndCourse('CSE 60321', { term: fall(2025), grade: 'V' })] });
+    assert.match(line(s, 'CSE 60321'), /audited \(V\) — earns no credit and does not count toward the semester’s full-time status \(Academic Code §2\.4, §4\.3; DGS Handbook §3\.12\)/);
+    assert.match(row(s, 'ms.credits.total')!.detail, /^6 of 30/);
+    assert.equal(row(s, 'ms.residency')!.status, 'in_progress'); // 6 registered credits, not 9
+  });
+  it('the import keeps an audit row (V, or another registrar’s AU) as V', () => {
+    const lines = ['University of Notre Dame', 'INSTITUTION CREDIT', 'Fall Semester 2026', 'CSE 60641 GR Graduate Operating Systems V 3.000', 'CSE 60111 GR Complexity and Algorithms AU 3.000', 'CSE 60321 GR Advanced Computer Architecture A 3.000 12.000'];
+    const parsed = parseTranscript(lines);
+    assert.equal(parsed.courses.find((c) => c.courseId === 'CSE 60641')?.grade, 'V');
+    assert.equal(parsed.courses.find((c) => c.courseId === 'CSE 60111')?.grade, 'V');
+    assert.equal(parsed.courses.find((c) => c.courseId === 'CSE 60641')?.title, 'Graduate Operating Systems');
+  });
+  it('a saved file’s V loads', () => {
+    const s = validateStudent(ms({ courses: [ndCourse('CSE 60641', { grade: 'V' })] }), []);
+    assert.equal(s.courses[0]!.grade, 'V');
+  });
+});
+
+describe('the Application for Admission to Master’s Degree Candidacy (Academic Code §6.1.6)', () => {
+  // 24 credits graded, 6 of CSE 68902 in progress: the semester of graduation.
+  const ready = (milestones: Student['milestones'] = {}) =>
+    ms({
+      courses: [...REGULAR.map((id, i) => ndCourse(id, { term: [fall(2025), spring(2026), fall(2026), spring(2026)][i % 4]! })), ndCourse('CSE 68902', { term: spring(2027), credits: 6, grade: 'IP' })],
+      milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', ...milestones },
+    });
+  it('appears once a 3.0 GPA and 30 credits, counting this semester’s, are in hand — uncounted, open, in the processing request and the next steps', () => {
+    const s = ready();
+    const r = row(s, 'shared.msCandidacy')!;
+    assert.equal(r.status, 'unmet');
+    assert.equal(r.unscored, true);
+    assert.match(r.detail, /^Not submitted yet\. Its conditions are in hand — a cumulative GPA of 3\.0 or better and 30 credits, counting this semester’s \(Academic Code §6\.1\.6; DGS Handbook §3\.21\.1\): the Grad Admin submits the Graduate School’s Application for Admission to Master’s Degree Candidacy/);
+    const report = audit(s, rules, '2027-03-01');
+    const items = processingItems(report, s, rules);
+    assert.equal(items.msCandidacyDue, true);
+    assert.ok(items.actions.some((a) => a.startsWith('Initiate my Application for Admission to Master’s Degree Candidacy')));
+    const steps = nextSteps({ report, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: items.count });
+    assert.ok(steps.some((st) => st.text.startsWith('Ask the Grad Admin to submit your Application for Admission to Master’s Degree Candidacy')));
+  });
+  it('dated: done, and recorded in the processing request instead', () => {
+    const s = ready({ msCandidacyApplied: '2027-02-20' });
+    assert.equal(row(s, 'shared.msCandidacy')!.status, 'met');
+    assert.match(row(s, 'shared.msCandidacy')!.detail, /^Submitted 2027-02-20/);
+    const items = processingItems(audit(s, rules, '2027-03-01'), s, rules);
+    assert.equal(items.msCandidacyDue, false);
+    assert.ok(items.actions.some((a) => a.startsWith('Record the milestone: Application for Admission to Master’s Degree Candidacy submitted, 2027-02-20')));
+  });
+  it('not before its conditions: short of 30 credits, or below a 3.0 GPA', () => {
+    assert.equal(row(ms({ courses: REGULAR.slice(0, 4).map((id) => ndCourse(id, { term: fall(2025) })) }), 'shared.msCandidacy'), undefined);
+    assert.equal(row({ ...ready(), gpa: 2.9 }, 'shared.msCandidacy'), undefined);
+  });
+  it('a Ph.D. student’s MSCSE along the way needs it too', () => {
+    const s = phdStudent({
+      entryTerm: fall(2024),
+      gpa: 3.6,
+      courses: [...REGULAR.map((id, i) => ndCourse(id, { term: i < 4 ? fall(2024) : spring(2025) })), ndCourse('CSE 98900', { term: fall(2025), credits: 6 })],
+      milestones: { advisorName: 'Prof. Example', advisorTtt: 'yes', candidacyPassed: '2026-04-20' },
+    });
+    assert.equal(row(s, 'phd.msAlongTheWay')!.status, 'met');
+    const r = row(s, 'shared.msCandidacy')!;
+    assert.equal(r.status, 'unmet');
+    assert.match(r.title, /MSCSE along the way/);
+    assert.match(r.detail, /A Ph\.D\. student receiving a master’s degree applies for master’s degree candidacy too \(DGS Handbook §3\.21\.1\)/);
+    // Before the award's requirements are met: no step.
+    assert.equal(row({ ...s, milestones: { advisorName: 'Prof. Example', advisorTtt: 'yes' } }, 'shared.msCandidacy'), undefined);
+  });
+});
+
+describe('the semester of graduation (DGS Handbook §3.23.1; Academic Code §3.7)', () => {
+  const grad = (term: Term, courses: CourseEntry[]) => ms({ graduationTerm: term, courses });
+  it('no course entered for it: a step at once, and a warning once the term has begun', () => {
+    const s = grad(spring(2027), [ndCourse('CSE 60641', { term: fall(2025) })]);
+    const early = audit(s, rules, '2026-11-01');
+    assert.deepEqual(early.graduation, { term: spring(2027), registeredCredits: 0, registered: false });
+    assert.ok(!early.warnings.some((w) => w.startsWith('You plan to graduate in Spring 2027')));
+    const steps = nextSteps({ report: early, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 });
+    assert.ok(steps.some((st) => st.text === 'Register for at least one credit hour in Spring 2027 and complete ND Roll Call — the Graduate School confers your degree only then (Academic Code §3.7).'));
+    const late = audit(s, rules, '2027-02-01');
+    assert.ok(late.warnings.some((w) => w.startsWith('You plan to graduate in Spring 2027, but no Notre Dame course of at least one credit is entered for it')));
+  });
+  it('a course of one credit or more: registered; a withdrawn or audited one is not', () => {
+    assert.equal(audit(grad(spring(2027), [ndCourse('CSE 98900', { term: spring(2027), credits: 1, grade: 'IP' })]), rules, '2027-02-01').graduation?.registered, true);
+    assert.equal(audit(grad(spring(2027), [ndCourse('CSE 60641', { term: spring(2027), grade: 'W' })]), rules, '2027-02-01').graduation?.registered, false);
+    assert.equal(audit(grad(spring(2027), [ndCourse('CSE 60641', { term: spring(2027), grade: 'V' })]), rules, '2027-02-01').graduation?.registered, false);
+  });
+  it('a summer: a zero-credit course is enough', () => {
+    assert.equal(audit(grad(summer(2027), [ndCourse('CSE 67890', { term: summer(2027), credits: 0, grade: 'IP' })]), rules, '2027-06-15').graduation?.registered, true);
+  });
+  it('a saved file keeps a well-formed term only', () => {
+    assert.deepEqual(validateStudent({ ...ms(), graduationTerm: spring(2027) }, []).graduationTerm, spring(2027));
+    assert.equal(validateStudent({ ...ms(), graduationTerm: { season: 'winter', year: 2027 } }, []).graduationTerm, undefined);
+  });
+});
+
+describe('a Graduate School extension of the time limit', () => {
+  // Entered Fall 2020 (after the Spring 2020 cohort): eight years end at the start of Fall 2028.
+  const phd = (extension?: Term, milestones: Student['milestones'] = {}) =>
+    phdStudent({ entryTerm: fall(2020), gpa: 3.5, milestones: { advisorName: 'Prof. Example', advisorTtt: 'yes', ...milestones }, attestations: extension ? { timeLimitExtendedThrough: extension } : {} });
+  it('inside it: In progress against the extended date, said, with what dissertation completion status is', () => {
+    const r = row(phd(spring(2029)), 'phd.timeLimit', '2029-03-01')!;
+    assert.equal(r.status, 'in_progress');
+    assert.match(r.deadline!.label, /^Due by the end of Spring 2029 — extended by the Graduate School \(approximate\)/);
+    assert.match(r.detail, /extended by the Graduate School through the end of Spring 2029/);
+    assert.match(r.detail, /Dissertation completion status lasts up to two semesters \(Academic Code §6\.2\.6\.1\)/);
+  });
+  it('a defense inside it is not late', () => {
+    const r = row(phd(spring(2029), { candidacyPassed: '2024-04-01', candidacyAdmitted: '2024-05-01', defensePassed: '2029-04-01' }), 'phd.dissertation.defense', '2029-05-01')!;
+    assert.notEqual(r.statusLabel, 'Eligibility at risk');
+  });
+  it('after it ends: Overdue', () => {
+    const r = row(phd(spring(2029)), 'phd.timeLimit', '2029-09-01')!;
+    assert.equal(r.status, 'unmet');
+    assert.equal(r.deadline?.state, 'overdue');
+  });
+  it('without one: Overdue after the eight years, as before', () => {
+    assert.equal(row(phd(), 'phd.timeLimit', '2029-03-01')!.status, 'unmet');
+  });
+  it('longer than the Graduate School grants: noted, and the review request asks the DGS', () => {
+    const s = phd(spring(2031));
+    assert.match(row(s, 'phd.timeLimit', '2029-03-01')!.detail, /longer than the Graduate School grants/);
+    assert.ok(audit(s, rules, '2029-03-01').reviewFlags!.some((f) => f.startsWith('Time limit: I entered a Graduate School extension through the end of Spring 2031')));
+  });
+  it('one that ends before the limit changes nothing, and says so', () => {
+    const r = row(phdStudent({ entryTerm: fall(2024), attestations: { timeLimitExtendedThrough: spring(2026) } }), 'phd.timeLimit', '2026-03-01')!;
+    assert.match(r.detail, /ends before your 8-year limit, so it changes nothing/);
+  });
+  it('the MSCSE: an eligibility extension', () => {
+    const r = row(ms({ entryTerm: fall(2020), attestations: { timeLimitExtendedThrough: spring(2026) } }), 'ms.timeLimit', '2026-03-01')!;
+    assert.equal(r.status, 'in_progress');
+    assert.match(r.detail, /An eligibility extension from the Graduate School \(DGS Handbook §10\.3\.5\)/);
+  });
+  it('a saved file drops a malformed term', () => {
+    assert.equal(validateStudent({ ...ms(), attestations: { timeLimitExtendedThrough: { season: 'fall', year: 'soon' } } }, []).attestations.timeLimitExtendedThrough, undefined);
+  });
+});
+
+describe('the 4+1 admission term (Graduate School 4+1 guidance)', () => {
+  const ug = (courseId: string, term: Term): CourseEntry => ({ courseId, credits: 3, term, grade: 'A', origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'graduate' });
+  // Two 40000-level courses fill the six shared credits; CSE 60641 is extra.
+  const fourPlusOne = (admitted?: Term, courseTerm: Term = fall(2025)) =>
+    ms({
+      entryTerm: fall(2026),
+      bachelorsAwarded: spring(2026),
+      integratedBsMs: true,
+      ...(admitted ? { integratedAdmitted: admitted } : {}),
+      courses: [ug('CSE 40113', fall(2025)), ug('CSE 40243', fall(2025)), ug('CSE 60641', courseTerm)],
+      attestations: { dgsApproved4xxxx: true },
+    });
+  it('unanswered: the extra course waits for the answer', () => {
+    assert.match(line(fourPlusOne(), 'CSE 60641', '2026-10-04'), /^not counted yet — say when you were admitted to the Integrated B\.S\. \+ M\.S\. program/);
+  });
+  it('admitted before the bachelor’s, the course from then on: counts', () => {
+    assert.match(line(fourPlusOne(fall(2025)), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);
+  });
+  it('admitted after the bachelor’s: only the six shared credits', () => {
+    assert.match(line(fourPlusOne(fall(2026)), 'CSE 60641', '2026-10-04'), /^not counted — you were admitted to the Integrated program for Fall 2026, after your bachelor’s degree \(Spring 2026\)/);
+    assert.match(line(fourPlusOne(fall(2026)), 'CSE 40113', '2026-10-04'), /will apply to both your bachelor’s degree and your MSCSE/);
+  });
+  it('a course from before the admission term: not counted', () => {
+    assert.match(line(fourPlusOne(spring(2026), fall(2025)), 'CSE 60641', '2026-10-04'), /^not counted — taken before you were admitted to the Integrated program \(Spring 2026\)/);
+  });
+  it('the opening questions carry the term to the record, beside a “yes” only', () => {
+    // The dialog's answer keeps it (the e2e caught completeBackground dropping it).
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, integratedAdmittedTerm: fall(2025), graduate: 'none' }, 'mscse')?.integratedAdmittedTerm, fall(2025));
+    assert.equal(completeBackground({ bachelors: 'nd-cse', ndIntegrated: false, integratedAdmittedTerm: fall(2025), graduate: 'none' }, 'mscse')?.integratedAdmittedTerm, undefined);
+    const s = ms();
+    applyBackground(s, { bachelors: 'nd-cse', ndIntegrated: true, integratedAdmittedTerm: fall(2025), graduate: 'none' });
+    assert.deepEqual(s.integratedAdmitted, fall(2025));
+    applyBackground(s, { bachelors: 'nd-cse', ndIntegrated: false, graduate: 'none' });
+    assert.equal(s.integratedAdmitted, undefined);
+  });
+});
+
+describe('a Notre Dame course entered as program coursework but dated before the entry term', () => {
+  it('is said in the warnings', () => {
+    const s = ms({ entryTerm: fall(2026), courses: [ndCourse('CSE 60641', { term: fall(2025) }), ndCourse('CSE 60111', { term: fall(2026) })] });
+    const w = audit(s, rules, '2026-10-04').warnings.find((x) => x.startsWith('CSE 60641 (Fall 2025) is entered as coursework of this program but dated before your entry term (Fall 2026)'));
+    assert.ok(w);
+    assert.match(w!, /transfer credit \(§3\.2, §5\.2\)|transfer credit \(§5\.2\)/);
+  });
+});

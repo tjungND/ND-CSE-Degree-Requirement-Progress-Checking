@@ -569,6 +569,7 @@ describe('undergraduate Notre Dame coursework', () => {
   const rules = buildRules();
   const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student => phdStudent({
     integratedBsMs: true, // a 4+1 unless a test says otherwise (DGS 2026-09-12)
+    integratedAdmitted: { season: 'spring', year: 2025 }, // before the bachelor's — the extras may count (2026-10-04)
     bachelorsAwarded: { season: 'spring', year: 2025 },
     gpa: 3.8,
     courses,

@@ -7,7 +7,7 @@ import { usableGpa } from '../ranges.ts';
 import { openDeadline } from '../status.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
-import { addMonthsIso, compareTerm, deadlineTermLabel, dueTermPhrase, startOfTerm, termLabel } from '../term.ts';
+import { addMonthsIso, compareTerm, deadlineTermLabel, dueTermPhrase, endOfTerm, startOfTerm, termLabel } from '../term.ts';
 import type { Contribution, DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
 
 export interface Ctx {
@@ -94,7 +94,65 @@ export function noteOf(sentence: string): DetailPart[] {
  * for the COVID cohort (Academic Code §6.2.6 "unless interrupted by approved
  * medical leave(s) and/or approved childbirth accommodation(s)"; Appendix A.5). */
 export function timeLimitDate(ctx: Ctx, years: number): string {
+  const extension = graduateSchoolExtension(ctx, years);
+  return extension !== undefined ? endOfTerm(extension).date : baseTimeLimitDate(ctx, years);
+}
+
+/** The limit before any Graduate School extension. */
+export function baseTimeLimitDate(ctx: Ctx, years: number): string {
   return addMonthsIso(startOfTerm(ctx.entry).date, years * 12 + ctx.clockShift * 6 + (ctx.covidCohort ? 12 : 0));
+}
+
+/** The Graduate School's extension of the limit — dissertation completion
+ * status after the eighth year (Academic Code §6.2.6.1: "may apply for
+ * dissertation completion status for up to two semesters"; DGS Handbook
+ * §3.19: "a one-year dissertation completion status … the one-year extension
+ * may be renewed one time") or an eligibility extension (DGS Handbook §10.3.5)
+ * — through the end of the term the student entered (policy review
+ * 2026-10-04, P2-ac-6.2-app-7, P2-dh-3.14-3.20-27, P2-dh-10-10; DGS: "apply
+ * the suggested fix"). Only when it ends after the limit it extends; the DGS
+ * confirms it. Not a clock shift: the eighth semester (§4.5) does not move. */
+export function graduateSchoolExtension(ctx: Ctx, years: number): Term | undefined {
+  const t = ctx.student.attestations.timeLimitExtendedThrough;
+  return t !== undefined && endOfTerm(t).date > baseTimeLimitDate(ctx, years) ? t : undefined;
+}
+
+/** ", extended by the Graduate School through the end of Spring 2027", or ''. */
+export function graduateSchoolExtensionClause(ctx: Ctx, years: number): string {
+  const t = graduateSchoolExtension(ctx, years);
+  return t === undefined ? '' : `, extended by the Graduate School through the end of ${termLabel(t)}`;
+}
+
+/** What the time-limit row says about an extension the student entered: what
+ * it is, that the DGS confirms it, and — for dissertation completion status —
+ * how far the Graduate School goes. */
+function extensionNotes(ctx: Ctx, years: number): DetailPart[] {
+  const t = ctx.student.attestations.timeLimitExtendedThrough;
+  if (t === undefined) return [];
+  const base = baseTimeLimitDate(ctx, years);
+  const end = endOfTerm(t).date;
+  if (end <= base) return [{ note: `The Graduate School extension you entered (through the end of ${termLabel(t)}) ends before your ${years}-year limit, so it changes nothing — check it under Approvals` }];
+  if (ctx.student.program !== 'phd') return [{ note: 'An eligibility extension from the Graduate School (DGS Handbook §10.3.5) — you entered it yourself; the DGS confirms it' }];
+  return [
+    {
+      note: 'Dissertation completion status lasts up to two semesters (Academic Code §6.2.6.1); the DGS Handbook (§3.19) grants one year, renewable once in extremely rare circumstances, and a student in it is part-time and pays one credit hour of resident tuition each semester. You entered the extension yourself — the DGS confirms it',
+    },
+    ...(end > addMonthsIso(base, 24)
+      ? [{ note: 'That is longer than the Graduate School grants — one year of dissertation completion status, renewed once at most (DGS Handbook §3.19); the review request asks the DGS' }]
+      : end > addMonthsIso(base, 12)
+        ? [{ note: 'Beyond one year: the Graduate School renews dissertation completion status once, in extremely rare circumstances (DGS Handbook §3.19)' }]
+        : []),
+  ];
+}
+
+/** The review-request line for a Ph.D. extension longer than the Graduate
+ * School grants (more than two years past the eight). */
+export function extensionReviewFlag(ctx: Ctx): string | undefined {
+  const years = ctx.params.number('phd_time_limit_years');
+  const t = ctx.student.attestations.timeLimitExtendedThrough;
+  if (ctx.student.program !== 'phd' || years === undefined || t === undefined) return undefined;
+  if (endOfTerm(t).date <= addMonthsIso(baseTimeLimitDate(ctx, years), 24)) return undefined;
+  return `Time limit: I entered a Graduate School extension through the end of ${termLabel(t)}, more than two years past my ${years}-year limit — longer than the Graduate School grants (one year of dissertation completion status, renewed once at most; DGS Handbook §3.19). Please confirm it.`;
 }
 
 /** DGS Handbook §4.2.6, Academic-Year Tuition Scholarships: "All doctoral
@@ -157,7 +215,11 @@ export function timeLimitRow(
     // Shown as a semester, never a date (DGS request 2026-09-05): eight years
     // from the entry term's start is the start of a term.
     const date = timeLimitDate(ctx, years);
-    const shiftNote = clockShiftNote(ctx);
+    // Leaves, accommodations and Appendix A shift the clock; the Graduate
+    // School's extension (2026-10-04) replaces the date — both are said.
+    const shiftNote = `${clockShiftNote(ctx)}${graduateSchoolExtensionClause(ctx, years)}`;
+    const extended = graduateSchoolExtension(ctx, years) !== undefined;
+    const extNotes = extensionNotes(ctx, years);
     const longerDate = args.longer ? timeLimitDate(ctx, args.longer.years) : undefined;
     // The longer limit's sentence, by whether `when` (a completion, or today)
     // is still inside it.
@@ -183,11 +245,12 @@ export function timeLimitRow(
         `Every requirement is complete, but the last one was dated ${args.completedOn}, after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
         { note: `${args.section} makes that a forfeiture of degree eligibility unless the Graduate School granted an extension — confirm it with the DGS` },
         ...longerNote(args.completedOn),
+        ...extNotes,
       ];
       deadline = { date, approx: true, state: 'done', label: `Done ${args.completedOn} — after the limit` };
     } else if (others.allMet) {
       status = 'met';
-      parts = [`All requirements are complete within the ${years}-year limit${shiftNote}`];
+      parts = [`All requirements are complete within the ${years}-year limit${shiftNote}`, ...extNotes];
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date && others.anyCannotEvaluate) {
       // A missing rules-sheet value is not a missed deadline (red-team
@@ -197,7 +260,7 @@ export function timeLimitRow(
       // candidacy of a record whose dissertation milestones are dated), so
       // the sentence names both and leaves "which" to that row.
       status = 'cannot_evaluate';
-      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate), but a requirement above cannot be evaluated yet — a value is missing from the rules sheet or from your record, and that row says which — so whether everything was finished in time cannot be judged`, ...longerNote(ctx.today), tuition];
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}, but a requirement above cannot be evaluated yet — a value is missing from the rules sheet or from your record, and that row says which — so whether everything was finished in time cannot be judged`, ...longerNote(ctx.today), ...extNotes, tuition];
       deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date && longerDate !== undefined && ctx.today <= longerDate) {
       // Past the row's own limit, inside a longer one that may apply: the DGS
@@ -206,7 +269,7 @@ export function timeLimitRow(
       // "Conditionally met" either, since nothing is complete (policy review
       // 2026-10-04).
       status = 'in_progress';
-      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`, ...longerNote(ctx.today), tuition];
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`, ...longerNote(ctx.today), ...extNotes, tuition];
       deadline = openDeadline(longerDate, ctx.today, `Due ${dueTermPhrase(longerDate)} if the ${args.longer!.years}-year limit applies (approximate)`);
     } else if (ctx.today > date) {
       status = 'unmet';
@@ -218,6 +281,7 @@ export function timeLimitRow(
         `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
         { note: ctx.student.program === 'phd' ? 'After the eighth year a student may apply to the Graduate School for dissertation completion status (Academic Code §6.2.6.1) — talk to the DGS' : 'Talk to the DGS about an eligibility extension from the Graduate School' },
         ...longerNote(ctx.today),
+        ...extNotes,
         tuition,
       ];
       deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
@@ -226,10 +290,10 @@ export function timeLimitRow(
       // The deadline chip carries the when (2026-09-03); the detail says only
       // what moved it, if anything (leaves, accommodations, Appendix A).
       // A semester, never a date (DGS request 2026-09-05).
-      deadline = openDeadline(date, ctx.today, `Due ${dueTermPhrase(date)} — ${years} years after entry${shiftNote !== '' ? ', extended' : ''} (approximate)`);
+      deadline = openDeadline(date, ctx.today, extended ? `Due ${dueTermPhrase(date)} — extended by the Graduate School (approximate)` : `Due ${dueTermPhrase(date)} — ${years} years after entry${shiftNote !== '' ? ', extended' : ''} (approximate)`);
       // The tuition sentence once the limit is this semester or next — before
       // that it is not news (and every email would carry it).
-      parts = [...(shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : []), ...longerNote(ctx.today), ...(deadline.state === 'due_soon' ? [tuition] : [])];
+      parts = [...(shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : []), ...longerNote(ctx.today), ...extNotes, ...(deadline.state === 'due_soon' ? [tuition] : [])];
     }
   }
   return {

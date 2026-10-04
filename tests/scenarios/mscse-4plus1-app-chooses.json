@@ -1,6 +1,6 @@
 {
   "name": "mscse-4plus1-app-chooses",
-  "description": "A 4+1 student's undergraduate coursework is applied by the APP, never chosen by the student (DGS 2026-09-11): “let the top two CSE 40xxx courses count towards both BS and MSCSE … When the transcript has 60xxx courses, try to save them for the graduate degree.” This record has no 40000-level course, so §3.5's six shared credits are filled from the 60000-level courses, earliest first: the two Spring 2025 / Fall 2025 courses apply to both degrees, every later one to the MSCSE only, and any countedToward value saved earlier is ignored. Each line says what the course WILL apply to. (integratedBsMs: true since 2026-09-12 — only a 4+1's undergraduate 60000-level coursework earns credit.) (2026-10-03: the four courses applied to the MSCSE alone are registered UG on this record, so each waits for the ADGS to confirm the UG→GR move the Graduate School’s 4+1 guidance requires — 12 pending credits; the shared pair is untouched by that rule.)",
+  "description": "A 4+1 student's undergraduate coursework is applied by the APP, never chosen by the student (DGS 2026-09-11): “let the top two CSE 40xxx courses count towards both BS and MSCSE … When the transcript has 60xxx courses, try to save them for the graduate degree.” This record has no 40000-level course, so §3.5's six shared credits are filled from the 60000-level courses, earliest first: the two Spring 2025 / Fall 2025 courses apply to both degrees, every later one to the MSCSE only, and any countedToward value saved earlier is ignored. Each line says what the course WILL apply to. (integratedBsMs: true since 2026-09-12 — only a 4+1's undergraduate 60000-level coursework earns credit.) (2026-10-03: the four courses applied to the MSCSE alone are registered UG on this record, so each waits for the ADGS to confirm the UG→GR move the Graduate School’s 4+1 guidance requires — 12 pending credits; the shared pair is untouched by that rule.) (Since 2026-10-04 the record says when the student was admitted to the Integrated program — Spring 2025, before the bachelor's — so courses beyond the shared six may count; P2-fourplusone-1.)",
   "today": "2027-06-01",
   "rules": {
     "base": "default"
@@ -106,7 +106,11 @@
         "registeredLevel": "undergraduate"
       }
     ],
-    "integratedBsMs": true
+    "integratedBsMs": true,
+    "integratedAdmitted": {
+      "season": "spring",
+      "year": 2025
+    }
   },
   "expect": {
     "ms.cap.sharedbs": {

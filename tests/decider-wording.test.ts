@@ -63,6 +63,7 @@ describe('the §3.5 more-than-two note names the degree’s decider', () => {
     bachelorsAwarded: { season: 'spring', year: 2026 },
     priorMs: 'none',
     integratedBsMs: true,
+    integratedAdmitted: { season: 'fall', year: 2025 }, // admitted before the bachelor's (2026-10-04)
     courses: ['CSE 60641', 'CSE 60111', 'CSE 60321'].map((courseId) => ({
       courseId,
       credits: 3,

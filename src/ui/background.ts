@@ -23,6 +23,11 @@ export interface Background {
   /** An MSCSE student with a Notre Dame CSE bachelor's: in the Integrated
    * B.S. + M.S. (4+1) program now? (§3.5.) */
   ndIntegrated?: boolean;
+  /** MSCSE, 4+1 "yes": when the student was admitted (matriculated) into the
+   * Integrated program, from the admission letter (Graduate School 4+1
+   * guidance — policy review 2026-10-04, P2-fourplusone-1). Optional: courses
+   * beyond the six shared credits wait for it. */
+  integratedAdmittedTerm?: Term;
   graduate: GraduateBefore;
   /** A graduate degree elsewhere: at the same university as the bachelor's
    * (a 4+1 or 5+1), which usually means ONE transcript covering both. */
@@ -109,6 +114,8 @@ export function completeBackground(b: Partial<Background> | undefined, program: 
   return {
     bachelors: b.bachelors,
     ...(asksIntegrated ? { ndIntegrated: b.ndIntegrated === true } : {}),
+    // The 4+1 admission term (2026-10-04): asked of an MSCSE "yes", optional.
+    ...(asksIntegrated && program === 'mscse' && b.ndIntegrated === true && b.integratedAdmittedTerm ? { integratedAdmittedTerm: b.integratedAdmittedTerm } : {}),
     graduate: b.graduate,
     ...(b.graduate === 'elsewhere' ? { samePlace: b.samePlace === true, finished: b.finished === true } : {}),
     ...(b.graduate === 'nd-other' ? { finished: b.finished === true } : {}),
@@ -171,6 +178,8 @@ export function applyBackground(s: Student, b: Background): void {
   // (asked of every student with a Notre Dame CSE bachelor's since 2026-10-03).
   s.integratedBsMs = b.graduate === 'nd-4plus1' || (b.bachelors === 'nd-cse' && b.ndIntegrated === true);
   s.integratedBsMsInferred = undefined;
+  // The 4+1 admission term (2026-10-04) — the MSCSE's, beside a "yes".
+  s.integratedAdmitted = s.program === 'mscse' && b.bachelors === 'nd-cse' && b.ndIntegrated === true ? b.integratedAdmittedTerm : undefined;
 }
 
 /** The questions as fieldsets, for `program`; `onChange` gets the current
@@ -220,13 +229,45 @@ export function backgroundQuestions(
     year.onchange = pick;
     return el('div', { class: 'term-pick' }, season, ' ', year);
   };
+  // The 4+1 admission term (2026-10-04, P2-fourplusone-1): the same two
+  // controls, kept on the answer only with a real year; optional.
+  const admittedControls = (): HTMLElement => {
+    const current = state.integratedAdmittedTerm;
+    const season = el('select', { 'data-key': `${prefix}.admitted.season`, 'aria-label': 'Semester you were admitted to the Integrated program' }) as HTMLSelectElement;
+    season.append(...SEASONS.map((se) => option(se, se[0]!.toUpperCase() + se.slice(1), (current?.season ?? 'fall') === se)));
+    const year = el('input', { type: 'number', min: '2000', max: '2100', step: '1', 'data-key': `${prefix}.admitted.year`, 'aria-label': 'Year you were admitted to the Integrated program', placeholder: 'year' }) as HTMLInputElement;
+    if (current) year.value = String(current.year);
+    const pick = (): void => {
+      const y = Number(year.value);
+      state.integratedAdmittedTerm = Number.isInteger(y) && y >= 2000 && y <= 2100 ? { season: season.value as Season, year: y } : undefined;
+      onChange(state);
+    };
+    season.onchange = pick;
+    year.onchange = pick;
+    return el('div', { class: 'term-pick' }, season, ' ', year);
+  };
   const renderFollowUps = (): void => {
     integratedBox.replaceChildren(
       el('legend', { class: 'followup-title' }, program === 'mscse' ? 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)' : 'Were you in Notre Dame’s Integrated B.S. + M.S. (4+1) program as an undergraduate? (§3.5)'),
+      // The timing, so a student admitted to the MSCSE after the bachelor's
+      // does not answer yes (Graduate School 4+1 guidance; 2026-10-04).
+      ...(program === 'mscse' ? [el('p', { class: 'hint' }, 'The Integrated program admits students during the junior year to start graduate coursework in the senior year, before the bachelor’s degree.')] : []),
       yesNo('ndintegrated', state.ndIntegrated, (v) => {
         state.ndIntegrated = v;
+        if (!v) state.integratedAdmittedTerm = undefined;
+        renderFollowUps();
         onChange(state);
       }),
+      ...(program === 'mscse' && state.ndIntegrated === true
+        ? [
+            el(
+              'div',
+              { class: 'followup-sub' },
+              el('p', { class: 'label' }, 'When were you admitted (matriculated) into the Integrated program? Your admission letter says. Beyond the six credits shared with your bachelor’s degree, the Graduate School counts graduate courses taken as an undergraduate only from that term, and only for a student admitted before the bachelor’s degree.'),
+              admittedControls(),
+            ),
+          ]
+        : []),
     );
     // Asked of every student with a Notre Dame CSE bachelor's (2026-10-03);
     // for the Ph.D. it sits under the graduate-degree question, which may
