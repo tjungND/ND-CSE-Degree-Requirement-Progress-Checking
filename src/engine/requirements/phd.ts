@@ -1154,16 +1154,27 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
  * passed under the earlier requirements covers the course components. */
 export interface OceReadiness {
   ready: boolean;
-  /** Coursework with no course yet, as the card names it. */
+  /** What is still to take, as nouns for the card ("an Algorithms core-knowledge course"). */
   missing: string[];
   /** The semester the coursework is expected to be complete, when later than now. */
   earliest?: Term;
+  /** Where each piece of the OCE's coursework stands, one line each — the
+   * conditions that put candidacy in progress (DGS 2026-10-05: "describe what
+   * conditions need to be satisfied to make it in-progress"). */
+  items: string[];
+}
+
+/** "an Algorithms core-knowledge course", "a Computer Architecture core-knowledge course". */
+function coreCourseNoun(r: RequirementResult): string {
+  const area = r.title.replace(/^Core knowledge:\s*/, '');
+  return `${/^[AEIOU]/i.test(area) ? 'an' : 'a'} ${area} core-knowledge course`;
 }
 
 function oceCourseworkStatus(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
   const now = termOfDate(ctx.today);
   const missing: string[] = [];
   const completes: Term[] = [];
+  const items: string[] = [];
   const inProgressTerm = (courseId: string): Term | undefined =>
     ctx.classified
       .filter((c) => !c.superseded && c.tier === 'in_progress' && c.entry.courseId === courseId)
@@ -1171,10 +1182,14 @@ function oceCourseworkStatus(ctx: Ctx, rows: RequirementResult[]): OceReadiness 
       .sort(compareTerm)
       .pop();
   const regularMin = ctx.params.number('phd_regular_credits_min');
-  if (regularMin === undefined) missing.push('the regular-course credits (the rules sheet is missing phd_regular_credits_min)');
-  else {
-    const need = regularMin - ctx.alloc.regular.definite;
-    if (need > 0) {
+  if (regularMin === undefined) {
+    missing.push('the regular-course credits (the rules sheet is missing phd_regular_credits_min)');
+    items.push('Regular-course credits: cannot be checked — the rules sheet is missing phd_regular_credits_min');
+  } else {
+    const definite = ctx.alloc.regular.definite;
+    const need = regularMin - definite;
+    if (need <= 0) items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete (transferred regular-course credits count)`);
+    else {
       const inProgress = ctx.alloc.perCourse
         .filter((p) => !p.course.superseded && p.course.tier === 'in_progress' && p.countedRegular > 0)
         .sort((a, b) => compareTerm(a.course.entry.term, b.course.entry.term));
@@ -1185,37 +1200,73 @@ function oceCourseworkStatus(ctx: Ctx, rows: RequirementResult[]): OceReadiness 
         counted += p.countedRegular;
         last = p.course.entry.term;
       }
-      if (counted < need) missing.push(`the ${regularMin} regular-course credits (${formatCredits(ctx.alloc.regular.definite + counted)} complete or in progress)`);
-      else if (last) completes.push(last);
+      const ipText = counted > 0 ? `, ${formatCredits(counted)} in progress` : '';
+      if (counted < need) {
+        const more = need - counted;
+        missing.push(`${formatCredits(more)} more regular-course ${more === 1 ? 'credit' : 'credits'}`);
+        items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — ${formatCredits(more)} more needed (transferred regular-course credits count)`);
+      } else {
+        completes.push(last!);
+        items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — complete at the end of ${termLabel(last!)} (transferred regular-course credits count)`);
+      }
     }
   }
-  if (!qualifierPassedUnderPriorRules(ctx)) {
+  if (qualifierPassedUnderPriorRules(ctx)) {
+    items.push('Qualifying examination courses: done — passed under the earlier requirements');
+  } else {
     const done = (r: RequirementResult): boolean => r.status === 'met' || (r.status === 'needs_dgs_review' && r.statusLabel === undefined);
     for (const r of rows.filter((x) => x.id.startsWith('phd.qualifier.core') || x.id === 'phd.qualifier.categories')) {
-      if (done(r)) continue;
-      if (r.status === 'in_progress') {
-        for (const id of r.completingCourses ?? []) {
-          const t = inProgressTerm(id);
-          if (t) completes.push(t);
-        }
+      const core = r.id !== 'phd.qualifier.categories';
+      const name = core ? `Core knowledge, ${r.title.replace(/^Core knowledge:\s*/, '')}` : 'Specialization courses';
+      if (r.status === 'met') {
+        items.push(`${name}: done${core && r.satisfiedBy?.[0] ? ` (${r.satisfiedBy[0]})` : ''}`);
         continue;
       }
-      missing.push(r.id === 'phd.qualifier.categories' ? 'the specialization courses (§4.4.2)' : `${r.title.replace(/^Core knowledge:\s*/, '')} core knowledge (no course yet)`);
+      if (done(r)) {
+        items.push(`${name}: waiting for the DGS${r.pendingBy?.[0] ? ` (${r.pendingBy[0]})` : ''}`);
+        continue;
+      }
+      if (r.status === 'in_progress') {
+        const terms = (r.completingCourses ?? []).map(inProgressTerm).filter((t): t is Term => t !== undefined).sort(compareTerm);
+        completes.push(...terms);
+        const lastTerm = terms[terms.length - 1];
+        items.push(`${name}: in progress${core && r.completingCourses?.[0] ? ` (${r.completingCourses[0]}${lastTerm ? `, ${termLabel(lastTerm)}` : ''})` : lastTerm ? ` — complete at the end of ${termLabel(lastTerm)}` : ''}`);
+        continue;
+      }
+      if (r.status === 'cannot_evaluate') {
+        missing.push(core ? coreCourseNoun(r) : 'the specialization courses');
+        items.push(`${name}: cannot be checked — ${r.detail.replace(/\.$/, '')}`);
+        continue;
+      }
+      if (core) {
+        missing.push(coreCourseNoun(r));
+        items.push(`${name}: no course yet`);
+      } else {
+        missing.push('the specialization courses');
+        const lead = (r.detailParts ?? []).map((p) => (typeof p === 'string' ? p : 'lead' in p ? p.lead : '')).filter((t) => t !== '');
+        items.push(`${name}: ${lead.length > 0 ? lead.join('; ') : 'not complete yet'}`);
+      }
     }
   }
   const latest = completes.sort(compareTerm).pop();
   const earliest = latest !== undefined && compareTerm(latest, now) > 0 ? latest : undefined;
-  return { ready: missing.length === 0 && earliest === undefined, missing, ...(earliest ? { earliest } : {}) };
+  return { ready: missing.length === 0 && earliest === undefined, missing, items, ...(earliest ? { earliest } : {}) };
 }
 
-/** What the Not-started OCE and admission cards say about why (2026-10-05:
- * "This seems to satisfy the condition … but it is still marked as not
- * started. Why?"): the coursework with no course yet, or the semester the
- * coursework completes. */
-function oceWaitFact(r: OceReadiness): string[] {
-  if (r.missing.length > 0) return [`The OCE waits for: ${r.missing.join('; ')}`];
-  if (r.earliest) return [`The OCE can be taken in ${termLabel(r.earliest)} at the earliest, the semester your coursework is expected to be complete`];
-  return [];
+/** What the Not-started OCE and admission cards show (DGS 2026-10-05: "When
+ * Admitted to doctoral candidacy is not started, describe what conditions need
+ * to be satisfied to make it in-progress as well as when OCE can be
+ * scheduled/started"): where each piece of the OCE's coursework stands, then
+ * when the OCE can be scheduled. Facts — the rule behind them is a note. */
+function oceWaitFact(r: OceReadiness): DetailPart[] {
+  const list = (xs: string[]): string => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+  const when =
+    r.missing.length > 0
+      ? `The OCE can be scheduled in the semester your coursework is complete or in its last semester — still to take: ${list(r.missing)}`
+      : r.earliest
+        ? `The OCE can be scheduled in ${termLabel(r.earliest)} at the earliest, the semester your coursework is expected to be complete`
+        : '';
+  return [{ lead: 'Becomes In progress once this coursework is complete or completing this semester', items: r.items }, ...(when ? [when] : [])];
 }
 
 /** §4.5: "The candidacy exam must be taken before the end of the eighth

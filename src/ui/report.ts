@@ -103,6 +103,15 @@ function pillState(r: RequirementResult): string {
 function allowanceCount(report: AuditReport): number {
   return report.requirements.filter((r) => r.allowance).length;
 }
+/** A row whose pill would read "Does not apply" (DGS 2026-10-05: "When
+ * something is 'does not apply', hide it and do not show it"): no card. An
+ * unused allowance draws a meter ("0 of 6 used") and a row with its own label
+ * ("Not started") says something else, so both stay. The headline already
+ * leaves these rows out (scoredRows). */
+export function doesNotApply(r: RequirementResult): boolean {
+  return r.status === 'not_applicable' && !r.allowance && r.statusLabel === undefined;
+}
+
 export function scoredRows(report: AuditReport): RequirementResult[] {
   return report.requirements.filter((r) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable');
 }
@@ -538,13 +547,16 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
   }
   for (const [group, rows] of groups) {
     const sub = rows.filter((r) => r.id.split('.').length > 2 && r.id.startsWith('phd.qualifier.'));
+    // No card for a row that does not apply (DGS 2026-10-05), and no heading
+    // for a group left empty by it.
+    if (!rows.some((r) => !r.mergedInto && !doesNotApply(r))) continue;
     // The section reference after the dash is a citation: it lives in each
     // card's Details now (DGS 2026-10-03). The copied messages keep it.
     panel.append(el('h3', { class: 'group-head' }, group.replace(/ — (?:§|Academic Code|DGS Handbook).*$/, '')));
     for (const r of rows) {
       // Shown inside its parent's card (DGS 2026-10-04): no card of its own,
       // but its anchor lands on the parent so a link to it still arrives.
-      if (r.mergedInto) continue;
+      if (r.mergedInto || doesNotApply(r)) continue;
       const card = requirementCard(r);
       for (const child of report.requirements.filter((x) => x.mergedInto === r.id)) card.prepend(el('span', { id: reqAnchorId(child.id), class: 'merged-anchor' }));
       if (sub.includes(r)) card.classList.add('req-sub');
@@ -695,7 +707,8 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
     // The deadline alert (DGS 2026-09-28): one semester's notice, in the pill's own colour.
     ['Due this semester · Due next semester', 'The handbook’s deadline for that row falls in the current semester or the one after — plan for it now.', ''],
     ['Not started', 'A stage that begins after an earlier one, such as the dissertation after the candidacy exam.', ''],
-    ['Not used yet · Does not apply', 'An allowance you have not drawn on, or a row that is not part of your score.', ''],
+    // "Does not apply" rows are not shown since 2026-10-05 (DGS), so only the allowance's word is left.
+    ['Not used yet', 'An allowance you have not drawn on yet.', ''],
     // Which document a section is from (DGS 2026-10-03) — the masthead says
     // it too, but the embedded page has no masthead.
     ['Section references (§)', 'CSE § is the CSE Graduate Handbook. Academic Code § is the Graduate School’s Academic Code, and DGS Handbook § is the Graduate School’s handbook for directors of graduate studies.', ''],

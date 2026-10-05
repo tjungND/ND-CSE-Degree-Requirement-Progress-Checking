@@ -95,7 +95,10 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   // first-seen order keeps it. Informational rows and "does not apply" rows
   // are left out; the per-course sign-off list ("Approvals") feeds the to-do
   // lists instead of standing as a section.
-  const listed = rows.filter((r) => !r.informational && r.status !== 'not_applicable' && r.group !== 'Approvals');
+  // A row shown inside another's card on the page (the OCE and the RCR training
+  // inside admission to candidacy, DGS 2026-10-04) is one line here too
+  // (2026-10-05) — the parent's line carries its facts.
+  const listed = rows.filter((r) => !r.informational && r.status !== 'not_applicable' && r.group !== 'Approvals' && !r.mergedInto);
   // Three met core-knowledge rows read as one line (DGS 2026-09-28: "collapse
   // groups of met rows"): the areas and their courses, nothing lost.
   const core = listed.filter((r) => r.id.startsWith('phd.qualifier.core.'));

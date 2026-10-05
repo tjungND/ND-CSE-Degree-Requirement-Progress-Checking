@@ -2536,11 +2536,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       };
       const oceOpen = !notStarted('phd.candidacy');
       const qualifierDone = report.requirements.some((r) => r.id === 'phd.qualifier' && r.status === 'met');
+      // A field that does not apply is not shown (DGS 2026-10-05: "When
+      // something is 'does not apply', hide it") — the research qualifier of a
+      // student who passed the examination under the earlier requirements —
+      // unless a date is already on file.
+      const applies = (key: MilestoneDateKey): boolean => !!student.milestones[key] || !/^Does not apply\b/.test(report.milestoneDeadlines?.[key]?.basis ?? '');
       card.append(
-        dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
+        ...(applies('researchQualifierPassed') ? [dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed')] : []),
         // A FAIL within the 18 months starts the DGS committee's six months
         // (§4.4.3; policy review 2026-10-03).
-        rareFold('rq-failed', 'Did the advisor file a research-qualifier fail?', !!m.researchQualifierFailed, dateField('Research qualifier failed — the advisor filed a fail (§4.4.3)', 'researchQualifierFailed')),
+        ...(applies('researchQualifierFailed')
+          ? [rareFold('rq-failed', 'Did the advisor file a research-qualifier fail?', !!m.researchQualifierFailed, dateField('Research qualifier failed — the advisor filed a fail (§4.4.3)', 'researchQualifierFailed'))]
+          : []),
         // "(DGS office)" dropped (trim review 2026-09-18, P-51): the handbook's
         // phrase for the desk the page calls the Grad Admin, one card above
         // "two people, two jobs"; phd.ts and the advisor summary already read this way.

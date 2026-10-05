@@ -53,6 +53,16 @@ export async function driveApp(s, baseUrl) {
   if ((await s.evalJs(`document.querySelector('.dial .dial-arc:not(.dial-arc-conditional)')?.getAttribute('stroke')`)) === 'var(--bad)') {
     throw new Error('a student who is simply not finished must not see a red dial');
   }
+  // No "Does not apply" card, and no group heading left without a card (DGS
+  // 2026-10-05: "When something is 'does not apply', hide it and do not show
+  // it"). The example has no transfer course, so its transfer row is one.
+  const hidden = JSON.parse(await s.evalJs(`JSON.stringify({
+    pills: [...document.querySelectorAll('.req .pill')].filter((p) => p.textContent.trim() === 'Does not apply').length,
+    emptyHeads: [...document.querySelectorAll('h3.group-head')].filter((h) => !(h.nextElementSibling && h.nextElementSibling.classList.contains('req'))).map((h) => h.textContent),
+    transferCard: !!document.getElementById('req-phd-transfer'),
+  })`));
+  if (hidden.pills > 0 || hidden.emptyHeads.length > 0 || hidden.transferCard) throw new Error('a row that does not apply must not be shown: ' + JSON.stringify(hidden));
+  console.log('  no "Does not apply" card and no empty group heading');
   // The deadline alert (DGS 2026-09-28): the example entered last fall, so
   // its qualifier's four semesters end next semester — the pill says so in
   // words, in its own colour, and the chip under it carries the same state.

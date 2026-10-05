@@ -12,6 +12,7 @@ import { audit } from '../src/engine/audit.ts';
 import type { CourseEntry, Milestones, Student, Term } from '../src/engine/types.ts';
 import { actionItems, advisorSummary } from '../src/ui/advisor-summary.ts';
 import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
+import { doesNotApply, scoredRows } from '../src/ui/report.ts';
 import { buildRules } from './helpers.ts';
 import { ndCourse, phdStudent, transferCourse } from './helpers/student.ts';
 
@@ -276,7 +277,9 @@ describe('the OCE and admission wait for the coursework', () => {
 
   it('the qualifier’s course components done but the 24 credits short: Not started', () => {
     const st = phdStudent({ entryTerm: fall26, courses: REGULAR.slice(0, 3).map((id) => ndCourse(id, { term: fall26 })) });
-    assert.match(row(st, 'phd.candidacy', '2027-03-01').detail, /^Not started\. The OCE waits for: the 24 regular-course credits \(9 complete or in progress\)\. The Oral Candidacy Exam \(OCE\) can be taken once your coursework is complete or in progress the same semester/);
+    const d = row(st, 'phd.candidacy', '2027-03-01').detail;
+    assert.match(d, /^Not started\. Becomes In progress once this coursework is complete or completing this semester: Regular-course credits: 9 of 24 complete — 15 more needed \(transferred regular-course credits count\);/);
+    assert.match(d, /The OCE can be scheduled in the semester your coursework is complete or in its last semester — still to take: 15 more regular-course credits\./);
   });
 
   it('transferred regular-course credits count toward the 24', () => {
@@ -376,12 +379,13 @@ describe('why the OCE is not started yet', () => {
   it('a core-knowledge area with no course: the card names it', () => {
     const r = card(printout(), '2026-10-05');
     assert.equal(r.status, 'unmet');
-    assert.match(r.detail, /^Not started\. The OCE waits for: Algorithms core knowledge \(no course yet\)\./);
+    assert.match(r.detail, /^Not started\. Becomes In progress once this coursework is complete or completing this semester: Regular-course credits: 18 of 24 complete, 6 in progress — complete at the end of Spring 2027 \(transferred regular-course credits count\); Core knowledge, Operating Systems: in progress \(CSE 60641, Fall 2026\); Core knowledge, Algorithms: no course yet; Core knowledge, Computer Architecture: done \(CSE 60321\); Specialization courses: done\. The OCE can be scheduled in the semester your coursework is complete or in its last semester — still to take: an Algorithms core-knowledge course\./);
   });
 
   it('every component under way, the last one next semester: the card names that semester', () => {
     const r = card(printout([ndCourse('CSE 60111', { term: spring27w, grade: 'IP' })]), '2026-10-05');
-    assert.match(r.detail, /^Not started\. The OCE can be taken in Spring 2027 at the earliest, the semester your coursework is expected to be complete\./);
+    assert.match(r.detail, /Core knowledge, Algorithms: in progress \(CSE 60111, Spring 2027\);/);
+    assert.match(r.detail, /\. The OCE can be scheduled in Spring 2027 at the earliest, the semester your coursework is expected to be complete\./);
     // …and in that semester it is under way.
     assert.equal(card(printout([ndCourse('CSE 60111', { term: spring27w, grade: 'IP' })]), '2027-02-15').status, 'in_progress');
   });
@@ -399,6 +403,21 @@ describe('why the OCE is not started yet', () => {
       ],
     });
     assert.equal(card(st, '2026-10-05').status, 'in_progress');
+  });
+});
+
+// "When something is 'does not apply', hide it and do not show it. Then,
+// adjust the x of y met numbers accordingly." (DGS 2026-10-05): which rows the
+// page leaves out, and the headline already does not count them.
+describe('rows that do not apply', () => {
+  const rulesN = buildRules();
+  it('the transfer row with no transfer course does not apply; an unused allowance and the along-the-way MSCSE still show', () => {
+    const report = audit(phdStudent({ entryTerm: fall(2026) }), rulesN, '2026-10-05');
+    const byId = (id: string) => report.requirements.find((x) => x.id === id)!;
+    assert.equal(doesNotApply(byId('phd.transfer')), true);
+    assert.equal(doesNotApply(byId('phd.cap.fourk')), false);
+    assert.equal(doesNotApply(byId('phd.msAlongTheWay')), false);
+    assert.ok(!scoredRows(report).some(doesNotApply), 'never counted in x of y');
   });
 });
 
