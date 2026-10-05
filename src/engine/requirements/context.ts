@@ -199,6 +199,11 @@ export function timeLimitRow(
      * limit but inside this one, the row reads In progress against this one
      * instead of Overdue, and the DGS is asked which applies. */
     longer?: { years: number; why: string; rule: string };
+    /** Funding sentences (Ph.D.; policy review 2026-10-04, P2-dh-4-5-1):
+     * `whenDue` is said where the tuition sentence is — once the limit is
+     * due soon or past — and `always` in every state but complete. Notes
+     * only; they never change the status. */
+    funding?: { whenDue: DetailPart; always?: DetailPart };
   },
 ): RequirementResult {
   const years = ctx.params.number(args.yearsKey);
@@ -235,6 +240,8 @@ export function timeLimitRow(
           ]
         : [];
     const tuition = tuitionScholarshipNote(ctx);
+    const fundingDue: DetailPart[] = [...(args.funding ? [args.funding.whenDue] : []), ...(args.funding?.always ? [args.funding.always] : [])];
+    const fundingAlways: DetailPart[] = args.funding?.always ? [args.funding.always] : [];
     if (others.allMet && args.completedOn !== undefined && args.completedOn > date) {
       // Finished, but after the limit (Academic Code §6.2.6 / §6.1.4): the
       // Graduate School decides eligibility (dissertation completion status,
@@ -260,7 +267,7 @@ export function timeLimitRow(
       // candidacy of a record whose dissertation milestones are dated), so
       // the sentence names both and leaves "which" to that row.
       status = 'cannot_evaluate';
-      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}, but a requirement above cannot be evaluated yet — a value is missing from the rules sheet or from your record, and that row says which — so whether everything was finished in time cannot be judged`, ...longerNote(ctx.today), ...extNotes, tuition];
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}, but a requirement above cannot be evaluated yet — a value is missing from the rules sheet or from your record, and that row says which — so whether everything was finished in time cannot be judged`, ...longerNote(ctx.today), ...extNotes, tuition, ...fundingDue];
       deadline = { date, approx: true, state: 'overdue', label: `The ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else if (ctx.today > date && longerDate !== undefined && ctx.today <= longerDate) {
       // Past the row's own limit, inside a longer one that may apply: the DGS
@@ -269,7 +276,7 @@ export function timeLimitRow(
       // "Conditionally met" either, since nothing is complete (policy review
       // 2026-10-04).
       status = 'in_progress';
-      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`, ...longerNote(ctx.today), ...extNotes, tuition];
+      parts = [`The ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`, ...longerNote(ctx.today), ...extNotes, tuition, ...fundingDue];
       deadline = openDeadline(longerDate, ctx.today, `Due ${dueTermPhrase(longerDate)} if the ${args.longer!.years}-year limit applies (approximate)`);
     } else if (ctx.today > date) {
       status = 'unmet';
@@ -283,6 +290,7 @@ export function timeLimitRow(
         ...longerNote(ctx.today),
         ...extNotes,
         tuition,
+        ...fundingDue,
       ];
       deadline = { date, approx: true, state: 'overdue', label: `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)}` };
     } else {
@@ -293,7 +301,7 @@ export function timeLimitRow(
       deadline = openDeadline(date, ctx.today, extended ? `Due ${dueTermPhrase(date)} — extended by the Graduate School (approximate)` : `Due ${dueTermPhrase(date)} — ${years} years after entry${shiftNote !== '' ? ', extended' : ''} (approximate)`);
       // The tuition sentence once the limit is this semester or next — before
       // that it is not news (and every email would carry it).
-      parts = [...(shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : []), ...longerNote(ctx.today), ...extNotes, ...(deadline.state === 'due_soon' ? [tuition] : [])];
+      parts = [...(shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : []), ...longerNote(ctx.today), ...extNotes, ...(deadline.state === 'due_soon' ? [tuition, ...fundingDue] : fundingAlways)];
     }
   }
   return {

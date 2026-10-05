@@ -163,3 +163,29 @@ describe('summer session only: seven years for the DGS to confirm (Academic Code
     assert.equal(deadlineText(after.projectReportAccepted!), 'Due before Fall 2028 — seven years if you attend summer sessions only, as the ADGS confirms (Academic Code §6.1.4)');
   });
 });
+
+// University funding and the eight-year row (policy review 2026-10-04,
+// P2-dh-4-5-1; DGS: apply the suggested handling — "whether the MSCSE years
+// count is not the DGS's call. It's the graduate school's call"). DGS
+// Handbook §4.1: good standing includes "graduate enrollment at Notre Dame
+// fewer than eight years". Notes only; no status changes.
+describe('funding notes on the Ph.D. eight-year row (DGS Handbook §4.1)', () => {
+  const rulesF = buildRules();
+  const timeRow = (s: Student, today: string) => audit(s, rulesF, today).requirements.find((r) => r.id === 'phd.timeLimit')!;
+  const FUNDING = /The Graduate School also ties University funding to academic good standing, which includes graduate enrollment at Notre Dame of fewer than eight years \(DGS Handbook §4\.1\)/;
+  const MS_YEARS = /the years of your Notre Dame MSCSE may count toward the eight; whether they do is the Graduate School’s call/;
+
+  it('said once the limit is past, not years before it', () => {
+    const s = phdStudent({ entryTerm: { season: 'fall', year: 2020 } }); // limit: Fall 2028 (a later cohort than Appendix A's)
+    assert.match(timeRow(s, '2029-03-01').detail, FUNDING);
+    assert.ok(['unmet', 'cannot_evaluate'].includes(timeRow(s, '2029-03-01').status)); // a note: the status is the row's own
+    assert.doesNotMatch(timeRow(phdStudent(), '2027-03-01').detail, FUNDING);
+  });
+
+  it('a Ph.D. student who holds a Notre Dame MSCSE is told the Graduate School decides whether those years count', () => {
+    const r = timeRow(phdStudent({ ndMasters: { term: { season: 'spring', year: 2026 } } }), '2027-03-01');
+    assert.match(r.detail, MS_YEARS);
+    assert.equal(r.status, 'in_progress');
+    assert.doesNotMatch(timeRow(phdStudent(), '2027-03-01').detail, MS_YEARS);
+  });
+});

@@ -1,0 +1,51 @@
+{
+  "name": "phd-nd-mscse-funding-years",
+  "description": "DGS Handbook §4.1 (funding needs “academic good standing (i.e., GPA of 3.0 or higher, a dissertation proposal approved within eight semesters, graduate enrollment at Notre Dame fewer than eight years)”) — policy review 2026-10-04, P2-dh-4-5-1; DGS: apply the suggested handling, with “whether the MSCSE years count is not the DGS’s call. It’s the graduate school’s call.” A Ph.D. student who finished the Notre Dame MSCSE before entering the Ph.D.: the eight-year row keeps counting the degree from the Ph.D. entry and says, as a note, that funding counts total graduate enrollment at Notre Dame and that whether the MSCSE years count is the Graduate School’s call.",
+  "today": "2026-03-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "priorMs": "completed",
+    "gpa": 3.6,
+    "ndMasters": {
+      "term": {
+        "season": "spring",
+        "year": 2024
+      }
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.timeLimit": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "whether they do is the Graduate School’s call",
+        "The degree’s own eight years count from your Ph.D. entry"
+      ]
+    }
+  }
+}

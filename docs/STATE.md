@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-04 (policy review, DGS — notes): P2-dh-4-5-1 applied with the DGS’s change. The Ph.D. eight-year row names the funding consequence, “graduate enrollment at Notre Dame of fewer than eight years” (DGS Handbook §4.1), once the limit is due soon or past. For a record with a Notre Dame MSCSE it always says whether those years count is the Graduate School’s call. No status changes. Scenario phd-nd-mscse-funding-years; tests in tests/readers-summer-tuition.test.ts. Wording W-CL138–W-CL139.
+
 2026-10-04 (policy review, DGS — engine): P2-dh-10-5 applied. An MSCSE student on the thesis option is asked whether the thesis advisor (and any co-advisor) is tenured or tenure-track CSE faculty (DGS Handbook §10.3.2, §10.3.8; CSE §2.3), as the Ph.D. is. A no or not sure for every advisor goes to the ADGS; unanswered cannot be evaluated. The project option is not asked (HANDBOOK-REVISIONS 18). Scenario mscse-thesis-advisor-not-ttt; tests in tests/ms-examination-and-advisor.test.ts. Wording W-CL135–W-CL137.
 
 2026-10-04 (policy review, DGS — engine): P2-dh-3.1-3.13-3/-4/-9 applied. The readmission input now covers a missed fall or spring semester as well as a withdrawal. Under five years, the program courses from before the readmission count provisionally and go to the review request (DGS Handbook §3.3), and any readmission adds a review-request line (DGS Handbook §3.1, §3.3, §3.8). Five years or more is unchanged (Academic Code §5.5). Scenario mscse-readmitted-after-missed-semester; unit tests in tests/graduate-school-steps.test.ts. Wording W-CL131–W-CL134.

@@ -486,6 +486,24 @@ export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEv
     section: '§4.3',
     quote,
     completedOn,
+    // DGS Handbook §4.1 (policy review 2026-10-04, P2-dh-4-5-1; DGS: "Apply
+    // the suggested handling" — with "whether the MSCSE years count is not the
+    // DGS's call. It's the graduate school's call"): University funding needs
+    // "academic good standing (i.e., GPA of 3.0 or higher, a dissertation
+    // proposal approved within eight semesters, graduate enrollment at Notre
+    // Dame fewer than eight years)". Notes only — the app gives no funding
+    // verdict: it cannot see registration, probation letters or the Graduate
+    // School's own counting.
+    funding: {
+      whenDue: { note: 'The Graduate School also ties University funding to academic good standing, which includes graduate enrollment at Notre Dame of fewer than eight years (DGS Handbook §4.1)' },
+      ...(ctx.student.ndMasters !== undefined
+        ? {
+            always: {
+              note: 'For funding, the Graduate School counts your total graduate enrollment at Notre Dame — “fewer than eight years” (DGS Handbook §4.1) — so the years of your Notre Dame MSCSE may count toward the eight; whether they do is the Graduate School’s call. The degree’s own eight years count from your Ph.D. entry',
+            },
+          }
+        : {}),
+    },
   });
 }
 
