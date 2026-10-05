@@ -195,6 +195,7 @@ const MILESTONE_DATE_LABELS: Record<string, string> = {
   thesisTopicApproved: 'Thesis topic approved',
   thesisDefensePassed: 'Thesis defense passed',
   thesisDefenseFailed: 'Thesis defense failed',
+  thesisSubmitted: 'Final thesis submitted',
   projectReportAccepted: 'Project report accepted',
   msCandidacyApplied: 'Master’s candidacy application submitted',
 };

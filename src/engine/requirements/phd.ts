@@ -455,6 +455,16 @@ function residencyRow(ctx: Ctx): RequirementResult {
       // "the row could note that the Graduate School's rule says 'normally'").
       parts.push({ note: 'The Graduate School’s own rule asks for four full-time semesters “normally” (Academic Code §6.2.2), so an exception is possible — ask the DGS' });
     }
+    // A leave (policy review 2026-10-04, P2-ac-5a-3; DECISIONS 2026-08-31:
+    // "An approved leave currently breaks the run and the report says so").
+    // The record has the number of leave semesters, not which ones, so the
+    // row says what a leave does and the review request asks the DGS.
+    const leaves = ctx.student.leaveSemesters ?? 0;
+    if (status === 'in_progress' && leaves > 0) {
+      parts.push({
+        note: `You were on an approved leave for ${leaves} ${leaves === 1 ? 'semester' : 'semesters'}: a leave ends the consecutive run, and the four consecutive full-time semesters restart after it. The Graduate School says a leave “stops the student’s eligibility clock” (DGS Handbook §3.7.2), so whether the run may continue across it is the DGS’s call — this is in the review request`,
+      });
+    }
   }
   return {
     id: 'phd.residency',

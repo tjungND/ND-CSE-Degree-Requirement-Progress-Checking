@@ -222,6 +222,10 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
       out.thesisDefenseFailed = { basis: 'No deadline of its own — after a failed attempt, one retake is allowed, by the end of the following semester (Academic Code §6.1.5)' };
     }
     out.projectReportAccepted = routeBox(m.projectReportAccepted, !projectDone && thesisDone ? false : 'auto');
+    // The final thesis to the Graduate School (Academic Code §6.1.8 —
+    // 2026-10-04): inside the five years, and by the calendar's date for the
+    // graduation wanted, as the Ph.D.'s submission box says.
+    out.thesisSubmitted = at(ctx, limit, theLimit, m.thesisSubmitted, 'auto', 'to graduate in a given semester, also by that semester’s date on the Graduate School calendar (Academic Code §6.1.8)');
   }
   return out;
 }

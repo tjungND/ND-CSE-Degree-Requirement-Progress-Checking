@@ -297,10 +297,12 @@ const SUMMER_ONLY_LIMIT = {
   rule: 'a student attending summer session only has seven years (Academic Code §6.1.4)',
 };
 
-/** The last dated §3.4 requirement — the thesis defense or the project report. */
+/** The last dated §3.4 requirement — the thesis defense, the thesis's
+ * submission to the Graduate School (Academic Code §6.1.8, 2026-10-04) or the
+ * project report. */
 function lastMsRequirementDate(ctx: Ctx): string | undefined {
   const m = ctx.student.milestones;
-  return [m.thesisDefensePassed, m.projectReportAccepted].filter((d): d is string => d !== undefined).sort().pop();
+  return [m.thesisDefensePassed, m.thesisSubmitted, m.projectReportAccepted].filter((d): d is string => d !== undefined).sort().pop();
 }
 
 /** §3.3: "Failure to complete all requirements for the M.S. degree within
@@ -546,6 +548,45 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       ...joinedDetail(parts),
       ...(deadline ? { deadline } : {}),
       citation: { section: '§3.4', quote },
+    });
+  }
+
+  // The final thesis to the Graduate School (policy review 2026-10-04,
+  // P2-ac-5b-6.1-15 and P2-dh-3.21-3.24-23; DGS: "Apply the suggested
+  // handling"). Academic Code §6.1.8: "the master's candidate who is
+  // completing a thesis must submit it to the Graduate School on or before the
+  // deadline published in the Graduate School calendar"; CSE §3.4: "After the
+  // readers approve the thesis, the candidate should submit the thesis
+  // electronically"; DGS Handbook §3.21.3/§3.22.5: formal submission only after
+  // a successful defense and all requested changes. The Ph.D.'s
+  // phd.dissertation.submitted row, on the thesis route: the last requirement,
+  // so the five-year row closes on it.
+  if (option === 'thesis') {
+    const submitted = m.thesisSubmitted;
+    const lateSubmission = late(submitted);
+    rows.push({
+      id: 'ms.thesis.submitted',
+      group: PROJECT_THESIS,
+      title: 'Final thesis submitted to the Graduate School (thesis option)',
+      shortTitle: 'Thesis submitted',
+      status: submitted ? (lateSubmission ? 'needs_dgs_review' : 'met') : m.thesisDefensePassed ? 'in_progress' : 'unmet',
+      ...(submitted && lateSubmission ? { statusLabel: 'Eligibility at risk' } : {}),
+      ...joinedDetail(
+        submitted
+          ? lateSubmission
+            ? [`Submitted ${submitted}${lateFact}`, lateRule]
+            : [`Submitted ${submitted}`]
+          : m.thesisDefensePassed
+            ? [
+                'Defense passed — not submitted yet',
+                { note: 'Make the changes the committee asked for, then submit the final thesis electronically, in the Graduate School’s format, by the Graduate School calendar’s deadline for the graduation you want (Academic Code §6.1.8; §3.4; DGS Handbook §3.21.3); enter the date under Milestones once it is submitted' },
+              ]
+            : ['Not started', { note: 'The submission comes after the thesis defense (§3.4)' }],
+      ),
+      citation: {
+        section: 'Academic Code §6.1.8',
+        quote: 'The master’s candidate who is completing a thesis must submit it to the Graduate School on or before the deadline published in the Graduate School calendar.',
+      },
     });
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "mscse-thesis-complete",
-  "description": "MSCSE thesis-option student who is complete: 24 regular + 6 thesis-direction credits, thesis approved and defended, GPA 3.4 — every requirement met.",
+  "description": "MSCSE thesis-option student who is complete: 24 regular + 6 thesis-direction credits, thesis approved and defended, GPA 3.4 — every requirement met. Since 2026-10-04 (policy review P2-ac-5b-6.1-15) the final thesis submitted to the Graduate School is the last requirement (Academic Code §6.1.8).",
   "today": "2028-06-01",
   "rules": {
     "base": "default"
@@ -121,7 +121,8 @@
       "advisorIdentified": "2026-08-20",
       "advisorName": "Prof. Y",
       "advisorTtt": "yes",
-      "thesisDefensePassed": "2028-05-05"
+      "thesisDefensePassed": "2028-05-05",
+      "thesisSubmitted": "2028-05-15"
     },
     "attestations": {
       "advisorApprovedPlan": true
@@ -163,6 +164,12 @@
     },
     "ms.thesis.defense": {
       "status": "met"
+    },
+    "ms.thesis.submitted": {
+      "status": "met",
+      "detailIncludes": [
+        "Submitted 2028-05-15"
+      ]
     }
   }
 }

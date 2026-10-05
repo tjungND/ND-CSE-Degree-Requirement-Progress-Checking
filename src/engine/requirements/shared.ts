@@ -153,6 +153,38 @@ export function advisorReviewFlag(ctx: Ctx): string | undefined {
     : `Thesis advisor’s faculty status: ${listed.join('; ')}. A thesis advisor must be tenured or tenure-track CSE faculty (§2.3), and the Graduate School requires at least one thesis adviser who is tenured or tenure-track at Notre Dame, or a co-adviser who is (DGS Handbook §10.3.2, §10.3.8) — a non-TTT or outside advisor needs the DGS’s written approval.`;
 }
 
+/** Academic Code §5.7.1: "Students must be in good standing to receive a
+ * graduate degree." §5.7.2: a student on probation "must complete the
+ * stipulations outlined in the probation letter within the required
+ * timeframe", and "will be returned to good standing the next semester of
+ * enrollment" once they are met. Shown only while a probation letter's
+ * deadline is on the record (Your standing; policy review 2026-10-04,
+ * P2-ac-5b-6.1-2; DGS: "Apply the suggested handling"). The suggestion named
+ * Conditionally met; this row is In progress instead — nothing about it is
+ * satisfied yet, and Conditionally met says a requirement is (the standing
+ * rule for needs_dgs_review). Being scored, it keeps the headline from
+ * reading "All automatically checkable items are currently satisfied". */
+export function goodStandingRow(ctx: Ctx): RequirementResult | undefined {
+  const due = ctx.student.probationLetterDeadline;
+  if (due === undefined) return undefined;
+  const passed = due < ctx.today;
+  return {
+    id: 'shared.goodStanding',
+    group: GROUP,
+    title: 'In good standing to receive the degree',
+    shortTitle: 'Good standing',
+    status: 'in_progress',
+    ...joinedDetail([
+      `On probation — the letter’s deadline is ${due}`,
+      {
+        note: 'A degree is conferred only to a student in good standing (Academic Code §5.7.1). You return to good standing the semester after the letter’s stipulations are met (Academic Code §5.7.2); once the DGS confirms it, clear the probation date under Your standing',
+      },
+    ]),
+    deadline: passed ? { date: due, approx: false, state: 'overdue', label: `The letter’s deadline, ${due}, has passed — confirm your standing with the DGS` } : openDeadline(due, ctx.today, `The probation letter’s deadline: ${due}`),
+    citation: { section: 'Academic Code §5.7.1', quote: 'Students must be in good standing to receive a graduate degree.' },
+  };
+}
+
 export function advisorRow(ctx: Ctx): RequirementResult {
   const ms = ctx.student.program === 'mscse';
   const quote = ms

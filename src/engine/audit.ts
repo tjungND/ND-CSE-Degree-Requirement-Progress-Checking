@@ -12,7 +12,7 @@ import { isCovidCohort, type Ctx } from './requirements/context.ts';
 import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
 import { transferCourseChecks } from '../data/course-checks.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
-import { advisorReviewFlag, advisorRow, approvalsRow, gpaRow, gpaText } from './requirements/shared.ts';
+import { advisorReviewFlag, advisorRow, approvalsRow, goodStandingRow, gpaRow, gpaText } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow, summerOnlyReviewFlag, thesisReadersReviewFlag } from './requirements/mscse.ts';
 import { extensionReviewFlag } from './requirements/context.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
@@ -39,6 +39,7 @@ import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 export const REQUIREMENT_IDS = [
   'shared.gpa',
   'shared.advisor',
+  'shared.goodStanding',
   'shared.approvals',
   'shared.msCandidacy',
   'ms.credits.total',
@@ -53,6 +54,7 @@ export const REQUIREMENT_IDS = [
   'ms.timeLimit',
   'ms.thesis.topic',
   'ms.thesis.defense',
+  'ms.thesis.submitted',
   'ms.project.report',
   'phd.credits.total',
   'phd.credits.regular',
@@ -437,6 +439,9 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   }
 
   const rows: RequirementResult[] = [gpaRow(ctx), advisorRow(ctx)];
+  // On probation (Academic Code §5.7.1 — policy review 2026-10-04, P2-ac-5b-6.1-2).
+  const standing = goodStandingRow(ctx);
+  if (standing) rows.push(standing);
   rows.push(...(student.program === 'mscse' ? mscseRows(ctx) : phdRows(ctx)));
 
   // The time-limit row is "met" only when everything else already is — and it
@@ -469,6 +474,17 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // policy review 2026-10-04, P2-ac-6.2-app-7): the DGS confirms it.
   const extensionFlag = extensionReviewFlag(ctx);
   if (extensionFlag) reviewFlags.push(extensionFlag);
+  // A leave beside an unfinished Ph.D. residency run (policy review
+  // 2026-10-04, P2-ac-5a-3; DGS: "Apply the suggested handling"): the run
+  // restarts after a leave — the reading recorded 2026-08-31 — but the
+  // Graduate School says a leave "stops the student's eligibility clock" (DGS
+  // Handbook §3.7.2), so the DGS is asked. The row says so too (phd.ts).
+  const residency = rows.find((r) => r.id === 'phd.residency');
+  if (residency?.status === 'in_progress' && (student.leaveSemesters ?? 0) > 0) {
+    reviewFlags.push(
+      `Residency and my leave: I was on an approved leave for ${student.leaveSemesters} ${student.leaveSemesters === 1 ? 'semester' : 'semesters'}, and my longest run of consecutive full-time semesters is short of four (§4.3). Please confirm whether the run continues across the leave — DGS Handbook §3.7.2: a leave “stops the student’s eligibility clock” — or restarts after it.`,
+    );
+  }
   rows.push(approvalsRow(ctx));
   // The deadline beside each date in the Milestones card (DGS 2026-10-04).
   const milestoneDeadlines = student.program === 'phd' ? phdMilestoneDeadlines(ctx, rows) : msMilestoneDeadlines(ctx);

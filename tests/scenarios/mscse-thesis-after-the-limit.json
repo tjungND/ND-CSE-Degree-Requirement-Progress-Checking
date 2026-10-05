@@ -18,7 +18,8 @@
       "advisorIdentified": "2020-11-01",
       "advisorName": "Prof. Example",
       "advisorTtt": "yes",
-      "thesisDefensePassed": "2026-03-01"
+      "thesisDefensePassed": "2026-03-01",
+      "thesisSubmitted": "2026-03-20"
     },
     "attestations": {
       "advisorApprovedPlan": true
@@ -131,6 +132,13 @@
       "statusLabel": "Eligibility at risk",
       "detailIncludes": [
         "after the 5-year limit passed"
+      ]
+    },
+    "ms.thesis.submitted": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Eligibility at risk",
+      "detailIncludes": [
+        "Submitted 2026-03-20 — after the 5-year limit"
       ]
     }
   }

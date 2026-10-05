@@ -176,6 +176,12 @@ export interface Milestones {
    * P2-dh-10-19). The readers themselves are not recorded. */
   thesisReadersTtt?: 'yes' | 'no' | 'unsure';
   thesisDefensePassed?: string; // §3.4 thesis option
+  /** MSCSE thesis option: the final thesis submitted to the Graduate School
+   * (Academic Code §6.1.8: "the master's candidate who is completing a thesis
+   * must submit it to the Graduate School on or before the deadline published
+   * in the Graduate School calendar" — policy review 2026-10-04,
+   * P2-ac-5b-6.1-15, P2-dh-3.21-3.24-23). ISO date. */
+  thesisSubmitted?: string;
   /** A FAILED first thesis-defense attempt (Academic Code §6.1.5: one retake,
    * by the end of the following semester — policy review 2026-10-04,
    * P2-ac-5b-6.1-12). */

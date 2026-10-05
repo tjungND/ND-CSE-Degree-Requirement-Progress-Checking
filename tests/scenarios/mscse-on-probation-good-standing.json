@@ -1,0 +1,46 @@
+{
+  "name": "mscse-on-probation-good-standing",
+  "description": "Academic Code §5.7.1 (“Students must be in good standing to receive a graduate degree”) and §5.7.2 — policy review 2026-10-04, P2-ac-5b-6.1-2; DGS: “Apply the suggested handling”. An MSCSE student on probation with a letter deadline of 2026-12-15: a scored good-standing row reads In progress with the letter’s deadline, so a record that is otherwise on track never reads as all satisfied while on probation.",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.2,
+    "probationLetterDeadline": "2026-12-15",
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "shared.goodStanding": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "On probation — the letter’s deadline is 2026-12-15",
+        "conferred only to a student in good standing (Academic Code §5.7.1)"
+      ]
+    }
+  }
+}

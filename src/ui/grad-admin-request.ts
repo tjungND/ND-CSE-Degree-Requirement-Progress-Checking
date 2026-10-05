@@ -60,6 +60,7 @@ export const MILESTONE_FIELDS: readonly MilestoneField[] = [
   { key: 'thesisTopicApproved', label: 'Thesis topic approved', section: 'Academic Code §6.1.7', program: 'mscse' },
   { key: 'thesisDefensePassed', label: 'Thesis defense passed', section: '§3.4', program: 'mscse' },
   { key: 'thesisDefenseFailed', label: 'Thesis defense failed (first attempt)', section: 'Academic Code §6.1.5', program: 'mscse' },
+  { key: 'thesisSubmitted', label: 'Final thesis submitted to the Graduate School', section: 'Academic Code §6.1.8', program: 'mscse' },
   { key: 'projectReportAccepted', label: 'Project report accepted by advisor', section: '§3.4', program: 'mscse' },
   // 2026-10-04: the MSCSE's, or the Ph.D.'s MSCSE along the way.
   { key: 'msCandidacyApplied', label: 'Application for Admission to Master’s Degree Candidacy submitted', section: 'Academic Code §6.1.6', program: 'both' },
@@ -76,6 +77,7 @@ const ROW_MILESTONE: Record<string, keyof Milestones> = {
   'phd.rcr': 'rcrTrainingCompleted',
   'ms.thesis.topic': 'thesisTopicApproved',
   'ms.thesis.defense': 'thesisDefensePassed',
+  'ms.thesis.submitted': 'thesisSubmitted',
   'ms.project.report': 'projectReportAccepted',
   'shared.msCandidacy': 'msCandidacyApplied',
 };

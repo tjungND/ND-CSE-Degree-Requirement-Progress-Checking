@@ -26,10 +26,24 @@ describe('a probation letter’s deadline', () => {
     assert.ok(ms.warnings.some((w) => /Confirm your standing with the ADGS/.test(w)), ms.warnings.join('\n'));
   });
 
-  it('changes no requirement row', () => {
+  it('changes no other requirement row', () => {
     const plain = audit(phdStudent(), rules, '2026-10-04').requirements.map((q) => `${q.id}:${q.status}:${q.deadline?.label ?? ''}`);
-    const onProbation = audit(phdStudent({ probationLetterDeadline: '2026-12-15' }), rules, '2026-10-04').requirements.map((q) => `${q.id}:${q.status}:${q.deadline?.label ?? ''}`);
+    const onProbation = audit(phdStudent({ probationLetterDeadline: '2026-12-15' }), rules, '2026-10-04')
+      .requirements.filter((q) => q.id !== 'shared.goodStanding')
+      .map((q) => `${q.id}:${q.status}:${q.deadline?.label ?? ''}`);
     assert.deepEqual(onProbation, plain);
+  });
+
+  // Academic Code §5.7.1 (policy review 2026-10-04, P2-ac-5b-6.1-2): "Students
+  // must be in good standing to receive a graduate degree" — a scored row while
+  // the letter is on the record, so an otherwise complete record does not read
+  // as all satisfied.
+  it('adds a good-standing row, In progress, with the letter’s deadline', () => {
+    const row = (today: string) => audit(phdStudent({ probationLetterDeadline: '2026-12-15' }), rules, today).requirements.find((q) => q.id === 'shared.goodStanding')!;
+    assert.equal(row('2026-10-04').status, 'in_progress');
+    assert.match(row('2026-10-04').detail, /^On probation — the letter’s deadline is 2026-12-15\. A degree is conferred only to a student in good standing \(Academic Code §5\.7\.1\)/);
+    assert.equal(row('2027-01-10').deadline!.state, 'overdue');
+    assert.ok(!audit(phdStudent(), rules, '2026-10-04').requirements.some((q) => q.id === 'shared.goodStanding'));
   });
 
   it('a saved record keeps a well-formed date and drops anything else', () => {

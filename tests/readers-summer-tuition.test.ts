@@ -189,3 +189,19 @@ describe('funding notes on the Ph.D. eight-year row (DGS Handbook §4.1)', () =>
     assert.doesNotMatch(timeRow(phdStudent(), '2027-03-01').detail, MS_YEARS);
   });
 });
+
+// A leave beside an unfinished Ph.D. residency run (policy review 2026-10-04,
+// P2-ac-5a-3): the row explains, the review request asks the DGS.
+describe('a leave and the Ph.D. residency run (DGS Handbook §3.7.2; §4.3)', () => {
+  const rulesL = buildRules();
+  const flags = (s: Student) => audit(s, rulesL, '2025-06-01').reviewFlags ?? [];
+  const terms: Term[] = [{ season: 'fall', year: 2022 }, { season: 'spring', year: 2023 }];
+  const ids = ['CSE 60641', 'CSE 60111', 'CSE 60321', 'CSE 60427', 'CSE 60535', 'CSE 60762'];
+  const base = (over: Partial<Student> = {}) =>
+    phdStudent({ entryTerm: { season: 'fall', year: 2022 }, courses: ids.map((id, i) => ndCourse(id, { term: terms[Math.floor(i / 3)]! })), ...over });
+
+  it('asks the DGS once a leave is entered and the run is short of four', () => {
+    assert.ok(flags(base({ leaveSemesters: 1 })).some((f) => /^Residency and my leave: I was on an approved leave for 1 semester/.test(f)));
+    assert.ok(!flags(base()).some((f) => /^Residency and my leave/.test(f)));
+  });
+});

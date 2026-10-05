@@ -2430,6 +2430,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           // end of the following semester) — uncommon, so behind a selector
           // (policy review 2026-10-04, P2-ac-5b-6.1-12).
           rareFold('thesis-failed', 'Did you fail a thesis defense attempt?', !!m.thesisDefenseFailed, dateField('Thesis defense failed — the first attempt (Academic Code §6.1.5)', 'thesisDefenseFailed')),
+          // The final thesis to the Graduate School (Academic Code §6.1.8 —
+          // policy review 2026-10-04, P2-ac-5b-6.1-15): on the thesis route,
+          // once the defense is dated (or a date is already on file).
+          ...(opt === 'thesis' && (m.thesisDefensePassed || m.thesisSubmitted)
+            ? [dateField('Final thesis submitted to the Graduate School (Academic Code §6.1.8)', 'thesisSubmitted')]
+            : []),
         );
       }
       if (opt !== 'thesis') {
