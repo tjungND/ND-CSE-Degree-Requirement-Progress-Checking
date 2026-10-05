@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { audit } from '../src/engine/audit.ts';
-import type { Milestones, Student, Term } from '../src/engine/types.ts';
+import type { CourseEntry, Milestones, Student, Term } from '../src/engine/types.ts';
 import { actionItems, advisorSummary } from '../src/ui/advisor-summary.ts';
 import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
 import { buildRules } from './helpers.ts';
@@ -276,7 +276,7 @@ describe('the OCE and admission wait for the coursework', () => {
 
   it('the qualifier’s course components done but the 24 credits short: Not started', () => {
     const st = phdStudent({ entryTerm: fall26, courses: REGULAR.slice(0, 3).map((id) => ndCourse(id, { term: fall26 })) });
-    assert.match(row(st, 'phd.candidacy', '2027-03-01').detail, /^Not started\. The Oral Candidacy Exam \(OCE\) can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits \(transferred regular-course credits count\)/);
+    assert.match(row(st, 'phd.candidacy', '2027-03-01').detail, /^Not started\. The OCE waits for: the 24 regular-course credits \(9 complete or in progress\)\. The Oral Candidacy Exam \(OCE\) can be taken once your coursework is complete or in progress the same semester/);
   });
 
   it('transferred regular-course credits count toward the 24', () => {
@@ -344,3 +344,61 @@ describe('every condition for admission to doctoral candidacy', () => {
     assert.match(card(ready({}), '2028-09-20').detail, /Registered this semester \(Fall 2028\): no Notre Dame course entered/);
   });
 });
+
+// "This seems to satisfy the condition to make OCE/candidacy in progress, but
+// it is still marked as not started. Why?" (DGS 2026-10-05, with a printout):
+// the card now says why, and only the courses the coursework needs are read.
+describe('why the OCE is not started yet', () => {
+  const rulesW = buildRules();
+  const fall25 = { season: 'fall' as const, year: 2025 };
+  const spring26 = { season: 'spring' as const, year: 2026 };
+  const fall26w = { season: 'fall' as const, year: 2026 };
+  const spring27w = { season: 'spring' as const, year: 2027 };
+  const card = (st: Student, today: string) => audit(st, rulesW, today).requirements.find((x) => x.id === 'phd.candidacyAdmission')!;
+  // The printout's shape: 18 regular credits done (Architecture core and three
+  // specialization groups among them), Operating Systems in progress this
+  // semester, one more regular course in progress next semester — and no
+  // Algorithms core course at all.
+  const printout = (extra: CourseEntry[] = []) =>
+    phdStudent({
+      entryTerm: fall25,
+      gpa: 3.6,
+      courses: [
+        ...['CSE 60321', 'CSE 60427', 'CSE 60535'].map((id) => ndCourse(id, { term: fall25 })),
+        ...['CSE 60762', 'CSE 60770', 'CSE 60876'].map((id) => ndCourse(id, { term: spring26 })),
+        ndCourse('CSE 60641', { term: fall26w, grade: 'IP' }),
+        ndCourse('CSE 60868', { term: spring27w, grade: 'IP' }),
+        ...extra,
+      ],
+      milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes', researchQualifierPassed: '2026-09-15' },
+    });
+
+  it('a core-knowledge area with no course: the card names it', () => {
+    const r = card(printout(), '2026-10-05');
+    assert.equal(r.status, 'unmet');
+    assert.match(r.detail, /^Not started\. The OCE waits for: Algorithms core knowledge \(no course yet\)\./);
+  });
+
+  it('every component under way, the last one next semester: the card names that semester', () => {
+    const r = card(printout([ndCourse('CSE 60111', { term: spring27w, grade: 'IP' })]), '2026-10-05');
+    assert.match(r.detail, /^Not started\. The OCE can be taken in Spring 2027 at the earliest, the semester your coursework is expected to be complete\./);
+    // …and in that semester it is under way.
+    assert.equal(card(printout([ndCourse('CSE 60111', { term: spring27w, grade: 'IP' })]), '2027-02-15').status, 'in_progress');
+  });
+
+  it('a course the coursework does not need, dated next semester, does not hold the OCE back', () => {
+    const st = phdStudent({
+      entryTerm: fall25,
+      gpa: 3.6,
+      courses: [
+        ...['CSE 60641', 'CSE 60111', 'CSE 60321', 'CSE 60427'].map((id) => ndCourse(id, { term: fall25 })),
+        ...['CSE 60535', 'CSE 60762', 'CSE 60770'].map((id) => ndCourse(id, { term: spring26 })),
+        ndCourse('CSE 60876', { term: fall26w, grade: 'IP' }),
+        // Next semester's research registration, already entered.
+        ndCourse('CSE 98900', { term: spring27w, grade: 'IP', credits: 6 }),
+      ],
+    });
+    assert.equal(card(st, '2026-10-05').status, 'in_progress');
+  });
+});
+

@@ -270,12 +270,12 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   // regular-course credits and the qualifier's core-knowledge and
   // specialization courses, completed or finishing this semester). Until then
   // the OCE and admission read Not started (DGS 2026-10-04).
-  const ready = oceCourseworkReady(ctx, rows);
+  const ready = oceCourseworkStatus(ctx, rows);
   const rcr = rcrRow(ctx);
   const oce = candidacyRow(ctx, ready);
   rows.push({ ...rcr, unscored: true, mergedInto: 'phd.candidacyAdmission' });
   rows.push({ ...oce, unscored: true, mergedInto: 'phd.candidacyAdmission' });
-  rows.push(candidacyAdmissionRow(ctx, { oce, rcr, courseworkReady: ready }));
+  rows.push(candidacyAdmissionRow(ctx, { oce, rcr, coursework: ready }));
   rows.push(...dissertationRows(ctx));
   // §4.5's MSCSE cannot be earned twice. A Ph.D. student who already holds the
   // Notre Dame MSCSE (their master's before this program) has no along-the-way
@@ -742,6 +742,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       // In progress, or waiting on the DGS: it will satisfy this area, and the
       // course's own line says so (2026-09-08).
       ...(status !== 'met' && (ip ?? pending) ? { pendingBy: [bareId((ip ?? pending)!)] } : {}),
+      ...(status === 'in_progress' && ip ? { completingCourses: [ip] } : {}),
     };
   });
 }
@@ -843,6 +844,8 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     parts.push(full);
     shortParts.push(short ?? full);
   };
+  // The courses in progress the in-progress verdict counts on (the OCE gate, 2026-10-05).
+  let completing: string[] = [];
   if (def.distinctCount >= groupsReq && qualifying.length >= coursesReq) {
     status = 'met';
     const assignmentLine = (short: boolean) => ([courseId, g]: [string, string]) => {
@@ -883,7 +886,8 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       status = 'in_progress';
       // How many of the courses in progress are needed — the ones the matching
       // gives a group of their own — not how many there are (2026-10-02).
-      const needed = inProgress.filter((c) => display.assignment.has(c.courseId)).length;
+      completing = inProgress.filter((c) => display.assignment.has(c.courseId)).map((c) => c.courseId);
+      const needed = completing.length;
       withItems(
         `${qualifying.length} of ${coursesReq} done, in ${def.distinctCount} different group${def.distinctCount === 1 ? '' : 's'}; ${needed === inProgress.length ? `the ${inProgress.length === 1 ? 'course' : `${inProgress.length} courses`} in progress would complete it` : `${needed} of the ${inProgress.length} courses in progress would complete it`}`,
       );
@@ -948,6 +952,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     ...(flexible.size > 0 ? { groupAssignments: Object.fromEntries([...combined.bestAssignment].filter(([id]) => flexible.has(id))) } : {}),
     ...(assignedDone.length > 0 ? { satisfiedBy: assignedDone } : {}),
     ...(assignedPending.length > 0 ? { pendingBy: assignedPending } : {}),
+    ...(status === 'in_progress' && completing.length > 0 ? { completingCourses: completing } : {}),
     citation: { section: '§4.4.2', quote },
   };
 }
@@ -1129,32 +1134,88 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
   return parts;
 }
 
-/** Whether the Oral Candidacy Exam can be scheduled yet. CSE §4.5: "All
- * coursework for the Ph.D. must be completed (or in progress the same
- * semester) before the candidacy exam can be taken." The DGS (2026-10-05):
- * "OCE does require coursework to be completed. This includes the course
- * components in the qualifier examination -- core knowledge and
- * specialization categories … both 24 credits of regular courses and course
- * components of the qualifier examination are needed (either completed or
- * expected to complete in the same semester) for OCE to start." (This
- * corrects the 2026-10-04 reading, which waited for the whole qualifier.)
+/** Whether the Oral Candidacy Exam can be scheduled yet, and if not, why.
+ * CSE §4.5: "All coursework for the Ph.D. must be completed (or in progress
+ * the same semester) before the candidacy exam can be taken." The DGS
+ * (2026-10-05): "both 24 credits of regular courses and course components of
+ * the qualifier examination are needed (either completed or expected to
+ * complete in the same semester) for OCE to start."
  *
- * Ready when the 24 regular-course credits are complete or in progress, and
- * every core-knowledge area and the specialization are met or In progress, on
- * courses of this semester or earlier: no course in progress is dated after
- * it. Transferred regular-course credits count (they are in the regular pool);
- * credits still waiting for a DGS decision do not. A qualifier passed under the
- * earlier requirements covers the course components. */
-function oceCourseworkReady(ctx: Ctx, rows: RequirementResult[]): boolean {
-  const regularMin = ctx.params.number('phd_regular_credits_min');
-  if (regularMin === undefined || ctx.alloc.regular.definite + ctx.alloc.regular.in_progress < regularMin) return false;
-  const done = (r: RequirementResult): boolean => r.status === 'met' || (r.status === 'needs_dgs_review' && r.statusLabel === undefined);
-  if (!qualifierPassedUnderPriorRules(ctx)) {
-    const courseParts = rows.filter((r) => r.id.startsWith('phd.qualifier.core') || r.id === 'phd.qualifier.categories');
-    if (!courseParts.every((r) => done(r) || r.status === 'in_progress')) return false;
-  }
+ * Each piece of coursework is complete, or expected to complete in the
+ * semester of the LAST in-progress course it needs:
+ *   - the regular-course credits: the earliest in-progress courses that bring
+ *     complete + in progress to the minimum (transferred credits count —
+ *     they are in the regular pool; credits waiting for a DGS decision do not);
+ *   - each core-knowledge area: its course in progress;
+ *   - the specialization: the in-progress courses the group matching relies on.
+ * Ready when nothing is missing and that semester is this one or earlier.
+ * Only the courses the coursework needs are read (2026-10-05: a research
+ * registration entered for next semester blocked the OCE before). A qualifier
+ * passed under the earlier requirements covers the course components. */
+export interface OceReadiness {
+  ready: boolean;
+  /** Coursework with no course yet, as the card names it. */
+  missing: string[];
+  /** The semester the coursework is expected to be complete, when later than now. */
+  earliest?: Term;
+}
+
+function oceCourseworkStatus(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
   const now = termOfDate(ctx.today);
-  return !ctx.classified.some((c) => !c.superseded && c.tier === 'in_progress' && compareTerm(c.entry.term, now) > 0);
+  const missing: string[] = [];
+  const completes: Term[] = [];
+  const inProgressTerm = (courseId: string): Term | undefined =>
+    ctx.classified
+      .filter((c) => !c.superseded && c.tier === 'in_progress' && c.entry.courseId === courseId)
+      .map((c) => c.entry.term)
+      .sort(compareTerm)
+      .pop();
+  const regularMin = ctx.params.number('phd_regular_credits_min');
+  if (regularMin === undefined) missing.push('the regular-course credits (the rules sheet is missing phd_regular_credits_min)');
+  else {
+    const need = regularMin - ctx.alloc.regular.definite;
+    if (need > 0) {
+      const inProgress = ctx.alloc.perCourse
+        .filter((p) => !p.course.superseded && p.course.tier === 'in_progress' && p.countedRegular > 0)
+        .sort((a, b) => compareTerm(a.course.entry.term, b.course.entry.term));
+      let counted = 0;
+      let last: Term | undefined;
+      for (const p of inProgress) {
+        if (counted >= need) break;
+        counted += p.countedRegular;
+        last = p.course.entry.term;
+      }
+      if (counted < need) missing.push(`the ${regularMin} regular-course credits (${formatCredits(ctx.alloc.regular.definite + counted)} complete or in progress)`);
+      else if (last) completes.push(last);
+    }
+  }
+  if (!qualifierPassedUnderPriorRules(ctx)) {
+    const done = (r: RequirementResult): boolean => r.status === 'met' || (r.status === 'needs_dgs_review' && r.statusLabel === undefined);
+    for (const r of rows.filter((x) => x.id.startsWith('phd.qualifier.core') || x.id === 'phd.qualifier.categories')) {
+      if (done(r)) continue;
+      if (r.status === 'in_progress') {
+        for (const id of r.completingCourses ?? []) {
+          const t = inProgressTerm(id);
+          if (t) completes.push(t);
+        }
+        continue;
+      }
+      missing.push(r.id === 'phd.qualifier.categories' ? 'the specialization courses (§4.4.2)' : `${r.title.replace(/^Core knowledge:\s*/, '')} core knowledge (no course yet)`);
+    }
+  }
+  const latest = completes.sort(compareTerm).pop();
+  const earliest = latest !== undefined && compareTerm(latest, now) > 0 ? latest : undefined;
+  return { ready: missing.length === 0 && earliest === undefined, missing, ...(earliest ? { earliest } : {}) };
+}
+
+/** What the Not-started OCE and admission cards say about why (2026-10-05:
+ * "This seems to satisfy the condition … but it is still marked as not
+ * started. Why?"): the coursework with no course yet, or the semester the
+ * coursework completes. */
+function oceWaitFact(r: OceReadiness): string[] {
+  if (r.missing.length > 0) return [`The OCE waits for: ${r.missing.join('; ')}`];
+  if (r.earliest) return [`The OCE can be taken in ${termLabel(r.earliest)} at the earliest, the semester your coursework is expected to be complete`];
+  return [];
 }
 
 /** §4.5: "The candidacy exam must be taken before the end of the eighth
@@ -1166,7 +1227,7 @@ function oceCourseworkReady(ctx: Ctx, rows: RequirementResult[]): boolean {
  * doctoral candidacy."). Admission to candidacy — with the GPA, the four
  * full-time semesters, the RCR training and the Graduate School's form — is
  * the next row. */
-function candidacyRow(ctx: Ctx, courseworkReady: boolean): RequirementResult {
+function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
   const quote = 'The candidacy exam must be taken before the end of the eighth semester in the program.';
   const sem = ctx.params.number('candidacy_deadline_semester');
   if (sem === undefined) {
@@ -1208,7 +1269,7 @@ function candidacyRow(ctx: Ctx, courseworkReady: boolean): RequirementResult {
   });
   // Not started until the coursework is complete or finishing this semester
   // (§4.5; DGS 2026-10-05) — an Overdue eighth semester still reads Overdue.
-  if (passed === undefined && !courseworkReady && r.status !== 'unmet') {
+  if (passed === undefined && !coursework.ready && r.status !== 'unmet') {
     return {
       id: 'phd.candidacy',
       group: CANDIDACY,
@@ -1216,6 +1277,7 @@ function candidacyRow(ctx: Ctx, courseworkReady: boolean): RequirementResult {
       status: 'unmet',
       ...joinedDetail([
         'Not started',
+        ...oceWaitFact(coursework),
         { note: 'The Oral Candidacy Exam (OCE) can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits (transferred regular-course credits count) and the qualifying examination’s core-knowledge and specialization courses (§4.5)' },
         ...eighthSemesterNotes(ctx, sem, effectiveSem, true, 'oce'),
       ]),
@@ -1343,7 +1405,7 @@ function admissionPolicyNotes(ctx: Ctx, args: { semesterWord: string; probationC
  * before the OCE's goes to the DGS. A record whose dissertation milestones
  * are dated but whose admission is not is missing a date — no "apply now",
  * no probation (review of the split, 2026-10-04). */
-function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: RequirementResult; courseworkReady: boolean }): RequirementResult {
+function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: RequirementResult; coursework: OceReadiness }): RequirementResult {
   const quote =
     'To qualify for admission to doctoral candidacy, a student must: be in a doctoral program, complete the program coursework and language requirements with a cumulative G.P.A. of 3.0 or better, pass the written and oral parts of the doctoral candidacy examination, and have the dissertation proposal approved (if this is not part of the candidacy exam).';
   const citation = { section: 'Academic Code §6.2.9', quote };
@@ -1378,12 +1440,13 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
   // which waits for the coursework (DGS 2026-10-05). An Overdue eighth
   // semester still reads so. Every condition is listed under Relevant
   // Policies (DGS 2026-10-05).
-  if (!admitted && !m.candidacyPassed && !merged.courseworkReady && r.status !== 'unmet' && merged.oce.status !== 'cannot_evaluate') {
+  if (!admitted && !m.candidacyPassed && !merged.coursework.ready && r.status !== 'unmet' && merged.oce.status !== 'cannot_evaluate') {
     return {
       ...base,
       status: 'unmet',
       ...joinedDetail([
         'Not started',
+        ...oceWaitFact(merged.coursework),
         ...policies,
         ...eighthSemesterNotes(ctx, sem, effectiveSem, true, 'admission'),
       ]),

@@ -604,6 +604,12 @@ export interface RequirementResult {
    * satisfies OR will satisfy). Never used by the emails, which report only
    * what is already true. */
   pendingBy?: string[];
+  /** In progress only (2026-10-05): the courses in progress this row is
+   * counting on to complete — a qualifier part's course, or the
+   * specialization courses the group matching relies on. The OCE gate reads
+   * their semesters to tell when the coursework is expected to be complete.
+   * Engine-internal; nothing renders it. */
+  completingCourses?: string[];
 }
 
 export interface CourseLine {

@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-05 (DGS — engine): the OCE gate reads only the courses the coursework needs (`oceCourseworkStatus`; `completingCourses` on the core and specialization rows), and the Not-started cards say why (W-CL155). Tests in tests/candidacy-admission.test.ts (“why the OCE is not started yet”).
+
 2026-10-05 (DGS — engine): the admission-to-candidacy card lists every condition, from a verified sweep of the three documents. Not started: they sit under Relevant Policies (page-only notes, `pageOnly` on DetailPart, dropped by whyFor). In progress: facts, including the new advisor faculty-status condition and an informational “Registered this semester” line. The RCR field in Milestones waits for the card to be under way. HANDBOOK-REVISIONS 19–20. Tests in tests/candidacy-admission.test.ts. Wording W-CL154.
 
 2026-10-05 (DGS — display): Your standing’s policy text behind “Relevant Policies” (`policyFold`).
