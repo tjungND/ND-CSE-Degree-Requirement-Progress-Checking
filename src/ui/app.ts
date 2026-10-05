@@ -2528,8 +2528,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Milestones appear once they are under way (DGS 2026-10-04: "Show the
       // entries only when they are in progress"): a date field whose row reads
       // Not started stays hidden until a date is on file — nothing on file is
-      // ever hidden. The OCE waits for the qualifier, so does its field, and
-      // the qualifier completion form appears with it.
+      // ever hidden. The OCE waits for its coursework (DGS 2026-10-05), so does
+      // its field, and the qualifier completion form appears with it.
       const notStarted = (id: string): boolean => {
         const r = report.requirements.find((x) => x.id === id);
         return r !== undefined && r.status === 'unmet' && /^Not started\b/.test(r.detail);
@@ -2545,8 +2545,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // phrase for the desk the page calls the Grad Admin, one card above
         // "two people, two jobs"; phd.ts and the advisor summary already read this way.
         ...(m.qualifierFormFiled || qualifierDone || oceOpen ? [dateField('Qualifier completion form filed with the Grad Admin (§4.4)', 'qualifierFormFiled')] : []),
-        // Academic Code §6.2.4; a candidacy condition per the DGS Handbook §3.22.3 (2026-10-03).
-        dateField('Responsible Conduct of Research and ethics training completed (Graduate School)', 'rcrTrainingCompleted'),
+        // Academic Code §6.2.4; a candidacy condition per the DGS Handbook §3.22.3
+        // (2026-10-03). Part of the candidacy card since 2026-10-04, so shown
+        // once that card is under way (DGS 2026-10-05: "hide it until it
+        // becomes 'in progress'") — or once dated.
+        ...(m.rcrTrainingCompleted || !notStarted('phd.candidacyAdmission') ? [dateField('Responsible Conduct of Research and ethics training completed (Graduate School)', 'rcrTrainingCompleted')] : []),
         ...(m.candidacyPassed || oceOpen ? [dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed')] : []),
       );
       // §4.6 opens "After satisfying the above requirements": nobody has a

@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-05 (DGS — engine): the admission-to-candidacy card lists every condition, from a verified sweep of the three documents. Not started: they sit under Relevant Policies (page-only notes, `pageOnly` on DetailPart, dropped by whyFor). In progress: facts, including the new advisor faculty-status condition and an informational “Registered this semester” line. The RCR field in Milestones waits for the card to be under way. HANDBOOK-REVISIONS 19–20. Tests in tests/candidacy-admission.test.ts. Wording W-CL154.
+
 2026-10-05 (DGS — display): Your standing’s policy text behind “Relevant Policies” (`policyFold`).
 
 2026-10-05 (DGS — engine, correcting 2026-10-04): the OCE waits for the coursework, not the whole qualifier: the 24 regular-course credits (transfer credit counts) and the qualifier’s core-knowledge and specialization courses, done or finishing this semester (`oceCourseworkReady`). The research component no longer gates it. The admission card’s coursework line says transferred credits count. Tests in tests/candidacy-admission.test.ts. Wording W-CL153.

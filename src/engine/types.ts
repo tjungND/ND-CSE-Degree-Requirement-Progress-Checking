@@ -504,7 +504,10 @@ export interface DeadlineInfo extends ApproxDate {
 /** `fold` (2026-10-04, DGS: hide the specialization card's course list "with a
  * selector"): the card shows the lead and puts the items behind a selector
  * with this text; the copied messages are unchanged. */
-export type DetailPart = string | { lead: string; items: string[]; fold?: string } | { warn: string } | { note: string };
+/** `pageOnly` on a note (2026-10-05): a policy sentence for the card's
+ * Relevant Policies only — the copied messages leave it out (whyFor), so a
+ * card listing every condition of a rule does not flood the emails. */
+export type DetailPart = string | { lead: string; items: string[]; fold?: string } | { warn: string } | { note: string; pageOnly?: true };
 
 export interface Contribution {
   courseId: string;

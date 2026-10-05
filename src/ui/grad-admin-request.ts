@@ -496,7 +496,7 @@ export function gradAdminRequest(
     sections.push({
       heading: 'Admission to doctoral candidacy (Academic Code §6.2.9)',
       lines: [
-        'The self-check shows every condition for admission to doctoral candidacy met — the Oral Candidacy Exam (OCE) passed, four consecutive full-time semesters, the coursework complete with a cumulative GPA of 3.0 or better, and the Responsible Conduct of Research training — please initiate the Application for Admission to Doctoral Candidacy.',
+        'The self-check shows every condition for admission to doctoral candidacy met — the Oral Candidacy Exam (OCE) passed, four consecutive full-time semesters, the coursework complete with a cumulative GPA of 3.0 or better, the Responsible Conduct of Research and ethics training, and a tenured or tenure-track dissertation advisor — please initiate the Application for Admission to Doctoral Candidacy.',
       ],
     });
   }

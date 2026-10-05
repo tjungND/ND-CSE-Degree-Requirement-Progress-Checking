@@ -552,7 +552,9 @@ function dedupe(items: string[]): string[] {
  * left to say (the deadline phrase then stands alone). `firstStatementOnly`
  * keeps just the leading statement. */
 export function whyFor(r: RequirementResult, firstStatementOnly = false): string {
-  const statements = (r.detailParts ? r.detailParts.map((p) => flatten(p, r)) : splitStatements(r.detail))
+  // A page-only policy note stays on the card (2026-10-05).
+  const parts = r.detailParts?.filter((p) => !(typeof p === 'object' && 'note' in p && p.pageOnly));
+  const statements = (parts ? parts.map((p) => flatten(p, r)) : splitStatements(r.detail))
     .map((s) => s.trim().replace(/\.$/, ''))
     .filter((s) => s.length > 0)
     .map(rewrite)

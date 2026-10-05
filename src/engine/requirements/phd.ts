@@ -13,7 +13,7 @@ import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo }
 import type { Ctx } from './context.ts';
 import { noteOf, capRow, clockShiftNote, defenseRegistrationNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun } from './residency.ts';
-import { defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
+import { advisorTttState, defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
 import { spentOnBachelorsAndMasters } from '../allocate.ts';
 
@@ -1278,6 +1278,35 @@ function candidacyRow(ctx: Ctx, courseworkReady: boolean): RequirementResult {
 export const ADMISSION_DEADLINE_SEMESTER = 8;
 const ADMISSION_FULL_TIME_SEMESTERS = 4;
 
+/** Every condition for admission to doctoral candidacy, as Relevant Policies
+ * (DGS 2026-10-05: "Doctoral candidacy has more conditions than this. Double
+ * check … Check all the policies and include them in this card."). Gathered
+ * from the Academic Code (§3.1, §3.3, §5.7.3, §6.2.2, §6.2.4, §6.2.7, §6.2.8,
+ * §6.2.9), the DGS Handbook (§2.10.6, §3.22.3, §6.3.1, §10.3.1 — the
+ * application's own fields) and the CSE handbook (§2.2, §2.3, §4.2, §4.3,
+ * §4.5, §5.3); every quote verified against the texts. Page-only: the emails
+ * carry the facts, not the rulebook. */
+function admissionPolicyNotes(ctx: Ctx, args: { semesterWord: string; probationCite: string; form: string }): DetailPart[] {
+  const regularMin = ctx.params.number('phd_regular_credits_min');
+  const gpaMin = ctx.params.number('gpa_min');
+  const floor = ctx.params.number('fulltime_credits_min');
+  const policy = (note: string): DetailPart => ({ note, pageOnly: true });
+  return [
+    policy('Admission to doctoral candidacy follows the Oral Candidacy Exam (OCE) and requires every condition below; the Graduate School admits you on the program’s application (Academic Code §6.2.9; DGS Handbook §3.22.3)'),
+    policy('Enrolled in the Ph.D. program and registered — the application records “Enrolled and registered” (Academic Code §3.1, §6.2.9; DGS Handbook §3.22.3, §10.3.1)'),
+    policy(`Four consecutive semesters at full-time status in the program — at least ${floor ?? 9} credit hours each fall and spring, counted from your entry term; summers do not count (§2.1.2, §4.3; Academic Code §3.3, §6.2.2; DGS Handbook §3.22.3)`),
+    policy(`The department’s coursework: the ${regularMin ?? 24} regular-course credits (§4.2) — transferred regular-course credits count, and approved CSE 4xxxx credits count within §4.2’s allowance (Academic Code §6.2.9; DGS Handbook §3.22.3)`),
+    policy(`A cumulative GPA of ${(gpaMin ?? 3).toFixed(1)} or better (§2.2; Academic Code §6.2.9; DGS Handbook §3.22.3)`),
+    policy('All training modules for the Responsible Conduct of Research and ethics: the Graduate School’s training for every Ph.D. student, and any training your role or your research funding requires (Academic Code §6.2.4; DGS Handbook §3.22.3, §6.3.1)'),
+    policy('The doctoral candidacy examination passed, its written and oral parts: in CSE the written part is the dissertation proposal, so passing the Oral Candidacy Exam (OCE) normally also approves the proposal. The OCE can be taken once your coursework is complete or in progress the same semester — the regular-course credits and the qualifying examination’s core-knowledge and specialization courses (§4.5; Academic Code §6.2.8, §6.2.9)'),
+    policy('Before the OCE: send the DGS a written request naming your committee — your advisor and at least three voting members, with CVs for members from outside Notre Dame — and give the committee your written proposal at least two weeks before the exam, which is held on campus (§4.5)'),
+    policy('At least one dissertation advisor who is tenured or tenure-track Notre Dame faculty, or a co-advisor who is; the application confirms it. CSE asks for tenured or tenure-track CSE faculty, with exceptions approved by the DGS (§2.3; Academic Code §6.2.7; DGS Handbook §10.3.1)'),
+    policy('CSE has no language requirement (§5.3)'),
+    policy('The application also records whether the Graduate School holds your official undergraduate transcript (or diploma) showing your bachelor’s degree conferred — if you are not sure it arrived, ask the Grad Admin (DGS Handbook §2.10.6, §10.3.1)'),
+    policy(`Be admitted by the end of your ${args.semesterWord} semester: a student not admitted by then may be placed on probation and risks the loss of Graduate School funding (${args.probationCite}; DGS Handbook §3.22.3). Once every condition is met, ${args.form}`),
+  ];
+}
+
 /** Admission to doctoral candidacy — a step of its own after the OCE (DGS
  * 2026-10-04, P2-dh-3.21-3.24-16: "OCE and doctoral candidacy are two
  * different things. One can pass OCE first and then enter the doctoral
@@ -1342,16 +1371,20 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     deadlineLabel: `the end of ${termLabel(term)} — semester ${effectiveSem}`,
     lateWording: `you may have been placed on probation (${probationCite}), and admission after the ${semesterWord} semester risks the loss of Graduate School funding (DGS Handbook §3.22.3); confirm your standing with the DGS`,
   });
+  const dates = ctx.rules.parameters.raw.get('candidacy_form_deadlines')?.value.trim();
+  const form = `the Grad Admin submits the Graduate School’s Application for Admission to Doctoral Candidacy by the Graduate School calendar’s deadline for the semester${dates ? ` (${dates})` : ''} (Academic Code §6.2.9; DGS Handbook §3.22.3)`;
+  const policies = admissionPolicyNotes(ctx, { semesterWord, probationCite, form });
   // Not started while the OCE is (DGS 2026-10-04): admission follows the OCE,
   // which waits for the coursework (DGS 2026-10-05). An Overdue eighth
-  // semester still reads so.
+  // semester still reads so. Every condition is listed under Relevant
+  // Policies (DGS 2026-10-05).
   if (!admitted && !m.candidacyPassed && !merged.courseworkReady && r.status !== 'unmet' && merged.oce.status !== 'cannot_evaluate') {
     return {
       ...base,
       status: 'unmet',
       ...joinedDetail([
         'Not started',
-        { note: 'Admission to doctoral candidacy follows the Oral Candidacy Exam (OCE), which can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits (transferred regular-course credits count) and the qualifying examination’s core-knowledge and specialization courses (§4.5)' },
+        ...policies,
         ...eighthSemesterNotes(ctx, sem, effectiveSem, true, 'admission'),
       ]),
       deadline: r.deadline,
@@ -1405,11 +1438,12 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     else {
       const definite = ctx.alloc.regular.definite;
       const ip = ctx.alloc.regular.in_progress;
+      const pending = ctx.alloc.regular.provisional;
       conditions.push({
         // Transferred regular-course credits are in this count (DGS 2026-10-05:
         // "somehow state that … can be satisfied with the transferred
         // regular-course credits").
-        text: `Coursework: ${formatCredits(definite)} of ${regularMin} regular-course credits complete${ip > 0 && definite < regularMin ? `, ${formatCredits(ip)} in progress` : ''} (transferred regular-course credits count)`,
+        text: `Coursework: ${formatCredits(definite)} of ${regularMin} regular-course credits complete${ip > 0 && definite < regularMin ? `, ${formatCredits(ip)} in progress` : ''}${pending > 0 && definite < regularMin ? `, ${formatCredits(pending)} waiting for a DGS decision` : ''} (transferred regular-course credits count)`,
         done: definite >= regularMin,
       });
     }
@@ -1419,16 +1453,35 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
         text: `Cumulative GPA of ${gpaMin.toFixed(1)} or better: ${gpa === undefined ? (ctx.student.gpa === undefined ? 'not entered' : 'cannot be checked — see the GPA row') : gpa >= gpaMin ? gpaText(gpa) : `${gpaText(gpa)} — below it`}`,
         done: gpa !== undefined && gpa >= gpaMin,
       });
-    conditions.push({ text: `Responsible Conduct of Research training: ${m.rcrTrainingCompleted ? `done ${m.rcrTrainingCompleted}` : 'not yet'}`, done: !!m.rcrTrainingCompleted });
+    conditions.push({ text: `Responsible Conduct of Research and ethics training: ${m.rcrTrainingCompleted ? `done ${m.rcrTrainingCompleted}` : 'not yet'}`, done: !!m.rcrTrainingCompleted });
+    // The application's own fields (DGS Handbook §10.3.1; DGS 2026-10-05: "Check
+    // all the policies and include them in this card"): the adviser criteria
+    // (the advisor card asks it, CSE §2.3) and "Enrolled and registered".
+    const ttt = advisorTttState(ctx);
+    const anyAdvisor = !!(m.advisorName || m.advisorName2 || m.advisorIdentified);
+    conditions.push({
+      text: `Tenured or tenure-track dissertation advisor: ${!anyAdvisor ? 'no advisor entered' : ttt === 'yes' ? 'yes' : ttt === 'no' ? 'no or not sure — the DGS must approve it (see the advisor card)' : 'not answered (Milestones)'}`,
+      done: anyAdvisor && ttt === 'yes',
+    });
     parts.push(...conditions.map((c) => c.text));
-    const dates = ctx.rules.parameters.raw.get('candidacy_form_deadlines')?.value.trim();
-    const form = `the Grad Admin submits the Graduate School’s Application for Admission to Doctoral Candidacy by the Graduate School calendar’s deadline for the semester${dates ? ` (${dates})` : ''} (Academic Code §6.2.9; DGS Handbook §3.22.3)`;
+    // Registered this semester — the application's "Enrolled and registered"
+    // (DGS Handbook §10.3.1). Said, not counted as a condition: a missing row
+    // is not proof (research registrations are often not typed in), and a
+    // continuing student need not register in summer (DGS Handbook §3.3), so
+    // no line then.
+    const now = termOfDate(ctx.today);
+    if (now.season !== 'summer') {
+      const key = termIndex(now);
+      const credits = ctx.classified.filter((c) => c.entry.origin === 'nd' && !c.superseded && !c.audited && termIndex(c.entry.term) === key).reduce((n, c) => n + c.entry.credits, 0);
+      const ticked = (ctx.student.fullTimeTermOverrides ?? []).some((t) => termIndex(t) === key);
+      parts.push(`Registered this semester (${termLabel(now)}): ${credits > 0 ? `${formatCredits(credits)} credits entered` : ticked ? 'full-time, as you ticked' : 'no Notre Dame course entered'}`);
+    }
     // "a student" rather than "you" as an object, so the emails' first person
     // reads right; the page-only instruction is its own note, which the emails
     // drop (2026-10-04).
     if (conditions.every((c) => c.done)) parts.push({ note: `Every condition is met: apply now — ${form}` }, { note: 'Enter the date under Milestones once you are admitted' });
     else parts.push({ note: `The Graduate School admits a student to doctoral candidacy once every condition above is met — the Oral Candidacy Exam (OCE) is one of them; then ${form}` });
-    parts.push({ note: 'In CSE the written part of the candidacy exam is the dissertation proposal (§4.5), so passing the OCE covers the proposal’s approval; CSE has no language requirement (§5.3)' });
+    parts.push(...policies);
     // §5.7.3: the Graduate School "may" place a student on probation.
     if (r.status === 'unmet')
       parts.push({
