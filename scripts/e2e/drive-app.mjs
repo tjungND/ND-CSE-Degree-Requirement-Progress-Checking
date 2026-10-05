@@ -473,13 +473,13 @@ export async function driveApp(s, baseUrl) {
   // Two numbered steps for a student with no transfer credit (P-45, 2026-09-18;
   // the self-check-file step dropped 2026-09-15): open/paste, send. The Grad
   // Admin needs the original transcripts only for §5.2 transfer credit, so the
-  // emphasised '*Attach your ORIGINAL transcripts' step appears — second of
+  // emphasised '*Attach copies of your transcripts' step appears (copies since 2026-10-04 — the official one goes from the registrar to the Graduate School) — second of
   // three — only when a course the DGS ruled transferable is in the request;
   // the Ph.D. example has none.
   const gaSteps = await s.evalJs(`[...document.querySelectorAll('dialog.copy-check ol.copy-steps li')].map(li => (li.querySelector('strong') ? '*' : '') + li.textContent)`);
   console.log('  Grad Admin dialog steps:', JSON.stringify(gaSteps.map((t) => t.slice(0, 70))));
   // Three since 2026-09-28: open/paste, fill in the Student line (name, netID, NDID), send.
-  if (gaSteps.length !== 3 || !/^Fill in your name, netID and NDID/.test(gaSteps[1]) || !/^Send it\./.test(gaSteps[2]) || gaSteps.some((t) => /ORIGINAL transcripts/.test(t))) throw new Error('Grad Admin dialog steps (no transfer → no attach step): ' + JSON.stringify(gaSteps));
+  if (gaSteps.length !== 3 || !/^Fill in your name, netID and NDID/.test(gaSteps[1]) || !/^Send it\./.test(gaSteps[2]) || gaSteps.some((t) => /Attach copies of your transcripts/.test(t))) throw new Error('Grad Admin dialog steps (no transfer → no attach step): ' + JSON.stringify(gaSteps));
   // "Open in my email app" (DGS 2026-09-13): a mailto: to the Grad Admin with
   // the DGS in cc and the subject; the body is the message itself only while
   // the address stays short enough for every client.

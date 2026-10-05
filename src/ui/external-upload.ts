@@ -391,7 +391,7 @@ function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
  * lets a student track their progress; the ADGS/DGS and the Grad Admin will
  * ask for the official one. */
 const UNOFFICIAL_WARNING =
-  'This transcript is marked “unofficial”. You can use it here to track your progress, but the ADGS, the DGS and the Grad Admin will require an OFFICIAL transcript for review, approval and processing — request one from that university’s registrar (an official e-transcript PDF is fine) before you send any request.';
+  'This transcript is marked “unofficial”. You can use it here to track your progress, but the ADGS, the DGS and the Grad Admin will require an OFFICIAL transcript for review, approval and processing — the official transcript must be sent directly to the Graduate School by that university’s registrar, so ask the registrar to send it before you send any request.';
 /** "Unofficial" as a description of the TRANSCRIPT — a heading, a watermark
  * word, "this is not an official transcript" — never a grade legend's "UW
  * Unofficial Withdraw" (DGS 2026-09-16: a false rejection). */

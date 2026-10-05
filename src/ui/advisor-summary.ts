@@ -468,7 +468,7 @@ export function actionItems(report: AuditReport): ActionItems {
       // tab): processing is the Grad Admin's, not another DGS decision.
       if (/^approved by the DGS/i.test(reason)) {
         processingCourses.push(course);
-        out.gradAdmin.push(`Process the transfer credit for ${course} — approved by the DGS (§5.2).`);
+        out.gradAdmin.push(`Submit the Transfer of Credits request to the Graduate School for ${course} — recommended by the DGS (§5.2).`);
         continue;
       }
       pendingCourses.push(course);

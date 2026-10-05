@@ -34,7 +34,7 @@ describe('unofficialTranscriptNote', () => {
   it('names the one transcript that was unofficial', () => {
     assert.equal(
       unofficialTranscriptNote([row('CS 50300', 'masters', true), row('CS 24000', 'bachelors', false)]),
-      'Note: the master’s transcript I imported into the self-check was an unofficial copy. An official transcript from the university is required before any transfer credit can be reviewed, approved or added to my record (§5.2) — I will have it sent.',
+      'Note: the master’s transcript I imported into the self-check was an unofficial copy. An official transcript from the university is required before any transfer credit can be reviewed, approved or added to my record (§5.2) — I will have the university’s registrar send it directly to the Graduate School.',
     );
   });
   it('lists several, in bachelor’s / master’s / prior Ph.D. order', () => {
@@ -68,7 +68,7 @@ describe('the three emails carry the warning', () => {
 
   it('Grad Admin request: after the "Attached:" line, in text and HTML', () => {
     const built = gradAdminRequest(report, student, rules, opts);
-    assert.ok(built.text.includes(`Attached: my original transcripts as PDFs.\n${note}\n`), built.text.slice(0, 900));
+    assert.ok(built.text.includes(`Attached: copies of my transcripts as PDFs. The official transcripts are to be sent directly to the Graduate School by each university’s registrar.\n${note}\n`), built.text.slice(0, 900));
     assert.ok(built.html.includes(`<strong>${note.replace(/’/g, '’')}</strong>`) || built.html.includes(note.replace(/&/g, '&amp;')), 'HTML carries the note');
   });
   it('advisor summary: in the standing paragraph when the app passes the note', () => {

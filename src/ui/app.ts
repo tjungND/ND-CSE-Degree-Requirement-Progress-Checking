@@ -1677,7 +1677,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   html: built.html,
                   steps: [
                     { text: FILL_IN_STEP },
-                    { text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply). The DGS cannot review the courses without them.', emphasis: true },
+                    { text: 'Attach copies of your transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) — the DGS cannot review the courses without them. The official transcript must be sent directly to the Graduate School by each university’s registrar.', emphasis: true },
                   ],
                   returnFocusKey: 'review.copy',
                 });
@@ -2215,7 +2215,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   subject: built.subject,
                   text: built.text,
                   html: built.html,
-                  steps: [{ text: FILL_IN_STEP }, ...(needsTranscripts ? [{ text: 'Attach your ORIGINAL transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply).', emphasis: true }] : [])],
+                  steps: [{ text: FILL_IN_STEP }, ...(needsTranscripts ? [{ text: 'Attach copies of your transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply); the official transcript must be sent directly to the Graduate School by each university’s registrar.', emphasis: true }] : [])],
                   returnFocusKey: 'gradadmin.copy',
                 });
               },
@@ -2252,7 +2252,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             student.program === 'phd'
               ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. '
               : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. ',
-            `Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc${needsTranscripts ? ' — attach your original transcripts' : ''}.`,
+            `Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc${needsTranscripts ? ' — attach copies of your transcripts' : ''}.`,
           ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line', 'data-keep-dgs': '' }, text)),
       el('div', { class: 'save-buttons' }, button),

@@ -389,7 +389,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     assert.deepEqual(todo.gradAdmin, [
       'Process the MSCSE awarded along the way (§4.5).',
       'Record the completed qualifier once my form arrives (§4.4).',
-      'Process the transfer credit for CS 50300 — approved by the DGS (§5.2).',
+      'Submit the Transfer of Credits request to the Graduate School for CS 50300 — recommended by the DGS (§5.2).',
     ]);
     assert.deepEqual(todo.dgs, ['Recommend the transfer credit for CS 77777 (§5.2).']);
     assert.ok(todo.student.includes('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).'));

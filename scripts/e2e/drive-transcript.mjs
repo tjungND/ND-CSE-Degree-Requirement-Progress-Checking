@@ -171,7 +171,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if (!/^Subject: Course review request \(degree self-check\) — Ph\.D\., entered Fall \d{4}$/.test(dlg.subject) || !dlg.text.startsWith('Subject: Course review request')) throw new Error('copy dialog subject/text: ' + dlg.subject + ' | ' + dlg.text);
   // The emphasised lead line (DGS request 2026-09-06, late evening) sits right above the message and says it is on the clipboard.
   if (!/^(✓ This message has been copied to your clipboard\.|The following message was NOT copied — your browser blocked the clipboard\.)$/.test(dlg.lead) || !dlg.leadBeforeMessage) throw new Error('copy dialog lead line: ' + JSON.stringify(dlg.lead) + ' before message: ' + dlg.leadBeforeMessage);
-  // Numbered steps (2026-09-06 evening): paste, attach the ORIGINAL transcripts (emphasised), send.
+  // Numbered steps (2026-09-06 evening): paste, attach copies of the transcripts (emphasised), send.
   await s.shot('copy-dialog');
   await s.evalJs(`document.querySelector('[data-key="copy.ok"]').click()`);
   await s.waitFor(`!document.querySelector('dialog.copy-check')`);

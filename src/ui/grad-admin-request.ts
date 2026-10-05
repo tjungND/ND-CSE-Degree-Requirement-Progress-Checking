@@ -334,10 +334,17 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const courses = countedCourses(standing, report, student);
   // The numbered actions (DGS 2026-09-28): one per processable thing, and
   // the standing on file last.
+  // The DGS RECOMMENDS a transfer; the Graduate School approves it (Academic
+  // Code §4.6 criterion 5; DGS Handbook §10.3.11, the Transfer of Credits
+  // eForm) — policy review 2026-10-04, P1-page-text-ui-3; DGS: "Apply the
+  // suggested fix". So the Grad Admin is asked to submit the request, and to
+  // check the record only once the student says the Graduate School approved it.
+  const recorded = student.attestations.transferRecorded === true;
+  const recommendedBy = (t: ProcessingTransfer): string => (t.state === 'approved' ? 'recommended by the DGS for my case' : 'recommended by the DGS in the course rules');
   const actions = [
     ...transfers.map(
       (t) =>
-        `${t.state === 'approved' ? 'Check that the transfer credit is on my record for' : 'Process the transfer credit for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}) — ${t.state === 'approved' ? 'approved by the DGS for my case' : 'approved by the DGS in the course rules'} (§5.2).`,
+        `${recorded ? 'Check that the transfer credit is on my record for' : 'Submit the Transfer of Credits request to the Graduate School for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}) — ${recorded ? 'approved by the Graduate School, as I ticked' : recommendedBy(t)} (§5.2).`,
     ),
     ...milestones.map((m) => `Record the milestone: ${m.label}, ${m.date} (${m.section}).`),
     ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
@@ -349,7 +356,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const lines = [
     ...transfers.map(
       (t) =>
-        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${t.state === 'approved' ? 'approved by the DGS for my case (§5.2), to be processed' : 'approved by the DGS in the course rules, to be processed (§5.2)'}`,
+        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${recorded ? 'approved by the Graduate School, to be checked on my record (§5.2)' : `${recommendedBy(t)}, to be submitted to the Graduate School (§5.2)`}`,
     ),
     ...milestones.map((m) => `${m.label} ${m.date} (${m.section})`),
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
@@ -415,7 +422,9 @@ export function gradAdminRequest(
   // credit to process — nothing else in this request is decided from a
   // transcript (P-45); the dialog step and the card hint follow the same
   // condition (app.ts, items.transfers.length > 0).
-  const attached = items.transfers.length > 0 ? 'Attached: my original transcripts as PDFs.' : '';
+  // The official transcript goes from the registrar straight to the Graduate
+  // School (DGS 2026-10-04, P1-page-text-ui-5); the attached PDFs are copies.
+  const attached = items.transfers.length > 0 ? 'Attached: copies of my transcripts as PDFs. The official transcripts are to be sent directly to the Graduate School by each university’s registrar.' : '';
   // Which imported transcripts were unofficial copies (DGS 2026-10-03).
   const unofficial = unofficialTranscriptNote(student.courses);
   const earlier = opts.history?.earlier ?? '';
@@ -442,17 +451,23 @@ export function gradAdminRequest(
   }
   const pre = items.transfers.filter((t) => t.state === 'pre-approved');
   const approved = items.transfers.filter((t) => t.state === 'approved');
-  if (pre.length > 0) {
-    sections.push({
-      // The "Attached:" line above already says the transcripts are attached
-      // (trim review 2026-09-18, P-43).
-      heading: 'Transfer credit to process (§5.2) — approved by the DGS in the course rules',
-      columns: TRANSFER_COLUMNS,
-      table: pre.map(transferRow),
-    });
-  }
-  if (approved.length > 0) {
-    sections.push({ heading: 'Transfer credit already approved (§5.2) — please check it is on my record', columns: TRANSFER_COLUMNS, table: approved.map(transferRow) });
+  // Recommended by the DGS, approved by the Graduate School (2026-10-04,
+  // P1-page-text-ui-3): the sections say which step is asked for.
+  if (student.attestations.transferRecorded === true && items.transfers.length > 0) {
+    sections.push({ heading: 'Transfer credit the Graduate School approved (§5.2) — please check it is on my record', columns: TRANSFER_COLUMNS, table: items.transfers.map(transferRow) });
+  } else {
+    if (pre.length > 0) {
+      sections.push({
+        // The "Attached:" line above already says the transcripts are attached
+        // (trim review 2026-09-18, P-43).
+        heading: 'Transfer credit to submit to the Graduate School (§5.2) — recommended by the DGS in the course rules',
+        columns: TRANSFER_COLUMNS,
+        table: pre.map(transferRow),
+      });
+    }
+    if (approved.length > 0) {
+      sections.push({ heading: 'Transfer credit to submit to the Graduate School (§5.2) — recommended by the DGS for my case', columns: TRANSFER_COLUMNS, table: approved.map(transferRow) });
+    }
   }
   // ONE course table (DGS 2026-09-28): every course a requirement counts,
   // with the requirements it feeds — the standing rows point here.

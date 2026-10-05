@@ -24,7 +24,7 @@ export function unofficialTranscriptNote(courses: readonly CourseEntry[]): strin
   const names = slots.map((s) => label[s]);
   const list = names.length === 1 ? names[0]! : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
   const one = slots.length === 1;
-  return `Note: the ${list} transcript${one ? '' : 's'} I imported into the self-check ${one ? 'was an unofficial copy' : 'were unofficial copies'}. An official transcript from the university is required before any transfer credit can be reviewed, approved or added to my record (§5.2) — I will have it sent.`;
+  return `Note: the ${list} transcript${one ? '' : 's'} I imported into the self-check ${one ? 'was an unofficial copy' : 'were unofficial copies'}. An official transcript from the university is required before any transfer credit can be reviewed, approved or added to my record (§5.2) — I will have the university’s registrar send it directly to the Graduate School.`;
 }
 
 /** Escape a string for the HTML flavour of a copied message. */
