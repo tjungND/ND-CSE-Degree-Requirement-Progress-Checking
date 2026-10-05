@@ -5,7 +5,8 @@ import { openDeadline } from '../status.ts';
 import { endOfTerm, termLabel } from '../term.ts';
 import type { DetailPart, RequirementResult } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { joinedDetail, missingParamDetail } from './context.ts';
+import { DUAL_DEGREE_SHARED_CREDITS_MAX } from '../allocate.ts';
+import { capRow, joinedDetail, missingParamDetail } from './context.ts';
 
 const GROUP = 'Basic requirements — §2.2–2.3';
 
@@ -356,4 +357,39 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
       quote: 'All courses taken by a student must have the approval of their advisor.',
     },
   };
+}
+
+/** Academic Code §2.2 (policy review 2026-10-04, P2-ac-1-3-2): "No more than
+ * nine credit hours of classes from any one master's degree may be counted
+ * toward any other graduate degree." DGS Handbook §2.9: "No more than nine
+ * credit hours from any one master's degree can count towards any other
+ * master's degree. The plan must then be approved by the Graduate School."
+ * For a student enrolled in a second Notre Dame program at the same time, the
+ * courses ticked as also counting toward it draw on these nine credits. The
+ * nine is the Graduate School's, so it lives in code
+ * (DUAL_DEGREE_SHARED_CREDITS_MAX), never in the Parameters tab. The row
+ * appears only for a student with such a course; it reads Conditionally met
+ * while the dual plan of study still waits for the Graduate School. */
+export function otherDegreeCapRow(ctx: Ctx, args: { id: string; group: string }): RequirementResult | undefined {
+  if (!ctx.classified.some((c) => c.caps.includes('otherdegree'))) return undefined;
+  const approved = ctx.student.attestations.dualPlanApproved === true;
+  return capRow({
+    id: args.id,
+    group: args.group,
+    title: `At most ${DUAL_DEGREE_SHARED_CREDITS_MAX} credits shared with your other degree`,
+    capId: 'otherdegree',
+    capLabel: 'credits shared with your other degree',
+    limitKey: 'DUAL_DEGREE_SHARED_CREDITS_MAX',
+    section: 'Academic Code §2.2; DGS Handbook §2.9',
+    quote:
+      'No more than nine credit hours of classes from any one master’s degree may be counted toward any other graduate degree. (Academic Code §2.2) — No more than nine credit hours from any one master’s degree can count towards any other master’s degree. The plan must then be approved by the Graduate School. (DGS Handbook §2.9)',
+    ctx,
+    approvalDriven: true,
+    extraDetail: [
+      `The courses you ticked as also counting toward your other degree: at most ${DUAL_DEGREE_SHARED_CREDITS_MAX} of their credits count here, and any beyond that count toward nothing for this degree. They still count as registrations toward each semester’s full-time status (Academic Code §3.5)`,
+      ...(approved
+        ? []
+        : ['They wait for the Graduate School’s approval of your dual-degree plan of study (DGS Handbook §2.9). Once it is approved, tick it under Approvals you already have']),
+    ],
+  });
 }

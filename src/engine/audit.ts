@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq, startOfTerm } from './term.ts';
@@ -47,6 +47,7 @@ export const REQUIREMENT_IDS = [
   'ms.cap.fourk',
   'ms.cap.noncse',
   'ms.cap.sharedbs',
+  'ms.cap.otherdegree',
   'ms.transfer',
   'ms.residency',
   'ms.timeLimit',
@@ -60,6 +61,7 @@ export const REQUIREMENT_IDS = [
   'phd.cap.fourk',
   'phd.cap.noncse',
   'phd.cap.sharedbs',
+  'phd.cap.otherdegree',
   'phd.transfer',
   'phd.residency',
   'phd.timeLimit',
@@ -130,10 +132,20 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // Academic Code §2.3's limit on coursework earned in non-degree status — a
   // Graduate School number kept in code (policy review 2026-10-03).
   const nonDegreeCap: CapSpec = { id: 'nondegree', limit: NON_DEGREE_CREDITS_MAX, label: `${NON_DEGREE_CREDITS_MAX}-credit allowance for non-degree coursework`, section: 'Academic Code §2.3' };
+  // Academic Code §2.2's nine credits shared with another degree the student
+  // is enrolled in at the same time — also a Graduate School number (policy
+  // review 2026-10-04, P2-ac-1-3-2).
+  const otherDegreeCap: CapSpec = {
+    id: 'otherdegree',
+    limit: DUAL_DEGREE_SHARED_CREDITS_MAX,
+    label: `${DUAL_DEGREE_SHARED_CREDITS_MAX}-credit allowance for coursework shared with your other degree`,
+    section: 'Academic Code §2.2',
+  };
   const capSpecs: CapSpec[] =
     student.program === 'mscse'
       ? [
           nonDegreeCap,
+          otherDegreeCap,
           { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: capLabel(num('ms_4xxxx_credits_max'), 'cap on courses below the 60000 level'), section: '§3.2' },
           { id: 'noncse', limit: num('ms_noncse_credits_max'), label: capLabel(num('ms_noncse_credits_max'), 'non-CSE cap'), section: '§3.2' },
           // §3.5's limit on coursework shared with the bachelor's (2026-09-10).
@@ -152,6 +164,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
         ]
       : [
           nonDegreeCap,
+          otherDegreeCap,
           { id: 'fourk', limit: num('phd_4xxxx_cse_credits_max'), label: capLabel(num('phd_4xxxx_cse_credits_max'), 'cap on courses below the 60000 level'), section: '§4.2' },
           { id: 'noncse', limit: num('phd_noncse_6xxxx_credits_max'), label: capLabel(num('phd_noncse_6xxxx_credits_max'), 'non-CSE cap'), section: '§4.2' },
           // The Graduate School's six credits that may count toward two degrees

@@ -4,7 +4,7 @@ import { openDeadline } from '../status.ts';
 import { compareTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, termLabel } from '../term.ts';
 import type { DeadlineInfo, DetailPart, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { defendedBelowGpaNote, msCandidacyApplicationRow } from './shared.ts';
+import { defendedBelowGpaNote, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { usableGpa } from '../ranges.ts';
 import { noteOf, joinedDetail, capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
 import { candidacyFormSentence } from './phd.ts';
@@ -181,6 +181,12 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       approvalDriven: true,
     }),
   );
+
+  // Academic Code §2.2's nine credits shared with a second Notre Dame
+  // degree the student is enrolled in at the same time (policy review
+  // 2026-10-04, P2-ac-1-3-2) — shown only when a course draws on it.
+  const otherDegree = otherDegreeCapRow(ctx, { id: 'ms.cap.otherdegree', group: ALLOWANCES });
+  if (otherDegree) rows.push(otherDegree);
 
   rows.push(residencyRow(ctx));
   rows.push(...optionRows(ctx));

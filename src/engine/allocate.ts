@@ -23,8 +23,16 @@ import type { Attestations, CourseEntry, Grade, Program, Student, Term } from '.
  * earned by a student while in non-degree status may be counted toward a degree
  * program." A Graduate School number, so it lives in code (as §3.5's six does,
  * DGS 2026-09-27), not in the Parameters tab. */
-export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs' | 'nondegree' | `term:${number}`;
+export type CapId = 'fourk' | 'noncse' | 'transfer' | 'sharedbs' | 'nondegree' | 'otherdegree' | `term:${number}`;
 export const NON_DEGREE_CREDITS_MAX = 12;
+
+/** `otherdegree` (2026-10-04, policy review P2-ac-1-3-2): Academic Code §2.2 —
+ * "No more than nine credit hours of classes from any one master's degree may
+ * be counted toward any other graduate degree" (DGS Handbook §2.9: the same
+ * nine). For a student enrolled in two Notre Dame programs at once, the
+ * courses ticked as also counting toward the other degree. A Graduate School
+ * number, so it lives in code beside NON_DEGREE_CREDITS_MAX. */
+export const DUAL_DEGREE_SHARED_CREDITS_MAX = 9;
 
 /** `term:<termIndex>` (2026-10-03): Academic Code §3.8 "Maximal Registration"
  * — "During each semester of the academic year, a graduate student should not
@@ -675,6 +683,22 @@ export function classify(student: Student, rules: Rules, today?: string): {
         approvalPending: `Incomplete (I) past its deadline (about ${incompleteDue}) — it became an F unless the Graduate School extended it (Academic Code §4.4); the DGS confirms${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
       };
     };
+    // A dual-degree student's course that also counts toward the other
+    // program (Academic Code §2.2; DGS Handbook §2.9 — policy review
+    // 2026-10-04, P2-ac-1-3-2): at most nine such credits count here, and only
+    // once the Graduate School approved the dual plan of study. The row stays
+    // a registration for the semester's full-time count (Academic Code §3.5:
+    // registering "in either program" meets continuous enrollment).
+    const withSharedDegree = (cc: ClassifiedCourse): ClassifiedCourse => {
+      if (student.concurrentDegree !== true || c.sharedWithOtherDegree !== true || c.origin !== 'nd' || cc.ineligibleReason !== undefined) return cc;
+      if (student.attestations.dualPlanApproved === true) return { ...cc, caps: [...cc.caps, 'otherdegree'] };
+      return {
+        ...cc,
+        caps: [...cc.caps, 'otherdegree'],
+        tier: 'provisional',
+        approvalPending: `also counts toward your other degree — the Graduate School must approve your dual-degree plan of study (DGS Handbook §2.9)${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
+      };
+    };
     const withInterruption = (cc: ClassifiedCourse): ClassifiedCourse => {
       if (!interruptedCourse(c) || cc.ineligibleReason !== undefined) return cc;
       return {
@@ -684,7 +708,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
         approvalPending: `taken before an interruption of five years or more (readmitted ${termLabel(readmitted!)}) — Academic Code §5.5 forfeits the credit unless the DGS and the Graduate School rule otherwise${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
       };
     };
-    return withInterruption(withIncomplete(classifyOne(c, rule, grade, base)));
+    return withSharedDegree(withInterruption(withIncomplete(classifyOne(c, rule, grade, base))));
   });
 
   return { classified, warnings };
@@ -2045,13 +2069,19 @@ function buildExplanationText(
   // Grad Admin's processing (DGS 2026-09-07 — until then one line said both
   // "would count … once approved" and "pre-approved").
   const preApproved = cc.tier === 'provisional' && /^approved by the DGS/.test(cc.approvalPending ?? '');
+  // A dual-degree course whose only wait is the Graduate School's approval of
+  // the plan of study (DGS Handbook §2.9; 2026-10-04) names the Graduate
+  // School, not the DGS, as the one it waits for.
+  const graduateSchoolOnly = cc.tier === 'provisional' && /^also counts toward your other degree/.test(cc.approvalPending ?? '') && !(cc.approvalPending ?? '').includes('; ');
   const lead = preApproved
     ? 'approved by the DGS — will count'
-    : cc.tier === 'provisional'
-      ? 'waiting for the DGS — would count'
-      : cc.tier === 'in_progress'
-        ? 'in progress — will count'
-        : 'counts';
+    : graduateSchoolOnly
+      ? 'waiting for the Graduate School — would count'
+      : cc.tier === 'provisional'
+        ? 'waiting for the DGS — would count'
+        : cc.tier === 'in_progress'
+          ? 'in progress — will count'
+          : 'counts';
   const unlisted = /^not in the course rules yet/.test(cc.approvalPending ?? '');
   const tail = preApproved
     ? ' as transfer credit once the Grad Admin has recorded it'

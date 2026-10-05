@@ -517,9 +517,10 @@ export function capRow(args: {
   // What the number does not say on its own is explanation (DGS 2026-10-03).
   if (usage?.limit !== undefined) parts.push(...(args.extraDetail ?? []).map((note) => ({ note })));
   // What each course draws on this allowance (2026-09-22): the regular-course
-  // credits it counts, or every counted credit for a transfer cap.
+  // credits it counts, or every counted credit for a transfer cap and for the
+  // credits shared with another degree (2026-10-04).
   const contributions = courseContributions(args.ctx, (p) =>
-    p.course.caps.includes(args.capId) ? (args.capId === 'transfer' ? p.countedRegular + p.countedOther : p.countedRegular) : 0,
+    p.course.caps.includes(args.capId) ? (args.capId === 'transfer' || args.capId === 'otherdegree' ? p.countedRegular + p.countedOther : p.countedRegular) : 0,
   );
   return {
     id: args.id,

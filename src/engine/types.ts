@@ -62,6 +62,12 @@ export interface CourseEntry {
    * sheet says `yes` to needs no tick, and a course not in the sheet cannot
    * be settled by one (it goes to the DGS through the review request first). */
   dgsApproved?: true;
+  /** A Notre Dame course that ALSO counts toward the student's other degree
+   * program, for a student enrolled in two at once (Academic Code §2.2: "No
+   * more than nine credit hours of classes from any one master's degree may be
+   * counted toward any other graduate degree"; policy review 2026-10-04,
+   * P2-ac-1-3-2). Honoured only while `Student.concurrentDegree` is true. */
+  sharedWithOtherDegree?: true;
   /** True on every row the Notre Dame transcript import added (2026-09-06) —
    * program courses, pre-entry prior coursework and the transcript's own
    * transfer-credit block alike — so the "Remove" button next to that import
@@ -255,6 +261,11 @@ export interface Attestations {
    * term, as the student states it; the DGS confirms (policy review
    * 2026-10-04, P2-ac-6.2-app-7, P2-dh-3.14-3.20-27, P2-dh-10-10). */
   timeLimitExtendedThrough?: Term;
+  /** The Graduate School approved the student's plan of study for a dual
+   * (multiple) degree (DGS Handbook §2.9: "The plan must then be approved by
+   * the Graduate School"; policy review 2026-10-04, P2-ac-1-3-2). Until it is
+   * ticked, a course shared with the other degree waits for that approval. */
+  dualPlanApproved?: boolean;
   /** The student passed the qualifying examination under the requirements in
    * force when they took it — the rule changed several times in four years
    * (DGS 2026-09-21). Offered only to students in their third year or later;
@@ -421,6 +432,13 @@ export interface Student {
    * 2026-10-03); `true` routes them to the DGS inside the 12-credit limit,
    * `false` or unanswered leaves them refused with the reason. */
   ndNonDegree?: boolean;
+  /** Enrolled in a second Notre Dame degree program at the same time — a dual
+   * or multiple degree (Academic Code §2.2; DGS Handbook §2.9; policy review
+   * 2026-10-04, P2-ac-1-3-2). A rare case, asked under Your standing behind a
+   * selector; `true` offers each Notre Dame course the
+   * `sharedWithOtherDegree` tick, and at most nine credits of the ticked
+   * courses count toward this degree. */
+  concurrentDegree?: boolean;
   /** Set only by "Load example" (2026-09-08). The record is saved like any
    * other, so without a marker a student returning the next day cannot tell
    * the demo from their own work. Never written by a transcript import, and

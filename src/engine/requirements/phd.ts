@@ -13,7 +13,7 @@ import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo }
 import type { Ctx } from './context.ts';
 import { noteOf, capRow, clockShiftNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun } from './residency.ts';
-import { defendedBelowGpaNote, gpaText, msCandidacyApplicationRow } from './shared.ts';
+import { defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
 import { spentOnBachelorsAndMasters } from '../allocate.ts';
 
@@ -228,6 +228,12 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
       }),
     );
   }
+
+  // Academic Code §2.2's nine credits shared with a second Notre Dame
+  // degree the student is enrolled in at the same time (policy review
+  // 2026-10-04, P2-ac-1-3-2) — shown only when a course draws on it.
+  const otherDegree = otherDegreeCapRow(ctx, { id: 'phd.cap.otherdegree', group: ALLOWANCES });
+  if (otherDegree) rows.push(otherDegree);
 
   rows.push(transferRow(ctx, { id: 'phd.transfer', group: COURSEWORK, capKeyCompleted: 'phd_transfer_completed_ms_credits_max', section: '§4.2, §5.2' }));
   rows.push(residencyRow(ctx));

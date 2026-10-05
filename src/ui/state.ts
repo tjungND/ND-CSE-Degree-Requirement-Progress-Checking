@@ -172,6 +172,7 @@ function migrateExtensionBox(attestations: Record<string, unknown> | undefined):
   const n = attestations['qualifierExtensionSemesters'];
   if (n !== undefined && !(typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 20)) delete attestations['qualifierExtensionSemesters'];
   if (attestations['transferRecorded'] !== undefined && typeof attestations['transferRecorded'] !== 'boolean') delete attestations['transferRecorded'];
+  if (attestations['dualPlanApproved'] !== undefined && typeof attestations['dualPlanApproved'] !== 'boolean') delete attestations['dualPlanApproved'];
 }
 
 /** A small whole number of semesters (leaves, accommodations), or undefined. */
@@ -332,6 +333,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     if (e['transcriptMark'] !== undefined && (typeof e['transcriptMark'] !== 'string' || e['transcriptMark'].trim() === '')) delete e['transcriptMark']; // the mark as the transcript printed it
     if (e['countedToward'] !== undefined && !COUNTED_TOWARD.includes(e['countedToward'] as string)) delete e['countedToward'];
     if (e['dgsApproved'] !== undefined && e['dgsApproved'] !== true) delete e['dgsApproved']; // the DGS's approval of this course (2026-09-27)
+    if (e['sharedWithOtherDegree'] !== undefined && e['sharedWithOtherDegree'] !== true) delete e['sharedWithOtherDegree']; // also counts toward a second program (2026-10-04)
   });
   migrateApprovalBoxes(d as unknown as { courses: Record<string, unknown>[]; attestations?: Record<string, unknown> });
   migrateExtensionBox((d as { attestations?: Record<string, unknown> }).attestations);
@@ -392,6 +394,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     probationLetterDeadline:
       typeof raw['probationLetterDeadline'] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw['probationLetterDeadline']) ? raw['probationLetterDeadline'] : undefined,
     ...(typeof raw['ndNonDegree'] === 'boolean' ? { ndNonDegree: raw['ndNonDegree'] as boolean } : { ndNonDegree: undefined }),
+    concurrentDegree: raw['concurrentDegree'] === true ? true : undefined,
     milestones: validMilestones(d.milestones, refusals),
     attestations: validAttestationTerms(d.attestations),
     courses: d.courses,

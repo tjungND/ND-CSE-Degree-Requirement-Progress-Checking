@@ -1053,6 +1053,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     if (ftTerms) card.append(ftTerms);
     card.append(clockFields());
     card.append(probationField());
+    card.append(dualDegreeField());
     const nonDegree = nonDegreeQuestion(classified);
     if (nonDegree) card.append(nonDegree);
     return card;
@@ -1091,6 +1092,32 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           { class: 'hint field-hint' },
           'Only if you are on probation. The letter’s stipulations and its deadline govern — they can come before the deadlines on this page (the candidacy exam by the end of next semester, say), and missing them can lead to dismissal (Academic Code §5.8). Leave blank otherwise.',
         ),
+      ),
+    );
+  }
+
+  /** Enrolled in a second Notre Dame degree program at the same time (Academic
+   * Code §2.2; DGS Handbook §2.9 — policy review 2026-10-04, P2-ac-1-3-2): a
+   * rare case, behind a selector open once answered. A yes offers each Notre
+   * Dame course the "Also counts toward my other degree" tick. */
+  function dualDegreeField(): HTMLElement {
+    // Its own key, not an `attest.` one: a fact about the student, not an
+    // approval (and the a11y driver's focus check takes the first `attest.`).
+    const cb = el('input', {
+      type: 'checkbox',
+      'data-key': 'standing.concurrentDegree',
+      onchange: (e) => update((s) => void (s.concurrentDegree = (e.target as HTMLInputElement).checked ? true : undefined)),
+    }) as HTMLInputElement;
+    cb.checked = student.concurrentDegree === true;
+    return rareFold(
+      'dual-degree',
+      'Enrolled in a second Notre Dame degree program at the same time?',
+      student.concurrentDegree === true,
+      el('label', { class: 'attest' }, cb, ' I am enrolled in a second Notre Dame degree program at the same time — a dual degree (Academic Code §2.2)'),
+      el(
+        'p',
+        { class: 'hint field-hint' },
+        'Then tick “Also counts toward my other degree” on each course in Your coursework that the other program counts too. At most nine credits of those courses count toward this degree (Academic Code §2.2), once the Graduate School has approved your dual-degree plan of study (DGS Handbook §2.9).',
       ),
     );
   }
@@ -1996,6 +2023,25 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // the engine), so the label names the decider itself.
         countsCell.append(el('label', { class: 'attest course-approval' }, cb, ` The ${deciderTitle(student.program)} approved this course for me`));
       }
+      // A dual-degree student's course that also counts toward the other
+      // program (Academic Code §2.2; policy review 2026-10-04, P2-ac-1-3-2):
+      // offered only once the student said, under Your standing, that they are
+      // enrolled in two Notre Dame programs at the same time.
+      if (student.concurrentDegree === true && c.origin === 'nd') {
+        const shared = el('input', {
+          type: 'checkbox',
+          'data-key': `course.${index}.sharedWithOtherDegree`,
+          onchange: (e) =>
+            update((s) => {
+              const entry = s.courses[index];
+              if (!entry) return;
+              if ((e.target as HTMLInputElement).checked) entry.sharedWithOtherDegree = true;
+              else delete entry.sharedWithOtherDegree;
+            }),
+        }) as HTMLInputElement;
+        shared.checked = c.sharedWithOtherDegree === true;
+        countsCell.append(el('label', { class: 'attest course-approval' }, shared, ' Also counts toward my other degree'));
+      }
       const rowChoices = rule ? groupsOf(rule, rules) : [];
       if (rowChoices.length > 1 && student.program === 'phd') {
         const sel = el('select', {
@@ -2448,6 +2494,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ),
       ),
     );
+    // The Graduate School's approval of a dual-degree plan of study (DGS
+    // Handbook §2.9; policy review 2026-10-04, P2-ac-1-3-2) — shown only to a
+    // student who said they are in two programs at once.
+    if (student.concurrentDegree === true || a.dualPlanApproved === true) {
+      card.append(attestation('The Graduate School approved my dual-degree plan of study (DGS Handbook §2.9)', a.dualPlanApproved, (v, s) => (s.attestations.dualPlanApproved = v)));
+    }
     // §5.2 criterion 5 — the Graduate School's approval — recorded here once
     // the Grad Admin has processed the transfer (policy review 2026-10-03);
     // shown only while the record has transfer courses.

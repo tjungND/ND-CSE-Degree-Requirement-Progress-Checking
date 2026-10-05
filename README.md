@@ -164,6 +164,7 @@ a DGS cannot change them, and a sheet row would suggest otherwise (DGS rulings 2
 | At most **15** credits of graduate courses in a fall or spring, **10** in a summer | Academic Code §3.8; DGS Handbook §3.9 | `SEMESTER_GRADUATE_CREDITS_MAX`, `SUMMER_CREDITS_MAX`, `src/engine/allocate.ts` |
 | At least **3** graduate-level credits in a full-time semester | Academic Code §4.1 | `GRADUATE_LEVEL_CREDITS_MIN`, `src/engine/requirements/residency.ts` |
 | At most **12** credits earned in non-degree status | Academic Code §2.3 | `NON_DEGREE_CREDITS_MAX`, `src/engine/allocate.ts` |
+| At most **9** credits shared with another degree the student is enrolled in at the same time | Academic Code §2.2; DGS Handbook §2.9 | `DUAL_DEGREE_SHARED_CREDITS_MAX`, `src/engine/allocate.ts` |
 | An Incomplete becomes an F **30 + 14** days after grades are due | Academic Code §4.4 | `INCOMPLETE_GRACE_DAYS`, `src/engine/allocate.ts` |
 | A grade of **C** or better for credit | Academic Code §4.3 | `passesCreditFloor`, `src/engine/grades.ts` |
 | The **6** credits of §3.5's note on courses shared with a bachelor's degree | the Graduate School | `src/engine/tracks.ts` |
