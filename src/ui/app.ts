@@ -2589,10 +2589,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     }
     // The semester of graduation (DGS Handbook §3.23.1; Academic Code §3.7 —
     // policy review 2026-10-04, P2-dh-3.21-3.24-24): optional; the report
-    // checks that a course of at least one credit is entered for it.
-    card.append(
-      termPicker('milestone.graduationTerm', 'Semester you plan to graduate in (optional)', student.graduationTerm, ['fall', 'spring', 'summer'], (t) => update((s) => void (s.graduationTerm = t))),
-    );
+    // checks that a course of at least one credit is entered for it. Asked
+    // once graduation is in sight (DGS 2026-10-05: "Let's show it only when it
+    // matters"), or when a semester is already on file.
+    if (report.graduationInSight || student.graduationTerm) {
+      card.append(
+        termPicker('milestone.graduationTerm', 'Semester you plan to graduate in (optional)', student.graduationTerm, ['fall', 'spring', 'summer'], (t) => update((s) => void (s.graduationTerm = t))),
+      );
+    }
 
     card.append(el('h2', { class: 'mt' }, 'Approvals you already have'));
     card.append(

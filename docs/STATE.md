@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-05 (DGS — display): “Semester you plan to graduate in (optional)” is asked only once graduation is in sight (`graduationInSight`, audit.ts). For a Ph.D. student that is once the OCE is passed (or a later milestone is dated); for an MSCSE student, once the credits complete or in progress reach 30. It is always shown when a semester is on file. No new wording.
+
 2026-10-05 (DGS — display): the student’s warnings float in the window’s corner while scrolling (`.warnings.floating`, report.ts), open until folded; folded stays folded until the warnings change. Embedded and printed, the box stays in the page.
 
 2026-10-05 (DGS — display): the “CSE §” chips beside card and section headings on both pages show the handbook’s own text on hover, click or Enter (`sectionRef`, src/ui/section-ref.ts). The text is generated from the PDF by `npm run handbook-text` into src/ui/handbook-text.ts, and the tests check it against the PDF’s SHA-256. Wording W-CL158.

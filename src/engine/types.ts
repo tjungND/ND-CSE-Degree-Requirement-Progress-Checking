@@ -670,4 +670,9 @@ export interface AuditReport {
    * course of at least one credit (any credit in a summer) is entered for it
    * (Academic Code §3.7; DGS Handbook §3.23.1 — 2026-10-04). */
   graduation?: { term: Term; registeredCredits: number; registered: boolean };
+  /** Graduation is in sight, so the page asks the semester (DGS 2026-10-05:
+   * "Let's show it only when it matters"): a Ph.D. student once the OCE is
+   * passed, an MSCSE student once the total credits are complete or in
+   * progress. */
+  graduationInSight?: true;
 }

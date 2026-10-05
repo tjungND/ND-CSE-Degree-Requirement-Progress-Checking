@@ -284,3 +284,22 @@ describe('registration in the semester of the defense (DGS Handbook §8.2.5)', (
     assert.match(audit(s, rules, '2030-06-01').requirements.find((r) => r.id === 'ms.thesis.defense')!.detail, NOTE);
   });
 });
+
+// The semester of graduation is asked only once graduation is in sight (DGS
+// 2026-10-05: "Let's show it only when it matters").
+describe('when the page asks the semester of graduation', () => {
+  it('Ph.D.: once the OCE is passed', () => {
+    const s = phdStudent({ entryTerm: fall(2025) });
+    assert.equal(audit(s, rules, '2026-10-05').graduationInSight, undefined);
+    assert.equal(audit({ ...s, milestones: { candidacyPassed: '2028-04-01' } }, rules, '2028-05-01').graduationInSight, true);
+  });
+
+  it('MSCSE: once the total credits are complete or in progress', () => {
+    const terms = [fall(2025), spring(2026), fall(2026), spring(2027)];
+    // 8 regular courses = 24 credits; the project's 6 make 30.
+    const courses = REGULAR.map((id, i) => ndCourse(id, { term: terms[Math.floor(i / 2)]! }));
+    assert.equal(audit(ms({ courses }), rules, '2027-03-01').graduationInSight, undefined);
+    const withProject = [...courses, ndCourse('CSE 68902', { term: spring(2027), credits: 6, grade: 'IP' })];
+    assert.equal(audit(ms({ courses: withProject }), rules, '2027-03-01').graduationInSight, true);
+  });
+});

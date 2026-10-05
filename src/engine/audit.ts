@@ -600,6 +600,17 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     }
   }
 
+  // When the semester of graduation is worth asking (DGS 2026-10-05: "Let's
+  // show it only when it matters"): the Ph.D. once the OCE is passed — the
+  // dissertation is what is left — and the MSCSE once its total credits are
+  // complete or in progress.
+  const m = student.milestones;
+  const msTotal = params.number('ms_total_credits_min');
+  const graduationInSight =
+    student.program === 'phd'
+      ? !!(m.candidacyPassed || m.candidacyAdmitted || m.defensePassed || m.dissertationSubmitted)
+      : msTotal !== undefined && ctx.alloc.total.definite + ctx.alloc.total.in_progress >= msTotal;
+
   // The degree's decider, said once at the boundary (2026-09-11): for an
   // MSCSE student every "DGS" in what follows is the ADGS. Handbook quotes
   // (`citation`) are left as written.
@@ -616,5 +627,6 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     // The MSCSE's summer-session sentence names the decider (2026-10-04).
     milestoneDeadlines: decisionWordingDeep(p, milestoneDeadlines),
     ...(graduation !== undefined ? { graduation } : {}),
+    ...(graduationInSight ? { graduationInSight: true as const } : {}),
   };
 }
