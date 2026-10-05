@@ -37,21 +37,6 @@ export const RULES_ACCURACY_NOTICE =
   'The course rules are accurate: they are exactly the rules the DGS and the Grad Admin ' +
   'use to determine requirement satisfaction.';
 
-/** Which student situations the tool does not model yet (DGS wording,
- * 2026-09-05). Shown in the alpha banner, the footer and the copied summary
- * (via BETA_SCOPE_NOTICE) — no longer in the opening notice, at the DGS's
- * request later on 2026-09-05. Keep the examples in step with the engine:
- * they changed the same day, when combined transcripts (4+1 / 5+1 BS-MS, a BS
- * and an MS at one institution, an earlier Notre Dame degree on the Notre
- * Dame transcript) gained a per-row level and an entry-term reading — those
- * cases are now handled, best-effort, with every row for the student to
- * check. Recast without its doubled phrases in the trim review (2026-09-18,
- * P-39), overruling the DGS's 2026-09-05 wording; every clause of substance
- * kept in order. */
-export const COVERAGE_NOTICE =
-  'Not all cases are covered yet, for example transcripts whose layout the parser has not seen, ' +
-  'or a combined BS/MS record that does not tell its undergraduate and graduate courses apart.';
-
 // The privacy line's measurement record — NOT rendered anywhere (the notice
 // strip and the footer in app.ts carry the W-P1 sentence in their own text;
 // the strip's one-line alpha version, ALPHA_LINE, was retired with the two-strip
@@ -70,11 +55,14 @@ export const PRIVACY_LINE =
  * covers (PDF-parsing caveat added at the DGS's request, 2026-09-04; the
  * coverage caveat 2026-09-05). "under development and still highly inaccurate"
  * said one thing twice — recast in the trim review (2026-09-18, P-39), which
- * overrules the 2026-09-04 PDF-caveat wording and the 2026-09-05 COVERAGE_NOTICE. */
+ * overrules the 2026-09-04 PDF-caveat wording; the coverage caveat it carried was
+ * removed by the DGS on 2026-10-04. */
+// The coverage caveat ("Not all cases are covered yet, for example …") was
+// removed at the DGS's request on 2026-10-04.
 export const BETA_SCOPE_NOTICE =
   'Only this tool’s application of them is still being tested — in particular the transcript-PDF ' +
   'import, still highly inaccurate: check every imported course against ' +
-  `your actual transcript. ${COVERAGE_NOTICE}`;
+  'your actual transcript.';
 
 /** The dated line under each page's title — two dates, one sentence (DGS wording,
  *  2026-09-01): "The course rules here were last updated on <X>, and are up-to-date

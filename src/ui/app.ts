@@ -2851,12 +2851,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'div',
         { class: 'legal-scope' },
         el('h2', { class: 'legal-head' }, 'This is a self-check, not an official audit'),
+        // Brought up to date on 2026-10-04 (DGS: "Not only CSE Grad Studies
+        // Handbook was used. For GS academic code and DGS handbook, links are
+        // not necessary"): the policy-compliance review added the Graduate
+        // School's rules, and the facts the page now routes to the DGS.
         student.program === 'mscse' ? 'It applies Section 3 of the ' : 'It applies Section 4 of the ',
         handbookLink(),
         // Who decides and who processes is on the Grad Admin card, in the
         // glossary and in the contact card right below; the footer keeps its
         // one imperative (trim review 2026-09-18, P-21).
-        '. Some requirements depend on approvals this page cannot see: advisor and DGS sign-off, transfer-credit recommendations, and Graduate School deadlines. Deadlines are shown by semester and are approximate; the registrar’s calendar sets the exact dates. Confirm with the DGS before you rely on this self-check.',
+        ', together with the Graduate School’s rules in its Academic Code, its DGS Handbook and its 4+1 guidance. Some requirements rest on approvals and facts this page cannot see — advisor and DGS sign-off, transfer-credit recommendations, Graduate School approvals and extensions, and what you state yourself, such as your advisor’s faculty status, a leave or a readmission, or a probation letter — so those are sent to the DGS rather than decided here. Deadlines are shown by semester and are approximate; the Graduate School calendar sets the exact dates. Confirm with the DGS before you rely on this self-check.',
       ),
       // No alpha paragraph in the footer (DGS 2026-09-19, trim proposal P-3):
       // it was word for word the red strip's Details at the top of the page.
