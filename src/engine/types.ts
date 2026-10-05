@@ -496,12 +496,15 @@ export interface DeadlineInfo extends ApproxDate {
 /** One statement of a requirement row's detail. A plain string is a FACT —
  * where the student stands, what satisfies the row by what. `{ note }` is
  * EXPLANATION — the rule, a reason, a next step, a Graduate School form —
- * which the page folds behind the card's "Details" selector (DGS 2026-10-03:
+ * which the page folds behind the card's "Relevant Policies" selector (DGS 2026-10-03:
  * "In those cards, only need to show what are satisfied by what. Other
  * supplementary explanation all need to be hidden with selectors. Apply this
  * to future changes too"). Every kind is plain text in `detail` and in the
  * copied messages. */
-export type DetailPart = string | { lead: string; items: string[] } | { warn: string } | { note: string };
+/** `fold` (2026-10-04, DGS: hide the specialization card's course list "with a
+ * selector"): the card shows the lead and puts the items behind a selector
+ * with this text; the copied messages are unchanged. */
+export type DetailPart = string | { lead: string; items: string[]; fold?: string } | { warn: string } | { note: string };
 
 export interface Contribution {
   courseId: string;
@@ -528,6 +531,12 @@ export interface RequirementResult {
    * list too. Everything else (feeds, emails, the qualifier's own logic) is
    * unchanged. */
   unscored?: true;
+  /** Shown INSIDE another row's card, not as a card of its own (DGS
+   * 2026-10-04: the RCR training and the OCE "seem to overlap" with admission
+   * to candidacy — "Can they be merged into one card?"). The row stays in the
+   * report for the emails and the milestone dates; it is unscored, and the
+   * parent's card carries its facts and notes. */
+  mergedInto?: string;
   /** An allowance — §3.2 / §4.2's caps, §3.5's shared credits — not a
    * requirement (DGS 2026-09-27): drawn as a meter with no pill, in its own
    * group, never counted in the headline. */

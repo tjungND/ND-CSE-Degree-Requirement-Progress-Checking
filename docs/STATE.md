@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-04 (DGS — display): Your standing’s full-time and leave selectors follow the Notre Dame transcript when one is imported (a missed semester is named; otherwise only the accommodation is asked). Cards’ “Details” is now “Relevant Policies”. The specialization card folds its course list while open. The OCE and RCR are merged into the admission-to-candidacy card (`mergedInto`, unscored). P2-ac-5b-6.1-1 and P2-ac-5a-5 ignored (DGS: handled outside the app). Tests in tests/candidacy-admission.test.ts. Wording W-CL144–W-CL147.
+
 2026-10-04 (policy review, DGS — engine): P2-ac-5a-3 (a leave note on the Ph.D. residency row, plus a review-request line), P2-ac-5b-6.1-15 and P2-dh-3.21-3.24-23 (MSCSE `ms.thesis.submitted` row and `thesisSubmitted` milestone, Academic Code §6.1.8), P2-ac-5b-6.1-2 (`shared.goodStanding` while on probation, Academic Code §5.7.1). Scenarios phd-leave-inside-residency-run and mscse-on-probation-good-standing; the thesis fixtures now carry a submission date. Wording W-CL140–W-CL143.
 
 2026-10-04 (policy review, DGS — notes): P2-dh-4-5-1 applied with the DGS’s change. The Ph.D. eight-year row names the funding consequence, “graduate enrollment at Notre Dame of fewer than eight years” (DGS Handbook §4.1), once the limit is due soon or past. For a record with a Notre Dame MSCSE it always says whether those years count is the Graduate School’s call. No status changes. Scenario phd-nd-mscse-funding-years; tests in tests/readers-summer-tuition.test.ts. Wording W-CL138–W-CL139.

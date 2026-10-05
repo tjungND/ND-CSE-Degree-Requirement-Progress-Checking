@@ -106,7 +106,7 @@ export async function driveApp(s, baseUrl) {
 
   // A disclosure the student opened survives the next edit (2026-09-08):
   // render() rebuilds the DOM. Since 2026-10-03 the disclosure is a card's
-  // "Details" (the rule, the reasons, the next steps — DGS: the card shows
+  // "Relevant Policies" (was "Details" until 2026-10-04; the rule, the reasons, the next steps — DGS: the card shows
   // only what is satisfied by what). The edit is a harmless full-time-term
   // tick, put back straight afterwards.
   await s.evalJs(`document.querySelector('details.req-more > summary')?.click()`);

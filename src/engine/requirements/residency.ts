@@ -159,7 +159,7 @@ export function belowGraduateLevelTerms(records: FullTimeTermRecord[], floor: nu
 }
 
 /** What a residency row says about those semesters: the terms as the fact,
- * the rule as a note (DGS 2026-10-03: explanations behind "Details"). */
+ * the rule as a note (DGS 2026-10-03: explanations behind "Relevant Policies"). */
 export function graduateLevelParts(records: FullTimeTermRecord[], floor: number | undefined): DetailPart[] {
   const terms = belowGraduateLevelTerms(records, floor).map((r) => termLabel(r.term));
   if (terms.length === 0) return [];

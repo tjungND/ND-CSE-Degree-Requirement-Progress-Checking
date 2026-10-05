@@ -1132,6 +1132,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
+  /** The falls and springs a Notre Dame transcript shows no registration in —
+   * strictly between the first and the last semester with a Notre Dame course
+   * from the entry term on. Undefined when no Notre Dame transcript was
+   * imported: a hand-entered record may leave a research-only semester empty,
+   * so nothing is read into an empty semester there (2026-10-04). */
+  function transcriptGaps(): Term[] | undefined {
+    if (!student.courses.some((c) => c.fromNdTranscript)) return undefined;
+    const entry = normalizeEntryTerm(student.entryTerm).term;
+    const seqs = new Set(student.courses.filter((c) => c.origin === 'nd' && c.term.season !== 'summer' && termIndex(c.term) >= termIndex(entry)).map((c) => semesterSeq(c.term)));
+    if (seqs.size === 0) return [];
+    const first = Math.min(...seqs);
+    const last = Math.max(...seqs);
+    const out: Term[] = [];
+    for (let seq = first + 1; seq < last; seq++) if (!seqs.has(seq)) out.push({ season: seq % 2 === 1 ? 'fall' : 'spring', year: Math.floor(seq / 2) });
+    return out;
+  }
+
   function clockFields(): HTMLElement {
     const phd = student.program === 'phd';
     const count = (key: 'leaveSemesters' | 'accommodationSemesters', label: string, hint: string): HTMLElement => {
@@ -1170,15 +1187,30 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     });
     // Uncommon: behind a selector, open once anything in it is set (DGS 2026-10-03).
     const answered = (student.leaveSemesters ?? 0) > 0 || (student.accommodationSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
+    // Read from the Notre Dame transcript (DGS 2026-10-04: shown "only when
+    // they are applicable according to the transcript"): a leave, a
+    // withdrawal or a missed semester leaves a fall or spring with no
+    // registration between the first and the last semester on it. None, and
+    // only the childbirth or adoption accommodation is asked — a transcript
+    // does not show that. Without a transcript, or with an answer on file,
+    // everything is asked as before.
+    const gaps = transcriptGaps();
+    const leaveAsked = gaps === undefined || gaps.length > 0 || (student.leaveSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
+    const summary =
+      gaps !== undefined && gaps.length > 0
+        ? `Your transcript shows no registration in ${gaps.map(termLabel).join(', ')} — a leave of absence, a withdrawal or a missed semester?`
+        : leaveAsked
+          ? 'A leave of absence, a childbirth or adoption accommodation, or a readmission?'
+          : 'A childbirth or adoption accommodation?';
     return rareFold(
       'clocks',
-      'A leave of absence, a childbirth or adoption accommodation, or a readmission?',
+      summary,
       answered,
       el(
       'fieldset',
       { class: 'ft-terms clock-fields' },
-      el('legend', { class: 'label' }, `Leaves, accommodations and readmission (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
-      count(
+      el('legend', { class: 'label' }, `${leaveAsked ? 'Leaves, accommodations and readmission' : 'Childbirth or adoption accommodation'} (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
+      !leaveAsked ? null : count(
         'leaveSemesters',
         'Semesters on an approved leave of absence',
         `Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves ${phd ? 'the eight-year limit (§4.3) and the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3)' : 'the five-year limit (§3.3)'} out by a semester (DGS Handbook §3.4, §3.7.2). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).`,
@@ -1188,7 +1220,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'Childbirth or adoption accommodation semesters',
         `Semesters of the Graduate School’s childbirth and adoption accommodation (Academic Code §5.4): each extends ${phd ? 'the eight-year limit and the eighth-semester deadlines for the OCE and for admission to candidacy' : 'the five-year limit'} by a semester (DGS Handbook §3.7.2).`,
       ),
-      el(
+      !leaveAsked ? null : el(
         'div',
         { class: 'field' },
         el('span', { class: 'label' }, 'Readmitted after a withdrawal or a missed semester — semester (leave blank if it does not apply)'),
@@ -1316,9 +1348,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // they break a residency run, so they are shown, highlighted, and open the
     // selector by themselves.
     let partTimeCount = 0;
+    // With a Notre Dame transcript imported (DGS 2026-10-04: "If any of these
+    // can be inferred from the transcripts, can they be shown only when they
+    // are applicable according to the transcript?"), a semester the record has
+    // no Notre Dame course for was not registered — research shows on the
+    // transcript as a course — so it is not offered for a full-time tick; the
+    // leave and readmission question names it instead (clockFields).
+    const ndImported = student.courses.some((c) => c.fromNdTranscript);
+    let listed = 0;
+    let emptyUnticked = 0;
     for (const [key, t] of [...terms.entries()].sort((a, b) => a[0] - b[0])) {
       const rec = records.get(key);
       const overridden = (student.fullTimeTermOverrides ?? []).some((o) => termIndex(o) === key);
+      if (ndImported && rec === undefined && !overridden) continue;
+      listed += 1;
+      if (rec === undefined && !overridden) emptyUnticked += 1;
       const auto = rec !== undefined && rec.fullTime && !overridden;
       if (overridden) tickedCount += 1;
       if (auto) {
@@ -1371,9 +1415,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // The common case is every semester counted from the courses entered; the
     // list, and its ticks for a research-only semester, sit behind a selector
     // that says how many counted (DGS 2026-10-03). Open once a tick is on file.
+    // Shown only when there is something to act on (DGS 2026-10-04): a
+    // semester not full-time, a tick on file, or an empty semester that may
+    // have been research only. Every semester counted from the courses needs
+    // nothing here — the residency row says so.
+    if (listed === 0 || (partTimeCount === 0 && tickedCount === 0 && emptyUnticked === 0)) return null;
     return rareFold(
       'fulltime',
-      `Full-time semesters for residency: ${autoCount} of ${terms.size} counted from your courses${tickedCount > 0 ? `, ${tickedCount} ticked by you` : ''}${partTimeCount > 0 ? `, ${partTimeCount} not full-time` : ''}`,
+      `Full-time semesters for residency: ${autoCount} of ${listed} counted from your courses${tickedCount > 0 ? `, ${tickedCount} ticked by you` : ''}${partTimeCount > 0 ? `, ${partTimeCount} not full-time` : ''}`,
       tickedCount > 0 || partTimeCount > 0,
       box,
     );

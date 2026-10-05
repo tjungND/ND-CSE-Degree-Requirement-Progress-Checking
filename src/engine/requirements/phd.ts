@@ -261,9 +261,16 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     rows.push(qualifierUmbrellaRow(ctx, dated, rows.find((r) => r.id === 'phd.credits.nd'), qualifierDue));
     rows.push(...dated);
   }
-  rows.push(rcrRow(ctx));
-  rows.push(candidacyRow(ctx));
-  rows.push(candidacyAdmissionRow(ctx));
+  // One card for the three (DGS 2026-10-04: "These seem to overlap. Can they
+  // be merged into one card?"): admission to candidacy lists the OCE and the
+  // RCR training among its conditions, so their rows are kept — the emails
+  // and the milestone dates read them — but shown inside the admission card
+  // and not counted on their own.
+  const rcr = rcrRow(ctx);
+  const oce = candidacyRow(ctx);
+  rows.push({ ...rcr, unscored: true, mergedInto: 'phd.candidacyAdmission' });
+  rows.push({ ...oce, unscored: true, mergedInto: 'phd.candidacyAdmission' });
+  rows.push(candidacyAdmissionRow(ctx, { oce, rcr }));
   rows.push(...dissertationRows(ctx));
   // §4.5's MSCSE cannot be earned twice. A Ph.D. student who already holds the
   // Notre Dame MSCSE (their master's before this program) has no along-the-way
@@ -849,7 +856,10 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       return g ? `${head}${flex} — in progress; counts with a ${floor} or higher` : `${head} — in progress; that group is already covered`;
     };
     const items = (short: boolean) => [...qualifying.map((c) => item(short, c, true)), ...inProgress.map((c) => item(short, c, false))];
-    const withItems = (lead: string) => (qualifying.length + inProgress.length > 0 ? add({ lead, items: items(false) }, { lead, items: items(true) }) : add(lead));
+    // The course-by-course list behind a selector on the card (DGS
+    // 2026-10-04: "hide these details with a selector"); the lead stays.
+    const fold = `Which course fills which group (${qualifying.length + inProgress.length})`;
+    const withItems = (lead: string) => (qualifying.length + inProgress.length > 0 ? add({ lead, items: items(false), fold }, { lead, items: items(true), fold }) : add(lead));
     if (combined.distinctCount >= groupsReq && qualifying.length + inProgress.length >= coursesReq) {
       status = 'in_progress';
       // How many of the courses in progress are needed — the ones the matching
@@ -1240,7 +1250,7 @@ const ADMISSION_FULL_TIME_SEMESTERS = 4;
  * before the OCE's goes to the DGS. A record whose dissertation milestones
  * are dated but whose admission is not is missing a date — no "apply now",
  * no probation (review of the split, 2026-10-04). */
-function candidacyAdmissionRow(ctx: Ctx): RequirementResult {
+function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: RequirementResult }): RequirementResult {
   const quote =
     'To qualify for admission to doctoral candidacy, a student must: be in a doctoral program, complete the program coursework and language requirements with a cumulative G.P.A. of 3.0 or better, pass the written and oral parts of the doctoral candidacy examination, and have the dissertation proposal approved (if this is not part of the candidacy exam).';
   const citation = { section: 'Academic Code §6.2.9', quote };
@@ -1294,7 +1304,10 @@ function candidacyAdmissionRow(ctx: Ctx): RequirementResult {
     // The conditions, each with where the record stands (the facts), in the
     // order a student meets them.
     const conditions: { text: string; done: boolean }[] = [];
-    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}` : 'not yet'}`, done: !!m.candidacyPassed });
+    // The OCE's own deadline (§4.5, the sheet's semester) beside it when it is
+    // not the admission's — the card is the OCE's too since 2026-10-04.
+    const oceDue = !m.candidacyPassed && merged.oce.deadline && merged.oce.deadline.date !== date ? ` — ${merged.oce.deadline.label.charAt(0).toLowerCase()}${merged.oce.deadline.label.slice(1)}` : '';
+    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}` : `not yet${oceDue}`}`, done: !!m.candidacyPassed });
     const floor = ctx.params.number('fulltime_credits_min');
     if (floor === undefined) conditions.push({ text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: cannot be checked — the rules sheet is missing 'fulltime_credits_min'`, done: false });
     else {
@@ -1340,13 +1353,31 @@ function candidacyAdmissionRow(ctx: Ctx): RequirementResult {
       });
   }
   parts.push(...eighthSemesterNotes(ctx, sem, effectiveSem, r.status !== 'met', 'admission'));
+  // The merged card (DGS 2026-10-04): the OCE's and the RCR training's own
+  // facts and notes, where they add something. Their status shows here only
+  // when the OCE needs attention the admission row would not show: overdue
+  // against its own (sheet) deadline, or a missing date or parameter.
+  const isNote = (p: DetailPart): p is { note: string } => typeof p === 'object' && 'note' in p;
+  const oceParts = merged.oce.detailParts ?? (merged.oce.detail ? [merged.oce.detail] : []);
+  const oceNotes = oceParts.filter(isNote).filter((p) => !/^(Passing the Oral Candidacy Exam \(OCE\) is one of the conditions|Semesters are counted from|Semester \d+ is counted as)/.test(p.note));
+  const rcrNotes = (merged.rcr.detailParts ?? []).filter(isNote);
+  let deadline = r.deadline;
+  if (merged.oce.status === 'cannot_evaluate') {
+    parts.push(`Oral Candidacy Exam (OCE): ${(oceParts.find((p): p is string => typeof p === 'string') ?? merged.oce.detail).replace(/\.$/, '')}`);
+    if (!admitted) status = 'cannot_evaluate';
+  } else if (!admitted && merged.oce.status === 'unmet' && merged.oce.deadline?.state === 'overdue' && status !== 'unmet') {
+    status = 'unmet';
+    deadline = merged.oce.deadline;
+  }
+  if (!admitted || merged.oce.status !== 'met') parts.push(...oceNotes.map((n) => ({ note: `Oral Candidacy Exam (OCE): ${n.note}` })));
+  if (!admitted) parts.push(...rcrNotes);
   return {
     ...base,
     status,
     // Late is the only question: done, for the eight-year row (2026-10-04).
     ...(completedLate ? { completedLate: true as const } : {}),
     ...joinedDetail(parts),
-    deadline: r.deadline,
+    deadline,
     citation,
   };
 }

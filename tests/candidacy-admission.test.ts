@@ -198,3 +198,40 @@ describe('the eighth semester', () => {
     assert.equal(admission.deadline?.label, 'Due by the end of Fall 2030 — semester 9 (approximate)');
   });
 });
+
+// One card for the OCE, the RCR training and admission to candidacy (DGS
+// 2026-10-04: "These seem to overlap. Can they be merged into one card?").
+describe('the merged candidacy card', () => {
+  const rulesM = buildRules();
+  const reqs = (s: Student, today: string, r = rulesM) => audit(s, r, today).requirements;
+  const s = phdStudent({ entryTerm: { season: 'fall', year: 2026 } });
+
+  it('the OCE and RCR rows are kept, unscored and shown inside the admission card', () => {
+    const r = reqs(s, '2027-03-01');
+    for (const id of ['phd.candidacy', 'phd.rcr']) {
+      const row = r.find((x) => x.id === id)!;
+      assert.equal(row.mergedInto, 'phd.candidacyAdmission', id);
+      assert.equal(row.unscored, true, id);
+    }
+    const admission = r.find((x) => x.id === 'phd.candidacyAdmission')!;
+    assert.match(admission.detail, /Responsible Conduct of Research training: not yet/);
+    assert.match(admission.detail, /Complete the Graduate School’s Responsible Conduct of Research and ethics training modules/);
+  });
+
+  it('an OCE deadline earlier than the admission’s shows on the OCE line, and an overdue OCE makes the card Overdue', () => {
+    const early = buildRules({ parameters: { candidacy_deadline_semester: '6' } });
+    const open = reqs(s, '2027-03-01', early).find((x) => x.id === 'phd.candidacyAdmission')!;
+    assert.match(open.detail, /Oral Candidacy Exam \(OCE\): not yet — due by the end of Spring 2029 — semester 6 \(approximate\)/);
+    const late = reqs(s, '2029-09-01', early).find((x) => x.id === 'phd.candidacyAdmission')!;
+    assert.equal(late.status, 'unmet');
+    assert.equal(late.deadline!.state, 'overdue');
+    assert.match(late.detail, /Oral Candidacy Exam \(OCE\): Overdue — the Graduate School places a student who has not passed the candidacy exam/);
+  });
+
+  it('a missing OCE parameter is said on the card, which cannot be evaluated', () => {
+    const missing = buildRules({ parameters: { candidacy_deadline_semester: null } });
+    const card = reqs(s, '2027-03-01', missing).find((x) => x.id === 'phd.candidacyAdmission')!;
+    assert.equal(card.status, 'cannot_evaluate');
+    assert.match(card.detail, /Oral Candidacy Exam \(OCE\): .*candidacy_deadline_semester/);
+  });
+});

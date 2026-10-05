@@ -289,7 +289,7 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // supplementary explanation all need to be hidden with selectors. Apply
   // this to future changes too."). Visible: the title, the status, the
   // deadline, the row's facts without their citations, and the courses
-  // counted. Behind "Details": the engine's notes (rule, reason, next step,
+  // counted. Behind "Relevant Policies" (was "Details" until 2026-10-04): the engine's notes (rule, reason, next step,
   // Graduate School forms), the course-list link and the rule quote with its
   // source. The § chip that used to sit after the title lives there too.
   const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title), pill);
@@ -326,7 +326,22 @@ function requirementCard(r: RequirementResult): HTMLElement {
                   ? el('li', { class: 'detail-warn' }, fact(p.warn))
                   : 'note' in p
                     ? null
-                    : el('li', {}, `${withoutCitations(p.lead)}:`, el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, fact(i))))),
+                    : p.fold
+                      ? // The items behind a selector (DGS 2026-10-04: the
+                        // specialization card's course list); the data-key
+                        // keeps it open across re-renders.
+                        el(
+                          'li',
+                          {},
+                          fact(p.lead),
+                          el(
+                            'details',
+                            { class: 'detail-fold', 'data-key': `fold.${r.id}` },
+                            el('summary', {}, p.fold),
+                            el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, fact(i)))),
+                          ),
+                        )
+                      : el('li', {}, `${withoutCitations(p.lead)}:`, el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, fact(i))))),
             ),
           )
         : el('div', { class: 'req-detail' }, factText.join(' '));
@@ -357,7 +372,8 @@ function requirementCard(r: RequirementResult): HTMLElement {
   const more = el(
     'details',
     { class: 'req-more', 'data-key': `more.${r.id}` },
-    el('summary', {}, 'Details'),
+    // "Relevant Policies" since 2026-10-04 (DGS: change the wording "Details").
+    el('summary', {}, 'Relevant Policies'),
     notes.length > 0 ? el('ul', { class: 'req-notes' }, ...notes.map((n) => el('li', {}, sentence(n)))) : null,
     courseLink ?? null,
     // A row that states its rule in a note carries no quote (phd.ts, the
@@ -526,7 +542,11 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
     // card's Details now (DGS 2026-10-03). The copied messages keep it.
     panel.append(el('h3', { class: 'group-head' }, group.replace(/ — (?:§|Academic Code|DGS Handbook).*$/, '')));
     for (const r of rows) {
+      // Shown inside its parent's card (DGS 2026-10-04): no card of its own,
+      // but its anchor lands on the parent so a link to it still arrives.
+      if (r.mergedInto) continue;
       const card = requirementCard(r);
+      for (const child of report.requirements.filter((x) => x.mergedInto === r.id)) card.prepend(el('span', { id: reqAnchorId(child.id), class: 'merged-anchor' }));
       if (sub.includes(r)) card.classList.add('req-sub');
       panel.append(card);
     }

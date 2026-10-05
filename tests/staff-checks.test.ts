@@ -84,7 +84,8 @@ describe('the review and processing requests carry the checks for a student’s 
     assert.match(text, /\n- ECE 4804 \(Georgia Institute of Technology\): the course rules let it transfer, but its number looks like an undergraduate course/);
     assert.match(text, /\n- CS 8903 \(Georgia Institute of Technology\) “Special Problems”: the course rules let it transfer, and it counts toward the regular-course credits, but its title suggests independent study, research or a seminar, which are not regular courses \(§4\.2\)\./);
     // The Graduate School's own rows keep their section (it printed "()" until 2026-10-04).
-    assert.match(text, /\[IN PROGRESS\] Responsible Conduct of Research and ethics training complete \(Academic Code §6\.2\.4\)\n/);
+    // (The RCR training's own line merged into admission to candidacy on 2026-10-04.)
+    assert.match(text, /\[IN PROGRESS\] Admitted to doctoral candidacy \(Academic Code §6\.2\.9\)\n/);
     assert.doesNotMatch(text, /\(\)/);
   });
 
