@@ -7,7 +7,7 @@ import { usableGpa } from '../ranges.ts';
 import { openDeadline } from '../status.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
-import { addMonthsIso, compareTerm, deadlineTermLabel, dueTermPhrase, endOfTerm, startOfTerm, termLabel } from '../term.ts';
+import { addMonthsIso, compareTerm, deadlineTermLabel, dueTermPhrase, endOfTerm, startOfTerm, termIndex, termLabel, termOfDate } from '../term.ts';
 import type { Contribution, DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
 
 export interface Ctx {
@@ -543,4 +543,22 @@ export function capRow(args: {
     citation: { section: args.section, quote: args.quote },
     ...(contributions.length > 0 ? { contributions } : {}),
   };
+}
+
+/** DGS Handbook §8.2.5: "Notre Dame requires students to be enrolled and
+ * registered for the term in which they defend their theses or
+ * dissertations"; Academic Code §3.7 requires registration in the semester of
+ * graduation, "this includes the summer session" (policy review 2026-10-04,
+ * P2-dh-6-9-5; DGS: "Apply the suggested handling"). A pointer only, never a
+ * status change: a dated defense in a semester with no Notre Dame course on
+ * the record and no full-time tick for it. Research registrations are often
+ * not typed in, so a missing row is not proof the student was unregistered. */
+export function defenseRegistrationNote(ctx: Ctx, defendedOn: string | undefined): DetailPart[] {
+  if (defendedOn === undefined) return [];
+  const term = termOfDate(defendedOn);
+  const key = termIndex(term);
+  const registered =
+    ctx.student.courses.some((c) => c.origin === 'nd' && termIndex(c.term) === key) || (ctx.student.fullTimeTermOverrides ?? []).some((t) => termIndex(t) === key);
+  if (registered) return [];
+  return [{ note: `No Notre Dame course is entered for ${termLabel(term)}, the semester of your defense: Notre Dame requires registration in the term you defend — confirm your registration with the Grad Admin (DGS Handbook §8.2.5; Academic Code §3.7)` }];
 }

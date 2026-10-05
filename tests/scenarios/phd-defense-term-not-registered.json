@@ -1,0 +1,47 @@
+{
+  "name": "phd-defense-term-not-registered",
+  "description": "DGS Handbook §8.2.5 (“Notre Dame requires students to be enrolled and registered for the term in which they defend their theses or dissertations”) and Academic Code §3.7 — policy review 2026-10-04, P2-dh-6-9-5; DGS: “Apply the suggested handling”. A Ph.D. student who defends in Spring 2030 with no Notre Dame course entered for that semester: the defense row keeps its status and points, behind Relevant Policies, to confirming the registration with the Grad Admin.",
+  "today": "2030-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
+      "candidacyPassed": "2027-04-01",
+      "defensePassed": "2030-04-10"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.dissertation.defense": {
+      "status": "met",
+      "detailIncludes": [
+        "No Notre Dame course is entered for Spring 2030, the semester of your defense",
+        "confirm your registration with the Grad Admin (DGS Handbook §8.2.5; Academic Code §3.7)"
+      ]
+    }
+  }
+}

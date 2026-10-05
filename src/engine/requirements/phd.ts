@@ -11,7 +11,7 @@ import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { noteOf, capRow, clockShiftNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
+import { noteOf, capRow, clockShiftNote, defenseRegistrationNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun } from './residency.ts';
 import { defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
@@ -1475,9 +1475,10 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
                 `Defense passed ${m.defensePassed} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate)`,
                 { note: '§4.3 makes that a forfeiture of degree eligibility unless the Graduate School granted an extension, so confirm it with the DGS' },
                 ...noteOf(gpaAtDefense),
+                ...defenseRegistrationNote(ctx, m.defensePassed),
                 { note: 'Then submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' },
               ]
-            : [`Defense passed ${m.defensePassed}`, ...noteOf(gpaAtDefense), { note: 'Next: submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' }]
+            : [`Defense passed ${m.defensePassed}`, ...noteOf(gpaAtDefense), ...defenseRegistrationNote(ctx, m.defensePassed), { note: 'Next: submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' }]
           : m.candidacyPassed === undefined
             ? ['Not started', { note: 'The defense comes after the Oral Candidacy Exam (§4.5)' }, ...noteOf(gpaGate)]
             : ['Not yet passed', { note: 'Three votes of four (or four of five) are required to pass (§4.7)' }, ...noteOf(gpaGate)],

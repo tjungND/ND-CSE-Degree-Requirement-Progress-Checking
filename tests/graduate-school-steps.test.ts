@@ -258,3 +258,29 @@ describe('readmission after a shorter gap (DGS Handbook §3.1, §3.3)', () => {
     assert.ok(!(audit(noAnswer, rules, '2026-03-01').reviewFlags ?? []).some((f) => /^Readmission/.test(f)));
   });
 });
+
+// Registered in the term of the defense (policy review 2026-10-04,
+// P2-dh-6-9-5): DGS Handbook §8.2.5 and Academic Code §3.7. A pointer behind
+// Relevant Policies, never a status change.
+describe('registration in the semester of the defense (DGS Handbook §8.2.5)', () => {
+  const NOTE = /No Notre Dame course is entered for Spring 2030, the semester of your defense: Notre Dame requires registration in the term you defend — confirm your registration with the Grad Admin \(DGS Handbook §8\.2\.5; Academic Code §3\.7\)/;
+  const phdRow = (s: Student) => audit(s, rules, '2030-06-01').requirements.find((r) => r.id === 'phd.dissertation.defense')!;
+  const phd = (over: Partial<Student> = {}) =>
+    phdStudent({ entryTerm: fall(2025), milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes', candidacyPassed: '2027-04-01', defensePassed: '2030-04-10' }, ...over });
+
+  it('a defense in a semester with nothing entered gets the pointer; the status is the row’s own', () => {
+    const plain = phdRow(phd());
+    assert.match(plain.detail, NOTE);
+    assert.equal(plain.status, phdRow(phd({ courses: [ndCourse('CSE 98699', { term: { season: 'spring', year: 2030 } })] })).status);
+  });
+
+  it('a course in that semester, or a full-time tick for it, is registration enough', () => {
+    assert.doesNotMatch(phdRow(phd({ courses: [ndCourse('CSE 98699', { term: { season: 'spring', year: 2030 } })] })).detail, NOTE);
+    assert.doesNotMatch(phdRow(phd({ fullTimeTermOverrides: [{ season: 'spring', year: 2030 }] })).detail, NOTE);
+  });
+
+  it('the MSCSE thesis defense gets the same pointer', () => {
+    const s = ms({ msOption: 'thesis', entryTerm: fall(2028), milestones: { advisorIdentified: '2028-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes', thesisDefensePassed: '2030-04-10' } });
+    assert.match(audit(s, rules, '2030-06-01').requirements.find((r) => r.id === 'ms.thesis.defense')!.detail, NOTE);
+  });
+});

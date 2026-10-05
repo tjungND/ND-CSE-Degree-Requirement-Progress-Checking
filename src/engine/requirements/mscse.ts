@@ -6,7 +6,7 @@ import type { DeadlineInfo, DetailPart, RequirementResult, Status } from '../typ
 import type { Ctx } from './context.ts';
 import { defendedBelowGpaNote, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { usableGpa } from '../ranges.ts';
-import { noteOf, joinedDetail, capRow, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
+import { noteOf, joinedDetail, capRow, defenseRegistrationNote, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
 import { candidacyFormSentence } from './phd.ts';
 import { fullTimeTermRecords, graduateLevelParts } from './residency.ts';
 import { transferRow } from './transfer.ts';
@@ -508,6 +508,8 @@ function optionRows(ctx: Ctx): RequirementResult[] {
             ...(lateDefense ? [lateRule] : []),
             ...(retakeLate ? [{ note: `The retake was due by ${deadlineTermLabel(retakeDue!)} (approximate), the end of the semester after the fail (Academic Code §6.1.5) — confirm with the DGS` }] : []),
             ...noteOf(gpaAtDefense),
+            // Registered in the defense term (DGS Handbook §8.2.5; 2026-10-04).
+            ...defenseRegistrationNote(ctx, m.thesisDefensePassed),
             ...(lateDefense ? [] : [formNote]),
           ]
         : [`Not needed — the project route is complete (project report accepted ${m.projectReportAccepted})`, ...alternative];
