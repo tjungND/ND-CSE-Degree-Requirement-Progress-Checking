@@ -547,6 +547,11 @@ table.courses .feeds-hidden .counts-toward.now { display: none; }
 .req .contrib { margin: 6px 0 0; font-size: 13px; }
 /* The card shows what is satisfied by what; the rule, the reasons and the next
    steps sit behind one "Relevant Policies" selector per card (DGS 2026-10-03; renamed from "Details" 2026-10-04). */
+/* The input side's "Relevant Policies" (DGS 2026-10-04), styled like the cards'. */
+details.policy-fold { margin: 2px 0 6px; font-size: 13px; }
+details.policy-fold > summary { cursor: pointer; color: var(--muted); font-weight: 600; padding: 3px 0; min-height: 24px; box-sizing: border-box; }
+details.policy-fold[open] > summary { color: var(--navy); }
+details.policy-fold > .hint { margin-top: 2px; }
 .req .req-more { margin: 4px 0 0; font-size: 13px; }
 .req .req-more > summary { cursor: pointer; color: var(--muted); font-weight: 600; padding: 3px 0; min-height: 24px; box-sizing: border-box; }
 .req .req-more[open] > summary { color: var(--navy); }

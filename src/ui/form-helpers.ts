@@ -74,3 +74,12 @@ export function rareFold(key: string, summary: string, hasAnswer: boolean, ...ch
   if (hasAnswer) (fold as HTMLDetailsElement).open = true;
   return fold;
 }
+
+/** The policy text under an input, behind a "Relevant Policies" selector —
+ * the input side's counterpart of the result cards' (DGS 2026-10-04: "hide the
+ * policy details behind 'Relevant Policies' with a selector"). Closed by
+ * default; the `data-key` keeps one the student opened open across
+ * re-renders. */
+export function policyFold(key: string, ...children: (HTMLElement | string | null)[]): HTMLElement {
+  return el('details', { class: 'policy-fold', 'data-key': `policy.${key}` }, el('summary', {}, 'Relevant Policies'), ...children);
+}

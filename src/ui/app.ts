@@ -44,7 +44,7 @@ import { canonicalUniversityName, knownUniversities } from './university-name.ts
 import { confirmDialog, copyDialog, openModal, returnFocusTo } from './copy-dialog.ts';
 import { plural } from './email-html.ts';
 import { EXAMPLE_ATTESTATIONS, EXAMPLE_MILESTONES, exampleFor } from './example.ts';
-import { rareFold, clearInvalid, errorLine, field, fieldset, labelWrap, markInvalid, radios } from './form-helpers.ts';
+import { policyFold, rareFold, clearInvalid, errorLine, field, fieldset, labelWrap, markInvalid, radios } from './form-helpers.ts';
 import { createFocusKeeper } from './focus-keeper.ts';
 import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
 import { createToasts } from './toasts.ts';
@@ -1098,10 +1098,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'div',
         { class: 'field' },
         el('label', { class: 'label' }, 'Deadline in your probation letter (Academic Code §5.7.2)', input),
-        el(
+        policyFold(
+          'probation',
+          el(
           'p',
           { class: 'hint field-hint' },
           'Only if you are on probation. The letter’s stipulations and its deadline govern — they can come before the deadlines on this page (the candidacy exam by the end of next semester, say), and missing them can lead to dismissal (Academic Code §5.8). Leave blank otherwise.',
+          ),
         ),
       ),
     );
@@ -1126,10 +1129,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       student.concurrentDegree === true ? 'Enrolled in a second Notre Dame degree program at the same time? — on file: yes' : 'Enrolled in a second Notre Dame degree program at the same time?',
       false,
       el('label', { class: 'attest' }, cb, ' I am enrolled in a second Notre Dame degree program at the same time — a dual degree (Academic Code §2.2)'),
-      el(
-        'p',
-        { class: 'hint field-hint' },
-        'Then tick “Also counts toward my other degree” on each course in Your coursework that the other program counts too. At most nine credits of those courses count toward this degree (Academic Code §2.2), once the Graduate School has approved your dual-degree plan of study (DGS Handbook §2.9).',
+      policyFold(
+        'dual-degree',
+        el(
+          'p',
+          { class: 'hint field-hint' },
+          'Then tick “Also counts toward my other degree” on each course in Your coursework that the other program counts too. At most nine credits of those courses count toward this degree (Academic Code §2.2), once the Graduate School has approved your dual-degree plan of study (DGS Handbook §2.9).',
+        ),
       ),
     );
   }
@@ -1168,7 +1174,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           update((s) => void (s[key] = raw === '' || !Number.isInteger(n) || n < 0 ? undefined : Math.min(20, n)));
         },
       });
-      return el('div', { class: 'field' }, el('label', { class: 'label' }, label, input), el('p', { class: 'hint field-hint' }, hint));
+      return el('div', { class: 'field' }, el('label', { class: 'label' }, label, input), policyFold(`clocks.${key}`, el('p', { class: 'hint field-hint' }, hint)));
     };
     const readmitted = student.readmittedTerm;
     const reSeason = el('select', { 'aria-label': 'Readmitted — semester', 'data-key': 'standing.readmitted.season' });
@@ -1237,13 +1243,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el('span', { class: 'label' }, 'Readmitted after a withdrawal or a missed semester — semester (leave blank if it does not apply)'),
         el('div', { class: 'pair' }, reSeason, reYear),
         reYearError,
-        el(
+        policyFold(
+          'clocks.readmitted',
+          el(
           'p',
           { class: 'hint field-hint' },
           // A missed fall or spring semester needs readmission too (policy
           // review 2026-10-04, P2-dh-3.1-3.13-3; DGS Handbook §3.1). An empty
           // semester is never read as one: research-only semesters are empty.
           'If you withdrew from the University, or missed a fall or spring semester (no Roll Call and registration) without an approved leave, you had to be readmitted (DGS Handbook §3.1, §3.3): enter the readmission semester. Every clock still counts from your original entry term (Academic Code §6.2.6: “from the time of matriculation”). Your courses from before it wait for the DGS — the program may reject some or all past credits (DGS Handbook §3.3), and after an interruption of five years or more the Code forfeits them (Academic Code §5.5).',
+          ),
         ),
       ),
       ),
@@ -1340,12 +1349,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'fieldset',
       { class: 'ft-terms' },
       el('legend', { class: 'label' }, `Full-time terms (for residency, ${student.program === 'mscse' ? '§3.3' : '§4.3'})`),
-      el(
+      // The rule behind a selector (DGS 2026-10-04); the semesters stay in view.
+      policyFold(
+        'fulltime',
+        el(
         'p',
         { class: 'hint' },
         fullTimeFloor === undefined
           ? 'The course rules do not give the full-time credit floor (fulltime_credits_min), so no semester is counted from your courses until the DGS adds it. Tick each semester you were registered full-time.'
           : `A semester counts automatically once the courses entered for it add up to ${fullTimeFloor} registered credits (§2.1.2; withdrawn and incomplete courses are registrations too)${summerFloor !== undefined ? `; a summer session at ${summerFloor} (DGS Handbook §10.3.2)` : ''}. Tick a semester you were registered full-time on research or in courses not entered here.`,
+        ),
       ),
     );
     // What the ENGINE counts, so the card and the report agree (2026-10-03):
