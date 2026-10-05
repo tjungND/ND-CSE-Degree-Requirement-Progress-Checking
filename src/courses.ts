@@ -4,6 +4,7 @@
 import './style.css';
 import { loadRulesWithCard } from './ui/loading.ts';
 import { renderCoursesPage } from './ui/courses-page.ts';
+import { startTheme } from './ui/theme.ts';
 import { markEmbedMode, notifyEmbedHeight, startHeightBroadcast } from './ui/embed.ts';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -13,6 +14,8 @@ if (app) {
   // broadcast starts with it so the parent frame can size itself around the
   // loading card too, not only around the finished page.
   markEmbedMode();
+  // Night mode (DGS 2026-10-04): Auto / Light / Dark, src/ui/theme.ts.
+  startTheme();
   startHeightBroadcast();
   // The loading card (src/ui/loading.ts) shows progress and, on failure, suggests
   // reloading; it resolves with the live rules or the saved copy the student chose.

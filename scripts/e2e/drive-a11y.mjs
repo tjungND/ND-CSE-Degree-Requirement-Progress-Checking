@@ -32,12 +32,14 @@ export async function driveA11y(s, baseUrl) {
   await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
   await checkFocusPreserved(s);
   await checkAxe(s, 'self-check page (example student)');
+  await checkNightMode(s, 'app', 'self-check page (example student)');
   await checkCopyDialog(s);
   await checkMobilePieces(s, 'app');
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 390);
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 820);
   await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
   await checkAxe(s, 'course-rules page');
+  await checkNightMode(s, 'courses', 'course-rules page');
   await checkMobilePieces(s, 'courses');
   await checkPhone(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`, 390);
   await checkPhone(s, 'courses', `document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`, 820);
@@ -229,7 +231,7 @@ async function checkFirstScreen(s, baseUrl) {
     const start = [...document.querySelectorAll('h2')].find((h) => /START HERE/.test(h.textContent ?? ''));
     const importBtn = document.querySelector('[data-key="import.nd"]');
     const focusable = [...document.querySelectorAll('a[href], button, input, select, textarea')]
-      .filter((n) => n.offsetParent !== null && !n.closest('.skip-link'));
+      .filter((n) => n.offsetParent !== null && !n.closest('.skip-link') && n.tabIndex >= 0); // a radio group's unchosen buttons are not tab stops
     const firstEntry = focusable.findIndex((n) => /^(import\.|course\.new\.|standing\.|courses\.|program\.)/.test(n.dataset?.key ?? ''));
     return {
       startHereTop: Math.round(start?.getBoundingClientRect().top ?? -1),
@@ -247,7 +249,9 @@ async function checkFirstScreen(s, baseUrl) {
   // Reset, and the two notice strips' Details. The tools row has since gained
   // Send summary (DGS 2026-09-22) and Save / Load / Print (DGS 2026-09-24),
   // at the DGS's request; the skip link still jumps straight to the inputs.
-  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 11) {
+  // The Auto · Light · Dark switch (night mode, DGS 2026-10-04) is one more —
+  // one tab stop, an ARIA radio group, so 12.
+  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 12) {
     throw new Error('a data-entry control must come early in the tab order, not 20th: ' + first.firstEntryIndex);
   }
   if (first.contactInMasthead || !first.contactAtEnd) throw new Error('the who-to-contact card belongs at the end: ' + JSON.stringify(first));
@@ -370,6 +374,30 @@ async function checkPhone(s, page, readyExpr, width = 390) {
 }
 
 // 4. axe-core: WCAG 2.x A/AA rules plus the landmark best practices.
+// Night mode (DGS 2026-10-04, src/ui/theme.ts): the Dark choice turns the
+// page dark — <html data-theme="dark">, a dark ground — with every visible
+// text still meeting WCAG contrast (axe's color-contrast rule); Auto then puts
+// it back (headless browsers report a light device). The choice is saved, so
+// a reload stays dark until Auto is picked.
+async function checkNightMode(s, page, label) {
+  await s.evalJs(`document.querySelector('[data-key="theme.dark"]').click()`);
+  await s.settle();
+  const state = JSON.parse(
+    await s.evalJs(`JSON.stringify({ theme: document.documentElement.dataset.theme, pressed: document.querySelector('[data-key="theme.dark"]').getAttribute('aria-checked'), bg: getComputedStyle(document.body).backgroundColor })`),
+  );
+  const rgb = (state.bg.match(/\d+/g) ?? []).slice(0, 3).map(Number);
+  if (state.theme !== 'dark' || state.pressed !== 'true' || !(rgb.length === 3 && Math.max(...rgb) < 60)) {
+    throw new Error('night mode: Dark did not turn the page dark — ' + JSON.stringify(state));
+  }
+  await s.shot(`${page}-dark`);
+  await checkAxe(s, `${label}, night mode`);
+  await s.evalJs(`document.querySelector('[data-key="theme.auto"]').click()`);
+  await s.settle();
+  const back = await s.evalJs(`document.documentElement.dataset.theme`);
+  if (back !== 'light') throw new Error('night mode: Auto did not return a light-device page to light — ' + back);
+  console.log(`  night mode: Dark turns the ${label} dark with no contrast violations; Auto returns it to light`);
+}
+
 async function checkAxe(s, label) {
   await s.evalJs(AXE_SOURCE + '; true');
   const result = JSON.parse(

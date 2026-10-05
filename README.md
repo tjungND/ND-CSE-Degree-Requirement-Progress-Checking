@@ -476,6 +476,10 @@ Both pages can be dropped into a page on ND's WordPress (`sites.nd.edu`, and any
 away from it. Nothing is copied: the embedded page is the live page, still generated from the
 rules sheet, so a Track A edit reaches it within five minutes like everywhere else.
 
+Night mode (2026-10-04): both pages have an Auto · Light · Dark switch at the top, and Auto
+follows the reader's device. Inside a WordPress frame, Auto stays light to match the host page.
+A reader who picks Dark there still gets the dark page.
+
 **Never paste the app's HTML into a WordPress page.** It would freeze at the day you pasted it.
 
 ### E1. The one thing to know about ND's WordPress

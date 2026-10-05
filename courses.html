@@ -3,10 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- The page is styled light only (src/style.css pins `color-scheme: light`),
-         so saying "light dark" here asked the browser for a dark form control
-         palette the page has no dark styling to sit on (review R-30, 2026-09-18). -->
-    <meta name="color-scheme" content="light" />
+    <!-- Light and dark since 2026-10-04 (night mode; data-theme on <html>). -->
+    <meta name="color-scheme" content="light dark" />
+    <!-- Night mode before the first paint (DGS 2026-10-04; src/ui/theme.ts has the
+         rest and must agree): a saved Light/Dark wins; otherwise the device's
+         setting, except embedded (?embed=1), where Auto stays light. -->
+    <script>
+      try {
+        var p = localStorage.getItem('cse-degree-audit/v1/theme');
+        var e = new URLSearchParams(location.search).get('embed') === '1' || location.hash === '#embed';
+        var d = p === 'dark' || (p !== 'light' && !e && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
+      } catch (x) {}
+    </script>
     <title>CSE Graduate Course Rules — which courses count</title>
     <meta
       name="description"

@@ -4,6 +4,7 @@
 import './style.css';
 import { loadRulesWithCard } from './ui/loading.ts';
 import { startApp } from './ui/app.ts';
+import { startTheme } from './ui/theme.ts';
 import { markEmbedMode, startHeightBroadcast, trackInteractions } from './ui/embed.ts';
 import { clearLocal } from './ui/state.ts';
 
@@ -14,6 +15,8 @@ if (app) {
   // the dialogs and toasts are placed for a frame the page cannot scroll —
   // src/ui/embed.ts explains.
   markEmbedMode();
+  // Night mode (DGS 2026-10-04): Auto / Light / Dark, src/ui/theme.ts.
+  startTheme();
   startHeightBroadcast();
   trackInteractions();
   // The loading card (src/ui/loading.ts) shows progress and, on failure, suggests

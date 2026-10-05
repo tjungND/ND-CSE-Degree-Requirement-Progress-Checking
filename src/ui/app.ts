@@ -21,6 +21,7 @@ import { siblingAnchorAttrs } from './sibling-links.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
 import { isEmbedded, openFullPageLink, placeInFrame } from './embed.ts';
+import { themeToggle } from './theme.ts';
 import { deciderTitle } from '../engine/decider.ts';
 import {
   BACHELORS_YEAR_RANGE,
@@ -639,7 +640,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'div',
         { class: 'masthead-main' },
-        embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+        // The eyebrow shares its line with the Auto · Light · Dark switch
+        // (night mode, DGS 2026-10-04 — src/ui/theme.ts); embedded, the
+        // switch is alone on it.
+        el(
+          'div',
+          { class: 'masthead-top' },
+          embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+          themeToggle(),
+        ),
         el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Degree Requirement Self-check Tool'),
         // Embedded, the WordPress page carries its own introduction: none of
         // the masthead text is shown (DGS 2026-09-16, "get rid of the texts at

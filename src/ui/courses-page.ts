@@ -19,6 +19,7 @@ import { LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, repo
 import { clear, el, option } from './dom.ts';
 import { SIBLING_PARAM, allowedHostPage, siblingAnchorAttrs } from './sibling-links.ts';
 import { isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnchorScrollRelay } from './embed.ts';
+import { themeToggle } from './theme.ts';
 import { formatYmdLong, handbookLink, rulesDateLine } from './handbook.ts';
 import { ndDateOnly } from '../data/rules-date.ts';
 import { sheetSourceLine } from './sheet-source.ts'; // sheetSourceNote is the self-check page's now (trim review P-12)
@@ -481,7 +482,15 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       el(
         'div',
         { class: 'masthead-main' },
-        embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+        // The eyebrow shares its line with the Auto · Light · Dark switch
+        // (night mode, DGS 2026-10-04 — src/ui/theme.ts); embedded, the
+        // switch is alone on it.
+        el(
+          'div',
+          { class: 'masthead-top' },
+          embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
+          themeToggle(),
+        ),
         el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Course Rules'),
         // Embedded, the WordPress page carries its own introduction: none of
         // the masthead text is shown (DGS 2026-09-16, "get rid of the texts at
