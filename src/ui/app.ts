@@ -1091,8 +1091,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     });
     return rareFold(
       'probation',
-      'On probation, with a deadline in the letter?',
-      student.probationLetterDeadline !== undefined,
+      // Closed by default (DGS 2026-10-04); a date on file is in the summary.
+      student.probationLetterDeadline !== undefined ? `On probation, with a deadline in the letter? — on file: ${student.probationLetterDeadline}` : 'On probation, with a deadline in the letter?',
+      false,
       el(
         'div',
         { class: 'field' },
@@ -1121,8 +1122,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     cb.checked = student.concurrentDegree === true;
     return rareFold(
       'dual-degree',
-      'Enrolled in a second Notre Dame degree program at the same time?',
-      student.concurrentDegree === true,
+      // Closed by default (DGS 2026-10-04); a yes on file is in the summary.
+      student.concurrentDegree === true ? 'Enrolled in a second Notre Dame degree program at the same time? — on file: yes' : 'Enrolled in a second Notre Dame degree program at the same time?',
+      false,
       el('label', { class: 'attest' }, cb, ' I am enrolled in a second Notre Dame degree program at the same time — a dual degree (Academic Code §2.2)'),
       el(
         'p',
@@ -1185,8 +1187,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const text = (reYear as HTMLInputElement).value;
       if (text !== '' && inRange(Number(text), TERM_YEAR_RANGE)) setReadmitted(Number(text));
     });
-    // Uncommon: behind a selector, open once anything in it is set (DGS 2026-10-03).
-    const answered = (student.leaveSemesters ?? 0) > 0 || (student.accommodationSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
+    // Uncommon: behind a selector (DGS 2026-10-03), closed unless a transcript
+    // gap needs an answer (DGS 2026-10-04, below).
     // Read from the Notre Dame transcript (DGS 2026-10-04: shown "only when
     // they are applicable according to the transcript"): a leave, a
     // withdrawal or a missed semester leaves a fall or spring with no
@@ -1202,10 +1204,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : leaveAsked
           ? 'A leave of absence, a childbirth or adoption accommodation, or a readmission?'
           : 'A childbirth or adoption accommodation?';
+    // Closed by default; open only when a transcript gap is waiting for an
+    // answer (DGS 2026-10-04: "Open one if an attention is needed there (e.g.,
+    // found a gap semester)"). What is on file is said in the summary line.
+    const onFile = [
+      ...((student.leaveSemesters ?? 0) > 0 ? [`${student.leaveSemesters} leave ${student.leaveSemesters === 1 ? 'semester' : 'semesters'}`] : []),
+      ...((student.accommodationSemesters ?? 0) > 0 ? [`${student.accommodationSemesters} accommodation ${student.accommodationSemesters === 1 ? 'semester' : 'semesters'}`] : []),
+      ...(student.readmittedTerm ? [`readmitted ${termLabel(student.readmittedTerm)}`] : []),
+    ];
+    const gapUnanswered = gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined;
     return rareFold(
       'clocks',
-      summary,
-      answered,
+      onFile.length > 0 ? `${summary} — on file: ${onFile.join(', ')}` : summary,
+      gapUnanswered,
       el(
       'fieldset',
       { class: 'ft-terms clock-fields' },
@@ -1423,7 +1434,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return rareFold(
       'fulltime',
       `Full-time semesters for residency: ${autoCount} of ${listed} counted from your courses${tickedCount > 0 ? `, ${tickedCount} ticked by you` : ''}${partTimeCount > 0 ? `, ${partTimeCount} not full-time` : ''}`,
-      tickedCount > 0 || partTimeCount > 0,
+      // Closed by default; open only while a semester shows a warning (DGS
+      // 2026-10-04: "Keep … hidden by default … Open it if a warning is shown
+      // there"). A tick on file is in the summary line.
+      partTimeCount > 0,
       box,
     );
   }

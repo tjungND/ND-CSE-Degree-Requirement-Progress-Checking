@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-04 (DGS — display): Your standing’s four selectors stay closed unless they need attention: a part-time semester warning, or an unanswered transcript gap. An answer on file shows in the summary line. Wording W-CL150.
+
 2026-10-04 (policy review, DGS — notes): P2-dh-6-9-5 applied. A dated defense in a semester with nothing entered points to confirming registration (DGS Handbook §8.2.5; Academic Code §3.7), with no status change. With it, every finding of the 2026-10-02 policy-compliance review is fixed, ruled or out of scope; none is open. Scenario phd-defense-term-not-registered. Wording W-CL149.
 
 2026-10-04 (policy review, DGS — notes): P2-dh-4-5-3 applied. The Ph.D. eight-year row tells a transfer from the MSCSE that funding does not reset (years count from the MSCSE start). It tells a finished-MSCSE student that a separate Ph.D. program gets full support, and that whether CSE’s counts as separate is the Graduate School’s call (DGS Handbook §4.1). Scenario phd-mscse-transfer-funding-clock. Wording W-CL148; W-CL139 extended.

@@ -115,7 +115,7 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
   counted. Every explanation, reason, next step, Graduate School form and citation is written in the engine
   as a `{ note }` detail part, which the card folds behind its "Relevant Policies" selector (plain text in `detail`
   and the emails). On the input side, anything that is not the common standard case goes behind a
-  `rareFold(...)` selector (`src/ui/form-helpers.ts`), open once the record holds an answer in it.
+  `rareFold(...)` selector (`src/ui/form-helpers.ts`), open once the record holds an answer in it — except Your standing's selectors, which stay closed unless they need attention (a warning, an unanswered transcript gap) and show what is on file in their summary line (DGS 2026-10-04).
 - Start non-trivial work in plan mode; show the plan before writing code.
 - Before implementing or changing a requirement, quote the handbook sentence in a comment with
   its §, and check `docs/DECISIONS.md` for an existing interpretation.
