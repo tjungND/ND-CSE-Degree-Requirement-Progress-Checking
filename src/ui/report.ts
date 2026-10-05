@@ -112,6 +112,10 @@ export function doesNotApply(r: RequirementResult): boolean {
   return r.status === 'not_applicable' && !r.allowance && r.statusLabel === undefined;
 }
 
+/** The warnings the student collapsed (2026-10-05), so a re-render keeps
+ * the floating box down until a warning is added or goes away. */
+let collapsedWarnings: string | undefined;
+
 export function scoredRows(report: AuditReport): RequirementResult[] {
   return report.requirements.filter((r) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable');
 }
@@ -512,12 +516,21 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
   // (2026-09-13: "yes, but get a warning"). Since 2026-09-27 they are one
   // folded line under the meters, the count in the summary, each sentence
   // inside; the box keeps its class, role and data-keep-dgs.
+  // Since 2026-10-05 (DGS: "If there is a warning to the student, can you show
+  // it as a floating message that follows the screen even when the page is
+  // scrolled down?") the box floats in the corner of the window, open, and
+  // its summary collapses it to one line; collapsed stays collapsed until
+  // the warnings change. Its place in the document — and so the reading
+  // order — is unchanged. Embedded, it stays in the page (a content-height
+  // frame has no window corner to follow), folded as before.
+  const floating = !isEmbedded();
+  const warningsKey = report.warnings.join('\n');
   const warningsFold =
     report.warnings.length === 0
       ? null
       : el(
           'details',
-          { class: 'warnings', role: 'note', 'data-keep-dgs': '', 'data-key': 'report.warnings' },
+          { class: `warnings${floating ? ' floating' : ''}`, role: 'note', 'data-keep-dgs': '', 'data-key': 'report.warnings' },
           el(
             'summary',
             {},
@@ -526,6 +539,13 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
           ),
           ...report.warnings.map((w) => el('div', { class: 'warning-line' }, `⚠ ${w}`)),
         );
+  if (warningsFold && floating) {
+    const box = warningsFold as HTMLDetailsElement;
+    box.open = collapsedWarnings !== warningsKey;
+    box.addEventListener('toggle', () => {
+      collapsedWarnings = box.open ? undefined : warningsKey;
+    });
+  }
 
   panel.append(
     el('a', { class: 'jump-link back-link', href: '#main' }, '↑ Back to your inputs'),

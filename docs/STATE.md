@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-05 (DGS — display): the student’s warnings float in the window’s corner while scrolling (`.warnings.floating`, report.ts), open until folded; folded stays folded until the warnings change. Embedded and printed, the box stays in the page.
+
 2026-10-05 (DGS — display): the “CSE §” chips beside card and section headings on both pages show the handbook’s own text on hover, click or Enter (`sectionRef`, src/ui/section-ref.ts). The text is generated from the PDF by `npm run handbook-text` into src/ui/handbook-text.ts, and the tests check it against the PDF’s SHA-256. Wording W-CL158.
 
 2026-10-05 (DGS — engine): the OCE and admission also wait for a tenured or tenure-track advisor or co-advisor (`oceReadiness`). With none, or the question unanswered, they read Not started and the card names it (W-CL157). Open question: how to record a DGS-approved exception for a sole non-TTT advisor.

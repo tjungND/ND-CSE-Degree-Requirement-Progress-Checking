@@ -292,6 +292,22 @@ export async function driveApp(s, baseUrl) {
   if (!/entered with 0 credits; check the credit hours on your transcript/.test(zeroLine)) throw new Error('the 0-credit line must say why: ' + zeroLine.slice(0, 160));
   if (!/CSE 60567 is entered with 0 credits/.test(zeroWarn)) throw new Error('a 0-credit course must also raise a warning: ' + zeroWarn.slice(0, 200));
   console.log('  0-credit course added after confirming — line and warning both explain it');
+  // The warning follows the screen (DGS 2026-10-05): fixed in the window's
+  // corner, open, still in view at the bottom of the page; folded by its
+  // summary, it stays folded through the next re-render.
+  const floatCheck = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const box = document.querySelector('.warnings');
+    const r = box.getBoundingClientRect();
+    return { floating: box.classList.contains('floating'), position: getComputedStyle(box).position, open: box.open, inView: r.top >= 0 && r.bottom <= window.innerHeight && r.height > 20 };
+  })())`));
+  if (!floatCheck.floating || floatCheck.position !== 'fixed' || !floatCheck.open || !floatCheck.inView) throw new Error('the warning must float in view when the page is scrolled: ' + JSON.stringify(floatCheck));
+  await s.evalJs(`document.querySelector('.warnings summary').click()`);
+  await s.evalJs(`(() => { const d = document.querySelector('[data-key="milestone.advisorName"]'); d.dispatchEvent(new Event('change')); })()`);
+  await s.settle();
+  if (await s.evalJs(`document.querySelector('.warnings').open`)) throw new Error('a folded warning box must stay folded after a re-render');
+  await s.evalJs(`document.querySelector('.warnings summary').click(); window.scrollTo(0, 0)`);
+  console.log('  the warning floats in view when the page is scrolled down; folded, it stays folded');
   await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CSE 60567').querySelector('button.remove').click()`);
   await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 60567')`);
   await s.evalJs(`(() => { const cr = document.querySelector('[data-key="course.new.credits"]'); cr.value = '3'; cr.dispatchEvent(new Event('change')); })()`);
