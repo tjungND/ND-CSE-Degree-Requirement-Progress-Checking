@@ -1,0 +1,47 @@
+{
+  "name": "mscse-thesis-advisor-not-ttt",
+  "description": "DGS Handbook §10.3.2 / §10.3.8 (“Students doing a research master’s must have at least one thesis adviser who is: current tenured or tenure-track faculty at Notre Dame … If the student’s primary research director does not meet these requirements, they must have a co-adviser who meets the criteria”) and CSE §2.3 — policy review 2026-10-04, P2-dh-10-5; DGS: “Apply suggested handling”. An MSCSE thesis student whose only advisor is a research professor (not tenure-track): the advisor row reads Conditionally met and sends the case to the ADGS, instead of Met on the name alone.",
+  "today": "2026-03-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "thesis",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "no"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "shared.advisor": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Your thesis advisor is not (or you are not sure they are) tenured or tenure-track CSE faculty",
+        "DGS Handbook §10.3.2, §10.3.8",
+        "needs the ADGS’s written approval"
+      ]
+    }
+  }
+}

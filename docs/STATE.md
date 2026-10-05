@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-04 (policy review, DGS — engine): P2-dh-10-5 applied. An MSCSE student on the thesis option is asked whether the thesis advisor (and any co-advisor) is tenured or tenure-track CSE faculty (DGS Handbook §10.3.2, §10.3.8; CSE §2.3), as the Ph.D. is. A no or not sure for every advisor goes to the ADGS; unanswered cannot be evaluated. The project option is not asked (HANDBOOK-REVISIONS 18). Scenario mscse-thesis-advisor-not-ttt; tests in tests/ms-examination-and-advisor.test.ts. Wording W-CL135–W-CL137.
+
 2026-10-04 (policy review, DGS — engine): P2-dh-3.1-3.13-3/-4/-9 applied. The readmission input now covers a missed fall or spring semester as well as a withdrawal. Under five years, the program courses from before the readmission count provisionally and go to the review request (DGS Handbook §3.3), and any readmission adds a review-request line (DGS Handbook §3.1, §3.3, §3.8). Five years or more is unchanged (Academic Code §5.5). Scenario mscse-readmitted-after-missed-semester; unit tests in tests/graduate-school-steps.test.ts. Wording W-CL131–W-CL134.
 
 2026-10-04 (DGS — display): night mode on both pages. An Auto · Light · Dark switch at the top right of the masthead (src/ui/theme.ts); Auto follows the device’s light/dark setting the way Claude Desktop does (so a Mac on Appearance “Auto” switches at nightfall). Embedded, Auto stays light. Every colour in src/style.css is a token (light values unchanged; dark ones under `:root[data-theme="dark"]`, screen only). Tests: tests/theme.test.ts; the a11y e2e runs axe in Dark on both pages and saves app-dark.png / courses-dark.png. Wording W-CL130.

@@ -440,4 +440,9 @@ not the app's:
     awarded". §3.5 says when to apply ("by the end of the fall semester of the senior year") but not that the extra
     courses depend on it. The app now asks an MSCSE 4+1 student the admission term and counts the extras only from it
     (policy review 2026-10-04, P2-fourplusone-1). §3.5 should say so in one sentence.
-
+18. **§2.3 — must an M.S. *project* advisor be tenured or tenure-track?** §2.3 says "A research advisor must be a
+    Tenure and Tenure Track (TTT) faculty member of the department", and the Graduate School's adviser criteria (DGS
+    Handbook §10.3.2, §10.3.8) are written for "a research master's" — the thesis. Neither says whether the MSCSE
+    project option's advisor is held to the same rule. The app now asks the advisor's faculty status on the thesis option
+    only and sends a "no" or "not sure" to the ADGS (policy review 2026-10-04, P2-dh-10-5). §2.3 should say whether the
+    TTT rule covers a project advisor.

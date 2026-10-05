@@ -2352,12 +2352,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el('p', { class: 'hint' }, 'Every date here is optional — enter a date once it has happened.'),
     );
 
-    // Ph.D.: is the advisor tenured or tenure-track CSE faculty? (CSE §2.3;
-    // Academic Code §6.2.7 — policy review 2026-10-04, P2-ac-6.2-app-8.) The
-    // app cannot see faculty status, so the student answers it; "no" or "not
-    // sure" goes to the DGS. Asked of every Ph.D. student, under the name.
+    // Is the advisor tenured or tenure-track CSE faculty? (CSE §2.3; Academic
+    // Code §6.2.7 — policy review 2026-10-04, P2-ac-6.2-app-8.) The app cannot
+    // see faculty status, so the student answers it; "no" or "not sure" goes to
+    // the DGS. Asked of every Ph.D. student and, since P2-dh-10-5 (DGS Handbook
+    // §10.3.2, §10.3.8), of an MSCSE student on the thesis option — under the name.
+    const thesisMs = student.program === 'mscse' && student.msOption === 'thesis';
     const tttQuestion = (which: 'advisorTtt' | 'advisorTtt2', legend: string): HTMLElement | null =>
-      student.program === 'phd'
+      student.program === 'phd' || thesisMs
         ? fieldset(
             legend,
             radios(`milestone.${which}`, [['yes', 'Yes'], ['no', 'No'], ['unsure', 'Not sure']], m[which] ?? '', (v) =>
@@ -2375,7 +2377,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           onchange: (e) => update((s) => void (s.milestones.advisorName = (e.target as HTMLInputElement).value || undefined)),
         }),
       ),
-      ...[tttQuestion('advisorTtt', 'Is your advisor tenured or tenure-track CSE faculty? (§2.3)')].filter((q): q is HTMLElement => q !== null),
+      ...[tttQuestion('advisorTtt', thesisMs ? 'Is your thesis advisor tenured or tenure-track CSE faculty? (§2.3)' : 'Is your advisor tenured or tenure-track CSE faculty? (§2.3)')].filter((q): q is HTMLElement => q !== null),
       // A student may have two advisors (DGS 2026-09-22); the second box is
       // optional and the two names read as one supervision everywhere.
       // Uncommon: behind a selector unless a second name is on file (DGS 2026-10-03).

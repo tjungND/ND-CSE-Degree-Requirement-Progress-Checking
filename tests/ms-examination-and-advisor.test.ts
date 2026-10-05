@@ -141,3 +141,35 @@ describe('the topic’s sections name their documents', () => {
     assert.match(labelCitations(r.detail), /\(CSE §3\.4; Academic Code §6\.1\.7\)/);
   });
 });
+
+// The MSCSE thesis advisor's faculty status (policy review 2026-10-04,
+// P2-dh-10-5; DGS: "Apply suggested handling"): CSE §2.3 and the Graduate
+// School's thesis-adviser criteria (DGS Handbook §10.3.2, §10.3.8). Asked on
+// the thesis option only — the project option is the handbook's to settle.
+describe('MSCSE thesis advisor: tenured or tenure-track (CSE §2.3; DGS Handbook §10.3.2, §10.3.8)', () => {
+  const today = '2026-03-01';
+  it('the thesis option asks: unanswered cannot be evaluated, yes is met', () => {
+    assert.equal(row(ms('thesis'), 'shared.advisor', today).status, 'cannot_evaluate');
+    assert.match(row(ms('thesis'), 'shared.advisor', today).detail, /Answer under Milestones whether your thesis advisor is tenured or tenure-track CSE faculty/);
+    assert.equal(row(ms('thesis', { advisorTtt: 'yes' }), 'shared.advisor', today).status, 'met');
+  });
+
+  it('“no” or “not sure” for every advisor goes to the ADGS; a TTT co-advisor settles it', () => {
+    for (const answer of ['no', 'unsure'] as const) {
+      const report = audit(ms('thesis', { advisorTtt: answer }), rules, today);
+      const advisor = report.requirements.find((r) => r.id === 'shared.advisor')!;
+      assert.equal(advisor.status, 'needs_dgs_review');
+      assert.match(advisor.detail, /needs the ADGS’s written approval/);
+      assert.ok((report.reviewFlags ?? []).some((f) => /^Thesis advisor’s faculty status: Prof\. Example — not (sure whether )?tenured or tenure-track CSE faculty/.test(f) && /ADGS’s written approval/.test(f)));
+    }
+    assert.equal(row(ms('thesis', { advisorTtt: 'no', advisorName2: 'Prof. Co', advisorTtt2: 'yes' }), 'shared.advisor', today).status, 'met');
+  });
+
+  it('the project option and an undecided student are not asked', () => {
+    for (const option of ['project', 'undecided'] as const) {
+      const report = audit(ms(option, { advisorTtt: 'no' }), rules, today);
+      assert.equal(report.requirements.find((r) => r.id === 'shared.advisor')!.status, 'met');
+      assert.ok(!(report.reviewFlags ?? []).some((f) => /faculty status/.test(f)));
+    }
+  });
+});

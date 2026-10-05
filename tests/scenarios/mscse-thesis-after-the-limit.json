@@ -17,6 +17,7 @@
     "milestones": {
       "advisorIdentified": "2020-11-01",
       "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
       "thesisDefensePassed": "2026-03-01"
     },
     "attestations": {

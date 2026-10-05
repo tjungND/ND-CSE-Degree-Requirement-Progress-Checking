@@ -117,6 +117,21 @@ export function gpaRow(ctx: Ctx): RequirementResult {
  * co-director with a TTT one. The app cannot see faculty status, so it asks;
  * 'yes' for any advisor on record is enough, 'no' or 'not sure' for every
  * one goes to the DGS, and an unanswered question is a missing input. */
+/** Who is asked (policy review 2026-10-04, P2-dh-10-5; DGS: "Apply suggested
+ * handling"): every Ph.D. student, and an MSCSE student on the thesis option —
+ * the Graduate School's adviser criteria are written for a research master's
+ * (DGS Handbook §10.3.2: "Students doing a research master's must have at
+ * least one thesis adviser who is: current tenured or tenure-track faculty at
+ * Notre Dame … If the student's primary research director does not meet these
+ * requirements, they must have a co-adviser who meets the criteria"; §10.3.8
+ * the same on the Reader's Report). Whether CSE §2.3's "A research advisor
+ * must be a Tenure and Tenure Track (TTT) faculty member" also covers an M.S.
+ * PROJECT advisor is the handbook's to say (HANDBOOK-REVISIONS 18), so the
+ * project option is not asked. */
+export function advisorTttAsked(ctx: Ctx): boolean {
+  return ctx.student.program === 'phd' || (ctx.student.program === 'mscse' && ctx.student.msOption === 'thesis');
+}
+
 export function advisorTttState(ctx: Ctx): 'yes' | 'no' | 'unanswered' {
   const m = ctx.student.milestones;
   const answers = [...(m.advisorName || m.advisorIdentified ? [m.advisorTtt] : []), ...(m.advisorName2 ? [m.advisorTtt2] : [])];
@@ -125,14 +140,17 @@ export function advisorTttState(ctx: Ctx): 'yes' | 'no' | 'unanswered' {
   return 'unanswered';
 }
 
-/** The review-request note for an advisor the DGS must approve (Ph.D.). */
+/** The review-request note for an advisor the DGS must approve (Ph.D.; MSCSE
+ * thesis since 2026-10-04 — the caller words it for the ADGS). */
 export function advisorReviewFlag(ctx: Ctx): string | undefined {
-  if (ctx.student.program !== 'phd' || advisorTttState(ctx) !== 'no') return undefined;
+  if (!advisorTttAsked(ctx) || advisorTttState(ctx) !== 'no') return undefined;
   const m = ctx.student.milestones;
   const who = (name: string | undefined, answer: 'yes' | 'no' | 'unsure' | undefined) =>
     `${name ?? 'my advisor'} — ${answer === 'unsure' ? 'not sure whether tenured or tenure-track CSE faculty' : 'not tenured or tenure-track CSE faculty'}`;
   const listed = [who(m.advisorName, m.advisorTtt), ...(m.advisorName2 ? [who(m.advisorName2, m.advisorTtt2)] : [])];
-  return `Advisor’s faculty status: ${listed.join('; ')}. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — a non-TTT or outside advisor needs the DGS’s written approval.`;
+  return ctx.student.program === 'phd'
+    ? `Advisor’s faculty status: ${listed.join('; ')}. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — a non-TTT or outside advisor needs the DGS’s written approval.`
+    : `Thesis advisor’s faculty status: ${listed.join('; ')}. A thesis advisor must be tenured or tenure-track CSE faculty (§2.3), and the Graduate School requires at least one thesis adviser who is tenured or tenure-track at Notre Dame, or a co-adviser who is (DGS Handbook §10.3.2, §10.3.8) — a non-TTT or outside advisor needs the DGS’s written approval.`;
 }
 
 export function advisorRow(ctx: Ctx): RequirementResult {
@@ -160,15 +178,19 @@ export function advisorRow(ctx: Ctx): RequirementResult {
     status = 'met';
     // Two advisors are one supervision (DGS 2026-09-22): "Advisors: A and B".
     parts.push(`${names.length > 1 ? 'Advisors' : 'Advisor'}${names.length > 0 ? `: ${names.join(' and ')}` : ' identified'}${advisorIdentified ? ` (since ${advisorIdentified})` : ''}`);
-    // Ph.D.: a tenured or tenure-track CSE advisor (2026-10-04, advisorTttState).
-    if (!ms) {
+    // A tenured or tenure-track CSE advisor (2026-10-04, advisorTttState):
+    // the Ph.D., and the MSCSE thesis option (P2-dh-10-5, advisorTttAsked).
+    if (advisorTttAsked(ctx)) {
       const ttt = advisorTttState(ctx);
+      const rule = ms
+        ? 'a thesis advisor must be (§2.3), and the Graduate School requires at least one thesis adviser who is tenured or tenure-track at Notre Dame, or a co-adviser who is (DGS Handbook §10.3.2, §10.3.8)'
+        : 'a dissertation director must be (§2.3; Academic Code §6.2.7)';
       if (ttt === 'unanswered') {
         status = 'cannot_evaluate';
-        parts.push({ note: 'Answer under Milestones whether your advisor is tenured or tenure-track CSE faculty — a dissertation director must be (§2.3; Academic Code §6.2.7)' });
+        parts.push({ note: `Answer under Milestones whether your ${ms ? 'thesis ' : ''}advisor is tenured or tenure-track CSE faculty — ${rule}` });
       } else if (ttt === 'no') {
         status = 'needs_dgs_review';
-        parts.push({ note: 'A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7); a non-TTT or outside advisor needs the DGS’s written approval — this is in the review request; ask the DGS' });
+        parts.push({ note: `Your ${ms ? 'thesis ' : ''}advisor is not (or you are not sure they are) tenured or tenure-track CSE faculty — ${rule}; a non-TTT or outside advisor needs the DGS’s written approval — this is in the review request; ask the DGS` });
       }
     }
   } else {

@@ -278,7 +278,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // status the student is not sure of (CSE §2.3; Academic Code §6.2.7 —
   // policy review 2026-10-04, P2-ac-6.2-app-8): the DGS's written approval.
   const advisorFlag = advisorReviewFlag(ctx);
-  if (advisorFlag) reviewFlags.push(advisorFlag);
+  if (advisorFlag) reviewFlags.push(decisionWording(student.program, advisorFlag)); // the ADGS's on the MSCSE thesis option
   // MSCSE thesis readers who are not both tenured or tenure-track CSE faculty,
   // or one of them the advisor, or the student is not sure (CSE §3.4; DGS
   // Handbook §10.3.8 — policy review 2026-10-04, P2-dh-10-19): the DGS's prior
