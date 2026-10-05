@@ -27,7 +27,7 @@
     "phd.candidacy": { "status": "met", "detailIncludes": ["Oral Candidacy Exam (OCE) passed 2025-12-10", "one of the conditions for admission to doctoral candidacy"] },
     "phd.candidacyAdmission": {
       "status": "in_progress",
-      "detailIncludes": ["Oral Candidacy Exam (OCE): passed 2025-12-10", "4 consecutive full-time semesters: 3 so far (Fall 2024–Fall 2025)", "Coursework: 24 of 24 regular-course credits complete", "Cumulative GPA of 3.0 or better: 3.70", "Responsible Conduct of Research training: done 2025-09-01"],
+      "detailIncludes": ["Oral Candidacy Exam (OCE): passed 2025-12-10", "4 consecutive full-time semesters: 3 so far (Fall 2024–Fall 2025)", "Coursework: 24 of 24 regular-course credits complete", "Cumulative GPA of 3.0 or better: 3.70", "Responsible Conduct of Research and ethics training: done 2025-09-01"],
       "detailExcludes": ["Every condition is met"]
     },
     "phd.residency": { "status": "in_progress" }

@@ -222,7 +222,7 @@ describe('the merged candidacy card', () => {
       assert.equal(row.unscored, true, id);
     }
     const admission = r.find((x) => x.id === 'phd.candidacyAdmission')!;
-    assert.match(admission.detail, /Responsible Conduct of Research training: not yet/);
+    assert.match(admission.detail, /Responsible Conduct of Research and ethics training: not yet/);
     assert.match(admission.detail, /Complete the Graduate School’s Responsible Conduct of Research and ethics training modules/);
   });
 
@@ -294,5 +294,53 @@ describe('the OCE and admission wait for the coursework', () => {
     const r = row(phdStudent({ entryTerm: fall26 }), 'phd.candidacy', '2030-09-01');
     assert.equal(r.deadline!.state, 'overdue');
     assert.doesNotMatch(r.detail, /^Not started/);
+  });
+});
+
+// Every condition for admission to doctoral candidacy on the card (DGS
+// 2026-10-05: "Doctoral candidacy has more conditions than this. Double check …
+// Check all the policies and include them in this card."), as page-only
+// Relevant Policies: the emails keep the facts.
+describe('every condition for admission to doctoral candidacy', () => {
+  const rulesC = buildRules();
+  const fresh = phdStudent({ entryTerm: fall(2026) });
+  const card = (st: Student, today: string) => audit(st, rulesC, today).requirements.find((x) => x.id === 'phd.candidacyAdmission')!;
+
+  it('the Not-started card lists them all under Relevant Policies', () => {
+    const r = card(fresh, '2026-10-04');
+    assert.match(r.detail, /^Not started\./);
+    const notes = (r.detailParts ?? []).filter((p): p is { note: string; pageOnly?: true } => typeof p === 'object' && 'note' in p);
+    const text = notes.map((n) => n.note).join(' | ');
+    for (const re of [
+      /Enrolled in the Ph\.D\. program and registered/,
+      /Four consecutive semesters at full-time status in the program — at least 9 credit hours each fall and spring/,
+      /the 24 regular-course credits \(§4\.2\) — transferred regular-course credits count/,
+      /A cumulative GPA of 3\.0 or better/,
+      /All training modules for the Responsible Conduct of Research and ethics/,
+      /in CSE the written part is the dissertation proposal/,
+      /send the DGS a written request naming your committee/,
+      /At least one dissertation advisor who is tenured or tenure-track Notre Dame faculty, or a co-advisor who is/,
+      /CSE has no language requirement \(§5\.3\)/,
+      /official undergraduate transcript \(or diploma\)/,
+      /Be admitted by the end of your eighth semester/,
+    ])
+      assert.match(text, re);
+    assert.ok(notes.filter((n) => n.pageOnly).length >= 11);
+  });
+
+  it('the policies stay on the page: the processing request does not carry them', () => {
+    const report = audit(fresh, rulesC, '2026-10-04');
+    const { text } = gradAdminRequest(report, fresh, rulesC, { todayIso: '2026-10-04', entryTerm: 'Fall 2026', priorStudy: 'None', gpa: undefined });
+    assert.doesNotMatch(text, /official undergraduate transcript \(or diploma\)|send the DGS a written request naming your committee/);
+  });
+
+  it('in progress: the advisor’s faculty status and this semester’s registration are said', () => {
+    const st = ready({}, {});
+    const r = card(st, '2028-03-01');
+    assert.match(r.detail, /Tenured or tenure-track dissertation advisor: yes/);
+    assert.match(r.detail, /Registered this semester \(Spring 2028\): 6 credits entered/);
+    assert.match(card(ready({ advisorTtt: 'no' }), '2028-03-01').detail, /Tenured or tenure-track dissertation advisor: no or not sure — the DGS must approve it/);
+    assert.match(card(ready({ advisorTtt: undefined }), '2028-03-01').detail, /Tenured or tenure-track dissertation advisor: not answered \(Milestones\)/);
+    assert.match(card(ready({}), '2028-09-20').detail, /Registered this semester \(Fall 2028\): no Notre Dame course entered/);
   });
 });

@@ -446,3 +446,13 @@ not the app's:
     project option's advisor is held to the same rule. The app now asks the advisor's faculty status on the thesis option
     only and sends a "no" or "not sure" to the ADGS (policy review 2026-10-04, P2-dh-10-5). §2.3 should say whether the
     TTT rule covers a project advisor.
+19. **§4.5 / §2.2 — what “coursework complete” means for candidacy, and transferred credits.** The Graduate School's
+    candidacy application counts coursework as "Course credits completed/required (GPA hours only)" (DGS Handbook
+    §10.3.1), and transferred grades are never GPA hours (§5.2: "No grades of transferred courses are included in the
+    student's GPA"; Academic Code §4.5). The DGS ruled on 2026-10-05 that transferred regular-course credits count toward
+    the 24 for the OCE and for admission to candidacy, and the app says so on the card. The handbook should say it too,
+    so the department's count and the Graduate School form's agree.
+20. **§4.5 — who authorizes a retake of the candidacy exam.** §4.5 has the DGS authorize a retake on the examiners'
+    recommendation. The Graduate School's procedures say "the department chair, on the recommendation of a majority of
+    the examiners, may authorize a retake" (DGS Handbook §10.5.2), and both need the Graduate School's approval. §4.5
+    should name the same officer, or say the chair has delegated it to the DGS.
