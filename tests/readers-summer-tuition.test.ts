@@ -173,7 +173,7 @@ describe('funding notes on the Ph.D. eight-year row (DGS Handbook §4.1)', () =>
   const rulesF = buildRules();
   const timeRow = (s: Student, today: string) => audit(s, rulesF, today).requirements.find((r) => r.id === 'phd.timeLimit')!;
   const FUNDING = /The Graduate School also ties University funding to academic good standing, which includes graduate enrollment at Notre Dame of fewer than eight years \(DGS Handbook §4\.1\)/;
-  const MS_YEARS = /the years of your Notre Dame MSCSE may count toward the eight; whether they do is the Graduate School’s call/;
+  const MS_YEARS = /the years of your Notre Dame MSCSE may count toward the eight\. A student who finishes a master’s at Notre Dame and then enrolls in a separate Ph\.D\. program is eligible for full support \(DGS Handbook §4\.1\); whether the CSE Ph\.D\. is separate from the CSE MSCSE, and so whether those years count, is the Graduate School’s call/;
 
   it('said once the limit is past, not years before it', () => {
     const s = phdStudent({ entryTerm: { season: 'fall', year: 2020 } }); // limit: Fall 2028 (a later cohort than Appendix A's)
@@ -187,6 +187,16 @@ describe('funding notes on the Ph.D. eight-year row (DGS Handbook §4.1)', () =>
     assert.match(r.detail, MS_YEARS);
     assert.equal(r.status, 'in_progress');
     assert.doesNotMatch(timeRow(phdStudent(), '2027-03-01').detail, MS_YEARS);
+  });
+
+  // P2-dh-4-5-3 (2026-10-04): a transfer from an unfinished MSCSE keeps the
+  // funding clock too (DGS Handbook §4.1: "will not have their funding
+  // eligibility reset").
+  it('a transfer from the MSCSE is told funding does not reset, and counts from the MSCSE start', () => {
+    const s = phdStudent({ entryTerm: { season: 'fall', year: 2025 }, background: { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer' } });
+    const r = timeRow(s, '2027-03-01');
+    assert.match(r.detail, /a move from the master’s to the Ph\.D\. within the same program does not reset funding eligibility \(DGS Handbook §4\.1\), so your funding years count from Fall 2025, when you started the MSCSE/);
+    assert.doesNotMatch(r.detail, MS_YEARS);
   });
 });
 

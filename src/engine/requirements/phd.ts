@@ -513,13 +513,27 @@ export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEv
     // School's own counting.
     funding: {
       whenDue: { note: 'The Graduate School also ties University funding to academic good standing, which includes graduate enrollment at Notre Dame of fewer than eight years (DGS Handbook §4.1)' },
-      ...(ctx.student.ndMasters !== undefined
+      // After a Notre Dame master's (policy review 2026-10-04, P2-dh-4-5-3;
+      // DGS: "Apply the suggested handling"). DGS Handbook §4.1: "Students
+      // progressing from a master's degree to a Ph.D. degree within the same
+      // program will not have their funding eligibility reset. Students who
+      // complete a master's degree at Notre Dame and then enroll in a separate
+      // Ph.D. program are eligible for full support in the Ph.D. program."
+      // Whether the CSE Ph.D. is "separate" from the CSE MSCSE is the Graduate
+      // School's call (DGS 2026-10-04, on P2-dh-4-5-1), so the note says so.
+      ...(ctx.student.background?.graduate === 'nd-mscse-transfer'
         ? {
             always: {
-              note: 'For funding, the Graduate School counts your total graduate enrollment at Notre Dame — “fewer than eight years” (DGS Handbook §4.1) — so the years of your Notre Dame MSCSE may count toward the eight; whether they do is the Graduate School’s call. The degree’s own eight years count from your Ph.D. entry',
+              note: `For funding, a move from the master’s to the Ph.D. within the same program does not reset funding eligibility (DGS Handbook §4.1), so your funding years count from ${termLabel(ctx.entry)}, when you started the MSCSE — as the degree’s clocks do`,
             },
           }
-        : {}),
+        : ctx.student.ndMasters !== undefined
+          ? {
+              always: {
+                note: 'For funding, the Graduate School counts your total graduate enrollment at Notre Dame — “fewer than eight years” (DGS Handbook §4.1) — so the years of your Notre Dame MSCSE may count toward the eight. A student who finishes a master’s at Notre Dame and then enrolls in a separate Ph.D. program is eligible for full support (DGS Handbook §4.1); whether the CSE Ph.D. is separate from the CSE MSCSE, and so whether those years count, is the Graduate School’s call. The degree’s own eight years count from your Ph.D. entry',
+              },
+            }
+          : {}),
     },
   });
 }
