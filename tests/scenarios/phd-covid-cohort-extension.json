@@ -17,6 +17,7 @@
     "milestones": {
       "advisorIdentified": "2020-03-01",
       "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
       "researchQualifierPassed": "2021-11-01"
     },
     "attestations": {},

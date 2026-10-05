@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-05 (DGS — engine): the OCE and admission also wait for a tenured or tenure-track advisor or co-advisor (`oceReadiness`). With none, or the question unanswered, they read Not started and the card names it (W-CL157). Open question: how to record a DGS-approved exception for a sole non-TTT advisor.
+
 2026-10-05 (DGS — display): the Not-started candidacy card lists the coursework that puts it in progress, with each piece’s standing, and when the OCE can be scheduled (W-CL156). “Does not apply” rows (`doesNotApply`, report.ts) and the milestone fields that do not apply are hidden; the counts already left them out. The advisor summary prints one line for the merged candidacy card.
 
 2026-10-05 (DGS — engine): the OCE gate reads only the courses the coursework needs (`oceCourseworkStatus`; `completingCourses` on the core and specialization rows), and the Not-started cards say why (W-CL155). Tests in tests/candidacy-admission.test.ts (“why the OCE is not started yet”).

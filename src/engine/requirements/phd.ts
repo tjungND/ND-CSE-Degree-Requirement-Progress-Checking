@@ -270,7 +270,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   // regular-course credits and the qualifier's core-knowledge and
   // specialization courses, completed or finishing this semester). Until then
   // the OCE and admission read Not started (DGS 2026-10-04).
-  const ready = oceCourseworkStatus(ctx, rows);
+  const ready = oceReadiness(ctx, rows);
   const rcr = rcrRow(ctx);
   const oce = candidacyRow(ctx, ready);
   rows.push({ ...rcr, unscored: true, mergedInto: 'phd.candidacyAdmission' });
@@ -1158,6 +1158,10 @@ export interface OceReadiness {
   missing: string[];
   /** The semester the coursework is expected to be complete, when later than now. */
   earliest?: Term;
+  /** What the advisor condition still needs, when it is not met (DGS
+   * 2026-10-05: "When there is no TTT advisor, it also makes OCE/candidacy
+   * not started"). */
+  advisorMissing?: string;
   /** Where each piece of the OCE's coursework stands, one line each — the
    * conditions that put candidacy in progress (DGS 2026-10-05: "describe what
    * conditions need to be satisfied to make it in-progress"). */
@@ -1170,7 +1174,7 @@ function coreCourseNoun(r: RequirementResult): string {
   return `${/^[AEIOU]/i.test(area) ? 'an' : 'a'} ${area} core-knowledge course`;
 }
 
-function oceCourseworkStatus(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
+function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
   const now = termOfDate(ctx.today);
   const missing: string[] = [];
   const completes: Term[] = [];
@@ -1248,9 +1252,34 @@ function oceCourseworkStatus(ctx: Ctx, rows: RequirementResult[]): OceReadiness 
       }
     }
   }
+  // A tenured or tenure-track advisor (DGS 2026-10-05: "When there is no TTT
+  // advisor, it also makes OCE/candidacy not started"; §2.3: "A research
+  // advisor must be a Tenure and Tenure Track (TTT) faculty member of the
+  // department"). The advisor or a co-advisor answered "yes" under Milestones;
+  // a name with the question blank cannot be judged, so it waits for the answer.
+  const m = ctx.student.milestones;
+  const anyAdvisor = !!(m.advisorName || m.advisorName2 || m.advisorIdentified);
+  const ttt = advisorTttState(ctx);
+  let advisorMissing: string | undefined;
+  if (!anyAdvisor) {
+    advisorMissing = 'an advisor who is tenured or tenure-track CSE faculty';
+    items.push('Tenured or tenure-track advisor: no advisor entered');
+  } else if (ttt === 'no') {
+    advisorMissing = 'a tenured or tenure-track advisor or co-advisor';
+    items.push('Tenured or tenure-track advisor: no or not sure (see the advisor card)');
+  } else if (ttt === 'unanswered') {
+    advisorMissing = 'your advisor’s faculty status, answered under Milestones';
+    items.push('Tenured or tenure-track advisor: not answered (Milestones)');
+  } else items.push('Tenured or tenure-track advisor: yes');
   const latest = completes.sort(compareTerm).pop();
   const earliest = latest !== undefined && compareTerm(latest, now) > 0 ? latest : undefined;
-  return { ready: missing.length === 0 && earliest === undefined, missing, items, ...(earliest ? { earliest } : {}) };
+  return {
+    ready: missing.length === 0 && earliest === undefined && advisorMissing === undefined,
+    missing,
+    items,
+    ...(earliest ? { earliest } : {}),
+    ...(advisorMissing ? { advisorMissing } : {}),
+  };
 }
 
 /** What the Not-started OCE and admission cards show (DGS 2026-10-05: "When
@@ -1260,13 +1289,16 @@ function oceCourseworkStatus(ctx: Ctx, rows: RequirementResult[]): OceReadiness 
  * when the OCE can be scheduled. Facts — the rule behind them is a note. */
 function oceWaitFact(r: OceReadiness): DetailPart[] {
   const list = (xs: string[]): string => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+  const needed = [...r.missing, ...(r.advisorMissing ? [r.advisorMissing] : [])];
   const when =
     r.missing.length > 0
-      ? `The OCE can be scheduled in the semester your coursework is complete or in its last semester — still to take: ${list(r.missing)}`
+      ? `The OCE can be scheduled in the semester your coursework is complete or in its last semester — still needed: ${list(needed)}`
       : r.earliest
-        ? `The OCE can be scheduled in ${termLabel(r.earliest)} at the earliest, the semester your coursework is expected to be complete`
-        : '';
-  return [{ lead: 'Becomes In progress once this coursework is complete or completing this semester', items: r.items }, ...(when ? [when] : [])];
+        ? `The OCE can be scheduled in ${termLabel(r.earliest)} at the earliest, the semester your coursework is expected to be complete${r.advisorMissing ? ` — still needed: ${r.advisorMissing}` : ''}`
+        : r.advisorMissing
+          ? `The OCE can be scheduled once you have ${r.advisorMissing === 'your advisor’s faculty status, answered under Milestones' ? 'answered your advisor’s faculty status under Milestones' : r.advisorMissing}`
+          : '';
+  return [{ lead: 'Becomes In progress once your coursework is complete or completing this semester, with a tenured or tenure-track advisor', items: r.items }, ...(when ? [when] : [])];
 }
 
 /** §4.5: "The candidacy exam must be taken before the end of the eighth
@@ -1329,7 +1361,7 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
       ...joinedDetail([
         'Not started',
         ...oceWaitFact(coursework),
-        { note: 'The Oral Candidacy Exam (OCE) can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits (transferred regular-course credits count) and the qualifying examination’s core-knowledge and specialization courses (§4.5)' },
+        { note: 'The Oral Candidacy Exam (OCE) can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits (transferred regular-course credits count) and the qualifying examination’s core-knowledge and specialization courses (§4.5) — and you have a tenured or tenure-track advisor (§2.3)' },
         ...eighthSemesterNotes(ctx, sem, effectiveSem, true, 'oce'),
       ]),
       deadline: r.deadline,
@@ -1411,7 +1443,7 @@ function admissionPolicyNotes(ctx: Ctx, args: { semesterWord: string; probationC
     policy(`The department’s coursework: the ${regularMin ?? 24} regular-course credits (§4.2) — transferred regular-course credits count, and approved CSE 4xxxx credits count within §4.2’s allowance (Academic Code §6.2.9; DGS Handbook §3.22.3)`),
     policy(`A cumulative GPA of ${(gpaMin ?? 3).toFixed(1)} or better (§2.2; Academic Code §6.2.9; DGS Handbook §3.22.3)`),
     policy('All training modules for the Responsible Conduct of Research and ethics: the Graduate School’s training for every Ph.D. student, and any training your role or your research funding requires (Academic Code §6.2.4; DGS Handbook §3.22.3, §6.3.1)'),
-    policy('The doctoral candidacy examination passed, its written and oral parts: in CSE the written part is the dissertation proposal, so passing the Oral Candidacy Exam (OCE) normally also approves the proposal. The OCE can be taken once your coursework is complete or in progress the same semester — the regular-course credits and the qualifying examination’s core-knowledge and specialization courses (§4.5; Academic Code §6.2.8, §6.2.9)'),
+    policy('The doctoral candidacy examination passed, its written and oral parts: in CSE the written part is the dissertation proposal, so passing the Oral Candidacy Exam (OCE) normally also approves the proposal. The OCE can be taken once your coursework is complete or in progress the same semester — the regular-course credits and the qualifying examination’s core-knowledge and specialization courses — and you have a tenured or tenure-track advisor (§2.3, §4.5; Academic Code §6.2.8, §6.2.9)'),
     policy('Before the OCE: send the DGS a written request naming your committee — your advisor and at least three voting members, with CVs for members from outside Notre Dame — and give the committee your written proposal at least two weeks before the exam, which is held on campus (§4.5)'),
     policy('At least one dissertation advisor who is tenured or tenure-track Notre Dame faculty, or a co-advisor who is; the application confirms it. CSE asks for tenured or tenure-track CSE faculty, with exceptions approved by the DGS (§2.3; Academic Code §6.2.7; DGS Handbook §10.3.1)'),
     policy('CSE has no language requirement (§5.3)'),

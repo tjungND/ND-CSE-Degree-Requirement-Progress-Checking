@@ -213,6 +213,8 @@ describe('the merged candidacy card', () => {
     entryTerm: { season: 'fall', year: 2026 },
     // Two semesters: Academic Code §3.8 counts at most 15 graduate credits a semester.
     courses: REGULAR.map((id, i) => ndCourse(id, { term: i < 4 ? { season: 'fall', year: 2026 } : { season: 'spring', year: 2027 } })),
+    // A tenured or tenure-track advisor (DGS 2026-10-05: without one the OCE is Not started).
+    milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes' },
   });
 
   it('the OCE and RCR rows are kept, unscored and shown inside the admission card', () => {
@@ -269,6 +271,7 @@ describe('the OCE and admission wait for the coursework', () => {
     const st = phdStudent({
       entryTerm: fall26,
       courses: REGULAR.map((id, i) => ndCourse(id, { term: i < 4 ? fall26 : spring27, ...(i < 4 ? {} : { grade: 'IP' as const }) })),
+      milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes' },
     });
     assert.equal(row(st, 'phd.candidacy', '2027-03-01').status, 'in_progress');
     // …but not while those courses are a semester away.
@@ -278,8 +281,8 @@ describe('the OCE and admission wait for the coursework', () => {
   it('the qualifier’s course components done but the 24 credits short: Not started', () => {
     const st = phdStudent({ entryTerm: fall26, courses: REGULAR.slice(0, 3).map((id) => ndCourse(id, { term: fall26 })) });
     const d = row(st, 'phd.candidacy', '2027-03-01').detail;
-    assert.match(d, /^Not started\. Becomes In progress once this coursework is complete or completing this semester: Regular-course credits: 9 of 24 complete — 15 more needed \(transferred regular-course credits count\);/);
-    assert.match(d, /The OCE can be scheduled in the semester your coursework is complete or in its last semester — still to take: 15 more regular-course credits\./);
+    assert.match(d, /^Not started\. Becomes In progress once your coursework is complete or completing this semester, with a tenured or tenure-track advisor: Regular-course credits: 9 of 24 complete — 15 more needed \(transferred regular-course credits count\);/);
+    assert.match(d, /The OCE can be scheduled in the semester your coursework is complete or in its last semester — still needed: 15 more regular-course credits and an advisor who is tenured or tenure-track CSE faculty\./);
   });
 
   it('transferred regular-course credits count toward the 24', () => {
@@ -288,6 +291,7 @@ describe('the OCE and admission wait for the coursework', () => {
       priorMs: 'completed',
       bachelorsAwarded: { season: 'spring', year: 2022 },
       courses: [...REGULAR.slice(0, 7).map((id, i) => ndCourse(id, { term: i < 4 ? fall26 : spring27 })), transferCourse('CS 50300', 'Operating Systems', { institution: 'Purdue University', degreeLevel: 'masters' })],
+      milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes' },
     });
     assert.equal(row(st, 'phd.candidacy', '2027-03-01').status, 'in_progress');
     assert.match(row(st, 'phd.candidacyAdmission', '2027-03-01').detail, /Coursework: 24 of 24 regular-course credits complete \(transferred regular-course credits count\)/);
@@ -342,8 +346,12 @@ describe('every condition for admission to doctoral candidacy', () => {
     const r = card(st, '2028-03-01');
     assert.match(r.detail, /Tenured or tenure-track dissertation advisor: yes/);
     assert.match(r.detail, /Registered this semester \(Spring 2028\): 6 credits entered/);
-    assert.match(card(ready({ advisorTtt: 'no' }), '2028-03-01').detail, /Tenured or tenure-track dissertation advisor: no or not sure — the DGS must approve it/);
-    assert.match(card(ready({ advisorTtt: undefined }), '2028-03-01').detail, /Tenured or tenure-track dissertation advisor: not answered \(Milestones\)/);
+    // Without a tenured or tenure-track advisor the card is Not started (DGS
+    // 2026-10-05), and its list says so; once the OCE is passed it stays a
+    // condition of admission, said on the in-progress card.
+    assert.match(card(ready({ advisorTtt: 'no' }), '2028-03-01').detail, /^Not started\..*Tenured or tenure-track advisor: no or not sure \(see the advisor card\)/);
+    assert.match(card(ready({ advisorTtt: undefined }), '2028-03-01').detail, /^Not started\..*Tenured or tenure-track advisor: not answered \(Milestones\)/);
+    assert.match(card(ready({ advisorTtt: 'no', candidacyPassed: '2028-02-01' }), '2028-03-01').detail, /Tenured or tenure-track dissertation advisor: no or not sure — the DGS must approve it/);
     assert.match(card(ready({}), '2028-09-20').detail, /Registered this semester \(Fall 2028\): no Notre Dame course entered/);
   });
 });
@@ -379,7 +387,7 @@ describe('why the OCE is not started yet', () => {
   it('a core-knowledge area with no course: the card names it', () => {
     const r = card(printout(), '2026-10-05');
     assert.equal(r.status, 'unmet');
-    assert.match(r.detail, /^Not started\. Becomes In progress once this coursework is complete or completing this semester: Regular-course credits: 18 of 24 complete, 6 in progress — complete at the end of Spring 2027 \(transferred regular-course credits count\); Core knowledge, Operating Systems: in progress \(CSE 60641, Fall 2026\); Core knowledge, Algorithms: no course yet; Core knowledge, Computer Architecture: done \(CSE 60321\); Specialization courses: done\. The OCE can be scheduled in the semester your coursework is complete or in its last semester — still to take: an Algorithms core-knowledge course\./);
+    assert.match(r.detail, /^Not started\. Becomes In progress once your coursework is complete or completing this semester, with a tenured or tenure-track advisor: Regular-course credits: 18 of 24 complete, 6 in progress — complete at the end of Spring 2027 \(transferred regular-course credits count\); Core knowledge, Operating Systems: in progress \(CSE 60641, Fall 2026\); Core knowledge, Algorithms: no course yet; Core knowledge, Computer Architecture: done \(CSE 60321\); Specialization courses: done; Tenured or tenure-track advisor: yes\. The OCE can be scheduled in the semester your coursework is complete or in its last semester — still needed: an Algorithms core-knowledge course\./);
   });
 
   it('every component under way, the last one next semester: the card names that semester', () => {
@@ -401,6 +409,7 @@ describe('why the OCE is not started yet', () => {
         // Next semester's research registration, already entered.
         ndCourse('CSE 98900', { term: spring27w, grade: 'IP', credits: 6 }),
       ],
+      milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes' },
     });
     assert.equal(card(st, '2026-10-05').status, 'in_progress');
   });
@@ -418,6 +427,39 @@ describe('rows that do not apply', () => {
     assert.equal(doesNotApply(byId('phd.cap.fourk')), false);
     assert.equal(doesNotApply(byId('phd.msAlongTheWay')), false);
     assert.ok(!scoredRows(report).some(doesNotApply), 'never counted in x of y');
+  });
+});
+
+// "When there is no TTT advisor, it also makes OCE/candidacy not started.
+// Add that." (DGS 2026-10-05; §2.3: "A research advisor must be a Tenure and
+// Tenure Track (TTT) faculty member of the department").
+describe('the OCE waits for a tenured or tenure-track advisor', () => {
+  const rulesA = buildRules();
+  const fallA = { season: 'fall' as const, year: 2026 };
+  const springA = { season: 'spring' as const, year: 2027 };
+  // The coursework done in two semesters; only the advisor varies.
+  const st = (milestones: Milestones) =>
+    phdStudent({ entryTerm: fallA, courses: REGULAR.map((id, i) => ndCourse(id, { term: i < 4 ? fallA : springA })), milestones });
+  const card = (m: Milestones) => audit(st(m), rulesA, '2027-09-15').requirements.find((x) => x.id === 'phd.candidacyAdmission')!;
+  const oce = (m: Milestones) => audit(st(m), rulesA, '2027-09-15').requirements.find((x) => x.id === 'phd.candidacy')!;
+
+  it('a TTT advisor, or a TTT co-advisor beside a non-TTT advisor: under way', () => {
+    assert.equal(card({ advisorName: 'Prof. A', advisorTtt: 'yes' }).status, 'in_progress');
+    assert.equal(card({ advisorName: 'Prof. A', advisorTtt: 'no', advisorName2: 'Prof. B', advisorTtt2: 'yes' }).status, 'in_progress');
+  });
+
+  it('no advisor, an unanswered faculty status, or a no: Not started, and the card says what is still needed', () => {
+    const none = card({});
+    assert.match(none.detail, /^Not started\..*Tenured or tenure-track advisor: no advisor entered\. The OCE can be scheduled once you have an advisor who is tenured or tenure-track CSE faculty\./);
+    assert.match(card({ advisorName: 'Prof. A' }).detail, /Tenured or tenure-track advisor: not answered \(Milestones\)\. The OCE can be scheduled once you have answered your advisor’s faculty status under Milestones\./);
+    assert.match(card({ advisorName: 'Prof. A', advisorTtt: 'no' }).detail, /Tenured or tenure-track advisor: no or not sure \(see the advisor card\)\. The OCE can be scheduled once you have a tenured or tenure-track advisor or co-advisor\./);
+    assert.equal(oce({ advisorName: 'Prof. A', advisorTtt: 'unsure' }).status, 'unmet');
+    assert.match(oce({ advisorName: 'Prof. A', advisorTtt: 'unsure' }).detail, /^Not started\./);
+  });
+
+  it('a coursework semester still to come and no TTT advisor: both are named', () => {
+    const later = phdStudent({ entryTerm: fallA, courses: REGULAR.map((id, i) => ndCourse(id, { term: i < 4 ? fallA : springA, ...(i < 4 ? {} : { grade: 'IP' as const }) })), milestones: {} });
+    assert.match(audit(later, rulesA, '2026-11-01').requirements.find((x) => x.id === 'phd.candidacyAdmission')!.detail, /The OCE can be scheduled in Spring 2027 at the earliest, the semester your coursework is expected to be complete — still needed: an advisor who is tenured or tenure-track CSE faculty\./);
   });
 });
 
