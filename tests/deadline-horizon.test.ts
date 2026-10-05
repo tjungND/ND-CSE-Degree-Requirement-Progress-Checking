@@ -103,8 +103,9 @@ describe('the alert on the page and in the Grad Admin request', () => {
     assert.match(built.html, /<p style="[^"]*background:#ffe3c9;color:#8a3a00;border-left:4px solid #e0863a"><strong>Deadline next semester:<\/strong> Due by the end of Spring 2027 \(approximate\)<\/p>/);
     // A row whose deadline is further off states it without the highlight.
     // The OCE is shown inside the admission card since 2026-10-04 (DGS: "Can
-    // they be merged into one card?"), so the admission line carries the date.
-    assert.match(built.text, /\n\[IN PROGRESS\] Admitted to doctoral candidacy \(Academic Code §6\.2\.9\)\n    Deadline: Due by the end of Spring 2029 — semester 8 \(approximate\)\n/);
+    // they be merged into one card?"), so the admission line carries the date;
+    // Not started until the qualifier is due to be complete (DGS 2026-10-04).
+    assert.match(built.text, /\n\[NOT STARTED\] Admitted to doctoral candidacy \(Academic Code §6\.2\.9\)\n    Deadline: Due by the end of Spring 2029 — semester 8 \(approximate\)\n/);
     assert.doesNotMatch(built.text, /!! DEADLINE [A-Z]+ SEMESTER: Due by the end of Spring 2029/);
   });
 });

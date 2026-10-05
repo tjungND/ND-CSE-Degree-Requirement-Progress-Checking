@@ -266,11 +266,17 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   // RCR training among its conditions, so their rows are kept — the emails
   // and the milestone dates read them — but shown inside the admission card
   // and not counted on their own.
+  // The OCE waits for the qualifier (DGS 2026-10-04: "OCE cannot be started
+  // until the qualifier is almost done … At the earliest, an OCE can be
+  // scheduled in the same semester after which the qualifier requirements are
+  // expected to be completed. Until then, mark OCE and candidacy as not
+  // started").
+  const ready = qualifierReadyForOce(ctx, rows);
   const rcr = rcrRow(ctx);
-  const oce = candidacyRow(ctx);
+  const oce = candidacyRow(ctx, ready);
   rows.push({ ...rcr, unscored: true, mergedInto: 'phd.candidacyAdmission' });
   rows.push({ ...oce, unscored: true, mergedInto: 'phd.candidacyAdmission' });
-  rows.push(candidacyAdmissionRow(ctx, { oce, rcr }));
+  rows.push(candidacyAdmissionRow(ctx, { oce, rcr, qualifierReady: ready }));
   rows.push(...dissertationRows(ctx));
   // §4.5's MSCSE cannot be earned twice. A Ph.D. student who already holds the
   // Notre Dame MSCSE (their master's before this program) has no along-the-way
@@ -1124,6 +1130,33 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
   return parts;
 }
 
+/** Whether the Oral Candidacy Exam can be scheduled yet (DGS 2026-10-04: "OCE
+ * cannot be started until the qualifier is almost done … At the earliest, an
+ * OCE can be scheduled in the same semester after which the qualifier
+ * requirements are expected to be completed"). CSE §4.5 states only the
+ * coursework precondition ("All coursework for the Ph.D. must be completed (or
+ * in progress the same semester) before the candidacy exam can be taken"); the
+ * qualifier precondition is the DGS's reading of the program's practice.
+ *
+ * Ready when the qualifier umbrella is complete (met, or done late), or when
+ * the research component is passed and every other open part — a core area,
+ * the specialization, §4.2's nine Notre Dame credits — is In progress on
+ * courses of this semester or earlier: the qualifier is then expected to be
+ * complete at the end of this semester. */
+function qualifierReadyForOce(ctx: Ctx, rows: RequirementResult[]): boolean {
+  const done = (r: RequirementResult | undefined): boolean => r !== undefined && (r.status === 'met' || (r.status === 'needs_dgs_review' && r.statusLabel === undefined));
+  const umbrella = rows.find((r) => r.id === 'phd.qualifier');
+  if (done(umbrella)) return true;
+  const parts = rows.filter((r) => r.id.startsWith('phd.qualifier.'));
+  const research = parts.find((r) => r.id === 'phd.qualifier.research');
+  if (!done(research)) return false;
+  const open = [...parts.filter((r) => r.id !== 'phd.qualifier.research'), ...rows.filter((r) => r.id === 'phd.credits.nd')].filter((r) => !done(r));
+  if (!open.every((r) => r.status === 'in_progress')) return false;
+  // Expected THIS semester: no course in progress is dated after it.
+  const now = termOfDate(ctx.today);
+  return !ctx.classified.some((c) => !c.superseded && c.tier === 'in_progress' && compareTerm(c.entry.term, now) > 0);
+}
+
 /** §4.5: "The candidacy exam must be taken before the end of the eighth
  * semester in the program."
  *
@@ -1133,7 +1166,7 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
  * doctoral candidacy."). Admission to candidacy — with the GPA, the four
  * full-time semesters, the RCR training and the Graduate School's form — is
  * the next row. */
-function candidacyRow(ctx: Ctx): RequirementResult {
+function candidacyRow(ctx: Ctx, qualifierReady: boolean): RequirementResult {
   const quote = 'The candidacy exam must be taken before the end of the eighth semester in the program.';
   const sem = ctx.params.number('candidacy_deadline_semester');
   if (sem === undefined) {
@@ -1173,6 +1206,23 @@ function candidacyRow(ctx: Ctx): RequirementResult {
     // "you" as the subject, so the emails' "I" reads right (2026-10-04).
     lateWording: 'you may have been placed on probation and lost University funding (Academic Code §6.2.8); confirm your standing with the DGS',
   });
+  // Not started until the qualifier is complete or due to complete this
+  // semester (DGS 2026-10-04) — an Overdue eighth semester still reads Overdue.
+  if (passed === undefined && !qualifierReady && r.status !== 'unmet') {
+    return {
+      id: 'phd.candidacy',
+      group: CANDIDACY,
+      title: 'Oral Candidacy Exam (OCE) passed',
+      status: 'unmet',
+      ...joinedDetail([
+        'Not started',
+        { note: 'The Oral Candidacy Exam (OCE) can be scheduled at the earliest in the semester your qualifying examination is expected to be complete — all three components (§4.4, §4.5)' },
+        ...eighthSemesterNotes(ctx, sem, effectiveSem, true, 'oce'),
+      ]),
+      deadline: r.deadline,
+      citation: { section: '§4.5', quote },
+    };
+  }
   // The pass is the fact; every other sentence is a note (DGS 2026-10-03).
   const parts: DetailPart[] = [];
   if (r.status === 'met') parts.push(`Oral Candidacy Exam (OCE) passed ${passed}`);
@@ -1264,7 +1314,7 @@ const ADMISSION_FULL_TIME_SEMESTERS = 4;
  * before the OCE's goes to the DGS. A record whose dissertation milestones
  * are dated but whose admission is not is missing a date — no "apply now",
  * no probation (review of the split, 2026-10-04). */
-function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: RequirementResult }): RequirementResult {
+function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: RequirementResult; qualifierReady: boolean }): RequirementResult {
   const quote =
     'To qualify for admission to doctoral candidacy, a student must: be in a doctoral program, complete the program coursework and language requirements with a cumulative G.P.A. of 3.0 or better, pass the written and oral parts of the doctoral candidacy examination, and have the dissertation proposal approved (if this is not part of the candidacy exam).';
   const citation = { section: 'Academic Code §6.2.9', quote };
@@ -1292,6 +1342,21 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     deadlineLabel: `the end of ${termLabel(term)} — semester ${effectiveSem}`,
     lateWording: `you may have been placed on probation (${probationCite}), and admission after the ${semesterWord} semester risks the loss of Graduate School funding (DGS Handbook §3.22.3); confirm your standing with the DGS`,
   });
+  // Not started while the OCE is (DGS 2026-10-04): admission follows the OCE,
+  // which waits for the qualifier. An Overdue eighth semester still reads so.
+  if (!admitted && !m.candidacyPassed && !merged.qualifierReady && r.status !== 'unmet' && merged.oce.status !== 'cannot_evaluate') {
+    return {
+      ...base,
+      status: 'unmet',
+      ...joinedDetail([
+        'Not started',
+        { note: 'Admission to doctoral candidacy follows the Oral Candidacy Exam (OCE), which can be scheduled at the earliest in the semester your qualifying examination is expected to be complete (§4.4, §4.5)' },
+        ...eighthSemesterNotes(ctx, sem, effectiveSem, true, 'admission'),
+      ]),
+      deadline: r.deadline,
+      citation,
+    };
+  }
   const parts: DetailPart[] = [];
   let status = r.status;
   let completedLate = false;

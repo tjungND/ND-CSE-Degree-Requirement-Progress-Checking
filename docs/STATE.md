@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-04 (DGS — engine): the OCE and admission to candidacy read Not started until the qualifier is complete or due to complete this semester, with the research component passed (qualifierReadyForOce, phd.ts). The Milestones fields appear only once their step is under way. Scenarios gpa-floor, phd-fresh, phd-nd-undergrad-before-entry and phd-oce-clock-after-completed-mscse now expect Not started; tests in tests/candidacy-admission.test.ts. Wording W-CL151.
+
 2026-10-04 (DGS — display): Your standing’s four selectors stay closed unless they need attention: a part-time semester warning, or an unanswered transcript gap. An answer on file shows in the summary line. Wording W-CL150.
 
 2026-10-04 (policy review, DGS — notes): P2-dh-6-9-5 applied. A dated defense in a semester with nothing entered points to confirming registration (DGS Handbook §8.2.5; Academic Code §3.7), with no status change. With it, every finding of the 2026-10-02 policy-compliance review is fixed, ruled or out of scope; none is open. Scenario phd-defense-term-not-registered. Wording W-CL149.

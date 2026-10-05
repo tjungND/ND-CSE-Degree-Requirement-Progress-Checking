@@ -1,6 +1,6 @@
 {
   "name": "phd-oce-clock-after-completed-mscse",
-  "description": "Finished the Notre Dame MSCSE (May 2024), then entered the Ph.D. in Fall 2024: the \u00a74.5 eighth semester is counted from the Ph.D. entry, not the MSCSE start (DGS 2026-09-26) \u2014 in Fall 2026 the deadline is still ahead and the row says so.",
+  "description": "Finished the Notre Dame MSCSE (May 2024), then entered the Ph.D. in Fall 2024: the §4.5 eighth semester is counted from the Ph.D. entry, not the MSCSE start (DGS 2026-09-26) — in Fall 2026 the deadline is still ahead and the row says so. Since 2026-10-04 (DGS: the OCE can be scheduled at the earliest in the semester the qualifier is expected to be complete) the OCE and admission read Not started here.",
   "today": "2026-10-01",
   "rules": {
     "base": "default"
@@ -54,8 +54,9 @@
   },
   "expect": {
     "phd.candidacy": {
-      "status": "in_progress",
+      "status": "unmet",
       "detailIncludes": [
+        "Not started",
         "counted from Fall 2024, your Ph.D. entry"
       ]
     }

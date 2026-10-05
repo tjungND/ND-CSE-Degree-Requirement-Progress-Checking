@@ -2506,8 +2506,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       }
       // The master's candidacy application (Academic Code §6.1.6; policy
       // review 2026-10-04) — every MSCSE student files it in the end.
-      card.append(dateField('Application for Admission to Master’s Degree Candidacy submitted to the Graduate School (Academic Code §6.1.6)', 'msCandidacyApplied'));
+      // Shown once the application is due (the row appears) or dated (DGS
+      // 2026-10-04: "Show the entries only when they are in progress").
+      if (m.msCandidacyApplied || report.requirements.some((r) => r.id === 'shared.msCandidacy')) {
+        card.append(dateField('Application for Admission to Master’s Degree Candidacy submitted to the Graduate School (Academic Code §6.1.6)', 'msCandidacyApplied'));
+      }
     } else {
+      // Milestones appear once they are under way (DGS 2026-10-04: "Show the
+      // entries only when they are in progress"): a date field whose row reads
+      // Not started stays hidden until a date is on file — nothing on file is
+      // ever hidden. The OCE waits for the qualifier, so does its field, and
+      // the qualifier completion form appears with it.
+      const notStarted = (id: string): boolean => {
+        const r = report.requirements.find((x) => x.id === id);
+        return r !== undefined && r.status === 'unmet' && /^Not started\b/.test(r.detail);
+      };
+      const oceOpen = !notStarted('phd.candidacy');
+      const qualifierDone = report.requirements.some((r) => r.id === 'phd.qualifier' && r.status === 'met');
       card.append(
         dateField('Research qualifier passed — advisor filed the form (§4.4.3)', 'researchQualifierPassed'),
         // A FAIL within the 18 months starts the DGS committee's six months
@@ -2516,10 +2531,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // "(DGS office)" dropped (trim review 2026-09-18, P-51): the handbook's
         // phrase for the desk the page calls the Grad Admin, one card above
         // "two people, two jobs"; phd.ts and the advisor summary already read this way.
-        dateField('Qualifier completion form filed with the Grad Admin (§4.4)', 'qualifierFormFiled'),
+        ...(m.qualifierFormFiled || qualifierDone || oceOpen ? [dateField('Qualifier completion form filed with the Grad Admin (§4.4)', 'qualifierFormFiled')] : []),
         // Academic Code §6.2.4; a candidacy condition per the DGS Handbook §3.22.3 (2026-10-03).
         dateField('Responsible Conduct of Research and ethics training completed (Graduate School)', 'rcrTrainingCompleted'),
-        dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed'),
+        ...(m.candidacyPassed || oceOpen ? [dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed')] : []),
       );
       // §4.6 opens "After satisfying the above requirements": nobody has a
       // dissertation date without an OCE date, so the admission and
@@ -2536,8 +2551,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           dateField('Admitted to doctoral candidacy by the Graduate School (Academic Code §6.2.9)', 'candidacyAdmitted'),
           dateField('Dissertation defense passed (§4.7)', 'defensePassed'),
           // The official submission is the last requirement inside the eight
-          // years (Academic Code §6.2.6/§6.2.12; policy review 2026-10-03).
-          dateField('Final dissertation submitted to the Graduate School (Academic Code §6.2.12)', 'dissertationSubmitted'),
+          // years (Academic Code §6.2.6/§6.2.12; policy review 2026-10-03) —
+          // shown once the defense is dated (DGS 2026-10-04: in progress only).
+          ...(m.defensePassed || m.dissertationSubmitted ? [dateField('Final dissertation submitted to the Graduate School (Academic Code §6.2.12)', 'dissertationSubmitted')] : []),
         );
       }
       // The MSCSE along the way's candidacy application (DGS Handbook §3.21.1;

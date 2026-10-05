@@ -1,33 +1,76 @@
 {
   "name": "phd-fresh",
-  "description": "A brand-new Ph.D. student with nothing entered: coursework rows unmet, deadline rows show due-by dates, GPA cannot be evaluated.",
+  "description": "A brand-new Ph.D. student with nothing entered: coursework rows unmet, deadline rows show due-by dates, GPA cannot be evaluated. Since 2026-10-04 (DGS: the OCE can be scheduled at the earliest in the semester the qualifier is expected to be complete) the OCE and admission read Not started here.",
   "today": "2026-09-01",
-  "rules": { "base": "default" },
+  "rules": {
+    "base": "default"
+  },
   "student": {
     "schemaVersion": 1,
     "program": "phd",
-    "entryTerm": { "season": "fall", "year": 2026 },
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
     "priorMs": "none",
     "courses": [],
     "milestones": {},
     "attestations": {}
   },
   "expect": {
-    "shared.gpa": { "status": "cannot_evaluate" },
-    "shared.advisor": { "status": "unmet" },
-    "phd.credits.total": { "status": "unmet" },
-    "phd.credits.regular": { "status": "unmet" },
-    "phd.credits.nd": { "status": "unmet" },
-    "phd.seminar": { "status": "unmet" },
-    "phd.cap.fourk": { "status": "not_applicable" },
-    "phd.cap.noncse": { "status": "not_applicable" },
-    "phd.transfer": { "status": "not_applicable" },
-    "phd.residency": { "status": "in_progress" },
-    "phd.timeLimit": { "status": "in_progress" },
-    "phd.qualifier": { "status": "unmet" },
-    "phd.qualifier.core.os": { "status": "unmet" },
-    "phd.qualifier.research": { "status": "in_progress", "detailIncludes": ["Research-Qualifier"] },
-    "phd.candidacy": { "status": "in_progress" },
-    "phd.msAlongTheWay": { "status": "not_applicable" }
+    "shared.gpa": {
+      "status": "cannot_evaluate"
+    },
+    "shared.advisor": {
+      "status": "unmet"
+    },
+    "phd.credits.total": {
+      "status": "unmet"
+    },
+    "phd.credits.regular": {
+      "status": "unmet"
+    },
+    "phd.credits.nd": {
+      "status": "unmet"
+    },
+    "phd.seminar": {
+      "status": "unmet"
+    },
+    "phd.cap.fourk": {
+      "status": "not_applicable"
+    },
+    "phd.cap.noncse": {
+      "status": "not_applicable"
+    },
+    "phd.transfer": {
+      "status": "not_applicable"
+    },
+    "phd.residency": {
+      "status": "in_progress"
+    },
+    "phd.timeLimit": {
+      "status": "in_progress"
+    },
+    "phd.qualifier": {
+      "status": "unmet"
+    },
+    "phd.qualifier.core.os": {
+      "status": "unmet"
+    },
+    "phd.qualifier.research": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "Research-Qualifier"
+      ]
+    },
+    "phd.candidacy": {
+      "status": "unmet",
+      "detailIncludes": [
+        "Not started"
+      ]
+    },
+    "phd.msAlongTheWay": {
+      "status": "not_applicable"
+    }
   }
 }

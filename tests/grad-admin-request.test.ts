@@ -193,7 +193,7 @@ describe('gradAdminRequest', () => {
     assert.equal(built.items.count, built.items.lines.length, 'the chip counts exactly what the card lists');
     assert.ok(built.items.met.length >= 1, 'the met GPA row alone activates the Grad Admin button');
     // (the GPA row is met, so the standing list still follows the marker)
-    assert.match(built.text, /\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- 1 requirement met, 2 overdue, \d+ in progress, 2 not started\.\n\n\[OVERDUE\]/);
+    assert.match(built.text, /\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nMY STANDING, REQUIREMENT BY REQUIREMENT\n- 1 requirement met, 2 overdue, \d+ in progress, 3 not started\.\n\n\[OVERDUE\]/);
     assert.match(built.text, /\n\[NOT STARTED\] Dissertation defense passed \(§4\.7\)\n/);
     assert.match(built.html, /<span style="[^"]*background:#eef0f3;color:#5a6472">Not started<\/span>/);
   });

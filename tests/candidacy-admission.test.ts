@@ -204,7 +204,14 @@ describe('the eighth semester', () => {
 describe('the merged candidacy card', () => {
   const rulesM = buildRules();
   const reqs = (s: Student, today: string, r = rulesM) => audit(s, r, today).requirements;
-  const s = phdStudent({ entryTerm: { season: 'fall', year: 2026 } });
+  // A student whose qualifier is complete (DGS 2026-10-04: the OCE waits for
+  // it): the three core courses, which also fill three specialization groups
+  // and §4.2's nine Notre Dame credits, and the research component passed.
+  const s = phdStudent({
+    entryTerm: { season: 'fall', year: 2026 },
+    courses: ['CSE 60641', 'CSE 60111', 'CSE 60321'].map((id) => ndCourse(id, { term: { season: 'fall', year: 2026 } })),
+    milestones: { researchQualifierPassed: '2027-02-01' },
+  });
 
   it('the OCE and RCR rows are kept, unscored and shown inside the admission card', () => {
     const r = reqs(s, '2027-03-01');
@@ -233,5 +240,49 @@ describe('the merged candidacy card', () => {
     const card = reqs(s, '2027-03-01', missing).find((x) => x.id === 'phd.candidacyAdmission')!;
     assert.equal(card.status, 'cannot_evaluate');
     assert.match(card.detail, /Oral Candidacy Exam \(OCE\): .*candidacy_deadline_semester/);
+  });
+
+  it('the coursework precondition is said once the OCE can be scheduled', () => {
+    const oce = reqs(s, '2027-03-01').find((x) => x.id === 'phd.candidacy')!;
+    assert.equal(oce.status, 'in_progress');
+    assert.match(oce.detail, /You can take the exam once your 24 regular-course credits are complete or in progress — you have 9 of 24 \(§4\.5\)/);
+  });
+});
+
+// The OCE waits for the qualifier (DGS 2026-10-04: "At the earliest, an OCE can
+// be scheduled in the same semester after which the qualifier requirements are
+// expected to be completed. Until then, mark OCE and candidacy as not started").
+describe('the OCE and admission wait for the qualifier', () => {
+  const rulesQ = buildRules();
+  const row = (st: Student, id: string, today: string) => audit(st, rulesQ, today).requirements.find((x) => x.id === id)!;
+  const fall26 = { season: 'fall' as const, year: 2026 };
+  const spring27 = { season: 'spring' as const, year: 2027 };
+
+  it('a first-year student: both Not started, with the eighth-semester deadline still shown', () => {
+    const st = phdStudent({ entryTerm: fall26 });
+    for (const id of ['phd.candidacy', 'phd.candidacyAdmission']) {
+      const r = row(st, id, '2026-10-04');
+      assert.equal(r.status, 'unmet', id);
+      assert.match(r.detail, /^Not started\./, id);
+      assert.ok(r.deadline, id);
+    }
+  });
+
+  it('research passed and the last qualifier courses in progress THIS semester: the OCE can be scheduled', () => {
+    const st = phdStudent({
+      entryTerm: fall26,
+      courses: [ndCourse('CSE 60641', { term: fall26 }), ndCourse('CSE 60111', { term: spring27, grade: 'IP' }), ndCourse('CSE 60321', { term: spring27, grade: 'IP' })],
+      milestones: { researchQualifierPassed: '2027-02-01' },
+    });
+    assert.equal(row(st, 'phd.candidacy', '2027-03-01').status, 'in_progress');
+    // …but not while those courses are a semester away, nor before the research component.
+    assert.equal(row(st, 'phd.candidacy', '2026-11-01').status, 'unmet');
+    assert.equal(row({ ...st, milestones: {} }, 'phd.candidacy', '2027-03-01').status, 'unmet');
+  });
+
+  it('past the eighth semester it still reads Overdue', () => {
+    const r = row(phdStudent({ entryTerm: fall26 }), 'phd.candidacy', '2030-09-01');
+    assert.equal(r.deadline!.state, 'overdue');
+    assert.doesNotMatch(r.detail, /^Not started/);
   });
 });
