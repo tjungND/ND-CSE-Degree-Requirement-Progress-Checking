@@ -229,3 +229,32 @@ describe('a Notre Dame course entered as program coursework but dated before the
     assert.match(w!, /transfer credit \(§3\.2, §5\.2\)|transfer credit \(§5\.2\)/);
   });
 });
+
+// A readmission after a withdrawal or a missed fall or spring semester, under
+// five years (policy review 2026-10-04, P2-dh-3.1-3.13-3/-4/-9): the earlier
+// program courses wait for the DGS (DGS Handbook §3.3), the review request asks
+// about them and about the readmission itself, and nothing is inferred from an
+// empty semester.
+describe('readmission after a shorter gap (DGS Handbook §3.1, §3.3)', () => {
+  const readmitted = (over: Partial<Student> = {}) =>
+    ms({
+      entryTerm: fall(2023),
+      readmittedTerm: fall(2025),
+      courses: [ndCourse('CSE 60641', { term: fall(2023) }), ndCourse('CSE 60321', { term: fall(2025) })],
+      ...over,
+    });
+
+  it('sends the earlier course and the readmission to the review request', () => {
+    const report = audit(readmitted(), rules, '2026-03-01');
+    assert.ok((report.reviewFlags ?? []).some((f) => /^Readmission: I was readmitted in Fall 2025 after a withdrawal or a fall or spring semester I was not registered for/.test(f)));
+    assert.ok((report.reviewFlags ?? []).some((f) => /my clocks still count from Fall 2023 \(Academic Code §6\.2\.6\)/.test(f)));
+    assert.ok(report.warnings.some((w) => /the courses from before your readmission wait for the DGS and are in the review request/.test(w.replace(/ADGS/g, 'DGS'))));
+  });
+
+  it('a later course counts as before; with no readmission entered, an empty year is not read as a gap', () => {
+    assert.match(line(readmitted(), 'CSE 60321', '2026-03-01'), /^counts toward regular courses/);
+    const noAnswer = readmitted({ readmittedTerm: undefined });
+    assert.match(line(noAnswer, 'CSE 60641', '2026-03-01'), /^counts toward regular courses/);
+    assert.ok(!(audit(noAnswer, rules, '2026-03-01').reviewFlags ?? []).some((f) => /^Readmission/.test(f)));
+  });
+});

@@ -1072,7 +1072,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * 2026-10-03): semesters on an approved leave of absence and childbirth/
    * adoption accommodations (each pushes the §4.3 limit and §4.5's eighth
    * semester out by a semester — Academic Code §6.2.6, §5.4; DGS Handbook §3.4,
-   * §3.7.2), and a readmission after a withdrawal (Academic Code §5.5). */
+   * §3.7.2), and a readmission after a withdrawal or a missed semester
+   * (Academic Code §5.5; DGS Handbook §3.1, §3.3). */
   /** On probation, with a deadline in the letter (Academic Code §5.7.2) — a
    * rare case (DGS 2026-10-04, policy review P2-ac-5b-6.1-3), behind a
    * selector that is open once a date is on file. The report says at the top
@@ -1190,13 +1191,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'div',
         { class: 'field' },
-        el('span', { class: 'label' }, 'Readmitted after a withdrawal — semester (leave blank if it does not apply)'),
+        el('span', { class: 'label' }, 'Readmitted after a withdrawal or a missed semester — semester (leave blank if it does not apply)'),
         el('div', { class: 'pair' }, reSeason, reYear),
         reYearError,
         el(
           'p',
           { class: 'hint field-hint' },
-          'If you withdrew and were readmitted, enter the readmission semester. Every clock still counts from your original entry term (Academic Code §6.2.6: “from the time of matriculation”); after an interruption of five years or more the Code forfeits the credit for earlier courses and examinations (Academic Code §5.5), so those wait for the DGS.',
+          // A missed fall or spring semester needs readmission too (policy
+          // review 2026-10-04, P2-dh-3.1-3.13-3; DGS Handbook §3.1). An empty
+          // semester is never read as one: research-only semesters are empty.
+          'If you withdrew from the University, or missed a fall or spring semester (no Roll Call and registration) without an approved leave, you had to be readmitted (DGS Handbook §3.1, §3.3): enter the readmission semester. Every clock still counts from your original entry term (Academic Code §6.2.6: “from the time of matriculation”). Your courses from before it wait for the DGS — the program may reject some or all past credits (DGS Handbook §3.3), and after an interruption of five years or more the Code forfeits them (Academic Code §5.5).',
         ),
       ),
       ),

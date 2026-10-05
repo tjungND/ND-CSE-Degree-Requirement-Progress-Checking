@@ -226,6 +226,13 @@ export interface ClassifiedCourse {
    * Code §5.5: "Credit for any course or examination will be forfeited"),
    * sent to the DGS rather than counted or refused (policy review 2026-10-03). */
   interrupted?: true;
+  /** Program coursework dated before a readmission after a shorter gap — a
+   * withdrawal, or a fall or spring semester the student did not register for
+   * (DGS Handbook §3.3: "the program may require the student to reapply. The
+   * program may also reserve the right to reject some or all past credits").
+   * Counted provisionally and sent to the DGS (policy review 2026-10-04,
+   * P2-dh-3.1-3.13-4). */
+  beforeReadmission?: true;
   /** Transfer-only: the DGS's ExternalCourses ruling for this course, when one
    * exists (attached even when the course earns no credit, so §4.4.1 core
    * knowledge can still see a DGS-confirmed course). */
@@ -596,6 +603,12 @@ export function classify(student: Student, rules: Rules, today?: string): {
   const longInterruption =
     readmitted !== undefined && lastBeforeReadmission !== undefined && readmitted.year - lastBeforeReadmission.year >= 5;
   const interruptedCourse = (c: CourseEntry): boolean => longInterruption && compareTerm(c.term, readmitted!) < 0 && (c.origin === 'nd' || isNotreDameInstitution(c.institution));
+  // A shorter gap (policy review 2026-10-04, P2-dh-3.1-3.13-3/-4/-9; DGS:
+  // "apply the suggested handling"): readmission after a withdrawal or a missed
+  // fall or spring semester lets the program "reject some or all past credits"
+  // (DGS Handbook §3.3) — this program's own earlier courses wait for the DGS.
+  const beforeShortReadmission = (c: CourseEntry): boolean =>
+    readmitted !== undefined && !longInterruption && c.origin === 'nd' && compareTerm(c.term, readmitted) < 0;
   const sorted = [...student.courses].sort(
     (a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId),
   );
@@ -700,6 +713,14 @@ export function classify(student: Student, rules: Rules, today?: string): {
       };
     };
     const withInterruption = (cc: ClassifiedCourse): ClassifiedCourse => {
+      if (beforeShortReadmission(c) && cc.ineligibleReason === undefined) {
+        return {
+          ...cc,
+          beforeReadmission: true,
+          tier: 'provisional',
+          approvalPending: `taken before your readmission (${termLabel(readmitted!)}) — the program may reject some or all past credits (DGS Handbook §3.3); the DGS confirms${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
+        };
+      }
       if (!interruptedCourse(c) || cc.ineligibleReason !== undefined) return cc;
       return {
         ...cc,

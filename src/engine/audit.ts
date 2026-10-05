@@ -310,7 +310,18 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     warnings.push(
       interrupted
         ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (Academic Code §5.5), so those courses wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation.`
-        : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation (Academic Code §6.2.6); the program may have reviewed your earlier credits at readmission (DGS Handbook §3.3) — confirm with the DGS that they all stand.`,
+        : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation (Academic Code §6.2.6); the program may reject some or all of your earlier credits (DGS Handbook §3.3), so the courses from before your readmission wait for the DGS and are in the review request.`,
+    );
+    // The readmission itself goes to the DGS (policy review 2026-10-04,
+    // P2-dh-3.1-3.13-3/-9): DGS Handbook §3.1 — "A student who fails to
+    // complete the ND Roll Call process and registration for fall and/or spring
+    // semester must complete the readmission process upon their return" — and
+    // §3.8's withdrawal. The app cannot see the readmission; it asks.
+    reviewFlags.push(
+      decisionWording(
+        student.program,
+        `Readmission: I was readmitted in ${termLabel(student.readmittedTerm)} after a withdrawal or a fall or spring semester I was not registered for (DGS Handbook §3.1, §3.3, §3.8; Academic Code §3.5). Please confirm my readmission and which of my earlier credits stand; my clocks still count from ${termLabel(entry)} (Academic Code §6.2.6).`,
+      ),
     );
   }
   // A 4+1's graduate credits beyond the shared pair must be moved from UG to

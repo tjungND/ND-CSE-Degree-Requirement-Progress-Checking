@@ -156,12 +156,14 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // A lapsed Incomplete has no passing grade yet — that is the question (2026-10-03).
       if (!passesCreditFloor(c.entry.grade) && !couldStillEarnACoreArea && !c.incompleteLapsed) continue;
       if (c.unknown === true || c.approvalPending !== undefined) {
-        // The two record-level facts no sheet row can settle (policy review
+        // The record-level facts no sheet row can settle (policy review
         // 2026-10-03): a lapsed Incomplete, and coursework from before a
-        // readmission after five years or more.
+        // readmission — after five years or more (Academic Code §5.5), or a
+        // shorter gap (DGS Handbook §3.3; 2026-10-04).
         const heldAsks = [
           ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
           ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),
+          ...(c.beforeReadmission ? ['confirm the credit from before my readmission still counts (DGS Handbook §3.3)'] : []),
         ];
         nd.push({
           course: c,
