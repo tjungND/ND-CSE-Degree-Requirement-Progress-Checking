@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-05 (DGS — display): the “CSE §” chips beside card and section headings on both pages show the handbook’s own text on hover, click or Enter (`sectionRef`, src/ui/section-ref.ts). The text is generated from the PDF by `npm run handbook-text` into src/ui/handbook-text.ts, and the tests check it against the PDF’s SHA-256. Wording W-CL158.
+
 2026-10-05 (DGS — engine): the OCE and admission also wait for a tenured or tenure-track advisor or co-advisor (`oceReadiness`). With none, or the question unanswered, they read Not started and the card names it (W-CL157). Open question: how to record a DGS-approved exception for a sole non-TTT advisor.
 
 2026-10-05 (DGS — display): the Not-started candidacy card lists the coursework that puts it in progress, with each piece’s standing, and when the OCE can be scheduled (W-CL156). “Does not apply” rows (`doesNotApply`, report.ts) and the milestone fields that do not apply are hidden; the counts already left them out. The advisor summary prints one line for the merged candidacy card.

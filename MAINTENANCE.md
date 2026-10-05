@@ -42,9 +42,12 @@ change; ask for it.
 1. Put the new PDF in `docs/` (keep the old one) and update the path in `CLAUDE.md`.
 2. Ask Claude Code: *"Diff §3 and §4 of the new handbook against the old one; list every rule
    that changed; propose Parameters/Courses edits and any code changes."*
-3. Update the handbook edition and PDF link in `src/ui/handbook.ts` (one place — the page header,
+3. Run `npm run handbook-text` and commit `src/ui/handbook-text.ts`: the "CSE §" chips on both
+   pages show the handbook's own text on hover, read from `policy-sources/CSE-Graduate-Handbook-live.pdf`
+   (DGS 2026-10-05). `tests/handbook-text.test.ts` fails while the two disagree.
+4. Update the handbook edition and PDF link in `src/ui/handbook.ts` (one place — the page header,
    footer and copied summary read from it), then search the repo for the old edition string.
-4. Record any interpretation calls in `docs/DECISIONS.md` (that file is the memory of every
+5. Record any interpretation calls in `docs/DECISIONS.md` (that file is the memory of every
    judgment call ever made — read it before overruling one).
 
 ## Sheet items (all clear as of 2026-09-03)

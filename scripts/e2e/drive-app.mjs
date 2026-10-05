@@ -63,6 +63,7 @@ export async function driveApp(s, baseUrl) {
   })`));
   if (hidden.pills > 0 || hidden.emptyHeads.length > 0 || hidden.transferCard) throw new Error('a row that does not apply must not be shown: ' + JSON.stringify(hidden));
   console.log('  no "Does not apply" card and no empty group heading');
+  await checkSectionChip(s, '[data-key="secref.coursework"]', 'Course Requirements.*twenty-four \\(24\\) credit hours of regular courses', 'Coursework card, CSE §4.2');
   // The deadline alert (DGS 2026-09-28): the example entered last fall, so
   // its qualifier's four semesters end next semester — the pill says so in
   // words, in its own colour, and the chip under it carries the same state.
@@ -766,6 +767,26 @@ async function checkSheetLink(s, page) {
 
 // E2E: the public course-rules list (courses.html) — renders the overview and
 // the full table from the same rules, filters work, no student data involved.
+// A section chip shows the CSE handbook's own text on hover and closes when the
+// pointer leaves (DGS 2026-10-05, src/ui/section-ref.ts). The events are sent
+// to the elements themselves, as the browser sends them to a mouse.
+async function checkSectionChip(s, selector, expected, label) {
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  await s.evalJs(`document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new MouseEvent('mouseenter'))`);
+  await pause(300);
+  const shown = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const chip = document.querySelector(${JSON.stringify(selector)});
+    const pop = document.getElementById(chip.getAttribute('aria-controls'));
+    return { expanded: chip.getAttribute('aria-expanded'), visible: !!pop && !pop.hidden, text: pop ? pop.textContent : '', inView: pop ? pop.getBoundingClientRect().right <= document.documentElement.clientWidth : false };
+  })())`));
+  if (shown.expanded !== 'true' || !shown.visible || !new RegExp(expected).test(shown.text) || !shown.inView) throw new Error(`${label}: hovering the section chip must show the handbook's text: ` + JSON.stringify({ ...shown, text: shown.text.slice(0, 300) }));
+  await s.evalJs(`document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new MouseEvent('mouseleave'))`);
+  await pause(450);
+  const hidden = await s.evalJs(`(() => { const chip = document.querySelector(${JSON.stringify(selector)}); return document.getElementById(chip.getAttribute('aria-controls')).hidden && chip.getAttribute('aria-expanded') === 'false'; })()`);
+  if (!hidden) throw new Error(`${label}: the handbook text must close when the pointer leaves`);
+  console.log(`  ${label}: hovering the section chip shows the handbook's text, leaving closes it`);
+}
+
 export async function driveCourses(s, baseUrl) {
   await s.open(new URL('courses.html', baseUrl).href);
   await s.waitFor(`document.querySelectorAll('.all-courses table.course-rules tbody tr').length > 10`);
@@ -774,6 +795,7 @@ export async function driveCourses(s, baseUrl) {
   const count = await s.evalJs(`document.querySelector('.count')?.textContent`);
   console.log('  course list:', count);
   if (!/\d+ of \d+ courses/.test(count ?? '')) throw new Error('course list did not render');
+  await checkSectionChip(s, '[data-key="secref.core"]', 'Core Knowledge Requirement.*All PhD students are required to pass', 'course rules page, CSE §4.4.1');
   // (Note rows — the DGS's notes, opened per course since 2026-09-05 — are tbody rows too; count courses only.)
   const before = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
   await s.evalJs(

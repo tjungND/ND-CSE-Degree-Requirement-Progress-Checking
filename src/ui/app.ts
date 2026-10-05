@@ -45,6 +45,7 @@ import { confirmDialog, copyDialog, openModal, returnFocusTo } from './copy-dial
 import { plural } from './email-html.ts';
 import { EXAMPLE_ATTESTATIONS, EXAMPLE_MILESTONES, exampleFor } from './example.ts';
 import { policyFold, rareFold, clearInvalid, errorLine, field, fieldset, labelWrap, markInvalid, radios } from './form-helpers.ts';
+import { sectionRef } from './section-ref.ts';
 import { createFocusKeeper } from './focus-keeper.ts';
 import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
 import { createToasts } from './toasts.ts';
@@ -1601,7 +1602,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const card = el(
       'section',
       { class: 'card' },
-      el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§3.2' : '§4.2')),
+      // The section chip shows the handbook's text on hover (DGS 2026-10-05).
+      el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', sectionRef(student.program === 'mscse' ? '§3.2' : '§4.2', { className: 'chip-note', dataKey: 'secref.coursework' })),
       // "Graduate-level" (P1-gpa-c4, DGS 2026-10-03): a 4+1 or combined-transcript student
       // typing by hand must not enter the undergraduate or all-levels figure.
       field('Graduate-level cumulative GPA (from your transcript, §2.2)', gpaInput),
@@ -2423,7 +2425,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const card = el(
       'section',
       { class: 'card', id: 'milestones' },
-      el('h2', {}, el('span', { class: 'step-no' }, '4. '), 'Milestones ', el('span', { class: 'chip-note' }, student.program === 'mscse' ? '§2.3, §3.4' : '§2.3, §4.4–4.7')),
+      el('h2', {}, el('span', { class: 'step-no' }, '4. '), 'Milestones ', sectionRef(student.program === 'mscse' ? '§2.3, §3.4' : '§2.3, §4.4–4.7', { className: 'chip-note', dataKey: 'secref.milestones' })),
       // "Optional" once, leading (2026-09-05 item 11; trim review 2026-09-18, P-41).
       el('p', { class: 'hint' }, 'Every date here is optional — enter a date once it has happened.'),
     );

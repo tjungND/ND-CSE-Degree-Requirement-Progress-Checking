@@ -322,6 +322,18 @@ table.courses .line-label { font-weight: 600; }
 /* The processing-request card (2026-09-06 evening) — the Grad Admin's half of the two roles. */
 .card.grad-admin-request { border-left: 4px solid var(--info); }
 .chip-note { font-size: 12px; color: var(--gold-text); font-weight: 600; }
+/* A section chip that shows the CSE handbook's text on hover, click or Enter
+   (DGS 2026-10-05; src/ui/section-ref.ts): the chip keeps its page's look, with
+   a dotted underline that says there is more. */
+button.sec-ref { font-family: inherit; line-height: inherit; background: none; border: 0; padding: 0 2px; margin: 0; cursor: help; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; border-radius: 3px; }
+button.sec-ref[aria-expanded="true"] { background: var(--note-bg); }
+.courses-page .cite.sec-ref { cursor: help; }
+.sec-pop { position: fixed; z-index: 1300; max-width: calc(100vw - 32px); overflow: auto; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); padding: 12px 16px; font-size: 13px; font-weight: 400; line-height: 1.5; text-align: left; letter-spacing: normal; text-transform: none; }
+.sec-pop p { margin: 4px 0; }
+.sec-pop .sec-pop-title { margin: 12px 0 4px; font-weight: 700; color: var(--navy); }
+.sec-pop .sec-pop-title:first-child { margin-top: 0; }
+.sec-pop .sec-pop-source { margin-top: 10px; color: var(--muted); font-size: 12px; }
+@media print { .sec-pop { display: none !important; } }
 .hint { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
 .hint.warn { color: var(--note-ink-strong); background: var(--note-bg); border: 1px solid var(--note-line-soft); padding: 6px 10px; border-radius: 6px; }
 

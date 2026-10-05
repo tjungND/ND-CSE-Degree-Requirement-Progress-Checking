@@ -19,6 +19,7 @@ import { LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, repo
 import { clear, el, option } from './dom.ts';
 import { SIBLING_PARAM, allowedHostPage, siblingAnchorAttrs } from './sibling-links.ts';
 import { isEmbedded, notifyEmbedHeight, openFullPageLink, postScrollTo, startAnchorScrollRelay } from './embed.ts';
+import { sectionRef } from './section-ref.ts';
 import { themeToggle } from './theme.ts';
 import { formatYmdLong, handbookLink, rulesDateLine } from './handbook.ts';
 import { ndDateOnly } from '../data/rules-date.ts';
@@ -809,7 +810,8 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
     return el(
       'section',
       { class: 'overview' },
-      el('h2', {}, 'Ph.D. Qualifying Examination courses ', el('span', { class: 'cite' }, '§4.4')),
+      // Each section chip shows the handbook's text on hover (DGS 2026-10-05).
+      el('h2', {}, 'Ph.D. Qualifying Examination courses ', sectionRef('§4.4', { className: 'cite', dataKey: 'secref.qualifier' })),
       // The key names only the markers a reader can actually meet below
       // (review R-8, 2026-09-18). It used to print both whenever EITHER
       // semester had a tag, so with next semester's schedule unpublished — the
@@ -835,7 +837,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         el('strong', {}, 'Ph.D. students only. '),
         'Core knowledge and specialization are the two course-based requirements of the Qualifying Examination (§4.4); whether a course counts toward degree credit is a separate question, answered in the table below.',
       ),
-      el('h3', { class: 'ov-sub' }, 'Core knowledge areas ', el('span', { class: 'cite' }, '§4.4.1')),
+      el('h3', { class: 'ov-sub' }, 'Core knowledge areas ', sectionRef('§4.4.1', { className: 'cite', dataKey: 'secref.core' })),
       // §4.4.1: "All PhD students are required to pass (or have previously passed) an
       // Operating Systems course, an Algorithms course, and a Computer Architecture
       // course, either at Notre Dame or at their previous institution." — prior
@@ -853,7 +855,7 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
         ' prepares that review request from your imported transcripts.',
       ),
       el('div', { class: 'ov-grid' }, ...coreCards),
-      el('h3', { class: 'ov-sub' }, 'Specialization categories ', el('span', { class: 'cite' }, '§4.4.2')),
+      el('h3', { class: 'ov-sub' }, 'Specialization categories ', sectionRef('§4.4.2', { className: 'cite', dataKey: 'secref.categories' })),
       // §4.4.2 asks for three courses from three DISTINCT categories, so a
       // course that appears in several cards is still worth only one of them
       // (DGS 2026-09-08).
