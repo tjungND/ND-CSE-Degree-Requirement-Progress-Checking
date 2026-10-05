@@ -13,7 +13,7 @@ import type { Milestones, Student, Term } from '../src/engine/types.ts';
 import { actionItems, advisorSummary } from '../src/ui/advisor-summary.ts';
 import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
 import { buildRules } from './helpers.ts';
-import { ndCourse, phdStudent } from './helpers/student.ts';
+import { ndCourse, phdStudent, transferCourse } from './helpers/student.ts';
 
 const rules = buildRules();
 const fall = (year: number): Term => ({ season: 'fall', year });
@@ -204,13 +204,14 @@ describe('the eighth semester', () => {
 describe('the merged candidacy card', () => {
   const rulesM = buildRules();
   const reqs = (s: Student, today: string, r = rulesM) => audit(s, r, today).requirements;
-  // A student whose qualifier is complete (DGS 2026-10-04: the OCE waits for
-  // it): the three core courses, which also fill three specialization groups
-  // and §4.2's nine Notre Dame credits, and the research component passed.
+  // A student whose OCE coursework is done (DGS 2026-10-05: the 24
+  // regular-course credits and the qualifier's course components): eight
+  // regular courses, the first three filling the core areas and three
+  // specialization groups.
   const s = phdStudent({
     entryTerm: { season: 'fall', year: 2026 },
-    courses: ['CSE 60641', 'CSE 60111', 'CSE 60321'].map((id) => ndCourse(id, { term: { season: 'fall', year: 2026 } })),
-    milestones: { researchQualifierPassed: '2027-02-01' },
+    // Two semesters: Academic Code §3.8 counts at most 15 graduate credits a semester.
+    courses: REGULAR.map((id, i) => ndCourse(id, { term: i < 4 ? { season: 'fall', year: 2026 } : { season: 'spring', year: 2027 } })),
   });
 
   it('the OCE and RCR rows are kept, unscored and shown inside the admission card', () => {
@@ -242,17 +243,12 @@ describe('the merged candidacy card', () => {
     assert.match(card.detail, /Oral Candidacy Exam \(OCE\): .*candidacy_deadline_semester/);
   });
 
-  it('the coursework precondition is said once the OCE can be scheduled', () => {
-    const oce = reqs(s, '2027-03-01').find((x) => x.id === 'phd.candidacy')!;
-    assert.equal(oce.status, 'in_progress');
-    assert.match(oce.detail, /You can take the exam once your 24 regular-course credits are complete or in progress — you have 9 of 24 \(§4\.5\)/);
-  });
 });
 
-// The OCE waits for the qualifier (DGS 2026-10-04: "At the earliest, an OCE can
-// be scheduled in the same semester after which the qualifier requirements are
-// expected to be completed. Until then, mark OCE and candidacy as not started").
-describe('the OCE and admission wait for the qualifier', () => {
+// The OCE waits for the coursework (CSE §4.5; DGS 2026-10-05: "both 24 credits
+// of regular courses and course components of the qualifier examination are
+// needed (either completed or expected to complete in the same semester)").
+describe('the OCE and admission wait for the coursework', () => {
   const rulesQ = buildRules();
   const row = (st: Student, id: string, today: string) => audit(st, rulesQ, today).requirements.find((x) => x.id === id)!;
   const fall26 = { season: 'fall' as const, year: 2026 };
@@ -268,16 +264,30 @@ describe('the OCE and admission wait for the qualifier', () => {
     }
   });
 
-  it('research passed and the last qualifier courses in progress THIS semester: the OCE can be scheduled', () => {
+  it('the last courses in progress THIS semester: the OCE can be taken — without the research component', () => {
     const st = phdStudent({
       entryTerm: fall26,
-      courses: [ndCourse('CSE 60641', { term: fall26 }), ndCourse('CSE 60111', { term: spring27, grade: 'IP' }), ndCourse('CSE 60321', { term: spring27, grade: 'IP' })],
-      milestones: { researchQualifierPassed: '2027-02-01' },
+      courses: REGULAR.map((id, i) => ndCourse(id, { term: i < 4 ? fall26 : spring27, ...(i < 4 ? {} : { grade: 'IP' as const }) })),
     });
     assert.equal(row(st, 'phd.candidacy', '2027-03-01').status, 'in_progress');
-    // …but not while those courses are a semester away, nor before the research component.
+    // …but not while those courses are a semester away.
     assert.equal(row(st, 'phd.candidacy', '2026-11-01').status, 'unmet');
-    assert.equal(row({ ...st, milestones: {} }, 'phd.candidacy', '2027-03-01').status, 'unmet');
+  });
+
+  it('the qualifier’s course components done but the 24 credits short: Not started', () => {
+    const st = phdStudent({ entryTerm: fall26, courses: REGULAR.slice(0, 3).map((id) => ndCourse(id, { term: fall26 })) });
+    assert.match(row(st, 'phd.candidacy', '2027-03-01').detail, /^Not started\. The Oral Candidacy Exam \(OCE\) can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits \(transferred regular-course credits count\)/);
+  });
+
+  it('transferred regular-course credits count toward the 24', () => {
+    const st = phdStudent({
+      entryTerm: fall26,
+      priorMs: 'completed',
+      bachelorsAwarded: { season: 'spring', year: 2022 },
+      courses: [...REGULAR.slice(0, 7).map((id, i) => ndCourse(id, { term: i < 4 ? fall26 : spring27 })), transferCourse('CS 50300', 'Operating Systems', { institution: 'Purdue University', degreeLevel: 'masters' })],
+    });
+    assert.equal(row(st, 'phd.candidacy', '2027-03-01').status, 'in_progress');
+    assert.match(row(st, 'phd.candidacyAdmission', '2027-03-01').detail, /Coursework: 24 of 24 regular-course credits complete \(transferred regular-course credits count\)/);
   });
 
   it('past the eighth semester it still reads Overdue', () => {

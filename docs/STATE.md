@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-03 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-05 (DGS — engine, correcting 2026-10-04): the OCE waits for the coursework, not the whole qualifier: the 24 regular-course credits (transfer credit counts) and the qualifier’s core-knowledge and specialization courses, done or finishing this semester (`oceCourseworkReady`). The research component no longer gates it. The admission card’s coursework line says transferred credits count. Tests in tests/candidacy-admission.test.ts. Wording W-CL153.
+
 2026-10-04 (DGS — wording): the alpha notice lost its coverage caveat. The footer’s self-check paragraph now names the Graduate School’s Academic Code, DGS Handbook and 4+1 guidance, and what is routed to the DGS (W-CL152).
 
 2026-10-04 (DGS — engine): the OCE and admission to candidacy read Not started until the qualifier is complete or due to complete this semester, with the research component passed (qualifierReadyForOce, phd.ts). The Milestones fields appear only once their step is under way. Scenarios gpa-floor, phd-fresh, phd-nd-undergrad-before-entry and phd-oce-clock-after-completed-mscse now expect Not started; tests in tests/candidacy-admission.test.ts. Wording W-CL151.
