@@ -259,6 +259,29 @@ describe('readmission after a shorter gap (DGS Handbook §3.1, §3.3)', () => {
   });
 });
 
+// How the five years of Academic Code §5.5 are counted (policy review round 3,
+// P3-ac-5a-2; DGS 2026-10-05): the time actually away, from the end of the
+// last Notre Dame term before the readmission to the start of the readmission
+// term — not the difference of the year numbers.
+describe('a readmission after five years or more (Academic Code §5.5), counted as time away', () => {
+  const away = (last: Term, back: Term) => {
+    const s = phdStudent({ entryTerm: fall(2017), readmittedTerm: back, courses: [ndCourse('CSE 60641', { term: last }), ndCourse('CSE 60321', { term: back })] });
+    return line(s, 'CSE 60641', `${back.year + 1}-03-01`);
+  };
+  const LONG = /taken before an interruption of five years or more \(readmitted .*\) — Academic Code §5\.5 forfeits the credit/;
+  const SHORT = /taken before your readmission \(.*\) — the program may reject some or all past credits \(DGS Handbook §3\.3\)/;
+  it('Fall 2018 → Spring 2023 (about four years) is a shorter gap; Spring 2019 → Fall 2024 is five years or more', () => {
+    assert.match(away(fall(2018), spring(2023)), SHORT);
+    assert.match(away(spring(2019), fall(2024)), LONG);
+  });
+  it('five years apart fall to fall, or spring to spring, is just under five years away — a shorter gap', () => {
+    assert.match(away(fall(2018), fall(2023)), SHORT);
+    assert.match(away(spring(2019), spring(2024)), SHORT);
+    // …and the next semester is past five years.
+    assert.match(away(fall(2018), spring(2024)), LONG);
+  });
+});
+
 // Registered in the term of the defense (policy review 2026-10-04,
 // P2-dh-6-9-5): DGS Handbook §8.2.5 and Academic Code §3.7. A pointer behind
 // Relevant Policies, never a status change.

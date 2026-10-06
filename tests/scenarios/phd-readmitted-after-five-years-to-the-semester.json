@@ -1,0 +1,76 @@
+{
+  "name": "phd-readmitted-after-five-years-to-the-semester",
+  "description": "Policy review round 3, P3-ac-5a-2 (DGS 2026-10-05): the boundary on the other side. Last enrolled Spring 2019, readmitted Fall 2024 — from the end of May 2019 to mid-August 2024, five years and more away — so the Academic Code forfeits the earlier credit unless the program rules otherwise (§5.5), and the earlier courses wait for the DGS under that rule.",
+  "today": "2024-10-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2017
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2017
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2019
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "readmittedTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2017
+    }
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24",
+        "6 pending review/approval"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60111": [
+      "waiting for the DGS",
+      "taken before an interruption of five years or more (readmitted Fall 2024)",
+      "Academic Code §5.5"
+    ]
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "name": "phd-readmitted-after-four-years",
+  "description": "Policy review round 3, P3-ac-5a-2 (DGS 2026-10-05: 'Apply the suggested handling'): the five years of Academic Code §5.5 are the time actually away, from the end of the last Notre Dame term to the start of the readmission term. Last enrolled Fall 2018, readmitted Spring 2023 — about four years. Until 2026-10-05 the app subtracted the year numbers (2023 − 2018 = 5) and told the student the Code forfeits every earlier credit; it is a shorter gap, under which the program may reject some or all past credits (DGS Handbook §3.3).",
+  "today": "2023-10-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2017
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2017
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2018
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ],
+    "readmittedTerm": {
+      "season": "spring",
+      "year": 2023
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2017
+    }
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "3 of 24",
+        "6 pending review/approval"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60111": [
+      "waiting for the DGS",
+      "taken before your readmission (Spring 2023)",
+      "DGS Handbook §3.3"
+    ]
+  }
+}
