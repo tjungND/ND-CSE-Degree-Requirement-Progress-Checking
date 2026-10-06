@@ -106,7 +106,7 @@ describe('where the short forms are used, and where they are not', () => {
     const row = audit(s, rules, '2027-03-01').requirements.find((r) => r.id === 'phd.qualifier.categories');
     assert.equal(row?.status, 'met', String(row?.detail));
     const items = [...(row?.detailParts ?? []), ...(row?.shortDetailParts ?? [])]
-      .flatMap((p) => (typeof p === 'string' ? [p] : 'warn' in p ? [p.warn] : 'note' in p ? [p.note] : p.items))
+      .flatMap((p) => (typeof p === 'string' ? [p] : 'warn' in p ? [p.warn] : 'note' in p ? [p.note] : 'check' in p ? [p.check] : p.items))
       .filter((i) => i.startsWith('CSE 60641'));
     assert.ok(items.length >= 2, JSON.stringify(items));
     for (const i of items) assert.match(i, /CSE 60641 Graduate Operating Systems →/, i);

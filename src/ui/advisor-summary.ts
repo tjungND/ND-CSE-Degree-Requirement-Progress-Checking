@@ -463,7 +463,7 @@ export function actionItems(report: AuditReport): ActionItems {
       if (/plan of study/.test(statement)) out.advisor.push(`Approve my plan of study (${report.program === 'mscse' ? '§3.2' : '§4.2'}).`);
       continue;
     }
-    if ('warn' in part) continue; // a warning is not a course to chase
+    if ('warn' in part || 'check' in part) continue; // a warning, or a condition, is not a course to chase
     for (const item of part.items) {
       const m = /^(.+?) \((.+)\)$/.exec(item);
       const reason = m ? m[2]! : '';
@@ -590,6 +590,8 @@ function flatten(p: DetailPart, r?: RequirementResult): string {
   if ('warn' in p) return p.warn;
   // A note is explanation on the page (folded) and plain text in the messages.
   if ('note' in p) return p.note;
+  // A condition's mark is the page's (2026-10-06); its words carry the state.
+  if ('check' in p) return p.check;
   const items =
     r?.id === 'phd.qualifier.categories'
       ? [...new Set(p.items.filter((i) => !/ — (?:in progress|that group is already covered)/.test(i)).map((i) => i.replace(/^.*→\s*/, '').replace(/\s*\(flexible course[^)]*\)/, '').trim()))]

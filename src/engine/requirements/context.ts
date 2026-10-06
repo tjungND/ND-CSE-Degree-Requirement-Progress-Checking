@@ -346,7 +346,7 @@ export function timeLimitRow(
  * statements stay plain text. */
 export function joinedDetail(parts: DetailPart[]): { detail: string; detailParts?: DetailPart[] } {
   const flat = (p: DetailPart): string =>
-    typeof p === 'string' ? p : 'warn' in p ? p.warn : 'note' in p ? p.note : `${p.lead}: ${p.items.join('; ')}`;
+    typeof p === 'string' ? p : 'warn' in p ? p.warn : 'note' in p ? p.note : 'check' in p ? p.check : `${p.lead}: ${p.items.join('; ')}`;
   const structured = parts.some((p) => typeof p !== 'string');
   return {
     // A closing period only where the last part has none (a part ending in

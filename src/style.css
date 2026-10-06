@@ -647,6 +647,12 @@ details.rare[open] > summary { margin-bottom: 6px; }
 ul.req-detail.detail-list { margin: 4px 0 0; padding-left: 18px; }
 ul.req-detail.detail-list li { margin: 2px 0; }
 ul.req-detail.detail-list .detail-sublist { margin: 2px 0 0; padding-left: 16px; list-style-type: circle; }
+/* A condition's mark takes the bullet's place (DGS 2026-10-06: "In the progress
+   result cards, it's hard to see what are met and what are not met"), so the
+   conditions on a card read as a checklist with the course table's four marks —
+   ✓ met, ◐ in progress, ● waiting for the DGS, ✕ not yet (marks.ts). */
+ul.req-detail.detail-list li.check { list-style: none; position: relative; }
+ul.req-detail.detail-list li.check > .mark { position: absolute; left: -1.3em; top: 0.05em; width: 1.1em; margin: 0; text-align: center; }
 
 /* Sentence case, no abbreviations (usability review 2026-09-05, item 16). */
 .pill { font-size: 12px; font-weight: 700; border-radius: 99px; padding: 2px 9px; white-space: nowrap; }

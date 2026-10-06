@@ -134,6 +134,15 @@ export async function driveApp(s, baseUrl) {
   await s.waitFor(`!document.querySelector('details.req-more[data-key="${moreKey}"]')?.open`);
   await s.shot('app-example-phd');
 
+  // The candidacy card's conditions carry marks (DGS 2026-10-06: "it's hard to
+  // see what are met and what are not met"): a met one ✓ and an open one, each
+  // with its mark in the bullet's place and a word for screen readers.
+  const checks = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('#req-phd-candidacyAdmission li.check')].map((li) => ({ cls: li.className, glyph: li.querySelector('.mark [aria-hidden]')?.textContent ?? '', word: li.querySelector('.mark .visually-hidden')?.textContent ?? '' })))`));
+  console.log('  candidacy conditions:', checks.map((c) => c.glyph + ' ' + c.word.trim()).join(' · '));
+  if (checks.length < 5 || !checks.some((c) => c.cls.includes('check-met') && c.glyph === '✓') || !checks.some((c) => !c.cls.includes('check-met'))) throw new Error('candidacy condition marks: ' + JSON.stringify(checks));
+  await s.evalJs(`document.getElementById('req-phd-candidacyAdmission')?.scrollIntoView({ block: 'start' })`);
+  await s.shot('app-condition-marks');
+
   // "Oral Candidacy Exam (OCE)" in full once on the page (plus the glossary,
   // which keeps the full term, and the group heading over the candidacy
   // cards, which is spelled out — DGS 2026-10-06), then "OCE" (DGS

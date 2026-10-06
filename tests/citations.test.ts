@@ -57,7 +57,7 @@ describe('result cards show facts, not citations', () => {
   it('no visible fact on any row of any fixture carries a §', () => {
     const offending: string[] = [];
     const texts = (p: DetailPart): string[] =>
-      typeof p === 'string' ? [p] : 'warn' in p ? [p.warn] : 'note' in p ? [] : [p.lead, ...p.items];
+      typeof p === 'string' ? [p] : 'warn' in p ? [p.warn] : 'note' in p ? [] : 'check' in p ? [p.check] : [p.lead, ...p.items];
     for (const sc of allScenarios()) {
       const report = audit(sc.student, buildRules(sc.rules.patch), sc.today);
       for (const r of report.requirements) {

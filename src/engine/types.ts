@@ -542,7 +542,20 @@ export interface DeadlineInfo extends ApproxDate {
 /** `pageOnly` on a note (2026-10-05): a policy sentence for the card's
  * Relevant Policies only — the copied messages leave it out (whyFor), so a
  * card listing every condition of a rule does not flood the emails. */
-export type DetailPart = string | { lead: string; items: string[]; fold?: string } | { warn: string } | { note: string; pageOnly?: true };
+/** Where one condition on a card stands (DGS 2026-10-06: "In the progress
+ * result cards, it's hard to see what are met and what are not met"): the page
+ * draws a mark before the line — green ✓ met, blue ◐ in progress, amber ●
+ * waiting for the DGS, red ✕ not yet — and the emails keep the words. */
+export type ConditionMark = 'met' | 'in_progress' | 'waiting' | 'not_yet';
+
+/** One statement of a card's detail. `marks` (parallel to `items`) and the
+ * `check` form carry a ConditionMark for each condition listed. */
+export type DetailPart =
+  | string
+  | { lead: string; items: string[]; fold?: string; marks?: ConditionMark[] }
+  | { warn: string }
+  | { note: string; pageOnly?: true }
+  | { check: string; mark: ConditionMark };
 
 export interface Contribution {
   courseId: string;

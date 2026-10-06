@@ -9,7 +9,7 @@
 // the DGS asked for the three live states to be told apart: a course the
 // student is TAKING and a course waiting on someone's signature are different
 // things, and only one of them is theirs to act on.
-import type { CourseLine } from '../engine/types.ts';
+import type { ConditionMark, CourseLine } from '../engine/types.ts';
 import { el } from './dom.ts';
 
 export type Mark = CourseLine['mark'];
@@ -27,6 +27,22 @@ const GLYPH: Record<Mark, string> = {
   pending: '●',
   excluded: '✕',
 };
+
+/** A condition on a result card (DGS 2026-10-06: "In the progress result
+ * cards, it's hard to see what are met and what are not met"): the same four
+ * shapes and colours as the course table, with the condition's own words. */
+const CONDITION_WORD: Record<ConditionMark, string> = { met: 'met', in_progress: 'in progress', waiting: 'waiting for the DGS', not_yet: 'not yet' };
+const CONDITION_AS_MARK: Record<ConditionMark, Mark> = { met: 'counts', in_progress: 'in_progress', waiting: 'pending', not_yet: 'excluded' };
+
+export function conditionMark(mark: ConditionMark): HTMLElement {
+  const as = CONDITION_AS_MARK[mark];
+  return el(
+    'span',
+    { class: `mark mark-${as}`, title: CONDITION_WORD[mark] },
+    el('span', { 'aria-hidden': 'true' }, GLYPH[as]),
+    el('span', { class: 'visually-hidden' }, `${CONDITION_WORD[mark]}: `),
+  );
+}
 
 export function statusMark(mark: Mark): HTMLElement {
   return el(

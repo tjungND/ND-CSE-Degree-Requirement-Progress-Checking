@@ -9,7 +9,7 @@ import { usableGpa } from '../ranges.ts';
 import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
-import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
+import type { ConditionMark, DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { noteOf, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, courseContributions, creditsReachedAt, defendGpaNote, joinedDetail, lastCompletion, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun, sameTermDuplicate } from './residency.ts';
@@ -1356,6 +1356,8 @@ export interface OceReadiness {
    * conditions that put candidacy in progress (DGS 2026-10-05: "describe what
    * conditions need to be satisfied to make it in-progress"). */
   items: string[];
+  /** Each item's mark, parallel to `items` (DGS 2026-10-06). */
+  marks: ConditionMark[];
 }
 
 /** "an Algorithms core-knowledge course", "a Computer Architecture core-knowledge course". */
@@ -1369,6 +1371,12 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
   const missing: string[] = [];
   const completes: Term[] = [];
   const items: string[] = [];
+  // Each line's mark, for the page (DGS 2026-10-06: "it's hard to see what are met and what are not met").
+  const marks: ConditionMark[] = [];
+  const item = (mark: ConditionMark, text: string): void => {
+    items.push(text);
+    marks.push(mark);
+  };
   const inProgressTerm = (courseId: string): Term | undefined =>
     ctx.classified
       .filter((c) => !c.superseded && c.tier === 'in_progress' && c.entry.courseId === courseId)
@@ -1378,11 +1386,11 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
   const regularMin = ctx.params.number('phd_regular_credits_min');
   if (regularMin === undefined) {
     missing.push('the regular-course credits (the rules sheet is missing phd_regular_credits_min)');
-    items.push('Regular-course credits: cannot be checked — the rules sheet is missing phd_regular_credits_min');
+    item('not_yet', 'Regular-course credits: cannot be checked — the rules sheet is missing phd_regular_credits_min');
   } else {
     const definite = ctx.alloc.regular.definite;
     const need = regularMin - definite;
-    if (need <= 0) items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete (transferred regular-course credits count)`);
+    if (need <= 0) item('met', `Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete (transferred regular-course credits count)`);
     else {
       const inProgress = ctx.alloc.perCourse
         .filter((p) => !p.course.superseded && p.course.tier === 'in_progress' && p.countedRegular > 0)
@@ -1409,22 +1417,22 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
         const more = need - counted;
         if (pending > 0 && pending >= more) {
           missing.push(`the DGS’s decision on ${pendingIds}, or ${credits(more)}`);
-          items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText}, ${formatCredits(pending)} waiting for a DGS decision (${pendingIds}) — ${formatCredits(more)} more needed unless the DGS approves them (transferred regular-course credits count)`);
+          item('waiting', `Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText}, ${formatCredits(pending)} waiting for a DGS decision (${pendingIds}) — ${formatCredits(more)} more needed unless the DGS approves them (transferred regular-course credits count)`);
         } else if (pending > 0) {
           missing.push(`${credits(more - pending)}, and the DGS’s decision on ${pendingIds} or ${formatCredits(pending)} more`);
-          items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText}, ${formatCredits(pending)} waiting for a DGS decision (${pendingIds}) — ${formatCredits(more)} more needed, ${formatCredits(more - pending)} if the DGS approves them (transferred regular-course credits count)`);
+          item('not_yet', `Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText}, ${formatCredits(pending)} waiting for a DGS decision (${pendingIds}) — ${formatCredits(more)} more needed, ${formatCredits(more - pending)} if the DGS approves them (transferred regular-course credits count)`);
         } else {
           missing.push(credits(more));
-          items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — ${formatCredits(more)} more needed (transferred regular-course credits count)`);
+          item('not_yet', `Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — ${formatCredits(more)} more needed (transferred regular-course credits count)`);
         }
       } else {
         completes.push(last!);
-        items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — complete at the end of ${termLabel(last!)} (transferred regular-course credits count)`);
+        item('in_progress', `Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — complete at the end of ${termLabel(last!)} (transferred regular-course credits count)`);
       }
     }
   }
   if (qualifierPassedUnderPriorRules(ctx)) {
-    items.push('Qualifying examination courses: done — passed under the earlier requirements');
+    item('met', 'Qualifying examination courses: done — passed under the earlier requirements');
   } else {
     // Waiting for the DGS is not done (policy review round 3, P3-chg-phd-1's
     // question; DGS 2026-10-06: "Treat both as not done"). A core area or the
@@ -1438,7 +1446,7 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
       const core = r.id !== 'phd.qualifier.categories';
       const name = core ? `Core knowledge, ${r.title.replace(/^Core knowledge:\s*/, '')}` : 'Specialization courses';
       if (r.status === 'met') {
-        items.push(`${name}: done${core && r.satisfiedBy?.[0] ? ` (${r.satisfiedBy[0]})` : ''}`);
+        item('met', `${name}: done${core && r.satisfiedBy?.[0] ? ` (${r.satisfiedBy[0]})` : ''}`);
         continue;
       }
       if (waitingForDgs(r)) {
@@ -1446,28 +1454,28 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
         // Said once when the regular-credit line already names the same decision.
         const named = which !== undefined && missing.some((m) => m.includes('the DGS’s decision on') && which.split(', ').every((id) => m.includes(id)));
         if (!named) missing.push(`the DGS’s decision on ${which ?? (core ? coreCourseNoun(r).replace(/^an? /, 'the ') : 'the specialization courses')}`);
-        items.push(`${name}: waiting for the DGS${which ? ` (${which})` : ''}`);
+        item('waiting', `${name}: waiting for the DGS${which ? ` (${which})` : ''}`);
         continue;
       }
       if (r.status === 'in_progress') {
         const terms = (r.completingCourses ?? []).map(inProgressTerm).filter((t): t is Term => t !== undefined).sort(compareTerm);
         completes.push(...terms);
         const lastTerm = terms[terms.length - 1];
-        items.push(`${name}: in progress${core && r.completingCourses?.[0] ? ` (${r.completingCourses[0]}${lastTerm ? `, ${termLabel(lastTerm)}` : ''})` : lastTerm ? ` — complete at the end of ${termLabel(lastTerm)}` : ''}`);
+        item('in_progress', `${name}: in progress${core && r.completingCourses?.[0] ? ` (${r.completingCourses[0]}${lastTerm ? `, ${termLabel(lastTerm)}` : ''})` : lastTerm ? ` — complete at the end of ${termLabel(lastTerm)}` : ''}`);
         continue;
       }
       if (r.status === 'cannot_evaluate') {
         missing.push(core ? coreCourseNoun(r) : 'the specialization courses');
-        items.push(`${name}: cannot be checked — ${r.detail.replace(/\.$/, '')}`);
+        item('not_yet', `${name}: cannot be checked — ${r.detail.replace(/\.$/, '')}`);
         continue;
       }
       if (core) {
         missing.push(coreCourseNoun(r));
-        items.push(`${name}: no course yet`);
+        item('not_yet', `${name}: no course yet`);
       } else {
         missing.push('the specialization courses');
         const lead = (r.detailParts ?? []).map((p) => (typeof p === 'string' ? p : 'lead' in p ? p.lead : '')).filter((t) => t !== '');
-        items.push(`${name}: ${lead.length > 0 ? lead.join('; ') : 'not complete yet'}`);
+        item('not_yet', `${name}: ${lead.length > 0 ? lead.join('; ') : 'not complete yet'}`);
       }
     }
   }
@@ -1482,20 +1490,21 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
   let advisorMissing: string | undefined;
   if (!anyAdvisor) {
     advisorMissing = 'an advisor who is tenured or tenure-track CSE faculty';
-    items.push('Tenured or tenure-track advisor: no advisor entered');
+    item('not_yet', 'Tenured or tenure-track advisor: no advisor entered');
   } else if (ttt === 'no') {
     advisorMissing = 'a tenured or tenure-track advisor or co-advisor';
-    items.push('Tenured or tenure-track advisor: no or not sure (see the advisor card)');
+    item('waiting', 'Tenured or tenure-track advisor: no or not sure (see the advisor card)');
   } else if (ttt === 'unanswered') {
     advisorMissing = 'your advisor’s faculty status, answered under Milestones';
-    items.push('Tenured or tenure-track advisor: not answered (Milestones)');
-  } else items.push('Tenured or tenure-track advisor: yes');
+    item('not_yet', 'Tenured or tenure-track advisor: not answered (Milestones)');
+  } else item('met', 'Tenured or tenure-track advisor: yes');
   const latest = completes.sort(compareTerm).pop();
   const earliest = latest !== undefined && compareTerm(latest, now) > 0 ? latest : undefined;
   return {
     ready: missing.length === 0 && earliest === undefined && advisorMissing === undefined,
     missing,
     items,
+    marks,
     ...(earliest ? { earliest } : {}),
     ...(advisorMissing ? { advisorMissing } : {}),
   };
@@ -1517,7 +1526,7 @@ function oceWaitFact(r: OceReadiness): DetailPart[] {
         : r.advisorMissing
           ? `The OCE can be scheduled once you have ${r.advisorMissing === 'your advisor’s faculty status, answered under Milestones' ? 'answered your advisor’s faculty status under Milestones' : r.advisorMissing}`
           : '';
-  return [{ lead: 'Becomes In progress once your coursework is complete or completing this semester, with a tenured or tenure-track advisor', items: r.items }, ...(when ? [when] : [])];
+  return [{ lead: 'Becomes In progress once your coursework is complete or completing this semester, with a tenured or tenure-track advisor', items: r.items, marks: r.marks }, ...(when ? [when] : [])];
 }
 
 /** §4.5: "The candidacy exam must be taken before the end of the eighth
@@ -1793,13 +1802,16 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
   } else {
     // The conditions, each with where the record stands (the facts), in the
     // order a student meets them.
-    const conditions: { text: string; done: boolean }[] = [];
+    // Each condition carries its mark for the page (DGS 2026-10-06: "it's
+    // hard to see what are met and what are not met"): met, in progress,
+    // waiting for the DGS, or not yet.
+    const conditions: { text: string; mark: ConditionMark }[] = [];
     // The OCE's own deadline (§4.5, the sheet's semester) beside it when it is
     // not the admission's — the card is the OCE's too since 2026-10-04.
     const oceDue = !m.candidacyPassed && merged.oce.deadline && merged.oce.deadline.date !== date ? ` — ${merged.oce.deadline.label.charAt(0).toLowerCase()}${merged.oce.deadline.label.slice(1)}` : '';
-    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}${merged.oce.forfeitReview ? ` — ${FORFEIT_FACT}` : ''}` : `not yet${oceDue}`}`, done: !!m.candidacyPassed && !merged.oce.forfeitReview });
+    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}${merged.oce.forfeitReview ? ` — ${FORFEIT_FACT}` : ''}` : `not yet${oceDue}`}`, mark: m.candidacyPassed ? (merged.oce.forfeitReview ? 'waiting' : 'met') : 'not_yet' });
     const floor = ctx.params.number('fulltime_credits_min');
-    if (floor === undefined) conditions.push({ text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: cannot be checked — the rules sheet is missing 'fulltime_credits_min'`, done: false });
+    if (floor === undefined) conditions.push({ text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: cannot be checked — the rules sheet is missing 'fulltime_credits_min'`, mark: 'not_yet' });
     else {
       const records = fullTimeTermRecords(ctx);
       const run = maxConsecutiveFullTime(records);
@@ -1807,11 +1819,11 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
       const span = runTerms.length > 0 ? ` (${termLabel(runTerms[0]!)}${runTerms.length > 1 ? `–${termLabel(runTerms[runTerms.length - 1]!)}` : ''})` : '';
       conditions.push({
         text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: ${run >= ADMISSION_FULL_TIME_SEMESTERS ? `done${span}` : `${run} so far${span}`}`,
-        done: run >= ADMISSION_FULL_TIME_SEMESTERS,
+        mark: run >= ADMISSION_FULL_TIME_SEMESTERS ? 'met' : 'not_yet',
       });
     }
     const regularMin = ctx.params.number('phd_regular_credits_min');
-    if (regularMin === undefined) conditions.push({ text: `Coursework: cannot be checked — the rules sheet is missing 'phd_regular_credits_min'`, done: false });
+    if (regularMin === undefined) conditions.push({ text: `Coursework: cannot be checked — the rules sheet is missing 'phd_regular_credits_min'`, mark: 'not_yet' });
     else {
       const definite = ctx.alloc.regular.definite;
       const ip = ctx.alloc.regular.in_progress;
@@ -1821,16 +1833,16 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
         // "somehow state that … can be satisfied with the transferred
         // regular-course credits").
         text: `Coursework: ${formatCredits(definite)} of ${regularMin} regular-course credits complete${ip > 0 && definite < regularMin ? `, ${formatCredits(ip)} in progress` : ''}${pending > 0 && definite < regularMin ? `, ${formatCredits(pending)} waiting for a DGS decision` : ''} (transferred regular-course credits count)`,
-        done: definite >= regularMin,
+        mark: definite >= regularMin ? 'met' : definite + ip >= regularMin ? 'in_progress' : definite + ip + pending >= regularMin ? 'waiting' : 'not_yet',
       });
     }
-    if (gpaMin === undefined) conditions.push({ text: `Cumulative GPA: cannot be checked — the rules sheet is missing 'gpa_min'`, done: false });
+    if (gpaMin === undefined) conditions.push({ text: `Cumulative GPA: cannot be checked — the rules sheet is missing 'gpa_min'`, mark: 'not_yet' });
     else
       conditions.push({
         text: `Cumulative GPA of ${gpaMin.toFixed(1)} or better: ${gpa === undefined ? (ctx.student.gpa === undefined ? 'not entered' : 'cannot be checked — see the GPA row') : gpa >= gpaMin ? gpaText(gpa) : `${gpaText(gpa)} — below it`}`,
-        done: gpa !== undefined && gpa >= gpaMin,
+        mark: gpa !== undefined && gpa >= gpaMin ? 'met' : 'not_yet',
       });
-    conditions.push({ text: `Responsible Conduct of Research and ethics training: ${m.rcrTrainingCompleted ? `done ${m.rcrTrainingCompleted}` : 'not yet'}`, done: !!m.rcrTrainingCompleted });
+    conditions.push({ text: `Responsible Conduct of Research and ethics training: ${m.rcrTrainingCompleted ? `done ${m.rcrTrainingCompleted}` : 'not yet'}`, mark: m.rcrTrainingCompleted ? 'met' : 'not_yet' });
     // The application's own fields (DGS Handbook §10.3.1; DGS 2026-10-05: "Check
     // all the policies and include them in this card"): the adviser criteria
     // (the advisor card asks it, CSE §2.3) and "Enrolled and registered".
@@ -1838,9 +1850,9 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     const anyAdvisor = !!(m.advisorName || m.advisorName2 || m.advisorIdentified);
     conditions.push({
       text: `Tenured or tenure-track dissertation advisor: ${!anyAdvisor ? 'no advisor entered' : ttt === 'yes' ? 'yes' : ttt === 'no' ? 'no or not sure — the DGS must approve it (see the advisor card)' : 'not answered (Milestones)'}`,
-      done: anyAdvisor && ttt === 'yes',
+      mark: anyAdvisor && ttt === 'yes' ? 'met' : anyAdvisor && ttt === 'no' ? 'waiting' : 'not_yet',
     });
-    parts.push(...conditions.map((c) => c.text));
+    parts.push(...conditions.map((c): DetailPart => ({ check: c.text, mark: c.mark })));
     // Registered this semester — the application's "Enrolled and registered"
     // (DGS Handbook §10.3.1). Said, not counted as a condition: a missing row
     // is not proof (research registrations are often not typed in), and a
@@ -1858,7 +1870,7 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     // "a student" rather than "you" as an object, so the emails' first person
     // reads right; the page-only instruction is its own note, which the emails
     // drop (2026-10-04).
-    if (conditions.every((c) => c.done)) parts.push({ note: `Every condition is met: apply now — ${form}` }, { note: 'Enter the date under Milestones once you are admitted' });
+    if (conditions.every((c) => c.mark === 'met')) parts.push({ note: `Every condition is met: apply now — ${form}` }, { note: 'Enter the date under Milestones once you are admitted' });
     else parts.push({ note: `The Graduate School admits a student to doctoral candidacy once every condition above is met — the Oral Candidacy Exam (OCE) is one of them; then ${form}` });
     parts.push(...policies);
     // §5.7.3: the Graduate School "may" place a student on probation.

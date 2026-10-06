@@ -3,9 +3,10 @@
 // email lives in advisor-summary.ts — string building only, no DOM.)
 import { formatCredits } from '../engine/credits.ts';
 import type { DeadlineAlert, StandingColor } from './email-html.ts';
-import type { AuditReport, Contribution, DetailPart, RequirementResult, Status } from '../engine/types.ts';
+import type { AuditReport, ConditionMark, Contribution, DetailPart, RequirementResult, Status } from '../engine/types.ts';
 import { sourceName, withoutCitations } from './citations.ts';
 import { el } from './dom.ts';
+import { conditionMark } from './marks.ts';
 import { isEmbedded } from './embed.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
 import type { NextStep } from './next-steps.ts';
@@ -320,6 +321,10 @@ function requirementCard(r: RequirementResult): HTMLElement {
   const notes = parts.filter(isNote).map((p) => p.note);
   const sentence = (t: string): string => (/[.!?]$/.test(t) ? t : `${t}.`);
   const fact = (t: string): string => sentence(withoutCitations(t));
+  // A condition with its mark in the bullet's place (DGS 2026-10-06: "it's
+  // hard to see what are met and what are not met") — ✓ met, ◐ in progress,
+  // ● waiting for the DGS, ✕ not yet, as in the course table.
+  const checkItem = (text: string, mark: ConditionMark): HTMLElement => el('li', { class: `check check-${mark}` }, conditionMark(mark), fact(text));
   // Several statements, or a structured one, read as bullets (DGS request
   // 2026-09-04); one or two short ones stay prose.
   const structured = facts.some((p) => typeof p !== 'string');
@@ -339,7 +344,9 @@ function requirementCard(r: RequirementResult): HTMLElement {
                   ? el('li', { class: 'detail-warn' }, fact(p.warn))
                   : 'note' in p
                     ? null
-                    : p.fold
+                    : 'check' in p
+                      ? checkItem(p.check, p.mark)
+                      : p.fold
                       ? // The items behind a selector (DGS 2026-10-04: the
                         // specialization card's course list); the data-key
                         // keeps it open across re-renders.
@@ -354,7 +361,16 @@ function requirementCard(r: RequirementResult): HTMLElement {
                             el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, fact(i)))),
                           ),
                         )
-                      : el('li', {}, `${withoutCitations(p.lead)}:`, el('ul', { class: 'detail-sublist' }, ...p.items.map((i) => el('li', {}, fact(i))))),
+                      : el(
+                          'li',
+                          {},
+                          `${withoutCitations(p.lead)}:`,
+                          el(
+                            'ul',
+                            { class: `detail-sublist${p.marks ? ' checklist' : ''}` },
+                            ...p.items.map((i, k) => (p.marks?.[k] ? checkItem(i, p.marks[k]!) : el('li', {}, fact(i)))),
+                          ),
+                        ),
             ),
           )
         : el('div', { class: 'req-detail' }, factText.join(' '));
