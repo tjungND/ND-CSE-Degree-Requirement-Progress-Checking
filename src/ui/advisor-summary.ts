@@ -21,6 +21,7 @@ import type { AuditReport, DetailPart, RequirementResult, Status } from '../engi
 import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
+import { gpaText } from '../engine/requirements/shared.ts';
 import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, programShort, studentLineHtml, textRequirementBlock, type DeadlineAlert, type StandingColor } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
 import type { ProgramHistory } from './program-history.ts';
@@ -76,7 +77,9 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const prior = opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
   const standing =
     `${programLabel(report.program)}; entered ${opts.entryTerm}; ${prior}; ` +
-    `cumulative GPA ${opts.gpa !== undefined ? opts.gpa.toFixed(2) : 'not entered yet'}.`;
+    // As the §2.2 card prints it — never rounded up past the minimum (2.996
+    // stays 2.996; policy review round 3, P3-cse-1-2-1, DGS 2026-10-06).
+    `cumulative GPA ${opts.gpa !== undefined ? gpaText(opts.gpa) : 'not entered yet'}.`;
   // A deadline in this semester or the next is counted in the headline too
   // (DGS 2026-09-28), as the Grad Admin request counts it.
   const dueSoon = scored.filter((r) => ['this', 'next'].includes(deadlineAlert(r) ?? '')).length;

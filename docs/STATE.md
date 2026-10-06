@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — page; policy review round 3): **P3-cse-1-2-1.** The advisor summary and the Grad Admin request print the cumulative GPA with the card’s `gpaText`, so 2.996 is never “3.00” in an email (standing lines and the GPA evidence row); the import preview’s graduate cumulative GPA labels too. tests/email-gpa.test.ts.
+
 2026-10-06 (DGS — page; policy review round 3): **P3-chg-phd-2.** The Next steps list names an OCE that is overdue or due this or next semester (the merged OCE row was dropped as unscored), and no longer lists the final dissertation or thesis submission before its defense is dated. The list’s row choice is now the pure `attentionRows` in report.ts; tests/next-steps-attention.test.ts.
 
 2026-10-06 (DGS — engine; policy review round 3): **P3-chg-other-2.** A retake is a registration in its own semester for the semester-of-graduation check and the candidacy card’s “Registered this semester” line too, as the full-time record already had it: all three use residency.ts `sameTermDuplicate` (only a same-term duplicate is dropped). Scenario mscse-retake-in-graduation-semester (the scenario runner gained `expectGraduation`); tests/retake-registration.test.ts.

@@ -13,6 +13,7 @@ import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { beforeProgramStart, isEarlyStartCourse, type EarlyStartFacts } from '../engine/early-start.ts';
 import { GRADE_POINTS } from '../engine/grades.ts';
+import { gpaText } from '../engine/requirements/shared.ts';
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../engine/ranges.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, Student, Term, TermGpa } from '../engine/types.ts';
@@ -548,9 +549,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         el(
           'p',
           { class: 'hint' },
-          `Your transcript's graduate-level cumulative GPA (${tp.gpa.toFixed(2)}) includes graduate courses taken at Notre Dame before ${termLabel(entry)} (an earlier program). The Academic Code reads that one cumulative figure (Academic Code §4.5), so it is the one used for §2.2; this program's courses alone average ${tp.programGpa.toFixed(2)}, shown for information. If the two fall on different sides of 3.0 the report asks the DGS.${tp.undergraduateGpa !== undefined ? ` The undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used.` : ''}`,
+          `Your transcript's graduate-level cumulative GPA (${gpaText(tp.gpa)}) includes graduate courses taken at Notre Dame before ${termLabel(entry)} (an earlier program). The Academic Code reads that one cumulative figure (Academic Code §4.5), so it is the one used for §2.2; this program's courses alone average ${tp.programGpa.toFixed(2)}, shown for information. If the two fall on different sides of 3.0 the report asks the DGS.${tp.undergraduateGpa !== undefined ? ` The undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used.` : ''}`,
         ),
-        el('label', { class: 'attest' }, cb, ` Use the transcript's graduate cumulative GPA (${tp.gpa.toFixed(2)}) for the minimum-GPA check (§2.2)`),
+        el('label', { class: 'attest' }, cb, ` Use the transcript's graduate cumulative GPA (${gpaText(tp.gpa)}) for the minimum-GPA check (§2.2)`),
       ),
     );
   } else if (tp.gpa !== undefined) {
@@ -561,7 +562,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         'label',
         { class: 'attest' },
         cb,
-        ` Use the transcript's ${tp.undergraduateGpa !== undefined ? 'graduate-level ' : ''}cumulative GPA (${tp.gpa.toFixed(2)}) for the minimum-GPA check (§2.2)${tp.undergraduateGpa !== undefined ? ` — the undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used` : ''}`,
+        ` Use the transcript's ${tp.undergraduateGpa !== undefined ? 'graduate-level ' : ''}cumulative GPA (${gpaText(tp.gpa)}) for the minimum-GPA check (§2.2)${tp.undergraduateGpa !== undefined ? ` — the undergraduate GPA (${tp.undergraduateGpa.toFixed(2)}) is not used` : ''}`,
       ),
     );
   } else if (tp.undergraduateGpa !== undefined) {
