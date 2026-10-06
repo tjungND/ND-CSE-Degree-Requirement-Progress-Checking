@@ -1736,14 +1736,26 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
   const m = ctx.student.milestones;
   // An admission dated with no exam date: the record says the exam was
   // passed (admission requires it) but not when — a missing input, never an
-  // overdue exam (review of the split, 2026-10-04).
-  if (m.candidacyAdmitted && !m.candidacyPassed) {
+  // overdue exam (review of the split, 2026-10-04). So is a dated defense or
+  // submission (policy review round 3, P3-cse-4b-3; DGS 2026-10-06: "Apply
+  // the suggested handling"): §4.6, "After satisfying the above requirements,
+  // and upon approval of the dissertation director, the Ph.D. student can
+  // start writing the dissertation" — the OCE comes first, so its date is
+  // missing, not late: no Overdue, no probation, no "Take the OCE".
+  if ((m.candidacyAdmitted || m.defensePassed || m.dissertationSubmitted) && !m.candidacyPassed) {
     return {
       id: 'phd.candidacy',
       group: CANDIDACY,
       title: 'Oral Candidacy Exam (OCE) passed',
       status: 'cannot_evaluate',
-      ...joinedDetail([`Admitted to doctoral candidacy ${m.candidacyAdmitted}`, { note: 'Enter the date you passed the Oral Candidacy Exam (OCE) under Milestones — admission to candidacy requires it (Academic Code §6.2.9)' }]),
+      ...joinedDetail(
+        m.candidacyAdmitted
+          ? [`Admitted to doctoral candidacy ${m.candidacyAdmitted}`, { note: 'Enter the date you passed the Oral Candidacy Exam (OCE) under Milestones — admission to candidacy requires it (Academic Code §6.2.9)' }]
+          : [
+              m.defensePassed ? `Dissertation defense passed ${m.defensePassed}` : `Final dissertation submitted ${m.dissertationSubmitted}`,
+              { note: 'Enter the date you passed the Oral Candidacy Exam (OCE) under Milestones — the dissertation comes after it (§4.6)' },
+            ],
+      ),
       citation: { section: '§4.5', quote },
     };
   }
@@ -1931,10 +1943,17 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
   const { effectiveSem, term, date } = eighthSemester(ctx, sem);
   const admitted = m.candidacyAdmitted || undefined;
   if (!admitted && (m.defensePassed || m.dissertationSubmitted)) {
+    // The OCE's date may be missing too (P3-cse-4b-3): this card is the OCE's
+    // as well, so it asks for both.
+    const noOce = !m.candidacyPassed;
     return {
       ...base,
       status: 'cannot_evaluate',
-      ...joinedDetail(['Admission date not entered', { note: 'Your dissertation milestones are dated, so enter the date you were admitted to doctoral candidacy under Milestones' }]),
+      ...joinedDetail([
+        ...(noOce ? ['Oral Candidacy Exam (OCE) date not entered'] : []),
+        'Admission date not entered',
+        { note: `Your dissertation milestones are dated, so enter ${noOce ? 'the dates you passed the Oral Candidacy Exam (OCE) and were' : 'the date you were'} admitted to doctoral candidacy under Milestones` },
+      ]),
       citation,
     };
   }
@@ -2135,6 +2154,16 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
   // passed while the cumulative GPA was below the minimum is not Met — it goes
   // to the DGS, as the candidacy row does for the same GPA.
   const gpaAtDefense = m.defensePassed ? defendedBelowGpaNote(ctx) : '';
+  // The order of the dates (P3-cse-4b-3; DGS 2026-10-06: "Apply the suggested
+  // handling"; Claude's reading of §4.6/§4.7 and Academic Code §6.2.12, as the
+  // admission row already checks admission against the OCE): the OCE before
+  // the defense, the defense before the submission. A conflict goes to the
+  // DGS with "check both dates" — one of them is likely mistyped.
+  const defenseBeforeOce = !!(m.defensePassed && m.candidacyPassed && m.defensePassed < m.candidacyPassed);
+  const submittedBeforeDefense = !!(m.dissertationSubmitted && m.defensePassed && m.dissertationSubmitted < m.defensePassed);
+  const orderNote = (what: string, other: string, otherDate: string, cite: string, otherShort = other): DetailPart => ({
+    note: `The ${what} date is before the ${other} date (${otherDate}) — the ${otherShort} comes first (${cite}); check both dates, and confirm with the DGS if both are right`,
+  });
   const submittedRow: RequirementResult = {
     // Academic Code §6.2.12: "To receive the degree at the next graduation, the
     // doctoral candidate who has successfully defended his or her dissertation
@@ -2145,7 +2174,7 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
     group: DISSERTATION,
     title: 'Final dissertation submitted to the Graduate School',
     shortTitle: 'Dissertation submitted',
-    status: m.dissertationSubmitted ? (lateSubmission ? 'needs_dgs_review' : 'met') : m.defensePassed ? 'in_progress' : 'unmet',
+    status: m.dissertationSubmitted ? (lateSubmission || submittedBeforeDefense ? 'needs_dgs_review' : 'met') : m.defensePassed ? 'in_progress' : 'unmet',
     ...(m.dissertationSubmitted && lateSubmission ? { statusLabel: 'Eligibility at risk' } : {}),
     // The date is the fact; the rule and the next step are notes (DGS 2026-10-03).
     ...joinedDetail(
@@ -2155,7 +2184,7 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
               `Submitted ${m.dissertationSubmitted} — after the ${years}-year limit, which passed at ${deadlineTermLabel(limitDate!)} (approximate)`,
               { note: 'The Academic Code counts the official submission inside the limit (Academic Code §6.2.6), so confirm with the DGS that the Graduate School granted an extension or dissertation completion status' },
             ]
-          : [`Submitted ${m.dissertationSubmitted}`]
+          : [`Submitted ${m.dissertationSubmitted}`, ...(submittedBeforeDefense ? [orderNote('submission', 'defense', m.defensePassed!, '§4.7; Academic Code §6.2.12')] : [])]
         : m.defensePassed
           ? [{ note: 'Submit the final, revised dissertation electronically through the Graduate School’s portal by the Graduate School calendar’s deadline for the graduation you want — the degree is conferred at the next graduation after an on-time submission (Academic Code §6.2.12)' }]
           : ['Not started', { note: 'The submission comes after the defense (§4.7)' }],
@@ -2181,7 +2210,9 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
       id: 'phd.dissertation.defense',
       group: DISSERTATION,
       title: 'Dissertation defense passed',
-      status: m.defensePassed ? (lateDefense || gpaAtDefense !== '' ? 'needs_dgs_review' : 'met') : 'unmet',
+      // A submission dated with no defense date: the defense's date is
+      // missing, not "not yet passed" (P3-cse-4b-3).
+      status: m.defensePassed ? (lateDefense || gpaAtDefense !== '' || defenseBeforeOce ? 'needs_dgs_review' : 'met') : m.dissertationSubmitted ? 'cannot_evaluate' : 'unmet',
       // The one row that must NOT read "Conditionally met" (W-CS2, DGS
       // 2026-09-18): §4.3 makes a defense past the limit a forfeiture of
       // eligibility unless the Graduate School granted an extension, and the
@@ -2198,7 +2229,15 @@ function dissertationRows(ctx: Ctx): RequirementResult[] {
                 ...defenseRegistrationNote(ctx, m.defensePassed),
                 { note: 'Then submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' },
               ]
-            : [`Defense passed ${m.defensePassed}`, ...noteOf(gpaAtDefense), ...defenseRegistrationNote(ctx, m.defensePassed), { note: 'Next: submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' }]
+            : [
+                `Defense passed ${m.defensePassed}`,
+                ...(defenseBeforeOce ? [orderNote('defense', 'Oral Candidacy Exam (OCE)', m.candidacyPassed!, '§4.5, §4.6', 'OCE')] : []),
+                ...noteOf(gpaAtDefense),
+                ...defenseRegistrationNote(ctx, m.defensePassed),
+                { note: 'Next: submit the final dissertation electronically by the Graduate School calendar’s deadline (§4.7; Academic Code §6.2.12) — the next row' },
+              ]
+          : m.dissertationSubmitted
+            ? ['Defense date not entered', { note: `Your final dissertation is submitted (${m.dissertationSubmitted}), so enter the date you passed the defense under Milestones — the submission comes after it (§4.7; Academic Code §6.2.12)` }]
           : m.candidacyPassed === undefined
             ? ['Not started', { note: 'The defense comes after the Oral Candidacy Exam (§4.5)' }, ...noteOf(gpaGate)]
             : ['Not yet passed', { note: 'Three votes of four (or four of five) are required to pass (§4.7)' }, ...noteOf(gpaGate)],

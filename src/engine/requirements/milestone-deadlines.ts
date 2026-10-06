@@ -145,9 +145,9 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
   const oceSem = ctx.params.number('candidacy_deadline_semester');
   if (oceSem !== undefined) {
     const oce = eighthSemester(ctx, oceSem);
-    // An admission dated with no exam date: the OCE row asks for the date;
-    // no state here either.
-    out.candidacyPassed = at(ctx, oce.date, semesterBasis(oceSem, oce.effectiveSem, '§4.5'), m.candidacyPassed, m.candidacyAdmitted && !m.candidacyPassed ? false : 'auto');
+    // An admission, a defense or a submission dated with no exam date: the
+    // OCE row asks for the date; no state here either (P3-cse-4b-3).
+    out.candidacyPassed = at(ctx, oce.date, semesterBasis(oceSem, oce.effectiveSem, '§4.5'), m.candidacyPassed, (m.candidacyAdmitted || dissertationDated) && !m.candidacyPassed ? false : 'auto');
   }
   out.candidacyAdmitted = at(
     ctx,

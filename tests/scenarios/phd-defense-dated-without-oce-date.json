@@ -1,0 +1,135 @@
+{
+  "name": "phd-defense-dated-without-oce-date",
+  "description": "Policy review round 3, P3-cse-4b-3 (DGS 2026-10-06: “Apply the suggested handling”). Entered Fall 2019; \"Dissertation defense passed 2025-04-01\" on file and the OCE date blank (cleared, or an older saved file). §4.6: \"After satisfying the above requirements, and upon approval of the dissertation director, the Ph.D. student can start writing the dissertation\" — the OCE comes first, so its date is missing, not late. The OCE used to read Overdue with the Graduate School probation note beside a Met defense, and the advisor email told the student to take the OCE. Now the OCE and the admission card ask for the dates (cannot evaluate), with no deadline and no probation.",
+  "today": "2025-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2019
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2019
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {
+      "advisorIdentified": "2019-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
+      "researchQualifierPassed": "2020-12-01",
+      "rcrTrainingCompleted": "2020-09-15",
+      "defensePassed": "2025-04-01"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2019
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2020
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2020
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.candidacy": {
+      "status": "cannot_evaluate",
+      "detailIncludes": [
+        "Enter the date you passed the Oral Candidacy Exam (OCE) under Milestones — the dissertation comes after it (§4.6)"
+      ],
+      "detailExcludes": [
+        "probation",
+        "Overdue"
+      ]
+    },
+    "phd.candidacyAdmission": {
+      "status": "cannot_evaluate",
+      "detailIncludes": [
+        "Oral Candidacy Exam (OCE) date not entered",
+        "Admission date not entered"
+      ]
+    },
+    "phd.dissertation.defense": {
+      "status": "met"
+    }
+  }
+}
