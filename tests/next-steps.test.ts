@@ -4,9 +4,11 @@
 // state. Minimal hand-built reports; no DOM.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { audit } from '../src/engine/audit.ts';
 import type { AuditReport, CourseLine, RequirementResult, Student } from '../src/engine/types.ts';
 import { courseworkSentence, nearestDeadline, nextSteps } from '../src/ui/next-steps.ts';
-import { phdStudent } from './helpers/student.ts';
+import { buildRules } from './helpers.ts';
+import { ndCourse, phdStudent } from './helpers/student.ts';
 
 const line = (courseId: string, mark: CourseLine['mark'], text: string): CourseLine => ({ courseId, term: { season: 'fall', year: 2026 }, text, mark, counts: [] });
 const row = (id: string, status: RequirementResult['status'], extra: Partial<RequirementResult> = {}): RequirementResult =>
@@ -64,5 +66,63 @@ describe('next steps (DGS 2026-09-27)', () => {
     ]);
     assert.equal(nearestDeadline(r), 'phd.qualifier: Due by the end of Spring 2028 (approximate)');
     assert.equal(nearestDeadline(report([])), undefined);
+  });
+});
+
+// The advisor step follows the advisor card (policy review round 3,
+// P3-cse-1-2-2; DGS 2026-10-06: "Apply the suggested handling"). Since
+// 2026-10-04 the card is also not met with a name on file — the faculty-status
+// question unanswered, or answered No or Not sure — and the step still said
+// "Enter your advisor’s name". The review-request step now also counts the
+// request's non-course items, and says the advisor's when the DGS must
+// approve it; neither triggers the "tick the box next to each course" step.
+describe('the advisor step and the review request’s other items (P3-cse-1-2-2)', () => {
+  const withCourse = (): Student => ({ ...phdStudent(), courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }], attestations: { advisorApprovedPlan: true } });
+  const steps = (r: AuditReport, review = { unlisted: 0, caseByCase: 0 }) => nextSteps({ report: r, student: withCourse(), review, processingCount: 0 });
+  const FLAG = 'Advisor’s faculty status: Prof. Example — not sure whether tenured or tenure-track CSE faculty. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — a non-TTT or outside advisor needs the DGS’s written approval.';
+  const withFlags = (rows: RequirementResult[], flags: string[]) => ({ ...report(rows), reviewFlags: flags }) as AuditReport;
+
+  it('(b) a name on file, faculty status unanswered: answer it — not “enter the name”', () => {
+    const st = steps(report([row('shared.advisor', 'cannot_evaluate')]));
+    assert.deepEqual(st.map((x) => x.text), ['Answer under Milestones whether your advisor is tenured or tenure-track CSE faculty (§2.3).', 'Send the summary to your advisor whenever you like.']);
+    assert.deepEqual(st[0]?.covers, ['shared.advisor']);
+    assert.equal(st[0]?.href, '#milestones');
+  });
+  it('(c) No or Not sure: the review request, which carries it; no “tick the box next to each course”', () => {
+    const st = steps(withFlags([row('shared.advisor', 'needs_dgs_review')], [FLAG]));
+    assert.deepEqual(st.map((x) => x.text), ['Send the review request — your advisor’s faculty status needs the DGS’s approval (§2.3).', 'Send the summary to your advisor whenever you like.']);
+    assert.deepEqual(st[0]?.covers, ['shared.advisor']);
+    assert.equal(st[0]?.href, '#dgs-review');
+  });
+  it('one review-request step for courses, the advisor and other items, counted as items', () => {
+    const r = withFlags([row('shared.advisor', 'needs_dgs_review'), row('shared.approvals', 'needs_dgs_review')], [FLAG, 'Readmission: I was readmitted in Fall 2024 …']);
+    const st = steps(r, { unlisted: 1, caseByCase: 0 });
+    assert.equal(st[0]?.text, 'Send the review request: 1 course is not in the course rules yet, your advisor’s faculty status needs the DGS’s approval (§2.3), and 1 other item needs the DGS’s decision.');
+    assert.deepEqual(st[0]?.covers, ['phd.transfer', 'ms.transfer', 'shared.approvals', 'shared.advisor']);
+    assert.equal(st.filter((x) => x.text.startsWith('Send the review request')).length, 1, 'said once');
+  });
+  it('other items alone: counted, with no course step after them', () => {
+    const st = steps(withFlags([row('shared.advisor', 'met')], ['Readmission: …', 'Time limit: …']));
+    assert.deepEqual(st.map((x) => x.text), ['Send the review request: 2 items need the DGS’s decision.', 'Send the summary to your advisor whenever you like.']);
+    assert.equal(st[0]?.covers, undefined, 'no course rows to cover');
+  });
+  it('the MSCSE thesis option says “thesis advisor”', () => {
+    const r = { ...report([row('shared.advisor', 'cannot_evaluate')]), program: 'mscse' } as AuditReport;
+    assert.equal(steps(r)[0]?.text, 'Answer under Milestones whether your thesis advisor is tenured or tenure-track CSE faculty (§2.3).');
+  });
+  it('from the engine: a saved record with a name and no answer; then “Not sure”', () => {
+    const rules = buildRules();
+    const s = (advisorTtt?: 'yes' | 'no' | 'unsure'): Student => ({
+      ...phdStudent({ entryTerm: { season: 'fall', year: 2025 }, gpa: 3.5, courses: [ndCourse('CSE 60641', { term: { season: 'fall', year: 2025 } })] }),
+      milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', ...(advisorTtt ? { advisorTtt } : {}) },
+      attestations: { advisorApprovedPlan: true },
+    });
+    const run = (st: Student) => nextSteps({ report: audit(st, rules, '2026-10-06'), student: st, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }).map((x) => x.text);
+    assert.ok(run(s()).includes('Answer under Milestones whether your advisor is tenured or tenure-track CSE faculty (§2.3).'));
+    assert.ok(!run(s()).some((t) => t.startsWith('Enter your advisor’s name')));
+    const unsure = run(s('unsure'));
+    assert.equal(unsure[0], 'Send the review request — your advisor’s faculty status needs the DGS’s approval (§2.3).', JSON.stringify(unsure));
+    assert.ok(!unsure.some((t) => /tick the box next to each course/.test(t)));
+    assert.ok(!run(s('yes')).some((t) => /advisor’s (name|faculty status)|tenured or tenure-track/.test(t)), 'a Yes leaves nothing to do');
   });
 });

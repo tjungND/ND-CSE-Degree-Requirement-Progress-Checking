@@ -31,6 +31,10 @@ export interface NextStepsInput {
 
 const plural = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
+/** The review request's advisor item (shared.ts advisorReviewFlag): the
+ * advisor step names it, so the count of other items leaves it out. */
+const ADVISOR_FLAG = /^(?:Thesis advisor|Advisor)’s faculty status:/;
+
 /** Every scored requirement met outright — the moment the semester of
  * graduation is the next thing (the headline's own count). */
 export function allRequirementsMet(report: AuditReport): boolean {
@@ -80,20 +84,52 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   if (student.entryTermInferred) settings.push(`first semester ${termLabel(student.entryTerm)}`);
   if (student.bachelorsAwardedInferred && student.bachelorsAwarded) settings.push(`bachelor’s degree ${termLabel(student.bachelorsAwarded)}`);
   if (settings.length > 0) steps.push({ text: `Check what your transcript set — ${settings.join(', ')} (Your standing).`, href: '#standing' });
-  // 2. The decisions the DGS has to make — two kinds (DGS 2026-09-27).
+  // 2. The decisions the DGS has to make — the courses, two kinds (DGS
+  // 2026-09-27); since policy review round 3 (P3-cse-1-2-2, DGS 2026-10-06)
+  // also an advisor whose faculty status needs the DGS's approval and the
+  // review request's other items (report.reviewFlags: a readmission, the
+  // thesis readers, an extension …). Said as one step, so "Send the review
+  // request" is never on the list twice. Courses alone keep the 2026-09-27
+  // sentences.
   const reviewCount = review.unlisted + review.caseByCase;
-  if (reviewCount > 0) {
-    const text =
-      review.unlisted > 0 && review.caseByCase > 0
-        ? `Send the review request: ${plural(review.unlisted, 'course')} ${review.unlisted === 1 ? 'is' : 'are'} not in the course rules yet, and ${review.caseByCase} need${review.caseByCase === 1 ? 's' : ''} the DGS’s approval for you.`
-        : review.unlisted > 0
-          ? `Send the review request for ${plural(review.unlisted, 'course')} not in the course rules yet — the DGS enters ${review.unlisted === 1 ? 'it' : 'them'}.`
-          : `Send the review request for ${plural(review.caseByCase, 'course')} that need${review.caseByCase === 1 ? 's' : ''} the DGS’s approval for you.`;
-    steps.push({ text, href: '#dgs-review', covers: ['phd.transfer', 'ms.transfer', 'shared.approvals'] });
+  const advisor = report.requirements.find((r) => r.id === 'shared.advisor');
+  const thesis = report.program === 'mscse';
+  const advisorToDgs = advisor?.status === 'needs_dgs_review';
+  const otherItems = (report.reviewFlags ?? []).filter((f) => !(advisorToDgs && ADVISOR_FLAG.test(f))).length;
+  if (reviewCount > 0 || advisorToDgs || otherItems > 0) {
+    const advisorPart = `your ${thesis ? 'thesis ' : ''}advisor’s faculty status needs the DGS’s approval (§2.3)`;
+    let text: string;
+    if (!advisorToDgs && otherItems === 0)
+      text =
+        review.unlisted > 0 && review.caseByCase > 0
+          ? `Send the review request: ${plural(review.unlisted, 'course')} ${review.unlisted === 1 ? 'is' : 'are'} not in the course rules yet, and ${review.caseByCase} need${review.caseByCase === 1 ? 's' : ''} the DGS’s approval for you.`
+          : review.unlisted > 0
+            ? `Send the review request for ${plural(review.unlisted, 'course')} not in the course rules yet — the DGS enters ${review.unlisted === 1 ? 'it' : 'them'}.`
+            : `Send the review request for ${plural(review.caseByCase, 'course')} that need${review.caseByCase === 1 ? 's' : ''} the DGS’s approval for you.`;
+    else if (reviewCount === 0 && otherItems === 0) text = `Send the review request — ${advisorPart}.`;
+    else {
+      const parts = [
+        ...(review.unlisted > 0 ? [`${plural(review.unlisted, 'course')} ${review.unlisted === 1 ? 'is' : 'are'} not in the course rules yet`] : []),
+        ...(review.caseByCase > 0 ? [`${plural(review.caseByCase, 'course')} need${review.caseByCase === 1 ? 's' : ''} the DGS’s approval for you`] : []),
+        ...(advisorToDgs ? [advisorPart] : []),
+      ];
+      if (otherItems > 0) parts.push(`${otherItems} ${parts.length > 0 ? 'other ' : ''}item${otherItems === 1 ? ' needs' : 's need'} the DGS’s decision`);
+      text = `Send the review request: ${parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`}.`;
+    }
+    // The transfer and approvals rows are this step's only while it carries
+    // courses; the advisor's card, while it carries the advisor.
+    const covers = [...(reviewCount > 0 ? ['phd.transfer', 'ms.transfer', 'shared.approvals'] : []), ...(advisorToDgs ? ['shared.advisor'] : [])];
+    steps.push({ text, href: '#dgs-review', ...(covers.length > 0 ? { covers } : {}) });
   }
   // 3. The advisor, and the plan-of-study box — neither waits for the DGS.
-  const advisor = report.requirements.find((r) => r.id === 'shared.advisor');
-  if (advisor && advisor.status !== 'met') steps.push({ text: 'Enter your advisor’s name under Milestones.', href: '#milestones', covers: ['shared.advisor'] });
+  // The step says what the advisor card says (P3-cse-1-2-2): no advisor on
+  // file → enter the name; a name on file but the faculty-status question
+  // unanswered → answer it (since 2026-10-04 the card is not met then either,
+  // and "Enter your advisor’s name" told a student who had done so to do it
+  // again); a status the DGS must approve → step 2.
+  if (advisor?.status === 'unmet') steps.push({ text: 'Enter your advisor’s name under Milestones.', href: '#milestones', covers: ['shared.advisor'] });
+  else if (advisor?.status === 'cannot_evaluate')
+    steps.push({ text: `Answer under Milestones whether your ${thesis ? 'thesis ' : ''}advisor is tenured or tenure-track CSE faculty (§2.3).`, href: '#milestones', covers: ['shared.advisor'] });
   if (hasCourses && !student.attestations.advisorApprovedPlan) steps.push({ text: 'Confirm your advisor approved your plan of study and tick the box under Approvals.', href: '#milestones' });
   // 4. After the DGS answers; and what the Grad Admin can already record.
   const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
