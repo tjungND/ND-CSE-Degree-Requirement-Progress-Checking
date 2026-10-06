@@ -37,6 +37,13 @@ export interface Ctx {
   alloc: AllocationResult;
   classified: ClassifiedCourse[];
   params: Parameters;
+  /** Ph.D. with an OCE date on file: the record as it stood at the exam
+   * (policy review round 3, P3-cse-4b-1; DGS 2026-10-06: "Decision 1: The
+   * exam's semester"). Courses after the exam's semester are left out and the
+   * exam semester's own courses read as in progress, whatever their final
+   * grade — so the dated check reads the coursework as of the exam, with the
+   * same classification and allocation as everything else. */
+  atOce?: Ctx;
 }
 
 /** The last day a Ph.D. student enrolled in Spring 2020 could have been

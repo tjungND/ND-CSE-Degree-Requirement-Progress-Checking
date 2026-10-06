@@ -19,7 +19,7 @@ import { extensionReviewFlag } from './requirements/context.ts';
 import { ADMISSION_DEADLINE_SEMESTER, eighthSemester, phdRows, phdTimeLimitRow, qualifierPriorRulesEligible, readmissionGapCounted } from './requirements/phd.ts';
 import { msMilestoneDeadlines, phdMilestoneDeadlines } from './requirements/milestone-deadlines.ts';
 import { formatCredits } from './credits.ts';
-import { GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
+import { GRADE_POINTS, isAudit, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 
 /** Requirement id ↔ plan-inventory mapping (docs/DECISIONS.md, plan §1):
  *   shared.gpa=S1  shared.advisor=S2  shared.approvals=advisory
@@ -144,7 +144,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     label: `${DUAL_DEGREE_SHARED_CREDITS_MAX}-credit allowance for coursework shared with your other degree`,
     section: 'Academic Code §2.2',
   };
-  const capSpecs: CapSpec[] =
+  const baseCapSpecs: CapSpec[] =
     student.program === 'mscse'
       ? [
           nonDegreeCap,
@@ -206,7 +206,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // as approved. Usually a duplicate row or a wrong credit value — the warning
   // says which semester.
   const overMax = overMaxTerms(classified, student, entry);
-  capSpecs.push(...registrationCaps(overMax));
+  const capSpecs: CapSpec[] = [...baseCapSpecs, ...registrationCaps(overMax)];
   for (const o of overMax) {
     if (o.overloadApproved) continue;
     const excess = o.credits - o.max;
@@ -219,13 +219,14 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // Non-CSE credit the nine-credit allowance refuses: into the total for the
   // Ph.D. (F1, 2026-09-12), nowhere for the MSCSE (DGS 2026-10-03 — §3.2's
   // September text counts the nine "toward both" the 30 and the 24).
-  const alloc = allocate(classified, capSpecs, {
+  const allocOptions = {
     nonCseSpillsToTotal: student.program === 'phd',
     // Only the Ph.D. has a research seminar requirement (§4.2); on the MSCSE a
     // seminar the ADGS approves counts toward the 30, never the 24 (DGS
     // 2026-10-04, P1-sheet-40).
     seminarCourseIds: student.program === 'phd' ? (params.courseList('phd_seminar_courses') ?? []) : [],
-  });
+  };
+  const alloc = allocate(classified, capSpecs, allocOptions);
 
   // The department's qualifier clocks run from the Ph.D.'s own start: for a
   // transfer from the unfinished MSCSE, the term of the transfer (DGS
@@ -246,6 +247,28 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     classified,
     params,
   };
+  // The record as it stood at a dated OCE (policy review round 3, P3-cse-4b-1;
+  // DGS 2026-10-06: "Decision 1: The exam's semester"). CSE §4.5: "All
+  // coursework for the Ph.D. must be completed (or in progress the same
+  // semester) before the candidacy exam can be taken." Courses after the
+  // exam's semester are left out, and the exam semester's own courses read as
+  // in progress whatever their final grade — they were in progress when the
+  // exam was taken, so a later W or F does not flag a legitimate exam, and a
+  // course registered later does not hide a short one. The same
+  // classification and allocation run on it ("today" being the exam date).
+  const oceDate = student.program === 'phd' ? student.milestones.candidacyPassed : undefined;
+  if (oceDate !== undefined) {
+    const examTerm = termOfDate(oceDate);
+    const asOfExam: Student = {
+      ...student,
+      courses: student.courses
+        .filter((c) => compareTerm(c.term, examTerm) <= 0)
+        .map((c) => (compareTerm(c.term, examTerm) === 0 && !isAudit(c.grade) ? { ...c, grade: 'IP' as Grade } : c)),
+    };
+    const atExam = classify(asOfExam, rules, oceDate).classified;
+    const atExamAlloc = allocate(atExam, [...baseCapSpecs, ...registrationCaps(overMaxTerms(atExam, asOfExam, entry))], allocOptions);
+    ctx.atOce = { ...ctx, student: asOfExam, today: oceDate, alloc: atExamAlloc, classified: atExam };
+  }
   const reviewFlags: string[] = [];
   const ugFlag = undergraduateGraduateCourseworkFlagFor(classified, student);
   if (ugFlag) {

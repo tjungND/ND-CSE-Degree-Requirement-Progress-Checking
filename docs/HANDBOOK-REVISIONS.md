@@ -478,3 +478,9 @@ not the app's:
     any kind (§3.4, §3.7.2). The DGS ruled on 2026-10-06 to follow the Code, for the Ph.D. and the MSCSE alike (policy
     review round 3, P3-cross-doc-1). §3.3 and §4.3 should say so in a sentence, and the conflict is worth raising with the
     Graduate School.
+25. **§4.5 — an exam held before the coursework was complete.** §4.5 makes the coursework a precondition (“must be completed
+    (or in progress the same semester) before the candidacy exam can be taken”) but does not say what happens when an exam was
+    held without it — whether the pass stands, and who decides. The DGS ruled on 2026-10-06 that the coursework is checked as of
+    the exam’s semester, and that the DGS confirms an exam held short of it before the student applies for candidacy (policy
+    review round 3, P3-cse-4b-1). §4.5 should say who confirms such an exam, or that the committee checks the coursework before
+    the exam is scheduled.

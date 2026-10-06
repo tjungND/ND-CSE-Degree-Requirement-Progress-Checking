@@ -41,7 +41,9 @@ describe('the OCE passed is not yet admission to candidacy (P2-dh-3.21-3.24-16)'
   it('an OCE passed in the third semester: the OCE row is Met, admission waits for the fourth full-time semester', () => {
     // The review's own case, moved to this fixture's calendar: the exam in
     // semester 3 (Fall 2027), three full-time semesters so far.
-    const s = ready({ candidacyPassed: '2027-12-10' }, { fullTimeTermOverrides: [fall(2026), spring(2027), fall(2027)] });
+    // The coursework complete or in progress by the exam's semester (P3-cse-4b-1, 2026-10-06).
+    const firstThree = [fall(2026), spring(2027), fall(2027)];
+    const s = ready({ candidacyPassed: '2027-12-10' }, { fullTimeTermOverrides: firstThree, courses: REGULAR.map((id, i) => ndCourse(id, { term: firstThree[Math.min(2, Math.floor(i / 3))]! })) });
     const { oce, admission } = rows(s, '2028-01-15');
     assert.equal(oce.status, 'met');
     assert.match(oce.detail, /Passing the OCE is one of the conditions for admission to doctoral candidacy|Passing the Oral Candidacy Exam \(OCE\) is one of the conditions for admission to doctoral candidacy/);
@@ -66,7 +68,7 @@ describe('the OCE passed is not yet admission to candidacy (P2-dh-3.21-3.24-16)'
     const s = ready({ candidacyPassed: '2027-04-01' }, { courses: [ndCourse('CSE 60641')] });
     const { oce, admission } = rows(s, '2027-06-01');
     assert.equal(oce.status, 'needs_dgs_review');
-    assert.match(oce.detail, /You show 3 of 24 regular credits — §4\.5 requires that before the exam/);
+    assert.match(oce.detail, /At the exam \(Spring 2027\) you show 3 of 24 regular-course credits/);
     assert.match(admission.detail, /Coursework: 3 of 24 regular-course credits complete/);
   });
 });

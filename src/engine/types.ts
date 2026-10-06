@@ -611,6 +611,12 @@ export interface RequirementResult {
    * list (DGS request 2026-09-04). A part may itself carry a lead sentence
    * plus enumerated items — rendered as a nested (two-layer) list. `detail`
    * stays the joined prose — the advisor summary and tests keep using it. */
+  /** phd.candidacy only: what the coursework lacked at a dated OCE — "15 of 24
+   * regular-course credits and no Algorithms core-knowledge course" — when the
+   * DGS must confirm the exam could be taken (CSE §4.5; policy review round 3,
+   * P3-cse-4b-1, DGS 2026-10-06). The admission card holds "apply now" while
+   * it is set (Decision 2 (a)), and the advisor summary asks about it. */
+  courseworkReview?: string;
   detailParts?: DetailPart[];
   /** The same statements with the §4.4.1 / §4.4.2 names shortened, for the
    * page only (DGS 2026-09-08). The report renders these when they are here;

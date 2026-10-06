@@ -410,7 +410,14 @@ export function actionItems(report: AuditReport): ActionItems {
     // A missed eighth semester is the Graduate School's probation (Academic
     // Code §6.2.8), not the DGS's call (P1-page-text-ui-7).
     if (overdue(candidacy)) out.dgs.push(`Advise the student on the Graduate School’s consequence for the missed Oral Candidacy Exam (OCE) deadline ${section(candidacy)}.`);
-  } else if (candidacy?.status === 'needs_dgs_review') out.dgs.push(`Confirm the late Oral Candidacy Exam (OCE) ${section(candidacy)}.`);
+  } else if (candidacy?.status === 'needs_dgs_review')
+    // The coursework at the exam (P3-cse-4b-1, DGS 2026-10-06) is its own
+    // question — not a late pass.
+    out.dgs.push(
+      candidacy.courseworkReview
+        ? `Confirm that my Oral Candidacy Exam (OCE) could be taken — at the exam I showed ${candidacy.courseworkReview} ${section(candidacy)}.`
+        : `Confirm the late Oral Candidacy Exam (OCE) ${section(candidacy)}.`,
+    );
   // Admission to candidacy, the Graduate School's own step after the OCE (DGS
   // 2026-10-04). Its to-dos start once the OCE is DATED — met, or a late or
   // short-coursework pass waiting for the DGS — so the summary agrees with the

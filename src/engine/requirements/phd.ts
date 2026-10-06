@@ -1544,17 +1544,65 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
  * scheduled/started"): where each piece of the OCE's coursework stands, then
  * when the OCE can be scheduled. Facts — the rule behind them is a note. */
 function oceWaitFact(r: OceReadiness): DetailPart[] {
-  const list = (xs: string[]): string => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+  const when = oceWhenSentence(r);
+  return [{ lead: 'Becomes In progress once your coursework is complete or completing this semester, with a tenured or tenure-track advisor', items: r.items, marks: r.marks }, ...(when ? [when] : [])];
+}
+
+/** "a", "a and b", "a, b and c". */
+function listAnd(xs: readonly string[]): string {
+  return xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}
+
+/** When the OCE can be scheduled, and what is still needed — the Not-started
+ * card's closing line, and the overdue card's note (P3-cse-4b-1). '' when
+ * nothing is missing. */
+function oceWhenSentence(r: OceReadiness): string {
+  const list = listAnd;
   const needed = [...r.missing, ...(r.advisorMissing ? [r.advisorMissing] : [])];
-  const when =
+  return (
     r.missing.length > 0
       ? `The OCE can be scheduled in the semester your coursework is complete or in its last semester — still needed: ${list(needed)}`
       : r.earliest
         ? `The OCE can be scheduled in ${termLabel(r.earliest)} at the earliest, the semester your coursework is expected to be complete${r.advisorMissing ? ` — still needed: ${r.advisorMissing}` : ''}`
         : r.advisorMissing
           ? `The OCE can be scheduled once you have ${r.advisorMissing === 'your advisor’s faculty status, answered under Milestones' ? 'answered your advisor’s faculty status under Milestones' : r.advisorMissing}`
-          : '';
-  return [{ lead: 'Becomes In progress once your coursework is complete or completing this semester, with a tenured or tenure-track advisor', items: r.items, marks: r.marks }, ...(when ? [when] : [])];
+          : ''
+  );
+}
+
+/** What the coursework lacked at a dated OCE (policy review round 3,
+ * P3-cse-4b-1; DGS 2026-10-06). CSE §4.5: "All coursework for the Ph.D. must
+ * be completed (or in progress the same semester) before the candidacy exam
+ * can be taken" — the 24 regular-course credits and the qualifier's
+ * core-knowledge and specialization courses (DGS 2026-10-05), as of the
+ * exam's semester (Decision 1: "The exam's semester"), read off the record as
+ * it stood then (`ctx.atOce`) by the same rows the undated gate reads, before
+ * any deadline. A part waiting for the DGS is named as the decision ("Treat
+ * both as not done", 2026-10-06). A qualifier passed under the earlier
+ * requirements covers the components. Empty when nothing was missing. */
+function courseworkAtExam(ctx: Ctx): string[] {
+  const at = ctx.atOce;
+  if (at === undefined) return [];
+  const out: string[] = [];
+  const min = ctx.params.number('phd_regular_credits_min');
+  if (min !== undefined) {
+    const done = at.alloc.regular.definite + at.alloc.regular.in_progress;
+    if (done < min) {
+      const pending = at.alloc.regular.provisional;
+      out.push(`${formatCredits(done)} of ${min} regular-course credits${pending > 0 ? ` (${formatCredits(pending)} more waiting for a DGS decision)` : ''}`);
+    }
+  }
+  if (!qualifierPassedUnderPriorRules(ctx)) {
+    for (const r of [...coreRows(at), categoriesRow(at)]) {
+      if (r.status === 'met' || r.status === 'in_progress' || r.status === 'cannot_evaluate' || r.forfeitReview) continue;
+      const core = r.id !== 'phd.qualifier.categories';
+      const area = r.title.replace(/^Core knowledge:\s*/, '');
+      if (r.status === 'needs_dgs_review' && r.statusLabel === undefined)
+        out.push(`${core ? `the ${area} core area` : 'the specialization'} waiting for the DGS’s decision${r.pendingBy && r.pendingBy.length > 0 ? ` on ${r.pendingBy.join(', ')}` : ''}`);
+      else out.push(core ? `no ${area} core-knowledge course` : 'the specialization courses not complete');
+    }
+  }
+  return out;
 }
 
 /** §4.5: "The candidacy exam must be taken before the end of the eighth
@@ -1643,18 +1691,28 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
   // ADMISSION to candidacy, not sitting the exam (P1-gpa-8, DGS 2026-10-03),
   // so it is the admission row's since the split (DGS 2026-10-04).
   const regularMin = ctx.params.number('phd_regular_credits_min');
-  const regularDone = ctx.alloc.regular.definite + ctx.alloc.regular.in_progress;
-  const courseworkShort = regularMin !== undefined && regularDone < regularMin;
-  const credits = `${formatCredits(regularDone)} of ${regularMin}`;
   let status = r.status;
-  if (courseworkShort) {
-    if (passed !== undefined) {
+  // Dated: the coursework as it stood at the exam — the credits AND the
+  // qualifier's components, as of the exam's semester (policy review round 3,
+  // P3-cse-4b-1; DGS 2026-10-06). Today's credits used to be counted alone, so
+  // a course registered after a short exam hid it, a later W flagged a
+  // legitimate one, and a missing core course was never asked about. A
+  // shortfall goes to the DGS, never Not met: the Graduate School has
+  // recorded the pass.
+  let courseworkReview: string | undefined;
+  if (passed !== undefined) {
+    const short = courseworkAtExam(ctx);
+    if (short.length > 0) {
       status = status === 'met' ? 'needs_dgs_review' : status;
-      parts.push({ note: `You show ${credits} regular credits — §4.5 requires that before the exam; confirm with the DGS that it could be taken` });
-    } else {
-      // The precondition in the student's terms (clarity review 2026-09-26).
-      parts.push({ note: `You can take the exam once your ${regularMin} regular-course credits are complete or in progress — you have ${credits} (§4.5)` });
+      courseworkReview = listAnd(short);
+      parts.push({ note: `At the exam (${termLabel(termOfDate(passed))}) you show ${courseworkReview} — §4.5 requires the coursework complete, or in progress that semester, before the exam; confirm with the DGS that it could be taken` });
     }
+  } else if (!coursework.ready) {
+    // Not taken, and not ready — only the overdue card reaches here (the
+    // others are Not started above): the whole list the Not-started card
+    // gives, not the credits alone (P3-cse-4b-1).
+    const when = oceWhenSentence(coursework);
+    if (when) parts.push({ note: `${when} (§4.5)` });
   }
   // Passing is not admission (DGS 2026-10-04): say so while the next row is open.
   if (passed !== undefined && !m.candidacyAdmitted)
@@ -1677,7 +1735,8 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
     status,
     ...(forfeited ? { forfeitReview: true as const } : {}),
     // Late is the only question: done, for the eight-year row (2026-10-04).
-    ...(status === 'needs_dgs_review' && r.status === 'needs_dgs_review' && !courseworkShort && !forfeited ? { completedLate: true as const } : {}),
+    ...(status === 'needs_dgs_review' && r.status === 'needs_dgs_review' && courseworkReview === undefined && !forfeited ? { completedLate: true as const } : {}),
+    ...(courseworkReview !== undefined ? { courseworkReview } : {}),
     ...(parts.length > 0 ? joinedDetail(parts) : { detail: '' }),
     deadline: r.deadline,
     citation: { section: '§4.5', quote },
@@ -1837,7 +1896,13 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     // The OCE's own deadline (§4.5, the sheet's semester) beside it when it is
     // not the admission's — the card is the OCE's too since 2026-10-04.
     const oceDue = !m.candidacyPassed && merged.oce.deadline && merged.oce.deadline.date !== date ? ` — ${merged.oce.deadline.label.charAt(0).toLowerCase()}${merged.oce.deadline.label.slice(1)}` : '';
-    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}${merged.oce.forfeitReview ? ` — ${FORFEIT_FACT}` : ''}` : `not yet${oceDue}`}`, mark: m.candidacyPassed ? (merged.oce.forfeitReview ? 'waiting' : 'met') : 'not_yet' });
+    // A dated OCE whose coursework the DGS must confirm (P3-cse-4b-1) waits,
+    // so "Every condition is met: apply now" is held until the DGS settles it
+    // (DGS 2026-10-06: "Decision 2: (a)").
+    conditions.push({
+      text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}${merged.oce.forfeitReview ? ` — ${FORFEIT_FACT}` : merged.oce.courseworkReview ? ' — the DGS confirms the coursework at the exam' : ''}` : `not yet${oceDue}`}`,
+      mark: m.candidacyPassed ? (merged.oce.forfeitReview || merged.oce.courseworkReview ? 'waiting' : 'met') : 'not_yet',
+    });
     const floor = ctx.params.number('fulltime_credits_min');
     if (floor === undefined) conditions.push({ text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: cannot be checked — the rules sheet is missing 'fulltime_credits_min'`, mark: 'not_yet' });
     else {

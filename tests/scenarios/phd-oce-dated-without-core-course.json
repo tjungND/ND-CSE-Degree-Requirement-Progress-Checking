@@ -1,0 +1,147 @@
+{
+  "name": "phd-oce-dated-without-core-course",
+  "description": "Policy review round 3, P3-cse-4b-1 (DGS 2026-10-06: “Decision 1: The exam’s semester; Decision 2: (a)”). §4.5: \"All coursework for the Ph.D. must be completed (or in progress the same semester) before the candidacy exam can be taken\" — the 24 regular-course credits and the qualifier’s core-knowledge and specialization courses. 24 credits, no Algorithms course, and an OCE passed in Fall 2025: the OCE row used to read Met because only today’s credits were checked. Now the record as it stood at the exam is checked in full; the missing core area sends the OCE to the DGS, and the admission card waits instead of saying “apply now”.",
+  "today": "2026-10-05",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2023
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2023
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "fullTimeTermOverrides": [
+      {
+        "season": "fall",
+        "year": 2023
+      },
+      {
+        "season": "spring",
+        "year": 2024
+      },
+      {
+        "season": "fall",
+        "year": 2024
+      },
+      {
+        "season": "spring",
+        "year": 2025
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2023-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
+      "rcrTrainingCompleted": "2024-09-15",
+      "candidacyPassed": "2025-11-15"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.candidacy": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "At the exam (Fall 2025) you show no Algorithms core-knowledge course"
+      ]
+    },
+    "phd.candidacyAdmission": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "Oral Candidacy Exam (OCE): passed 2025-11-15 — the DGS confirms the coursework at the exam"
+      ],
+      "detailExcludes": [
+        "Every condition is met"
+      ]
+    }
+  }
+}

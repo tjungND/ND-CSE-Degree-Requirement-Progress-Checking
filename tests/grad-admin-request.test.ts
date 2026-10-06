@@ -24,7 +24,8 @@ const student = (extra: Partial<Student> = {}): Student => phdStudent({
     // The candidacy exam needs the coursework complete or in progress (§4.5,
     // enforced since 2026-09-12): eight regular courses at Notre Dame.
     ...['CSE 60641', 'CSE 60111', 'CSE 60321', 'CSE 60427', 'CSE 60535', 'CSE 60762', 'CSE 60770', 'CSE 60876'].map((courseId, i) => ({
-      courseId, credits: 3, term: { season: (i % 2 === 0 ? 'fall' : 'spring') as 'fall' | 'spring', year: 2026 + Math.floor(i / 2) + (i % 2) }, grade: 'A' as const, origin: 'nd' as const,
+      // Two a semester, complete before the Spring 2029 OCE (§4.5 as of the exam's semester, 2026-10-06).
+      courseId, credits: 3, term: { season: (Math.floor(i / 2) % 2 === 0 ? 'fall' : 'spring') as 'fall' | 'spring', year: 2026 + Math.floor((Math.floor(i / 2) + 1) / 2) }, grade: 'A' as const, origin: 'nd' as const,
     })),
   ],
   milestones: { advisorIdentified: '2026-09-10', advisorName: 'Prof. Example', advisorTtt: 'yes', candidacyPassed: '2029-04-01' },
@@ -148,7 +149,7 @@ describe('gradAdminRequest', () => {
       /\nAttached: copies of my transcripts as PDFs\. The official transcripts are to be sent directly to the Graduate School by each university’s registrar\.\n\nACTION REQUESTED\n1\. Submit the Transfer of Credits request to the Graduate School for CS 50300 Operating Systems \(Purdue University, Fall 2024, 3 credits\) — recommended by the DGS in the course rules \(§5\.2\)\.\n2\. Record the milestone: Advisor identified, 2026-09-10 \(§2\.3\)\.\n3\. Record the milestone: Oral Candidacy Exam \(OCE\) passed, 2029-04-01 \(§4\.5\)\.\n4\. Keep my standing below on file: 4 requirements met, 2 overdue, 5 in progress, 1 not started\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO SUBMIT TO THE GRADUATE SCHOOL/,
     );
     // ONE course table, each course with every requirement it feeds (DGS 2026-09-28).
-    assert.match(built.text, /\nCOURSES COUNTED SO FAR\nCourse\tTitle\tCredits\tGrade\tTerm\tWhere\tCounts toward\nCS 50300\tOperating Systems\t3\tA\tFall 2024\tPurdue University\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\)\nCSE 60641\t\t3\tA\tFall 2026\tNotre Dame\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\); 9 regular credits at ND \(§4\.2\)\n/);
+    assert.match(built.text, /\nCOURSES COUNTED SO FAR\nCourse\tTitle\tCredits\tGrade\tTerm\tWhere\tCounts toward\nCS 50300\tOperating Systems\t3\tA\tFall 2024\tPurdue University\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\)\nCSE 60111\t\t3\tA\tFall 2026\tNotre Dame\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\); 9 regular credits at ND \(§4\.2\)\n/);
     assert.equal((built.text.match(/CSE 60876\t/g) ?? []).length, 1, 'a course prints once, not under every row it feeds');
     assert.match(built.text, /\nTRANSFER CREDIT TO SUBMIT TO THE GRADUATE SCHOOL \(§5\.2\) — RECOMMENDED BY THE DGS IN THE COURSE RULES\nUniversity\tCourse\tTitle\tCredits\tND credits\tGrade\tTerm\nPurdue University\tCS 50300\tOperating Systems\t3\t\tA\tFall 2024\n/);
     // The standing list (DGS 2026-09-28): a [WORD] tag per row in plain text.
@@ -160,7 +161,7 @@ describe('gradAdminRequest', () => {
     assert.match(built.text, /\n\[MET\] Under continuous advisor supervision \(§2\.3\)\n    Evidence: advisor Prof\. Example; date 2026-09-10\.\n/);
     // The OCE inside admission to candidacy since 2026-10-04 (one card, DGS).
     assert.match(built.text, /\n\[IN PROGRESS\] Admitted to doctoral candidacy \(Academic Code §6\.2\.9\)\n[^\n]*\n    Progress: OCE: passed 2029-04-01\./, 'the full OCE name went to the action list, its first mention');
-    assert.match(built.text, /\n\[MET\] At least 9 credits of regular courses taken at Notre Dame \(§4\.2\)\n    Evidence: CSE 60641, CSE 60111, [^\n]*CSE 60876 \(in the course table above\)\.\n/);
+    assert.match(built.text, /\n\[MET\] At least 9 credits of regular courses taken at Notre Dame \(§4\.2\)\n    Evidence: CSE 60111, CSE 60641, [^\n]*CSE 60876 \(in the course table above\)\.\n/);
     // The seminar row is Overdue since 2026-10-04 (P1-sheet-9); the second-person re-voicing is checked below with a transfer student.
     assert.match(built.text, /\n\[OVERDUE\] 2 credits of Research Seminar in year one \(§4\.2\)\n    !! DEADLINE PASSED: Overdue — was due by the end of Spring 2027 — the first year \(approximate\)\n    Progress: CSE 63801: not yet\. CSE 63802: not yet\. §4\.2 requires both seminars in the first year of the program; talk to the DGS about taking the missing one\.\n/);
     assert.match(built.text, /\n\[IN PROGRESS\] Dissertation defense passed \(§4\.7\)\n    Progress: Not yet passed[^\n]*\n/);
