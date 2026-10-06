@@ -216,6 +216,8 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       ...(c.noPriorProgram ? ['decide whether this course transfers, and how much — I had no earlier graduate program, and the Academic Code states no transfer allowance for that case (Academic Code §4.6)'] : []),
       ...(c.cseUnknown ? ['say whether this counts as a CSE course for §4.2’s nine-credit non-CSE allowance (the is_cse cell on its row)'] : []),
       ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
+      // Another university's Incomplete (P3-ac-4-1; DGS 2026-10-05: held for DGS review).
+      ...(c.outsideIncomplete ? ['decide this course once its final grade is posted — it is graded I (Incomplete) at my previous university, so it cannot show the B that §5.2 requires yet'] : []),
       ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),
     ];
 
@@ -399,7 +401,8 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           : c.ineligibleReason !== undefined
             ? 'no transfer credit, but the title suggests a §4.4.1 core area — not in the course rules yet'
             : heldAsks.length > 0
-              ? `not in the course rules yet — the DGS enters it; ${(c.approvalPending ?? '').replace(/^waiting for the DGS — /, '')}`
+              ? // The pending text ends by saying the course is not in the rules yet; the reason already opens with it (2026-10-05).
+                `not in the course rules yet — the DGS enters it; ${(c.approvalPending ?? '').replace(/^waiting for the DGS — /, '').replace(/; not in the course rules yet — send the review request so the DGS can enter it/, '')}`
               : 'not in the course rules yet — the DGS enters it',
         unlisted: true,
       });

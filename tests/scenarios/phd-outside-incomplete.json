@@ -1,0 +1,68 @@
+{
+  "name": "phd-outside-incomplete",
+  "description": "Policy review round 3, P3-ac-4-1 (DGS 2026-10-05: 'Apply the suggested handling. For the question at the end: an outside I should be held for DGS review'). A Ph.D. student entering Fall 2026 holds a completed UMass Amherst master's whose transcript shows COMPSCI 589 graded I in Spring 2026. Until 2026-10-05 the app put it on Notre Dame's Academic Code §4.4 clock — 'complete the work by about 2026-07-14 … or it becomes an F', then 'became an F unless the Graduate School extended it' — although §4.4 governs Notre Dame's own courses. Now an outside Incomplete gets no Notre Dame date and is held for the DGS until it is graded: with no final grade it cannot show the B §5.2 requires.",
+  "today": "2026-10-05",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "completed",
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "gpa": 3.6,
+    "courses": [
+      {
+        "courseId": "COMPSCI 589",
+        "title": "Machine Learning",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "I",
+        "origin": "transfer",
+        "institution": "University of Massachusetts Amherst",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Waiting for the DGS: COMPSCI 589",
+        "Graded I (Incomplete) at University of Massachusetts Amherst — no final grade yet, so it cannot show the B that §5.2 requires"
+      ],
+      "detailExcludes": [
+        "Academic Code §4.4",
+        "became an F"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "COMPSCI 589": [
+      "waiting for the DGS",
+      "graded I (Incomplete) at University of Massachusetts Amherst — no final grade yet, so it cannot show the B that §5.2 requires — the DGS decides once the grade is final"
+    ]
+  }
+}

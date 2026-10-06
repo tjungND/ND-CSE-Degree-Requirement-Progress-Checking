@@ -196,6 +196,9 @@ export interface ClassifiedCourse {
    * graduate courses taken outside any program — so the DGS decides (DGS
    * 2026-10-03: "route such courses to DGS review"). */
   noPriorProgram?: true;
+  /** An Incomplete from another university (P3-ac-4-1; DGS 2026-10-05): held
+   * for the DGS until it is graded — never on Notre Dame's §4.4 clock. */
+  outsideIncomplete?: true;
   /** A course from another university the sheet cannot place inside or
    * outside CSE (no `is_cse` cell, no `cse_subject_codes` list): §4.2's
    * nine-credit non-CSE allowance depends on the answer, so the course waits
@@ -691,8 +694,11 @@ export function classify(student: Student, rules: Rules, today?: string): {
     // Withdrawn (Academic Code §4.2: "posted on the student's permanent record
     // with the grade of W"): no credit, but the semester's registered hours
     // still include it (§3.3) — residency.ts reads the flag (2026-10-03).
+    // The full-time clause is said of a Notre Dame registration only — the
+    // only kind residency.ts counts (policy review round 3, P3-ac-4-1; DGS
+    // 2026-10-05): another university's W says nothing about a Notre Dame semester.
     if (isWithdrawn(grade)) {
-      return { ...base, withdrawn: true, ineligibleReason: 'withdrawn (W) — earns no credit; it still counts as a registration for that semester’s full-time status (Academic Code §3.3)' };
+      return { ...base, withdrawn: true, ineligibleReason: `withdrawn (W) — earns no credit${c.origin === 'nd' ? '; it still counts as a registration for that semester’s full-time status (Academic Code §3.3)' : ''}` };
     }
     // Audited (Academic Code §2.4, §4.3; DGS Handbook §3.12 — policy review
     // 2026-10-04, P2-ac-1-3-6 / P2-ac-4-10): on the record, earning nothing,
@@ -704,7 +710,12 @@ export function classify(student: Student, rules: Rules, today?: string): {
     // the term's grades were due, then "changed permanently to a grade of F"
     // unless the Graduate School extended it — which the app cannot see, so a
     // lapsed I is counted provisionally and sent to the DGS (2026-10-03).
-    const incompleteDue = grade === 'I' ? incompleteDeadline(c.term) : undefined;
+    // Notre Dame's own courses only (policy review round 3, P3-ac-4-1; DGS
+    // 2026-10-05: "Apply the suggested handling"): §4.4's clock and the
+    // Graduate School's extension govern Notre Dame graduate courses — an
+    // Incomplete from another university follows that university's rules, and
+    // classifyTransfer holds it for the DGS instead.
+    const incompleteDue = grade === 'I' && (c.origin === 'nd' || isNotreDameInstitution(c.institution)) ? incompleteDeadline(c.term) : undefined;
     const incompleteLapsed = incompleteDue !== undefined && today !== undefined && today > incompleteDue;
     const incompleteNote: Partial<ClassifiedCourse> = incompleteDue === undefined ? {} : incompleteLapsed ? { incompleteDue, incompleteLapsed: true } : { incompleteDue };
     const withIncomplete = (cc: ClassifiedCourse): ClassifiedCourse => {
@@ -1358,7 +1369,13 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   //   outside any program. The six of the unfinished case is used as the
   //   meter (decision 2026-08-31), but no such course counts until the DGS says.
   const noPriorProgram = !fromNd && student.priorMs === 'none' && student.ndMasters === undefined;
+  // — an Incomplete from another university (policy review round 3,
+  //   P3-ac-4-1; DGS 2026-10-05: "an outside I should be held for DGS
+  //   review"): no final grade yet, so §5.2's B cannot be shown, and Notre
+  //   Dame's §4.4 clock is not its clock — the DGS decides once it is graded.
+  const outsideIncomplete = !fromNd && grade === 'I';
   const heldForDgs: string[] = [
+    ...(outsideIncomplete ? [`${outsideIncompleteNote(c)} — the DGS decides once the grade is final`] : []),
     ...(noPriorProgram ? ['taken outside any degree program — you have no earlier graduate program on your record, and the Academic Code states a transfer allowance only for an unfinished or a completed program (Academic Code §4.6), so the DGS decides whether, and how much, transfers'] : []),
     ...(passFail ? [`graded S (pass/fail), which cannot show the ${transferFloor} that §5.2 requires — the DGS decides whether it transfers`] : []),
     ...(afterAdmission ? [`taken ${termLabel(c.term)}, after you entered — a course taken elsewhere after admission needs the department’s and the Graduate School’s approval in advance (§5.2; DGS Handbook §3.14); the DGS confirms it was approved`] : []),
@@ -1409,6 +1426,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     ...(passFail ? { passFailGrade: true as const } : {}),
     ...(afterAdmission ? { afterAdmission: true as const } : {}),
     ...(noPriorProgram ? { noPriorProgram: true as const } : {}),
+    ...(outsideIncomplete ? { outsideIncomplete: true as const } : {}),
     ...(cseUnknown ? { cseUnknown: true as const } : {}),
     ...(creditsAsPrinted ? { creditsAsPrinted: true as const } : {}),
     ...(settled && attested ? { tickApproved: true as const } : {}),
@@ -1440,6 +1458,12 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
             ? `waiting for the DGS — listed in the course rules, decision still open (§5.2)${coreNote}${projectNote}`
             : `waiting for the DGS — not in the course rules yet; send the review request so the DGS can enter it (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
   };
+}
+
+/** What an Incomplete from another university is, said the same way on its
+ * line, the transfer card and the review request (P3-ac-4-1, 2026-10-05). */
+export function outsideIncompleteNote(c: Pick<CourseEntry, 'institution'>): string {
+  return `graded I (Incomplete) at ${c.institution ?? 'your previous university'} — no final grade yet, so it cannot show the B that §5.2 requires`;
 }
 
 /** TRANSFER CREDIT ALREADY ON THE NOTRE DAME RECORD — a row of the Notre Dame
@@ -2172,6 +2196,8 @@ function buildExplanationText(
     // know yet.
     // Since 2026-10-03 the flag, not the pending text, says so (P1-units-4plus1-c7).
     const creditNote = cc.creditsAsPrinted ? `; ${'credits shown as your transcript prints them — if your university uses quarters, trimesters or another unit, the DGS’s decision converts them (§5.2 pro-rata)'}` : '';
+    // An Incomplete from another university says so on its own line (P3-ac-4-1, 2026-10-05).
+    const incompleteNote = cc.outsideIncomplete ? `; ${outsideIncompleteNote(cc.entry)} — the DGS decides once the grade is final` : '';
     return {
       // A Notre Dame course here is one from the student's EARLIER Notre Dame
       // program (red-team wording table, 2026-09-12): say so, since its
@@ -2180,7 +2206,7 @@ function buildExplanationText(
       // (clarity review 2026-09-26): what is being waited for, then what the
       // course would do. "Candidate" is the DGS's word for it; the §5.2
       // paragraph above the group says it once.
-      explanation: `waiting for the DGS — ${fate}${isNotreDameInstitution(cc.entry.institution) ? ' — a course from your earlier Notre Dame program' : ''} (§5.2)${creditNote}${coreNote}`,
+      explanation: `waiting for the DGS — ${fate}${isNotreDameInstitution(cc.entry.institution) ? ' — a course from your earlier Notre Dame program' : ''} (§5.2)${incompleteNote}${creditNote}${coreNote}`,
       mark: 'pending',
     };
   }
@@ -2278,7 +2304,7 @@ function buildExplanationText(
     if (cc.incompleteDue !== undefined && !cc.incompleteLapsed) parts.push(`Incomplete (I): complete the work by about ${cc.incompleteDue} — 30 days after grades were due, plus 14 for the instructor to report — or it becomes an F (Academic Code §4.4)`);
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved
     // lead says "as transfer credit"); say it once.
-    if (cc.caps.includes('transfer') && !preApproved && !cc.approvedNote && !/^transfer/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');
+    if (cc.caps.includes('transfer') && !preApproved && !cc.approvedNote && !/^transfer|§5\.2/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');
   } else {
     const reason = excludedReason ?? 'not counted';
     // An undergraduate course that satisfies (green) or may satisfy (amber) a
@@ -2309,6 +2335,15 @@ function buildExplanationText(
     return { explanation: parts.join('; '), mark };
   }
   // The pre-approved note's opening repeats the lead: keep its instruction.
-  if (cc.approvalPending) parts.push(preApproved ? cc.approvalPending.replace(/^approved by the DGS in the course rules — send/, 'send') : cc.approvalPending);
+  // Likewise a held course's reason after the lead "waiting for the DGS — …"
+  // (2026-10-05: the line said it twice).
+  if (cc.approvalPending)
+    parts.push(
+      preApproved
+        ? cc.approvalPending.replace(/^approved by the DGS in the course rules — send/, 'send')
+        : lead.startsWith('waiting for the DGS')
+          ? cc.approvalPending.replace(/^waiting for the DGS — /, '')
+          : cc.approvalPending,
+    );
   return { explanation: parts.join('; '), mark };
 }

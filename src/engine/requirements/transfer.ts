@@ -11,6 +11,7 @@ import { formatCredits } from '../credits.ts';
 import { compareTerm, semesterNumber, termOfDate } from '../term.ts';
 import type { DetailPart, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
+import { outsideIncompleteNote } from '../allocate.ts';
 import { joinedDetail, missingParamDetail, countedCourseIds } from './context.ts';
 
 /** §4.2 + §5.2 transfer credit: window, B floor, and the 6/24 caps are enforced
@@ -70,7 +71,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // pass/fail grade, a course taken elsewhere after admission, a lapsed
     // Incomplete, credit from before a readmission after five years or more.
     // The sheet's `yes` does not settle these, so they are never "approved".
-    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.cseUnknown || c.incompleteLapsed || c.interrupted || c.ndPostingHeld !== undefined);
+    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.cseUnknown || c.incompleteLapsed || c.outsideIncomplete || c.interrupted || c.ndPostingHeld !== undefined);
     const heldReason = (c: (typeof pending)[number]): string =>
       [
         // Credit on the Notre Dame record that still waits (P3-import-1, 2026-10-05).
@@ -80,6 +81,8 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (Academic Code §4.6)'] : []),
         ...(c.cseUnknown ? ['the course rules do not say whether it is a CSE course, so §4.2’s nine-credit non-CSE allowance cannot be applied yet'] : []),
         ...(c.incompleteLapsed ? ['an Incomplete past its deadline (Academic Code §4.4)'] : []),
+        // Another university's Incomplete (P3-ac-4-1, 2026-10-05).
+        ...(c.outsideIncomplete ? [`${outsideIncompleteNote(c.entry)} — the DGS decides once the grade is final`] : []),
         ...(c.interrupted ? ['taken before a readmission after five years or more (Academic Code §5.5)'] : []),
       ].join('; ');
     const preApproved = pending.filter((c) => c.transferable === 'yes' && !held.includes(c));
