@@ -520,6 +520,9 @@ export function approvalItems(course: string, reason: string, program: 'mscse' |
   const nonCse = /outside CSE|non-CSE/i.test(reason);
   const below = /below the 60000|4xxxx|allowance for courses below/i.test(reason) || /advisor \+ [A-Z]+ approval per the course rules/.test(reason);
   const caseByCase = /case by case/i.test(reason);
+  // Credit already accepted on the Notre Dame record that the DGS confirms for
+  // this student (P3-import-1, 2026-10-05) — nothing to recommend.
+  const onRecord = /transfer credit on your Notre Dame record/i.test(reason);
   const transfer = /§5\.2|transfer/i.test(reason) && !nonCse && !below;
   const what = nonCse ? ' — a course from outside CSE' : below ? ' — a course below the 60000 level' : '';
   const out: { advisor?: string; dgs?: string } = {};
@@ -529,11 +532,13 @@ export function approvalItems(course: string, reason: string, program: 'mscse' |
       ? `Enter ${course} in the course rules — it is not listed yet${nonCse ? '; a course from outside CSE also needs my advisor’s approval' : ''} (${section}).`
       : caseByCase
         ? `Decide on ${course} for me — the course rules say case by case (${section}).`
-        : transfer
-          ? `Recommend the transfer credit for ${course} (§5.2).`
-          : /approval/i.test(reason)
-            ? `Approve ${course} for me${what} (${section}).`
-            : `Decide on ${course} — ${firstPerson(reason)}.`;
+        : onRecord
+          ? `Confirm that ${course}, already accepted as transfer credit on my Notre Dame record, counts toward this degree (§5.2).`
+          : transfer
+            ? `Recommend the transfer credit for ${course} (§5.2).`
+            : /approval/i.test(reason)
+              ? `Approve ${course} for me${what} (${section}).`
+              : `Decide on ${course} — ${firstPerson(reason)}.`;
   }
   return out;
 }

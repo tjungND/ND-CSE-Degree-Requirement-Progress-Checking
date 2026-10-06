@@ -30,7 +30,9 @@ export interface ParsedCourse {
   term: Term;
   origin: 'nd' | 'transfer';
   institution?: string;
-  /** Notre Dame rows only (2026-09-05) — see RegisteredLevel. */
+  /** The level the row is registered at (2026-09-05) — see RegisteredLevel;
+   * on a transfer-block row, the record it sits on (P3-import-1 (b),
+   * 2026-10-05), undefined when the transcript does not show it. */
   level?: RegisteredLevel;
 }
 
@@ -321,7 +323,11 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       term,
       origin,
       institution: origin === 'transfer' ? institution : undefined,
-      level: origin === 'nd' ? rowLevel : undefined,
+      // A transfer-block row keeps its level too (policy review round 3,
+      // P3-import-1 (b)): a combined transcript's undergraduate record has its
+      // own block — AP or community-college credit accepted for the bachelor's —
+      // which is never graduate transfer credit.
+      level: rowLevel,
     });
     courseSectionLevel.push(sectionLevel);
   };
@@ -450,9 +456,24 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       const lvl = totalsLevel ?? sectionLevel;
       if (lvl) gpaByLevel[lvl] = value;
     };
+    // A GPA over zero GPA hours is no GPA (policy review round 3,
+    // P3-ac-5b-6.1-1; DGS 2026-10-05): a term or record whose only grades are
+    // S or W (research, a withdrawal) prints "0.000" GPA hours and either a
+    // 0.000 GPA or a blank GPA cell. Read as a figure, it was a
+    // semester GPA of 0.00 — two false Academic Code §5.8 dismissal grounds for
+    // a Ph.D. student in research-only semesters. Banner's totals rows read
+    // Attempt, Passed, Earned, GPA Hours, Quality Points, GPA; with the GPA
+    // cell blank the last figure is the quality points, so the GPA hours (the
+    // fourth figure) are what is tested, not the GPA.
+    const labeledHours = /\bGPA-?\s?Hrs:?\s*(\d+\.\d{1,3})/i.exec(line);
+    const noGpaHours = (): boolean => {
+      if (labeledHours) return Number(labeledHours[1]) === 0;
+      const nums = line.match(/\d+\.\d{1,3}/g);
+      return nums !== null && nums.length >= 5 && Number(nums[3]) === 0;
+    };
     const labeledGpa = /\bGPA:?\s*([0-4]\.\d{1,3})\b\s*$/.exec(line);
     if (labeledGpa) {
-      noteGpa(Number(labeledGpa[1]));
+      if (!noGpaHours()) noteGpa(Number(labeledGpa[1]));
       continue;
     }
     // A graduate term's own rows under "Term Totals (Graduate)": "Current
@@ -473,11 +494,15 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       termGpaByIndex.set(key, entry);
     };
     if (/^CURRENT\s+TERM\b/.test(upper) && totalsLevel !== undefined) {
-      termRow('termGpa', lastGpaOn());
+      termRow('termGpa', noGpaHours() ? undefined : lastGpaOn());
       continue;
     }
     if (/^OVERALL\b/.test(upper) || /\bCUMULATIVE\b.*\bGPA\b/.test(upper) || (/^CUMULATIVE\b/.test(upper) && totalsLevel !== undefined)) {
-      const last = lastGpaOn();
+      // The official PDF splits its totals over two lines, "OVERALL Ehrs: …
+      // QPts: …" and then "GPA-Hrs: … GPA: …": the first line's last figure is
+      // the quality points, never a GPA (a 0.000 there read as a GPA of 0.00).
+      const qualityPointsLast = /\bQPts\b/i.test(line) && !/\bGPA\b(?!-)/i.test(line);
+      const last = noGpaHours() || qualityPointsLast ? undefined : lastGpaOn();
       if (last !== undefined) {
         noteGpa(last);
         if (/^CUMULATIVE\b/.test(upper)) termRow('cumulativeGpa', last);
@@ -542,7 +567,16 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   // the number: an undergraduate's 60000-level course is undergraduate
   // coursework (§5.2 needs graduate student status).
   courses.forEach((c, i) => {
-    if (c.origin !== 'nd' || c.level !== undefined) return;
+    if (c.level !== undefined) return;
+    // A transfer row's level is the record it sits under ("Course Level:" /
+    // "Transcript Level"), never its number: another university numbers its
+    // courses its own way, and the block's term is when the credit was
+    // recorded. Absent both, the level stays unknown and the credit waits for
+    // the DGS (P3-import-1, condition 1).
+    if (c.origin === 'transfer') {
+      c.level = courseSectionLevel[i];
+      return;
+    }
     c.level = termLevelHints.get(termIndex(c.term)) ?? courseSectionLevel[i] ?? levelFromNumber(c.courseId);
   });
 

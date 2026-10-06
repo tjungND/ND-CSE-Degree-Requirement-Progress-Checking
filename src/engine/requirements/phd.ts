@@ -700,7 +700,9 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         if (c.unknown === true && isPassed(c.entry.grade) && coreTitleMatchesArea(c.entry.title, area.code)) {
           pending ??= c.entry.courseId;
         }
-      } else if (c.external?.satisfiesCoreArea === area.code && isPassed(c.entry.grade)) {
+      } else if (c.external?.satisfiesCoreArea === area.code && (isPassed(c.entry.grade) || c.ndPosting !== undefined)) {
+        // (Credit the Notre Dame record shows as accepted was passed, whatever
+        // grade cell the transcript printed for it — P3-import-1, 2026-10-05.)
         confirmed ??= `${c.entry.courseId} (${c.external.university})`;
       } else if (isNotreDameInstitution(c.entry.institution) && c.rule?.coreArea === area.code) {
         // Prior Notre Dame coursework (2026-09-05): the Courses tab's core
@@ -708,7 +710,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         // earlier degree's course needs no ExternalCourses ruling.
         if (isPassed(c.entry.grade)) done ??= `${c.entry.courseId} (Notre Dame, before entering the program)`;
         else if (isInProgress(c.entry.grade)) ip ??= c.entry.courseId;
-      } else if (c.external === undefined && isPassed(c.entry.grade) && coreTitleMatchesArea(c.entry.title, area.code)) {
+      } else if (c.external === undefined && (isPassed(c.entry.grade) || c.ndPosting !== undefined) && coreTitleMatchesArea(c.entry.title, area.code)) {
         // Unreviewed course from a previous institution (any level — §4.4.1
         // has no §5.2 restrictions) whose title suggests this area: the DGS's
         // ruling is what decides, so the row shows "pending review"

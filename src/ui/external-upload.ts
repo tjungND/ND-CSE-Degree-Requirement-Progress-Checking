@@ -23,6 +23,7 @@ import { SEASONS } from './state.ts';
 import type { CourseEntry, Grade, Program, Season, Student, Term } from '../engine/types.ts';
 import type { ExternalParseResult } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
+import { absorbBlockRow, blockRowBack, blockRowFor } from './nd-posted.ts';
 import { reclassifyNotreDameCourses } from './prior-nd.ts';
 import { canonicalUniversityName } from './university-name.ts';
 import { confirmDialog } from './copy-dialog.ts';
@@ -381,7 +382,13 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
 }
 
 function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
-  return student.courses.filter((c) => c.origin === 'transfer' && c.degreeLevel === level);
+  return student.courses.filter((c) => inSlot(c, level));
+}
+/** A row this slot's import brought — not the Notre Dame transcript's own
+ * transfer-block rows, which an undergraduate block files as bachelor's
+ * coursework too (P3-import-1 (b), 2026-10-05) but which that import owns. */
+function inSlot(c: CourseEntry, level: DegreeLevel): boolean {
+  return c.origin === 'transfer' && c.degreeLevel === level && !(c.fromNdTranscript === true && c.ndPosted !== undefined);
 }
 
 /** A previous-degree transcript must be OFFICIAL (DGS 2026-09-15: "If the
@@ -557,10 +564,13 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
             // Undo instead of a confirm dialog (usability review 2026-09-05,
             // item 25): everything removed can be put back with one click.
             // Index-preserving (2026-09-06 evening): Undo puts every row back where it was.
-            const removed = student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.origin === 'transfer' && c.degreeLevel === slot.level);
+            const removed = student.courses.map((c, i) => ({ c, i })).filter(({ c }) => inSlot(c, slot.level));
             const priorBefore = { priorMs: student.priorMs, inferred: student.priorMsInferred };
+            // A course that also carried the Notre Dame record's acceptance
+            // stays on the record as that transcript's block row (P3-import-1 (c)).
+            const restored = removed.map(({ c }) => blockRowBack(c)).filter((c): c is CourseEntry => c !== undefined);
             update((s) => {
-              s.courses = s.courses.filter((c) => !(c.origin === 'transfer' && c.degreeLevel === slot.level));
+              s.courses = [...s.courses.filter((c) => !inSlot(c, slot.level)), ...restored];
               // If "Prior graduate study" was auto-set from a transcript and no
               // graduate transcript remains, undo the inference (2026-09-04).
               if (
@@ -576,6 +586,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
               'Undo',
               () =>
                 update((s) => {
+                  s.courses = s.courses.filter((c) => !restored.includes(c));
                   for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
                   s.priorMs = priorBefore.priorMs;
                   s.priorMsInferred = priorBefore.inferred;
@@ -1043,6 +1054,14 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           ),
         ]
       : []),
+    // Courses already on the Notre Dame transcript as accepted transfer credit
+    // (P3-import-1 (c), 2026-10-05): adding keeps each as one course.
+    ...(() => {
+      const onRecord = p.rows.filter((r) => blockRowFor(student, { courseId: r.courseId, institution: p.university, origin: 'transfer' } as CourseEntry) !== undefined).map((r) => r.courseId.trim());
+      return onRecord.length > 0
+        ? [el('p', { class: 'hint on-record-note' }, `${onRecord.join(', ')} ${onRecord.length === 1 ? 'is' : 'are'} already on your Notre Dame transcript as accepted transfer credit — adding keeps each as one course, with that acceptance.`)]
+        : [];
+    })(),
     el(
       'p',
       { class: 'hint', id: 'ext-university-hint' },
@@ -1211,6 +1230,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // (initializer cast: the assignment happens inside the update()
             // closure, which TS's flow analysis can't see from the use below)
             let priorAutoSet = false as 'completed' | 'unfinished' | false;
+            let merged = 0;
             let refiledToProgram = 0;
             let graduateRows = 0;
             let bachelorsSet: Term | undefined;
@@ -1220,7 +1240,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               for (const r of ready) {
                 const degreeLevel = degreeLevelFor(p.slot, r.level);
                 if (degreeLevel !== 'bachelors') graduateRows += 1;
-                s.courses.push({
+                const row: CourseEntry = {
                   courseId: canonicalCourseId(r.courseId),
                   title: r.title.trim() || undefined,
                   credits: r.credits!,
@@ -1237,7 +1257,12 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                   // The mark as printed, when the student mapped it to a letter (2026-10-03).
                   ...(r.rawGrade ? { transcriptMark: r.rawGrade } : {}),
                   ...((p.creditSystem === 'quarter' || p.creditSystem === 'trimester') && !isNotreDameInstitution(university) ? { creditSystem: p.creditSystem } : {}),
-                });
+                };
+                s.courses.push(row);
+                // The same course already on the record as the Notre Dame
+                // transcript's accepted transfer credit: one course, this row,
+                // carrying that acceptance (P3-import-1 (c), 2026-10-05).
+                if (absorbBlockRow(s, row)) merged += 1;
               }
               // "Prior graduate study" from the transcript (2026-09-03): a
               // graduate-degree conferral line → completed; a graduate
@@ -1309,6 +1334,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 (refiledToProgram > 0
                   ? `; ${refiledToProgram} of them are dated from your entry term on, so they are filed as this program's coursework, not as transfer credit`
                   : '') +
+                (merged > 0 ? `; ${merged === 1 ? '1 of them was' : `${merged} of them were`} already on your Notre Dame transcript as accepted transfer credit, so each is kept as one course` : '') +
                 '.' +
                 (priorAutoSet === 'completed'
                   ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the conferral line on your transcript — adjust it under Your standing if that’s wrong.'

@@ -6,6 +6,7 @@ import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { classify, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
 import type { Rules } from '../data/types.ts';
@@ -1650,7 +1651,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), and they satisfy nothing else in the MSCSE — so none of them is listed here`) +
               `${g.hidden > 0 ? ` ${plural(g.hidden, 'other course')} from this transcript ${g.hidden === 1 ? 'is' : 'are'} not shown.` : ''}`,
             )
-          : el('p', { class: 'hint' }, transferRule(g.nd)),
+          : // A group that is all accepted credit on the Notre Dame record
+            // (P3-import-1, Option 1; DGS 2026-10-05): the candidate rule
+            // does not apply to it.
+            g.entries.length > 0 && g.entries.every(({ c }) => ndPostingOf(c) !== undefined)
+            ? el('p', { class: 'hint' }, `Accepted transfer credit on your Notre Dame transcript: the Graduate School approved these courses and recorded them (Academic Code §4.6), so they count at the hours your record shows, with no review or processing request. Credit posted before you entered this program, or whose level the transcript does not show, waits for the DGS to confirm it counts toward this degree.`)
+            : el('p', { class: 'hint' }, transferRule(g.nd)),
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
           : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),
@@ -2304,7 +2310,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Short form in the cell, full name as the tooltip (DGS 2026-09-07).
         el('td', { class: 'cell-meta', 'data-label': 'Term' }, el('abbr', { class: 'term', title: termLabel(c.term) }, termShort(c.term))),
         el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
-        el('td', { class: 'cell-meta', 'data-label': 'Grade' }, gradeLabel(c.grade)),
+        // Transfer credit the Notre Dame record shows as accepted prints hours
+        // only: no grade, not "in progress" (P3-import-1, 2026-10-05).
+        el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' && ndPostingOf(c) !== undefined ? '—' : gradeLabel(c.grade)),
         countsCell,
         el('td', { class: 'cell-remove' }, removeButton),
       );

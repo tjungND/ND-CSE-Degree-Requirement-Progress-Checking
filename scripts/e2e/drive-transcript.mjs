@@ -55,6 +55,11 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if (!ticks.includes('MATH 10550:off:taken before Fall 2026, as an undergraduate')) throw new Error('an irrelevant undergraduate course must start unticked: ' + ticks.slice(0, 200));
   if (!ticks.includes('CSE 30321:on:taken before Fall 2026, as an undergraduate')) throw new Error('a core-title undergraduate course must start ticked');
   if (!ticks.includes('CSE 60641:on:')) throw new Error('a program course must start ticked without a prior note');
+  // Graduate credit on the Notre Dame record's transfer block (P3-import-1,
+  // DGS 2026-10-05): named as accepted credit with the term it was posted, no grade.
+  if (!ticks.includes('EECS 58200:on:transfer credit accepted on your Notre Dame record (posted Spring 2027)')) throw new Error('the transfer-block row must say it is accepted credit on the record: ' + JSON.stringify(ticks));
+  const blockGrade = await s.evalJs(`[...document.querySelectorAll('.transcript-preview table tr')].find(tr => tr.querySelector('.cid')?.textContent === 'EECS 58200')?.cells[4].textContent`);
+  if (blockGrade !== '—') throw new Error('a credit-only transfer-block row shows no grade, not "In progress": ' + blockGrade);
   // The dated bachelor's award (2026-09-06) fills "Bachelor's degree awarded" on add; the preview says so.
   const bsLine = await s.evalJs(`document.querySelector('.transcript-preview .bachelors-line')?.textContent ?? ''`);
   console.log('  bachelor’s line:', bsLine.slice(0, 140));
@@ -72,6 +77,18 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   );
   console.log('  course table now has:', JSON.stringify(added));
   if (added.includes('MATH 10550')) throw new Error('the unticked undergraduate course was added');
+  // Option 1 (P3-import-1): the accepted credit counts as posted, under its own
+  // group with the posted-credit note instead of the candidate rule.
+  const posted = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const h = [...document.querySelectorAll('h3.subhead')].find(h => h.textContent.includes('University of Michigan — graduate coursework'));
+    const hint = h?.nextElementSibling?.matches('p.hint') ? h.nextElementSibling.textContent : '';
+    const tr = [...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'EECS 58200');
+    return { hint, mark: tr?.querySelector('.mark')?.className ?? '', note: tr?.querySelector('.cell-note')?.textContent ?? '', grade: tr?.querySelector('[data-label="Grade"]')?.textContent ?? '' };
+  })())`));
+  console.log('  accepted transfer credit:', JSON.stringify(posted).slice(0, 260));
+  if (!posted.mark.includes('mark-counts') || !posted.note.includes('transfer credit on your Notre Dame record (posted Spring 2027) — accepted by the Graduate School; nothing to send') || posted.grade !== '—' || !posted.hint.startsWith('Accepted transfer credit on your Notre Dame transcript')) {
+    throw new Error('accepted transfer credit must count as posted, with its own note: ' + JSON.stringify(posted));
+  }
   const gpa = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
   console.log('  GPA prefilled from transcript:', gpa);
   if (!gpa) throw new Error('cumulative GPA was not prefilled');
@@ -127,8 +144,9 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   await s.waitFor(`document.querySelector('.dgs-review')`);
   const ndReview = await s.evalJs(`document.querySelector('.dgs-review').textContent`);
   // 3 pending: the typed MATH 60610, the ND transcript's transfer-credit
-  // line CS 50300 "Operating Systems" — no §5.2 credit, but its core-keyword
-  // title joins the request for §4.4.1 review (DGS rule 2026-09-04) — and
+  // line EECS 58200 "Operating Systems" — counted as accepted credit (Option 1,
+  // 2026-10-05), but its core-keyword title asks the DGS for a §4.4.1 core
+  // area (DGS rule 2026-09-04) — and
   // the undergraduate CSE 30321 "Computer Architecture" taken before entry
   // (2026-09-05: prior Notre Dame coursework not in the Courses tab).
   // The LIVE sheet decides whether CSE 30321 is pending: on 2026-09-22 the DGS
@@ -430,7 +448,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  5 external courses (3 typed + 2 core-relevant OCR) in the coursework table');
   // Undergrad core-title rule (2026-09-03; relevance filter 2026-09-04): only
   // the two keyword-matching bachelors courses were added, and both join the
-  // request — MATH + CS 50300 (2) + masters slot (3) + those two = 7 pending.
+  // request — MATH + EECS 58200 (2) + masters slot (3) + those two = 7 pending.
   const combined7 = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
   if (!combined7.includes('Initiate the review request for 7 courses')) {
     throw new Error('expected 7 pending after OCR (undergrad core-title rule): ' + combined7.slice(0, 140));
@@ -566,9 +584,9 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   const gpaAfterRemove = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
   const removeToast = await s.evalJs(`document.querySelector('.toast')?.textContent ?? ''`);
   console.log('  after ND Remove:', JSON.stringify(idsAfterRemove), '| GPA:', JSON.stringify(gpaAfterRemove), '|', removeToast.slice(0, 120));
-  // The transcript's transfer-credit line (CS 50300 from Purdue, no degree
+  // The transcript's transfer-credit line (EECS 58200 from Michigan, no degree
   // slot) had its own "graduate coursework (§5.2)" group — gone with it.
-  if (idsAfterRemove.length !== idsBefore.length - 6 || idsAfterRemove.some((id) => /^CSE 6/.test(id)) || headingsAfterRemove.includes('Purdue University — graduate coursework (CSE §5.2)')) {
+  if (idsAfterRemove.length !== idsBefore.length - 6 || idsAfterRemove.some((id) => /^CSE 6/.test(id)) || headingsAfterRemove.includes('University of Michigan — graduate coursework (CSE §5.2)')) {
     throw new Error('ND Remove must take back exactly the 6 transcript rows: ' + JSON.stringify(headingsAfterRemove));
   }
   if (!idsAfterRemove.includes('MATH 60610') || !idsAfterRemove.includes('CS 58000')) throw new Error('ND Remove must keep hand-typed and external rows');

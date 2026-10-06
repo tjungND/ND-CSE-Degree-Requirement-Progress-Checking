@@ -335,6 +335,25 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     if (e['countedToward'] !== undefined && !COUNTED_TOWARD.includes(e['countedToward'] as string)) delete e['countedToward'];
     if (e['dgsApproved'] !== undefined && e['dgsApproved'] !== true) delete e['dgsApproved']; // the DGS's approval of this course (2026-09-27)
     if (e['sharedWithOtherDegree'] !== undefined && e['sharedWithOtherDegree'] !== true) delete e['sharedWithOtherDegree']; // also counts toward a second program (2026-10-04)
+    // Transfer credit the Notre Dame record shows as accepted (P3-import-1,
+    // 2026-10-05). The engine counts it, so a malformed mark is dropped — the
+    // row then reads as entered, and the next Notre Dame import marks it again.
+    if (e['ndPosted'] !== undefined) {
+      const p = e['ndPosted'] as Record<string, unknown> | null;
+      const ok =
+        e['origin'] === 'transfer' &&
+        p !== null &&
+        typeof p === 'object' &&
+        validTerm(p['term']) &&
+        inRange(p['credits'], COURSE_CREDITS_RANGE) &&
+        (p['level'] === undefined || p['level'] === 'undergraduate' || p['level'] === 'graduate') &&
+        (p['institution'] === undefined || typeof p['institution'] === 'string');
+      if (!ok) delete e['ndPosted'];
+      else {
+        const t = p['term'] as Term;
+        e['ndPosted'] = { term: { season: t.season, year: t.year }, credits: p['credits'], ...(p['level'] !== undefined ? { level: p['level'] } : {}), ...(p['institution'] !== undefined ? { institution: p['institution'] } : {}) };
+      }
+    }
   });
   migrateApprovalBoxes(d as unknown as { courses: Record<string, unknown>[]; attestations?: Record<string, unknown> });
   migrateExtensionBox((d as { attestations?: Record<string, unknown> }).attestations);

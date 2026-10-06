@@ -271,6 +271,9 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
         c.entry.origin === 'transfer' &&
         c.entry.degreeLevel !== 'bachelors' &&
         !c.superseded &&
+        // Already on the Notre Dame record as accepted transfer credit: there
+        // is nothing for the Grad Admin to submit (P3-import-1, 2026-10-05).
+        c.ndPosting === undefined &&
         c.pool !== 'none' && // the §5.2 floors the engine applies (grade, window, the bachelor's award term) are final
         // A course that still needs an approval is NOT processable
         // (2026-09-08). Only `yes` for this student's program, or their

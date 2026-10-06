@@ -75,6 +75,19 @@ export interface CourseEntry {
    * Absent on rows saved before this flag existed; those are removed one by
    * one in the table, as before. */
   fromNdTranscript?: true;
+  /** Transfer rows only: credit the student's Notre Dame graduate record
+   * already shows as accepted — a row of the Notre Dame transcript's "Transfer
+   * credit accepted" block (policy review round 3, P3-import-1; DGS 2026-10-05:
+   * Option 1). The block dates each row by the Notre Dame term the credit was
+   * RECORDED (`term`), not the term it was taken, and prints the hours Notre
+   * Dame recorded (`credits`, already in Notre Dame credits); `level` is the
+   * record it sits on (a combined transcript also has an undergraduate block —
+   * AP and other credit accepted for the bachelor's), absent when the transcript
+   * does not show it; `institution` is the name as the block prints it. Set by
+   * the Notre Dame import on the row it adds — or, when the same course was
+   * already entered from the other university's transcript, on that row
+   * instead (one course, either order); removed with that import. */
+  ndPosted?: NdPosting;
   /** True on every row an external transcript import added when that
    * transcript was marked UNOFFICIAL (DGS 2026-10-03, P1-transfer-eligibility-16):
    * the three generated emails then say which transcripts (bachelor's,
@@ -193,6 +206,14 @@ export interface Milestones {
    * the MSCSE's, or a Ph.D. student's for the MSCSE along the way (policy
    * review 2026-10-04, P2-dh-3.21-3.24-2, -4, P2-dh-front-1-2-2). */
   msCandidacyApplied?: string;
+}
+
+/** A transfer course's acceptance on the Notre Dame record (CourseEntry.ndPosted). */
+export interface NdPosting {
+  term: Term;
+  credits: number;
+  level?: 'graduate' | 'undergraduate';
+  institution?: string;
 }
 
 /** One graduate term's GPA figures as the transcript prints them. */

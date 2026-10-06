@@ -17,7 +17,8 @@ import { GRADES, GRADE_POINTS, isAudit, isInProgress, isPassed, isWithdrawn, mee
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
 import { addDaysIso, compareTerm, endOfTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, termIndex, termLabel, termOfDate } from './term.ts';
-import type { Attestations, CourseEntry, Grade, Program, Student, Term } from './types.ts';
+import type { Attestations, CourseEntry, Grade, NdPosting, Program, Student, Term } from './types.ts';
+import { ndPostingOf, pairedBlockRows } from './nd-posting.ts';
 
 /** `nondegree` (2026-10-03): Academic Code §2.3 — "No more than 12 credit hours
  * earned by a student while in non-degree status may be counted toward a degree
@@ -201,6 +202,14 @@ export interface ClassifiedCourse {
    * for the DGS rather than counting as CSE by default (DGS 2026-10-03: a
    * non-CSE transfer "needs to follow the sheet's rule"). */
   cseUnknown?: true;
+  /** Transfer credit the Notre Dame record shows as accepted (P3-import-1;
+   * DGS 2026-10-05, Option 1): the posting this course carries — its own, or
+   * that of the transcript-block row it was paired with. */
+  ndPosting?: NdPosting;
+  /** …and why such credit still waits for the DGS (its level is not shown, or
+   * it was recorded before this program began). The DGS's answer for this
+   * student is the tick on the course. */
+  ndPostingHeld?: string;
   /** A course from another university whose credit system is unknown — no
    * ExternalCourses row, a row with a blank `credit_system`, or a value the
    * sheet parser rejected — and no `nd_credits`: its credits are shown as the
@@ -468,6 +477,8 @@ function tierFor(grade: Grade, provisional: boolean): Tier {
  * ExternalCourses tab for a course from elsewhere — so that the DGS's answer
  * for THIS student is recorded on the course (DGS 2026-09-27). */
 export function decidedCaseByCase(c: ClassifiedCourse, program: Program): boolean {
+  // Credit on the Notre Dame record the DGS confirms for this student (P3-import-1, 2026-10-05).
+  if (c.ndPostingHeld !== undefined) return true;
   if (c.entry.origin === 'transfer' && !isNotreDameInstitution(c.entry.institution)) return needsApproval(c.transferable);
   if (!c.rule) return false;
   return needsCourseApproval(program === 'mscse' ? c.rule.countsTowardMscse : c.rule.countsTowardPhd);
@@ -583,8 +594,18 @@ export function classify(student: Student, rules: Rules, today?: string): {
     }
   }
 
+  // ONE COURSE, TWO ROWS (policy review round 3, P3-import-1 (c) and its
+  // condition 2; DGS 2026-10-05): the Notre Dame transcript's transfer-credit
+  // block and the other university's own transcript can both list a course.
+  // The imports keep such a course as one row; a record saved before they did,
+  // or a course typed by hand, still holds both — the other university's row
+  // then carries the block row's acceptance, and the block row counts nothing.
+  const pairedBlocks = pairedBlockRows(student.courses);
+  const twinPostings = new Map<CourseEntry, NdPosting>();
+  for (const [block, twin] of pairedBlocks) twinPostings.set(twin, ndPostingOf(block)!);
+  const posting = (c: CourseEntry): NdPosting | undefined => twinPostings.get(c) ?? (pairedBlocks.has(c) ? undefined : ndPostingOf(c));
   // Everything the transfer branch reads, gathered once (see ClassifyEnv).
-  const env: ClassifyEnv = { rules, student, program, attestations, entry, transferFloor, windowYears, cseSubjectCodes, bsShared, today };
+  const env: ClassifyEnv = { rules, student, program, attestations, entry, transferFloor, windowYears, cseSubjectCodes, bsShared, today, posting };
   // Readmission after a withdrawal (Academic Code §5.5: "Credit for any course
   // or examination will be forfeited if the student interrupts his or her
   // program of study for five years or more" — policy review 2026-10-03). The
@@ -799,6 +820,14 @@ export function classify(student: Student, rules: Rules, today?: string): {
       return { ...base, ineligibleReason: 'failed — earns no credit (DGS decision 2026-08-31)' };
     }
 
+    const twin = pairedBlocks.get(c);
+    if (twin) {
+      return {
+        ...base,
+        superseded: true,
+        ineligibleReason: `not counted here — the same course as ${twin.courseId} from your ${twin.institution ?? 'other'} transcript, where its acceptance on your Notre Dame record is counted once`,
+      };
+    }
     if (c.origin === 'transfer') return classifyTransfer(env, c, rule, base);
 
     const level = levelOf(c, rule);
@@ -988,6 +1017,9 @@ interface ClassifyEnv {
   bsShared: ReadonlySet<CourseEntry>;
   /** Today's date, when the caller has one (audit() does; review.ts does not). */
   today: string | undefined;
+  /** The acceptance on the Notre Dame record a transfer course carries, its
+   * own or its paired block row's (P3-import-1; see nd-posting.ts). */
+  posting: (c: CourseEntry) => NdPosting | undefined;
 }
 
 /** A course from before the program (origin 'transfer'): §5.2 transfer credit,
@@ -1117,7 +1149,13 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
       ineligibleReason: `not counted — dated before your entry term (${termLabel(entry)}) with no earlier graduate program on your record, so it is not §5.2 transfer credit either. To fix: check the entry term under Your standing (it starts out as the coming fall), or change your earlier degrees there; if you took it as a non-degree student before you were admitted, say so under Your standing — up to ${NON_DEGREE_CREDITS_MAX} such credits may count (Academic Code §2.3)${coreNote}`,
     };
   }
-  if (c.degreeLevel === 'bachelors') {
+  // A row of the Notre Dame record's transfer-credit block (P3-import-1): its
+  // acceptance, the record it sits on, and the term it was recorded.
+  const posting = env.posting(c);
+  // (b): credit on the UNDERGRADUATE record of a combined transcript — AP,
+  // College Board or community-college credit the University accepted for the
+  // bachelor's — is undergraduate coursework, never graduate transfer credit.
+  if (c.degreeLevel === 'bachelors' || posting?.level === 'undergraduate') {
     const confirmedArea = external?.satisfiesCoreArea ? areaName(external.satisfiesCoreArea) : undefined;
     const suggested = coreTitleSuggestion(c.title);
     // Two different reasons (DGS 2026-09-22). Another university's course:
@@ -1135,7 +1173,11 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     // core clause led the line, the wrapper left it there, and the same clause
     // showed twice under a green tick once every in-program course got a
     // qualifier line from its feeds (2026-09-28).
-    const credit = nd ? `not counted — not eligible for degree credit at the ${levelReason}` : `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)`;
+    const credit = nd
+      ? `not counted — not eligible for degree credit at the ${levelReason}`
+      : posting?.level === 'undergraduate'
+        ? `not counted — undergraduate credit on your Notre Dame bachelor’s record, accepted for the bachelor’s degree, not as graduate transfer credit (§5.2)`
+        : `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)`;
     // For an MSCSE student there is no §4.4.1 to demonstrate: an
     // undergraduate course from another university can do nothing here,
     // and saying so once is the whole line (DGS 2026-09-11).
@@ -1151,6 +1193,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
             : `${credit}; not relevant to the core knowledge requirement (§4.4.1)`,
     };
   }
+  if (posting !== undefined) return classifyPosted(env, c, extBase, posting, coreNote);
   // THE STUDENT'S OWN NOTRE DAME MSCSE, on a Ph.D. record — the Graduate
   // School's answer, through the DGS (2026-09-22): "in cases where a
   // graduate student moves from a master's program to a PhD program in the
@@ -1396,6 +1439,62 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
           : external
             ? `waiting for the DGS — listed in the course rules, decision still open (§5.2)${coreNote}${projectNote}`
             : `waiting for the DGS — not in the course rules yet; send the review request so the DGS can enter it (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
+  };
+}
+
+/** TRANSFER CREDIT ALREADY ON THE NOTRE DAME RECORD — a row of the Notre Dame
+ * transcript's "Transfer credit accepted" block, at the graduate level or a
+ * level the transcript does not show (policy review round 3, P3-import-1; DGS
+ * 2026-10-05: "I want to apply (a), (b), and (c), with Option 1", with the three
+ * conditions that make "only approved credit" true).
+ *
+ * Option 1: graduate credit there has been approved by the Graduate School and
+ * recorded (Academic Code §4.6 criterion 5: "the transfer is recommended by the
+ * DGS and approved by the Graduate School"; DGS Handbook §3.14: "An official
+ * transcript from the institution where the course/s were taken is required
+ * before credits will be added to a student's record"), so it counts — inside
+ * §5.2's allowance, at the hours Notre Dame recorded, with no ExternalCourses
+ * row, no review request and no processing request. §5.2's other criteria (the
+ * grade, the window, graduate status, approval before a course taken after
+ * admission) were the Graduate School's to check before it approved, and the
+ * block's date is the term the credit was RECORDED, not taken (fix (a)), so
+ * none of them is applied again — an exception, for this credit alone, to the
+ * 2026-09-11 rule that a course nobody has reviewed stays pending.
+ *
+ * It still waits for the DGS — whose answer for this student is the tick on the
+ * course — when the transcript does not show that it is graduate credit
+ * (condition 1), or when it was recorded before this program began, so it may
+ * have been accepted for an earlier Notre Dame program (condition 3: the
+ * Graduate School considers a transfer only after the first semester, DGS
+ * Handbook §3.14, so this program's own credit is always recorded after entry).
+ * §4.2's nine-credit non-CSE allowance follows the sheet as for any transfer. */
+function classifyPosted(env: ClassifyEnv, c: CourseEntry, extBase: ClassifiedCourse, posting: NdPosting, coreNote: string): ClassifiedCourse {
+  const { entry, cseSubjectCodes } = env;
+  const held = [
+    ...(posting.level === undefined ? ['the transcript does not show whether it is graduate credit'] : []),
+    ...(compareTerm(posting.term, entry) < 0 ? [`it was posted before you entered this program, so it may have been accepted for an earlier program`] : []),
+  ];
+  const isCse = isCseCourse(c.courseId, extBase.external, cseSubjectCodes);
+  const cseUnknown = isCse === undefined;
+  const ticked = held.length > 0 && c.dgsApproved === true;
+  const settled = (held.length === 0 || ticked) && !cseUnknown;
+  const where = `transfer credit on your Notre Dame record (posted ${termLabel(posting.term)})`;
+  return {
+    ...extBase,
+    reviewed: true,
+    ndPosting: posting,
+    ...(held.length > 0 ? { ndPostingHeld: held.join('; and ') } : {}),
+    ...(cseUnknown ? { cseUnknown: true as const } : {}),
+    ...(settled && ticked ? { tickApproved: true as const } : {}),
+    pool: 'regular',
+    caps: ['transfer', ...(isCse === false ? (['noncse'] as CapId[]) : [])],
+    tier: settled ? 'definite' : 'provisional',
+    effectiveCredits: posting.credits,
+    ...(settled
+      ? { approvedNote: `${where} — accepted by the Graduate School${ticked ? ', and the DGS confirmed it counts toward this degree, as you ticked on the course' : ''}; nothing to send (Academic Code §4.6)${coreNote}` }
+      : {
+          approvalPending: `${where}${held.length > 0 ? `, but ${held.join(', and ')} — the DGS confirms it counts toward this degree` : ''}${cseUnknown ? `${held.length > 0 ? '; ' : ' — '}the course rules do not say whether this is a CSE course (no is_cse cell on its row, and no cse_subject_codes list) — §4.2’s nine-credit non-CSE allowance depends on it; the DGS decides` : ''}${coreNote}`,
+        }),
   };
 }
 
@@ -1795,7 +1894,7 @@ export function allocate(
     // (red-team 2026-09-13): the course's own line said "counts only if the
     // DGS picks it" while the 60-credit row had already counted it as pending.
     const unreviewedCandidate =
-      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.transferable !== 'yes';
+      cc.caps.includes('transfer') && cc.tier === 'provisional' && cc.entry.origin === 'transfer' && cc.transferable !== 'yes' && cc.ndPosting === undefined;
     const spillsToTotal =
       opts.nonCseSpillsToTotal && excluded > 0 && !unknownCap && !unreviewedCandidate && boundCaps.length > 0 && boundCaps.every((id) => id === 'noncse');
     if (spillsToTotal) {
@@ -2132,7 +2231,9 @@ function buildExplanationText(
   } else if (counted > 0) {
     mark = markForTier(cc.tier);
     parts.push(`${lead} toward ${poolName} (${formatCredits(counted)} cr)${tail}`);
-    if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
+    if (cc.ndPosting !== undefined && cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
+      parts.push(`counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'}, as your Notre Dame record shows them (the ${cc.entry.institution ?? 'other'} transcript shows ${formatCredits(cc.entry.credits)})`);
+    } else if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
       parts.push(
         `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the ${cc.convertedFrom ?? 'quarter'} system at ${creditSystemFactorLabel(cc.conversionFactor ?? 1)}${cc.creditSystemSource === 'transcript' ? ` — your transcript says ${cc.convertedFrom ?? 'quarter'} terms; the DGS’s decision for the university can correct this` : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
       );

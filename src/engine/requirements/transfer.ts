@@ -70,9 +70,11 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // pass/fail grade, a course taken elsewhere after admission, a lapsed
     // Incomplete, credit from before a readmission after five years or more.
     // The sheet's `yes` does not settle these, so they are never "approved".
-    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.cseUnknown || c.incompleteLapsed || c.interrupted);
+    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.cseUnknown || c.incompleteLapsed || c.interrupted || c.ndPostingHeld !== undefined);
     const heldReason = (c: (typeof pending)[number]): string =>
       [
+        // Credit on the Notre Dame record that still waits (P3-import-1, 2026-10-05).
+        ...(c.ndPostingHeld !== undefined ? [`on your Notre Dame record as accepted transfer credit, but ${c.ndPostingHeld.replace('; and ', ', and ')} — the DGS confirms it counts toward this degree`] : []),
         ...(c.passFailGrade ? ['graded pass/fail, which cannot show the B §5.2 requires'] : []),
         ...(c.afterAdmission ? ['taken after admission — the department and the Graduate School must have approved it in advance (DGS Handbook §3.14)'] : []),
         ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (Academic Code §4.6)'] : []),
@@ -103,7 +105,12 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // and approved by the Graduate School" — policy review 2026-10-03,
     // refining 2026-09-27: the credits still count as the DGS's `yes` or tick
     // decided; this row's pill waits for the Graduate School).
-    const recorded = ctx.student.attestations.transferRecorded === true;
+    // Credit the Notre Dame record already shows as accepted is recorded by
+    // definition (P3-import-1, Option 1; DGS 2026-10-05): when every counted
+    // transfer course is such credit, nothing is left for the tick to confirm.
+    const countedTransfers = transfers.filter((c) => !c.superseded && c.approvalPending === undefined && c.ineligibleReason === undefined);
+    const onRecord = countedTransfers.filter((c) => c.ndPosting !== undefined);
+    const recorded = ctx.student.attestations.transferRecorded === true || (onRecord.length > 0 && onRecord.length === countedTransfers.length);
     status = pending.length === 0
       ? counted > 0
         ? recorded
@@ -150,6 +157,8 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     const excluded = ctx.alloc.perCourse.filter((p) => {
       const e = p.course.entry;
       if (e.origin !== 'transfer' || e.degreeLevel === 'bachelors' || p.excluded <= 0) return false;
+      // The second row of one course (P3-import-1 (c)): counted on its twin's line.
+      if (p.course.superseded) return false;
       // Notre Dame coursework taken in or before the bachelor's award term went
       // down the undergraduate path, not §5.2's.
       if (awarded !== undefined && isNotreDameInstitution(e.institution) && compareTerm(e.term, awarded) <= 0) return false;
@@ -163,9 +172,15 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     if (status === 'not_applicable') {
       parts.push({ note: 'Nothing here needs a decision by the DGS — none of the courses you entered can transfer under §5.2, for the reason on each course’s line' });
     }
+    // Accepted and recorded already: said as a fact, nothing to send (P3-import-1).
+    if (onRecord.length > 0) {
+      parts.push(`On your Notre Dame record as accepted transfer credit: ${onRecord.map((c) => c.entry.courseId).join(', ')}`, {
+        note: 'The Graduate School approved this credit and recorded it (Academic Code §4.6), so it counts with no review or processing request',
+      });
+    }
     // A `yes` in the course rules counts outright (2026-09-27); the Grad
     // Admin still records it, so the row says which courses to send.
-    const approvedForAll = transfers.filter((c) => !c.superseded && c.transferable === 'yes' && c.ineligibleReason === undefined && c.approvalPending === undefined);
+    const approvedForAll = transfers.filter((c) => !c.superseded && c.transferable === 'yes' && c.ineligibleReason === undefined && c.approvalPending === undefined && c.ndPosting === undefined);
     if (approvedForAll.length > 0) {
       parts.push(`Approved by the DGS in the course rules: ${approvedForAll.map((c) => c.entry.courseId).join(', ')}${recorded ? ' — recorded by the Grad Admin, as you ticked under Approvals (§5.2)' : ''}`, ...(recorded ? [] : [{ note: upper(processWhen) }]));
     }

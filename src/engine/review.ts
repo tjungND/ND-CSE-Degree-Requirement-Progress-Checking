@@ -219,6 +219,44 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),
     ];
 
+    // Credit the Notre Dame record already shows as accepted (P3-import-1;
+    // DGS 2026-10-05, Option 1): counted, it is left out of the request — the
+    // Graduate School has decided it — unless its title suggests a §4.4.1 core
+    // area the sheet has not recorded, which is a separate question. Held (its
+    // level not shown, or recorded before this program), the DGS is asked one
+    // thing for this student, answered by the tick on the course.
+    if (c.ndPosting !== undefined && !bachelors && c.ineligibleReason === undefined) {
+      const coreOpen = !coreDecidedByCoursesTab && coreTitle(c) && c.external?.satisfiesCoreArea === undefined;
+      if (c.approvalPending === undefined) {
+        if (coreOpen) {
+          external.push({
+            course: c,
+            kind: 'external',
+            ask: { needsRow: c.external === undefined, replyNeeded: false, decide: [CORE] },
+            reason: 'transfer credit on my Notre Dame record, already accepted; the title suggests a §4.4.1 core area',
+            unlisted: c.external === undefined,
+          });
+        }
+        continue;
+      }
+      external.push({
+        course: c,
+        kind: 'external',
+        ask: {
+          needsRow: false,
+          replyNeeded: true,
+          decide: [
+            ...(c.ndPostingHeld !== undefined ? ['confirm this credit, already accepted on my Notre Dame record, counts toward this degree (I tick the box on the course when you do)'] : []),
+            ...(c.cseUnknown ? ['say whether this counts as a CSE course for §4.2’s nine-credit non-CSE allowance (the is_cse cell on its row)'] : []),
+            ...(coreOpen ? [CORE] : []),
+          ],
+        },
+        reason: c.approvalPending,
+        unlisted: false,
+      });
+      continue;
+    }
+
     if (c.external !== undefined) {
       // Ruled — or merely listed. Pending while transferability is undecided
       // (graduate rows the engine has not already excluded — bachelors never

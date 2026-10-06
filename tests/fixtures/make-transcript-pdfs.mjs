@@ -180,9 +180,13 @@ const ND = [
   'Bachelor of Science',
   'Degree Date: May 16, 2021',
   '',
+  // Graduate credit the Graduate School posted in Spring 2027 (Banner code
+  // 202620), after the Fall 2026 entry, credit hours only (2026-10-05,
+  // P3-import-1): counted as posted under Option 1; its core-sounding title
+  // still asks the DGS for a §4.4.1 core area.
   'TRANSFER CREDIT ACCEPTED BY INSTITUTION',
-  '202010: Purdue University',
-  'CS 50300 GR Operating Systems A 3.000 12.000',
+  '202620: University of Michigan',
+  'EECS 58200 GR Operating Systems 3.000',
   '',
   'INSTITUTION CREDIT',
   'Fall Semester 2020',

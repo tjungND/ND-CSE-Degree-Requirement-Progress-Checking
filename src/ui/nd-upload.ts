@@ -19,6 +19,7 @@ import { parseTranscript, type DegreeAwarded, type EntryTermInference, type Pars
 import { el, inactiveButton, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { plural } from './email-html.ts';
 import { ndRowLabel } from './external-upload.ts';
+import { postingOf, stripNdPostings, twinOfBlockRow } from './nd-posted.ts';
 import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import type { RefusedValues } from './refusals.ts';
 
@@ -109,10 +110,13 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
         fail('This looks like an ND transcript, but no course lines could be read from it. Add your courses manually, and tell the DGS so the parser can be improved.');
         return;
       }
-      const duplicate = parsed.courses.map((c) =>
-        args.student.courses.some(
-          (s) => s.courseId === c.courseId && termIndex(s.term) === termIndex(c.term),
-        ),
+      const duplicate = parsed.courses.map(
+        (c) =>
+          args.student.courses.some((s) => s.courseId === c.courseId && termIndex(s.term) === termIndex(c.term)) ||
+          // (c): a transfer-block row is already entered when another
+          // transcript brought the same course from the same university, in
+          // whatever term that transcript dates it (P3-import-1, 2026-10-05).
+          twinOfBlockRow(args.student, c) !== undefined,
       );
       // The entry term read from the transcript (2026-09-05) is applied
       // unless the student unticks it in the preview. Pre-entry Notre Dame
@@ -127,6 +131,11 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
       const bsTerm = bachelorsTermFor(parsed.degreesAwarded, args.student);
       const qualifierApplies = args.student.program === 'phd';
       const irrelevantPrior = parsed.courses.map((c) => {
+        // (b): credit on the undergraduate record's transfer block — AP or
+        // another college's credit accepted for the bachelor's — is never
+        // graduate transfer credit; it starts unticked unless its title could
+        // show a §4.4.1 core area (P3-import-1, 2026-10-05).
+        if (c.origin === 'transfer') return c.level === 'undergraduate' && !(qualifierApplies && CORE_TITLE_RE.test(c.title ?? ''));
         if (c.origin !== 'nd' || termIndex(c.term) >= termIndex(entry)) return false;
         const rule = resolveRuleRow(args.rules, c.courseId, c.term);
         return (
@@ -257,8 +266,11 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
             // keys are exactly as before the Remove.
             const removed = args.student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.fromNdTranscript === true);
             const before = { gpa: args.student.gpa, gpaSource: args.student.gpaSource, termGpas: args.student.termGpas, priorMs: args.student.priorMs, inferred: args.student.priorMsInferred };
+            // The acceptances it marked on rows from other transcripts go too (P3-import-1).
+            let unmarked: ReturnType<typeof stripNdPostings> = [];
             args.setFocusAfterRender('import.nd');
             args.update((s) => {
+              unmarked = stripNdPostings(s);
               s.courses = s.courses.filter((c) => c.fromNdTranscript !== true);
               if (s.gpaSource !== undefined) {
                 s.gpa = undefined; // the transcript's figure — a hand-typed GPA has no gpaSource and stays
@@ -279,6 +291,10 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
               () =>
                 args.update((s) => {
                   for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
+                  for (const { index, posting } of unmarked) {
+                    const row = s.courses[index];
+                    if (row && row.origin === 'transfer') row.ndPosted = posting;
+                  }
                   s.gpa = before.gpa;
                   s.gpaSource = before.gpaSource;
                   s.termGpas = before.termGpas;
@@ -449,10 +465,18 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
     });
     cb.checked = tp.selected[i]!;
     const prior = c.origin === 'nd' && termIndex(c.term) < termIndex(entry);
+    const twin = twinOfBlockRow(args.student, c);
     const note = tp.duplicate[i]
-      ? 'already entered'
+      ? twin
+        ? `already entered from your ${twin.institution ?? 'other'} transcript (${termLabel(twin.term)}) — kept as one course, marked as accepted on your Notre Dame record`
+        : 'already entered'
       : c.origin === 'transfer'
-        ? 'listed as transfer credit on your ND transcript'
+        ? // The record the block sits on (P3-import-1 (b), 2026-10-05).
+          c.level === 'undergraduate'
+          ? 'undergraduate credit on your bachelor’s record — not graduate transfer credit'
+          : c.level === 'graduate'
+            ? `transfer credit accepted on your Notre Dame record (posted ${termLabel(c.term)})`
+            : 'transfer credit on your Notre Dame record — the transcript does not show its level, so the DGS confirms it'
         : prior
           ? `taken before ${termLabel(entry)}, as ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student)) === 'bachelors' ? 'an undergraduate' : args.student.ndMasters !== undefined ? 'an MSCSE student' : 'a graduate student'}`
           : '';
@@ -464,7 +488,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
         el('td', { class: 'cell-course' }, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
         el('td', { class: 'cell-meta', 'data-label': 'Term' }, el('abbr', { class: 'term', title: termLabel(c.term) }, termShort(c.term))),
         el('td', { class: 'cell-meta', 'data-label': 'Credits' }, String(c.credits)),
-        el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? 'In progress' : c.grade),
+        // A transfer-block row prints credit hours only (the grade is not in the
+        // GPA): no grade, not "in progress" (P3-import-1, 2026-10-05).
+        el('td', { class: 'cell-meta', 'data-label': 'Grade' }, c.grade === 'IP' ? (c.origin === 'transfer' ? '—' : 'In progress') : c.grade),
         el('td', { class: 'ctitle cell-note' }, note),
       ),
     );
@@ -575,6 +601,8 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
       bachelorsSet = bs.term;
     }
     for (const c of picked) {
+      // Ticked by hand though another transcript brought it: still one course (c).
+      if (c.origin === 'transfer' && twinOfBlockRow(s, c) !== undefined) continue;
       const entryCourse: CourseEntry = {
         courseId: c.courseId,
         title: c.title,
@@ -583,10 +611,22 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
         grade: c.grade,
         origin: c.origin,
         institution: c.institution,
-        registeredLevel: c.origin === 'nd' ? c.level : undefined,
+        registeredLevel: c.level,
+        // A transfer-block row is credit the record shows as accepted, dated by
+        // the term it was posted (P3-import-1, Option 1; DGS 2026-10-05); on
+        // the undergraduate record it is bachelor's coursework (b).
+        ...(c.origin === 'transfer' ? { ndPosted: postingOf(c), ...(c.level === 'undergraduate' ? { degreeLevel: 'bachelors' as const } : {}) } : {}),
         fromNdTranscript: true, // so "Remove" can take back exactly these rows
       };
       s.courses.push(entryCourse);
+    }
+    // (c): a block row whose course another transcript already brought is not
+    // added twice — that row carries the Notre Dame record's acceptance
+    // instead (condition 2), ticked or not, since it is a fact about it.
+    for (const c of tp.courses) {
+      if (c.origin !== 'transfer') continue;
+      const twin = twinOfBlockRow(s, c);
+      if (twin && twin.ndPosted === undefined) twin.ndPosted = postingOf(c);
     }
     // Pre-entry Notre Dame courses → prior coursework (2026-09-05).
     priorAdded = reclassifyNotreDameCourses(s).toPrior;

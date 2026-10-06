@@ -7,7 +7,7 @@ import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, class
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq, startOfTerm } from './term.ts';
-import type { AuditReport, Grade, RequirementResult, Student } from './types.ts';
+import type { AuditReport, Grade, RequirementResult, Student, TermGpa } from './types.ts';
 import { isCovidCohort, type Ctx } from './requirements/context.ts';
 import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
 import { transferCourseChecks } from '../data/course-checks.ts';
@@ -18,7 +18,7 @@ import { extensionReviewFlag } from './requirements/context.ts';
 import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
 import { msMilestoneDeadlines, phdMilestoneDeadlines } from './requirements/milestone-deadlines.ts';
 import { formatCredits } from './credits.ts';
-import { isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
+import { GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
 
 /** Requirement id ↔ plan-inventory mapping (docs/DECISIONS.md, plan §1):
  *   shared.gpa=S1  shared.advisor=S2  shared.approvals=advisory
@@ -356,7 +356,17 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // import (student.termGpas) — never computed from entered grades (decision
   // 2026-08-31); a hand-entered record gets no GPA line. Fall and spring only:
   // whether a summer counts as one of the "semesters" is the DGS's call.
-  const gpaTerms = (student.termGpas ?? []).filter((t) => t.term.season !== 'summer').sort((a, b) => compareTerm(a.term, b.term));
+  // A figure of 0.00 for a semester with no Notre Dame course graded into the
+  // GPA (only S or W — research, a withdrawal) is the transcript's empty GPA
+  // cell, not a GPA (policy review round 3, P3-ac-5b-6.1-1; DGS 2026-10-05:
+  // the import now reads the GPA hours and keeps no such figure, and records
+  // saved before that are read the same way here). Academic Code §4.3: "An S
+  // grade … does not factor into the computation of the G.P.A."
+  const gradedIn = (t: TermGpa['term']) => student.courses.some((c) => c.origin === 'nd' && compareTerm(c.term, t) === 0 && GRADE_POINTS[c.grade] !== undefined);
+  const gpaTerms = (student.termGpas ?? [])
+    .filter((t) => t.term.season !== 'summer')
+    .map((t) => (gradedIn(t.term) ? t : { term: t.term, ...(t.termGpa ? { termGpa: t.termGpa } : {}), ...(t.cumulativeGpa ? { cumulativeGpa: t.cumulativeGpa } : {}) }))
+    .sort((a, b) => compareTerm(a.term, b.term));
   const listGpas = (ts: typeof gpaTerms, pick: (t: (typeof gpaTerms)[number]) => number | undefined) => ts.map((t) => `${termLabel(t.term)}: ${gpaText(pick(t)!)}`).join(', ');
   const cumulativeBelow = gpaTerms.filter((t) => t.cumulativeGpa !== undefined && t.cumulativeGpa < PROBATION_CUMULATIVE_GPA);
   if (cumulativeBelow.length >= 2) {

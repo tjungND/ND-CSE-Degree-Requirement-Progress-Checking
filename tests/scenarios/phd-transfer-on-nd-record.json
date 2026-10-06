@@ -1,0 +1,153 @@
+{
+  "name": "phd-transfer-on-nd-record",
+  "description": "Policy review round 3, P3-import-1 (DGS 2026-10-05: Option 1, with fixes (a)–(c) and the three conditions). A Ph.D. student entered in Fall 2024 with a completed Purdue M.S.; the Graduate School approved nine transfer credits and posted them in Spring 2025, so the Notre Dame transcript's 'Transfer credit accepted' block lists them, dated by the posting term, with credit hours and no grade. Until 2026-10-05 the app read the posting term as the term the courses were taken, held all three as 'taken after you entered' (a hold no sheet row or tick could release) and counted 0 of 24. Now graduate credit on the record counts as posted — 9 of 24, Met without the 'Graduate School approved my transfer credit' tick — with nothing for the review request or the Grad Admin.",
+  "today": "2026-10-05",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "priorMs": "completed",
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "gpa": 3.7,
+    "courses": [
+      {
+        "courseId": "CS 50100",
+        "title": "Advanced Operating Systems",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "IP",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "registeredLevel": "graduate",
+        "fromNdTranscript": true,
+        "ndPosted": {
+          "term": {
+            "season": "spring",
+            "year": 2025
+          },
+          "credits": 3,
+          "level": "graduate",
+          "institution": "Purdue University"
+        }
+      },
+      {
+        "courseId": "CS 52600",
+        "title": "Information Security",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "IP",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "registeredLevel": "graduate",
+        "fromNdTranscript": true,
+        "ndPosted": {
+          "term": {
+            "season": "spring",
+            "year": 2025
+          },
+          "credits": 3,
+          "level": "graduate",
+          "institution": "Purdue University"
+        }
+      },
+      {
+        "courseId": "CS 58000",
+        "title": "Algorithm Design and Analysis",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "IP",
+        "origin": "transfer",
+        "institution": "Purdue University",
+        "registeredLevel": "graduate",
+        "fromNdTranscript": true,
+        "ndPosted": {
+          "term": {
+            "season": "spring",
+            "year": 2025
+          },
+          "credits": 3,
+          "level": "graduate",
+          "institution": "Purdue University"
+        }
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "registeredLevel": "graduate",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "registeredLevel": "graduate",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "registeredLevel": "graduate",
+        "fromNdTranscript": true
+      }
+    ],
+    "milestones": {
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "met",
+      "detailIncludes": [
+        "9 of the 24 credits you may transfer are counted",
+        "On your Notre Dame record as accepted transfer credit: CS 50100, CS 52600, CS 58000"
+      ],
+      "detailExcludes": [
+        "Waiting for the DGS",
+        "Taken after admission"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CS 52600": [
+      "counts toward regular courses (3 cr)",
+      "transfer credit on your Notre Dame record (posted Spring 2025) — accepted by the Graduate School; nothing to send (Academic Code §4.6)"
+    ]
+  }
+}
