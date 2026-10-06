@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — engine): **The OCE gate waits for the DGS on a core area too.** A core area or the specialization met only by a course awaiting the DGS’s ruling no longer opens the gate (phd.ts `oceReadiness`): the candidacy card stays Not started and names the decision. DGS: “Treat both as not done” (the question raised with P3-chg-phd-1). tests/oce-gate-pending.test.ts. Wording W-CL186.
+
 2026-10-06 (DGS — page): **Group headings spell out the OCE.** The report’s group headings are exempt from the first-mention rule (first-mention.ts skips `.group-head`), so the heading over the candidacy cards reads “Oral Candidacy Exam (OCE) and candidacy”. The app suite’s first-mention check counts the heading separately. Wording W-CL185.
 
 2026-10-06 (DGS — engine; policy review round 3): **P3-cse-3-1, and the Ph.D. for symmetry.** The time-limit rows count coursework: each credit requirement is complete at the end of the term its counted courses first reached the minimum (context.ts `creditsReachedAt`, `lastCompletion`), so a course that completed one after the limit makes the row Eligibility at risk and is named; surplus courses after the limit are not flagged. MSCSE: 30 total, 24 regular, 6 project/thesis; Ph.D.: 60 total, 24 regular, 9 at Notre Dame. Scenario mscse-last-course-after-the-limit; tests/time-limit-coursework.test.ts. Wording W-CL184.

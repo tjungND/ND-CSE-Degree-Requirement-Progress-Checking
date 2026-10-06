@@ -1408,7 +1408,14 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
   if (qualifierPassedUnderPriorRules(ctx)) {
     items.push('Qualifying examination courses: done — passed under the earlier requirements');
   } else {
-    const done = (r: RequirementResult): boolean => r.status === 'met' || (r.status === 'needs_dgs_review' && r.statusLabel === undefined);
+    // Waiting for the DGS is not done (policy review round 3, P3-chg-phd-1's
+    // question; DGS 2026-10-06: "Treat both as not done"). A core area or the
+    // specialization met only by a course the DGS has still to rule on used to
+    // count as done here, while regular credits awaiting a decision did not —
+    // the 2026-10-05 rule reads "every core area and the specialization row is
+    // met or In progress". Now both keep the gate closed until the DGS decides,
+    // and the card names the decision rather than a course to take.
+    const waitingForDgs = (r: RequirementResult): boolean => r.status === 'needs_dgs_review' && r.statusLabel === undefined;
     for (const r of rows.filter((x) => x.id.startsWith('phd.qualifier.core') || x.id === 'phd.qualifier.categories')) {
       const core = r.id !== 'phd.qualifier.categories';
       const name = core ? `Core knowledge, ${r.title.replace(/^Core knowledge:\s*/, '')}` : 'Specialization courses';
@@ -1416,8 +1423,10 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
         items.push(`${name}: done${core && r.satisfiedBy?.[0] ? ` (${r.satisfiedBy[0]})` : ''}`);
         continue;
       }
-      if (done(r)) {
-        items.push(`${name}: waiting for the DGS${r.pendingBy?.[0] ? ` (${r.pendingBy[0]})` : ''}`);
+      if (waitingForDgs(r)) {
+        const which = r.pendingBy && r.pendingBy.length > 0 ? r.pendingBy.join(', ') : undefined;
+        missing.push(`the DGS’s decision on ${which ?? (core ? coreCourseNoun(r).replace(/^an? /, 'the ') : 'the specialization courses')}`);
+        items.push(`${name}: waiting for the DGS${which ? ` (${which})` : ''}`);
         continue;
       }
       if (r.status === 'in_progress') {
@@ -1551,7 +1560,7 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
       ...joinedDetail([
         'Not started',
         ...oceWaitFact(coursework),
-        { note: 'The Oral Candidacy Exam (OCE) can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits (transferred regular-course credits count) and the qualifying examination’s core-knowledge and specialization courses (§4.5) — and you have a tenured or tenure-track advisor (§2.3)' },
+        { note: 'The Oral Candidacy Exam (OCE) can be taken once your coursework is complete or in progress the same semester — the 24 regular-course credits (transferred regular-course credits count) and the qualifying examination’s core-knowledge and specialization courses (§4.5) — and you have a tenured or tenure-track advisor (§2.3). A course waiting for the DGS’s decision counts once the DGS approves it' },
         ...eighthSemesterNotes(ctx, sem, effectiveSem, true, 'oce'),
       ]),
       deadline: r.deadline,
@@ -1645,7 +1654,7 @@ function admissionPolicyNotes(ctx: Ctx, args: { semesterWord: string; probationC
     policy(`The department’s coursework: the ${regularMin ?? 24} regular-course credits (§4.2) — transferred regular-course credits count, and approved CSE 4xxxx credits count within §4.2’s allowance (Academic Code §6.2.9; DGS Handbook §3.22.3)`),
     policy(`A cumulative GPA of ${(gpaMin ?? 3).toFixed(1)} or better (§2.2; Academic Code §6.2.9; DGS Handbook §3.22.3)`),
     policy('All training modules for the Responsible Conduct of Research and ethics: the Graduate School’s training for every Ph.D. student, and any training your role or your research funding requires (Academic Code §6.2.4; DGS Handbook §3.22.3, §6.3.1)'),
-    policy('The doctoral candidacy examination passed, its written and oral parts: in CSE the written part is the dissertation proposal, so passing the Oral Candidacy Exam (OCE) normally also approves the proposal. The OCE can be taken once your coursework is complete or in progress the same semester — the regular-course credits and the qualifying examination’s core-knowledge and specialization courses — and you have a tenured or tenure-track advisor (§2.3, §4.5; Academic Code §6.2.8, §6.2.9)'),
+    policy('The doctoral candidacy examination passed, its written and oral parts: in CSE the written part is the dissertation proposal, so passing the Oral Candidacy Exam (OCE) normally also approves the proposal. The OCE can be taken once your coursework is complete or in progress the same semester — the regular-course credits and the qualifying examination’s core-knowledge and specialization courses — and you have a tenured or tenure-track advisor (§2.3, §4.5; Academic Code §6.2.8, §6.2.9). A course waiting for the DGS’s decision counts once the DGS approves it'),
     policy('Before the OCE: send the DGS a written request naming your committee — your advisor and at least three voting members, with CVs for members from outside Notre Dame — and give the committee your written proposal at least two weeks before the exam, which is held on campus (§4.5)'),
     policy('At least one dissertation advisor who is tenured or tenure-track Notre Dame faculty, or a co-advisor who is; the application confirms it. CSE asks for tenured or tenure-track CSE faculty, with exceptions approved by the DGS (§2.3; Academic Code §6.2.7; DGS Handbook §10.3.1)'),
     policy('CSE has no language requirement (§5.3)'),
