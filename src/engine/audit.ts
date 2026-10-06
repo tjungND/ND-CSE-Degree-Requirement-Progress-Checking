@@ -10,7 +10,7 @@ import { beforeProgramStart } from './early-start.ts';
 import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq, startOfTerm } from './term.ts';
 import type { AuditReport, Grade, RequirementResult, Student, TermGpa } from './types.ts';
 import { beforeForfeiture, isCovidCohort, type Ctx } from './requirements/context.ts';
-import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
+import { fullTimeTermRecords, graduateLevelFlag, sameTermDuplicate } from './requirements/residency.ts';
 import { transferCourseChecks } from '../data/course-checks.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
 import { advisorReviewFlag, advisorRow, approvalsRow, goodStandingRow, gpaRow, gpaText } from './requirements/shared.ts';
@@ -641,13 +641,17 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // graduation (or for a zero-credit course, during the summer session)";
   // Academic Code §3.7. Registered = a Notre Dame course entered for that term,
   // of at least one credit in a fall or spring, of any credits in a summer —
-  // not a withdrawn or audited one. The report's next steps and the processing
+  // not a withdrawn or audited one. A retake is a registration too, whichever
+  // attempt counts: only a same-term duplicate is dropped, as the full-time
+  // record already does (policy review round 3, P3-chg-other-2; DGS
+  // 2026-10-06 — an in-progress retake of a course passed with a C used to
+  // read as "no course entered"). The report's next steps and the processing
   // request say it; once the term has begun, an unregistered one is a warning.
   let graduation: AuditReport['graduation'];
   if (student.graduationTerm !== undefined) {
     const t = student.graduationTerm;
     const inTerm = classified.filter(
-      (cc) => cc.entry.origin === 'nd' && !cc.superseded && !cc.withdrawn && !cc.audited && !cc.unrecognizedGrade && compareTerm(cc.entry.term, t) === 0,
+      (cc) => cc.entry.origin === 'nd' && !sameTermDuplicate(cc, classified) && !cc.withdrawn && !cc.audited && !cc.unrecognizedGrade && compareTerm(cc.entry.term, t) === 0,
     );
     const credits = inTerm.reduce((sum, cc) => sum + cc.entry.credits, 0);
     const registered = t.season === 'summer' ? inTerm.length > 0 : credits >= 1;

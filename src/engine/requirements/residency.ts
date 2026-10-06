@@ -39,6 +39,21 @@ export interface FullTimeTermRecord {
   withdrawnOnly?: true;
 }
 
+/** A row that is NOT a registration of its own: a superseded row whose
+ * counted attempt is in the same term — the same course entered twice for one
+ * semester. Any other superseded row was a registration in its own semester
+ * (policy review 2026-10-03, P1-residency-enrollment-6, Item 20): an earlier
+ * attempt of a course retaken later, or a retake whose earlier C-or-better
+ * still counts. The full-time record, the semester-of-graduation check and
+ * the candidacy card's "Registered this semester" line all ask this one
+ * question, so they cannot drift apart (policy review round 3,
+ * P3-chg-other-2; DGS 2026-10-06). */
+export function sameTermDuplicate(cc: Ctx['classified'][number], classified: readonly Ctx['classified'][number][]): boolean {
+  if (!cc.superseded) return false;
+  const counted = classified.find((o) => o !== cc && !o.superseded && o.entry.courseId === cc.entry.courseId && o.entry.origin === 'nd');
+  return counted === undefined || compareTerm(counted.entry.term, cc.entry.term) === 0;
+}
+
 export function fullTimeTermRecords(ctx: Ctx): FullTimeTermRecord[] {
   return fullTimeRecordsFrom(ctx.classified, ctx.student, ctx.params.number('fulltime_credits_min'), summerFullTimeFloor(ctx.student.program, (k) => ctx.params.number(k)));
 }
@@ -80,15 +95,10 @@ export function fullTimeRecordsFrom(
   // the student "registers for"), and an earlier attempt of a course retaken
   // in a LATER term was a registration in its own semester — only a same-term
   // duplicate is dropped.
-  const countedAttempt = (cc: Ctx['classified'][number]): Ctx['classified'][number] | undefined =>
-    ctx.classified.find((o) => o !== cc && !o.superseded && o.entry.courseId === cc.entry.courseId && o.entry.origin === 'nd');
   for (const cc of ctx.classified) {
     const c = cc.entry;
     if (cc.unrecognizedGrade || cc.audited) continue; // an audit is not a registration toward full-time status (DGS Handbook §3.12)
-    if (cc.superseded) {
-      const counted = countedAttempt(cc);
-      if (counted === undefined || compareTerm(counted.entry.term, c.term) === 0) continue; // a true duplicate
-    }
+    if (sameTermDuplicate(cc, ctx.classified)) continue;
     if (c.origin !== 'nd' || termIndex(c.term) < entryIndex) continue;
     const key = termIndex(c.term);
     const rec = byTerm.get(key) ?? { term: c.term, credits: 0, graduate: 0, withdrawn: 0, rows: 0 };

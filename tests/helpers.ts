@@ -28,6 +28,9 @@ export interface ScenarioFile {
   /** The DGS review request must have nothing to ask (2026-09-11). */
   expectReviewEmpty?: boolean;
   expectCourseLines?: Record<string, string[]>;
+  /** The semester-of-graduation registration (Academic Code §3.7; policy review
+   * round 3, P3-chg-other-2): what `report.graduation` must say. */
+  expectGraduation?: { registered: boolean; registeredCredits?: number };
 }
 
 export interface RulesPatch {

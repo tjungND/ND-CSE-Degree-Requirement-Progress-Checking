@@ -12,7 +12,7 @@ import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSe
 import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
 import { noteOf, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
-import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun } from './residency.ts';
+import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun, sameTermDuplicate } from './residency.ts';
 import { advisorTttState, defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
 import { spentOnBachelorsAndMasters } from '../allocate.ts';
@@ -1803,10 +1803,12 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     // is not proof (research registrations are often not typed in), and a
     // continuing student need not register in summer (DGS Handbook §3.3), so
     // no line then.
+    // A retake counts as entered whichever attempt counts; only a same-term
+    // duplicate is dropped (P3-chg-other-2, DGS 2026-10-06; residency.ts).
     const now = termOfDate(ctx.today);
     if (now.season !== 'summer') {
       const key = termIndex(now);
-      const credits = ctx.classified.filter((c) => c.entry.origin === 'nd' && !c.superseded && !c.audited && termIndex(c.entry.term) === key).reduce((n, c) => n + c.entry.credits, 0);
+      const credits = ctx.classified.filter((c) => c.entry.origin === 'nd' && !sameTermDuplicate(c, ctx.classified) && !c.audited && termIndex(c.entry.term) === key).reduce((n, c) => n + c.entry.credits, 0);
       const ticked = (ctx.student.fullTimeTermOverrides ?? []).some((t) => termIndex(t) === key);
       parts.push(`Registered this semester (${termLabel(now)}): ${credits > 0 ? `${formatCredits(credits)} credits entered` : ticked ? 'full-time, as you ticked' : 'no Notre Dame course entered'}`);
     }

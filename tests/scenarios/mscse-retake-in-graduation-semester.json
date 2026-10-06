@@ -1,0 +1,38 @@
+{
+  "name": "mscse-retake-in-graduation-semester",
+  "description": "Policy review round 3, P3-chg-other-2 (DGS 2026-10-06: “Apply the suggested handling”). An MSCSE student with 30 credits and a 2.95 GPA after a C in CSE 60111 (Fall 2025) plans to graduate in Fall 2026 and is retaking CSE 60111 as the only Fall 2026 course. The retake rule keeps the C as the counted attempt, so the retake is superseded — but it is still a registration in its own semester (Academic Code §3.7; DGS Handbook §3.23.1), as the full-time record already counted it: the student is registered for the semester of graduation with 3 credits entered.",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": { "season": "fall", "year": 2025 },
+    "bachelorsAwarded": { "season": "spring", "year": 2025 },
+    "priorMs": "none",
+    "gpa": 2.95,
+    "graduationTerm": { "season": "fall", "year": 2026 },
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2025 }, "grade": "C", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60876", "credits": 3, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 68902", "credits": 6, "term": { "season": "spring", "year": 2026 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "IP", "origin": "nd" }
+    ],
+    "milestones": { "advisorIdentified": "2025-10-01", "advisorName": "Prof. Example" },
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.total": {
+      "status": "met"
+    }
+  },
+  "expectGraduation": { "registered": true, "registeredCredits": 3 }
+}

@@ -56,6 +56,12 @@ describe('scenarios', () => {
         assert.ok(!byId.has(id), `requirement ${id} should not be in this report at all — got: ${byId.get(id)?.detail}`);
       }
 
+      if (sc.expectGraduation !== undefined) {
+        assert.ok(report.graduation, 'the report has no semester of graduation');
+        assert.equal(report.graduation.registered, sc.expectGraduation.registered, 'registered in the semester of graduation');
+        if (sc.expectGraduation.registeredCredits !== undefined) assert.equal(report.graduation.registeredCredits, sc.expectGraduation.registeredCredits, 'credits entered for it');
+      }
+
       for (const [courseId, subs] of Object.entries(sc.expectCourseLines ?? {})) {
         const lines = report.courseLines.filter((l) => l.courseId === courseId);
         assert.ok(lines.length > 0, `no course line for ${courseId}`);
