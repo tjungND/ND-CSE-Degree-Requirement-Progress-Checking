@@ -467,3 +467,8 @@ not the app's:
     say whether the courses of that summer count toward the degree, or that the clocks and residency still start in the fall.
     The DGS ruled on 2026-10-05 that they count as the program’s coursework, while every clock, the §5.2 window and residency
     run from the fall (policy review round 3, P3-chg-other-1). §3.2 and §4.2 should say so in a sentence.
+23. **§4.5 — a readmitted student’s eighth semester.** §4.5 counts “the eighth semester in the program”; the Graduate School
+    says “eighth semester of enrollment” (Academic Code §6.2.8; DGS Handbook §3.22.1), which reads as skipping the semesters a
+    withdrawn student was away. The DGS ruled on 2026-10-06 that the clock counts calendar semesters regardless of the gap, and
+    that the Graduate School can approve an exception when the DGS requests one (policy review round 3, P3-ac-6.2-app-1).
+    §4.5 should say so, since the Graduate School’s own wording points the other way.

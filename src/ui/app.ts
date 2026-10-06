@@ -1292,7 +1292,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           // A missed fall or spring semester needs readmission too (policy
           // review 2026-10-04, P2-dh-3.1-3.13-3; DGS Handbook §3.1). An empty
           // semester is never read as one: research-only semesters are empty.
-          'If you withdrew from the University, or missed a fall or spring semester (no Roll Call and registration) without an approved leave, you had to be readmitted (DGS Handbook §3.1, §3.3): enter the readmission semester. Every clock still counts from your original entry term (Academic Code §6.2.6: “from the time of matriculation”). Your courses from before it wait for the DGS — the program may reject some or all past credits (DGS Handbook §3.3), and after an interruption of five years or more the Code forfeits them (Academic Code §5.5).',
+          'If you withdrew from the University, or missed a fall or spring semester (no Roll Call and registration) without an approved leave, you had to be readmitted (DGS Handbook §3.1, §3.3): enter the readmission semester. Every clock still counts from your original entry term, in calendar semesters with the time away included (Academic Code §6.2.6: “from the time of matriculation”; DGS 2026-10-06) — the Graduate School can approve an exception when the DGS requests one. Your courses from before it wait for the DGS — the program may reject some or all past credits (DGS Handbook §3.3), and after an interruption of five years or more the Code forfeits them (Academic Code §5.5).',
           ),
         ),
       ),

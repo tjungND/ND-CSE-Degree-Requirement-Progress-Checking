@@ -1188,7 +1188,18 @@ export interface EighthSemesterShift {
  * (the earlier deadline is the safe mistake); the rows ask for it. The COVID
  * cohort adds one more (DGS 2026-10-03, Item 15; Appendix A.4 extends the exam
  * "by the end of the ninth semester"). The eight-year limit still moves for
- * every leave and accommodation semester (context.ts timeLimitDate). */
+ * every leave and accommodation semester (context.ts timeLimitDate).
+ *
+ * A READMISSION does not move it (policy review round 3, P3-ac-6.2-app-1; DGS
+ * 2026-10-06: "The clock counts by calendar semesters regardless of the gap.
+ * However, exceptions can be approved by the graduate school when requested
+ * by the DGS."). The fall and spring semesters a student was withdrawn or
+ * unregistered before the readmission are counted, as the 2026-10-03 and
+ * 2026-10-04 rulings kept every clock on the original matriculation; only an
+ * approved leave is skipped. The exception is the Graduate School's — the
+ * Academic Code's preamble: "No exceptions to the following policies and
+ * procedures will be valid without the formal written approval of the
+ * Graduate School" — and the DGS requests it (readmissionGapCounted). */
 export function eighthSemester(ctx: Ctx, sem: number): { effectiveSem: number; term: Term; date: string; shift: EighthSemesterShift } {
   const s = ctx.student;
   const leaveCount = Math.max(0, Math.floor(s.leaveSemesters ?? 0));
@@ -1221,6 +1232,19 @@ export function eighthSemester(ctx: Ctx, sem: number): { effectiveSem: number; t
   };
 }
 
+/** The readmission whose gap the eighth semester counts, while the Oral
+ * Candidacy Exam or admission to candidacy is still to come — the review
+ * request then asks the DGS whether to request the Graduate School's
+ * exception (P3-ac-6.2-app-1; DGS 2026-10-06). Ph.D. only; a readmission term
+ * not after the entry term says nothing about a gap. */
+export function readmissionGapCounted(ctx: Ctx): Term | undefined {
+  const s = ctx.student;
+  const re = s.readmittedTerm;
+  if (s.program !== 'phd' || re === undefined || compareTerm(re, ctx.entry) <= 0) return undefined;
+  if (s.milestones.candidacyPassed && s.milestones.candidacyAdmitted) return undefined;
+  return re;
+}
+
 /** Whose eighth semester, and what moved it — the notes both candidacy rows
  * carry while they are open. */
 function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: boolean, row: 'oce' | 'admission'): DetailPart[] {
@@ -1249,6 +1273,13 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
           : `Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — as for the Oral Candidacy Exam (OCE), the MSCSE you finished before it is not counted`,
     });
   if (!open) return parts;
+  // A readmission's gap is counted (P3-ac-6.2-app-1; DGS 2026-10-06).
+  const re = ctx.student.readmittedTerm;
+  if (re !== undefined && compareTerm(re, ctx.entry) > 0) {
+    parts.push({
+      note: `Counted in calendar semesters from ${termLabel(ctx.entry)}, the semesters you were away before your readmission in ${termLabel(re)} included (DGS 2026-10-06); the Graduate School can approve an exception when the DGS requests one${readmissionGapCounted(ctx) ? ', and your review request asks' : ''}`,
+    });
+  }
   // What moved it, what did not, and what is still to be said (P3-ac-5a-1, DGS 2026-10-05).
   const { shift } = eighthSemester(ctx, sem);
   const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
@@ -1798,8 +1829,9 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
   // against its own (sheet) deadline, or a missing date or parameter.
   const isNote = (p: DetailPart): p is { note: string } => typeof p === 'object' && 'note' in p;
   const oceParts = merged.oce.detailParts ?? (merged.oce.detail ? [merged.oce.detail] : []);
-  // (The eighth semester's own notes — what moved it, what did not, what is still to be entered — are the admission row's too, P3-ac-5a-1.)
-  const oceNotes = oceParts.filter(isNote).filter((p) => !/^(Passing the Oral Candidacy Exam \(OCE\) is one of the conditions|Semesters are counted from|Semester \d+ is counted as|Not moved by |Enter (which semester|the semester of the birth))/.test(p.note));
+  // (The eighth semester's own notes — what moved it, what did not, what is still to be entered, P3-ac-5a-1, and
+  // that a readmission's gap is counted, P3-ac-6.2-app-1 — are the admission row's too.)
+  const oceNotes = oceParts.filter(isNote).filter((p) => !/^(Passing the Oral Candidacy Exam \(OCE\) is one of the conditions|Semesters are counted from|Semester \d+ is counted as|Not moved by |Enter (which semester|the semester of the birth)|Counted in calendar semesters from)/.test(p.note));
   const rcrNotes = (merged.rcr.detailParts ?? []).filter(isNote);
   let deadline = r.deadline;
   if (merged.oce.status === 'cannot_evaluate') {

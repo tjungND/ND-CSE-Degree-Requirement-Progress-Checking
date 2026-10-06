@@ -16,7 +16,7 @@ import { isNotreDameInstitution } from '../data/external.ts';
 import { advisorReviewFlag, advisorRow, approvalsRow, goodStandingRow, gpaRow, gpaText } from './requirements/shared.ts';
 import { mscseRows, msTimeLimitRow, summerOnlyReviewFlag, thesisReadersReviewFlag } from './requirements/mscse.ts';
 import { extensionReviewFlag } from './requirements/context.ts';
-import { phdRows, phdTimeLimitRow, qualifierPriorRulesEligible } from './requirements/phd.ts';
+import { ADMISSION_DEADLINE_SEMESTER, eighthSemester, phdRows, phdTimeLimitRow, qualifierPriorRulesEligible, readmissionGapCounted } from './requirements/phd.ts';
 import { msMilestoneDeadlines, phdMilestoneDeadlines } from './requirements/milestone-deadlines.ts';
 import { formatCredits } from './credits.ts';
 import { GRADE_POINTS, isInProgress, isPassed, meetsGradeFloor } from './grades.ts';
@@ -313,8 +313,8 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     const interrupted = classified.some((c) => c.interrupted);
     warnings.push(
       interrupted
-        ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (Academic Code §5.5), so those courses and examinations wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation.`
-        : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation (Academic Code §6.2.6); the program may reject some or all of your earlier credits (DGS Handbook §3.3), so the courses from before your readmission wait for the DGS and are in the review request.`,
+        ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (Academic Code §5.5), so those courses and examinations wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation, in calendar semesters with the time away included.`
+        : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation, in calendar semesters with the time away included (Academic Code §6.2.6; DGS 2026-10-06); the program may reject some or all of your earlier credits (DGS Handbook §3.3), so the courses from before your readmission wait for the DGS and are in the review request.`,
     );
     // The readmission itself goes to the DGS (policy review 2026-10-04,
     // P2-dh-3.1-3.13-3/-9): DGS Handbook §3.1 — "A student who fails to
@@ -327,6 +327,33 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
         `Readmission: I was readmitted in ${termLabel(student.readmittedTerm)} after a withdrawal or a fall or spring semester I was not registered for (DGS Handbook §3.1, §3.3, §3.8; Academic Code §3.5). Please confirm my readmission and which of my earlier credits stand; my clocks still count from ${termLabel(entry)} (Academic Code §6.2.6).`,
       ),
     );
+    // The candidacy deadline keeps the gap (policy review round 3,
+    // P3-ac-6.2-app-1; DGS 2026-10-06: "The clock counts by calendar semesters
+    // regardless of the gap. However, exceptions can be approved by the
+    // graduate school when requested by the DGS."). While the Oral Candidacy
+    // Exam or admission to candidacy is still to come, the DGS is asked whether
+    // to request the Graduate School's exception; the rows name the deadline.
+    const gap = readmissionGapCounted(ctx);
+    if (gap !== undefined) {
+      const m = student.milestones;
+      const oceSem = ctx.params.number('candidacy_deadline_semester');
+      const open = [
+        ...(!m.candidacyPassed && oceSem !== undefined ? [{ what: 'the Oral Candidacy Exam', term: eighthSemester(ctx, oceSem).term }] : []),
+        ...(!m.candidacyAdmitted ? [{ what: 'admission to candidacy', term: eighthSemester(ctx, ADMISSION_DEADLINE_SEMESTER).term }] : []),
+      ];
+      const same = open.length === 2 && compareTerm(open[0]!.term, open[1]!.term) === 0;
+      const deadlines = same
+        ? `my deadline for the Oral Candidacy Exam and admission to candidacy, the end of ${termLabel(open[0]!.term)}, counts`
+        : `my ${open.length === 1 ? 'deadline' : 'deadlines'}, ${open.map((o) => `the end of ${termLabel(o.term)} for ${o.what}`).join(' and ')}, ${open.length === 1 ? 'counts' : 'count'}`;
+      if (open.length > 0) {
+        reviewFlags.push(
+          decisionWording(
+            student.program,
+            `Candidacy deadline after my readmission: ${deadlines} the semesters I was away before my readmission in ${termLabel(gap)} (Academic Code §6.2.8; DGS Handbook §3.22.3; DGS 2026-10-06). Please decide whether to ask the Graduate School for an exception.`,
+          ),
+        );
+      }
+    }
     // The examinations from before an interruption of five years or more
     // (Academic Code §5.5: "Credit for any course or examination will be
     // forfeited …"; P3-ac-5a-3, DGS 2026-10-05) — each row waits for the DGS,
