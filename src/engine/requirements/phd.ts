@@ -938,9 +938,37 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     const withItems = (lead: string) => (qualifying.length + inProgress.length > 0 ? add({ lead, items: items(false), fold }, { lead, items: items(true), fold }) : add(lead));
     if (combined.distinctCount >= groupsReq && qualifying.length + inProgress.length >= coursesReq) {
       status = 'in_progress';
-      // How many of the courses in progress are needed — the ones the matching
-      // gives a group of their own — not how many there are (2026-10-02).
-      completing = inProgress.filter((c) => display.assignment.has(c.courseId)).map((c) => c.courseId);
+      // How many of the courses in progress are NEEDED, not how many there
+      // are (2026-10-02) — and which, for the OCE gate (2026-10-05: it reads
+      // "the specialization courses the group matching relies on"). The
+      // display matching above places every course it can, up to all five
+      // groups, so a course opening a fourth group used to count as needed,
+      // and a next-semester registration of that kind held the OCE back a
+      // semester (policy review round 3, P3-cse-4a-1; DGS 2026-10-06: "Apply
+      // the suggested handling"). Now: the courses in progress in term order,
+      // each kept only when it adds a distinct group to the best matching of
+      // the passed courses plus those already kept, until the requirement is
+      // reached. The matching is re-run at each step, so a flexible course is
+      // never held to a group a later course needs — the matching's coverage
+      // is a matroid rank, for which picking in a fixed order is exact; the
+      // earliest semester that completes the requirement is the one found.
+      const ordered = [...inProgress].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      const neededCourses: GroupCandidate[] = [];
+      let covered = def.distinctCount;
+      for (const c of ordered) {
+        if (covered >= groupsReq) break;
+        const m = matchDistinctGroups([...qualifying, ...neededCourses, c], allGroups);
+        if (m.distinctCount > covered) {
+          neededCourses.push(c);
+          covered = m.distinctCount;
+        }
+      }
+      // A sheet asking for more courses than groups: the earliest others.
+      for (const c of ordered) {
+        if (qualifying.length + neededCourses.length >= coursesReq) break;
+        if (!neededCourses.includes(c)) neededCourses.push(c);
+      }
+      completing = neededCourses.map((c) => c.courseId);
       const needed = completing.length;
       withItems(
         `${qualifying.length} of ${coursesReq} done, in ${def.distinctCount} different group${def.distinctCount === 1 ? '' : 's'}; ${needed === inProgress.length ? `the ${inProgress.length === 1 ? 'course' : `${inProgress.length} courses`} in progress would complete it` : `${needed} of the ${inProgress.length} courses in progress would complete it`}`,

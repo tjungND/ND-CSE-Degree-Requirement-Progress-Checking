@@ -1,0 +1,169 @@
+{
+  "name": "phd-specialization-extra-group-next-semester",
+  "description": "Policy review round 3, P3-cse-4a-1 (DGS 2026-10-06: “Apply the suggested handling”). A Ph.D. student who entered Fall 2025, seen in Fall 2026, has passed CSE 60111 (Algorithms group) and CSE 60641 (Systems group); CSE 60321 passed with a B- meets the Architecture core area but not §4.4.2’s B floor. CSE 60535 (Data Science/AI) in progress this semester completes the third group; CSE 60427 (Human-Centered Computing) opens a fourth. The patch takes the group off three regular courses so the 24 regular-course credits finish this semester without adding groups. CSE 60427 is a registration for Spring 2027. The course that completes the requirement is this semester’s, so the OCE gate stays open (DECISIONS 2026-10-05: it reads only the courses the coursework needs) — the cards used to read Not started, the OCE schedulable in Spring 2027 at the earliest.",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "courses": [
+        {
+          "course_id": "CSE 60762",
+          "set": {
+            "category_group": ""
+          }
+        },
+        {
+          "course_id": "CSE 60868",
+          "set": {
+            "category_group": ""
+          }
+        },
+        {
+          "course_id": "CSE 60876",
+          "set": {
+            "category_group": ""
+          }
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "B-",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "fullTimeTermOverrides": [
+      {
+        "season": "fall",
+        "year": 2025
+      },
+      {
+        "season": "spring",
+        "year": 2026
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.categories": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "1 of the 2 courses in progress would complete it"
+      ]
+    },
+    "phd.candidacyAdmission": {
+      "status": "in_progress",
+      "detailExcludes": [
+        "Not started"
+      ]
+    },
+    "phd.candidacy": {
+      "status": "in_progress"
+    }
+  }
+}

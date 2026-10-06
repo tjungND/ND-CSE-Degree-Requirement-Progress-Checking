@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — engine; policy review round 3): **P3-cse-4a-1.** The specialization row’s needed courses in progress are chosen in term order by re-running the group matching (phd.ts `categoriesRow`), so a course opening an extra group is neither counted in the lead nor allowed to hold the OCE gate back a semester. Scenarios phd-specialization-extra-group-same-term and -next-semester; tests/specialization-needed.test.ts.
+
 2026-10-06 (DGS — page): **Condition marks on the candidacy card.** Each condition is marked ✓ met, ◐ in progress, ● waiting for the DGS or ✕ not yet, in the bullet’s place, with the course table’s colours (types.ts `ConditionMark`; phd.ts marks the admission conditions and `oceReadiness`’s items; report.ts draws them via marks.ts `conditionMark`). tests/condition-marks.test.ts; the app suite checks the marks and shoots `app-condition-marks`. Wording W-CL188.
 
 2026-10-06 (DGS — engine wording; policy review round 3): **P3-chg-phd-1.** The Not-started candidacy card names regular-course credits waiting for the DGS’s decision (“3 waiting for a DGS decision (CSE 40625) — 3 more needed unless the DGS approves them”; “still needed: the DGS’s decision on CSE 40625, or 3 more regular-course credits”) instead of asking for them as courses to take. Applied together with the DGS’s gate ruling. tests/oce-gate-pending.test.ts. Wording W-CL187.
