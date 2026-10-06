@@ -1,6 +1,6 @@
 {
-  "name": "phd-leave-shifts-clocks",
-  "description": "DGS 2026-10-03 (policy review, Academic Code §5.1 and §6.2.6), refined 2026-10-05 (policy review round 3, P3-ac-5a-1, option (a)): a leave semester is not a semester of enrollment, so a leave BEFORE the end of the eighth semester pushes the Oral Candidacy Exam and admission-to-candidacy deadline out, and every leave pushes the eight-year limit. Entered Fall 2022, on leave Fall 2024 and Spring 2025: the eighth semester of enrollment is Spring 2027 — two semesters after Spring 2026 — so on 2026-10-03 the row is still in progress and says why. (Until 2026-10-05 this fixture had the student enrolled all eight semesters and the leaves after them; such leaves no longer move the deadline — see phd-leave-after-eighth-semester.)",
+  "name": "phd-accommodation-birth-in-eighth-semester",
+  "description": "Policy review round 3, P3-ac-5a-1 (DGS 2026-10-05, option 1): an accommodation counts by the semester of the birth or adoption. Entered Fall 2022, enrolled every fall and spring through Spring 2026 (the eighth semester), a child born in Spring 2026, and the accommodation taken in Fall 2026 — 'immediately following the semester in which the birth … occurs', the student's choice (DGS Handbook §3.7.2). The birth is in the eighth semester, so the deadline for the Oral Candidacy Exam moves to the end of Fall 2026, and on 2026-10-03 the row is in progress.",
   "today": "2026-10-03",
   "rules": {
     "base": "default"
@@ -67,7 +67,7 @@
         "credits": 3,
         "term": {
           "season": "fall",
-          "year": 2025
+          "year": 2024
         },
         "grade": "A",
         "origin": "nd"
@@ -77,7 +77,7 @@
         "credits": 3,
         "term": {
           "season": "spring",
-          "year": 2026
+          "year": 2025
         },
         "grade": "A",
         "origin": "nd"
@@ -87,35 +87,31 @@
         "credits": 3,
         "term": {
           "season": "fall",
-          "year": 2026
+          "year": 2025
         },
-        "grade": "IP",
+        "grade": "A",
         "origin": "nd"
       },
       {
         "courseId": "CSE 60876",
         "credits": 3,
         "term": {
-          "season": "fall",
+          "season": "spring",
           "year": 2026
         },
-        "grade": "IP",
+        "grade": "A",
         "origin": "nd"
       }
     ],
-    "leaveSemesters": 2,
     "bachelorsAwarded": {
       "season": "spring",
       "year": 2022
     },
-    "leaveTerms": [
-      {
-        "season": "fall",
-        "year": 2024
-      },
+    "accommodationSemesters": 1,
+    "accommodationEventTerms": [
       {
         "season": "spring",
-        "year": 2025
+        "year": 2026
       }
     ]
   },
@@ -123,13 +119,13 @@
     "phd.candidacy": {
       "status": "in_progress",
       "detailIncludes": [
-        "Semester 8 is counted as semester 10 — extended by 2 semesters on an approved leave of absence before it"
+        "Semester 8 is counted as semester 9 — extended by 1 childbirth/adoption accommodation for a birth or adoption in or before it"
       ]
     },
     "phd.timeLimit": {
       "status": "in_progress",
       "detailIncludes": [
-        "extended by 2 semesters on an approved leave of absence"
+        "extended by 1 childbirth/adoption accommodation semester"
       ]
     }
   }

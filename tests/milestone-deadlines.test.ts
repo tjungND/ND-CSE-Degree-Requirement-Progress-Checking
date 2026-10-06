@@ -50,7 +50,7 @@ describe('every date in the card has its deadline', () => {
 
 describe('the same date the requirement row counts against', () => {
   it('Ph.D.: OCE, admission, research qualifier, qualifier and the eight years', () => {
-    const s = phdStudent({ entryTerm: fall(2024), leaveSemesters: 1, attestations: { qualifierExtensionSemesters: 1 } });
+    const s = phdStudent({ entryTerm: fall(2024), leaveSemesters: 1, leaveTerms: [{ season: 'spring', year: 2026 }], attestations: { qualifierExtensionSemesters: 1 } });
     const r = audit(s, rules, '2025-10-01');
     const row = (id: string) => r.requirements.find((x) => x.id === id)!.deadline!.date;
     const d = r.milestoneDeadlines!;

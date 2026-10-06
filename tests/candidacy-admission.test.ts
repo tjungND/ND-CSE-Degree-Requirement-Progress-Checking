@@ -193,10 +193,35 @@ describe('the eighth semester', () => {
     assert.equal(late.status, 'needs_dgs_review');
     assert.match(late.detail, /you may have been placed on probation \(Academic Code §5\.7\.3, Appendix A\.4\), and admission after the ninth semester risks the loss of Graduate School funding/);
   });
-  it('moves with an approved leave, as the OCE’s does', () => {
-    const { oce, admission } = rows(ready({}, { leaveSemesters: 1 }), '2027-01-15');
+  it('moves with an approved leave before the eighth semester, as the OCE’s does', () => {
+    const { oce, admission } = rows(ready({}, { leaveSemesters: 1, leaveTerms: [spring(2029)] }), '2027-01-15');
     assert.equal(admission.deadline?.label, oce.deadline?.label);
     assert.equal(admission.deadline?.label, 'Due by the end of Fall 2030 — semester 9 (approximate)');
+  });
+  // P3-ac-5a-1 (DGS 2026-10-05, option (a)): only a leave before the end of the
+  // eighth semester of enrollment moves the deadline; an accommodation counts by
+  // the semester of the birth or adoption (option 1).
+  it('a leave after the eighth semester, or one whose semester is not given, does not move it', () => {
+    const after = rows(ready({}, { leaveSemesters: 1, leaveTerms: [fall(2030)] }), '2027-01-15');
+    assert.equal(after.oce.deadline?.label, 'Due by the end of Spring 2030 — semester 8 (approximate)');
+    assert.match(after.oce.detail, /Not moved by the 1 leave semester after it: only a leave before the end of your eighth semester of enrollment, or an accommodation for a birth or adoption in or before it, moves this deadline/);
+    const unplaced = rows(ready({}, { leaveSemesters: 1 }), '2027-01-15');
+    assert.equal(unplaced.oce.deadline?.label, 'Due by the end of Spring 2030 — semester 8 (approximate)');
+    assert.match(unplaced.oce.detail, /Enter which semester your leave was under Your standing/);
+    // Its time limit moves either way.
+    assert.match(unplaced.report.requirements.find((x) => x.id === 'phd.timeLimit')!.detail, /extended by 1 semester on an approved leave of absence/);
+  });
+  it('an accommodation for a birth in the eighth semester moves it, even when taken in the ninth', () => {
+    const birthIn8 = rows(ready({}, { accommodationSemesters: 1, accommodationEventTerms: [spring(2030)] }), '2027-01-15');
+    assert.equal(birthIn8.oce.deadline?.label, 'Due by the end of Fall 2030 — semester 9 (approximate)');
+    assert.match(birthIn8.oce.detail, /Semester 8 is counted as semester 9 — extended by 1 childbirth\/adoption accommodation for a birth or adoption in or before it/);
+    const summerAfter = rows(ready({}, { accommodationSemesters: 1, accommodationEventTerms: [{ season: 'summer', year: 2030 }] }), '2027-01-15');
+    assert.equal(summerAfter.oce.deadline?.label, 'Due by the end of Spring 2030 — semester 8 (approximate)', 'a birth in the summer after the eighth semester is after it');
+  });
+  it('a leave before the eighth semester pushes it past the leave; leaves both sides count only the one before', () => {
+    const both = rows(ready({}, { leaveSemesters: 2, leaveTerms: [fall(2028), spring(2031)] }), '2027-01-15');
+    assert.equal(both.oce.deadline?.label, 'Due by the end of Fall 2030 — semester 9 (approximate)');
+    assert.match(both.oce.detail, /extended by 1 semester on an approved leave of absence before it/);
   });
 });
 

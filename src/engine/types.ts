@@ -425,6 +425,17 @@ export interface Student {
    * Handbook §3.7.2: "the accommodation extends it … by a semester"): each
    * adds a semester to the same two clocks (DGS 2026-10-03). */
   accommodationSemesters?: number;
+  /** Ph.D. only: which fall or spring semester each leave was, by position
+   * (null = not given yet). Only a leave before the end of the eighth semester
+   * of enrollment moves §4.5's OCE and admission-to-candidacy deadline (policy
+   * review round 3, P3-ac-5a-1; DGS 2026-10-05, option (a)); every leave still
+   * moves the eight-year limit. */
+  leaveTerms?: (Term | null)[];
+  /** Ph.D. only: the semester of the birth or adoption for each accommodation,
+   * by position (null = not given yet). An accommodation for a birth or
+   * adoption in or before the eighth semester moves that deadline, even when
+   * the accommodation semester is the one after (DGS 2026-10-05, option 1). */
+  accommodationEventTerms?: (Term | null)[];
   /** The student withdrew and was READMITTED in this term (Academic Code
    * §5.5, policy review 2026-10-03). The clocks keep the original entry term
    * ("from the time of matriculation"); coursework and milestones from before

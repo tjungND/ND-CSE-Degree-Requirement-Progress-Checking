@@ -175,6 +175,15 @@ function migrateExtensionBox(attestations: Record<string, unknown> | undefined):
   if (attestations['dualPlanApproved'] !== undefined && typeof attestations['dualPlanApproved'] !== 'boolean') delete attestations['dualPlanApproved'];
 }
 
+/** One term per leave or accommodation, by position (P3-ac-5a-1, 2026-10-05):
+ * a malformed slot becomes "not given yet" (null), and slots beyond the count
+ * are dropped. */
+function validTermSlots(raw: unknown, count: number | undefined): (Term | null)[] | undefined {
+  if (!Array.isArray(raw) || count === undefined || count === 0) return undefined;
+  const out = raw.slice(0, count).map((t) => (validTerm(t) ? { season: (t as Term).season, year: (t as Term).year } : null));
+  return out.some((t) => t !== null) ? out : undefined;
+}
+
 /** A small whole number of semesters (leaves, accommodations), or undefined. */
 function validSemesterCount(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 20 ? v : undefined;
@@ -399,6 +408,8 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     // answer — each kept only when well-formed.
     leaveSemesters: validSemesterCount(raw['leaveSemesters']),
     accommodationSemesters: validSemesterCount(raw['accommodationSemesters']),
+    leaveTerms: validTermSlots(raw['leaveTerms'], validSemesterCount(raw['leaveSemesters'])),
+    accommodationEventTerms: validTermSlots(raw['accommodationEventTerms'], validSemesterCount(raw['accommodationSemesters'])),
     readmittedTerm: validTerm(raw['readmittedTerm']) ? { season: (raw['readmittedTerm'] as Term).season, year: (raw['readmittedTerm'] as Term).year } : undefined,
     // 2026-10-04: the semester of graduation, and the 4+1 admission term —
     // each kept only when well-formed.

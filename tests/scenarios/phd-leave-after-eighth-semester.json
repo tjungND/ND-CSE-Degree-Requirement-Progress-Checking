@@ -1,6 +1,6 @@
 {
-  "name": "phd-leave-shifts-clocks",
-  "description": "DGS 2026-10-03 (policy review, Academic Code §5.1 and §6.2.6), refined 2026-10-05 (policy review round 3, P3-ac-5a-1, option (a)): a leave semester is not a semester of enrollment, so a leave BEFORE the end of the eighth semester pushes the Oral Candidacy Exam and admission-to-candidacy deadline out, and every leave pushes the eight-year limit. Entered Fall 2022, on leave Fall 2024 and Spring 2025: the eighth semester of enrollment is Spring 2027 — two semesters after Spring 2026 — so on 2026-10-03 the row is still in progress and says why. (Until 2026-10-05 this fixture had the student enrolled all eight semesters and the leaves after them; such leaves no longer move the deadline — see phd-leave-after-eighth-semester.)",
+  "name": "phd-leave-after-eighth-semester",
+  "description": "Policy review round 3, P3-ac-5a-1 (DGS 2026-10-05, option (a)): only a leave before the end of the eighth semester of enrollment moves the candidacy deadline. Entered Fall 2022 and enrolled every fall and spring through Spring 2026 (the eighth semester) without passing the Oral Candidacy Exam, then on leave in Fall 2026. Until 2026-10-05 the leave moved the deadline to the end of Fall 2026; Academic Code §6.2.8 counts the eighth semester of enrollment, which a later leave cannot change, so the OCE stays overdue since Spring 2026. The eight-year limit still moves.",
   "today": "2026-10-03",
   "rules": {
     "base": "default"
@@ -67,7 +67,7 @@
         "credits": 3,
         "term": {
           "season": "fall",
-          "year": 2025
+          "year": 2024
         },
         "grade": "A",
         "origin": "nd"
@@ -77,7 +77,7 @@
         "credits": 3,
         "term": {
           "season": "spring",
-          "year": 2026
+          "year": 2025
         },
         "grade": "A",
         "origin": "nd"
@@ -87,23 +87,23 @@
         "credits": 3,
         "term": {
           "season": "fall",
-          "year": 2026
+          "year": 2025
         },
-        "grade": "IP",
+        "grade": "A",
         "origin": "nd"
       },
       {
         "courseId": "CSE 60876",
         "credits": 3,
         "term": {
-          "season": "fall",
+          "season": "spring",
           "year": 2026
         },
-        "grade": "IP",
+        "grade": "A",
         "origin": "nd"
       }
     ],
-    "leaveSemesters": 2,
+    "leaveSemesters": 1,
     "bachelorsAwarded": {
       "season": "spring",
       "year": 2022
@@ -111,25 +111,21 @@
     "leaveTerms": [
       {
         "season": "fall",
-        "year": 2024
-      },
-      {
-        "season": "spring",
-        "year": 2025
+        "year": 2026
       }
     ]
   },
   "expect": {
     "phd.candidacy": {
-      "status": "in_progress",
+      "status": "unmet",
       "detailIncludes": [
-        "Semester 8 is counted as semester 10 — extended by 2 semesters on an approved leave of absence before it"
+        "Not moved by the 1 leave semester after it"
       ]
     },
     "phd.timeLimit": {
       "status": "in_progress",
       "detailIncludes": [
-        "extended by 2 semesters on an approved leave of absence"
+        "extended by 1 semester on an approved leave of absence"
       ]
     }
   }

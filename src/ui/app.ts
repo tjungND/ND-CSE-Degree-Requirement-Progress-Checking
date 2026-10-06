@@ -1173,11 +1173,43 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         onchange: (e) => {
           const raw = (e.target as HTMLInputElement).value.trim();
           const n = Number(raw);
-          update((s) => void (s[key] = raw === '' || !Number.isInteger(n) || n < 0 ? undefined : Math.min(20, n)));
+          update((s) => {
+            s[key] = raw === '' || !Number.isInteger(n) || n < 0 ? undefined : Math.min(20, n);
+            // Each leave's semester, each accommodation's birth or adoption semester — one slot per semester counted.
+            const slots = key === 'leaveSemesters' ? 'leaveTerms' : 'accommodationEventTerms';
+            const kept = (s[slots] ?? []).slice(0, s[key] ?? 0);
+            s[slots] = kept.some((t) => t !== null) ? kept : undefined;
+          });
         },
       });
       return el('div', { class: 'field' }, el('label', { class: 'label' }, label, input), policyFold(`clocks.${key}`, el('p', { class: 'hint field-hint' }, hint)));
     };
+    // Ph.D.: which semester each leave was, and the semester of each birth or
+    // adoption (policy review round 3, P3-ac-5a-1; DGS 2026-10-05: option (a),
+    // and option 1 for an accommodation taken the semester after) — only those
+    // before the end of the eighth semester move the candidacy deadline.
+    const slotPickers = (slots: 'leaveTerms' | 'accommodationEventTerms', count: number, label: (i: number) => string, seasons: readonly Season[]): HTMLElement | null => {
+      if (!phd || count === 0) return null;
+      return el(
+        'div',
+        { class: 'clock-slots' },
+        ...Array.from({ length: Math.min(count, 20) }, (_, i) =>
+          termPicker(`standing.${slots}.${i}`, label(i), student[slots]?.[i] ?? undefined, seasons, (t) =>
+            update((s) => {
+              const arr = Array.from({ length: Math.min(count, 20) }, (_, j) => s[slots]?.[j] ?? null);
+              arr[i] = t ?? null;
+              s[slots] = arr.some((x) => x !== null) ? arr : undefined;
+            }),
+          ),
+        ),
+      );
+    };
+    const leaveCount = student.leaveSemesters ?? 0;
+    const accommodationCount = student.accommodationSemesters ?? 0;
+    const unplacedSlots =
+      phd &&
+      ((leaveCount > 0 && Array.from({ length: leaveCount }, (_, i) => student.leaveTerms?.[i] ?? null).some((t) => t === null)) ||
+        (accommodationCount > 0 && Array.from({ length: accommodationCount }, (_, i) => student.accommodationEventTerms?.[i] ?? null).some((t) => t === null)));
     const readmitted = student.readmittedTerm;
     const reSeason = el('select', { 'aria-label': 'Readmitted — semester', 'data-key': 'standing.readmitted.season' });
     reSeason.append(...entrySeasonOptions(readmitted?.season ?? 'fall'));
@@ -1224,7 +1256,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return rareFold(
       'clocks',
       onFile.length > 0 ? `${summary} — on file: ${onFile.join(', ')}` : summary,
-      gapUnanswered,
+      gapUnanswered || unplacedSlots,
       el(
       'fieldset',
       { class: 'ft-terms clock-fields' },
@@ -1232,13 +1264,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       !leaveAsked ? null : count(
         'leaveSemesters',
         'Semesters on an approved leave of absence',
-        `Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves ${phd ? 'the eight-year limit (§4.3) and the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3)' : 'the five-year limit (§3.3)'} out by a semester (DGS Handbook §3.4, §3.7.2). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).`,
+        phd
+          ? 'Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves the eight-year limit (§4.3) out by a semester, and a leave before the end of your eighth semester of enrollment also moves the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3) — a later one cannot change which semester was the eighth (DGS Handbook §3.4, §3.7.2; DGS 2026-10-05). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).'
+          : 'Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves the five-year limit (§3.3) out by a semester (DGS Handbook §3.4, §3.7.2). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).',
       ),
+      !leaveAsked ? null : slotPickers('leaveTerms', leaveCount, (i) => `Leave semester${leaveCount > 1 ? ` ${i + 1}` : ''} — which semester`, ['fall', 'spring']),
       count(
         'accommodationSemesters',
         'Childbirth or adoption accommodation semesters',
-        `Semesters of the Graduate School’s childbirth and adoption accommodation (Academic Code §5.4): each extends ${phd ? 'the eight-year limit and the eighth-semester deadlines for the OCE and for admission to candidacy' : 'the five-year limit'} by a semester (DGS Handbook §3.7.2).`,
+        phd
+          ? 'Semesters of the Graduate School’s childbirth and adoption accommodation (Academic Code §5.4): each extends the eight-year limit by a semester, and one for a birth or adoption in or before your eighth semester of enrollment also extends the eighth-semester deadlines for the OCE and for admission to candidacy — even when you take it in the semester right after, as the policy lets you (DGS Handbook §3.7.2; DGS 2026-10-05).'
+          : 'Semesters of the Graduate School’s childbirth and adoption accommodation (Academic Code §5.4): each extends the five-year limit by a semester (DGS Handbook §3.7.2).',
       ),
+      slotPickers('accommodationEventTerms', accommodationCount, (i) => `Accommodation${accommodationCount > 1 ? ` ${i + 1}` : ''} — semester of the birth or adoption`, ['spring', 'summer', 'fall']),
       !leaveAsked ? null : el(
         'div',
         { class: 'field' },

@@ -456,3 +456,9 @@ not the app's:
     recommendation. The Graduate School's procedures say "the department chair, on the recommendation of a majority of
     the examiners, may authorize a retake" (DGS Handbook §10.5.2), and both need the Graduate School's approval. §4.5
     should name the same officer, or say the chair has delegated it to the DGS.
+21. **§4.5 — which leaves and accommodations move the eight-semester deadline.** §4.5 counts “eight semesters from the start of
+    the program” and says nothing about leaves or the childbirth/adoption accommodation; the Graduate School counts the “eighth
+    semester of enrollment” (Academic Code §6.2.8) and lets a student take the accommodation in the semester after the birth
+    (DGS Handbook §3.7.2). The DGS ruled on 2026-10-05: only a leave before the end of the eighth semester of enrollment moves
+    the deadline, and an accommodation moves it when the birth or adoption is in or before that semester, even if taken in the
+    semester after. The handbook should say so.

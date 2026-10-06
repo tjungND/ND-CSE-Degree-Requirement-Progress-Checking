@@ -1092,16 +1092,71 @@ function rcrRow(ctx: Ctx): RequirementResult {
   };
 }
 
-/** The eighth semester of enrollment, as both candidacy rows count it: moved
- * out by every semester of approved leave or accommodation (DGS 2026-10-03;
- * Academic Code §6.2.8 counts "semester of enrollment"), and by one more for
- * the COVID cohort (DGS 2026-10-03, Item 15: "apply the 1-year extension if
- * the admission is in Spring 2020 or before"; Appendix A.4 itself extends only
- * the exam — "by the end of the ninth semester"). */
-export function eighthSemester(ctx: Ctx, sem: number): { effectiveSem: number; term: Term; date: string } {
-  const effectiveSem = sem + ctx.clockShift + (ctx.covidCohort ? 1 : 0);
+/** What moved the eighth semester, and what did not (policy review round 3,
+ * P3-ac-5a-1; DGS 2026-10-05). */
+export interface EighthSemesterShift {
+  /** Leave semesters before it: not semesters of enrollment, so it comes later. */
+  leavesBefore: number;
+  /** Leave semesters entered after it — they do not move it. */
+  leavesAfter: number;
+  /** Leave semesters whose semester is not given yet — not counted until it is. */
+  leavesUnplaced: number;
+  /** Accommodations for a birth or adoption in or before it — one semester each. */
+  accommodationsBy: number;
+  /** Accommodations for a birth or adoption after it — they do not move it. */
+  accommodationsAfter: number;
+  /** Accommodations whose birth or adoption semester is not given yet. */
+  accommodationsUnplaced: number;
+}
+
+/** The eighth semester of enrollment, as both candidacy rows count it
+ * (Academic Code §6.2.8: "by no later than the student's eighth semester of
+ * enrollment"; CSE §4.5).
+ *
+ * DGS 2026-10-05 (policy review round 3, P3-ac-5a-1, option (a)), refining
+ * 2026-10-03 Item 17: only a leave or an accommodation BEFORE the end of the
+ * eighth semester moves it. A leave semester is not a semester of enrollment,
+ * so the eighth is counted past it; a leave after the eighth cannot change
+ * which semester that was. An accommodation adds a semester when its birth or
+ * adoption is in or before the eighth semester — even when the student takes
+ * the accommodation in the semester right after, as DGS Handbook §3.7.2 lets
+ * them ("during or immediately following the semester in which the birth or
+ * adoption occurs … The choice of the semester is the student's"; DGS: option
+ * 1). A leave or accommodation whose semester is not given yet is not counted
+ * (the earlier deadline is the safe mistake); the rows ask for it. The COVID
+ * cohort adds one more (DGS 2026-10-03, Item 15; Appendix A.4 extends the exam
+ * "by the end of the ninth semester"). The eight-year limit still moves for
+ * every leave and accommodation semester (context.ts timeLimitDate). */
+export function eighthSemester(ctx: Ctx, sem: number): { effectiveSem: number; term: Term; date: string; shift: EighthSemesterShift } {
+  const s = ctx.student;
+  const leaveCount = Math.max(0, Math.floor(s.leaveSemesters ?? 0));
+  const placedLeaves = (s.leaveTerms ?? []).slice(0, leaveCount).filter((t): t is Term => t !== null && t !== undefined && t.season !== 'summer');
+  const leaveSeqs = new Set(placedLeaves.filter((t) => semesterNumber(ctx.entry, t) >= 1).map((t) => semesterNumber(ctx.entry, t)));
+  // Walk the fall and spring semesters from entry, skipping the leaves, to the eighth enrolled one.
+  let n = 0;
+  for (let enrolled = 0; enrolled < sem; ) {
+    n += 1;
+    if (!leaveSeqs.has(n)) enrolled += 1;
+  }
+  const eighth = nthSemester(ctx.entry, n);
+  const accommodationCount = Math.max(0, Math.floor(s.accommodationSemesters ?? 0));
+  const events = (s.accommodationEventTerms ?? []).slice(0, accommodationCount).filter((t): t is Term => t !== null && t !== undefined);
+  const accommodationsBy = events.filter((t) => compareTerm(t, eighth) <= 0).length;
+  const effectiveSem = n + accommodationsBy + (ctx.covidCohort ? 1 : 0);
   const term = nthSemester(ctx.entry, effectiveSem);
-  return { effectiveSem, term, date: endOfTerm(term).date };
+  return {
+    effectiveSem,
+    term,
+    date: endOfTerm(term).date,
+    shift: {
+      leavesBefore: n - sem,
+      leavesAfter: leaveSeqs.size - (n - sem),
+      leavesUnplaced: leaveCount - placedLeaves.length,
+      accommodationsBy,
+      accommodationsAfter: events.length - accommodationsBy,
+      accommodationsUnplaced: accommodationCount - events.length,
+    },
+  };
 }
 
 /** Whose eighth semester, and what moved it — the notes both candidacy rows
@@ -1131,8 +1186,34 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
           ? `Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — the MSCSE you finished before it does not count toward the eight (§4.5)`
           : `Semesters are counted from ${termLabel(ctx.entry)}, your Ph.D. entry — as for the Oral Candidacy Exam (OCE), the MSCSE you finished before it is not counted`,
     });
-  const shift = clockShiftNote(ctx);
-  if (shift !== '' && open) parts.push({ note: `Semester ${sem} is counted as semester ${effectiveSem}${shift}` });
+  if (!open) return parts;
+  // What moved it, what did not, and what is still to be said (P3-ac-5a-1, DGS 2026-10-05).
+  const { shift } = eighthSemester(ctx, sem);
+  const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+  const moved = [
+    ...(shift.leavesBefore > 0 ? [`${many(shift.leavesBefore, 'semester', 'semesters')} on an approved leave of absence before it`] : []),
+    ...(shift.accommodationsBy > 0 ? [`${many(shift.accommodationsBy, 'childbirth/adoption accommodation', 'childbirth/adoption accommodations')} for a birth or adoption in or before it`] : []),
+    ...(ctx.covidCohort ? ['one year for students enrolled in Spring 2020 (Academic Code Appendix A)'] : []),
+  ];
+  if (moved.length > 0) parts.push({ note: `Semester ${sem} is counted as semester ${effectiveSem} — extended by ${moved.join(' and ')}` });
+  const after = [
+    ...(shift.leavesAfter > 0 ? [`the ${many(shift.leavesAfter, 'leave semester', 'leave semesters')} after it`] : []),
+    ...(shift.accommodationsAfter > 0 ? [`the ${many(shift.accommodationsAfter, 'accommodation', 'accommodations')} for a birth or adoption after it`] : []),
+  ];
+  if (after.length > 0) {
+    parts.push({
+      note: `Not moved by ${after.join(' or ')}: only a leave before the end of your eighth semester of enrollment, or an accommodation for a birth or adoption in or before it, moves this deadline (DGS 2026-10-05); every one still extends the eight-year limit`,
+    });
+  }
+  const unplaced = [
+    ...(shift.leavesUnplaced > 0 ? [`which semester ${shift.leavesUnplaced === 1 ? 'your leave was' : `each of ${shift.leavesUnplaced} leave semesters was`}`] : []),
+    ...(shift.accommodationsUnplaced > 0 ? [`the semester of the birth or adoption for ${shift.accommodationsUnplaced === 1 ? 'your accommodation' : `each of ${shift.accommodationsUnplaced} accommodations`}`] : []),
+  ];
+  if (unplaced.length > 0) {
+    parts.push({
+      note: `Enter ${unplaced.join(', and ')} under Your standing: only a leave before the end of your eighth semester, or an accommodation for a birth or adoption in or before it, moves this deadline, so until then ${shift.leavesUnplaced + shift.accommodationsUnplaced === 1 ? 'it is' : 'they are'} not counted here`,
+    });
+  }
   return parts;
 }
 
@@ -1643,7 +1724,8 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
   // against its own (sheet) deadline, or a missing date or parameter.
   const isNote = (p: DetailPart): p is { note: string } => typeof p === 'object' && 'note' in p;
   const oceParts = merged.oce.detailParts ?? (merged.oce.detail ? [merged.oce.detail] : []);
-  const oceNotes = oceParts.filter(isNote).filter((p) => !/^(Passing the Oral Candidacy Exam \(OCE\) is one of the conditions|Semesters are counted from|Semester \d+ is counted as)/.test(p.note));
+  // (The eighth semester's own notes — what moved it, what did not, what is still to be entered — are the admission row's too, P3-ac-5a-1.)
+  const oceNotes = oceParts.filter(isNote).filter((p) => !/^(Passing the Oral Candidacy Exam \(OCE\) is one of the conditions|Semesters are counted from|Semester \d+ is counted as|Not moved by |Enter (which semester|the semester of the birth))/.test(p.note));
   const rcrNotes = (merged.rcr.detailParts ?? []).filter(isNote);
   let deadline = r.deadline;
   if (merged.oce.status === 'cannot_evaluate') {
