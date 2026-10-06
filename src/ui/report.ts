@@ -586,6 +586,84 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
   return panel;
 }
 
+/** The requirement rows the Next steps list names, most urgent first — the
+ * list's choice, kept pure so tests can pin it (policy review round 3,
+ * P3-chg-phd-2: attentionList had no test). `covered` = the rows a numbered
+ * step already covers (the advisor, the transfer and approvals rows), which
+ * are not listed a second time. */
+export function attentionRows(report: AuditReport, covered: ReadonlySet<string> = new Set()): RequirementResult[] {
+  // Ranked by URGENCY, not by status (blue-team B5, 2026-09-18). Filtering on
+  // status alone put "Dissertation defense passed" — years away — above the
+  // research qualifier due in eighteen months, and left the qualifying
+  // examination out altogether because it classifies as in_progress.
+  const ORDER: Status[] = ['cannot_evaluate', 'needs_dgs_review', 'unmet'];
+  /** Rows nothing can be done about yet. Most say so in their own detail — the
+   * engine writes "Not yet available: …" wherever a requirement names its own
+   * precondition. The dissertation defense does not, so it is named here: a
+   * student cannot defend a dissertation before the §4.5 candidacy exam it
+   * comes after — nor be admitted to candidacy before it (DGS 2026-10-04).
+   * (The readers' approval was a row here too until it was removed on
+   * 2026-10-04.) This is a PRESENTATION judgement about what belongs on a
+   * to-do list, not a rule — the rows stay in the report, with their
+   * verdicts unchanged. */
+  const AFTER_CANDIDACY = ['phd.dissertation.defense'];
+  // The final submission comes after the defense (Academic Code §6.2.12,
+  // §6.1.8; §4.7, §3.4): its row reads "Not started" (status unmet) exactly
+  // while the defense is undated, and is no step until then — it used to sit
+  // on every Ph.D. student's list, first semester included (policy review
+  // round 3, P3-chg-phd-2; DGS 2026-10-06). Once the defense is dated the row
+  // is in progress and follows the ordinary rules.
+  const AFTER_DEFENSE = ['phd.dissertation.submitted', 'ms.thesis.submitted'];
+  const candidacyPassed = report.requirements.some((r) => r.id === 'phd.candidacy' && r.status === 'met');
+  // Admission waits only for the OCE to be DATED: a late pass (or one the DGS
+  // must confirm for coursework) still leaves the application to make — as the
+  // advisor summary and the processing request say (2026-10-04).
+  const oceOpen = report.requirements.some((r) => r.id === 'phd.candidacy' && (r.status === 'in_progress' || r.status === 'unmet'));
+  const unreachable = (r: RequirementResult): boolean =>
+    /^(?:Not yet available:|You can take the exam once)/.test(r.detail) ||
+    (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed) ||
+    (AFTER_DEFENSE.includes(r.id) && r.status === 'unmet') ||
+    (r.id === 'phd.candidacyAdmission' && oceOpen);
+  // The OCE's own row is merged into the admission card and unscored (DGS
+  // 2026-10-04), so the filter below dropped it — and while it is open the
+  // admission row is held back too, so an overdue OCE, a probation and
+  // funding trigger (Academic Code §6.2.8), was on nobody's list. An OCE
+  // overdue or due this or next semester is listed itself, linking into the
+  // merged card; admission still waits for a dated OCE (P3-chg-phd-2).
+  const oceDue = (r: RequirementResult): boolean =>
+    r.id === 'phd.candidacy' && r.status !== 'met' && (r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue');
+  const DEADLINE_RANK: Record<string, number> = { overdue: 0, due_soon: 1, upcoming: 3, done: 4 };
+  const rank = (r: RequirementResult): number => {
+    const byDeadline = r.deadline ? DEADLINE_RANK[r.deadline.state] ?? 3 : undefined;
+    // A missing input the student can supply today still comes first: it is the
+    // one thing on the page that is entirely theirs to fix.
+    if (r.status === 'cannot_evaluate') return -1;
+    return byDeadline ?? 2 + ORDER.indexOf(r.status) / 10;
+  };
+  return report.requirements
+    .filter((r) => {
+      if (r.informational || (r.unscored && !oceDue(r)) || unreachable(r) || covered.has(r.id)) return false;
+      // Actions, not progress (DGS 2026-09-27): a credit threshold that is
+      // simply not reached yet leaves — the meters show it — unless its
+      // deadline is close; a missing input, a decision waiting, a passed or
+      // near deadline, and anything the page cannot evaluate stay.
+      if (r.status === 'unmet' && r.progress && !(r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue')) return false;
+      if (ORDER.includes(r.status)) return true;
+      // …and an in_progress row whose deadline is close is exactly what the
+      // student needs to see, whatever its status says (B5).
+      return r.status === 'in_progress' && (r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue');
+    })
+    .sort((a, b) => {
+      const d = rank(a) - rank(b);
+      if (d !== 0) return d;
+      // Same urgency: the nearer date first, then the report's own order.
+      const da = a.deadline?.date ?? '';
+      const db = b.deadline?.date ?? '';
+      if (da && db && da !== db) return da < db ? -1 : 1;
+      return ORDER.indexOf(a.status) - ORDER.indexOf(b.status);
+    });
+}
+
 /** "Needs your attention": the rows a student must act on, first — not met,
  * needing a DGS decision, or missing an input — each linking to its card with
  * the card's first sentence as the next step (usability review 2026-09-05,
@@ -610,61 +688,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
       el('ul', {}, ...counted.map((r) => el('li', {}, el('a', { href: `#${reqAnchorId(r.id)}` }, r.title)))),
     );
   }
-  // Ranked by URGENCY, not by status (blue-team B5, 2026-09-18). Filtering on
-  // status alone put "Dissertation defense passed" — years away — above the
-  // research qualifier due in eighteen months, and left the qualifying
-  // examination out altogether because it classifies as in_progress.
-  const ORDER: Status[] = ['cannot_evaluate', 'needs_dgs_review', 'unmet'];
-  /** Rows nothing can be done about yet. Most say so in their own detail — the
-   * engine writes "Not yet available: …" wherever a requirement names its own
-   * precondition. The dissertation defense does not, so it is named here: a
-   * student cannot defend a dissertation before the §4.5 candidacy exam it
-   * comes after — nor be admitted to candidacy before it (DGS 2026-10-04).
-   * (The readers' approval was a row here too until it was removed on
-   * 2026-10-04.) This is a PRESENTATION judgement about what belongs on a
-   * to-do list, not a rule — the rows stay in the report, with their
-   * verdicts unchanged. */
-  const AFTER_CANDIDACY = ['phd.dissertation.defense'];
-  const candidacyPassed = report.requirements.some((r) => r.id === 'phd.candidacy' && r.status === 'met');
-  // Admission waits only for the OCE to be DATED: a late pass (or one the DGS
-  // must confirm for coursework) still leaves the application to make — as the
-  // advisor summary and the processing request say (2026-10-04).
-  const oceOpen = report.requirements.some((r) => r.id === 'phd.candidacy' && (r.status === 'in_progress' || r.status === 'unmet'));
-  const unreachable = (r: RequirementResult): boolean =>
-    /^(?:Not yet available:|You can take the exam once)/.test(r.detail) || (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed) || (r.id === 'phd.candidacyAdmission' && oceOpen);
-  const DEADLINE_RANK: Record<string, number> = { overdue: 0, due_soon: 1, upcoming: 3, done: 4 };
-  const rank = (r: RequirementResult): number => {
-    const byDeadline = r.deadline ? DEADLINE_RANK[r.deadline.state] ?? 3 : undefined;
-    // A missing input the student can supply today still comes first: it is the
-    // one thing on the page that is entirely theirs to fix.
-    if (r.status === 'cannot_evaluate') return -1;
-    return byDeadline ?? 2 + ORDER.indexOf(r.status) / 10;
-  };
-  // A row a numbered step already covers (the advisor, the transfer and
-  // approvals rows) is not listed a second time.
-  const covered = new Set((currentNext?.steps ?? []).flatMap((s) => s.covers ?? []));
-  const rows = report.requirements
-    .filter((r) => {
-      if (r.informational || r.unscored || unreachable(r) || covered.has(r.id)) return false;
-      // Actions, not progress (DGS 2026-09-27): a credit threshold that is
-      // simply not reached yet leaves — the meters show it — unless its
-      // deadline is close; a missing input, a decision waiting, a passed or
-      // near deadline, and anything the page cannot evaluate stay.
-      if (r.status === 'unmet' && r.progress && !(r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue')) return false;
-      if (ORDER.includes(r.status)) return true;
-      // …and an in_progress row whose deadline is close is exactly what the
-      // student needs to see, whatever its status says (B5).
-      return r.status === 'in_progress' && (r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue');
-    })
-    .sort((a, b) => {
-      const d = rank(a) - rank(b);
-      if (d !== 0) return d;
-      // Same urgency: the nearer date first, then the report's own order.
-      const da = a.deadline?.date ?? '';
-      const db = b.deadline?.date ?? '';
-      if (da && db && da !== db) return da < db ? -1 : 1;
-      return ORDER.indexOf(a.status) - ORDER.indexOf(b.status);
-    });
+  const rows = attentionRows(report, new Set((currentNext?.steps ?? []).flatMap((s) => s.covers ?? [])));
   const steps = currentNext?.steps ?? [];
   if (rows.length === 0 && steps.length === 0) {
     // Nothing to do: say so, with the nearest deadline (DGS 2026-09-27).

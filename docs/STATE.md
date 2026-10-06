@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — page; policy review round 3): **P3-chg-phd-2.** The Next steps list names an OCE that is overdue or due this or next semester (the merged OCE row was dropped as unscored), and no longer lists the final dissertation or thesis submission before its defense is dated. The list’s row choice is now the pure `attentionRows` in report.ts; tests/next-steps-attention.test.ts.
+
 2026-10-06 (DGS — engine; policy review round 3): **P3-chg-other-2.** A retake is a registration in its own semester for the semester-of-graduation check and the candidacy card’s “Registered this semester” line too, as the full-time record already had it: all three use residency.ts `sameTermDuplicate` (only a same-term duplicate is dropped). Scenario mscse-retake-in-graduation-semester (the scenario runner gained `expectGraduation`); tests/retake-registration.test.ts.
 
 2026-10-06 (DGS — wording; policy review round 3): **P3-cross-doc-4.** An open Incomplete’s course line states Academic Code §4.4’s rule — finish the work within 30 calendar days of the date grades were due, then 14 days for the instructor to report — instead of “complete the work by about” the instructor’s 44-day date (allocate.ts). The 44-day status is unchanged. Wording W-CL180 (replaces W-CL71’s Incomplete line); fixture phd-incomplete-open updated.
