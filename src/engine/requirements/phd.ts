@@ -1395,10 +1395,28 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
         last = p.course.entry.term;
       }
       const ipText = counted > 0 ? `, ${formatCredits(counted)} in progress` : '';
+      // Credits waiting for the DGS's decision (policy review round 3,
+      // P3-chg-phd-1; DGS 2026-10-06): they do not open the gate (2026-10-05),
+      // but they are not credits to take either — the card used to say "3 more
+      // needed" beside a Coursework card reading "3 pending review/approval".
+      // The shortfall is still counted without them (a "no" would leave it);
+      // the card names the decision first.
+      const pendingCourses = ctx.alloc.perCourse.filter((p) => !p.course.superseded && p.course.tier === 'provisional' && p.countedRegular > 0);
+      const pending = pendingCourses.reduce((n, p) => n + p.countedRegular, 0);
+      const pendingIds = [...new Set(pendingCourses.map((p) => p.course.entry.courseId))].join(', ');
+      const credits = (n: number) => `${formatCredits(n)} more regular-course ${n === 1 ? 'credit' : 'credits'}`;
       if (counted < need) {
         const more = need - counted;
-        missing.push(`${formatCredits(more)} more regular-course ${more === 1 ? 'credit' : 'credits'}`);
-        items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — ${formatCredits(more)} more needed (transferred regular-course credits count)`);
+        if (pending > 0 && pending >= more) {
+          missing.push(`the DGS’s decision on ${pendingIds}, or ${credits(more)}`);
+          items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText}, ${formatCredits(pending)} waiting for a DGS decision (${pendingIds}) — ${formatCredits(more)} more needed unless the DGS approves them (transferred regular-course credits count)`);
+        } else if (pending > 0) {
+          missing.push(`${credits(more - pending)}, and the DGS’s decision on ${pendingIds} or ${formatCredits(pending)} more`);
+          items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText}, ${formatCredits(pending)} waiting for a DGS decision (${pendingIds}) — ${formatCredits(more)} more needed, ${formatCredits(more - pending)} if the DGS approves them (transferred regular-course credits count)`);
+        } else {
+          missing.push(credits(more));
+          items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — ${formatCredits(more)} more needed (transferred regular-course credits count)`);
+        }
       } else {
         completes.push(last!);
         items.push(`Regular-course credits: ${formatCredits(definite)} of ${regularMin} complete${ipText} — complete at the end of ${termLabel(last!)} (transferred regular-course credits count)`);
@@ -1425,7 +1443,9 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
       }
       if (waitingForDgs(r)) {
         const which = r.pendingBy && r.pendingBy.length > 0 ? r.pendingBy.join(', ') : undefined;
-        missing.push(`the DGS’s decision on ${which ?? (core ? coreCourseNoun(r).replace(/^an? /, 'the ') : 'the specialization courses')}`);
+        // Said once when the regular-credit line already names the same decision.
+        const named = which !== undefined && missing.some((m) => m.includes('the DGS’s decision on') && which.split(', ').every((id) => m.includes(id)));
+        if (!named) missing.push(`the DGS’s decision on ${which ?? (core ? coreCourseNoun(r).replace(/^an? /, 'the ') : 'the specialization courses')}`);
         items.push(`${name}: waiting for the DGS${which ? ` (${which})` : ''}`);
         continue;
       }

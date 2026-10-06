@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — engine wording; policy review round 3): **P3-chg-phd-1.** The Not-started candidacy card names regular-course credits waiting for the DGS’s decision (“3 waiting for a DGS decision (CSE 40625) — 3 more needed unless the DGS approves them”; “still needed: the DGS’s decision on CSE 40625, or 3 more regular-course credits”) instead of asking for them as courses to take. Applied together with the DGS’s gate ruling. tests/oce-gate-pending.test.ts. Wording W-CL187.
+
 2026-10-06 (DGS — engine): **The OCE gate waits for the DGS on a core area too.** A core area or the specialization met only by a course awaiting the DGS’s ruling no longer opens the gate (phd.ts `oceReadiness`): the candidacy card stays Not started and names the decision. DGS: “Treat both as not done” (the question raised with P3-chg-phd-1). tests/oce-gate-pending.test.ts. Wording W-CL186.
 
 2026-10-06 (DGS — page): **Group headings spell out the OCE.** The report’s group headings are exempt from the first-mention rule (first-mention.ts skips `.group-head`), so the heading over the candidacy cards reads “Oral Candidacy Exam (OCE) and candidacy”. The app suite’s first-mention check counts the heading separately. Wording W-CL185.
