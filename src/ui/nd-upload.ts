@@ -11,6 +11,7 @@ import { findExternalRule } from '../data/external.ts';
 import type { Rules } from '../data/types.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
+import { beforeProgramStart, isEarlyStartCourse, type EarlyStartFacts } from '../engine/early-start.ts';
 import { GRADE_POINTS } from '../engine/grades.ts';
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../engine/ranges.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
@@ -129,6 +130,10 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
       // student.
       const entry = parsed.entryTerm?.term ?? args.student.entryTerm;
       const bsTerm = bachelorsTermFor(parsed.degreesAwarded, args.student);
+      // Before the program began — the early-start summer just before a fall
+      // entry is the program's own (P3-chg-other-1; DGS 2026-10-05).
+      const startFacts = startFactsFor(entry, parsed.degreesAwarded, args.student);
+      const beforeStart = (c: ParsedCourse): boolean => beforeProgramStart({ term: c.term, registeredLevel: c.level }, startFacts);
       const qualifierApplies = args.student.program === 'phd';
       const irrelevantPrior = parsed.courses.map((c) => {
         // (b): credit on the undergraduate record's transfer block — AP or
@@ -136,7 +141,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
         // graduate transfer credit; it starts unticked unless its title could
         // show a §4.4.1 core area (P3-import-1, 2026-10-05).
         if (c.origin === 'transfer') return c.level === 'undergraduate' && !(qualifierApplies && CORE_TITLE_RE.test(c.title ?? ''));
-        if (c.origin !== 'nd' || termIndex(c.term) >= termIndex(entry)) return false;
+        if (c.origin !== 'nd' || !beforeStart(c)) return false;
         const rule = resolveRuleRow(args.rules, c.courseId, c.term);
         return (
           priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bsTerm) === 'bachelors' &&
@@ -153,7 +158,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
       // program alone are averaged too and the student chooses (the
       // transcript's figure is the default — it is what the registrar and
       // the Graduate School compute; docs/DECISIONS.md 2026-09-05).
-      const programGpa = gpaOfProgramCourses(parsed.courses, entry);
+      const programGpa = gpaOfProgramCourses(parsed.courses, startFacts);
       // A figure misread off the page is not offered at all (R1,
       // 2026-09-18): the preview's GPA control is the one place a number
       // the student never typed can reach §2.2, so a reading off the 4.00
@@ -167,7 +172,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
             ]
           : [];
       const earlierGraduateWork = parsed.courses.some(
-        (c) => c.origin === 'nd' && termIndex(c.term) < termIndex(entry) && c.level === 'graduate' && GRADE_POINTS[c.grade] !== undefined,
+        (c) => c.origin === 'nd' && beforeStart(c) && c.level === 'graduate' && GRADE_POINTS[c.grade] !== undefined,
       );
       transcriptPreview = {
         courses: parsed.courses,
@@ -338,16 +343,26 @@ const bachelorsTermFor = (degrees: DegreeAwarded[], student: Student): Term | un
   return bs && bachelorsMayBeSet(student) ? bs.term : student.bachelorsAwarded;
 };
 
+/** What the early-start test reads (P3-chg-other-1; engine/early-start.ts),
+ * as THIS transcript states it: its entry term, its bachelor's award term and
+ * its dated degree lines — the facts the add below writes to the record. */
+const startFactsFor = (entry: Term, degrees: DegreeAwarded[], student: Student): EarlyStartFacts => ({
+  entryTerm: entry,
+  bachelorsAwarded: bachelorsTermFor(degrees, student),
+  ndDegrees: degrees.filter((d) => d.date !== undefined && d.level !== 'other').map((d) => ({ date: d.date! })),
+  ndMasters: student.ndMasters,
+});
+
 /** Credit-weighted GPA of the graded Notre Dame courses from the entry term
  * on — this program's courses only (letter grades; S/U and in-progress rows
  * carry no points; an Incomplete counts as 0.000 until it is removed,
  * Academic Code §4.3 — GRADE_POINTS carries that). Undefined when nothing is
  * graded yet. Information only since 2026-10-03: §2.2 reads the registrar's figure. */
-function gpaOfProgramCourses(courses: ParsedCourse[], entry: Term): number | undefined {
+function gpaOfProgramCourses(courses: ParsedCourse[], start: EarlyStartFacts): number | undefined {
   let points = 0;
   let hours = 0;
   for (const c of courses) {
-    if (c.origin !== 'nd' || termIndex(c.term) < termIndex(entry) || c.level === 'undergraduate') continue;
+    if (c.origin !== 'nd' || beforeProgramStart({ term: c.term, registeredLevel: c.level }, start) || c.level === 'undergraduate') continue;
     const p = GRADE_POINTS[c.grade];
     if (p === undefined || c.credits <= 0) continue;
     points += p * c.credits;
@@ -362,7 +377,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
   // The entry term the split below is judged against: the transcript's
   // reading while its checkbox is ticked, otherwise the standing card's.
   const entry = tp.useEntryTerm && tp.entryTerm ? tp.entryTerm.term : args.student.entryTerm;
-  const priorCount = tp.courses.filter((c) => c.origin === 'nd' && termIndex(c.term) < termIndex(entry)).length;
+  const startFacts = startFactsFor(entry, tp.degreesAwarded, args.student);
+  const beforeStart = (c: ParsedCourse): boolean => beforeProgramStart({ term: c.term, registeredLevel: c.level }, startFacts);
+  const priorCount = tp.courses.filter((c) => c.origin === 'nd' && beforeStart(c)).length;
   box.append(
     // The heading asks for the check a student can do — is each row read
     // right? — not for a verdict (clarity review 2026-09-26): what counts is
@@ -464,7 +481,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
       },
     });
     cb.checked = tp.selected[i]!;
-    const prior = c.origin === 'nd' && termIndex(c.term) < termIndex(entry);
+    const prior = c.origin === 'nd' && beforeStart(c);
+    // The early-start summer (P3-chg-other-1): dated before the entry term, yet this program's.
+    const earlyStart = c.origin === 'nd' && isEarlyStartCourse({ term: c.term, registeredLevel: c.level }, startFacts);
     const twin = twinOfBlockRow(args.student, c);
     const note = tp.duplicate[i]
       ? twin
@@ -479,7 +498,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
             : 'transfer credit on your Notre Dame record — the transcript does not show its level, so the DGS confirms it'
         : prior
           ? `taken before ${termLabel(entry)}, as ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student)) === 'bachelors' ? 'an undergraduate' : args.student.ndMasters !== undefined ? 'an MSCSE student' : 'a graduate student'}`
-          : '';
+          : earlyStart
+            ? `your early start, the summer before ${termLabel(entry)} — this program’s coursework`
+            : '';
     table.append(
       el(
         'tr',
@@ -628,8 +649,6 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
       const twin = twinOfBlockRow(s, c);
       if (twin && twin.ndPosted === undefined) twin.ndPosted = postingOf(c);
     }
-    // Pre-entry Notre Dame courses → prior coursework (2026-09-05).
-    priorAdded = reclassifyNotreDameCourses(s).toPrior;
     // A Notre Dame master's degree awarded BEFORE this program is
     // one the student already holds (DGS 2026-09-09) — §4.5's
     // along-the-way MSCSE is then not something to earn, and the
@@ -637,10 +656,15 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
     // term is the along-the-way award itself, so the date decides;
     // an undated conferral line leaves the checkbox to the student.
     // Kept on the record so the reading can be made again when the
-    // entry term changes — which for a 4+1 it usually does.
+    // entry term changes — which for a 4+1 it usually does. Set
+    // before the filing below: a degree awarded in the summer just
+    // before a fall entry keeps that summer's courses with the degree
+    // they finished, not the early start (P3-chg-other-1, 2026-10-05).
     s.ndDegrees = tp.degreesAwarded
       .filter((d) => d.date !== undefined && d.level !== 'other')
       .map((d) => ({ level: d.level as 'bachelors' | 'masters' | 'phd', date: d.date! }));
+    // Pre-entry Notre Dame courses → prior coursework (2026-09-05).
+    priorAdded = reclassifyNotreDameCourses(s).toPrior;
     if (s.background === undefined) deriveNdMasters(s); // an answered background settles this (2026-09-22)
     ndMastersSet = s.background === undefined && s.ndMasters !== undefined;
     // Prior GRADUATE coursework at Notre Dame sets "Prior graduate

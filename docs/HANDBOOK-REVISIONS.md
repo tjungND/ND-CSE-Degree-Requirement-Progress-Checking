@@ -462,3 +462,8 @@ not the app's:
     (DGS Handbook §3.7.2). The DGS ruled on 2026-10-05: only a leave before the end of the eighth semester of enrollment moves
     the deadline, and an accommodation moves it when the birth or adoption is in or before that semester, even if taken in the
     semester after. The handbook should say so.
+22. **§3.2 / §4.2 — an early start’s summer courses.** Admissions are in fall and spring, and the Graduate School treats a
+    full-time admit who starts in the summer as a full-time student that summer (Academic Code §3.6). The handbook does not
+    say whether the courses of that summer count toward the degree, or that the clocks and residency still start in the fall.
+    The DGS ruled on 2026-10-05 that they count as the program’s coursework, while every clock, the §5.2 window and residency
+    run from the fall (policy review round 3, P3-chg-other-1). §3.2 and §4.2 should say so in a sentence.

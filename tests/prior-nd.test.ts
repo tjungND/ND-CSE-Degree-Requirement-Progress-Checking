@@ -41,7 +41,7 @@ describe('prior Notre Dame coursework', () => {
       ],
     };
     assert.deepEqual(reclassifyNotreDameCourses(student), { toPrior: 2, toProgram: 0 });
-    const prior = student.courses.filter((c) => isPriorNd(c, student.entryTerm));
+    const prior = student.courses.filter((c) => isPriorNd(c, student));
     assert.deepEqual(
       prior.map((c) => [c.courseId, c.origin, c.institution, c.degreeLevel]),
       [

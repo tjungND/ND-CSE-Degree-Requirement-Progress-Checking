@@ -9,7 +9,10 @@
 // at Notre Dame in an earlier program — an undergraduate degree on a combined
 // transcript — are not residence in this one. (A transcript import already
 // files pre-entry courses as prior coursework; this guard covers courses
-// entered by hand and entry terms changed afterwards.)
+// entered by hand and entry terms changed afterwards.) The early-start summer
+// just before a fall entry stays outside too: its courses are the program's
+// (P3-chg-other-1; DGS 2026-10-05, option (a)), but residence runs from the
+// fall (DGS 2026-10-04: a summer before the official fall entry is not residence).
 import { levelOf } from '../allocate.ts';
 import { compareTerm, semesterSeq, termIndex } from '../term.ts';
 import { termLabel } from '../term.ts';

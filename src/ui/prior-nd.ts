@@ -11,13 +11,16 @@
 // counts, and for a Notre Dame course the Courses tab already says which area.
 //
 // So a Notre Dame course dated before the entry term is filed as PRIOR
-// COURSEWORK: origin 'transfer', institution "University of Notre Dame",
+// COURSEWORK — except a course of the EARLY-START summer just before a fall
+// entry, which is this program's own (P3-chg-other-1, DGS 2026-10-05;
+// engine/early-start.ts): origin 'transfer', institution "University of Notre Dame",
 // degreeLevel from the level the student was registered at (the transcript's
 // UG/GR column, kept as `registeredLevel`; else the bachelor's award term
 // when known (2026-09-06); the course number as a last resort).
 // The sort is redone whenever the entry term changes, so correcting the
 // dropdown re-files the courses without a re-import. Pure functions — no DOM.
 import { NOTRE_DAME, isNotreDameInstitution } from '../data/external.ts';
+import { beforeProgramStart, isEarlyStartCourse } from '../engine/early-start.ts';
 import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { CourseEntry, Student, Term } from '../engine/types.ts';
 import { levelFromNumber } from '../transcript/parse.ts';
@@ -50,7 +53,7 @@ export function hasPriorGraduateStudy(student: Student): boolean {
   return student.courses.some((c) => {
     if (c.origin !== 'transfer' || c.degreeLevel === 'bachelors' || c.degreeLevel === undefined) return false;
     if (!isNotreDameCourse(c)) return true; // another university's graduate transcript
-    if (!isPriorNd(c, student.entryTerm)) return false;
+    if (!isPriorNd(c, student)) return false;
     const awarded = student.bachelorsAwarded;
     return awarded === undefined || termIndex(c.term) > termIndex(awarded);
   });
@@ -94,6 +97,13 @@ export function deriveNdMasters(student: Student): boolean {
  * themselves is never touched — only the untouched default and a value this
  * function or an import inferred. Returns true when it changed something. */
 export function derivePriorMs(student: Student): boolean {
+  // An answered earlier-degrees question settles it (2026-09-22) — including
+  // its "none", which the line below cannot tell from the untouched default.
+  // The import and the entry-term control checked this before calling; adding
+  // a course by hand and setting the bachelor's term did not, so one pre-entry
+  // course turned an answered "none" into an unfinished prior master's
+  // (policy review round 3, P3-chg-other-1's cse-3 variant, 2026-10-05).
+  if (student.background !== undefined) return false;
   if (student.priorMs !== 'none' && student.priorMsInferred !== true) return false; // their own answer
   const before = student.priorMs;
   if (hasPriorGraduateStudy(student)) {
@@ -125,13 +135,59 @@ export function isNotreDameCourse(c: CourseEntry): boolean {
   return c.origin === 'nd' || (c.origin === 'transfer' && isNotreDameInstitution(c.institution));
 }
 
-/** Prior Notre Dame coursework: a Notre Dame course dated before `entry`. */
-export function isPriorNd(c: CourseEntry, entry: Term): boolean {
-  return isNotreDameCourse(c) && termIndex(c.term) < termIndex(entry);
+/** Prior Notre Dame coursework: a Notre Dame course dated before the program
+ * began — before the entry term, but not in the early-start summer just before
+ * a fall entry (P3-chg-other-1; DGS 2026-10-05, option (a)). */
+export function isPriorNd(c: CourseEntry, student: Pick<Student, 'entryTerm' | 'bachelorsAwarded' | 'ndDegrees' | 'ndMasters'>): boolean {
+  return isNotreDameCourse(c) && beforeProgramStart(c, student);
+}
+
+/** "Prior graduate study" as the earlier-degrees answer sets it (applyBackground
+ * in background.ts): a graduate degree elsewhere, or at Notre Dame in another
+ * department (2026-10-03), is a prior program under §5.2 — finished or not;
+ * the CSE MSCSE, a 4+1 and a move from the MSCSE are not. */
+export function priorMsOfBackground(b: NonNullable<Student['background']>): Student['priorMs'] {
+  return b.graduate === 'elsewhere' || b.graduate === 'nd-other' ? (b.finished ? 'completed' : 'unfinished') : 'none';
+}
+
+/** An inferred "Prior graduate study" beside an ANSWERED earlier-degrees
+ * question gives way to the answer. Before 2026-10-06 adding a pre-entry Notre
+ * Dame course by hand, or setting the bachelor's term, ran derivePriorMs past
+ * the answer (P3-chg-other-1's cse-3 variant) — an answered "none" became an
+ * unfinished prior master's, and a Notre Dame MSCSE holder's became a finished
+ * one. Run when a saved record loads; returns true when it changed something. */
+export function settleAnsweredPriorMs(student: Student): boolean {
+  if (student.background === undefined || student.priorMsInferred !== true) return false;
+  student.priorMs = priorMsOfBackground(student.background);
+  student.priorMsInferred = undefined;
+  return true;
+}
+
+/** The early-start summer's Notre Dame rows that an earlier build filed as
+ * prior coursework, back into the program (P3-chg-other-1; DGS 2026-10-05).
+ * Run when a saved record loads. Only these rows move: any other row keeps
+ * the filing it was saved with — a loaded file's program row dated before the
+ * entry term is warned about, not re-filed (P2-dh-front-1-2-6). Rows of the
+ * transcript's transfer-credit block are another university's credit and are
+ * never touched. Returns how many rows moved. */
+export function refileEarlyStartCourses(student: Student): number {
+  let moved = 0;
+  for (const c of student.courses) {
+    if (c.origin !== 'transfer' || !isNotreDameInstitution(c.institution) || c.ndPosted !== undefined) continue;
+    if (!isEarlyStartCourse(c, student)) continue;
+    c.origin = 'nd';
+    delete c.institution;
+    delete c.degreeLevel;
+    moved += 1;
+  }
+  // An unfinished prior master's inferred from those rows alone goes with them.
+  if (moved > 0) derivePriorMs(student);
+  return moved;
 }
 
 /** Re-file every Notre Dame course by the student's entry term: before it →
- * prior coursework, from it on → program coursework. Courses from other
+ * prior coursework, from it on → program coursework (the early-start summer
+ * just before a fall entry is the program's — isPriorNd). Courses from other
  * institutions (the transcript's own transfer-credit block, external
  * transcripts) are untouched. Prior rows are also re-levelled against the
  * bachelor's award term on every call, so importing the transcript and
@@ -142,7 +198,7 @@ export function reclassifyNotreDameCourses(student: Student): { toPrior: number;
   let toProgram = 0;
   for (const c of student.courses) {
     if (!isNotreDameCourse(c)) continue;
-    if (isPriorNd(c, student.entryTerm)) {
+    if (isPriorNd(c, student)) {
       // A row already filed as prior stays prior, but is RE-LEVELLED (DGS
       // 2026-09-07). The bachelor's award term is normally set after the
       // transcript import — the field sits under Your standing, below the

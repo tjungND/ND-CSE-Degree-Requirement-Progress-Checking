@@ -16,6 +16,7 @@ import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, GRADE_POINTS, isAudit, isInProgress, isPassed, isWithdrawn, meetsGradeFloor, passesCreditFloor } from './grades.ts';
 import type { Tier, TierSums } from './status.ts';
 import { ZERO_SUMS } from './status.ts';
+import { isEarlyStartCourse } from './early-start.ts';
 import { addDaysIso, addYearsIso, compareTerm, endOfTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, startOfTerm, termIndex, termLabel, termOfDate } from './term.ts';
 import type { Attestations, CourseEntry, Grade, NdPosting, Program, Student, Term } from './types.ts';
 import { ndPostingOf, pairedBlockRows } from './nd-posting.ts';
@@ -65,13 +66,16 @@ export interface OverMaxTerm {
  * the milestones card reads it to offer the overload tick. Only courses that
  * could count are summed (a W, a failed grade, an ineligible row or a same-term
  * duplicate takes nothing from the cap), and only from the entry term on — an
- * undergraduate semester before the program is not a graduate registration. */
+ * undergraduate semester before the program is not a graduate registration.
+ * The early-start summer just before a fall entry is one: its courses are the
+ * program's (P3-chg-other-1; DGS 2026-10-05), and its student is "considered
+ * fulltime … in the summer with any registration" (Academic Code §3.6). */
 export function overMaxTerms(classified: readonly ClassifiedCourse[], student: Student, entry: Term): OverMaxTerm[] {
   const approved = new Set((student.creditOverloadTerms ?? []).map((t) => termIndex(t)));
   const byTerm = new Map<number, { term: Term; credits: number; courses: ClassifiedCourse[] }>();
   for (const cc of classified) {
     const c = cc.entry;
-    if (c.origin !== 'nd' || termIndex(c.term) < termIndex(entry)) continue;
+    if (c.origin !== 'nd' || (termIndex(c.term) < termIndex(entry) && !isEarlyStartCourse(c, student))) continue;
     if (cc.pool === 'none' || cc.superseded || cc.withdrawn || cc.audited || cc.unrecognizedGrade || !passesCreditFloor(c.grade)) continue;
     if (c.term.season !== 'summer' && !(levelOf(c, cc.rule) >= 6)) continue;
     const key = termIndex(c.term);

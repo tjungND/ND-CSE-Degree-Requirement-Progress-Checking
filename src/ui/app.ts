@@ -39,6 +39,7 @@ import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-up
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
 import { deriveNdMasters, derivePriorMs, isNotreDameCourse, reclassifyNotreDameCourses } from './prior-nd.ts';
+import { isEarlyStartCourse } from '../engine/early-start.ts';
 import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
 import { labelCitationsIn } from './citations.ts';
 import { canonicalUniversityName, knownUniversities } from './university-name.ts';
@@ -2022,18 +2023,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // earlier Notre Dame degree, whoever typed it (2026-09-09). The import
       // path has always re-filed those; a hand-typed one used to stay program
       // coursework for good, earning §4.2 credits, §4.3 residence and §4.4.2
-      // specialization it cannot earn.
+      // specialization it cannot earn. The early-start summer just before a
+      // fall entry is the exception — its courses are the program's own
+      // (P3-chg-other-1; DGS 2026-10-05) — and the toast says which happened.
       let refiled = false;
+      let earlyStart = false;
       update((s) => {
         s.courses.push(entry);
         refiled = reclassifyNotreDameCourses(s).toPrior > 0;
-        if (refiled) derivePriorMs(s);
+        if (refiled) derivePriorMs(s); // a no-op once the earlier-degrees question is answered
+        earlyStart = isNotreDameCourse(entry) && isEarlyStartCourse(entry, s);
       });
       // The form empties itself and the report headline often does not change,
       // so without this the click had no visible effect at all (2026-09-08).
       toast(
         `${id} added to your coursework` +
-          (refiled ? ` — dated before ${termLabel(student.entryTerm)}, so it is filed as coursework from before you entered the program` : '') +
+          (refiled
+            ? ` — dated before ${termLabel(student.entryTerm)}, so it is filed as coursework from before you entered the program`
+            : earlyStart
+              ? ` — your early start, the summer before ${termLabel(student.entryTerm)}, so it counts as this program’s coursework`
+              : '') +
           '.',
       );
     };

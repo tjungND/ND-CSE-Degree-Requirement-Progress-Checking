@@ -3,6 +3,7 @@
 // Nothing ever leaves the browser (CLAUDE.md).
 import { COURSE_CREDITS_RANGE, GPA_RANGE, inRange, rangeRefusal } from '../engine/ranges.ts';
 import type { Season, Student, Term } from '../engine/types.ts';
+import { refileEarlyStartCourses, settleAnsweredPriorMs } from './prior-nd.ts';
 
 const LS_KEY = 'cse-degree-audit/v1/student';
 
@@ -388,7 +389,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
       : (gs as Student['gpaSource']);
   const raw = d as Record<string, unknown>;
   const bachelorsAwarded = validBachelors(raw['bachelorsAwarded']);
-  return {
+  const student = {
     ...emptyStudent(),
     ...d,
     ...(gpa === undefined ? { gpa: undefined } : { gpa }),
@@ -433,6 +434,14 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     // (2026-09-08) — the example marker never rides in on an import.
     isExample: undefined,
   } as Student;
+  // An early start's summer courses are the program's own (P3-chg-other-1;
+  // DGS 2026-10-05, option (a)): a record saved while they were filed as
+  // earlier coursework gets them back, so the line stops refusing them.
+  refileEarlyStartCourses(student);
+  // …and a prior master's the app inferred past an answered earlier-degrees
+  // question (the same finding's cse-3 variant) gives way to the answer.
+  settleAnsweredPriorMs(student);
+  return student;
 }
 
 export function loadLocal(refusals: Refusal[] = []): Student | undefined {

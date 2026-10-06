@@ -10,6 +10,7 @@ import type { Program, Season, Student, Term } from '../engine/types.ts';
 import { labelCitationsIn } from './citations.ts';
 import { openModal, returnFocusTo } from './copy-dialog.ts';
 import { el, option } from './dom.ts';
+import { priorMsOfBackground } from './prior-nd.ts';
 import { SEASONS } from './state.ts';
 
 export type BachelorsFrom = 'nd-cse' | 'nd-other' | 'elsewhere';
@@ -170,7 +171,7 @@ export function applyBackground(s: Student, b: Background): void {
   // (2026-10-03), is a prior graduate program under §5.2: 9 / 24 credits after
   // a finished degree, 6 after an unfinished one. The CSE MSCSE is not —
   // the Graduate School treats it as the same program as the Ph.D.
-  s.priorMs = b.graduate === 'elsewhere' || b.graduate === 'nd-other' ? (b.finished ? 'completed' : 'unfinished') : 'none';
+  s.priorMs = priorMsOfBackground(b);
   s.priorMsInferred = undefined;
   const holdsNdMscse = s.program === 'phd' && (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1');
   s.ndMasters = holdsNdMscse ? { ...(s.ndMasters?.term ? { term: s.ndMasters.term } : {}) } : undefined;

@@ -6,6 +6,7 @@ import type { Rules } from '../data/types.ts';
 import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, longInterruptionReadmission, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
+import { beforeProgramStart } from './early-start.ts';
 import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq, startOfTerm } from './term.ts';
 import type { AuditReport, Grade, RequirementResult, Student, TermGpa } from './types.ts';
 import { beforeForfeiture, isCovidCohort, type Ctx } from './requirements/context.ts';
@@ -431,9 +432,11 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // coursework (app.ts), but a loaded file can carry one, and it would count
   // with no word — transfer credit (§5.2) and non-degree credit (Academic Code
   // §2.3) each have their own limit. Said, not refused. The saved entry term
-  // is the yardstick (a summer early start's courses are its own).
+  // is the yardstick, and the early-start summer just before a fall entry is
+  // the program's own — a fall entry is right for that student, so nothing
+  // here tells them to check it (P3-chg-other-1; DGS 2026-10-05, option (a)).
   {
-    const before = student.courses.filter((c) => c.origin === 'nd' && compareTerm(c.term, student.entryTerm) < 0);
+    const before = student.courses.filter((c) => c.origin === 'nd' && beforeProgramStart(c, student));
     if (before.length > 0) {
       const list = before.map((c) => `${c.courseId} (${termLabel(c.term)})`).join(', ');
       const one = before.length === 1;

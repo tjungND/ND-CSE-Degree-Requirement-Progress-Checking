@@ -1,0 +1,69 @@
+{
+  "name": "mscse-early-start-summer",
+  "description": "Policy review round 3, P3-chg-other-1 (DGS 2026-10-05: “Apply handling (a)”). An MSCSE admit whose official matriculation is Fall 2026 starts early and takes CSE 60111 in Summer 2026 (A). Academic Code §3.6 treats a full-time admit who starts in the summer as a full-time student that summer, so the course is this program’s coursework: it counts, with no “dated before your entry term … check the entry term” line or warning. The clocks and residency still run from the fall (DGS 2026-10-03, 2026-10-04): the time limit is due before Fall 2031, and the summer is not a residence term.",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "courses": [
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "summer",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd",
+        "registeredLevel": "graduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {},
+    "attestations": {}
+  },
+  "expect": {
+    "ms.credits.total": {
+      "status": "unmet",
+      "detailIncludes": ["3 of 30 credits complete. 3 in progress."]
+    },
+    "ms.timeLimit": {
+      "status": "in_progress",
+      "deadlineState": "upcoming"
+    },
+    "ms.residency": {
+      "status": "in_progress",
+      "detailIncludes": ["No full-time semester yet."],
+      "detailExcludes": ["Summer 2026"]
+    },
+    "ms.transfer": {
+      "status": "not_applicable"
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60111": ["counts toward regular courses (3 cr)"]
+  }
+}
