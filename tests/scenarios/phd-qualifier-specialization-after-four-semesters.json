@@ -1,0 +1,99 @@
+{
+  "name": "phd-qualifier-specialization-after-four-semesters",
+  "description": "Policy review round 3, P3-cse-4a-2 (DGS 2026-10-06: “Apply the handling with option A”). §4.4: \"Students must complete all three components of the qualifier requirement within four (4) semesters of starting; the DGS may extend the deadline on a case-by-case basis.\" Entered Fall 2024, so the four semesters end with Spring 2026; no extension on record. The research qualifier passed on time; the third specialization course, CSE 60535, was taken in Fall 2026 and graded A. The qualifier used to read Complete with the completion-form reminder; now the specialization and the qualifier are Conditionally met, waiting for the DGS to confirm an extension.",
+  "today": "2027-01-20",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.5,
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
+      "researchQualifierPassed": "2025-12-01"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "B-",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "B-",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.qualifier.categories": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Completed in Fall 2026, after the four semesters (§4.4) — confirm the DGS extended the deadline"
+      ]
+    },
+    "phd.qualifier": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "5 of 5 parts done — 1 after the deadline, waiting for the DGS"
+      ],
+      "detailExcludes": [
+        "Remember to file",
+        "Overdue"
+      ]
+    }
+  }
+}

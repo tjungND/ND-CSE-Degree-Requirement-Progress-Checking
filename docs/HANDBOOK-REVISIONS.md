@@ -484,3 +484,9 @@ not the app's:
     the exam’s semester, and that the DGS confirms an exam held short of it before the student applies for candidacy (policy
     review round 3, P3-cse-4b-1). §4.5 should say who confirms such an exam, or that the committee checks the coursework before
     the exam is scheduled.
+26. **§4.4 — a component completed after the four semesters.** §4.4 says the components must be complete within four
+    semesters and that “the DGS may extend the deadline”, but not what happens to a component finished late with no
+    extension on record — whether it counts, and whether the extension can be granted after the fact. The DGS ruled on
+    2026-10-06 that a core-knowledge or specialization course completed late waits for the DGS to confirm an extension, as
+    a late research pass does (policy review round 3, P3-cse-4a-2, option A). §4.4 should say so, and say that the
+    deadline is read from the semester the component was first complete.

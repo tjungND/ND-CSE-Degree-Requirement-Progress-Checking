@@ -599,8 +599,16 @@ export interface RequirementResult {
   /** Done, but after the row's own deadline, and that lateness is the only
    * reason it reads Needs DGS review (a late OCE or admission to candidacy —
    * 2026-10-04): the row keeps its own question for the DGS, while the
-   * eight-year row counts it complete. */
+   * eight-year row counts it complete. Since policy review round 3
+   * (P3-cse-4a-2, DGS 2026-10-06, option A) also a qualifier component
+   * completed after §4.4's four semesters (and any DGS extension), and the
+   * qualifier row that waits on it; the OCE gate counts such a component as
+   * done coursework. */
   completedLate?: true;
+  /** A qualifier component (core knowledge, specialization): the semester it
+   * was FIRST complete — the earliest courses that satisfy it, not the course
+   * the row names (P3-cse-4a-2). Read against §4.4's deadline. */
+  completedIn?: Term;
   /** The examination this row records was passed before a readmission after
    * an interruption of five years or more, so it waits for the DGS (Academic
    * Code §5.5; P3-ac-5a-3, 2026-10-05) — the admission card reads it. */

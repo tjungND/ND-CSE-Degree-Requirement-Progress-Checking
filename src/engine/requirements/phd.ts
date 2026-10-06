@@ -257,7 +257,7 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
     // what counts — and the current rule's three components do not apply.
     rows.push(...qualifierRowsPassedUnderPriorRules(ctx, qualifierChildren));
   } else {
-    const dated = qualifierChildren.map((c) => withQualifierDeadline(c, qualifierDue));
+    const dated = qualifierChildren.map((c) => withQualifierDeadline(ctx, c, qualifierDue));
     rows.push(qualifierUmbrellaRow(ctx, dated, rows.find((r) => r.id === 'phd.credits.nd'), qualifierDue));
     rows.push(...dated);
   }
@@ -620,13 +620,58 @@ export function qualifierDeadline(ctx: Ctx): QualifierDeadline | undefined {
 /** A component of the qualifier under the umbrella's deadline (DGS
  * 2026-09-29): an open core-knowledge or specialization row carries the same
  * chip as the umbrella and, once the deadline has passed, reads Overdue —
- * decision Q17b as for the umbrella: in progress is not done. A met,
- * conditionally met or unevaluable row is left alone, and so is the research
- * component, whose own §4.4.3 deadline comes first. */
-function withQualifierDeadline(c: RequirementResult, due: QualifierDeadline | undefined): RequirementResult {
+ * decision Q17b as for the umbrella: in progress is not done. A conditionally
+ * met or unevaluable row is left alone, and so is the research component,
+ * whose own §4.4.3 deadline comes first.
+ *
+ * A MET row is read against the deadline too (policy review round 3,
+ * P3-cse-4a-2; DGS 2026-10-06: "Apply the handling with option A"), as a late
+ * research pass (2026-09-13) and a late seminar (2026-10-04) are. §4.4:
+ * "Students must complete all three components of the qualifier requirement
+ * within four (4) semesters of starting; the DGS may extend the deadline on a
+ * case-by-case basis." The semester the component was FIRST complete
+ * (`completedIn` — the earliest courses that satisfy it, so a later retake or
+ * an extra course never makes an on-time student late; a course from before
+ * the Ph.D. began is on time) is compared with the four semesters: inside
+ * them, unchanged; inside the DGS's extension, Met and says so; after both,
+ * Conditionally met until the DGS confirms an extension. This supersedes
+ * DECISIONS 2026-09-29's "a met … component is left alone" for met rows. */
+function withQualifierDeadline(ctx: Ctx, c: RequirementResult, due: QualifierDeadline | undefined): RequirementResult {
   if (due === undefined || c.id === 'phd.qualifier.research') return c;
+  if (c.status === 'met' && c.completedIn !== undefined && c.forfeitReview !== true) {
+    const t = c.completedIn;
+    if (compareTerm(t, due.term) <= 0) return c;
+    const extra = qualifierExtensionSemesters(ctx);
+    const extensionWord = extra === 1 ? 'one-semester' : `${extra}-semester`;
+    if (due.extendedTerm && compareTerm(t, due.extendedTerm) <= 0) {
+      return withNote(
+        { ...c, deadline: { date: due.effectiveDate, approx: true, state: 'done', label: `Done ${termLabel(t)} — within the DGS’s ${extensionWord} extension` } },
+        `Completed in ${termLabel(t)}, within the DGS’s ${extensionWord} extension (§4.4)`,
+      );
+    }
+    const semesters = ctx.params.number('qualifier_deadline_semesters') ?? 4;
+    const n = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'][semesters] ?? String(semesters);
+    return withNote(
+      {
+        ...c,
+        status: 'needs_dgs_review',
+        completedLate: true,
+        deadline: { date: due.effectiveDate, approx: true, state: 'done', label: `Done ${termLabel(t)} — after ${due.extendedTerm ? `the DGS’s extension, the end of ${termLabel(due.extendedTerm)}` : `the end of ${termLabel(due.term)}`}` },
+      },
+      due.extendedTerm
+        ? `Completed in ${termLabel(t)}, after the DGS’s ${extensionWord} extension ran out at the end of ${termLabel(due.extendedTerm)} (§4.4) — confirm with the DGS`
+        : `Completed in ${termLabel(t)}, after the ${n} semesters (§4.4) — confirm the DGS extended the deadline`,
+    );
+  }
   if (c.status !== 'unmet' && c.status !== 'in_progress') return c;
   return { ...c, ...(due.passed ? { status: 'unmet' as const } : {}), deadline: due.deadline };
+}
+
+/** A row with one more note (behind "Relevant Policies"), on both its full
+ * and its short detail. */
+function withNote(c: RequirementResult, note: string): RequirementResult {
+  const part: DetailPart = { note };
+  return { ...c, ...joinedDetail([...(c.detailParts ?? [c.detail.replace(/\.$/, '')]), part]), ...(c.shortDetailParts ? { shortDetailParts: [...c.shortDetailParts, part] } : {}) };
 }
 
 function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits: RequirementResult | undefined, due: QualifierDeadline | undefined): RequirementResult {
@@ -640,10 +685,15 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
   // Parts done before a readmission after five years or more wait for the
   // DGS (Academic Code §5.5; P3-ac-5a-3, DGS 2026-10-05) — done, not reset.
   const forfeited = children.filter((c) => c.forfeitReview === true);
-  const open = children.filter((c) => c.status !== 'met' && c.forfeitReview !== true);
+  // Parts completed after their deadline wait for the DGS (P3-cse-4a-2, DGS
+  // 2026-10-06, option A; the research component's own 18 months, 2026-09-13)
+  // — done, not open.
+  const late = children.filter((c) => c.completedLate === true);
+  const open = children.filter((c) => c.status !== 'met' && c.forfeitReview !== true && c.completedLate !== true);
+  const doneCount = children.length - open.length;
   // The standing is the fact; everything else is a note (DGS 2026-10-03).
   const parts: DetailPart[] = [
-    `${children.length - open.length} of ${children.length} parts done${forfeited.length > 0 ? ` — ${forfeited.length === children.length - open.length ? 'all' : forfeited.length} ${FORFEIT_FACT}, waiting for the DGS` : ''}${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''}`,
+    `${doneCount} of ${children.length} parts done${forfeited.length > 0 ? ` — ${forfeited.length === doneCount ? 'all' : forfeited.length} ${FORFEIT_FACT}, waiting for the DGS` : ''}${late.length > 0 ? ` — ${late.length === doneCount ? 'all' : late.length} after the deadline, waiting for the DGS` : ''}${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''}`,
     { note: 'One card per part below' },
   ];
   if (ndCredits && ndCredits.status !== 'met') {
@@ -686,6 +736,21 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
       if (compareTerm(ctx.qualifierEntry, ctx.entry) !== 0) parts.push({ note: `The four semesters are counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)} (§4.4 “of starting”; DGS 2026-10-03)` });
     }
   }
+  // Every part done, some after their deadline: the DGS confirms the
+  // extension — never Overdue, and never "Complete" with the completion-form
+  // reminder until then (P3-cse-4a-2, DGS 2026-10-06, option A).
+  let completedLate = false;
+  if (open.length === 0 && late.length > 0 && forfeited.length === 0 && (!ndCredits || ndCredits.status === 'met') && status !== 'cannot_evaluate' && due !== undefined) {
+    status = 'needs_dgs_review';
+    completedLate = true;
+    deadline = { date: due.effectiveDate, approx: true, state: 'done', label: 'Completed after the deadline — waiting for the DGS' };
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      if (typeof p === 'object' && 'note' in p && /^Overdue — talk to the DGS$/.test(p.note)) parts.splice(i, 1);
+    }
+    const which = late.map((c) => `${partName(c)}${c.completedIn ? ` in ${termLabel(c.completedIn)}` : ''}`);
+    parts.push({ note: `Completed after the deadline: ${which.length <= 1 ? which.join('') : `${which.slice(0, -1).join(', ')} and ${which[which.length - 1]}`} — the DGS confirms the extension; then file the qualifier completion form with the Grad Admin (§4.4)` });
+  }
   // Every part done, some before the gap: the DGS rules — never Overdue.
   if (open.length === 0 && forfeited.length > 0 && status !== 'cannot_evaluate') {
     status = 'needs_dgs_review';
@@ -701,6 +766,7 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
     group: QUALIFIER,
     title: 'Qualifying examination — all components', // "all components", not "all three": five cards sit under it (DGS 2026-09-06)
     status,
+    ...(completedLate ? { completedLate: true as const } : {}),
     ...joinedDetail(parts),
     deadline,
     citation: { section: '§4.4', quote },
@@ -731,6 +797,13 @@ function coreRows(ctx: Ctx): RequirementResult[] {
     // Passed only before a readmission after five years or more (Academic
     // Code §5.5; P3-ac-5a-3, DGS 2026-10-05): the DGS rules on it.
     let forfeited: string | undefined;
+    // The semester the area was FIRST satisfied — the earliest passing course,
+    // not the one the row names (a later retake or extra course) — read
+    // against §4.4's four semesters (P3-cse-4a-2, DGS 2026-10-06, option A).
+    let firstDone: Term | undefined;
+    const doneIn = (t: Term): void => {
+      if (firstDone === undefined || compareTerm(t, firstDone) < 0) firstDone = t;
+    };
     for (const c of ctx.classified) {
       if (c.superseded) continue;
       if (c.interrupted && isPassed(c.entry.grade) && c.rule?.coreArea === area.code) {
@@ -739,8 +812,10 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       }
       if (c.entry.origin === 'nd') {
         if (c.rule?.coreArea === area.code) {
-          if (isPassed(c.entry.grade)) done = c.entry.courseId;
-          else if (isInProgress(c.entry.grade) && !c.incompleteLapsed) ip ??= c.entry.courseId; // a lapsed Incomplete is an F until the Graduate School says otherwise (2026-10-03)
+          if (isPassed(c.entry.grade)) {
+            done = c.entry.courseId;
+            doneIn(c.entry.term);
+          } else if (isInProgress(c.entry.grade) && !c.incompleteLapsed) ip ??= c.entry.courseId; // a lapsed Incomplete is an F until the Graduate School says otherwise (2026-10-03)
           continue;
         }
         // An ND course the rules sheet does not know yet, whose title matches
@@ -753,12 +828,15 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         // (Credit the Notre Dame record shows as accepted was passed, whatever
         // grade cell the transcript printed for it — P3-import-1, 2026-10-05.)
         confirmed ??= `${c.entry.courseId} (${c.external.university})`;
+        doneIn(c.entry.term);
       } else if (isNotreDameInstitution(c.entry.institution) && c.rule?.coreArea === area.code) {
         // Prior Notre Dame coursework (2026-09-05): the Courses tab's core
         // area applies to a Notre Dame course whenever it was taken — an
         // earlier degree's course needs no ExternalCourses ruling.
-        if (isPassed(c.entry.grade)) done ??= `${c.entry.courseId} (Notre Dame, before entering the program)`;
-        else if (isInProgress(c.entry.grade)) ip ??= c.entry.courseId;
+        if (isPassed(c.entry.grade)) {
+          done ??= `${c.entry.courseId} (Notre Dame, before entering the program)`;
+          doneIn(c.entry.term);
+        } else if (isInProgress(c.entry.grade)) ip ??= c.entry.courseId;
       } else if (c.external === undefined && (isPassed(c.entry.grade) || c.ndPosting !== undefined) && coreTitleMatchesArea(c.entry.title, area.code)) {
         // Unreviewed course from a previous institution (any level — §4.4.1
         // has no §5.2 restrictions) whose title suggests this area: the DGS's
@@ -792,6 +870,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       ...joinedDetail(detailParts),
       citation: { section: '§4.4.1', quote },
       ...(status === 'met' ? { satisfiedBy: [bareId((done ?? confirmed)!)] } : {}),
+      ...(status === 'met' && firstDone ? { completedIn: firstDone } : {}),
       // In progress, or waiting on the DGS: it will satisfy this area, and the
       // course's own line says so (2026-09-08).
       ...(status !== 'met' && (ip ?? forfeited ?? pending) ? { pendingBy: [bareId((ip ?? forfeited ?? pending)!)] } : {}),
@@ -832,6 +911,8 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   const qualifying: GroupCandidate[] = [];
   const inProgress: GroupCandidate[] = [];
   const belowFloor: string[] = [];
+  // Each candidate's semester, for when the requirement was first met (P3-cse-4a-2).
+  const termOfCand = new Map<GroupCandidate, Term>();
   for (const c of ctx.classified) {
     if (c.superseded) continue;
     // §4.4.2 names no institution and no term — unlike §4.4.1's "or have
@@ -877,6 +958,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       pinned: groups.length > 1 ? c.entry.assignedGroup : undefined,
       sortKey: `${termIndex(c.entry.term)}|${c.entry.courseId}`,
     };
+    termOfCand.set(cand, c.entry.term);
     if (isInProgress(c.entry.grade)) {
       if (!c.incompleteLapsed) inProgress.push(cand); // a lapsed Incomplete is an F until the Graduate School says otherwise (2026-10-03)
     } else if (meetsGradeFloor(c.entry.grade, floor as Grade)) qualifying.push(cand);
@@ -900,8 +982,21 @@ function categoriesRow(ctx: Ctx): RequirementResult {
   };
   // The courses in progress the in-progress verdict counts on (the OCE gate, 2026-10-05).
   let completing: string[] = [];
+  // The semester the requirement was FIRST met: the earliest term by which the
+  // passed courses up to it reach the groups and the count — not the term of
+  // the last course on the list (P3-cse-4a-2, DGS 2026-10-06, option A).
+  let completedIn: Term | undefined;
   if (def.distinctCount >= groupsReq && qualifying.length >= coursesReq) {
     status = 'met';
+    const byTerm = [...qualifying].sort((a, b) => compareTerm(termOfCand.get(a)!, termOfCand.get(b)!));
+    for (const q of byTerm) {
+      const t = termOfCand.get(q)!;
+      const upTo = qualifying.filter((x) => compareTerm(termOfCand.get(x)!, t) <= 0);
+      if (upTo.length >= coursesReq && matchDistinctGroups(upTo, allGroups).distinctCount >= groupsReq) {
+        completedIn = t;
+        break;
+      }
+    }
     const assignmentLine = (short: boolean) => ([courseId, g]: [string, string]) => {
       const cand = qualifying.find((q) => q.courseId === courseId);
       const isAny = (cand?.groups.length ?? 0) > 1;
@@ -1051,6 +1146,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     ...(assignedDone.length > 0 ? { satisfiedBy: assignedDone } : {}),
     ...(assignedPending.length > 0 ? { pendingBy: assignedPending } : {}),
     ...(status === 'in_progress' && completing.length > 0 ? { completingCourses: completing } : {}),
+    ...(status === 'met' && completedIn ? { completedIn } : {}),
     citation: { section: '§4.4.2', quote },
   };
 }
@@ -1100,6 +1196,10 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
   const remediationDue = failedOn !== undefined ? addMonthsIso(failedOn, 6) : undefined;
   let status = r.status;
   let deadline = r.deadline;
+  // Passed, but after the deadline (or the DGS's extension): done late — the
+  // qualifier card counts it as a done part waiting for the DGS, not an open
+  // one (P3-cse-4a-2, DGS 2026-10-06: the umbrella follows the component).
+  let doneLate = r.status === 'needs_dgs_review';
   // Passed, failed or not yet filed is the fact; why late and what to do are
   // notes (DGS 2026-10-03).
   const upper = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -1132,6 +1232,7 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     });
     status = afterFail.status;
     deadline = afterFail.deadline;
+    doneLate = afterFail.status === 'needs_dgs_review';
     parts =
       afterFail.status === 'met'
         ? [`Research qualifier passed ${m.researchQualifierPassed} — after a fail on ${failedOn}, within the DGS’s committee’s six months`]
@@ -1148,6 +1249,7 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
       deadline = openDeadline(remediationDue, ctx.today, `Committee’s judgement due by ${deadlineTermLabel(remediationDue)} — six months after the fail (approximate)`);
     } else {
       status = 'needs_dgs_review';
+      doneLate = false;
       parts = [
         `Research component failed ${failedOn}, and the committee’s six months ran out at ${deadlineTermLabel(remediationDue)} (approximate) with no pass recorded`,
         { note: 'Confirm the outcome with the DGS (§4.4.3)' },
@@ -1161,6 +1263,7 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
   const forfeited = beforeForfeiture(ctx, m.researchQualifierPassed);
   if (forfeited) {
     status = 'needs_dgs_review';
+    doneLate = false;
     parts = [`Research qualifier passed ${m.researchQualifierPassed} — ${FORFEIT_FACT}`, { note: FORFEIT_NOTE }];
   }
   return {
@@ -1169,6 +1272,7 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     title: 'Research component: a significant research contribution',
     status,
     ...(forfeited ? { forfeitReview: true as const } : {}),
+    ...(doneLate && status === 'needs_dgs_review' ? { completedLate: true as const } : {}),
     ...joinedDetail(parts),
     deadline,
     citation: { section: '§4.4.3', quote },
@@ -1473,7 +1577,9 @@ function oceReadiness(ctx: Ctx, rows: RequirementResult[]): OceReadiness {
     for (const r of rows.filter((x) => x.id.startsWith('phd.qualifier.core') || x.id === 'phd.qualifier.categories')) {
       const core = r.id !== 'phd.qualifier.categories';
       const name = core ? `Core knowledge, ${r.title.replace(/^Core knowledge:\s*/, '')}` : 'Specialization courses';
-      if (r.status === 'met') {
+      // Completed after §4.4's deadline is still completed coursework for
+      // §4.5 (P3-cse-4a-2): the lateness is the qualifier card's question.
+      if (r.status === 'met' || r.completedLate === true) {
         item('met', `${name}: done${core && r.satisfiedBy?.[0] ? ` (${r.satisfiedBy[0]})` : ''}`);
         continue;
       }

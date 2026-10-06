@@ -68,6 +68,9 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
 
   const fromTransfer = compareTerm(ctx.qualifierEntry, ctx.entry) !== 0;
   const qualifierMet = rows.find((r) => r.id === 'phd.qualifier')?.status === 'met';
+  // Every part done, some after the deadline (P3-cse-4a-2, DGS 2026-10-06):
+  // the form waits for the DGS's confirmation, and the box says so.
+  const qualifierLate = rows.find((r) => r.id === 'phd.qualifier')?.completedLate === true;
   if (qualifierPassedUnderPriorRules(ctx)) {
     const basis = 'Does not apply — you passed the qualifying examination under the earlier requirements';
     out.researchQualifierPassed = { basis };
@@ -113,6 +116,8 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
     const semesters = ctx.params.number('qualifier_deadline_semesters');
     if (qualifierMet) {
       out.qualifierFormFiled = { basis: `No deadline of its own — the qualifier is complete${m.qualifierFormFiled ? '' : '; file the completion form with the Grad Admin'} (§4.4)` };
+    } else if (qualifierLate) {
+      out.qualifierFormFiled = { basis: `No deadline of its own — every part is done, some after the deadline${m.qualifierFormFiled ? '' : '; once the DGS confirms the extension, file the completion form with the Grad Admin'} (§4.4)` };
     } else if (due !== undefined && semesters !== undefined) {
       const basis = `the qualifier’s ${semesters} semesters${fromTransfer ? ', counted from your transfer' : ''}${extensionClause(qualifierExtensionSemesters(ctx))} (§4.4)`;
       out.qualifierFormFiled = at(ctx, due.effectiveDate, basis, m.qualifierFormFiled);

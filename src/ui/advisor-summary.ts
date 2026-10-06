@@ -18,7 +18,7 @@
 // the one standing paragraph, the deadline footnote and the alpha notice; the
 // re-voicing of the engine's student-facing details (`whyFor`).
 import type { AuditReport, DetailPart, RequirementResult, Status } from '../engine/types.ts';
-import { deadlineTermLabel, dueTermPhrase } from '../engine/term.ts';
+import { deadlineTermLabel, dueTermPhrase, termLabel } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
 import { gpaText } from '../engine/requirements/shared.ts';
@@ -374,6 +374,16 @@ export function actionItems(report: AuditReport): ActionItems {
       out.student.push(`Complete the remaining qualifier components${due(qualifier)}; ask the DGS about an extension ${section(qualifier)}.`);
       out.dgs.push(`Decide whether to extend the qualifier deadline ${section(qualifier)}.`);
     } else out.student.push(`Complete all three qualifier components${due(qualifier)} ${section(qualifier)}.`);
+  } else if (qualifier?.status === 'needs_dgs_review' && qualifier.completedLate) {
+    // Every part done, a course-based one after the four semesters (P3-cse-4a-2,
+    // DGS 2026-10-06): the DGS confirms the extension. A late research pass
+    // keeps its own line below.
+    const lateParts = ['phd.qualifier.core.os', 'phd.qualifier.core.algorithms', 'phd.qualifier.core.architecture', 'phd.qualifier.categories']
+      .map((id) => byId.get(id))
+      .filter((r): r is RequirementResult => r?.completedLate === true)
+      .map((r) => `${r.id === 'phd.qualifier.categories' ? 'the specialization courses' : `the ${r.title.replace(/^Core knowledge:\s*/, '')} core-knowledge course`}${r.completedIn ? ` in ${termLabel(r.completedIn)}` : ''}`);
+    if (lateParts.length > 0)
+      out.dgs.push(`Confirm that you extended my qualifier deadline — I completed ${lateParts.length === 1 ? lateParts[0] : `${lateParts.slice(0, -1).join(', ')} and ${lateParts[lateParts.length - 1]}`} after it ${section(qualifier)}.`);
   }
   for (const [id, area] of [
     ['phd.qualifier.core.os', 'Operating Systems'],
@@ -383,7 +393,8 @@ export function actionItems(report: AuditReport): ActionItems {
     const r = byId.get(id);
     if (!r) continue;
     if (isOpen(r.status)) out.student.push(`Pass a course that covers ${area} — core knowledge ${section(r)}.`);
-    else if (r.status === 'needs_dgs_review') out.dgs.push(`Confirm the ${area} core-knowledge course named in the review request ${section(r)}.`);
+    // A course done late is the qualifier's question above, not a course to confirm.
+    else if (r.status === 'needs_dgs_review' && !r.completedLate) out.dgs.push(`Confirm the ${area} core-knowledge course named in the review request ${section(r)}.`);
   }
   const categories = byId.get('phd.qualifier.categories');
   if (categories && isOpen(categories.status)) {
