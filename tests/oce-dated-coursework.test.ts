@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { audit } from '../src/engine/audit.ts';
 import type { ConditionMark, CourseEntry, Milestones, Student, Term } from '../src/engine/types.ts';
-import { actionItems } from '../src/ui/advisor-summary.ts';
+import { actionItems, whyFor } from '../src/ui/advisor-summary.ts';
 import { buildRules } from './helpers.ts';
 import { ndCourse, phdStudent } from './helpers/student.ts';
 
@@ -48,8 +48,10 @@ describe('a dated OCE is checked against the coursework at the exam (P3-cse-4b-1
     assert.equal(oce.status, 'needs_dgs_review');
     assert.equal(oce.courseworkReview, 'no Algorithms core-knowledge course');
     assert.match(oce.detail, /At the exam \(Fall 2025\) you show no Algorithms core-knowledge course — §4\.5 requires the coursework complete, or in progress that semester, before the exam; confirm with the DGS that it could be taken/);
-    assert.match(admission.detail, /Oral Candidacy Exam \(OCE\): passed 2025-11-15 — the DGS confirms the coursework at the exam/);
+    assert.match(admission.detail, /Oral Candidacy Exam \(OCE\): passed 2025-11-15 — but the DGS has to confirm your coursework at the exam/);
     assert.equal(oceMark(admission), 'waiting');
+    // The advisor email speaks as the student (DGS 2026-10-06 wording: "but the DGS has to confirm your coursework").
+    assert.match(whyFor(admission), /OCE\): passed 2025-11-15 — but the DGS has to confirm my coursework at the exam\./);
     assert.doesNotMatch(admission.detail, /Every condition is met/, 'Decision 2 (a): "apply now" waits');
     assert.ok(actionItems(report).dgs.some((d) => d.startsWith('Confirm that my Oral Candidacy Exam (OCE) could be taken — at the exam I showed no Algorithms core-knowledge course')), JSON.stringify(actionItems(report).dgs));
   });

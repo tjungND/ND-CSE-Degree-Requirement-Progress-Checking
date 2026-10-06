@@ -1900,7 +1900,7 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     // so "Every condition is met: apply now" is held until the DGS settles it
     // (DGS 2026-10-06: "Decision 2: (a)").
     conditions.push({
-      text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}${merged.oce.forfeitReview ? ` — ${FORFEIT_FACT}` : merged.oce.courseworkReview ? ' — the DGS confirms the coursework at the exam' : ''}` : `not yet${oceDue}`}`,
+      text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}${merged.oce.forfeitReview ? ` — ${FORFEIT_FACT}` : merged.oce.courseworkReview ? ' — but the DGS has to confirm your coursework at the exam' : ''}` : `not yet${oceDue}`}`,
       mark: m.candidacyPassed ? (merged.oce.forfeitReview || merged.oce.courseworkReview ? 'waiting' : 'met') : 'not_yet',
     });
     const floor = ctx.params.number('fulltime_credits_min');
