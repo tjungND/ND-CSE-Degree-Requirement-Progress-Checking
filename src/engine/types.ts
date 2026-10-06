@@ -438,9 +438,12 @@ export interface Student {
   accommodationEventTerms?: (Term | null)[];
   /** The student withdrew and was READMITTED in this term (Academic Code
    * §5.5, policy review 2026-10-03). The clocks keep the original entry term
-   * ("from the time of matriculation"); coursework and milestones from before
-   * an interruption of five years or more are routed to the DGS — the Code
-   * forfeits their credit. */
+   * ("from the time of matriculation"); coursework and examinations from
+   * before an interruption of five years or more are routed to the DGS — the
+   * Code forfeits their credit (examinations since 2026-10-05, P3-ac-5a-3:
+   * the research qualifier, the OCE, a qualifier passed under the earlier
+   * rules, the MSCSE defense or project report, and the core-area,
+   * specialization and seminar rows met only by such courses). */
   readmittedTerm?: Term;
   /** The semester the student plans to graduate in (policy review 2026-10-04,
    * P2-dh-3.21-3.24-24): the Graduate School confers a degree only on a
@@ -581,6 +584,10 @@ export interface RequirementResult {
    * 2026-10-04): the row keeps its own question for the DGS, while the
    * eight-year row counts it complete. */
   completedLate?: true;
+  /** The examination this row records was passed before a readmission after
+   * an interruption of five years or more, so it waits for the DGS (Academic
+   * Code §5.5; P3-ac-5a-3, 2026-10-05) — the admission card reads it. */
+  forfeitReview?: true;
   detail: string;
   /** When the detail was built from several independent statements, they are
    * also kept separately so the UI can render a long detail as a bulleted

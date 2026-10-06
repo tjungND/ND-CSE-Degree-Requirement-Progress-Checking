@@ -6,7 +6,7 @@ import type { DeadlineInfo, DetailPart, RequirementResult, Status } from '../typ
 import type { Ctx } from './context.ts';
 import { defendedBelowGpaNote, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { usableGpa } from '../ranges.ts';
-import { noteOf, joinedDetail, capRow, defenseRegistrationNote, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
+import { noteOf, joinedDetail, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
 import { candidacyFormSentence } from './phd.ts';
 import { fullTimeTermRecords, graduateLevelParts } from './residency.ts';
 import { transferRow } from './transfer.ts';
@@ -496,15 +496,19 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     const retakeDue = failedOn ? endOfNextSemester(failedOn, 1) : undefined;
     const retakeRule = 'Academic Code §6.1.5: a failed master’s examination forfeits degree eligibility unless the program recommends a retake; only one retake is allowed, by the end of the following semester — the DGS decides';
     let deadline: DeadlineInfo | undefined;
+    // Passed before a readmission after five years or more (Academic Code
+    // §5.5; P3-ac-5a-3, DGS 2026-10-05): the DGS rules on it.
+    const defenseForfeited = beforeForfeiture(ctx, m.thesisDefensePassed);
     if (m.thesisDefensePassed || eitherDone) {
-      status = lateDefense || gpaAtDefense !== '' ? 'needs_dgs_review' : 'met';
+      status = lateDefense || gpaAtDefense !== '' || defenseForfeited ? 'needs_dgs_review' : 'met';
       const retakeLate = failedOn !== undefined && retakeDue !== undefined && m.thesisDefensePassed !== undefined && m.thesisDefensePassed > retakeDue;
       if (retakeLate) status = 'needs_dgs_review';
       parts = m.thesisDefensePassed
         ? [
             // No readers' date of its own since 2026-10-04 (DGS: "Apply the
             // same to MSCSE thesis") — the defense stands for both.
-            `Thesis defense passed ${m.thesisDefensePassed}${failedOn ? ` — the retake, after a failed attempt on ${failedOn}` : ''}${lateDefense ? lateFact : ''}`,
+            `Thesis defense passed ${m.thesisDefensePassed}${failedOn ? ` — the retake, after a failed attempt on ${failedOn}` : ''}${lateDefense ? lateFact : ''}${defenseForfeited ? ` — ${FORFEIT_FACT}` : ''}`,
+            ...(defenseForfeited ? [{ note: FORFEIT_NOTE }] : []),
             ...(lateDefense ? [lateRule] : []),
             ...(retakeLate ? [{ note: `The retake was due by ${deadlineTermLabel(retakeDue!)} (approximate), the end of the semester after the fail (Academic Code §6.1.5) — confirm with the DGS` }] : []),
             ...noteOf(gpaAtDefense),
@@ -602,11 +606,15 @@ function optionRows(ctx: Ctx): RequirementResult[] {
       id: 'ms.project.report',
       group: PROJECT_THESIS,
       title: 'Project report accepted by the advisor (project option)',
-      status: m.projectReportAccepted || eitherDone ? (lateReport ? 'needs_dgs_review' : 'met') : 'unmet',
+      status: m.projectReportAccepted || eitherDone ? (lateReport || beforeForfeiture(ctx, m.projectReportAccepted) ? 'needs_dgs_review' : 'met') : 'unmet',
       ...(lateReport ? { statusLabel: 'Eligibility at risk' } : {}),
       ...joinedDetail(
         m.projectReportAccepted
-          ? [`Project report accepted ${m.projectReportAccepted}${lateReport ? lateFact : ''}`, lateReport ? lateRule : formNote]
+          ? [
+              `Project report accepted ${m.projectReportAccepted}${lateReport ? lateFact : ''}${beforeForfeiture(ctx, m.projectReportAccepted) ? ` — ${FORFEIT_FACT}` : ''}`,
+              ...(beforeForfeiture(ctx, m.projectReportAccepted) ? [{ note: FORFEIT_NOTE }] : []),
+              lateReport ? lateRule : formNote,
+            ]
           : eitherDone
             ? [`Not needed — the thesis route is complete (defense passed ${m.thesisDefensePassed})`, ...alternative]
             : ['Not yet accepted', { note: 'The written project report and deliverables must be accepted and approved by your advisor (§3.4)' }, ...alternative, ...examNote],

@@ -480,6 +480,32 @@ function tierFor(grade: Grade, provisional: boolean): Tier {
  * more." A Graduate School number, so it lives here, not in the sheet. */
 export const ACADEMIC_CODE_FORFEIT_YEARS = 5;
 
+/** The readmission term, when the student was readmitted after an
+ * interruption of five years or more (Academic Code §5.5) — measured from the
+ * last Notre Dame term before the readmission.
+ *
+ * How the five years are counted (policy review round 3, P3-ac-5a-2; DGS
+ * 2026-10-05: "Apply the suggested handling"): the time actually away, from
+ * the END of that last term to the START of the readmission term.
+ * (Subtracting the year numbers read Fall 2018 → Spring 2023, about four
+ * years, as five.) The Code does not say how the years are counted — this
+ * default is recorded for the DGS (DECISIONS 2026-10-05): Fall to Fall or
+ * Spring to Spring five years apart is just under five years away, so it is a
+ * shorter gap (DGS Handbook §3.3). Coursework from before it is held for the
+ * DGS (classify), and so are the examinations passed before it (P3-ac-5a-3,
+ * context.ts `beforeForfeiture`). */
+export function longInterruptionReadmission(student: Student): Term | undefined {
+  const readmitted = student.readmittedTerm;
+  if (readmitted === undefined) return undefined;
+  const lastBefore = student.courses
+    .filter((c) => (c.origin === 'nd' || isNotreDameInstitution(c.institution)) && compareTerm(c.term, readmitted) < 0)
+    .map((c) => c.term)
+    .sort(compareTerm)
+    .pop();
+  if (lastBefore === undefined) return undefined;
+  return startOfTerm(readmitted).date >= addYearsIso(endOfTerm(lastBefore).date, ACADEMIC_CODE_FORFEIT_YEARS) ? readmitted : undefined;
+}
+
 /** Whether the sheet decides this course case by case — `dgs_approval` /
  * `adgs_approval` in the Courses tab for a Notre Dame course, or in the
  * ExternalCourses tab for a course from elsewhere — so that the DGS's answer
@@ -621,26 +647,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
   // readmission to the readmission term itself; five years or more and every
   // course from before it is counted provisionally and sent to the DGS.
   const readmitted = student.readmittedTerm;
-  const lastBeforeReadmission =
-    readmitted === undefined
-      ? undefined
-      : student.courses
-          .filter((c) => (c.origin === 'nd' || isNotreDameInstitution(c.institution)) && compareTerm(c.term, readmitted) < 0)
-          .map((c) => c.term)
-          .sort(compareTerm)
-          .pop();
-  // How the five years are counted (policy review round 3, P3-ac-5a-2; DGS
-  // 2026-10-05: "Apply the suggested handling"): the time actually away, from
-  // the END of the last Notre Dame term before the readmission to the START of
-  // the readmission term. (Subtracting the year numbers read Fall 2018 →
-  // Spring 2023, about four years, as five.) The Code does not say how the
-  // years are counted — this default is recorded for the DGS (DECISIONS
-  // 2026-10-05): Fall to Fall or Spring to Spring five years apart is just
-  // under five years away, so it is a shorter gap (DGS Handbook §3.3).
-  const longInterruption =
-    readmitted !== undefined &&
-    lastBeforeReadmission !== undefined &&
-    startOfTerm(readmitted).date >= addYearsIso(endOfTerm(lastBeforeReadmission).date, ACADEMIC_CODE_FORFEIT_YEARS);
+  const longInterruption = longInterruptionReadmission(student) !== undefined;
   const interruptedCourse = (c: CourseEntry): boolean => longInterruption && compareTerm(c.term, readmitted!) < 0 && (c.origin === 'nd' || isNotreDameInstitution(c.institution));
   // A shorter gap (policy review 2026-10-04, P2-dh-3.1-3.13-3/-4/-9; DGS:
   // "apply the suggested handling"): readmission after a withdrawal or a missed

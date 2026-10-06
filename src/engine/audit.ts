@@ -3,12 +3,12 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, longInterruptionReadmission, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq, startOfTerm } from './term.ts';
 import type { AuditReport, Grade, RequirementResult, Student, TermGpa } from './types.ts';
-import { isCovidCohort, type Ctx } from './requirements/context.ts';
+import { beforeForfeiture, isCovidCohort, type Ctx } from './requirements/context.ts';
 import { fullTimeTermRecords, graduateLevelFlag } from './requirements/residency.ts';
 import { transferCourseChecks } from '../data/course-checks.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
@@ -239,6 +239,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     entry,
     qualifierEntry,
     clockShift,
+    ...(longInterruptionReadmission(student) ? { forfeitBefore: longInterruptionReadmission(student)! } : {}),
     covidCohort: isCovidCohort(student, entry),
     alloc,
     classified,
@@ -311,7 +312,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     const interrupted = classified.some((c) => c.interrupted);
     warnings.push(
       interrupted
-        ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (Academic Code §5.5), so those courses wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation.`
+        ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (Academic Code §5.5), so those courses and examinations wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation.`
         : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation (Academic Code §6.2.6); the program may reject some or all of your earlier credits (DGS Handbook §3.3), so the courses from before your readmission wait for the DGS and are in the review request.`,
     );
     // The readmission itself goes to the DGS (policy review 2026-10-04,
@@ -325,6 +326,24 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
         `Readmission: I was readmitted in ${termLabel(student.readmittedTerm)} after a withdrawal or a fall or spring semester I was not registered for (DGS Handbook §3.1, §3.3, §3.8; Academic Code §3.5). Please confirm my readmission and which of my earlier credits stand; my clocks still count from ${termLabel(entry)} (Academic Code §6.2.6).`,
       ),
     );
+    // The examinations from before an interruption of five years or more
+    // (Academic Code §5.5: "Credit for any course or examination will be
+    // forfeited …"; P3-ac-5a-3, DGS 2026-10-05) — each row waits for the DGS,
+    // and the request names them.
+    if (ctx.forfeitBefore !== undefined) {
+      const m = student.milestones;
+      const exams = [
+        ...(student.program === 'phd' && student.attestations.qualifierPassedUnderPriorRules === true ? ['the qualifying examination I passed under the earlier requirements'] : []),
+        ...(beforeForfeiture(ctx, m.researchQualifierPassed) ? [`the research qualifier (passed ${m.researchQualifierPassed})`] : []),
+        ...(beforeForfeiture(ctx, m.candidacyPassed) ? [`the Oral Candidacy Exam (passed ${m.candidacyPassed})`] : []),
+        ...(beforeForfeiture(ctx, m.thesisDefensePassed) ? [`the thesis defense (passed ${m.thesisDefensePassed})`] : []),
+        ...(beforeForfeiture(ctx, m.projectReportAccepted) ? [`the project report (accepted ${m.projectReportAccepted})`] : []),
+      ];
+      if (exams.length > 0) {
+        const list = exams.length === 1 ? exams[0]! : `${exams.slice(0, -1).join(', ')} and ${exams[exams.length - 1]!}`;
+        reviewFlags.push(decisionWording(student.program, `My examinations from before my readmission after an interruption of five years or more: please rule on ${list} (Academic Code §5.5).`));
+      }
+    }
   }
   // A 4+1's graduate credits beyond the shared pair must be moved from UG to
   // GR registration and transferred BEFORE the bachelor's degree is conferred

@@ -282,6 +282,64 @@ describe('a readmission after five years or more (Academic Code §5.5), counted 
   });
 });
 
+// The examinations from before an interruption of five years or more (policy
+// review round 3, P3-ac-5a-3; DGS 2026-10-05: "Apply suggested handling",
+// finishing P1-deadlines-c7 of 2026-10-03). Academic Code §5.5: "Credit for any
+// course or examination will be forfeited if the student interrupts his or her
+// program of study for five years or more." Each is routed to the DGS — never
+// reset — and the review request names them.
+describe('examinations from before a readmission after five years or more (Academic Code §5.5)', () => {
+  const seminars = (term: Term) => [ndCourse('CSE 63801', { term, credits: 1 }), ndCourse('CSE 63802', { term, credits: 1 })];
+  const phd = (over: Partial<Student> = {}, readmittedTerm: Term = fall(2024)) =>
+    phdStudent({
+      entryTerm: fall(2015),
+      gpa: 3.7,
+      readmittedTerm,
+      courses: [ndCourse('CSE 60641', { term: fall(2015) }), ndCourse('CSE 60111', { term: spring(2016) }), ...seminars(spring(2016)), ndCourse('CSE 60770', { term: fall(2024), grade: 'IP' })],
+      milestones: { advisorIdentified: '2015-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes', researchQualifierPassed: '2017-02-01', candidacyPassed: '2018-04-20' },
+      ...over,
+    });
+  const row = (s: Student, id: string) => audit(s, rules, '2024-10-15').requirements.find((r) => r.id === id)!;
+  it('the research qualifier, the OCE, a core area, the seminars and the qualifier wait for the DGS, and the request names the examinations', () => {
+    const s = phd();
+    const FACT = /before an interruption of five years or more/;
+    for (const id of ['phd.qualifier.research', 'phd.candidacy', 'phd.qualifier.core.os', 'phd.seminar']) {
+      const r = row(s, id);
+      assert.equal(r.status, 'needs_dgs_review', id);
+      assert.match(r.detail, FACT, id);
+      assert.match(r.detail, /Academic Code §5\.5 forfeits it unless the DGS and the Graduate School rule otherwise; the review request asks/, id);
+    }
+    assert.match(row(s, 'phd.qualifier.research').detail, /^Research qualifier passed 2017-02-01 — before an interruption of five years or more/);
+    const flags = audit(s, rules, '2024-10-15').reviewFlags ?? [];
+    assert.ok(flags.includes('My examinations from before my readmission after an interruption of five years or more: please rule on the research qualifier (passed 2017-02-01) and the Oral Candidacy Exam (passed 2018-04-20) (Academic Code §5.5).'), JSON.stringify(flags));
+    assert.match(audit(s, rules, '2024-10-15').warnings.find((w) => w.startsWith('Readmitted'))!, /so those courses and examinations wait for the DGS/);
+  });
+  it('a shorter gap, or an examination after the readmission, is left alone', () => {
+    const short = phd({}, spring(2020)); // last course Spring 2016 → Spring 2020: four years
+    assert.equal(row(short, 'phd.qualifier.research').status, 'met');
+    assert.ok(!(audit(short, rules, '2024-10-15').reviewFlags ?? []).some((f) => /My examinations from before my readmission/.test(f)));
+    const after = phd({ milestones: { advisorIdentified: '2015-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes', researchQualifierPassed: '2025-02-01' } });
+    // (It is late against the 18 months, which is its own question — but not forfeited.)
+    assert.doesNotMatch(row(after, 'phd.qualifier.research').detail, /before an interruption of five years or more/);
+  });
+  it('a qualifier passed under the earlier requirements is asked about too', () => {
+    const s = phd({ attestations: { qualifierPassedUnderPriorRules: true } });
+    const q = row(s, 'phd.qualifier');
+    assert.equal(q.status, 'needs_dgs_review');
+    assert.match(q.detail, /If you passed it before your readmission in Fall 2024, after an interruption of five years or more: Academic Code §5\.5 forfeits it/);
+    assert.ok((audit(s, rules, '2024-10-15').reviewFlags ?? []).some((f) => /please rule on the qualifying examination I passed under the earlier requirements/.test(f)));
+  });
+  it('an MSCSE thesis defense or project report from before the gap waits for the ADGS', () => {
+    const base = { entryTerm: fall(2015), readmittedTerm: fall(2024), courses: [ndCourse('CSE 60641', { term: fall(2015) }), ndCourse('CSE 60770', { term: fall(2024), grade: 'IP' })] };
+    const thesis = audit(ms({ ...base, msOption: 'thesis', milestones: { thesisDefensePassed: '2017-04-01' } }), rules, '2024-10-15').requirements.find((r) => r.id === 'ms.thesis.defense')!;
+    assert.equal(thesis.status, 'needs_dgs_review');
+    assert.match(thesis.detail, /Thesis defense passed 2017-04-01 — before an interruption of five years or more/);
+    const project = audit(ms({ ...base, msOption: 'project', milestones: { projectReportAccepted: '2017-04-01' } }), rules, '2024-10-15').requirements.find((r) => r.id === 'ms.project.report')!;
+    assert.equal(project.status, 'needs_dgs_review');
+    assert.match(project.detail, /Project report accepted 2017-04-01 — before an interruption of five years or more/);
+  });
+});
+
 // Registered in the term of the defense (policy review 2026-10-04,
 // P2-dh-6-9-5): DGS Handbook §8.2.5 and Academic Code §3.7. A pointer behind
 // Relevant Policies, never a status change.

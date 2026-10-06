@@ -27,6 +27,9 @@ export interface Ctx {
   /** Semesters added to the §4.3 limit and §4.5's eighth semester for approved
    * leaves of absence and childbirth/adoption accommodations (DGS 2026-10-03). */
   clockShift: number;
+  /** The readmission term after an interruption of five years or more
+   * (Academic Code §5.5): what is dated before it waits for the DGS. */
+  forfeitBefore?: Term;
   /** Academic Code Appendix A: a Ph.D. student enrolled in Spring 2020 has nine
    * years (A.5) and a ninth-semester candidacy deadline (A.4) — applied from
    * the entry term alone (DGS 2026-10-03: "Just read the admission term"). */
@@ -42,6 +45,19 @@ export const COVID_COHORT_LAST_ENTRY: Term = { season: 'spring', year: 2020 };
 export function isCovidCohort(student: Student, entry: Term): boolean {
   return student.program === 'phd' && compareTerm(entry, COVID_COHORT_LAST_ENTRY) <= 0;
 }
+
+/** An examination dated before a readmission after an interruption of five
+ * years or more (policy review round 3, P3-ac-5a-3; DGS 2026-10-05: "Apply the
+ * suggested handling", finishing P1-deadlines-c7 of 2026-10-03). Academic Code
+ * §5.5: "Credit for any course or examination will be forfeited if the student
+ * interrupts his or her program of study for five years or more." Routed to
+ * the DGS, never reset. */
+export function beforeForfeiture(ctx: Ctx, date: string | undefined): boolean {
+  return ctx.forfeitBefore !== undefined && date !== undefined && date < startOfTerm(ctx.forfeitBefore).date;
+}
+/** The fact such an examination or course carries on its card, and the rule. */
+export const FORFEIT_FACT = 'before an interruption of five years or more';
+export const FORFEIT_NOTE = 'Academic Code §5.5 forfeits it unless the DGS and the Graduate School rule otherwise; the review request asks';
 
 /** The sentence a shifted clock carries, or '' when nothing moved it. */
 export function clockShiftNote(ctx: Ctx): string {

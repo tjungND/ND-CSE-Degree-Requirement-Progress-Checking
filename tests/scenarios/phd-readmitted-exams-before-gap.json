@@ -1,0 +1,106 @@
+{
+  "name": "phd-readmitted-exams-before-gap",
+  "description": "Policy review round 3, P3-ac-5a-3 (DGS 2026-10-05: 'Apply suggested handling', finishing P1-deadlines-c7 of 2026-10-03). Academic Code §5.5: 'Credit for any course or examination will be forfeited if the student interrupts his or her program of study for five years or more.' Entered Fall 2015, passed the research qualifier 2017-02-01 and the Oral Candidacy Exam 2018-04-20, withdrew, and was readmitted Fall 2024. Until 2026-10-05 the page warned that every earlier course and examination is forfeited, yet the research qualifier and the core area read Met; now each examination — and each qualifier row met only by courses from before the gap — waits for the DGS, and the review request names them.",
+  "today": "2024-10-15",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2015
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "readmittedTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2015
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2015
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2016
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63801",
+        "credits": 1,
+        "term": {
+          "season": "spring",
+          "year": 2016
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 63802",
+        "credits": 1,
+        "term": {
+          "season": "spring",
+          "year": 2016
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2015-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
+      "researchQualifierPassed": "2017-02-01",
+      "candidacyPassed": "2018-04-20"
+    },
+    "attestations": {}
+  },
+  "expect": {
+    "phd.qualifier.research": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Research qualifier passed 2017-02-01 — before an interruption of five years or more"
+      ]
+    },
+    "phd.candidacy": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Oral Candidacy Exam (OCE) passed 2018-04-20 — before an interruption of five years or more"
+      ]
+    },
+    "phd.qualifier.core.os": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Satisfied by CSE 60641 — taken before an interruption of five years or more"
+      ]
+    }
+  }
+}

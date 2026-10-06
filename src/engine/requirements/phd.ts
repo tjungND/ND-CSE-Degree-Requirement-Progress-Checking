@@ -11,7 +11,7 @@ import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { noteOf, capRow, clockShiftNote, defenseRegistrationNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
+import { noteOf, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun } from './residency.ts';
 import { advisorTttState, defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
@@ -309,13 +309,19 @@ function qualifierRowsPassedUnderPriorRules(ctx: Ctx, children: RequirementResul
   // were §4.4's own sentence; the exemption is the DGS's (2026-09-21), so it
   // is stated as a note that names the section, and the citation carries no
   // quote (report.ts then prints none).
+  // After a readmission following five years or more away, an examination
+  // from before it waits for the DGS (Academic Code §5.5; P3-ac-5a-3, DGS
+  // 2026-10-05) — the attestation carries no date, so the DGS is asked.
+  const forfeit = ctx.forfeitBefore !== undefined;
   const umbrella: RequirementResult = {
     id: 'phd.qualifier',
     group: QUALIFIER,
     title: 'Qualifying examination — all components',
-    status: 'met',
+    status: forfeit ? 'needs_dgs_review' : 'met',
+    ...(forfeit ? { forfeitReview: true as const } : {}),
     ...joinedDetail([
       'Passed under the earlier qualifier requirements, as you attested under “Approvals you already have”',
+      ...(forfeit ? [{ note: `If you passed it before your readmission in ${termLabel(ctx.forfeitBefore!)}, after an interruption of five years or more: ${FORFEIT_NOTE}` }] : []),
       { note: 'Students who passed the qualifying examination under the earlier rules are not subject to the current requirements of §4.4 (DGS 2026-09-21)' },
       { note: 'The Grad Admin’s record of the examination is what counts' },
       ...(ctx.student.milestones.qualifierFormFiled ? [] : [{ note: 'If the completion form is not on file, file it with the Grad Admin (§4.4)' }]),
@@ -358,6 +364,10 @@ function seminarRow(ctx: Ctx): RequirementResult {
     const dueDate = endOfTerm(dueTerm).date;
     const dueLabel = `the end of ${termLabel(dueTerm)} — the first year`;
     const passedIn: Term[] = [];
+    // A seminar passed only before a readmission after five years or more
+    // (Academic Code §5.5; P3-ac-5a-3, DGS 2026-10-05) waits for the DGS, as
+    // its credits do on the credit rows.
+    const fromBeforeGap: string[] = [];
     const states = wanted.map((id) => {
       const entries = ctx.classified.filter((c) => !c.superseded && c.entry.courseId === id);
       // §4.2 names this a credit requirement (2 credits), so a passed grade
@@ -370,6 +380,7 @@ function seminarRow(ctx: Ctx): RequirementResult {
       if (passedEntry) {
         satisfied.push(id);
         passedIn.push(passedEntry.entry.term);
+        if (passedEntry.interrupted) fromBeforeGap.push(id);
       }
       // The semester it was taken (DGS 2026-09-22, for the advisor summary):
       // "CSE 63801: done (Fall 2026)".
@@ -401,6 +412,10 @@ function seminarRow(ctx: Ctx): RequirementResult {
       status = states.every((x) => x !== 'unmet') ? 'in_progress' : 'unmet';
       deadline = openDeadline(dueDate, ctx.today, `Due by ${dueLabel} (approximate)`);
       parts.push(...transferNote);
+    }
+    if (status === 'met' && fromBeforeGap.length > 0) {
+      status = 'needs_dgs_review';
+      parts.push(`${fromBeforeGap.join(', ')} taken ${FORFEIT_FACT}`, { note: FORFEIT_NOTE });
     }
   }
   return {
@@ -608,10 +623,13 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
   // are still open — the first sentence used to describe the page layout.
   const partName = (c: RequirementResult): string =>
     c.id === 'phd.qualifier.categories' ? 'specialization (§4.4.2)' : c.id === 'phd.qualifier.research' ? 'the research component (§4.4.3)' : `${c.title.replace(/^Core knowledge:\s*/, '')} core knowledge (§4.4.1)`;
-  const open = children.filter((c) => c.status !== 'met');
+  // Parts done before a readmission after five years or more wait for the
+  // DGS (Academic Code §5.5; P3-ac-5a-3, DGS 2026-10-05) — done, not reset.
+  const forfeited = children.filter((c) => c.forfeitReview === true);
+  const open = children.filter((c) => c.status !== 'met' && c.forfeitReview !== true);
   // The standing is the fact; everything else is a note (DGS 2026-10-03).
   const parts: DetailPart[] = [
-    `${children.length - open.length} of ${children.length} parts done${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''}`,
+    `${children.length - open.length} of ${children.length} parts done${forfeited.length > 0 ? ` — ${forfeited.length === children.length - open.length ? 'all' : forfeited.length} ${FORFEIT_FACT}, waiting for the DGS` : ''}${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''}`,
     { note: 'One card per part below' },
   ];
   if (ndCredits && ndCredits.status !== 'met') {
@@ -654,6 +672,16 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
       if (compareTerm(ctx.qualifierEntry, ctx.entry) !== 0) parts.push({ note: `The four semesters are counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)} (§4.4 “of starting”; DGS 2026-10-03)` });
     }
   }
+  // Every part done, some before the gap: the DGS rules — never Overdue.
+  if (open.length === 0 && forfeited.length > 0 && status !== 'cannot_evaluate') {
+    status = 'needs_dgs_review';
+    deadline = { date: due?.effectiveDate ?? ctx.today, approx: true, state: 'done', label: 'Done before your readmission — waiting for the DGS' };
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      if (typeof p === 'object' && 'note' in p && /^Overdue — talk to the DGS$/.test(p.note)) parts.splice(i, 1);
+    }
+    parts.push({ note: FORFEIT_NOTE });
+  }
   return {
     id: 'phd.qualifier',
     group: QUALIFIER,
@@ -686,8 +714,15 @@ function coreRows(ctx: Ctx): RequirementResult[] {
     let confirmed: string | undefined;
     let ip: string | undefined;
     let pending: string | undefined;
+    // Passed only before a readmission after five years or more (Academic
+    // Code §5.5; P3-ac-5a-3, DGS 2026-10-05): the DGS rules on it.
+    let forfeited: string | undefined;
     for (const c of ctx.classified) {
       if (c.superseded) continue;
+      if (c.interrupted && isPassed(c.entry.grade) && c.rule?.coreArea === area.code) {
+        forfeited ??= c.entry.courseId;
+        continue;
+      }
       if (c.entry.origin === 'nd') {
         if (c.rule?.coreArea === area.code) {
           if (isPassed(c.entry.grade)) done = c.entry.courseId;
@@ -719,7 +754,7 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         pending ??= `${c.entry.courseId}${c.entry.institution ? ` (${c.entry.institution})` : ''}`;
       }
     }
-    const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : pending ? 'needs_dgs_review' : 'unmet';
+    const status: Status = done || confirmed ? 'met' : ip ? 'in_progress' : forfeited || pending ? 'needs_dgs_review' : 'unmet';
     // The course id alone (the detail may add "(Purdue University)" etc.).
     const bareId = (s: string) => s.replace(/ \(.*\)$/, '');
     // Which course satisfies it is the fact; why it may is a note (DGS 2026-10-03).
@@ -729,9 +764,11 @@ function coreRows(ctx: Ctx): RequirementResult[] {
         ? [`Satisfied by ${confirmed} — confirmed in the DGS’s course rules`, { note: '§4.4.1 allows a course from a previous institution' }]
         : ip
           ? [`${ip} is in progress`]
-          : pending
-            ? [`Pending review: ${pending}`, { note: `Its title suggests ${area.name}, and the DGS can confirm it (§4.4.1) via the review request` }]
-            : [`No ${area.name} course yet`];
+          : forfeited
+            ? [`Satisfied by ${forfeited} — taken ${FORFEIT_FACT}`, { note: FORFEIT_NOTE }]
+            : pending
+              ? [`Pending review: ${pending}`, { note: `Its title suggests ${area.name}, and the DGS can confirm it (§4.4.1) via the review request` }]
+              : [`No ${area.name} course yet`];
     return {
       id: `phd.qualifier.core.${area.code}`,
       group: QUALIFIER,
@@ -743,7 +780,8 @@ function coreRows(ctx: Ctx): RequirementResult[] {
       ...(status === 'met' ? { satisfiedBy: [bareId((done ?? confirmed)!)] } : {}),
       // In progress, or waiting on the DGS: it will satisfy this area, and the
       // course's own line says so (2026-09-08).
-      ...(status !== 'met' && (ip ?? pending) ? { pendingBy: [bareId((ip ?? pending)!)] } : {}),
+      ...(status !== 'met' && (ip ?? forfeited ?? pending) ? { pendingBy: [bareId((ip ?? forfeited ?? pending)!)] } : {}),
+      ...(status === 'needs_dgs_review' && forfeited ? { forfeitReview: true as const } : {}),
       ...(status === 'in_progress' && ip ? { completingCourses: [ip] } : {}),
     };
   });
@@ -929,6 +967,21 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     groupChoices[cand.courseId] = cand.groups.filter((g) => !coveredByOthers.has(g));
   }
 
+  // Met only with courses taken before a readmission after five years or more
+  // (Academic Code §5.5; P3-ac-5a-3, DGS 2026-10-05): the DGS rules on them.
+  const fromBeforeGap = new Set(ctx.classified.filter((c) => c.interrupted).map((c) => c.entry.courseId));
+  let forfeitReview = false;
+  if (status === 'met' && fromBeforeGap.size > 0) {
+    const clean = qualifying.filter((q) => !fromBeforeGap.has(q.courseId));
+    const cleanMatch = matchDistinctGroups(clean, allGroups);
+    if (!(cleanMatch.distinctCount >= groupsReq && clean.length >= coursesReq)) {
+      status = 'needs_dgs_review';
+      forfeitReview = true;
+      const used = [...def.assignment.keys()].filter((id) => fromBeforeGap.has(id));
+      add(`Met only with ${used.join(', ')}, taken ${FORFEIT_FACT}`);
+      add({ note: FORFEIT_NOTE });
+    }
+  }
   const stillPending = new Set(ctx.classified.filter((c) => c.tier !== 'definite' && !c.superseded).map((c) => c.entry.courseId));
   const assigned = [...def.assignment.keys()];
   const assignedDone = assigned.filter((id) => !stillPending.has(id));
@@ -939,6 +992,7 @@ function categoriesRow(ctx: Ctx): RequirementResult {
     title: 'Three specialization courses from three distinct groups, each B or higher',
     shortTitle: 'Specialization (3 groups)',
     status,
+    ...(forfeitReview ? { forfeitReview: true as const } : {}),
     ...joinedDetail(parts),
     // Only when the two actually differ, so a row with no group name in it
     // carries nothing extra.
@@ -1060,11 +1114,19 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     }
   }
   if (status !== 'met' && compareTerm(ctx.qualifierEntry, ctx.entry) !== 0) parts.push({ note: `The ${months} months are counted from your transfer into the Ph.D. in ${termLabel(ctx.qualifierEntry)} (DGS 2026-10-03)` });
+  // Passed before a readmission after five years or more (Academic Code §5.5;
+  // P3-ac-5a-3, DGS 2026-10-05): the DGS rules on it.
+  const forfeited = beforeForfeiture(ctx, m.researchQualifierPassed);
+  if (forfeited) {
+    status = 'needs_dgs_review';
+    parts = [`Research qualifier passed ${m.researchQualifierPassed} — ${FORFEIT_FACT}`, { note: FORFEIT_NOTE }];
+  }
   return {
     id: 'phd.qualifier.research',
     group: QUALIFIER,
     title: 'Research component: a significant research contribution',
     status,
+    ...(forfeited ? { forfeitReview: true as const } : {}),
     ...joinedDetail(parts),
     deadline,
     citation: { section: '§4.4.3', quote },
@@ -1486,13 +1548,25 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
   // Passing is not admission (DGS 2026-10-04): say so while the next row is open.
   if (passed !== undefined && !m.candidacyAdmitted)
     parts.push({ note: 'Passing the Oral Candidacy Exam (OCE) is one of the conditions for admission to doctoral candidacy, a separate step with the Graduate School — the next row' });
+  // Passed before a readmission after five years or more (Academic Code §5.5;
+  // P3-ac-5a-3, DGS 2026-10-05): the DGS rules on it, whatever else is true.
+  const forfeited = beforeForfeiture(ctx, passed);
+  if (forfeited) {
+    status = 'needs_dgs_review';
+    const first = parts.findIndex((p) => typeof p === 'string');
+    const fact = `Oral Candidacy Exam (OCE) passed ${passed} — ${FORFEIT_FACT}`;
+    if (first >= 0) parts[first] = fact;
+    else parts.unshift(fact);
+    parts.splice(first >= 0 ? first + 1 : 1, 0, { note: FORFEIT_NOTE });
+  }
   return {
     id: 'phd.candidacy',
     group: CANDIDACY,
     title: 'Oral Candidacy Exam (OCE) passed',
     status,
+    ...(forfeited ? { forfeitReview: true as const } : {}),
     // Late is the only question: done, for the eight-year row (2026-10-04).
-    ...(status === 'needs_dgs_review' && r.status === 'needs_dgs_review' && !courseworkShort ? { completedLate: true as const } : {}),
+    ...(status === 'needs_dgs_review' && r.status === 'needs_dgs_review' && !courseworkShort && !forfeited ? { completedLate: true as const } : {}),
     ...(parts.length > 0 ? joinedDetail(parts) : { detail: '' }),
     deadline: r.deadline,
     citation: { section: '§4.5', quote },
@@ -1649,7 +1723,7 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     // The OCE's own deadline (§4.5, the sheet's semester) beside it when it is
     // not the admission's — the card is the OCE's too since 2026-10-04.
     const oceDue = !m.candidacyPassed && merged.oce.deadline && merged.oce.deadline.date !== date ? ` — ${merged.oce.deadline.label.charAt(0).toLowerCase()}${merged.oce.deadline.label.slice(1)}` : '';
-    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}` : `not yet${oceDue}`}`, done: !!m.candidacyPassed });
+    conditions.push({ text: `Oral Candidacy Exam (OCE): ${m.candidacyPassed ? `passed ${m.candidacyPassed}${merged.oce.forfeitReview ? ` — ${FORFEIT_FACT}` : ''}` : `not yet${oceDue}`}`, done: !!m.candidacyPassed && !merged.oce.forfeitReview });
     const floor = ctx.params.number('fulltime_credits_min');
     if (floor === undefined) conditions.push({ text: `${ADMISSION_FULL_TIME_SEMESTERS} consecutive full-time semesters: cannot be checked — the rules sheet is missing 'fulltime_credits_min'`, done: false });
     else {
@@ -1736,6 +1810,12 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     deadline = merged.oce.deadline;
   }
   if (!admitted || merged.oce.status !== 'met') parts.push(...oceNotes.map((n) => ({ note: `Oral Candidacy Exam (OCE): ${n.note}` })));
+  // An OCE passed before a readmission after five years or more waits for the
+  // DGS (Academic Code §5.5; P3-ac-5a-3), and so does admission on it.
+  if (merged.oce.forfeitReview && status !== 'unmet' && status !== 'cannot_evaluate') {
+    status = 'needs_dgs_review';
+    completedLate = false;
+  }
   if (!admitted) parts.push(...rcrNotes);
   return {
     ...base,
