@@ -2327,7 +2327,15 @@ function buildExplanationText(
     // (policy review 2026-10-03).
     else if (cc.entry.countedToward === 'neither' && cc.entry.origin === 'transfer') parts.push(cc.approvalPending ? 'not used by an earlier degree' : 'not used by an earlier degree — counts in full');
     if (cc.ndMastersCredit) parts.push(`from your Notre Dame MSCSE — counts in full as Ph.D. coursework, with no transfer approval and no §5.2 cap: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)${cc.pool === 'total_only' ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : ''}`);
-    if (cc.incompleteDue !== undefined && !cc.incompleteLapsed) parts.push(`Incomplete (I): complete the work by about ${cc.incompleteDue} — 30 days after grades were due, plus 14 for the instructor to report — or it becomes an F (Academic Code §4.4)`);
+    // The rule, not a computed date (policy review round 3, P3-cross-doc-4; DGS
+    // 2026-10-06: "Apply the suggested handling"): the 30 days are the
+    // student's and the 14 after them the instructor's (Academic Code §4.4:
+    // "30 calendar days from when grades were due … to complete the
+    // coursework. The instructor of record then has 14 calendar days to report
+    // the grade"; CSE §5.1). The app does not know when grades were due, and
+    // its stand-in, the term's nominal end, falls after it — so no date is
+    // given. `incompleteDue` (44 days) still decides when the line lapses.
+    if (cc.incompleteDue !== undefined && !cc.incompleteLapsed) parts.push('Incomplete (I): finish the work within 30 calendar days of the date grades were due for that semester, or the I becomes an F; the instructor then has 14 days to report the grade (Academic Code §4.4; CSE §5.1)');
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved
     // lead says "as transfer credit"); say it once.
     if (cc.caps.includes('transfer') && !preApproved && !cc.approvedNote && !/^transfer|§5\.2/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');

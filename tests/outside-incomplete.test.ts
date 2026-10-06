@@ -50,7 +50,7 @@ describe('an Incomplete from another university is held for the DGS, never on No
   });
   it('a Notre Dame course’s Incomplete keeps the §4.4 clock', () => {
     const nd = lineOf(phdStudent({ entryTerm: fall(2025), courses: [ndCourse('CSE 60641', { term: spring(2026), grade: 'I' })] }), '2026-06-20', 'CSE 60641');
-    assert.match(nd.text, /Incomplete \(I\): complete the work by about 2026-07-14/);
+    assert.match(nd.text, /Incomplete \(I\): finish the work within 30 calendar days of the date grades were due for that semester, or the I becomes an F; the instructor then has 14 days to report the grade \(Academic Code §4\.4; CSE §5\.1\)/);
   });
   it('the advisor email asks the DGS to decide once the grade is posted', () => {
     const reason = `graded I (Incomplete) at ${UMASS} — no final grade yet, so it cannot show the B that §5.2 requires — the DGS decides once the grade is final`;

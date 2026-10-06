@@ -1,6 +1,6 @@
 {
   "name": "phd-incomplete-open",
-  "description": "Policy review 2026-10-03 (Academic Code §4.4): an Incomplete still inside its make-up window counts like an in-progress course, and its line says by about when the work is due (30 days after grades were due, plus 14 for the instructor to report).",
+  "description": "Policy review 2026-10-03 (Academic Code §4.4): an Incomplete still inside its make-up window counts like an in-progress course. Since policy review round 3 (P3-cross-doc-4, DGS 2026-10-06) its line states the rule — finish the work within 30 calendar days of the date grades were due, then 14 days for the instructor to report — and gives no computed date: the app's stand-in for the grade due date falls after the real one.",
   "today": "2026-12-20",
   "rules": {
     "base": "default"
@@ -64,7 +64,7 @@
   },
   "expectCourseLines": {
     "CSE 60641": [
-      "Incomplete (I): complete the work by about"
+      "Incomplete (I): finish the work within 30 calendar days of the date grades were due for that semester, or the I becomes an F"
     ]
   }
 }
