@@ -202,11 +202,13 @@ export function timeLimitRow(
     yearsKey: string;
     section: string;
     quote: string;
-    /** The date the LAST requirement was completed, when the record holds one
-     * (the Ph.D.'s official submission, else the defense; the MSCSE's thesis
-     * defense or project report) — a completion after the limit cannot read
-     * "complete within the limit" (policy review 2026-10-03). */
-    completedOn?: string;
+    /** The LAST requirement completed, when the record shows it (the Ph.D.'s
+     * official submission, else the defense; the MSCSE's thesis defense,
+     * submission or project report — policy review 2026-10-03 — and, since
+     * policy review round 3, P3-cse-3-1, the term a credit requirement was
+     * first met) — a completion after the limit cannot read "complete within
+     * the limit". */
+    completed?: Completion;
     /** A longer limit that may apply instead — the DGS confirms whether it
      * does: the Graduate School's seven years for a master's student
      * attending summer session only (Academic Code §6.1.4; policy review
@@ -258,19 +260,24 @@ export function timeLimitRow(
     const tuition = tuitionScholarshipNote(ctx);
     const fundingDue: DetailPart[] = [...(args.funding ? [args.funding.whenDue] : []), ...(args.funding?.always ? [args.funding.always] : [])];
     const fundingAlways: DetailPart[] = args.funding?.always ? [args.funding.always] : [];
-    if (others.allMet && args.completedOn !== undefined && args.completedOn > date) {
+    const done = args.completed;
+    if (others.allMet && done !== undefined && done.date > date) {
       // Finished, but after the limit (Academic Code §6.2.6 / §6.1.4): the
       // Graduate School decides eligibility (dissertation completion status,
       // an extension) — the same "Eligibility at risk" the defense row shows.
+      // A course that completed a credit requirement after the limit is named
+      // with its term (P3-cse-3-1, DGS 2026-10-06).
       status = 'needs_dgs_review';
       statusLabel = 'Eligibility at risk';
       parts = [
-        `Every requirement is complete, but the last one was dated ${args.completedOn}, after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
+        done.course
+          ? `Every requirement is complete, but the last one was completed after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}: ${done.course.courseId}, taken in ${termLabel(done.course.term)}, completed ${done.course.requirement}`
+          : `Every requirement is complete, but the last one was dated ${done.date}, after the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
         { note: `${args.section} makes that a forfeiture of degree eligibility unless the Graduate School granted an extension — confirm it with the DGS` },
-        ...longerNote(args.completedOn),
+        ...longerNote(done.date),
         ...extNotes,
       ];
-      deadline = { date, approx: true, state: 'done', label: `Done ${args.completedOn} — after the limit` };
+      deadline = { date, approx: true, state: 'done', label: `Done ${done.course ? termLabel(done.course.term) : done.date} — after the limit` };
     } else if (others.allMet) {
       status = 'met';
       parts = [`All requirements are complete within the ${years}-year limit${shiftNote}`, ...extNotes];
@@ -449,6 +456,47 @@ export function pendingCourseIds(ctx: Ctx, pick: (p: CourseAllocation) => number
   return ctx.alloc.perCourse
     .filter((p) => pick(p) > 0 && p.course.tier !== 'definite' && !p.course.superseded)
     .map((p) => p.course.entry.courseId);
+}
+
+/** The last requirement completed, for the time-limit rows: its date, and —
+ * when a course completed it — the course, its term and the requirement it
+ * completed (policy review round 3, P3-cse-3-1; DGS 2026-10-06). */
+export interface Completion {
+  date: string;
+  course?: { courseId: string; term: Term; requirement: string };
+}
+
+/** When a credit requirement was first met: the counted courses in term
+ * order, and the term in which their credits first reached `min` — the end of
+ * that term is the completion date (term.ts `endOfTerm`). Surplus courses
+ * taken after it do not move it: a student who kept taking courses after the
+ * limit is not flagged. Completed (definite) credit only; undefined while the
+ * minimum is not reached or the sheet has no minimum. Transfer credit is
+ * dated by its own term, which is before entry, so it never makes a
+ * completion late. (P3-cse-3-1: CSE §3.3 and Academic Code §6.1.4 / §6.2.6
+ * count coursework among "all requirements".) */
+export function creditsReachedAt(
+  ctx: Ctx,
+  pick: (p: CourseAllocation) => number,
+  min: number | undefined,
+  requirement: string,
+): Completion | undefined {
+  if (min === undefined || min <= 0) return undefined;
+  const counted = ctx.alloc.perCourse
+    .filter((p) => pick(p) > 0 && p.course.tier === 'definite' && !p.course.superseded)
+    .map((p) => ({ courseId: p.course.entry.courseId, term: p.course.entry.term, credits: pick(p) }))
+    .sort((a, b) => compareTerm(a.term, b.term));
+  let sum = 0;
+  for (const c of counted) {
+    sum += c.credits;
+    if (sum >= min - 1e-9) return { date: endOfTerm(c.term).date, course: { courseId: c.courseId, term: c.term, requirement } };
+  }
+  return undefined;
+}
+
+/** The latest of several completions (milestone dates and credit requirements). */
+export function lastCompletion(list: readonly (Completion | undefined)[]): Completion | undefined {
+  return list.filter((c): c is Completion => c !== undefined).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)).pop();
 }
 
 /** Cap row: caps are enforced by the engine, so the row reports usage and names

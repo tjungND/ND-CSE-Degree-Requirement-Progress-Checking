@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — engine; policy review round 3): **P3-cse-3-1, and the Ph.D. for symmetry.** The time-limit rows count coursework: each credit requirement is complete at the end of the term its counted courses first reached the minimum (context.ts `creditsReachedAt`, `lastCompletion`), so a course that completed one after the limit makes the row Eligibility at risk and is named; surplus courses after the limit are not flagged. MSCSE: 30 total, 24 regular, 6 project/thesis; Ph.D.: 60 total, 24 regular, 9 at Notre Dame. Scenario mscse-last-course-after-the-limit; tests/time-limit-coursework.test.ts. Wording W-CL184.
+
 2026-10-06 (DGS — page; policy review round 3): **P3-cse-1-2-2.** The Next steps advisor step follows the advisor card: enter the name, answer the faculty-status question, or — for No or Not sure — send the review request. The review-request step also counts the request’s non-course items and says everything once (next-steps.ts). tests/next-steps.test.ts. Wording W-CL181–W-CL183.
 
 2026-10-06 (DGS — page; policy review round 3): **P3-cse-1-2-1.** The advisor summary and the Grad Admin request print the cumulative GPA with the card’s `gpaText`, so 2.996 is never “3.00” in an email (standing lines and the GPA evidence row); the import preview’s graduate cumulative GPA labels too. tests/email-gpa.test.ts.

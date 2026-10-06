@@ -1,0 +1,43 @@
+{
+  "name": "mscse-last-course-after-the-limit",
+  "description": "Policy review round 3, P3-cse-3-1 (DGS 2026-10-06: “Apply the suggested handling”). A part-time MSCSE project-option student entered Fall 2021, so the five years end at the start of Fall 2026. The project report was accepted 2023-05-01 and 21 regular credits were finished by Fall 2022; the 24th regular credit, CSE 60427, was taken in Fall 2026 and graded A. CSE §3.3 and Academic Code §6.1.4 count coursework among “all requirements”, so the time limit reads Eligibility at risk and names the course and term, instead of “complete within the 5-year limit”.",
+  "today": "2027-01-20",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": { "season": "fall", "year": 2021 },
+    "bachelorsAwarded": { "season": "spring", "year": 2021 },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "courses": [
+      { "courseId": "CSE 60641", "credits": 3, "term": { "season": "fall", "year": 2021 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60111", "credits": 3, "term": { "season": "fall", "year": 2021 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60321", "credits": 3, "term": { "season": "fall", "year": 2021 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60535", "credits": 3, "term": { "season": "fall", "year": 2021 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60762", "credits": 3, "term": { "season": "fall", "year": 2022 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60770", "credits": 3, "term": { "season": "fall", "year": 2022 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60876", "credits": 3, "term": { "season": "fall", "year": 2022 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 68902", "credits": 6, "term": { "season": "spring", "year": 2023 }, "grade": "A", "origin": "nd" },
+      { "courseId": "CSE 60427", "credits": 3, "term": { "season": "fall", "year": 2026 }, "grade": "A", "origin": "nd" }
+    ],
+    "fullTimeTermOverrides": [{ "season": "fall", "year": 2021 }],
+    "milestones": { "advisorIdentified": "2021-10-01", "advisorName": "Prof. Example", "projectReportAccepted": "2023-05-01" },
+    "attestations": { "advisorApprovedPlan": true }
+  },
+  "expect": {
+    "ms.credits.regular": { "status": "met" },
+    "ms.timeLimit": {
+      "status": "needs_dgs_review",
+      "statusLabel": "Eligibility at risk",
+      "deadlineState": "done",
+      "detailIncludes": [
+        "Every requirement is complete, but the last one was completed after the 5-year limit passed at the start of Fall 2026 (approximate): CSE 60427, taken in Fall 2026, completed the 24 regular-course credits"
+      ],
+      "detailExcludes": ["All requirements are complete within the 5-year limit"]
+    }
+  }
+}

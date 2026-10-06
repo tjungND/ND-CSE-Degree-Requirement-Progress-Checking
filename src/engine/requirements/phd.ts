@@ -11,7 +11,7 @@ import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
 import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
 import type { DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { noteOf, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, courseContributions, defendGpaNote, joinedDetail, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
+import { noteOf, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, courseContributions, creditsReachedAt, defendGpaNote, joinedDetail, lastCompletion, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun, sameTermDuplicate } from './residency.ts';
 import { advisorTttState, defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
@@ -512,9 +512,23 @@ export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEv
   // The last requirement is the OFFICIAL SUBMISSION (Academic Code §6.2.6:
   // "including the dissertation, its defense, and the official submission
   // within eight years") — the defense alone no longer closes the row
-  // (policy review 2026-10-03).
+  // (policy review 2026-10-03). Coursework counts too, as on the MSCSE
+  // (policy review round 3, P3-cse-3-1; DGS 2026-10-06: "Apply the same
+  // change on PhD for symmetry"): the term in which the 60 total, the 24
+  // regular-course or the 9 Notre Dame regular-course credits were first
+  // reached — normally long before the submission, so this matters only when
+  // a course was finished after the limit.
   const m = ctx.student.milestones;
-  const completedOn = [m.dissertationSubmitted, m.defensePassed].filter((d): d is string => d !== undefined).sort().pop();
+  const p = ctx.params;
+  const total = p.number('phd_total_credits_min');
+  const regular = p.number('phd_regular_credits_min');
+  const nd = p.number('phd_nd_credits_min');
+  const completed = lastCompletion([
+    ...[m.dissertationSubmitted, m.defensePassed].filter((d): d is string => d !== undefined).map((date) => ({ date })),
+    creditsReachedAt(ctx, (a) => a.countedRegular + a.countedOther, total, `the ${total} total credits`),
+    creditsReachedAt(ctx, (a) => a.countedRegular, regular, `the ${regular} regular-course credits`),
+    creditsReachedAt(ctx, (a) => (atNotreDame(a.course) && a.course.pool === 'regular' ? a.countedRegular : 0), nd, `the ${nd} regular-course credits taken at Notre Dame`),
+  ]);
   return timeLimitRow(ctx, others, {
     id: 'phd.timeLimit',
     group: TIME,
@@ -522,7 +536,7 @@ export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEv
     yearsKey: 'phd_time_limit_years',
     section: '§4.3',
     quote,
-    completedOn,
+    completed,
     // DGS Handbook §4.1 (policy review 2026-10-04, P2-dh-4-5-1; DGS: "Apply
     // the suggested handling" — with "whether the MSCSE years count is not the
     // DGS's call. It's the graduate school's call"): University funding needs

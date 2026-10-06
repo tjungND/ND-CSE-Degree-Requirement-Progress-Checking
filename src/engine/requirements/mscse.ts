@@ -6,7 +6,7 @@ import type { DeadlineInfo, DetailPart, RequirementResult, Status } from '../typ
 import type { Ctx } from './context.ts';
 import { defendedBelowGpaNote, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { usableGpa } from '../ranges.ts';
-import { noteOf, joinedDetail, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, countedCourseIds, courseContributions, defendGpaNote, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow } from './context.ts';
+import { noteOf, joinedDetail, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, countedCourseIds, courseContributions, creditsReachedAt, defendGpaNote, lastCompletion, pendingCourseIds, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, type Completion } from './context.ts';
 import { candidacyFormSentence } from './phd.ts';
 import { fullTimeTermRecords, graduateLevelParts } from './residency.ts';
 import { transferRow } from './transfer.ts';
@@ -300,9 +300,28 @@ const SUMMER_ONLY_LIMIT = {
 /** The last dated §3.4 requirement — the thesis defense, the thesis's
  * submission to the Graduate School (Academic Code §6.1.8, 2026-10-04) or the
  * project report. */
-function lastMsRequirementDate(ctx: Ctx): string | undefined {
+/** The last MSCSE requirement completed: the thesis defense, the thesis
+ * submission or the project report (policy review 2026-10-03), or — policy
+ * review round 3, P3-cse-3-1 (DGS 2026-10-06: "Apply the suggested
+ * handling") — the term in which the 30 total, the 24 regular-course or the
+ * 6 project or thesis credits were first reached. CSE §3.3: "Failure to
+ * complete all requirements for the M.S. degree within 5 years results in
+ * forfeiture of degree eligibility"; Academic Code §6.1.4: "All requirements
+ * for the master's degree must be completed within five years." A course
+ * finished after the limit used to read "complete within the limit" once
+ * graded. */
+function lastMsCompletion(ctx: Ctx): Completion | undefined {
   const m = ctx.student.milestones;
-  return [m.thesisDefensePassed, m.thesisSubmitted, m.projectReportAccepted].filter((d): d is string => d !== undefined).sort().pop();
+  const p = ctx.params;
+  const total = p.number('ms_total_credits_min');
+  const regular = p.number('ms_regular_credits_min');
+  const project = p.number('ms_project_credits_min');
+  return lastCompletion([
+    ...[m.thesisDefensePassed, m.thesisSubmitted, m.projectReportAccepted].filter((d): d is string => d !== undefined).map((date) => ({ date })),
+    creditsReachedAt(ctx, (a) => a.countedRegular + a.countedOther, total, `the ${total} total credits`),
+    creditsReachedAt(ctx, (a) => a.countedRegular, regular, `the ${regular} regular-course credits`),
+    creditsReachedAt(ctx, (a) => (a.course.pool === 'project' ? a.countedOther : 0), project, `the ${project} credits of M.S. project or thesis direction`),
+  ]);
 }
 
 /** §3.3: "Failure to complete all requirements for the M.S. degree within
@@ -312,7 +331,8 @@ export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEva
     'Failure to complete all requirements for the M.S. degree within 5 years results in forfeiture of degree eligibility.';
   // The same row as the Ph.D.'s, with the master's key and quote — and the
   // thesis defense or project report as the last dated requirement (policy
-  // review 2026-10-03: a defense after the limit used to close the row).
+  // review 2026-10-03: a defense after the limit used to close the row), or
+  // the course that completed a credit requirement (P3-cse-3-1).
   return timeLimitRow(ctx, others, {
     id: 'ms.timeLimit',
     group: TIME,
@@ -320,7 +340,7 @@ export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEva
     yearsKey: 'ms_time_limit_years',
     section: '§3.3',
     quote,
-    completedOn: lastMsRequirementDate(ctx),
+    completed: lastMsCompletion(ctx),
     // The Graduate School's seven years, when the record shows summer
     // sessions only — for the DGS to confirm (2026-10-04).
     ...(summerSessionOnly(ctx) ? { longer: SUMMER_ONLY_LIMIT } : {}),
@@ -335,7 +355,7 @@ export function summerOnlyReviewFlag(ctx: Ctx, others: { allMet: boolean }): str
   if (ctx.student.program !== 'mscse' || years === undefined || !summerSessionOnly(ctx)) return undefined;
   const five = timeLimitDate(ctx, years);
   const seven = timeLimitDate(ctx, SUMMER_ONLY_MS_TIME_LIMIT_YEARS);
-  const completedOn = lastMsRequirementDate(ctx);
+  const completedOn = lastMsCompletion(ctx)?.date;
   if (others.allMet && (completedOn === undefined || completedOn <= five)) return undefined; // complete within the five
   const when = others.allMet ? completedOn! : ctx.today;
   if (when <= five || when > seven) return undefined;
