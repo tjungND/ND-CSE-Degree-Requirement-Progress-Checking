@@ -28,8 +28,11 @@ export function shortenAfterFirst(text: string, re: RegExp = OCE_RE, short: stri
 /** The same rule over a rendered page: walks the text nodes under `root` in
  * document order and rewrites `nodeValue` only (never the element tree —
  * restoreFocus() relies on element-index paths). Skipped: the glossary (its
- * term keeps the full name — it is the definition), the print-only header,
- * and form values (`select`, `textarea`). */
+ * term keeps the full name — it is the definition), the report's group
+ * headings (DGS 2026-10-06: "Spell out OCE here" — the heading over the
+ * candidacy cards read "OCE and candidacy"; a heading is read on its own, so
+ * it keeps the full name and is not counted as the first mention either),
+ * the print-only header, and form values (`select`, `textarea`). */
 /** The page's own strings were written for one decider; for an MSCSE student
  * every standalone "DGS" on the page is the ADGS (DGS 2026-09-11). Skips the
  * regions that name both people or quote the handbook: the contact card, the
@@ -61,7 +64,7 @@ export function applyFirstMentionRule(root: ParentNode, re: RegExp = OCE_RE, sho
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const value = node.nodeValue;
     if (!value || !test.test(value)) continue;
-    if (node.parentElement?.closest('details.glossary, .print-header, select, textarea, script, style')) continue;
+    if (node.parentElement?.closest('details.glossary, .group-head, .print-header, select, textarea, script, style')) continue;
     if (seen) {
       node.nodeValue = value.replace(every, short);
     } else {

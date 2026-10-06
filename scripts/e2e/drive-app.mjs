@@ -135,15 +135,18 @@ export async function driveApp(s, baseUrl) {
   await s.shot('app-example-phd');
 
   // "Oral Candidacy Exam (OCE)" in full once on the page (plus the glossary,
-  // which keeps the full term), then "OCE" (DGS 2026-09-06 evening).
+  // which keeps the full term, and the group heading over the candidacy
+  // cards, which is spelled out — DGS 2026-10-06), then "OCE" (DGS
+  // 2026-09-06 evening).
   const oce = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const all = document.querySelector('#app').textContent;
     const gl = document.querySelector('details.glossary')?.textContent ?? '';
+    const heads = [...document.querySelectorAll('h3.group-head')].map((h) => h.textContent).join(' ');
     const count = (t) => t.split('Oral Candidacy Exam (OCE)').length - 1;
-    return { page: count(all) - count(gl), glossary: count(gl), short: (all.match(/\\bOCE\\b/g) ?? []).length };
+    return { page: count(all) - count(gl) - count(heads), glossary: count(gl), heading: count(heads), short: (all.match(/\\bOCE\\b/g) ?? []).length };
   })())`));
-  console.log('  OCE mentions — page (outside the glossary):', oce.page, '| glossary:', oce.glossary, '| short "OCE":', oce.short);
-  if (oce.page !== 1 || oce.glossary !== 1 || oce.short < 3) throw new Error('OCE first-mention rule: ' + JSON.stringify(oce));
+  console.log('  OCE mentions — page (outside the glossary and headings):', oce.page, '| glossary:', oce.glossary, '| group heading:', oce.heading, '| short "OCE":', oce.short);
+  if (oce.page !== 1 || oce.glossary !== 1 || oce.heading !== 1 || oce.short < 3) throw new Error('OCE first-mention rule: ' + JSON.stringify(oce));
 
   // A Ph.D. student who already holds Notre Dame's own master's (DGS
   // 2026-09-09): §4.5 cannot award a degree twice. Since 2026-09-22 that fact
