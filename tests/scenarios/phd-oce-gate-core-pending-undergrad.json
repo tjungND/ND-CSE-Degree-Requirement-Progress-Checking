@@ -1,0 +1,158 @@
+{
+  "name": "phd-oce-gate-core-pending-undergrad",
+  "description": "Policy review round 3, P3-cse-4b-2 (DGS 2026-10-06: “Apply the suggested handling”), already fixed by the 2026-10-06 ruling “Treat both as not done”. 24 Notre Dame regular-course credits, Operating Systems and Architecture passed, the specialization met; the only Algorithms course is an undergraduate CS 380 Design and Analysis of Algorithms from a previous university that the DGS has not reviewed. §4.5: \"All coursework for the Ph.D. must be completed (or in progress the same semester) before the candidacy exam can be taken\". The OCE gate used to count the pending core area as done and opened the OCE; it now stays Not started and names the DGS’s decision.",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "fullTimeTermOverrides": [
+      {
+        "season": "fall",
+        "year": 2024
+      },
+      {
+        "season": "spring",
+        "year": 2025
+      },
+      {
+        "season": "fall",
+        "year": 2025
+      },
+      {
+        "season": "spring",
+        "year": 2026
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
+      "rcrTrainingCompleted": "2025-09-15"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CS 380",
+        "title": "Design and Analysis of Algorithms",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Example State University",
+        "degreeLevel": "bachelors"
+      }
+    ]
+  },
+  "expect": {
+    "phd.qualifier.core.algorithms": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Pending review: CS 380 (Example State University)"
+      ]
+    },
+    "phd.candidacyAdmission": {
+      "status": "unmet",
+      "detailIncludes": [
+        "Not started.",
+        "Core knowledge, Algorithms: waiting for the DGS (CS 380)",
+        "still needed: the DGS’s decision on CS 380"
+      ]
+    }
+  }
+}
