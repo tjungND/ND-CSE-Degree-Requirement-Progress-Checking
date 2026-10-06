@@ -211,7 +211,7 @@ describe('a leave and the Ph.D. residency run (DGS Handbook §3.7.2; §4.3)', ()
     phdStudent({ entryTerm: { season: 'fall', year: 2022 }, courses: ids.map((id, i) => ndCourse(id, { term: terms[Math.floor(i / 3)]! })), ...over });
 
   it('asks the DGS once a leave is entered and the run is short of four', () => {
-    assert.ok(flags(base({ leaveSemesters: 1 })).some((f) => /^Residency and my leave: I was on an approved leave for 1 semester/.test(f)));
+    assert.ok(flags(base({ leaveSemesters: 1 })).some((f) => /^Residency and my medical leave: I was on approved medical leave for 1 semester/.test(f)));
     assert.ok(!flags(base()).some((f) => /^Residency and my leave/.test(f)));
   });
 });

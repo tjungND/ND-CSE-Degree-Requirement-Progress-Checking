@@ -489,7 +489,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
     const leaves = ctx.student.leaveSemesters ?? 0;
     if (status === 'in_progress' && leaves > 0) {
       parts.push({
-        note: `You were on an approved leave for ${leaves} ${leaves === 1 ? 'semester' : 'semesters'}: a leave ends the consecutive run, and the four consecutive full-time semesters restart after it. The Graduate School says a leave “stops the student’s eligibility clock” (DGS Handbook §3.7.2), so whether the run may continue across it is the DGS’s call — this is in the review request`,
+        note: `You were on approved medical leave for ${leaves} ${leaves === 1 ? 'semester' : 'semesters'}: a leave ends the consecutive run, and the four consecutive full-time semesters restart after it. The Graduate School says a leave “stops the student’s eligibility clock” (DGS Handbook §3.7.2), so whether the run may continue across it is the DGS’s call — this is in the review request`,
       });
     }
   }
@@ -1326,27 +1326,27 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
   const { shift } = eighthSemester(ctx, sem);
   const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
   const moved = [
-    ...(shift.leavesBefore > 0 ? [`${many(shift.leavesBefore, 'semester', 'semesters')} on an approved leave of absence before it`] : []),
+    ...(shift.leavesBefore > 0 ? [`${many(shift.leavesBefore, 'semester', 'semesters')} on approved medical leave before it`] : []),
     ...(shift.accommodationsBy > 0 ? [`${many(shift.accommodationsBy, 'childbirth/adoption accommodation', 'childbirth/adoption accommodations')} for a birth or adoption in or before it`] : []),
     ...(ctx.covidCohort ? ['one year for students enrolled in Spring 2020 (Academic Code Appendix A)'] : []),
   ];
   if (moved.length > 0) parts.push({ note: `Semester ${sem} is counted as semester ${effectiveSem} — extended by ${moved.join(' and ')}` });
   const after = [
-    ...(shift.leavesAfter > 0 ? [`the ${many(shift.leavesAfter, 'leave semester', 'leave semesters')} after it`] : []),
+    ...(shift.leavesAfter > 0 ? [`the ${many(shift.leavesAfter, 'medical leave semester', 'medical leave semesters')} after it`] : []),
     ...(shift.accommodationsAfter > 0 ? [`the ${many(shift.accommodationsAfter, 'accommodation', 'accommodations')} for a birth or adoption after it`] : []),
   ];
   if (after.length > 0) {
     parts.push({
-      note: `Not moved by ${after.join(' or ')}: only a leave before the end of your eighth semester of enrollment, or an accommodation for a birth or adoption in or before it, moves this deadline (DGS 2026-10-05); every one still extends the eight-year limit`,
+      note: `Not moved by ${after.join(' or ')}: only a medical leave before the end of your eighth semester of enrollment, or an accommodation for a birth or adoption in or before it, moves this deadline (DGS 2026-10-05); every one still extends the eight-year limit`,
     });
   }
   const unplaced = [
-    ...(shift.leavesUnplaced > 0 ? [`which semester ${shift.leavesUnplaced === 1 ? 'your leave was' : `each of ${shift.leavesUnplaced} leave semesters was`}`] : []),
+    ...(shift.leavesUnplaced > 0 ? [`which semester ${shift.leavesUnplaced === 1 ? 'your medical leave was' : `each of ${shift.leavesUnplaced} medical leave semesters was`}`] : []),
     ...(shift.accommodationsUnplaced > 0 ? [`the semester of the birth or adoption for ${shift.accommodationsUnplaced === 1 ? 'your accommodation' : `each of ${shift.accommodationsUnplaced} accommodations`}`] : []),
   ];
   if (unplaced.length > 0) {
     parts.push({
-      note: `Enter ${unplaced.join(', and ')} under Your standing: only a leave before the end of your eighth semester, or an accommodation for a birth or adoption in or before it, moves this deadline, so until then ${shift.leavesUnplaced + shift.accommodationsUnplaced === 1 ? 'it is' : 'they are'} not counted here`,
+      note: `Enter ${unplaced.join(', and ')} under Your standing: only a medical leave before the end of your eighth semester, or an accommodation for a birth or adoption in or before it, moves this deadline, so until then ${shift.leavesUnplaced + shift.accommodationsUnplaced === 1 ? 'it is' : 'they are'} not counted here`,
     });
   }
   return parts;

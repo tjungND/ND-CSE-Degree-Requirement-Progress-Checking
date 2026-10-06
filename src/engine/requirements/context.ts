@@ -64,7 +64,7 @@ export function clockShiftNote(ctx: Ctx): string {
   const parts: string[] = [];
   const leave = ctx.student.leaveSemesters ?? 0;
   const accommodation = ctx.student.accommodationSemesters ?? 0;
-  if (leave > 0) parts.push(`${leave} semester${leave === 1 ? '' : 's'} on an approved leave of absence`);
+  if (leave > 0) parts.push(`${leave} semester${leave === 1 ? '' : 's'} on approved medical leave`);
   if (accommodation > 0) parts.push(`${accommodation} childbirth/adoption accommodation semester${accommodation === 1 ? '' : 's'}`);
   if (ctx.covidCohort) parts.push(`one year for students enrolled in Spring 2020 (Academic Code Appendix A)`);
   return parts.length > 0 ? ` — extended by ${parts.join(' and ')}` : '';
@@ -106,9 +106,14 @@ export function noteOf(sentence: string): DetailPart[] {
  * elsewhere used to make a student who had finished everything read "Overdue
  * — the 8-year limit passed". */
 /** The degree's time-limit date: `years` from the entry term's nominal start,
- * plus six months per semester of approved leave or accommodation, plus a year
- * for the COVID cohort (Academic Code §6.2.6 "unless interrupted by approved
- * medical leave(s) and/or approved childbirth accommodation(s)"; Appendix A.5). */
+ * plus six months per semester of approved MEDICAL leave or childbirth/adoption
+ * accommodation, plus a year for the COVID cohort (Academic Code §6.2.6 "unless
+ * interrupted by approved medical leave(s) and/or approved childbirth
+ * accommodation(s)"; Appendix A.5). The leave count is medical leave only since
+ * policy review round 3, P3-cross-doc-1 (DGS 2026-10-06: option A, the input
+ * renamed "Semesters on approved medical leave") — a leave for another reason
+ * is not entered and moves no clock. The MSCSE's five years follow the same
+ * count (DGS 2026-10-03, item 17). */
 export function timeLimitDate(ctx: Ctx, years: number): string {
   const extension = graduateSchoolExtension(ctx, years);
   return extension !== undefined ? endOfTerm(extension).date : baseTimeLimitDate(ctx, years);

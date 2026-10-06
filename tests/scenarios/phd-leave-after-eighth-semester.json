@@ -1,6 +1,6 @@
 {
   "name": "phd-leave-after-eighth-semester",
-  "description": "Policy review round 3, P3-ac-5a-1 (DGS 2026-10-05, option (a)): only a leave before the end of the eighth semester of enrollment moves the candidacy deadline. Entered Fall 2022 and enrolled every fall and spring through Spring 2026 (the eighth semester) without passing the Oral Candidacy Exam, then on leave in Fall 2026. Until 2026-10-05 the leave moved the deadline to the end of Fall 2026; Academic Code §6.2.8 counts the eighth semester of enrollment, which a later leave cannot change, so the OCE stays overdue since Spring 2026. The eight-year limit still moves.",
+  "description": "Policy review round 3, P3-ac-5a-1 (DGS 2026-10-05, option (a)): only a medical leave before the end of the eighth semester of enrollment moves the candidacy deadline. Entered Fall 2022 and enrolled every fall and spring through Spring 2026 (the eighth semester) without passing the Oral Candidacy Exam, then on leave in Fall 2026. Until 2026-10-05 the leave moved the deadline to the end of Fall 2026; Academic Code §6.2.8 counts the eighth semester of enrollment, which a later leave cannot change, so the OCE stays overdue since Spring 2026. The eight-year limit still moves.",
   "today": "2026-10-03",
   "rules": {
     "base": "default"
@@ -119,13 +119,13 @@
     "phd.candidacy": {
       "status": "unmet",
       "detailIncludes": [
-        "Not moved by the 1 leave semester after it"
+        "Not moved by the 1 medical leave semester after it"
       ]
     },
     "phd.timeLimit": {
       "status": "in_progress",
       "detailIncludes": [
-        "extended by 1 semester on an approved leave of absence"
+        "extended by 1 semester on approved medical leave"
       ]
     }
   }

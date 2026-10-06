@@ -123,13 +123,13 @@
     "phd.candidacy": {
       "status": "in_progress",
       "detailIncludes": [
-        "Semester 8 is counted as semester 10 — extended by 2 semesters on an approved leave of absence before it"
+        "Semester 8 is counted as semester 10 — extended by 2 semesters on approved medical leave before it"
       ]
     },
     "phd.timeLimit": {
       "status": "in_progress",
       "detailIncludes": [
-        "extended by 2 semesters on an approved leave of absence"
+        "extended by 2 semesters on approved medical leave"
       ]
     }
   }

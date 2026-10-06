@@ -1243,13 +1243,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       gaps !== undefined && gaps.length > 0
         ? `Your transcript shows no registration in ${gaps.map(termLabel).join(', ')} — a leave of absence, a withdrawal or a missed semester?`
         : leaveAsked
-          ? 'A leave of absence, a childbirth or adoption accommodation, or a readmission?'
+          ? 'A medical leave, a childbirth or adoption accommodation, or a readmission?'
           : 'A childbirth or adoption accommodation?';
     // Closed by default; open only when a transcript gap is waiting for an
     // answer (DGS 2026-10-04: "Open one if an attention is needed there (e.g.,
     // found a gap semester)"). What is on file is said in the summary line.
     const onFile = [
-      ...((student.leaveSemesters ?? 0) > 0 ? [`${student.leaveSemesters} leave ${student.leaveSemesters === 1 ? 'semester' : 'semesters'}`] : []),
+      ...((student.leaveSemesters ?? 0) > 0 ? [`${student.leaveSemesters} medical leave ${student.leaveSemesters === 1 ? 'semester' : 'semesters'}`] : []),
       ...((student.accommodationSemesters ?? 0) > 0 ? [`${student.accommodationSemesters} accommodation ${student.accommodationSemesters === 1 ? 'semester' : 'semesters'}`] : []),
       ...(student.readmittedTerm ? [`readmitted ${termLabel(student.readmittedTerm)}`] : []),
     ];
@@ -1261,15 +1261,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
       'fieldset',
       { class: 'ft-terms clock-fields' },
-      el('legend', { class: 'label' }, `${leaveAsked ? 'Leaves, accommodations and readmission' : 'Childbirth or adoption accommodation'} (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
+      el('legend', { class: 'label' }, `${leaveAsked ? 'Medical leave, accommodations and readmission' : 'Childbirth or adoption accommodation'} (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
       !leaveAsked ? null : count(
         'leaveSemesters',
-        'Semesters on an approved leave of absence',
+        // Medical leave only (policy review round 3, P3-cross-doc-1; DGS
+        // 2026-10-06: "I choose option A and rename the input 'Semesters on
+        // approved medical leave'"). Academic Code §6.2.6, which governs:
+        // "within eight years from the time of matriculation, unless
+        // interrupted by approved medical leave(s) and/or approved childbirth
+        // accommodation(s)" — the DGS Handbook's "Only a leave of absence will
+        // stop the clock" (§3.4) names any leave. A leave for another reason
+        // is not entered, so it moves no clock.
+        'Semesters on approved medical leave',
         phd
-          ? 'Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves the eight-year limit (§4.3) out by a semester, and a leave before the end of your eighth semester of enrollment also moves the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3) — a later one cannot change which semester was the eighth (DGS Handbook §3.4, §3.7.2; DGS 2026-10-05). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).'
-          : 'Fall or spring semesters the Graduate School approved as a leave of absence (at most two in a row, Academic Code §5.1). A leave stops the clock: each semester here moves the five-year limit (§3.3) out by a semester (DGS Handbook §3.4, §3.7.2). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).',
+          ? 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, Academic Code §5.1). An approved medical leave stops the clock (Academic Code §6.2.6: “unless interrupted by approved medical leave(s) and/or approved childbirth accommodation(s)”): each semester here moves the eight-year limit (§4.3) out by a semester, and one before the end of your eighth semester of enrollment also moves the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3) — a later one cannot change which semester was the eighth (DGS 2026-10-05). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock (DGS 2026-10-06). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).'
+          : 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, Academic Code §5.1). Each moves the five-year limit (§3.3) out by a semester: the Graduate School stops the doctoral clock only for approved medical leave and childbirth accommodation (Academic Code §6.2.6), and the five years follow it (DGS 2026-10-03, 2026-10-06). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock. A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).',
       ),
-      !leaveAsked ? null : slotPickers('leaveTerms', leaveCount, (i) => `Leave semester${leaveCount > 1 ? ` ${i + 1}` : ''} — which semester`, ['fall', 'spring']),
+      !leaveAsked ? null : slotPickers('leaveTerms', leaveCount, (i) => `Medical leave semester${leaveCount > 1 ? ` ${i + 1}` : ''} — which semester`, ['fall', 'spring']),
       count(
         'accommodationSemesters',
         'Childbirth or adoption accommodation semesters',

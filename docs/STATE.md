@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — engine and page; policy review round 3): **P3-cross-doc-1, option A.** The leave input reads “Semesters on approved medical leave”: only an approved medical leave (or a childbirth/adoption accommodation) moves the Ph.D. and MSCSE time limits and the eighth-semester deadlines (Academic Code §6.2.6); a leave for another reason is not entered and moves no clock. Every leave sentence names medical leave. HANDBOOK-REVISIONS item 24. Wording W-CL189–W-CL190.
+
 2026-10-06 (DGS — engine; policy review round 3): **P3-cse-4a-1.** The specialization row’s needed courses in progress are chosen in term order by re-running the group matching (phd.ts `categoriesRow`), so a course opening an extra group is neither counted in the lead nor allowed to hold the OCE gate back a semester. Scenarios phd-specialization-extra-group-same-term and -next-semester; tests/specialization-needed.test.ts.
 
 2026-10-06 (DGS — page): **Condition marks on the candidacy card.** Each condition is marked ✓ met, ◐ in progress, ● waiting for the DGS or ✕ not yet, in the bullet’s place, with the course table’s colours (types.ts `ConditionMark`; phd.ts marks the admission conditions and `oceReadiness`’s items; report.ts draws them via marks.ts `conditionMark`). tests/condition-marks.test.ts; the app suite checks the marks and shoots `app-condition-marks`. Wording W-CL188.

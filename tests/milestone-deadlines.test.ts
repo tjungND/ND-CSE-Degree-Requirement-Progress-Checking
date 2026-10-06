@@ -64,7 +64,7 @@ describe('the same date the requirement row counts against', () => {
     // The extension is named on the fail box too, not only on the pass box.
     assert.equal(deadlineText(d.researchQualifierFailed!), 'Due by the end of Fall 2026 — the advisor’s pass or fail, 18 months after entry, extended by the DGS by one semester (§4.4.3)');
     // The limit says what moved it.
-    assert.equal(deadlineText(d.defensePassed!), 'Due by mid-Spring 2033 — the 8-year limit (§4.3) — extended by 1 semester on an approved leave of absence; to graduate in a given semester, also by that semester’s date on the Graduate School calendar (DGS Handbook §3.22.4)');
+    assert.equal(deadlineText(d.defensePassed!), 'Due by mid-Spring 2033 — the 8-year limit (§4.3) — extended by 1 semester on approved medical leave; to graduate in a given semester, also by that semester’s date on the Graduate School calendar (DGS Handbook §3.22.4)');
   });
   it('MSCSE: the advisor and the five years', () => {
     const r = audit(mscse(), rules, '2026-10-04');

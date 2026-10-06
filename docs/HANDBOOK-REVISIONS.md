@@ -472,3 +472,9 @@ not the app's:
     withdrawn student was away. The DGS ruled on 2026-10-06 that the clock counts calendar semesters regardless of the gap, and
     that the Graduate School can approve an exception when the DGS requests one (policy review round 3, P3-ac-6.2-app-1).
     §4.5 should say so, since the Graduate School’s own wording points the other way.
+24. **§3.3 / §4.3 — which leaves stop the time limit.** The handbook says nothing about leaves. The Graduate School’s
+    two documents disagree: the Academic Code stops the eight-year clock only for “approved medical leave(s) and/or approved
+    childbirth accommodation(s)” (§6.2.6), while the DGS Handbook says “Only a leave of absence will stop the clock”, of
+    any kind (§3.4, §3.7.2). The DGS ruled on 2026-10-06 to follow the Code, for the Ph.D. and the MSCSE alike (policy
+    review round 3, P3-cross-doc-1). §3.3 and §4.3 should say so in a sentence, and the conflict is worth raising with the
+    Graduate School.

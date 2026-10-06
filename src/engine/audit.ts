@@ -306,7 +306,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // rather than refused.
   if ((student.leaveSemesters ?? 0) > 2) {
     warnings.push(
-      `${student.leaveSemesters} semesters on leave: the Graduate School grants a leave of absence for at most two consecutive semesters (Academic Code §5.1) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3). Confirm your standing with the DGS.`,
+      `${student.leaveSemesters} semesters on medical leave: the Graduate School grants a leave of absence for at most two consecutive semesters (Academic Code §5.1) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3). Confirm your standing with the DGS.`,
     );
   }
   if (student.readmittedTerm !== undefined) {
@@ -541,7 +541,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const residency = rows.find((r) => r.id === 'phd.residency');
   if (residency?.status === 'in_progress' && (student.leaveSemesters ?? 0) > 0) {
     reviewFlags.push(
-      `Residency and my leave: I was on an approved leave for ${student.leaveSemesters} ${student.leaveSemesters === 1 ? 'semester' : 'semesters'}, and my longest run of consecutive full-time semesters is short of four (§4.3). Please confirm whether the run continues across the leave — DGS Handbook §3.7.2: a leave “stops the student’s eligibility clock” — or restarts after it.`,
+      `Residency and my medical leave: I was on approved medical leave for ${student.leaveSemesters} ${student.leaveSemesters === 1 ? 'semester' : 'semesters'}, and my longest run of consecutive full-time semesters is short of four (§4.3). Please confirm whether the run continues across the leave — DGS Handbook §3.7.2: a leave “stops the student’s eligibility clock” — or restarts after it.`,
     );
   }
   rows.push(approvalsRow(ctx));

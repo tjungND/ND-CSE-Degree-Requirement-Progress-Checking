@@ -414,11 +414,15 @@ export interface Student {
    * (the Registrar's eForm, DGS Handbook §3.10.1): Academic Code §3.8's
    * 15-credit (summer: 10) maximum is not applied to them (2026-10-03). */
   creditOverloadTerms?: Term[];
-  /** Fall/spring semesters spent on an APPROVED LEAVE OF ABSENCE (Academic
-   * Code §5.1; the DGS Handbook §3.4/§3.7.2: a leave "stops the clock").
-   * Each one pushes the §4.3 eight-year limit and §4.5's eighth semester
-   * out by a semester (DGS 2026-10-03). Six-week medical and crisis
-   * separations do NOT count (DGS Handbook §3.5/§3.6: they "will count
+  /** Fall/spring semesters spent on an APPROVED MEDICAL LEAVE of absence
+   * (Academic Code §5.1, §6.2.6: the eight years run "unless interrupted by
+   * approved medical leave(s) and/or approved childbirth accommodation(s)").
+   * Medical only since policy review round 3, P3-cross-doc-1 (DGS 2026-10-06:
+   * option A; the input reads "Semesters on approved medical leave") — a
+   * leave for another reason is not entered and moves no clock. Each one
+   * pushes the §4.3 eight-year limit (and the MSCSE's five years) and §4.5's
+   * eighth semester out by a semester (DGS 2026-10-03). Six-week medical and
+   * crisis separations do NOT count (DGS Handbook §3.5/§3.6: they "will count
    * towards doctoral students' degree time limit"). */
   leaveSemesters?: number;
   /** Childbirth/adoption accommodations taken (Academic Code §5.4; DGS
