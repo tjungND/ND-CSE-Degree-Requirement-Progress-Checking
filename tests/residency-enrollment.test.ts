@@ -138,7 +138,7 @@ describe('the semester of graduation, once every requirement is met (P1-residenc
     assert.equal(nextSteps(input(fake(0, 0))).some((s) => s.text === GRADUATION_SEMESTER_STEP), false);
     assert.equal(
       GRADUATION_SEMESTER_STEP,
-      'Register for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester you graduate (Academic Code §3.7).',
+      'Register for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester you graduate (Academic Code §3.7; DGS Handbook §3.23.1).',
     );
   });
 
@@ -146,7 +146,8 @@ describe('the semester of graduation, once every requirement is met (P1-residenc
     const s = phdStudent({ gpa: 3.5 });
     const opts = { todayIso: '2032-05-01', entryTerm: 'Fall 2026', priorStudy: 'None' };
     const all = gradAdminRequest(fake(12, 12), s, rules, opts);
-    assert.match(all.text, /SEMESTER OF GRADUATION \(ACADEMIC CODE §3\.7\)\n- I will be registered for at least one credit hour \(a zero-credit course in a summer session\) and complete ND Roll Call in the semester I graduate\./);
+    // Document names stay as written in a capitals heading (P3-emails-3), so the copy is labelled right.
+    assert.match(all.text, /SEMESTER OF GRADUATION \(Academic Code §3\.7; DGS Handbook §3\.23\.1\)\n- I will be registered for at least one credit hour \(a zero-credit course in a summer session\) and complete ND Roll Call in the semester I graduate\./);
     assert.doesNotMatch(gradAdminRequest(fake(11, 12), s, rules, opts).text, /ND Roll Call/);
   });
 });

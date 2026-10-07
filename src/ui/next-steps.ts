@@ -43,7 +43,7 @@ export function allRequirementsMet(report: AuditReport): boolean {
 
 /** Academic Code §3.7 and DGS Handbook §3.23.1, as a step. */
 export const GRADUATION_SEMESTER_STEP =
-  'Register for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester you graduate (Academic Code §3.7).';
+  'Register for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester you graduate (Academic Code §3.7; DGS Handbook §3.23.1).';
 
 /** The reason after "not counted — ", cut at the first semicolon: the line's
  * own words, never re-summarised. */
@@ -164,7 +164,7 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   if (g !== undefined && gradIncompletes.length > 0)
     steps.push({ text: `Have the I in ${gradIncompletes.join(', ')} made final before your degree is conferred — the Graduate School confers it only with no I grades in ${termLabel(g.term)}, the semester you graduate; otherwise move your graduation semester (DGS Handbook §3.23.1).` });
   if (g !== undefined && !g.registered)
-    steps.push({ text: `Register for at least one credit hour in ${termLabel(g.term)}${g.term.season === 'summer' ? ' (a zero-credit course is enough in a summer session)' : ''} and complete ND Roll Call — the Graduate School confers your degree only then (Academic Code §3.7).` });
+    steps.push({ text: `Register for at least one credit hour in ${termLabel(g.term)}${g.term.season === 'summer' ? ' (a zero-credit course is enough in a summer session)' : ''} and complete ND Roll Call — the Graduate School confers your degree only then (Academic Code §3.7; DGS Handbook §3.23.1).` });
   else if (allRequirementsMet(report) && gradIncompletes.length === 0)
     steps.push({ text: g !== undefined ? `Complete ND Roll Call in ${termLabel(g.term)}, the semester you graduate — you are registered for it (Academic Code §3.7).` : GRADUATION_SEMESTER_STEP });
   // 6. The advisor summary, any time.

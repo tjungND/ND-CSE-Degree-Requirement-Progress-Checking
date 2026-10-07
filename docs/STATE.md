@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — citations and docs; policy review round 3, the no-decision items, batch A): P3-dh-3.1-3.13-4, P3-text-ui-4, P3-emails-3, P3-emails-8, P3-text-engine-5, P3-cse-3-3, P3-cross-doc-6 and the documentation parts of P3-fourplusone-2, -4 and P3-import-4. email-html.ts `upperHeading` keeps document names in capitals headings. tests/email-heading-labels.test.ts runs the label check over every scenario’s processing request. Wording W-CL236–W-CL239; HANDBOOK-REVISIONS §2, §4, §7, items 17 and 27.
+
 2026-10-06 (DGS — emails; policy review round 3): **P3-emails-2.** The review request’s A / B lists split on a tag, not on “for me”: review.ts tags every ask (`ReviewAsk.rulings` — anything outside the sheet’s own questions), transcript/external.ts puts rulings only in B. tests/review-request-rulings.test.ts. Wording W-CL235.
 
 2026-10-06 (DGS — emails; policy review round 3): **P3-emails-1.** The advisor email’s transfer items come from the processing request’s list (AdvisorSummaryOptions `transfers`, passed by app.ts; `actionItems(report, transfers)`), so a decided transfer is named for the student and the Grad Admin and “Nothing is pending” is true. tests/advisor-transfer-processing.test.ts. Wording W-CL233–W-CL234.

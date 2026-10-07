@@ -30,7 +30,7 @@ import { DO_NOT_MODIFY_MARKER, EDITABLE_MARKER, MARKER_DIVIDER } from '../transc
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
 import { gpaText } from '../engine/requirements/shared.ts';
-import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, studentLineHtml, textRequirementBlock, unofficialTranscriptNote, type StandingColor } from './email-html.ts';
+import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, studentLineHtml, textRequirementBlock, unofficialTranscriptNote, type StandingColor, upperHeading } from './email-html.ts';
 import type { ProgramHistory } from './program-history.ts';
 import { formatYmdLong } from './handbook.ts';
 import { allRequirementsMet } from './next-steps.ts';
@@ -523,7 +523,9 @@ export function gradAdminRequest(
   const g = report.graduation;
   if (g !== undefined || allRequirementsMet(report)) {
     sections.push({
-      heading: 'Semester of graduation (Academic Code §3.7)',
+      // Both sources (P3-emails-8): §3.7 is Roll Call and registration, DGS
+      // Handbook §3.23.1 the "at least one credit hour".
+      heading: 'Semester of graduation (Academic Code §3.7; DGS Handbook §3.23.1)',
       lines: [
         g === undefined
           ? 'I will be registered for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester I graduate.'
@@ -562,7 +564,7 @@ export function gradAdminRequest(
   const textSection = (s: Section): string =>
     (s.badge
       ? `${textRequirementBlock({ word: s.badge.word, ...split(s.heading), lines: s.plain, deadline: s.deadline ? { text: s.deadline.text, alert: s.deadline.alert } : undefined })}\n`
-      : `${s.heading.toUpperCase()}\n`) +
+      : `${upperHeading(s.heading)}\n`) +
     (s.table && s.columns ? `${s.table.length > 0 && s.badge ? '    ' : ''}${s.columns.join('\t')}\n${s.table.map((r) => `${s.badge ? '    ' : ''}${r.join('\t')}`).join('\n')}\n` : '') +
     (s.lines && s.lines.length > 0 ? s.lines.map((l) => `- ${l}`).join('\n') + '\n' : '') +
     '\n';

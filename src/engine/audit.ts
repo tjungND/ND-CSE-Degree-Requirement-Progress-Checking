@@ -352,7 +352,12 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     warnings.push(
       interrupted
         ? `Readmitted ${termLabel(student.readmittedTerm)} after an interruption of five years or more: the Academic Code forfeits credit for every course and examination from before it (Academic Code §5.5), so those courses and examinations wait for the DGS and are in the review request; the clocks still count from ${termLabel(entry)}, your original matriculation, in calendar semesters with the time away included.`
-        : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation, in calendar semesters with the time away included (Academic Code §6.2.6; DGS 2026-10-06); the program may reject some or all of your earlier credits (DGS Handbook §3.3), so the courses from before your readmission wait for the DGS and are in the review request.`,
+        : // The MSCSE's own limit and section (policy review round 3,
+          // P3-dh-3.1-3.13-4): §6.2.6 is the Ph.D.'s; no master's section says
+          // when the five years start, so the app's reading is said plainly.
+          student.program === 'mscse'
+          ? `Readmitted ${termLabel(student.readmittedTerm)}: the five-year limit still counts from ${termLabel(entry)}, your original entry term, in calendar semesters with the time away included (§3.3; Academic Code §6.1.4); the program may reject some or all of your earlier credits (DGS Handbook §3.3), so the courses from before your readmission wait for the DGS and are in the review request.`
+          : `Readmitted ${termLabel(student.readmittedTerm)}: the clocks still count from ${termLabel(entry)}, your original matriculation, in calendar semesters with the time away included (Academic Code §6.2.6; DGS 2026-10-06); the program may reject some or all of your earlier credits (DGS Handbook §3.3), so the courses from before your readmission wait for the DGS and are in the review request.`,
     );
     // The readmission itself goes to the DGS (policy review 2026-10-04,
     // P2-dh-3.1-3.13-3/-9): DGS Handbook §3.1 — "A student who fails to
@@ -362,7 +367,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     reviewFlags.push(
       decisionWording(
         student.program,
-        `Readmission: I was readmitted in ${termLabel(student.readmittedTerm)} after a withdrawal or a fall or spring semester I was not registered for (DGS Handbook §3.1, §3.3, §3.8; Academic Code §3.5). Please confirm my readmission and which of my earlier credits stand; my clocks still count from ${termLabel(entry)} (Academic Code §6.2.6).`,
+        `Readmission: I was readmitted in ${termLabel(student.readmittedTerm)} after a withdrawal or a fall or spring semester I was not registered for (DGS Handbook §3.1, §3.3, §3.8; Academic Code §3.5). Please confirm my readmission and which of my earlier credits stand; ${student.program === 'mscse' ? `my five years still count from ${termLabel(entry)} (§3.3; Academic Code §6.1.4)` : `my clocks still count from ${termLabel(entry)} (Academic Code §6.2.6)`}.`,
       ),
     );
     // The candidacy deadline keeps the gap (policy review round 3,

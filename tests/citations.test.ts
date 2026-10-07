@@ -24,6 +24,10 @@ describe('labelCitations: a bare § is the CSE handbook, once per run of section
     ['CSE Graduate Handbook §4.2: “…”', 'CSE Graduate Handbook §4.2: “…”'],
     ['§5.2’s window', 'CSE §5.2’s window'],
     ['no section here', 'no section here'],
+    // A CSE section after a Graduate School one names its document (policy
+    // review round 3, P3-text-ui-4): a bare one would read as the Code's.
+    ['(Academic Code §6.1.8; CSE §3.4; DGS Handbook §3.21.3)', '(Academic Code §6.1.8; CSE §3.4; DGS Handbook §3.21.3)'],
+    ['approve it for me (Academic Code §4.6; CSE §3.5)', 'approve it for me (Academic Code §4.6; CSE §3.5)'],
   ];
   for (const [given, want] of cases) it(given, () => assert.equal(labelCitations(given), want));
   it('is idempotent', () => assert.equal(labelCitations(labelCitations('(§3.2, §3.6.1)')), '(CSE §3.2, §3.6.1)'));

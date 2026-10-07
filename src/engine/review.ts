@@ -376,7 +376,11 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         ...(c.ndBeforeAdmission ? ['decide whether this course counts — I took it at Notre Dame before admission, while my earlier graduate program was at another university; if it was in non-degree status, at most 12 such credits may count (Academic Code §2.3)'] : []),
         ...(c.ugToGrUnverified ? ['confirm this course was moved from UG to GR and transferred before my bachelor’s was conferred (Graduate School 4+1 guidance)'] : []),
         ...(c.caps.includes('sharedbs') && student.program === 'phd' && c.entry.countedToward === 'bs' ? ['confirm it may count toward both my bachelor’s degree and the Ph.D. (the Graduate School’s 2026-09-22 answer)'] : []),
-        ...(bachelors && !c.ugToGrUnverified && !c.caps.includes('sharedbs') && c.approvalPending !== undefined && /advance approval|§3\.5/.test(c.approvalPending) ? ['approve it for me (Academic Code §4.6 / §3.5)'] : []),
+        ...(bachelors && !c.ugToGrUnverified && !c.caps.includes('sharedbs') && c.approvalPending !== undefined && /advance approval|§3\.5/.test(c.approvalPending)
+          ? // Each document named (policy review round 3, P3-text-ui-4): the
+            // advance approval is the Code's §4.6, the window CSE's §3.5.
+            [`approve it for me (${[...(/advance approval/.test(c.approvalPending) ? ['Academic Code §4.6'] : []), ...(/§3\.5/.test(c.approvalPending) ? ['CSE §3.5'] : [])].join('; ')})`]
+          : []),
         ...heldAsks,
       ];
       // A §5.2 candidate from an earlier Notre Dame program (P3-dh-10-2): its

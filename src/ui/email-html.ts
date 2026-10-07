@@ -145,3 +145,10 @@ export function textRequirementBlock(opts: { word: string; title: string; sectio
 export function textDeadline(text: string, alert: DeadlineAlert): string {
   return alert === 'passed' ? `!! DEADLINE PASSED: ${text}` : alert ? `!! DEADLINE ${alert.toUpperCase()} SEMESTER: ${text}` : `Deadline: ${text}`;
 }
+
+/** A plain-text heading in capitals, its document names left as written
+ * (policy review round 3, P3-emails-3 / P3-emails-8): "ACADEMIC CODE §6.2.9"
+ * slipped past the label check and the copy read "ACADEMIC CODE CSE §6.2.9". */
+export function upperHeading(heading: string): string {
+  return heading.toUpperCase().replace(/ACADEMIC CODE/g, 'Academic Code').replace(/DGS HANDBOOK/g, 'DGS Handbook');
+}

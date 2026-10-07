@@ -73,5 +73,12 @@
     "CSE 60321": [
       "counts toward regular courses (3 cr)"
     ]
-  }
+  },
+  "expectWarnings": [
+    "the five-year limit still counts from",
+    "(§3.3; Academic Code §6.1.4)"
+  ],
+  "expectNoWarnings": [
+    "§6.2.6"
+  ]
 }

@@ -22,7 +22,7 @@ import { deadlineTermLabel, dueTermPhrase, termLabel } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
 import { DUAL_PLAN_REASON, gpaText } from '../engine/requirements/shared.ts';
-import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, programShort, studentLineHtml, textRequirementBlock, type DeadlineAlert, type StandingColor } from './email-html.ts';
+import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, programShort, studentLineHtml, textRequirementBlock, type DeadlineAlert, type StandingColor, upperHeading } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
 import type { ProgramHistory } from './program-history.ts';
 import { deadlineAlert, isNotStarted, scoredRows, standingColor, statusWord } from './report.ts';
@@ -219,7 +219,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     `Subject: ${subject}\n\nDear ${salutation},\n\n${STUDENT_LINE}\n\n${intro}\n${standing}\n${earlier ? `${earlier}\n` : ''}${opts.unofficialNote ? `${opts.unofficialNote}\n` : ''}${counts}.\n${nextDeadline ? `${nextDeadline}\n` : ''}\n` +
     actionsText +
     'MY STANDING, REQUIREMENT BY REQUIREMENT\n\n' +
-    sections.map((s) => `${s.heading.toUpperCase()}\n${s.rows.map(line).join('\n')}\n\n`).join('') +
+    sections.map((s) => `${upperHeading(s.heading)}\n${s.rows.map(line).join('\n')}\n\n`).join('') +
     todoText('WHAT I NEED TO DO', todo.student) +
     (todo.dgs.length > 0 ? todoText('WHAT THE DGS NEEDS TO DO', todo.dgs) : '') +
     (todo.gradAdmin.length > 0 ? todoText('WHAT THE GRAD ADMIN NEEDS TO DO', todo.gradAdmin) : '') +

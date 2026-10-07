@@ -63,10 +63,17 @@ instead is Academic Code §5.5's five-year interruption (DGS 2026-10-06): when f
 separate the MSCSE from the Ph.D., every MSCSE course counts only once the DGS reviews it and the
 Graduate School approves. A master's in another Notre Dame department keeps §5.2's window.
 
-**Suggested revision.** Make the two sections agree. If §5.2's "or while enrolled" clause is
-meant to cover a Notre Dame student's own earlier program, §4.2's sentence should say so:
-*"Courses from a M.S. degree earned at Notre Dame, or from another institution within the last
-five years prior to admission, may be used…"*. If the five-year limit is meant to apply to
+**What the window dates (policy review round 3, P3-cross-doc-6).** §4.2 dates the window by the
+degree — "Courses from a M.S. degree earned … within the last five years prior to admission" —
+while §5.2 and Academic Code §4.6 date each course: "the courses were completed within a
+five-year period prior to admission". A master's finished four years ago from courses taken six
+years ago passes §4.2 and fails §5.2 for those courses. The app follows the course dating, as
+the Code does.
+
+**Suggested revision.** Make the two sections agree, and test the course, not the degree. If
+§5.2's "or while enrolled" clause is meant to cover a Notre Dame student's own earlier program,
+§4.2's sentence could read: *"Courses completed within the five years before admission, from an
+M.S. program at Notre Dame or another institution, may be used … (See Section 5.2.)"*. If the five-year limit is meant to apply to
 everyone, §5.2's clause should be narrowed to say what it is for. The Graduate School owns
 §5.2's text, so this one may have to go to them. Either way, the handbook should say what the
 app now does for a returning MSCSE graduate: the MSCSE's coursework counts as Ph.D. coursework,
@@ -147,8 +154,10 @@ These credits cannot be used to satisfy both undergraduate and graduate degree r
 only six it names is the integrated program's double-count allowance. The DGS Handbook's §3.14
 instead says such a student *"may request to transfer up to six hours of this coursework"*, and the
 Graduate School's 4+1 guidance says the extra credits *"must be officially transferred"* (moved
-UG→GR before the bachelor's is conferred). The Code governs, and the app follows it (in full, with
-the UG→GR move confirmed by the DGS since 2026-10-03); the committee may want the Graduate School
+UG→GR before the bachelor's is conferred). The Code governs, and the app follows it — with the
+UG→GR move confirmed by the DGS since 2026-10-03, and, on the MSCSE, only for a student admitted to
+the integrated program before the bachelor's was awarded and only from that admission term on (DGS
+2026-10-04; item 17 below; policy review round 3, P3-fourplusone-2); the committee may want the Graduate School
 to reconcile the six-hour sentence and the "transfer" framing with the Code.
 
 **What the handbook should now say**, because none of this is in it:
@@ -288,6 +297,16 @@ program is deemed to begin in the following fall semester for every deadline in 
 - **Where the transfer request goes.** §5.2 says "the Graduate Program Coordinator"; the
   department calls the role the Graduate Program Administrator, and the app says "Grad Admin".
   Worth making the title consistent.
+- **§3.4(i) names the wrong course for the M.S. project** (policy review round 3, P3-cse-3-3). It says the
+  project is "carried out … over six (6) credit hours of CSE 68901", but §3.2 and the Banner titles have
+  CSE 68901 as thesis direction and CSE 68902 as the project. §3.4(i) should read "six (6) credit hours
+  of CSE 68902". The §3.4 hover text on the page quotes the sentence as it stands; the engine, the sheet
+  and the page count CSE 68902 as the project already.
+- **§5.2's window for a two-semester MSCSE** (policy review round 3, P3-import-4). A transfer request is
+  considered only "after a student has completed one semester … and before the semester in which the
+  graduate degree is conferred". For a student who enters in the fall and graduates in the spring, that
+  window is effectively the winter break. Worth a sentence telling such a student to send the request
+  as soon as the fall semester ends.
 
 ---
 
@@ -442,11 +461,17 @@ not the app's:
     `summer_fulltime_credits_min` (DGS 2026-10-04, P1-page-text-ui-9), besides Academic Code §3.6's summer beside a
     full-time spring or fall. §3.3 should say "a summer session of six or more credits" in its own text.
 17. **§3.5 — when must a 4+1 student have been admitted?** The Graduate School's 4+1 guidance counts graduate
-    coursework beyond the six shared credits only for "recognized dual-degree students" admitted during the junior year for
-    the senior year, and "only six credits" for one who "starts the graduate program after the bachelor's degree has been
-    awarded". §3.5 says when to apply ("by the end of the fall semester of the senior year") but not that the extra
-    courses depend on it. The app now asks an MSCSE 4+1 student the admission term and counts the extras only from it
-    (policy review 2026-10-04, P2-fourplusone-1). §3.5 should say so in one sentence.
+    coursework beyond the six shared credits only for "recognized dual-degree students", who "apply to the graduate
+    program during their junior year for matriculation in their senior year, or at the latest, applying in the first
+    semester of their senior year and matriculation in the second semester of their senior year", and "only six
+    credits" for one who "starts the graduate program after the bachelor's degree has been awarded". §3.5 says students
+    "may apply to this program by the application deadlines stated on the CSE Web site. This would typically be at the
+    end of the fall semester of the senior year for students who will participate in undergraduate commencement in the
+    Spring semester and enter the graduate program the following fall" — the guidance's latest route, but with entry the
+    following FALL, after the bachelor's, where the guidance has matriculation in the senior spring. The two should be
+    reconciled: which term a CSE 4+1 admission names decides whether senior-spring graduate courses count beyond the six.
+    The app asks an MSCSE 4+1 student the admission term and counts the extras only from it (policy review 2026-10-04,
+    P2-fourplusone-1; round 3, P3-fourplusone-4). §3.5 should say so in one sentence.
 18. **§2.3 — must an M.S. *project* advisor be tenured or tenure-track?** §2.3 says "A research advisor must be a
     Tenure and Tenure Track (TTT) faculty member of the department", and the Graduate School's adviser criteria (DGS
     Handbook §10.3.2, §10.3.8) are written for "a research master's" — the thesis. Neither says whether the MSCSE
@@ -497,3 +522,7 @@ not the app's:
     2026-10-06 that a core-knowledge or specialization course completed late waits for the DGS to confirm an extension, as
     a late research pass does (policy review round 3, P3-cse-4a-2, option A). §4.4 should say so, and say that the
     deadline is read from the semester the component was first complete.
+27. **§3.3 — when do the master's five years start, and does a readmission restart them?** None of CSE §3.3, Academic
+    Code §6.1.4 or DGS Handbook §3.19 says. The Ph.D.'s eight years run "from the time of matriculation" (Academic Code
+    §6.2.6); for the MSCSE the app counts the five years from the original entry term, through a readmission, with the time
+    away included (DGS 2026-10-04, 2026-10-06; policy review round 3, P3-dh-3.1-3.13-4). §3.3 should say so.

@@ -214,17 +214,21 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
         limitKey: 'ms_bs_double_count_credits_max',
         section: 'Graduate School (2026-09-22 answer)',
         quote:
-          'Only up to 6 credits may double-count towards two degrees. If 6 credits have double-counted to BS & MS, no more credits can double-count to BS & PhD later when the student pursues PhD. (The Graduate School’s answer to the department, through the DGS, 2026-09-22 — Academic Code §4.6 writes the six-credit exception for an integrated bachelor’s/master’s program only, so each such course waits for the DGS’s confirmation.)',
+          'Only up to 6 credits may double-count towards two degrees. If 6 credits have double-counted to BS & MS, no more credits can double-count to BS & PhD later when the student pursues PhD.',
         ctx,
         approvalDriven: true,
-        extraDetail:
-          spent > 0 && base !== undefined
+        // The source and the app's reading, out of the quote (policy review
+        // round 3, P3-text-engine-5), after the spent-credits sentence.
+        extraDetail: [
+          ...(spent > 0 && base !== undefined
             ? [
                 base - spent <= 0
                   ? `All ${formatCredits(base)} shared credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so none can also count toward the Ph.D.`
                   : `${formatCredits(spent)} of the ${formatCredits(base)} credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE, so ${formatCredits(base - spent)} ${base - spent === 1 ? 'credit' : 'credits'} can still count toward both your bachelor’s degree and the Ph.D.`,
               ]
-            : undefined,
+            : []),
+          'The Graduate School’s answer to the department, through the DGS, 2026-09-22 — Academic Code §4.6 writes the six-credit exception for an integrated bachelor’s/master’s program only, so each such course waits for the DGS’s confirmation',
+        ],
       }),
     );
   }

@@ -149,7 +149,10 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
         limitKey: 'ms_bs_double_count_credits_max',
         section: '\u00a73.5',
         quote:
-          'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE regular courses at the 60000 level or higher, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree. — §3.5 names 60000-level courses; that up to six credits of 40000-level CSE courses may count toward both degrees too, subject to the course rules, is the Graduate School’s written answer (email, 2026-09-10)',
+          'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE regular courses at the 60000 level or higher, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree.',
+        // The app's own reading, out of the quote (policy review round 3,
+        // P3-text-engine-5): a note on the card, as P1-units-4plus1-12 asks.
+        extraDetail: ['§3.5 names 60000-level courses; that up to six credits of 40000-level CSE courses may count toward both degrees too, subject to the course rules, is the Graduate School’s written answer (email, 2026-09-10)'],
         ctx,
         // "With approval of the instructor and DGS" — §3.5's own first words,
         // quoted on this card. A shared course still waiting on an approval no
@@ -605,7 +608,7 @@ function optionRows(ctx: Ctx): RequirementResult[] {
           : m.thesisDefensePassed
             ? [
                 'Defense passed — not submitted yet',
-                { note: 'Make the changes the committee asked for, then submit the final thesis electronically, in the Graduate School’s format, by the Graduate School calendar’s deadline for the graduation you want (Academic Code §6.1.8; §3.4; DGS Handbook §3.21.3); enter the date under Milestones once it is submitted' },
+                { note: 'Make the changes the committee asked for, then submit the final thesis electronically, in the Graduate School’s format, by the Graduate School calendar’s deadline for the graduation you want (Academic Code §6.1.8; CSE §3.4; DGS Handbook §3.21.3); enter the date under Milestones once it is submitted' },
               ]
             : ['Not started', { note: 'The submission comes after the thesis defense (§3.4)' }],
       ),

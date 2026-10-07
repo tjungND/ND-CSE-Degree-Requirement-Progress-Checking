@@ -124,7 +124,7 @@ describe('the semester of graduation (DGS Handbook §3.23.1; Academic Code §3.7
     assert.deepEqual(early.graduation, { term: spring(2027), registeredCredits: 0, registered: false });
     assert.ok(!early.warnings.some((w) => w.startsWith('You plan to graduate in Spring 2027')));
     const steps = nextSteps({ report: early, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 });
-    assert.ok(steps.some((st) => st.text === 'Register for at least one credit hour in Spring 2027 and complete ND Roll Call — the Graduate School confers your degree only then (Academic Code §3.7).'));
+    assert.ok(steps.some((st) => st.text === 'Register for at least one credit hour in Spring 2027 and complete ND Roll Call — the Graduate School confers your degree only then (Academic Code §3.7; DGS Handbook §3.23.1).'));
     const late = audit(s, rules, '2027-02-01');
     assert.ok(late.warnings.some((w) => w.startsWith('You plan to graduate in Spring 2027, but no Notre Dame course of at least one credit is entered for it')));
   });
@@ -247,7 +247,8 @@ describe('readmission after a shorter gap (DGS Handbook §3.1, §3.3)', () => {
   it('sends the earlier course and the readmission to the review request', () => {
     const report = audit(readmitted(), rules, '2026-03-01');
     assert.ok((report.reviewFlags ?? []).some((f) => /^Readmission: I was readmitted in Fall 2025 after a withdrawal or a fall or spring semester I was not registered for/.test(f)));
-    assert.ok((report.reviewFlags ?? []).some((f) => /my clocks still count from Fall 2023 \(Academic Code §6\.2\.6\)/.test(f)));
+    // The MSCSE's own sections (P3-dh-3.1-3.13-4): §6.2.6 is the Ph.D.'s.
+    assert.ok((report.reviewFlags ?? []).some((f) => /my five years still count from Fall 2023 \(§3\.3; Academic Code §6\.1\.4\)/.test(f)), JSON.stringify(report.reviewFlags));
     assert.ok(report.warnings.some((w) => /the courses from before your readmission wait for the DGS and are in the review request/.test(w.replace(/ADGS/g, 'DGS'))));
   });
 
