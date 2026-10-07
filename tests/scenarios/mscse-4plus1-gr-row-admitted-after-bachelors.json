@@ -1,0 +1,88 @@
+{
+  "name": "mscse-4plus1-gr-row-admitted-after-bachelors",
+  "description": "A 4+1 MSCSE student (bachelor's Spring 2026) who entered an Integrated-program admission of Fall 2026 — after the bachelor's — while the Notre Dame transcript registers CSE 60641 (Fall 2025) at the graduate level, i.e. moved from UG to GR, which the Graduate School approves only before the bachelor's is awarded. The two facts conflict. Policy review round 3, P3-fourplusone-2 (DGS 2026-10-07: option (2)): the course is held for the ADGS rather than refused, the line says why, and a warning asks the student to recheck the admission term. A row registered UG is still refused (scenario mscse-4plus1-admitted-after-bachelors).",
+  "today": "2026-10-04",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2026
+    },
+    "integratedBsMs": true,
+    "background": {
+      "bachelors": "nd-cse",
+      "ndIntegrated": true,
+      "graduate": "none"
+    },
+    "milestones": {},
+    "attestations": {
+      "dgsApproved4xxxx": true
+    },
+    "courses": [
+      {
+        "courseId": "CSE 40113",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 40243",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "graduate"
+      }
+    ],
+    "integratedAdmitted": {
+      "season": "fall",
+      "year": 2026
+    }
+  },
+  "expect": {},
+  "expectWarnings": [
+    "CSE 60641 is registered at the graduate level on your Notre Dame transcript — moved from undergraduate (UG) to graduate (GR) registration, which the Graduate School approves only before the bachelor’s degree is awarded — but the Integrated-program admission you gave, Fall 2026, is after your bachelor’s degree (Spring 2026). Check that term under Your standing."
+  ],
+  "expectCourseLines": {
+    "CSE 60641": [
+      "waiting for the ADGS — would count toward regular courses (3 cr) once approved",
+      "but the Integrated-program admission you gave, Fall 2026, is after your bachelor’s degree (Spring 2026) — check that term under Your standing"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "mscse-4plus1-admitted-after-bachelors",
-  "description": "Graduate School 4+1 guidance: “Only six credits can be double-counted if a student starts the graduate program after the bachelor's degree has been awarded” (policy review 2026-10-04, P2-fourplusone-1; DGS: “Apply the suggested fix”). An MSCSE student who answered yes to the 4+1 but was admitted for Fall 2026, after the Spring 2026 bachelor’s: the two 40000-level courses still count toward both degrees; the extra 60000-level course from the senior year does not count.",
+  "description": "Graduate School 4+1 guidance: “Only six credits can be double-counted if a student starts the graduate program after the bachelor's degree has been awarded” (policy review 2026-10-04, P2-fourplusone-1; DGS: “Apply the suggested fix”). An MSCSE student who answered yes to the 4+1 but was admitted for Fall 2026, after the Spring 2026 bachelor’s: the two 40000-level courses still count toward both degrees; the extra 60000-level course from the senior year does not count. Since 2026-10-07 (policy review round 3, P3-fourplusone-2, DGS: option (2)) CSE 60641 is registered UG here — not moved — so it is still refused; a row the transcript registers GR conflicts with the answer and is held for the ADGS instead (scenario mscse-4plus1-gr-row-admitted-after-bachelors).",
   "today": "2026-10-04",
   "rules": {
     "base": "default"
@@ -62,7 +62,7 @@
         "origin": "transfer",
         "institution": "University of Notre Dame",
         "degreeLevel": "bachelors",
-        "registeredLevel": "graduate"
+        "registeredLevel": "undergraduate"
       }
     ],
     "milestones": {

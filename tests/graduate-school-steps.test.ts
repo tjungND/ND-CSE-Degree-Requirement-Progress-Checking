@@ -18,6 +18,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { audit } from '../src/engine/audit.ts';
+import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import type { CourseEntry, Student, Term } from '../src/engine/types.ts';
 import { parseTranscript } from '../src/transcript/parse.ts';
 import { applyBackground, completeBackground } from '../src/ui/background.ts';
@@ -205,9 +206,34 @@ describe('the 4+1 admission term (Graduate School 4+1 guidance)', () => {
   it('admitted before the bachelor’s, the course from then on: counts', () => {
     assert.match(line(fourPlusOne(fall(2025)), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);
   });
-  it('admitted after the bachelor’s: only the six shared credits', () => {
-    assert.match(line(fourPlusOne(fall(2026)), 'CSE 60641', '2026-10-04'), /^not counted — you were admitted to the Integrated program for Fall 2026, after your bachelor’s degree \(Spring 2026\)/);
-    assert.match(line(fourPlusOne(fall(2026)), 'CSE 40113', '2026-10-04'), /will apply to both your bachelor’s degree and your MSCSE/);
+  it('admitted after the bachelor’s, a row not registered GR: only the six shared credits', () => {
+    const asUg = (admitted: Term): Student => {
+      const s = fourPlusOne(admitted);
+      return { ...s, courses: s.courses.map((c) => (c.courseId === 'CSE 60641' ? { ...c, registeredLevel: 'undergraduate' as const } : c)) };
+    };
+    assert.match(line(asUg(fall(2026)), 'CSE 60641', '2026-10-04'), /^not counted — you were admitted to the Integrated program for Fall 2026, after your bachelor’s degree \(Spring 2026\)/);
+    assert.match(line(asUg(fall(2026)), 'CSE 40113', '2026-10-04'), /will apply to both your bachelor’s degree and your MSCSE/);
+    const noLevel = fourPlusOne(fall(2026));
+    const typed = { ...noLevel, courses: noLevel.courses.map((c) => (c.courseId === 'CSE 60641' ? (({ registeredLevel: _r, ...rest }) => rest)(c) : c)) };
+    assert.match(line(typed, 'CSE 60641', '2026-10-04'), /^not counted — you were admitted to the Integrated program for Fall 2026/);
+  });
+  // P3-fourplusone-2 (DGS 2026-10-07: option (2)): the GR registration says
+  // the course was moved before the bachelor's; the answer says the admission
+  // came after it. Neither wins silently.
+  it('admitted after the bachelor’s, a row registered GR: held for the DGS, and the student rechecks the term', () => {
+    const s = fourPlusOne(fall(2026));
+    const r = audit(s, rules, '2026-10-04');
+    const l = r.courseLines.find((x) => x.courseId === 'CSE 60641')!.text;
+    assert.doesNotMatch(l, /^not counted/);
+    assert.match(l, /your Notre Dame transcript registers it at the graduate level \(moved from UG to GR\), but the Integrated-program admission you gave, Fall 2026, is after your bachelor’s degree \(Spring 2026\) — check that term under Your standing; the ADGS confirms/);
+    assert.ok(r.warnings.includes('CSE 60641 is registered at the graduate level on your Notre Dame transcript — moved from undergraduate (UG) to graduate (GR) registration, which the Graduate School approves only before the bachelor’s degree is awarded — but the Integrated-program admission you gave, Fall 2026, is after your bachelor’s degree (Spring 2026). Check that term under Your standing. Until the two agree, the course counts only provisionally, and the ADGS confirms it.'));
+    const ask = coursesNeedingDgsReview(s, rules, '2026-10-04').find((p) => p.course.entry.courseId === 'CSE 60641');
+    assert.ok(ask, 'the course is in the review request');
+    assert.match(JSON.stringify(ask), /confirm this course counts — my Notre Dame transcript registers it at the graduate level \(moved from UG to GR\), but the Integrated-program admission I entered is after my bachelor’s degree/);
+    // Correcting the term settles it: no warning, no ask.
+    const fixed = audit(fourPlusOne(fall(2025)), rules, '2026-10-04');
+    assert.ok(!fixed.warnings.some((w) => /is registered at the graduate level on your Notre Dame transcript/.test(w)));
+    assert.match(fixed.courseLines.find((x) => x.courseId === 'CSE 60641')!.text, /^counts toward regular courses/);
   });
   it('a course from before the admission term: counts (DGS 2026-10-07)', () => {
     assert.match(line(fourPlusOne(spring(2026), fall(2025)), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);

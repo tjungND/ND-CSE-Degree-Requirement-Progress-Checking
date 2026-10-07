@@ -386,6 +386,9 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         // P3-dh-3.14-3.20-3 (option (c)): the twelve named for the DGS to decide.
         ...(c.ndBeforeAdmission ? ['decide whether this course counts — I took it at Notre Dame before admission, while my earlier graduate program was at another university; if it was in non-degree status, at most 12 such credits may count (Academic Code §2.3)'] : []),
         ...(c.ugToGrUnverified ? ['confirm this course was moved from UG to GR and transferred before my bachelor’s was conferred (Graduate School 4+1 guidance)'] : []),
+        // P3-fourplusone-2 (DGS 2026-10-07: option (2)): the GR registration and
+        // the answered admission term disagree; the DGS settles it.
+        ...(c.admissionTermConflict ? ['confirm this course counts — my Notre Dame transcript registers it at the graduate level (moved from UG to GR), but the Integrated-program admission I entered is after my bachelor’s degree (Graduate School 4+1 guidance)'] : []),
         ...(c.caps.includes('sharedbs') && student.program === 'phd' && c.entry.countedToward === 'bs' ? ['confirm it may count toward both my bachelor’s degree and the Ph.D. (the Graduate School’s 2026-09-22 answer)'] : []),
         ...(bachelors && !c.ugToGrUnverified && !c.caps.includes('sharedbs') && c.approvalPending !== undefined && /advance approval|§3\.5/.test(c.approvalPending)
           ? // Each document named (policy review round 3, P3-text-ui-4): the

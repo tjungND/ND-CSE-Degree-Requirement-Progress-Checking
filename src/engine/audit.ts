@@ -431,6 +431,19 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       `Before your bachelor’s degree is conferred (${termLabel(student.bachelorsAwarded)}): the graduate courses you are counting beyond the shared pair must be moved from undergraduate (UG) to graduate (GR) registration with the Graduate School’s transfer-of-credit form, approved by your advising dean and the Graduate School — after conferral they cannot be (Graduate School 4+1 guidance). Ask the Grad Admin for the form.`,
     );
   }
+  // The admission term against the transcript (policy review round 3,
+  // P3-fourplusone-2; DGS 2026-10-07: option (2)): a course Notre Dame
+  // registers GR was moved before the bachelor's was awarded, so an answered
+  // admission AFTER the bachelor's is likely a slip — the student is asked to
+  // recheck it while the course counts provisionally (allocate.ts).
+  const conflicted = [...new Set(classified.filter((c) => c.admissionTermConflict && !c.superseded).map((c) => c.entry.courseId))];
+  if (conflicted.length > 0 && student.integratedAdmitted !== undefined && student.bachelorsAwarded !== undefined) {
+    const list = conflicted.length === 1 ? conflicted[0]! : `${conflicted.slice(0, -1).join(', ')} and ${conflicted[conflicted.length - 1]!}`;
+    const one = conflicted.length === 1;
+    warnings.push(
+      `${list} ${one ? 'is' : 'are'} registered at the graduate level on your Notre Dame transcript — moved from undergraduate (UG) to graduate (GR) registration, which the Graduate School approves only before the bachelor’s degree is awarded — but the Integrated-program admission you gave, ${termLabel(student.integratedAdmitted)}, is after your bachelor’s degree (${termLabel(student.bachelorsAwarded)}). Check that term under Your standing. Until the two agree, ${one ? 'the course counts' : 'the courses count'} only provisionally, and the DGS confirms ${one ? 'it' : 'them'}.`,
+    );
+  }
   // No course counts toward three degrees (DGS 2026-10-07, policy review
   // round 3, P3-fourplusone-1; the Graduate School's 2026-09-22 answer: "If 6
   // credits have double-counted to BS & MS, no more credits can double-count

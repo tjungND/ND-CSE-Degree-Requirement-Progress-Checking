@@ -250,6 +250,13 @@ export interface ClassifiedCourse {
    * it was "officially transferred" before the bachelor's was conferred (4+1
    * guidance; policy review 2026-10-03). */
   ugToGrUnverified?: true;
+  /** A 4+1's unshared graduate course the transcript registers GR (moved from
+   * UG to GR, which happens before the bachelor's is awarded) on a record whose
+   * answered Integrated-program admission is AFTER the bachelor's — the two
+   * facts conflict, so it counts provisionally, the DGS confirms, and the
+   * student is asked to recheck the term (policy review round 3,
+   * P3-fourplusone-2; DGS 2026-10-07: option (2)). */
+  admissionTermConflict?: true;
   /** A Notre Dame graduate course from before admission on a record whose
    * earlier graduate program was at ANOTHER university (policy review round
    * 3, P3-dh-3.14-3.20-3; DGS 2026-10-06: option (c)) — not credit from an
@@ -1856,13 +1863,26 @@ function classifyPriorNdUndergraduate(
   // the bachelor's is not in the 4+1 the guidance describes — "Only six credits
   // can be double-counted if a student starts the graduate program after the
   // bachelor's degree has been awarded" — so beyond the shared six nothing counts.
+  //
+  // The transcript can contradict that answer (policy review round 3,
+  // P3-fourplusone-2; DGS 2026-10-07: option (2)): a row Notre Dame registers
+  // GR was moved from UG to GR, which the guidance has approved only "before
+  // the students' bachelor's degree is awarded" — so an admission after the
+  // bachelor's and a moved course cannot both be right. The app does not pick
+  // one: the course counts provisionally, the DGS confirms, and the student is
+  // asked to recheck the term (audit.ts). A UG or unlevelled row is refused.
+  let admissionTermConflict: string | undefined;
   if (program === 'mscse' && undergradLevel >= 6 && student.integratedBsMs === true && bsShare === 'mscse' && awardedTerm !== undefined) {
     const admitted = student.integratedAdmitted;
     if (admitted !== undefined && compareTerm(admitted, awardedTerm) > 0) {
-      return {
-        ...extBase,
-        ineligibleReason: `not counted — you were admitted to the Integrated program for ${termLabel(admitted)}, after your bachelor’s degree (${termLabel(awardedTerm)}); the Graduate School counts only six credits — the ones shared with the bachelor’s — for a student who started the graduate program after the bachelor’s was awarded (4+1 guidance)`,
-      };
+      if (c.registeredLevel === 'graduate') {
+        admissionTermConflict = `your Notre Dame transcript registers it at the graduate level (moved from UG to GR), but the Integrated-program admission you gave, ${termLabel(admitted)}, is after your bachelor’s degree (${termLabel(awardedTerm)}) — check that term under Your standing; the DGS confirms`;
+      } else {
+        return {
+          ...extBase,
+          ineligibleReason: `not counted — you were admitted to the Integrated program for ${termLabel(admitted)}, after your bachelor’s degree (${termLabel(awardedTerm)}); the Graduate School counts only six credits — the ones shared with the bachelor’s — for a student who started the graduate program after the bachelor’s was awarded (4+1 guidance)`,
+        };
+      }
     }
   }
   // THE UG→GR MOVE (Graduate School 4+1 guidance; DGS Handbook §3.21.4): a
@@ -1954,7 +1974,7 @@ function classifyPriorNdUndergraduate(
   const ugToGrApproval = ugToGrUnverified
     ? 'counts only if it was moved from undergraduate (UG) to graduate (GR) registration — approved by your advising dean and the Graduate School before your bachelor’s degree was conferred (Graduate School 4+1 guidance); your Notre Dame transcript does not show the move, so the DGS confirms it'
     : undefined;
-  const extraApprovals = [plainBachelorsApproval, sectionThreeFiveApproval, bsPhdDoubleCount, ugToGrApproval].filter((x): x is string => x !== undefined);
+  const extraApprovals = [plainBachelorsApproval, sectionThreeFiveApproval, bsPhdDoubleCount, ugToGrApproval, admissionTermConflict].filter((x): x is string => x !== undefined);
   const provisional = rule === undefined || shapeApproval !== undefined || extraApprovals.length > 0;
   // The Academic Code lets a Notre Dame undergraduate's graduate coursework
   // meet program requirements "with advanced approval from the graduate
@@ -1978,6 +1998,7 @@ function classifyPriorNdUndergraduate(
     ...extBase,
     ...(bsShare !== undefined ? { bsShare } : {}),
     ...(ugToGrUnverified ? { ugToGrUnverified: true as const } : {}),
+    ...(admissionTermConflict !== undefined ? { admissionTermConflict: true as const } : {}),
     pool: shape?.pool ?? 'regular',
     caps: [
       ...sharedWithBachelors,
