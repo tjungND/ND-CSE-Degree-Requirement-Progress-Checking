@@ -55,16 +55,23 @@ contrast with §4.4.1 is currently the only evidence either way.
 entering the Ph.D. — a returning student, or one who worked in industry first. §5.2's second
 clause appears to admit their coursework; §4.2's clause appears to refuse it.
 
-**What the app does (DGS, 2026-09-09).** The five-year window applies to everyone, Notre Dame's
-own programs included: the stricter reading, chosen deliberately rather than letting the app
-pick the generous one.
+**What the app does.** On 2026-09-09 the DGS applied the five-year window to everyone, Notre
+Dame's own programs included. That no longer holds for the CSE MSCSE: the Graduate School treats
+the CSE MSCSE and Ph.D. as one graduate program (2026-09-22, 2026-10-03), so a Ph.D. student's own
+MSCSE coursework is not transfer credit and §5.2's window does not apply to it. What applies
+instead is Academic Code §5.5's five-year interruption (DGS 2026-10-06): when five years or more
+separate the MSCSE from the Ph.D., every MSCSE course counts only once the DGS reviews it and the
+Graduate School approves. A master's in another Notre Dame department keeps §5.2's window.
 
 **Suggested revision.** Make the two sections agree. If §5.2's "or while enrolled" clause is
 meant to cover a Notre Dame student's own earlier program, §4.2's sentence should say so:
 *"Courses from a M.S. degree earned at Notre Dame, or from another institution within the last
 five years prior to admission, may be used…"*. If the five-year limit is meant to apply to
 everyone, §5.2's clause should be narrowed to say what it is for. The Graduate School owns
-§5.2's text, so this one may have to go to them.
+§5.2's text, so this one may have to go to them. Either way, the handbook should say what the
+app now does for a returning MSCSE graduate: the MSCSE's coursework counts as Ph.D. coursework,
+unless five years or more separate the two, when the DGS reviews it and the Graduate School
+approves (Academic Code §5.5).
 
 ---
 

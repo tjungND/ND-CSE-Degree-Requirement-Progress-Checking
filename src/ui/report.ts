@@ -789,7 +789,14 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
           ['Oral Candidacy Exam (OCE)', 'The candidacy examination of §4.5, sometimes called the dissertation proposal: a written proposal and an oral exam before your committee. It must be taken before the end of your eighth semester in the program.', '§4.5'],
           // A separate step since DGS 2026-10-04 ("OCE and doctoral candidacy are two different things").
           ['Admission to doctoral candidacy', 'The Graduate School’s own step after the OCE, applied for through the Grad Admin: it needs the OCE passed, four consecutive full-time semesters, the coursework complete with a cumulative GPA of 3.0 or better, and the Responsible Conduct of Research training — all by the end of your eighth semester.', 'Academic Code §6.2.9'],
-          ['Transfer credit', 'Courses from an M.S. earned at Notre Dame or elsewhere within the five years before admission may count toward the course requirement, with the DGS’s recommendation and the Graduate School’s approval.', '§5.2'],
+          // Policy review round 3, P3-cse-5-6-3: the student's own Notre Dame
+          // MSCSE is not transfer credit (DGS 2026-10-03) — unless five years or
+          // more separate it from the Ph.D. (DGS 2026-10-06; Academic Code §5.5).
+          [
+            'Transfer credit',
+            'Graduate courses from another program — at another university, or a master’s in another Notre Dame department — may count within §5.2’s caps and five-year window, with the DGS’s recommendation and the Graduate School’s approval. Your own Notre Dame MSCSE coursework (including a 4+1’s) is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so it counts as Ph.D. coursework — unless five years or more separate the MSCSE from the Ph.D., when the DGS reviews it and the Graduate School must approve it (Academic Code §5.5).',
+            '§5.2',
+          ],
         ] as [string, string, string][])
       : ([
           ['Project or thesis', 'Six credits of Master’s project (CSE 68902) or Master’s thesis direction (CSE 68901), in addition to the 24 regular-course credits.', '§3.2, §3.4'],

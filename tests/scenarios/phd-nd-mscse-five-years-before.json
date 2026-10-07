@@ -1,0 +1,123 @@
+{
+  "name": "phd-nd-mscse-five-years-before",
+  "description": "DGS 2026-10-06, with policy review round 3, P3-cse-5-6-3: “If a student finished MSCSE in Spring 2019 and come back to PhD in Fall 2026, that can be treated as a separation from the graduate program that is 5 years or longer, so the prior credits/coursework may be forfeited. This needs to be reviewed by DGS and approved by the graduate school.” The CSE MSCSE and Ph.D. are one graduate program (2026-10-03), so Academic Code §5.5 applies: \"Credit for any course or examination will be forfeited if the student interrupts his or her program of study for five years or more.\" Every MSCSE course is counted provisionally and waits for the DGS and the Graduate School; the core areas it satisfies wait too.",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2017
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "ndMasters": {
+      "term": {
+        "season": "spring",
+        "year": 2019
+      }
+    },
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "nd-mscse"
+    },
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2017
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2017
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2018
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2018
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2018
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2019
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      }
+    ]
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "0 of 24 credits complete",
+        "18 pending review/approval"
+      ]
+    },
+    "phd.qualifier.core.os": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Satisfied by CSE 60641 — taken before an interruption of five years or more"
+      ]
+    }
+  }
+}

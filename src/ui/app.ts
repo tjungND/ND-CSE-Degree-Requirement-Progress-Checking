@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { classify, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { classify, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
@@ -803,6 +803,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   // ---------- standing ----------
 
+  /** A Ph.D. student's own Notre Dame MSCSE (DGS 2026-10-03: "Within CSE, the
+   * graduate school treats MS and PhD the same graduate program"): its
+   * coursework is Ph.D. coursework, not transfer credit — said on the standing
+   * card and above the MSCSE's courses (policy review round 3, P3-cse-5-6-3,
+   * where the §5.2 paragraph used to stand). Unless five years or more
+   * separate the two (DGS 2026-10-06, with P3-cse-5-6-3; Academic Code §5.5):
+   * then every MSCSE course waits for the DGS and the Graduate School. */
+  function ownMscseSentence(): string {
+    const fourPlusOne = student.background?.graduate === 'nd-4plus1';
+    const base = `Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${fourPlusOne ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
+    const separated = mscseSeparation(student);
+    return separated === undefined
+      ? base
+      : `${base} But your MSCSE ended in ${termLabel(separated)}, five years or more before you entered the Ph.D. in ${termLabel(normalizeEntryTerm(student.entryTerm).term)}: a separation that long from the graduate program may forfeit its credit and coursework (Academic Code §5.5), so every MSCSE course counts only once the DGS reviews it and the Graduate School approves — the review request asks.`;
+  }
+  /** Whether a prior Notre Dame course group holds the student's own MSCSE. */
+  function holdsOwnMscse(): boolean {
+    const g = student.background?.graduate;
+    return student.program === 'phd' && (student.ndMasters !== undefined || g === 'nd-mscse' || g === 'nd-4plus1' || g === 'nd-mscse-transfer');
+  }
   /** What the earlier-degrees answer means for THIS student, one sentence
    * with the numbers from the Parameters tab (clarity review 2026-09-26) —
    * in place of "(§5.2 transfer caps, the MSCSE already held and the
@@ -822,11 +842,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ? ` You finished a graduate degree elsewhere, so up to ${finished} credits from it may transfer (§5.2); it would be ${unfinished} if that program were unfinished.`
         : ` Your earlier graduate program was not finished, so up to ${unfinished} credits from it may transfer (§5.2); it would be ${finished} after a finished degree.`;
     }
-    if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') {
-      // DGS 2026-10-03: "Within CSE, the graduate school treats MS and PhD the
-      // same graduate program" — so the MSCSE's coursework is Ph.D. coursework.
-      return ` Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${b.graduate === 'nd-4plus1' ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
-    }
+    if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') return ` ${ownMscseSentence()}`;
     // No stated limit without an earlier program (policy review round 3,
     // P3-cse-5-6-1; DGS 2026-10-06): §5.2 caps only what comes from an
     // unfinished or a completed program, so the DGS decides — "may transfer"
@@ -1717,7 +1733,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             // does not apply to it.
             g.entries.length > 0 && g.entries.every(({ c }) => ndPostingOf(c) !== undefined)
             ? el('p', { class: 'hint' }, `Accepted transfer credit on your Notre Dame transcript: the Graduate School approved these courses and recorded them (Academic Code §4.6), so they count at the hours your record shows, with no review or processing request. Credit posted before you entered this program, or whose level the transcript does not show, waits for the DGS to confirm it counts toward this degree.`)
-            : el('p', { class: 'hint' }, transferRule(g.nd)),
+            : // The student's own MSCSE is not transfer credit (P3-cse-5-6-3):
+              // the standing card's sentence, not §5.2's paragraph.
+              g.nd && holdsOwnMscse()
+              ? el('p', { class: 'hint' }, ownMscseSentence())
+              : el('p', { class: 'hint' }, transferRule(g.nd)),
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
           : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),

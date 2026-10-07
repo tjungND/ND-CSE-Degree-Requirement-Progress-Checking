@@ -242,6 +242,11 @@ export interface ClassifiedCourse {
    * Code §5.5: "Credit for any course or examination will be forfeited"),
    * sent to the DGS rather than counted or refused (policy review 2026-10-03). */
   interrupted?: true;
+  /** …the same, because the student's own Notre Dame MSCSE ended five years
+   * or more before the Ph.D. began (DGS 2026-10-06, with policy review round
+   * 3, P3-cse-5-6-3): `interrupted` is set too, so every reader of a forfeited
+   * course treats it alike; this flag only words it. */
+  mscseSeparated?: true;
   /** Program coursework dated before a readmission after a shorter gap — a
    * withdrawal, or a fall or spring semester the student did not register for
    * (DGS Handbook §3.3: "the program may require the student to reapply. The
@@ -510,6 +515,43 @@ export function longInterruptionReadmission(student: Student): Term | undefined 
   return startOfTerm(readmitted).date >= addYearsIso(endOfTerm(lastBefore).date, ACADEMIC_CODE_FORFEIT_YEARS) ? readmitted : undefined;
 }
 
+/** The student's own Notre Dame MSCSE coursework on a Ph.D. record: Notre
+ * Dame courses dated before the Ph.D. began, after the bachelor's degree — or
+ * before it, when the student says the course counted toward the MSCSE (a
+ * 4+1's). Bachelor's-only courses are not the graduate program's. */
+export function isOwnMscseCoursework(student: Student, c: CourseEntry): boolean {
+  if (student.program !== 'phd' || student.ndMasters === undefined) return false;
+  if (!(c.origin === 'nd' || isNotreDameInstitution(c.institution)) || c.degreeLevel === 'bachelors') return false;
+  if (compareTerm(c.term, normalizeEntryTerm(student.entryTerm).term) >= 0) return false;
+  const awarded = student.bachelorsAwarded;
+  return awarded === undefined || compareTerm(c.term, awarded) > 0 || c.countedToward === 'mscse' || c.countedToward === 'both';
+}
+
+/** A separation of five years or more between the student's Notre Dame MSCSE
+ * and the Ph.D. (DGS 2026-10-06, with policy review round 3, P3-cse-5-6-3: "If
+ * a student finished MSCSE in Spring 2019 and come back to PhD in Fall 2026,
+ * that can be treated as a separation from the graduate program that is 5
+ * years or longer, so the prior credits/coursework may be forfeited. This
+ * needs to be reviewed by DGS and approved by the graduate school. So, the
+ * student must get an approval for all the credits/coursework to count
+ * towards the PhD."). The Graduate School treats the CSE MSCSE and Ph.D. as
+ * one graduate program (2026-10-03), so Academic Code §5.5 applies: "Credit
+ * for any course or examination will be forfeited if the student interrupts
+ * his or her program of study for five years or more." Measured as a
+ * readmission's is: from the end of the MSCSE's last term (its award term, or
+ * its last course) to the start of the Ph.D. Returns that last term, or
+ * undefined when the gap is shorter or there is no Notre Dame MSCSE. */
+export function mscseSeparation(student: Student): Term | undefined {
+  if (student.program !== 'phd' || student.ndMasters === undefined) return undefined;
+  const entry = normalizeEntryTerm(student.entryTerm).term;
+  const last = [...student.courses.filter((c) => isOwnMscseCoursework(student, c)).map((c) => c.term), ...(student.ndMasters.term ? [student.ndMasters.term] : [])]
+    .filter((t) => compareTerm(t, entry) < 0)
+    .sort(compareTerm)
+    .pop();
+  if (last === undefined) return undefined;
+  return startOfTerm(entry).date >= addYearsIso(endOfTerm(last).date, ACADEMIC_CODE_FORFEIT_YEARS) ? last : undefined;
+}
+
 /** Whether the sheet decides this course case by case — `dgs_approval` /
  * `adgs_approval` in the Courses tab for a Notre Dame course, or in the
  * ExternalCourses tab for a course from elsewhere — so that the DGS's answer
@@ -659,6 +701,9 @@ export function classify(student: Student, rules: Rules, today?: string): {
   // (DGS Handbook §3.3) — this program's own earlier courses wait for the DGS.
   const beforeShortReadmission = (c: CourseEntry): boolean =>
     readmitted !== undefined && !longInterruption && c.origin === 'nd' && compareTerm(c.term, readmitted) < 0;
+  // The Notre Dame MSCSE five years or more before the Ph.D. (DGS 2026-10-06):
+  // every one of its courses waits for the DGS and the Graduate School.
+  const separatedSince = mscseSeparation(student);
   const sorted = [...student.courses].sort(
     (a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId),
   );
@@ -777,6 +822,15 @@ export function classify(student: Student, rules: Rules, today?: string): {
           beforeReadmission: true,
           tier: 'provisional',
           approvalPending: `taken before your readmission (${termLabel(readmitted!)}) — the program may reject some or all past credits (DGS Handbook §3.3); the DGS confirms${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
+        };
+      }
+      if (separatedSince !== undefined && !interruptedCourse(c) && isOwnMscseCoursework(student, c) && cc.ineligibleReason === undefined) {
+        return {
+          ...cc,
+          interrupted: true,
+          mscseSeparated: true,
+          tier: 'provisional',
+          approvalPending: `from your Notre Dame MSCSE, which ended in ${termLabel(separatedSince)}, five years or more before you entered the Ph.D. in ${termLabel(entry)} — a separation that long may forfeit its credit (Academic Code §5.5), so it counts as Ph.D. coursework once the DGS reviews it and the Graduate School approves${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
         };
       }
       if (!interruptedCourse(c) || cc.ineligibleReason !== undefined) return cc;
@@ -2321,12 +2375,20 @@ function buildExplanationText(
     // The Ph.D.'s answers (Graduate School through the DGS, 2026-09-22): the
     // course's second degree is said on the line, with the rule that lets it.
     else if (cc.caps.includes('sharedbs')) parts.push('counts toward both your bachelor’s degree and the Ph.D. — inside the 6 credits that may count toward two degrees (Graduate School)');
-    else if (cc.entry.countedToward === 'mscse' && cc.entry.origin === 'transfer') parts.push('counted toward your MSCSE — counts in full as Ph.D. coursework: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)');
+    else if (cc.entry.countedToward === 'mscse' && cc.entry.origin === 'transfer')
+      // Separated by five years or more (DGS 2026-10-06): the pending reason
+      // says why it waits, so the line names only the degree.
+      parts.push(cc.mscseSeparated ? 'counted toward your MSCSE' : 'counted toward your MSCSE — counts in full as Ph.D. coursework: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)');
     // "counts in full" only when nothing is still to be approved: a plain
     // bachelor's course or an unverified UG→GR move says why it waits instead
     // (policy review 2026-10-03).
     else if (cc.entry.countedToward === 'neither' && cc.entry.origin === 'transfer') parts.push(cc.approvalPending ? 'not used by an earlier degree' : 'not used by an earlier degree — counts in full');
-    if (cc.ndMastersCredit) parts.push(`from your Notre Dame MSCSE — counts in full as Ph.D. coursework, with no transfer approval and no §5.2 cap: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)${cc.pool === 'total_only' ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : ''}`);
+    // Separated by five years or more (DGS 2026-10-06): the pending reason
+    // carries the MSCSE and the rule; only a project or thesis adds its pool.
+    if (cc.ndMastersCredit && cc.mscseSeparated) {
+      if (cc.pool === 'total_only') parts.push('a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)');
+    }
+    else if (cc.ndMastersCredit) parts.push(`from your Notre Dame MSCSE — counts in full as Ph.D. coursework, with no transfer approval and no §5.2 cap: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)${cc.pool === 'total_only' ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : ''}`);
     // The rule, not a computed date (policy review round 3, P3-cross-doc-4; DGS
     // 2026-10-06: "Apply the suggested handling"): the 30 days are the
     // student's and the 14 after them the instructor's (Academic Code §4.4:
