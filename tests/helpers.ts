@@ -31,6 +31,11 @@ export interface ScenarioFile {
   /** The semester-of-graduation registration (Academic Code §3.7; policy review
    * round 3, P3-chg-other-2): what `report.graduation` must say. */
   expectGraduation?: { registered: boolean; registeredCredits?: number };
+  /** Substrings some warning must contain, and substrings no warning may
+   * contain (2026-10-06, P3-dh-3.14-3.20-2: the probation and dismissal
+   * warnings are a report's, not a row's). */
+  expectWarnings?: string[];
+  expectNoWarnings?: string[];
 }
 
 export interface RulesPatch {

@@ -1,0 +1,148 @@
+{
+  "name": "phd-low-gpa-semesters-before-entry",
+  "description": "Policy review round 3, P3-dh-3.14-3.20-2 (DGS 2026-10-06: “Apply the handling”). A student who finished a Notre Dame master’s in another department in 2019–21 (Fall 2019 semester GPA 2.40, Spring 2020 2.90) entered the CSE Ph.D. in Fall 2024 with semester GPAs of 3.6–3.7. Academic Code §5.7: \"A graduate student can only have one designation, per program, at any given time\"; dismissal is \"from his or her program of study\" (§5.8). The probation trigger and dismissal grounds used to read the earlier program’s semesters; they now read only this program’s, as the U-in-research line already did.",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2019
+    },
+    "priorMs": "completed",
+    "gpa": 3.65,
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "nd-other",
+      "finished": true
+    },
+    "milestones": {},
+    "attestations": {},
+    "termGpas": [
+      {
+        "term": {
+          "season": "fall",
+          "year": 2019
+        },
+        "termGpa": 2.4,
+        "cumulativeGpa": 2.4
+      },
+      {
+        "term": {
+          "season": "spring",
+          "year": 2020
+        },
+        "termGpa": 2.9,
+        "cumulativeGpa": 2.65
+      },
+      {
+        "term": {
+          "season": "fall",
+          "year": 2020
+        },
+        "termGpa": 3.5,
+        "cumulativeGpa": 2.93
+      },
+      {
+        "term": {
+          "season": "spring",
+          "year": 2021
+        },
+        "termGpa": 3.6,
+        "cumulativeGpa": 3.1
+      },
+      {
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "termGpa": 3.7,
+        "cumulativeGpa": 3.7
+      },
+      {
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "termGpa": 3.6,
+        "cumulativeGpa": 3.65
+      },
+      {
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "termGpa": 3.7,
+        "cumulativeGpa": 3.67
+      },
+      {
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "termGpa": 3.6,
+        "cumulativeGpa": 3.65
+      }
+    ],
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      }
+    ]
+  },
+  "expect": {},
+  "expectNoWarnings": [
+    "ground for dismissal",
+    "probation trigger",
+    "Fall 2019",
+    "Spring 2020"
+  ]
+}

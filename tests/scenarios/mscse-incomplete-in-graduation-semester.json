@@ -132,5 +132,8 @@
     "CSE 60876": [
       "Fall 2026 is your graduation semester, and the degree is conferred only with no I grades in it (DGS Handbook §3.23.1)"
     ]
-  }
+  },
+  "expectWarnings": [
+    "An Incomplete cannot stand in the semester you graduate: CSE 60876 is graded I in Fall 2026"
+  ]
 }

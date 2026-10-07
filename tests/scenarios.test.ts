@@ -75,6 +75,10 @@ describe('scenarios', () => {
             .join(' | ')}`,
         );
       }
+
+      // Warnings (2026-10-06): what the report says at the top, not a row.
+      for (const sub of sc.expectWarnings ?? []) assert.ok(report.warnings.some((w) => w.includes(sub)), `no warning contains "${sub}"; got: ${report.warnings.join(' | ')}`);
+      for (const sub of sc.expectNoWarnings ?? []) assert.ok(!report.warnings.some((w) => w.includes(sub)), `a warning contains "${sub}": ${report.warnings.find((w) => w.includes(sub))}`);
     });
   }
 });

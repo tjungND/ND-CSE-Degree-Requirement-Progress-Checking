@@ -448,8 +448,16 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // saved before that are read the same way here). Academic Code §4.3: "An S
   // grade … does not factor into the computation of the G.P.A."
   const gradedIn = (t: TermGpa['term']) => student.courses.some((c) => c.origin === 'nd' && compareTerm(c.term, t) === 0 && GRADE_POINTS[c.grade] !== undefined);
+  // This program's semesters only (policy review round 3, P3-dh-3.14-3.20-2;
+  // DGS 2026-10-06: "Apply the handling"): "A graduate student can only have
+  // one designation, per program, at any given time" (Academic Code §5.7),
+  // and dismissal is "from his or her program of study" (§5.8) — the same
+  // scope as the U-in-research line below. The entry term already carries a
+  // program transfer (an MSCSE start kept, 2026-09-26; another department's
+  // matriculation kept, 2026-10-03 item 16). A semester before it gets no
+  // line: a finished earlier degree implies good standing (§5.7.1).
   const gpaTerms = (student.termGpas ?? [])
-    .filter((t) => t.term.season !== 'summer')
+    .filter((t) => t.term.season !== 'summer' && compareTerm(t.term, entry) >= 0)
     .map((t) => (gradedIn(t.term) ? t : { term: t.term, ...(t.termGpa ? { termGpa: t.termGpa } : {}), ...(t.cumulativeGpa ? { cumulativeGpa: t.cumulativeGpa } : {}) }))
     .sort((a, b) => compareTerm(a.term, b.term));
   const listGpas = (ts: typeof gpaTerms, pick: (t: (typeof gpaTerms)[number]) => number | undefined) => ts.map((t) => `${termLabel(t.term)}: ${gpaText(pick(t)!)}`).join(', ');
