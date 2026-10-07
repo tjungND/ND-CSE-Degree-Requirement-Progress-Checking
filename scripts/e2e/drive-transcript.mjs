@@ -796,8 +796,11 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // …and the decider is the ADGS (DGS 2026-09-11): outside the contact card,
   // the notices, the glossary and the footer, "DGS" alone must not appear.
   const dgsLines = (await s.evalJs(`(() => { const c = document.querySelector('#app').cloneNode(true); c.querySelectorAll('.contact-card, .notice-line, .notice-details, details.glossary, .print-header, footer, .tabs').forEach(e => e.remove()); return c.textContent; })()`))
-    // "DGS Handbook" is the Graduate School's document, not the decider (2026-10-03).
-    .split(/[.!?]\s|\n/).map((l) => l.trim()).filter((l) => /\bDGS\b(?! Handbook)/.test(l));
+    // "DGS Handbook" is the Graduate School's document, not the decider (2026-10-03),
+    // and the DGS's own dated rulings keep the DGS's name — "DGS decision
+    // 2026-08-31", "(DGS 2026-10-03)" (policy review round 3, P3-text-engine-4).
+    // The same rule as src/engine/decider.ts DECIDER_DGS; change both together.
+    .split(/[.!?]\s|\n/).map((l) => l.trim()).filter((l) => /\bDGS\b(?! Handbook| decision 20\d\d| 20\d\d-\d\d)/.test(l));
   if (dgsLines.length) throw new Error('the MSCSE tab must send the student to the ADGS, not the DGS:\n  ' + dgsLines.slice(0, 6).join('\n  '));
   const reviewHead = await s.evalJs(`document.querySelector('.dgs-review h2')?.textContent ?? ''`);
   // No review card at all when the live sheet has settled every course (both 40xxx rows are `yes` since 2026-09-16); when there is one it addresses the ADGS.

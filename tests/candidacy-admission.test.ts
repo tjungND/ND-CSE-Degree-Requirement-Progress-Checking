@@ -195,6 +195,16 @@ describe('the eighth semester', () => {
     assert.equal(late.status, 'needs_dgs_review');
     assert.match(late.detail, /you may have been placed on probation \(Academic Code §5\.7\.3, Appendix A\.4\), and admission after the ninth semester risks the loss of Graduate School funding/);
   });
+  it('the Spring 2020 cohort’s overdue OCE names the ninth semester and Appendix A.4 (policy review round 3, P3-ac-6.2-app-3 (a))', () => {
+    const terms = [fall(2019), spring(2020), fall(2020), spring(2021)];
+    const s = ready({}, { entryTerm: fall(2019), fullTimeTermOverrides: terms, courses: REGULAR.map((id, i) => ndCourse(id, { term: terms[Math.floor(i / 2)]! })) });
+    const { oce } = rows(s, '2026-10-04');
+    assert.equal(oce.status, 'unmet');
+    assert.match(oce.detail, /not passed the candidacy exam by the end of the ninth semester on probation and discontinues University funding \(Academic Code §6\.2\.8, Appendix A\.4\)/);
+    // Everyone else: the eighth, §6.2.8 alone.
+    const regular = rows(ready({}), '2030-08-01').oce;
+    assert.match(regular.detail, /by the end of the eighth semester on probation and discontinues University funding \(Academic Code §6\.2\.8\); talk to the DGS/);
+  });
   it('moves with an approved leave before the eighth semester, as the OCE’s does', () => {
     const { oce, admission } = rows(ready({}, { leaveSemesters: 1, leaveTerms: [spring(2029)] }), '2027-01-15');
     assert.equal(admission.deadline?.label, oce.deadline?.label);
@@ -253,7 +263,7 @@ describe('the merged candidacy card', () => {
     }
     const admission = r.find((x) => x.id === 'phd.candidacyAdmission')!;
     assert.match(admission.detail, /Responsible Conduct of Research and ethics training: not yet/);
-    assert.match(admission.detail, /Complete the Graduate School’s Responsible Conduct of Research and ethics training modules/);
+    assert.match(admission.detail, /Complete the Graduate School’s 3-hour ethics workshop \(two 90-minute sessions/);
   });
 
   it('an OCE deadline earlier than the admission’s shows on the OCE line, and an overdue OCE makes the card Overdue', () => {

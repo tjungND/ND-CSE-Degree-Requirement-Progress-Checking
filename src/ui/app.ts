@@ -8,7 +8,7 @@ import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { NON_DEGREE_CREDITS_MAX, classify, firstSemesterComplete, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
-import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
+import { compareTerm, normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
 import type { Rules } from '../data/types.ts';
 import { coursesNeedingDgsReviewFor, reviewRequestSummary, type PendingDgsReview } from '../engine/review.ts';
 import { shortName } from '../engine/short-names.ts';
@@ -952,6 +952,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             ? `The residency count (§4.3) and every deadline (§4.2’s first-year seminars, §4.3, §4.4, §4.4.3, §4.5 and admission to candidacy) are counted from this term — your matriculation at the Graduate School, which a transfer from another Notre Dame program does not reset.${mscseClockSentence()}`
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
+          // A non-degree semester read as the program's start (policy review
+          // round 3, P3-dh-front-1-2-3, part (1)): said where the import picked
+          // an earlier admission or the first graduate-level term.
+          inferred.how !== 'assumed' && (inferred.alternative !== undefined || /first graduate-level term|earlier of the admit-term lines/.test(inferred.how))
+            ? ` If you were a non-degree (unclassified or departmental non-degree) student at Notre Dame before your degree admission, set the entry term to that admission; up to ${NON_DEGREE_CREDITS_MAX} non-degree credits may count (Academic Code §2.3).`
+            : '',
         )
       : null;
     // The prior-degree controls — "Prior graduate study", "I already hold the
@@ -1319,8 +1325,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // is not entered, so it moves no clock.
         'Semesters on approved medical leave',
         phd
-          ? 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, Academic Code §5.1). An approved medical leave stops the clock (Academic Code §6.2.6: “unless interrupted by approved medical leave(s) and/or approved childbirth accommodation(s)”): each semester here moves the eight-year limit (§4.3) out by a semester, and one before the end of your eighth semester of enrollment also moves the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3) — a later one cannot change which semester was the eighth (DGS 2026-10-05). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock (DGS 2026-10-06). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).'
-          : 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, Academic Code §5.1). Each moves the five-year limit (§3.3) out by a semester: the Graduate School stops the doctoral clock only for approved medical leave and childbirth accommodation (Academic Code §6.2.6), and the five years follow it (DGS 2026-10-03, 2026-10-06). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock. A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).',
+          ? 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, §5.7). An approved medical leave stops the clock (Academic Code §6.2.6: “unless interrupted by approved medical leave(s) and/or approved childbirth accommodation(s)”): each semester here moves the eight-year limit (§4.3) out by a semester, and one before the end of your eighth semester of enrollment also moves the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3) — a later one cannot change which semester was the eighth (DGS 2026-10-05). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock (DGS 2026-10-06). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).'
+          : 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, §5.7). Each moves the five-year limit (§3.3) out by a semester: the Graduate School stops the doctoral clock only for approved medical leave and childbirth accommodation (Academic Code §6.2.6), and the five years follow it (DGS 2026-10-03, 2026-10-06). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock. A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).',
       ),
       slotPickers('leaveTerms', leaveCount, (i) => `Medical leave semester${leaveCount > 1 ? ` ${i + 1}` : ''} — which semester`, ['fall', 'spring']),
       count(
@@ -1378,7 +1384,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'standing.ndNonDegree',
       [
         ['', 'Not answered'],
-        ['yes', 'Yes — I was a non-degree (unclassified) student then'],
+        // Both kinds of non-degree status (Academic Code §2.3; policy review
+        // round 3, P3-dh-front-1-2-4, finishing P2-dh-front-1-2-6).
+        ['yes', 'Yes — I was a non-degree student then (unclassified or departmental non-degree)'],
         ['no', 'No'],
       ],
       student.ndNonDegree === undefined ? '' : student.ndNonDegree ? 'yes' : 'no',
@@ -1391,7 +1399,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint' },
-        `${plural(detected.length, 'course')} on your record ${detected.length === 1 ? 'is' : 'are'} dated before your entry term with no earlier graduate program to explain ${detected.length === 1 ? 'it' : 'them'} (${detected.map((c) => c.entry.courseId).join(', ')}). Were you a non-degree (unclassified) student at Notre Dame when you took ${detected.length === 1 ? 'it' : 'them'}? If so, up to 12 such credits may count toward the degree (Academic Code §2.3) — the DGS decides, and the review request asks.`,
+        `${plural(detected.length, 'course')} on your record ${detected.length === 1 ? 'is' : 'are'} dated before your entry term with no earlier graduate program to explain ${detected.length === 1 ? 'it' : 'them'} (${detected.map((c) => c.entry.courseId).join(', ')}). Were you in non-degree status at Notre Dame (an unclassified or departmental non-degree student) when you took ${detected.length === 1 ? 'it' : 'them'}? If so, up to 12 such credits may count toward the degree (Academic Code §2.3) — the DGS decides, and the review request asks.`,
       ),
       radiosEl,
     );
@@ -1756,7 +1764,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               (g.nd
                 ? student.program === 'phd'
                   ? `Notre Dame courses you took as an undergraduate appear here when they can do something for the Ph.D.: earn credit (60000-level courses in full; up to ${fourkCreditsWord()} credits of CSE courses below that, §4.2), or show you already know a core area — Algorithms, Operating Systems, Computer Architecture (§4.4.1). Where a course could earn credit, say next to it whether your bachelor’s degree already used it — no course may count toward three degrees.`
-                  : `Notre Dame courses you took as an undergraduate appear here when they can count toward the MSCSE: 60000-level courses in full, and CSE courses below that inside §3.2’s allowance. Up to ${sharedCreditsWord()} credits may apply to both your bachelor’s degree and your MSCSE (§3.5). This page chose them for you — your 40000-level CSE courses first, best grade first, keeping 60000-level coursework for the graduate degree — and each course’s line says whether it will apply to both degrees or to your MSCSE only.`
+                  : // The 60000-level clause follows the 4+1 answer (policy review
+                    // round 3, P3-fourplusone-6 / P3-text-ui-1): only an Integrated
+                    // B.S. + M.S. student counts them, from the admission term on.
+                    `Notre Dame courses you took as an undergraduate appear here when they can count toward the MSCSE: ${
+                      student.integratedBsMs === true
+                        ? '60000-level courses from your Integrated-program admission term on, and CSE courses below that inside §3.2’s allowance'
+                        : student.integratedBsMs === false
+                          ? 'CSE courses below the 60000 level inside §3.2’s allowance — 60000-level courses you took as an undergraduate do not count (§3.5); only students in the Integrated B.S. + M.S. program may count them'
+                          : 'CSE courses below the 60000 level inside §3.2’s allowance, and 60000-level courses only if you were in the Integrated B.S. + M.S. (4+1) program (§3.5) — answer that question under Your standing'
+                    }. Up to ${sharedCreditsWord()} credits may apply to both your bachelor’s degree and your MSCSE (§3.5). This page chose them for you — your 40000-level CSE courses first, best grade first — and each course’s line says whether it will apply to both degrees, to your MSCSE only, or why it does not count.`
                 : student.program === 'phd'
                   ? `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`
                   : `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2), and they satisfy nothing else in the MSCSE — so none of them is listed here`) +
@@ -2676,7 +2693,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // (2026-10-03). Part of the candidacy card since 2026-10-04, so shown
         // once that card is under way (DGS 2026-10-05: "hide it until it
         // becomes 'in progress'") — or once dated.
-        ...(m.rcrTrainingCompleted || !notStarted('phd.candidacyAdmission') ? [dateField('Responsible Conduct of Research and ethics training completed (Graduate School)', 'rcrTrainingCompleted')] : []),
+        ...(m.rcrTrainingCompleted || !notStarted('phd.candidacyAdmission') ? [dateField('Ethics workshop and Responsible Conduct of Research training completed (Graduate School)', 'rcrTrainingCompleted')] : []),
         ...(m.candidacyPassed || oceOpen ? [dateField('Oral Candidacy Exam (OCE) passed (§4.5)', 'candidacyPassed')] : []),
       );
       // §4.6 opens "After satisfying the above requirements": nobody has a
@@ -2865,6 +2882,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   /** "Send summary to advisor" (DGS 2026-09-15): the dialog with the
    * advisor summary. Rendered at the end of the report since the trim review
    * (2026-09-18, P-72); it was the third button of the storage card. */
+  // The term the qualifying exam's clocks count from when it is not the entry
+  // term: a Ph.D. transfer from the unfinished MSCSE (as audit.ts reads it).
+  function qualifierTransferTerm(): string | undefined {
+    const b = student.background;
+    if (student.program !== 'phd' || b?.graduate !== 'nd-mscse-transfer' || b.transferredTerm === undefined) return undefined;
+    const entry = normalizeEntryTerm(student.entryTerm).term;
+    return compareTerm(b.transferredTerm, entry) > 0 ? termLabel(normalizeEntryTerm(b.transferredTerm).term) : undefined;
+  }
+
   function advisorSummaryButton(report: ReturnType<typeof audit>, key = 'save.copy'): HTMLElement {
     return el(
       'button',
@@ -2884,6 +2910,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             history: programHistory(student),
             unofficialNote: unofficialTranscriptNote(student.courses),
             transfers: { courses: transfers, recorded: student.attestations.transferRecorded === true, firstSemesterDone: firstSemesterComplete(student, normalizeEntryTerm(student.entryTerm).term, todayIso).done },
+            qualifierFrom: qualifierTransferTerm(),
           });
           void copyDialog({
             what: 'Summary for your advisor',

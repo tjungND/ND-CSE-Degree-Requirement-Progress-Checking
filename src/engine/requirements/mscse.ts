@@ -201,7 +201,7 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
   const totalMin = ctx.params.number('ms_total_credits_min');
   const ready =
     gpaMin !== undefined && gpa !== undefined && gpa >= gpaMin && totalMin !== undefined && ctx.alloc.total.definite + ctx.alloc.total.in_progress >= totalMin;
-  const candidacy = msCandidacyApplicationRow(ctx, { group: PROJECT_THESIS, ready, alongTheWay: false });
+  const candidacy = msCandidacyApplicationRow(ctx, { group: PROJECT_THESIS, ready, alongTheWay: false, thesis: msRoute(ctx) === 'thesis' });
   if (candidacy) rows.push(candidacy);
   return rows;
 }
@@ -329,7 +329,7 @@ function lastMsCompletion(ctx: Ctx): Completion | undefined {
 
 /** §3.3: "Failure to complete all requirements for the M.S. degree within
  * 5 years results in forfeiture of degree eligibility." */
-export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
+export function msTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean; mastersApplicationOpen?: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the M.S. degree within 5 years results in forfeiture of degree eligibility.';
   // The same row as the Ph.D.'s, with the master's key and quote — and the
@@ -543,7 +543,9 @@ function optionRows(ctx: Ctx): RequirementResult[] {
     } else if (failedOn !== undefined && retakeDue !== undefined) {
       if (ctx.today <= retakeDue) {
         status = 'in_progress';
-        parts = [`Thesis defense failed ${failedOn} — one retake allowed`, { note: retakeRule }, ...alternative];
+        // Conditional, as the Code is (policy review round 3, P3-ac-5b-6.1-3):
+        // "unless the program recommends a retake".
+        parts = [`Thesis defense failed ${failedOn} — one retake, if the program recommends it`, { note: retakeRule }, ...alternative];
         deadline = openDeadline(retakeDue, ctx.today, `Retake due by ${deadlineTermLabel(retakeDue)} (approximate)`);
       } else {
         status = 'unmet';

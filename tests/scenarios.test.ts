@@ -41,6 +41,9 @@ describe('scenarios', () => {
         // "Overdue" and the deadline alert hang on.
         const wantDeadline = (exp as { deadlineState?: string }).deadlineState;
         if (wantDeadline !== undefined) assert.equal(row.deadline?.state ?? 'none', wantDeadline, `deadline state of ${id}`);
+        // `deadlineLabelIncludes` (2026-10-07): the chip's words.
+        const wantLabel = (exp as { deadlineLabelIncludes?: string }).deadlineLabelIncludes;
+        if (wantLabel !== undefined) assert.ok((row.deadline?.label ?? '').includes(wantLabel), `deadline label of ${id}: ${row.deadline?.label}`);
       }
 
       if (sc.expectTracks !== undefined) {

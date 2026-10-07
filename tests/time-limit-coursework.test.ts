@@ -54,7 +54,10 @@ describe('the MSCSE five years (CSE §3.3; Academic Code §6.1.4)', () => {
     const s = mscse([ndCourse('CSE 60427', { term: spring(2023) }), ndCourse('CSE 60657', { term: fall(2026) })]);
     const r = row(s, '2027-01-20', 'ms.timeLimit');
     assert.equal(r.status, 'met');
-    assert.match(r.detail, /^All requirements are complete within the 5-year limit/);
+    // The master's candidacy application is open on this record (P3-dh-3.21-3.24-1).
+    assert.match(r.detail, /^Every counted requirement is complete within the 5-year limit — the Application for Admission to Master’s Degree Candidacy is still open/);
+    s.milestones = { ...s.milestones, msCandidacyApplied: '2026-10-01' };
+    assert.match(row(s, '2027-01-20', 'ms.timeLimit').detail, /^All requirements are complete within the 5-year limit/);
   });
   it('the project credits count too: 6 credits of CSE 68902 finished after the limit', () => {
     const s = mscse([ndCourse('CSE 60427', { term: spring(2023) })]);

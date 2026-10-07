@@ -86,6 +86,10 @@
     },
     "phd.timeLimit": {
       "status": "in_progress"
+    },
+    "phd.qualifier.research": {
+      "status": "in_progress",
+      "deadlineLabelIncludes": "months after your transfer into the Ph.D."
     }
   }
 }

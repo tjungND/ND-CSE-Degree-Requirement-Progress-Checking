@@ -4,6 +4,8 @@
 // it — and each SURFACE shortens the repeats on the way out: the page in
 // render() (document order = phone and screen-reader order), the copied
 // emails on their text and html flavours. DOM-free apart from the walker.
+import { DECIDER_DGS, DECIDER_DGS_ALL } from '../engine/decider.ts';
+
 export const OCE_FULL = 'Oral Candidacy Exam (OCE)';
 export const OCE_SHORT = 'OCE';
 
@@ -44,7 +46,7 @@ export function applyDeciderRule(root: ParentNode, program: 'mscse' | 'phd'): vo
   const nodes: Text[] = [];
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const value = node.nodeValue;
-    if (!value || !/\bDGS\b(?! Handbook)/.test(value)) continue;
+    if (!value || !DECIDER_DGS.test(value)) continue;
     // The notices and the footer are rewritten too since 2026-09-15 (DGS: the
     // alpha notice names the ADGS on the MSCSE tab); the feedback address and
     // the contact card keep "DGS" by `data-keep-dgs`.
@@ -52,7 +54,8 @@ export function applyDeciderRule(root: ParentNode, program: 'mscse' | 'phd'): vo
     nodes.push(node as Text);
   }
   // "DGS Handbook" names the Graduate School's document, not the decider (2026-10-03).
-  for (const node of nodes) node.nodeValue = node.nodeValue!.replace(/\bDGS\b(?! Handbook)/g, 'ADGS');
+  // …nor a ruling the DGS made and dated (P3-text-engine-4).
+  for (const node of nodes) node.nodeValue = node.nodeValue!.replace(DECIDER_DGS_ALL, 'ADGS');
 }
 
 export function applyFirstMentionRule(root: ParentNode, re: RegExp = OCE_RE, short: string = OCE_SHORT): void {

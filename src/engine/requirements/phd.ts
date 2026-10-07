@@ -510,7 +510,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
 
 /** §4.3: "Failure to complete all requirements for the Ph.D. degree within
  * eight (8) years results in forfeiture of degree eligibility." */
-export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean }): RequirementResult {
+export function phdTimeLimitRow(ctx: Ctx, others: { allMet: boolean; anyCannotEvaluate: boolean; mastersApplicationOpen?: boolean }): RequirementResult {
   const quote =
     'Failure to complete all requirements for the Ph.D. degree within eight (8) years results in forfeiture of degree eligibility.';
   // The last requirement is the OFFICIAL SUBMISSION (Academic Code §6.2.6:
@@ -1069,8 +1069,11 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       }
       completing = neededCourses.map((c) => c.courseId);
       const needed = completing.length;
+      // Groups covered, not courses passed (policy review round 3,
+      // P3-cse-4a-5): two passed courses in one group are one group toward
+      // the three — "3 of 3 done, in 2 different groups" read as done.
       withItems(
-        `${qualifying.length} of ${coursesReq} done, in ${def.distinctCount} different group${def.distinctCount === 1 ? '' : 's'}; ${needed === inProgress.length ? `the ${inProgress.length === 1 ? 'course' : `${inProgress.length} courses`} in progress would complete it` : `${needed} of the ${inProgress.length} courses in progress would complete it`}`,
+        `${Math.min(def.distinctCount, groupsReq)} of ${groupsReq} groups covered (${qualifying.length} ${qualifying.length === 1 ? 'course' : 'courses'} passed); ${needed === inProgress.length ? `the ${inProgress.length === 1 ? 'course' : `${inProgress.length} courses`} in progress would complete it` : `${needed} of the ${inProgress.length} courses in progress would complete it`}`,
       );
     } else {
       status = 'unmet';
@@ -1086,7 +1089,10 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       add({ note: `${groupsReq} distinct groups and ${coursesReq} courses with a grade of ${floor} or higher are required (§4.4.2)` });
     }
   }
-  if (belowFloor.length > 0) {
+  // Only while the requirement is open (policy review round 3, P3-cse-4a-4):
+  // on a Met card the retake advice was moot; the course's own line still
+  // says it is below the floor.
+  if (belowFloor.length > 0 && status !== 'met') {
     add({ note: `${belowFloor.join(', ')} ${belowFloor.length === 1 ? 'is' : 'are'} below the ${floor} floor — retake ${belowFloor.length === 1 ? 'it' : 'them'} or take another course (§4.4.2)` });
   }
   for (const suggestion of def.suggestions) add({ note: suggestion });
@@ -1187,7 +1193,9 @@ function researchQualifierRow(ctx: Ctx): RequirementResult {
     today: ctx.today,
     // A semester, not a date (DGS request 2026-09-05): 18 months after a fall
     // entry lands in the middle of the second spring — "mid-Spring 2028".
-    deadlineLabel: `${deadlineTerm(date).when === 'during' ? `mid-${termLabel(deadlineTerm(date).term)}` : deadlineTermLabel(date)} — ${months} months after entry`,
+    // From the transfer when the student moved in from the MSCSE (policy
+    // review round 3, P3-text-ui-8), as the Milestones box says.
+    deadlineLabel: `${deadlineTerm(date).when === 'during' ? `mid-${termLabel(deadlineTerm(date).term)}` : deadlineTermLabel(date)} — ${months} months after ${compareTerm(ctx.qualifierEntry, ctx.entry) !== 0 ? 'your transfer into the Ph.D.' : 'entry'}`,
     extension: extendedDate ? { date: extendedDate, label: deadlineTermLabel(extendedDate), semesters: extra } : undefined,
   });
   // A FAIL inside the 18 months satisfies §4.4.3's timing — "the research
@@ -1299,7 +1307,13 @@ function rcrRow(ctx: Ctx): RequirementResult {
     shortTitle: 'RCR training',
     status: done ? 'met' : 'in_progress',
     // The date is the fact; the instruction is a note (DGS 2026-10-03).
-    ...joinedDetail(done ? [`Completed ${done}`] : [{ note: 'Complete the Graduate School’s Responsible Conduct of Research and ethics training modules — a Graduate School requirement for every Ph.D. student, and a condition of admission to candidacy (DGS Handbook §3.22.3); enter the date under Milestones once done' }]),
+    ...joinedDetail(done ? [`Completed ${done}`] : [{
+            // The workshop named (policy review round 3, P3-dh-6-9-1): DGS
+            // Handbook §6.3.1, "a three-hour ethics training requirement …
+            // satisfied by completion of an … ethics workshop offered by the
+            // Graduate School", in "two sessions of 90 minutes each".
+            note: 'Complete the Graduate School’s 3-hour ethics workshop (two 90-minute sessions, best taken in your first year; DGS Handbook §6.3.1), plus any Responsible Conduct of Research training your funding requires, such as CITI modules — CITI modules do not replace the workshop. A condition of admission to candidacy (DGS Handbook §3.22.3); enter the date under Milestones once all are done',
+          }]),
     citation: { section: 'Academic Code §6.2.4', quote },
   };
 }
@@ -1804,7 +1818,13 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
     // eighth semester means at the Graduate School: probation and the end of
     // University funding, not forfeiture (Academic Code §6.2.8/§5.7.3) — for
     // the EXAM here; the admission row says the same of admission.
-    parts.push({ note: 'Overdue — the Graduate School places a student who has not passed the candidacy exam by the end of the eighth semester on probation and discontinues University funding (Academic Code §6.2.8); talk to the DGS' });
+    // The Spring 2020 cohort's semester word and Appendix A.4, as the
+    // admission row says (policy review round 3, P3-ac-6.2-app-3 (a); DGS
+    // 2026-10-04 option C: "ninth for both"). §6.2.8 stays cited: it carries
+    // the funding sentence, which Appendix A does not amend.
+    parts.push({
+      note: `Overdue — the Graduate School places a student who has not passed the candidacy exam by the end of the ${ctx.covidCohort ? 'ninth' : 'eighth'} semester on probation and discontinues University funding (Academic Code §6.2.8${ctx.covidCohort ? ', Appendix A.4' : ''}); talk to the DGS`,
+    });
   parts.push(...eighthSemesterNotes(ctx, sem, effectiveSem, r.status !== 'met', 'oce'));
   // The exam's one condition (red-team F8, DGS 2026-09-12). §4.5: "All
   // coursework for the Ph.D. must be completed (or in progress the same
@@ -1891,7 +1911,7 @@ function admissionPolicyNotes(ctx: Ctx, args: { semesterWord: string; probationC
     policy(`Four consecutive semesters at full-time status in the program — at least ${floor ?? 9} credit hours each fall and spring, counted from your entry term; summers do not count (§2.1.2, §4.3; Academic Code §3.3, §6.2.2; DGS Handbook §3.22.3)`),
     policy(`The department’s coursework: the ${regularMin ?? 24} regular-course credits (§4.2) — transferred regular-course credits count, and approved CSE 4xxxx credits count within §4.2’s allowance (Academic Code §6.2.9; DGS Handbook §3.22.3)`),
     policy(`A cumulative GPA of ${(gpaMin ?? 3).toFixed(1)} or better (§2.2; Academic Code §6.2.9; DGS Handbook §3.22.3)`),
-    policy('All training modules for the Responsible Conduct of Research and ethics: the Graduate School’s training for every Ph.D. student, and any training your role or your research funding requires (Academic Code §6.2.4; DGS Handbook §3.22.3, §6.3.1)'),
+    policy('All training modules for the Responsible Conduct of Research and ethics: the Graduate School’s 3-hour ethics workshop for every Ph.D. student, and any training your role or your research funding requires (Academic Code §6.2.4; DGS Handbook §3.22.3, §6.3.1)'),
     policy('The doctoral candidacy examination passed, its written and oral parts: in CSE the written part is the dissertation proposal, so passing the Oral Candidacy Exam (OCE) normally also approves the proposal. The OCE can be taken once your coursework is complete or in progress the same semester — the regular-course credits and the qualifying examination’s core-knowledge and specialization courses — and you have a tenured or tenure-track advisor (§2.3, §4.5; Academic Code §6.2.8, §6.2.9). A course waiting for the DGS’s decision counts once the DGS approves it'),
     policy('Before the OCE: send the DGS a written request naming your committee — your advisor and at least three voting members, with CVs for members from outside Notre Dame — and give the committee your written proposal at least two weeks before the exam, which is held on campus (§4.5)'),
     policy('At least one dissertation advisor who is tenured or tenure-track Notre Dame faculty, or a co-advisor who is; the application confirms it. CSE asks for tenured or tenure-track CSE faculty, with exceptions approved by the DGS (§2.3; Academic Code §6.2.7; DGS Handbook §10.3.1)'),

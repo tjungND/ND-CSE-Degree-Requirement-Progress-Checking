@@ -101,6 +101,10 @@ export function undergraduateGraduateCourseworkFlagFor(classified: readonly Clas
   // graduate coursework waits for the DGS course by course since 2026-10-03
   // (Academic Code §4.6), so there is nothing to presume about it here.
   if (student.integratedBsMs !== true) return undefined;
+  // The MSCSE only (policy review round 3, P3-text-engine-3): a Ph.D. student
+  // says per course which degrees it already counted toward, and the
+  // six-credit cap line says what counts — §3.5's presumption does not apply.
+  if (student.program !== 'mscse') return undefined;
   const counted = classified.filter(
     (c) =>
       c.entry.origin === 'transfer' &&

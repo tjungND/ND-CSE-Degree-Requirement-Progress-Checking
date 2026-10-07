@@ -471,8 +471,9 @@ export interface Student {
    * recomputed — the report says so at the top. ISO date. */
   probationLetterDeadline?: string;
   /** The Notre Dame graduate courses dated before the entry term, with no
-   * earlier graduate program on the record, were taken as a NON-DEGREE
-   * (unclassified) student (Academic Code §2.3: at most 12 such credits may
+   * earlier graduate program on the record, were taken in NON-DEGREE status —
+   * an unclassified or a departmental non-degree student (Academic Code §2.3;
+   * P3-dh-front-1-2-4): at most 12 such credits may
    * count toward the degree). Asked only when such courses exist (DGS
    * 2026-10-03); `true` routes them to the DGS inside the 12-credit limit,
    * `false` or unanswered leaves them refused with the reason. */
@@ -743,6 +744,10 @@ export interface AuditReport {
    * Graduate School confers the degree only with none (policy review round 3,
    * P3-dh-3.1-3.13-3; DGS Handbook §3.23.1). */
   graduation?: { term: Term; registeredCredits: number; registered: boolean; incompletes?: string[] };
+  /** The MSCSE's summer floor from the Parameters tab (summer_fulltime_credits_min),
+   * for the glossary's "Full-time" (policy review round 3, P3-text-ui-5): read
+   * from the sheet, never typed, so the two cannot drift. */
+  summerFullTimeCredits?: number;
   /** Graduation is in sight, so the page asks the semester (DGS 2026-10-05:
    * "Let's show it only when it matters"): a Ph.D. student once the OCE is
    * passed, an MSCSE student once the total credits are complete or in

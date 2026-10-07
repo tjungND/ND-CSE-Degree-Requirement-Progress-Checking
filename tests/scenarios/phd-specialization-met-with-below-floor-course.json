@@ -1,0 +1,70 @@
+{
+  "name": "phd-specialization-met-with-below-floor-course",
+  "description": "Policy review round 3, P3-cse-4a-4: a Met specialization card no longer tells the student to retake a course below the B floor; the course’s own line still says it does not count toward §4.4.2.",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "B-",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.qualifier.categories": {
+      "status": "met",
+      "detailExcludes": [
+        "retake"
+      ]
+    }
+  }
+}

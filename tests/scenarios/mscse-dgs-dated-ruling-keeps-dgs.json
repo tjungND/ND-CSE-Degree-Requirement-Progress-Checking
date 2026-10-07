@@ -1,0 +1,48 @@
+{
+  "name": "mscse-dgs-dated-ruling-keeps-dgs",
+  "description": "Policy review round 3, P3-text-engine-4: on the MSCSE tab every \"DGS\" meaning the decider reads \"ADGS\" (DGS 2026-09-11), but a ruling the DGS made and dated stays the DGS’s — the F line cites \"(DGS decision 2026-08-31)\" and used to read \"(ADGS decision 2026-08-31)\".",
+  "today": "2027-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 3.4,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2027
+        },
+        "grade": "F",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {},
+  "expectCourseLines": {
+    "CSE 60321": [
+      "failed — earns no credit (DGS decision 2026-08-31)"
+    ]
+  }
+}

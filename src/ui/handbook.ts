@@ -31,11 +31,14 @@ export const BETA_NOTICE =
   'rests with the DGS.';
 
 /** What is NOT in beta: the course rules themselves (DGS wording, 2026-09-01).
- * Shown in bold next to the beta notice in the banner, the footer and the
- * copied summary, so a student does not read "beta" as "the rules may be wrong". */
+ * Shown in bold beside the alpha notice at the top of the page (app.ts), so a
+ * student does not read "alpha" as "the rules may be wrong". The two roles as
+ * the course rules page words them (DGS 2026-10-04; policy review round 3,
+ * P3-text-ui-6): the DGS decides, the Grad Admin processes — the page's
+ * DGS→ADGS rewrite serves the MSCSE tab. */
 export const RULES_ACCURACY_NOTICE =
-  'The course rules are accurate: they are exactly the rules the DGS and the Grad Admin ' +
-  'use to determine requirement satisfaction.';
+  'The course rules are accurate: they are exactly the rules the DGS uses to decide requirement ' +
+  'satisfaction; the Grad Admin processes what is decided.';
 
 // The privacy line's measurement record — NOT rendered anywhere (the notice
 // strip and the footer in app.ts carry the W-P1 sentence in their own text;

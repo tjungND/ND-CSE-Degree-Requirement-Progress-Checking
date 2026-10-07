@@ -774,14 +774,14 @@ describe('below the 40000 level, and the 4+1 flag (F8, 2026-09-12)', () => {
     }
     assert.match(r.requirements.find((q) => q.id === 'phd.credits.regular')!.detail, /0 of 24/);
   });
-  it('a 4+1 with three or more counted undergraduate 6xxxx courses is flagged for the DGS; two are not', () => {
+  it('a Ph.D. 4+1 with undergraduate 6xxxx courses is not flagged (the flag is the MSCSE’s, P3-text-engine-3)', () => {
     const ug = (id: string, season: 'fall' | 'spring', year: number): CourseEntry => ({ courseId: id, credits: 3, term: { season, year }, grade: 'A', origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'graduate', countedToward: 'neither' });
     const two = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026)], { integratedBsMs: true }), rules, '2027-06-01');
     assert.deepEqual(two.reviewFlags ?? [], []);
+    // A Ph.D. record is not flagged since policy review round 3 (P3-text-engine-3):
+    // the student answers per course, and the six-credit cap line says what counts.
     const three = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026), ug('CSE 60321', 'spring', 2026)], { integratedBsMs: true }), rules, '2027-06-01');
-    assert.equal(three.reviewFlags?.length, 1);
-    assert.match(three.reviewFlags![0]!, /^3 graduate-level courses taken as an undergraduate are counted toward the Ph\.D\. \(CSE 60641, CSE 60111, CSE 60321\)\. §3\.5 speaks of one or two/);
-    assert.ok(three.warnings.some((w) => /included in the review request/.test(w)));
+    assert.deepEqual(three.reviewFlags ?? [], []);
     // A regular bachelor's counts none of them, so nothing is flagged.
     const plain = audit(base([ug('CSE 60641', 'fall', 2025), ug('CSE 60111', 'spring', 2026), ug('CSE 60321', 'spring', 2026)]), rules, '2027-06-01');
     assert.deepEqual(plain.reviewFlags ?? [], []);

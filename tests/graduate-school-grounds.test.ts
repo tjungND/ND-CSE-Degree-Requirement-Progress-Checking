@@ -169,3 +169,15 @@ describe('the page names each section’s document (src/ui/citations.ts)', () =>
     for (const w of lines) assert.doesNotMatch(labelCitations(w), /CSE §5\.8/, w);
   });
 });
+
+// Policy review round 3, P3-cse-5-6-4 (the citation part): the two-semester
+// maximum is CSE §5.7's, which holds for every student; the Academic Code's
+// §5.1 says three for the Spring 2020 cohort (Appendix A.2).
+describe('more than two semesters of medical leave', () => {
+  it('the warning cites CSE §5.7 for the two-semester maximum', () => {
+    const w = warningsOf(phdStudent({ entryTerm: fall(2022), leaveSemesters: 3 })).find((x) => /semesters on medical leave/.test(x));
+    assert.ok(w, 'the leave warning is shown');
+    assert.match(labelCitations(w), /a leave of absence lasts at most two consecutive semesters \(CSE §5\.7\) — a student who did not return at its end needed readmission/);
+    assert.doesNotMatch(w, /Academic Code §5\.1/);
+  });
+});

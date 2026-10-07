@@ -1,6 +1,8 @@
 # Where things stand (kept current by every session — read after CLAUDE.md and docs/CLAUDE-HANDOFF.md)
 
-Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
+Last updated: 2026-10-07 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
+
+2026-10-07 (DGS — page text; policy review round 3, the no-decision items, batch B): P3-ac-5b-6.1-3, P3-dh-front-1-2-4, P3-dh-front-1-2-3 (1), P3-dh-3.21-3.24-1 (MSCSE only), P3-dh-6-9-1, P3-dh-6-9-2, P3-dh-10-1, P3-fourplusone-4 (a), P3-fourplusone-6, P3-cse-4a-4, P3-cse-4a-5, P3-text-engine-3, P3-text-engine-4, P3-text-ui-5, P3-text-ui-6, P3-text-ui-8, P3-ac-6.2-app-3 (a)(c) and the citation part of P3-cse-5-6-4. New plumbing: `others.mastersApplicationOpen` (audit.ts → timeLimitRow), `AuditReport.summerFullTimeCredits` (the glossary’s MSCSE summer clause), `msCandidacyApplicationRow({ thesis })`, decider.ts `DECIDER_DGS` / `DECIDER_DGS_ALL` (shared by the engine and first-mention.ts), AdvisorSummaryOptions `qualifierFrom`, and the scenario runner’s `deadlineLabelIncludes`. The Ph.D. 4+1 review flag is gone. Wording W-CL240–W-CL254.
 
 2026-10-06 (DGS — citations and docs; policy review round 3, the no-decision items, batch A): P3-dh-3.1-3.13-4, P3-text-ui-4, P3-emails-3, P3-emails-8, P3-text-engine-5, P3-cse-3-3, P3-cross-doc-6 and the documentation parts of P3-fourplusone-2, -4 and P3-import-4. email-html.ts `upperHeading` keeps document names in capitals headings. tests/email-heading-labels.test.ts runs the label check over every scenario’s processing request. Wording W-CL236–W-CL239; HANDBOOK-REVISIONS §2, §4, §7, items 17 and 27.
 
@@ -824,9 +826,9 @@ queue. Recent commits, newest first:
 1. The evening batch's wording (listed, numbered, in the reply that delivered it): the Grad Admin card
    and processing request, the copy dialog, the bachelor's-award notes, the two Level labels, the
    rewordings around the two roles. Say "Sn: …" to change any of them.
-2. Two 2026-09-01 notices still say the rules are "exactly the rules the DGS and the Grad Admin use to
-   determine requirement satisfaction" (handbook.ts RULES_ACCURACY_NOTICE, courses-page.ts) — under
-   the two-roles split the DGS alone determines; keep or reword?
+2. (Closed 2026-10-06, policy review round 3, P3-text-ui-6: the alpha notice now reads "exactly the rules
+   the DGS uses to decide requirement satisfaction; the Grad Admin processes what is decided", as the
+   course rules page has since 2026-10-04.)
 3. The Courses tab keeps the FIRST of two rows with the same course_id + rules_effective_term (the
    ExternalCourses tab now keeps the LAST, DGS 2026-09-06) — should the Courses tab follow?
 

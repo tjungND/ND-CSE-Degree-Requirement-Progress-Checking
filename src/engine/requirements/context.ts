@@ -206,7 +206,7 @@ export function tuitionScholarshipNote(ctx: Ctx): DetailPart {
 
 export function timeLimitRow(
   ctx: Ctx,
-  others: { allMet: boolean; anyCannotEvaluate: boolean },
+  others: { allMet: boolean; anyCannotEvaluate: boolean; mastersApplicationOpen?: boolean },
   args: {
     id: string;
     group: string;
@@ -292,7 +292,16 @@ export function timeLimitRow(
       deadline = { date, approx: true, state: 'done', label: `Done ${done.course ? termLabel(done.course.term) : done.date} — after the limit` };
     } else if (others.allMet) {
       status = 'met';
-      parts = [`All requirements are complete within the ${years}-year limit${shiftNote}`, ...extNotes];
+      // The master's candidacy application is uncounted but still open
+      // (policy review round 3, P3-dh-3.21-3.24-1): "every counted
+      // requirement", and the application named.
+      parts = others.mastersApplicationOpen
+        ? [
+            `Every counted requirement is complete within the ${years}-year limit${shiftNote} — the Application for Admission to Master’s Degree Candidacy is still open`,
+            { note: 'The application is the Graduate School’s condition for conferring the master’s degree (Academic Code §6.1.6)' },
+            ...extNotes,
+          ]
+        : [`All requirements are complete within the ${years}-year limit${shiftNote}`, ...extNotes];
       deadline = { date, approx: true, state: 'done', label: 'Complete' };
     } else if (ctx.today > date && others.anyCannotEvaluate) {
       // A missing rules-sheet value is not a missed deadline (red-team
@@ -321,7 +330,17 @@ export function timeLimitRow(
       // DGS advises, the Graduate School decides (policy review 2026-10-03).
       parts = [
         `Overdue — the ${years}-year limit passed at ${deadlineTermLabel(date)} (approximate)${shiftNote}`,
-        { note: ctx.student.program === 'phd' ? 'After the eighth year a student may apply to the Graduate School for dissertation completion status (Academic Code §6.2.6.1) — talk to the DGS' : 'Talk to the DGS about an eligibility extension from the Graduate School' },
+        // The Spring 2020 cohort's limit is nine years (Appendix A.5), and A.6
+        // restates completion status after it (policy review round 3,
+        // P3-ac-6.2-app-3 (c)).
+        {
+          note:
+            ctx.student.program !== 'phd'
+              ? 'Talk to the DGS about an eligibility extension from the Graduate School'
+              : ctx.covidCohort
+                ? 'After the time limit a student may apply to the Graduate School for dissertation completion status (Academic Code Appendix A.6) — talk to the DGS'
+                : 'After the eighth year a student may apply to the Graduate School for dissertation completion status (Academic Code §6.2.6.1) — talk to the DGS',
+        },
         ...longerNote(ctx.today),
         ...extNotes,
         tuition,

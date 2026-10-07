@@ -572,7 +572,7 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
     ...attentionBlock,
     // The glossary defines words used a screen later, not nine thousand pixels
     // later (2026-09-08); it is a closed <details>, so it costs about 30 px.
-    glossary(report.program),
+    glossary(report.program, report.summerFullTimeCredits),
   );
 
   const groups = new Map<string, RequirementResult[]>();
@@ -756,7 +756,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
 /** Handbook terms the report uses before it explains them (usability review
  * 2026-09-05, item 28). Each entry cites its section; the wording follows the
  * handbook sentences quoted in the engine. */
-function glossary(program: 'mscse' | 'phd'): HTMLElement {
+function glossary(program: 'mscse' | 'phd', summerFullTimeCredits?: number): HTMLElement {
   const entries: [string, string, string][] = [
     // The pill words, defined once (clarity review 2026-09-26); no pill is
     // renamed. The decider's title is the tab's own (P-60).
@@ -776,7 +776,13 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
     ['Regular course', 'A lecture-style course. Only regular courses count toward the 24 regular-course credits; seminars, research, independent study and project credits count toward the total only.', program === 'mscse' ? '§3.2' : '§4.2'],
     // The handbook's own nine (§2.1.2), and the rules the residency count
     // has applied since 2026-10-03 (second reconciliation pass).
-    ['Full-time', 'A semester in which you register for at least nine credit hours — withdrawn and incomplete courses count as registrations — or one you tick as full-time on research. A summer session with any registration counts when the spring before or the fall after was full-time (Academic Code §3.6).', '§2.1.2'],
+    [
+      'Full-time',
+      // The MSCSE's summer floor too (policy review round 3, P3-text-ui-5): the
+      // residency row counts it; the Ph.D. never counts a summer.
+      `A semester in which you register for at least nine credit hours — withdrawn and incomplete courses count as registrations — or one you tick as full-time on research. A summer session with any registration counts when the spring before or the fall after was full-time (Academic Code §3.6)${program === 'mscse' && summerFullTimeCredits !== undefined ? `; on the MSCSE, a summer session with ${summerFullTimeCredits} or more registered credits counts on its own (DGS Handbook §10.3.2)` : ''}.`,
+      '§2.1.2',
+    ],
     program === 'mscse'
       ? ['Residency', 'Registration in full-time status for one semester during the academic year, or for one summer session.', '§3.3']
       : ['Residency', 'Full-time status for four consecutive semesters, not counting summer sessions, counted from the term you entered the program.', '§4.3'],
@@ -788,7 +794,8 @@ function glossary(program: 'mscse' | 'phd'): HTMLElement {
           ['Research qualifier', 'Within 18 months of entering the program, your research advisor determines whether you have passed the research component and files the form.', '§4.4.3'],
           ['Oral Candidacy Exam (OCE)', 'The candidacy examination of §4.5, sometimes called the dissertation proposal: a written proposal and an oral exam before your committee. It must be taken before the end of your eighth semester in the program.', '§4.5'],
           // A separate step since DGS 2026-10-04 ("OCE and doctoral candidacy are two different things").
-          ['Admission to doctoral candidacy', 'The Graduate School’s own step after the OCE, applied for through the Grad Admin: it needs the OCE passed, four consecutive full-time semesters, the coursework complete with a cumulative GPA of 3.0 or better, and the Responsible Conduct of Research training — all by the end of your eighth semester.', 'Academic Code §6.2.9'],
+          // Every condition the card lists (policy review round 3, P3-dh-6-9-2).
+          ['Admission to doctoral candidacy', 'The Graduate School’s own step after the OCE, applied for through the Grad Admin: it needs the OCE passed, four consecutive full-time semesters, the coursework complete with a cumulative GPA of 3.0 or better, the Responsible Conduct of Research and ethics training, and a tenured or tenure-track dissertation advisor or co-advisor — all by the end of your eighth semester.', 'Academic Code §6.2.9; DGS Handbook §3.22.3'],
           // Policy review round 3, P3-cse-5-6-3: the student's own Notre Dame
           // MSCSE is not transfer credit (DGS 2026-10-03) — unless five years or
           // more separate it from the Ph.D. (DGS 2026-10-06; Academic Code §5.5).

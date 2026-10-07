@@ -220,11 +220,11 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
     // without a state.
     if (m.thesisDefenseFailed) {
       const retakeDue = endOfNextSemester(m.thesisDefenseFailed, 1);
-      out.thesisDefensePassed = at(ctx, retakeDue, 'the one retake, by the end of the semester after the fail (Academic Code §6.1.5)', m.thesisDefensePassed);
-      out.thesisDefenseFailed = at(ctx, retakeDue, 'the one retake after a fail, by the end of the following semester (Academic Code §6.1.5)', undefined, false);
+      out.thesisDefensePassed = at(ctx, retakeDue, 'the retake, if the program recommends one, by the end of the semester after the fail (Academic Code §6.1.5)', m.thesisDefensePassed);
+      out.thesisDefenseFailed = at(ctx, retakeDue, 'the retake, if the program recommends one, by the end of the following semester (Academic Code §6.1.5)', undefined, false);
     } else {
       out.thesisDefensePassed = routeBox(m.thesisDefensePassed, !thesisDone && projectDone ? false : 'auto');
-      out.thesisDefenseFailed = { basis: 'No deadline of its own — after a failed attempt, one retake is allowed, by the end of the following semester (Academic Code §6.1.5)' };
+      out.thesisDefenseFailed = { basis: 'No deadline of its own — after a failed attempt, one retake if the program recommends it, by the end of the following semester (Academic Code §6.1.5)' };
     }
     out.projectReportAccepted = routeBox(m.projectReportAccepted, !projectDone && thesisDone ? false : 'auto');
     // The final thesis to the Graduate School (Academic Code §6.1.8 —

@@ -306,7 +306,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const candidacyApplicationDue =
     admission !== undefined && (admission.status === 'in_progress' || admission.status === 'unmet') && (admission.detailParts ?? []).some((p) => typeof p === 'object' && 'note' in p && p.note.startsWith('Every condition is met'));
   // The master's candidacy application (Academic Code §6.1.6; 2026-10-04):
-  // its row appears once the conditions are in hand and stays open until dated.
+  // its row appears once the GPA and credits are in hand and stays open until dated.
   const msCandidacyDue = byId.get('shared.msCandidacy')?.status === 'unmet';
   // Every scored row, met or not (DGS 2026-09-28); the Approvals row is the
   // DGS's errand list, not a standing. Overdue rows lead, then the page's
@@ -357,7 +357,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
     ...(msAlongTheWay ? ['Process the MSCSE along the way — the self-check shows its requirements met (§4.5).'] : []),
     ...(candidacyApplicationDue ? ['Initiate my Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3).'] : []),
-    ...(msCandidacyDue ? ['Initiate my Application for Admission to Master’s Degree Candidacy — the self-check shows its conditions in hand (Academic Code §6.1.6).'] : []),
+    ...(msCandidacyDue ? ['Initiate my Application for Admission to Master’s Degree Candidacy — the self-check shows a 3.0 GPA and 30 credits, counting this semester’s (Academic Code §6.1.6).'] : []),
     ...(met.length > 0 ? [`Keep my standing below on file: ${tallyText}.`] : []),
   ];
   const lines = [
@@ -369,7 +369,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
     ...(msAlongTheWay ? ['MSCSE along the way — the self-check shows its requirements met (§4.5)'] : []),
     ...(candidacyApplicationDue ? ['Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3)'] : []),
-    ...(msCandidacyDue ? ['Application for Admission to Master’s Degree Candidacy — the self-check shows its conditions in hand (Academic Code §6.1.6)'] : []),
+    ...(msCandidacyDue ? ['Application for Admission to Master’s Degree Candidacy — the self-check shows a 3.0 GPA and 30 credits, counting this semester’s (Academic Code §6.1.6)'] : []),
     ...(met.length > 0
       ? [`${tallyText} — the request lists every requirement with its standing, what meets it so far and its deadline${tally.dueSoon > 0 ? ` (${plural(tally.dueSoon, 'deadline')} in this semester or the next, highlighted)` : ''}, for the record`]
       : []),

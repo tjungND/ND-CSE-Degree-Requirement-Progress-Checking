@@ -1,6 +1,6 @@
 {
   "name": "phd-nd-non-degree-before-admission",
-  "description": "Policy review 2026-10-03 (Academic Code §2.3): “No more than 12 credit hours earned by a student while in non-degree status may be counted toward a degree program.” A Notre Dame graduate course dated before the entry term, with no earlier graduate program on the record, used to be refused outright; the standing card now asks — only when such a course is detected — whether the student was a non-degree (unclassified) student then. Answered yes, the course counts provisionally inside the twelve and goes to the DGS.",
+  "description": "Policy review 2026-10-03 (Academic Code §2.3): “No more than 12 credit hours earned by a student while in non-degree status may be counted toward a degree program.” A Notre Dame graduate course dated before the entry term, with no earlier graduate program on the record, used to be refused outright; the standing card now asks — only when such a course is detected — whether the student was a non-degree (unclassified or departmental non-degree) student then. Answered yes, the course counts provisionally inside the twelve and goes to the DGS.",
   "today": "2027-06-01",
   "rules": {
     "base": "default"

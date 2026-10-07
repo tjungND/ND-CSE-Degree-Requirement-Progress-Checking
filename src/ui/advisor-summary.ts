@@ -48,6 +48,11 @@ export interface AdvisorSummaryOptions {
    * same list, so a course still waiting for the DGS never reaches the Grad
    * Admin (2026-09-08). Optional for older callers. */
   transfers?: AdvisorTransfers;
+  /** A Ph.D. student who transferred from the unfinished MSCSE: the term of the
+   * transfer, which the qualifying exam's clocks count from (DGS 2026-10-03)
+   * while every other deadline keeps the entry term (policy review round 3,
+   * P3-text-ui-8, the optional footer). */
+  qualifierFrom?: string;
 }
 
 /** P3-emails-1: what the processing request would carry for transfer credit. */
@@ -143,7 +148,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
 
   const todo = actionItems(report, opts.transfers);
   const deadlineNote = listed.some((r) => deadlineOf(r) !== undefined)
-    ? `Deadlines are counted from ${opts.entryTerm} and given by semester; they are approximate — the registrar's calendar sets the exact dates.`
+    ? `Deadlines are counted from ${opts.entryTerm}${opts.qualifierFrom ? ` — the qualifying exam’s from ${opts.qualifierFrom}, when I transferred into the Ph.D. —` : ''} and given by semester; they are approximate — the registrar's calendar sets the exact dates.`
     : '';
   const statusNote = `Alpha version under testing. ${BETA_NOTICE} Checked against the CSE Graduate Studies Handbook (${HANDBOOK_URL}).`;
 

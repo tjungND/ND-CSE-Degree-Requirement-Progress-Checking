@@ -108,7 +108,7 @@
     "ms.thesis.defense": {
       "status": "in_progress",
       "detailIncludes": [
-        "Thesis defense failed 2026-04-20 — one retake allowed",
+        "Thesis defense failed 2026-04-20 — one retake, if the program recommends it",
         "only one retake is allowed, by the end of the following semester"
       ],
       "deadlineState": "due_soon"

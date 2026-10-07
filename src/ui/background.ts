@@ -252,7 +252,10 @@ export function backgroundQuestions(
       el('legend', { class: 'followup-title' }, program === 'mscse' ? 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)' : 'Were you in Notre Dame’s Integrated B.S. + M.S. (4+1) program as an undergraduate? (§3.5)'),
       // The timing, so a student admitted to the MSCSE after the bachelor's
       // does not answer yes (Graduate School 4+1 guidance; 2026-10-04).
-      ...(program === 'mscse' ? [el('p', { class: 'hint' }, 'The Integrated program admits students during the junior year to start graduate coursework in the senior year, before the bachelor’s degree.')] : []),
+      // Both Graduate School routes and CSE's timing (policy review round 3,
+      // P3-fourplusone-4 (a)); "before the bachelor's" still screens out a
+      // student admitted after it.
+      ...(program === 'mscse' ? [el('p', { class: 'hint' }, 'Students are admitted while still undergraduates, before the bachelor’s degree: they apply in the junior year or, at the latest, the first semester of the senior year (Graduate School 4+1 guidance); CSE’s deadline is typically the end of the senior fall (§3.5).')] : []),
       yesNo('ndintegrated', state.ndIntegrated, (v) => {
         state.ndIntegrated = v;
         if (!v) state.integratedAdmittedTerm = undefined;

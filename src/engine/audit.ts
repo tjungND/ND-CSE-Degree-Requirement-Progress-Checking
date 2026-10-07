@@ -322,14 +322,20 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       `You started in a summer session — Notre Dame admits in fall and spring, so an early-start summer counts from your official matriculation in ${termLabel(entry)}: every deadline and the §5.2 window are counted from it.`,
     );
   }
-  // A leave of absence lasts at most two consecutive semesters (Academic Code
-  // §5.1); a student who did not return must be readmitted, and the program
-  // may reject earlier credits (DGS Handbook §3.3). More than two is not
-  // necessarily wrong (two separate leaves), so the record is sent to the DGS
-  // rather than refused.
+  // A leave of absence lasts at most two consecutive semesters; a student who
+  // did not return must be readmitted, and the program may reject earlier
+  // credits (DGS Handbook §3.3). More than two is not necessarily wrong (two
+  // separate leaves), so the record is sent to the DGS rather than refused.
+  // CSE §5.7 is cited for the two: "a student in good academic standing may
+  // request a leave of absence for a maximum of two consecutive semesters".
+  // The Academic Code's §5.1 says the same for most students, but its
+  // Appendix A.2 gives the Spring 2020 cohort three, so citing it alone would
+  // be wrong for them; the CSE limit holds for everyone (policy review round
+  // 3, P3-cse-5-6-4, the citation part — whether Appendix A.2 still reaches a
+  // leave today is a question for the DGS).
   if ((student.leaveSemesters ?? 0) > 2) {
     warnings.push(
-      `${student.leaveSemesters} semesters on medical leave: the Graduate School grants a leave of absence for at most two consecutive semesters (Academic Code §5.1) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3). Confirm your standing with the DGS.`,
+      `${student.leaveSemesters} semesters on medical leave: a leave of absence lasts at most two consecutive semesters (§5.7) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3). Confirm your standing with the DGS.`,
     );
   }
   // The Notre Dame MSCSE five years or more before the Ph.D. (DGS 2026-10-06,
@@ -573,6 +579,12 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   const others = {
     allMet: otherRows.every(completeOrLate),
     anyCannotEvaluate: otherRows.some((r) => r.status === 'cannot_evaluate'),
+    // The master's candidacy application is uncounted (2026-10-04), so the
+    // MSCSE card must not say "all requirements are complete" while it is
+    // open (policy review round 3, P3-dh-3.21-3.24-1). The MSCSE's own card
+    // only: on a Ph.D. record the open application is the optional MSCSE
+    // along the way's, not a requirement of the Ph.D. the card is about.
+    mastersApplicationOpen: student.program === 'mscse' && rows.some((r) => r.id === 'shared.msCandidacy' && r.status === 'unmet'),
   };
   rows.push(student.program === 'mscse' ? msTimeLimitRow(ctx, others) : phdTimeLimitRow(ctx, others));
   // A summer-session-only record past the five years and inside the seven
@@ -740,9 +752,11 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // MSCSE student every "DGS" in what follows is the ADGS. Handbook quotes
   // (`citation`) are left as written.
   const p = student.program;
+  const summerFloor = p === 'mscse' ? params.number('summer_fulltime_credits_min') : undefined;
   return {
     reviewFlags,
     ...(staffChecks.length > 0 ? { staffChecks } : {}),
+    ...(summerFloor !== undefined ? { summerFullTimeCredits: summerFloor } : {}),
     program: p,
     requirements: rows.map((r) => decisionWordingDeep(p, r)),
     courseLines: courseLines.map((l) => ({ ...l, text: decisionWording(p, l.text), ...(l.qualifier ? { qualifier: { ...l.qualifier, text: decisionWording(p, l.qualifier.text) } } : {}) })),

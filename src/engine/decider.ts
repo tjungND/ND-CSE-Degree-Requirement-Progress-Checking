@@ -25,6 +25,16 @@ export function deciderTitle(program: Program): 'DGS' | 'ADGS' {
  * INSIDE "{{DGS}}" — a brace is a word boundary — so a `dgs_approval` course
  * on the MSCSE tab became "{{ADGS}}" before the unwrap ever ran, and every
  * per-course reviewer collapsed to the program default. */
+/** "DGS" meaning the decider — the word the MSCSE tab reads as "ADGS". Not
+ * the Graduate School's document ("DGS Handbook", 2026-10-03), and not a
+ * ruling the DGS made and dated ("DGS 2026-10-03", "DGS decision 2026-…"):
+ * those were the DGS's own, and the MSCSE tab credited them to the ADGS
+ * (policy review round 3, P3-text-engine-4; the page rewrite in
+ * first-mention.ts and the guard in tests/mscse-no-qualifier.test.ts use it
+ * too; scripts/e2e/drive-transcript.mjs keeps a copy of the pattern — change
+ * both together). Build a /g copy for replacing. */
+export const DECIDER_DGS = /\bDGS\b(?! Handbook| decision 20\d\d| 20\d\d-\d\d)/;
+export const DECIDER_DGS_ALL = new RegExp(DECIDER_DGS.source, 'g');
 export function decisionWording(program: Program, text: string): string {
   return text
     .split(/(\{\{A?DGS\}\})/g)
@@ -34,7 +44,7 @@ export function decisionWording(program: Program, text: string): string {
         : program === 'mscse'
           ? // "DGS Handbook" is the Graduate School's document's name, not
             // the decider (2026-10-03: it read "ADGS Handbook" on the MSCSE tab).
-            part.replace(/\bDGS\b(?! Handbook)/g, 'ADGS')
+            part.replace(DECIDER_DGS_ALL, 'ADGS')
           : part,
     )
     .join('');

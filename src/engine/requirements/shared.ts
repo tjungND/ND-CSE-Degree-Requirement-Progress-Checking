@@ -263,12 +263,12 @@ export function advisorRow(ctx: Ctx): RequirementResult {
  * of graduate studies. The applicable deadline is published in the Graduate
  * School calendar." DGS Handbook §3.21.1: "A doctoral student who wishes to
  * receive a master's degree must also apply for admission to master's degree
- * candidacy." An uncounted step, shown once its conditions are in hand —
+ * candidacy." An uncounted step, shown once the GPA and credits are in hand —
  * `ready`: for the MSCSE a cumulative GPA at the minimum and 30 credits counting
  * the ones in progress (the application is filed in the semester of
  * graduation, before its grades), for a Ph.D. student the MSCSE along the way
  * met — or once a date is entered; it is in the processing request while open. */
-export function msCandidacyApplicationRow(ctx: Ctx, args: { group: string; ready: boolean; alongTheWay: boolean }): RequirementResult | undefined {
+export function msCandidacyApplicationRow(ctx: Ctx, args: { group: string; ready: boolean; alongTheWay: boolean; thesis?: boolean }): RequirementResult | undefined {
   const dated = ctx.student.milestones.msCandidacyApplied;
   if (dated === undefined && !args.ready) return undefined;
   const dates = ctx.rules.parameters.raw.get('candidacy_form_deadlines')?.value.trim();
@@ -288,7 +288,10 @@ export function msCandidacyApplicationRow(ctx: Ctx, args: { group: string; ready
             {
               note: args.alongTheWay
                 ? `A Ph.D. student receiving a master’s degree applies for master’s degree candidacy too (DGS Handbook §3.21.1): ${how}`
-                : `Its conditions are in hand — a cumulative GPA of 3.0 or better and 30 credits, counting this semester’s (Academic Code §6.1.6; DGS Handbook §3.21.1): ${how}`,
+                : // What is in hand, not "its conditions" (policy review round 3,
+                  // P3-dh-10-1): the Code's other condition on the thesis option
+                  // is the program's approval of the thesis, tracked in its rows.
+                  `Your GPA and credits are in hand — a cumulative GPA of 3.0 or better and 30 credits, counting this semester’s (DGS Handbook §3.21.1)${args.thesis ? '. The Academic Code’s other condition is the program’s approval of your thesis (Academic Code §6.1.6), tracked in the thesis rows above' : ''}: ${how}`,
             },
           ],
     ),

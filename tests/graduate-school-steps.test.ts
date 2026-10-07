@@ -79,7 +79,7 @@ describe('the Application for Admission to Master’s Degree Candidacy (Academic
     const r = row(s, 'shared.msCandidacy')!;
     assert.equal(r.status, 'unmet');
     assert.equal(r.unscored, true);
-    assert.match(r.detail, /^Not submitted yet\. Its conditions are in hand — a cumulative GPA of 3\.0 or better and 30 credits, counting this semester’s \(Academic Code §6\.1\.6; DGS Handbook §3\.21\.1\): the Grad Admin submits the Graduate School’s Application for Admission to Master’s Degree Candidacy/);
+    assert.match(r.detail, /^Not submitted yet\. Your GPA and credits are in hand — a cumulative GPA of 3\.0 or better and 30 credits, counting this semester’s \(DGS Handbook §3\.21\.1\): the Grad Admin submits the Graduate School’s Application for Admission to Master’s Degree Candidacy/);
     const report = audit(s, rules, '2027-03-01');
     const items = processingItems(report, s, rules);
     assert.equal(items.msCandidacyDue, true);
@@ -383,5 +383,22 @@ describe('when the page asks the semester of graduation', () => {
     assert.equal(audit(ms({ courses }), rules, '2027-03-01').graduationInSight, undefined);
     const withProject = [...courses, ndCourse('CSE 68902', { term: spring(2027), credits: 6, grade: 'IP' })];
     assert.equal(audit(ms({ courses: withProject }), rules, '2027-03-01').graduationInSight, true);
+  });
+});
+
+// Policy review round 3, P3-ac-6.2-app-3 (c): the Spring 2020 cohort's limit is
+// nine years (Appendix A.5); past it, Appendix A.6 restates completion status.
+describe('a passed Ph.D. time limit names the right rule for completion status', () => {
+  const limitOf = (entry: Term, today: string) => audit(phdStudent({ entryTerm: entry, gpa: 3.5, milestones: { advisorName: 'Prof. Example', advisorTtt: 'yes' } }), rules, today).requirements.find((r) => r.id === 'phd.timeLimit')!;
+  it('the Spring 2020 cohort: Appendix A.6, not “after the eighth year”', () => {
+    const row = limitOf({ season: 'fall', year: 2015 }, '2026-10-07');
+    assert.equal(row.status, 'unmet');
+    assert.match(row.detail, /After the time limit a student may apply to the Graduate School for dissertation completion status \(Academic Code Appendix A\.6\) — talk to the DGS/);
+    assert.doesNotMatch(row.detail, /After the eighth year/);
+  });
+  it('everyone else: §6.2.6.1 after the eighth year', () => {
+    const row = limitOf({ season: 'fall', year: 2021 }, '2030-09-01');
+    assert.equal(row.status, 'unmet');
+    assert.match(row.detail, /After the eighth year a student may apply to the Graduate School for dissertation completion status \(Academic Code §6\.2\.6\.1\) — talk to the DGS/);
   });
 });

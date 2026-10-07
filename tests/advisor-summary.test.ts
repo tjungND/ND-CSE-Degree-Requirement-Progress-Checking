@@ -186,6 +186,11 @@ describe('advisor summary: deadlines on the rows that have them', () => {
     assert.match(text, /^Deadlines are counted from Fall 2026 and given by semester; they are approximate — the registrar's calendar sets the exact dates\.$/m);
   });
 
+  it('a transfer from the unfinished MSCSE: the footer names the term the qualifying exam counts from (policy review round 3, P3-text-ui-8)', () => {
+    const t = advisorSummary(withDeadlines, { ...opts, entryTerm: 'Fall 2023', qualifierFrom: 'Fall 2025' }).text;
+    assert.match(t, /^Deadlines are counted from Fall 2023 — the qualifying exam’s from Fall 2025, when I transferred into the Ph\.D\. — and given by semester; they are approximate/m);
+  });
+
   it('HTML: the deadline box inside the row’s block — red when passed, plain when far off', () => {
     assert.ok(html.includes(htmlRequirementBlock({ word: 'Overdue', color: 'red', title: 'Research component: a significant research contribution', section: '§4.4.3', deadline: { text: 'was due during Spring 2028', alert: 'passed' } })), html);
     assert.ok(html.includes(htmlRequirementBlock({ word: 'In progress', color: 'amber', title: 'OCE passed', section: '§4.5', deadline: { text: 'Due by the end of Spring 2030', alert: undefined } })), html);
@@ -233,7 +238,7 @@ describe('actionItems: the rest of the rules', () => {
         req('phd.timeLimit', 'All requirements complete within 8 years', 'cannot_evaluate', "Cannot evaluate — the rules sheet is missing 'phd_time_limit_years'. Ask the DGS to add it to the Parameters tab", 'Residence and time — §4.3', '§4.3'),
         {
           ...req('phd.qualifier.categories', 'Three specialization courses from three distinct groups, each B or higher', 'in_progress', '', 'Qualifying examination — §4.4', '§4.4.2'),
-          detailParts: ['3 of 3 done, in 2 different groups; the 1 in progress would complete it', 'CSE 60111 (B-) is below the B floor — retake it or take another course (§4.4.2)'],
+          detailParts: ['2 of 3 groups covered (3 courses passed); the 1 in progress would complete it', 'CSE 60111 (B-) is below the B floor — retake it or take another course (§4.4.2)'],
         },
         req('phd.qualifier.core.os', 'Core knowledge: Operating Systems', 'needs_dgs_review', 'CS 50300 (Purdue) — not yet reviewed by the DGS.', 'Qualifying examination — §4.4', '§4.4.1'),
         req('phd.qualifier.core.algorithms', 'Core knowledge: Algorithms', 'unmet', 'No course yet.', 'Qualifying examination — §4.4', '§4.4.1'),
@@ -335,12 +340,12 @@ describe('whyFor re-voices the engine detail for the advisor', () => {
     assert.equal(whyFor(req('x', 'x', 'unmet', 'Overdue — the 8-year limit passed at the start of Fall 2034 (approximate). Talk to the DGS.')), 'Overdue — the 8-year limit passed at the start of Fall 2034 (approximate).');
     const spec: RequirementResult = {
       ...req('x', 'x', 'in_progress'),
-      detailParts: ['3 of 3 done, in 2 different groups; the 1 in progress would complete it', 'CSE 60111 (B-) is below the B floor — retake it or take another course (§4.4.2)'],
+      detailParts: ['2 of 3 groups covered (3 courses passed); the 1 in progress would complete it', 'CSE 60111 (B-) is below the B floor — retake it or take another course (§4.4.2)'],
     };
     const why = whyFor(spec);
-    assert.ok(why.includes('3 of 3 done, in 2 different groups; the 1 in progress would complete it.'), why);
+    assert.ok(why.includes('2 of 3 groups covered (3 courses passed); the 1 in progress would complete it.'), why);
     assert.ok(why.includes('Below the B floor (§4.4.2): CSE 60111 (B-).'), why);
-    assert.equal(whyFor(spec, true), '3 of 3 done, in 2 different groups; the 1 in progress would complete it.');
+    assert.equal(whyFor(spec, true), '2 of 3 groups covered (3 courses passed); the 1 in progress would complete it.');
     assert.equal(whyFor(req('x', 'x', 'unmet', 'Cumulative GPA 2.80 is below the 3.0 minimum — you cannot receive a degree or defend until it recovers (§2.2).')), 'Cumulative GPA 2.80 is below the 3.0 minimum — I cannot receive a degree or defend until it recovers (§2.2).');
     assert.equal(whyFor(req('x', 'x', 'in_progress', '§4.2 expects these during the first year — you are in semester 2.')), '§4.2 expects these during the first year — I am in semester 2.');
   });

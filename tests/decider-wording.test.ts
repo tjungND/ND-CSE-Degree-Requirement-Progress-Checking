@@ -87,9 +87,9 @@ describe('the §3.5 more-than-two note names the degree’s decider', () => {
     assert.match(ms, /the ADGS should confirm/);
     assert.doesNotMatch(ms, /\bthe DGS\b/);
 
-    const phd = undergraduateGraduateCourseworkFlag(student('phd'), rules);
-    assert.ok(phd);
-    assert.match(phd, /the DGS should confirm/);
+    // The MSCSE only since policy review round 3 (P3-text-engine-3): a Ph.D.
+    // student answers per course which degrees each counted toward.
+    assert.equal(undergraduateGraduateCourseworkFlag(student('phd'), rules), undefined);
 
     // The same sentence reaches the report's warnings and reviewFlags.
     const report = audit(student('mscse'), rules, '2027-06-01');

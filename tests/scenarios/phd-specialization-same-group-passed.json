@@ -1,0 +1,73 @@
+{
+  "name": "phd-specialization-same-group-passed",
+  "description": "Policy review round 3, P3-cse-4a-5: two passed courses in the same specialization group count as one group toward the three. CSE 60321 and CSE 60762 (both Architecture) and CSE 60641 (Systems) passed, CSE 60535 (Data Science) in progress: the lead says 2 of 3 groups covered (3 courses passed), not \"3 of 3 done, in 2 different groups\".",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "gpa": 3.6,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.qualifier.categories": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "2 of 3 groups covered (3 courses passed); the course in progress would complete it"
+      ],
+      "detailExcludes": [
+        "3 of 3 done"
+      ]
+    }
+  }
+}

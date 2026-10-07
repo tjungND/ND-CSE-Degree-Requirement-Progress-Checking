@@ -54,7 +54,7 @@ describe('a failed thesis defense: one retake, by the end of the following semes
     const r = row(failed(), 'ms.thesis.defense', '2026-10-04');
     assert.equal(r.status, 'in_progress');
     assert.equal(r.deadline?.label, 'Retake due by the end of Fall 2026 (approximate)');
-    assert.match(r.detail, /^Thesis defense failed 2026-04-20 — one retake allowed\. Academic Code §6\.1\.5: a failed master’s examination forfeits degree eligibility unless the program recommends a retake; only one retake is allowed, by the end of the following semester — the ADGS decides/);
+    assert.match(r.detail, /^Thesis defense failed 2026-04-20 — one retake, if the program recommends it\. Academic Code §6\.1\.5: a failed master’s examination forfeits degree eligibility unless the program recommends a retake; only one retake is allowed, by the end of the following semester — the ADGS decides/);
   });
   it('past the window with no pass: Overdue', () => {
     const r = row(failed(), 'ms.thesis.defense', '2027-02-01');
@@ -74,7 +74,7 @@ describe('a failed thesis defense: one retake, by the end of the following semes
   });
   it('the Milestones card dates the retake beside the defense box', () => {
     const d = audit(failed(), rules, '2026-10-04').milestoneDeadlines!;
-    assert.equal(deadlineText(d.thesisDefensePassed!), 'Due by the end of Fall 2026 — the one retake, by the end of the semester after the fail (Academic Code §6.1.5) · due this semester');
+    assert.equal(deadlineText(d.thesisDefensePassed!), 'Due by the end of Fall 2026 — the retake, if the program recommends one, by the end of the semester after the fail (Academic Code §6.1.5) · due this semester');
     assert.equal(d.thesisDefenseFailed!.state, undefined);
   });
 });

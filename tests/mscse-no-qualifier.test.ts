@@ -14,6 +14,7 @@ import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import { advisorSummary } from '../src/ui/advisor-summary.ts';
 import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
+import { DECIDER_DGS } from '../src/engine/decider.ts';
 import { buildRules } from './helpers.ts';
 import { phdStudent } from './helpers/student.ts';
 
@@ -40,6 +41,9 @@ const courses: CourseEntry[] = [
   // A non-CSE course, and one missing from the sheet.
   { courseId: 'MATH 60610', title: 'Basic Real Analysis', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'A', origin: 'nd' },
   { courseId: 'CSE 69999', title: 'Unknown Seminar', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'IP', origin: 'nd' },
+  // A failed course: its line cites the DGS's own dated ruling, which keeps
+  // the DGS's name on the MSCSE tab (policy review round 3, P3-text-engine-4).
+  { courseId: 'CSE 60321', title: 'Advanced Computer Architecture', credits: 3, term: { season: 'spring', year: 2027 }, grade: 'F', origin: 'nd' },
 ];
 
 const student = (program: Student['program']): Student =>
@@ -53,8 +57,9 @@ const offending = (strings: string[]): string[] => strings.filter((t) => FORBIDD
 // students … ADGS decides them for MSCSE students, and DGS decides them for
 // PhD students." So an MSCSE student is never sent to "the DGS".
 describe('the MSCSE is sent to the ADGS, never the DGS', () => {
-  // "DGS Handbook" is the Graduate School's document, not the decider (2026-10-03).
-  const DGS_ALONE = /\bDGS\b(?! Handbook)/;
+  // "DGS Handbook" is the Graduate School's document, not the decider
+  // (2026-10-03); a dated ruling is the DGS's own (P3-text-engine-4).
+  const DGS_ALONE = DECIDER_DGS;
   const ms = student('mscse');
   const report = audit(ms, rules, '2027-06-01');
   it('no requirement detail, course line, warning, track note or review reason says "DGS"', () => {
@@ -66,6 +71,8 @@ describe('the MSCSE is sent to the ADGS, never the DGS', () => {
       ...coursesNeedingDgsReview(ms, rules).map((p) => p.reason),
     ];
     assert.deepEqual(texts.filter((t) => DGS_ALONE.test(t)), []);
+    // The DGS's dated ruling keeps the DGS's name (P3-text-engine-4).
+    assert.ok(report.courseLines.some((l) => l.courseId === 'CSE 60321' && /failed — earns no credit \(DGS decision 2026-08-31\)/.test(l.text)), JSON.stringify(report.courseLines.find((l) => l.courseId === 'CSE 60321')));
     assert.ok(texts.some((t) => /ADGS/.test(t)), 'the ADGS must actually be named somewhere for this record');
   });
   it('neither e-mail says "DGS"', () => {
