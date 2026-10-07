@@ -953,7 +953,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
           // A non-degree semester read as the program's start (policy review
           // round 3, P3-dh-front-1-2-3, part (1)): said where the import picked
-          // an earlier admission or the first graduate-level term.
+          // an earlier admission or the first graduate-level term. The import
+          // keeps the earlier term as its default, and this sentence is how a
+          // non-degree student corrects it (DGS 2026-10-07, option (a)).
           inferred.how !== 'assumed' && (inferred.alternative !== undefined || /first graduate-level term|earlier of the admit-term lines/.test(inferred.how))
             ? ` If you were a non-degree (unclassified or departmental non-degree) student at Notre Dame before your degree admission, set the entry term to that admission; up to ${NON_DEGREE_CREDITS_MAX} non-degree credits may count (Academic Code §2.3).`
             : '',
