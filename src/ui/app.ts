@@ -14,6 +14,7 @@ import { coursesNeedingDgsReviewFor, reviewRequestSummary, type PendingDgsReview
 import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
+import { withdrawalQuestion, withdrawalSemesters } from './withdrawals.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, CourseLine, MilestoneDateKey, MilestoneDeadline, Program, Season, Student, Term } from '../engine/types.ts';
 import { deadlineText } from './milestone-deadline.ts';
@@ -1252,18 +1253,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // Uncommon: behind a selector (DGS 2026-10-03), closed unless a transcript
     // gap needs an answer (DGS 2026-10-04, below).
     // Read from the Notre Dame transcript (DGS 2026-10-04: shown "only when
-    // they are applicable according to the transcript"): a leave, a
-    // withdrawal or a missed semester leaves a fall or spring with no
-    // registration between the first and the last semester on it. None, and
-    // only the childbirth or adoption accommodation is asked — a transcript
-    // does not show that. Without a transcript, or with an answer on file,
+    // they are applicable according to the transcript"): a leave or a missed
+    // semester leaves a fall or spring with no registration between the first
+    // and the last semester on it. A withdrawal may not: after the
+    // course-discontinuance date every course stays on the transcript as W,
+    // and leaving without the Separation form leaves an F in every course —
+    // so a fall or spring all W (or all F) with a later semester after it
+    // asks too (policy review round 3, P3-dh-3.1-3.13-1; DGS 2026-10-06:
+    // "Apply the suggested handling"; withdrawals.ts). None of these, and only
+    // the childbirth or adoption accommodation is asked — a transcript does
+    // not show that. Without a transcript, or with an answer on file,
     // everything is asked as before.
     const gaps = transcriptGaps();
-    const leaveAsked = gaps === undefined || gaps.length > 0 || (student.leaveSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
+    const withdrawals = withdrawalSemesters(student) ?? [];
+    const leaveAsked = gaps === undefined || gaps.length > 0 || withdrawals.length > 0 || (student.leaveSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
     const summary =
       gaps !== undefined && gaps.length > 0
-        ? `Your transcript shows no registration in ${gaps.map(termLabel).join(', ')} — a leave of absence, a withdrawal or a missed semester?`
-        : leaveAsked
+        ? `Your transcript shows no registration in ${gaps.map(termLabel).join(', ')} — a leave of absence, a withdrawal or a missed semester?${withdrawals.length > 0 ? ` ${withdrawalQuestion(withdrawals, termLabel)}` : ''}`
+        : withdrawals.length > 0
+          ? withdrawalQuestion(withdrawals, termLabel)
+          : leaveAsked
           ? 'A medical leave, a childbirth or adoption accommodation, or a readmission?'
           : 'A childbirth or adoption accommodation?';
     // Closed by default; open only when a transcript gap is waiting for an
@@ -1274,7 +1283,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       ...((student.accommodationSemesters ?? 0) > 0 ? [`${student.accommodationSemesters} accommodation ${student.accommodationSemesters === 1 ? 'semester' : 'semesters'}`] : []),
       ...(student.readmittedTerm ? [`readmitted ${termLabel(student.readmittedTerm)}`] : []),
     ];
-    const gapUnanswered = gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined;
+    // An all-W or all-F semester is answered by a readmission only: a leave is
+    // requested before the first class day (Academic Code §5.1), so it is not one.
+    const gapUnanswered =
+      (gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined) || (withdrawals.length > 0 && student.readmittedTerm === undefined);
     return rareFold(
       'clocks',
       onFile.length > 0 ? `${summary} — on file: ${onFile.join(', ')}` : summary,
@@ -1491,7 +1503,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const partTimeText = !partTime
         ? ''
         : rec!.withdrawnOnly
-          ? ' — every course withdrawn; tick only if you were registered full-time at census'
+          ? ' — every course withdrawn; tick only if you were registered full-time at census — a withdrawal from the University goes under readmission, below'
           : t.season === 'summer'
             ? ` — not full-time: ${summerFloor !== undefined ? `${rec!.credits} of ${summerFloor}` : rec!.credits} registered credits entered, and neither that spring nor that fall was full-time`
             : ` — not full-time: ${rec!.credits} of ${fullTimeFloor} registered credits entered`;
@@ -1502,7 +1514,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           cb,
           partTime
             ? ` ⚠ ${termLabel(t)}${partTimeText}`
-            : ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`,
+            : ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census — a withdrawal from the University goes under readmission, below' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`,
         ),
       );
     }

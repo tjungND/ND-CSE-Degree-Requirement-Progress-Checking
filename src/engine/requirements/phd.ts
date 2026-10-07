@@ -464,7 +464,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
     // student to reapply … and reject some or all past credits"). Said, since
     // the run restarts silently otherwise (policy review 2026-10-03).
     const withdrawnOnly = records.filter((r) => r.withdrawnOnly).map((r) => termLabel(r.term));
-    if (withdrawnOnly.length > 0) parts.push(`${withdrawnOnly.join(', ')}: every course withdrawn — not counted as residence`, { note: 'If you were registered full-time at census, tick the semester under Full-time terms, or ask the DGS' });
+    if (withdrawnOnly.length > 0) parts.push(`${withdrawnOnly.join(', ')}: every course withdrawn — not counted as residence`, { note: 'If you were registered full-time at census, tick the semester under Full-time terms; if you withdrew from the University and returned, enter your readmission under Your standing (Academic Code §5.5); otherwise ask the DGS' });
     // Academic Code §4.1's three graduate-level credits a semester (policy
     // review 2026-10-03, P1-residency-enrollment-c5): the semester still
     // counts, the row goes to the DGS.
