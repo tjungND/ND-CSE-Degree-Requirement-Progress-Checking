@@ -9,7 +9,7 @@ Copyright © 2026 University of Notre Dame du Lac. All rights reserved.
 
 ## Non-Exclusive Commercial License Details
 
-- The non-exclusive commercial license requires a non-refundable $25,000 US annual royalty.
+- The [non-exclusive commercial license](https://docs.google.com/document/d/1ikB8Zq5AggcQo8do0_Jblqr1s6yp7lRTUZMs0cNqDPQ/edit?usp=sharing) requires a non-refundable $25,000 US annual royalty.
 - The license is non-negotiable.
 
 Information required to complete the license:
