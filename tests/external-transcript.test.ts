@@ -4,8 +4,9 @@
 // transcripts are redirected to the ND uploader.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { normalizeUniversity } from '../src/data/external.ts';
+import { findExternalRule } from '../src/data/external.ts';
 import { looseDateOnLine, parseExternalTranscript } from '../src/transcript/external.ts';
+import { buildRules } from './helpers.ts';
 
 const PURDUE = [
   'Purdue University',
@@ -711,16 +712,17 @@ describe('a conferral read through OCR noise (2026-09-16)', () => {
   });
 });
 
-// Policy review round 3, P3-sheet-1: Georgia Tech's official header runs
-// "OFFICIAL DOCUMENT INFORMATION" onto the name's line; ten ExternalCourses
-// rows were filed under that name, so no other spelling matched them.
-describe('a transcript header label is not part of the university’s name (P3-sheet-1)', () => {
-  it('the guess drops a trailing “OFFICIAL DOCUMENT INFORMATION”', () => {
-    const lines = ['GEORGIA INSTITUTE OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION', ...PURDUE.slice(1)];
-    assert.equal(parseExternalTranscript(lines).university, 'GEORGIA INSTITUTE OF TECHNOLOGY');
+// DGS 2026-10-07 (reverting policy review round 3, P3-sheet-1): “That GATech's
+// name was read directly from an official transcript. Future transcripts will
+// carry that exact name too.” The reader keeps it as printed, and the
+// ExternalCourses rows filed under it are found by it.
+describe('Georgia Tech’s name as its official transcript prints it (DGS 2026-10-07)', () => {
+  const NAME = 'GEORGIA INSTITUTE OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION';
+  it('the reader keeps the whole name', () => {
+    assert.equal(parseExternalTranscript([NAME, ...PURDUE.slice(1)]).university, NAME);
   });
-  it('the lookup matches either spelling, on the sheet or on a saved record', () => {
-    assert.equal(normalizeUniversity('GEORGIA INSTITUTE OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION'), normalizeUniversity('Georgia Institute of Technology'));
-    assert.equal(normalizeUniversity('Georgia Inst. of Technology'), normalizeUniversity('GEORGIA INSTITUTE OF TECHNOLOGY'));
+  it('that name finds the rulings filed under it', () => {
+    const rules = buildRules({ external: [{ university: NAME, course_id: 'ECE 6122', course_title: 'Adv Prog Techniques', transferable_PhD: 'yes' }] });
+    assert.ok(findExternalRule(rules.external, NAME, 'ECE 6122'));
   });
 });

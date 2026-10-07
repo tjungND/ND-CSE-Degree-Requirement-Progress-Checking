@@ -51,12 +51,7 @@ export function normalizeUniversity(name: string): string {
     .trim()
     // "The Johns Hopkins University" and "Johns Hopkins University" are one
     // school; a sheet row written either way must match (2026-09-08).
-    .replace(/^the /, '')
-    // A transcript header's label carried into the name — "GEORGIA INSTITUTE
-    // OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION" on a sheet row or a saved
-    // record — is not part of it (policy review round 3, P3-sheet-1), so the
-    // rows match whichever way the name was written.
-    .replace(/ (official )?document information$/, '');
+    .replace(/^the /, '');
 }
 
 /** The institution name given to Notre Dame coursework taken BEFORE the entry
