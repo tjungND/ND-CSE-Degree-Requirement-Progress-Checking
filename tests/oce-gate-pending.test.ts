@@ -91,3 +91,43 @@ describe('regular credits waiting for the DGS are named, not asked for again (P3
     assert.equal(c.detail.split('the DGS’s decision on CS 58000').length, 2, 'once');
   });
 });
+
+// A student who already passed the OCE while credits wait for the DGS (policy
+// review round 3, P3-hidden-inputs-1; DGS 2026-10-07: option (3), "Keep as
+// is"): the gate stays closed until the DGS decides, so the form shows no OCE
+// date box, and the card names the decision; the review request is how the
+// rows reach the sheet. A record that already carries the date (a saved file)
+// goes to the DGS, as 2026-09-12 (seventh) F8 item 4 has it.
+describe('an OCE passed while credits wait for the DGS (P3-hidden-inputs-1, option (3))', () => {
+  /** Entered Fall 2023, a tenure-track advisor, 15 CSE regular credits covering the core areas and the specialization, and 9 prior-master's credits the ExternalCourses tab does not list. */
+  const recordC = (candidacyPassed?: string): Student => {
+    const ids = ['CSE 60641', 'CSE 60321', 'CSE 60111', 'CSE 60876', 'CSE 60427'];
+    const terms = [fall(2023), fall(2023), spring(2024), spring(2024), fall(2024)];
+    return phdStudent({
+      entryTerm: fall(2023),
+      bachelorsAwarded: spring(2021),
+      priorMs: 'completed',
+      gpa: 3.7,
+      courses: [
+        ...ids.map((id, i) => ndCourse(id, { term: terms[i]! })),
+        ...['ECE 53800', 'ECE 62700', 'ECE 63700'].map((id) => transferCourse(id, undefined, { term: fall(2021), degreeLevel: 'masters', institution: 'Example State University' })),
+      ],
+      fullTimeTermOverrides: [fall(2023), spring(2024), fall(2024), spring(2025)],
+      milestones: { advisorIdentified: '2023-10-01', advisorName: 'Prof. Example', advisorTtt: 'yes', rcrTrainingCompleted: '2025-09-15', ...(candidacyPassed ? { candidacyPassed } : {}) },
+    });
+  };
+  const oce = (s: Student) => audit(s, buildRules(), '2026-10-05').requirements.find((r) => r.id === 'phd.candidacy')!;
+  it('undated: Not started, naming the credits waiting for the DGS rather than asking for more', () => {
+    const c = card(recordC());
+    assert.equal(c.status, 'unmet');
+    assert.match(c.detail, /^Not started\./);
+    assert.match(c.detail, /Regular-course credits: 15 of 24 complete, 9 waiting for a DGS decision \(ECE 53800, ECE 62700, ECE 63700\) — 9 more needed unless the DGS approves them/);
+    assert.match(c.detail, /still needed: the DGS’s decision on ECE 53800, ECE 62700, ECE 63700, or 9 more regular-course credits\./);
+    assert.match(oce(recordC()).detail, /^Not started\./);
+  });
+  it('dated on a saved record: Needs DGS review, with the coursework at the exam', () => {
+    const c = oce(recordC('2026-04-20'));
+    assert.equal(c.status, 'needs_dgs_review');
+    assert.match(c.detail, /At the exam \(Spring 2026\) you show 15 of 24 regular-course credits \(9 more waiting for a DGS decision\)/);
+  });
+});
