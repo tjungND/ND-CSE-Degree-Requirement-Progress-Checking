@@ -227,7 +227,10 @@ recommendations), which do need a reply. Everything
 below its "(DO NOT MODIFY ANYTHING BELOW THIS LINE)" divider is
 machine-readable — one tab-separated table per sheet tab, plus course details
 grouped per transcript. Paste the ExternalCourses table straight into that tab
-at a new row's `university` cell, then fill in your rulings: which core area each
+at a new row's `university` cell — and leave that name exactly as pasted: it is
+what the import read from the official transcript, and the next student's
+transcript from that school must match it, so it is never retyped or tidied
+(DGS 2026-10-07) — then fill in your rulings: which core area each
 satisfies (`satisfies_core_area`, if any), whether its credits can transfer
 (`transferable` — `yes` for a course any student may transfer, `no` for one that
 never transfers, `dgs_approval` for one you want to decide student by student,

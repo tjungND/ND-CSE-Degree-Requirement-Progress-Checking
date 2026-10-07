@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-07 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-07 (DGS — a rule): ExternalCourses university names are never altered, by an agent or the DGS — they are what the import read from official transcripts, and future transcripts must read the same (CLAUDE.md and AGENTS.md hard constraint; DECISIONS; data/README, README § A6b, MAINTENANCE).
+
 2026-10-07 (DGS — P3-sheet-1 reverted): “That GATech’s name was read directly from an official transcript. Future transcripts will carry that exact name too.” ExternalCourses rows 23–32 are back to “GEORGIA INSTITUTE OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION” on the live sheet; the transcript reader keeps that name as printed and matching compares it as before (c66da07’s parser and matcher lines removed). tests/external-transcript.test.ts pins the name. Review report: P3-sheet-1 ruled.
 
 2026-10-07 (DGS — a shorter page): the always-visible text was cut where it repeated itself or explained at length (W-CL273–W-CL282); report.ts drops a fact that only repeats the card’s pill. The review report (v77) now lays out the 26 items still waiting for the DGS as options with a recommendation each.

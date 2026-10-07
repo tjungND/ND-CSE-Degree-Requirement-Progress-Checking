@@ -41,6 +41,13 @@ touching code and without the original author.
   and "DGS Handbook §" are the Graduate School's (`src/ui/citations.ts` labels bare sections on every surface).
 - **Maintainable by a stranger.** Plain, commented code; docs written for a future DGS.
 
+- **University names in the ExternalCourses tab are never altered** (DGS 2026-10-07). Each was read
+  from an official transcript by the app's import and pasted from a review request; a future
+  transcript from that school must read the same name. Neither an AI agent nor the DGS renames,
+  abbreviates, re-cases or "cleans" one — not even a name that looks like a header fragment
+  ("GEORGIA INSTITUTE OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION" is Georgia Tech's) — and a
+  change to the transcript reader's name extraction must keep reading the names already listed.
+
 ## Sources of truth (read these before touching rule logic)
 1. `policy-sources/CSE-Graduate-Handbook-live.pdf` — the current edition (“Updated September
    2026”; the DGS replaces this file in place when a new edition is adopted, 2026-10-02 — the July

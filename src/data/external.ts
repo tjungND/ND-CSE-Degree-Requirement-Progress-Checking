@@ -42,6 +42,10 @@ export function expandInstitutionAbbreviations(name: string): string {
  * diacritics ignored; whitespace collapsed). Non-Latin letters are kept, but
  * the sheet convention (2026-09-03) is the university's name in CAPITAL
  * ENGLISH exactly as its transcripts print it. */
+// The sheet's university names are what the import read from official
+// transcripts and are never altered (DGS 2026-10-07). This folds the same way
+// on both sides — case, punctuation, spacing, spelled-out abbreviations, a
+// leading "The" — and must never drop a word from a name.
 export function normalizeUniversity(name: string): string {
   return expandInstitutionAbbreviations(name)
     .normalize('NFKD')

@@ -19,6 +19,9 @@ The non-negotiables, spelled out in `CLAUDE.md`:
 - Plan before non-trivial changes and ask the DGS every policy question you cannot settle from the
   handbook; record each answer in `docs/DECISIONS.md` (date, question, decision, who).
 - Ask before changing the sheet schema (column names, allowed values, parameter keys).
+- Never alter a university name in the ExternalCourses tab: each is what the import read from an
+  official transcript, and future transcripts must read the same name (DGS 2026-10-07). The
+  transcript reader must keep reading the names the sheet already lists.
 - `npm test` and `npm run build` must pass before you call anything done; run `npm run e2e` for
   UI-visible changes (and `E2E_BROWSER=webkit npm run e2e` — Safari's engine — when layout
   changed) and look at the screenshots. Add a scenario in `tests/scenarios/` for every bug fixed.

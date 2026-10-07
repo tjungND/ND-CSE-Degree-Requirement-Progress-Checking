@@ -167,14 +167,19 @@ here (`src/data/rules-date.ts`).
 One row per course at ANOTHER university that the DGS has ruled on (feature
 2026-09-01; sample: `external.sample.csv`). The app matches a student's uploaded
 external courses against it by university + course id (case, punctuation,
-diacritics and spacing are ignored). Enter the university's name in CAPITAL
-ENGLISH exactly as its transcripts print it (decision 2026-09-03) — the
-review-request emails students send contain tab-separated rows in this tab's
-column order, ready to paste straight into the sheet.
+diacritics and spacing are ignored). The university's name is the one the
+app's import read from the official transcript (decision 2026-09-03: in capital
+English, exactly as the transcript prints it) — the review-request emails
+students send contain tab-separated rows in this tab's column order, ready to
+paste straight into the sheet. **Never edit a `university` cell** (DGS
+2026-10-07): not to tidy it, shorten it or fix its case, even when it looks like
+a header fragment — Georgia Tech's official transcript reads "GEORGIA INSTITUTE
+OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION", and every future Georgia Tech
+transcript will read the same, so the rows must keep it to match.
 
 | column | values | meaning |
 |---|---|---|
-| `university` | text | the institution's name in capital English, exactly as its transcripts print it |
+| `university` | text | the institution's name as the import read it from the official transcript — paste it, never retype or edit it (DGS 2026-10-07) |
 | `course_id` | text | as printed there ("CS 50300", "30240233"); spaces/hyphens don't matter |
 | `course_title` | text | for humans reading the sheet |
 | `satisfies_core_area` | a `core_area` code, `none`, or blank | §4.4.1 core area the course covers — a match makes the student's core row **met**. `none` = decided, no core area (a core-sounding title then stops appearing in the review request); blank = not decided yet (the course stays in the review request) |

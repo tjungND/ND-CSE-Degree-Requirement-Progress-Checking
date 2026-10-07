@@ -109,7 +109,9 @@ University of California, San Diego), tried when nothing in the text names a uni
 The student sees the name pre-filled but editable, with a note saying it was worked out from an
 abbreviation, so a wrong guess can be corrected before the courses are added. Add a line there if another school turns up with
 the same problem — and write the school's real name, since that is the key the ExternalCourses tab
-is matched on (matching ignores case).
+is matched on (matching ignores case). If the tab already has rows for that school, use the name in
+their `university` cell exactly: those names were read from official transcripts and are never
+renamed (DGS 2026-10-07), so any change to how the reader extracts a name must keep reading them.
 
 Since 2026-09-09 a student's review request emits ONE paste-ready row per course, not per attempt:
 a course taken several times (a master's project, thesis credits) used to become several identical

@@ -803,6 +803,11 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
     return [...wholeFirst, ...parts].filter(plausible);
   };
   const stripRecordWords = (cell: string): string => {
+    // NEVER change what this reads for a school the ExternalCourses tab lists
+    // (DGS 2026-10-07): the tab's university names were read by this import
+    // from official transcripts and are never altered, so a future transcript
+    // must read the same name — Georgia Tech's is "GEORGIA INSTITUTE OF
+    // TECHNOLOGY OFFICIAL DOCUMENT INFORMATION", header words and all.
     // Header lines often append record words ("TSINGHUA UNIVERSITY STUDENT
     // RECORD", "Northeastern University, Office of the Registrar"); strip them
     // so the guess is the institution's name alone.
