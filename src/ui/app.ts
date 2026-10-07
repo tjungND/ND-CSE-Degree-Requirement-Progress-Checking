@@ -827,7 +827,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // same graduate program" — so the MSCSE's coursework is Ph.D. coursework.
       return ` Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${b.graduate === 'nd-4plus1' ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
     }
-    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree, so up to ${unfinished} credits from another university may transfer (§5.2); your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and the eighth semester for the OCE and for admission to candidacy count from the semester you started the MSCSE; the §4.4 qualifier clocks and the first-year seminars (§4.2) from your transfer.`;
+    // No stated limit without an earlier program (policy review round 3,
+    // P3-cse-5-6-1; DGS 2026-10-06): §5.2 caps only what comes from an
+    // unfinished or a completed program, so the DGS decides — "may transfer"
+    // with a number read as an allowance no document gives.
+    const noStatedLimit = `§5.2 sets a credit limit only after an unfinished or a completed graduate program, so the DGS decides whether, and how much, of a course from another university transfers (this page holds it to ${unfinished} until then)`;
+    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree: ${noStatedLimit}; your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and the eighth semester for the OCE and for admission to candidacy count from the semester you started the MSCSE; the §4.4 qualifier clocks and the first-year seminars (§4.2) from your transfer.`;
     if (b.graduate === 'nd-other') {
       // Another Notre Dame department is "another graduate program at Notre
       // Dame" (Academic Code §4.6; DGS 2026-10-03) — the §5.2 caps apply.
@@ -835,7 +840,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ? ` You finished a graduate degree at Notre Dame in another department — another graduate program under §5.2, so up to ${finished} credits from it may transfer; it would be ${unfinished} if that program were unfinished.`
         : ` Your earlier Notre Dame program in another department was not finished — another graduate program under §5.2, so up to ${unfinished} credits from it may transfer; it would be ${finished} after a finished degree.`;
     }
-    return ` No graduate degree before this program, so up to ${unfinished} credits from another university may transfer (§5.2).`;
+    return ` No graduate degree before this program: ${noStatedLimit}.`;
   }
   /** The whose-semester sentence, only for a student who came through the
    * Notre Dame MSCSE (DGS 2026-09-27, clarity proposal 5); it stood on every
@@ -1524,6 +1529,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const v = rules.parameters.number('ms_bs_double_count_credits_max');
     return v === undefined ? 'a limited number of' : String(v);
   }
+  /** Whether a document states this student's transfer limit (P3-cse-5-6-1):
+   * after a completed degree, or an unfinished master's — not with no earlier
+   * graduate program, nor after an unfinished Ph.D. (Academic Code §4.6 states
+   * no figure for either). */
+  function transferLimitStated(): boolean {
+    if (student.priorMs === 'completed') return true;
+    if (student.priorMs === 'unfinished') return !student.courses.some((c) => c.origin === 'transfer' && c.degreeLevel === 'phd');
+    return false;
+  }
   function transferCapLimit(): string {
     const key =
       student.program === 'mscse'
@@ -1643,7 +1657,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const grade = floor === undefined ? 'with the grade §5.2 requires (missing from the rules sheet)' : `with a grade of ${floor} or better (a pass/fail grade cannot show it, so the DGS decides those)`;
       return (
         `Transfer credit (§5.2): a graduate course from ${fromNotreDame ? 'your earlier Notre Dame program' : 'another university'} can count toward this degree if you took it after your bachelor’s degree, ${window}, and ${grade} — this page checks those three. ` +
-        `Which courses transfer (normally CSE-related ones, up to ${transferCapLimit()} credits) is the DGS’s recommendation; the Graduate School approves it, and the Grad Admin records the credit once your university’s official transcript has reached the Graduate School. ` +
+        `Which courses transfer (normally CSE-related ones, ${transferLimitStated() ? `up to ${transferCapLimit()} credits` : `and how much — no document states a credit limit for your case, so this page holds it to ${transferCapLimit()} until the DGS decides`}) is the DGS’s recommendation; the Graduate School approves it, and the Grad Admin records the credit once your university’s official transcript has reached the Graduate School. ` +
         `Until the DGS decides, every graduate course here is a candidate: the review request in the Transcripts card asks for the decisions at any time; the processing request below the milestones goes to the Grad Admin after your first semester — the Graduate School considers transfer requests only then, and before the semester your degree is conferred.`
       );
     };

@@ -136,14 +136,24 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // the conservative default and the row says so; the question is with the
     // Graduate School (docs/HANDBOOK-REVISIONS.md §10).
     const unfinishedPhd = ctx.student.priorMs === 'unfinished' && transfers.some((c) => !c.superseded && c.entry.degreeLevel === 'phd');
-    const capFor =
+    // Where no document states a figure, the number is this page's working
+    // limit and is called that — not "§5.2's allowance" (policy review round
+    // 3, P3-cse-5-6-1; DGS 2026-10-06: "apply the suggested handling"; the
+    // 2026-10-03 fix left the "§5.2's allowance for" prefix in place). The
+    // no-earlier-program wording follows the courses held for that reason,
+    // not priorMs 'none' alone: a student who finished the Notre Dame MSCSE
+    // also has priorMs 'none', and has an earlier program.
+    const noPriorProgram = transfers.some((c) => !c.superseded && c.noPriorProgram === true);
+    const capNote =
       ctx.student.priorMs === 'completed'
-        ? 'a completed prior degree'
+        ? `The ${cap} is §5.2’s allowance for a completed prior degree`
         : ctx.student.priorMs === 'unfinished'
           ? unfinishedPhd
-            ? 'a prior program that was not completed — the Academic Code states this six for an unfinished master’s (Academic Code §4.6) and no figure for an unfinished Ph.D., so the six is the conservative default here; the DGS may put your case to the Graduate School'
-            : 'a prior program that was not completed'
-          : 'a student with no prior graduate degree — no document states this allowance, so the six of an unfinished program is the meter and the DGS decides each course (DGS 2026-10-03)';
+            ? `The ${cap} is this page’s working limit: the Academic Code states six for an unfinished master’s and no figure for an unfinished Ph.D. (Academic Code §4.6), so the DGS decides each course and may put your case to the Graduate School`
+            : `The ${cap} is §5.2’s allowance for a prior program that was not completed`
+          : noPriorProgram
+            ? `The ${cap} is this page’s working limit: no document states a transfer allowance for a student with no earlier graduate program, so the DGS decides each course (DGS 2026-10-03)`
+            : `The ${cap} is this page’s working limit: no document states a transfer allowance for your record, so the DGS decides each course (DGS 2026-10-03)`;
     // The action first (DGS 2026-09-27): the courses waiting for the DGS and
     // what to do, then the count against the allowance.
     const upper = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -152,7 +162,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
       const credits = unreviewed.reduce((sum, c) => sum + (c.entry.credits ?? 0), 0);
       parts.push(`Waiting for the DGS: ${unreviewed.map((c) => c.entry.courseId).join(', ')} (${formatCredits(credits)} credits)`, { note: 'Send the review request from the Transcripts card' });
     }
-    parts.push(`${formatCredits(counted)} of the ${cap} credits you may transfer are counted${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`, { note: `The ${cap} is §5.2’s allowance for ${capFor}` });
+    parts.push(`${formatCredits(counted)} of the ${cap} credits you may transfer are counted${provisional > 0 ? `; ${formatCredits(provisional)} more pending review` : ''}`, { note: capNote });
     // Only courses under §5.2's own cap belong on this row: Notre Dame
     // coursework taken as an undergraduate is filed as 'transfer' but is not
     // transfer credit (2026-09-10), and its lines used to be repeated here.
