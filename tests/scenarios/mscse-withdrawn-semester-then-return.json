@@ -1,0 +1,140 @@
+{
+  "name": "mscse-withdrawn-semester-then-return",
+  "description": "Policy review round 3, P3-dh-3.1-3.13-1 (DGS 2026-10-06: “Apply the suggested handling”). An MSCSE student entered Fall 2024 and imported the Notre Dame transcript: 9 credits in Fall 2024 and Spring 2025, every Fall 2025 course W (withdrew after the course-discontinuance date), back in Spring 2026. Academic Code §5.5: \"Grades of W are given when a student withdraws after the mid-semester course discontinuance deadline\"; \"To re-enter a program, the student must follow the readmission process.\" Your standing now asks the readmission question for such a semester (src/ui/withdrawals.ts; tests/withdrawal-semesters.test.ts); the residency card points the all-W semester at it.",
+  "today": "2026-03-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "priorMs": "none",
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "W",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "W",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60011",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "W",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "IP",
+        "origin": "nd",
+        "fromNdTranscript": true
+      }
+    ]
+  },
+  "expect": {
+    "ms.residency": {
+      "status": "met",
+      "detailIncludes": [
+        "Fall 2025: every course withdrawn — not counted",
+        "if you withdrew from the University and returned, enter your readmission under Your standing (Academic Code §5.5)"
+      ]
+    }
+  }
+}

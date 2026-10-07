@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { classify, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { classify, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
@@ -14,6 +14,7 @@ import { coursesNeedingDgsReviewFor, reviewRequestSummary, type PendingDgsReview
 import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
+import { withdrawalQuestion, withdrawalSemesters } from './withdrawals.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, CourseLine, MilestoneDateKey, MilestoneDeadline, Program, Season, Student, Term } from '../engine/types.ts';
 import { deadlineText } from './milestone-deadline.ts';
@@ -803,6 +804,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   // ---------- standing ----------
 
+  /** A Ph.D. student's own Notre Dame MSCSE (DGS 2026-10-03: "Within CSE, the
+   * graduate school treats MS and PhD the same graduate program"): its
+   * coursework is Ph.D. coursework, not transfer credit — said on the standing
+   * card and above the MSCSE's courses (policy review round 3, P3-cse-5-6-3,
+   * where the §5.2 paragraph used to stand). Unless five years or more
+   * separate the two (DGS 2026-10-06, with P3-cse-5-6-3; Academic Code §5.5):
+   * then every MSCSE course waits for the DGS and the Graduate School. */
+  function ownMscseSentence(): string {
+    const fourPlusOne = student.background?.graduate === 'nd-4plus1';
+    const base = `Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${fourPlusOne ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
+    const separated = mscseSeparation(student);
+    return separated === undefined
+      ? base
+      : `${base} But your MSCSE ended in ${termLabel(separated)}, five years or more before you entered the Ph.D. in ${termLabel(normalizeEntryTerm(student.entryTerm).term)}: a separation that long from the graduate program may forfeit its credit and coursework (Academic Code §5.5), so every MSCSE course counts only once the DGS reviews it and the Graduate School approves — the review request asks.`;
+  }
+  /** Whether a prior Notre Dame course group holds the student's own MSCSE. */
+  function holdsOwnMscse(): boolean {
+    const g = student.background?.graduate;
+    return student.program === 'phd' && (student.ndMasters !== undefined || g === 'nd-mscse' || g === 'nd-4plus1' || g === 'nd-mscse-transfer');
+  }
   /** What the earlier-degrees answer means for THIS student, one sentence
    * with the numbers from the Parameters tab (clarity review 2026-09-26) —
    * in place of "(§5.2 transfer caps, the MSCSE already held and the
@@ -822,11 +843,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ? ` You finished a graduate degree elsewhere, so up to ${finished} credits from it may transfer (§5.2); it would be ${unfinished} if that program were unfinished.`
         : ` Your earlier graduate program was not finished, so up to ${unfinished} credits from it may transfer (§5.2); it would be ${finished} after a finished degree.`;
     }
-    if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') {
-      // DGS 2026-10-03: "Within CSE, the graduate school treats MS and PhD the
-      // same graduate program" — so the MSCSE's coursework is Ph.D. coursework.
-      return ` Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${b.graduate === 'nd-4plus1' ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
-    }
+    if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') return ` ${ownMscseSentence()}`;
     // No stated limit without an earlier program (policy review round 3,
     // P3-cse-5-6-1; DGS 2026-10-06): §5.2 caps only what comes from an
     // unfinished or a completed program, so the DGS decides — "may transfer"
@@ -1236,18 +1253,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // Uncommon: behind a selector (DGS 2026-10-03), closed unless a transcript
     // gap needs an answer (DGS 2026-10-04, below).
     // Read from the Notre Dame transcript (DGS 2026-10-04: shown "only when
-    // they are applicable according to the transcript"): a leave, a
-    // withdrawal or a missed semester leaves a fall or spring with no
-    // registration between the first and the last semester on it. None, and
-    // only the childbirth or adoption accommodation is asked — a transcript
-    // does not show that. Without a transcript, or with an answer on file,
+    // they are applicable according to the transcript"): a leave or a missed
+    // semester leaves a fall or spring with no registration between the first
+    // and the last semester on it. A withdrawal may not: after the
+    // course-discontinuance date every course stays on the transcript as W,
+    // and leaving without the Separation form leaves an F in every course —
+    // so a fall or spring all W (or all F) with a later semester after it
+    // asks too (policy review round 3, P3-dh-3.1-3.13-1; DGS 2026-10-06:
+    // "Apply the suggested handling"; withdrawals.ts). None of these, and only
+    // the childbirth or adoption accommodation is asked — a transcript does
+    // not show that. Without a transcript, or with an answer on file,
     // everything is asked as before.
     const gaps = transcriptGaps();
-    const leaveAsked = gaps === undefined || gaps.length > 0 || (student.leaveSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
+    const withdrawals = withdrawalSemesters(student) ?? [];
+    const leaveAsked = gaps === undefined || gaps.length > 0 || withdrawals.length > 0 || (student.leaveSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
     const summary =
       gaps !== undefined && gaps.length > 0
-        ? `Your transcript shows no registration in ${gaps.map(termLabel).join(', ')} — a leave of absence, a withdrawal or a missed semester?`
-        : leaveAsked
+        ? `Your transcript shows no registration in ${gaps.map(termLabel).join(', ')} — a leave of absence, a withdrawal or a missed semester?${withdrawals.length > 0 ? ` ${withdrawalQuestion(withdrawals, termLabel)}` : ''}`
+        : withdrawals.length > 0
+          ? withdrawalQuestion(withdrawals, termLabel)
+          : leaveAsked
           ? 'A medical leave, a childbirth or adoption accommodation, or a readmission?'
           : 'A childbirth or adoption accommodation?';
     // Closed by default; open only when a transcript gap is waiting for an
@@ -1258,7 +1283,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       ...((student.accommodationSemesters ?? 0) > 0 ? [`${student.accommodationSemesters} accommodation ${student.accommodationSemesters === 1 ? 'semester' : 'semesters'}`] : []),
       ...(student.readmittedTerm ? [`readmitted ${termLabel(student.readmittedTerm)}`] : []),
     ];
-    const gapUnanswered = gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined;
+    // An all-W or all-F semester is answered by a readmission only: a leave is
+    // requested before the first class day (Academic Code §5.1), so it is not one.
+    const gapUnanswered =
+      (gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined) || (withdrawals.length > 0 && student.readmittedTerm === undefined);
     return rareFold(
       'clocks',
       onFile.length > 0 ? `${summary} — on file: ${onFile.join(', ')}` : summary,
@@ -1475,7 +1503,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const partTimeText = !partTime
         ? ''
         : rec!.withdrawnOnly
-          ? ' — every course withdrawn; tick only if you were registered full-time at census'
+          ? ' — every course withdrawn; tick only if you were registered full-time at census — a withdrawal from the University goes under readmission, below'
           : t.season === 'summer'
             ? ` — not full-time: ${summerFloor !== undefined ? `${rec!.credits} of ${summerFloor}` : rec!.credits} registered credits entered, and neither that spring nor that fall was full-time`
             : ` — not full-time: ${rec!.credits} of ${fullTimeFloor} registered credits entered`;
@@ -1486,7 +1514,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           cb,
           partTime
             ? ` ⚠ ${termLabel(t)}${partTimeText}`
-            : ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`,
+            : ` ${termLabel(t)}${rec?.withdrawnOnly ? ' — every course withdrawn; tick only if you were registered full-time at census — a withdrawal from the University goes under readmission, below' : rec !== undefined && rec.credits > 0 && !overridden ? ` (${rec.credits} registered credits entered)` : ''}`,
         ),
       );
     }
@@ -1717,7 +1745,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             // does not apply to it.
             g.entries.length > 0 && g.entries.every(({ c }) => ndPostingOf(c) !== undefined)
             ? el('p', { class: 'hint' }, `Accepted transfer credit on your Notre Dame transcript: the Graduate School approved these courses and recorded them (Academic Code §4.6), so they count at the hours your record shows, with no review or processing request. Credit posted before you entered this program, or whose level the transcript does not show, waits for the DGS to confirm it counts toward this degree.`)
-            : el('p', { class: 'hint' }, transferRule(g.nd)),
+            : // The student's own MSCSE is not transfer credit (P3-cse-5-6-3):
+              // the standing card's sentence, not §5.2's paragraph.
+              g.nd && holdsOwnMscse()
+              ? el('p', { class: 'hint' }, ownMscseSentence())
+              : el('p', { class: 'hint' }, transferRule(g.nd)),
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
           : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),

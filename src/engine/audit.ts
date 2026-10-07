@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, longInterruptionReadmission, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, longInterruptionReadmission, mscseSeparation, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { beforeProgramStart } from './early-start.ts';
@@ -330,6 +330,21 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   if ((student.leaveSemesters ?? 0) > 2) {
     warnings.push(
       `${student.leaveSemesters} semesters on medical leave: the Graduate School grants a leave of absence for at most two consecutive semesters (Academic Code §5.1) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3). Confirm your standing with the DGS.`,
+    );
+  }
+  // The Notre Dame MSCSE five years or more before the Ph.D. (DGS 2026-10-06,
+  // with policy review round 3, P3-cse-5-6-3): its courses wait course by
+  // course; the record-level question goes to the DGS too.
+  const separatedSince = mscseSeparation(student);
+  if (separatedSince !== undefined) {
+    warnings.push(
+      `Your Notre Dame MSCSE ended in ${termLabel(separatedSince)}, five years or more before you entered the Ph.D. in ${termLabel(entry)}: a separation that long from the graduate program may forfeit its credit and coursework (Academic Code §5.5), so every MSCSE course counts only once the DGS reviews it and the Graduate School approves — they are in the review request.`,
+    );
+    reviewFlags.push(
+      decisionWording(
+        student.program,
+        `My Notre Dame MSCSE ended in ${termLabel(separatedSince)}, five years or more before I entered the Ph.D. in ${termLabel(entry)}: please review its credit and coursework and request the Graduate School’s approval for it to count toward the Ph.D. (Academic Code §5.5).`,
+      ),
     );
   }
   if (student.readmittedTerm !== undefined) {

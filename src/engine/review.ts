@@ -162,7 +162,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         // shorter gap (DGS Handbook §3.3; 2026-10-04).
         const heldAsks = [
           ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
-          ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),
+          ...(c.interrupted ? [c.mscseSeparated ? 'rule on the credit from my Notre Dame MSCSE, which ended five years or more before I entered the Ph.D., and request the Graduate School’s approval (Academic Code §5.5)' : 'rule on the credit from before my readmission (Academic Code §5.5)'] : []),
           ...(c.beforeReadmission ? ['confirm the credit from before my readmission still counts (DGS Handbook §3.3)'] : []),
         ];
         nd.push({
@@ -218,7 +218,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
       // Another university's Incomplete (P3-ac-4-1; DGS 2026-10-05: held for DGS review).
       ...(c.outsideIncomplete ? ['decide this course once its final grade is posted — it is graded I (Incomplete) at my previous university, so it cannot show the B that §5.2 requires yet'] : []),
-      ...(c.interrupted ? ['rule on the credit from before my readmission (Academic Code §5.5)'] : []),
+      ...(c.interrupted ? [c.mscseSeparated ? 'rule on the credit from my Notre Dame MSCSE, which ended five years or more before I entered the Ph.D., and request the Graduate School’s approval (Academic Code §5.5)' : 'rule on the credit from before my readmission (Academic Code §5.5)'] : []),
     ];
 
     // Credit the Notre Dame record already shows as accepted (P3-import-1;

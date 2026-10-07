@@ -254,7 +254,7 @@ function residencyRow(ctx: Ctx): RequirementResult {
     );
   }
   const withdrawnOnly = records.filter((r) => r.withdrawnOnly).map((r) => termLabel(r.term));
-  if (withdrawnOnly.length > 0) parts.push(`${withdrawnOnly.join(', ')}: every course withdrawn — not counted`, { note: 'If you were registered full-time at census, tick the semester under Full-time terms, or ask the DGS' });
+  if (withdrawnOnly.length > 0) parts.push(`${withdrawnOnly.join(', ')}: every course withdrawn — not counted`, { note: 'If you were registered full-time at census, tick the semester under Full-time terms; if you withdrew from the University and returned, enter your readmission under Your standing (Academic Code §5.5); otherwise ask the DGS' });
   // Academic Code §4.1 (policy review 2026-10-03, P1-residency-enrollment-c5).
   const belowGraduate = graduateLevelParts(records, floor);
   if (belowGraduate.length > 0) {
