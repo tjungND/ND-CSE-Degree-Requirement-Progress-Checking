@@ -526,6 +526,22 @@ export function longInterruptionReadmission(student: Student): Term | undefined 
   return startOfTerm(readmitted).date >= addYearsIso(endOfTerm(lastBefore).date, ACADEMIC_CODE_FORFEIT_YEARS) ? readmitted : undefined;
 }
 
+/** §5.2 / DGS Handbook §3.14: "A request for credit transfer is considered
+ * only after a student has completed one semester in a Notre Dame graduate
+ * degree program" (policy review round 3, P3-dh-3.14-3.20-4; DGS 2026-10-06:
+ * "Apply the handling. My answer to the question is (b)."). Done once the
+ * entry term has ended — the end the advisor deadline already uses
+ * (milestone-deadlines.ts), so a spring entrant's summer counts as done; the
+ * two copies of this test used to keep the summer in the spring semester.
+ * And (b): a finished earlier Notre Dame graduate program already meets it —
+ * the student's own MSCSE (or a 4+1's), or a degree finished in another
+ * Notre Dame department. `byEarlierProgram` says which. */
+export function firstSemesterComplete(student: Student, entry: Term, todayIso: string | undefined): { done: boolean; byEarlierProgram: boolean } {
+  const byEarlierProgram = student.ndMasters !== undefined || (student.background?.graduate === 'nd-other' && student.background.finished === true);
+  const ended = todayIso !== undefined && todayIso > endOfTerm(entry).date;
+  return { done: ended || byEarlierProgram, byEarlierProgram: byEarlierProgram && !ended };
+}
+
 /** The student's own Notre Dame MSCSE coursework on a Ph.D. record: Notre
  * Dame courses dated before the Ph.D. began, after the bachelor's degree — or
  * before it, when the student says the course counted toward the MSCSE (a
@@ -1545,7 +1561,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // conferred" (§5.2) — the processing sentence says when (DGS 2026-10-03:
   // the review request may go at any time; the credit-transfer request after
   // the first semester).
-  const firstSemesterDone = env.today !== undefined && semesterNumber(entry, termOfDate(env.today)) >= 2;
+  const firstSemesterDone = firstSemesterComplete(student, entry, env.today).done;
   const processWhen = firstSemesterDone
     ? 'send the Grad Admin the processing request to have it recorded — before the semester your degree is conferred (§5.2)'
     : 'send the Grad Admin the processing request once your first semester is complete — the Graduate School considers transfer requests only then, and before the semester your degree is conferred (§5.2)';

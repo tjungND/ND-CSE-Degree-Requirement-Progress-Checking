@@ -1,0 +1,59 @@
+{
+  "name": "phd-spring-entrant-transfer-in-june",
+  "description": "Policy review round 3, P3-dh-3.14-3.20-4 (DGS 2026-10-06: “Apply the handling. My answer to the question is (b).”). A Ph.D. student who entered in Spring 2026 with a master’s from another university and a transfer course the course rules rule transferable checks the app on 2026-06-20. §5.2 / DGS Handbook §3.14: a transfer request is considered \"only after a student has completed one semester in a Notre Dame graduate degree program\". The summer used to count as part of the spring semester, so the student was told to wait; the first semester now ends with the term.",
+  "today": "2026-06-20",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "University of Massachusetts Amherst",
+          "course_id": "COMPSCI 589",
+          "course_title": "Machine Learning",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "spring",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "COMPSCI 589",
+        "title": "Machine Learning",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Massachusetts Amherst",
+        "degreeLevel": "masters"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "the Graduate School considers it only after your first semester (done)"
+      ]
+    }
+  }
+}

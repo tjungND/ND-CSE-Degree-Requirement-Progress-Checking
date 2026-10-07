@@ -11,7 +11,7 @@ import { formatCredits } from '../credits.ts';
 import { compareTerm, semesterNumber, termOfDate } from '../term.ts';
 import type { DetailPart, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { outsideIncompleteNote } from '../allocate.ts';
+import { firstSemesterComplete, outsideIncompleteNote } from '../allocate.ts';
 import { joinedDetail, missingParamDetail, countedCourseIds } from './context.ts';
 
 /** §4.2 + §5.2 transfer credit: window, B floor, and the 6/24 caps are enforced
@@ -123,9 +123,9 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         : preApproved.length === pending.length
           ? 'in_progress'
           : 'needs_dgs_review';
-    const firstSemesterDone = semesterNumber(ctx.entry, termOfDate(ctx.today)) >= 2;
-    const processWhen = firstSemesterDone
-      ? 'send the Grad Admin the processing request — the Graduate School considers it only after your first semester (done) and before the semester your degree is conferred (§5.2)'
+    const first = firstSemesterComplete(ctx.student, ctx.entry, ctx.today);
+    const processWhen = first.done
+      ? `send the Grad Admin the processing request — the Graduate School considers it only after your first semester ${first.byEarlierProgram ? '(met by your finished earlier Notre Dame graduate program)' : '(done)'} and before the semester your degree is conferred (§5.2)`
       : 'send the Grad Admin the processing request once your first semester is complete — the Graduate School considers a transfer request only then, and before the semester your degree is conferred (§5.2)';
     // The cap's name says whose cap it is. A student with no prior graduate
     // program at all is under the smaller cap too, but is not "a prior program
