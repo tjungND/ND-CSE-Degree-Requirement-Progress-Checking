@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — engine and page; policy review round 3): **P3-dh-3.14-3.20-3, option (c).** Notre Dame graduate courses before admission on a record whose earlier program was elsewhere: allocate.ts `ndBeforeAdmission` (provisional, not transfer credit, no §5.2 projection), review.ts names the twelve, app.ts words the group (“graduate coursework”, its own paragraph). The DGS will ask the Graduate School when such a student appears. tests/nd-before-admission-master-elsewhere.test.ts; scenario phd-nd-courses-before-admission-master-elsewhere. Wording W-CL226–W-CL228.
+
 2026-10-06 (DGS — engine; policy review round 3): **P3-dh-3.14-3.20-2.** The probation and dismissal GPA warnings (audit.ts `gpaTerms`) read only semesters from the entry term on. Scenarios phd-low-gpa-semesters-before-entry and phd-low-gpa-semester-in-program; the scenario runner gained `expectWarnings` / `expectNoWarnings`.
 
 2026-10-06 (DGS — page text; policy review round 3): **P3-dh-3.14-3.20-1.** An unfinished program in another Notre Dame department: the standing card (app.ts `ndOtherUnfinishedSentence`) and the dialog’s “Did you finish that degree?” (background.ts) describe a program transfer (DGS Handbook §3.15) instead of §5.2’s six, unless the record holds Notre Dame graduate courses from before the entry term. No counting changed. Wording W-CL224–W-CL225.

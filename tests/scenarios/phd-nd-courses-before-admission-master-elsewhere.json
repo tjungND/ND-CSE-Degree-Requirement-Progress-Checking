@@ -1,0 +1,108 @@
+{
+  "name": "phd-nd-courses-before-admission-master-elsewhere",
+  "description": "Policy review round 3, P3-dh-3.14-3.20-3 (DGS 2026-10-06: “apply the handling with (c). When this really happens, I will need to ask the graduate school how to handle this.”). A student with a completed master’s from another university took five Notre Dame CSE graduate courses (15 credits) before admission to the Ph.D. in Fall 2024. They were filed as §5.2 transfer credit from an earlier Notre Dame program and metered against the 24; now they wait for the DGS with no §5.2 projection, and the review request names the 12-credit non-degree limit (DGS Handbook §3.14; Academic Code §2.3).",
+  "today": "2026-10-06",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2024
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2018
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "elsewhere",
+      "finished": true
+    },
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      }
+    ]
+  },
+  "expect": {
+    "phd.credits.regular": {
+      "status": "unmet",
+      "detailIncludes": [
+        "15 pending review/approval"
+      ]
+    },
+    "phd.transfer": {
+      "status": "not_applicable"
+    }
+  },
+  "expectCourseLines": {
+    "CSE 60641": [
+      "while your earlier graduate program was at another university",
+      "at most 12 such credits may count (Academic Code §2.3)"
+    ]
+  }
+}

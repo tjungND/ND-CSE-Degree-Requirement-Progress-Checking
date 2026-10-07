@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { classify, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { NON_DEGREE_CREDITS_MAX, classify, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
@@ -1619,16 +1619,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               ? `From your transcript's graduate-level cumulative GPA — the registrar's figure, which §2.2 reads (Academic Code §4.5)${gs.programGpa !== undefined ? `; for information, this program's courses alone average ${gs.programGpa.toFixed(2)}` : ''}${gs.undergraduateGpa !== undefined ? `; the undergraduate GPA (${gs.undergraduateGpa.toFixed(2)}) is not used` : ''}.`
               : `Computed from this program's graded courses only — a figure from an older import${gs.transcriptGpa !== undefined ? `; §2.2 reads the registrar's cumulative GPA, ${gs.transcriptGpa.toFixed(2)} on your transcript (Academic Code §4.5), so re-import the transcript or type that figure` : ''}.`,
           );
+    // No earlier Notre Dame program on the record (its earlier one was at
+    // another university, P3-dh-3.14-3.20-3): "graduate", never "master's".
+    const noEarlierNdProgram = student.ndMasters === undefined && student.background?.graduate === 'elsewhere';
     const priorNdCourseworkWord = (c: CourseEntry): string =>
       c.degreeLevel === 'bachelors'
         ? 'undergraduate'
-        : c.degreeLevel === 'phd'
-          ? 'Ph.D.'
-          : student.ndMasters !== undefined
-            ? 'MSCSE'
-            : c.degreeLevel === 'masters'
-              ? 'master’s'
-              : 'graduate';
+        : noEarlierNdProgram
+          ? 'graduate'
+          : c.degreeLevel === 'phd'
+            ? 'Ph.D.'
+            : student.ndMasters !== undefined
+              ? 'MSCSE'
+              : c.degreeLevel === 'masters'
+                ? 'master’s'
+                : 'graduate';
     // Group the list by university + degree (2026-09-03): Notre Dame first,
     // then one section per (university, transcript) in first-seen order.
     const all = student.courses.map((c, index) => ({ c, index }));
@@ -1761,7 +1766,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               // the standing card's sentence, not §5.2's paragraph.
               g.nd && holdsOwnMscse()
               ? el('p', { class: 'hint' }, ownMscseSentence())
-              : el('p', { class: 'hint' }, transferRule(g.nd)),
+              : // Notre Dame courses from before admission, the earlier program
+                // being at another university (P3-dh-3.14-3.20-3, option (c)).
+                g.nd && noEarlierNdProgram
+                ? el('p', { class: 'hint' }, `Notre Dame graduate courses from before you were admitted, while your earlier graduate program was at another university: they are not credit from an earlier Notre Dame program, so §5.2’s transfer allowance does not apply to them. If you took them as a non-degree student, at most ${NON_DEGREE_CREDITS_MAX} such credits may count (Academic Code §2.3); the DGS decides each course, with the Graduate School — send the review request.`)
+                : el('p', { class: 'hint' }, transferRule(g.nd)),
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
           : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),

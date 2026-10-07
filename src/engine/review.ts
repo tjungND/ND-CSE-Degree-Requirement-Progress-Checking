@@ -352,6 +352,8 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       // all carry their own approvalPending sentence, which is the ask.
       const policyAsks = [
         ...(c.nonDegree ? ['rule on my non-degree coursework — at most 12 credits may count (Academic Code §2.3)'] : []),
+        // P3-dh-3.14-3.20-3 (option (c)): the twelve named for the DGS to decide.
+        ...(c.ndBeforeAdmission ? ['decide whether this course counts — I took it at Notre Dame before admission, while my earlier graduate program was at another university; if it was in non-degree status, at most 12 such credits may count (Academic Code §2.3)'] : []),
         ...(c.ugToGrUnverified ? ['confirm this course was moved from UG to GR and transferred before my bachelor’s was conferred (Graduate School 4+1 guidance)'] : []),
         ...(c.caps.includes('sharedbs') && student.program === 'phd' && c.entry.countedToward === 'bs' ? ['confirm it may count toward both my bachelor’s degree and the Ph.D. (the Graduate School’s 2026-09-22 answer)'] : []),
         ...(bachelors && !c.ugToGrUnverified && !c.caps.includes('sharedbs') && c.approvalPending !== undefined && /advance approval|§3\.5/.test(c.approvalPending) ? ['approve it for me (Academic Code §4.6 / §3.5)'] : []),

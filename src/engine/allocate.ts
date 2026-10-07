@@ -243,6 +243,12 @@ export interface ClassifiedCourse {
    * it was "officially transferred" before the bachelor's was conferred (4+1
    * guidance; policy review 2026-10-03). */
   ugToGrUnverified?: true;
+  /** A Notre Dame graduate course from before admission on a record whose
+   * earlier graduate program was at ANOTHER university (policy review round
+   * 3, P3-dh-3.14-3.20-3; DGS 2026-10-06: option (c)) — not credit from an
+   * earlier Notre Dame program, and possibly non-degree coursework (Academic
+   * Code §2.3's twelve): it waits for the DGS, with no §5.2 projection. */
+  ndBeforeAdmission?: true;
   /** Coursework dated before an interruption of five years or more (Academic
    * Code §5.5: "Credit for any course or examination will be forfeited"),
    * sent to the DGS rather than counted or refused (policy review 2026-10-03). */
@@ -1255,6 +1261,33 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
       ...extBase,
       notTransferCredit: true,
       ineligibleReason: `not counted — dated before your entry term (${termLabel(entry)}) with no earlier graduate program on your record, so it is not §5.2 transfer credit either. To fix: check the entry term under Your standing (it starts out as the coming fall), or change your earlier degrees there; if you took it as a non-degree student before you were admitted, say so under Your standing — up to ${NON_DEGREE_CREDITS_MAX} such credits may count (Academic Code §2.3)${coreNote}`,
+    };
+  }
+  // A NOTRE DAME graduate course dated before the entry term on a record
+  // whose earlier graduate program was at ANOTHER university (policy review
+  // round 3, P3-dh-3.14-3.20-3; DGS 2026-10-06: "apply the handling with
+  // (c). When this really happens, I will need to ask the graduate school how
+  // to handle this."). It is not credit from an earlier Notre Dame program,
+  // so §5.2's 6 / 24 do not meter it; it may be non-degree coursework, where
+  // "No more than 12 credit hours earned by a student while in non-degree
+  // status at Notre Dame may be counted toward a degree program" (DGS
+  // Handbook §3.14; Academic Code §2.3). Option (c): the non-degree question
+  // stays narrowed to records with no earlier program (2026-10-03, item 13);
+  // this course waits for the DGS, counted provisionally, with no transfer
+  // projection, and the review request names the twelve.
+  if (isNotreDameInstitution(c.institution) && c.degreeLevel !== 'bachelors' && student.ndMasters === undefined && student.background?.graduate === 'elsewhere') {
+    const shape = rule ? priorNdShape(c.courseId, rule, program, c.dgsApproved === true) : undefined;
+    if (shape && 'ineligibleReason' in shape) return { ...extBase, notTransferCredit: true, ndBeforeAdmission: true, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
+    return {
+      ...extBase,
+      notTransferCredit: true,
+      ndBeforeAdmission: true,
+      reviewed: rule !== undefined,
+      ...(rule === undefined ? { unknown: true as const } : {}),
+      pool: shape?.pool ?? 'regular',
+      caps: [...(shape?.caps ?? []), ...(rule === undefined && deptOf(c.courseId) !== 'CSE' ? (['noncse'] as CapId[]) : [])],
+      tier: 'provisional',
+      approvalPending: `taken at Notre Dame before you were admitted, while your earlier graduate program was at another university — not credit from an earlier Notre Dame program; if you took it as a non-degree student, at most ${NON_DEGREE_CREDITS_MAX} such credits may count (Academic Code §2.3); the DGS decides, with the Graduate School${rule === undefined ? '; not in the course rules yet — send the review request so the DGS can enter it' : shape && !('ineligibleReason' in shape) && shape.approvalPending ? `; ${shape.approvalPending}` : ''}${coreNote}`,
     };
   }
   // A row of the Notre Dame record's transfer-credit block (P3-import-1): its
