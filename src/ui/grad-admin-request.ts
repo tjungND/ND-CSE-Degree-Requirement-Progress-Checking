@@ -95,6 +95,9 @@ export interface ProcessingTransfer {
    * processed; `approved`: the student attests the DGS + Graduate School
    * approval — to be checked against the record. */
   state: 'pre-approved' | 'approved';
+  /** The part of the course the §5.2 cap admits, when it is less than the
+   * whole (P3-prior-programs-5). */
+  cappedCredits?: number;
 }
 
 /** One met requirement as a table: what satisfies it. */
@@ -133,6 +136,11 @@ export interface CountedCourse {
 
 export interface ProcessingItems {
   transfers: ProcessingTransfer[];
+  /** Decided courses the §5.2 cap has no room for: not submitted — the
+   * allocator fills the cap in term order, which is not a DGS ruling, so the
+   * request says which ones and that the DGS may choose (P3-prior-programs-5). */
+  transfersOverCap: ProcessingTransfer[];
+  transferCap?: number;
   milestones: { label: string; date: string; section: string }[];
   advisorName?: string;
   msAlongTheWay: boolean;
@@ -260,6 +268,11 @@ function countedCourses(standing: StandingTable[], report: AuditReport, student:
   return [...out.values()].sort((a, b) => compareTerm(termOf(a.courseId), termOf(b.courseId)) || a.courseId.localeCompare(b.courseId));
 }
 
+/** A decided transfer the §5.2 cap has no room for (P3-prior-programs-5). */
+function overCapText(cap: number | undefined): string {
+  return `not submitted: over the §5.2 transfer cap${cap !== undefined ? ` of ${formatCredits(cap)} credits` : ''}; the DGS may choose which courses fill it`;
+}
+
 /** `classified` — the engine's classification of the student's courses, when
  * the caller already has it for this record (app.ts classifies once per
  * render); otherwise it is computed here. */
@@ -267,7 +280,10 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   classified ??= classify(student, rules).classified;
   // The DGS's approval for this student is on the course (2026-09-27).
   const approvedForMe = (c: ClassifiedCourse): boolean => c.entry.dgsApproved === true && decidedCaseByCase(c, student.program);
-  const transfers: ProcessingTransfer[] = classified
+  // What the §5.2 cap admitted for each course (audit.ts), when the report says.
+  const countedOf = (c: ClassifiedCourse): number | undefined =>
+    report.transferCredits?.find((x) => x.courseId === c.entry.courseId && x.institution === c.entry.institution && compareTerm(x.term, c.entry.term) === 0)?.counted;
+  const decided: (ProcessingTransfer & { overCap: boolean })[] = classified
     .filter(
       (c) =>
         c.entry.origin === 'transfer' &&
@@ -286,9 +302,18 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
         // A course that still needs an approval is NOT processable
         // (2026-09-08). Only `yes` for this student's program, or their
         // attestation that the approval came through, reaches the Grad Admin.
-        (c.transferable === 'yes' || approvedForMe(c)),
+        (c.transferable === 'yes' || approvedForMe(c)) &&
+        // …and nothing the §5.2 card holds for the DGS — a pass/fail grade, a
+        // course after admission, no earlier program, any later hold: a held
+        // course reaches the Graduate School through the DGS's own
+        // recommendation, not through this request (policy review round 3,
+        // P3-prior-programs-5).
+        c.approvalPending === undefined,
     )
-    .map((c) => ({
+    .map((c) => {
+      const counted = countedOf(c);
+      const whole = c.effectiveCredits ?? c.entry.credits;
+      return {
       courseId: c.entry.courseId,
       institution: c.entry.institution,
       title: c.entry.title ?? c.external?.title,
@@ -296,8 +321,13 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
       ndCredits: c.effectiveCredits,
       grade: c.entry.grade,
       termText: termLabel(c.entry.term),
-      state: approvedForMe(c) ? 'approved' : 'pre-approved',
-    }));
+      state: approvedForMe(c) ? ('approved' as const) : ('pre-approved' as const),
+      ...(counted !== undefined && counted > 0 && counted < whole ? { cappedCredits: counted } : {}),
+      overCap: counted === 0,
+      };
+    });
+  const transfers: ProcessingTransfer[] = decided.filter((t) => !t.overCap).map(({ overCap: _o, ...t }) => t);
+  const transfersOverCap: ProcessingTransfer[] = decided.filter((t) => t.overCap).map(({ overCap: _o, ...t }) => t);
   const milestones = MILESTONE_FIELDS.filter((f) => f.program === 'both' || f.program === student.program).flatMap((f) => {
     const date = student.milestones[f.key];
     return typeof date === 'string' && date !== '' ? [{ label: f.label, date, section: f.section }] : [];
@@ -357,7 +387,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const actions = [
     ...transfers.map(
       (t) =>
-        `${recorded ? 'Check that the transfer credit is on my record for' : 'Submit the Transfer of Credits request to the Graduate School for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}) — ${recorded ? 'approved by the Graduate School, as I ticked' : recommendedBy(t)} (§5.2).`,
+        `${recorded ? 'Check that the transfer credit is on my record for' : 'Submit the Transfer of Credits request to the Graduate School for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}${t.cappedCredits !== undefined ? ` — ${formatCredits(t.cappedCredits)} of them within the §5.2 cap` : ''}) — ${recorded ? 'approved by the Graduate School, as I ticked' : recommendedBy(t)} (§5.2).`,
     ),
     ...milestones.map((m) => `Record the milestone: ${m.label}, ${m.date} (${m.section}).`),
     ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
@@ -369,8 +399,9 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const lines = [
     ...transfers.map(
       (t) =>
-        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${recorded ? 'approved by the Graduate School, to be checked on my record (§5.2)' : `${recommendedBy(t)}, to be submitted to the Graduate School (§5.2)`}`,
+        `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — transfer credit ${recorded ? 'approved by the Graduate School, to be checked on my record (§5.2)' : `${recommendedBy(t)}, to be submitted to the Graduate School (§5.2)`}${t.cappedCredits !== undefined ? `, ${formatCredits(t.cappedCredits)} credits of it within the cap` : ''}`,
     ),
+    ...transfersOverCap.map((t) => `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — ${overCapText(report.transferCap)}`),
     ...milestones.map((m) => `${m.label} ${m.date} (${m.section})`),
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
     ...(msAlongTheWay ? ['MSCSE along the way — the self-check shows its requirements met (§4.5)'] : []),
@@ -382,6 +413,8 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   ];
   return {
     transfers,
+    transfersOverCap,
+    ...(report.transferCap !== undefined ? { transferCap: report.transferCap } : {}),
     milestones,
     advisorName: [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n).join(' and ') || undefined,
     msAlongTheWay,
@@ -451,7 +484,7 @@ export function gradAdminRequest(
     t.courseId,
     t.title ?? '',
     String(t.credits),
-    t.ndCredits !== undefined ? formatCredits(t.ndCredits) : '',
+    `${t.ndCredits !== undefined ? formatCredits(t.ndCredits) : ''}${t.cappedCredits !== undefined ? `${t.ndCredits !== undefined ? ' — ' : ''}${formatCredits(t.cappedCredits)} within the §5.2 cap` : ''}`,
     t.grade,
     t.termText,
   ];
@@ -482,6 +515,13 @@ export function gradAdminRequest(
     if (approved.length > 0) {
       sections.push({ heading: 'Transfer credit to submit to the Graduate School (§5.2) — recommended by the DGS for my case', columns: TRANSFER_COLUMNS, table: approved.map(transferRow) });
     }
+  }
+  // Over the cap: for the record, not to submit (P3-prior-programs-5).
+  if (items.transfersOverCap.length > 0) {
+    sections.push({
+      heading: `Not submitted — over the §5.2 transfer cap${items.transferCap !== undefined ? ` of ${formatCredits(items.transferCap)} credits` : ''}`,
+      lines: [`${items.transfersOverCap.map((t) => `${t.courseId}${t.institution ? ` (${t.institution}, ${t.termText})` : ''}`).join('; ')} — the self-check filled the cap in term order, which is not a ruling; the DGS may choose which courses fill it.`],
+    });
   }
   // ONE course table (DGS 2026-09-28): every course a requirement counts,
   // with the requirements it feeds — the standing rows point here.

@@ -756,6 +756,12 @@ export interface AuditReport {
    * for the glossary's "Full-time" (policy review round 3, P3-text-ui-5): read
    * from the sheet, never typed, so the two cannot drift. */
   summerFullTimeCredits?: number;
+  /** Each course drawing on the §5.2 transfer cap, with the credits the
+   * allocator counted for it (regular plus total-only), and the cap itself:
+   * the processing request submits only what the cap admits (policy review
+   * round 3, P3-prior-programs-5). */
+  transferCredits?: { courseId: string; institution?: string; term: Term; counted: number }[];
+  transferCap?: number;
   /** Graduation is in sight, so the page asks the semester (DGS 2026-10-05:
    * "Let's show it only when it matters"): a Ph.D. student once the OCE is
    * passed, an MSCSE student once the total credits are complete or in

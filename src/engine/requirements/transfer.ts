@@ -226,7 +226,10 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
   if (ndMasters.length > 0) {
     parts.push({ note: `Your Notre Dame MSCSE courses (${ndMasters.map((c) => c.entry.courseId).join(', ')}) are not transfer credit, so they are not counted here: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so MSCSE coursework not applied to your bachelor’s degree counts as Ph.D. coursework — outside this allowance and with no transfer approval. Each course’s own line shows how it counts` });
   }
-  // The counted transfer courses — what the processing request tables (2026-09-06).
+  // The counted transfer courses (2026-09-06) — the card's own list. The
+  // processing request reads the report's `transferCredits` and submits only
+  // the decided courses the cap admits (policy review round 3,
+  // P3-prior-programs-5); held ones go through the DGS's own recommendation.
   const transferSatisfied = countedCourseIds(ctx, (p) => (p.course.caps.includes('transfer') ? p.countedRegular : 0));
   return {
     id: opts.id,

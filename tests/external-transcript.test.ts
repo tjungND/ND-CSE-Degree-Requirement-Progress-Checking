@@ -4,6 +4,7 @@
 // transcripts are redirected to the ND uploader.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { normalizeUniversity } from '../src/data/external.ts';
 import { looseDateOnLine, parseExternalTranscript } from '../src/transcript/external.ts';
 
 const PURDUE = [
@@ -707,5 +708,19 @@ describe('a conferral read through OCR noise (2026-09-16)', () => {
   it('the loose reader never invents a date from an ordinary sentence', () => {
     assert.equal(looseDateOnLine('Computer Science 3 credits 2023'), undefined);
     assert.equal(looseDateOnLine('Passed with 12 of 2024 points'), undefined);
+  });
+});
+
+// Policy review round 3, P3-sheet-1: Georgia Tech's official header runs
+// "OFFICIAL DOCUMENT INFORMATION" onto the name's line; ten ExternalCourses
+// rows were filed under that name, so no other spelling matched them.
+describe('a transcript header label is not part of the university’s name (P3-sheet-1)', () => {
+  it('the guess drops a trailing “OFFICIAL DOCUMENT INFORMATION”', () => {
+    const lines = ['GEORGIA INSTITUTE OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION', ...PURDUE.slice(1)];
+    assert.equal(parseExternalTranscript(lines).university, 'GEORGIA INSTITUTE OF TECHNOLOGY');
+  });
+  it('the lookup matches either spelling, on the sheet or on a saved record', () => {
+    assert.equal(normalizeUniversity('GEORGIA INSTITUTE OF TECHNOLOGY OFFICIAL DOCUMENT INFORMATION'), normalizeUniversity('Georgia Institute of Technology'));
+    assert.equal(normalizeUniversity('Georgia Inst. of Technology'), normalizeUniversity('GEORGIA INSTITUTE OF TECHNOLOGY'));
   });
 });

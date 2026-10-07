@@ -771,8 +771,15 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // (`citation`) are left as written.
   const p = student.program;
   const summerFloor = p === 'mscse' ? params.number('summer_fulltime_credits_min') : undefined;
+  // What the §5.2 cap admitted, course by course (P3-prior-programs-5).
+  const transferCredits = alloc.perCourse
+    .filter((a) => a.course.caps.includes('transfer') && !a.course.superseded)
+    .map((a) => ({ courseId: a.course.entry.courseId, ...(a.course.entry.institution !== undefined ? { institution: a.course.entry.institution } : {}), term: a.course.entry.term, counted: a.countedRegular + a.countedOther }));
+  const transferCap = alloc.capUsage.get('transfer')?.limit;
   return {
     reviewFlags,
+    ...(transferCredits.length > 0 ? { transferCredits } : {}),
+    ...(transferCap !== undefined ? { transferCap } : {}),
     ...(staffChecks.length > 0 ? { staffChecks } : {}),
     ...(summerFloor !== undefined ? { summerFullTimeCredits: summerFloor } : {}),
     program: p,

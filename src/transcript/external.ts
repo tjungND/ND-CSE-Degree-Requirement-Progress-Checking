@@ -818,6 +818,10 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
       .replace(/[,\s—–-]*(the\s+)?office of the (university\s+)?registrar\s*$/i, '')
       .replace(/[\s—–-]*(unofficial|official)?\s*(student|academic)?\s*(records?|transcripts?|copy)\s*$/i, '')
       .replace(/[\s—–-]*(course\s+numbering|grade\s+scale|grading\s+(system|scale)|transcript\s+(guide|key|legend))\s*$/i, '')
+      // Georgia Tech's official header runs its "OFFICIAL DOCUMENT
+      // INFORMATION" label onto the name's line (policy review round 3,
+      // P3-sheet-1: ten ExternalCourses rows were filed under that name).
+      .replace(/[\s—–-]*(official\s+)?document\s+information\s*$/i, '')
       .replace(/^[\s?•·*|,.-]+|[\s?•·*|,.-]+$/g, '')
       .trim();
     return stripped; // empty when the cell was only record words ("Office of the University Registrar")

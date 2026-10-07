@@ -41,3 +41,19 @@ describe('ms_bs_double_count_credits_max missing (P3-sheet-6 (b))', () => {
     assert.equal(r.requirements.find((x) => x.id === 'ms.cap.sharedbs')?.status, 'met');
   });
 });
+
+// The same transfer course on two rows, whatever their terms (policy review
+// round 3, P3-import-2): warned, unless it is the Notre Dame block's row and
+// its twin, which already count once (P3-import-1 (c)).
+describe('a transfer course entered twice in different terms (P3-import-2)', () => {
+  const row = (term: { season: 'fall' | 'spring'; year: number }, extra: Partial<CourseEntry> = {}): CourseEntry => ({ courseId: 'CS 50300', title: 'Operating Systems', credits: 3, term, grade: 'A', origin: 'transfer', institution: 'Purdue University', degreeLevel: 'masters', ...extra });
+  const warn = (courses: CourseEntry[]) => audit(phdStudent({ entryTerm: { season: 'fall', year: 2025 }, priorMs: 'completed', bachelorsAwarded: { season: 'spring', year: 2021 }, courses }), buildRules(), '2026-10-07').warnings.filter((w) => /CS 50300 from .* is entered 2 times/.test(w));
+  it('two rows from one university: warned, with both terms', () => {
+    const w = warn([row({ season: 'fall', year: 2023 }), row({ season: 'spring', year: 2024 }, { institution: 'PURDUE UNIVERSITY' })]);
+    assert.equal(w.length, 1);
+    assert.match(w[0]!, /entered 2 times \(Fall 2023, Spring 2024\)\. Each row is counted separately, so its credit may be counted twice/);
+  });
+  it('one row: nothing', () => {
+    assert.deepEqual(warn([row({ season: 'fall', year: 2023 })]), []);
+  });
+});

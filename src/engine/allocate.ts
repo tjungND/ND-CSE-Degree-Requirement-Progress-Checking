@@ -19,7 +19,7 @@ import { ZERO_SUMS } from './status.ts';
 import { isEarlyStartCourse } from './early-start.ts';
 import { addDaysIso, addYearsIso, compareTerm, endOfTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, startOfTerm, termIndex, termLabel, termOfDate } from './term.ts';
 import type { Attestations, CourseEntry, Grade, NdPosting, Program, Student, Term } from './types.ts';
-import { ndPostingOf, pairedBlockRows } from './nd-posting.ts';
+import { ndPostingOf, pairedBlockRows, sameTransferCourse } from './nd-posting.ts';
 
 /** `nondegree` (2026-10-03): Academic Code §2.3 — "No more than 12 credit hours
  * earned by a student while in non-degree status may be counted toward a degree
@@ -668,6 +668,25 @@ export function classify(student: Student, rules: Rules, today?: string): {
     if (group.length < 2 || group.every((c) => c.origin === 'nd')) continue; // all-ND duplicates: the retake rule below already says it
     warnings.push(
       `${group[0]!.courseId} is entered ${group.length} times for ${termLabel(group[0]!.term)}, under different origins (${[...new Set(group.map((c) => (c.origin === 'nd' ? 'Notre Dame' : (c.institution ?? 'another university'))))].join(' and ')}). Each row is counted separately — if it is one course, remove the duplicate.`,
+    );
+  }
+  // The same course from the same other university on two rows, whatever
+  // their terms (policy review round 3, P3-import-2; the 2026-08-31 promise
+  // "duplicate entries warned"). The Notre Dame transfer block's row and its
+  // twin already count as one course (P3-import-1 (c), pairedBlockRows); any
+  // other pair — a transcript imported twice, a row typed by hand — is
+  // counted twice, so it is said. Same-term pairs are the warning above's.
+  const paired = pairedBlockRows(student.courses);
+  const inPair = new Set<CourseEntry>([...paired.keys(), ...paired.values()]);
+  const grouped = new Set<CourseEntry>();
+  for (const a of student.courses) {
+    if (grouped.has(a) || inPair.has(a)) continue;
+    const group = [a, ...student.courses.filter((b) => b !== a && !inPair.has(b) && sameTransferCourse(a, b))];
+    if (group.length < 2) continue;
+    for (const c of group) grouped.add(c);
+    if (new Set(group.map((c) => termIndex(c.term))).size < 2) continue;
+    warnings.push(
+      `${a.courseId} from ${a.institution} is entered ${group.length} times (${group.map((c) => termLabel(c.term)).join(', ')}). Each row is counted separately, so its credit may be counted twice — if it is one course, remove the duplicate.`,
     );
   }
   // THE 4+1's SHARED CREDITS, chosen by the app (DGS 2026-09-11): "let the
