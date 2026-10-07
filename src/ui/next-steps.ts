@@ -121,6 +121,10 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
     const covers = [...(reviewCount > 0 ? ['phd.transfer', 'ms.transfer', 'shared.approvals'] : []), ...(advisorToDgs ? ['shared.advisor'] : [])];
     steps.push({ text, href: '#dgs-review', ...(covers.length > 0 ? { covers } : {}) });
   }
+  // The dual-degree plan of study (P3-dh-front-1-2-2; DGS Handbook §2.9): the
+  // Graduate School approves it, and the tick under Approvals records it.
+  const dualWaiting = report.requirements.some((r) => r.id === 'shared.approvals' && (r.detailParts ?? []).some((p) => typeof p === 'object' && 'lead' in p && /^Waiting for the Graduate School’s approval of your dual-degree plan of study/.test(p.lead)));
+  if (dualWaiting) steps.push({ text: 'Once the Graduate School approves your dual-degree plan of study, tick it under Approvals you already have (DGS Handbook §2.9).', href: '#milestones' });
   // 3. The advisor, and the plan-of-study box — neither waits for the DGS.
   // The step says what the advisor card says (P3-cse-1-2-2): no advisor on
   // file → enter the name; a name on file but the faculty-status question

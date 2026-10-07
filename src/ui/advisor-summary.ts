@@ -21,7 +21,7 @@ import type { AuditReport, DetailPart, RequirementResult, Status } from '../engi
 import { deadlineTermLabel, dueTermPhrase, termLabel } from '../engine/term.ts';
 import { shortenAfterFirst } from './first-mention.ts';
 import { decisionWording } from '../engine/decider.ts';
-import { gpaText } from '../engine/requirements/shared.ts';
+import { DUAL_PLAN_REASON, gpaText } from '../engine/requirements/shared.ts';
 import { ACTION_HEADING, STUDENT_LINE, esc, htmlRequirementBlock, plural, programLabel, programShort, studentLineHtml, textRequirementBlock, type DeadlineAlert, type StandingColor } from './email-html.ts';
 import { BETA_NOTICE, HANDBOOK_URL, formatYmdLong } from './handbook.ts';
 import type { ProgramHistory } from './program-history.ts';
@@ -471,6 +471,9 @@ export function actionItems(report: AuditReport): ActionItems {
 
   // Course-level approvals — the per-course sign-off list.
   const approvals = byId.get('shared.approvals');
+  // Waiting only on the Graduate School's approval of the dual-degree plan
+  // (P3-dh-front-1-2-2; DGS Handbook §2.9): the student's errand, not the DGS's.
+  const dualPlanCourses: string[] = [];
   const pendingCourses: string[] = [];
   const processingCourses: string[] = [];
   for (const part of approvals?.detailParts ?? []) {
@@ -495,11 +498,17 @@ export function actionItems(report: AuditReport): ActionItems {
         out.gradAdmin.push(`Submit the Transfer of Credits request to the Graduate School for ${course} — recommended by the DGS (§5.2).`);
         continue;
       }
+      const dual = DUAL_PLAN_REASON.exec(reason);
+      if (dual && !dual[1]) {
+        dualPlanCourses.push(course);
+        continue;
+      }
       pendingCourses.push(course);
       // Each list in its reader's own words (DGS 2026-09-28): the page's
       // reason is written for the student ("send the review request", "your
       // advisor"), and used to land verbatim in front of the advisor and the DGS.
-      const item = approvalItems(course, reason, report.program);
+      // A dual-degree course with a real DGS question after it: that question.
+      const item = approvalItems(course, dual?.[1] ?? reason, report.program);
       if (item.advisor) out.advisor.push(item.advisor);
       if (item.dgs) out.dgs.push(item.dgs);
       }
@@ -515,6 +524,9 @@ export function actionItems(report: AuditReport): ActionItems {
   }
   if (processingCourses.length > 0) {
     out.student.push(`Send the Grad Admin the processing request for ${once(processingCourses)}.`);
+  }
+  if (dualPlanCourses.length > 0) {
+    out.student.push(`Get the Graduate School’s approval of my dual-degree plan of study, which counts ${once(dualPlanCourses)} toward both degrees (DGS Handbook §2.9).`);
   }
 
   // Missing rules-sheet parameters: the DGS's tool to fix.

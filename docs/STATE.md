@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — engine and page; policy review round 3): **P3-dh-front-1-2-2.** The dual-degree plan’s wait is the Graduate School’s: shared.ts `signOffActors` routes it to a `graduateSchool` actor (`DUAL_PLAN_REASON`), review.ts skips `dualPlanOnly`, advisor-summary.ts and next-steps.ts word the student’s errand. tests/dual-plan-routing.test.ts; scenario phd-dual-degree-plan-pending pins the Approvals row and an empty review request. Wording W-CL230–W-CL232.
+
 2026-10-06 (DGS — import; policy review round 3): **P3-dh-front-1-2-1.** A Notre Dame degree conferred in January belongs to the fall before (term.ts `conferralTerm`), in the entry-term inference (parse.ts, `inferEntryTerm` now exported for tests), the MSCSE award (prior-nd.ts), the bachelor’s award (nd-upload.ts `bachelorsAwardFrom`, exported) and the program history. tests/conferral-term.test.ts.
 
 2026-10-06 (DGS — engine; policy review round 3): **P3-dh-3.14-3.20-4, (b).** The “first semester complete” test for the transfer processing request is one helper (allocate.ts `firstSemesterComplete`): the entry term’s end, or any finished earlier Notre Dame graduate program. tests/first-semester-complete.test.ts; scenario phd-spring-entrant-transfer-in-june. Wording W-CL229.

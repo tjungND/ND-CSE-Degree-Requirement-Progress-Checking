@@ -192,6 +192,13 @@ export interface ClassifiedCourse {
    * confers the degree only with no I grades in that semester (DGS Handbook
    * §3.23.1), so the course line says so. */
   incompleteInGraduationTerm?: true;
+  /** Shared with the student's other degree, and the Graduate School has yet
+   * to approve the dual-degree plan of study — that is ALL it waits for
+   * (policy review round 3, P3-dh-front-1-2-2; DGS 2026-10-06): no DGS
+   * decision is open, so it stays out of the review request and the DGS's
+   * to-dos (DGS Handbook §2.9: "The plan must then be approved by the
+   * Graduate School"). */
+  dualPlanOnly?: true;
   /** A transfer graded S (pass): a pass/fail mark cannot show the B §5.2
    * criterion 4 requires, so the course waits for the DGS (DGS 2026-10-03). */
   passFailGrade?: true;
@@ -846,6 +853,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
         ...cc,
         caps: [...cc.caps, 'otherdegree'],
         tier: 'provisional',
+        ...(cc.approvalPending === undefined ? { dualPlanOnly: true as const } : {}),
         approvalPending: `also counts toward your other degree — the Graduate School must approve your dual-degree plan of study (DGS Handbook §2.9)${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
       };
     };

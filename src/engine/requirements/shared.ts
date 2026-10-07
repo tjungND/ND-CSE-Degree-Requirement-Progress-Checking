@@ -308,8 +308,17 @@ export function msCandidacyApplicationRow(ctx: Ctx, args: { group: string; ready
  * DGS decision; a non-CSE course needs the advisor AND the DGS, so it is
  * listed under both. `advisorSummary` routes the same strings the same way —
  * keep the two in step. */
-export type SignOffActor = 'dgs' | 'advisor' | 'gradAdmin';
+export type SignOffActor = 'dgs' | 'advisor' | 'gradAdmin' | 'graduateSchool';
+/** The dual-degree plan of study's wait (allocate.ts withSharedDegree), and
+ * whatever other ask follows it after "; ". */
+export const DUAL_PLAN_REASON = /^also counts toward your other degree — the Graduate School must approve your dual-degree plan of study \(DGS Handbook §2\.9\)(?:; ([\s\S]*))?$/;
 export function signOffActors(reason: string): SignOffActor[] {
+  // The dual-degree plan is the Graduate School's to approve, not the DGS's
+  // (policy review round 3, P3-dh-front-1-2-2; DGS Handbook §2.9) — "DGS
+  // Handbook" in its citation used to route it to the DGS. A real DGS ask
+  // after it keeps its own route.
+  const dual = DUAL_PLAN_REASON.exec(reason);
+  if (dual) return dual[1] ? signOffActors(dual[1]) : ['graduateSchool'];
   if (/^approved by the DGS/i.test(reason)) return ['gradAdmin'];
   const actors: SignOffActor[] = [];
   if (/advisor/i.test(reason)) actors.push('advisor');
@@ -336,7 +345,7 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   // A pre-approved transfer whose §4.4.1 core area the DGS has not recorded is
   // still in the review request (review.ts), so it belongs to the DGS too: the
   // reason string alone cannot tell, hence the second source here.
-  const ACTOR_ORDER = ['advisor', 'dgs', 'gradAdmin'] as const;
+  const ACTOR_ORDER = ['advisor', 'dgs', 'gradAdmin', 'graduateSchool'] as const;
   const reasonOf = (c: (typeof pending)[number]): string => c.approvalPending ?? 'the DGS has still to record its core-knowledge area (§4.4.1)';
   const actorsOf = (c: (typeof pending)[number]): SignOffActor[] => {
     const actors = new Set<SignOffActor>(signOffActors(reasonOf(c)));
@@ -350,6 +359,8 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
     'advisor,dgs': 'Your advisor and the DGS must both approve these — send the review request',
     'dgs,gradAdmin': 'The transfer is approved — the Grad Admin processes it, and the DGS has still to record the core-knowledge area',
     'advisor,dgs,gradAdmin': 'Your advisor, the DGS and the Grad Admin each have something left to do with these',
+    // P3-dh-front-1-2-2: the whole plan, approved by the Graduate School.
+    graduateSchool: 'Waiting for the Graduate School’s approval of your dual-degree plan of study — tick it under Approvals you already have once it is approved',
   };
   const groups = new Map<string, typeof pending>();
   for (const c of pending) {
@@ -368,7 +379,7 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   const pageNotes: DetailPart[] = [];
   // {lead, items} → the report renders one nested bullet per course
   // (DGS request 2026-09-04); the prose flattens to the same sentence.
-  for (const key of ['dgs', 'advisor,dgs', 'advisor', 'dgs,gradAdmin', 'advisor,dgs,gradAdmin', 'gradAdmin']) {
+  for (const key of ['dgs', 'advisor,dgs', 'advisor', 'dgs,gradAdmin', 'advisor,dgs,gradAdmin', 'gradAdmin', 'graduateSchool']) {
     const list = groups.get(key);
     if (list === undefined || list.length === 0) continue;
     // One item per REASON, the courses that share it listed together
@@ -388,7 +399,10 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   if (planUnconfirmed) {
     instructions.push({ note: `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the box below the milestones` });
   }
-  if (parts.length > 0 || instructions.length > 0) instructions.push({ note: 'When the DGS answers, tick the box next to each course it approved for you' });
+  // Only when a course waits on the DGS: a list that waits only on the
+  // Graduate School's plan approval, or only on the advisor, has no DGS
+  // answer to tick (P3-dh-front-1-2-2).
+  if (anyDgs) instructions.push({ note: 'When the DGS answers, tick the box next to each course it approved for you' });
   parts.push(...instructions);
   pageParts.push(...pageNotes, ...instructions);
   // Courses a tick cleared stay named here (P1-levels-grades-credits-30,

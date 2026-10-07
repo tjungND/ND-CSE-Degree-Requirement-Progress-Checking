@@ -163,6 +163,9 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       const couldStillEarnACoreArea = qualifierApplies && c.unknown === true && coreTitle(c);
       // A lapsed Incomplete has no passing grade yet — that is the question (2026-10-03).
       if (!passesCreditFloor(c.entry.grade) && !couldStillEarnACoreArea && !c.incompleteLapsed) continue;
+      // Waiting only on the Graduate School's approval of the dual-degree plan
+      // (P3-dh-front-1-2-2; DGS Handbook §2.9): nothing for the DGS to decide.
+      if (c.dualPlanOnly === true) continue;
       if (c.unknown === true || c.approvalPending !== undefined) {
         // The record-level facts no sheet row can settle (policy review
         // 2026-10-03): a lapsed Incomplete, and coursework from before a
