@@ -2,10 +2,7 @@
 
 Copyright © 2026 University of Notre Dame du Lac. All rights reserved.
 
-**ND CSE Degree Requirement Progress Checking** is freely available without a fee for a
-non-commercial use, and may be redistributed under these conditions. For commercial use, the
-non-exclusive commercial license requires a non-refundable annual fee; the model license
-agreement is [attached](docs/Notre-Dame-Commercial-License-Model.docx). For commercial use queries, please contact
+**ND CSE Degree Requirement Progress Checking** is freely available without a fee to academic institutions and non-profit organizations for non-commercial research purposes and may be redistributed only in accordance with the terms and conditions of the applicable license. Please see the attached license for further details. For commercial use, the non-exclusive commercial license requires a non-refundable annual fee. For commercial use queries, please contact 
 [softwarelicensing@nd.edu](mailto:softwarelicensing@nd.edu).
 
 ---
@@ -14,8 +11,6 @@ agreement is [attached](docs/Notre-Dame-Commercial-License-Model.docx). For comm
 
 - The non-exclusive commercial license requires a non-refundable $25,000 US annual royalty.
 - The license is non-negotiable.
-- The full model agreement is attached: [Notre Dame Software Licensing Model — Commercial
-  License](docs/Notre-Dame-Commercial-License-Model.docx).
 
 Information required to complete the license:
 
@@ -31,13 +26,13 @@ Information required to complete the license:
 
 Steps to execute the license:
 
-1. Contact Notre Dame's IDEA Center at [softwarelicensing@nd.edu](mailto:softwarelicensing@nd.edu).
-2. You'll then receive a Docusign document with the license.
-3. Review the information and electronically sign it.
-4. The signed document will automatically return to the University of Notre Dame du Lac (UND),
+- Contact Notre Dame's IDEA Center at [softwarelicensing@nd.edu](mailto:softwarelicensing@nd.edu).
+- You'll then receive a Docusign document with the license.
+- Review the information and electronically sign it.
+- The signed document will automatically return to the University of Notre Dame du Lac (UND),
    where it will be signed by UND.
-5. You'll receive an "Approved" email along with a scan of the fully executed document.
-6. Pay the license fee per license agreement.
-7. Once paid, you may begin using the ND CSE Degree Requirement Progress Checking software.
+- You'll receive an "Approved" email along with a scan of the fully executed document.
+- Pay the license fee per license agreement.
+- Once paid, you may begin using the ND CSE Degree Requirement Progress Checking software.
 
 This technology may not be exported or reexported to Cuba, Iran, North Korea, Syria, and Sudan.
