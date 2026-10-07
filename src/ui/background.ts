@@ -288,7 +288,16 @@ export function backgroundQuestions(
       }),
     );
     finishedBox.replaceChildren(
-      el('legend', { class: 'followup-title' }, `Did you finish that degree? (§5.2 allows ${program === 'mscse' ? '9' : '24'} transfer credits after a finished master’s or Ph.D., 6 otherwise)`),
+      el(
+        'legend',
+        { class: 'followup-title' },
+        // Another Notre Dame department, unfinished (policy review round 3,
+        // P3-dh-3.14-3.20-1; DGS 2026-10-06: "Apply the handling"): a move into
+        // CSE from it is a program transfer (DGS Handbook §3.15), not §5.2's six.
+        state.graduate === 'nd-other'
+          ? `Did you finish that degree? (After a finished one, §5.2 allows ${program === 'mscse' ? '9' : '24'} transfer credits; moving into CSE from an unfinished one is a program transfer — its courses count as yours from your first admission, DGS Handbook §3.15)`
+          : `Did you finish that degree? (§5.2 allows ${program === 'mscse' ? '9' : '24'} transfer credits after a finished master’s or Ph.D., 6 otherwise)`,
+      ),
       yesNo('finished', state.finished, (v) => {
         state.finished = v;
         onChange(state);

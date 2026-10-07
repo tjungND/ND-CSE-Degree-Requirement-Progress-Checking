@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — page text; policy review round 3): **P3-dh-3.14-3.20-1.** An unfinished program in another Notre Dame department: the standing card (app.ts `ndOtherUnfinishedSentence`) and the dialog’s “Did you finish that degree?” (background.ts) describe a program transfer (DGS Handbook §3.15) instead of §5.2’s six, unless the record holds Notre Dame graduate courses from before the entry term. No counting changed. Wording W-CL224–W-CL225.
+
 2026-10-06 (DGS — engine and page; policy review round 3): **P3-dh-3.1-3.13-3, with the optional (3).** An I in the named graduation semester: `report.graduation.incompletes` (audit.ts) feeds a warning, the graduation next step (next-steps.ts) and the processing request (grad-admin-request.ts); the course line carries the clause (allocate.ts `incompleteInGraduationTerm`). Both programs. tests/graduation-incomplete.test.ts; scenario mscse-incomplete-in-graduation-semester. Wording W-CL220–W-CL223.
 
 2026-10-06 (DGS — page; policy review round 3): **P3-dh-3.1-3.13-2, option (b).** The transcript’s empty semesters run through the current one (src/ui/withdrawals.ts `transcriptGapSemesters`, moved out of app.ts), so a medical leave this semester is asked; the medical-leave count is always in Your standing’s selector (closed unless a transcript sign needs an answer), so a leave approved for a coming semester can be entered. tests/transcript-gaps.test.ts; scenario phd-leave-current-semester-after-import. Wording W-CL219.

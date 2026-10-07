@@ -819,6 +819,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       ? base
       : `${base} But your MSCSE ended in ${termLabel(separated)}, five years or more before you entered the Ph.D. in ${termLabel(normalizeEntryTerm(student.entryTerm).term)}: a separation that long from the graduate program may forfeit its credit and coursework (Academic Code §5.5), so every MSCSE course counts only once the DGS reviews it and the Graduate School approves — the review request asks.`;
   }
+  /** An unfinished program in another Notre Dame department (policy review
+   * round 3, P3-dh-3.14-3.20-1; DGS 2026-10-06: "Apply the handling"). A move
+   * into CSE from it is a program transfer: the Graduate School does not reset
+   * the clock and may require a plan of study naming the prior courses it
+   * accepts (DGS Handbook §3.15) — the import keeps the first admission as the
+   * entry term (2026-10-03, item 16), so those courses are this program's
+   * coursework, not §5.2 transfer credit. §5.2's six stays only for courses
+   * from a separate earlier admission: Notre Dame graduate courses dated
+   * before the entry term. */
+  function ndOtherUnfinishedSentence(unfinished: string, finished: string): string {
+    const separateEarlier = student.courses.some((c) => c.origin === 'transfer' && isNotreDameInstitution(c.institution) && c.degreeLevel !== 'bachelors');
+    if (separateEarlier) return ` Your earlier Notre Dame program in another department was not finished — another graduate program under §5.2, so up to ${unfinished} credits from it may transfer; it would be ${finished} after a finished degree.`;
+    const nonCse = `${student.program === 'mscse' ? '§3.2' : '§4.2'}’s nine-credit allowance`;
+    return ` You moved into CSE from an unfinished Notre Dame program in another department: the Graduate School treats that as a program transfer, which does not reset your clock (DGS Handbook §3.15). Its courses are on your Notre Dame record from your first admission, ${termLabel(normalizeEntryTerm(student.entryTerm).term)}, and count under the course rules — a course outside CSE within ${nonCse}, and a course not in the rules waits for the DGS. The DGS confirms which earlier courses are accepted (the Graduate School’s plan of study, DGS Handbook §3.15).`;
+  }
   /** Whether a prior Notre Dame course group holds the student's own MSCSE. */
   function holdsOwnMscse(): boolean {
     const g = student.background?.graduate;
@@ -855,7 +870,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Dame" (Academic Code §4.6; DGS 2026-10-03) — the §5.2 caps apply.
       return b.finished
         ? ` You finished a graduate degree at Notre Dame in another department — another graduate program under §5.2, so up to ${finished} credits from it may transfer; it would be ${unfinished} if that program were unfinished.`
-        : ` Your earlier Notre Dame program in another department was not finished — another graduate program under §5.2, so up to ${unfinished} credits from it may transfer; it would be ${finished} after a finished degree.`;
+        : ndOtherUnfinishedSentence(unfinished, finished);
     }
     return ` No graduate degree before this program: ${noStatedLimit}.`;
   }
