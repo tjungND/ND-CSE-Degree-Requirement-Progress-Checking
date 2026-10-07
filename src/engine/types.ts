@@ -739,7 +739,10 @@ export interface AuditReport {
   /** The semester of graduation the student entered, and whether a Notre Dame
    * course of at least one credit (any credit in a summer) is entered for it
    * (Academic Code §3.7; DGS Handbook §3.23.1 — 2026-10-04). */
-  graduation?: { term: Term; registeredCredits: number; registered: boolean };
+  /** `incompletes`: Notre Dame courses graded I in that semester — the
+   * Graduate School confers the degree only with none (policy review round 3,
+   * P3-dh-3.1-3.13-3; DGS Handbook §3.23.1). */
+  graduation?: { term: Term; registeredCredits: number; registered: boolean; incompletes?: string[] };
   /** Graduation is in sight, so the page asks the semester (DGS 2026-10-05:
    * "Let's show it only when it matters"): a Ph.D. student once the OCE is
    * passed, an MSCSE student once the total credits are complete or in

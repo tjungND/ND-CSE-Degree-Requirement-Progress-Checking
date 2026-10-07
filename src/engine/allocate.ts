@@ -187,6 +187,11 @@ export interface ClassifiedCourse {
   /** An Incomplete past that date: an F unless the Graduate School extended
    * it — counted provisionally and sent to the DGS. */
   incompleteLapsed?: true;
+  /** An Incomplete in the semester the student plans to graduate (policy
+   * review round 3, P3-dh-3.1-3.13-3; DGS 2026-10-06): the Graduate School
+   * confers the degree only with no I grades in that semester (DGS Handbook
+   * §3.23.1), so the course line says so. */
+  incompleteInGraduationTerm?: true;
   /** A transfer graded S (pass): a pass/fail mark cannot show the B §5.2
    * criterion 4 requires, so the course waits for the DGS (DGS 2026-10-03). */
   passFailGrade?: true;
@@ -793,7 +798,9 @@ export function classify(student: Student, rules: Rules, today?: string): {
     // classifyTransfer holds it for the DGS instead.
     const incompleteDue = grade === 'I' && (c.origin === 'nd' || isNotreDameInstitution(c.institution)) ? incompleteDeadline(c.term) : undefined;
     const incompleteLapsed = incompleteDue !== undefined && today !== undefined && today > incompleteDue;
-    const incompleteNote: Partial<ClassifiedCourse> = incompleteDue === undefined ? {} : incompleteLapsed ? { incompleteDue, incompleteLapsed: true } : { incompleteDue };
+    const inGraduationTerm = incompleteDue !== undefined && student.graduationTerm !== undefined && compareTerm(c.term, student.graduationTerm) === 0;
+    const incompleteNote: Partial<ClassifiedCourse> =
+      incompleteDue === undefined ? {} : { incompleteDue, ...(incompleteLapsed ? { incompleteLapsed: true as const } : {}), ...(inGraduationTerm ? { incompleteInGraduationTerm: true as const } : {}) };
     const withIncomplete = (cc: ClassifiedCourse): ClassifiedCourse => {
       if (incompleteDue === undefined || cc.ineligibleReason !== undefined) return { ...cc, ...incompleteNote };
       if (!incompleteLapsed) return { ...cc, ...incompleteNote };
@@ -2412,6 +2419,8 @@ function buildExplanationText(
     // its stand-in, the term's nominal end, falls after it — so no date is
     // given. `incompleteDue` (44 days) still decides when the line lapses.
     if (cc.incompleteDue !== undefined && !cc.incompleteLapsed) parts.push('Incomplete (I): finish the work within 30 calendar days of the date grades were due for that semester, or the I becomes an F; the instructor then has 14 days to report the grade (Academic Code §4.4; CSE §5.1)');
+    // The semester the student graduates (P3-dh-3.1-3.13-3; DGS 2026-10-06, the optional (3)).
+    if (cc.incompleteInGraduationTerm) parts.push(`${termLabel(cc.entry.term)} is your graduation semester, and the degree is conferred only with no I grades in it (DGS Handbook §3.23.1)`);
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved
     // lead says "as transfer credit"); say it once.
     if (cc.caps.includes('transfer') && !preApproved && !cc.approvedNote && !/^transfer|§5\.2/.test(cc.approvalPending ?? '')) parts.push('transfer credit (§5.2)');

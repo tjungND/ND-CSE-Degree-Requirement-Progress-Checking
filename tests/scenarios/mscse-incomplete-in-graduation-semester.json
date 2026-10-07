@@ -1,0 +1,136 @@
+{
+  "name": "mscse-incomplete-in-graduation-semester",
+  "description": "Policy review round 3, P3-dh-3.1-3.13-3 (DGS 2026-10-06: “apply the handling including the optional (3)”). An MSCSE student with 30 credits graded, graduating Fall 2026, and a surplus CSE 60876 graded I in Fall 2026. DGS Handbook §3.23.1: \"No ‘I’ grades in any course during the final semester of a terminal degree\". The report now lists the I on the graduation record, warns, and the I’s line says the degree is conferred only with no I grades in that semester (tests/graduation-incomplete.test.ts covers the warning, the next step and the processing request).",
+  "today": "2026-12-20",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "none",
+    "graduationTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "milestones": {},
+    "attestations": {
+      "advisorApprovedPlan": true
+    },
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60868",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 68902",
+        "credits": 6,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "I",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {},
+  "expectGraduation": {
+    "registered": true
+  },
+  "expectCourseLines": {
+    "CSE 60876": [
+      "Fall 2026 is your graduation semester, and the degree is conferred only with no I grades in it (DGS Handbook §3.23.1)"
+    ]
+  }
+}

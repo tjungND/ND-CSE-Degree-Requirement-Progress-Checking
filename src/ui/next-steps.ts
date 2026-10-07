@@ -154,9 +154,14 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   // least one credit entered for it is a step at any time; registered, the
   // Roll Call reminder once everything is met.
   const g = report.graduation;
+  // An I in that semester comes first (P3-dh-3.1-3.13-3; DGS Handbook
+  // §3.23.1): no "you are registered for it" as if the student were clear.
+  const gradIncompletes = g?.incompletes ?? [];
+  if (g !== undefined && gradIncompletes.length > 0)
+    steps.push({ text: `Have the I in ${gradIncompletes.join(', ')} made final before your degree is conferred — the Graduate School confers it only with no I grades in ${termLabel(g.term)}, the semester you graduate; otherwise move your graduation semester (DGS Handbook §3.23.1).` });
   if (g !== undefined && !g.registered)
     steps.push({ text: `Register for at least one credit hour in ${termLabel(g.term)}${g.term.season === 'summer' ? ' (a zero-credit course is enough in a summer session)' : ''} and complete ND Roll Call — the Graduate School confers your degree only then (Academic Code §3.7).` });
-  else if (allRequirementsMet(report))
+  else if (allRequirementsMet(report) && gradIncompletes.length === 0)
     steps.push({ text: g !== undefined ? `Complete ND Roll Call in ${termLabel(g.term)}, the semester you graduate — you are registered for it (Academic Code §3.7).` : GRADUATION_SEMESTER_STEP });
   // 6. The advisor summary, any time.
   if (hasCourses) steps.push({ text: 'Send the summary to your advisor whenever you like.' });

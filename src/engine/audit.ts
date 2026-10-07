@@ -693,7 +693,18 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     );
     const credits = inTerm.reduce((sum, cc) => sum + cc.entry.credits, 0);
     const registered = t.season === 'summer' ? inTerm.length > 0 : credits >= 1;
-    graduation = { term: t, registeredCredits: credits, registered };
+    // DGS Handbook §3.23.1: "No 'I' grades in any course during the final
+    // semester of a terminal degree"; §3.13: an I may not be given then (policy
+    // review round 3, P3-dh-3.1-3.13-3; DGS 2026-10-06: "apply the handling
+    // including the optional (3)"). Both programs: no document defines
+    // "terminal degree", and the semester asked is the student's own degree's.
+    const incompletes = [...new Set(classified.filter((cc) => cc.entry.origin === 'nd' && cc.entry.grade === 'I' && compareTerm(cc.entry.term, t) === 0).map((cc) => cc.entry.courseId))];
+    graduation = { term: t, registeredCredits: credits, registered, ...(incompletes.length > 0 ? { incompletes } : {}) };
+    if (incompletes.length > 0) {
+      warnings.push(
+        `An Incomplete cannot stand in the semester you graduate: ${incompletes.join(', ')} ${incompletes.length === 1 ? 'is' : 'are'} graded I in ${termLabel(t)}, and the Graduate School confers the degree only with no I grades in that semester. Have the grade made final before conferral, or move your graduation semester (DGS Handbook §3.23.1, §3.13; Academic Code §4.3).`,
+      );
+    }
     if (!registered && today >= startOfTerm(t).date) {
       warnings.push(
         `You plan to graduate in ${termLabel(t)}, but no Notre Dame course${t.season === 'summer' ? '' : ' of at least one credit'} is entered for it — register for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in ${termLabel(t)}: the Graduate School confers the degree only then (Academic Code §3.7; DGS Handbook §3.23.1).`,

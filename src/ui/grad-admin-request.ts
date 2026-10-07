@@ -527,7 +527,10 @@ export function gradAdminRequest(
       lines: [
         g === undefined
           ? 'I will be registered for at least one credit hour (a zero-credit course in a summer session) and complete ND Roll Call in the semester I graduate.'
-          : g.registered
+          : g.incompletes !== undefined && g.incompletes.length > 0
+            ? // An I in that semester (P3-dh-3.1-3.13-3; DGS Handbook §3.23.1).
+              `I plan to graduate in ${termLabel(g.term)}, but ${g.incompletes.join(', ')} ${g.incompletes.length === 1 ? 'is' : 'are'} graded I in that semester — the degree is conferred only with no I grades in it, so I will have ${g.incompletes.length === 1 ? 'the grade' : 'the grades'} made final first (DGS Handbook §3.23.1)${g.registered ? '' : `; I will also register for at least one credit hour${g.term.season === 'summer' ? ' (a zero-credit course is enough in a summer session)' : ''} and complete ND Roll Call then`}.`
+            : g.registered
             ? `I plan to graduate in ${termLabel(g.term)}; I am registered for it (${formatCredits(g.registeredCredits)} credits entered) and will complete ND Roll Call then.`
             : `I plan to graduate in ${termLabel(g.term)}; I will register for at least one credit hour${g.term.season === 'summer' ? ' (a zero-credit course is enough in a summer session)' : ''} and complete ND Roll Call then.`,
       ],
