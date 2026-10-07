@@ -147,7 +147,11 @@ export function isPriorNd(c: CourseEntry, student: Pick<Student, 'entryTerm' | '
  * department (2026-10-03), is a prior program under §5.2 — finished or not;
  * the CSE MSCSE, a 4+1 and a move from the MSCSE are not. */
 export function priorMsOfBackground(b: NonNullable<Student['background']>): Student['priorMs'] {
-  return b.graduate === 'elsewhere' || b.graduate === 'nd-other' ? (b.finished ? 'completed' : 'unfinished') : 'none';
+  // A transfer from the Notre Dame MSCSE is no earlier program (one graduate
+  // program with the Ph.D., DGS 2026-09-26) — unless the student also held or
+  // started a degree elsewhere (P3-prior-programs-2; DGS 2026-10-07).
+  const outside = b.graduate === 'elsewhere' || b.graduate === 'nd-other' || (b.graduate === 'nd-mscse-transfer' && b.alsoElsewhere === true);
+  return outside ? (b.finished ? 'completed' : 'unfinished') : 'none';
 }
 
 /** An inferred "Prior graduate study" beside an ANSWERED earlier-degrees

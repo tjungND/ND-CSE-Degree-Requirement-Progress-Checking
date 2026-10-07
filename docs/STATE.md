@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-07 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-07 (DGS — page and engine): **P3-prior-programs-2, option (a).** The transfer-from-the-MSCSE answer now asks “Did you also hold, or start, a graduate degree at another university?” (then “Did you finish that degree?”): a yes sets the §5.2 cap (24 / 6) and opens the Master’s and Ph.D. transcript rows, and the transfer clocks stay as they were. P3-prior-programs-1 (the same question under the two MSCSE-held answers) is still open. Wording W-CL291–W-CL294.
+
 2026-10-07 (DGS — rulings, no code change): **P3-hidden-inputs-1, option (3)** (after first choosing (2)): a student who passed the OCE while credits wait for the DGS gets no date box until the DGS rules; the review request carries the rows to the sheet. A test pins the finding’s case. **P3-import-2, option (a):** duplicate transfer rows are warned about and both count until the student removes one.
 
 2026-10-07 (DGS — engine): **P3-fourplusone-2, option (2).** When a 4+1 student’s answered admission is after the bachelor’s but the Notre Dame transcript registers an unshared pre-bachelor’s graduate course GR (moved UG→GR, which happens only before the bachelor’s), the course is held for the ADGS instead of refused, a warning asks the student to recheck the term, and the review request asks the ADGS to confirm. UG and unlevelled rows are still refused. Wording W-CL288–W-CL290.

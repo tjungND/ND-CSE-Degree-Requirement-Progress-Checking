@@ -39,6 +39,13 @@ export interface Background {
   /** `nd-mscse-transfer` only (DGS 2026-09-28): when the student moved into
    * the Ph.D. — named on the copied emails beside the MSCSE entry term. */
   transferredTerm?: Term;
+  /** `nd-mscse-transfer` only (policy review round 3, P3-prior-programs-2;
+   * DGS 2026-10-07: option (a)): a graduate degree at another university as
+   * well, held or started — "Did you finish it?" follows. The single answer
+   * used to record such a student as having no earlier program (a 6-credit
+   * meter, every outside course held), or, answered "another university",
+   * lost the transfer term and moved the qualifier clock a year early. */
+  alsoElsewhere?: boolean;
 }
 export type PriorSlot = 'bachelors' | 'masters' | 'phd';
 
@@ -70,7 +77,7 @@ export const GRADUATE_NOTES: Partial<Record<GraduateBefore, string>> = {
   elsewhere: 'a master’s, or Ph.D. study',
   'nd-mscse': 'as a regular master’s student',
   'nd-4plus1': 'the Integrated B.S. + M.S. program',
-  'nd-mscse-transfer': 'not a degree — you started in the MSCSE and moved into the Ph.D. before finishing it',
+  'nd-mscse-transfer': 'you started in the MSCSE and moved into the Ph.D. before finishing it; a degree from another university is asked next',
 };
 
 /** One selectable option row (DGS 2026-09-29: the opening dialog's radios
@@ -102,7 +109,9 @@ function asksIntegratedFor(b: Partial<Background>, program: Program): boolean {
  * program at Notre Dame" (DGS: "they need to be properly treated as another
  * graduate program"). */
 function asksFinishedFor(b: Partial<Background>): boolean {
-  return b.graduate === 'elsewhere' || b.graduate === 'nd-other';
+  // …and an outside degree beside a transfer from the Notre Dame MSCSE
+  // (P3-prior-programs-2; DGS 2026-10-07: option (a)).
+  return b.graduate === 'elsewhere' || b.graduate === 'nd-other' || (b.graduate === 'nd-mscse-transfer' && b.alsoElsewhere === true);
 }
 
 export function completeBackground(b: Partial<Background> | undefined, program: Program): Background | undefined {
@@ -112,6 +121,7 @@ export function completeBackground(b: Partial<Background> | undefined, program: 
   if (asksIntegrated && b.ndIntegrated === undefined) return undefined;
   if (b.graduate === 'elsewhere' && (b.samePlace === undefined || b.finished === undefined)) return undefined;
   if (b.graduate === 'nd-other' && b.finished === undefined) return undefined;
+  if (b.graduate === 'nd-mscse-transfer' && (b.alsoElsewhere === undefined || (b.alsoElsewhere && b.finished === undefined))) return undefined;
   return {
     bachelors: b.bachelors,
     ...(asksIntegrated ? { ndIntegrated: b.ndIntegrated === true } : {}),
@@ -123,6 +133,7 @@ export function completeBackground(b: Partial<Background> | undefined, program: 
     // The transfer term is asked but not required: the answer is complete
     // without it, and the emails then say "term not entered".
     ...(b.graduate === 'nd-mscse-transfer' && b.transferredTerm ? { transferredTerm: b.transferredTerm } : {}),
+    ...(b.graduate === 'nd-mscse-transfer' ? { alsoElsewhere: b.alsoElsewhere === true, ...(b.alsoElsewhere ? { finished: b.finished === true } : {}) } : {}),
   };
 }
 
@@ -135,7 +146,7 @@ export function priorSlotsFor(b: Background | undefined): PriorSlot[] {
   // transcripts, one per career, and the fold above the rows says which row
   // takes which shape.
   if (b.bachelors === 'elsewhere') slots.push('bachelors');
-  if (b.graduate === 'elsewhere') slots.push('masters', 'phd');
+  if (b.graduate === 'elsewhere' || (b.graduate === 'nd-mscse-transfer' && b.alsoElsewhere === true)) slots.push('masters', 'phd');
   return slots;
 }
 
@@ -155,7 +166,7 @@ export function describeBackground(b: Background): string {
         : b.graduate === 'nd-4plus1'
           ? 'the MSCSE at Notre Dame (4+1)'
           : b.graduate === 'nd-mscse-transfer'
-          ? `none — transferred into the Ph.D. from the Notre Dame MSCSE${b.transferredTerm ? ` in ${termLabel(b.transferredTerm)}` : ''} (the §4.3 and §4.5 clocks and admission to candidacy count from the MSCSE start, the §4.4 qualifier clocks and the first-year seminars from the transfer)`
+          ? `${b.alsoElsewhere ? `${b.finished ? 'finished' : 'not finished'}, at another university; and ` : 'none — '}transferred into the Ph.D. from the Notre Dame MSCSE${b.transferredTerm ? ` in ${termLabel(b.transferredTerm)}` : ''} (the §4.3 and §4.5 clocks and admission to candidacy count from the MSCSE start, the §4.4 qualifier clocks and the first-year seminars from the transfer)`
           : b.graduate === 'nd-other'
             ? `Notre Dame, another department (${b.finished ? 'finished' : 'not finished'})`
             : `${b.finished ? 'finished' : 'not finished'}, at ${b.samePlace ? 'the same university as the bachelor’s (a 4+1 or 5+1)' : 'another university'}`;
@@ -213,6 +224,8 @@ export function backgroundQuestions(
   const elsewhereBox = el('fieldset', { class: 'field group background-followup' });
   const finishedBox = el('fieldset', { class: 'field group background-followup' });
   const transferBox = el('fieldset', { class: 'field group background-followup' });
+  // A degree elsewhere beside the transfer (P3-prior-programs-2).
+  const alsoElsewhereBox = el('fieldset', { class: 'field group background-followup' });
   // The transfer term (DGS 2026-09-28): a season and a year, kept only when
   // the year is a real one; the entry term is not touched.
   const termControls = (): HTMLElement => {
@@ -319,6 +332,20 @@ export function backgroundQuestions(
       termControls(),
     );
     transferBox.hidden = state.graduate !== 'nd-mscse-transfer';
+    // A student who began in the Notre Dame MSCSE may also hold, or have
+    // started, a master's elsewhere (policy review round 3,
+    // P3-prior-programs-2; DGS 2026-10-07: option (a)) — §5.2's 24 or 6
+    // then apply to it, and "Did you finish that degree?" follows a yes.
+    alsoElsewhereBox.replaceChildren(
+      el('legend', { class: 'followup-title' }, 'Did you also hold, or start, a graduate degree at another university?'),
+      yesNo('alsoelsewhere', state.alsoElsewhere, (v) => {
+        state.alsoElsewhere = v;
+        if (!v) state.finished = undefined;
+        renderFollowUps();
+        onChange(state);
+      }),
+    );
+    alsoElsewhereBox.hidden = state.graduate !== 'nd-mscse-transfer';
     // The graduate-degree family waits for the bachelor's answer (and, for
     // the MSCSE, the 4+1 follow-up); for the Ph.D. the 4+1 follow-up comes
     // after the graduate question, since that question may answer it.
@@ -326,7 +353,7 @@ export function backgroundQuestions(
     // These questions live in dialogs outside the page root, which the
     // after-render citation pass never reaches: label them here ("CSE §5.2",
     // DGS 2026-10-03, citations.ts).
-    for (const box of [integratedBox, elsewhereBox, finishedBox, transferBox]) labelCitationsIn(box);
+    for (const box of [integratedBox, elsewhereBox, finishedBox, transferBox, alsoElsewhereBox]) labelCitationsIn(box);
   };
   // A numbered step (CSS counts the visible ones): the question is the heading.
   const graduateBox = el(
@@ -341,7 +368,10 @@ export function backgroundQuestions(
         state.graduate = v as GraduateBefore;
         if (v !== 'elsewhere') state.samePlace = undefined;
         if (v !== 'elsewhere' && v !== 'nd-other') state.finished = undefined;
-        if (v !== 'nd-mscse-transfer') state.transferredTerm = undefined;
+        if (v !== 'nd-mscse-transfer') {
+          state.transferredTerm = undefined;
+          state.alsoElsewhere = undefined;
+        }
         // The MSCSE through the 4+1 answers the Ph.D.'s 4+1 follow-up.
         if (program === 'phd' && v === 'nd-4plus1') state.ndIntegrated = undefined;
         renderFollowUps();
@@ -370,8 +400,11 @@ export function backgroundQuestions(
     ),
     ...(program === 'mscse' ? [integratedBox, graduateBox] : [graduateBox, integratedBox]),
     elsewhereBox,
-    finishedBox,
+    // The transfer's own questions come before "Did you finish that degree?",
+    // which follows the other-university one (P3-prior-programs-2).
     transferBox,
+    alsoElsewhereBox,
+    finishedBox,
   );
   labelCitationsIn(questions);
   return questions;

@@ -183,10 +183,23 @@ export async function driveApp(s, baseUrl) {
   const transferAsk = JSON.parse(await s.evalJs(`JSON.stringify((() => { const y = document.querySelector('[data-key="background.transferred.year"]'); const box = y?.closest('fieldset'); return { shown: !!box && !box.hidden, legend: box?.querySelector('legend')?.textContent.slice(0, 40) }; })())`));
   console.log('  transfer question:', JSON.stringify(transferAsk));
   if (!transferAsk.shown || !/^When did you transfer into the Ph\.D\./.test(transferAsk.legend)) throw new Error('choosing "transferred into the Ph.D." must ask for the transfer term: ' + JSON.stringify(transferAsk));
-  await s.evalJs(`(() => { const se = document.querySelector('[data-key="background.transferred.season"]'); se.value = 'spring'; se.dispatchEvent(new Event('change')); const y = document.querySelector('[data-key="background.transferred.year"]'); y.value = '2027'; y.dispatchEvent(new Event('change')); document.querySelector('[data-key="background.save"]').click(); })()`);
+  await s.evalJs(`(() => { const se = document.querySelector('[data-key="background.transferred.season"]'); se.value = 'spring'; se.dispatchEvent(new Event('change')); const y = document.querySelector('[data-key="background.transferred.year"]'); y.value = '2027'; y.dispatchEvent(new Event('change')); })()`);
+  // …and whether a degree elsewhere came too (policy review round 3,
+  // P3-prior-programs-2; DGS 2026-10-07: option (a)): Save waits for the
+  // answer, and a yes asks "Did you finish that degree?".
+  const alsoAsk = JSON.parse(await s.evalJs(`JSON.stringify((() => { const box = document.querySelector('[data-key="background.alsoelsewhere.yes"]')?.closest('fieldset'); return { shown: !!box && !box.hidden, legend: box?.querySelector('legend')?.textContent ?? '', saveDisabled: document.querySelector('[data-key="background.save"]').disabled }; })())`));
+  console.log('  degree-elsewhere question:', JSON.stringify(alsoAsk));
+  if (!alsoAsk.shown || alsoAsk.legend !== 'Did you also hold, or start, a graduate degree at another university?' || !alsoAsk.saveDisabled) throw new Error('the transfer answer must ask about a degree elsewhere before Save: ' + JSON.stringify(alsoAsk));
+  await s.evalJs(`document.querySelector('[data-key="background.alsoelsewhere.yes"]').click()`);
+  const finishedAsk = await s.evalJs(`(() => { const box = document.querySelector('[data-key="background.finished.yes"]')?.closest('fieldset'); return !!box && !box.hidden && document.querySelector('[data-key="background.save"]').disabled; })()`);
+  if (finishedAsk !== true) throw new Error('a yes must ask "Did you finish that degree?" before Save');
+  await s.evalJs(`document.querySelector('[data-key="background.finished.yes"]').click()`);
+  await s.shot('background-transfer-also-elsewhere');
+  await s.evalJs(`document.querySelector('[data-key="background.save"]').click()`);
   await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
   const bgLine = await s.evalJs(`document.querySelector('[data-key="standing.background"]')?.textContent ?? ''`);
-  if (!/transferred into the Ph\.D\. from the Notre Dame MSCSE in Spring 2027/.test(bgLine)) throw new Error('the standing line must name the transfer term: ' + bgLine);
+  if (!/finished, at another university; and transferred into the Ph\.D\. from the Notre Dame MSCSE in Spring 2027/.test(bgLine)) throw new Error('the standing line must name the degree elsewhere and the transfer term: ' + bgLine);
+  console.log('  standing line:', bgLine.slice(0, 160));
   // The dialog opens after the clipboard write: wait for it.
   await s.evalJs(`document.querySelector('[data-key="save.copy"]').click()`);
   await s.waitFor(`!!document.querySelector('dialog.copy-check')`);

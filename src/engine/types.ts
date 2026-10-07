@@ -331,6 +331,11 @@ export interface Student {
      * while the entry term stays the MSCSE's, which §4.3 and §4.5 count from
      * (DGS 2026-09-26). */
     transferredTerm?: Term;
+    /** `nd-mscse-transfer` only (policy review round 3, P3-prior-programs-2;
+     * DGS 2026-10-07: option (a)): the student ALSO held, or started, a
+     * graduate degree at another university — `finished` then says whether
+     * they finished it, and `priorMs` follows (24 / 6 transfer credits). */
+    alsoElsewhere?: boolean;
   };
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
   /** True while priorMs holds a value INFERRED from an uploaded transcript

@@ -1,0 +1,173 @@
+{
+  "name": "phd-mscse-transfer-with-masters-elsewhere",
+  "description": "Policy review round 3, P3-prior-programs-2 (DGS 2026-10-07: option (a)). A Ph.D. student who finished a master's at Northeastern University (2021–22; three courses the ExternalCourses tab marks yes for the Ph.D.), started the Notre Dame MSCSE in Fall 2023 and moved into the Ph.D. in Fall 2024 before finishing it. The earlier-degrees answer is the transfer, with the new follow-up: a graduate degree at another university too, finished. So §5.2's cap is the completed master's 24 credits and the Northeastern courses count, while the qualifier clocks still run from the transfer term. The single answer used to record no earlier program: a 6-credit meter, and each Northeastern course held as 'taken outside any degree program'.",
+  "today": "2026-10-07",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "NORTHEASTERN UNIVERSITY",
+          "course_id": "CS 5800",
+          "course_title": "Algorithms",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes",
+          "credit_system": "semester"
+        },
+        {
+          "university": "NORTHEASTERN UNIVERSITY",
+          "course_id": "CS 5600",
+          "course_title": "Computer Systems",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes",
+          "credit_system": "semester"
+        },
+        {
+          "university": "NORTHEASTERN UNIVERSITY",
+          "course_id": "CS 6200",
+          "course_title": "Information Retrieval",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes",
+          "credit_system": "semester"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2023
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2020
+    },
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "nd-mscse-transfer",
+      "transferredTerm": {
+        "season": "fall",
+        "year": 2024
+      },
+      "alsoElsewhere": true,
+      "finished": true
+    },
+    "milestones": {
+      "advisorIdentified": "2024-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CS 5800",
+        "title": "Algorithms",
+        "credits": 4,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Northeastern University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CS 5600",
+        "title": "Computer Systems",
+        "credits": 4,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Northeastern University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CS 6200",
+        "title": "Information Retrieval",
+        "credits": 4,
+        "term": {
+          "season": "spring",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Northeastern University",
+        "degreeLevel": "masters"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "in_progress",
+      "detailIncludes": [
+        "12 of the 24 credits you may transfer are counted",
+        "Approved by the DGS in the course rules: CS 5600, CS 5800, CS 6200"
+      ]
+    },
+    "phd.credits.regular": {
+      "status": "met"
+    },
+    "phd.qualifier.research": {
+      "status": "unmet",
+      "detailIncludes": [
+        "The 18 months are counted from your transfer into the Ph.D. in Fall 2024"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CS 5800": [
+      "counts toward regular courses (4 cr)"
+    ]
+  }
+}

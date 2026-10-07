@@ -863,7 +863,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // unfinished or a completed program, so the DGS decides — "may transfer"
     // with a number read as an allowance no document gives.
     const noStatedLimit = `the DGS decides whether a course from another university transfers, and how much (§5.2 sets a limit only after a graduate program); this page holds it to ${unfinished} until then`;
-    if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree: ${noStatedLimit}; your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and the eighth semester for the OCE and for admission to candidacy count from the semester you started the MSCSE; the §4.4 qualifier clocks and the first-year seminars (§4.2) from your transfer.`;
+    if (b.graduate === 'nd-mscse-transfer') {
+      // A degree elsewhere beside the transfer (P3-prior-programs-2; DGS
+      // 2026-10-07: option (a)) is a prior program under §5.2.
+      const outside = b.alsoElsewhere
+        ? b.finished
+          ? `You finished a graduate degree at another university, so up to ${finished} credits from it may transfer (§5.2); it would be ${unfinished} if that program were unfinished`
+          : `Your graduate program at another university was not finished, so up to ${unfinished} credits from it may transfer (§5.2); it would be ${finished} after a finished degree`
+        : `No earlier degree: ${noStatedLimit}`;
+      return ` ${outside}; your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and the eighth semester for the OCE and for admission to candidacy count from the semester you started the MSCSE; the §4.4 qualifier clocks and the first-year seminars (§4.2) from your transfer.`;
+    }
     if (b.graduate === 'nd-other') {
       // Another Notre Dame department is "another graduate program at Notre
       // Dame" (Academic Code §4.6; DGS 2026-10-03) — the §5.2 caps apply.
@@ -1635,7 +1644,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           );
     // No earlier Notre Dame program on the record (its earlier one was at
     // another university, P3-dh-3.14-3.20-3): "graduate", never "master's".
-    const noEarlierNdProgram = student.ndMasters === undefined && student.background?.graduate === 'elsewhere';
+    // A transfer from the MSCSE beside a degree elsewhere too (P3-prior-programs-2).
+    const bg = student.background;
+    const noEarlierNdProgram = student.ndMasters === undefined && (bg?.graduate === 'elsewhere' || (bg?.graduate === 'nd-mscse-transfer' && bg.alsoElsewhere === true));
     const priorNdCourseworkWord = (c: CourseEntry): string =>
       c.degreeLevel === 'bachelors'
         ? 'undergraduate'

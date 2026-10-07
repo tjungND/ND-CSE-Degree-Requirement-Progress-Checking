@@ -1333,8 +1333,11 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // Handbook §3.14; Academic Code §2.3). Option (c): the non-degree question
   // stays narrowed to records with no earlier program (2026-10-03, item 13);
   // this course waits for the DGS, counted provisionally, with no transfer
-  // projection, and the review request names the twelve.
-  if (isNotreDameInstitution(c.institution) && c.degreeLevel !== 'bachelors' && student.ndMasters === undefined && student.background?.graduate === 'elsewhere') {
+  // projection, and the review request names the twelve. A transfer from the
+  // Notre Dame MSCSE whose student also held or started a degree elsewhere is
+  // the same record (P3-prior-programs-2; DGS 2026-10-07: option (a)).
+  const earlierElsewhere = student.background?.graduate === 'elsewhere' || (student.background?.graduate === 'nd-mscse-transfer' && student.background.alsoElsewhere === true);
+  if (isNotreDameInstitution(c.institution) && c.degreeLevel !== 'bachelors' && student.ndMasters === undefined && earlierElsewhere) {
     const shape = rule ? priorNdShape(c.courseId, rule, program, c.dgsApproved === true) : undefined;
     if (shape && 'ineligibleReason' in shape) return { ...extBase, notTransferCredit: true, ndBeforeAdmission: true, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
     return {
