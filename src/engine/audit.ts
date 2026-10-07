@@ -431,6 +431,19 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       `Before your bachelor’s degree is conferred (${termLabel(student.bachelorsAwarded)}): the graduate courses you are counting beyond the shared pair must be moved from undergraduate (UG) to graduate (GR) registration with the Graduate School’s transfer-of-credit form, approved by your advising dean and the Graduate School — after conferral they cannot be (Graduate School 4+1 guidance). Ask the Grad Admin for the form.`,
     );
   }
+  // The same deadline for a 4+1 senior who has not said when they were
+  // admitted (policy review round 3, P3-fourplusone-3; DGS 2026-10-07: "apply
+  // the suggested handling"): those courses read "not counted yet", and the
+  // warning above never fired — but the move cannot be made after conferral,
+  // so it is said now, as a condition. Records saved before 2026-10-04 have
+  // no admission term at all.
+  const ifAdmitted = classified.filter((c) => c.ugToGrIfAdmitted);
+  if (student.program === 'mscse' && student.integratedBsMs === true && student.integratedAdmitted === undefined && student.bachelorsAwarded !== undefined && compareTerm(student.bachelorsAwarded, termOfDate(today)) >= 0 && ifAdmitted.length > 0) {
+    const ids = [...new Set(ifAdmitted.map((c) => c.entry.courseId))];
+    warnings.push(
+      `If you were admitted to the Integrated B.S. + M.S. program by the semester you took ${ids.join(', ')}, ${ids.length === 1 ? 'it' : 'they'} must be moved from undergraduate (UG) to graduate (GR) registration before your bachelor’s degree is conferred (${termLabel(student.bachelorsAwarded)}) — after conferral ${ids.length === 1 ? 'it' : 'they'} cannot be (Graduate School 4+1 guidance). Say when you were admitted (Your standing → Change).`,
+    );
+  }
   // CSE §5.1: "The department and the Graduate School will review a student
   // who receives more than one grade of I in a semester or a grade of I in two
   // or more consecutive semesters, to determine their eligibility for
@@ -568,7 +581,12 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // (DGS 2026-09-27): the headline used to count the qualifier six times and
   // grow by one when an allowance was first drawn on.
   const isScored = (r: RequirementResult) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable';
-  const otherRows = rows.filter(isScored);
+  // The OCE and the ethics training are shown inside the admission card since
+  // 2026-10-04 and leave the headline, but they are still requirements: the
+  // eight-year row reads them too, so it cannot say "complete" while either
+  // date is blank (policy review round 3, P3-ac-6.2-app-4; the invariant of
+  // P2-dh-6-9-1, 2026-10-04).
+  const otherRows = rows.filter((r) => isScored(r) || (r.mergedInto !== undefined && r.status !== 'not_applicable'));
   // A requirement completed AFTER the limit reads "Eligibility at risk" rather
   // than met (policy review 2026-10-03) — for the time-limit row it is still
   // complete, so that row can say the same thing instead of "Overdue".

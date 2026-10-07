@@ -1,0 +1,85 @@
+{
+  "name": "mscse-4plus1-senior-admitted-ug-to-gr",
+  "description": "Policy review round 3, P3-fourplusone-3: the answered case beside it. Admitted to the Integrated program for Fall 2026, before the bachelor's (Spring 2027): CSE 60641 from Fall 2026, registered UG, counts provisionally until it is moved from UG to GR, and the warning (policy review 2026-10-03) tells the senior to do it before conferral. No test pinned either warning before.",
+  "today": "2027-02-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "spring",
+      "year": 2027
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2027
+    },
+    "integratedBsMs": true,
+    "background": {
+      "bachelors": "nd-cse",
+      "ndIntegrated": true,
+      "graduate": "none"
+    },
+    "milestones": {},
+    "attestations": {
+      "dgsApproved4xxxx": true
+    },
+    "courses": [
+      {
+        "courseId": "CSE 40113",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 40243",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      }
+    ],
+    "integratedAdmitted": {
+      "season": "fall",
+      "year": 2026
+    }
+  },
+  "expect": {},
+  "expectWarnings": [
+    "Before your bachelor’s degree is conferred (Spring 2027): the graduate courses you are counting beyond the shared pair must be moved from undergraduate (UG) to graduate (GR) registration"
+  ],
+  "expectNoWarnings": [
+    "If you were admitted to the Integrated B.S. + M.S. program by the semester you took"
+  ]
+}

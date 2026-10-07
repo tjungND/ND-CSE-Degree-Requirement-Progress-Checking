@@ -66,7 +66,11 @@ The CSE handbook's numbers — the department's, which a DGS may tune. A number 
 department (the Graduate School's Academic Code or DGS Handbook: the 15-credit semester maximum,
 the eighth-semester admission to candidacy, …) is deliberately NOT a row here; it lives in the
 code beside the sentence it comes from, and changing it is a Track B change (README § A5b lists
-them; DGS 2026-09-27, 2026-10-04). The quarter and trimester factors of §5.2's pro-rata conversion
+them; DGS 2026-09-27, 2026-10-04). Six rows here carry a Graduate School minimum themselves, with
+no code constant behind them — `ms_time_limit_years`, `ms_total_credits_min`, `gpa_min`,
+`fulltime_credits_min`, `summer_fulltime_credits_min` and `phd_time_limit_years`: they may be
+tightened, never loosened, and the diagnostics warn when one is set looser than the Graduate
+School allows (README § A5b; 2026-10-07). The quarter and trimester factors of §5.2's pro-rata conversion
 (0.66 and 0.88, the DGS Handbook's §3.14 table) were rows here from 2026-09-12 and moved into the
 code on 2026-10-04 (DGS). Three more rows were PARKED — kept in the tab, read by nothing:
 `ms_thesis_readers_min` (§3.4's two readers; no reader count is checked, the thesis row checks the

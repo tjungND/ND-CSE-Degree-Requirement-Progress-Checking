@@ -162,6 +162,19 @@ describe('summer session only: seven years for the DGS to confirm (Academic Code
     const after = audit(summerOnly(), rules, '2026-10-02').milestoneDeadlines!;
     assert.equal(deadlineText(after.projectReportAccepted!), 'Due before Fall 2028 — seven years if you attend summer sessions only, as the ADGS confirms (Academic Code §6.1.4)');
   });
+  // The thesis-submission box has the same switch, with its calendar clause
+  // (policy review round 3, P3-text-engine-2): defended, not yet submitted.
+  it('the thesis submission box: the seven beside the five, then the seven — never Overdue inside it', () => {
+    const thesis = () => ({ ...summerOnly({ thesisTopicApproved: '2024-06-01', thesisDefensePassed: '2026-07-15' }), msOption: 'thesis' as const });
+    const before = audit(thesis(), rules, '2025-10-02').milestoneDeadlines!;
+    assert.equal(
+      deadlineText(before.thesisSubmitted!),
+      'Due before Fall 2026 — the 5-year limit (§3.3); to graduate in a given semester, also by that semester’s date on the Graduate School calendar (Academic Code §6.1.8); or before Fall 2028 if you attend summer sessions only — seven years (Academic Code §6.1.4), as the ADGS confirms',
+    );
+    const after = audit(thesis(), rules, '2026-10-02').milestoneDeadlines!;
+    assert.notEqual(after.thesisSubmitted!.state, 'overdue');
+    assert.equal(deadlineText(after.thesisSubmitted!), 'Due before Fall 2028 — seven years if you attend summer sessions only, as the ADGS confirms (Academic Code §6.1.4); to graduate in a given semester, also by that semester’s date on the Graduate School calendar (Academic Code §6.1.8)');
+  });
 });
 
 // University funding and the eight-year row (policy review 2026-10-04,

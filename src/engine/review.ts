@@ -234,7 +234,14 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
     if (c.entry.origin !== 'transfer') continue;
 
     const fromNotreDame = isNotreDameInstitution(c.entry.institution);
-    const bachelors = c.entry.degreeLevel === 'bachelors';
+    // The undergraduate career: the transcript's UG level, or any Notre Dame
+    // row the engine filed as coursework from before the bachelor's (allocate.ts
+    // classifyPriorNdUndergraduate) — which is never §5.2 transfer credit,
+    // whatever level it was registered at (Academic Code §4.6, last
+    // paragraph). A GR-registered 4+1 course used to be sent for a §5.2
+    // recommendation (policy review round 3, P3-fourplusone-5).
+    const bachelors =
+      c.entry.degreeLevel === 'bachelors' || (fromNotreDame && c.notTransferCredit === true && !c.nonDegree && !c.ndBeforeAdmission && !c.ndMastersCredit);
     // Prior Notre Dame coursework whose Courses-tab row names a core area is
     // decided for §4.4.1 already (2026-09-05) — no ruling to ask for.
     const coreDecidedByCoursesTab = fromNotreDame && c.rule?.coreArea !== undefined;
@@ -398,7 +405,14 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
             ? []
             : bachelors
               ? needsApprovalOnTop
-                ? ['approve it for me (the allowance for courses below the 60000 level)']
+                ? // What the line waits on (P3-fourplusone-5): the allowance
+                  // below the 60000 level, or the row's case-by-case
+                  // approval; an unlisted row's questions are the row's.
+                  c.caps.includes('fourk')
+                  ? ['approve it for me (the allowance for courses below the 60000 level)']
+                  : c.rule !== undefined
+                    ? ['approve it for me — the course rules say case by case']
+                    : []
                 : []
               : c.ndMastersCredit
                 ? needsApprovalOnTop
@@ -424,7 +438,9 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
             : policyAsks.length > 0
               ? (c.approvalPending ?? 'needs the DGS’s decision')
               : bachelors && needsApprovalOnTop
-              ? `may count toward the ${student.program === 'mscse' ? 'MSCSE (§3.2)' : 'Ph.D. (§4.2)'} inside the allowance for courses below the 60000 level — ${c.approvalPending}`
+              ? c.caps.includes('fourk')
+                ? `may count toward the ${student.program === 'mscse' ? 'MSCSE (§3.2)' : 'Ph.D. (§4.2)'} inside the allowance for courses below the 60000 level — ${c.approvalPending}`
+                : `may count toward the ${student.program === 'mscse' ? 'MSCSE' : 'Ph.D.'} — ${c.approvalPending}`
               : c.ndMastersCredit
                 ? // Not transfer credit (Graduate School 2026-09-22): what is
                   // open is the sheet row's own approval, and nothing else.

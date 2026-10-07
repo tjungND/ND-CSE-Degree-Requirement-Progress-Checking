@@ -1,0 +1,86 @@
+{
+  "name": "mscse-4plus1-senior-no-admission-term",
+  "description": "Policy review round 3, P3-fourplusone-3 (DGS 2026-10-07: apply the suggested handling). A 4+1 senior (bachelor's in Spring 2027, the current semester) has not said when they were admitted to the Integrated B.S. + M.S. program. CSE 60641, taken in Fall 2026 as an undergraduate and not shared with the bachelor's, reads \"not counted yet\" (2026-10-04) — and the Graduate School's UG→GR move, which cannot be made after conferral, used to go unmentioned. The warning now says it as a condition.",
+  "today": "2027-02-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "mscse",
+    "msOption": "project",
+    "entryTerm": {
+      "season": "spring",
+      "year": 2027
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2027
+    },
+    "integratedBsMs": true,
+    "background": {
+      "bachelors": "nd-cse",
+      "ndIntegrated": true,
+      "graduate": "none"
+    },
+    "milestones": {},
+    "attestations": {
+      "dgsApproved4xxxx": true
+    },
+    "courses": [
+      {
+        "courseId": "CSE 40113",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 40243",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "bachelors",
+        "registeredLevel": "undergraduate"
+      }
+    ]
+  },
+  "expect": {},
+  "expectWarnings": [
+    "If you were admitted to the Integrated B.S. + M.S. program by the semester you took CSE 60641, it must be moved from undergraduate (UG) to graduate (GR) registration before your bachelor’s degree is conferred (Spring 2027)"
+  ],
+  "expectNoWarnings": [
+    "the graduate courses you are counting beyond the shared pair must be moved"
+  ],
+  "expectCourseLines": {
+    "CSE 60641": [
+      "not counted yet — say when you were admitted to the Integrated B.S. + M.S. program"
+    ]
+  }
+}

@@ -52,3 +52,24 @@ describe('transfer credit the Grad Admin has still to process (P3-emails-1)', ()
     assert.ok(!todo.gradAdmin.some((x) => /Transfer of Credits/.test(x)), JSON.stringify(todo.gradAdmin));
   });
 });
+
+// The course's own line after the tick (policy review round 3, P3-import-5):
+// nothing is left to send once the Grad Admin recorded the transfer.
+describe('a transferred course’s line once the transfer is recorded (P3-import-5)', () => {
+  it('the Ph.D., a sheet yes: “recorded by the Grad Admin”, not “send the processing request”', () => {
+    const line = (recorded: boolean) => audit(student(recorded), rules, TODAY).courseLines.find((l) => l.courseId === 'COMPSCI 589')!.text;
+    assert.match(line(false), /send the Grad Admin the processing request/);
+    assert.match(line(true), /approved by the DGS in the course rules — recorded by the Grad Admin, as you ticked under Approvals \(§5\.2\)/);
+    assert.doesNotMatch(line(true), /processing request/);
+  });
+  it('the MSCSE, a case-by-case course the ADGS approved and the student ticked', () => {
+    const r = buildRules({ external: [{ university: UMASS, course_id: 'COMPSCI 589', course_title: 'Machine Learning', transferable_PhD: 'yes', transferable_MSCSE: 'adgs_approval', is_cse: 'yes' }] });
+    const s = phdStudent({
+      program: 'mscse', msOption: 'project', entryTerm: t('fall', 2025), bachelorsAwarded: t('spring', 2022), priorMs: 'completed', gpa: 3.7,
+      courses: [transferCourse('COMPSCI 589', 'Machine Learning', { term: t('fall', 2023), institution: UMASS, degreeLevel: 'masters', dgsApproved: true })],
+      attestations: { transferRecorded: true },
+    });
+    const line = audit(s, r, TODAY).courseLines.find((l) => l.courseId === 'COMPSCI 589')!.text;
+    assert.match(line, /approved by the ADGS for you, as you ticked on the course .* — recorded by the Grad Admin, as you ticked under Approvals \(§5\.2\)/);
+  });
+});

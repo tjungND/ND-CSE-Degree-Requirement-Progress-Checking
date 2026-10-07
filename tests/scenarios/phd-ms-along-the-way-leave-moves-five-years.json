@@ -1,0 +1,140 @@
+{
+  "name": "phd-ms-along-the-way-leave-moves-five-years",
+  "description": "Policy review round 3, P3-dh-3.21-3.24-2 (DGS 2026-10-07: apply the suggested handling): the MSCSE along the way checks whether the OCE came within the master's five years (Academic Code §6.1.4; DGS Handbook §3.21.1). It counted five plain calendar years, while every other clock — the MSCSE's own five-year row included (DGS 2026-10-03, Item 17) — adds six months per approved medical leave semester. Entered Fall 2020, two leave semesters, the OCE in April 2026: inside the shifted five years, so the award is not held.",
+  "today": "2026-06-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2020
+    },
+    "priorMs": "none",
+    "gpa": 3.8,
+    "leaveSemesters": 2,
+    "leaveTerms": [
+      {
+        "season": "fall",
+        "year": 2022
+      },
+      {
+        "season": "spring",
+        "year": 2023
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2020-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes",
+      "researchQualifierPassed": "2022-01-15",
+      "candidacyPassed": "2026-04-15"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2020
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2020
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60535",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60762",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60770",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 98900",
+        "credits": 6,
+        "term": {
+          "season": "fall",
+          "year": 2021
+        },
+        "grade": "S",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.msAlongTheWay": {
+      "status": "met",
+      "detailIncludes": [
+        "Oral Candidacy Exam (OCE) passed 2026-04-15"
+      ],
+      "detailExcludes": [
+        "five-year limit may apply"
+      ]
+    }
+  }
+}

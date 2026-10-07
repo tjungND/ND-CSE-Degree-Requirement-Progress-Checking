@@ -230,7 +230,16 @@ export function msMilestoneDeadlines(ctx: Ctx): Deadlines {
     // The final thesis to the Graduate School (Academic Code §6.1.8 —
     // 2026-10-04): inside the five years, and by the calendar's date for the
     // graduation wanted, as the Ph.D.'s submission box says.
-    out.thesisSubmitted = at(ctx, limit, theLimit, m.thesisSubmitted, 'auto', 'to graduate in a given semester, also by that semester’s date on the Graduate School calendar (Academic Code §6.1.8)');
+    // A summer-session-only record gets the route boxes' seven-year switch,
+    // keeping the calendar clause (policy review round 3, P3-text-engine-2;
+    // DGS 2026-10-07: "apply the suggested handling"): the box read Overdue
+    // at five years while the defense box and the time-limit row ran to the
+    // seven.
+    const calendar = 'to graduate in a given semester, also by that semester’s date on the Graduate School calendar (Academic Code §6.1.8)';
+    out.thesisSubmitted =
+      seven !== undefined && !m.thesisSubmitted && ctx.today > limit && ctx.today <= seven
+        ? at(ctx, seven, sevenBasis, undefined, 'auto', calendar)
+        : at(ctx, limit, theLimit, m.thesisSubmitted, 'auto', seven !== undefined ? `${calendar}; or ${duePhrase(seven)} if you attend summer sessions only — seven years (Academic Code §6.1.4), as the DGS confirms` : calendar);
   }
   return out;
 }

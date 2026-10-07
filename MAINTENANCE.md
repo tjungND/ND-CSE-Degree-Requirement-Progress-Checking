@@ -137,8 +137,9 @@ CSE" needs. Two places say so, and both are yours: the Parameters key `cse_subje
 subject codes that mean CSE (`CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE`), and an ExternalCourses
 row's `is_cse` cell (`yes` / `no`) settles one course the code cannot — `ECE` is computing at one
 school and circuits at another. A code the list does not name counts against the nine credits. If
-you delete the parameter, no transferred course is placed inside or outside CSE and the allowance
-stops applying to transfers altogether — which is exactly how the app behaved before this existed.
+you delete the parameter (or blank its cell), no transferred course can be placed by its code, so
+every transferred course whose ExternalCourses row has no `is_cse` cell is held for you to decide
+instead of counting (since 2026-10-03) — nearly all of them today; the diagnostics box says so.
 
 Since 2026-09-09 the ExternalCourses tab decides §5.2 transferability per PROGRAM: `transferable_PhD`
 and `transferable_MSCSE`, each taking `yes` / `no` / `dgs_approval` / `adgs_approval` / blank. The app

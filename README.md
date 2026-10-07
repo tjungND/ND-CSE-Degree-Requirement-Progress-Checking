@@ -184,13 +184,19 @@ no longer read and can be deleted.)
 
 The department's own numbers — the CSE handbook's credit totals, caps, deadlines, the qualifier,
 the GPA minimum, the full-time credit floor — stay in the **Parameters** tab (A5). When a CSE
-handbook number and a Graduate School number say the same thing (the four semesters of §4.3's
-residency, the eighth semester of §4.5's exam), the sheet row is the department's and the code
-constant is the Graduate School's: changing the sheet changes only the department's rule.
-One row is the other way round by the DGS's choice (2026-10-04): `summer_fulltime_credits_min`, the
-MSCSE's summer residency floor, is a sheet row although its six is the Graduate School's (DGS
-Handbook §10.3.2) — read, like `fulltime_credits_min`, as the department's own full-time definition,
-and never to be set below six.
+handbook number and a Graduate School number say the same thing **and the code holds the
+Graduate School's** (the four semesters of §4.3's residency, the eighth semester of §4.5's exam),
+the sheet row is the department's and the code constant is the Graduate School's: changing the
+sheet changes only the department's rule.
+
+Six rows are different: they carry the Graduate School's minimum **themselves**, with no constant
+in the code behind them — `ms_time_limit_years` (5 years, Academic Code §6.1.4),
+`ms_total_credits_min` (30, §6.1.1), `gpa_min` (3.0, §4.5), `fulltime_credits_min` (9, §3.3),
+`summer_fulltime_credits_min` (6, DGS Handbook §10.3.2 — a sheet row by the DGS's choice,
+2026-10-04) and `phd_time_limit_years` (8, §6.2.6). The Academic Code calls its figures "minimum
+standards": a program may set higher ones, never lower. So these rows may be **tightened, never
+loosened** — the app follows whatever the row says, and the sheet diagnostics warn when one is set
+looser than the Graduate School allows (2026-10-07).
 
 ### A6. Log the change and date it
 

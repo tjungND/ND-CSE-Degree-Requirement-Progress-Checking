@@ -272,6 +272,12 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
       (c) =>
         c.entry.origin === 'transfer' &&
         c.entry.degreeLevel !== 'bachelors' &&
+        // Notre Dame coursework that is not §5.2 transfer credit — a 4+1's
+        // graduate course from before the bachelor's, even registered GR,
+        // counts on the program's advance approval (Academic Code §4.6, last
+        // paragraph), with no Transfer of Credits form (policy review round 3,
+        // P3-fourplusone-5) — as the transfer card already reads it.
+        c.notTransferCredit !== true &&
         !c.superseded &&
         // Already on the Notre Dame record as accepted transfer credit: there
         // is nothing for the Grad Admin to submit (P3-import-1, 2026-10-05).

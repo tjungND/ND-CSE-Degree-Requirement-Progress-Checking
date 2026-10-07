@@ -500,3 +500,28 @@ describe('the OCE waits for a tenured or tenure-track advisor', () => {
   });
 });
 
+
+// The rows merged into the admission card still count for the eight-year row
+// (policy review round 3, P3-ac-6.2-app-4): a dated admission with the
+// training's or the OCE's date blank is a date missing from the record — the
+// card says so, and the eight-year row does not read "complete".
+describe('a dated admission with a blank OCE or training date (P3-ac-6.2-app-4)', () => {
+  const done = { researchQualifierPassed: '2027-11-01', candidacyPassed: '2028-04-01', candidacyAdmitted: '2028-05-01', defensePassed: '2030-04-01', dissertationSubmitted: '2030-04-20', advisorName: 'Prof. Example', advisorTtt: 'yes' as const };
+  it('the training’s date blank: named on the card, and the eight-year row is not complete', () => {
+    const { report, admission } = rows(ready({ ...done, rcrTrainingCompleted: undefined }), '2030-05-01');
+    assert.match(admission.detail, /Responsible Conduct of Research and ethics training: date not entered/);
+    const limit = report.requirements.find((r) => r.id === 'phd.timeLimit')!;
+    assert.notEqual(limit.status, 'met');
+    assert.doesNotMatch(limit.detail, /All requirements are complete/);
+    // The hidden training row is a date missing from the record, which the
+    // eight-year row reads; entered, it is done.
+    assert.equal(report.requirements.find((r) => r.id === 'phd.rcr')!.status, 'cannot_evaluate');
+    const entered = rows(ready({ ...done, rcrTrainingCompleted: '2027-09-01' }), '2030-05-01').report.requirements.find((r) => r.id === 'phd.rcr')!;
+    assert.equal(entered.status, 'met', entered.detail);
+  });
+  it('the OCE’s date blank: “date not entered”, not the admission repeated', () => {
+    const { admission } = rows(ready({ ...done, candidacyPassed: undefined, rcrTrainingCompleted: '2027-09-01' }), '2030-05-01');
+    assert.match(admission.detail, /Oral Candidacy Exam \(OCE\): date not entered/);
+    assert.doesNotMatch(admission.detail, /Oral Candidacy Exam \(OCE\): Admitted to doctoral candidacy/);
+  });
+});

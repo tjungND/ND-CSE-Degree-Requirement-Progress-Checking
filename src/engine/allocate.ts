@@ -250,6 +250,11 @@ export interface ClassifiedCourse {
    * it was "officially transferred" before the bachelor's was conferred (4+1
    * guidance; policy review 2026-10-03). */
   ugToGrUnverified?: true;
+  /** The same course on a 4+1 record whose admission term is unanswered, so
+   * it is "not counted yet": if the student was admitted by its semester, it
+   * must be moved from UG to GR before the bachelor's is conferred (policy
+   * review round 3, P3-fourplusone-3). */
+  ugToGrIfAdmitted?: true;
   /** A Notre Dame graduate course from before admission on a record whose
    * earlier graduate program was at ANOTHER university (policy review round
    * 3, P3-dh-3.14-3.20-3; DGS 2026-10-06: option (c)) — not credit from an
@@ -675,7 +680,9 @@ export function classify(student: Student, rules: Rules, today?: string): {
   // applies to the MSCSE alone. The student is told which is which.
   const bsShared = new Set<CourseEntry>();
   if (program === 'mscse') {
-    const limit = params.number('ms_bs_double_count_credits_max') ?? 0;
+    // A missing row is "cannot evaluate", never zero (CLAUDE.md; policy review
+    // round 3, P3-sheet-6 (b)): it used to share nothing and say nothing.
+    const limit = params.number('ms_bs_double_count_credits_max');
     const awarded = student.bachelorsAwarded;
     // Only a course that can count toward the MSCSE at all is worth a share of
     // the six — a 40000-level row the sheet marks `no` would otherwise take a
@@ -705,11 +712,18 @@ export function classify(student: Student, rules: Rules, today?: string): {
     const sixk = student.courses
       .filter((c) => undergrad(c) && deptOf(c.courseId) === 'CSE' && lvl(c) >= 6 && (awarded === undefined || semesterNumber(awarded, c.term) >= -1))
       .sort((a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId));
-    let used = 0;
-    for (const c of [...fourk, ...sixk]) {
-      if (used + c.credits > limit) continue;
-      bsShared.add(c);
-      used += c.credits;
+    if (limit === undefined) {
+      // Every course that could be shared draws on the `sharedbs` cap, whose
+      // unknown limit holds it for the DGS ("the rules sheet does not say …"),
+      // and the allowance card reads cannot evaluate, as the Ph.D.'s does.
+      for (const c of [...fourk, ...sixk]) bsShared.add(c);
+    } else {
+      let used = 0;
+      for (const c of [...fourk, ...sixk]) {
+        if (used + c.credits > limit) continue;
+        bsShared.add(c);
+        used += c.credits;
+      }
     }
   }
 
@@ -1570,9 +1584,15 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // the review request may go at any time; the credit-transfer request after
   // the first semester).
   const firstSemesterDone = firstSemesterComplete(student, entry, env.today).done;
-  const processWhen = firstSemesterDone
-    ? 'send the Grad Admin the processing request to have it recorded — before the semester your degree is conferred (§5.2)'
-    : 'send the Grad Admin the processing request once your first semester is complete — the Graduate School considers transfer requests only then, and before the semester your degree is conferred (§5.2)';
+  // Once the student ticks that the Graduate School approved the transfer and
+  // the Grad Admin recorded it, nothing is left to send — CSE §5.2 makes the
+  // Graduate School's approval the last step — and the line says so, as the
+  // §5.2 card does (policy review round 3, P3-import-5).
+  const processWhen = student.attestations.transferRecorded === true
+    ? 'recorded by the Grad Admin, as you ticked under Approvals (§5.2)'
+    : firstSemesterDone
+      ? 'send the Grad Admin the processing request to have it recorded — before the semester your degree is conferred (§5.2)'
+      : 'send the Grad Admin the processing request once your first semester is complete — the Graduate School considers transfer requests only then, and before the semester your degree is conferred (§5.2)';
   return {
     ...extBase,
     reviewed,
@@ -1840,6 +1860,11 @@ function classifyPriorNdUndergraduate(
         ...extBase,
         ineligibleReason:
           'not counted yet — say when you were admitted to the Integrated B.S. + M.S. program (Your standing → Change): beyond the six credits shared with your bachelor’s degree, the Graduate School counts such courses only for a student admitted before the bachelor’s degree was awarded, and only from the admission term on (4+1 guidance)',
+        // Not shown moved from UG to GR: if the answer turns out to be "before
+        // the course", the move is due before the bachelor's is conferred, and
+        // the senior must hear that now (policy review round 3,
+        // P3-fourplusone-3) — audit.ts words it as a condition.
+        ...(c.registeredLevel !== 'graduate' ? { ugToGrIfAdmitted: true as const } : {}),
       };
     }
     if (compareTerm(admitted, awardedTerm) > 0) {
@@ -1951,8 +1976,13 @@ function classifyPriorNdUndergraduate(
   // program" (§4.6): the Courses tab's `yes` IS that approval (DGS 2026-10-03,
   // P1-transfer-eligibility-24), and a counted 60000-level course says so.
   const tickApproved = rule !== undefined && c.dgsApproved === true && shapeApproval === undefined && (() => { const s = priorNdShape(c.courseId, rule, program, false); return !('ineligibleReason' in s) && s.approvalPending !== undefined; })();
+  // Only on the rules' own `yes` for this program (policy review round 3,
+  // P3-fourplusone-7): a ticked case-by-case row was approved for this
+  // student, and its tick sentence says so — the line used to claim the
+  // rules said yes, then that they say case by case.
+  const verdict = rule === undefined ? undefined : program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
   const advanceApproval =
-    !provisional && undergradLevel >= 6 && student.integratedBsMs === true && rule !== undefined
+    !provisional && undergradLevel >= 6 && student.integratedBsMs === true && verdict === 'yes'
       ? 'counted on the course rules’ yes, which is the program’s advance approval for graduate coursework taken as an undergraduate (Academic Code §4.6)'
       : undefined;
   const approvalText =

@@ -93,8 +93,10 @@ export function subjectCode(courseId: string): string {
  *      the only thing that can settle a code like ECE, which means computing
  *      at one university and circuits at another;
  *   2. otherwise the Parameters tab's `cse_subject_codes` list;
- *   3. `undefined` when the sheet has no list at all — the app then says
- *      nothing about the course's department and the allowance is not applied.
+ *   3. `undefined` when the sheet has no list at all (or a blank cell) — the
+ *      course is then held for the DGS, who decides whether it is a CSE course
+ *      (allocate.ts `cseUnknown`, since 2026-10-03; it used to leave the
+ *      allowance off — policy review round 3, P3-sheet-6 (a)).
  *
  * A code the list does not name is OUTSIDE CSE, not "unknown": the list is
  * where the DGS says which codes mean CSE, so its silence is an answer. The

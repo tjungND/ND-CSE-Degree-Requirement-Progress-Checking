@@ -4,6 +4,18 @@
 import type { Parameters, SheetIssue } from './types.ts';
 import { DISPLAY_PARAMETER_KEYS, KNOWN_PARAMETER_KEYS, RETIRED_PARAMETER_KEYS } from './types.ts';
 
+/** Parameters rows whose number is also the Graduate School's minimum, with
+ * no constant in the code behind them (README § A5b): each with its test for
+ * "looser" and the Graduate School's sentence. */
+const GRADUATE_SCHOOL_FLOORS: { key: string; looser: (n: number) => boolean; limit: string; source: string }[] = [
+  { key: 'ms_time_limit_years', looser: (n) => n > 5, limit: 'at most 5 years', source: 'Academic Code §6.1.4: “All requirements for the master’s degree must be completed within five years.”' },
+  { key: 'ms_total_credits_min', looser: (n) => n < 30, limit: 'at least 30 credits', source: 'Academic Code §6.1.1: “At least thirty (30) credit hours are required for the master’s degree.”' },
+  { key: 'gpa_min', looser: (n) => n < 3, limit: 'at least 3.0', source: 'Academic Code §4.5: “Continuation in a graduate degree program, admission to degree candidacy, and graduation require maintenance of at least a 3.0 (B) cumulative grade point average”' },
+  { key: 'fulltime_credits_min', looser: (n) => n < 9, limit: 'at least 9 credits', source: 'Academic Code §3.3: “A full-time student is one who registers for at least nine credit hours per semester.”' },
+  { key: 'summer_fulltime_credits_min', looser: (n) => n < 6, limit: 'at least 6 credits', source: 'DGS Handbook §10.3.2: “may include summer session if the student is registered for six or more credits” — the DGS kept this row on the sheet on 2026-10-04, never to be set below six' },
+  { key: 'phd_time_limit_years', looser: (n) => n > 8, limit: 'at most 8 years', source: 'Academic Code §6.2.6: “The student must fulfill all doctoral requirements, including the dissertation, its defense, and the official submission within eight years from the time of matriculation”' },
+];
+
 export function makeParameters(
   raw: Map<string, { value: string; section: string; row: number }>,
   issues: SheetIssue[],
@@ -18,8 +30,10 @@ export function makeParameters(
   const MISSING_CONSEQUENCE: Record<string, string> = {
     summer_fulltime_credits_min:
       'the MSCSE residency row cannot count a summer session by its credits — it reads "cannot evaluate" for a student whose only registration that could count is a summer (a summer beside a full-time spring or fall still counts)',
+    // What the engine does since 2026-10-03 (policy review round 3,
+    // P3-sheet-6 (a)): it holds the course, it does not skip the limit.
     cse_subject_codes:
-      'no course transferred from another university is placed inside or outside CSE, so §4.2’s nine-credit limit on courses "taken from a department other than CSE" is not applied to transfer credit at all',
+      'a course transferred from another university can be placed inside or outside CSE (for the nine-credit limit on courses "taken from a department other than CSE", §3.2/§4.2) only by its ExternalCourses row’s is_cse cell, so every such course without one is held for the DGS instead of counting — today that is nearly all of them, including courses the sheet already approves',
   };
   for (const key of known) {
     if (!raw.has(key)) {
@@ -30,6 +44,18 @@ export function makeParameters(
         message: `The Parameters tab is missing the key '${key}' — ${consequence} until it is added.`,
       });
     }
+  }
+  // A blank subject-code cell reads as a missing key (codeList), with the same
+  // cost, and used to raise nothing (P3-sheet-6 (a)).
+  const codes = raw.get('cse_subject_codes');
+  if (codes !== undefined && codes.value.split(/[;,/]/).every((x) => x.trim() === '')) {
+    issues.push({
+      severity: 'error',
+      tab: 'Parameters',
+      row: codes.row,
+      column: 'value',
+      message: `Parameters row ${codes.row}: 'cse_subject_codes' is blank — ${MISSING_CONSEQUENCE.cse_subject_codes} until the codes are filled in.`,
+    });
   }
   for (const [key, entry] of raw) {
     // A key moved into the code (README § A5b): changing the row changes
@@ -52,6 +78,28 @@ export function makeParameters(
         message: `Parameters row ${entry.row}: the app does not know the key '${key}' — ignored (fine if it is for humans).`,
       });
     }
+  }
+
+  // The Graduate School's own minimums that live only on this tab (policy
+  // review round 3, P3-ac-5b-6.1-4; DGS 2026-10-07: "apply the suggested
+  // handling"). The Academic Code: "The following information represents the
+  // minimum standards established by the Graduate School. Individual programs
+  // may require higher standards." Such a row may be tightened, never
+  // loosened. A looser one is warned about and the verdicts still follow the
+  // row — whether the engine should hold the Graduate School's value instead
+  // is a question for the DGS.
+  for (const floor of GRADUATE_SCHOOL_FLOORS) {
+    const entry = raw.get(floor.key);
+    if (!entry || entry.value.trim() === '') continue;
+    const n = Number(entry.value);
+    if (!Number.isFinite(n) || !floor.looser(n)) continue;
+    issues.push({
+      severity: 'warning',
+      tab: 'Parameters',
+      row: entry.row,
+      column: 'value',
+      message: `Parameters row ${entry.row}: '${floor.key}' is ${entry.value.trim()}, looser than the Graduate School allows — ${floor.limit} (${floor.source}). The app follows the row, so it would tell students they meet a requirement the Graduate School says they do not. A program may set a higher standard, never a lower one.`,
+    });
   }
 
   const reported = new Set<string>();

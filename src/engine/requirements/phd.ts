@@ -8,10 +8,10 @@ import { matchDistinctGroups, type GroupCandidate } from '../matching.ts';
 import { usableGpa } from '../ranges.ts';
 import { shortName } from '../short-names.ts';
 import { combineAll, deadlineStatus, openDeadline } from '../status.ts';
-import { addMonthsIso, addYearsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
+import { addMonthsIso, deadlineTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, maxConsecutiveFullTime, nthSemester, semesterNumber, startOfTerm, termIndex, termLabel, termOfDate, compareTerm } from '../term.ts';
 import type { ConditionMark, DetailPart, Grade, RequirementResult, Status, Term, DeadlineInfo } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { noteOf, capRow, beforeForfeiture, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, courseContributions, creditsReachedAt, defendGpaNote, joinedDetail, lastCompletion, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
+import { noteOf, capRow, beforeForfeiture, clockShiftNote, FORFEIT_FACT, FORFEIT_NOTE, defenseRegistrationNote, courseContributions, creditsReachedAt, defendGpaNote, joinedDetail, lastCompletion, missingParamDetail, provisionalRegularIds, thresholdRow, timeLimitDate, timeLimitRow, countedCourseIds, pendingCourseIds } from './context.ts';
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun, sameTermDuplicate } from './residency.ts';
 import { advisorTttState, defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
@@ -1300,6 +1300,21 @@ function rcrRow(ctx: Ctx): RequirementResult {
   const quote =
     'As part of its holistic approach to graduate education, the Graduate School requires all Ph.D. students to complete any and all training modules for the Responsible Conduct of Research and Ethics requirements.';
   const done = ctx.student.milestones.rcrTrainingCompleted;
+  // A dated admission to candidacy means the Graduate School saw the training
+  // (DGS Handbook §3.22.3): a blank date then is missing from the record, not
+  // work still to do — the eight-year row cannot judge until it is entered
+  // (policy review round 3, P3-ac-6.2-app-4).
+  const admitted = !!ctx.student.milestones.candidacyAdmitted;
+  if (!done && admitted)
+    return {
+      id: 'phd.rcr',
+      group: CANDIDACY,
+      title: 'Responsible Conduct of Research and ethics training complete',
+      shortTitle: 'RCR training',
+      status: 'cannot_evaluate',
+      ...joinedDetail(['Date not entered', { note: 'Admission to candidacy requires the training (DGS Handbook §3.22.3), so your dated admission says it is done — enter the date you completed it under Milestones' }]),
+      citation: { section: 'Academic Code §6.2.4', quote },
+    };
   return {
     id: 'phd.rcr',
     group: CANDIDACY,
@@ -2137,7 +2152,14 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
   const rcrNotes = (merged.rcr.detailParts ?? []).filter(isNote);
   let deadline = r.deadline;
   if (merged.oce.status === 'cannot_evaluate') {
-    parts.push(`Oral Candidacy Exam (OCE): ${(oceParts.find((p): p is string => typeof p === 'string') ?? merged.oce.detail).replace(/\.$/, '')}`);
+    // With a dated admission the OCE row's fact is the admission itself; the
+    // card names what is missing instead (it read "Oral Candidacy Exam (OCE):
+    // Admitted to doctoral candidacy …" — P3-ac-6.2-app-4).
+    parts.push(
+      admitted && !m.candidacyPassed
+        ? 'Oral Candidacy Exam (OCE): date not entered'
+        : `Oral Candidacy Exam (OCE): ${(oceParts.find((p): p is string => typeof p === 'string') ?? merged.oce.detail).replace(/\.$/, '')}`,
+    );
     if (!admitted) status = 'cannot_evaluate';
   } else if (!admitted && merged.oce.status === 'unmet' && merged.oce.deadline?.state === 'overdue' && status !== 'unmet') {
     status = 'unmet';
@@ -2151,6 +2173,8 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     completedLate = false;
   }
   if (!admitted) parts.push(...rcrNotes);
+  // Admitted with the training's date blank (P3-ac-6.2-app-4): said on the card.
+  else if (merged.rcr.status === 'cannot_evaluate') parts.push('Responsible Conduct of Research and ethics training: date not entered', ...rcrNotes);
   return {
     ...base,
     status,
@@ -2358,8 +2382,15 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
   const gpaMin = ctx.params.number('gpa_min');
   const gpa = usableGpa(ctx.student.gpa);
   const gpaShort = gpaMin !== undefined && (gpa === undefined || gpa < gpaMin);
+  // The master's years on the MSCSE's own clock (policy review round 3,
+  // P3-dh-3.21-3.24-2; DGS 2026-10-07: "apply the suggested handling"):
+  // approved medical leave and childbirth accommodation semesters move it, as
+  // they move the MSCSE's row (DGS 2026-10-03, Item 17). Appendix A's year
+  // (A.5) is the doctorate's alone, and dissertation completion status is the
+  // Ph.D.'s, so neither moves it.
   const msYears = ctx.params.number('ms_time_limit_years');
-  const msLimit = msYears === undefined ? undefined : addYearsIso(startOfTerm(ctx.entry).date, msYears);
+  const msLimit = msYears === undefined ? undefined : addMonthsIso(startOfTerm(ctx.entry).date, msYears * 12 + ctx.clockShift * 6);
+  const msShift = clockShiftNote({ ...ctx, covidCohort: false });
   const afterMsLimit = passed !== undefined && msLimit !== undefined && passed > msLimit;
   if (reqReg === undefined || reqRes === undefined) {
     status = 'cannot_evaluate';
@@ -2368,7 +2399,7 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
     status = 'needs_dgs_review';
     const why = [
         ...(gpaShort ? [gpa === undefined ? 'no cumulative GPA is entered, and the award needs at least the 3.0 minimum (§2.2)' : `your cumulative GPA is ${gpaText(gpa)}, below the 3.0 the award needs (§2.2)`] : []),
-        ...(afterMsLimit ? [`the exam came more than ${msYears} years after you entered, and the master’s five-year limit may apply to the award (Academic Code §6.1.4; DGS Handbook §3.21.1)`] : []),
+        ...(afterMsLimit ? [`the exam came more than ${msYears} years after you entered${msShift}, and the master’s five-year limit may apply to the award (Academic Code §6.1.4; DGS Handbook §3.21.1)`] : []),
       ].join(', and ');
     parts = [
       `Oral Candidacy Exam (OCE) passed ${passed}`,
