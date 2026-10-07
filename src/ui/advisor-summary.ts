@@ -43,6 +43,20 @@ export interface AdvisorSummaryOptions {
   /** The unofficial-transcript warning (email-html.ts unofficialTranscriptNote;
    * DGS 2026-10-03), when any imported external transcript was unofficial. */
   unofficialNote?: string;
+  /** The transfers the processing request carries (grad-admin-request.ts
+   * processingItems(...).transfers — policy review round 3, P3-emails-1): the
+   * same list, so a course still waiting for the DGS never reaches the Grad
+   * Admin (2026-09-08). Optional for older callers. */
+  transfers?: AdvisorTransfers;
+}
+
+/** P3-emails-1: what the processing request would carry for transfer credit. */
+export interface AdvisorTransfers {
+  courses: string[];
+  /** The student ticked that the Grad Admin recorded the transfer. */
+  recorded: boolean;
+  /** §5.2: the request is considered only after the first semester (allocate.ts firstSemesterComplete). */
+  firstSemesterDone: boolean;
 }
 
 export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions): { text: string; html: string; subject: string } {
@@ -127,7 +141,7 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
     s.rows.push(r);
   }
 
-  const todo = actionItems(report);
+  const todo = actionItems(report, opts.transfers);
   const deadlineNote = listed.some((r) => deadlineOf(r) !== undefined)
     ? `Deadlines are counted from ${opts.entryTerm} and given by semester; they are approximate — the registrar's calendar sets the exact dates.`
     : '';
@@ -275,7 +289,7 @@ export interface ActionItems {
  * the advisor is the advisor's, one naming the DGS (or a review) the DGS's,
  * and the student sends the review request. Dissertation items appear only
  * once candidacy is passed — they are not this semester's work before that. */
-export function actionItems(report: AuditReport): ActionItems {
+export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): ActionItems {
   const out: ActionItems = { student: [], advisor: [], dgs: [], gradAdmin: [] };
   const byId = new Map(report.requirements.map((r) => [r.id, r]));
   /** The detail as prose — the joined parts when the row carries them. */
@@ -475,7 +489,6 @@ export function actionItems(report: AuditReport): ActionItems {
   // (P3-dh-front-1-2-2; DGS Handbook §2.9): the student's errand, not the DGS's.
   const dualPlanCourses: string[] = [];
   const pendingCourses: string[] = [];
-  const processingCourses: string[] = [];
   for (const part of approvals?.detailParts ?? []) {
     // A statement — fact or note (the page folds notes, DGS 2026-10-03) — is
     // not a course list; the plan-of-study one still makes an advisor to-do.
@@ -491,13 +504,6 @@ export function actionItems(report: AuditReport): ActionItems {
       // Several courses may share one reason on the row (2026-09-26); each
       // gets its own to-do here.
       for (const course of (m ? m[1]! : item).split(/,\s*/)) {
-      // Decided by the DGS already (ruled transferable in the ExternalCourses
-      // tab): processing is the Grad Admin's, not another DGS decision.
-      if (/^approved by the DGS/i.test(reason)) {
-        processingCourses.push(course);
-        out.gradAdmin.push(`Submit the Transfer of Credits request to the Graduate School for ${course} — recommended by the DGS (§5.2).`);
-        continue;
-      }
       const dual = DUAL_PLAN_REASON.exec(reason);
       if (dual && !dual[1]) {
         dualPlanCourses.push(course);
@@ -522,8 +528,17 @@ export function actionItems(report: AuditReport): ActionItems {
   if (pendingCourses.length > 0) {
     out.student.push(`Send the DGS the review request for ${once(pendingCourses)}.`);
   }
-  if (processingCourses.length > 0) {
-    out.student.push(`Send the Grad Admin the processing request for ${once(processingCourses)}.`);
+  // Transfer credit the DGS has decided (a `yes` in the course rules, or the
+  // tick on a case-by-case course) and the Grad Admin has still to submit
+  // (policy review round 3, P3-emails-1; DGS 2026-10-06: "apply the suggested
+  // handling"): read from the processing request's own list. CSE §5.2: "A
+  // student should send the credit transfer request to the Grad Admin and the
+  // DGS will approve and make a recommendation to the Graduate School." Gone
+  // once the student ticks that the Grad Admin recorded it.
+  if (transfers !== undefined && transfers.courses.length > 0 && !transfers.recorded) {
+    const courses = once(transfers.courses);
+    out.student.push(`Send the Grad Admin the processing request for ${courses} (§5.2)${transfers.firstSemesterDone ? '' : ' once my first semester is complete'} — before the semester my degree is conferred.`);
+    out.gradAdmin.push(`Submit the Transfer of Credits request to the Graduate School for ${courses} — recommended by the DGS (§5.2).`);
   }
   if (dualPlanCourses.length > 0) {
     out.student.push(`Get the Graduate School’s approval of my dual-degree plan of study, which counts ${once(dualPlanCourses)} toward both degrees (DGS Handbook §2.9).`);

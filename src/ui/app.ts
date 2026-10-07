@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { NON_DEGREE_CREDITS_MAX, classify, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { NON_DEGREE_CREDITS_MAX, classify, firstSemesterComplete, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
@@ -52,7 +52,7 @@ import { sectionRef } from './section-ref.ts';
 import { createFocusKeeper } from './focus-keeper.ts';
 import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
 import { createToasts } from './toasts.ts';
-import { gradAdminRequest } from './grad-admin-request.ts';
+import { gradAdminRequest, processingItems } from './grad-admin-request.ts';
 import { programHistory } from './program-history.ts';
 import { FILL_IN_STEP, unofficialTranscriptNote } from './email-html.ts';
 import { advisorSummary } from './advisor-summary.ts';
@@ -2868,7 +2868,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'data-key': key,
         onclick: () => {
           const advisors = [student.milestones.advisorName, student.milestones.advisorName2].filter((n): n is string => !!n);
-          const built = advisorSummary(report, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, advisors, history: programHistory(student), unofficialNote: unofficialTranscriptNote(student.courses) });
+          // The processing request's transfer list (P3-emails-1).
+          const transfers = processingItems(report, student, rules).transfers.map((t) => t.courseId);
+          const built = advisorSummary(report, {
+            todayIso,
+            entryTerm: termLabel(student.entryTerm),
+            priorStudy: PRIOR_LABELS[student.priorMs],
+            gpa: student.gpa,
+            advisors,
+            history: programHistory(student),
+            unofficialNote: unofficialTranscriptNote(student.courses),
+            transfers: { courses: transfers, recorded: student.attestations.transferRecorded === true, firstSemesterDone: firstSemesterComplete(student, normalizeEntryTerm(student.entryTerm).term, todayIso).done },
+          });
           void copyDialog({
             what: 'Summary for your advisor',
             recipient: { role: advisors.length > 1 ? 'Your advisors' : 'Your advisor', name: advisors.length > 0 ? advisors.join(' and ') : 'name not entered under Milestones' },

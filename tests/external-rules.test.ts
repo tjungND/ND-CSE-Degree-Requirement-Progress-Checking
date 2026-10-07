@@ -510,7 +510,8 @@ describe('the sign-off row names who must act (2026-09-07)', () => {
   const approvals = (s: Student) => audit(s, rules, '2026-09-01').requirements.find((r) => r.id === 'shared.approvals')!;
 
   it('routes every reason string allocate.ts writes', () => {
-    assert.deepEqual(signOffActors('approved by the DGS in the course rules — send the Grad Admin the processing request (§5.2)'), ['gradAdmin']);
+    // A decided transfer carries no pending reason (P3-emails-1): no Grad Admin route here.
+    assert.deepEqual(signOffActors('also counts toward your other degree — the Graduate School must approve your dual-degree plan of study (DGS Handbook §2.9)'), ['graduateSchool']);
     assert.deepEqual(signOffActors('transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2)'), ['dgs']);
     assert.deepEqual(signOffActors('waiting for the DGS — listed in the course rules, decision still open (§5.2)'), ['dgs']);
     assert.deepEqual(signOffActors('not in the course rules — counted provisionally; needs DGS review'), ['dgs']);

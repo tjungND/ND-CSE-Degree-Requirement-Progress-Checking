@@ -319,7 +319,10 @@ export function signOffActors(reason: string): SignOffActor[] {
   // after it keeps its own route.
   const dual = DUAL_PLAN_REASON.exec(reason);
   if (dual) return dual[1] ? signOffActors(dual[1]) : ['graduateSchool'];
-  if (/^approved by the DGS/i.test(reason)) return ['gradAdmin'];
+  // (A course the DGS has decided carries no pending reason — its `yes` or its
+  // tick settles it, allocate.ts — so no reason here belongs to the Grad
+  // Admin; the advisor summary reads the processing request's transfer list
+  // instead, P3-emails-1.)
   const actors: SignOffActor[] = [];
   if (/advisor/i.test(reason)) actors.push('advisor');
   if (/DGS|rules sheet/i.test(reason)) actors.push('dgs');

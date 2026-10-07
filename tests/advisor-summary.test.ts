@@ -374,7 +374,6 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
             {
               lead: 'Courses pending approval',
               items: [
-                'CS 50300 (approved by the DGS in the course rules — send the Grad Admin the processing request (§5.2))',
                 'CS 77777 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))',
               ],
             },
@@ -385,7 +384,9 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
       summary: { met: 2, conditional: 0, scored: 3 },
       warnings: [], tracks: [],
     };
-    const todo = actionItems(r);
+    // The transfer the processing request carries (P3-emails-1, 2026-10-06):
+    // passed in, as the page passes processingItems(...).transfers.
+    const todo = actionItems(r, { courses: ['CS 50300'], recorded: false, firstSemesterDone: true });
     assert.deepEqual(todo.gradAdmin, [
       'Process the MSCSE awarded along the way (§4.5).',
       'Record the completed qualifier once my form arrives (§4.4).',
@@ -394,7 +395,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     assert.deepEqual(todo.dgs, ['Recommend the transfer credit for CS 77777 (§5.2).']);
     assert.ok(todo.student.includes('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).'));
     assert.ok(todo.student.includes('File the qualifier completion form with the Grad Admin (§4.4).'));
-    assert.ok(todo.student.includes('Send the Grad Admin the processing request for CS 50300.'));
+    assert.ok(todo.student.includes('Send the Grad Admin the processing request for CS 50300 (§5.2) — before the semester my degree is conferred.'), JSON.stringify(todo.student));
     assert.ok(todo.student.includes('Send the DGS the review request for CS 77777.'));
     const { text, html, subject } = advisorSummary(r, { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 });
     assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — 2 of 3 met, 1 conditionally met');
