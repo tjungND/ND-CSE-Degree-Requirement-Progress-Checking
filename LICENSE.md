@@ -2,7 +2,7 @@
 
 Copyright © 2026 University of Notre Dame du Lac. All rights reserved.
 
-**ND CSE Degree Requirement Progress Checking** is freely available without a fee to academic institutions and non-profit organizations for non-commercial research purposes and may be redistributed only in accordance with the terms and conditions of the applicable license. Please see the attached license for further details. For commercial use, the non-exclusive commercial license requires a non-refundable annual fee. For commercial use queries, please contact 
+**ND CSE Degree Requirement Progress Checking** is freely available without a fee to academic institutions and non-profit organizations for non-commercial research purposes and may be redistributed only in accordance with the terms and conditions of the applicable [license](https://docs.google.com/document/d/13IOwzCQqiXwnQFA99oASGTkLr-LmEEcagoYCXpBRVEA/edit?usp=sharing). Please see the attached license for further details. For commercial use, the non-exclusive commercial license requires a non-refundable annual fee. For commercial use queries, please contact 
 [softwarelicensing@nd.edu](mailto:softwarelicensing@nd.edu).
 
 ---
