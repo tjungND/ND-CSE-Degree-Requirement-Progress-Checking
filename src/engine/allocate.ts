@@ -10,7 +10,7 @@
 import { formatCredits } from './credits.ts';
 import { canonicalCourseId, isIncompleteCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { approverToken, needsCourseApproval } from './decider.ts';
-import { findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactor, creditSystemFactorLabel } from '../data/external.ts';
+import { NOTRE_DAME_ROW_UNIVERSITY, findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactor, creditSystemFactorLabel } from '../data/external.ts';
 import type { Counts, ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, GRADE_POINTS, isAudit, isInProgress, isPassed, isWithdrawn, meetsGradeFloor, passesCreditFloor } from './grades.ts';
@@ -560,6 +560,11 @@ export function decidedCaseByCase(c: ClassifiedCourse, program: Program): boolea
   // Credit on the Notre Dame record the DGS confirms for this student (P3-import-1, 2026-10-05).
   if (c.ndPostingHeld !== undefined) return true;
   if (c.entry.origin === 'transfer' && !isNotreDameInstitution(c.entry.institution)) return needsApproval(c.transferable);
+  // A §5.2 candidate from an earlier Notre Dame program (policy review round
+  // 3, P3-dh-10-2; DGS 2026-10-06: "Apply the suggested handling"): its
+  // transfer verdict is its ExternalCourses row, so a `dgs_approval` there is
+  // this student's to record — the Courses tab says only what the course is.
+  if (c.entry.origin === 'transfer' && c.caps.includes('transfer') && needsApproval(c.transferable)) return true;
   if (!c.rule) return false;
   return needsCourseApproval(program === 'mscse' ? c.rule.countsTowardMscse : c.rule.countsTowardPhd);
 }
@@ -1123,7 +1128,12 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   const grade = c.grade;
   // The DGS's ExternalCourses ruling, when one exists. Attached to every
   // return path so §4.4.1 core knowledge sees it even when no credit counts.
-  const external = findExternalRule(rules.external, c.institution ?? '', c.courseId);
+  // A course from an earlier Notre Dame program is ruled on in ExternalCourses
+  // under UNIVERSITY OF NOTRE DAME (DECISIONS 2026-09-05; policy review round
+  // 3, P3-dh-10-2), whatever spelling the student's record has ("Notre Dame").
+  const external =
+    findExternalRule(rules.external, c.institution ?? '', c.courseId) ??
+    (isNotreDameInstitution(c.institution) ? findExternalRule(rules.external, NOTRE_DAME_ROW_UNIVERSITY, c.courseId) : undefined);
   // Set once per university in the sheet; applies to every course from it.
   // The DGS's row for the university decides the credit system; failing
   // that, what the transcript itself announced at import (2026-09-11).
@@ -1527,7 +1537,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     approvalPending: settled
       ? undefined
       : heldForDgs.length > 0
-        ? `waiting for the DGS — ${heldForDgs.join('; ')}${attested || approvedForAll ? '' : needsApproval(transferable) ? '; the course rules also say case by case (§5.2)' : external ? '' : '; not in the course rules yet — send the review request so the DGS can enter it'}${coreNote}${projectNote}`
+        ? `waiting for the DGS — ${heldForDgs.join('; ')}${attested || approvedForAll ? '' : needsApproval(transferable) ? '; the course rules also say case by case (§5.2)' : external ? '' : fromNd && rule !== undefined ? '; no transfer decision recorded yet — send the review request so the DGS can enter it' : '; not in the course rules yet — send the review request so the DGS can enter it'}${coreNote}${projectNote}`
         : // `dgs_approval` / `adgs_approval` (DGS 2026-09-08, split by
           // program 2026-09-09): the sheet has looked at the course and
           // ruled that this one needs an approval. Unlike a blank cell,
@@ -1536,7 +1546,11 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
           ? `waiting for the DGS — this course needs the DGS’s approval, decided case by case (§5.2)${coreNote}${projectNote}`
           : external
             ? `waiting for the DGS — listed in the course rules, decision still open (§5.2)${coreNote}${projectNote}`
-            : `waiting for the DGS — not in the course rules yet; send the review request so the DGS can enter it (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
+            : // An earlier Notre Dame program's course the Courses tab lists
+              // has a row — what is missing is its transfer decision (P3-dh-10-2).
+              fromNd && rule !== undefined
+              ? `waiting for the DGS — no transfer decision recorded yet; send the review request so the DGS can enter it (§5.2)${coreNote}${projectNote}`
+              : `waiting for the DGS — not in the course rules yet; send the review request so the DGS can enter it (§5.2)${coreNote.replace('; may still satisfy', '; the same review can confirm').replace(' after DGS review', '')}${projectNote}`,
   };
 }
 

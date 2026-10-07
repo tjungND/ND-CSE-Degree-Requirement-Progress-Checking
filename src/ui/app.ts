@@ -1821,28 +1821,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     if (n === 0 && notes.length === 0) return null;
     const what = reviewRequestSummary(n, notes.length > 0);
     const decider = deciderContact(student.program);
-    const request = (p: PendingDgsReview) => ({
-      courseId: p.course.entry.courseId,
-      title: p.course.entry.title ?? p.course.rule?.title,
-      credits: p.course.entry.credits,
-      grade: p.course.entry.grade,
-      termText: termLabel(p.course.entry.term),
-      reason: p.reason,
-      unlisted: p.unlisted,
-      ask: p.ask,
-    });
-    // Notre Dame courses (program coursework and prior coursework) feed the
-    // Courses-tab rows; other universities the ExternalCourses rows.
-    const ndReq = pending.filter((p) => p.kind !== 'external').map(request);
-    const extReq = pending
-      .filter((p) => p.kind === 'external')
-      .map((p) => ({
-        ...request(p),
-        institution: p.course.entry.institution,
-        slotLabel: p.course.entry.degreeLevel
-          ? (DEGREE_SLOTS.find((sl) => sl.level === p.course.entry.degreeLevel)?.label ?? p.course.entry.degreeLevel)
-          : undefined,
-      }));
+    // The two course lists — Courses-tab rows and ExternalCourses rows
+    // (transcript/external.ts reviewRequestCourses; P3-dh-10-2).
+    const slotOf = (p: PendingDgsReview): string | undefined =>
+      p.course.entry.degreeLevel ? (DEGREE_SLOTS.find((sl) => sl.level === p.course.entry.degreeLevel)?.label ?? p.course.entry.degreeLevel) : undefined;
     const where = (p: PendingDgsReview): string =>
       p.kind === 'nd' ? 'Notre Dame' : p.kind === 'priorNd' ? 'Notre Dame, before entry' : (p.course.entry.institution ?? 'other university');
     const line = (courseId: string, where: string | undefined, reason: string) =>
@@ -1884,7 +1866,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             'data-key': 'review.copy',
             onclick: () => {
               // Copy, then the check-before-you-send dialog (DGS request 2026-09-06 evening).
-              void import('../transcript/external.ts').then(({ buildCombinedReviewRequest }) => {
+              void import('../transcript/external.ts').then(({ buildCombinedReviewRequest, reviewRequestCourses }) => {
+                const { nd: ndReq, external: extReq } = reviewRequestCourses(pending, slotOf);
                 const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes, history: programHistory(student), unofficial: unofficialTranscriptNote(student.courses) });
                 return copyDialog({
                   what: 'Review request',

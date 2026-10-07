@@ -124,6 +124,12 @@ export function isCseCourse(
  * A bare "ND" is accepted only when it is the WHOLE name: a student typing
  * just those two letters into this app can only mean Notre Dame, while
  * "ND State University" is a different school and must not match. */
+/** The ExternalCourses spelling of Notre Dame — the sheet's capital-English
+ * convention (DECISIONS 2026-09-05) — for a course from an earlier Notre Dame
+ * program in another department, whose §5.2 transfer decision is its row
+ * there (policy review round 3, P3-dh-10-2). */
+export const NOTRE_DAME_ROW_UNIVERSITY = 'UNIVERSITY OF NOTRE DAME';
+
 export function isNotreDameInstitution(name: string | undefined): boolean {
   if (name === undefined) return false;
   const normalized = normalizeUniversity(name);

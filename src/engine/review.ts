@@ -55,6 +55,14 @@ export interface PendingDgsReview {
    * that row, not another row. */
   unlisted: boolean;
   ask: ReviewAsk;
+  /** A graduate course from an earlier Notre Dame program with no
+   * ExternalCourses row (policy review round 3, P3-dh-10-2; DGS 2026-10-06):
+   * its §5.2 transfer decision is a row the DGS enters under UNIVERSITY OF
+   * NOTRE DAME (DECISIONS 2026-09-05), so the request asks for that row in its
+   * "enter in the course rules" list — no email reply — and the page reads it.
+   * `ask` keeps only what the Courses tab still needs (a row, when the course
+   * is not listed there). */
+  transferRow?: { decide: string[]; reason: string };
 }
 
 /** What the "Ask the DGS to review" card's chip and its copy button both say
@@ -349,19 +357,26 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         ...(bachelors && !c.ugToGrUnverified && !c.caps.includes('sharedbs') && c.approvalPending !== undefined && /advance approval|§3\.5/.test(c.approvalPending) ? ['approve it for me (Academic Code §4.6 / §3.5)'] : []),
         ...heldAsks,
       ];
-      const recommendation = policyAsks.length > 0
-        ? policyAsks
-        : bachelors
-        ? needsApprovalOnTop
-          ? ['approve it for me (the allowance for courses below the 60000 level)']
-          : []
-        : c.ndMastersCredit
-          ? needsApprovalOnTop
-            ? ['approve it for me — the course rules say case by case']
-            : []
-          : c.ineligibleReason === undefined
-            ? ['recommend the transfer credit for me (§5.2)']
-            : [];
+      // A §5.2 candidate from an earlier Notre Dame program (P3-dh-10-2): its
+      // transfer decision is an ExternalCourses row under UNIVERSITY OF NOTRE
+      // DAME, asked for as a row — not an email reply the page cannot record.
+      const transferRow = policyAsks.length === 0 && !bachelors && !c.ndMastersCredit && c.ineligibleReason === undefined && c.caps.includes('transfer') && c.external === undefined;
+      const recommendation =
+        policyAsks.length > 0
+          ? policyAsks
+          : transferRow
+            ? []
+            : bachelors
+              ? needsApprovalOnTop
+                ? ['approve it for me (the allowance for courses below the 60000 level)']
+                : []
+              : c.ndMastersCredit
+                ? needsApprovalOnTop
+                  ? ['approve it for me — the course rules say case by case']
+                  : []
+                : c.ineligibleReason === undefined
+                  ? ['recommend the transfer credit for me (§5.2)']
+                  : [];
       priorNd.push({
         course: c,
         kind: 'priorNd',
@@ -384,8 +399,13 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
                 ? // Not transfer credit (Graduate School 2026-09-22): what is
                   // open is the sheet row's own approval, and nothing else.
                   `counts toward the Ph.D. from your Notre Dame MSCSE — ${c.approvalPending}`
-                : 'transfer credit needs a DGS recommendation (§5.2)'),
+                : transferRow
+                  ? 'no transfer decision recorded yet — the DGS enters it in the course rules (§5.2)'
+                  : 'transfer credit needs a DGS recommendation (§5.2)'),
         unlisted: c.rule === undefined,
+        ...(transferRow
+          ? { transferRow: { decide: [TRANSFERABLE], reason: 'graduate course from my earlier Notre Dame program — §5.2 applies; no transfer decision recorded yet' } }
+          : {}),
       });
     } else {
       external.push({

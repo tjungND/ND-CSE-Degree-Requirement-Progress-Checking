@@ -5,10 +5,11 @@
 // System-generated PDFs are read exactly; a PDF with no text layer is offered
 // the opt-in English-only OCR instead (decision 2026-09-02; src/transcript/ocr.ts).
 import { joinSpacedSubject } from '../data/assemble.ts';
-import { expandInstitutionAbbreviations, normalizeCourseId, normalizeUniversity } from '../data/external.ts';
+import { NOTRE_DAME_ROW_UNIVERSITY, expandInstitutionAbbreviations, normalizeCourseId, normalizeUniversity } from '../data/external.ts';
+import type { PendingDgsReview } from '../engine/review.ts';
 import { shortenAfterFirst } from '../ui/first-mention.ts';
 import { ACTION_HEADING, STUDENT_LINE, studentLineHtml } from '../ui/email-html.ts';
-import { termIndex, termOfDate } from '../engine/term.ts';
+import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { Grade, Season } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
 import { resolveCampus } from './campus.ts';
@@ -2094,9 +2095,49 @@ export const MARKER_DIVIDER = '-'.repeat(64);
  * covers everything). `unlisted` marks courses that need a NEW sheet row —
  * ND courses missing from the Courses tab, external courses with no
  * ExternalCourses ruling; the rest need a decision, not a row. */
-interface PendingReviewCourse extends ReviewRequestCourse {
+export interface PendingReviewCourse extends ReviewRequestCourse {
   reason: string;
   unlisted: boolean;
+}
+
+/** The review request's two course lists from the engine's pending decisions.
+ * Notre Dame courses (program coursework and prior coursework) feed the
+ * Courses-tab rows; other universities the ExternalCourses rows — and so does
+ * a course from an earlier Notre Dame program whose transfer decision is still
+ * to be entered, under UNIVERSITY OF NOTRE DAME (policy review round 3,
+ * P3-dh-10-2; DGS 2026-10-06): a row in the "enter in the course rules" list,
+ * not an email reply the page cannot record. Its Courses-tab part stays only
+ * while the course is not listed there. */
+export function reviewRequestCourses(
+  pending: readonly PendingDgsReview[],
+  slotLabel: (p: PendingDgsReview) => string | undefined,
+): { nd: PendingReviewCourse[]; external: PendingReviewCourse[] } {
+  const request = (p: PendingDgsReview): PendingReviewCourse => ({
+    courseId: p.course.entry.courseId,
+    title: p.course.entry.title ?? p.course.rule?.title,
+    credits: p.course.entry.credits,
+    grade: p.course.entry.grade,
+    termText: termLabel(p.course.entry.term),
+    reason: p.reason,
+    unlisted: p.unlisted,
+    ask: p.ask,
+  });
+  return {
+    nd: pending.filter((p) => p.kind !== 'external' && (p.transferRow === undefined || p.ask.decide.length > 0)).map(request),
+    external: [
+      ...pending.filter((p) => p.kind === 'external').map((p) => ({ ...request(p), institution: p.course.entry.institution, slotLabel: slotLabel(p) })),
+      ...pending
+        .filter((p) => p.transferRow !== undefined)
+        .map((p) => ({
+          ...request(p),
+          institution: NOTRE_DAME_ROW_UNIVERSITY,
+          slotLabel: slotLabel(p),
+          reason: p.transferRow!.reason,
+          unlisted: true,
+          ask: { needsRow: true, replyNeeded: false, decide: p.transferRow!.decide },
+        })),
+    ],
+  };
 }
 
 /** THE review request (2026-09-03): one email covering Notre Dame courses

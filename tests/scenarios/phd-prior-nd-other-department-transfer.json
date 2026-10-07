@@ -1,0 +1,60 @@
+{
+  "name": "phd-prior-nd-other-department-transfer",
+  "description": "Policy review round 3, P3-dh-10-2 (DGS 2026-10-06: “Apply the suggested handling on P3-dh-10-2”). A Ph.D. student who completed a master’s in another Notre Dame department, with CSE 60111 (A, Fall 2024) from it. CSE §5.2: \"5) the transfer is recommended by the DGS and approved by the Graduate School. These five requirements also apply to the transfer of credits earned in another program at Notre Dame.\" The transfer decision is an ExternalCourses row under UNIVERSITY OF NOTRE DAME (DECISIONS 2026-09-05); until it is entered the course waits, and the page says what is missing — a transfer decision, not a course rule. tests/prior-nd-program-transfer.test.ts covers the request text and the row’s verdicts.",
+  "today": "2027-01-20",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2023
+    },
+    "priorMs": "completed",
+    "gpa": 3.6,
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "nd-other",
+      "finished": true
+    },
+    "milestones": {},
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Notre Dame",
+        "degreeLevel": "masters"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "0 of the 24 credits you may transfer are counted; 3 more pending review"
+      ]
+    },
+    "shared.approvals": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "no transfer decision recorded yet; send the review request so the DGS can enter it (§5.2)"
+      ],
+      "detailExcludes": [
+        "not in the course rules yet"
+      ]
+    }
+  }
+}
