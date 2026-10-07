@@ -53,7 +53,7 @@ import { createFocusKeeper } from './focus-keeper.ts';
 import { type RefusedValues, applyRefusals, rangedNumber } from './refusals.ts';
 import { createToasts } from './toasts.ts';
 import { gradAdminRequest, processingItems } from './grad-admin-request.ts';
-import { programHistory } from './program-history.ts';
+import { priorStudyLabel, programHistory } from './program-history.ts';
 import { FILL_IN_STEP, unofficialTranscriptNote } from './email-html.ts';
 import { advisorSummary } from './advisor-summary.ts';
 import { renderReport, renderSummary, reqAnchorId, scoreLine } from './report.ts';
@@ -73,12 +73,6 @@ import {
 // (The §4.4.1 core-title keywords moved to src/engine/core-title.ts on
 // 2026-09-04 so the classifier and the import preview share them.)
 
-/** The "Prior graduate study" dropdown labels — reused in the review request. */
-const PRIOR_LABELS: Record<Student['priorMs'], string> = {
-  none: 'No prior graduate degree',
-  unfinished: 'Prior M.S., not completed',
-  completed: 'Completed prior M.S. or Ph.D.',
-};
 
 /** The three semesters as <option>s for a season dropdown, `selected` marked. */
 function seasonOptions(selected?: Season): HTMLOptionElement[] {
@@ -528,7 +522,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           const pending = coursesNeedingDgsReviewFor(classified, student);
           return { unlisted: pending.filter((p) => p.unlisted).length, caseByCase: pending.filter((p) => !p.unlisted).length };
         })(),
-        processingCount: gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa }, classified).items.count,
+        processingCount: gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa }, classified).items.count,
       }),
       nearest: nearestDeadline(report),
     };
@@ -1911,7 +1905,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               // Copy, then the check-before-you-send dialog (DGS request 2026-09-06 evening).
               void import('../transcript/external.ts').then(({ buildCombinedReviewRequest, reviewRequestCourses }) => {
                 const { nd: ndReq, external: extReq } = reviewRequestCourses(pending, slotOf);
-                const built = buildCombinedReviewRequest({ priorStudy: PRIOR_LABELS[student.priorMs], nd: ndReq, external: extReq, notes, history: programHistory(student), unofficial: unofficialTranscriptNote(student.courses) });
+                const built = buildCombinedReviewRequest({ priorStudy: priorStudyLabel(student), nd: ndReq, external: extReq, notes, history: programHistory(student), unofficial: unofficialTranscriptNote(student.courses), decider: deciderTitle(student.program) });
                 return copyDialog({
                   what: 'Review request',
                   recipient: { role: decider.role, name: decider.name, email: decider.email },
@@ -1920,7 +1914,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   html: built.html,
                   steps: [
                     { text: FILL_IN_STEP },
-                    { text: 'Attach copies of your transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) — the DGS cannot review the courses without them. The official transcript must be sent directly to the Graduate School by each university’s registrar.', emphasis: true },
+                    { text: `Attach copies of your transcripts as PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) — the ${deciderTitle(student.program)} cannot review the courses without them. The official transcript must be sent directly to the Graduate School by each university’s registrar.`, emphasis: true },
                   ],
                   returnFocusKey: 'review.copy',
                 });
@@ -2458,7 +2452,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // request above); the Grad Admin processes what has been decided and keeps
   // the official record. Placed after the milestones, whose dates it reports.
   function askGradAdminCard(report: ReturnType<typeof audit>, classified: readonly ClassifiedCourse[]): HTMLElement {
-    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: PRIOR_LABELS[student.priorMs], gpa: student.gpa, history: programHistory(student) }, classified);
+    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa, history: programHistory(student) }, classified);
     const n = built.items.count;
     const decider = deciderContact(student.program);
     // The Grad Admin needs the original transcripts only to process §5.2
@@ -2904,7 +2898,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           const built = advisorSummary(report, {
             todayIso,
             entryTerm: termLabel(student.entryTerm),
-            priorStudy: PRIOR_LABELS[student.priorMs],
+            priorStudy: priorStudyLabel(student),
             gpa: student.gpa,
             advisors,
             history: programHistory(student),

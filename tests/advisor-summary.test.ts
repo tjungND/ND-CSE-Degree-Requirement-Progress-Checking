@@ -10,6 +10,9 @@ import { describe, it } from 'node:test';
 import type { AuditReport, RequirementResult } from '../src/engine/types.ts';
 import { actionItems, advisorSummary, approvalItems, whyFor } from '../src/ui/advisor-summary.ts';
 import { BADGE_STYLE, htmlRequirementBlock } from '../src/ui/email-html.ts';
+import { audit } from '../src/engine/audit.ts';
+import { buildRules } from './helpers.ts';
+import { ndCourse, phdStudent } from './helpers/student.ts';
 
 function req(id: string, title: string, status: RequirementResult['status'], detail = '', group = 'Coursework — §4.2', section = '§4.2'): RequirementResult {
   return { id, group, title, status, detail, citation: { section, quote: 'quote' } };
@@ -110,7 +113,7 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
   });
 
   it('closes with the alpha/no-warranty notice and the handbook edition; no deadline footnote without deadlines', () => {
-    assert.match(text, /\nThank you!\n\nAlpha version under testing\. Informational only, no warranty — not an official degree audit; every final decision rests with the DGS\. Checked against the CSE Graduate Studies Handbook \(https:\/\/[^)]+\)\.\n$/);
+    assert.match(text, /\nThank you!\n\nAlpha version under testing\. Informational only, no warranty — not an official degree audit; every final decision rests with the DGS\. Checked against the CSE Graduate Studies Handbook \(https:\/\/[^)]+\), together with the Graduate School’s Academic Code, DGS Handbook and 4\+1 guidance\.\n$/);
     assert.doesNotMatch(text, /transcript-PDF|Not all cases are covered|Deadlines are counted from/);
   });
 });
@@ -183,12 +186,12 @@ describe('advisor summary: deadlines on the rows that have them', () => {
       assert.doesNotMatch(dueLine, /\d{4}-\d{2}-\d{2}/, `no ISO date in a deadline line: ${dueLine}`);
     }
     assert.doesNotMatch(text, /\(approximate\)/, 'said once in the footnote');
-    assert.match(text, /^Deadlines are counted from Fall 2026 and given by semester; they are approximate — the registrar's calendar sets the exact dates\.$/m);
+    assert.match(text, /^Deadlines are counted from Fall 2026 and given by semester; they are approximate — the Graduate School calendar sets the exact dates\.$/m);
   });
 
   it('a transfer from the unfinished MSCSE: the footer names the term the qualifying exam counts from (policy review round 3, P3-text-ui-8)', () => {
     const t = advisorSummary(withDeadlines, { ...opts, entryTerm: 'Fall 2023', qualifierFrom: 'Fall 2025' }).text;
-    assert.match(t, /^Deadlines are counted from Fall 2023 — the qualifying exam’s from Fall 2025, when I transferred into the Ph\.D\. — and given by semester; they are approximate/m);
+    assert.match(t, /^Deadlines are counted from Fall 2023 — the qualifying exam’s and the first-year seminars’ from Fall 2025, when I transferred into the Ph\.D\. — and given by semester; they are approximate — the Graduate School calendar sets the exact dates\.$/m);
   });
 
   it('HTML: the deadline box inside the row’s block — red when passed, plain when far off', () => {
@@ -261,7 +264,8 @@ describe('actionItems: the rest of the rules', () => {
     const todo = actionItems(r);
     assert.deepEqual(todo.student, [
       'Report my cumulative GPA (§2.2).',
-      'Identify a thesis or project advisor (§2.3).',
+      // The Ph.D.'s §2.3 wording, not the M.S.'s (policy review round 3, P3-cse-1-2-3).
+      'Identify my faculty advisor — the Ph.D. requires continuous advisor supervision (§2.3).',
       'Take CSE 63802 — the research seminar (§4.2).',
       'Register full-time for 3 more consecutive semesters (§4.3).',
       'Pass a course that covers Algorithms — core knowledge (§4.4.1).',
@@ -278,6 +282,8 @@ describe('actionItems: the rest of the rules', () => {
       "Add the missing parameter 'phd_time_limit_years' to the rules sheet so all requirements complete within 8 years can be checked.",
     ]);
     assert.deepEqual(todo.gradAdmin, []);
+    // The MSCSE keeps §2.3's M.S. wording.
+    assert.ok(actionItems({ ...r, program: 'mscse' }).student.includes('Identify a thesis or project advisor (§2.3).'));
     // Dissertation items appear only because candidacy is met here.
     const early = { ...r, requirements: r.requirements.map((x) => (x.id === 'phd.candidacy' ? { ...x, status: 'in_progress' as const, detail: '' } : x)) };
     assert.ok(!actionItems(early).student.some((s) => /dissertation/i.test(s)));
@@ -406,5 +412,31 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — 2 of 3 met, 1 conditionally met');
     assert.match(text, /\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Process the MSCSE awarded along the way \(§4\.5\)\.\n/);
     assert.match(html, /<p><strong>What the Grad Admin needs to do<\/strong><\/p><ul><li>Process the MSCSE awarded along the way/);
+  });
+});
+
+// A lapsed Incomplete is confirmed, not decided — the Graduate School extends
+// one (Academic Code §4.4) — and a second question on the course keeps its
+// line (policy review round 3, P3-emails-7).
+describe('a lapsed Incomplete in the advisor email (P3-emails-7)', () => {
+  const lapsedOn = (courseId: string) => {
+    const s = phdStudent({ entryTerm: { season: 'fall', year: 2025 }, gpa: 3.5, courses: [ndCourse(courseId, { term: { season: 'fall', year: 2025 }, grade: 'I' })] });
+    return actionItems(audit(s, buildRules(), '2026-10-07'));
+  };
+  it('a graduate course: one confirmation, the review request’s words', () => {
+    const todo = lapsedOn('CSE 60641');
+    assert.ok(todo.dgs.includes('Confirm whether the Graduate School extended my Incomplete in CSE 60641, or the grade was posted (Academic Code §4.4).'), JSON.stringify(todo.dgs));
+    assert.ok(!todo.dgs.some((d) => /^Decide on CSE 60641/.test(d)), JSON.stringify(todo.dgs));
+  });
+  it('a 40000-level course: the Incomplete and the approval, both', () => {
+    const todo = lapsedOn('CSE 40567');
+    assert.ok(todo.dgs.includes('Confirm whether the Graduate School extended my Incomplete in CSE 40567, or the grade was posted (Academic Code §4.4).'), JSON.stringify(todo.dgs));
+    assert.ok(todo.dgs.some((d) => /^Approve CSE 40567 for me — a course below the 60000 level/.test(d)), JSON.stringify(todo.dgs));
+    assert.ok(todo.advisor.some((d) => /^Approve CSE 40567 — a course below the 60000 level/.test(d)), JSON.stringify(todo.advisor));
+  });
+  it('the reading itself', () => {
+    assert.deepEqual(approvalItems('CSE 60641', 'Incomplete (I) past its deadline (about 2026-02-01) — it became an F unless the Graduate School extended it (Academic Code §4.4); the DGS confirms', 'phd'), {
+      incomplete: 'Confirm whether the Graduate School extended my Incomplete in CSE 60641, or the grade was posted (Academic Code §4.4).',
+    });
   });
 });

@@ -36,6 +36,12 @@ export interface ScenarioFile {
    * warnings are a report's, not a row's). */
   expectWarnings?: string[];
   expectNoWarnings?: string[];
+  /** The to-do lines the copied advisor email builds (advisor-summary.ts
+   * `actionItems` — the student's, the advisor's, the DGS's and the Grad
+   * Admin's): substrings some line must contain, and substrings no line may
+   * (2026-10-07, P3-text-ui-3: an on-time OCE with short coursework is never
+   * "late"). */
+  expectEmailItems?: { includes?: string[]; excludes?: string[] };
 }
 
 export interface RulesPatch {

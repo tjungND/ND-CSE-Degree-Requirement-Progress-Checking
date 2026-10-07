@@ -2011,6 +2011,9 @@ interface ReviewRequestCourse {
  * tables too (DGS request 2026-09-06: easier to read than bullet lines). */
 function buildReviewRequest(opts: {
   subject: string;
+  /** Who decides: the ADGS on the MSCSE (§3.2; DGS 2026-09-11), the DGS on
+   * the Ph.D. — the greeting's title (policy review round 3, P3-emails-5). */
+  decider: 'DGS' | 'ADGS';
   intro: string;
   /** Extra context lines shown right under the intro (e.g. prior graduate study). */
   context: readonly string[];
@@ -2027,7 +2030,7 @@ function buildReviewRequest(opts: {
   detailGroups: readonly { heading: string; rows: readonly (readonly string[])[] }[];
 }): { text: string; html: string; subject: string } {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const greeting = 'Dear DGS,';
+  const greeting = `Dear ${opts.decider},`;
   const sections = opts.sections.filter((s) => s.rows.length > 0);
   const groups = opts.detailGroups.filter((g) => g.rows.length > 0);
   const pipeRow = (r: readonly string[]) => r.join(' | ');
@@ -2192,6 +2195,12 @@ export function buildCombinedReviewRequest(opts: {
   history?: { compact: string; earlier: string };
   /** The unofficial-transcript warning (src/ui/email-html.ts; DGS 2026-10-03). */
   unofficial?: string;
+  /** The reader's title, decider.ts deciderTitle(program): "Dear ADGS," on
+   * the MSCSE (policy review round 3, P3-emails-5). The course reasons arrive
+   * already worded for it — the email is not rewritten again, which would
+   * turn a course's deliberate "DGS" into "ADGS" (2026-09-13). Defaults to
+   * the DGS for older callers. */
+  decider?: 'DGS' | 'ADGS';
 }): { text: string; html: string; subject: string } {
   // The student is writing to the DGS: "your advisor" is "my advisor".
   const voiced = (reason: string): string => reason.replace(/\byour advisor/g, 'my advisor').replace(/\bYour advisor/g, 'My advisor');
@@ -2253,6 +2262,7 @@ export function buildCombinedReviewRequest(opts: {
   const history = opts.history;
   return buildReviewRequest({
     subject: `Course review request (degree self-check)${history ? ` — ${history.compact}` : ''}`,
+    decider: opts.decider ?? 'DGS',
     intro:
       'Could you review these courses for the degree self-check? ' +
       // Rulings for this student are decided by reply, not in the rules (P3-emails-2).

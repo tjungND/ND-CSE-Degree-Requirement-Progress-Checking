@@ -1,0 +1,49 @@
+{
+  "name": "phd-oce-late-and-short-coursework",
+  "description": "Policy review round 3, P3-text-ui-3 (2026-10-07): an OCE passed after the eighth semester (entry Fall 2026; semester 8 ends with Spring 2030) with 3 of 24 regular credits at the exam. CSE §4.5 makes the deadline and the coursework two separate conditions, so the advisor email asks the DGS about each: the late pass and whether the exam could be taken.",
+  "today": "2030-10-01",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2026
+    },
+    "priorMs": "none",
+    "gpa": 2.4,
+    "milestones": {
+      "candidacyPassed": "2030-09-15"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.candidacy": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Passed 2030-09-15",
+        "you show 3 of 24 regular-course credits"
+      ]
+    }
+  },
+  "expectEmailItems": {
+    "includes": [
+      "Confirm the late Oral Candidacy Exam (OCE) (§4.5).",
+      "Confirm that my Oral Candidacy Exam (OCE) could be taken — at the exam I showed 3 of 24 regular-course credits"
+    ]
+  }
+}

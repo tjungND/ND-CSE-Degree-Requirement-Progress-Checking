@@ -1879,6 +1879,9 @@ function candidacyRow(ctx: Ctx, coursework: OceReadiness): RequirementResult {
     // Late is the only question: done, for the eight-year row (2026-10-04).
     ...(status === 'needs_dgs_review' && r.status === 'needs_dgs_review' && courseworkReview === undefined && !forfeited ? { completedLate: true as const } : {}),
     ...(courseworkReview !== undefined ? { courseworkReview } : {}),
+    // Passed after the eighth semester, whatever else the DGS is asked (policy
+    // review round 3, P3-text-ui-3): the advisor email asks about each.
+    ...(passed !== undefined && r.status === 'needs_dgs_review' ? { passedLate: true as const } : {}),
     ...(parts.length > 0 ? joinedDetail(parts) : { detail: '' }),
     deadline: r.deadline,
     citation: { section: '§4.5', quote },

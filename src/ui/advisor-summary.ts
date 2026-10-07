@@ -93,7 +93,8 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
   const earlier = opts.history?.earlier ?? '';
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
   const intro = `Here is my current standing from the CSE degree self-check tool, as of ${asOf}.`;
-  const prior = opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
+  // Mid-sentence, lower-cased — not an acronym ("MSCSE at Notre Dame …", P3-prior-programs-6).
+  const prior = /^[A-Z]{2}/.test(opts.priorStudy) ? opts.priorStudy : opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
   const standing =
     `${programLabel(report.program)}; entered ${opts.entryTerm}; ${prior}; ` +
     // As the §2.2 card prints it — never rounded up past the minimum (2.996
@@ -148,9 +149,13 @@ export function advisorSummary(report: AuditReport, opts: AdvisorSummaryOptions)
 
   const todo = actionItems(report, opts.transfers);
   const deadlineNote = listed.some((r) => deadlineOf(r) !== undefined)
-    ? `Deadlines are counted from ${opts.entryTerm}${opts.qualifierFrom ? ` — the qualifying exam’s from ${opts.qualifierFrom}, when I transferred into the Ph.D. —` : ''} and given by semester; they are approximate — the registrar's calendar sets the exact dates.`
+    ? // The page footer's words (policy review round 3, P3-text-ui-7): the
+      // Graduate School calendar, and — after a transfer from the MSCSE — the
+      // term the qualifying exam and the first-year seminars count from (DGS
+      // 2026-10-03).
+      `Deadlines are counted from ${opts.entryTerm}${opts.qualifierFrom ? ` — the qualifying exam’s and the first-year seminars’ from ${opts.qualifierFrom}, when I transferred into the Ph.D. —` : ''} and given by semester; they are approximate — the Graduate School calendar sets the exact dates.`
     : '';
-  const statusNote = `Alpha version under testing. ${BETA_NOTICE} Checked against the CSE Graduate Studies Handbook (${HANDBOOK_URL}).`;
+  const statusNote = `Alpha version under testing. ${BETA_NOTICE} Checked against the CSE Graduate Studies Handbook (${HANDBOOK_URL}), together with the Graduate School’s Academic Code, DGS Handbook and 4+1 guidance.`;
 
   // The tag: the page's pill word (report.ts statusWord — the engine's
   // per-row label when it set one, W-CS2 "Eligibility at risk"; else Overdue,
@@ -327,7 +332,16 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
   if (gpa?.status === 'cannot_evaluate') out.student.push(`Report my cumulative GPA ${section(gpa)}.`);
   else if (gpa?.status === 'unmet') out.student.push(`Raise my cumulative GPA to the minimum ${section(gpa)}.`);
   const advisor = byId.get('shared.advisor');
-  if (advisor && isOpen(advisor.status)) out.student.push(`Identify a thesis or project advisor ${section(advisor)}.`);
+  // CSE §2.3 asks an M.S. student to "identify a thesis or project advisor"
+  // and requires a Ph.D. student's "continuous advisor supervision" — the
+  // card says so per program, and the email follows it (policy review round
+  // 3, P3-cse-1-2-3).
+  if (advisor && isOpen(advisor.status))
+    out.student.push(
+      report.program === 'phd'
+        ? `Identify my faculty advisor — the Ph.D. requires continuous advisor supervision ${section(advisor)}.`
+        : `Identify a thesis or project advisor ${section(advisor)}.`,
+    );
 
   // Credits.
   for (const [id, what] of [
@@ -377,7 +391,16 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
     } else if (r.deadline) out.student.push(`Complete all requirements${due(r)} ${section(r)}.`);
   }
 
-  // M.S. project or thesis.
+  // M.S. project or thesis. The topic first (Academic Code §6.1.7: "With the
+  // approval of his or her advisor, the student proposes a thesis topic for
+  // program approval") — the advisor's approval is asked for here; who gives
+  // the program's is open (HANDBOOK-REVISIONS item 13), so no DGS or Grad
+  // Admin item (policy review round 3, P3-emails-4).
+  const topic = byId.get('ms.thesis.topic');
+  if (topic && isOpen(topic.status)) {
+    out.student.push(`Propose my thesis topic, with my advisor’s approval, for the program’s approval ${section(topic)}.`);
+    out.advisor.push(`Approve my thesis topic proposal ${section(topic)}.`);
+  }
   const thesis = byId.get('ms.thesis.defense');
   if (thesis && isOpen(thesis.status)) out.student.push(`Defend the thesis ${section(thesis)}.`);
   const project = byId.get('ms.project.report');
@@ -440,14 +463,19 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
     // A missed eighth semester is the Graduate School's probation (Academic
     // Code §6.2.8), not the DGS's call (P1-page-text-ui-7).
     if (overdue(candidacy)) out.dgs.push(`Advise the student on the Graduate School’s consequence for the missed Oral Candidacy Exam (OCE) deadline ${section(candidacy)}.`);
-  } else if (candidacy?.status === 'needs_dgs_review')
-    // The coursework at the exam (P3-cse-4b-1, DGS 2026-10-06) is its own
-    // question — not a late pass.
-    out.dgs.push(
-      candidacy.courseworkReview
-        ? `Confirm that my Oral Candidacy Exam (OCE) could be taken — at the exam I showed ${candidacy.courseworkReview} ${section(candidacy)}.`
-        : `Confirm the late Oral Candidacy Exam (OCE) ${section(candidacy)}.`,
-    );
+  } else if (candidacy?.status === 'needs_dgs_review') {
+    // One item per question the row asks (policy review round 3,
+    // P3-text-ui-3): a pass before a readmission after five years or more
+    // (Academic Code §5.5), the coursework at the exam (P3-cse-4b-1, DGS
+    // 2026-10-06) and a late pass are three questions — an on-time exam with
+    // short coursework is never "late", and late plus short names both.
+    if (candidacy.forfeitReview)
+      out.dgs.push('Rule on my Oral Candidacy Exam (OCE), passed before my readmission after an interruption of five years or more (Academic Code §5.5).');
+    if (candidacy.courseworkReview)
+      out.dgs.push(`Confirm that my Oral Candidacy Exam (OCE) could be taken — at the exam I showed ${candidacy.courseworkReview} ${section(candidacy)}.`);
+    if (candidacy.passedLate || candidacy.completedLate || (!candidacy.forfeitReview && !candidacy.courseworkReview))
+      out.dgs.push(`Confirm the late Oral Candidacy Exam (OCE) ${section(candidacy)}.`);
+  }
   // Admission to candidacy, the Graduate School's own step after the OCE (DGS
   // 2026-10-04). Its to-dos start once the OCE is DATED — met, or a late or
   // short-coursework pass waiting for the DGS — so the summary agrees with the
@@ -521,6 +549,7 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
       // A dual-degree course with a real DGS question after it: that question.
       const item = approvalItems(course, dual?.[1] ?? reason, report.program);
       if (item.advisor) out.advisor.push(item.advisor);
+      if (item.incomplete) out.dgs.push(item.incomplete);
       if (item.dgs) out.dgs.push(item.dgs);
       }
     }
@@ -567,7 +596,17 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
  * facts are read off the reason — unlisted, non-CSE, below the 60000 level,
  * case by case, a §5.2 recommendation — and each line is written for its
  * reader (DGS 2026-09-28). */
-export function approvalItems(course: string, reason: string, program: 'mscse' | 'phd'): { advisor?: string; dgs?: string } {
+export function approvalItems(course: string, reason: string, program: 'mscse' | 'phd'): { advisor?: string; dgs?: string; incomplete?: string } {
+  // A lapsed Incomplete (allocate.ts): the Graduate School's associate dean
+  // extends one, so the DGS can only confirm what is on the record — as the
+  // review request asks (review.ts). Its own line, and a second question on
+  // the same course keeps its line too, so the Incomplete no longer
+  // disappears behind an "Approve …" (policy review round 3, P3-emails-7).
+  const lapsed = /^Incomplete \(I\) past its deadline\b.*?\(Academic Code §4\.4\); the A?DGS confirms(?:; (.+))?$/.exec(reason);
+  if (lapsed) {
+    const incomplete = `Confirm whether the Graduate School extended my Incomplete in ${course}, or the grade was posted (Academic Code §4.4).`;
+    return { ...(lapsed[1] ? approvalItems(course, lapsed[1], program) : {}), incomplete };
+  }
   const section = /\((§[^)]*)\)\s*$/.exec(reason)?.[1] ?? (program === 'mscse' ? '§3.2' : '§4.2');
   const unlisted = /not in the course rules/i.test(reason);
   const nonCse = /outside CSE|non-CSE/i.test(reason);
@@ -620,7 +659,7 @@ export function whyFor(r: RequirementResult, firstStatementOnly = false): string
   // A page-only policy note stays on the card (2026-10-05).
   const parts = r.detailParts?.filter((p) => !(typeof p === 'object' && 'note' in p && p.pageOnly));
   const statements = (parts ? parts.map((p) => flatten(p, r)) : splitStatements(r.detail))
-    .map((s) => s.trim().replace(/\.$/, ''))
+    .map((s) => withoutPageForm(s.trim()).replace(/\.$/, ''))
     .filter((s) => s.length > 0)
     .map(rewrite)
     .filter((s) => !dropsFromEmail(s, r))
@@ -655,6 +694,21 @@ function splitStatements(detail: string): string[] {
   return detail.split(/(?<!\b(?:M\.S|Ph\.D|e\.g|i\.e|vs|etc|No))\.\s+(?=[A-Z0-9(“"])/);
 }
 
+/** The page's own form inside a statement — "…; enter the date under
+ * Milestones once it is approved", "Enter your advisor under Milestones. A
+ * student who …" — is no news to an email's reader (policy review round 3,
+ * P3-emails-4): the instruction is cut and the fact kept. A statement that is
+ * nothing but such an instruction is dropped by dropsFromEmail. */
+function withoutPageForm(statement: string): string {
+  return (
+    statement
+      // A leading sentence that is only the instruction.
+      .replace(/^(?:Enter|Answer)\b[^.]*\bunder Milestones\b[^.]*\.\s+(?=[A-Z])/, '')
+      // A trailing clause.
+      .replace(/[;,]\s*(?:then\s+|and\s+)?(?:enter|answer)\b[^;]*\bunder Milestones\b[^;]*$/i, '')
+  );
+}
+
 /** Statements written for the student at the page that say nothing to the
  * advisor: how to record an approval, where a list lives on the site, what
  * to do next ("Talk to the DGS"), and an "Overdue —" statement whose fact
@@ -665,8 +719,10 @@ function dropsFromEmail(statement: string, r: RequirementResult): boolean {
   // advisor needs (DGS 2026-09-23); the ones still open stay.
   if (/^[A-Z]{2,5} \d{5}: done\b/.test(statement)) return true;
   if (/^(Talk to|Ask the DGS|Ask your advisor)\b/i.test(statement)) return true;
-  // "Enter the date … under Milestones" is the page's own form (2026-10-04).
-  if (/^Enter the date\b.*\bunder Milestones\b/i.test(statement)) return true;
+  // "Enter the date … under Milestones" is the page's own form (2026-10-04);
+  // so is any statement still naming it once withoutPageForm has cut the
+  // instruction from a fact (policy review round 3, P3-emails-4).
+  if (/\bunder Milestones\b/i.test(statement)) return true;
   if (/^Overdue\b/i.test(statement) && r.deadline?.state === 'overdue') return true;
   return false;
 }

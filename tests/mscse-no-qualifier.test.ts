@@ -13,6 +13,7 @@ import { audit } from '../src/engine/audit.ts';
 import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import { advisorSummary } from '../src/ui/advisor-summary.ts';
 import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
+import { buildCombinedReviewRequest, reviewRequestCourses } from '../src/transcript/external.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { DECIDER_DGS } from '../src/engine/decider.ts';
 import { buildRules } from './helpers.ts';
@@ -79,6 +80,19 @@ describe('the MSCSE is sent to the ADGS, never the DGS', () => {
     const advisor = advisorSummary(report, opts);
     const admin = gradAdminRequest(report, ms, rules, opts);
     assert.deepEqual([advisor.subject, advisor.text, admin.subject, admin.text, ...admin.items.lines].filter((t) => DGS_ALONE.test(t)), []);
+  });
+  // The review request opened "Dear DGS," on every tab (policy review round 3,
+  // P3-emails-5): its greeting names the decider, and nothing else in it is
+  // rewritten again.
+  it('the review request is addressed to the ADGS and says "DGS" nowhere', () => {
+    const { nd, external } = reviewRequestCourses(coursesNeedingDgsReview(ms, rules, '2027-06-01'), () => 'Master’s');
+    assert.ok(nd.length + external.length > 0, 'this record has courses to review');
+    const built = buildCombinedReviewRequest({ priorStudy: opts.priorStudy, nd, external, decider: 'ADGS' });
+    assert.match(built.text, /^Dear ADGS,$/m);
+    assert.match(built.html, /Dear ADGS,/);
+    assert.deepEqual([built.subject, ...built.text.split('\n'), ...built.html.split(/<[^>]+>/)].filter((t) => DGS_ALONE.test(t)), []);
+    // The Ph.D.'s still opens "Dear DGS,".
+    assert.match(buildCombinedReviewRequest({ priorStudy: opts.priorStudy, nd, external, decider: 'DGS' }).text, /^Dear DGS,$/m);
   });
   it('the Ph.D. still says "DGS", and never "ADGS"', () => {
     const phd = audit(student('phd'), rules, '2027-06-01');

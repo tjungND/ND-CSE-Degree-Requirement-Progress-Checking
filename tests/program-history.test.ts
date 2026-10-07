@@ -3,7 +3,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
-import { programHistory } from '../src/ui/program-history.ts';
+import { audit } from '../src/engine/audit.ts';
+import { advisorSummary } from '../src/ui/advisor-summary.ts';
+import { gradAdminRequest } from '../src/ui/grad-admin-request.ts';
+import { priorStudyLabel, programHistory } from '../src/ui/program-history.ts';
+import { buildRules } from './helpers.ts';
 import { phdStudent } from './helpers/student.ts';
 
 const nd = (courseId: string, level: 'bachelors' | 'masters', season: 'fall' | 'spring', year: number): CourseEntry => ({
@@ -64,7 +68,34 @@ describe('programHistory', () => {
   it('an MSCSE student in the Integrated program, and a graduate degree in another Notre Dame department', () => {
     const ms = programHistory({ ...student({ background: { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' }, bachelorsAwarded: { season: 'spring', year: 2025 } }), program: 'mscse' });
     assert.equal(ms.compact, 'M.S. in CSE, entered Fall 2025; B.S. at Notre Dame CSE (Integrated 4+1), awarded Spring 2025');
-    const other = programHistory(student({ background: { bachelors: 'elsewhere', graduate: 'nd-other' } }));
-    assert.equal(other.compact, 'Ph.D., entered Fall 2025; a graduate degree at Notre Dame (another department)');
+    // By whether it was finished — Academic Code §4.6's fact (policy review round 3, P3-emails-6).
+    const other = (finished?: boolean) => programHistory(student({ background: { bachelors: 'elsewhere', graduate: 'nd-other', ...(finished !== undefined ? { finished } : {}) } })).compact;
+    assert.equal(other(true), 'Ph.D., entered Fall 2025; a graduate degree at Notre Dame (another department)');
+    assert.equal(other(false), 'Ph.D., entered Fall 2025; a graduate program at Notre Dame (another department), not finished');
+    assert.equal(other(), 'Ph.D., entered Fall 2025; a graduate program at Notre Dame (another department)');
+  });
+});
+
+// The emails' "Prior graduate study" line (policy review round 3,
+// P3-prior-programs-6): a Ph.D. student holding the Notre Dame MSCSE holds a
+// graduate degree, though its courses count as one program with the Ph.D.
+describe('the emails’ prior graduate study (P3-prior-programs-6)', () => {
+  it('the Notre Dame MSCSE, regular or 4+1: named, not “No prior graduate degree”', () => {
+    for (const graduate of ['nd-mscse', 'nd-4plus1'] as const) {
+      const s = student({ background: { bachelors: 'elsewhere', graduate } });
+      assert.equal(s.priorMs, 'none', 'the §5.2 cap’s value is unchanged');
+      assert.equal(priorStudyLabel(s), 'MSCSE at Notre Dame (one graduate program with the Ph.D.); no graduate degree elsewhere');
+      const report = audit(s, buildRules(), '2026-10-07');
+      const opts = { todayIso: '2026-10-07', entryTerm: 'Fall 2025', priorStudy: priorStudyLabel(s), history: programHistory(s) };
+      for (const text of [advisorSummary(report, opts).text, gradAdminRequest(report, s, buildRules(), opts).text]) {
+        assert.doesNotMatch(text, /No prior graduate degree/);
+        assert.match(text, /MSCSE at Notre Dame \(one graduate program with the Ph\.D\.\); no graduate degree elsewhere/);
+      }
+    }
+  });
+  it('everyone else: the three values as before', () => {
+    assert.equal(priorStudyLabel(student({ background: { bachelors: 'elsewhere', graduate: 'none' } })), 'No prior graduate degree');
+    assert.equal(priorStudyLabel(student({ background: { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer' } })), 'No prior graduate degree');
+    assert.equal(priorStudyLabel({ ...student({}), priorMs: 'completed' }), 'Completed prior M.S. or Ph.D.');
   });
 });

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { audit, REQUIREMENT_IDS } from '../src/engine/audit.ts';
 import { coursesNeedingDgsReview } from '../src/engine/review.ts';
+import { actionItems } from '../src/ui/advisor-summary.ts';
 import { allScenarios, buildRules } from './helpers.ts';
 
 const scenarios = allScenarios();
@@ -82,6 +83,14 @@ describe('scenarios', () => {
       // Warnings (2026-10-06): what the report says at the top, not a row.
       for (const sub of sc.expectWarnings ?? []) assert.ok(report.warnings.some((w) => w.includes(sub)), `no warning contains "${sub}"; got: ${report.warnings.join(' | ')}`);
       for (const sub of sc.expectNoWarnings ?? []) assert.ok(!report.warnings.some((w) => w.includes(sub)), `a warning contains "${sub}": ${report.warnings.find((w) => w.includes(sub))}`);
+
+      // The advisor email's to-do lines (2026-10-07).
+      if (sc.expectEmailItems !== undefined) {
+        const todo = actionItems(report);
+        const lines = [...todo.student, ...todo.advisor, ...todo.dgs, ...todo.gradAdmin];
+        for (const sub of sc.expectEmailItems.includes ?? []) assert.ok(lines.some((l) => l.includes(sub)), `no email to-do contains "${sub}"; got: ${lines.join(' | ')}`);
+        for (const sub of sc.expectEmailItems.excludes ?? []) assert.ok(!lines.some((l) => l.includes(sub)), `an email to-do contains "${sub}": ${lines.find((l) => l.includes(sub))}`);
+      }
     });
   }
 });

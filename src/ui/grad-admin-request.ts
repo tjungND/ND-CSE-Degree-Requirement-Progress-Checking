@@ -415,7 +415,8 @@ export function gradAdminRequest(
   const items = processingItems(report, student, rules, classified);
   const subject = `Processing request (degree self-check) — ${opts.history?.compact ?? `${programLabel(report.program).replace(/ \(Handbook §\d\)$/, '')}, entered ${opts.entryTerm}`}`;
   const asOf = formatYmdLong(opts.todayIso.slice(0, 10)) ?? opts.todayIso.slice(0, 10);
-  const prior = opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
+  // Mid-sentence, lower-cased — not an acronym ("MSCSE at Notre Dame …", P3-prior-programs-6).
+  const prior = /^[A-Z]{2}/.test(opts.priorStudy) ? opts.priorStudy : opts.priorStudy.charAt(0).toLowerCase() + opts.priorStudy.slice(1);
   // "in cc" said once, in the intro; the closing's "The DGS is in cc." repeated
   // the Cc line the mail client shows (trim review 2026-09-18, P-12).
   const intro =

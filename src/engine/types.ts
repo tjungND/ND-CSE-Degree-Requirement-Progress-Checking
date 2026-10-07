@@ -326,8 +326,10 @@ export interface Student {
     samePlace?: boolean;
     finished?: boolean;
     /** `nd-mscse-transfer` only (DGS 2026-09-28): the term the student moved
-     * into the Ph.D. Named on the copied emails; the entry term stays the
-     * MSCSE's, since every clock counts from it (DGS 2026-09-26). */
+     * into the Ph.D. Named on the copied emails; the qualifier, research-
+     * component and first-year seminar clocks count from it (DGS 2026-10-03),
+     * while the entry term stays the MSCSE's, which §4.3 and §4.5 count from
+     * (DGS 2026-09-26). */
     transferredTerm?: Term;
   };
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
@@ -626,6 +628,12 @@ export interface RequirementResult {
    * P3-cse-4b-1, DGS 2026-10-06). The admission card holds "apply now" while
    * it is set (Decision 2 (a)), and the advisor summary asks about it. */
   courseworkReview?: string;
+  /** phd.candidacy only: the OCE was passed after its deadline — set beside
+   * any other question (`completedLate` is set only when lateness is the
+   * only one), so the advisor email can ask the DGS about each: the late
+   * pass, the coursework at the exam, a pass before a readmission (policy
+   * review round 3, P3-text-ui-3). */
+  passedLate?: true;
   detailParts?: DetailPart[];
   /** The same statements with the §4.4.1 / §4.4.2 names shortened, for the
    * page only (DGS 2026-09-08). The report renders these when they are here;

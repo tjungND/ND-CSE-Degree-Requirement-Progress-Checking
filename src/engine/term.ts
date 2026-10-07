@@ -206,7 +206,7 @@ export function maxConsecutiveFullTime(terms: { term: Term; fullTime: boolean }[
  *   the nominal first day of a term  → "the start of Fall 2034"
  *   the nominal last day of a term   → "the end of Spring 2030"
  *   any other day                    → "Spring 2028" (during the term)
- * The registrar's calendar sets the real dates, so every phrase is approximate. */
+ * The Graduate School calendar sets the real dates, so every phrase is approximate. */
 export function deadlineTerm(iso: string): { term: Term; when: 'start' | 'end' | 'during' } {
   const term = termOfDate(iso);
   if (startOfTerm(term).date === iso) return { term, when: 'start' };

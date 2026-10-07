@@ -6,8 +6,9 @@
 // What the record knows: the current program and its entry term; the
 // earlier-degrees answer (src/ui/background.ts); for a transfer from the
 // Notre Dame MSCSE into the Ph.D., the transfer term (asked in the same
-// dialog — the entry term stays the MSCSE's, since every clock counts from
-// it, DGS 2026-09-26); the award terms a Notre Dame transcript carries
+// dialog — the entry term stays the MSCSE's, which §4.3 and §4.5 count from,
+// DGS 2026-09-26; the qualifier clocks count from the transfer, DGS
+// 2026-10-03); the award terms a Notre Dame transcript carries
 // (`bachelorsAwarded`, `ndMasters.term`, `ndDegrees`); and the terms of the
 // Notre Dame coursework from before the entry term, which bound each earlier
 // program. Nothing is guessed: a term the record does not hold is left out.
@@ -57,7 +58,9 @@ export function programHistory(student: Student): ProgramHistory {
   const b = student.background;
   const entry = termLabel(student.entryTerm);
   // The current program. A transfer from the MSCSE keeps the MSCSE's entry
-  // term (every clock counts from it) and names the term of the transfer.
+  // term, which §4.3 and §4.5 count from (DGS 2026-09-26), and names the term
+  // of the transfer, which the qualifier, research-component and first-year
+  // seminar clocks count from (DGS 2026-10-03).
   const current =
     student.program === 'phd' && b?.graduate === 'nd-mscse-transfer'
       ? `Ph.D. (transferred ${b.transferredTerm ? termLabel(b.transferredTerm) : 'term not entered'} from the Notre Dame MSCSE, entered ${entry})`
@@ -65,7 +68,16 @@ export function programHistory(student: Student): ProgramHistory {
   const earlier: string[] = [];
   if (b?.graduate === 'nd-mscse' || b?.graduate === 'nd-4plus1' || b?.graduate === 'nd-other') {
     const { from, to } = span(student, 'masters');
-    const what = b.graduate === 'nd-other' ? 'a graduate degree at Notre Dame (another department)' : `MSCSE at Notre Dame${b.graduate === 'nd-4plus1' ? ' (Integrated 4+1)' : ''}`;
+    // Another department's program by whether it was finished — the fact
+    // Academic Code §4.6's transfer cap turns on, and the page's own words
+    // (policy review round 3, P3-emails-6): "a graduate degree" only when it
+    // was; unanswered, neither.
+    const what =
+      b.graduate === 'nd-other'
+        ? b.finished === true
+          ? 'a graduate degree at Notre Dame (another department)'
+          : `a graduate program at Notre Dame (another department)${b.finished === false ? ', not finished' : ''}`
+        : `MSCSE at Notre Dame${b.graduate === 'nd-4plus1' ? ' (Integrated 4+1)' : ''}`;
     earlier.push(`${what}${range(from, to, awarded(student, 'masters'))}`);
   }
   if (b?.bachelors === 'nd-cse' || b?.bachelors === 'nd-other') {
@@ -77,4 +89,25 @@ export function programHistory(student: Student): ProgramHistory {
     compact: [current, ...earlier].join('; '),
     earlier: earlier.length > 0 ? `Earlier Notre Dame programs: ${earlier.join('; ')}.` : '',
   };
+}
+
+/** The "Prior graduate study" values as the page labels them — the §5.2
+ * transfer cap's three cases. */
+export const PRIOR_LABELS: Record<Student['priorMs'], string> = {
+  none: 'No prior graduate degree',
+  unfinished: 'Prior M.S., not completed',
+  completed: 'Completed prior M.S. or Ph.D.',
+};
+
+/** The emails' "Prior graduate study" line (policy review round 3,
+ * P3-prior-programs-6; DGS 2026-10-07: "apply the suggested handling"). A
+ * Ph.D. student holding the Notre Dame MSCSE (as a regular student or
+ * through the 4+1) has `priorMs` "none" — its courses count as one program
+ * with the Ph.D. (DGS 2026-09-26) — and the emails said "No prior graduate
+ * degree" beside "Earlier Notre Dame programs: MSCSE at Notre Dame". The
+ * earlier-degrees answer says what the student holds; the cap is unchanged. */
+export function priorStudyLabel(student: Student): string {
+  const g = student.background?.graduate;
+  if (student.program === 'phd' && (g === 'nd-mscse' || g === 'nd-4plus1')) return 'MSCSE at Notre Dame (one graduate program with the Ph.D.); no graduate degree elsewhere';
+  return PRIOR_LABELS[student.priorMs];
 }
