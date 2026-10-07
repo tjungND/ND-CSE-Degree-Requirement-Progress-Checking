@@ -252,7 +252,7 @@ describe('what the request asks of the DGS — ReviewAsk (DGS 2026-09-28: the re
   });
 
   it('a course the rules decide case by case: an answer for this student — a reply', () => {
-    assert.deepEqual(askOf(student([purdue('STAT 51200', 'Applied Regression Analysis')]), [row('STAT 51200', { transferable: 'dgs_approval' })], 'STAT 51200'), { needsRow: false, replyNeeded: true, decide: ['approve the transfer for me — the course rules say case by case (§5.2)'] });
+    assert.deepEqual(askOf(student([purdue('STAT 51200', 'Applied Regression Analysis')]), [row('STAT 51200', { transferable: 'dgs_approval' })], 'STAT 51200'), { needsRow: false, replyNeeded: true, decide: ['approve the transfer for me — the course rules say case by case (§5.2)'], rulings: ['approve the transfer for me — the course rules say case by case (§5.2)'] });
   });
 
   it('Notre Dame coursework: an unlisted course asks for the row and the qualifier columns; a listed case-by-case row asks for the answer', () => {

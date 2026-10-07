@@ -40,6 +40,14 @@ export interface ReviewAsk {
   /** The decisions, as the sheet's own columns or the answer wanted:
    * "counts toward the Ph.D.: yes / no / case by case". */
   decide: string[];
+  /** The part of `decide` that is a ruling for THIS student — a readmission,
+   * a lapsed Incomplete, a UG→GR move, a case-by-case approval, an S grade …
+   * — which no sheet cell can hold (policy review round 3, P3-emails-2; DGS
+   * 2026-10-06: "apply the suggested handling"). The rest are sheet
+   * questions. Tagged by identity, not wording: everything that is not one of
+   * the sheet's own questions. Absent when there is none; `replyNeeded`
+   * follows it. */
+  rulings?: string[];
 }
 
 export interface PendingDgsReview {
@@ -144,6 +152,15 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
   const CORE = 'core area (§4.4.1), if any';
   const GROUP = 'specialization group (§4.4.2), if any';
   const TRANSFERABLE = `transferable to the ${degree} (§5.2): yes / no / case by case`;
+  const IS_CSE = 'say whether this counts as a CSE course for §4.2’s nine-credit non-CSE allowance (the is_cse cell on its row)';
+  // The sheet's own questions (P3-emails-2): a cell the DGS fills in, read by
+  // the page on its next visit — no reply. Every other ask is a ruling.
+  const SHEET_QUESTIONS = new Set([COUNTS, CORE, GROUP, TRANSFERABLE, `${COUNTS} — the row is blank`, `${TRANSFERABLE} — the row is blank`, IS_CSE]);
+  const tagged = (p: PendingDgsReview): PendingDgsReview => {
+    const rulings = p.ask.decide.filter((d) => !SHEET_QUESTIONS.has(d));
+    const { rulings: _old, ...rest } = p.ask;
+    return { ...p, ask: { ...rest, replyNeeded: rulings.length > 0, ...(rulings.length > 0 ? { rulings } : {}) } };
+  };
   const forMe = (what: string): ReviewAsk => ({ needsRow: false, replyNeeded: true, decide: [what] });
 
   for (const c of classified) {
@@ -225,7 +242,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       ...(c.passFailGrade ? ['decide whether this S (pass/fail) course transfers — it cannot show the B §5.2 requires'] : []),
       ...(c.afterAdmission ? ['confirm the department and the Graduate School approved this course before I took it (taken after admission, DGS Handbook §3.14)'] : []),
       ...(c.noPriorProgram ? ['decide whether this course transfers, and how much — I had no earlier graduate program, and the Academic Code states no transfer allowance for that case (Academic Code §4.6)'] : []),
-      ...(c.cseUnknown ? ['say whether this counts as a CSE course for §4.2’s nine-credit non-CSE allowance (the is_cse cell on its row)'] : []),
+      ...(c.cseUnknown ? [IS_CSE] : []),
       ...(c.incompleteLapsed ? ['confirm whether the Graduate School extended my Incomplete, or the grade was posted (Academic Code §4.4)'] : []),
       // Another university's Incomplete (P3-ac-4-1; DGS 2026-10-05: held for DGS review).
       ...(c.outsideIncomplete ? ['decide this course once its final grade is posted — it is graded I (Incomplete) at my previous university, so it cannot show the B that §5.2 requires yet'] : []),
@@ -260,7 +277,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
           replyNeeded: true,
           decide: [
             ...(c.ndPostingHeld !== undefined ? ['confirm this credit, already accepted on my Notre Dame record, counts toward this degree (I tick the box on the course when you do)'] : []),
-            ...(c.cseUnknown ? ['say whether this counts as a CSE course for §4.2’s nine-credit non-CSE allowance (the is_cse cell on its row)'] : []),
+            ...(c.cseUnknown ? [IS_CSE] : []),
             ...(coreOpen ? [CORE] : []),
           ],
         },
@@ -434,5 +451,5 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
     }
   }
   // Said for the degree's decider (2026-09-11): the ADGS for an MSCSE student.
-  return [...nd, ...priorNd, ...external].map((p) => ({ ...p, reason: decisionWording(student.program, p.reason) }));
+  return [...nd, ...priorNd, ...external].map((p) => ({ ...tagged(p), reason: decisionWording(student.program, p.reason) }));
 }

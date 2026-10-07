@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — emails; policy review round 3): **P3-emails-2.** The review request’s A / B lists split on a tag, not on “for me”: review.ts tags every ask (`ReviewAsk.rulings` — anything outside the sheet’s own questions), transcript/external.ts puts rulings only in B. tests/review-request-rulings.test.ts. Wording W-CL235.
+
 2026-10-06 (DGS — emails; policy review round 3): **P3-emails-1.** The advisor email’s transfer items come from the processing request’s list (AdvisorSummaryOptions `transfers`, passed by app.ts; `actionItems(report, transfers)`), so a decided transfer is named for the student and the Grad Admin and “Nothing is pending” is true. tests/advisor-transfer-processing.test.ts. Wording W-CL233–W-CL234.
 
 2026-10-06 (DGS — engine and page; policy review round 3): **P3-dh-front-1-2-2.** The dual-degree plan’s wait is the Graduate School’s: shared.ts `signOffActors` routes it to a `graduateSchool` actor (`DUAL_PLAN_REASON`), review.ts skips `dualPlanOnly`, advisor-summary.ts and next-steps.ts word the student’s errand. tests/dual-plan-routing.test.ts; scenario phd-dual-degree-plan-pending pins the Approvals row and an empty review request. Wording W-CL230–W-CL232.

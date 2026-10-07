@@ -1997,7 +1997,7 @@ interface ReviewRequestCourse {
   /** What the DGS is asked to do (engine/review.ts ReviewAsk, 2026-09-28).
    * Optional for older callers: then a new row is asked for when `unlisted`,
    * with no reply. */
-  ask?: { needsRow: boolean; replyNeeded: boolean; decide: string[] };
+  ask?: { needsRow: boolean; replyNeeded: boolean; decide: string[]; rulings?: string[] };
 }
 
 /** Shared assembly for the copy-ready review requests (decisions 2026-09-03).
@@ -2196,6 +2196,12 @@ export function buildCombinedReviewRequest(opts: {
   // The student is writing to the DGS: "your advisor" is "my advisor".
   const voiced = (reason: string): string => reason.replace(/\byour advisor/g, 'my advisor').replace(/\bYour advisor/g, 'My advisor');
   const askOf = (c: PendingReviewCourse) => c.ask ?? { needsRow: c.unlisted, replyNeeded: false, decide: [] };
+  // The rulings for this student (P3-emails-2): tagged by the engine; an older
+  // caller's ask falls back to the "for me" wording it used to be split on.
+  const rulingsOf = (c: PendingReviewCourse): string[] => {
+    const a = askOf(c);
+    return a.rulings ?? a.decide.filter((d) => /\bfor me\b/.test(d));
+  };
   const detail = (c: PendingReviewCourse): string[] => [c.courseId, c.title ?? '', String(c.credits), c.grade, c.termText, askOf(c).decide.join('; '), voiced(c.reason)];
   // One row per course for the sheet; every attempt still shown in the details.
   const ndRows = oncePerCourse(opts.nd, (c) => normalizeCourseId(c.courseId));
@@ -2236,18 +2242,21 @@ export function buildCombinedReviewRequest(opts: {
   const sheetItems = distinct(all)
     .map((c) => {
       const a = askOf(c);
-      // The sheet's part of the ask: everything that is not an answer for the student.
-      const decide = a.decide.filter((d) => !/\bfor me\b/.test(d));
+      // The sheet's part of the ask: everything that is not a ruling for the student.
+      const rulings = new Set(rulingsOf(c));
+      const decide = a.decide.filter((d) => !rulings.has(d));
       return decide.length === 0 ? '' : `${name(c)} — ${a.needsRow ? 'new row: ' : 'complete the row: '}${decide.join('; ')}`;
     })
     .filter((s) => s !== '');
-  const replyItems = distinct(all.filter((c) => askOf(c).replyNeeded)).map((c) => `${name(c)} — ${askOf(c).decide.filter((d) => /\bfor me\b/.test(d)).join('; ')}`);
+  // List B: the rulings, with their text — never an item with nothing after the dash.
+  const replyItems = distinct(all.filter((c) => rulingsOf(c).length > 0)).map((c) => `${name(c)} — ${rulingsOf(c).join('; ')}`);
   const history = opts.history;
   return buildReviewRequest({
     subject: `Course review request (degree self-check)${history ? ` — ${history.compact}` : ''}`,
     intro:
       'Could you review these courses for the degree self-check? ' +
-      'It cannot count them until they are decided in the course rules.',
+      // Rulings for this student are decided by reply, not in the rules (P3-emails-2).
+      'It cannot count them until they are decided — in the course rules, or by your reply where the question is about my record.',
     context: [
       ...(history?.earlier ? [history.earlier] : []),
       // (No second full stop after a label that ends in one — "…or Ph.D.".)
