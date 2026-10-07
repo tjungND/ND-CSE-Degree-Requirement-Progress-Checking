@@ -408,7 +408,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...(candidacyApplicationDue ? ['Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3)'] : []),
     ...(msCandidacyDue ? ['Application for Admission to Master’s Degree Candidacy — the self-check shows a 3.0 GPA and 30 credits, counting this semester’s (Academic Code §6.1.6)'] : []),
     ...(met.length > 0
-      ? [`${tallyText} — the request lists every requirement with its standing, what meets it so far and its deadline${tally.dueSoon > 0 ? ` (${plural(tally.dueSoon, 'deadline')} in this semester or the next, highlighted)` : ''}, for the record`]
+      ? [`${tallyText} — listed in the request with their standing and deadlines${tally.dueSoon > 0 ? ` (${plural(tally.dueSoon, 'deadline')} this semester or next, highlighted)` : ''}, for the record`]
       : []),
   ];
   return {

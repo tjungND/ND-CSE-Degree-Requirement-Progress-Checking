@@ -76,7 +76,7 @@ describe('processingItems', () => {
     // Since 2026-09-28 the line tallies the open rows too, and the request
     // lists every requirement with its standing.
     // Two overdue since 2026-10-04: this student has no research seminar past the first year (P1-sheet-9).
-    assert.match(items.lines.at(-1)!, /^\d+ requirements met, 2 overdue, \d+ in progress, 1 not started — the request lists every requirement with its standing, what meets it so far and its deadline, for the record$/);
+    assert.match(items.lines.at(-1)!, /^\d+ requirements met, 2 overdue, \d+ in progress, 1 not started — listed in the request with their standing and deadlines, for the record$/);
     assert.deepEqual(items.standing.map((t) => t.color).filter((c, i, a) => a.indexOf(c) === i), ['red', 'green', 'amber', 'grey'], 'overdue first, then the page’s colours (grey: the dissertation submission, "Not started", since 2026-10-03)');
     assert.ok(!items.standing.some((t) => /Transfer credit from prior/.test(t.heading)), 'the transfer row is the transfer sections’ business');
     assert.match(items.lines[0]!, /^CS 50300 \(Purdue University\) — transfer credit recommended by the DGS in the course rules, to be submitted to the Graduate School \(§5\.2\)$/);

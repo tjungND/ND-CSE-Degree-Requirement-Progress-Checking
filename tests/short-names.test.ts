@@ -88,7 +88,7 @@ describe('where the short forms are used, and where they are not', () => {
       typeof p === 'string' ? p : typeof p === 'object' && p !== null && 'note' in p ? (p as { note: string }).note : `${(p as { lead: string }).lead}: ${(p as { items: string[] }).items.join('; ')}`;
     const onPage = (row?.shortDetailParts ?? []).map(flat).join(' | ');
     const inMessages = (row?.detailParts ?? []).map(flat).join(' | ');
-    assert.match(onPage, /still open: .*DS\/AI/, onPage);
+    assert.match(onPage, /Still open: .*DS\/AI/, onPage);
     assert.ok(!/Human Centered Computing|Data Science and Artificial Intelligence|Systems and Software/.test(onPage), onPage);
     // `detail` and `detailParts` are what advisorSummary and the Grad Admin
     // request re-voice — the DGS asked for those to stay spelled out.

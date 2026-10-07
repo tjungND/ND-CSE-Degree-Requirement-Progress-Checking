@@ -857,7 +857,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // P3-cse-5-6-1; DGS 2026-10-06): §5.2 caps only what comes from an
     // unfinished or a completed program, so the DGS decides — "may transfer"
     // with a number read as an allowance no document gives.
-    const noStatedLimit = `§5.2 sets a credit limit only after an unfinished or a completed graduate program, so the DGS decides whether, and how much, of a course from another university transfers (this page holds it to ${unfinished} until then)`;
+    const noStatedLimit = `the DGS decides whether a course from another university transfers, and how much (§5.2 sets a limit only after a graduate program); this page holds it to ${unfinished} until then`;
     if (b.graduate === 'nd-mscse-transfer') return ` No earlier degree: ${noStatedLimit}; your MSCSE coursework counts as Ph.D. coursework (one graduate program). The §4.3 eight years and the eighth semester for the OCE and for admission to candidacy count from the semester you started the MSCSE; the §4.4 qualifier clocks and the first-year seminars (§4.2) from your transfer.`;
     if (b.graduate === 'nd-other') {
       // Another Notre Dame department is "another graduate program at Notre
@@ -1057,7 +1057,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           : hasGraduateTransfers
             ? 'Required, and you already have coursework from before Notre Dame: enter the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2); until it is set, every graduate-level course from before Notre Dame is taken as graduate coursework.'
             // The legend above already names the field (trim review 2026-09-18, P-23).
-            : 'Required for every student, with or without a graduate degree: §5.2 counts a course as transfer credit only when it was taken after the bachelor’s degree.',
+            : '§5.2 counts a course as transfer credit only if it was taken after the bachelor’s degree.',
     );
     const card = el(
       'section',
@@ -1744,7 +1744,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint course-key' },
-        `Key: ✓ counts · ◐ in progress · ● pending approval · ✕ does not count. A regular course is a lecture course — one the course rules list as regular; seminars, research and project credits count toward the ${totalCreditsWord()} total but not toward the ${regularCreditsWord()} regular-course credits (${student.program === 'mscse' ? '§3.2' : '§4.2'}).`,
+        `Key: ✓ counts · ◐ in progress · ● pending approval · ✕ does not count. Regular courses are the lecture courses the course rules list as regular; seminar, research and project credits count toward the ${totalCreditsWord()} total only (${student.program === 'mscse' ? '§3.2' : '§4.2'}).`,
       ),
       nd.length > 0
         ? courseTable(courseLines, nd)
@@ -1819,8 +1819,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint' },
+        // Shortened 2026-10-07 (DGS: "see any texts can be shortened without
+        // losing its meaning").
         el('strong', {}, 'System-generated PDFs are read exactly;'),
-        ' a scanned or photographed transcript is read with built-in text recognition (OCR, English only) after you agree. You check every field before it is added.',
+        ' scans and photos are read by text recognition (OCR, English only) if you agree. You check every row before it is added.',
       ),
       // Unofficial transcripts read best (DGS observation 2026-09-05): the web /
       // self-service PDF is single-column and carries no watermark; official
@@ -2503,22 +2505,22 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ? el(
             'p',
             { class: 'hint' },
-            'Nothing to process yet — this card fills in as requirements are met and milestone dates are entered. The Grad Admin (',
+            'Nothing to process yet — this fills in as requirements are met and milestones are dated. The Grad Admin (',
             `${GRAD_ADMIN.name}, `,
             mailto(GRAD_ADMIN.email),
-            ') processes what the DGS has decided and keeps the official record.',
+            ') processes what the DGS has decided.',
           )
         : el(
             'p',
             { class: 'hint' },
             el('strong', {}, 'Two people, two jobs. '),
-            'The DGS decides eligibility by the course rules; the Grad Admin (',
+            'The DGS decides; the Grad Admin (',
             `${GRAD_ADMIN.name}, `,
             mailto(GRAD_ADMIN.email),
             student.program === 'phd'
-              ? ') processes what has been decided and keeps the official record: transfer credit (§5.2), the qualifier form (§4.4), exam and defense forms (§4.5–4.7), the MSCSE along the way (§4.5) — and the requirements you have met so far. '
-              : ') processes what has been decided and keeps the official record: transfer credit (§5.2), the project or thesis forms (§3.4) — and the requirements you have met so far. ',
-            `Initiate the processing by clicking the following button: it opens the request for you to check and send from your own email app, to the Grad Admin with the DGS in cc${needsTranscripts ? ' — attach copies of your transcripts' : ''}.`,
+              ? ') processes what is decided and keeps the official record — transfer credit (§5.2), the qualifier, exam and defense forms (§4.4–4.7), the MSCSE along the way (§4.5) and the requirements you have met. '
+              : ') processes what is decided and keeps the official record — transfer credit (§5.2), the project or thesis forms (§3.4) and the requirements you have met. ',
+            `The button opens the request in your own email app, to the Grad Admin with the DGS in cc${needsTranscripts ? ' — attach copies of your transcripts' : ''}.`,
           ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line', 'data-keep-dgs': '' }, text)),
       el('div', { class: 'save-buttons' }, button),
@@ -2965,7 +2967,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // (W-P1) stays in the footer and the notice Details; here only the
         // claim and the instruction (trim review 2026-09-18, P-8; "import"
         // for what the student does, P-53).
-        'Everything you enter — including any transcript PDF you import — is processed and saved in this browser only. To keep a copy or move to another device, save it as a file.',
+        'Everything you enter, transcript PDFs included, stays in this browser. Save it to a file to keep a copy or to move to another device.',
       ),
       // The other side of "it stays in this browser" (interface review R7,
       // 2026-09-18): on a lab or library machine the record has no expiry, so
@@ -2975,7 +2977,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         'p',
         { class: 'hint warn' },
         // Both R7 facts in fewer words (trim review 2026-09-18, P-36).
-        'On a shared or public computer, clear your record before you walk away: it never expires, and the next person to open this page on this machine would see it.',
+        'On a shared or public computer, clear your record before you walk away — it never expires, and the next person on this machine would see it.',
       ),
       el(
         'div',
@@ -3039,7 +3041,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Who decides and who processes is on the Grad Admin card, in the
         // glossary and in the contact card right below; the footer keeps its
         // one imperative (trim review 2026-09-18, P-21).
-        ', together with the Graduate School’s rules in its Academic Code, its DGS Handbook and its 4+1 guidance. Some requirements rest on approvals and facts this page cannot see — advisor and DGS sign-off, transfer-credit recommendations, Graduate School approvals and extensions, and what you state yourself, such as your advisor’s faculty status, a leave or a readmission, or a probation letter — so those are sent to the DGS rather than decided here. Deadlines are shown by semester and are approximate; the Graduate School calendar sets the exact dates. Confirm with the DGS before you rely on this self-check.',
+        // Shortened 2026-10-07 (DGS: "see any texts can be shortened without
+        // losing its meaning"): the same four points — the sources, what is
+        // sent to the DGS, approximate deadlines, confirm before relying.
+        ' and the Graduate School’s Academic Code, DGS Handbook and 4+1 guidance. What this page cannot see — sign-offs, recommendations, Graduate School approvals and extensions, and facts you state yourself — goes to the DGS rather than being decided here. Deadlines are by semester and approximate; the Graduate School calendar sets the exact dates. Confirm with the DGS before you rely on this self-check.',
       ),
       // No alpha paragraph in the footer (DGS 2026-09-19, trim proposal P-3):
       // it was word for word the red strip's Details at the top of the page.

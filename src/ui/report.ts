@@ -317,7 +317,16 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // copied messages (DGS 2026-09-08). A row with no parts is one fact.
   const parts: DetailPart[] = r.shortDetailParts ?? r.detailParts ?? (r.detail ? [r.detail] : []);
   const isNote = (p: DetailPart): p is { note: string } => typeof p === 'object' && 'note' in p;
-  const facts = parts.filter((p) => !isNote(p));
+  // A fact that only repeats the pill — "Not started." under "Not started",
+  // an allowance's "0 of the 6 … used." beside its "0 of 6 used" meter — is
+  // not shown (DGS 2026-10-07: "see any texts can be shortened without losing
+  // its meaning"). The copied emails keep the engine's words; they have no
+  // pill beside them, and the advisor email already drops the meter sentence.
+  const pillWord = r.allowance ? undefined : statusWord(r).toLowerCase();
+  const repeatsPill = (p: DetailPart): boolean =>
+    typeof p === 'string' &&
+    ((pillWord !== undefined && p.trim().replace(/\.$/, '').toLowerCase() === pillWord) || (r.allowance === true && /^\d+(?:\.\d+)? of the \d+ [^.]*used\.?$/.test(p.trim())));
+  const facts = parts.filter((p) => !isNote(p) && !repeatsPill(p));
   const notes = parts.filter(isNote).map((p) => p.note);
   const sentence = (t: string): string => (/[.!?]$/.test(t) ? t : `${t}.`);
   const fact = (t: string): string => sentence(withoutCitations(t));

@@ -1079,11 +1079,14 @@ function categoriesRow(ctx: Ctx): RequirementResult {
       status = 'unmet';
       // What is covered, and which groups are still open, are the facts; the
       // rule is a note (DGS 2026-10-03).
-      withItems(`${qualifying.length} qualifying course${qualifying.length === 1 ? '' : 's'} covering ${def.distinctCount} distinct group${def.distinctCount === 1 ? '' : 's'}`);
+      // "No qualifying course yet", not "0 qualifying courses covering 0
+      // distinct groups"; "Still open" starts its own sentence (2026-10-07,
+      // shortened without losing meaning).
+      withItems(qualifying.length === 0 ? 'No qualifying course yet' : `${qualifying.length} qualifying course${qualifying.length === 1 ? '' : 's'} covering ${def.distinctCount} distinct group${def.distinctCount === 1 ? '' : 's'}`);
       if (def.missingGroups.length > 0) {
         add(
-          `still open: ${def.missingGroups.map(groupName).join(', ')}`,
-          `still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
+          `Still open: ${def.missingGroups.map(groupName).join(', ')}`,
+          `Still open: ${def.missingGroups.map((g) => shortName(groupName(g))).join(', ')}`,
         );
       }
       add({ note: `${groupsReq} distinct groups and ${coursesReq} courses with a grade of ${floor} or higher are required (§4.4.2)` });
