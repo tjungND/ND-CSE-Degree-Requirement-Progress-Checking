@@ -113,6 +113,13 @@ export function rulesDateLine(
   return `The course rules here are those in effect for ${currentTermLabel}${tail}`;
 }
 
+/** One formatter for every long date, made once (efficiency, 2026-10-07):
+ * toLocaleDateString with options builds a new one on every call (~25 µs
+ * against ~0.5 µs). UTC on both sides — Date.UTC in, timeZone UTC out — so
+ * the day printed is year-month-day whatever the device's zone; the local
+ * round-trip check in formatYmdLong has already validated the date. */
+const LONG_DATE_UTC = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
+
 /** "2026-09-01" → "September 1, 2026" as a calendar date (no time-zone shift);
  *  undefined for anything that is not YYYY-MM-DD. Also used by the advisor
  *  summary for its "as of" date. */
@@ -129,5 +136,5 @@ export function formatYmdLong(ymd: string): string | undefined {
   // 2026-09-18). A date that did not survive the round trip is not a date;
   // `rulesDateLine`'s `?? override` then prints the cell as the sheet wrote it.
   if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return undefined;
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return LONG_DATE_UTC.format(Date.UTC(year, month - 1, day));
 }

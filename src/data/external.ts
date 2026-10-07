@@ -37,16 +37,37 @@ export function expandInstitutionAbbreviations(name: string): string {
   return ABBREVIATIONS.reduce((out, [re, word]) => out.replace(re, word), name).replace(/\s{2,}/g, ' ').trim();
 }
 
+// Remembered per name (efficiency, 2026-10-07): one audit asks about the same
+// few names hundreds of times (classify's duplicate check compares every pair
+// of transfer rows), and each fold runs about twenty regular expressions. The
+// fold depends on the name alone, so a remembered answer is the same answer —
+// if it ever depends on anything else (a sheet parameter, a setting), remove
+// this cache. Capped so names read from transcripts cannot grow it without limit.
+const universityFolds = new Map<string, string>();
+
 /** "Univ. of Notre-Dame " → "university of notre dame" (abbreviations spelled
  * out since 2026-09-08, then case, punctuation and
  * diacritics ignored; whitespace collapsed). Non-Latin letters are kept, but
  * the sheet convention (2026-09-03) is the university's name in CAPITAL
- * ENGLISH exactly as its transcripts print it. */
-// The sheet's university names are what the import read from official
-// transcripts and are never altered (DGS 2026-10-07). This folds the same way
-// on both sides — case, punctuation, spacing, spelled-out abbreviations, a
-// leading "The" — and must never drop a word from a name.
+ * ENGLISH exactly as its transcripts print it.
+ *
+ * The sheet's university names are what the import read from official
+ * transcripts and are never altered (DGS 2026-10-07). This folds the same way
+ * on both sides — case, punctuation, spacing, spelled-out abbreviations, a
+ * leading "The" — and must never drop a word from a name. The fold itself is
+ * foldUniversity, below; this remembers its answers. */
 export function normalizeUniversity(name: string): string {
+  let folded = universityFolds.get(name);
+  if (folded === undefined) {
+    if (universityFolds.size >= 1000) universityFolds.clear();
+    folded = foldUniversity(name);
+    universityFolds.set(name, folded);
+  }
+  return folded;
+}
+
+/** The fold normalizeUniversity remembers — see its comment for the rules. */
+function foldUniversity(name: string): string {
   return expandInstitutionAbbreviations(name)
     .normalize('NFKD')
     .replace(/\p{M}+/gu, '') // strip the accents NFKD split off

@@ -12,6 +12,12 @@ export function looksLikeNotreDameTranscript(text: string): boolean {
   if (/university\s+of\s+notre\s+dame/i.test(noEmails)) return true;
   // insideND URLs live in the browser's print footer of the unofficial transcript.
   if (/\bnd\.edu\b/i.test(noEmails) || /\binside\.nd\b/i.test(noEmails)) return true;
+  // Every mention below contains "notre dame", so a text without it has none
+  // (efficiency, 2026-10-07): the mention pattern restarts at every character
+  // of a long line, which made it slow on long transcripts from other
+  // universities, so it only runs on text that can match. Keep this test in
+  // step with the pattern.
+  if (!/notre\s+dame/i.test(noEmails)) return false;
   const mentions = noEmails.match(/[^\n]*notre\s+dame[^\n]*/gi) ?? [];
   return mentions.some((line) => !/notre\s+dame,?\s+(in|indiana)\b/i.test(line));
 }

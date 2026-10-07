@@ -41,6 +41,11 @@ export function dateLiveRules(live: CsvTexts, snapshot: { syncedAt: string; csv:
   return { kind: sameCsvContent(live, snapshot.csv) ? 'known' : 'after', at: snapshot.syncedAt };
 }
 
+// Made on first use and kept (efficiency, 2026-10-07): toLocaleDateString
+// with options builds a new formatter on every call. Its constructor is what
+// throws on a runtime without the zone database, so it is made inside the try.
+let ndLongDate: Intl.DateTimeFormat | undefined;
+
 /** "September 1, 2026" as the calendar reads AT NOTRE DAME; undefined for bad
  * input.
  *
@@ -58,7 +63,8 @@ export function formatDateLong(iso: string | undefined): string | undefined {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return undefined;
   try {
-    return new Date(t).toLocaleDateString('en-US', { timeZone: ND_TIME_ZONE, year: 'numeric', month: 'long', day: 'numeric' });
+    ndLongDate ??= new Intl.DateTimeFormat('en-US', { timeZone: ND_TIME_ZONE, year: 'numeric', month: 'long', day: 'numeric' });
+    return ndLongDate.format(new Date(t));
   } catch {
     // A runtime without the zone database: the device's own calendar, which is
     // what this function did before the zone was passed at all.

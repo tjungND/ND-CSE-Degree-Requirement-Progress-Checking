@@ -511,6 +511,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // The engine's classification of the record, once per render: the review
     // card, the milestones card and the Grad Admin request all read it.
     const { classified } = classify(student, rules);
+    // The Grad Admin request, built once per render (efficiency, 2026-10-07):
+    // the next-steps list counts its items, and the Grad Admin card shows and
+    // copies it. Its count comes from processingItems, which `history` does
+    // not touch, so this one call (the card's, with history) serves both.
+    const gaRequest = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa, history: programHistory(student) }, classified);
     // What the record calls for next (DGS 2026-09-27): read once here, drawn
     // under the dial, in the phone summary and as the numbered list.
     const next = {
@@ -522,7 +527,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           const pending = coursesNeedingDgsReviewFor(classified, student);
           return { unlisted: pending.filter((p) => p.unlisted).length, caseByCase: pending.filter((p) => !p.unlisted).length };
         })(),
-        processingCount: gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa }, classified).items.count,
+        processingCount: gaRequest.items.count,
       }),
       nearest: nearestDeadline(report),
     };
@@ -571,7 +576,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             coursesCard(report.courseLines),
             askDgsCard(classified, report),
             milestonesCard(classified, report),
-            askGradAdminCard(report, classified),
+            askGradAdminCard(gaRequest),
             saveCard(report),
             diagnosticsCard(),
           ),
@@ -2453,8 +2458,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // other half of the two roles. The DGS decides eligibility (the review
   // request above); the Grad Admin processes what has been decided and keeps
   // the official record. Placed after the milestones, whose dates it reports.
-  function askGradAdminCard(report: ReturnType<typeof audit>, classified: readonly ClassifiedCourse[]): HTMLElement {
-    const built = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa, history: programHistory(student) }, classified);
+  function askGradAdminCard(built: ReturnType<typeof gradAdminRequest>): HTMLElement {
     const n = built.items.count;
     const decider = deciderContact(student.program);
     // The Grad Admin needs the original transcripts only to process §5.2

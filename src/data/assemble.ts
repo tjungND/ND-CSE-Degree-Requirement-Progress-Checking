@@ -71,16 +71,31 @@ export function joinSpacedSubject(text: string): string {
   return text.replace(/^((?:[A-Za-z] ){1,5}[A-Za-z])(?=\s*-?\s*\d)/, (m) => m.replace(/ /g, ''));
 }
 
+// Remembered per id (efficiency, 2026-10-07): one render asks for the same
+// few dozen ids several times per course (rule lookup, department, same-term
+// check, the incomplete-id test) across two or three classify runs. A modest
+// gain — classify of the Ph.D. example 15 → 7 µs; about 0.1–0.25 ms per render
+// for a 40–86-course record. The answer depends on the id alone — if it ever
+// takes a second input, the key must include it, or drop this cache. Capped so
+// text typed into a box cannot grow it without limit.
+const canonicalIds = new Map<string, string>();
 export function canonicalCourseId(courseId: string): string {
-  const flat = courseId.toUpperCase().replace(/\s+/g, ' ').trim();
-  const m = /^([A-Z]{2,6})\s*(\d[\dX]{3,5})$/i.exec(flat.replace(/\s+/g, ''));
-  return m ? `${m[1]} ${m[2]}` : flat;
+  let id = canonicalIds.get(courseId);
+  if (id === undefined) {
+    if (canonicalIds.size >= 2000) canonicalIds.clear();
+    const flat = courseId.toUpperCase().replace(/\s+/g, ' ').trim();
+    const m = /^([A-Z]{2,6})\s*(\d[\dX]{3,5})$/i.exec(flat.replace(/\s+/g, ''));
+    id = m ? `${m[1]} ${m[2]}` : flat;
+    canonicalIds.set(courseId, id);
+  }
+  return id;
 }
 
 /** A course number with placeholder letters — "CSE 6xxxx", "CSE 60xxx" — is a
  * number the student has not finished typing, not a course (2026-09-11). */
 export function isIncompleteCourseId(courseId: string): boolean {
-  return /^[A-Z]{2,6}\s+\d*X+\d*$/i.test(canonicalCourseId(courseId)) || /\d[X]+|[X]+\d/i.test(canonicalCourseId(courseId).split(' ')[1] ?? '');
+  const id = canonicalCourseId(courseId);
+  return /^[A-Z]{2,6}\s+\d*X+\d*$/i.test(id) || /\d[X]+|[X]+\d/i.test(id.split(' ')[1] ?? '');
 }
 
 /** Which rules row governs a course taken in `term`?
