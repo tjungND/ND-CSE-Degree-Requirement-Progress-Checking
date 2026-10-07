@@ -250,11 +250,6 @@ export interface ClassifiedCourse {
    * it was "officially transferred" before the bachelor's was conferred (4+1
    * guidance; policy review 2026-10-03). */
   ugToGrUnverified?: true;
-  /** The same course on a 4+1 record whose admission term is unanswered, so
-   * it is "not counted yet": if the student was admitted by its semester, it
-   * must be moved from UG to GR before the bachelor's is conferred (policy
-   * review round 3, P3-fourplusone-3). */
-  ugToGrIfAdmitted?: true;
   /** A Notre Dame graduate course from before admission on a record whose
    * earlier graduate program was at ANOTHER university (policy review round
    * 3, P3-dh-3.14-3.20-3; DGS 2026-10-06: option (c)) — not credit from an
@@ -1813,89 +1808,60 @@ function classifyPriorNdUndergraduate(
   // allowance and nothing under the 40000 level at all — an
   // undergraduate transcript is full of 1xxxx and 2xxxx courses, and
   // without this they filled that allowance.
-  // §3.5's WINDOW, for the MSCSE only (DGS 2026-09-11, correcting the
-  // day's earlier reading): "Students in the Integrated B.S. + M.S.
-  // program may take one or two 3-credit CSE courses at the 6xxxx level
-  // in the second semester of the junior year and the senior year" — so
-  // a graduate course taken EARLIER than that is not §3.5 coursework and
-  // counts toward nothing here. DGS: "60xxx courses taken in junior year
-  // 1st semester should not count toward MSCSE. Only courses taken in
-  // 2nd semester of junior year and both semesters in senior year should
-  // count."
+  // §3.5's WINDOW, for the MSCSE: "Students in the Integrated B.S. + M.S.
+  // program may take one or two 3-credit CSE courses at the 6xxxx level in
+  // the second semester of the junior year and the senior year" and "count
+  // these both as undergraduate CSE electives/Tech electives and as course
+  // requirements for the MSCSE degree". Since 2026-10-07 (DGS, policy review
+  // round 3, P3-fourplusone-1) the window limits only the courses SHARED with
+  // the bachelor's — the one or two §3.5 describes; bsShared (classify)
+  // chooses them inside it. A 4+1's graduate course the bachelor's did not use
+  // counts toward the MSCSE from any undergraduate term (DGS: "a grad course
+  // taken in the junior year may count towards MS, as long as it's not used
+  // towards BS"; asked which terms: "Any undergraduate term"), on the Graduate
+  // School's answer by email to the DGS, for 4+1 students only: "Any
+  // graduate-level coursework a student may have taken as an undergraduate
+  // that was not used to satisfy the bachelor's degree could theoretically be
+  // used towards both the master's and the PhD." This replaces the 2026-09-11
+  // reading that refused a course from before the junior spring, and drops
+  // the ADGS approval an unshared junior-spring course needed (2026-10-03
+  // default; DGS 2026-10-07: "Drop it").
   //
-  // Those three terms are the three fall/spring semesters ending with
-  // the one the bachelor's degree was awarded in, so the award term is
-  // what places a course in the student's academic years — and without
-  // it nothing can be placed at all. The Ph.D. has no such window: the
-  // Graduate School's answer (2026-09-10) speaks of "coursework taken as
-  // an undergraduate" with no term in it.
-  //
-  // The window is §3.5's shape, not a tunable, so it lives here rather
-  // than in the Parameters tab; the three-semester span is the
-  // handbook's sentence translated.
-  /** §3.5's two window rules for the MSCSE, where the course is not one of the
-   * shared pair (policy review 2026-10-03): "Additional 6xxxx-level CSE courses
-   * completed by the student in their SENIOR year" — a junior-spring course may
-   * only be one of the shared one or two — and "CSE" both times, so a non-CSE
-   * graduate course taken as an undergraduate is the ADGS's to approve. Either
-   * one makes the course provisional rather than refused: the handbook leaves
-   * the approval to the instructor and the DGS. */
+  // The award term places a course in the student's academic years, so a
+  // course chosen to be shared cannot be checked against the window without
+  // it: that one waits for it. The Ph.D. has no window at all.
+  /** "CSE" in §3.5 both times, so a non-CSE graduate course taken as an
+   * undergraduate is the ADGS's to approve (policy review 2026-10-03): the
+   * course is provisional rather than refused. */
   let sectionThreeFiveApproval: string | undefined;
   if (program === 'mscse' && undergradLevel >= 6) {
-    if (awardedTerm === undefined) {
+    if (bsShare === 'both' && awardedTerm === undefined) {
       return {
         ...extBase,
         ineligibleReason:
-          'not counted yet — set the semester your bachelor’s degree was awarded, under Your standing. §3.5 counts graduate coursework from the second semester of your junior year onward, and this page cannot tell which year this course was in until it knows when you graduated',
-      };
-    }
-    if (semesterNumber(awardedTerm, c.term) < -1) {
-      return {
-        ...extBase,
-        ineligibleReason: `not counted — taken before the second semester of your junior year, which is where §3.5 begins: it lets an Integrated B.S. + M.S. student count graduate courses from that semester and the senior year (your bachelor’s degree was awarded ${termLabel(awardedTerm)})`,
+          'not counted yet — set the semester your bachelor’s degree was awarded, under Your standing. §3.5 lets a course count toward both your bachelor’s degree and the MSCSE only from the second semester of your junior year on, and this page cannot tell which year this course was in until it knows when you graduated',
       };
     }
     if (deptOf(c.courseId) !== 'CSE') {
       sectionThreeFiveApproval = '§3.5 names CSE courses — a graduate course from another department, taken as an undergraduate, counts toward the MSCSE only if the DGS approves it';
-    } else if (bsShare === 'mscse' && semesterNumber(awardedTerm, c.term) === -1) {
-      sectionThreeFiveApproval = '§3.5 lets a junior-spring graduate course count only as one of the one or two shared with your bachelor’s degree; this one is not shared, so it counts toward the MSCSE alone only if the DGS approves it';
     }
   }
-  // THE 4+1 ADMISSION TERM (Graduate School 4+1 guidance, paras 2–3; DGS
-  // Handbook §3.21.4 — policy review 2026-10-04, P2-fourplusone-1; DGS: "apply
-  // the suggested fix"): "In order to double count these credits, students
-  // must be recognized dual-degree students … apply to the graduate program
-  // during their junior year for matriculation in their senior year", and
-  // "Only six credits can be double-counted if a student starts the graduate
-  // program after the bachelor's degree has been awarded." So on the MSCSE a
-  // course beyond the six shared with the bachelor's counts only for a student
-  // admitted to the Integrated program before the bachelor's was awarded, and
-  // only from the admission term on. Unanswered, it waits for the answer —
-  // "not counted yet", the way a missing bachelor's award term does above.
+  // THE 4+1 ADMISSION TERM. Since 2026-10-07 (DGS, policy review round 3,
+  // P3-fourplusone-1) a 4+1's graduate course that the bachelor's degree did not
+  // use counts toward the MSCSE whenever it was taken — before the admission
+  // term too (4+1 matriculation is in the fall or the spring of the senior
+  // year, DGS). This replaces the 2026-10-04 rule (P2-fourplusone-1) that
+  // refused such a course before the admission term and held it until the
+  // term was entered. What stays: a student who says they were admitted AFTER
+  // the bachelor's is not in the 4+1 the guidance describes — "Only six credits
+  // can be double-counted if a student starts the graduate program after the
+  // bachelor's degree has been awarded" — so beyond the shared six nothing counts.
   if (program === 'mscse' && undergradLevel >= 6 && student.integratedBsMs === true && bsShare === 'mscse' && awardedTerm !== undefined) {
     const admitted = student.integratedAdmitted;
-    if (admitted === undefined) {
-      return {
-        ...extBase,
-        ineligibleReason:
-          'not counted yet — say when you were admitted to the Integrated B.S. + M.S. program (Your standing → Change): beyond the six credits shared with your bachelor’s degree, the Graduate School counts such courses only for a student admitted before the bachelor’s degree was awarded, and only from the admission term on (4+1 guidance)',
-        // Not shown moved from UG to GR: if the answer turns out to be "before
-        // the course", the move is due before the bachelor's is conferred, and
-        // the senior must hear that now (policy review round 3,
-        // P3-fourplusone-3) — audit.ts words it as a condition.
-        ...(c.registeredLevel !== 'graduate' ? { ugToGrIfAdmitted: true as const } : {}),
-      };
-    }
-    if (compareTerm(admitted, awardedTerm) > 0) {
+    if (admitted !== undefined && compareTerm(admitted, awardedTerm) > 0) {
       return {
         ...extBase,
         ineligibleReason: `not counted — you were admitted to the Integrated program for ${termLabel(admitted)}, after your bachelor’s degree (${termLabel(awardedTerm)}); the Graduate School counts only six credits — the ones shared with the bachelor’s — for a student who started the graduate program after the bachelor’s was awarded (4+1 guidance)`,
-      };
-    }
-    if (compareTerm(c.term, admitted) < 0) {
-      return {
-        ...extBase,
-        ineligibleReason: `not counted — taken before you were admitted to the Integrated program (${termLabel(admitted)}); beyond the six credits shared with your bachelor’s degree, only coursework from then on counts (4+1 guidance)`,
       };
     }
   }

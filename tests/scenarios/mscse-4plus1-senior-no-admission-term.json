@@ -1,6 +1,6 @@
 {
   "name": "mscse-4plus1-senior-no-admission-term",
-  "description": "Policy review round 3, P3-fourplusone-3 (DGS 2026-10-07: apply the suggested handling). A 4+1 senior (bachelor's in Spring 2027, the current semester) has not said when they were admitted to the Integrated B.S. + M.S. program. CSE 60641, taken in Fall 2026 as an undergraduate and not shared with the bachelor's, reads \"not counted yet\" (2026-10-04) — and the Graduate School's UG→GR move, which cannot be made after conferral, used to go unmentioned. The warning now says it as a condition.",
+  "description": "A 4+1 senior (bachelor's in Spring 2027, the current semester) who has not said when they were admitted to the Integrated B.S. + M.S. program. Since 2026-10-07 (DGS, policy review round 3, P3-fourplusone-1: a 4+1's graduate course the bachelor's did not use counts toward the MSCSE from any undergraduate term; §3.5's window limits only the courses shared with the bachelor's) CSE 60641, taken in Fall 2026 as an undergraduate and not shared with the bachelor's, counts — provisionally, because the transcript does not show it moved from UG to GR, so the senior is told to have it moved before conferral; and the record gets the three-degree warning. (From 2026-10-04 until then it read \"not counted yet\" until the admission term was entered.)",
   "today": "2027-02-01",
   "rules": {
     "base": "default"
@@ -73,14 +73,16 @@
   },
   "expect": {},
   "expectWarnings": [
-    "If you were admitted to the Integrated B.S. + M.S. program by the semester you took CSE 60641, it must be moved from undergraduate (UG) to graduate (GR) registration before your bachelor’s degree is conferred (Spring 2027)"
+    "Before your bachelor’s degree is conferred (Spring 2027): the graduate courses you are counting beyond the shared pair must be moved from undergraduate (UG) to graduate (GR) registration",
+    "CSE 60641 is a graduate course you took before your bachelor’s degree was awarded. No course counts toward three degrees"
   ],
   "expectNoWarnings": [
-    "the graduate courses you are counting beyond the shared pair must be moved"
+    "If you were admitted to the Integrated B.S. + M.S. program by the semester you took"
   ],
   "expectCourseLines": {
     "CSE 60641": [
-      "not counted yet — say when you were admitted to the Integrated B.S. + M.S. program"
+      "would count toward regular courses (3 cr) once approved",
+      "counts only if it was moved from undergraduate (UG) to graduate (GR) registration"
     ]
   }
 }

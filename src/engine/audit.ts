@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, decidedCaseByCase, longInterruptionReadmission, mscseSeparation, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, levelOf, decidedCaseByCase, longInterruptionReadmission, mscseSeparation, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { beforeProgramStart } from './early-start.ts';
@@ -431,18 +431,36 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       `Before your bachelor’s degree is conferred (${termLabel(student.bachelorsAwarded)}): the graduate courses you are counting beyond the shared pair must be moved from undergraduate (UG) to graduate (GR) registration with the Graduate School’s transfer-of-credit form, approved by your advising dean and the Graduate School — after conferral they cannot be (Graduate School 4+1 guidance). Ask the Grad Admin for the form.`,
     );
   }
-  // The same deadline for a 4+1 senior who has not said when they were
-  // admitted (policy review round 3, P3-fourplusone-3; DGS 2026-10-07: "apply
-  // the suggested handling"): those courses read "not counted yet", and the
-  // warning above never fired — but the move cannot be made after conferral,
-  // so it is said now, as a condition. Records saved before 2026-10-04 have
-  // no admission term at all.
-  const ifAdmitted = classified.filter((c) => c.ugToGrIfAdmitted);
-  if (student.program === 'mscse' && student.integratedBsMs === true && student.integratedAdmitted === undefined && student.bachelorsAwarded !== undefined && compareTerm(student.bachelorsAwarded, termOfDate(today)) >= 0 && ifAdmitted.length > 0) {
-    const ids = [...new Set(ifAdmitted.map((c) => c.entry.courseId))];
-    warnings.push(
-      `If you were admitted to the Integrated B.S. + M.S. program by the semester you took ${ids.join(', ')}, ${ids.length === 1 ? 'it' : 'they'} must be moved from undergraduate (UG) to graduate (GR) registration before your bachelor’s degree is conferred (${termLabel(student.bachelorsAwarded)}) — after conferral ${ids.length === 1 ? 'it' : 'they'} cannot be (Graduate School 4+1 guidance). Say when you were admitted (Your standing → Change).`,
-    );
+  // No course counts toward three degrees (DGS 2026-10-07, policy review
+  // round 3, P3-fourplusone-1; the Graduate School's 2026-09-22 answer: "If 6
+  // credits have double-counted to BS & MS, no more credits can double-count
+  // to BS & PhD later"): a 4+1's graduate course from before the bachelor's
+  // that counts toward both the bachelor's and the MSCSE cannot count toward
+  // a Ph.D. later — said whenever such a course is on the record.
+  if (student.program === 'mscse' && student.integratedBsMs === true) {
+    const awarded = student.bachelorsAwarded;
+    const ids = [
+      ...new Set(
+        classified
+          .filter(
+            (c) =>
+              !c.superseded &&
+              c.entry.origin === 'transfer' &&
+              isNotreDameInstitution(c.entry.institution) &&
+              levelOf(c.entry, c.rule) >= 6 &&
+              (c.entry.degreeLevel === 'bachelors' || (awarded !== undefined && compareTerm(c.entry.term, awarded) <= 0)),
+          )
+          .map((c) => c.entry.courseId),
+      ),
+    ];
+    if (ids.length > 0) {
+      const list = ids.length === 1 ? ids[0]! : `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]!}`;
+      warnings.push(
+        ids.length === 1
+          ? `${list} is a graduate course you took before your bachelor’s degree was awarded. No course counts toward three degrees: if it counts toward both your bachelor’s degree and the MSCSE, it cannot also count toward a Ph.D. should you later continue to the Ph.D. at Notre Dame (the Graduate School).`
+          : `${list} are graduate courses you took before your bachelor’s degree was awarded. No course counts toward three degrees: one that counts toward both your bachelor’s degree and the MSCSE cannot also count toward a Ph.D. should you later continue to the Ph.D. at Notre Dame (the Graduate School).`,
+      );
+    }
   }
   // CSE §5.1: "The department and the Graduate School will review a student
   // who receives more than one grade of I in a semester or a grade of I in two

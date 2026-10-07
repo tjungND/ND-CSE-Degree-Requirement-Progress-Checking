@@ -1767,10 +1767,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   ? `Notre Dame courses you took as an undergraduate appear here when they can do something for the Ph.D.: earn credit (60000-level courses in full; up to ${fourkCreditsWord()} credits of CSE courses below that, §4.2), or show you already know a core area — Algorithms, Operating Systems, Computer Architecture (§4.4.1). Where a course could earn credit, say next to it whether your bachelor’s degree already used it — no course may count toward three degrees.`
                   : // The 60000-level clause follows the 4+1 answer (policy review
                     // round 3, P3-fourplusone-6 / P3-text-ui-1): only an Integrated
-                    // B.S. + M.S. student counts them, from the admission term on.
+                    // B.S. + M.S. student counts them — those the bachelor's did
+                    // not use, from any undergraduate term (DGS 2026-10-07).
                     `Notre Dame courses you took as an undergraduate appear here when they can count toward the MSCSE: ${
                       student.integratedBsMs === true
-                        ? '60000-level courses from your Integrated-program admission term on, and CSE courses below that inside §3.2’s allowance'
+                        ? '60000-level courses your bachelor’s degree did not use, whenever you took them, and CSE courses below that inside §3.2’s allowance'
                         : student.integratedBsMs === false
                           ? 'CSE courses below the 60000 level inside §3.2’s allowance — 60000-level courses you took as an undergraduate do not count (§3.5); only students in the Integrated B.S. + M.S. program may count them'
                           : 'CSE courses below the 60000 level inside §3.2’s allowance, and 60000-level courses only if you were in the Integrated B.S. + M.S. (4+1) program (§3.5) — answer that question under Your standing'

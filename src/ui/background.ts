@@ -267,7 +267,10 @@ export function backgroundQuestions(
             el(
               'div',
               { class: 'followup-sub' },
-              el('p', { class: 'label' }, 'When were you admitted (matriculated) into the Integrated program? Your admission letter says. Beyond the six credits shared with your bachelor’s degree, the Graduate School counts graduate courses taken as an undergraduate only from that term, and only for a student admitted before the bachelor’s degree.'),
+              // Since 2026-10-07 (DGS, P3-fourplusone-1) the term no longer
+              // decides which courses count — only an admission after the
+              // bachelor's does, so the label says just that.
+              el('p', { class: 'label' }, 'When were you admitted (matriculated) into the Integrated program? Your admission letter says. Beyond the six credits shared with your bachelor’s degree, the Graduate School counts graduate courses taken as an undergraduate only for a student admitted before the bachelor’s degree.'),
               admittedControls(),
             ),
           ]

@@ -156,9 +156,16 @@ instead says such a student *"may request to transfer up to six hours of this co
 Graduate School's 4+1 guidance says the extra credits *"must be officially transferred"* (moved
 UG→GR before the bachelor's is conferred). The Code governs, and the app follows it — with the
 UG→GR move confirmed by the DGS since 2026-10-03, and, on the MSCSE, only for a student admitted to
-the integrated program before the bachelor's was awarded and only from that admission term on (DGS
-2026-10-04; item 17 below; policy review round 3, P3-fourplusone-2); the committee may want the Graduate School
-to reconcile the six-hour sentence and the "transfer" framing with the Code.
+the integrated program before the bachelor's was awarded (DGS 2026-10-04; item 17 below). Since
+2026-10-07 neither the admission term nor §3.5's window limits a course the bachelor's did not use:
+a 4+1's graduate course the bachelor's did not use counts toward the MSCSE from any undergraduate
+term, even before the admission; the window (from the junior spring) limits only the one or two
+courses shared with the bachelor's (the DGS, on the Graduate School's email answer: *"Any graduate-level coursework a student
+may have taken as an undergraduate that was not used to satisfy the bachelor's degree could
+theoretically be used towards both the master's and the PhD"*, for 4+1 students only). The 4+1
+guidance's *"have graduate student status at the time the course was taken"* reads the other way,
+so the committee may want the Graduate School to put that answer in writing, and to reconcile the
+six-hour sentence and the "transfer" framing with the Code.
 
 **What the handbook should now say**, because none of this is in it:
 

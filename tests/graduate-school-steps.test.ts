@@ -196,8 +196,11 @@ describe('the 4+1 admission term (Graduate School 4+1 guidance)', () => {
       courses: [ug('CSE 40113', fall(2025)), ug('CSE 40243', fall(2025)), ug('CSE 60641', courseTerm)],
       attestations: { dgsApproved4xxxx: true },
     });
-  it('unanswered: the extra course waits for the answer', () => {
-    assert.match(line(fourPlusOne(), 'CSE 60641', '2026-10-04'), /^not counted yet — say when you were admitted to the Integrated B\.S\. \+ M\.S\. program/);
+  // DGS 2026-10-07 (P3-fourplusone-1): a 4+1's graduate course the bachelor's
+  // did not use counts toward the MSCSE whenever it was taken — before the
+  // admission term too, and with no term entered.
+  it('unanswered: the extra course counts — the admission term no longer decides it', () => {
+    assert.match(line(fourPlusOne(), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);
   });
   it('admitted before the bachelor’s, the course from then on: counts', () => {
     assert.match(line(fourPlusOne(fall(2025)), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);
@@ -206,8 +209,55 @@ describe('the 4+1 admission term (Graduate School 4+1 guidance)', () => {
     assert.match(line(fourPlusOne(fall(2026)), 'CSE 60641', '2026-10-04'), /^not counted — you were admitted to the Integrated program for Fall 2026, after your bachelor’s degree \(Spring 2026\)/);
     assert.match(line(fourPlusOne(fall(2026)), 'CSE 40113', '2026-10-04'), /will apply to both your bachelor’s degree and your MSCSE/);
   });
-  it('a course from before the admission term: not counted', () => {
-    assert.match(line(fourPlusOne(spring(2026), fall(2025)), 'CSE 60641', '2026-10-04'), /^not counted — taken before you were admitted to the Integrated program \(Spring 2026\)/);
+  it('a course from before the admission term: counts (DGS 2026-10-07)', () => {
+    assert.match(line(fourPlusOne(spring(2026), fall(2025)), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);
+  });
+  // DGS 2026-10-07 (P3-fourplusone-1): a course the bachelor's did not use
+  // counts from any undergraduate term ("Any undergraduate term"); §3.5's
+  // window limits only the courses shared with the bachelor's, and the
+  // junior-spring ADGS approval is dropped ("Drop it").
+  it('an unshared graduate course from the junior fall or the sophomore year counts', () => {
+    assert.match(line(fourPlusOne(undefined, fall(2024)), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);
+    assert.match(line(fourPlusOne(undefined, fall(2023)), 'CSE 60641', '2026-10-04'), /^counts toward regular courses/);
+  });
+  it('an unshared junior-spring course counts outright — no approval step', () => {
+    const l = line(fourPlusOne(undefined, spring(2025)), 'CSE 60641', '2026-10-04');
+    assert.match(l, /^counts toward regular courses/);
+    assert.doesNotMatch(l, /only if the DGS approves it|only if the ADGS approves it/);
+  });
+  it('the window still limits the courses shared with the bachelor’s: an early one stays the MSCSE’s alone', () => {
+    // No 40000-level course: the app shares 60000-level courses — only inside the window.
+    const s = ms({
+      entryTerm: fall(2026), bachelorsAwarded: spring(2026), integratedBsMs: true,
+      courses: [ug('CSE 60641', fall(2023)), ug('CSE 60111', fall(2025))],
+    });
+    assert.match(line(s, 'CSE 60111', '2026-10-04'), /will apply to both your bachelor’s degree and your MSCSE/);
+    const early = line(s, 'CSE 60641', '2026-10-04');
+    assert.match(early, /^counts toward regular courses/);
+    assert.match(early, /will apply to your MSCSE only/);
+  });
+  it('no award term: a course the app would share waits for it; one it would not share counts', () => {
+    // No 40000-level course, so the six shared credits come from the two
+    // earliest 60000-level courses — whose year the page cannot place yet.
+    const s = ms({
+      entryTerm: fall(2026), integratedBsMs: true,
+      courses: [ug('CSE 60641', fall(2023)), ug('CSE 60535', fall(2024)), ug('CSE 60111', fall(2025))],
+    });
+    assert.match(line(s, 'CSE 60641', '2026-10-04'), /^not counted yet — set the semester your bachelor’s degree was awarded/);
+    assert.match(line(s, 'CSE 60535', '2026-10-04'), /^not counted yet — set the semester your bachelor’s degree was awarded/);
+    assert.match(line(s, 'CSE 60111', '2026-10-04'), /^counts toward regular courses/);
+  });
+  it('a non-CSE graduate course still waits for the ADGS', () => {
+    const s = ms({ entryTerm: fall(2026), bachelorsAwarded: spring(2026), integratedBsMs: true, courses: [ug('CSE 40113', fall(2025)), ug('CSE 40243', fall(2025)), ug('MATH 60610', fall(2024))], attestations: { dgsApproved4xxxx: true } });
+    assert.match(line(s, 'MATH 60610', '2026-10-04'), /§3\.5 names CSE courses/);
+  });
+  it('a 4+1 record with a graduate course from before the bachelor’s: the three-degree warning', () => {
+    const w = audit(fourPlusOne(), rules, '2026-10-04').warnings.filter((x) => /No course counts toward three degrees/.test(x));
+    assert.deepEqual(w, ['CSE 60641 is a graduate course you took before your bachelor’s degree was awarded. No course counts toward three degrees: if it counts toward both your bachelor’s degree and the MSCSE, it cannot also count toward a Ph.D. should you later continue to the Ph.D. at Notre Dame (the Graduate School).']);
+    // Not on a non-4+1 record, and not without a graduate-level course.
+    assert.ok(!audit({ ...fourPlusOne(), integratedBsMs: false }, rules, '2026-10-04').warnings.some((x) => /three degrees/.test(x)));
+    const fourOnly = { ...fourPlusOne(), courses: fourPlusOne().courses.filter((c) => c.courseId !== 'CSE 60641') };
+    assert.ok(!audit(fourOnly, rules, '2026-10-04').warnings.some((x) => /three degrees/.test(x)));
   });
   it('the opening questions carry the term to the record, beside a “yes” only', () => {
     // The dialog's answer keeps it (the e2e caught completeBackground dropping it).
