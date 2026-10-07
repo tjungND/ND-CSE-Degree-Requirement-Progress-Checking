@@ -60,6 +60,22 @@ export function parseTermLabel(s: string): Term | undefined {
   return { season: m[1].toLowerCase() as Season, year: Number(m[2]) };
 }
 
+/** Which semester a Notre Dame DEGREE dated `iso` was conferred for (policy
+ * review round 3, P3-dh-front-1-2-1; DGS 2026-10-06: "Apply the suggested
+ * handling"). The Graduate School calendar confers degrees on Jan. 3, May 15
+ * and Aug. 1, and names the January one the fall's: "Fall 2026 (January
+ * graduation), Spring 2027 (May graduation)" (Schedule of Deadlines; also DGS
+ * Handbook §3.23). So a January date belongs to the fall of the year before;
+ * May stays spring and August summer (termOfDate). Only for Notre Dame
+ * conferral dates — "today", course dates and other universities' calendars
+ * keep termOfDate. */
+export function conferralTerm(iso: string): Term {
+  const year = Number(iso.slice(0, 4));
+  const month = Number(iso.slice(5, 7));
+  if (month === 1) return { season: 'fall', year: year - 1 };
+  return termOfDate(iso);
+}
+
 /** Which term a calendar date falls in: Jan–May spring, Jun 1–Aug 14 summer,
  * Aug 15–Dec 31 fall (nominal semester boundaries; approximate by design). */
 export function termOfDate(iso: string): Term {

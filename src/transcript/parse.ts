@@ -12,7 +12,7 @@
 // Parsing a PDF's text is inherently best-effort: everything parsed here is
 // shown to the student for confirmation before anything is added (never guess).
 import { joinSpacedSubject } from '../data/assemble.ts';
-import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
+import { conferralTerm, termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { Grade, Season, Term, TermGpa } from '../engine/types.ts';
 import { looksLikeNotreDameTranscript } from './nd-markers.ts';
 
@@ -620,7 +620,7 @@ export function levelFromNumber(courseId: string): RegisteredLevel | undefined {
  * — versus a degree earned along the way); the earlier term is kept, because
  * earlier deadlines are the safe mistake, and the other reading is returned
  * as `alternative` for the standing card to spell out. */
-function inferEntryTerm(args: {
+export function inferEntryTerm(args: {
   courses: ParsedCourse[];
   admitTerms: Term[];
   newStudentTerms: Set<number>;
@@ -646,7 +646,7 @@ function inferEntryTerm(args: {
     // the EARLIER admission is the entry term; the later is offered as the
     // other reading (earlier deadlines are the safe mistake).
     const mastersBetween = degreesAwarded.some(
-      (d) => d.level === 'masters' && d.date !== undefined && termIndex(termOfDate(d.date)) >= termIndex(earliest) && termIndex(termOfDate(d.date)) < termIndex(latest),
+      (d) => d.level === 'masters' && d.date !== undefined && termIndex(conferralTerm(d.date)) >= termIndex(earliest) && termIndex(conferralTerm(d.date)) < termIndex(latest),
     );
     if (mastersBetween) return { term: latest, how: 'the later admit-term line on your transcript — the admission after your master’s degree' };
     return {
@@ -686,8 +686,8 @@ function inferEntryTerm(args: {
     const bachelors = dated.find((d) => d.level === 'bachelors');
     const last = dated[dated.length - 1];
     const startedBeforeTheDegree =
-      bachelors !== undefined && gradTerms[0] !== undefined && termIndex(gradTerms[0]) <= termIndex(termOfDate(bachelors.date!));
-    const afterLastDegree = last !== undefined ? gradTerms.filter((t) => termIndex(t) > termIndex(termOfDate(last.date!))) : [];
+      bachelors !== undefined && gradTerms[0] !== undefined && termIndex(gradTerms[0]) <= termIndex(conferralTerm(bachelors.date!));
+    const afterLastDegree = last !== undefined ? gradTerms.filter((t) => termIndex(t) > termIndex(conferralTerm(last.date!))) : [];
     const chosenRaw =
       marked.length > 0
         ? { term: marked[marked.length - 1]!, how: 'the term your transcript marks as your admission at the graduate level' }
@@ -704,7 +704,7 @@ function inferEntryTerm(args: {
     let alternative: EntryTermInference['alternative'];
     for (const d of degreesAwarded) {
       if (!d.date) continue;
-      const awardTerm = termOfDate(d.date);
+      const awardTerm = conferralTerm(d.date);
       if (termIndex(awardTerm) < termIndex(chosen.term)) continue;
       const after = gradTerms.filter((t) => termIndex(t) > termIndex(awardTerm));
       if (after.length === 0) continue;
@@ -726,7 +726,7 @@ function inferEntryTerm(args: {
   const datedDegrees = degreesAwarded.filter((d) => d.date !== undefined).sort((a, b) => (a.date! < b.date! ? -1 : 1));
   const lastDegree = datedDegrees[datedDegrees.length - 1];
   if (lastDegree) {
-    const awardTerm = termOfDate(lastDegree.date!);
+    const awardTerm = conferralTerm(lastDegree.date!);
     const after = allTerms.filter((t) => termIndex(t) > termIndex(awardTerm));
     if (after.length > 0) return { term: fallFor(after[0]!), how: `the first term after your ${lastDegree.name} was awarded${after[0]!.season === 'summer' ? ' — a summer start, so your official matriculation is that fall' : ''}` };
   }

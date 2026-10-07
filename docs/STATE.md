@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-06 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-06 (DGS — import; policy review round 3): **P3-dh-front-1-2-1.** A Notre Dame degree conferred in January belongs to the fall before (term.ts `conferralTerm`), in the entry-term inference (parse.ts, `inferEntryTerm` now exported for tests), the MSCSE award (prior-nd.ts), the bachelor’s award (nd-upload.ts `bachelorsAwardFrom`, exported) and the program history. tests/conferral-term.test.ts.
+
 2026-10-06 (DGS — engine; policy review round 3): **P3-dh-3.14-3.20-4, (b).** The “first semester complete” test for the transfer processing request is one helper (allocate.ts `firstSemesterComplete`): the entry term’s end, or any finished earlier Notre Dame graduate program. tests/first-semester-complete.test.ts; scenario phd-spring-entrant-transfer-in-june. Wording W-CL229.
 
 2026-10-06 (DGS — engine and page; policy review round 3): **P3-dh-3.14-3.20-3, option (c).** Notre Dame graduate courses before admission on a record whose earlier program was elsewhere: allocate.ts `ndBeforeAdmission` (provisional, not transfer credit, no §5.2 projection), review.ts names the twelve, app.ts words the group (“graduate coursework”, its own paragraph). The DGS will ask the Graduate School when such a student appears. tests/nd-before-admission-master-elsewhere.test.ts; scenario phd-nd-courses-before-admission-master-elsewhere. Wording W-CL226–W-CL228.

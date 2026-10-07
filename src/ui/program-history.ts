@@ -12,7 +12,7 @@
 // Notre Dame coursework from before the entry term, which bound each earlier
 // program. Nothing is guessed: a term the record does not hold is left out.
 import { isNotreDameInstitution } from '../data/external.ts';
-import { compareTerm, termLabel, termOfDate } from '../engine/term.ts';
+import { compareTerm, conferralTerm, termLabel } from '../engine/term.ts';
 import type { Student, Term } from '../engine/types.ts';
 import { programShort } from './email-html.ts';
 
@@ -41,7 +41,7 @@ function awarded(student: Student, level: 'bachelors' | 'masters'): Term | undef
   if (level === 'bachelors') return student.bachelorsAwardedInferred?.before ? undefined : student.bachelorsAwarded;
   if (student.ndMasters?.term) return student.ndMasters.term;
   const conferral = (student.ndDegrees ?? []).find((d) => d.level === 'masters');
-  return conferral ? termOfDate(conferral.date) : undefined;
+  return conferral ? conferralTerm(conferral.date) : undefined;
 }
 
 /** ", Fall 2021–Spring 2023" / ", awarded Spring 2023" / ", from Fall 2021" / "". */

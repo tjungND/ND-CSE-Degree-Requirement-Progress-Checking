@@ -15,7 +15,7 @@ import { beforeProgramStart, isEarlyStartCourse, type EarlyStartFacts } from '..
 import { GRADE_POINTS } from '../engine/grades.ts';
 import { gpaText } from '../engine/requirements/shared.ts';
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../engine/ranges.ts';
-import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
+import { conferralTerm, termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, Student, Term, TermGpa } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
 import { el, inactiveButton, PREVIEW_OPEN_NOTE } from './dom.ts';
@@ -331,9 +331,9 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
 /** The dated bachelor's award on a parsed Notre Dame transcript, as the
  * term to file pre-entry courses by and to fill "Bachelor's degree awarded"
  * with (DGS 2026-09-06). */
-function bachelorsAwardFrom(degrees: DegreeAwarded[]): { term: Term; degree: DegreeAwarded } | undefined {
+export function bachelorsAwardFrom(degrees: DegreeAwarded[]): { term: Term; degree: DegreeAwarded } | undefined {
   const d = degrees.find((x) => x.level === 'bachelors' && x.date !== undefined);
-  return d ? { term: termOfDate(d.date!), degree: d } : undefined;
+  return d ? { term: conferralTerm(d.date!), degree: d } : undefined;
 }
 /** An import fills the field only while it is empty or still an import's own reading. */
 const bachelorsMayBeSet = (s: Student): boolean => s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined;

@@ -21,7 +21,7 @@
 // dropdown re-files the courses without a re-import. Pure functions — no DOM.
 import { NOTRE_DAME, isNotreDameInstitution } from '../data/external.ts';
 import { beforeProgramStart, isEarlyStartCourse } from '../engine/early-start.ts';
-import { termIndex, termLabel, termOfDate } from '../engine/term.ts';
+import { conferralTerm, termIndex, termLabel } from '../engine/term.ts';
 import type { CourseEntry, Student, Term } from '../engine/types.ts';
 import { levelFromNumber } from '../transcript/parse.ts';
 
@@ -75,7 +75,7 @@ export function hasPriorGraduateStudy(student: Student): boolean {
 export function deriveNdMasters(student: Student): boolean {
   if (student.ndMasters !== undefined && student.ndMasters.inferred === undefined) return false; // their own answer
   const held = (student.ndDegrees ?? []).find(
-    (d) => (d.level === 'masters' || d.level === 'phd') && termIndex(termOfDate(d.date)) < termIndex(student.entryTerm),
+    (d) => (d.level === 'masters' || d.level === 'phd') && termIndex(conferralTerm(d.date)) < termIndex(student.entryTerm),
   );
   const before = student.ndMasters?.term;
   if (held === undefined) {
@@ -84,7 +84,7 @@ export function deriveNdMasters(student: Student): boolean {
     return true;
   }
   student.ndMasters = {
-    term: termOfDate(held.date),
+    term: conferralTerm(held.date),
     inferred: { how: `your Notre Dame transcript shows a graduate degree awarded ${held.date}, before ${termLabel(student.entryTerm)}` },
   };
   return before === undefined || termIndex(before) !== termIndex(student.ndMasters.term!);
