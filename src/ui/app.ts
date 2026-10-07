@@ -14,7 +14,7 @@ import { coursesNeedingDgsReviewFor, reviewRequestSummary, type PendingDgsReview
 import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
-import { withdrawalQuestion, withdrawalSemesters } from './withdrawals.ts';
+import { transcriptGapSemesters, withdrawalQuestion, withdrawalSemesters } from './withdrawals.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, CourseLine, MilestoneDateKey, MilestoneDeadline, Program, Season, Student, Term } from '../engine/types.ts';
 import { deadlineText } from './milestone-deadline.ts';
@@ -1165,21 +1165,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     );
   }
 
-  /** The falls and springs a Notre Dame transcript shows no registration in —
-   * strictly between the first and the last semester with a Notre Dame course
-   * from the entry term on. Undefined when no Notre Dame transcript was
-   * imported: a hand-entered record may leave a research-only semester empty,
-   * so nothing is read into an empty semester there (2026-10-04). */
+  /** The empty falls and springs on the Notre Dame transcript (withdrawals.ts
+   * transcriptGapSemesters; through the current semester since P3-dh-3.1-3.13-2). */
   function transcriptGaps(): Term[] | undefined {
-    if (!student.courses.some((c) => c.fromNdTranscript)) return undefined;
-    const entry = normalizeEntryTerm(student.entryTerm).term;
-    const seqs = new Set(student.courses.filter((c) => c.origin === 'nd' && c.term.season !== 'summer' && termIndex(c.term) >= termIndex(entry)).map((c) => semesterSeq(c.term)));
-    if (seqs.size === 0) return [];
-    const first = Math.min(...seqs);
-    const last = Math.max(...seqs);
-    const out: Term[] = [];
-    for (let seq = first + 1; seq < last; seq++) if (!seqs.has(seq)) out.push({ season: seq % 2 === 1 ? 'fall' : 'spring', year: Math.floor(seq / 2) });
-    return out;
+    return transcriptGapSemesters(student, todayIso);
   }
 
   function clockFields(): HTMLElement {
@@ -1260,10 +1249,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // and leaving without the Separation form leaves an F in every course —
     // so a fall or spring all W (or all F) with a later semester after it
     // asks too (policy review round 3, P3-dh-3.1-3.13-1; DGS 2026-10-06:
-    // "Apply the suggested handling"; withdrawals.ts). None of these, and only
-    // the childbirth or adoption accommodation is asked — a transcript does
-    // not show that. Without a transcript, or with an answer on file,
-    // everything is asked as before.
+    // "Apply the suggested handling"; withdrawals.ts). An empty current
+    // semester after the last registered one counts as a gap too, and with
+    // none of these the medical leave and the accommodation are still asked —
+    // a transcript shows neither a leave approved for a coming semester nor an
+    // accommodation (P3-dh-3.1-3.13-2; DGS 2026-10-06: "Apply the handling
+    // with option (b)"); only the readmission waits for a transcript sign.
+    // Without a transcript, or with an answer on file, everything is asked.
     const gaps = transcriptGaps();
     const withdrawals = withdrawalSemesters(student) ?? [];
     const leaveAsked = gaps === undefined || gaps.length > 0 || withdrawals.length > 0 || (student.leaveSemesters ?? 0) > 0 || student.readmittedTerm !== undefined;
@@ -1274,7 +1266,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           ? withdrawalQuestion(withdrawals, termLabel)
           : leaveAsked
           ? 'A medical leave, a childbirth or adoption accommodation, or a readmission?'
-          : 'A childbirth or adoption accommodation?';
+          : // A medical leave approved for a coming semester shows on no
+            // transcript (P3-dh-3.1-3.13-2; DGS 2026-10-06: "option (b)"), so
+            // its count is always offered, as the accommodation's is.
+            'A medical leave, or a childbirth or adoption accommodation?';
     // Closed by default; open only when a transcript gap is waiting for an
     // answer (DGS 2026-10-04: "Open one if an attention is needed there (e.g.,
     // found a gap semester)"). What is on file is said in the summary line.
@@ -1294,8 +1289,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
       'fieldset',
       { class: 'ft-terms clock-fields' },
-      el('legend', { class: 'label' }, `${leaveAsked ? 'Medical leave, accommodations and readmission' : 'Childbirth or adoption accommodation'} (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
-      !leaveAsked ? null : count(
+      el('legend', { class: 'label' }, `${leaveAsked ? 'Medical leave, accommodations and readmission' : 'Medical leave and childbirth or adoption accommodation'} (${phd ? '§4.3, §4.5' : '§3.3'}; Graduate School)`),
+      // Always offered (P3-dh-3.1-3.13-2, option (b)); the readmission below
+      // still waits for a transcript sign or an answer on file.
+      count(
         'leaveSemesters',
         // Medical leave only (policy review round 3, P3-cross-doc-1; DGS
         // 2026-10-06: "I choose option A and rename the input 'Semesters on
@@ -1310,7 +1307,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           ? 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, Academic Code §5.1). An approved medical leave stops the clock (Academic Code §6.2.6: “unless interrupted by approved medical leave(s) and/or approved childbirth accommodation(s)”): each semester here moves the eight-year limit (§4.3) out by a semester, and one before the end of your eighth semester of enrollment also moves the eighth-semester deadlines for the Oral Candidacy Exam (OCE) (§4.5) and for admission to doctoral candidacy (DGS Handbook §3.22.3) — a later one cannot change which semester was the eighth (DGS 2026-10-05). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock (DGS 2026-10-06). A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).'
           : 'Fall or spring semesters the Graduate School approved as a medical leave of absence (at most two in a row, Academic Code §5.1). Each moves the five-year limit (§3.3) out by a semester: the Graduate School stops the doctoral clock only for approved medical leave and childbirth accommodation (Academic Code §6.2.6), and the five years follow it (DGS 2026-10-03, 2026-10-06). A leave for another reason — study, athletic training, military, mission work or personal — is not entered here: it does not stop the clock. A six-week medical or crisis separation is not a leave and does not count (DGS Handbook §3.5, §3.6).',
       ),
-      !leaveAsked ? null : slotPickers('leaveTerms', leaveCount, (i) => `Medical leave semester${leaveCount > 1 ? ` ${i + 1}` : ''} — which semester`, ['fall', 'spring']),
+      slotPickers('leaveTerms', leaveCount, (i) => `Medical leave semester${leaveCount > 1 ? ` ${i + 1}` : ''} — which semester`, ['fall', 'spring']),
       count(
         'accommodationSemesters',
         'Childbirth or adoption accommodation semesters',
