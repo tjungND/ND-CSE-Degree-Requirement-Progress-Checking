@@ -180,3 +180,25 @@ describe('where the record stands against it', () => {
     assert.ok(r.milestoneDeadlines!.candidacyAdmitted, 'the Graduate School’s own eighth semester does not need the sheet');
   });
 });
+
+// Appendix A: "Students enrolled during the spring 2020 semester" (policy
+// review round 3, P3-ac-6.2-app-2; DGS 2026-10-07: option (a)). A Notre Dame
+// graduate enrollment IN Spring 2020 puts a later Ph.D. entrant in the cohort;
+// one that ended before it does not. Scenario phd-covid-cohort-through-nd-mscse
+// has the MSCSE conferred in Spring 2020.
+describe('the Spring 2020 cohort, read from Notre Dame graduate enrollment', () => {
+  const ndMs = (courseId: string, term: Student['entryTerm']) => ({ courseId, credits: 3, term, grade: 'A' as const, origin: 'transfer' as const, institution: 'University of Notre Dame', degreeLevel: 'masters' as const });
+  const limit = (s: Student) => audit(s, buildRules(), '2026-10-05').requirements.find((r) => r.id === 'phd.timeLimit')!.deadline?.label ?? '';
+  const fall = (year: number) => ({ season: 'fall' as const, year });
+  const spring = (year: number) => ({ season: 'spring' as const, year });
+  it('a Notre Dame graduate course dated Spring 2020: in the cohort, with no conferral term on the record', () => {
+    assert.match(limit(phdStudent({ entryTerm: fall(2020), courses: [ndMs('CSE 60001', spring(2020)), ndCourse('CSE 60641', { term: fall(2020) })] })), /^Due before Fall 2029/);
+  });
+  it('a master’s conferred in Spring 2019, its courses before then: not in the cohort', () => {
+    assert.match(limit(phdStudent({ entryTerm: fall(2020), ndMasters: { term: spring(2019) }, courses: [ndMs('CSE 60001', fall(2017)), ndMs('CSE 60002', fall(2018)), ndCourse('CSE 60641', { term: fall(2020) })] })), /^Due before Fall 2028/);
+  });
+  it('an undergraduate course in Spring 2020 is not graduate enrollment', () => {
+    const ug = { ...ndMs('CSE 40001', spring(2020)), degreeLevel: 'bachelors' as const };
+    assert.match(limit(phdStudent({ entryTerm: fall(2020), courses: [ug, ndCourse('CSE 60641', { term: fall(2020) })] })), /^Due before Fall 2028/);
+  });
+});

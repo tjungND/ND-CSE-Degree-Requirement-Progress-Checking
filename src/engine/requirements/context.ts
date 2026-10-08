@@ -1,13 +1,14 @@
 // Shared context handed to every requirement builder, plus small helpers used
 // across the §3 and §4 modules.
 import { formatCredits } from '../credits.ts';
+import { isNotreDameInstitution } from '../../data/external.ts';
 import type { Parameters, Rules } from '../../data/types.ts';
 import type { AllocationResult, CapId, ClassifiedCourse, CourseAllocation } from '../allocate.ts';
 import { usableGpa } from '../ranges.ts';
 import { openDeadline } from '../status.ts';
 import type { TierSums } from '../status.ts';
 import { thresholdStatus } from '../status.ts';
-import { addMonthsIso, compareTerm, deadlineTermLabel, dueTermPhrase, endOfTerm, startOfTerm, termIndex, termLabel, termOfDate } from '../term.ts';
+import { addMonthsIso, compareTerm, conferralTerm, deadlineTermLabel, dueTermPhrase, endOfTerm, startOfTerm, termIndex, termLabel, termOfDate } from '../term.ts';
 import type { Contribution, DetailPart, RequirementResult, Status, Student, Term } from '../types.ts';
 
 export interface Ctx {
@@ -32,7 +33,8 @@ export interface Ctx {
   forfeitBefore?: Term;
   /** Academic Code Appendix A: a Ph.D. student enrolled in Spring 2020 has nine
    * years (A.5) and a ninth-semester candidacy deadline (A.4) — applied from
-   * the entry term alone (DGS 2026-10-03: "Just read the admission term"). */
+   * the record, never a tick box (DGS 2026-10-03: "Just read the admission
+   * term"; 2026-10-07: a Notre Dame graduate enrollment in Spring 2020 too). */
   covidCohort: boolean;
   alloc: AllocationResult;
   classified: ClassifiedCourse[];
@@ -49,8 +51,31 @@ export interface Ctx {
 /** The last day a Ph.D. student enrolled in Spring 2020 could have been
  * admitted by: an entry term on or before Spring 2020. */
 export const COVID_COHORT_LAST_ENTRY: Term = { season: 'spring', year: 2020 };
+/** Appendix A covers "Students enrolled during the spring 2020 semester". The
+ * Ph.D. entry term on or before it shows that (Item 15, DGS 2026-10-03). So,
+ * since 2026-10-07 (policy review round 3, P3-ac-6.2-app-2; DGS: option (a),
+ * "Yes, automatically, from the record"), does a Notre Dame graduate
+ * enrollment IN Spring 2020 before the Ph.D. — a student who was in the
+ * MSCSE, or a master's in another Notre Dame department, then:
+ *   - a Notre Dame graduate-level course dated Spring 2020, or
+ *   - a Notre Dame master's conferred in Spring 2020 or later, with Notre Dame
+ *     graduate coursework dated before Spring 2020.
+ * "In Spring 2020", not "in or before": a master's conferred in Spring 2019
+ * does not qualify. A conferral term comes only from a transcript import, so
+ * a record typed by hand is caught through its dated courses. */
 export function isCovidCohort(student: Student, entry: Term): boolean {
-  return student.program === 'phd' && compareTerm(entry, COVID_COHORT_LAST_ENTRY) <= 0;
+  if (student.program !== 'phd') return false;
+  if (compareTerm(entry, COVID_COHORT_LAST_ENTRY) <= 0) return true;
+  // Graduate rows only: the program's own, or earlier Notre Dame rows the
+  // record files at the master's or Ph.D. level (an unlevelled row may be an
+  // undergraduate course, and an undergraduate's enrollment is not the Ph.D.'s).
+  const ndGraduate = student.courses.filter((c) => c.origin === 'nd' || (isNotreDameInstitution(c.institution) && (c.degreeLevel === 'masters' || c.degreeLevel === 'phd')));
+  if (ndGraduate.some((c) => compareTerm(c.term, COVID_COHORT_LAST_ENTRY) === 0)) return true;
+  const conferrals = [
+    ...(student.ndMasters?.term ? [student.ndMasters.term] : []),
+    ...(student.ndDegrees ?? []).filter((d) => d.level === 'masters').map((d) => conferralTerm(d.date)),
+  ];
+  return conferrals.some((t) => compareTerm(t, COVID_COHORT_LAST_ENTRY) >= 0) && ndGraduate.some((c) => compareTerm(c.term, COVID_COHORT_LAST_ENTRY) < 0);
 }
 
 /** An examination dated before a readmission after an interruption of five
