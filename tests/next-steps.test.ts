@@ -106,6 +106,15 @@ describe('the advisor step and the review request’s other items (P3-cse-1-2-2)
     assert.deepEqual(st.map((x) => x.text), ['Send the review request: 2 items need the DGS’s decision.', 'Send the summary to your advisor whenever you like.']);
     assert.equal(st[0]?.covers, undefined, 'no course rows to cover');
   });
+  // P3-emails-4 (3) (DGS 2026-10-07: option (a)): the page lists the step the advisor email's to-do carries.
+  it('the MSCSE thesis topic not yet approved: a step to propose it; approved, none', () => {
+    const r = { ...report([row('shared.advisor', 'met'), row('ms.thesis.topic', 'unmet')]), program: 'mscse' } as AuditReport;
+    const st = steps(r);
+    const topic = st.find((x) => /thesis topic/.test(x.text));
+    assert.equal(topic?.text, 'Propose your thesis topic, with your advisor’s approval, for the program’s approval (Academic Code §6.1.7).');
+    assert.deepEqual(topic?.covers, ['ms.thesis.topic']);
+    assert.equal(steps({ ...report([row('shared.advisor', 'met'), row('ms.thesis.topic', 'met')]), program: 'mscse' } as AuditReport).some((x) => /thesis topic/.test(x.text)), false);
+  });
   it('the MSCSE thesis option says “thesis advisor”', () => {
     const r = { ...report([row('shared.advisor', 'cannot_evaluate')]), program: 'mscse' } as AuditReport;
     assert.equal(steps(r)[0]?.text, 'Answer under Milestones whether your thesis advisor is tenured or tenure-track CSE faculty (§2.3).');

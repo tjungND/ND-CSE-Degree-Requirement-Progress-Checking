@@ -135,6 +135,14 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   else if (advisor?.status === 'cannot_evaluate')
     steps.push({ text: `Answer under Milestones whether your ${thesis ? 'thesis ' : ''}advisor is tenured or tenure-track CSE faculty (§2.3).`, href: '#milestones', covers: ['shared.advisor'] });
   if (hasCourses && !student.attestations.advisorApprovedPlan) steps.push({ text: 'Confirm your advisor approved your plan of study and tick the box under Approvals.', href: '#milestones' });
+  // The MSCSE thesis topic (policy review round 3, P3-emails-4 (3); DGS
+  // 2026-10-07: option (a)) — the step the advisor email's to-do already
+  // carries (Academic Code §6.1.7: "With the approval of his or her advisor,
+  // the student proposes a thesis topic for program approval"), so a student
+  // who reads only the page does not miss it.
+  const topic = report.requirements.find((r) => r.id === 'ms.thesis.topic');
+  if (topic !== undefined && topic.status !== 'met')
+    steps.push({ text: 'Propose your thesis topic, with your advisor’s approval, for the program’s approval (Academic Code §6.1.7).', href: '#milestones', covers: ['ms.thesis.topic'] });
   // 4. After the DGS answers; and what the Grad Admin can already record.
   const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
   if (approvals?.status === 'needs_dgs_review' || reviewCount > 0) steps.push({ text: 'When the DGS answers, come back to this page — it reads the latest course rules — and tick the box next to each course approved for you; then send the processing request, and the Grad Admin records it.', href: '#grad-admin', covers: ['shared.approvals'] });
