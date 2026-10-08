@@ -277,6 +277,15 @@ export interface ClassifiedCourse {
    * it was "officially transferred" before the bachelor's was conferred (4+1
    * guidance; policy review 2026-10-03). */
   ugToGrUnverified?: true;
+  /** Notre Dame coursework taken as an undergraduate, listed in the course
+   * rules, that waits (or waited) on an approval the DGS gives for THIS
+   * student — the UG→GR move, the Code's §4.6 advance approval, the BS + Ph.D.
+   * double count, §3.5's non-CSE course, an admission term the transcript
+   * contradicts: the course carries the "The DGS approved this course for me"
+   * tick (DGS 2026-10-08), and the tick settles them. */
+  dgsApprovalAsked?: true;
+  /** …and the tick settled such an approval (said on the line). */
+  dgsTicked?: true;
   /** A 4+1's unshared graduate course the transcript registers GR (moved from
    * UG to GR, which happens before the bachelor's is awarded) on a record whose
    * answered Integrated-program admission is AFTER the bachelor's — the two
@@ -686,6 +695,9 @@ export function decidedCaseByCase(c: ClassifiedCourse, program: Program): boolea
   // transfer verdict is its ExternalCourses row, so a `dgs_approval` there is
   // this student's to record — the Courses tab says only what the course is.
   if (c.entry.origin === 'transfer' && c.caps.includes('transfer') && needsApproval(c.transferable)) return true;
+  // Notre Dame coursework taken as an undergraduate that waits on an approval
+  // the DGS gives for this student (DGS 2026-10-08).
+  if (c.dgsApprovalAsked) return true;
   if (!c.rule) return false;
   return needsCourseApproval(program === 'mscse' ? c.rule.countsTowardMscse : c.rule.countsTowardPhd);
 }
@@ -1921,6 +1933,14 @@ function classifyPriorNdUndergraduate(
   const askedWhichDegrees = program === 'phd';
   const holdsNdMasters = student.ndMasters !== undefined;
   const shape = rule ? priorNdShape(c.courseId, rule, program, c.dgsApproved === true) : undefined;
+  // "The DGS approved this course for me" (DGS 2026-10-08): on a course the
+  // course rules list WITH a verdict for this program, the tick settles every
+  // approval below that is the DGS's to give for this student — as it settles
+  // a case-by-case verdict. A course not in the rules, or one whose verdict
+  // cell is blank, still goes through the review request first: the DGS
+  // enters the row (or fills the cell) before any per-student approval.
+  const verdict = rule === undefined ? undefined : program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
+  const ticked = verdict !== undefined && c.dgsApproved === true;
   if (shape && 'ineligibleReason' in shape) {
     return { ...extBase, ineligibleReason: `${shape.ineligibleReason}${coreNote}` };
   }
@@ -1948,7 +1968,7 @@ function classifyPriorNdUndergraduate(
       ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns MSCSE credit only for a student who was in the Integrated B.S. + M.S. (4+1) program (§3.5)${student.integratedBsMs === false ? '' : '; if you were, say so in the earlier-degrees questions in the Transcripts card'}`,
     };
   }
-  const plainBachelorsApproval = plainBachelorsSixk
+  const plainBachelorsApproval = plainBachelorsSixk && !ticked
     ? `taken as an undergraduate outside the Integrated 4+1 program — the Academic Code (§4.6) lets it meet Ph.D. requirements only with the program’s advance approval; the DGS decides${student.integratedBsMs === false ? '' : '. If you were in the 4+1, say so in the earlier-degrees questions in the Transcripts card'}`
     : undefined;
   // A 4+1's pre-bachelor's CSE 68901/68902 DOES satisfy the MSCSE project or
@@ -1998,6 +2018,7 @@ function classifyPriorNdUndergraduate(
    * undergraduate is the ADGS's to approve (policy review 2026-10-03): the
    * course is provisional rather than refused. */
   let sectionThreeFiveApproval: string | undefined;
+  let sectionThreeFiveAsked = false;
   if (program === 'mscse' && undergradLevel >= 6) {
     if (bsShare === 'both' && awardedTerm === undefined) {
       return {
@@ -2007,7 +2028,8 @@ function classifyPriorNdUndergraduate(
       };
     }
     if (deptOf(c.courseId) !== 'CSE') {
-      sectionThreeFiveApproval = '§3.5 names CSE courses — a graduate course from another department, taken as an undergraduate, counts toward the MSCSE only if the DGS approves it';
+      sectionThreeFiveAsked = true;
+      if (!ticked) sectionThreeFiveApproval = '§3.5 names CSE courses — a graduate course from another department, taken as an undergraduate, counts toward the MSCSE only if the DGS approves it';
     }
   }
   // THE 4+1 ADMISSION TERM. Since 2026-10-07 (DGS, policy review round 3,
@@ -2029,11 +2051,13 @@ function classifyPriorNdUndergraduate(
   // one: the course counts provisionally, the DGS confirms, and the student is
   // asked to recheck the term (audit.ts). A UG or unlevelled row is refused.
   let admissionTermConflict: string | undefined;
+  let admissionConflictAsked = false;
   if (program === 'mscse' && undergradLevel >= 6 && student.integratedBsMs === true && bsShare === 'mscse' && awardedTerm !== undefined) {
     const admitted = student.integratedAdmitted;
     if (admitted !== undefined && compareTerm(admitted, awardedTerm) > 0) {
       if (c.registeredLevel === 'graduate') {
-        admissionTermConflict = `your Notre Dame transcript registers it at the graduate level (moved from UG to GR), but the Integrated-program admission you gave, ${termLabel(admitted)}, is after your bachelor’s degree (${termLabel(awardedTerm)}) — check that term under Your standing; the DGS confirms`;
+        admissionConflictAsked = true;
+        if (!ticked) admissionTermConflict = `your Notre Dame transcript registers it at the graduate level (moved from UG to GR), but the Integrated-program admission you gave, ${termLabel(admitted)}, is after your bachelor’s degree (${termLabel(awardedTerm)}) — check that term under Your standing; the DGS confirms`;
       } else {
         return {
           ...extBase,
@@ -2052,7 +2076,8 @@ function classifyPriorNdUndergraduate(
   // not shown to be — so it is counted provisionally and sent to the DGS
   // (policy review 2026-10-03). The shared pair is untouched: the guidance
   // puts the moved credits "in addition to the six".
-  const ugToGrUnverified = undergradLevel >= 6 && !plainBachelorsSixk && c.registeredLevel !== 'graduate' && !(program === 'mscse' ? bsShare === 'both' : spent === 'bs' || spent === 'both');
+  const ugToGrAsked = undergradLevel >= 6 && !plainBachelorsSixk && c.registeredLevel !== 'graduate' && !(program === 'mscse' ? bsShare === 'both' : spent === 'bs' || spent === 'both');
+  const ugToGrUnverified = ugToGrAsked && !ticked;
   // Only now, when the course could actually count, is the student asked
   // anything: no course may count toward three degrees, so the answer
   // decides it. A 20000-level course counts nothing at any answer, and
@@ -2126,14 +2151,18 @@ function classifyPriorNdUndergraduate(
   // School treats the CSE MSCSE and Ph.D. as one graduate program (DGS
   // 2026-10-03), so it counts in full; 'neither' was extra and counts in full.
   const sharedWithBachelors: CapId[] = bsShare === 'both' || (program === 'phd' && spent === 'bs') ? ['sharedbs'] : [];
+  const bsPhdAsked = program === 'phd' && spent === 'bs';
   const bsPhdDoubleCount =
-    program === 'phd' && spent === 'bs'
+    bsPhdAsked && !ticked
       ? 'the Graduate School’s 2026-09-22 answer to the department allows the sharing, but the Academic Code does not yet state it (Academic Code §4.6 writes the six-credit exception for an integrated bachelor’s/master’s program) — the DGS confirms'
       : undefined;
   const ugToGrApproval = ugToGrUnverified
     ? 'counts only if it was moved from undergraduate (UG) to graduate (GR) registration — approved by your advising dean and the Graduate School before your bachelor’s degree was conferred (Graduate School 4+1 guidance); your Notre Dame transcript does not show the move, so the DGS confirms it'
     : undefined;
   const extraApprovals = [plainBachelorsApproval, sectionThreeFiveApproval, bsPhdDoubleCount, ugToGrApproval, admissionTermConflict].filter((x): x is string => x !== undefined);
+  // The approvals the DGS gives for this student (the tick settles them).
+  const dgsApprovalAsked = verdict !== undefined && ((plainBachelorsSixk && program === 'phd') || sectionThreeFiveAsked || ugToGrAsked || bsPhdAsked || admissionConflictAsked);
+  const dgsTicked = ticked && dgsApprovalAsked && extraApprovals.length === 0;
   const provisional = rule === undefined || shapeApproval !== undefined || extraApprovals.length > 0;
   // The Academic Code lets a Notre Dame undergraduate's graduate coursework
   // meet program requirements "with advanced approval from the graduate
@@ -2144,7 +2173,6 @@ function classifyPriorNdUndergraduate(
   // P3-fourplusone-7): a ticked case-by-case row was approved for this
   // student, and its tick sentence says so — the line used to claim the
   // rules said yes, then that they say case by case.
-  const verdict = rule === undefined ? undefined : program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd;
   const advanceApproval =
     !provisional && undergradLevel >= 6 && student.integratedBsMs === true && verdict === 'yes'
       ? 'counted on the course rules’ yes, which is the program’s advance approval for graduate coursework taken as an undergraduate (Academic Code §4.6)'
@@ -2158,6 +2186,8 @@ function classifyPriorNdUndergraduate(
     ...(bsShare !== undefined ? { bsShare } : {}),
     ...(ugToGrUnverified ? { ugToGrUnverified: true as const } : {}),
     ...(admissionTermConflict !== undefined ? { admissionTermConflict: true as const } : {}),
+    ...(dgsApprovalAsked ? { dgsApprovalAsked: true as const } : {}),
+    ...(dgsTicked && !tickApproved ? { dgsTicked: true as const } : {}),
     pool: shape?.pool ?? 'regular',
     caps: [
       ...sharedWithBachelors,
@@ -2632,6 +2662,7 @@ function buildExplanationText(
     }
     if (cc.caps.includes('noncse')) parts.push('uses the non-CSE allowance');
     if (cc.approvedNote) parts.push(cc.approvedNote);
+    if (cc.dgsTicked) parts.push('approved by the DGS for you, as you ticked on the course (the DGS office holds the record)');
     if (cc.tickApproved && !cc.caps.includes('transfer')) parts.push('approved by the DGS for you, as you ticked on the course (the course rules say case by case; the DGS office holds the record)');
     // The credit system is unknown (no row, a blank or rejected credit_system) and
     // nd_credits does not fix the number (DGS 2026-10-03, P1-units-4plus1-c7).

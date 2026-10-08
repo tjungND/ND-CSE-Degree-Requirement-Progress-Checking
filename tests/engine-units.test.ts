@@ -890,3 +890,58 @@ describe('a 4+1 MSCSE course before entry, the bachelor’s term not set (UI rev
     assert.equal(line.mark, 'pending', 'waiting on an input, like the other “not counted yet” lines — it counts for nothing until then');
   });
 });
+
+// "The DGS approved this course for me" on Notre Dame coursework taken as an
+// undergraduate (DGS 2026-10-08): offered where an approval the DGS gives for
+// this student is pending, and settling it.
+describe('the approval tick on undergraduate Notre Dame coursework (DGS 2026-10-08)', () => {
+  const rules = buildRules();
+  const student = (courses: CourseEntry[], over: Partial<Student> = {}): Student =>
+    phdStudent({ integratedBsMs: true, integratedAdmitted: { season: 'spring', year: 2025 }, bachelorsAwarded: { season: 'spring', year: 2025 }, gpa: 3.8, courses, ...over });
+  const ug = (courseId: string, extra: Partial<CourseEntry> = {}): CourseEntry => ({
+    courseId, credits: 3, term: { season: 'fall', year: 2024 }, grade: 'A', origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'bachelors', registeredLevel: 'graduate', countedToward: 'neither', ...extra,
+  });
+  const report = (s: Student) => audit(s, rules, '2027-06-01');
+  const lineOf = (s: Student, id: string) => report(s).courseLines.find((l) => l.courseId === id)!;
+  it('a UG-registered 60000-level course offers the tick; ticked, it counts and leaves the review request', () => {
+    const waiting = student([ug('CSE 60641', { registeredLevel: 'undergraduate' })]);
+    const before = lineOf(waiting, 'CSE 60641');
+    assert.equal(before.approvable, true, 'the tick is offered');
+    assert.equal(before.mark, 'pending');
+    const ticked = student([ug('CSE 60641', { registeredLevel: 'undergraduate', dgsApproved: true })]);
+    const after = lineOf(ticked, 'CSE 60641');
+    assert.equal(after.approved, true);
+    assert.equal(after.mark, 'counts');
+    assert.match(after.text, /^counts toward regular courses \(3 cr\)/);
+    assert.match(after.text, /approved by the DGS for you, as you ticked on the course \(the DGS office holds the record\)/);
+    assert.ok(!coursesNeedingDgsReview(ticked, rules).some((p) => p.course.entry.courseId === 'CSE 60641'), 'out of the review request');
+    assert.match(report(ticked).requirements.find((r) => r.id === 'phd.credits.regular')!.detail, /^3 of 24 credits complete/);
+  });
+  it('a regular bachelor’s (not a 4+1) course needing the Code’s advance approval: the tick gives it', () => {
+    const s = student([ug('CSE 60641')], { integratedBsMs: false });
+    assert.equal(lineOf(s, 'CSE 60641').approvable, true);
+    const ticked = student([ug('CSE 60641', { dgsApproved: true })], { integratedBsMs: false });
+    assert.match(lineOf(ticked, 'CSE 60641').text, /^counts toward regular courses \(3 cr\)/);
+  });
+  it('a course the bachelor’s used (“bs”): the tick confirms the BS + Ph.D. double count, inside the six', () => {
+    const s = student([ug('CSE 60641', { countedToward: 'bs' })], { ndMasters: { term: { season: 'spring', year: 2026 } }, priorMs: 'completed' });
+    assert.equal(lineOf(s, 'CSE 60641').approvable, true);
+    assert.ok(coursesNeedingDgsReview(s, rules).some((p) => p.course.entry.courseId === 'CSE 60641' && p.ask.decide.some((d) => /count toward both my bachelor’s degree and the Ph\.D\./.test(d))));
+    const ticked = student([ug('CSE 60641', { countedToward: 'bs', dgsApproved: true })], { ndMasters: { term: { season: 'spring', year: 2026 } }, priorMs: 'completed' });
+    const line = lineOf(ticked, 'CSE 60641').text;
+    assert.match(line, /^counts toward regular courses \(3 cr\)/);
+    assert.match(line, /approved by the DGS for you, as you ticked on the course/);
+    assert.match(line, /counts toward both your bachelor’s degree and the Ph\.D\. — inside the 6 credits/);
+    assert.ok(!coursesNeedingDgsReview(ticked, rules).some((p) => p.course.entry.courseId === 'CSE 60641'));
+  });
+  it('a course the course rules do not list, or list with a blank verdict, offers no tick: the DGS enters the row first', () => {
+    // CSE 60997 is in no fixture; CSE 60999 is the fixture's blank-verdict row.
+    for (const id of ['CSE 60997', 'CSE 60999']) {
+      const s = student([ug(id, { registeredLevel: 'undergraduate' })]);
+      assert.equal(lineOf(s, id).approvable, undefined, id);
+      assert.equal(lineOf(s, id).mark, 'pending', id);
+      const ticked = student([ug(id, { registeredLevel: 'undergraduate', dgsApproved: true })]);
+      assert.equal(lineOf(ticked, id).mark, 'pending', `${id} stays pending whatever a stale record ticked`);
+    }
+  });
+});

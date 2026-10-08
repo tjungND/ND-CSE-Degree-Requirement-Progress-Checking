@@ -397,7 +397,7 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
         // P3-fourplusone-2 (DGS 2026-10-07: option (2)): the GR registration and
         // the answered admission term disagree; the DGS settles it.
         ...(c.admissionTermConflict ? ['confirm this course counts — my Notre Dame transcript registers it at the graduate level (moved from UG to GR), but the Integrated-program admission I entered is after my bachelor’s degree (Graduate School 4+1 guidance)'] : []),
-        ...(c.caps.includes('sharedbs') && student.program === 'phd' && c.entry.countedToward === 'bs' ? ['confirm it may count toward both my bachelor’s degree and the Ph.D. (the Graduate School’s 2026-09-22 answer)'] : []),
+        ...(c.caps.includes('sharedbs') && student.program === 'phd' && c.entry.countedToward === 'bs' && c.entry.dgsApproved !== true ? ['confirm it may count toward both my bachelor’s degree and the Ph.D. (the Graduate School’s 2026-09-22 answer)'] : []),
         ...(bachelors && !c.ugToGrUnverified && !c.caps.includes('sharedbs') && c.approvalPending !== undefined && /advance approval|§3\.5/.test(c.approvalPending)
           ? // Each document named (policy review round 3, P3-text-ui-4): the
             // advance approval is the Code's §4.6, the window CSE's §3.5.

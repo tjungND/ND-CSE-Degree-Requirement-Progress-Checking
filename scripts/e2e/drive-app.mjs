@@ -172,6 +172,31 @@ export async function driveApp(s, baseUrl) {
     await s.evalJs(`(() => { document.querySelector('[data-key="background.graduate.${value}"]').click(); const no = document.querySelector('[data-key="background.alsoelsewhere.no"]'); if (no && !no.closest('fieldset').hidden) no.click(); document.querySelector('[data-key="background.save"]').click(); })()`);
     await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
   };
+  // Only the graduate answers the other answers leave possible are offered
+  // (DGS 2026-10-08): the example's bachelor's is from another university, so
+  // "the MSCSE through the Integrated 4+1" is not; under "Notre Dame — CSE" a
+  // "Yes" to the 4+1 hides the regular-master's MSCSE and a "No" hides the 4+1
+  // one; an answer a later click rules out is dropped, and Save waits.
+  await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
+  const shownGraduate = async () => JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('dialog.background-dialog [data-key^="background.graduate."]')].filter((i) => !i.closest('label').hidden).map((i) => i.dataset.key.slice('background.graduate.'.length)))`));
+  const expectGraduate = async (want, after) => {
+    const got = await shownGraduate();
+    if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`graduate options ${after}: ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
+  };
+  await expectGraduate(['none', 'elsewhere', 'nd-mscse', 'nd-mscse-transfer', 'nd-other'], 'with a bachelor’s from another university');
+  await s.evalJs(`document.querySelector('[data-key="background.bachelors.nd-cse"]').click()`);
+  await expectGraduate(['none', 'elsewhere', 'nd-mscse', 'nd-4plus1', 'nd-mscse-transfer', 'nd-other'], 'with Notre Dame CSE and the 4+1 still open');
+  await s.evalJs(`document.querySelector('[data-key="background.graduate.nd-mscse"]').click()`);
+  await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.yes"]').click()`);
+  await expectGraduate(['none', 'elsewhere', 'nd-4plus1', 'nd-mscse-transfer', 'nd-other'], 'after Yes to the 4+1');
+  const dropped = JSON.parse(await s.evalJs(`JSON.stringify({ checked: !!document.querySelector('dialog.background-dialog [data-key^="background.graduate."]:checked'), saveDisabled: document.querySelector('[data-key="background.save"]').disabled })`));
+  if (dropped.checked || !dropped.saveDisabled) throw new Error('a graduate answer the 4+1 answer rules out must be dropped, with Save waiting: ' + JSON.stringify(dropped));
+  await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.no"]').click()`);
+  await expectGraduate(['none', 'elsewhere', 'nd-mscse', 'nd-mscse-transfer', 'nd-other'], 'after No to the 4+1');
+  await s.evalJs(`document.querySelector('[data-key="background.cancel"]').click()`);
+  await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
+  console.log('  earlier degrees: the graduate options follow the bachelor’s and 4+1 answers; an answer they rule out is dropped');
   await answerGraduate('nd-mscse');
   await s.waitFor(`!document.getElementById('req-phd-msAlongTheWay')`);
   console.log('  already holds the MSCSE (earlier-degrees answer) → the §4.5 along-the-way row is gone');

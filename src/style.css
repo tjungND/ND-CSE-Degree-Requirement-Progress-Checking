@@ -377,6 +377,8 @@ fieldset.field.inline { margin: 0; }
 /* Radio groups (item 12) and step numbers on the card titles (item 31). */
 .radios { display: flex; flex-direction: column; gap: 4px; }
 .background-questions fieldset[hidden] { display: none; }
+/* A graduate-degree answer the other answers rule out (DGS 2026-10-08). */
+.choice[hidden] { display: none; }
 .background-line .btn.link { padding: 0 2px; min-height: 0; border: 0; background: none; color: var(--navy); text-decoration: underline; font-size: inherit; }
 .background-dialog .save-buttons { margin-top: 10px; }
 .background-inline .earlier-done { margin-top: 16px; }

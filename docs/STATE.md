@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-08 (DGS — graduate answers the other answers rule out are hidden): `graduatePossible` (background.ts) decides which graduate-degree options show beside the bachelor’s answer and the 4+1 follow-up; an answer a later click rules out is dropped and Done/Save waits. UI only, no Changelog row.
+
+2026-10-08 (DGS — the approval tick on undergraduate-time Notre Dame courses): offered wherever an approval the DGS gives for this student is pending (UG→GR move, §4.6 advance approval, BS + Ph.D. double count, §3.5 non-CSE, a contradicted admission term) and settling it; a course not in the course rules still has no tick. Wording W-CL359; Changelog row 118.
+
 2026-10-08 (DGS — Next steps floats): the Next steps box now floats like the warnings — fixed in the corner above them at any scroll position, foldable (Hide / Show; phones start folded) — and the which-degrees question says to ask the DGS when unsure. Wording W-CL357–W-CL358.
 
 2026-10-08 (DGS — revert): the pre-filled “already counted toward” answers (commit e942afe: the page chose the answer that counts the most credits, with a warning, card facts, a Next-steps item and a floating Next steps box) were **reverted in full** the same day — the page cannot know which courses the bachelor’s degree used (DECISIONS 2026-10-08). The floating Next steps box went with it; it can be restored on its own if wanted.

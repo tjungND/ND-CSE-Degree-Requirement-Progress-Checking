@@ -78,6 +78,33 @@ export function graduateOptions(program: Program): [GraduateBefore, string][] {
     ['nd-other', 'Yes, at Notre Dame in another department — finished or not'],
   ];
 }
+/** Whether a graduate-degree answer is still possible beside the bachelor's
+ * answer and the 4+1 follow-up (DGS 2026-10-08: "if 'Yes' was chosen to 'are
+ * you ND CSE 4+1?', then the ineligible options … should become hidden";
+ * likewise after a "No", and after a bachelor's from another university,
+ * "since Notre Dame does not accept students seeking a second bachelor's
+ * degree"). An answer that is not possible is not shown, and one already
+ * given is dropped when a later answer rules it out. */
+export function graduatePossible(v: GraduateBefore, b: Partial<Background>, program: Program): boolean {
+  const inFourPlusOne = b.bachelors === 'nd-cse' && b.ndIntegrated === true;
+  // The MSCSE through the Integrated 4+1 is CSE's program for its own
+  // undergraduates (§3.5: "For current undergraduate students, an optimal
+  // route to earning the MSCSE degree is through the Department's Integrated
+  // B.S. + M.S. program"): a bachelor's from another university or another
+  // department rules it out, as does "No" to the 4+1 follow-up.
+  if (v === 'nd-4plus1') return b.bachelors === undefined || (b.bachelors === 'nd-cse' && b.ndIntegrated !== false);
+  // A 4+1 student who finished the MSCSE finished it through the 4+1, not as
+  // a regular master's student.
+  if (v === 'nd-mscse') return !inFourPlusOne;
+  // An MSCSE student in the 4+1 now was admitted while an undergraduate, so
+  // no graduate degree — anywhere — came before this program.
+  if (program === 'mscse' && inFourPlusOne) return v === 'none';
+  return true;
+}
+/** The graduate-degree options still possible for a partial answer. */
+export function graduateOptionsFor(b: Partial<Background>, program: Program): [GraduateBefore, string][] {
+  return graduateOptions(program).filter(([v]) => graduatePossible(v, b, program));
+}
 /** The lighter second line under a graduate-degree option. */
 export const GRADUATE_NOTES: Partial<Record<GraduateBefore, string>> = {
   none: 'this is your first graduate program',
@@ -124,6 +151,10 @@ function asksFinishedFor(b: Partial<Background>): boolean {
 export function completeBackground(b: Partial<Background> | undefined, program: Program): Background | undefined {
   if (!b || b.bachelors === undefined || b.graduate === undefined) return undefined;
   if (program === 'mscse' && (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1' || b.graduate === 'nd-mscse-transfer')) return undefined;
+  // A graduate answer the other answers rule out (2026-10-08) — a record
+  // saved before the rule, or a draft a later answer contradicts — is open
+  // again until the student picks one that is possible.
+  if (!graduatePossible(b.graduate, b, program)) return undefined;
   const asksIntegrated = asksIntegratedFor(b, program);
   if (asksIntegrated && b.ndIntegrated === undefined) return undefined;
   if (b.graduate === 'elsewhere' && (b.samePlace === undefined || b.finished === undefined)) return undefined;
@@ -311,6 +342,7 @@ export function backgroundQuestions(
     if (focusedKey?.startsWith(`${prefix}.`)) questions?.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusedKey)}"]`)?.focus({ preventScroll: true });
   };
   const renderFollowUpBoxes = (): void => {
+    syncGraduateRows();
     integratedBox.replaceChildren(
       el('legend', { class: 'followup-title' }, program === 'mscse' ? 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)' : 'Were you in Notre Dame’s Integrated B.S. + M.S. (4+1) program as an undergraduate? (§3.5)'),
       // The timing, so a student admitted to the MSCSE after the bachelor's
@@ -449,17 +481,35 @@ export function backgroundQuestions(
       g === 'elsewhere' ? [elsewhereBox, finishedBox] : g === 'nd-other' ? [finishedBox] : g === 'nd-mscse-transfer' ? [transferBox, alsoElsewhereBox, finishedBox] : asksAlsoElsewhere(g) ? [alsoElsewhereBox, finishedBox] : [],
     );
   };
+  // A graduate answer, with the follow-up answers the old one held cleared.
+  const setGraduate = (v: GraduateBefore | undefined): void => {
+    state.graduate = v;
+    if (v !== 'elsewhere') state.samePlace = undefined;
+    if (v !== 'elsewhere' && v !== 'nd-other') state.finished = undefined;
+    if (v !== 'nd-mscse-transfer') state.transferredTerm = undefined;
+    if (v === undefined || !asksAlsoElsewhere(v)) state.alsoElsewhere = undefined;
+  };
+  // Only the graduate answers the bachelor's answer and the 4+1 follow-up
+  // leave possible are shown (DGS 2026-10-08); an answer they rule out is
+  // dropped, so the record never holds a contradiction, and the step waits
+  // for a new one. Every row is built, so the drivers' data-keys stay.
+  const syncGraduateRows = (): void => {
+    if (state.graduate !== undefined && !graduatePossible(state.graduate, state, program)) setGraduate(undefined);
+    for (const [value] of graduateOptions(program)) {
+      const input = graduateChoices.querySelector<HTMLInputElement>(`[data-key="${prefix}.graduate.${value}"]`);
+      const row = input?.closest<HTMLElement>('label');
+      if (!input || !row) continue;
+      row.hidden = !graduatePossible(value, state, program);
+      input.checked = state.graduate === value;
+    }
+  };
   // A numbered step (CSS counts the visible ones): the question is the heading.
   const graduateChoices = radios(
       'graduate',
       graduateOptions(program),
       state.graduate,
       (v) => {
-        state.graduate = v as GraduateBefore;
-        if (v !== 'elsewhere') state.samePlace = undefined;
-        if (v !== 'elsewhere' && v !== 'nd-other') state.finished = undefined;
-        if (v !== 'nd-mscse-transfer') state.transferredTerm = undefined;
-        if (!asksAlsoElsewhere(v)) state.alsoElsewhere = undefined;
+        setGraduate(v as GraduateBefore);
         // The MSCSE through the 4+1 answers the Ph.D.'s 4+1 follow-up.
         if (program === 'phd' && v === 'nd-4plus1') state.ndIntegrated = undefined;
         renderFollowUps();

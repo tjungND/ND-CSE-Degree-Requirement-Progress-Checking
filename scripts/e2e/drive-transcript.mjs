@@ -756,6 +756,18 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // ("would count toward regular courses … once approved"); the shared pair counts outright.
   await s.waitFor(`/(counts|would count) toward regular courses/.test(${lineOf('CSE 60641')})`);
   console.log('  4+1 asked; answered Yes → the senior-year 60000-level course counts (or waits for the UG→GR confirmation)');
+  // The UG-registered row waits on the ADGS's confirmation of the UG→GR move:
+  // it carries the approval tick (DGS 2026-10-08), which settles it — the line
+  // then counts outright and names the tick; unticked, it waits again.
+  if (/would count toward regular courses/.test(await s.evalJs(lineOf('CSE 60641')))) {
+    const tickKey = await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CSE 60641')?.querySelector('[data-key$=".approved"]')?.dataset.key ?? ''`);
+    if (!tickKey) throw new Error('a course waiting on the UG→GR confirmation must offer “The ADGS approved this course for me”');
+    await s.evalJs(`document.querySelector('[data-key="${tickKey}"]').click()`);
+    await s.waitFor(`/^.*counts toward regular courses \\(3 cr\\).*approved by the ADGS for you, as you ticked on the course/.test(${lineOf('CSE 60641')})`);
+    await s.evalJs(`document.querySelector('[data-key="${tickKey}"]').click()`);
+    await s.waitFor(`/would count toward regular courses/.test(${lineOf('CSE 60641')})`);
+    console.log('  the UG-registered course offers the approval tick; ticked, it counts and says so; unticked, it waits again');
+  }
   const after60641 = await s.evalJs(lineOf('CSE 60641'));
   console.log('  CSE 60641:', after60641.replace(/\s+/g, ' ').slice(0, 190));
   // §3.5's senior-year graduate course: saved for the graduate degree and
@@ -805,9 +817,14 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  MSCSE tab: every decision goes to the ADGS — no standalone "DGS" outside the contact card, notices, glossary and footer');
 
   // This record answered "no graduate degree", so it has no Master's row
-  // (DGS 2026-09-22); say a master's elsewhere before importing one.
+  // (DGS 2026-09-22); say a master's elsewhere before importing one. A 4+1
+  // student cannot have one (DGS 2026-10-08: the option is not offered while
+  // the 4+1 is "Yes"), so the 4+1 goes back to "No" first — the record is
+  // reset right after the preview below.
   await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
   await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
+  if (!(await s.evalJs(`document.querySelector('[data-key="background.graduate.elsewhere"]').closest('label').hidden`))) throw new Error('an MSCSE student in the 4+1 must not be offered a graduate degree elsewhere');
+  await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.no"]').click()`);
   await s.evalJs(`(() => { for (const k of ['background.graduate.elsewhere', 'background.sameplace.no', 'background.finished.yes']) document.querySelector('[data-key="' + k + '"]').click(); document.querySelector('[data-key="background.save"]').click(); })()`);
   await s.waitFor(`!document.querySelector('dialog.background-dialog') && !!document.querySelector('.external-file-masters')`);
   await s.setFileInput('.external-file-masters', combinedPdf);

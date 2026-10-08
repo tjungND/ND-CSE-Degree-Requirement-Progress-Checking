@@ -1500,6 +1500,20 @@ changed, so nobody undoes it by accident:
 - **One course, one row** (src/ui/nd-posted.ts, pure): `twinOfBlockRow` (ND import: the block row is "already entered", its posting goes onto the twin at Add, ticked or not; a ticked twin is still not added), `absorbBlockRow` (other-transcript import: the new row takes the block row's posting, the block row goes), `blockRowBack` (removing that transcript turns a marked row back into the block row), `stripNdPostings` (removing the ND import takes its marks back; Undo restores them by index). Matching is `sameTransferCourse`: normalized course id + `sameUniversity` (folded names equal or one inside the other, word for word). External slots exclude ND block rows (`inSlot`). For records already holding both rows, classify() pairs them (`pairedBlockRows`): the other row carries the posting, the block row is `superseded` with "the same course as …".
 - **Tests:** tests/nd-posted-transfer.test.ts; scenario phd-transfer-on-nd-record.json; e2e drive-transcript.mjs (the ND fixture's block row is Michigan EECS 58200, Banner 202620 = Spring 2027, counted as posted).
 - **insideND’s current unofficial layout (2026-10-08, from the DGS’s redacted transcripts):** per term a “College   Major   Academic Standing” table, courses with a Level column, “Term Totals (Undergraduate|Graduate)”; a closing TRANSCRIPT TOTALS block with “( Graduate )” / “( Undergraduate )” lines; no degrees awarded, no program, no student type. A re-saved or redacted copy can carry one text item per glyph — `groupLines` joins touching single-character runs when they dominate a column. `ParsedTranscript.terms` holds each term’s level, college and major. Never read a real transcript except structure-only on the DGS’s machine (scripts/diagnose-transcript.mjs, scripts/sanitize-transcript.mjs).
+- **Graduate answers the other answers rule out are hidden (DGS 2026-10-08).** background.ts
+  `graduatePossible(v, partial, program)` is the one rule (4+1 option only for nd-cse without a "No";
+  no regular-master's MSCSE after a "Yes"; MSCSE tab + "Yes" → only "No"); `graduateOptionsFor`
+  filters the list, `completeBackground` refuses a ruled-out answer, and `backgroundQuestions`
+  builds every row (the drivers' data-keys stay) and `syncGraduateRows` hides/unhides them and drops
+  a ruled-out chosen answer on each re-render of the follow-ups. `.choice[hidden]` is the CSS.
+- **The approval tick on undergraduate-time Notre Dame coursework (DGS 2026-10-08).** allocate.ts
+  `classifyPriorNdUndergraduate`: `ticked = rule !== undefined && c.dgsApproved === true` clears the
+  per-student approvals (plainBachelorsApproval, sectionThreeFiveApproval, admissionTermConflict,
+  ugToGrUnverified, bsPhdDoubleCount); `dgsApprovalAsked` marks a course where any of them applies
+  (before the tick) so `decidedCaseByCase` offers the tick (audit.ts `approvable`); `dgsTicked`
+  puts the "approved by the DGS for you, as you ticked…" sentence on the line when the tick settled
+  one and no case-by-case verdict is involved. review.ts drops the "count toward both" ask for a
+  ticked course; the other asks come from the cleared flags. An unlisted course keeps no tick.
 - **Next steps floats (DGS 2026-10-08).** report.ts `attentionList`: the section is `.attention.floating`
   (not when embedded) with a Hide/Show button (`report.nextsteps.toggle`, `nextStepsFolded` session
   memory; phones start folded) and its list in `#attention-body`; style.css fixes it bottom-right
