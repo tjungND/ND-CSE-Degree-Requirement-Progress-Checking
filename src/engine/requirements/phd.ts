@@ -1468,7 +1468,11 @@ function eighthSemesterNotes(ctx: Ctx, sem: number, effectiveSem: number, open: 
   const moved = [
     ...(shift.leavesBefore > 0 ? [`${many(shift.leavesBefore, 'semester', 'semesters')} on approved medical leave before it`] : []),
     ...(shift.accommodationsBy > 0 ? [`${many(shift.accommodationsBy, 'childbirth/adoption accommodation', 'childbirth/adoption accommodations')} for a birth or adoption in or before it`] : []),
-    ...(ctx.covidCohort ? ['one year for students enrolled in Spring 2020 (Academic Code Appendix A)'] : []),
+    // One SEMESTER here (policy review round 3, P3-ac-6.2-app-3 (b); DGS
+    // 2026-10-07: option 2): Appendix A.4 moves the candidacy deadline to the
+    // ninth semester. "One year" stays on the time-limit and dissertation
+    // rows, where Appendix A.5's nine years make it right (clockShiftNote).
+    ...(ctx.covidCohort ? ['one semester for students enrolled in Spring 2020 (Academic Code Appendix A.4)'] : []),
   ];
   if (moved.length > 0) parts.push({ note: `Semester ${sem} is counted as semester ${effectiveSem} — extended by ${moved.join(' and ')}` });
   const after = [

@@ -1,6 +1,6 @@
 {
   "name": "phd-covid-cohort-extension",
-  "description": "DGS 2026-10-03 (policy review, Academic Code Appendix A): a student enrolled in Spring 2020 or earlier has one extra year on the degree time limit and on the candidacy deadline, read from the entry term — no tick box. Entered Spring 2020: the eighth semester was Fall 2023, so on 2024-03-01 the candidacy exam would be overdue; with the year the deadline is Fall 2024 and the row is still in progress, naming Appendix A.",
+  "description": "DGS 2026-10-03 (policy review, Academic Code Appendix A): a student enrolled in Spring 2020 or earlier has one extra year on the degree time limit and on the candidacy deadline, read from the entry term — no tick box. Entered Spring 2020: the eighth semester was Fall 2023, so on 2024-03-01 the candidacy exam would be overdue; with the year the deadline is Fall 2024 and the row is still in progress, naming Appendix A. Since 2026-10-07 (policy review round 3, P3-ac-6.2-app-3 (b), DGS: option 2) the candidacy rows say \"one semester … (Academic Code Appendix A.4)\" — what the count does — and the time-limit row keeps \"one year\" (Appendix A.5's nine years).",
   "today": "2024-03-01",
   "rules": {
     "base": "default"
@@ -112,13 +112,13 @@
     "phd.candidacy": {
       "status": "in_progress",
       "detailIncludes": [
-        "one year for students enrolled in Spring 2020 (Academic Code Appendix A)"
+        "Semester 8 is counted as semester 9 — extended by one semester for students enrolled in Spring 2020 (Academic Code Appendix A.4)"
       ]
     },
     "phd.timeLimit": {
       "status": "in_progress",
       "detailIncludes": [
-        "Appendix A"
+        "one year for students enrolled in Spring 2020 (Academic Code Appendix A)"
       ]
     }
   }
