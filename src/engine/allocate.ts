@@ -36,6 +36,16 @@ export const NON_DEGREE_CREDITS_MAX = 12;
  * courses ticked as also counting toward the other degree. A Graduate School
  * number, so it lives in code beside NON_DEGREE_CREDITS_MAX. */
 export const DUAL_DEGREE_SHARED_CREDITS_MAX = 9;
+/** `sharedbs`: Academic Code §4.6 — "students in an integrated
+ * bachelor's/master's degree program may count up to six graduate-level
+ * credits toward both degrees" (CSE §3.5's "one or two 3-credit CSE regular
+ * courses" is the same six; the Ph.D.'s six counted toward two degrees is the
+ * Graduate School's 2026-09-22 answer, and the same six). A Graduate School
+ * number, so it lives in code (DGS 2026-09-27: "can't be changed by DGS …
+ * rooted in the code"; policy review round 3, P3-sheet-5 / P3-sheet-6 (c);
+ * DGS 2026-10-07: option (a)). It was the Parameters row
+ * `ms_bs_double_count_credits_max` until then (RETIRED_PARAMETER_KEYS). */
+export const BS_SHARED_CREDITS_MAX = 6;
 
 /** `term:<termIndex>` (2026-10-03): Academic Code §3.8 "Maximal Registration"
  * — "During each semester of the academic year, a graduate student should not
@@ -762,9 +772,10 @@ export function classify(student: Student, rules: Rules, today?: string): {
   // applies to the MSCSE alone. The student is told which is which.
   const bsShared = new Set<CourseEntry>();
   if (program === 'mscse') {
-    // A missing row is "cannot evaluate", never zero (CLAUDE.md; policy review
-    // round 3, P3-sheet-6 (b)): it used to share nothing and say nothing.
-    const limit = params.number('ms_bs_double_count_credits_max');
+    // The Graduate School's six, in code since 2026-10-07 (P3-sheet-5 (a)): it
+    // can no longer go missing, so the P3-sheet-6 (b) branch for a missing row
+    // is gone with the row.
+    const limit = BS_SHARED_CREDITS_MAX;
     const awarded = student.bachelorsAwarded;
     // Only a course that can count toward the MSCSE at all is worth a share of
     // the six — a 40000-level row the sheet marks `no` would otherwise take a
@@ -794,18 +805,11 @@ export function classify(student: Student, rules: Rules, today?: string): {
     const sixk = student.courses
       .filter((c) => undergrad(c) && deptOf(c.courseId) === 'CSE' && lvl(c) >= 6 && (awarded === undefined || semesterNumber(awarded, c.term) >= -1))
       .sort((a, b) => compareTerm(a.term, b.term) || a.courseId.localeCompare(b.courseId));
-    if (limit === undefined) {
-      // Every course that could be shared draws on the `sharedbs` cap, whose
-      // unknown limit holds it for the DGS ("the rules sheet does not say …"),
-      // and the allowance card reads cannot evaluate, as the Ph.D.'s does.
-      for (const c of [...fourk, ...sixk]) bsShared.add(c);
-    } else {
-      let used = 0;
-      for (const c of [...fourk, ...sixk]) {
-        if (used + c.credits > limit) continue;
-        bsShared.add(c);
-        used += c.credits;
-      }
+    let used = 0;
+    for (const c of [...fourk, ...sixk]) {
+      if (used + c.credits > limit) continue;
+      bsShared.add(c);
+      used += c.credits;
     }
   }
 

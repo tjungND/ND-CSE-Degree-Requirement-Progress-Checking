@@ -1,5 +1,6 @@
 // §3 — Requirements for the Master of Science Degree (MSCSE).
 // Every builder quotes the handbook sentence it implements.
+import { BS_SHARED_CREDITS_MAX } from '../allocate.ts';
 import { openDeadline } from '../status.ts';
 import { compareTerm, deadlineTermLabel, endOfNextSemester, endOfTerm, termLabel } from '../term.ts';
 import type { DeadlineInfo, DetailPart, RequirementResult, Status } from '../types.ts';
@@ -143,10 +144,9 @@ export function mscseRows(ctx: Ctx): RequirementResult[] {
       capRow({
         id: 'ms.cap.sharedbs',
         group: ALLOWANCES,
-        title: 'At most 6 credits shared with your bachelor\u2019s degree',
+        title: `At most ${BS_SHARED_CREDITS_MAX} credits shared with your bachelor\u2019s degree`,
         capId: 'sharedbs',
         capLabel: 'credits shared with your bachelor\u2019s degree',
-        limitKey: 'ms_bs_double_count_credits_max',
         section: '\u00a73.5',
         quote:
           'With approval of the instructor and DGS, students in the integrated B.S. + M.S. program may, over the second semester of their junior year and their senior year, take one or two 3-credit CSE regular courses at the 60000 level or higher, and count these both as undergraduate CSE electives/Tech electives and as course requirements for the MSCSE degree.',

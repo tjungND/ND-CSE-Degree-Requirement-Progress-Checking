@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, conferralWindow, levelOf, decidedCaseByCase, longInterruptionReadmission, mscseSeparation, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { BS_SHARED_CREDITS_MAX, DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, conferralWindow, levelOf, decidedCaseByCase, longInterruptionReadmission, mscseSeparation, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { beforeProgramStart } from './early-start.ts';
@@ -152,11 +152,12 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           otherDegreeCap,
           { id: 'fourk', limit: num('ms_4xxxx_credits_max'), label: capLabel(num('ms_4xxxx_credits_max'), 'cap on courses below the 60000 level'), section: '§3.2' },
           { id: 'noncse', limit: num('ms_noncse_credits_max'), label: capLabel(num('ms_noncse_credits_max'), 'non-CSE cap'), section: '§3.2' },
-          // §3.5's limit on coursework shared with the bachelor's (2026-09-10).
+          // §3.5's limit on coursework shared with the bachelor's (2026-09-10):
+          // Academic Code §4.6's six, in code since 2026-10-07 (P3-sheet-5 (a)).
           {
             id: 'sharedbs',
-            limit: num('ms_bs_double_count_credits_max'),
-            label: capLabel(num('ms_bs_double_count_credits_max'), 'allowance for coursework shared with your bachelor’s degree'),
+            limit: BS_SHARED_CREDITS_MAX,
+            label: capLabel(BS_SHARED_CREDITS_MAX, 'allowance for coursework shared with your bachelor’s degree'),
             section: '§3.5',
           },
           {
@@ -175,9 +176,9 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
           // (through the DGS, 2026-09-22): what the courses counted toward the
           // bachelor's AND the MSCSE used up is gone for the Ph.D. — "If 6
           // credits have double-counted to BS & MS, no more credits can
-          // double-count to BS & PhD later". The same sheet key as §3.5's
-          // allowance: it is the same six credits.
-          sharedDegreesCap(num('ms_bs_double_count_credits_max'), spentOnBachelorsAndMasters(student)),
+          // double-count to BS & PhD later". The same six as §3.5's allowance
+          // (BS_SHARED_CREDITS_MAX, in code since 2026-10-07).
+          sharedDegreesCap(BS_SHARED_CREDITS_MAX, spentOnBachelorsAndMasters(student)),
           {
             id: 'transfer',
             limit: num(student.priorMs === 'completed' ? 'phd_transfer_completed_ms_credits_max' : 'transfer_unfinished_ms_credits_max'),

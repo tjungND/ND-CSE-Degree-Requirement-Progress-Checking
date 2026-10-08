@@ -15,7 +15,7 @@ import { noteOf, capRow, beforeForfeiture, clockShiftNote, FORFEIT_FACT, FORFEIT
 import { fullTimeTermRecords, graduateLevelParts, longestFullTimeRun, sameTermDuplicate } from './residency.ts';
 import { advisorTttState, defendedBelowGpaNote, gpaText, msCandidacyApplicationRow, otherDegreeCapRow } from './shared.ts';
 import { transferRow } from './transfer.ts';
-import { spentOnBachelorsAndMasters } from '../allocate.ts';
+import { BS_SHARED_CREDITS_MAX, spentOnBachelorsAndMasters } from '../allocate.ts';
 
 /** How many additional semesters the DGS granted under §4.4 (DGS 2026-10-03:
  * any number; the older tick box reads as one). */
@@ -203,15 +203,14 @@ export function phdRows(ctx: Ctx): RequirementResult[] {
   // that draws on it — Notre Dame coursework their bachelor's degree used.
   if (ctx.classified.some((c) => c.caps.includes('sharedbs'))) {
     const spent = spentOnBachelorsAndMasters(ctx.student);
-    const base = ctx.params.number('ms_bs_double_count_credits_max');
+    const base = BS_SHARED_CREDITS_MAX;
     rows.push(
       capRow({
         id: 'phd.cap.sharedbs',
         group: ALLOWANCES,
-        title: 'At most 6 credits counted toward two degrees (your bachelor’s and the Ph.D.)',
+        title: `At most ${BS_SHARED_CREDITS_MAX} credits counted toward two degrees (your bachelor’s and the Ph.D.)`,
         capId: 'sharedbs',
         capLabel: 'credits that may still count toward both your bachelor’s degree and the Ph.D.',
-        limitKey: 'ms_bs_double_count_credits_max',
         section: 'Graduate School (2026-09-22 answer)',
         quote:
           'Only up to 6 credits may double-count towards two degrees. If 6 credits have double-counted to BS & MS, no more credits can double-count to BS & PhD later when the student pursues PhD.',

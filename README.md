@@ -167,7 +167,7 @@ a DGS cannot change them, and a sheet row would suggest otherwise (DGS rulings 2
 | At most **9** credits shared with another degree the student is enrolled in at the same time | Academic Code §2.2; DGS Handbook §2.9 | `DUAL_DEGREE_SHARED_CREDITS_MAX`, `src/engine/allocate.ts` |
 | An Incomplete becomes an F **30 + 14** days after grades are due | Academic Code §4.4 | `INCOMPLETE_GRACE_DAYS`, `src/engine/allocate.ts` |
 | A grade of **C** or better for credit | Academic Code §4.3 | `passesCreditFloor`, `src/engine/grades.ts` |
-| The **6** credits of §3.5's note on courses shared with a bachelor's degree | the Graduate School | `src/engine/tracks.ts` |
+| At most **6** credits shared with a bachelor's degree — §3.5's allowance, and the Ph.D.'s six counted toward two degrees (the `ms_bs_double_count_credits_max` row until 2026-10-07; a sheet that still has it is told it can be deleted) | Academic Code §4.6 | `BS_SHARED_CREDITS_MAX`, `src/engine/allocate.ts` |
 | Quarter credit hours × **0.66**, trimester credit hours × **0.88** (§5.2's pro-rata conversion) | DGS Handbook §3.14 | `QUARTER_CREDIT_FACTOR`, `TRIMESTER_CREDIT_FACTOR`, `src/data/external.ts` |
 | One more year and a 9th semester for students enrolled in **Spring 2020** or earlier | Academic Code Appendix A | `COVID_COHORT_LAST_ENTRY`, `src/engine/requirements/context.ts` |
 | Credit from before an interruption of **five years** or more is forfeited — counted from the end of the last Notre Dame term to the start of the readmission term (2026-10-05) | Academic Code §5.5 | `ACADEMIC_CODE_FORFEIT_YEARS`, `src/engine/allocate.ts` (readmission) |

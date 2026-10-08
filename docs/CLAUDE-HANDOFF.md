@@ -268,8 +268,8 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   as not counted there; `review.ts` words an unlisted one as "counts toward the Ph.D. from your
   Notre Dame MSCSE — …". (2) Every Ph.D. student is asked `countedToward` for eligible prior
   undergraduate Notre Dame courses (two options without an ND master's, app.ts); 'bs' adds the
-  `sharedbs` cap, which `audit.ts` builds for the Ph.D. with `limit = ms_bs_double_count_credits_max
-  − spentOnBachelorsAndMasters(student)` (allocate.ts, the 'both' credits) and a label that says what
+  `sharedbs` cap, which `audit.ts` builds for the Ph.D. with `limit = BS_SHARED_CREDITS_MAX
+  − spentOnBachelorsAndMasters(student)` (the six in code since 2026-10-07, P3-sheet-5) (allocate.ts, the 'both' credits) and a label that says what
   was used; `phd.cap.sharedbs` (phd.ts) appears only when a course draws on it and carries an
   `extraDetail` (new optional `capRow` arg). Prior-undergraduate ND courses now always carry
   `notTransferCredit` — an unanswered one used to sit on the §5.2 row and, with no real transfer
@@ -1257,7 +1257,7 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   coursework, for a student who holds an ND master's (`ndMasters`). Unanswered = counts nothing, amber
   — `buildExplanation` marks a "not counted yet" line pending even though it carries a satisfied core
   area, because the student, not the DGS, is the one who has to act. MSCSE side: cap `sharedbs`,
-  parameter `ms_bs_double_count_credits_max`, row `ms.cap.sharedbs`, pushed only when a course draws
+  constant `BS_SHARED_CREDITS_MAX` (a Parameters row until 2026-10-07), row `ms.cap.sharedbs`, pushed only when a course draws
   on it.
 - **A 4+1's entry term** (DGS 2026-09-10). `inferEntryTerm` gained a rule between the "Student Type:
   New" marker and "the first graduate-level term": when a dated BACHELOR'S award exists and the

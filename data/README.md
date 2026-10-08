@@ -60,7 +60,7 @@ superseded by the Google Sheet CSE-Degree-Checking-Rules (built from the seed sp
 The `*.sample.csv` files here show this exact schema in miniature (they double as the base rules
 for the test suite's fixtures in `tests/fixtures/rules/`).
 
-### Tab `Parameters` — every number the handbook states, so a future DGS can change it without code
+### Tab `Parameters` — the department's numbers, so a future DGS can change them without code
 
 The CSE handbook's numbers — the department's, which a DGS may tune. A number set above the
 department (the Graduate School's Academic Code or DGS Handbook: the 15-credit semester maximum,
@@ -72,7 +72,7 @@ no code constant behind them — `ms_time_limit_years`, `ms_total_credits_min`, 
 tightened, never loosened: a looser value is warned about in the diagnostics, and the app uses
 the Graduate School's value instead (README § A5b; 2026-10-07). The quarter and trimester factors of §5.2's pro-rata conversion
 (0.66 and 0.88, the DGS Handbook's §3.14 table) were rows here from 2026-09-12 and moved into the
-code on 2026-10-04 (DGS). Three more rows were PARKED — kept in the tab, read by nothing:
+code on 2026-10-04 (DGS). The six credits shared with a bachelor's degree (`ms_bs_double_count_credits_max`) moved into the code on 2026-10-07 (DGS; `BS_SHARED_CREDITS_MAX`). Three more rows were PARKED — kept in the tab, read by nothing:
 `ms_thesis_readers_min` (§3.4's two readers; no reader count is checked, the thesis row checks the
 defense), `candidacy_committee_additional_members_min` (§4.5's three voting members beyond the
 advisor; the committee is not counted — DGS 2026-10-04) and `phd_senior_grad_credits_max` (6, the
@@ -108,7 +108,6 @@ the old rows (`data/snapshot.json`).
 | `gpa_min` | 3.0 | §2.2 | |
 | `ms_total_credits_min` | 30 | §3.2 | |
 | `phd_nd_credits_min` | 9 | §4.2 | at least nine credits of regular courses at Notre Dame |
-| `ms_bs_double_count_credits_max` | 6 | §3.5; Academic Code §4.6 | how much of an MSCSE student's coursework may ALSO have counted toward their bachelor's degree — §3.5's "one or two 3-credit CSE courses". The six is the Graduate School's (Academic Code §4.6: students in an integrated bachelor's/master's program "may count up to six graduate-level credits toward both degrees"); that 40000-level courses may be among them rests on the Graduate School's email to the DGS (2026-09-10), not on any document (P1-sheet-33, DGS 2026-10-04). The Ph.D. has the same six, less whatever the bachelor's and the MSCSE already shared (Graduate School, 2026-09-22 — the row `phd.cap.sharedbs` reads this key too); no course counts toward all three degrees |
 | `cse_subject_codes` | `CS; CSCI; COMPSCI; CSE; CMSC; EECS; CSYE; ECE` | §3.2, §4.2 | the subject codes that mean a CSE course on **another university's** transcript. §4.2 (and §3.2 for the MSCSE) caps credits from outside CSE at nine wherever they were taken, and other schools spell the department every way there is. `ECE` is listed on purpose: the department reads “a department other than CSE” as “outside computing”, so an ECE course is inside CSE whatever its topic (DGS 2026-10-04; rule a single course otherwise with its `is_cse` cell). A code this list does not name counts against the allowance; an ExternalCourses `is_cse` cell overrides it for one course. Notre Dame's own courses are decided by their own subject, never by this list. With the key missing **or its cell blank**, the app places no transferred course inside or outside CSE: since 2026-10-03 a transferred course whose row has no `is_cse` cell is then held for the DGS — “the course rules do not say whether this is a CSE course” — rather than placed on either side of the nine. |
 | `ms_transfer_completed_ms_credits_max` | 9 | §5.2 | completed prior M.S./Ph.D. |
 | `phd_transfer_completed_ms_credits_max` | 24 | §5.2 | completed prior M.S./Ph.D. |

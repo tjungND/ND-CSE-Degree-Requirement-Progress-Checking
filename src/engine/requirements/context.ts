@@ -571,7 +571,9 @@ export function capRow(args: {
   title: string;
   capId: CapId;
   capLabel: string;
-  limitKey: string;
+  /** The Parameters key the limit comes from, named when it is missing.
+   * Absent for a limit held in code (BS_SHARED_CREDITS_MAX, 2026-10-07). */
+  limitKey?: string;
   section: string;
   quote: string;
   ctx: Ctx;
@@ -620,7 +622,7 @@ export function capRow(args: {
   const parts: DetailPart[] = [];
   if (usage?.limit === undefined) {
     status = 'cannot_evaluate';
-    parts.push(missingParamDetail(args.limitKey));
+    parts.push(args.limitKey !== undefined ? missingParamDetail(args.limitKey) : 'Cannot evaluate — the limit is unknown');
   } else if (relevant.length === 0) {
     // "Does not apply — No courses touch this cap" read as an EXEMPTION from
     // §4.2's limit (blue-team B4, 2026-09-18). The allowance applies; it is

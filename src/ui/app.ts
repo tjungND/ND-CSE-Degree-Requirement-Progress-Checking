@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { NON_DEGREE_CREDITS_MAX, classify, firstSemesterComplete, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { BS_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, classify, firstSemesterComplete, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { compareTerm, normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
@@ -1606,9 +1606,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const v = rules.parameters.number(student.program === 'mscse' ? 'ms_4xxxx_credits_max' : 'phd_4xxxx_cse_credits_max');
     return v === undefined ? 'a limited number of' : String(v);
   }
+  // Academic Code §4.6's six, in code since 2026-10-07 (P3-sheet-5 (a)).
   function sharedCreditsWord(): string {
-    const v = rules.parameters.number('ms_bs_double_count_credits_max');
-    return v === undefined ? 'a limited number of' : String(v);
+    return String(BS_SHARED_CREDITS_MAX);
   }
   /** Whether a document states this student's transfer limit (P3-cse-5-6-1):
    * after a completed degree, or an unfinished master's — not with no earlier

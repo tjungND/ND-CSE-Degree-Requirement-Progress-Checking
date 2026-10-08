@@ -13,7 +13,7 @@
 // requirement is still decided by the handbook and the rules sheet. What the
 // note does is name the thing the page cannot decide, and send them to the one
 // person who can.
-import { levelOf, type ClassifiedCourse } from './allocate.ts';
+import { BS_SHARED_CREDITS_MAX, levelOf, type ClassifiedCourse } from './allocate.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
 import { compareTerm } from './term.ts';
 import type { Student } from './types.ts';
@@ -96,7 +96,7 @@ export function specialTracks(student: Student, classified: ClassifiedCourse[]):
         // applies — the UG→GR move, or the DGS's confirmation (policy review
         // 2026-10-04, P1-page-text-engine-11; DGS: "Apply the suggested fix").
         ? 'One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. Your 60000-level courses from before your bachelor’s degree count here in full if that degree did not use them (Graduate School) — on top of what §5.2 lets you transfer — once they were moved from undergraduate to graduate registration before the bachelor’s was awarded (Graduate School 4+1 guidance). A course your Notre Dame transcript does not show registered at the graduate level, or one taken outside the 4+1, counts only provisionally until the DGS confirms it. Up to 6 credits of courses below 60000 may count inside §4.2’s allowance. No course may count toward three degrees: if you also hold a Notre Dame master’s, say next to each course which degrees it has already counted toward. The DGS decides anything the course rules leave open.'
-        : `One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. At most 6 credits in all may apply to both your bachelor’s degree and the MSCSE, from the second semester of the junior year on, with the instructor’s and the DGS’s approval (§3.5). A 60000-level course your bachelor’s degree did not use counts toward the MSCSE alone, whenever you took it (the Graduate School, through the DGS); CSE courses below the 60000 level count inside §3.2’s allowance. ${sharedList(classified)}Anything that still needs an approval is counted only provisionally and listed in the review request below — ask the DGS to confirm it.`,
+        : `One or more of your graduate courses was taken in or before the term your bachelor’s degree was awarded. At most ${BS_SHARED_CREDITS_MAX} credits in all may apply to both your bachelor’s degree and the MSCSE, from the second semester of the junior year on, with the instructor’s and the DGS’s approval (§3.5). A 60000-level course your bachelor’s degree did not use counts toward the MSCSE alone, whenever you took it (the Graduate School, through the DGS); CSE courses below the 60000 level count inside §3.2’s allowance. ${sharedList(classified)}Anything that still needs an approval is counted only provisionally and listed in the review request below — ask the DGS to confirm it.`,
     });
   }
 

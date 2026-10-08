@@ -131,7 +131,8 @@ coursework table — and only where the answer changes something: their own Notr
 coursework, and only if they hold a Notre Dame master's. Until they answer, the course counts nothing
 and says so. Their answers are on the self-check page and in the review request, so you can correct
 one that looks wrong. On the MSCSE side, coursework shared with the bachelor's is capped at
-`ms_bs_double_count_credits_max` (6 credits, §3.5).
+the Graduate School's 6 credits (§3.5; Academic Code §4.6) — `BS_SHARED_CREDITS_MAX` in
+`src/engine/allocate.ts` since 2026-10-07, no longer a Parameters row.
 
 Since 2026-09-09 the app can tell a CSE course from a non-CSE one on ANOTHER university's
 transcript, which is what §4.2's nine-credit limit on courses "taken from a department other than

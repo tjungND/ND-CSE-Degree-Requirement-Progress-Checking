@@ -233,6 +233,7 @@ export const RETIRED_PARAMETER_KEYS: Readonly<Record<string, string>> = {
   ms_thesis_readers_min: 'no reader count is checked; the thesis row checks the defense (DGS 2026-10-04)',
   candidacy_committee_additional_members_min: 'the candidacy committee is not counted (DGS 2026-10-04: “The app doesn’t need to count the number of committee members”)',
   phd_senior_grad_credits_max: 'the Graduate School’s answer made a 4+1’s pre-bachelor’s 60000-level coursework count in full, not as transfer credit, so there is no allowance to size (data/README.md, Tab Parameters)',
+  ms_bs_double_count_credits_max: 'the six credits shared with a bachelor’s degree are the Graduate School’s — Academic Code §4.6 — and have lived in the code since 2026-10-07 (README § A5b)',
 };
 
 /** Parameter keys the app reads. Anything else in the sheet is ignored with a
@@ -250,7 +251,6 @@ export const KNOWN_PARAMETER_KEYS = [
   // their bachelor's. The Ph.D. has the same six (Graduate School, 2026-09-22),
   // less whatever the bachelor's and the MSCSE already shared; no course may
   // count toward all three degrees.
-  'ms_bs_double_count_credits_max',
   'ms_time_limit_years',
   'ms_transfer_completed_ms_credits_max',
   'ms_transfer_window_years',
