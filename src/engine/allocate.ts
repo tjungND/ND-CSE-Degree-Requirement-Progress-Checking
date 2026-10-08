@@ -212,6 +212,12 @@ export interface ClassifiedCourse {
    * graduate courses taken outside any program — so the DGS decides (DGS
    * 2026-10-03: "route such courses to DGS review"). */
   noPriorProgram?: true;
+  /** §5.2's five-year window for a student who finished the Notre Dame MSCSE
+   * before the Ph.D. counts back from the MSCSE admission (policy review round
+   * 3, P3-prior-programs-4; DGS 2026-10-07: option (b)), and this record does
+   * not show when the MSCSE began (no MSCSE course on it) — a course outside
+   * the Ph.D.'s window may be inside it, so the DGS decides. */
+  windowStartUnknown?: true;
   /** An Incomplete from another university (P3-ac-4-1; DGS 2026-10-05): held
    * for the DGS until it is graded — never on Notre Dame's §4.4 clock. */
   outsideIncomplete?: true;
@@ -566,6 +572,16 @@ export function isOwnMscseCoursework(student: Student, c: CourseEntry): boolean 
   if (compareTerm(c.term, normalizeEntryTerm(student.entryTerm).term) >= 0) return false;
   const awarded = student.bachelorsAwarded;
   return awarded === undefined || compareTerm(c.term, awarded) > 0 || c.countedToward === 'mscse' || c.countedToward === 'both';
+}
+
+/** When the student's own Notre Dame MSCSE began, read from its earliest
+ * course on the record — the admission §5.2's five-year window counts back
+ * from (P3-prior-programs-4 (b)). Undefined without such a course. */
+export function ownMscseStart(student: Student): Term | undefined {
+  return student.courses
+    .filter((c) => isOwnMscseCoursework(student, c))
+    .map((c) => c.term)
+    .sort(compareTerm)[0];
 }
 
 /** A separation of five years or more between the student's Notre Dame MSCSE
@@ -1490,10 +1506,24 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   if (transferFloor !== undefined && !meetsGradeFloor(grade, transferFloor as Grade) && !isInProgress(grade)) {
     return { ...extBase, ineligibleReason: `not counted — grade below ${transferFloor} (§5.2)${coreNote}` };
   }
-  if (windowYears !== undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0) {
+  // The window counts back from "admission to a graduate degree program at
+  // Notre Dame" (Academic Code §4.6). For a student who finished the Notre
+  // Dame MSCSE before the Ph.D., that is the MSCSE admission (policy review
+  // round 3, P3-prior-programs-4; DGS 2026-10-07: option (b) — the MSCSE and
+  // the Ph.D. are one graduate program, 2026-10-03), read from the earliest
+  // MSCSE course on the record. Without one the start is unknown: a course
+  // outside the Ph.D.'s window is held for the DGS, never refused.
+  const mscseStart = ownMscseStart(student);
+  const windowFrom = mscseStart !== undefined && compareTerm(mscseStart, entry) < 0 ? mscseStart : entry;
+  const windowStartUnknown =
+    windowYears !== undefined && program === 'phd' && student.ndMasters !== undefined && mscseStart === undefined && compareTerm(c.term, shiftTermYears(entry, -windowYears)) < 0;
+  if (windowYears !== undefined && !windowStartUnknown && compareTerm(c.term, shiftTermYears(windowFrom, -windowYears)) < 0) {
     return {
       ...extBase,
-      ineligibleReason: `not counted — completed more than ${windowYears} years before you entered (before ${termLabel(shiftTermYears(entry, -windowYears))}; §5.2)${coreNote}`,
+      ineligibleReason:
+        windowFrom === entry
+          ? `not counted — completed more than ${windowYears} years before you entered (before ${termLabel(shiftTermYears(entry, -windowYears))}; §5.2)${coreNote}`
+          : `not counted — completed more than ${windowYears} years before you entered the Notre Dame MSCSE in ${termLabel(windowFrom)}, your first admission to a Notre Dame graduate program (before ${termLabel(shiftTermYears(windowFrom, -windowYears))}; §5.2)${coreNote}`,
     };
   }
   // An earlier Notre Dame course keeps its own Courses-tab verdict on top
@@ -1568,6 +1598,9 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   const outsideIncomplete = !fromNd && grade === 'I';
   const heldForDgs: string[] = [
     ...(outsideIncomplete ? [`${outsideIncompleteNote(c)} — the DGS decides once the grade is final`] : []),
+    ...(windowStartUnknown
+      ? [`completed more than ${windowYears} years before your Ph.D. entry (before ${termLabel(shiftTermYears(entry, -windowYears!))}) — §5.2’s five years count back from your admission to the Notre Dame MSCSE, which this record does not date (no MSCSE course on it), so the DGS confirms it falls inside them`]
+      : []),
     ...(noPriorProgram ? ['taken outside any degree program — you have no earlier graduate program on your record, and the Academic Code states a transfer allowance only for an unfinished or a completed program (Academic Code §4.6), so the DGS decides whether, and how much, transfers'] : []),
     ...(passFail ? [`graded S (pass/fail), which cannot show the ${transferFloor} that §5.2 requires — the DGS decides whether it transfers`] : []),
     ...(afterAdmission ? [`taken ${termLabel(c.term)}, after you entered — a course taken elsewhere after admission needs the department’s and the Graduate School’s approval in advance (§5.2; DGS Handbook §3.14); the DGS confirms it was approved`] : []),
@@ -1624,6 +1657,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     ...(passFail ? { passFailGrade: true as const } : {}),
     ...(afterAdmission ? { afterAdmission: true as const } : {}),
     ...(noPriorProgram ? { noPriorProgram: true as const } : {}),
+    ...(windowStartUnknown ? { windowStartUnknown: true as const } : {}),
     ...(outsideIncomplete ? { outsideIncomplete: true as const } : {}),
     ...(cseUnknown ? { cseUnknown: true as const } : {}),
     ...(creditsAsPrinted ? { creditsAsPrinted: true as const } : {}),

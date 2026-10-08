@@ -331,7 +331,8 @@ export interface Student {
      * while the entry term stays the MSCSE's, which §4.3 and §4.5 count from
      * (DGS 2026-09-26). */
     transferredTerm?: Term;
-    /** `nd-mscse-transfer` only (policy review round 3, P3-prior-programs-2;
+    /** The three Notre Dame MSCSE answers only — `nd-mscse`, `nd-4plus1`,
+     * `nd-mscse-transfer` (policy review round 3, P3-prior-programs-1 and -2;
      * DGS 2026-10-07: option (a)): the student ALSO held, or started, a
      * graduate degree at another university — `finished` then says whether
      * they finished it, and `priorMs` follows (24 / 6 transfer credits). */

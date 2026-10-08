@@ -71,7 +71,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // pass/fail grade, a course taken elsewhere after admission, a lapsed
     // Incomplete, credit from before a readmission after five years or more.
     // The sheet's `yes` does not settle these, so they are never "approved".
-    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.cseUnknown || c.incompleteLapsed || c.outsideIncomplete || c.interrupted || c.ndPostingHeld !== undefined);
+    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.windowStartUnknown || c.cseUnknown || c.incompleteLapsed || c.outsideIncomplete || c.interrupted || c.ndPostingHeld !== undefined);
     const heldReason = (c: (typeof pending)[number]): string =>
       [
         // Credit on the Notre Dame record that still waits (P3-import-1, 2026-10-05).
@@ -79,6 +79,8 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         ...(c.passFailGrade ? ['graded pass/fail, which cannot show the B §5.2 requires'] : []),
         ...(c.afterAdmission ? ['taken after admission — the department and the Graduate School must have approved it in advance (DGS Handbook §3.14)'] : []),
         ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (Academic Code §4.6)'] : []),
+        // P3-prior-programs-4 (b), 2026-10-07.
+        ...(c.windowStartUnknown ? ['more than five years before your Ph.D. entry — §5.2 counts back from your Notre Dame MSCSE admission, which this record does not date'] : []),
         ...(c.cseUnknown ? ['the course rules do not say whether it is a CSE course, so §4.2’s nine-credit non-CSE allowance cannot be applied yet'] : []),
         ...(c.incompleteLapsed ? ['an Incomplete past its deadline (Academic Code §4.4)'] : []),
         // Another university's Incomplete (P3-ac-4-1, 2026-10-05).

@@ -857,7 +857,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ? ` You finished a graduate degree elsewhere, so up to ${finished} credits from it may transfer (§5.2); it would be ${unfinished} if that program were unfinished.`
         : ` Your earlier graduate program was not finished, so up to ${unfinished} credits from it may transfer (§5.2); it would be ${finished} after a finished degree.`;
     }
-    if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') return ` ${ownMscseSentence()}`;
+    // A degree elsewhere beside the MSCSE held (P3-prior-programs-1; DGS
+    // 2026-10-07: option (a)), with its own §5.2 allowance; the five years
+    // count back from the MSCSE admission (P3-prior-programs-4 (b)).
+    if (b.graduate === 'nd-mscse' || b.graduate === 'nd-4plus1') {
+      const outside = b.alsoElsewhere
+        ? b.finished
+          ? ` You also finished a graduate degree at another university, so up to ${finished} credits from it may transfer (§5.2), counted back five years from your admission to the MSCSE; it would be ${unfinished} if that program were unfinished.`
+          : ` Your graduate program at another university was not finished, so up to ${unfinished} credits from it may transfer (§5.2), counted back five years from your admission to the MSCSE; it would be ${finished} after a finished degree.`
+        : '';
+      return ` ${ownMscseSentence()}${outside}`;
+    }
     // No stated limit without an earlier program (policy review round 3,
     // P3-cse-5-6-1; DGS 2026-10-06): §5.2 caps only what comes from an
     // unfinished or a completed program, so the DGS decides — "may transfer"

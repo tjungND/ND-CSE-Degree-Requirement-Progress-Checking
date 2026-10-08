@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-07 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-07 (DGS — the recommended choices, evening): **P3-ac-6.2-app-3 (b)** the cohort’s candidacy note says one semester (A.4); **P3-ac-5a-4 (a)** the leave warning names Appendix A.2’s three for the cohort; **P3-ac-6.2-app-2 (a)** Notre Dame graduate enrollment in Spring 2020 puts a later Ph.D. entrant in the cohort; **P3-ac-5b-6.1-4 (a)** a sheet row looser than a Graduate School floor reads as the floor; **P3-prior-programs-1 (a)/(a)** and **P3-prior-programs-4 (b)** the degree-elsewhere follow-up under the MSCSE-held answers too, and §5.2’s window from the MSCSE admission. P3-prior-programs-3 and P3-ac-5a-5 follow. Wording W-CL295–.
+
 2026-10-07 (DGS — page and engine): **P3-prior-programs-2, option (a).** The transfer-from-the-MSCSE answer now asks “Did you also hold, or start, a graduate degree at another university?” (then “Did you finish that degree?”): a yes sets the §5.2 cap (24 / 6) and opens the Master’s and Ph.D. transcript rows, and the transfer clocks stay as they were. P3-prior-programs-1 (the same question under the two MSCSE-held answers) is still open. Wording W-CL291–W-CL294.
 
 2026-10-07 (DGS — rulings, no code change): **P3-hidden-inputs-1, option (3)** (after first choosing (2)): a student who passed the OCE while credits wait for the DGS gets no date box until the DGS rules; the review request carries the rows to the sheet. A test pins the finding’s case. **P3-import-2, option (a):** duplicate transfer rows are warned about and both count until the student removes one.

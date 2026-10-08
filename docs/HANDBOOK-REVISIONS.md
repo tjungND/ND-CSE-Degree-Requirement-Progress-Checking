@@ -533,3 +533,9 @@ not the app's:
     Code §6.1.4 or DGS Handbook §3.19 says. The Ph.D.'s eight years run "from the time of matriculation" (Academic Code
     §6.2.6); for the MSCSE the app counts the five years from the original entry term, through a readmission, with the time
     away included (DGS 2026-10-04, 2026-10-06; policy review round 3, P3-dh-3.1-3.13-4). §3.3 should say so.
+28. **§4.2 / §5.2 — which admission starts the five-year transfer window?** §5.2 and the Academic Code (§4.6) count
+    back from "admission to a graduate degree program at Notre Dame"; §4.2's "prior to admission" can be read as the Ph.D.
+    admission. For a student who finished the Notre Dame MSCSE before the Ph.D. the two differ by the length of the MSCSE.
+    The DGS ruled on 2026-10-07 that the window counts back from the MSCSE admission — the student's first admission to a
+    Notre Dame graduate program — since the Graduate School treats the CSE MSCSE and Ph.D. as one program (policy review
+    round 3, P3-prior-programs-4). §4.2 and §5.2 should say "the first admission to a Notre Dame graduate program".

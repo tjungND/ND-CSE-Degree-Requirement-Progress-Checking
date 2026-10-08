@@ -29,7 +29,7 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
   it('a transfer from the MSCSE keeps its transfer term when given, and is complete without it (DGS 2026-09-28)', () => {
     assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', transferredTerm: { season: 'spring', year: 2025 }, alsoElsewhere: false }, 'phd'), { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', transferredTerm: { season: 'spring', year: 2025 }, alsoElsewhere: false });
     assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', alsoElsewhere: false }, 'phd'), { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', alsoElsewhere: false });
-    assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse', transferredTerm: { season: 'spring', year: 2025 } }, 'phd'), { bachelors: 'elsewhere', graduate: 'nd-mscse' }, 'a term left over from another answer is dropped');
+    assert.deepEqual(completeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse', transferredTerm: { season: 'spring', year: 2025 }, alsoElsewhere: false }, 'phd'), { bachelors: 'elsewhere', graduate: 'nd-mscse', alsoElsewhere: false }, 'a term left over from another answer is dropped');
   });
 
   it('an answer is complete only when every question that applies is answered', () => {
@@ -76,6 +76,26 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
     assert.equal(s.priorMs, 'unfinished');
     assert.match(describeBackground(done!), /Graduate degree before this program: finished, at another university; and transferred into the Ph\.D\. from the Notre Dame MSCSE in Fall 2024/);
     assert.match(describeBackground({ bachelors: 'elsewhere', graduate: 'nd-mscse-transfer', alsoElsewhere: false }), /Graduate degree before this program: none — transferred into the Ph\.D\. from the Notre Dame MSCSE/);
+  });
+  // P3-prior-programs-1 (DGS 2026-10-07: option (a)): the same follow-up under
+  // the two MSCSE-held answers. The MSCSE stays the student's own (one
+  // program with the Ph.D.); the degree elsewhere gets §5.2's 24 or 6.
+  it('the MSCSE held, beside a degree elsewhere: asked, and it sets the §5.2 cap (P3-prior-programs-1)', () => {
+    for (const graduate of ['nd-mscse', 'nd-4plus1'] as const) {
+      assert.equal(completeBackground({ bachelors: 'elsewhere', graduate }, 'phd'), undefined, `${graduate}: the other-university question is open`);
+      const done = completeBackground({ bachelors: 'elsewhere', graduate, alsoElsewhere: true, finished: true }, 'phd')!;
+      assert.deepEqual(done, { bachelors: 'elsewhere', graduate, alsoElsewhere: true, finished: true });
+      assert.deepEqual(priorSlotsFor(done), ['bachelors', 'masters', 'phd']);
+      const s = { ...phdStudent(), program: 'phd' as const };
+      applyBackground(s, done);
+      assert.equal(s.priorMs, 'completed', graduate);
+      assert.deepEqual(s.ndMasters, {}, `${graduate}: the MSCSE is still held`);
+      assert.match(describeBackground(done), /, and a graduate degree at another university \(finished\)$/);
+    }
+    const s = { ...phdStudent(), program: 'phd' as const };
+    applyBackground(s, { bachelors: 'elsewhere', graduate: 'nd-mscse', alsoElsewhere: false });
+    assert.equal(s.priorMs, 'none');
+    assert.deepEqual(priorSlotsFor({ bachelors: 'elsewhere', graduate: 'nd-mscse', alsoElsewhere: false }), ['bachelors']);
   });
   it('a saved file from before the question keeps its answer and reads as before', () => {
     const old = validateStudent({ ...phdStudent(), background: { bachelors: 'elsewhere', graduate: 'nd-mscse-transfer' } }, []);

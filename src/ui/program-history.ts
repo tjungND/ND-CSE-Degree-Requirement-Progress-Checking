@@ -107,7 +107,10 @@ export const PRIOR_LABELS: Record<Student['priorMs'], string> = {
  * degree" beside "Earlier Notre Dame programs: MSCSE at Notre Dame". The
  * earlier-degrees answer says what the student holds; the cap is unchanged. */
 export function priorStudyLabel(student: Student): string {
-  const g = student.background?.graduate;
-  if (student.program === 'phd' && (g === 'nd-mscse' || g === 'nd-4plus1')) return 'MSCSE at Notre Dame (one graduate program with the Ph.D.); no graduate degree elsewhere';
+  const b = student.background;
+  const g = b?.graduate;
+  // A degree elsewhere beside it (P3-prior-programs-1; DGS 2026-10-07).
+  if (student.program === 'phd' && (g === 'nd-mscse' || g === 'nd-4plus1'))
+    return `MSCSE at Notre Dame (one graduate program with the Ph.D.); ${b?.alsoElsewhere ? (b.finished ? 'a completed graduate degree elsewhere' : 'an unfinished graduate program elsewhere') : 'no graduate degree elsewhere'}`;
   return PRIOR_LABELS[student.priorMs];
 }

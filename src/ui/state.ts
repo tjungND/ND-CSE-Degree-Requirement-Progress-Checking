@@ -3,7 +3,7 @@
 // Nothing ever leaves the browser (CLAUDE.md).
 import { COURSE_CREDITS_RANGE, GPA_RANGE, inRange, rangeRefusal } from '../engine/ranges.ts';
 import type { Season, Student, Term } from '../engine/types.ts';
-import { refileEarlyStartCourses, settleAnsweredPriorMs } from './prior-nd.ts';
+import { asksAlsoElsewhere, refileEarlyStartCourses, settleAnsweredPriorMs } from './prior-nd.ts';
 
 const LS_KEY = 'cse-degree-audit/v1/student';
 
@@ -94,11 +94,11 @@ function validBackground(v: unknown): Student['background'] {
     ...(graduate === 'nd-other' && typeof o['finished'] === 'boolean' ? { finished: o['finished'] as boolean } : {}),
     // The transfer term (2026-09-28): kept when well-formed, dropped otherwise — the answer stands without it.
     ...(graduate === 'nd-mscse-transfer' && validTerm(o['transferredTerm']) ? { transferredTerm: { season: (o['transferredTerm'] as Term).season, year: (o['transferredTerm'] as Term).year } } : {}),
-    // A degree elsewhere beside the transfer (2026-10-07, P3-prior-programs-2).
-    // A file from before then has no answer: it reads as before (no earlier
-    // program), and the Change dialog asks.
-    ...(graduate === 'nd-mscse-transfer' && typeof o['alsoElsewhere'] === 'boolean' ? { alsoElsewhere: o['alsoElsewhere'] as boolean } : {}),
-    ...(graduate === 'nd-mscse-transfer' && o['alsoElsewhere'] === true && typeof o['finished'] === 'boolean' ? { finished: o['finished'] as boolean } : {}),
+    // A degree elsewhere beside the Notre Dame MSCSE (2026-10-07,
+    // P3-prior-programs-2 and -1). A file from before then has no answer: it
+    // reads as before (no earlier program elsewhere), and the Change dialog asks.
+    ...(asksAlsoElsewhere(graduate) && typeof o['alsoElsewhere'] === 'boolean' ? { alsoElsewhere: o['alsoElsewhere'] as boolean } : {}),
+    ...(asksAlsoElsewhere(graduate) && o['alsoElsewhere'] === true && typeof o['finished'] === 'boolean' ? { finished: o['finished'] as boolean } : {}),
   };
 }
 function validNdMasters(v: unknown): Student['ndMasters'] {

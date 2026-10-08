@@ -167,7 +167,9 @@ export async function driveApp(s, baseUrl) {
   const answerGraduate = async (value) => {
     await s.evalJs(`document.querySelector('[data-key="standing.background.change"]').click()`);
     await s.waitFor(`document.querySelector('dialog.background-dialog[open]')`);
-    await s.evalJs(`document.querySelector('[data-key="background.graduate.${value}"]').click(); document.querySelector('[data-key="background.save"]').click();`);
+    // The Notre Dame MSCSE answers ask about a degree elsewhere too
+    // (P3-prior-programs-1/-2, 2026-10-07): "No" here, so Save is enabled.
+    await s.evalJs(`(() => { document.querySelector('[data-key="background.graduate.${value}"]').click(); const no = document.querySelector('[data-key="background.alsoelsewhere.no"]'); if (no && !no.closest('fieldset').hidden) no.click(); document.querySelector('[data-key="background.save"]').click(); })()`);
     await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
   };
   await answerGraduate('nd-mscse');

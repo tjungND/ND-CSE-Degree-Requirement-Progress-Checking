@@ -146,12 +146,24 @@ export function isPriorNd(c: CourseEntry, student: Pick<Student, 'entryTerm' | '
  * in background.ts): a graduate degree elsewhere, or at Notre Dame in another
  * department (2026-10-03), is a prior program under §5.2 — finished or not;
  * the CSE MSCSE, a 4+1 and a move from the MSCSE are not. */
+/** The earlier-degrees answers that ask "Did you also hold, or start, a
+ * graduate degree at another university?": the three Notre Dame MSCSE
+ * answers — the transfer (policy review round 3, P3-prior-programs-2) and the
+ * MSCSE held, as a regular student or through the 4+1 (P3-prior-programs-1);
+ * DGS 2026-10-07: option (a) for both. */
+export function asksAlsoElsewhere(graduate: string | undefined): boolean {
+  return graduate === 'nd-mscse' || graduate === 'nd-4plus1' || graduate === 'nd-mscse-transfer';
+}
+/** A graduate degree (finished or not) at another university, or in another
+ * Notre Dame department — a prior program under §5.2. */
+export function priorProgramElsewhere(b: NonNullable<Student['background']>): boolean {
+  return b.graduate === 'elsewhere' || b.graduate === 'nd-other' || (asksAlsoElsewhere(b.graduate) && b.alsoElsewhere === true);
+}
 export function priorMsOfBackground(b: NonNullable<Student['background']>): Student['priorMs'] {
-  // A transfer from the Notre Dame MSCSE is no earlier program (one graduate
-  // program with the Ph.D., DGS 2026-09-26) — unless the student also held or
-  // started a degree elsewhere (P3-prior-programs-2; DGS 2026-10-07).
-  const outside = b.graduate === 'elsewhere' || b.graduate === 'nd-other' || (b.graduate === 'nd-mscse-transfer' && b.alsoElsewhere === true);
-  return outside ? (b.finished ? 'completed' : 'unfinished') : 'none';
+  // The Notre Dame MSCSE — held, or left for the Ph.D. — is no earlier program
+  // (one graduate program with the Ph.D., DGS 2026-09-26 / 2026-10-03), unless
+  // the student also held or started a degree elsewhere (P3-prior-programs-1/-2).
+  return priorProgramElsewhere(b) ? (b.finished ? 'completed' : 'unfinished') : 'none';
 }
 
 /** An inferred "Prior graduate study" beside an ANSWERED earlier-degrees
