@@ -85,6 +85,20 @@ export interface ParsedTranscript {
    * and §5.8's "semester G.P.A. below 2.5 … or below 3.0 for two consecutive
    * semesters"). Empty when the layout prints no such rows. */
   termGpas?: TermGpa[];
+  /** Each term the transcript lists, in reading order, with its level (from
+   * the term's totals) and its college and major as printed (2026-10-08, the
+   * earlier-degrees redesign, Option 1): what tells a Notre Dame bachelor's,
+   * and its department, from the transcript — the unofficial transcript
+   * prints no degrees awarded. */
+  terms?: TranscriptTerm[];
+}
+
+/** One term of a Notre Dame transcript: its level and its college and major. */
+export interface TranscriptTerm {
+  term: Term;
+  level?: RegisteredLevel;
+  college?: string;
+  major?: string;
 }
 
 const LETTER_GRADES: Grade[] = ['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'S', 'U'];
@@ -213,6 +227,22 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   const admitTerms: Term[] = [];
   const newStudentTerms = new Set<number>();
   const termLevelHints = new Map<number, RegisteredLevel>();
+  /** Each term's college and major, by term index, in reading order (2026-10-08). */
+  const termRecords = new Map<number, TranscriptTerm>();
+  const recordTerm = (t: Term, info: { college?: string; major?: string }): void => {
+    const rec = termRecords.get(termIndex(t)) ?? { term: t };
+    if (info.college) rec.college = info.college;
+    if (info.major) rec.major = info.major;
+    termRecords.set(termIndex(t), rec);
+  };
+  /** insideND's "College   Major   Academic Standing" header: the values are the next line. */
+  let expectCollegeMajor = false;
+  /** Inside the TRANSCRIPT TOTALS block (2026-10-08): its "( Graduate )" /
+   * "( Undergraduate )" lines are the totals' level, never the last term's —
+   * read as a term hint, they relabelled the last completed term's courses
+   * (seen on the DGS's redacted insideND copies: a graduate Spring term read
+   * as undergraduate). Ends at the next term line. */
+  let inTranscriptTotals = false;
   /** "Course Level: Graduate" (official PDF) / "Transcript Level: Graduate"
    * (Banner 9 web): the level of every row until the next such line. Kept per
    * course as it is read (`courseSectionLevel`), since a combined official
@@ -360,6 +390,26 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
       if (term) newStudentTerms.add(termIndex(term));
       continue;
     }
+    // Each term's college and major (2026-10-08, Option 1 of the
+    // earlier-degrees redesign): how the import tells a Notre Dame bachelor's,
+    // and its department, from the transcript. Two forms: "College: …" /
+    // "Major: …" lines, and insideND's table — a "College   Major   Academic
+    // Standing" header with the values on the next line, cells three spaces
+    // apart (rawLine keeps the gaps; `line` collapses them).
+    if (expectCollegeMajor) {
+      expectCollegeMajor = false;
+      const cells = rawLine.trim().split(/\s{3,}/);
+      if (term && !courseMatch && cells.length >= 2) {
+        recordTerm(term, { college: cells[0]!.trim(), major: cells[1]!.trim() });
+        continue;
+      }
+    }
+    if (/^COLLEGE\s{2,}MAJOR\b/.test(rawLine.trim().toUpperCase())) {
+      expectCollegeMajor = true;
+      continue;
+    }
+    const labelled = /^(COLLEGE|MAJOR)\s*:\s*(.+)$/i.exec(line);
+    if (labelled && term && !courseMatch) recordTerm(term, labelled[1]!.toUpperCase() === 'COLLEGE' ? { college: labelled[2]!.trim() } : { major: labelled[2]!.trim() });
     // Degrees awarded: a block header ("DEGREES AWARDED"), a line that names a
     // degree together with an award word ("Degree Awarded Doctor of Philosophy
     // 15-MAY-2024", "Bachelor of Science — Conferred May 2020"), or a degree
@@ -388,7 +438,12 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     // Level markers: the term's totals line ("Term Totals (Graduate)"), a
     // "Level: Graduate" line, or the term block's college ("College: Graduate
     // School" — Notre Dame's graduate programs all sit in the Graduate School).
+    if (/^TRANSCRIPT\s*TOTALS\b/.test(upper)) inTranscriptTotals = true;
     const levelWord = /\b(UNDERGRADUATE|GRADUATE)\b/.exec(upper);
+    if (levelWord && !courseMatch && inTranscriptTotals && !TERM_RE.test(line)) {
+      totalsLevel = levelWord[1] === 'UNDERGRADUATE' ? 'undergraduate' : 'graduate';
+      continue;
+    }
     if (levelWord && !courseMatch) {
       const level: RegisteredLevel = levelWord[1] === 'UNDERGRADUATE' ? 'undergraduate' : 'graduate';
       if (/^(COURSE\s+)?LEVEL\s*:/.test(upper)) {
@@ -401,8 +456,10 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
         continue;
       }
       if (/^(TERM\s+TOTALS|\(?(UNDER)?GRADUATE\)?$|COLLEGE\s*:?\s*(THE\s+)?GRADUATE\s+SCHOOL)/.test(upper)) {
-        if (term) termLevelHints.set(termIndex(term), level);
-        else sectionLevel = level;
+        if (term) {
+          termLevelHints.set(termIndex(term), level);
+          recordTerm(term, {});
+        } else sectionLevel = level;
         if (/^TERM\s+TOTALS/.test(upper)) totalsLevel = level;
         continue;
       }
@@ -515,6 +572,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     if (termMatch && !courseMatch) {
       term = { season: termMatch[1]!.toLowerCase() as Season, year: Number(termMatch[2]) };
       totalsLevel = undefined;
+      inTranscriptTotals = false;
       // The official PDF's transfer block puts the source institution on the
       // term line ("Fall 2020   College Board", 2026-09-05).
       if (origin === 'transfer') {
@@ -594,6 +652,9 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     degreesAwarded,
     entryTerm: inferEntryTerm({ courses: unique, admitTerms, newStudentTerms, degreesAwarded }),
     ...(termGpaByIndex.size > 0 ? { termGpas: [...termGpaByIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v) } : {}),
+    ...(termRecords.size > 0
+      ? { terms: [...termRecords.entries()].sort((a, b) => a[0] - b[0]).map(([k, r]) => ({ ...r, ...(termLevelHints.has(k) ? { level: termLevelHints.get(k)! } : {}) })) }
+      : {}),
   };
 }
 

@@ -177,6 +177,18 @@ export function watermarkInstitution(runs: Run[]): string | undefined {
 export function groupLines(runs: Run[]): string[] {
   const lines: string[] = [];
   const sorted = [...runs].sort((a, b) => b.y - a.y || a.x - b.x);
+  // ONE TEXT ITEM PER GLYPH (2026-10-08, from two insideND unofficial
+  // transcripts the DGS redacted and provided, measured structure-only — a
+  // re-saved or redacted PDF can come out this way): every letter is its own
+  // item, with a separate space item between words.
+  // Joined with a space each, "University of Notre Dame" read as
+  // "U n i v e r s i t y o f N o t r e D a m e" and the import rejected the
+  // transcript as not Notre Dame's. In those files letters of one word touch
+  // (gap −0.4…+0.4 units) and words are ≥ 2 units apart, so where most runs
+  // are single characters (60%, over at least 20 runs — those files: 75–77%),
+  // runs that touch (≤ 1 unit) are joined with no space. Word-level PDFs —
+  // where most runs are words — read exactly as before.
+  const glyphLayout = runs.length >= 20 && runs.filter((r) => r.text.trim().length === 1).length >= 0.6 * runs.length;
   let current: Run[] = [];
   const flush = () => {
     if (current.length === 0) return;
@@ -184,7 +196,8 @@ export function groupLines(runs: Run[]): string[] {
     let text = '';
     let cursor = -Infinity;
     for (const r of current) {
-      if (text !== '') text += r.x - cursor > 8 ? '   ' : ' ';
+      const gap = r.x - cursor;
+      if (text !== '') text += gap > 8 ? '   ' : glyphLayout && gap <= 1 ? '' : ' ';
       text += r.text;
       cursor = r.x + r.width;
     }

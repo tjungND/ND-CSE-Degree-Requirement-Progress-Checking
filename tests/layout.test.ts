@@ -147,6 +147,27 @@ describe('two-column page detection', () => {
     assert.equal(dropWatermarks(runs).length, runs.length);
   });
 
+  // One text item per glyph (2026-10-08, the DGS's redacted insideND copies):
+  // letters touch, words are a space apart, and the line must read as words.
+  it('groupLines joins touching letters when the column is laid out one glyph per run', () => {
+    const glyphs = (x0: number, y: number, text: string): Run[] => {
+      const out: Run[] = [];
+      let x = x0;
+      for (const ch of text) {
+        if (ch === ' ') { x += 2.5; continue; } // a space item, dropped by runsFromTextItems: a 2.5-unit gap
+        out.push(run(x, y, ch, 4));
+        x += 4 + (out.length % 3 === 0 ? -0.3 : 0.2); // kerning: −0.4…+0.4 between letters of a word
+      }
+      return out;
+    };
+    const runs = [...glyphs(20, 300, 'University of Notre Dame'), ...glyphs(20, 280, 'Unofficial Academic Transcript'), ...glyphs(20, 260, 'Term: Fall Semester 2022'), ...glyphs(200, 260, 'Main GR')];
+    assert.deepEqual(groupLines(runs), ['University of Notre Dame', 'Unofficial Academic Transcript', 'Term: Fall Semester 2022   Main GR']);
+  });
+  it('groupLines leaves word-level runs alone even when two touch', () => {
+    const words = Array.from({ length: 24 }, (_, i) => run(20 + (i % 6) * 40, 300 - Math.floor(i / 6) * 12, `word${i}`, 20));
+    words.push(run(40, 300, 'touching', 20)); // starts where "word0" ends
+    assert.match(groupLines(words)[0]!, /^word0 touching/);
+  });
   it('groupLines renders wide gaps as three spaces and keeps reading order', () => {
     const lines = groupLines([run(200, 100, 'B'), run(40, 100, 'A'), run(40, 120, 'first'), run(46, 100, 'A2')]);
     assert.deepEqual(lines, ['first', 'A A2   B']);

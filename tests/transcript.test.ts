@@ -527,3 +527,58 @@ describe('degree date labels on a Notre Dame transcript (2026-09-06, late evenin
     }
   });
 });
+
+// insideND's unofficial-transcript layout as the DGS's redacted copies show it
+// (2026-10-08; this fixture is invented, only the layout is real): each term
+// has a "College   Major   Academic Standing" table — the values on the next
+// line, cells three spaces apart — and no degrees-awarded block, program or
+// student type. A Transcript Totals block closes the record, each total under
+// its own "( Graduate )" / "( Undergraduate )" line.
+describe('insideND layout: each term’s college, major and level (2026-10-08)', () => {
+  const T = (term: string, level: 'Undergraduate' | 'Graduate', college: string, major: string, rows: string[]) => [
+    `Term: ${term}`,
+    'College   Major   Academic Standing',
+    `${college}   ${major}   Good Standing`,
+    'Subject   Course   Campus   Level   Title   Grade   Credit Hours   Quality Points   R',
+    ...rows,
+    `Term Totals (${level})   Attempt Hours   Passed Hours   Earned Hours   GPA Hours   Quality Points   GPA`,
+    'Current Term   15.000   15.000   15.000   15.000   57.000   3.80',
+  ];
+  const lines = [
+    'University of Notre Dame',
+    'Unofficial Academic Transcript',
+    'INSTITUTION CREDIT',
+    ...T('Fall Semester 2020', 'Undergraduate', 'First Year of Studies', 'Computer Science', ['MATH 10550   Main   UG   Calculus I   A   4.000   16.000']),
+    ...T('Spring Semester 2024', 'Undergraduate', 'College of Engineering', 'Computer Engineering', ['CSE 40113   Main   UG   Algorithms   A   3.000   12.000', 'CSE 60641   Main   GR   Operating Systems   A   3.000   12.000']),
+    ...T('Fall Semester 2024', 'Graduate', 'College of Engineering', 'Computer Science & Engineering', ['CSE 60111   Main   GR   Complexity   A   3.000   12.000']),
+    ...T('Spring Semester 2025', 'Graduate', 'College of Engineering', 'Computer Science & Engineering', ['CSE 60321   Main   GR   Architecture   A   3.000   12.000']),
+    'TRANSCRIPT TOTALS',
+    'Transcript Totals   Attempt Hours   Passed Hours   Earned Hours   GPA Hours   Quality Points   GPA',
+    '( Graduate )',
+    'Overall   6.000   6.000   6.000   6.000   24.000   4.00',
+    '( Undergraduate )',
+    'Overall   130.000   130.000   130.000   120.000   456.000   3.80',
+    'COURSE(S) IN PROGRESS',
+    'Term: Fall Semester 2025',
+    'College   Major',
+    'College of Engineering   Computer Science & Engineering',
+    'CSE 60876   Main   GR   Research Methods   3.000',
+  ];
+  const parsed = parseTranscript(lines);
+  it('reads each term’s college and major from the table', () => {
+    assert.deepEqual(parsed.terms?.map((t) => [`${t.term.season} ${t.term.year}`, t.level ?? '-', t.college, t.major]), [
+      ['fall 2020', 'undergraduate', 'First Year of Studies', 'Computer Science'],
+      ['spring 2024', 'undergraduate', 'College of Engineering', 'Computer Engineering'],
+      ['fall 2024', 'graduate', 'College of Engineering', 'Computer Science & Engineering'],
+      ['spring 2025', 'graduate', 'College of Engineering', 'Computer Science & Engineering'],
+      ['fall 2025', '-', 'College of Engineering', 'Computer Science & Engineering'],
+    ]);
+  });
+  it('the Transcript Totals’ "( Undergraduate )" does not relabel the last term or its courses', () => {
+    assert.equal(parsed.terms?.find((t) => t.term.year === 2025 && t.term.season === 'spring')?.level, 'graduate');
+    assert.equal(parsed.courses.find((c) => c.courseId === 'CSE 60321')?.level, 'graduate');
+  });
+  it('the graduate course in the undergraduate senior spring keeps its GR registration', () => {
+    assert.equal(parsed.courses.find((c) => c.courseId === 'CSE 60641')?.level, 'graduate');
+  });
+});
