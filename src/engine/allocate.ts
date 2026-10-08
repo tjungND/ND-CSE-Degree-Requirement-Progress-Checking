@@ -10,7 +10,7 @@
 import { formatCredits } from './credits.ts';
 import { canonicalCourseId, isIncompleteCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { approverToken, needsCourseApproval } from './decider.ts';
-import { NOTRE_DAME_ROW_UNIVERSITY, findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, transferableFor, universityCreditSystem, creditSystemFactor, creditSystemFactorLabel } from '../data/external.ts';
+import { NOTRE_DAME_ROW_UNIVERSITY, findExternalRule, isCseCourse, isNotreDameInstitution, ndEquivalentCredits, needsApproval, normalizeUniversity, transferableFor, universityCreditSystem, creditSystemFactor, creditSystemFactorLabel } from '../data/external.ts';
 import type { Counts, ExternalRule, RuleCourse, Rules, Transferable } from '../data/types.ts';
 import { coreTitleSuggestion } from './core-title.ts';
 import { GRADES, GRADE_POINTS, isAudit, isInProgress, isPassed, isWithdrawn, meetsGradeFloor, passesCreditFloor } from './grades.ts';
@@ -218,6 +218,11 @@ export interface ClassifiedCourse {
    * not show when the MSCSE began (no MSCSE course on it) — a course outside
    * the Ph.D.'s window may be inside it, so the DGS decides. */
   windowStartUnknown?: true;
+  /** One of the courses drawing on §5.2's allowance when they come from two
+   * earlier graduate programs (policy review round 3, P3-prior-programs-3;
+   * DGS 2026-10-07: option (3)): the documents do not say how two programs'
+   * allowances combine, so every such course waits for the DGS. */
+  twoPrograms?: true;
   /** An Incomplete from another university (P3-ac-4-1; DGS 2026-10-05): held
    * for the DGS until it is graded — never on Notre Dame's §4.4 clock. */
   outsideIncomplete?: true;
@@ -572,6 +577,25 @@ export function isOwnMscseCoursework(student: Student, c: CourseEntry): boolean 
   if (compareTerm(c.term, normalizeEntryTerm(student.entryTerm).term) >= 0) return false;
   const awarded = student.bachelorsAwarded;
   return awarded === undefined || compareTerm(c.term, awarded) > 0 || c.countedToward === 'mscse' || c.countedToward === 'both';
+}
+
+/** A course that draws on §5.2's transfer allowance and is not refused,
+ * superseded or already held as outside any program. */
+function drawsOnTransferAllowance(cc: ClassifiedCourse): boolean {
+  return !cc.superseded && cc.ineligibleReason === undefined && cc.noPriorProgram !== true && cc.caps.includes('transfer') && cc.entry.degreeLevel !== 'bachelors';
+}
+/** The earlier graduate programs those courses come from, by university as
+ * the record names it (folded, so "Purdue University" and "PURDUE UNIV" are
+ * one) — an earlier Notre Dame program is one of them (P3-prior-programs-3). */
+export function earlierTransferPrograms(classified: readonly ClassifiedCourse[]): string[] {
+  const programs = new Map<string, string>();
+  for (const cc of classified) {
+    if (!drawsOnTransferAllowance(cc)) continue;
+    const name = cc.entry.institution ?? '';
+    const key = isNotreDameInstitution(name) ? 'NOTRE DAME' : normalizeUniversity(name);
+    if (key !== '' && !programs.has(key)) programs.set(key, isNotreDameInstitution(name) ? 'an earlier Notre Dame program' : name);
+  }
+  return [...programs.values()];
 }
 
 /** When the student's own Notre Dame MSCSE began, read from its earliest
@@ -937,7 +961,35 @@ export function classify(student: Student, rules: Rules, today?: string): {
     return withSharedDegree(withInterruption(withIncomplete(classifyOne(c, rule, grade, base))));
   });
 
-  return { classified, warnings };
+  // TWO EARLIER GRADUATE PROGRAMS (policy review round 3, P3-prior-programs-3;
+  // DGS 2026-10-07: option (3), "Detect the case and send it to the DGS").
+  // The Academic Code (§4.6) and §5.2 state one allowance after a finished
+  // program and one after an unfinished one — "A student transferring from an
+  // unfinished master's program may not transfer more than six" — and nothing
+  // on how two programs' allowances combine; the earlier-degrees question
+  // takes one "finished?" answer. So when the courses drawing on §5.2's
+  // allowance come from two programs (two universities, or an earlier Notre
+  // Dame program and a school elsewhere), every such course waits for the DGS
+  // rather than one answer's cap being applied to both (never guess).
+  const programs = earlierTransferPrograms(classified);
+  if (programs.length < 2) return { classified, warnings };
+  const list = programs.length === 2 ? `${programs[0]} and ${programs[1]}` : `${programs.slice(0, -1).join(', ')} and ${programs[programs.length - 1]}`;
+  return {
+    classified: classified.map((cc) => {
+      // Credit the Notre Dame transcript already shows as accepted stays
+      // counted — it is on the record (P3-import-1) — and still names its
+      // program above; only what is not yet recorded waits.
+      if (!drawsOnTransferAllowance(cc) || cc.ndPosting !== undefined) return cc;
+      const { approvedNote: _a, tickApproved: _t, ...rest } = cc;
+      return {
+        ...rest,
+        twoPrograms: true as const,
+        tier: 'provisional',
+        approvalPending: `from one of two earlier graduate programs on your record (${list}) — §5.2 states a transfer allowance after a finished program and one after an unfinished one, but not how two programs’ allowances combine, so the DGS decides${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
+      };
+    }),
+    warnings,
+  };
 
   /** One course, before the Incomplete and readmission overlays above. */
   function classifyOne(c: CourseEntry, rule: RuleCourse | undefined, grade: Grade, base: ClassifiedCourse): ClassifiedCourse {

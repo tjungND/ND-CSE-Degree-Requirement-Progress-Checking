@@ -253,6 +253,8 @@ export function coursesNeedingDgsReviewFor(classified: readonly ClassifiedCourse
       ...(c.passFailGrade ? ['decide whether this S (pass/fail) course transfers — it cannot show the B §5.2 requires'] : []),
       ...(c.afterAdmission ? ['confirm the department and the Graduate School approved this course before I took it (taken after admission, DGS Handbook §3.14)'] : []),
       ...(c.noPriorProgram ? ['decide whether this course transfers, and how much — I had no earlier graduate program, and the Academic Code states no transfer allowance for that case (Academic Code §4.6)'] : []),
+      // P3-prior-programs-3 (3): two earlier programs; the DGS decides how their allowances combine.
+      ...(c.twoPrograms ? ['decide how the transfer allowances of my two earlier graduate programs combine — §5.2 states one after a finished program and one after an unfinished one, not for both (Academic Code §4.6)'] : []),
       // P3-prior-programs-4 (b): the window runs from the MSCSE admission, which the record does not date.
       ...(c.windowStartUnknown ? ['confirm this course falls within five years before my admission to the Notre Dame MSCSE (§5.2) — it is more than five years before my Ph.D. entry'] : []),
       ...(c.cseUnknown ? [IS_CSE] : []),

@@ -11,7 +11,7 @@ import { formatCredits } from '../credits.ts';
 import { compareTerm, semesterNumber, termOfDate } from '../term.ts';
 import type { DetailPart, RequirementResult, Status } from '../types.ts';
 import type { Ctx } from './context.ts';
-import { firstSemesterComplete, outsideIncompleteNote } from '../allocate.ts';
+import { earlierTransferPrograms, firstSemesterComplete, outsideIncompleteNote } from '../allocate.ts';
 import { joinedDetail, missingParamDetail, countedCourseIds } from './context.ts';
 
 /** §4.2 + §5.2 transfer credit: window, B floor, and the 6/24 caps are enforced
@@ -71,7 +71,7 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // pass/fail grade, a course taken elsewhere after admission, a lapsed
     // Incomplete, credit from before a readmission after five years or more.
     // The sheet's `yes` does not settle these, so they are never "approved".
-    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.windowStartUnknown || c.cseUnknown || c.incompleteLapsed || c.outsideIncomplete || c.interrupted || c.ndPostingHeld !== undefined);
+    const held = pending.filter((c) => c.passFailGrade || c.afterAdmission || c.noPriorProgram || c.windowStartUnknown || c.twoPrograms || c.cseUnknown || c.incompleteLapsed || c.outsideIncomplete || c.interrupted || c.ndPostingHeld !== undefined);
     const heldReason = (c: (typeof pending)[number]): string =>
       [
         // Credit on the Notre Dame record that still waits (P3-import-1, 2026-10-05).
@@ -79,6 +79,8 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         ...(c.passFailGrade ? ['graded pass/fail, which cannot show the B §5.2 requires'] : []),
         ...(c.afterAdmission ? ['taken after admission — the department and the Graduate School must have approved it in advance (DGS Handbook §3.14)'] : []),
         ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (Academic Code §4.6)'] : []),
+        // P3-prior-programs-3 (3), 2026-10-07: said once, as the row's first fact.
+        ...(c.twoPrograms ? ['from one of your two earlier graduate programs — the DGS decides how their allowances combine'] : []),
         // P3-prior-programs-4 (b), 2026-10-07.
         ...(c.windowStartUnknown ? ['more than five years before your Ph.D. entry — §5.2 counts back from your Notre Dame MSCSE admission, which this record does not date'] : []),
         ...(c.cseUnknown ? ['the course rules do not say whether it is a CSE course, so §4.2’s nine-credit non-CSE allowance cannot be applied yet'] : []),
@@ -159,6 +161,13 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
     // The action first (DGS 2026-09-27): the courses waiting for the DGS and
     // what to do, then the count against the allowance.
     const upper = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+    // Two earlier programs (P3-prior-programs-3; DGS 2026-10-07: option (3)):
+    // the case, named once, before its courses.
+    const programs = ctx.classified.some((c) => c.twoPrograms === true) ? earlierTransferPrograms(ctx.classified) : [];
+    if (programs.length >= 2)
+      parts.push(`Transfer credit from ${programs.length} earlier graduate programs: ${programs.slice(0, -1).join(', ')} and ${programs[programs.length - 1]}`, {
+        note: 'The Academic Code and §5.2 state a transfer allowance after a finished program and one after an unfinished one, but not how two programs’ allowances combine, so every course from them waits for the DGS (Academic Code §4.6); the review request asks',
+      });
     for (const c of held) parts.push(`Waiting for the DGS: ${c.entry.courseId}`, { note: `${c.entry.courseId}: ${upper(heldReason(c))}; the review request asks` });
     if (unreviewed.length > 0) {
       const credits = unreviewed.reduce((sum, c) => sum + (c.entry.credits ?? 0), 0);

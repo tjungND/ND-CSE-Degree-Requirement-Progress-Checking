@@ -406,13 +406,16 @@ not the app's:
 8. **Transfer credit timing and finality.** §5.2 says neither that the Graduate School considers a
    transfer only after the first semester nor that the credit is final only when the Graduate
    School has approved it (its criterion 5 implies the second). The app says both.
-9. **Two transfer cases no document caps** (for the Graduate School as much as the committee):
+9. **Three transfer cases no document caps** (for the Graduate School as much as the committee):
    the Academic Code's §4.6 and CSE §5.2 state six credits for an unfinished MASTER'S and 9/24
-   for a completed degree. They say nothing about (a) an unfinished Ph.D. elsewhere, and (b)
-   graduate courses taken outside any program by a student with no earlier graduate program. The
-   app uses the six as the conservative default in both, says so on the §5.2 row, and (for b, DGS
-   2026-10-03) holds every such course for the DGS. The handbook should state both figures once
-   the Graduate School has answered.
+   for a completed degree. They say nothing about (a) an unfinished Ph.D. elsewhere, (b)
+   graduate courses taken outside any program by a student with no earlier graduate program, and
+   (c) a student with TWO earlier programs — one finished and one not, say — where it is not said
+   whether the allowances add up, share one ceiling, or each keep their own. The app uses the six
+   as the conservative default in (a) and (b), says so on the §5.2 row, and (for b, DGS
+   2026-10-03) holds every such course for the DGS; for (c) it holds every course from either
+   program for the DGS (2026-10-07, policy review round 3, P3-prior-programs-3). The handbook
+   should state the figures once the Graduate School has answered.
 10a. **§4.2's "at least nine credits of regular courses at Notre Dame".** The DGS reads it as nine
     credits earned during the graduate program (2026-09-13), and, because the Graduate School treats
     the MSCSE and the Ph.D. as one graduate program, a 4+1's fifth-year MSCSE courses count while

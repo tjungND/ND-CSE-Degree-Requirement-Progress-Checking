@@ -1,0 +1,162 @@
+{
+  "name": "phd-two-earlier-programs",
+  "description": "Policy review round 3, P3-prior-programs-3 (DGS 2026-10-07: option (3), \"Detect the case and send it to the DGS\"). A Ph.D. student (Fall 2025) who finished a master's at Northeastern University (CS 5004, CS 5008, both approved for transfer) and started a second master's at the University of Southern California, leaving it unfinished (CSCI 567 and CSCI 570, approved). The Academic Code and §5.2 state a transfer allowance after a finished program (24) and one after an unfinished one (6), not how two combine, and the earlier-degrees question takes one 'finished?' answer. Answered 'finished', the app used to count all of it inside one 24, the USC credits included; now every course from either program waits for the DGS, the §5.2 card names both programs, and the review request asks how the allowances combine.",
+  "today": "2026-10-07",
+  "rules": {
+    "base": "default",
+    "patch": {
+      "external": [
+        {
+          "university": "NORTHEASTERN UNIVERSITY",
+          "course_id": "CS 5004",
+          "course_title": "Object-Oriented Design",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes",
+          "credit_system": "semester"
+        },
+        {
+          "university": "NORTHEASTERN UNIVERSITY",
+          "course_id": "CS 5008",
+          "course_title": "Data Structures",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes",
+          "credit_system": "semester"
+        },
+        {
+          "university": "UNIVERSITY OF SOUTHERN CALIFORNIA",
+          "course_id": "CSCI 567",
+          "course_title": "Machine Learning",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes",
+          "credit_system": "semester"
+        },
+        {
+          "university": "UNIVERSITY OF SOUTHERN CALIFORNIA",
+          "course_id": "CSCI 570",
+          "course_title": "Analysis of Algorithms",
+          "transferable_PhD": "yes",
+          "transferable_MSCSE": "yes",
+          "is_cse": "yes",
+          "credit_system": "semester"
+        }
+      ]
+    }
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2025
+    },
+    "priorMs": "completed",
+    "gpa": 3.7,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2019
+    },
+    "background": {
+      "bachelors": "elsewhere",
+      "graduate": "elsewhere",
+      "samePlace": false,
+      "finished": true
+    },
+    "milestones": {
+      "advisorIdentified": "2025-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CS 5004",
+        "credits": 4,
+        "term": {
+          "season": "fall",
+          "year": 2020
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Northeastern University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CS 5008",
+        "credits": 4,
+        "term": {
+          "season": "spring",
+          "year": 2021
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "Northeastern University",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSCI 567",
+        "credits": 4,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Southern California",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSCI 570",
+        "credits": 4,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "transfer",
+        "institution": "University of Southern California",
+        "degreeLevel": "masters"
+      },
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2025
+        },
+        "grade": "A",
+        "origin": "nd"
+      }
+    ]
+  },
+  "expect": {
+    "phd.transfer": {
+      "status": "needs_dgs_review",
+      "detailIncludes": [
+        "Transfer credit from 2 earlier graduate programs: Northeastern University and University of Southern California",
+        "Waiting for the DGS: CS 5004"
+      ]
+    }
+  },
+  "expectCourseLines": {
+    "CSCI 567": [
+      "waiting for the DGS",
+      "from one of two earlier graduate programs on your record (Northeastern University and University of Southern California) — §5.2 states a transfer allowance after a finished program and one after an unfinished one, but not how two programs’ allowances combine, so the DGS decides"
+    ],
+    "CS 5004": [
+      "waiting for the DGS"
+    ]
+  }
+}
