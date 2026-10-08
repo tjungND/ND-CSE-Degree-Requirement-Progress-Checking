@@ -121,7 +121,7 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   const asked = input.needsAnswer ?? [];
   if (asked.length > 0) {
     const ids = asked.length === 1 ? asked[0]! : `${asked.slice(0, -1).join(', ')} and ${asked[asked.length - 1]!}`;
-    steps.push({ text: `Say which degrees ${ids} already counted toward — next to ${asked.length === 1 ? 'the course' : 'each course'} under Coursework.`, href: '#coursework' });
+    steps.push({ text: `Say which degrees ${ids} already counted toward — next to ${asked.length === 1 ? 'the course' : 'each course'} under Coursework; if you are not sure, ask the DGS.`, href: '#coursework' });
   }
   // 2. The decisions the DGS has to make — the courses, two kinds (DGS
   // 2026-09-27); since policy review round 3 (P3-cse-1-2-2, DGS 2026-10-06)

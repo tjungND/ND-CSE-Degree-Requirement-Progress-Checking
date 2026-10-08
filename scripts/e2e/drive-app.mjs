@@ -335,6 +335,27 @@ export async function driveApp(s, baseUrl) {
   if (await s.evalJs(`document.querySelector('.warnings').open`)) throw new Error('a folded warning box must stay folded after a re-render');
   await s.evalJs(`document.querySelector('.warnings summary').click(); window.scrollTo(0, 0)`);
   console.log('  the warning floats in view when the page is scrolled down; folded, it stays folded');
+  // Next steps floats like the warnings (DGS 2026-10-08): fixed in the corner
+  // above the warnings box at any scroll position, foldable to its heading
+  // (remembered across a re-render).
+  const floatNext = async () => JSON.parse(await s.evalJs(`JSON.stringify((() => { const box = document.querySelector('.attention'); const r = box?.getBoundingClientRect(); const w = document.querySelector('.warnings.floating')?.getBoundingClientRect(); return { floating: !!box?.classList.contains('floating'), position: box ? getComputedStyle(box).position : '', folded: !!box?.classList.contains('folded'), inView: !!r && r.top >= 0 && r.bottom <= window.innerHeight && r.height > 20, aboveWarnings: !!r && !!w && r.bottom <= w.top + 1, bodyShown: !!box?.querySelector('.attention-body') && getComputedStyle(box.querySelector('.attention-body')).display !== 'none' }; })())`));
+  for (const y of ['0', 'document.documentElement.scrollHeight']) {
+    await s.evalJs(`window.scrollTo(0, ${y})`);
+    await s.settle(300);
+    const afloat = await floatNext();
+    if (!afloat.floating || afloat.position !== 'fixed' || !afloat.inView || afloat.folded || !afloat.bodyShown || !afloat.aboveWarnings) throw new Error(`Next steps must float in view above the warnings (scroll ${y}): ` + JSON.stringify(afloat));
+  }
+  await s.evalJs(`document.querySelector('[data-key="report.nextsteps.toggle"]').click()`);
+  await s.settle();
+  await s.evalJs(`(() => { const d = document.querySelector('[data-key="milestone.advisorName"]'); d.dispatchEvent(new Event('change')); })()`);
+  await s.settle(300);
+  const folded = await floatNext();
+  if (!folded.floating || !folded.folded || folded.bodyShown) throw new Error('folded Next steps must stay folded through a re-render: ' + JSON.stringify(folded));
+  await s.evalJs(`document.querySelector('[data-key="report.nextsteps.toggle"]').click(); window.scrollTo(0, 0)`);
+  await s.settle(300);
+  const back = await floatNext();
+  if (!back.floating || back.folded) throw new Error('unfolded again, Next steps shows its list: ' + JSON.stringify(back));
+  console.log('  Next steps floats above the warnings at any scroll position; folded, it stays folded through a re-render');
   await s.evalJs(`[...document.querySelectorAll('table.courses tr')].find(tr => tr.querySelector('.cid')?.textContent === 'CSE 60567').querySelector('button.remove').click()`);
   await s.waitFor(`![...document.querySelectorAll('table.courses .cid')].some(e => e.textContent === 'CSE 60567')`);
   await s.evalJs(`(() => { const cr = document.querySelector('[data-key="course.new.credits"]'); cr.value = '3'; cr.dispatchEvent(new Event('change')); })()`);

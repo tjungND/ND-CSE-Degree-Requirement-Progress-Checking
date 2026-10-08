@@ -160,7 +160,7 @@ describe('UI review (2026-10-08): what waits for the student, and what waits for
     assert.equal(courseworkSentence(r, ['CSE 60111']), 'Your coursework: 1 needs your answer (CSE 60111), 1 is waiting for the DGS (CSE 60999).');
     const s: Student = { ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60111', credits: 3, term: { season: 'fall', year: 2024 }, grade: 'A', origin: 'nd' }] };
     const steps = nextSteps({ report: r, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0, needsAnswer: ['CSE 60111', 'CSE 60321'] });
-    assert.ok(steps.some((x) => x.text === 'Say which degrees CSE 60111 and CSE 60321 already counted toward — next to each course under Coursework.' && x.href === '#coursework'));
+    assert.ok(steps.some((x) => x.text === 'Say which degrees CSE 60111 and CSE 60321 already counted toward — next to each course under Coursework; if you are not sure, ask the DGS.' && x.href === '#coursework'));
   });
   it('before the earlier degrees are answered, a review of earlier coursework only waits — and so does “When the DGS answers”', () => {
     const s: Student = { ...phdStudent(), courses: [{ courseId: 'CS 50300', credits: 3, term: { season: 'fall', year: 2022 }, grade: 'A', origin: 'transfer', institution: 'Purdue University', degreeLevel: 'masters' }] };

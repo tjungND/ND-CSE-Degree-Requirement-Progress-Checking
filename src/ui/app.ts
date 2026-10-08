@@ -421,6 +421,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     for (const h of headlines) scoreObserver.observe(h);
   }
 
+  /** The two floating boxes stack: Next steps sits above the warnings box
+   * (DGS 2026-10-08), so the warnings box's height — folded or open — is a
+   * CSS variable the Next steps box offsets by. Read after every render,
+   * when the warnings box is folded or unfolded, and when the window resizes. */
+  function layoutFloats(): void {
+    const warnings = root.querySelector<HTMLElement>('.warnings.floating');
+    document.documentElement.style.setProperty('--float-warnings', warnings ? `${warnings.offsetHeight + 8}px` : '0px');
+  }
+  window.addEventListener('resize', layoutFloats);
+
   /** Choices the page makes for the student (DGS 2026-09-12): whenever the
    * record itself shows the best answer, fill it in, say so in a toast, and
    * leave the control for the student to change. Only an UNSET choice is
@@ -623,6 +633,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     applyDeciderRule(root, student.program); // DGS → ADGS for an MSCSE student (2026-09-11)
     labelCitationsIn(root); // "CSE §4.2" — which document a section is from (DGS 2026-10-03)
     watchScoreHeadlines();
+    layoutFloats();
+    root.querySelector('.warnings.floating')?.addEventListener('toggle', () => requestAnimationFrame(layoutFloats));
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
     // so a keystroke in a title field does not chatter.
@@ -2521,6 +2533,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                   holdsNdMasters
                   ? 'It can count here — 60000-level in full, and up to 6 credits below it. No course may count toward three degrees, and at most 6 credits may count toward two (Graduate School); courses your bachelor’s and your MSCSE shared use those 6 first.'
                   : 'It can count here — 60000-level in full for a 4+1 student (with the DGS’s approval otherwise, Academic Code §4.6), and up to 6 credits below it. At most 6 credits may count toward two degrees (Graduate School).',
+              // Which degrees used a course is the Registrar's record: a
+              // student who does not know asks the DGS (DGS 2026-10-08).
+              ' If you are not sure which degrees it counted toward, ask the DGS (',
+              mailto(deciderContact(student.program).email),
+              ').',
             ),
           );
         }

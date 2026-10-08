@@ -116,6 +116,9 @@ export function doesNotApply(r: RequirementResult): boolean {
 /** The warnings the student collapsed (2026-10-05), so a re-render keeps
  * the floating box down until a warning is added or goes away. */
 let collapsedWarnings: string | undefined;
+/** Next steps, floating: folded to its heading by the student (DGS 2026-10-08;
+ * phones start folded). Remembered for the session, whatever the list says. */
+let nextStepsFolded: boolean | undefined;
 
 export function scoredRows(report: AuditReport): RequirementResult[] {
   return report.requirements.filter((r) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable');
@@ -745,12 +748,49 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
     const space = cut.lastIndexOf(' ');
     return `${(space > 40 ? cut.slice(0, space) : cut).trim()}…`;
   };
-  return el(
+  // Floating like the warnings box (DGS 2026-10-08: "Let the Next Steps
+  // float around the screen just like warnings"): fixed in the window's
+  // corner, above the warnings, open, foldable to its heading by its button —
+  // folded stays folded for the session; phones start folded. Its place in the
+  // document, and so the reading order, is unchanged. Embedded, it stays in
+  // the page, like the warnings.
+  const floating = !isEmbedded();
+  const folded = floating && (nextStepsFolded ?? (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 900px)').matches));
+  const box = el(
     'section',
-    { class: 'attention', 'aria-labelledby': 'attention-title' },
+    { class: `attention${floating ? ' floating' : ''}${folded ? ' folded' : ''}`, 'aria-labelledby': 'attention-title', 'data-key': 'report.nextsteps' },
     // "Next steps" (DGS 2026-09-27): the record-level steps first, numbered,
     // then the rows that need something from the student.
-    el('h3', { id: 'attention-title' }, `Next steps (${steps.length + rows.length})`),
+    el(
+      'h3',
+      { id: 'attention-title' },
+      `Next steps (${steps.length + rows.length})`,
+      ...(floating
+        ? [
+            el(
+              'button',
+              {
+                class: 'btn tiny attention-toggle',
+                type: 'button',
+                'data-key': 'report.nextsteps.toggle',
+                'aria-expanded': folded ? 'false' : 'true',
+                'aria-controls': 'attention-body',
+                onclick: () => {
+                  nextStepsFolded = !box.classList.contains('folded');
+                  box.classList.toggle('folded', nextStepsFolded);
+                  const t = box.querySelector('.attention-toggle');
+                  t?.setAttribute('aria-expanded', nextStepsFolded ? 'false' : 'true');
+                  if (t) t.textContent = nextStepsFolded ? 'Show' : 'Hide';
+                },
+              },
+              folded ? 'Show' : 'Hide',
+            ),
+          ]
+        : []),
+    ),
+    el(
+      'div',
+      { id: 'attention-body', class: 'attention-body' },
     steps.length > 0
       ? el('ol', { class: 'next-steps' }, ...steps.map((s) => el('li', {}, s.href ? el('a', { href: s.href }, s.text) : s.text)))
       : null,
@@ -768,7 +808,9 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
         ),
       ),
     ),
+    ),
   );
+  return box;
 }
 
 /** Handbook terms the report uses before it explains them (usability review

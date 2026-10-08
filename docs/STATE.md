@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-08 (DGS — Next steps floats): the Next steps box now floats like the warnings — fixed in the corner above them at any scroll position, foldable (Hide / Show; phones start folded) — and the which-degrees question says to ask the DGS when unsure. Wording W-CL357–W-CL358.
+
 2026-10-08 (DGS — revert): the pre-filled “already counted toward” answers (commit e942afe: the page chose the answer that counts the most credits, with a warning, card facts, a Next-steps item and a floating Next steps box) were **reverted in full** the same day — the page cannot know which courses the bachelor’s degree used (DECISIONS 2026-10-08). The floating Next steps box went with it; it can be restored on its own if wanted.
 
 2026-10-08 (DGS — the graduate-degree options): each now says whether it means a finished degree (“Yes — I finished the MSCSE at Notre Dame …” / “I started the MSCSE at Notre Dame but did not finish it — I transferred into the Ph.D.” / “… — finished or not”); wording W-CL352.
