@@ -22,7 +22,7 @@ import { coursesNeedingDgsReview } from '../src/engine/review.ts';
 import type { CourseEntry, Student, Term } from '../src/engine/types.ts';
 import { parseTranscript } from '../src/transcript/parse.ts';
 import { applyBackground, completeBackground } from '../src/ui/background.ts';
-import { processingItems } from '../src/ui/grad-admin-request.ts';
+import { gradAdminRequest, processingItems } from '../src/ui/grad-admin-request.ts';
 import { nextSteps } from '../src/ui/next-steps.ts';
 import { validateStudent } from '../src/ui/state.ts';
 import { buildRules } from './helpers.ts';
@@ -108,6 +108,11 @@ describe('the Application for Admission to Master’s Degree Candidacy (Academic
       milestones: { advisorName: 'Prof. Example', advisorTtt: 'yes', candidacyPassed: '2026-04-20' },
     });
     assert.equal(row(s, 'phd.msAlongTheWay')!.status, 'met');
+    // P3-cse-3-2 (DGS 2026-10-07): "This app's checking is equivalent to the
+    // DGS review" (§3.1) — met goes straight to the Grad Admin.
+    assert.match(row(s, 'phd.msAlongTheWay')!.detail, /This self-check is the DGS’s review of the award \(§3\.1\), so with every requirement met the Grad Admin processes it with no further DGS step; it is in the processing request \(§4\.5\)/);
+    const { text } = gradAdminRequest(audit(s, rules, '2026-10-04'), s, rules, { todayIso: '2026-10-04', entryTerm: 'Fall 2024', priorStudy: 'None', gpa: 3.6 });
+    assert.match(text, /Process the MSCSE along the way — the self-check, which is the DGS’s review of the award \(§3\.1\), shows its requirements met \(§4\.5\)\./);
     const r = row(s, 'shared.msCandidacy')!;
     assert.equal(r.status, 'unmet');
     assert.match(r.title, /MSCSE along the way/);

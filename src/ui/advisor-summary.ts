@@ -503,7 +503,7 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
   // component is done but no form date is entered.
   if (byId.get('phd.msAlongTheWay')?.status === 'met') {
     out.gradAdmin.push('Process the MSCSE awarded along the way (§4.5).');
-    out.student.push('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).');
+    out.student.push('Send the Grad Admin the processing request for the MSCSE along the way (§3.1, §4.5).');
   }
   // The master's candidacy application, the MSCSE's or the MSCSE along the
   // way's (Academic Code §6.1.6; 2026-10-04): open while its row is.

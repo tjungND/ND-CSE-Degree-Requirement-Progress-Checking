@@ -404,7 +404,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
       'Submit the Transfer of Credits request to the Graduate School for CS 50300 — recommended by the DGS (§5.2).',
     ]);
     assert.deepEqual(todo.dgs, ['Recommend the transfer credit for CS 77777 (§5.2).']);
-    assert.ok(todo.student.includes('Send the Grad Admin the processing request for the MSCSE along the way (§4.5).'));
+    assert.ok(todo.student.includes('Send the Grad Admin the processing request for the MSCSE along the way (§3.1, §4.5).'));
     assert.ok(todo.student.includes('File the qualifier completion form with the Grad Admin (§4.4).'));
     assert.ok(todo.student.includes('Send the Grad Admin the processing request for CS 50300 (§5.2) — before the semester my degree is conferred.'), JSON.stringify(todo.student));
     assert.ok(todo.student.includes('Send the DGS the review request for CS 77777.'));

@@ -2423,7 +2423,13 @@ function msAlongTheWayRow(ctx: Ctx): RequirementResult {
     parts = [
       `Oral Candidacy Exam (OCE) passed ${passed}`,
       earnedLine,
-      { note: 'The Grad Admin processes the MSCSE award; it is in the processing request (§4.5)' },
+      // §3.1 (September 2026): eligibility and satisfaction "will be reviewed and
+      // decided by the DGS" — and this self-check IS that review (DGS 2026-10-07,
+      // policy review round 3, P3-cse-3-2: "This app's checking is equivalent to
+      // the DGS review … If the rules/policies say the student is eligible for
+      // MSCSE along the way, the DGS does not need to be further involved. The
+      // processing request can be sent to the Grad Admin directly.").
+      { note: 'This self-check is the DGS’s review of the award (§3.1), so with every requirement met the Grad Admin processes it with no further DGS step; it is in the processing request (§4.5)' },
       { note: candidacyFormSentence(ctx, 'master’s') },
       whatCounts,
       ...countNotes,

@@ -549,3 +549,8 @@ not the app's:
     co-advisor is required, as the Graduate School requires too (DGS Handbook §10.3.1, §10.3.2; Academic Code §6.2.7); the
     DGS’s exception is for a tenured or tenure-track advisor from another Notre Dame department (policy review round 3,
     P3-cross-doc-2). §2.3 should say so in the next edition.
+30. **§3.1 — what “reviewed and decided by the DGS” means for the MSCSE along the way.** The September 2026 sentence
+    reads as a separate review by the DGS of every along-the-way award. The DGS meant the department’s self-check: when it
+    shows the student eligible and every requirement met, that is the DGS’s review, and the Grad Admin processes the award
+    directly (DGS 2026-10-07, policy review round 3, P3-cse-3-2). The next edition could say “reviewed and decided by the
+    DGS through the department’s degree self-check”, so a reader does not wait for a second decision.

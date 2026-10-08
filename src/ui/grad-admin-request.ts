@@ -391,7 +391,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ),
     ...milestones.map((m) => `Record the milestone: ${m.label}, ${m.date} (${m.section}).`),
     ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
-    ...(msAlongTheWay ? ['Process the MSCSE along the way — the self-check shows its requirements met (§4.5).'] : []),
+    ...(msAlongTheWay ? ['Process the MSCSE along the way — the self-check, which is the DGS’s review of the award (§3.1), shows its requirements met (§4.5).'] : []),
     ...(candidacyApplicationDue ? ['Initiate my Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3).'] : []),
     ...(msCandidacyDue ? ['Initiate my Application for Admission to Master’s Degree Candidacy — the self-check shows a 3.0 GPA and 30 credits, counting this semester’s (Academic Code §6.1.6).'] : []),
     ...(met.length > 0 ? [`Keep my standing below on file: ${tallyText}.`] : []),
@@ -404,7 +404,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
     ...transfersOverCap.map((t) => `${t.courseId}${t.institution ? ` (${t.institution})` : ''} — ${overCapText(report.transferCap)}`),
     ...milestones.map((m) => `${m.label} ${m.date} (${m.section})`),
     ...(qualifierFormDue ? ['Qualifier completion form — not filed yet (§4.4)'] : []),
-    ...(msAlongTheWay ? ['MSCSE along the way — the self-check shows its requirements met (§4.5)'] : []),
+    ...(msAlongTheWay ? ['MSCSE along the way — the self-check, which is the DGS’s review of the award (§3.1), shows its requirements met (§4.5)'] : []),
     ...(candidacyApplicationDue ? ['Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3)'] : []),
     ...(msCandidacyDue ? ['Application for Admission to Master’s Degree Candidacy — the self-check shows a 3.0 GPA and 30 credits, counting this semester’s (Academic Code §6.1.6)'] : []),
     ...(met.length > 0
@@ -540,8 +540,9 @@ export function gradAdminRequest(
   }
   if (items.msAlongTheWay) {
     sections.push({
-      heading: 'MSCSE along the way (§4.5)',
-      lines: ['The self-check shows the requirements for the MSCSE along the way met (the Oral Candidacy Exam (OCE) passed, the M.S. coursework completed at Notre Dame) — please process the award.'],
+      // P3-cse-3-2 (DGS 2026-10-07): the self-check is §3.1's DGS review.
+      heading: 'MSCSE along the way (§3.1, §4.5)',
+      lines: ['The self-check, which is the DGS’s review of the award (§3.1), shows the requirements for the MSCSE along the way met (the Oral Candidacy Exam (OCE) passed, the M.S. coursework completed at Notre Dame) — please process the award.'],
     });
   }
   if (items.candidacyApplicationDue) {
