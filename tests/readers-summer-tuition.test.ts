@@ -117,6 +117,20 @@ describe('Graduate School tuition scholarships through the 8th / 5th year (DGS H
   it('far from the limit: not said', () => {
     assert.doesNotMatch(row(ms('project'), 'ms.timeLimit', '2025-01-15').detail, /tuition/);
   });
+  // P3-dh-4-5-1 (DGS 2026-10-07: option A, "the literal text"): Appendix A
+  // extends Academic Code policies only, so the cohort's eighth-year tuition
+  // and funding cut-offs did not move — the notes follow the eight years.
+  it('a Fall 2019 entrant (the Spring 2020 cohort): said in the eighth year, not a year late', () => {
+    const s = phdStudent({ entryTerm: fall(2019), gpa: 3.5 });
+    const eighth = row(s, 'phd.timeLimit', '2027-03-01'); // Spring 2027: the eighth year's last semester
+    assert.equal(eighth.status, 'in_progress');
+    assert.match(eighth.deadline?.label ?? '', /^Due before Fall 2028/);
+    assert.match(eighth.detail, /tuition scholarships through the 8th year \(DGS Handbook §4\.2\.6\)/);
+    // Past the eighth year, inside the cohort's ninth: still said.
+    assert.match(row(s, 'phd.timeLimit', '2027-10-01').detail, /tuition scholarships through the 8th year/);
+    // Earlier in the eighth year's first fall: not yet news.
+    assert.doesNotMatch(row(s, 'phd.timeLimit', '2026-03-01').detail, /tuition scholarships/);
+  });
 });
 
 describe('summer session only: seven years for the DGS to confirm (Academic Code §6.1.4)', () => {

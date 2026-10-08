@@ -380,7 +380,15 @@ export function timeLimitRow(
       deadline = openDeadline(date, ctx.today, extended ? `Due ${dueTermPhrase(date)} — extended by the Graduate School (approximate)` : `Due ${dueTermPhrase(date)} — ${years} years after entry${shiftNote !== '' ? ', extended' : ''} (approximate)`);
       // The tuition sentence once the limit is this semester or next — before
       // that it is not news (and every email would carry it).
-      parts = [...(shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : []), ...longerNote(ctx.today), ...extNotes, ...(deadline.state === 'due_soon' ? [tuition, ...fundingDue] : fundingAlways)];
+      // The Spring 2020 cohort: Appendix A extends Academic Code policies
+      // only, so the Graduate School's eight-year tuition and funding cut-offs
+      // (DGS Handbook §4.2.6, §4.1) did not move (policy review round 3,
+      // P3-dh-4-5-1; DGS 2026-10-07: option A, "the literal text"). Their notes
+      // follow the eight years — leaves and accommodations still shift them —
+      // not the cohort's nine, which used to bring them a year late.
+      const fundingDate = ctx.covidCohort ? addMonthsIso(startOfTerm(ctx.entry).date, years * 12 + ctx.clockShift * 6) : date;
+      const fundingNews = ctx.covidCohort ? ctx.today > fundingDate || openDeadline(fundingDate, ctx.today, '').state === 'due_soon' : deadline.state === 'due_soon';
+      parts = [...(shiftNote !== '' ? [{ note: `The limit counts ${years} years from ${termLabel(ctx.entry)}${shiftNote}` }] : []), ...longerNote(ctx.today), ...extNotes, ...(fundingNews ? [tuition, ...fundingDue] : fundingAlways)];
     }
   }
   return {
