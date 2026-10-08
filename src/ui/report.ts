@@ -116,9 +116,6 @@ export function doesNotApply(r: RequirementResult): boolean {
 /** The warnings the student collapsed (2026-10-05), so a re-render keeps
  * the floating box down until a warning is added or goes away. */
 let collapsedWarnings: string | undefined;
-/** Next steps, floating: folded to its heading by the student (DGS 2026-10-08;
- * phones start folded). Remembered for the session, whatever the list says. */
-let nextStepsFolded: boolean | undefined;
 
 export function scoredRows(report: AuditReport): RequirementResult[] {
   return report.requirements.filter((r) => !r.informational && !r.unscored && !r.allowance && r.status !== 'not_applicable');
@@ -521,11 +518,7 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
               attention,
             ),
           ]
-        : // The host keeps the box's place while it floats (app.ts
-          // watchNextSteps); embedded, the box stays in the page like the
-          // warnings. Its place in the document — the reading order — is the
-          // same either way.
-          [el('div', { class: 'attention-host', 'data-floatable': isEmbedded() ? 'false' : 'true' }, attention)];
+        : [attention];
   // §3.5 / §3.6 tracks this audit does not model (2026-09-10, promised
   // 2026-08-31). Above the dial, because the number under the dial means
   // something different once you know a required bridge year counts toward
@@ -752,40 +745,12 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
     const space = cut.lastIndexOf(' ');
     return `${(space > 40 ? cut.slice(0, space) : cut).trim()}…`;
   };
-  // Folded to its heading while floating (phones start folded; a desk box
-  // starts open): the toggle shows only then (style.css).
-  const folded = nextStepsFolded ?? (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 900px)').matches);
-  const box = el(
+  return el(
     'section',
-    { class: `attention${folded ? ' folded' : ''}`, 'aria-labelledby': 'attention-title' },
+    { class: 'attention', 'aria-labelledby': 'attention-title' },
     // "Next steps" (DGS 2026-09-27): the record-level steps first, numbered,
     // then the rows that need something from the student.
-    el(
-      'h3',
-      { id: 'attention-title' },
-      `Next steps (${steps.length + rows.length})`,
-      el(
-        'button',
-        {
-          class: 'btn tiny attention-toggle',
-          type: 'button',
-          'data-key': 'report.nextsteps.toggle',
-          'aria-expanded': folded ? 'false' : 'true',
-          'aria-controls': 'attention-body',
-          onclick: () => {
-            nextStepsFolded = !box.classList.contains('folded');
-            box.classList.toggle('folded', nextStepsFolded);
-            box.querySelector('.attention-toggle')?.setAttribute('aria-expanded', nextStepsFolded ? 'false' : 'true');
-            const t = box.querySelector('.attention-toggle');
-            if (t) t.textContent = nextStepsFolded ? 'Show' : 'Hide';
-          },
-        },
-        folded ? 'Show' : 'Hide',
-      ),
-    ),
-    el(
-      'div',
-      { id: 'attention-body', class: 'attention-body' },
+    el('h3', { id: 'attention-title' }, `Next steps (${steps.length + rows.length})`),
     steps.length > 0
       ? el('ol', { class: 'next-steps' }, ...steps.map((s) => el('li', {}, s.href ? el('a', { href: s.href }, s.text) : s.text)))
       : null,
@@ -803,9 +768,7 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
         ),
       ),
     ),
-    ),
   );
-  return box;
 }
 
 /** Handbook terms the report uses before it explains them (usability review

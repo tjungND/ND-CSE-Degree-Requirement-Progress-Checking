@@ -176,16 +176,3 @@ describe('UI review (2026-10-08): what waits for the student, and what waits for
     assert.equal(steps[0]?.text, 'Set the semester you entered the Ph.D. (Your standing) — Fall 2024, read from your transcript, is your MSCSE’s first semester.');
   });
 });
-
-describe('the “already counted toward” answers the page chose (DGS 2026-10-08)', () => {
-  it('a step to check them, after the one for answers still needed', () => {
-    const s: Student = { ...phdStudent(), background: ANSWERED, courses: [] };
-    const steps = nextSteps({ report: report([]), student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0, needsAnswer: ['CSE 40522'], chosenAnswers: ['CSE 60641', 'CSE 40113'] });
-    const texts = steps.map((x) => x.text);
-    assert.ok(texts[0]!.startsWith('Say which degrees CSE 40522 already counted toward'), String(texts[0]));
-    assert.equal(texts[1], 'Check the “already counted toward” answers this page chose for CSE 60641 and CSE 40113, next to each course under Coursework — they must match what the Dean’s office, the Graduate School and the Registrar have on file.');
-    assert.equal(steps[1]?.href, '#coursework');
-    const one = nextSteps({ report: report([]), student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0, chosenAnswers: ['CSE 60641'] });
-    assert.equal(one[0]?.text, 'Check the “already counted toward” answer this page chose for CSE 60641, next to the course under Coursework — it must match what the Dean’s office, the Graduate School and the Registrar have on file.');
-  });
-});

@@ -133,12 +133,6 @@ export interface CourseEntry {
    * student who holds no Notre Dame master's is never asked: with two degrees
    * in play, no course of theirs can already have counted toward two. */
   countedToward?: 'bs' | 'mscse' | 'both' | 'neither';
-  /** `countedToward` is the PAGE's choice (DGS 2026-10-08): filled in to count
-   * the most credits toward the degree (engine/counted-toward.ts), said to the
-   * student in a warning and on each card it moves, and theirs to change —
-   * cleared the moment they pick an answer. The engine reads it only to say
-   * so; the count is the same as for a student's own answer. */
-  countedTowardInferred?: true;
   /** transfer-only: the credit system the TRANSCRIPT itself announced
    * (2026-09-11 — "Fall Quarter 2023", "Quarter Units"). Read at import,
    * correctable in the preview. A `credit_system` cell in the DGS's

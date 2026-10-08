@@ -379,7 +379,6 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     if (e['fromUnofficialTranscript'] !== undefined && e['fromUnofficialTranscript'] !== true) delete e['fromUnofficialTranscript']; // and which came from an unofficial transcript
     if (e['transcriptMark'] !== undefined && (typeof e['transcriptMark'] !== 'string' || e['transcriptMark'].trim() === '')) delete e['transcriptMark']; // the mark as the transcript printed it
     if (e['countedToward'] !== undefined && !COUNTED_TOWARD.includes(e['countedToward'] as string)) delete e['countedToward'];
-    if (e['countedTowardInferred'] !== undefined && (e['countedTowardInferred'] !== true || e['countedToward'] === undefined)) delete e['countedTowardInferred']; // the page's own choice (2026-10-08), never without an answer
     if (e['dgsApproved'] !== undefined && e['dgsApproved'] !== true) delete e['dgsApproved']; // the DGS's approval of this course (2026-09-27)
     if (e['sharedWithOtherDegree'] !== undefined && e['sharedWithOtherDegree'] !== true) delete e['sharedWithOtherDegree']; // also counts toward a second program (2026-10-04)
     // Transfer credit the Notre Dame record shows as accepted (P3-import-1,

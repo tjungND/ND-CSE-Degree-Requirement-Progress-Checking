@@ -1343,18 +1343,3 @@ html.embed .load-card { margin: 12px auto; }
    the Change link-buttons get the phone tap target. */
 table.courses tr[hidden] { display: none !important; }
 @media (max-width: 600px) { .background-line .btn.tiny.link { min-height: 32px; display: inline-flex; align-items: center; } }
-
-/* Next steps follows the screen (DGS 2026-10-08), like the warnings box: fixed
-   in the window's corner once its place scrolls out of view (app.ts
-   watchNextSteps), stacked above the warnings box by its height, foldable to
-   its heading. In the page it looks as before; the toggle shows only afloat. */
-.attention h3 { display: flex; align-items: center; gap: 8px; }
-.attention h3 .attention-toggle { display: none; margin-left: auto; }
-.attention.floating { position: fixed; right: 18px; bottom: calc(18px + var(--float-warnings, 0px)); z-index: 950; width: min(440px, calc(100vw - 36px)); max-height: 40vh; overflow: auto; margin: 0; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
-.attention.floating h3 { position: sticky; top: -8px; margin: -8px -12px 4px; padding: 8px 12px; background: var(--note-bg-soft); }
-.attention.floating h3 .attention-toggle { display: inline-flex; }
-.attention.floating.folded { max-height: none; overflow: visible; }
-.attention.floating.folded .attention-body { display: none; }
-.attention.floating.folded h3 { margin-bottom: -8px; }
-@media (max-width: 900px) { .attention.floating { left: 12px; right: 12px; width: auto; bottom: calc(64px + var(--float-warnings, 0px)); max-height: 35vh; } }
-@media print { .attention.floating { position: static; width: auto; max-height: none; overflow: visible; box-shadow: none; } .attention.floating h3 { position: static; margin: 0 0 4px; padding: 0; } .attention h3 .attention-toggle { display: none !important; } .attention.floating.folded .attention-body { display: block; } }

@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
-2026-10-08 (DGS — pre-filled “already counted toward” answers): for a Ph.D. student’s Notre Dame courses taken as an undergraduate the page now chooses the answer that counts the most credits (the audit is the yardstick; a per-course choice is the exact optimum — no combinatorial search), says so in a floating warning with the DGS’s three points, under each select, on every card the answer moves, and in a Next-steps item; Next steps floats above the warnings once scrolled past, foldable. The student’s own pick clears the mark. Wording W-CL353–W-CL356; Changelog row 117.
+2026-10-08 (DGS — revert): the pre-filled “already counted toward” answers (commit e942afe: the page chose the answer that counts the most credits, with a warning, card facts, a Next-steps item and a floating Next steps box) were **reverted in full** the same day — the page cannot know which courses the bachelor’s degree used (DECISIONS 2026-10-08). The floating Next steps box went with it; it can be restored on its own if wanted.
 
 2026-10-08 (DGS — the graduate-degree options): each now says whether it means a finished degree (“Yes — I finished the MSCSE at Notre Dame …” / “I started the MSCSE at Notre Dame but did not finish it — I transferred into the Ph.D.” / “… — finished or not”); wording W-CL352.
 
