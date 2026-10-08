@@ -15,6 +15,7 @@ import { shortName } from '../engine/short-names.ts';
 import { audit } from '../engine/audit.ts';
 import { GRADES } from '../engine/grades.ts';
 import { transcriptGapSemesters, withdrawalQuestion, withdrawalSemesters } from './withdrawals.ts';
+import { uncoveredRegistrationGaps } from '../engine/registration-gaps.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, CourseLine, MilestoneDateKey, MilestoneDeadline, Program, Season, Student, Term } from '../engine/types.ts';
 import { deadlineText } from './milestone-deadline.ts';
@@ -1321,8 +1322,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     ];
     // An all-W or all-F semester is answered by a readmission only: a leave is
     // requested before the first class day (Academic Code §5.1), so it is not one.
+    // …and while the answer does not cover the gaps (policy review round 3,
+    // P3-ac-5a-5; DGS 2026-10-07: option (a), "open it while the mismatch
+    // stands"): more unregistered semesters than the leave count, no
+    // readmission term — the warning asks for the readmission semester, which
+    // is entered here.
     const gapUnanswered =
-      (gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined) || (withdrawals.length > 0 && student.readmittedTerm === undefined);
+      (gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined) ||
+      (withdrawals.length > 0 && student.readmittedTerm === undefined) ||
+      uncoveredRegistrationGaps(student, todayIso) !== undefined;
     return rareFold(
       'clocks',
       onFile.length > 0 ? `${summary} — on file: ${onFile.join(', ')}` : summary,

@@ -10,6 +10,7 @@ import { beforeProgramStart } from './early-start.ts';
 import { normalizeEntryTerm, termLabel, compareTerm, termOfDate, semesterSeq, startOfTerm } from './term.ts';
 import type { AuditReport, Grade, RequirementResult, Student, TermGpa } from './types.ts';
 import { beforeForfeiture, isCovidCohort, type Ctx } from './requirements/context.ts';
+import { uncoveredRegistrationGaps } from './registration-gaps.ts';
 import { fullTimeTermRecords, graduateLevelFlag, sameTermDuplicate } from './requirements/residency.ts';
 import { transferCourseChecks } from '../data/course-checks.ts';
 import { isNotreDameInstitution } from '../data/external.ts';
@@ -339,6 +340,25 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   if ((student.leaveSemesters ?? 0) > 2) {
     warnings.push(
       `${student.leaveSemesters} semesters on medical leave: a leave of absence lasts at most two consecutive semesters (§5.7) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3).${ctx.covidCohort ? ' For students enrolled in Spring 2020, the Graduate School allowed three consecutive semesters (Academic Code Appendix A.2).' : ''} Confirm your standing with the DGS.`,
+    );
+  }
+  // The transcript's unregistered semesters against the leave count (policy
+  // review round 3, P3-ac-5a-5; DGS 2026-10-07: option (a), "In the audit"):
+  // more of them than the leave covers, with no readmission term, means the
+  // student was readmitted, or the record is incomplete — the DGS confirms the
+  // standing and the earlier credits; the credits are not decided here.
+  const uncovered = uncoveredRegistrationGaps(student, today);
+  if (uncovered !== undefined) {
+    const n = student.leaveSemesters ?? 0;
+    const listed = uncovered.length <= 1 ? uncovered.map(termLabel).join('') : `${uncovered.slice(0, -1).map(termLabel).join(', ')} and ${termLabel(uncovered[uncovered.length - 1]!)}`;
+    warnings.push(
+      `Your Notre Dame transcript shows no registration in ${listed} — ${uncovered.length} semesters, more than the ${n} ${n === 1 ? 'semester' : 'semesters'} of medical leave you entered. A leave of absence lasts at most two consecutive semesters (§5.7), and a student who does not return at its end must be readmitted; the program may then reject some or all earlier credits (DGS Handbook §3.3).${ctx.covidCohort ? ' For students enrolled in Spring 2020, the Graduate School allowed three consecutive semesters (Academic Code Appendix A.2).' : ''} Enter the semester you were readmitted under Your standing, or ask the DGS.`,
+    );
+    reviewFlags.push(
+      decisionWording(
+        student.program,
+        `Semesters without registration: my Notre Dame transcript shows none in ${listed}, more than the ${n} ${n === 1 ? 'semester' : 'semesters'} of medical leave I entered, and no readmission is on file. Please confirm my standing and which of my earlier credits stand (DGS Handbook §3.1, §3.3).`,
+      ),
     );
   }
   // The Notre Dame MSCSE five years or more before the Ph.D. (DGS 2026-10-06,

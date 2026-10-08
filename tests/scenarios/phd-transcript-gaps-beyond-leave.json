@@ -1,0 +1,100 @@
+{
+  "name": "phd-transcript-gaps-beyond-leave",
+  "description": "Policy review round 3, P3-ac-5a-5 (DGS 2026-10-07: option (a) for both parts — the selector stays open while the mismatch stands, and the check runs in the audit). A Ph.D. student who entered in Fall 2022, took an approved leave in Fall 2024 and Spring 2025, was not registered in Fall 2025 and was readmitted in Spring 2026. The Notre Dame transcript shows no registration in Fall 2024, Spring 2025 and Fall 2025; the student entered 2 leave semesters and no readmission term. Before, any leave count closed the question with no warning. Now the warning says the gaps outnumber the leave and asks for the readmission semester, and the review request asks the DGS to confirm the standing and the earlier credits. The credits are not decided here.",
+  "today": "2026-10-05",
+  "rules": {
+    "base": "default"
+  },
+  "student": {
+    "schemaVersion": 1,
+    "program": "phd",
+    "entryTerm": {
+      "season": "fall",
+      "year": 2022
+    },
+    "priorMs": "none",
+    "gpa": 3.7,
+    "bachelorsAwarded": {
+      "season": "spring",
+      "year": 2022
+    },
+    "leaveSemesters": 2,
+    "leaveTerms": [
+      {
+        "season": "fall",
+        "year": 2024
+      },
+      {
+        "season": "spring",
+        "year": 2025
+      }
+    ],
+    "milestones": {
+      "advisorIdentified": "2022-10-01",
+      "advisorName": "Prof. Example",
+      "advisorTtt": "yes"
+    },
+    "attestations": {},
+    "courses": [
+      {
+        "courseId": "CSE 60641",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2022
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60111",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60321",
+        "credits": 3,
+        "term": {
+          "season": "fall",
+          "year": 2023
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60876",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2024
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      },
+      {
+        "courseId": "CSE 60427",
+        "credits": 3,
+        "term": {
+          "season": "spring",
+          "year": 2026
+        },
+        "grade": "A",
+        "origin": "nd",
+        "fromNdTranscript": true
+      }
+    ]
+  },
+  "expect": {},
+  "expectWarnings": [
+    "Your Notre Dame transcript shows no registration in Fall 2024, Spring 2025 and Fall 2025 — 3 semesters, more than the 2 semesters of medical leave you entered. A leave of absence lasts at most two consecutive semesters (§5.7), and a student who does not return at its end must be readmitted; the program may then reject some or all earlier credits (DGS Handbook §3.3). Enter the semester you were readmitted under Your standing, or ask the DGS."
+  ]
+}
