@@ -304,7 +304,10 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   }
   // A Ph.D. advisor who is not tenured or tenure-track CSE faculty, or whose
   // status the student is not sure of (CSE §2.3; Academic Code §6.2.7 —
-  // policy review 2026-10-04, P2-ac-6.2-app-8): the DGS's written approval.
+  // policy review 2026-10-04, P2-ac-6.2-app-8): the review request asks. Two
+  // cases since 2026-10-07 (P3-cross-doc-2, department policy): the DGS
+  // approves a tenured or tenure-track advisor from another department; a
+  // non-tenure-track advisor needs a tenured or tenure-track co-advisor.
   const advisorFlag = advisorReviewFlag(ctx);
   if (advisorFlag) reviewFlags.push(decisionWording(student.program, advisorFlag)); // the ADGS's on the MSCSE thesis option
   // MSCSE thesis readers who are not both tenured or tenure-track CSE faculty,

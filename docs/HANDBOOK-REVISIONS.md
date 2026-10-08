@@ -542,3 +542,10 @@ not the app's:
     The DGS ruled on 2026-10-07 that the window counts back from the MSCSE admission — the student's first admission to a
     Notre Dame graduate program — since the Graduate School treats the CSE MSCSE and Ph.D. as one program (policy review
     round 3, P3-prior-programs-4). §4.2 and §5.2 should say "the first admission to a Notre Dame graduate program".
+29. **§2.3 — whose exception, for which advisor?** §2.3 says “A research advisor must be a Tenure and Tenure Track (TTT)
+    faculty member of the department. Exceptions to this policy require approval of the DGS”, which reads as though the
+    DGS could approve a non-tenure-track advisor alone. The graduate studies committee settled it on 2026-10-07 (chaired by
+    the DGS): an advisor who is not tenured or tenure-track cannot advise a student alone — a tenured or tenure-track
+    co-advisor is required, as the Graduate School requires too (DGS Handbook §10.3.1, §10.3.2; Academic Code §6.2.7); the
+    DGS’s exception is for a tenured or tenure-track advisor from another Notre Dame department (policy review round 3,
+    P3-cross-doc-2). §2.3 should say so in the next edition.

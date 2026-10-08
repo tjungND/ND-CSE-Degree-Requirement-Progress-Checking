@@ -1939,7 +1939,9 @@ function admissionPolicyNotes(ctx: Ctx, args: { semesterWord: string; probationC
     policy('All training modules for the Responsible Conduct of Research and ethics: the Graduate School’s 3-hour ethics workshop for every Ph.D. student, and any training your role or your research funding requires (Academic Code §6.2.4; DGS Handbook §3.22.3, §6.3.1)'),
     policy('The doctoral candidacy examination passed, its written and oral parts: in CSE the written part is the dissertation proposal, so passing the Oral Candidacy Exam (OCE) normally also approves the proposal. The OCE can be taken once your coursework is complete or in progress the same semester — the regular-course credits and the qualifying examination’s core-knowledge and specialization courses — and you have a tenured or tenure-track advisor (§2.3, §4.5; Academic Code §6.2.8, §6.2.9). A course waiting for the DGS’s decision counts once the DGS approves it'),
     policy('Before the OCE: send the DGS a written request naming your committee — your advisor and at least three voting members, with CVs for members from outside Notre Dame — and give the committee your written proposal at least two weeks before the exam, which is held on campus (§4.5)'),
-    policy('At least one dissertation advisor who is tenured or tenure-track Notre Dame faculty, or a co-advisor who is; the application confirms it. CSE asks for tenured or tenure-track CSE faculty, with exceptions approved by the DGS (§2.3; Academic Code §6.2.7; DGS Handbook §10.3.1)'),
+    // P3-cross-doc-2 (DGS 2026-10-07, department policy): the DGS's exception
+    // is for a tenured or tenure-track advisor from another department only.
+    policy('At least one dissertation advisor who is tenured or tenure-track Notre Dame faculty, or a co-advisor who is; the application confirms it. CSE asks for tenured or tenure-track CSE faculty: the DGS may approve one who is tenured or tenure-track in another Notre Dame department, and an advisor who is not tenured or tenure-track cannot advise alone — a tenured or tenure-track co-advisor is required (§2.3; department policy; Academic Code §6.2.7; DGS Handbook §10.3.1)'),
     policy('CSE has no language requirement (§5.3)'),
     policy('The application also records whether the Graduate School holds your official undergraduate transcript (or diploma) showing your bachelor’s degree conferred — if you are not sure it arrived, ask the Grad Admin (DGS Handbook §2.10.6, §10.3.1)'),
     policy(`Be admitted by the end of your ${args.semesterWord} semester: a student not admitted by then may be placed on probation and risks the loss of Graduate School funding (${args.probationCite}; DGS Handbook §3.22.3). Once every condition is met, ${args.form}`),
@@ -2116,7 +2118,7 @@ function candidacyAdmissionRow(ctx: Ctx, merged: { oce: RequirementResult; rcr: 
     const ttt = advisorTttState(ctx);
     const anyAdvisor = !!(m.advisorName || m.advisorName2 || m.advisorIdentified);
     conditions.push({
-      text: `Tenured or tenure-track dissertation advisor: ${!anyAdvisor ? 'no advisor entered' : ttt === 'yes' ? 'yes' : ttt === 'no' ? 'no or not sure — the DGS must approve it (see the advisor card)' : 'not answered (Milestones)'}`,
+      text: `Tenured or tenure-track dissertation advisor: ${!anyAdvisor ? 'no advisor entered' : ttt === 'yes' ? 'yes' : ttt === 'no' ? 'no or not sure — a tenured or tenure-track co-advisor is needed, or the DGS’s approval for one tenured or tenure-track in another department (see the advisor card)' : 'not answered (Milestones)'}`,
       mark: anyAdvisor && ttt === 'yes' ? 'met' : anyAdvisor && ttt === 'no' ? 'waiting' : 'not_yet',
     });
     parts.push(...conditions.map((c): DetailPart => ({ check: c.text, mark: c.mark })));

@@ -388,7 +388,7 @@ describe('every condition for admission to doctoral candidacy', () => {
     // condition of admission, said on the in-progress card.
     assert.match(card(ready({ advisorTtt: 'no' }), '2028-03-01').detail, /^Not started\..*Tenured or tenure-track advisor: no or not sure \(see the advisor card\)/);
     assert.match(card(ready({ advisorTtt: undefined }), '2028-03-01').detail, /^Not started\..*Tenured or tenure-track advisor: not answered \(Milestones\)/);
-    assert.match(card(ready({ advisorTtt: 'no', candidacyPassed: '2028-02-01' }), '2028-03-01').detail, /Tenured or tenure-track dissertation advisor: no or not sure — the DGS must approve it/);
+    assert.match(card(ready({ advisorTtt: 'no', candidacyPassed: '2028-02-01' }), '2028-03-01').detail, /Tenured or tenure-track dissertation advisor: no or not sure — a tenured or tenure-track co-advisor is needed, or the DGS’s approval for one tenured or tenure-track in another department/);
     assert.match(card(ready({}), '2028-09-20').detail, /Registered this semester \(Fall 2028\): no Notre Dame course entered/);
   });
 });

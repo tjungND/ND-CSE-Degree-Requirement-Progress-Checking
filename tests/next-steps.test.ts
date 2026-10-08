@@ -79,7 +79,7 @@ describe('next steps (DGS 2026-09-27)', () => {
 describe('the advisor step and the review request’s other items (P3-cse-1-2-2)', () => {
   const withCourse = (): Student => ({ ...phdStudent(), courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }], attestations: { advisorApprovedPlan: true } });
   const steps = (r: AuditReport, review = { unlisted: 0, caseByCase: 0 }) => nextSteps({ report: r, student: withCourse(), review, processingCount: 0 });
-  const FLAG = 'Advisor’s faculty status: Prof. Example — not sure whether tenured or tenure-track CSE faculty. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — a non-TTT or outside advisor needs the DGS’s written approval.';
+  const FLAG = 'Advisor’s faculty status: Prof. Example — not sure whether tenured or tenure-track CSE faculty. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — an advisor who is tenured or tenure-track in another Notre Dame department needs the DGS’s approval (§2.3); an advisor who is not tenured or tenure-track cannot advise alone — a tenured or tenure-track co-advisor is required (department policy; Academic Code §6.2.7; DGS Handbook §10.3.1).';
   const withFlags = (rows: RequirementResult[], flags: string[]) => ({ ...report(rows), reviewFlags: flags }) as AuditReport;
 
   it('(b) a name on file, faculty status unanswered: answer it — not “enter the name”', () => {

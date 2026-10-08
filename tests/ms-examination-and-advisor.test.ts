@@ -94,8 +94,10 @@ describe('a Ph.D. advisor who is tenured or tenure-track CSE faculty (§2.3; Aca
     const report = advisor(phd({ advisorTtt: 'unsure' }));
     const r = report.requirements.find((x) => x.id === 'shared.advisor')!;
     assert.equal(r.status, 'needs_dgs_review');
-    assert.match(r.detail, /a non-TTT or outside advisor needs the DGS’s written approval/);
-    assert.ok((report.reviewFlags ?? []).includes('Advisor’s faculty status: Prof. A — not sure whether tenured or tenure-track CSE faculty. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — a non-TTT or outside advisor needs the DGS’s written approval.'), JSON.stringify(report.reviewFlags));
+    // The two cases, and no exception for a non-tenure-track advisor (P3-cross-doc-2; DGS 2026-10-07, department policy).
+    assert.match(r.detail, /an advisor who is not tenured or tenure-track cannot advise alone — a tenured or tenure-track co-advisor is required/);
+    assert.doesNotMatch(r.detail, /written approval/);
+    assert.ok((report.reviewFlags ?? []).includes('Advisor’s faculty status: Prof. A — not sure whether tenured or tenure-track CSE faculty. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — an advisor who is tenured or tenure-track in another Notre Dame department needs the DGS’s approval (§2.3); an advisor who is not tenured or tenure-track cannot advise alone — a tenured or tenure-track co-advisor is required (department policy; Academic Code §6.2.7; DGS Handbook §10.3.1).'), JSON.stringify(report.reviewFlags));
   });
   it('two advisors: one “yes” is enough; “no” for both goes to the DGS', () => {
     assert.equal(advisor(phd({ advisorName2: 'Prof. B', advisorTtt: 'no', advisorTtt2: 'yes' })).requirements.find((r) => r.id === 'shared.advisor')!.status, 'met');
@@ -159,8 +161,8 @@ describe('MSCSE thesis advisor: tenured or tenure-track (CSE §2.3; DGS Handbook
       const report = audit(ms('thesis', { advisorTtt: answer }), rules, today);
       const advisor = report.requirements.find((r) => r.id === 'shared.advisor')!;
       assert.equal(advisor.status, 'needs_dgs_review');
-      assert.match(advisor.detail, /needs the ADGS’s written approval/);
-      assert.ok((report.reviewFlags ?? []).some((f) => /^Thesis advisor’s faculty status: Prof\. Example — not (sure whether )?tenured or tenure-track CSE faculty/.test(f) && /ADGS’s written approval/.test(f)));
+      assert.match(advisor.detail, /tenured or tenure-track in another Notre Dame department needs the ADGS’s approval \(§2\.3\); an advisor who is not tenured or tenure-track cannot advise alone — a tenured or tenure-track co-advisor is required \(department policy; DGS Handbook §10\.3\.2\)/);
+      assert.ok((report.reviewFlags ?? []).some((f) => /^Thesis advisor’s faculty status: Prof\. Example — not (sure whether )?tenured or tenure-track CSE faculty/.test(f) && /cannot advise alone/.test(f)));
     }
     assert.equal(row(ms('thesis', { advisorTtt: 'no', advisorName2: 'Prof. Co', advisorTtt2: 'yes' }), 'shared.advisor', today).status, 'met');
   });
