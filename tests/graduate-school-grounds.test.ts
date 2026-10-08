@@ -189,3 +189,23 @@ describe('more than two semesters of medical leave', () => {
     assert.equal(warningsOf(phdStudent({ entryTerm: fall(2019), leaveSemesters: 2 })).some((x) => /semesters on medical leave/.test(x)), false);
   });
 });
+
+// CSE §5.1's Incomplete pattern, fall and spring only (policy review round 3,
+// P3-cse-5-6-2; DGS 2026-10-07: option A — a summer session is not one of the
+// "semesters", as the GPA and U-in-research warnings already read it).
+describe('§5.1: Incompletes in a semester, or in consecutive semesters', () => {
+  const inc = (courseId: string, term: Student['entryTerm']) => ndCourse(courseId, { term, grade: 'I' });
+  const i51 = (s: Student) => warningsOf(s).find((w) => /Incomplete/.test(w) && /§5\.1/.test(w));
+  it('a Spring and a Summer Incomplete: no warning — the summer is not a semester', () => {
+    assert.equal(i51(phdStudent({ entryTerm: fall(2025), courses: [inc('CSE 60641', spring(2026)), inc('CSE 60111', summer(2026))] })), undefined);
+  });
+  it('a Summer and a Fall Incomplete: no warning either', () => {
+    assert.equal(i51(phdStudent({ entryTerm: fall(2025), courses: [inc('CSE 60641', summer(2026)), inc('CSE 60111', fall(2026))] })), undefined);
+  });
+  it('a Fall and the next Spring: two consecutive semesters', () => {
+    assert.match(i51(phdStudent({ entryTerm: fall(2025), courses: [inc('CSE 60641', fall(2025)), inc('CSE 60111', spring(2026))] })) ?? '', /^Incompletes in two consecutive semesters/);
+  });
+  it('two in one Fall: more than one in one semester', () => {
+    assert.match(i51(phdStudent({ entryTerm: fall(2025), courses: [inc('CSE 60641', fall(2025)), inc('CSE 60111', fall(2025))] })) ?? '', /^More than one Incomplete in one semester/);
+  });
+});

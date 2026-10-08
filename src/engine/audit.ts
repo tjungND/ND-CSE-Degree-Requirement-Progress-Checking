@@ -505,7 +505,13 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // who receives more than one grade of I in a semester or a grade of I in two
   // or more consecutive semesters, to determine their eligibility for
   // continued support and enrollment."
-  const incompleteTerms = classified.filter((c) => c.entry.grade === 'I' && c.entry.origin === 'nd' && !c.superseded).map((c) => c.entry.term);
+  // Fall and spring only (policy review round 3, P3-cse-5-6-2; DGS 2026-10-07:
+  // option A): a summer session is not one of §5.1's "semesters" — CSE §4.3
+  // "not including the summer session"; Academic Code §4.3 "semester or
+  // summer session" — as the GPA and U-in-research warnings below read it.
+  // semesterSeq files a summer under the spring before it, so a Spring and a
+  // Summer I used to read as "more than one … in one semester".
+  const incompleteTerms = classified.filter((c) => c.entry.grade === 'I' && c.entry.origin === 'nd' && !c.superseded && c.entry.term.season !== 'summer').map((c) => c.entry.term);
   const perTerm = new Map<number, number>();
   for (const t of incompleteTerms) perTerm.set(semesterSeq(t), (perTerm.get(semesterSeq(t)) ?? 0) + 1);
   const twoInOne = [...perTerm.values()].some((n) => n > 1);
@@ -520,8 +526,8 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // "apply the suggested handling"). Said at the top, no row recomputed. The
   // GPA figures are the transcript's own, kept per term by the Notre Dame
   // import (student.termGpas) — never computed from entered grades (decision
-  // 2026-08-31); a hand-entered record gets no GPA line. Fall and spring only:
-  // whether a summer counts as one of the "semesters" is the DGS's call.
+  // 2026-08-31); a hand-entered record gets no GPA line. Fall and spring only
+  // (DGS 2026-10-07, P3-cse-5-6-2: option A — a summer is not a "semester").
   // A figure of 0.00 for a semester with no Notre Dame course graded into the
   // GPA (only S or W — research, a withdrawal) is the transcript's empty GPA
   // cell, not a GPA (policy review round 3, P3-ac-5b-6.1-1; DGS 2026-10-05:
