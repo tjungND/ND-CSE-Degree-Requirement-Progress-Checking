@@ -5,7 +5,7 @@ import type { NotreDameNow } from '../data/clock.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
-import { BS_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, classify, firstSemesterComplete, mscseSeparation, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
+import { BS_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, classify, firstSemesterComplete, mscseSeparation, ndUndergraduateCounting, overMaxTerms, priorNdUndergraduateCanCount, type ClassifiedCourse } from '../engine/allocate.ts';
 import { ndPostingOf } from '../engine/nd-posting.ts';
 import { fullTimeRecordsFrom, summerFullTimeFloor } from '../engine/requirements/residency.ts';
 import { compareTerm, normalizeEntryTerm, semesterSeq } from '../engine/term.ts';
@@ -37,7 +37,7 @@ import {
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
 import { applyBackground, backgroundQuestions, choiceRow, completeBackground, describeBackground, openBackgroundDialog, type Background } from './background.ts';
-import { draftForProgram, pruneRead, reconcileInferences, withdrawBackground } from './background-read.ts';
+import { draftForProgram, mergeReading, pruneRead, reconcileInferences, withdrawBackground } from './background-read.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, resetPriorImports } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload, resetNdImport } from './nd-upload.ts';
@@ -454,7 +454,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (signature) {
         student.integratedBsMs = true;
         student.integratedBsMsInferred = { how: `your Notre Dame transcript, which registers ${signature.courseId} at the graduate level inside your bachelor’s degree` };
-        notices.push('Integrated B.S. + M.S. (4+1) set to “Yes” — your Notre Dame transcript registers graduate-level coursework inside your bachelor’s degree. Change it in the earlier-degrees questions in the Transcripts card if that is wrong.');
+        // …and the 4+1 question on the page shows it, read and marked (UI
+        // review, 2026-10-08: the record said Yes while the question showed
+        // neither answer).
+        mergeReading(student, { answer: { ndIntegrated: true }, how: { ndIntegrated: `your Notre Dame transcript registers ${signature.courseId} at the graduate level inside your bachelor’s degree` }, source: 'nd' });
+        notices.push('Your transcript shows the Integrated B.S. + M.S. (4+1): it registers graduate-level coursework inside your bachelor’s degree. Check the answer in the earlier-degrees questions in the Transcripts card.');
       }
     }
     if (student.program === 'phd') {
@@ -517,14 +521,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const gaRequest = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa, history: programHistory(student) }, classified);
     // What the record calls for next (DGS 2026-09-27): read once here, drawn
     // under the dial, in the phone summary and as the numbered list.
+    // The courses waiting for the STUDENT's answer, not the DGS (UI review,
+    // 2026-10-08): which degrees they already counted toward.
+    const needsAnswer = student.courses.filter((c) => c.countedToward === undefined && asksWhichDegrees(c, student, rules)).map((c) => c.courseId);
     const next = {
-      sentence: courseworkSentence(report),
+      sentence: courseworkSentence(report, needsAnswer),
       steps: nextSteps({
         report,
         student,
+        needsAnswer,
         review: (() => {
           const pending = coursesNeedingDgsReviewFor(classified, student);
-          return { unlisted: pending.filter((p) => p.unlisted).length, caseByCase: pending.filter((p) => !p.unlisted).length };
+          return { unlisted: pending.filter((p) => p.unlisted).length, caseByCase: pending.filter((p) => !p.unlisted).length, earlierOnly: pending.length > 0 && pending.every((p) => p.kind !== 'nd') };
         })(),
         processingCount: gaRequest.items.count,
       }),
@@ -582,6 +590,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           el(
             'div',
             { class: 'audit-col', id: 'report', tabindex: '-1', 'aria-label': 'Your report' },
+            // The report's own heading, for screen readers (UI review, 2026-10-08).
+            el('h2', { class: 'visually-hidden' }, 'Your report'),
             // The warnings live inside the report since 2026-09-27, folded
             // under the meters (report.ts).
             renderReport(report, untouched, next),
@@ -811,7 +821,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * then every MSCSE course waits for the DGS and the Graduate School. */
   function ownMscseSentence(): string {
     const fourPlusOne = student.background?.graduate === 'nd-4plus1';
-    const base = `Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts as Ph.D. coursework — its own line says how${fourPlusOne ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
+    // The rows below state only the fact; the reason and the "no approval,
+    // no §5.2 cap" are said here once (UI review, 2026-10-08).
+    const base = `Your Notre Dame MSCSE coursework is not transfer credit: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program, so each MSCSE course not applied to your bachelor’s degree counts in full as Ph.D. coursework, with no transfer approval and no §5.2 cap — its own line says how${fourPlusOne ? ', and courses shared with your bachelor’s degree follow §3.5' : ''}.`;
     const separated = mscseSeparation(student);
     return separated === undefined
       ? base
@@ -896,7 +908,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * Ph.D. record before. */
   function mscseClockSentence(): string {
     const cameThroughMscse = student.program === 'phd' && (student.background?.graduate === 'nd-mscse-transfer' || student.ndMasters !== undefined);
-    return cameThroughMscse ? ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE (§4.3, §4.5 and admission to candidacy count from it; the §4.4 qualifier clocks and the first-year seminars from your transfer). Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).' : '';
+    if (!cameThroughMscse) return '';
+    // Only the case the earlier-degrees answer names, once it names one (UI
+    // review, 2026-10-08; extends clarity proposal 5); both while unanswered.
+    const g = (student.background ?? student.backgroundDraft)?.graduate;
+    const unfinished = ' You came into the Ph.D. from an unfinished Notre Dame MSCSE, so this is the semester you started the MSCSE (§4.3, §4.5 and admission to candidacy count from it; the §4.4 qualifier clocks and the first-year seminars from your transfer).';
+    const finished = ' You finished the MSCSE first, so this is the semester you started the Ph.D. (§4.5).';
+    if (g === 'nd-mscse-transfer') return unfinished;
+    if (g === 'nd-mscse' || g === 'nd-4plus1') return finished;
+    return ' Came into the Ph.D. from an unfinished Notre Dame MSCSE? Then this is the semester you started the MSCSE (§4.3, §4.5 and admission to candidacy count from it; the §4.4 qualifier clocks and the first-year seminars from your transfer). Finished the MSCSE first? Then it is the semester you started the Ph.D. (§4.5).';
   }
   function standingCard(classified: readonly ClassifiedCourse[]): HTMLElement {
     // The entry term drives the §4.3 residency count and every deadline. When
@@ -927,9 +947,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           window.setTimeout(
             () =>
               toast(
-                `${moved.toPrior + moved.toProgram} Notre Dame course${moved.toPrior + moved.toProgram === 1 ? ' was' : 's were'} re-filed for the new entry term` +
-                  (moved.toPrior > 0 ? ` — ${moved.toPrior} now prior coursework (before ${termLabel(s.entryTerm)})` : '') +
-                  (moved.toProgram > 0 ? ` — ${moved.toProgram} now program coursework` : '') +
+                // Plain words (UI review, 2026-10-08): not "re-filed" or "prior coursework".
+                `Entry term changed: ${moved.toPrior + moved.toProgram} Notre Dame course${moved.toPrior + moved.toProgram === 1 ? ' is' : 's are'} listed again` +
+                  (moved.toPrior > 0 ? ` — ${moved.toPrior} now as taken before you entered (before ${termLabel(s.entryTerm)})` : '') +
+                  (moved.toProgram > 0 ? ` — ${moved.toProgram} now as taken in this program` : '') +
                   '.',
               ),
             0,
@@ -956,17 +977,27 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // While the term is a guess (fresh record) or a transcript reading, say so
     // — a wrong entry term silently shifts every deadline (bug report 2026-09-05).
     const inferred = student.entryTermInferred;
+    // A Notre Dame MSCSE finished before the Ph.D. (blue/red-team review of
+    // Option 1, 2026-10-08): the Ph.D.'s clocks start at the Ph.D. admission
+    // (DGS 2026-09-10, 2026-09-26), which insideND's transcript does not show —
+    // its first graduate term is the MSCSE's. The action comes right after the
+    // reading (UI review, 2026-10-08).
+    const heldMscseReading = student.program === 'phd' && inferred !== undefined && inferred.how !== 'assumed' && !/admit-term|admission/.test(inferred.how) && heldNdMscse(student.background ?? student.backgroundDraft);
     const entryNote = inferred
       ? el(
           'p',
           { class: 'hint warn entry-note' },
           inferred.how === 'assumed'
             ? `${termLabel(student.entryTerm)} is assumed — set the semester you entered the program. `
-            : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
+            : heldMscseReading
+              ? `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). That is your MSCSE’s first semester: your earlier degrees say you finished the Notre Dame MSCSE before the Ph.D., so set the semester you entered the Ph.D. here — your transcript does not show it. `
+              : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
           student.program === 'phd'
             // The four deadlines are each a report row with a Deadline chip;
-            // the §s stay (trim review 2026-09-18, P-11).
-            ? `The residency count (§4.3) and every deadline (§4.2’s first-year seminars, §4.3, §4.4, §4.4.3, §4.5 and admission to candidacy) are counted from this term — your matriculation at the Graduate School, which a transfer from another Notre Dame program does not reset.${mscseClockSentence()}`
+            // the §s stay (trim review 2026-09-18, P-11); the approved wording
+            // (W-CL103) — "a transfer" is a move before finishing, which keeps
+            // the clock.
+            ? `The residency count (§4.3) and every deadline (§4.2’s first-year seminars, §4.3, §4.4, §4.4.3, §4.5 and admission to candidacy) are counted from this term — your matriculation at the Graduate School, which a transfer from another Notre Dame program does not reset.${heldMscseReading ? '' : mscseClockSentence()}`
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
           inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
           // A non-degree semester read as the program's start (policy review
@@ -977,12 +1008,26 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           inferred.how !== 'assumed' && (inferred.alternative !== undefined || /first graduate-level term|earlier of the admit-term lines/.test(inferred.how))
             ? ` If you were a non-degree (unclassified or departmental non-degree) student at Notre Dame before your degree admission, set the entry term to that admission; up to ${NON_DEGREE_CREDITS_MAX} non-degree credits may count (Academic Code §2.3).`
             : '',
-          // A Notre Dame MSCSE finished before the Ph.D. (blue/red-team review
-          // of Option 1, 2026-10-08): the Ph.D.'s clocks start at the Ph.D.
-          // admission (DGS 2026-09-10, 2026-09-26), which insideND's
-          // transcript does not show — its first graduate term is the MSCSE's.
-          student.program === 'phd' && inferred.how !== 'assumed' && !/admit-term|admission/.test(inferred.how) && heldNdMscse(student.background ?? student.backgroundDraft)
-            ? ' Your earlier degrees say you finished the Notre Dame MSCSE before the Ph.D.: your Ph.D. clocks start the semester you entered the Ph.D., which your transcript does not show — set that semester here.'
+          // Confirming the reading as it is (UI review, 2026-10-08) — the same
+          // as re-picking the term; not offered where the term read is known
+          // to be the MSCSE's.
+          // A Ph.D. reading that may be the MSCSE's start waits for the
+          // earlier-degrees answer, which says whether it is (verification of
+          // the UI review, 2026-10-08).
+          inferred.how !== 'assumed' && !heldMscseReading && (student.program === 'mscse' || student.background !== undefined || /admit-term|admission/.test(inferred.how))
+            ? el(
+                'button',
+                {
+                  class: 'btn tiny confirm-reading',
+                  'data-key': 'standing.entry.confirm',
+                  'aria-label': `${termLabel(student.entryTerm)} is right`,
+                  onclick: () => {
+                    setFocusAfterRender(student.bachelorsAwardedInferred?.before ? 'standing.bachelors.exact' : 'standing.bachelors.season');
+                    setEntry(() => undefined);
+                  },
+                },
+                'Looks right',
+              )
             : '',
         )
       : null;
@@ -1085,13 +1130,30 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       awarded && bsBefore
         ? `Your master’s transcript starts in ${termLabel(bsBefore)}, so your bachelor’s degree counts as awarded before then — which is all §5.2 needs for the courses on it. Set the exact semester only if you also have coursework from before your master’s.`
         : awarded && bsInferred
-        ? `${termLabel(awarded)} was read from your transcript (${bsInferred.how}). Check it — courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).`
+        ? `${termLabel(awarded)} was read from your transcript (${bsInferred.how}). Check it — courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status). `
         : awarded
           ? 'Courses taken in or before this term, even graduate-level ones, are not counted as transfer credit (§5.2: graduate student status).'
           : hasGraduateTransfers
             ? 'Required, and you already have coursework from before Notre Dame: enter the semester your bachelor’s degree was awarded. Courses taken in or before it, even graduate-level ones, cannot transfer (§5.2); until it is set, every graduate-level course from before Notre Dame is taken as graduate coursework.'
             // The legend above already names the field (trim review 2026-09-18, P-23).
             : '§5.2 counts a course as transfer credit only if it was taken after the bachelor’s degree.',
+      // Confirming the reading as it is (UI review, 2026-10-08), as touching
+      // the field does.
+      awarded && bsInferred && !bsBefore
+        ? el(
+            'button',
+            {
+              class: 'btn tiny confirm-reading',
+              'data-key': 'standing.bachelors.confirm',
+              'aria-label': `${termLabel(awarded)} is right`,
+              onclick: () => {
+                setFocusAfterRender(student.background ? 'standing.background.change' : 'standing.background.goto');
+                update((s) => void (s.bachelorsAwardedInferred = undefined));
+              },
+            },
+            'Looks right',
+          )
+        : '',
     );
     const card = el(
       'section',
@@ -1412,7 +1474,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         termIndex(c.entry.term) < termIndex(student.entryTerm) &&
         student.priorMs === 'none' &&
         student.ndMasters === undefined &&
-        student.background?.graduate !== 'nd-mscse-transfer',
+        student.background?.graduate !== 'nd-mscse-transfer' &&
+        // Not a course taken as an undergraduate that counts as such (a 4+1's
+        // senior-year course): the answer cannot change it (UI review,
+        // 2026-10-08; refines 2026-10-03 item 13).
+        !ndUndergraduateCounting(c.entry, resolveRuleRow(rules, c.entry.courseId, c.entry.term), student.bachelorsAwarded),
     );
     if (detected.length === 0 && student.ndNonDegree === undefined) return null;
     const radiosEl = radios(
@@ -1421,7 +1487,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ['', 'Not answered'],
         // Both kinds of non-degree status (Academic Code §2.3; policy review
         // round 3, P3-dh-front-1-2-4, finishing P2-dh-front-1-2-6).
-        ['yes', 'Yes — I was a non-degree student then (unclassified or departmental non-degree)'],
+        ['yes', 'Yes — I was a non-degree student then'],
         ['no', 'No'],
       ],
       student.ndNonDegree === undefined ? '' : student.ndNonDegree ? 'yes' : 'no',
@@ -1434,7 +1500,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint' },
-        `${plural(detected.length, 'course')} on your record ${detected.length === 1 ? 'is' : 'are'} dated before your entry term with no earlier graduate program to explain ${detected.length === 1 ? 'it' : 'them'} (${detected.map((c) => c.entry.courseId).join(', ')}). Were you in non-degree status at Notre Dame (an unclassified or departmental non-degree student) when you took ${detected.length === 1 ? 'it' : 'them'}? If so, up to 12 such credits may count toward the degree (Academic Code §2.3) — the DGS decides, and the review request asks.`,
+        // Both kinds of status still named in the question (P3-dh-front-1-2-4).
+        detected.length === 0
+          ? 'No course on your record depends on this answer now; your earlier answer is kept (Academic Code §2.3).'
+          : `${listIds(detected.map((c) => c.entry.courseId))} ${detected.length === 1 ? 'is' : 'are'} dated before your entry term, with no earlier graduate program to explain ${detected.length === 1 ? 'it' : 'them'}. Were you a non-degree student at Notre Dame then (unclassified or departmental non-degree)? If so, up to 12 such credits may count toward the degree (Academic Code §2.3) — the DGS decides, and the review request asks.`,
       ),
       radiosEl,
     );
@@ -1672,8 +1741,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // A transfer from the MSCSE beside a degree elsewhere too (P3-prior-programs-2).
     const bg = student.background;
     const noEarlierNdProgram = student.ndMasters === undefined && (bg?.graduate === 'elsewhere' || (bg?.graduate === 'nd-mscse-transfer' && bg.alsoElsewhere === true));
+    // An MSCSE student's Notre Dame course taken in or before the bachelor's
+    // term is undergraduate coursework whatever its registered level (the
+    // engine's own test, allocate.ts): it is listed with the §3.5 intro, not
+    // §5.2's transfer paragraph (UI review, 2026-10-08). Ph.D. records are
+    // unchanged (P3-cse-5-6-3).
+    const takenAsUndergraduate = (c: CourseEntry): boolean =>
+      c.degreeLevel === 'bachelors' ||
+      (student.program === 'mscse' && isNotreDameInstitution(c.institution) && student.bachelorsAwarded !== undefined && termIndex(c.term) <= termIndex(student.bachelorsAwarded));
     const priorNdCourseworkWord = (c: CourseEntry): string =>
-      c.degreeLevel === 'bachelors'
+      takenAsUndergraduate(c)
         ? 'undergraduate'
         : noEarlierNdProgram
           ? 'graduate'
@@ -1704,7 +1781,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : `${e.c.institution ?? 'University not set'} — ${slot}`;
       let g = groups.find((x) => x.heading === heading);
       if (!g) {
-        g = { heading, bachelors: e.c.degreeLevel === 'bachelors', nd: priorNd, entries: [], hidden: 0 };
+        g = { heading, bachelors: priorNd ? takenAsUndergraduate(e.c) : e.c.degreeLevel === 'bachelors', nd: priorNd, entries: [], hidden: 0 };
         groups.push(g);
       }
       // Undergraduate courses (DGS request 2026-09-04): only the ones that can
@@ -1758,7 +1835,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     };
     const card = el(
       'section',
-      { class: 'card' },
+      { class: 'card', id: 'coursework' },
       // The section chip shows the handbook's text on hover (DGS 2026-10-05).
       el('h2', {}, el('span', { class: 'step-no' }, '3. '), 'Coursework ', sectionRef(student.program === 'mscse' ? '§3.2' : '§4.2', { className: 'chip-note', dataKey: 'secref.coursework' })),
       // "Graduate-level" (P1-gpa-c4, DGS 2026-10-03): a 4+1 or combined-transcript student
@@ -1830,7 +1907,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 // being at another university (P3-dh-3.14-3.20-3, option (c)).
                 g.nd && noEarlierNdProgram
                 ? el('p', { class: 'hint' }, `Notre Dame graduate courses from before you were admitted, while your earlier graduate program was at another university: they are not credit from an earlier Notre Dame program, so §5.2’s transfer allowance does not apply to them. If you took them as a non-degree student, at most ${NON_DEGREE_CREDITS_MAX} such credits may count (Academic Code §2.3); the DGS decides each course, with the Graduate School — send the review request.`)
-                : el('p', { class: 'hint' }, transferRule(g.nd)),
+                : // Earlier Notre Dame graduate coursework while the earlier
+                  // degrees are unanswered (UI review, 2026-10-08): the answer
+                  // decides how it counts, so the pointer comes before §5.2.
+                  g.nd && student.background === undefined
+                  ? el('p', { class: 'hint' }, 'How these courses count depends on your earlier degrees — answer the ', el('a', { href: '#earlier-degrees' }, 'questions in the Transcripts card'), ' first.')
+                  : el('p', { class: 'hint' }, transferRule(g.nd)),
         g.entries.length > 0
           ? courseTable(courseLines, g.entries)
           : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),
@@ -1916,6 +1998,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'div',
       { class: 'card dgs-review', id: 'dgs-review' },
       el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, what)),
+      // Earlier coursework waits on the earlier-degrees answer (UI review,
+      // 2026-10-08): said first; the request itself stays (DGS 2026-09-03).
+      student.background === undefined && pending.some((p) => p.kind !== 'nd')
+        ? el('p', { class: 'hint warn', 'data-key': 'review.answer-first' }, 'Answer the ', el('a', { href: '#earlier-degrees' }, 'earlier-degrees questions in the Transcripts card'), ' first — the answers can change which of these courses need review.')
+        : '',
       el(
         'p',
         { class: 'hint' },
@@ -2364,23 +2451,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // undergraduate, and only when they could already have spent it on two
       // degrees — a Ph.D. student with no Notre Dame master's is never asked,
       // because with two degrees in play nothing can have counted toward two.
-      const awardTerm = student.bachelorsAwarded;
-      const asUndergraduate =
-        isNotreDameInstitution(c.institution) &&
-        (c.degreeLevel === 'bachelors' || (awardTerm !== undefined && termIndex(c.term) <= termIndex(awardTerm)));
       // The MSCSE is never asked (DGS 2026-09-11): the app chooses which courses
       // apply to both degrees and each line says so. Every Ph.D. student is
       // (Graduate School 2026-09-22: at most 6 credits may count toward two
-      // degrees, and the bachelor's-and-MSCSE courses use them up first).
-      const askedWhichDegrees = student.program === 'phd';
-      const holdsNdMasters = student.ndMasters !== undefined;
-      // And only for a course that COULD count toward this degree (DGS
+      // degrees, and the bachelor's-and-MSCSE courses use them up first) —
+      // and only about a course that COULD count toward this degree (DGS
       // 2026-09-22): a 30000-level or lower course counts toward the
-      // bachelor's alone whatever the answer — the engine never asks about
-      // it (undergradLevelEligible), so the page must not either.
-      const couldCountHere = priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), student.program);
-      if (asUndergraduate && askedWhichDegrees && couldCountHere) {
+      // bachelor's alone whatever the answer (asksWhichDegrees).
+      const holdsNdMasters = student.ndMasters !== undefined;
+      if (asksWhichDegrees(c, student, rules)) {
+        const selId = `counted-toward-${index}`;
         const sel = el('select', {
+          id: selId,
           'aria-label': `Which degrees ${c.courseId} has already counted toward`,
           'data-key': `course.${index}.countedToward`,
           onchange: (e) =>
@@ -2424,7 +2506,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         for (const [value, label] of choices) {
           sel.append(option(value, label, (c.countedToward ?? '') === value));
         }
-        countsCell.append(el('div', {}, sel));
+        // The question in words above it (UI review, 2026-10-08): the select's
+        // first option was the only place it was asked.
+        countsCell.append(el('label', { class: 'counted-toward-label', for: selId }, 'Which degrees has this course already counted toward?'), el('div', {}, sel));
         if (c.countedToward === undefined) {
           countsCell.append(
             el(
@@ -2432,9 +2516,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
               { class: 'group-hint' },
               student.program === 'mscse'
                 ? 'Choose one: this course counts only toward your MSCSE, or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5) — once two 3-credit courses are shared, the rest can only count toward the MSCSE. Nothing counts until you choose. Most 40000-level courses also need your advisor’s and the DGS’s approval, so they are listed in the review request.'
-                : holdsNdMasters
-                  ? 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full, and up to 6 credits below it. No course may count toward three degrees, and at most 6 credits may count toward two (Graduate School): the courses that counted toward both your bachelor’s and your MSCSE use up that allowance, and a course only your bachelor’s used draws on what is left. This answer decides it.'
-                  : 'Notre Dame coursework you took as an undergraduate can count here — 60000-level in full for a 4+1 student (with the DGS’s approval otherwise, Academic Code §4.6), and up to 6 credits below it. At most 6 credits may count toward two degrees (Graduate School), so say whether your bachelor’s degree used this course. This answer decides it.',
+                : // The rule said once per row (UI review, 2026-10-08; the
+                  // three-degrees sentence as the DGS kept it, P1-units-4plus1-18).
+                  holdsNdMasters
+                  ? 'It can count here — 60000-level in full, and up to 6 credits below it. No course may count toward three degrees, and at most 6 credits may count toward two (Graduate School); courses your bachelor’s and your MSCSE shared use those 6 first.'
+                  : 'It can count here — 60000-level in full for a 4+1 student (with the DGS’s approval otherwise, Academic Code §4.6), and up to 6 credits below it. At most 6 credits may count toward two degrees (Graduate School).',
             ),
           );
         }
@@ -2772,7 +2858,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       );
     }
 
-    card.append(el('h2', { class: 'mt' }, 'Approvals you already have'));
+    // A sub-heading of the Milestones card (UI review, 2026-10-08: was an h2).
+    card.append(el('h3', { class: 'mt' }, 'Approvals you already have'));
     card.append(
       // The two-roles sentence is the next card's opening (trim review 2026-09-18, P-16).
       el('p', { class: 'hint' }, 'Tick only what has actually been approved.'),
@@ -3067,6 +3154,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'footer',
       { class: 'legal' },
+      // The card's narrow-width and embed host (the desk host is in the
+      // masthead) — first in the footer, not after the license (UI review,
+      // 2026-10-08: on a phone the contacts were the last thing on the page).
+      mainContactHost,
       // Five distinct things in one grey block of ~1,900 characters
       // (blue-team B9, 2026-09-18): scope, the alpha warning, where the rules
       // come from, privacy, and the licence. Each now has a heading, and the
@@ -3123,8 +3214,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // Embedded, the way out of the frame — and, with the contact card moved
       // off the top, the place the contacts now live (DGS 2026-09-16).
       isEmbedded() ? el('div', { class: 'embed-exit-line' }, openFullPageLink('Open the full self-check page'), ' — the same tool in its own window.') : null,
-      // The card's narrow-width and embed host (the desk host is in the masthead).
-      mainContactHost,
     );
   }
 
@@ -3233,6 +3322,22 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   if (loadRefusals.length > 0) applyRefusals(refusedValues, loadRefusals);
   render();
   for (const r of loadRefusals) toast(r.message);
+}
+
+/** "CSE 60111", "CSE 60111 and CSE 60321", "A, B and C". */
+function listIds(ids: readonly string[]): string {
+  return ids.length <= 1 ? (ids[0] ?? '') : `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]!}`;
+}
+
+/** Which degrees a course has already counted toward is asked of a Ph.D.
+ * student (Graduate School via the DGS, 2026-09-10 evening; 2026-09-22) about
+ * Notre Dame coursework taken as an undergraduate that COULD count here — the
+ * course table's select and the Next-steps item read this one test (UI review,
+ * 2026-10-08). The MSCSE is never asked (DGS 2026-09-11). */
+function asksWhichDegrees(c: CourseEntry, student: Student, rules: Rules): boolean {
+  const awardTerm = student.bachelorsAwarded;
+  const asUndergraduate = isNotreDameInstitution(c.institution) && (c.degreeLevel === 'bachelors' || (awardTerm !== undefined && termIndex(c.term) <= termIndex(awardTerm)));
+  return asUndergraduate && student.program === 'phd' && priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), student.program);
 }
 
 /** The earlier-degrees answer (or draft) says the Notre Dame MSCSE was

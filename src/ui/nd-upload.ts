@@ -70,6 +70,10 @@ export interface NdPreview {
   /** Each term's level, college and major (2026-10-08): what the
    * earlier-degrees answer can be read from (background-read.ts). */
   terms?: TranscriptTerm[];
+  /** Which rows started unticked (taken at the first render), and whether
+   * the student asked to see them (UI review, 2026-10-08). */
+  startUnticked?: boolean[];
+  showUnticked?: boolean;
 }
 let transcriptPreview: NdPreview | undefined;
 
@@ -495,7 +499,14 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
       ),
     );
   }
-  const table = el('table', { class: 'courses stack' });
+  // The rows that start unticked stay in the table but out of the way until
+  // asked for (UI review, 2026-10-08: on a phone they were most of the list).
+  // Only courses that can do nothing here; a row already on the record keeps
+  // its "already entered" note in view (a re-import is all duplicates).
+  tp.startUnticked ??= tp.selected.map((on, i) => !on && !tp.duplicate[i]);
+  const tucked = tp.courses.map((_, i) => tp.startUnticked![i]! && !tp.selected[i] && !tp.showUnticked);
+  const tuckedCount = tp.courses.filter((_, i) => tp.startUnticked![i]! && !tp.selected[i]).length;
+  const table = el('table', { class: 'courses stack', id: 'nd-preview-rows' });
   table.append(
     el(
       'tr',
@@ -542,7 +553,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
     table.append(
       el(
         'tr',
-        { class: prior ? 'prior-row' : '' },
+        { class: prior ? 'prior-row' : '', ...(tucked[i] ? { hidden: '' } : {}) },
         el('td', { class: 'cell-check' }, cb),
         el('td', { class: 'cell-course' }, el('div', { class: 'cid' }, c.courseId), el('div', { class: 'ctitle' }, c.title ?? '')),
         el('td', { class: 'cell-meta', 'data-label': 'Term' }, el('abbr', { class: 'term', title: termLabel(c.term) }, termShort(c.term))),
@@ -559,7 +570,21 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
     tp.courses.forEach((_, i) => (tp.selected[i] = on && !tp.duplicate[i]));
     args.render();
   };
+  const addLabel = `Add ${plural(tp.selected.filter(Boolean).length, 'selected course')}`;
+  const cancel = (): void => {
+    transcriptPreview = undefined;
+    args.setFocusAfterRender('import.nd');
+    args.render();
+  };
   box.append(
+    // Add / Cancel at the top too (UI review, 2026-10-08: on a phone they
+    // were thousands of pixels down) — the same actions as at the foot.
+    el(
+      'div',
+      { class: 'save-buttons preview-top-actions' },
+      el('button', { class: 'btn primary', 'data-key': 'preview.add.top', onclick: () => applyNdPreview(tp, args) }, addLabel),
+      el('button', { class: 'btn', 'data-key': 'preview.cancel.top', onclick: cancel }, 'Cancel'),
+    ),
     el(
       'p',
       { class: 'select-links' },
@@ -568,6 +593,28 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
       el('button', { class: 'btn tiny', 'data-key': 'preview.none', onclick: () => selectAll(false) }, 'Select none'),
     ),
     table,
+    tuckedCount > 0
+      ? el(
+          'p',
+          { class: 'select-links' },
+          el(
+            'button',
+            {
+              class: 'btn tiny',
+              'data-key': 'preview.unticked.toggle',
+              'data-own-expanded': '',
+              'aria-expanded': tp.showUnticked ? 'true' : 'false',
+              'aria-controls': 'nd-preview-rows',
+              onclick: () => {
+                tp.showUnticked = !tp.showUnticked;
+                args.setFocusAfterRender('preview.unticked.toggle');
+                args.render();
+              },
+            },
+            tp.showUnticked ? `Hide the ${plural(tuckedCount, 'course')} that start unticked` : `Show the ${plural(tuckedCount, 'course')} that start unticked`,
+          ),
+        )
+      : '',
   );
   // The GPA for the §2.2 check (combined-transcript bug report 2026-09-05).
   if (tp.gpa !== undefined && tp.programGpa !== undefined) {
@@ -622,9 +669,9 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
           'data-key': 'preview.add',
           onclick: () => applyNdPreview(tp, args),
         },
-        `Add ${plural(tp.selected.filter(Boolean).length, 'selected course')}`,
+        addLabel,
       ),
-      el('button', { class: 'btn', 'data-key': 'preview.cancel', onclick: () => { transcriptPreview = undefined; args.setFocusAfterRender('import.nd'); args.render(); } }, 'Cancel'),
+      el('button', { class: 'btn', 'data-key': 'preview.cancel', onclick: cancel }, 'Cancel'),
     ),
   );
   return box;

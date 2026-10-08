@@ -38,7 +38,10 @@ export function createFocusKeeper(root: HTMLElement): FocusKeeper {
       x: window.scrollX,
       y: window.scrollY,
       open: [...root.querySelectorAll<HTMLDetailsElement>('details[data-key]')].filter((d) => d.open).map((d) => d.dataset['key'] ?? ''),
-      expanded: [...root.querySelectorAll<HTMLElement>('[aria-expanded="true"][data-key]')].map((b) => b.dataset['key'] ?? ''),
+      // A toggle whose own render sets aria-expanded (data-own-expanded) is
+      // left alone — re-applying "true" kept a closed list announced as
+      // expanded (UI review, 2026-10-08).
+      expanded: [...root.querySelectorAll<HTMLElement>('[aria-expanded="true"][data-key]:not([data-own-expanded])')].map((b) => b.dataset['key'] ?? ''),
     };
     if (!active || active === document.body || !root.contains(active)) return memo;
     memo.key = active.dataset['key'];
@@ -69,6 +72,7 @@ export function createFocusKeeper(root: HTMLElement): FocusKeeper {
       const controls = b.getAttribute('aria-controls');
       if (controls) document.getElementById(controls)?.classList.remove('hidden');
     }
+    const intended = focusAfterRender !== undefined;
     const key = focusAfterRender ?? memo.key;
     focusAfterRender = undefined;
     let target: HTMLElement | null = null;
@@ -90,6 +94,15 @@ export function createFocusKeeper(root: HTMLElement): FocusKeeper {
       }
     }
     window.scrollTo(memo.x, memo.y);
+    // An intended move (after Add, Done, Undo …) whose target is now off the
+    // screen — the page above it shrank or grew — is brought into view, so a
+    // keyboard or screen-reader user is not left on a control nobody can see
+    // (UI review, 2026-10-08). Keeping focus in place across a render keeps
+    // the scroll as it was.
+    if (intended && target && typeof target.getBoundingClientRect === 'function') {
+      const r = target.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > window.innerHeight) target.scrollIntoView({ block: 'center' });
+    }
   }
 
   return {

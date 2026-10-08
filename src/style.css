@@ -274,6 +274,13 @@ dialog.copy-check .consent-box { max-width: none; }
 .copy-check .copy-steps li { margin: 4px 0; }
 .copy-check .save-buttons { justify-content: flex-end; }
 @media (max-width: 600px) { .copy-check .copy-preview { height: 34vh; font-size: 16px; } }
+/* Phone tap targets (UI review, 2026-10-08): the preview's row boxes, the
+   course-feeds box, § chips and the Change link-buttons. */
+@media (max-width: 600px) {
+  .transcript-preview .cell-check input[type=checkbox] { width: 24px; height: 24px; }
+  input[data-key="courses.feeds"] { width: 20px; height: 20px; }
+  button.chip-note, .btn.tiny.link { min-height: 32px; display: inline-flex; align-items: center; }
+}
 
 /* layout */
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(480px, 30%); gap: 18px; align-items: start; } /* minmax(0,…) — a wide preview table scrolls inside its card instead of widening the column (2026-09-05) */
@@ -322,6 +329,9 @@ table.courses .line-label { font-weight: 600; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
 .card h2 { margin: 0 0 10px; font-size: 17px; color: var(--navy); }
 .card h2.mt { margin-top: 18px; }
+.card h3.mt { margin: 18px 0 10px; font-size: 17px; color: var(--navy); }
+.confirm-reading { margin-left: 6px; vertical-align: baseline; }
+.counted-toward-label { display: block; margin: 6px 0 2px; font-size: 12px; font-weight: 600; color: var(--navy); }
 .card h3.subhead { margin: 16px 0 6px; font-size: 14px; color: var(--navy); }
 /* The processing-request card (2026-09-06 evening) — the Grad Admin's half of the two roles. */
 .card.grad-admin-request { border-left: 4px solid var(--info); }
@@ -467,6 +477,7 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
    (WCAG 2.5.8) satisfied at every width without enlarging the boxes further. */
 fieldset.ft-terms:not(.clock-fields):not(.nondegree) { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 16px; }
 fieldset.ft-terms:not(.clock-fields):not(.nondegree) > legend, fieldset.ft-terms:not(.clock-fields):not(.nondegree) > .hint, fieldset.ft-terms:not(.clock-fields):not(.nondegree) > p { grid-column: 1 / -1; }
+fieldset.ft-terms:not(.clock-fields):not(.nondegree) > details { grid-column: 1 / -1; order: 99; } /* Relevant Policies under the terms, full width (UI review, 2026-10-08) */
 .ft-term { display: flex; align-items: flex-start; gap: 6px; min-height: 24px; margin: 0; font-size: 13px; }
 .ft-term input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none; }
 .ft-auto { display: flex; align-items: flex-start; gap: 6px; min-height: 24px; font-size: 13px; }
@@ -550,7 +561,7 @@ table.courses .feeds-hidden .counts-toward.now { display: none; }
    grey prose. Closed, the footer is five short lines. */
 .legal > div, .legal > details { margin-bottom: 10px; }
 .legal-head { font-size: 13px; font-weight: 700; color: var(--ink); margin: 0 6px 2px 0; display: inline; } /* inline, so a gap before the text — "Privacy" used to run into "Your coursework…" (trim review 2026-09-18, P-56) */
-.legal > details > summary { cursor: pointer; list-style-position: outside; }
+.legal > details > summary { cursor: pointer; list-style-position: inside; } /* inside the page gutter (UI review, 2026-10-08) */
 .legal > details > summary .legal-head { color: var(--navy); }
 .legal > details[open] > summary { margin-bottom: 4px; }
 .meters { margin: 6px 0 4px; }
@@ -564,6 +575,7 @@ table.courses .feeds-hidden .counts-toward.now { display: none; }
 .req-sub { margin-left: 18px; }
 .req-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .req-title { font-weight: 600; }
+h4.req-title { margin: 0; font-size: inherit; line-height: inherit; color: inherit; }
 /* The § chip sits inside the title span, after the last word, so a row with no
    deadline and no course link has no second line (trim review 2026-09-18, P-70).
    The base .cite margin-left: -4px below is live on courses.html, whose § marks
@@ -1325,3 +1337,9 @@ html.embed .load-card { margin: 12px auto; }
 }
 .ms-deadline.ms-due_soon { color: var(--due-ink); font-weight: 600; }
 .ms-deadline.ms-overdue, .ms-deadline.ms-late { color: var(--bad); font-weight: 600; }
+
+/* UI review, 2026-10-08 — last in the file so they win: a tucked preview row
+   stays hidden in the phone "stack" layout (whose rows are display:flex), and
+   the Change link-buttons get the phone tap target. */
+table.courses tr[hidden] { display: none !important; }
+@media (max-width: 600px) { .background-line .btn.tiny.link { min-height: 32px; display: inline-flex; align-items: center; } }

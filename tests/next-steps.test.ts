@@ -150,3 +150,29 @@ describe('the earlier-degrees questions, asked on the page (2026-10-08)', () => 
     assert.equal(nextSteps({ report: r, student: { ...phdStudent(), background: ANSWERED }, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }).length, 0);
   });
 });
+
+describe('UI review (2026-10-08): what waits for the student, and what waits for the earlier degrees', () => {
+  it('a course waiting on the student’s answer “needs your answer”, with a step', () => {
+    const r = report([], [
+      line('CSE 60111', 'pending', 'not counted yet — say which degrees this course has already counted toward, next to the course'),
+      line('CSE 60999', 'pending', 'waiting for the DGS — would count toward regular courses (3 cr) once approved'),
+    ]);
+    assert.equal(courseworkSentence(r, ['CSE 60111']), 'Your coursework: 1 needs your answer (CSE 60111), 1 is waiting for the DGS (CSE 60999).');
+    const s: Student = { ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60111', credits: 3, term: { season: 'fall', year: 2024 }, grade: 'A', origin: 'nd' }] };
+    const steps = nextSteps({ report: r, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0, needsAnswer: ['CSE 60111', 'CSE 60321'] });
+    assert.ok(steps.some((x) => x.text === 'Say which degrees CSE 60111 and CSE 60321 already counted toward — next to each course under Coursework.' && x.href === '#coursework'));
+  });
+  it('before the earlier degrees are answered, a review of earlier coursework only waits — and so does “When the DGS answers”', () => {
+    const s: Student = { ...phdStudent(), courses: [{ courseId: 'CS 50300', credits: 3, term: { season: 'fall', year: 2022 }, grade: 'A', origin: 'transfer', institution: 'Purdue University', degreeLevel: 'masters' }] };
+    const r = report([row('shared.approvals', 'needs_dgs_review'), row('phd.transfer', 'needs_dgs_review')]);
+    const steps = nextSteps({ report: r, student: s, review: { unlisted: 1, caseByCase: 0, earlierOnly: true }, processingCount: 0 });
+    assert.ok(steps[0]?.text.startsWith('Answer the questions about your earlier degrees'));
+    assert.ok(!steps.some((x) => /review request|When the DGS answers/.test(x.text)), JSON.stringify(steps.map((x) => x.text)));
+    assert.deepEqual(steps[0]?.covers, ['shared.approvals', 'phd.transfer', 'ms.transfer']);
+  });
+  it('a Ph.D. student who finished the Notre Dame MSCSE is told to set the Ph.D. start', () => {
+    const s: Student = { ...phdStudent(), background: { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'nd-4plus1', alsoElsewhere: false }, entryTerm: { season: 'fall', year: 2024 }, entryTermInferred: { how: 'the first graduate-level term on your transcript' } };
+    const steps = nextSteps({ report: report([]), student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 });
+    assert.equal(steps[0]?.text, 'Set the semester you entered the Ph.D. (Your standing) — Fall 2024, read from your transcript, is your MSCSE’s first semester.');
+  });
+});

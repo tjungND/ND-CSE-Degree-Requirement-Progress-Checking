@@ -399,6 +399,15 @@ export function priorNdUndergraduateCanCount(course: CourseEntry, rule: RuleCour
   return (program === 'mscse' ? rule.countsTowardMscse : rule.countsTowardPhd) !== 'no';
 }
 
+/** A Notre Dame course filed as taken as an undergraduate (in or before the
+ * bachelor's term) that can count — the branch of classifyTransfer that never
+ * reads the Academic Code §2.3 non-degree answer, so the page does not ask
+ * that question about it (UI review, 2026-10-08). One test for both. */
+export function ndUndergraduateCounting(course: CourseEntry, rule: RuleCourse | undefined, bachelorsAwarded: Term | undefined): boolean {
+  const asUndergraduate = course.degreeLevel === 'bachelors' || (bachelorsAwarded !== undefined && compareTerm(course.term, bachelorsAwarded) <= 0);
+  return asUndergraduate && isNotreDameInstitution(course.institution) && undergradLevelEligible(levelOf(course, rule), course.courseId, rule);
+}
+
 /** The level floor for Notre Dame coursework taken as an undergraduate: 60000
  * and above; CSE at the 40000 level; CSE at the 50000 level only when the
  * sheet lists the course. */
@@ -1371,15 +1380,13 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // course taken in the program would use. The one bar is a course already
   // spent on two degrees.
   const awardedTerm = student.bachelorsAwarded;
-  const asUndergraduate =
-    c.degreeLevel === 'bachelors' || (awardedTerm !== undefined && compareTerm(c.term, awardedTerm) <= 0);
   // Only coursework that could actually count comes down this path. A
   // 20000-level course, or a non-CSE course below the 60000 level, counts
   // nothing at any answer, so it keeps the line it has always had — which
   // leads with the one thing it CAN do, demonstrate a §4.4.1 core area,
   // and tells the student to send the review request.
   const undergradLevel = levelOf(c, rule);
-  if (asUndergraduate && undergradLevelEligible(undergradLevel, c.courseId, rule) && isNotreDameInstitution(c.institution)){
+  if (ndUndergraduateCounting(c, rule, awardedTerm)) {
     // Whatever it earns, it is never §5.2 transfer credit (2026-09-22: an
     // unanswered course used to sit on the transfer row as a "transfer" with
     // nothing to count, and once no real transfer was left the row read Met).
@@ -1413,6 +1420,19 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
         caps: ['nondegree', ...(shape?.caps ?? []), ...(rule === undefined && deptOf(c.courseId) !== 'CSE' ? (['noncse'] as CapId[]) : [])],
         tier: 'provisional',
         approvalPending: `taken at Notre Dame as a non-degree student before you were admitted — at most ${NON_DEGREE_CREDITS_MAX} such credits may count toward the degree (Academic Code §2.3); the DGS decides${rule === undefined ? '; not in the course rules yet — send the review request so the DGS can enter it' : shape && !('ineligibleReason' in shape) && shape.approvalPending ? `; ${shape.approvalPending}` : ''}${coreNote}`,
+      };
+    }
+    // A 4+1 MSCSE student with no bachelor's term yet: the course may be one
+    // of the 4+1's graduate courses taken as an undergraduate, which count
+    // toward the MSCSE (DGS 2026-10-07, P3-fourplusone-1) — only the award
+    // term tells, so the line asks for it rather than for the entry term. It
+    // still counts for nothing until then (UI review, 2026-10-08: the reason
+    // sent the student to the wrong field).
+    if (program === 'mscse' && student.integratedBsMs === true && student.bachelorsAwarded === undefined) {
+      return {
+        ...extBase,
+        notTransferCredit: true,
+        ineligibleReason: `not counted yet — set the semester your bachelor’s degree was awarded, under Your standing: a 4+1 student’s graduate courses from before the bachelor’s count toward the MSCSE (§3.5), and this page cannot tell which courses those are until it knows when you graduated${coreNote}`,
       };
     }
     return {
@@ -1479,7 +1499,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
       ? `not counted — not eligible for degree credit at the ${levelReason}`
       : posting?.level === 'undergraduate'
         ? `not counted — undergraduate credit on your Notre Dame bachelor’s record, accepted for the bachelor’s degree, not as graduate transfer credit (§5.2)`
-        : `not counted — taken as an undergraduate student, so it brings no transfer credit (§5.2)`;
+        : `not counted — taken as an undergraduate (§5.2)`; // the group's intro says such courses bring no transfer credit (UI review, 2026-10-08)
     // For an MSCSE student there is no §4.4.1 to demonstrate: an
     // undergraduate course from another university can do nothing here,
     // and saying so once is the whole line (DGS 2026-09-11).
@@ -1491,7 +1511,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
         : ndCoreArea
           ? `${credit}; satisfies the ${areaName(ndCoreArea)} core-knowledge requirement (§4.4.1) — a Notre Dame course listed in the course rules`
           : suggested
-            ? `${credit}; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) — pending DGS review, send the review request`
+            ? `${credit}; may still satisfy the ${suggested} core-knowledge requirement (§4.4.1) once the DGS reviews it`
             : `${credit}; not relevant to the core knowledge requirement (§4.4.1)`,
     };
   }
@@ -2068,8 +2088,10 @@ function classifyPriorNdUndergraduate(
         student.program === 'mscse'
           ? `not counted yet — choose, next to the course, whether it counts only toward your MSCSE or toward both your bachelor’s degree and your MSCSE. At most 6 credits may count toward both (§3.5), so the answer decides how this one counts${coreNote}`
           : holdsNdMasters
-            ? `not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, and at most 6 credits may count toward two (Graduate School), so the answer decides how it counts here${coreNote}`
-            : `not counted yet — say, next to the course, whether your bachelor’s degree used this course. At most 6 credits may count toward two degrees (Graduate School), so the answer decides how it counts here${coreNote}`,
+            // The rule itself is said once, under the question next to the
+            // course (UI review, 2026-10-08: it was on the line and under it).
+            ? `not counted yet — say which degrees this course has already counted toward, next to the course${coreNote}`
+            : `not counted yet — say, next to the course, whether your bachelor’s degree used this course${coreNote}`,
     };
   }
   // 60000 and above: in full, and outside every cap the app has — the
@@ -2526,7 +2548,7 @@ function buildExplanationText(
     // unreviewed course, and credits printed in a system the sheet does not
     // know yet.
     // Since 2026-10-03 the flag, not the pending text, says so (P1-units-4plus1-c7).
-    const creditNote = cc.creditsAsPrinted ? `; ${'credits shown as your transcript prints them — if your university uses quarters, trimesters or another unit, the DGS’s decision converts them (§5.2 pro-rata)'}` : '';
+    const creditNote = cc.creditsAsPrinted ? `; ${'credits as your transcript prints them — the DGS converts quarter, trimester or other units (§5.2 pro-rata)'}` : '';
     // An Incomplete from another university says so on its own line (P3-ac-4-1, 2026-10-05).
     const incompleteNote = cc.outsideIncomplete ? `; ${outsideIncompleteNote(cc.entry)} — the DGS decides once the grade is final` : '';
     return {
@@ -2613,7 +2635,7 @@ function buildExplanationText(
     if (cc.tickApproved && !cc.caps.includes('transfer')) parts.push('approved by the DGS for you, as you ticked on the course (the course rules say case by case; the DGS office holds the record)');
     // The credit system is unknown (no row, a blank or rejected credit_system) and
     // nd_credits does not fix the number (DGS 2026-10-03, P1-units-4plus1-c7).
-    if (cc.creditsAsPrinted) parts.push('credits shown as your transcript prints them — if your university uses quarters, trimesters or another unit, the DGS’s decision converts them (§5.2 pro-rata)');
+    if (cc.creditsAsPrinted) parts.push('credits as your transcript prints them — the DGS converts quarter, trimester or other units (§5.2 pro-rata)');
     // A letter the student chose for a mark the app could not map (policy
     // review 2026-10-03, P1-transfer-eligibility-7): said on the line, so the
     // DGS checks the conversion against §5.2's B rather than taking it as read.
@@ -2629,7 +2651,8 @@ function buildExplanationText(
     else if (cc.entry.countedToward === 'mscse' && cc.entry.origin === 'transfer')
       // Separated by five years or more (DGS 2026-10-06): the pending reason
       // says why it waits, so the line names only the degree.
-      parts.push(cc.mscseSeparated ? 'counted toward your MSCSE' : 'counted toward your MSCSE — counts in full as Ph.D. coursework: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)');
+      // The reason is said once, in the group's intro (UI review, 2026-10-08).
+      parts.push(cc.mscseSeparated ? 'counted toward your MSCSE' : 'counted toward your MSCSE — counts in full as Ph.D. coursework');
     // "counts in full" only when nothing is still to be approved: a plain
     // bachelor's course or an unverified UG→GR move says why it waits instead
     // (policy review 2026-10-03).
@@ -2639,7 +2662,9 @@ function buildExplanationText(
     if (cc.ndMastersCredit && cc.mscseSeparated) {
       if (cc.pool === 'total_only') parts.push('a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)');
     }
-    else if (cc.ndMastersCredit) parts.push(`from your Notre Dame MSCSE — counts in full as Ph.D. coursework, with no transfer approval and no §5.2 cap: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)${cc.pool === 'total_only' ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : ''}`);
+    // The fact on every row; the reason (one graduate program, DGS 2026-10-03)
+    // once, in the group's intro above the rows (UI review, 2026-10-08).
+    else if (cc.ndMastersCredit) parts.push(`from your Notre Dame MSCSE — counts in full as Ph.D. coursework (not transfer credit)${cc.pool === 'total_only' ? '; a master’s project or thesis is not a regular course, so it counts toward the total credits only (§4.2)' : ''}`);
     // The rule, not a computed date (policy review round 3, P3-cross-doc-4; DGS
     // 2026-10-06: "Apply the suggested handling"): the 30 days are the
     // student's and the 14 after them the instructor's (Academic Code §4.4:

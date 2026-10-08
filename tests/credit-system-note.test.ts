@@ -1,4 +1,4 @@
-// The "credits shown as your transcript prints them" note (DGS 2026-10-03,
+// The "credits as your transcript prints them" note (DGS 2026-10-03,
 // P1-units-4plus1-c7): on every course from another university whose credit
 // system is unknown — no ExternalCourses row, a row with a blank credit_system,
 // or a value the sheet parser rejected — unless nd_credits fixes the number or
@@ -10,7 +10,7 @@ import { audit } from '../src/engine/audit.ts';
 import type { CourseEntry, Student } from '../src/engine/types.ts';
 import { buildRules } from './helpers.ts';
 
-const NOTE = 'credits shown as your transcript prints them — if your university uses quarters, trimesters or another unit, the DGS’s decision converts them (§5.2 pro-rata)';
+const NOTE = 'credits as your transcript prints them — the DGS converts quarter, trimester or other units (§5.2 pro-rata)';
 const row = (extra: Partial<CourseEntry> = {}): CourseEntry => ({ courseId: 'CS 50300', credits: 3, term: { season: 'fall', year: 2024 }, grade: 'A', origin: 'transfer', institution: 'Purdue University', degreeLevel: 'masters', ...extra });
 const student = (c: CourseEntry): Student => ({ schemaVersion: 1, program: 'phd', entryTerm: { season: 'fall', year: 2026 }, bachelorsAwarded: { season: 'spring', year: 2022 }, priorMs: 'completed', gpa: 3.6, milestones: {}, attestations: {}, courses: [c] });
 const line = (c: CourseEntry, external?: Record<string, string>[]) =>

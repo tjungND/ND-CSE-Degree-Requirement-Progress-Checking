@@ -455,10 +455,18 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
     // element: drive-transcript.mjs reads .combined-note's textContent (a
     // closed body is still in it). Body shortened by the DGS (P-6, P-53:
     // 'import', not 'upload').
-    !slots.includes('masters') ? null : el(
+    // Not shown for a bachelor's from Notre Dame — saved or still a draft —
+    // while the Master's row is empty and no preview is open: it cannot apply,
+    // and its own last line says a Notre Dame degree goes in the ND row (UI
+    // review, 2026-10-08). Its summary no longer says "first": it sits below
+    // the questions.
+    !slots.includes('masters') ||
+    ((args.student.background ?? args.student.backgroundDraft)?.bachelors?.startsWith('nd-') === true && coursesInSlot(args.student, 'masters').length === 0 && preview === undefined)
+      ? null
+      : el(
       'details',
       { class: 'combined-note', 'data-key': 'transcripts.shape', open: coursesInSlot(args.student, 'masters').length > 0 || preview !== undefined || background?.samePlace === true },
-      el('summary', {}, 'Did one university give you both a bachelor’s and a master’s (a 4+1 or 5+1)? Open this first.'),
+      el('summary', {}, 'Did one university give you both a bachelor’s and a master’s (a 4+1 or 5+1)? Read this before importing them.'),
       el('strong', {}, 'A bachelor’s and a master’s from the same university'),
       ' (a 4+1 or 5+1) come as two transcripts or one. ',
       el('strong', {}, 'Two transcripts:'),

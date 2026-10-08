@@ -633,7 +633,7 @@ describe('undergraduate Notre Dame coursework', () => {
   // never asked — nothing of theirs could have counted twice.
   it('a student with no Notre Dame master’s is asked whether the bachelor’s degree used the course; “bs” draws the six credits, “neither” counts in full', () => {
     const asked = student([ug('CSE 60641')]);
-    assert.match(lineFor(asked, 'CSE 60641'), /^not counted yet — say, next to the course, whether your bachelor’s degree used this course\. At most 6 credits may count toward two degrees \(Graduate School\)/);
+    assert.match(lineFor(asked, 'CSE 60641'), /^not counted yet — say, next to the course, whether your bachelor’s degree used this course(?:$|;)/);
     assert.equal(report(asked).courseLines.find((l) => l.courseId === 'CSE 60641')?.mark, 'pending');
     assert.match(lineFor(student([ug('CSE 60641', 'neither')]), 'CSE 60641'), /^counts toward regular courses \(3 cr\); counted on the course rules’ yes, which is the program’s advance approval for graduate coursework taken as an undergraduate \(Academic Code §4\.6\); not used by an earlier degree — counts in full/);
     const three = student([ug('CSE 60641', 'bs'), ug('CSE 60111', 'bs'), ug('CSE 60321', 'bs')]);
@@ -656,7 +656,7 @@ describe('undergraduate Notre Dame coursework', () => {
     const s = student([ug('CSE 60641', 'both'), ug('CSE 60111', 'both'), ug('CSE 60321', 'bs'), ug('CSE 60770', 'mscse')], held);
     assert.match(lineFor(s, 'CSE 60321'), /^not counted — over the allowance for coursework counted toward two degrees — 6 of its 6 credits already used by the courses counted toward your bachelor’s degree and your MSCSE \(Graduate School\)/);
     // MSCSE coursework is Ph.D. coursework (DGS 2026-10-03: one graduate program).
-    assert.match(lineFor(s, 'CSE 60770'), /counted toward your MSCSE — counts in full as Ph\.D\. coursework: the Graduate School treats the CSE MSCSE and Ph\.D\. as one graduate program/);
+    assert.match(lineFor(s, 'CSE 60770'), /counted toward your MSCSE — counts in full as Ph\.D\. coursework/);
     assert.match(detail(s, 'phd.cap.sharedbs'), /0 of the 0 credits that may still count toward both your bachelor’s degree and the Ph\.D\. used/);
     assert.match(detail(s, 'phd.cap.sharedbs'), /All 6 shared credits were used by the courses you said counted toward both your bachelor’s degree and your MSCSE/);
     // One 'both' course (3 credits) leaves three: the 'bs' course fits — provisionally (2026-10-03).
@@ -692,7 +692,7 @@ describe('undergraduate Notre Dame coursework', () => {
 
   it('a course from ANOTHER university taken before the degree is untouched by any of this', () => {
     const s = student([ug('CS 50300', undefined, 'Purdue University')]);
-    assert.match(lineFor(s, 'CS 50300'), /^not counted — taken as an undergraduate student, so it brings no transfer credit \(§5\.2\)/);
+    assert.match(lineFor(s, 'CS 50300'), /^not counted — taken as an undergraduate \(§5\.2\)/);
   });
 
   // The MSCSE side of the same transcript (DGS 2026-09-11). The question a
@@ -872,5 +872,21 @@ describe('two advisors', () => {
     assert.equal(row.detail, 'Advisors: Prof. A and Prof. B.');
     const one = audit(phdStudent({ milestones: { advisorName: 'Prof. A', advisorTtt: 'yes' } }), rules, '2027-06-01').requirements.find((r) => r.id === 'shared.advisor')!;
     assert.equal(one.detail, 'Advisor: Prof. A.');
+  });
+});
+
+describe('a 4+1 MSCSE course before entry, the bachelor’s term not set (UI review 2026-10-08, P3-fourplusone-1)', () => {
+  const rules = buildRules();
+  it('waits for the bachelor’s term instead of pointing at the entry term', () => {
+    const s: Student = {
+      ...phdStudent(),
+      program: 'mscse',
+      entryTerm: { season: 'fall', year: 2025 },
+      integratedBsMs: true,
+      courses: [{ courseId: 'CSE 60111', credits: 3, term: { season: 'fall', year: 2024 }, grade: 'A', origin: 'transfer', institution: 'University of Notre Dame', degreeLevel: 'masters', registeredLevel: 'graduate' }],
+    };
+    const line = audit(s, rules, '2026-10-08').courseLines.find((l) => l.courseId === 'CSE 60111')!;
+    assert.match(line.text, /^not counted yet — set the semester your bachelor’s degree was awarded/);
+    assert.equal(line.mark, 'pending', 'waiting on an input, like the other “not counted yet” lines — it counts for nothing until then');
   });
 });

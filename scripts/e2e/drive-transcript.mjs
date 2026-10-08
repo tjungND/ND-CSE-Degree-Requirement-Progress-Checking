@@ -843,8 +843,25 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     await s.evalJs(`(() => { document.querySelector('[data-key="consent.program.phd"]').click(); document.querySelector('[data-key="consent.ack"]').click(); document.querySelector('.consent-overlay button.btn').click(); })()`);
     await s.waitFor(`!document.querySelector('.consent-overlay') && !!document.querySelector('#earlier-degrees')`);
     if (await s.evalJs(`!!document.querySelector('#earlier-degrees input:checked')`)) throw new Error('a fresh record has no earlier-degrees answer');
+    // At phone width (UI review, 2026-10-08): the rows that start unticked are
+    // tucked — really hidden in the stack layout — behind a toggle whose
+    // aria-expanded follows it, with Add at the top too.
+    await s.setViewport({ width: 390, height: 844, settleMs: 200 });
     await s.setFileInput('.transcript-upload input[type=file]', ndInsideNdPdf);
     await s.waitFor(`document.querySelector('.transcript-preview')`);
+    const tuck = async () => JSON.parse(await s.evalJs(`JSON.stringify((() => { const rows = [...document.querySelectorAll('.transcript-preview table tr')].slice(1); const t = document.querySelector('[data-key="preview.unticked.toggle"]'); return { rows: rows.length, shown: rows.filter((r) => getComputedStyle(r).display !== 'none').length, toggle: t?.textContent ?? '', expanded: t?.getAttribute('aria-expanded') ?? '', top: !!document.querySelector('[data-key="preview.add.top"]') }; })())`));
+    const t0 = await tuck();
+    if (!t0.top || t0.shown >= t0.rows || !/^Show the \d+ courses? that start unticked$/.test(t0.toggle) || t0.expanded !== 'false') throw new Error('phone preview: unticked rows must be tucked behind the toggle, Add at the top: ' + JSON.stringify(t0));
+    await s.evalJs(`document.querySelector('[data-key="preview.unticked.toggle"]').click()`);
+    await s.settle();
+    const t1 = await tuck();
+    if (t1.shown !== t1.rows || t1.expanded !== 'true') throw new Error('phone preview: Show must show every row: ' + JSON.stringify(t1));
+    await s.evalJs(`document.querySelector('[data-key="preview.unticked.toggle"]').click()`);
+    await s.settle();
+    const t2 = await tuck();
+    if (t2.shown !== t0.shown || t2.expanded !== 'false') throw new Error('phone preview: Hide must tuck them again, aria-expanded back to false: ' + JSON.stringify(t2));
+    console.log(`  phone preview: ${t0.rows - t0.shown} of ${t0.rows} rows tucked behind the toggle (aria-expanded follows), Add at the top`);
+    await s.setViewport({ width: 1400, height: 1900, settleMs: 200 });
     const entry = await s.evalJs(`document.querySelector('.transcript-preview .entry-term-line')?.textContent ?? ''`);
     if (!entry.includes('Fall 2025')) throw new Error('the insideND transcript’s entry term is its first graduate term, Fall 2025: ' + entry.slice(0, 120));
     await s.evalJs(`[...document.querySelectorAll('.transcript-preview button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`);

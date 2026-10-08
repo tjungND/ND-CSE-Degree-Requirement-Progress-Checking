@@ -295,6 +295,15 @@ export function backgroundQuestions(
     return el('div', { class: 'term-pick' }, season, ' ', year);
   };
   const renderFollowUps = (): void => {
+    // The boxes are rebuilt here, before the page's own render can remember
+    // focus: a follow-up answer (the 4+1, "same university?", "also
+    // elsewhere?") would drop focus to the top of the page (UI review,
+    // 2026-10-08). The focused choice is found again by its data-key.
+    const focusedKey = (document.activeElement as HTMLElement | null)?.dataset?.['key'];
+    renderFollowUpBoxes();
+    if (focusedKey?.startsWith(`${prefix}.`)) questions?.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusedKey)}"]`)?.focus({ preventScroll: true });
+  };
+  const renderFollowUpBoxes = (): void => {
     integratedBox.replaceChildren(
       el('legend', { class: 'followup-title' }, program === 'mscse' ? 'Are you in Notre Dame’s Integrated B.S. + M.S. (4+1) program? (§3.5)' : 'Were you in Notre Dame’s Integrated B.S. + M.S. (4+1) program as an undergraduate? (§3.5)'),
       // The timing, so a student admitted to the MSCSE after the bachelor's
@@ -303,12 +312,18 @@ export function backgroundQuestions(
       // P3-fourplusone-4 (a)); "before the bachelor's" still screens out a
       // student admitted after it.
       ...(program === 'mscse' ? [el('p', { class: 'hint' }, 'Students are admitted while still undergraduates, before the bachelor’s degree: they apply in the junior year or, at the latest, the first semester of the senior year (Graduate School 4+1 guidance); CSE’s deadline is typically the end of the senior fall (§3.5).')] : []),
-      yesNo('ndintegrated', state.ndIntegrated, (v) => {
-        state.ndIntegrated = v;
-        if (!v) state.integratedAdmittedTerm = undefined;
-        renderFollowUps();
-        onChange(state);
-      }),
+      // Read from the transcript's graduate-level senior courses (UI review,
+      // 2026-10-08), said like every other reading.
+      ...readNote('ndIntegrated'),
+      describedByRead(
+        yesNo('ndintegrated', state.ndIntegrated, (v) => {
+          state.ndIntegrated = v;
+          if (!v) state.integratedAdmittedTerm = undefined;
+          renderFollowUps();
+          onChange(state);
+        }),
+        'ndIntegrated',
+      ),
       ...(program === 'mscse' && state.ndIntegrated === true
         ? [
             el(

@@ -188,11 +188,11 @@
   ],
   "expectCourseLines": {
     "CSE 60641": [
-      "not counted yet — say which degrees this course has already counted toward, next to the course. No course may count toward three degrees, and at most 6 credits may count toward two (Graduate School)"
+      "not counted yet — say which degrees this course has already counted toward, next to the course"
     ],
     "CSE 60321": [
       "counts toward regular courses (3 cr)",
-      "from your Notre Dame MSCSE — counts in full as Ph.D. coursework, with no transfer approval and no §5.2 cap: the Graduate School treats the CSE MSCSE and Ph.D. as one graduate program (DGS 2026-10-03)"
+      "from your Notre Dame MSCSE — counts in full as Ph.D. coursework (not transfer credit)"
     ]
   }
 }

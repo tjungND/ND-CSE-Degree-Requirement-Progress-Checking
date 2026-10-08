@@ -25,9 +25,12 @@ export interface NextStepsInput {
   /** Courses the DGS still has to act on — the review card's list, split
    * (DGS 2026-09-27): not in the course rules yet (the DGS enters them),
    * or listed as case by case (the DGS decides for this student). */
-  review: { unlisted: number; caseByCase: number };
+  review: { unlisted: number; caseByCase: number; /** Every course in it is earlier coursework (from before this program). */ earlierOnly?: boolean };
   /** Items the Grad Admin could process now — the processing request's count. */
   processingCount: number;
+  /** Courses waiting for the student's answer — which degrees they already
+   * counted toward (UI review, 2026-10-08). */
+  needsAnswer?: string[];
 }
 
 const plural = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;
@@ -55,7 +58,7 @@ function reasonOf(line: CourseLine): string {
 
 /** "Your coursework: 5 courses count now, 1 is in progress, 4 are waiting for
  * the DGS (…), 1 does not count (…)." — from the course lines' marks. */
-export function courseworkSentence(report: AuditReport): string | undefined {
+export function courseworkSentence(report: AuditReport, needsAnswer: readonly string[] = []): string | undefined {
   const lines = report.courseLines;
   if (lines.length === 0) return undefined;
   const by = (mark: CourseLine['mark']) => lines.filter((l) => l.mark === mark);
@@ -64,7 +67,14 @@ export function courseworkSentence(report: AuditReport): string | undefined {
   if (counts > 0) parts.push(`${plural(counts, 'course')} count${counts === 1 ? 's' : ''} now`);
   const inProgress = by('in_progress').length;
   if (inProgress > 0) parts.push(`${inProgress} ${inProgress === 1 ? 'is' : 'are'} in progress`);
-  const pending = by('pending');
+  // A pending course that waits for the student's answer says so (UI review,
+  // 2026-10-08: "waiting for the DGS" left the student waiting).
+  const pendingAll = by('pending');
+  // A "not counted yet — …" line always waits on the student's own input.
+  const waitsOnStudent = (l: CourseLine): boolean => needsAnswer.includes(l.courseId) || /^not counted yet/.test(l.text);
+  const yours = pendingAll.filter(waitsOnStudent);
+  const pending = pendingAll.filter((l) => !waitsOnStudent(l));
+  if (yours.length > 0) parts.push(`${yours.length} need${yours.length === 1 ? 's' : ''} your answer (${yours.map((l) => l.courseId).join(', ')})`);
   if (pending.length > 0) parts.push(`${pending.length} ${pending.length === 1 ? 'is' : 'are'} waiting for the DGS (${pending.map((l) => l.courseId).join(', ')})`);
   const excluded = by('excluded');
   if (excluded.length > 0) {
@@ -82,7 +92,13 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   const hasCourses = student.courses.length > 0;
   // 1. What the transcript set and the student has not yet confirmed.
   const settings: string[] = [];
-  if (student.entryTermInferred) settings.push(`first semester ${termLabel(student.entryTerm)}`);
+  // A Ph.D. student who finished the Notre Dame MSCSE first: the term read is
+  // the MSCSE's, and the step names the action (UI review, 2026-10-08).
+  const inferred = student.entryTermInferred;
+  const earlierGraduate = (student.background ?? student.backgroundDraft)?.graduate;
+  const heldMscseReading = student.program === 'phd' && inferred !== undefined && inferred.how !== 'assumed' && !/admit-term|admission/.test(inferred.how) && (earlierGraduate === 'nd-mscse' || earlierGraduate === 'nd-4plus1');
+  if (heldMscseReading) steps.push({ text: `Set the semester you entered the Ph.D. (Your standing) — ${termLabel(student.entryTerm)}, read from your transcript, is your MSCSE’s first semester.`, href: '#standing' });
+  else if (student.entryTermInferred) settings.push(`first semester ${termLabel(student.entryTerm)}`);
   if (student.bachelorsAwardedInferred && student.bachelorsAwarded) settings.push(`bachelor’s degree ${termLabel(student.bachelorsAwarded)}`);
   if (settings.length > 0) steps.push({ text: `Check what your transcript set — ${settings.join(', ')} (Your standing).`, href: '#standing' });
   // The earlier-degrees questions, asked on the page since 2026-10-08 (DGS,
@@ -96,7 +112,17 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
           ? 'Check the answers about your earlier degrees in the Transcripts card and click Done — they decide which earlier transcripts to add and how §5.2 applies to them.'
           : 'Answer the questions about your earlier degrees in the Transcripts card — they decide which earlier transcripts to add and how §5.2 applies to them.',
       href: '#earlier-degrees',
+      // While the review holds only earlier coursework, the transfer and
+      // approvals rows wait on this answer too (UI review, 2026-10-08).
+      ...(review.earlierOnly ? { covers: ['shared.approvals', 'phd.transfer', 'ms.transfer'] } : {}),
     });
+  // The courses waiting for the student's own answer (UI review, 2026-10-08;
+  // a missing input stays on the list, DGS 2026-09-27).
+  const asked = input.needsAnswer ?? [];
+  if (asked.length > 0) {
+    const ids = asked.length === 1 ? asked[0]! : `${asked.slice(0, -1).join(', ')} and ${asked[asked.length - 1]!}`;
+    steps.push({ text: `Say which degrees ${ids} already counted toward — next to ${asked.length === 1 ? 'the course' : 'each course'} under Coursework.`, href: '#coursework' });
+  }
   // 2. The decisions the DGS has to make — the courses, two kinds (DGS
   // 2026-09-27); since policy review round 3 (P3-cse-1-2-2, DGS 2026-10-06)
   // also an advisor whose faculty status needs the DGS's approval and the
@@ -109,7 +135,11 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   const thesis = report.program === 'mscse';
   const advisorToDgs = advisor?.status === 'needs_dgs_review';
   const otherItems = (report.reviewFlags ?? []).filter((f) => !(advisorToDgs && ADVISOR_FLAG.test(f))).length;
-  if (reviewCount > 0 || advisorToDgs || otherItems > 0) {
+  // Only earlier coursework, before the earlier degrees are answered: the
+  // answer comes first and can change the list (UI review, 2026-10-08) — the
+  // "Answer the questions" step is already above.
+  const waitsForEarlierDegrees = student.background === undefined && review.earlierOnly === true && !advisorToDgs && otherItems === 0;
+  if ((reviewCount > 0 || advisorToDgs || otherItems > 0) && !waitsForEarlierDegrees) {
     const advisorPart = `your ${thesis ? 'thesis ' : ''}advisor’s faculty status needs the DGS’s approval (§2.3)`;
     let text: string;
     if (!advisorToDgs && otherItems === 0)
@@ -158,7 +188,7 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
     steps.push({ text: 'Propose your thesis topic, with your advisor’s approval, for the program’s approval (Academic Code §6.1.7).', href: '#milestones', covers: ['ms.thesis.topic'] });
   // 4. After the DGS answers; and what the Grad Admin can already record.
   const approvals = report.requirements.find((r) => r.id === 'shared.approvals');
-  if (approvals?.status === 'needs_dgs_review' || reviewCount > 0) steps.push({ text: 'When the DGS answers, come back to this page — it reads the latest course rules — and tick the box next to each course approved for you; then send the processing request, and the Grad Admin records it.', href: '#grad-admin', covers: ['shared.approvals'] });
+  if (!waitsForEarlierDegrees && (approvals?.status === 'needs_dgs_review' || reviewCount > 0)) steps.push({ text: 'When the DGS answers, come back to this page — it reads the latest course rules — and tick the box next to each course approved for you; then send the processing request, and the Grad Admin records it.', href: '#grad-admin', covers: ['shared.approvals'] });
   if (processingCount > 0) steps.push({ text: `Send the processing request (${plural(processingCount, 'item')}) — the Grad Admin records it.`, href: '#grad-admin' });
   // The master's candidacy application, once its conditions are in hand
   // (Academic Code §6.1.6 — policy review 2026-10-04, P2-dh-front-1-2-2).

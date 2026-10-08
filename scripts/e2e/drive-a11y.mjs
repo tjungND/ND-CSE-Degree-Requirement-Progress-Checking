@@ -216,7 +216,14 @@ async function checkDialog(s, baseUrl) {
   // answer that completes the questions leaves them (and the focus) in place,
   // saved, until Done; Done gives way to the one-line summary and puts focus
   // on its Change (review of Option 1, 2026-10-08).
-  for (const k of ['earlier.bachelors.elsewhere', 'earlier.sameplace.no', 'earlier.finished.yes']) { await s.evalJs(`(() => { const i = document.querySelector('[data-key="${k}"]'); i.focus(); i.click(); })()`); await s.settle(); }
+  // …and every answer keeps its focus, a follow-up included ("same
+  // university?" rebuilds its own box — UI review, 2026-10-08).
+  for (const k of ['earlier.bachelors.elsewhere', 'earlier.sameplace.no', 'earlier.finished.yes']) {
+    await s.evalJs(`(() => { const i = document.querySelector('[data-key="${k}"]'); i.focus(); i.click(); })()`);
+    await s.settle();
+    const at = await s.evalJs(`document.activeElement?.dataset?.key ?? document.activeElement?.tagName`);
+    if (at !== k) throw new Error(`answering ${k} must keep its focus, not move it to ${at}`);
+  }
   if (!(await s.evalJs(`!!document.querySelector('#earlier-degrees') && !!document.querySelector('[data-key="earlier.done"]')`))) throw new Error('complete: the questions stay, with Done');
   if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'earlier.finished.yes') throw new Error('the completing answer must keep its focus');
   await s.evalJs(`document.querySelector('#earlier-degrees').scrollIntoView({ block: 'start' })`);
@@ -225,6 +232,8 @@ async function checkDialog(s, baseUrl) {
   await s.settle();
   if (!(await s.evalJs(`!!document.querySelector('[data-key="transcripts.background"].background-line') && !document.querySelector('#earlier-degrees')`))) throw new Error('Done: the questions must give way to the one-line summary');
   if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'transcripts.background.change') throw new Error('Done must put focus on the summary’s Change');
+  // …and bring it into view (UI review, 2026-10-08: it landed off screen).
+  if (!(await s.evalJs(`(() => { const r = document.activeElement.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; })()`))) throw new Error('after Done the focused Change must be on screen');
   console.log('  opening notice: focus inside, Tab contained, Escape never closes it, Enter does nothing until the button is live and then continues like it, focus returns to the heading; the earlier-degrees questions are on the page, keep focus through the completing answer, and give way to a summary on Done');
 }
 

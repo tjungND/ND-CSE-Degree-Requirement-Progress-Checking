@@ -306,7 +306,9 @@ function requirementCard(r: RequirementResult): HTMLElement {
   // counted. Behind "Relevant Policies" (was "Details" until 2026-10-04): the engine's notes (rule, reason, next step,
   // Graduate School forms), the course-list link and the rule quote with its
   // source. The § chip that used to sit after the title lives there too.
-  const head = el('div', { class: 'req-head' }, el('span', { class: 'req-title' }, r.title), pill);
+  // A heading under its group's h3, so a screen reader can jump card to card
+  // (UI review, 2026-10-08); it looks as the span did.
+  const head = el('div', { class: 'req-head' }, el('h4', { class: 'req-title' }, r.title), pill);
   const chips = el('div', { class: 'req-chips' });
   if (r.deadline && r.status !== 'met') {
     // Deadlines in readable body-size type, coloured by state (usability
@@ -639,6 +641,12 @@ export function attentionRows(report: AuditReport, covered: ReadonlySet<string> 
   // round 3, P3-chg-phd-2; DGS 2026-10-06). Once the defense is dated the row
   // is in progress and follows the ordinary rules.
   const AFTER_DEFENSE = ['phd.dissertation.submitted', 'ms.thesis.submitted'];
+  // The MSCSE's last steps — the thesis defense, the project report — are no
+  // step until due this or next semester, or overdue (a retake after a failed
+  // defense): they have no deadline before then (UI review, 2026-10-08; like
+  // the dissertation defense above). The report cards are unchanged, and the
+  // thesis topic keeps its own step (P3-emails-4).
+  const MS_FINAL = ['ms.thesis.defense', 'ms.project.report'];
   const candidacyPassed = report.requirements.some((r) => r.id === 'phd.candidacy' && r.status === 'met');
   // Admission waits only for the OCE to be DATED: a late pass (or one the DGS
   // must confirm for coursework) still leaves the application to make — as the
@@ -648,6 +656,7 @@ export function attentionRows(report: AuditReport, covered: ReadonlySet<string> 
     /^(?:Not yet available:|You can take the exam once)/.test(r.detail) ||
     (AFTER_CANDIDACY.includes(r.id) && !candidacyPassed) ||
     (AFTER_DEFENSE.includes(r.id) && r.status === 'unmet') ||
+    (MS_FINAL.includes(r.id) && r.status !== 'met' && !(r.deadline?.state === 'due_soon' || r.deadline?.state === 'overdue')) ||
     (r.id === 'phd.candidacyAdmission' && oceOpen);
   // The OCE's own row is merged into the admission card and unscored (DGS
   // 2026-10-04), so the filter below dropped it — and while it is open the
