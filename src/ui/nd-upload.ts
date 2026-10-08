@@ -17,7 +17,8 @@ import { gpaText } from '../engine/requirements/shared.ts';
 import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../engine/ranges.ts';
 import { conferralTerm, termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, Student, Term, TermGpa } from '../engine/types.ts';
-import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse } from '../transcript/parse.ts';
+import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse, type TranscriptTerm } from '../transcript/parse.ts';
+import { mergeReading, readBackgroundFromNdTerms, type ReadingResult } from './background-read.ts';
 import { el, inactiveButton, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { plural } from './email-html.ts';
 import { ndRowLabel } from './external-upload.ts';
@@ -66,6 +67,9 @@ export interface NdPreview {
   termGpas?: TermGpa[];
   /** Parser warnings, shown inside the preview (not as vanishing toasts). */
   warnings: string[];
+  /** Each term's level, college and major (2026-10-08): what the
+   * earlier-degrees answer can be read from (background-read.ts). */
+  terms?: TranscriptTerm[];
 }
 let transcriptPreview: NdPreview | undefined;
 
@@ -185,6 +189,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
         // The registrar's figure only (2026-10-03); the program-only average is information.
         gpaChoice: transcriptGpa !== undefined ? 'transcript' : 'none',
         entryTerm: parsed.entryTerm,
+        ...(parsed.terms ? { terms: parsed.terms } : {}),
         // Ticked by default only while the entry term on the record is still
         // assumed or read from an earlier import: a term the student typed
         // under Your standing is theirs (DGS 2026-09-22: "Do not reset them if
@@ -602,6 +607,7 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
   let priorSet: Student['priorMs'] | undefined;
   let bachelorsSet: Term | undefined;
   let ndMastersSet = false;
+  let earlierRead = false as ReadingResult;
   args.update((s) => {
     if (tp.useEntryTerm && tp.entryTerm) {
       s.entryTerm = { ...tp.entryTerm.term };
@@ -666,6 +672,11 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
       .map((d) => ({ level: d.level as 'bachelors' | 'masters' | 'phd', date: d.date! }));
     // Pre-entry Notre Dame courses → prior coursework (2026-09-05).
     priorAdded = reclassifyNotreDameCourses(s).toPrior;
+    // What the transcript settles of the earlier-degrees answer (DGS
+    // 2026-10-08, Option 1) — the bachelor's, from its undergraduate terms and
+    // major; a graduate program in another department — filled in for the
+    // student to check, never over an answer already there.
+    earlierRead = mergeReading(s, readBackgroundFromNdTerms(tp.terms));
     if (s.background === undefined) deriveNdMasters(s); // an answered background settles this (2026-09-22)
     ndMastersSet = s.background === undefined && s.ndMasters !== undefined;
     // Prior GRADUATE coursework at Notre Dame sets "Prior graduate
@@ -712,8 +723,10 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
       (priorSet === 'completed'
         ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the degree awarded on your transcript.'
         : priorSet === 'unfinished'
-          ? ' Prior graduate study was set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; change it under Your standing if you did earn it.'
+          ? ' Prior graduate study was set to “Prior M.S., not completed” — no graduate degree award was found on your transcript; if you did earn it, say so in the earlier-degrees questions in the Transcripts card.'
           : '') +
-      (ndMastersSet ? ' “I already hold the MSCSE from Notre Dame” was ticked from the degree on your transcript — the §4.5 along-the-way row is left out for you.' : ''),
+      (ndMastersSet ? ' A Notre Dame master’s degree on your transcript was taken as the MSCSE — the §4.5 along-the-way row is left out for you; if it is another department’s, say so in the earlier-degrees questions in the Transcripts card.' : '') +
+      // Option 1 (DGS 2026-10-08): the earlier-degrees answers it filled in.
+      (earlierRead === 'disagree' ? ' Your transcripts disagree about your earlier degrees — answer those questions in the Transcripts card.' : earlierRead ? ' Your earlier degrees were partly filled in from it — check them in the Transcripts card.' : ''),
   );
 }

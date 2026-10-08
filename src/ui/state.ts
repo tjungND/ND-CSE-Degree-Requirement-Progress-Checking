@@ -101,6 +101,28 @@ function validBackground(v: unknown): Student['background'] {
     ...(asksAlsoElsewhere(graduate) && o['alsoElsewhere'] === true && typeof o['finished'] === 'boolean' ? { finished: o['finished'] as boolean } : {}),
   };
 }
+/** The incomplete earlier-degrees answer (2026-10-08, Option 1): each known
+ * field kept when well-formed, the rest dropped. */
+function validBackgroundDraft(v: unknown): Student['backgroundDraft'] {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const out: NonNullable<Student['backgroundDraft']> = {};
+  if (o['bachelors'] === 'nd-cse' || o['bachelors'] === 'nd-other' || o['bachelors'] === 'elsewhere') out.bachelors = o['bachelors'];
+  if (['none', 'nd-mscse', 'nd-4plus1', 'nd-mscse-transfer', 'nd-other', 'elsewhere'].includes(o['graduate'] as string)) out.graduate = o['graduate'] as NonNullable<Student['backgroundDraft']>['graduate'];
+  for (const k of ['ndIntegrated', 'samePlace', 'finished', 'alsoElsewhere'] as const) if (typeof o[k] === 'boolean') out[k] = o[k] as boolean;
+  for (const k of ['integratedAdmittedTerm', 'transferredTerm'] as const) if (validTerm(o[k])) out[k] = { season: (o[k] as Term).season, year: (o[k] as Term).year };
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+/** Where each read part came from (2026-10-08): strings only, for known keys. */
+function validBackgroundRead(v: unknown): Student['backgroundRead'] {
+  if (!v || typeof v !== 'object') return undefined;
+  const out: NonNullable<Student['backgroundRead']> = {};
+  for (const k of ['bachelors', 'ndIntegrated', 'integratedAdmittedTerm', 'graduate', 'samePlace', 'finished', 'transferredTerm', 'alsoElsewhere'] as const) {
+    const s = (v as Record<string, unknown>)[k];
+    if (typeof s === 'string' && s.length <= 300) out[k] = s;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 function validNdMasters(v: unknown): Student['ndMasters'] {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
@@ -403,6 +425,10 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     bachelorsAwarded,
     bachelorsAwardedInferred: validBachelorsInferred(raw['bachelorsAwardedInferred'], bachelorsAwarded),
     background: validBackground(raw['background']),
+    // The incomplete answer and what was read from transcripts (2026-10-08): kept only while no complete answer exists.
+    // Set explicitly: `...d` above would otherwise carry the raw values through.
+    backgroundDraft: validBackground(raw['background']) === undefined ? validBackgroundDraft(raw['backgroundDraft']) : undefined,
+    backgroundRead: validBackgroundRead(raw['backgroundRead']),
     ndMasters: validNdMasters(raw['ndMasters']),
     ...(typeof raw['integratedBsMs'] === 'boolean' ? { integratedBsMs: raw['integratedBsMs'] as boolean } : {}),
     ...(typeof raw['integratedBsMs'] === 'boolean' && raw['integratedBsMsInferred'] && typeof (raw['integratedBsMsInferred'] as Record<string, unknown>)['how'] === 'string'

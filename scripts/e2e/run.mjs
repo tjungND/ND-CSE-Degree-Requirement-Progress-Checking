@@ -159,6 +159,7 @@ try {
       ndOfficial: 'nd-official-transcript.pdf',
       noLines: 'no-lines-transcript.pdf',
       ndUgInProgress: 'nd-undergrad-in-progress-transcript.pdf',
+      ndInsideNd: 'nd-insidend-transcript.pdf',
     }).map(([name, file]) => [name, join(root, 'tests', 'fixtures', file)]),
   );
 

@@ -16,6 +16,10 @@ const row = (id: string, status: RequirementResult['status'], extra: Partial<Req
 const report = (requirements: RequirementResult[], courseLines: CourseLine[] = []): AuditReport =>
   ({ program: 'phd', requirements, courseLines, summary: { met: 0, conditional: 0, scored: 0 }, warnings: [], tracks: [], reviewFlags: [] }) as unknown as AuditReport;
 
+// An answered earlier-degrees question (2026-10-08): unanswered, Next steps
+// leads with asking it (the test at the end of this file).
+const ANSWERED: Student['background'] = { bachelors: 'elsewhere', graduate: 'none' };
+
 describe('next steps (DGS 2026-09-27)', () => {
   it('the coursework sentence counts the marks and quotes a refused line’s own reason', () => {
     const r = report([], [
@@ -31,7 +35,7 @@ describe('next steps (DGS 2026-09-27)', () => {
     assert.equal(courseworkSentence(report([])), undefined);
   });
   it('each step appears only when it applies, in the order a student takes them', () => {
-    const s: Student = { ...phdStudent(), courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
+    const s: Student = { ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
     s.entryTermInferred = { how: 'the admit-term line on your transcript' };
     s.bachelorsAwarded = { season: 'spring', year: 2021 };
     s.bachelorsAwardedInferred = { how: 'the Bachelor of Science awarded 2021-05-16' };
@@ -51,12 +55,12 @@ describe('next steps (DGS 2026-09-27)', () => {
     assert.deepEqual(steps[2]?.covers, ['shared.advisor']);
   });
   it('a settled record has only the advisor summary left; an empty record has nothing', () => {
-    const s: Student = { ...phdStudent(), courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
+    const s: Student = { ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
     s.attestations.advisorApprovedPlan = true;
     const r = report([row('shared.advisor', 'met'), row('shared.approvals', 'not_applicable')]);
     assert.deepEqual(nextSteps({ report: r, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }).map((x) => x.text), ['Send the summary to your advisor whenever you like.']);
     assert.deepEqual(nextSteps({ report: r, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 2 }).map((x) => x.text), ['Send the processing request (2 items) — the Grad Admin records it.', 'Send the summary to your advisor whenever you like.']);
-    assert.deepEqual(nextSteps({ report: report([row('shared.advisor', 'met')]), student: phdStudent(), review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }), []);
+    assert.deepEqual(nextSteps({ report: report([row('shared.advisor', 'met')]), student: { ...phdStudent(), background: ANSWERED }, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }), []);
   });
   it('the nearest deadline still ahead names the row and its chip', () => {
     const r = report([
@@ -77,7 +81,7 @@ describe('next steps (DGS 2026-09-27)', () => {
 // request's non-course items, and says the advisor's when the DGS must
 // approve it; neither triggers the "tick the box next to each course" step.
 describe('the advisor step and the review request’s other items (P3-cse-1-2-2)', () => {
-  const withCourse = (): Student => ({ ...phdStudent(), courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }], attestations: { advisorApprovedPlan: true } });
+  const withCourse = (): Student => ({ ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }], attestations: { advisorApprovedPlan: true } });
   const steps = (r: AuditReport, review = { unlisted: 0, caseByCase: 0 }) => nextSteps({ report: r, student: withCourse(), review, processingCount: 0 });
   const FLAG = 'Advisor’s faculty status: Prof. Example — not sure whether tenured or tenure-track CSE faculty. A dissertation director must be tenured or tenure-track CSE faculty (§2.3; Academic Code §6.2.7) — an advisor who is tenured or tenure-track in another Notre Dame department needs the DGS’s approval (§2.3); an advisor who is not tenured or tenure-track cannot advise alone — a tenured or tenure-track co-advisor is required (department policy; Academic Code §6.2.7; DGS Handbook §10.3.1).';
   const withFlags = (rows: RequirementResult[], flags: string[]) => ({ ...report(rows), reviewFlags: flags }) as AuditReport;
@@ -122,7 +126,7 @@ describe('the advisor step and the review request’s other items (P3-cse-1-2-2)
   it('from the engine: a saved record with a name and no answer; then “Not sure”', () => {
     const rules = buildRules();
     const s = (advisorTtt?: 'yes' | 'no' | 'unsure'): Student => ({
-      ...phdStudent({ entryTerm: { season: 'fall', year: 2025 }, gpa: 3.5, courses: [ndCourse('CSE 60641', { term: { season: 'fall', year: 2025 } })] }),
+      ...phdStudent({ background: ANSWERED, entryTerm: { season: 'fall', year: 2025 }, gpa: 3.5, courses: [ndCourse('CSE 60641', { term: { season: 'fall', year: 2025 } })] }),
       milestones: { advisorIdentified: '2025-10-01', advisorName: 'Prof. Example', ...(advisorTtt ? { advisorTtt } : {}) },
       attestations: { advisorApprovedPlan: true },
     });
@@ -133,5 +137,16 @@ describe('the advisor step and the review request’s other items (P3-cse-1-2-2)
     assert.equal(unsure[0], 'Send the review request — your advisor’s faculty status needs the DGS’s approval (§2.3).', JSON.stringify(unsure));
     assert.ok(!unsure.some((t) => /tick the box next to each course/.test(t)));
     assert.ok(!run(s('yes')).some((t) => /advisor’s (name|faculty status)|tenured or tenure-track/.test(t)), 'a Yes leaves nothing to do');
+  });
+});
+
+// The earlier-degrees questions moved from the opening dialog to the page (DGS
+// 2026-10-08, Option 1): unanswered, Next steps asks for them.
+describe('the earlier-degrees questions, asked on the page (2026-10-08)', () => {
+  it('unanswered: a step pointing at the Transcripts card; answered: none', () => {
+    const r = report([row('shared.advisor', 'met')]);
+    const steps = nextSteps({ report: r, student: phdStudent(), review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 });
+    assert.deepEqual(steps[0], { text: 'Answer the questions about your earlier degrees in the Transcripts card — they decide which earlier transcripts to add and how §5.2 applies to them.', href: '#earlier-degrees' });
+    assert.equal(nextSteps({ report: r, student: { ...phdStudent(), background: ANSWERED }, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }).length, 0);
   });
 });

@@ -237,6 +237,7 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   };
   /** insideND's "College   Major   Academic Standing" header: the values are the next line. */
   let expectCollegeMajor = false;
+  let collegeMajorCells = 0; // the header's columns: College / Major (/ Academic Standing)
   /** Inside the TRANSCRIPT TOTALS block (2026-10-08): its "( Graduate )" /
    * "( Undergraduate )" lines are the totals' level, never the last term's —
    * read as a term hint, they relabelled the last completed term's courses
@@ -399,13 +400,17 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     if (expectCollegeMajor) {
       expectCollegeMajor = false;
       const cells = rawLine.trim().split(/\s{3,}/);
-      if (term && !courseMatch && cells.length >= 2) {
+      // Only a row with every column filled: with one cell missing there is
+      // no telling which (a blank major under "Academic Standing" read the
+      // standing as the major — review of Option 1, 2026-10-08).
+      if (term && !courseMatch && cells.length === collegeMajorCells) {
         recordTerm(term, { college: cells[0]!.trim(), major: cells[1]!.trim() });
         continue;
       }
     }
     if (/^COLLEGE\s{2,}MAJOR\b/.test(rawLine.trim().toUpperCase())) {
       expectCollegeMajor = true;
+      collegeMajorCells = rawLine.trim().split(/\s{3,}/).length;
       continue;
     }
     const labelled = /^(COLLEGE|MAJOR)\s*:\s*(.+)$/i.exec(line);

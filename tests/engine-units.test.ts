@@ -609,7 +609,7 @@ describe('undergraduate Notre Dame coursework', () => {
 
   it('a regular bachelor’s (not a 4+1) is routed to the DGS for the same course on the Ph.D. tab — the Academic Code (§4.6) allows it with the program’s advance approval (2026-10-03); it still serves §4.4.1 and §4.4.2', () => {
     const s = student([ug('CSE 60641', 'neither'), ug('CSE 60111', 'neither')], { integratedBsMs: undefined });
-    assert.match(lineFor(s, 'CSE 60641'), /^waiting for the DGS — would count toward regular courses \(3 cr\) once approved; not used by an earlier degree; taken as an undergraduate outside the Integrated 4\+1 program — the Academic Code \(§4\.6\) lets it meet Ph\.D\. requirements only with the program’s advance approval; the DGS decides\. If you were in the 4\+1, say so in the earlier-degrees questions \(Your standing → Change\)/);
+    assert.match(lineFor(s, 'CSE 60641'), /^waiting for the DGS — would count toward regular courses \(3 cr\) once approved; not used by an earlier degree; taken as an undergraduate outside the Integrated 4\+1 program — the Academic Code \(§4\.6\) lets it meet Ph\.D\. requirements only with the program’s advance approval; the DGS decides\. If you were in the 4\+1, say so in the earlier-degrees questions in the Transcripts card/);
     assert.match(detail(s, 'phd.credits.regular'), /0 of 24 credits complete\. 6 pending review\/approval/);
     assert.match(detail(s, 'phd.qualifier.core.os'), /Satisfied by CSE 60641 \(Notre Dame, before entering the program\)/);
     assert.match(detail(s, 'phd.qualifier.categories'), /2 qualifying courses covering 2 distinct groups/);

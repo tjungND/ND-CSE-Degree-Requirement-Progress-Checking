@@ -71,16 +71,18 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
         // the day the tick arrived).
         const ack = document.querySelector('[data-key="consent.ack"]');
         if (ack && !ack.checked) ack.click();
-        if (btn.hasAttribute('disabled')) {
-          document.querySelector('[data-key="consent.program.phd"]').click();
-          document.querySelector('[data-key="consent.bachelors.elsewhere"]')?.click();
-          document.querySelector('[data-key="consent.graduate.elsewhere"]')?.click();
-          document.querySelector('[data-key="consent.sameplace.no"]')?.click();
-          document.querySelector('[data-key="consent.finished.yes"]')?.click();
-        }
+        if (btn.hasAttribute('disabled')) document.querySelector('[data-key="consent.program.phd"]').click();
         btn.click();
       })()`);
       await waitFor(`!document.querySelector('.consent-overlay')`);
+      // The earlier-degrees questions are on the page since 2026-10-08 (DGS,
+      // Option 1): answered as before — a bachelor's elsewhere and a finished
+      // degree elsewhere at another university, so every previous row shows.
+      // One click per render: each answer re-renders the questions.
+      // Then Done: the questions stay open, saved, until it (2026-10-08).
+      for (const k of ['earlier.bachelors.elsewhere', 'earlier.graduate.elsewhere', 'earlier.sameplace.no', 'earlier.finished.yes', 'earlier.done']) {
+        await evalJs(`document.querySelector('[data-key="${k}"]')?.click()`);
+      }
     }
   };
 

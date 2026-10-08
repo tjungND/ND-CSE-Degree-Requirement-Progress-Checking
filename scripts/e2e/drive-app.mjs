@@ -566,12 +566,12 @@ export async function driveApp(s, baseUrl) {
   await s.waitFor(`document.querySelector('.consent-overlay')`);
   await s.evalJs(`(() => {
     document.querySelector('[data-key="consent.program.mscse"]').click();
-    document.querySelector('[data-key="consent.bachelors.elsewhere"]').click();
-    document.querySelector('[data-key="consent.graduate.none"]').click();
     document.querySelector('[data-key="consent.ack"]').click();
     document.querySelector('.consent-overlay button.btn').click();
   })()`);
   await s.waitFor(`!document.querySelector('.consent-overlay')`);
+  // The earlier degrees, on the page since 2026-10-08 (Option 1).
+  for (const k of ['earlier.bachelors.elsewhere', 'earlier.graduate.none', 'earlier.done']) await s.evalJs(`document.querySelector('[data-key="${k}"]')?.click()`);
   await s.evalJs(`(() => { window.confirm = window.__confirm; })()`);
   await s.waitFor(
     `[...document.querySelectorAll('.req-title')].some(e => e.textContent.includes('project'))`,

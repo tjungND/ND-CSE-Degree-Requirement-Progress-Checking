@@ -331,6 +331,43 @@ const COMBINED = [
   'Cumulative GPA: 3.80',
 ];
 
+// insideND's unofficial-transcript layout (2026-10-08, Option 1): each term
+// opens with "Term: …", its College / Major table, then the course rows with a
+// Level column, and closes with "Term Totals (Undergraduate | Graduate)"; the
+// TRANSCRIPT TOTALS block prints one line per level. No degree is printed.
+// Invented content in the shape of the DGS's redacted copies: a Notre Dame
+// bachelor's whose last undergraduate major is Computer Engineering, then CSE
+// graduate terms — the earlier-degrees question reads "Notre Dame — CSE".
+const insideNdTerm = (term, level, college, major, rows) => [
+  `Term: ${term}`,
+  'College   Major   Academic Standing',
+  `${college}   ${major}   Good Standing`,
+  'Subject   Course   Campus   Level   Title   Grade   Credit Hours   Quality Points   R',
+  ...rows,
+  `Term Totals (${level})   Attempt Hours   Passed Hours   Earned Hours   GPA Hours   Quality Points   GPA`,
+  'Current Term   3.000   3.000   3.000   3.000   12.000   4.00',
+];
+const ND_INSIDEND = [
+  'University of Notre Dame',
+  'Unofficial Academic Transcript',
+  'INSTITUTION CREDIT',
+  ...insideNdTerm('Fall Semester 2021', 'Undergraduate', 'First Year of Studies', 'Computer Science', ['MATH 10550   Main   UG   Calculus I   A   4.000   16.000']),
+  ...insideNdTerm('Spring Semester 2025', 'Undergraduate', 'College of Engineering', 'Computer Engineering', ['CSE 40113   Main   UG   Design/Analysis of Algorithms   A   3.000   12.000']),
+  ...insideNdTerm('Fall Semester 2025', 'Graduate', 'College of Engineering', 'Computer Science & Engineering', ['CSE 60111   Main   GR   Complexity and Algorithms   A   3.000   12.000']),
+  ...insideNdTerm('Spring Semester 2026', 'Graduate', 'College of Engineering', 'Computer Science & Engineering', ['CSE 60641   Main   GR   Graduate Operating Systems   A   3.000   12.000']),
+  'TRANSCRIPT TOTALS',
+  'Transcript Totals   Attempt Hours   Passed Hours   Earned Hours   GPA Hours   Quality Points   GPA',
+  '( Graduate )',
+  'Overall   6.000   6.000   6.000   6.000   24.000   4.00',
+  '( Undergraduate )',
+  'Overall   7.000   7.000   7.000   7.000   28.000   4.00',
+  'COURSE(S) IN PROGRESS',
+  'Term: Fall Semester 2026',
+  'College   Major',
+  'College of Engineering   Computer Science & Engineering',
+  'CSE 60876   Main   GR   Research Methods   3.000',
+];
+
 writeFileSync(join(here, 'nd-transcript.pdf'), makePdf(ND));
 // The same record as an OFFICIAL transcript (DGS 2026-09-15: a previous-degree
 // slot refuses anything marked unofficial), for the ND-in-a-previous-slot flow.
@@ -338,6 +375,21 @@ writeFileSync(join(here, 'nd-official-transcript.pdf'), makePdf(ND.map((l) => (l
 writeFileSync(join(here, 'nd-undergrad-transcript.pdf'), makePdf(ND_UNDERGRAD));
 writeFileSync(join(here, 'nd-undergrad-in-progress-transcript.pdf'), makePdf(ND_UNDERGRAD_IN_PROGRESS));
 writeFileSync(join(here, 'combined-transcript.pdf'), makePdf(COMBINED));
+// Each cell at its column's x, as insideND draws the tables (a single text
+// stream would close the gaps the College / Major split relies on).
+const insideNdColumns = (cells) =>
+  cells.length === 9 ? [40, 75, 110, 145, 175, 330, 360, 410, 470] // the course table's header
+  : cells.length === 7 && /^[A-Z]{2,5} \d{5}$/.test(cells[0]) ? [40, 110, 145, 175, 330, 360, 410] // a course row
+  : cells.length === 7 ? [40, 170, 230, 290, 350, 400, 470] // a totals row
+  : cells.length === 5 ? [40, 110, 145, 175, 360] // a course in progress
+  : [40, 200, 400]; // College / Major (/ Academic Standing), or a single line
+writeFileSync(join(here, 'nd-insidend-transcript.pdf'), makePositionedPdf([
+  ND_INSIDEND.flatMap((line, i) => {
+    const cells = line.split(/ {3,}/);
+    const xs = insideNdColumns(cells);
+    return cells.map((text, c) => ({ x: xs[c], y: 760 - 11 * i, text, size: 7 }));
+  }),
+]));
 writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
 writeFileSync(join(here, 'uc-system-transcript.pdf'), makePdf(UC_SYSTEM));

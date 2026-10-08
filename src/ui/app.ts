@@ -37,6 +37,7 @@ import {
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
 import { applyBackground, backgroundQuestions, choiceRow, completeBackground, describeBackground, openBackgroundDialog, type Background } from './background.ts';
+import { draftForProgram, reconcileInferences, settleDraft, withdrawBackground } from './background-read.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
@@ -168,7 +169,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         checked: prefill?.program === value,
         onChange: () => {
           chosenProgram = value;
-          renderQuestions();
           gate();
         },
       }),
@@ -177,13 +177,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // Nothing is pre-selected for a student with no record on this device, and
   // the button stays inactive until they answer — the report must not render
   // against a program nobody chose.
-  // The earlier-degrees questions (DGS 2026-09-22) sit under the program
-  // choice, and every family must be answered before the button works and
-  // before Escape closes the dialog (DGS 2026-09-23: "force the selections in
-  // each family") — a record saved before the questions existed is asked
-  // them on its next visit, like a new one.
-  let chosenBackground: Partial<Background> | undefined = prefill?.background;
-  const answered = (): boolean => chosenProgram !== undefined && completeBackground(chosenBackground, chosenProgram) !== undefined;
+  // Only the program is asked here since 2026-10-08 (DGS, Option 1: "ask only
+  // the program up front"). The earlier-degrees questions, asked here from
+  // 2026-09-22 (and forced on 2026-09-23), are read from the imported
+  // transcripts where they can be and asked on the page — in the Transcripts
+  // card — for the rest (src/ui/background-read.ts).
+  const answered = (): boolean => chosenProgram !== undefined;
   const isReady = (): boolean => ack.checked && answered();
   // Why the button waits, said beside it (DGS 2026-09-29: a grey button with
   // no reason was the dialog's last line) — the tick, the questions, or both.
@@ -194,37 +193,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // DGS 2026-09-30: say that the notice at the top must be acknowledged.
     hint.textContent =
       !ack.checked && !answered()
-        ? 'To continue, acknowledge the notice at the top by checking its box, and answer the questions.'
+        ? 'To continue, acknowledge the notice at the top by checking its box, and choose your degree.'
         : !ack.checked
           ? 'To continue, acknowledge the notice at the top by checking its box.'
-          : 'Answer the questions above to continue.';
+          : 'Choose your degree above to continue.';
     hint.hidden = isReady();
   };
-  // The questions depend on the program (an MSCSE student cannot already hold
-  // the MSCSE; a Notre Dame CSE bachelor's asks about the 4+1 only for the
-  // MSCSE), so they are rebuilt whenever the program radio changes.
-  const backgroundBlock = el('div', {});
-  // One family at a time (DGS 2026-09-23): nothing below the program choice
-  // until it is made, then each question once the one before it is answered.
-  const renderQuestions = (): void => {
-    if (chosenProgram === undefined) {
-      backgroundBlock.replaceChildren();
-      return;
-    }
-    backgroundBlock.replaceChildren(
-      backgroundQuestions(
-        chosenBackground,
-        'consent',
-        chosenProgram,
-        (b) => {
-          chosenBackground = b;
-          gate();
-        },
-        true,
-      ),
-    );
-  };
-  renderQuestions();
   gate();
   const consentDialog = el(
     'dialog',
@@ -253,7 +227,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ').',
       ),
       el('fieldset', { class: 'field group step consent-program-group' }, el('legend', { class: 'step-title' }, 'Which degree are you working toward?'), programRadios),
-      backgroundBlock,
       el('div', { class: 'consent-actions' }, agreeButton, hint),
     ),
   );
@@ -274,12 +247,32 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // anything can observe the notice gone, the page behind it already shows
     // the chosen program — otherwise a script (or a fast reader) can act on a
     // page that is about to re-render underneath them.
-    const answered = completeBackground(chosenBackground, chosenProgram ?? student.program);
-    const backgroundChanged = answered !== undefined && JSON.stringify(answered) !== JSON.stringify(student.background);
-    if ((chosenProgram && chosenProgram !== student.program) || backgroundChanged) {
+    const programChanged = chosenProgram !== undefined && chosenProgram !== student.program;
+    // A saved answer missing a follow-up asked since it was given (the 4+1
+    // question, "finished", "also elsewhere") was completed here while this
+    // dialog asked the earlier degrees (2026-09-23 to 2026-10-07); now it
+    // goes back to a draft and is asked on the page (policy review of Option
+    // 1, 2026-10-08).
+    const incomplete = student.background !== undefined && completeBackground(student.background, chosenProgram ?? student.program) === undefined;
+    if (programChanged || incomplete) {
       update((s) => {
-        if (chosenProgram) s.program = chosenProgram;
-        if (answered) applyBackground(s, answered);
+        if (programChanged) s.program = chosenProgram!;
+        // An earlier-degrees answer that does not fit the new program (the
+        // MSCSE cannot already hold the MSCSE) goes back to being a draft,
+        // asked again on the page; one that fits is re-applied for it.
+        if (s.background !== undefined) {
+          const fits = completeBackground(s.background, s.program);
+          if (fits) applyBackground(s, fits);
+          else withdrawBackground(s, draftForProgram(s.background, s.program));
+        } else if (s.backgroundDraft !== undefined) {
+          // A draft keeps what still applies, and is applied if that is all.
+          const d = draftForProgram(s.backgroundDraft, s.program);
+          s.backgroundDraft = Object.keys(d).length > 0 ? d : undefined;
+          if (s.backgroundRead) for (const k of Object.keys(s.backgroundRead) as (keyof typeof d)[]) if (d[k] === undefined) delete s.backgroundRead[k];
+          if (s.backgroundRead && Object.keys(s.backgroundRead).length === 0) s.backgroundRead = undefined;
+          settleDraft(s);
+          reconcileInferences(s);
+        }
       });
     }
     if (consentDialog.open) consentDialog.close();
@@ -449,14 +442,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // registered at the GRADUATE level yet dated inside the bachelor's degree
     // is the Integrated program's signature — a regular bachelor's registers
     // its 60000-level electives as undergraduate rows.
-    if (student.background === undefined && student.integratedBsMs === undefined && student.bachelorsAwarded !== undefined) {
+    // Not against a partial answer that already settles it (2026-10-08): a
+    // "No" to the 4+1, or a bachelor's that is not Notre Dame CSE's.
+    const draft = student.backgroundDraft;
+    const draftSettles4plus1 = draft?.ndIntegrated !== undefined || (draft?.bachelors !== undefined && draft.bachelors !== 'nd-cse');
+    if (student.background === undefined && !draftSettles4plus1 && student.integratedBsMs === undefined && student.bachelorsAwarded !== undefined) {
       const signature = student.courses.find(
         (c) => isNotreDameCourse(c) && c.registeredLevel === 'graduate' && termIndex(c.term) <= termIndex(student.bachelorsAwarded!),
       );
       if (signature) {
         student.integratedBsMs = true;
         student.integratedBsMsInferred = { how: `your Notre Dame transcript, which registers ${signature.courseId} at the graduate level inside your bachelor’s degree` };
-        notices.push('Integrated B.S. + M.S. (4+1) set to “Yes” — your Notre Dame transcript registers graduate-level coursework inside your bachelor’s degree. Change it in the earlier-degrees questions (Your standing → Change) if that is wrong.');
+        notices.push('Integrated B.S. + M.S. (4+1) set to “Yes” — your Notre Dame transcript registers graduate-level coursework inside your bachelor’s degree. Change it in the earlier-degrees questions in the Transcripts card if that is wrong.');
       }
     }
     if (student.program === 'phd') {
@@ -986,15 +983,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // the opening dialog's earlier-degrees questions settle all three
     // (applyBackground), and this line says what they settled, with the way
     // to change it. A record from before the questions shows the way to answer.
+    // Unanswered, the questions are in the Transcripts card (DGS 2026-10-08,
+    // Option 1), partly answered from the transcripts imported there.
     const changeKey = 'standing.background.change';
+    const readNote = student.background && student.backgroundRead ? ' (partly read from your transcripts — check it)' : '';
     const earlierDegreesLine = el(
       'p',
       { class: 'hint background-line', 'data-key': 'standing.background' },
       el('strong', {}, 'Earlier degrees: '),
-      student.background ? describeBackground(student.background) + ' — ' : 'not answered yet — ',
-      el('button', { class: 'btn tiny link', 'data-key': changeKey, onclick: () => openBackgroundDialog(student, update, changeKey) }, student.background ? 'Change' : 'Answer two questions'),
-      '.',
-      backgroundConsequence(),
+      ...(student.background
+        ? [describeBackground(student.background) + readNote + ' — ', el('button', { class: 'btn tiny link', 'data-key': changeKey, onclick: () => openBackgroundDialog(student, update, changeKey) }, 'Change'), '.', backgroundConsequence()]
+        : ['not answered yet — ', el('a', { href: '#earlier-degrees', 'data-key': 'standing.background.goto' }, 'answer them in the Transcripts card'), '.']),
     );
     // Bachelor's degree awarded (DGS 2026-09-06): graduate-level courses dated
     // in or before this term earn no transfer credit — §5.2 needs graduate
@@ -1803,7 +1802,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                         ? '60000-level courses your bachelor’s degree did not use, whenever you took them, and CSE courses below that inside §3.2’s allowance'
                         : student.integratedBsMs === false
                           ? 'CSE courses below the 60000 level inside §3.2’s allowance — 60000-level courses you took as an undergraduate do not count (§3.5); only students in the Integrated B.S. + M.S. program may count them'
-                          : 'CSE courses below the 60000 level inside §3.2’s allowance, and 60000-level courses only if you were in the Integrated B.S. + M.S. (4+1) program (§3.5) — answer that question under Your standing'
+                          : 'CSE courses below the 60000 level inside §3.2’s allowance, and 60000-level courses only if you were in the Integrated B.S. + M.S. (4+1) program (§3.5) — the earlier-degrees questions in the Transcripts card ask whether you were'
                     }. Up to ${sharedCreditsWord()} credits may apply to both your bachelor’s degree and your MSCSE (§3.5). This page chose them for you — your 40000-level CSE courses first, best grade first — and each course’s line says whether it will apply to both degrees, to your MSCSE only, or why it does not count.`
                 : student.program === 'phd'
                   ? `Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2). Only courses relevant to the Algorithms, Operating Systems, and Computer Architecture core-knowledge areas (§4.4.1) are listed here`
@@ -1869,7 +1868,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : null,
       ndTranscriptUpload(ndArgs),
       ndPreviewOpen() ? ndTranscriptPreviewBlock(ndArgs) : null,
-      ...priorTranscriptSection({ student, rules, update, toast, toastWithAction, render, blocked: busy }),
+      ...priorTranscriptSection({ student, rules, update, toast, toastWithAction, render, blocked: busy, setFocusAfterRender }),
     );
   }
 

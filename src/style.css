@@ -242,6 +242,8 @@ html.embed dialog.consent-overlay::backdrop { background: transparent; }
 fieldset.field.group.step { margin: 16px 0 0; counter-increment: step; }
 legend.step-title { font-size: 15px; font-weight: 700; color: var(--navy); margin: 0 0 8px; padding: 0; }
 legend.step-title::before { content: counter(step) '. '; }
+/* The opening dialog asks one question since 2026-10-08 (Option 1): no number. */
+.consent-program-group > legend.step-title::before { content: none; }
 .choices { display: flex; flex-direction: column; gap: 6px; }
 .choices.inline { flex-direction: row; flex-wrap: wrap; }
 .choices.inline .choice { flex: 1 1 120px; }

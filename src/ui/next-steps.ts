@@ -84,6 +84,10 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   if (student.entryTermInferred) settings.push(`first semester ${termLabel(student.entryTerm)}`);
   if (student.bachelorsAwardedInferred && student.bachelorsAwarded) settings.push(`bachelor’s degree ${termLabel(student.bachelorsAwarded)}`);
   if (settings.length > 0) steps.push({ text: `Check what your transcript set — ${settings.join(', ')} (Your standing).`, href: '#standing' });
+  // The earlier-degrees questions, asked on the page since 2026-10-08 (DGS,
+  // Option 1: the opening dialog asks only the program).
+  if (student.background === undefined)
+    steps.push({ text: 'Answer the questions about your earlier degrees in the Transcripts card — they decide which earlier transcripts to add and how §5.2 applies to them.', href: '#earlier-degrees' });
   // 2. The decisions the DGS has to make — the courses, two kinds (DGS
   // 2026-09-27); since policy review round 3 (P3-cse-1-2-2, DGS 2026-10-06)
   // also an advisor whose faculty status needs the DGS's approval and the

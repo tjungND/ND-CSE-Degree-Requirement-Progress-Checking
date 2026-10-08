@@ -112,5 +112,9 @@ export function priorStudyLabel(student: Student): string {
   // A degree elsewhere beside it (P3-prior-programs-1; DGS 2026-10-07).
   if (student.program === 'phd' && (g === 'nd-mscse' || g === 'nd-4plus1'))
     return `MSCSE at Notre Dame (one graduate program with the Ph.D.); ${b?.alsoElsewhere ? (b.finished ? 'a completed graduate degree elsewhere' : 'an unfinished graduate program elsewhere') : 'no graduate degree elsewhere'}`;
+  // Unanswered, and nothing read from a transcript: the emails must not say
+  // "no prior graduate degree" for a student nobody has asked yet (review of
+  // Option 1, 2026-10-08 — the opening dialog no longer forces the answer).
+  if (b === undefined && student.priorMs === 'none' && student.priorMsInferred !== true) return 'not answered yet';
   return PRIOR_LABELS[student.priorMs];
 }

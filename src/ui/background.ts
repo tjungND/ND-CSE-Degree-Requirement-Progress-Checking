@@ -150,6 +150,19 @@ export function priorSlotsFor(b: Background | undefined): PriorSlot[] {
   return slots;
 }
 
+/** The rows for an answer still being given (2026-10-08, Option 1): a row
+ * stays until the answer rules it out — the Undergraduate row unless the
+ * bachelor's is known to be Notre Dame's, the Master's and Ph.D. rows unless
+ * the earlier graduate history is known to hold nothing from elsewhere. */
+export function priorSlotsForDraft(b: Partial<Background> | undefined): PriorSlot[] {
+  if (!b) return ['bachelors', 'masters', 'phd'];
+  const slots: PriorSlot[] = [];
+  if (b.bachelors === undefined || b.bachelors === 'elsewhere') slots.push('bachelors');
+  const noneElsewhere = b.graduate === 'none' || b.graduate === 'nd-other' || (asksAlsoElsewhere(b.graduate) && b.alsoElsewhere === false);
+  if (!noneElsewhere) slots.push('masters', 'phd');
+  return slots;
+}
+
 /** One line for the cards: "Bachelor’s: another university · Graduate degree before this program: none". */
 export function describeBackground(b: Background): string {
   const bs =
@@ -208,7 +221,19 @@ export function backgroundQuestions(
    * family appears only once the one before it is answered. The Change
    * dialog shows them all, since its answers already exist. */
   sequential = false,
+  /** Which answers were read from transcripts, and from where (2026-10-08,
+   * Option 1): each such question says so, for the student to check. */
+  read: Partial<Record<keyof Background, string>> = {},
 ): HTMLElement {
+  /** "Read from your transcript: … — change it if it is wrong." under a question. */
+  const readNote = (k: keyof Background): HTMLElement[] =>
+    read[k] ? [el('p', { class: 'hint read-from', id: `${prefix}-read-${k}`, 'data-key': `${prefix}.read.${k}` }, `Read from your transcripts: ${read[k]} — change it if it is wrong.`)] : [];
+  /** Each choice of a question with a read note is described by it, so a
+   * screen reader says it with the choice (review of Option 1, 2026-10-08). */
+  const describedByRead = (box: HTMLElement, k: keyof Background): HTMLElement => {
+    if (read[k]) for (const i of box.querySelectorAll('input')) i.setAttribute('aria-describedby', `${prefix}-read-${k}`);
+    return box;
+  };
   const state: Partial<Background> = { ...(current ?? {}) };
   if (program === 'mscse' && (state.graduate === 'nd-mscse' || state.graduate === 'nd-4plus1' || state.graduate === 'nd-mscse-transfer')) state.graduate = undefined;
   // Option rows (choiceRow), one per answer; a yes/no pair sits side by side.
@@ -238,7 +263,12 @@ export function backgroundQuestions(
     if (current) year.value = String(current.year);
     const pick = (): void => {
       const y = Number(year.value);
-      state.transferredTerm = Number.isInteger(y) && y >= 2000 && y <= 2100 ? { season: season.value as Season, year: y } : undefined;
+      const next = Number.isInteger(y) && y >= 2000 && y <= 2100 ? { season: season.value as Season, year: y } : undefined;
+      // A semester picked before the year changes nothing yet; on the page a
+      // change re-renders the questions and would put the semester back to
+      // Fall (review of Option 1, 2026-10-08).
+      if (JSON.stringify(next) === JSON.stringify(state.transferredTerm)) return;
+      state.transferredTerm = next;
       onChange(state);
     };
     season.onchange = pick;
@@ -255,7 +285,9 @@ export function backgroundQuestions(
     if (current) year.value = String(current.year);
     const pick = (): void => {
       const y = Number(year.value);
-      state.integratedAdmittedTerm = Number.isInteger(y) && y >= 2000 && y <= 2100 ? { season: season.value as Season, year: y } : undefined;
+      const next = Number.isInteger(y) && y >= 2000 && y <= 2100 ? { season: season.value as Season, year: y } : undefined;
+      if (JSON.stringify(next) === JSON.stringify(state.integratedAdmittedTerm)) return; // as above
+      state.integratedAdmittedTerm = next;
       onChange(state);
     };
     season.onchange = pick;
@@ -297,16 +329,20 @@ export function backgroundQuestions(
     integratedBox.hidden = !asksIntegratedFor(state, program);
     elsewhereBox.replaceChildren(
       el('legend', { class: 'followup-title' }, 'Was it at the same university as your bachelor’s (a 4+1 or 5+1 program)?'),
-      yesNo('sameplace', state.samePlace, (v) => {
-        state.samePlace = v;
-        // Re-decide what shows: in the opening dialog "Did you finish it?"
-        // waits for this answer, and until 2026-09-29 nothing re-rendered
-        // here, so it never appeared — the button stayed grey for every
-        // student with a degree from another university. (The drivers had
-        // clicked the hidden input and never noticed.)
-        renderFollowUps();
-        onChange(state);
-      }),
+      ...readNote('samePlace'),
+      describedByRead(
+        yesNo('sameplace', state.samePlace, (v) => {
+          state.samePlace = v;
+          // Re-decide what shows: in the opening dialog "Did you finish it?"
+          // waits for this answer, and until 2026-09-29 nothing re-rendered
+          // here, so it never appeared — the button stayed grey for every
+          // student with a degree from another university. (The drivers had
+          // clicked the hidden input and never noticed.)
+          renderFollowUps();
+          onChange(state);
+        }),
+        'samePlace',
+      ),
     );
     finishedBox.replaceChildren(
       el(
@@ -319,10 +355,14 @@ export function backgroundQuestions(
           ? `Did you finish that degree? (After a finished one, §5.2 allows ${program === 'mscse' ? '9' : '24'} transfer credits; moving into CSE from an unfinished one is a program transfer — its courses count as yours from your first admission, DGS Handbook §3.15)`
           : `Did you finish that degree? (§5.2 allows ${program === 'mscse' ? '9' : '24'} transfer credits after a finished master’s or Ph.D., 6 otherwise)`,
       ),
-      yesNo('finished', state.finished, (v) => {
-        state.finished = v;
-        onChange(state);
-      }),
+      ...readNote('finished'),
+      describedByRead(
+        yesNo('finished', state.finished, (v) => {
+          state.finished = v;
+          onChange(state);
+        }),
+        'finished',
+      ),
     );
     elsewhereBox.hidden = state.graduate !== 'elsewhere';
     // Asked for a degree elsewhere and for one at Notre Dame in another
@@ -340,12 +380,16 @@ export function backgroundQuestions(
     // then apply to it, and "Did you finish that degree?" follows a yes.
     alsoElsewhereBox.replaceChildren(
       el('legend', { class: 'followup-title' }, 'Did you also hold, or start, a graduate degree at another university?'),
-      yesNo('alsoelsewhere', state.alsoElsewhere, (v) => {
-        state.alsoElsewhere = v;
-        if (!v) state.finished = undefined;
-        renderFollowUps();
-        onChange(state);
-      }),
+      ...readNote('alsoElsewhere'),
+      describedByRead(
+        yesNo('alsoelsewhere', state.alsoElsewhere, (v) => {
+          state.alsoElsewhere = v;
+          if (!v) state.finished = undefined;
+          renderFollowUps();
+          onChange(state);
+        }),
+        'alsoElsewhere',
+      ),
     );
     alsoElsewhereBox.hidden = !asksAlsoElsewhere(state.graduate);
     // The graduate-degree family waits for the bachelor's answer (and, for
@@ -401,7 +445,7 @@ export function backgroundQuestions(
       },
       GRADUATE_NOTES,
     );
-  const graduateBox = el('fieldset', { class: 'field group step' }, el('legend', { class: 'step-title' }, 'Did you hold, or start, a graduate degree before this program?'), graduateChoices);
+  const graduateBox = el('fieldset', { class: 'field group step' }, el('legend', { class: 'step-title' }, 'Did you hold, or start, a graduate degree before this program?'), ...readNote('graduate'), describedByRead(graduateChoices, 'graduate'));
   const bachelorsChoices = radios('bachelors', BACHELORS_OPTIONS, state.bachelors, (v) => {
     state.bachelors = v as BachelorsFrom;
     if (v !== 'nd-cse') state.ndIntegrated = undefined;
@@ -413,7 +457,7 @@ export function backgroundQuestions(
   const questions = el(
     'div',
     { class: 'background-questions' },
-    el('fieldset', { class: 'field group step' }, el('legend', { class: 'step-title' }, 'Where is your bachelor’s degree from?'), bachelorsChoices),
+    el('fieldset', { class: 'field group step' }, el('legend', { class: 'step-title' }, 'Where is your bachelor’s degree from?'), ...readNote('bachelors'), describedByRead(bachelorsChoices, 'bachelors')),
     graduateBox,
     integratedBox,
     elsewhereBox,
@@ -442,11 +486,18 @@ export function openBackgroundDialog(student: Student, update: (fn: (s: Student)
       { class: 'consent-box' },
       el('h2', { id: 'background-title' }, 'Your earlier degrees'),
       el('p', { class: 'hint' }, 'These answers decide which transcript rows you see and how §5.2 applies. A Notre Dame degree is on the same insideND transcript as your current program, so it needs no row of its own. To change the degree you are working toward, use Reset.'),
-      backgroundQuestions(answer, 'background', program, (b) => {
-        answer = b;
-        if (completeBackground(b, program)) save.removeAttribute('disabled');
-        else save.setAttribute('disabled', 'disabled');
-      }),
+      backgroundQuestions(
+        answer,
+        'background',
+        program,
+        (b) => {
+          answer = b;
+          if (completeBackground(b, program)) save.removeAttribute('disabled');
+          else save.setAttribute('disabled', 'disabled');
+        },
+        false,
+        student.backgroundRead ?? {},
+      ),
       el('div', { class: 'save-buttons' }, save, el('button', { class: 'btn', 'data-key': 'background.cancel', onclick: () => close() }, 'Cancel')),
     ),
   ) as HTMLDialogElement;
@@ -457,7 +508,15 @@ export function openBackgroundDialog(student: Student, update: (fn: (s: Student)
   };
   save.addEventListener('click', () => {
     const b = completeBackground(answer, program);
-    if (b) update((s) => applyBackground(s, b));
+    if (b)
+      update((s) => {
+        // Saving is the student's check of what was read from transcripts:
+        // no answer is "read" after it (2026-10-08, Option 1 — the notes show
+        // in this dialog, under each question they concern).
+        s.backgroundRead = undefined;
+        applyBackground(s, b);
+        s.backgroundDraft = undefined;
+      });
     close();
   });
   dialog.addEventListener('close', () => dialog.remove());

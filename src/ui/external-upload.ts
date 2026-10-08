@@ -12,7 +12,9 @@
 import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { creditSystemFactor, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
-import { describeBackground, openBackgroundDialog, priorSlotsFor } from './background.ts';
+import { backgroundQuestions, describeBackground, openBackgroundDialog, priorSlotsFor, priorSlotsForDraft } from './background.ts';
+import { answerBackground, mergeReading, type ReadingResult, readBackgroundFromPriorBachelors, readBackgroundFromPriorGraduate } from './background-read.ts';
+import { sameUniversity } from '../engine/nd-posting.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
 import type { Rules } from '../data/types.ts';
@@ -239,7 +241,17 @@ export interface ExternalCardArgs {
   /** One transcript at a time (2026-09-03): true while ANY preview is open,
    * disabling every import button until it is confirmed or cancelled. */
   blocked: boolean;
+  /** Focus this data-key after the next render (app.ts's focus keeper). */
+  setFocusAfterRender?: (key: string) => void;
 }
+
+/** The student is answering the earlier-degrees questions on the page: they
+ * stay, saved as they go, until "Done" — even once the answer is complete —
+ * so the click that completes it does not pull the questions (and the focused
+ * choice) away, and a follow-up it reveals (the 4+1 admission term, the
+ * transfer term) is seen (review of Option 1, 2026-10-08). Not saved: a new
+ * visit shows the one-line answer. */
+let answeringEarlier = false;
 
 /** True while this module holds an unconfirmed import — an open preview, a
  * scan awaiting the OCR opt-in, or OCR in flight. app.ts combines it with its
@@ -330,17 +342,80 @@ function keepRelevantRows(
  * and external courses together. */
 export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | null)[] {
   // Which rows this student needs, from the earlier-degrees answer (DGS
-  // 2026-09-22); with no answer every row shows, as before the questions.
+  // 2026-09-22); while it is incomplete, from what is known so far
+  // (priorSlotsForDraft, 2026-10-08) — every row until an answer rules it out.
   const background = args.student.background;
-  const slots = priorSlotsFor(background);
-  const changeKey = 'transcripts.background.change';
-  const backgroundLine = el(
-    'p',
-    { class: 'hint background-line', 'data-key': 'transcripts.background' },
-    background ? describeBackground(background) + ' — ' : 'Which transcripts you need depends on your earlier degrees — ',
-    el('button', { class: 'btn tiny link', 'data-key': changeKey, onclick: () => openBackgroundDialog(args.student, args.update, changeKey) }, background ? 'Change' : 'Answer two questions'),
-    '.',
+  const answered = background ? priorSlotsFor(background) : priorSlotsForDraft(args.student.backgroundDraft);
+  // A row also stays while its preview is open, and a graduate row while its
+  // courses are on file: an answer given meanwhile must not hide a transcript
+  // being added, or one added — and its Remove (review of Option 1, 2026-10-08).
+  const slots = answered.concat(
+    (['bachelors', 'masters', 'phd'] as const).filter((l) => !answered.includes(l) && (preview?.slot === l || (l !== 'bachelors' && coursesInSlot(args.student, l).length > 0))),
   );
+  const changeKey = 'transcripts.background.change';
+  const readNote = background && args.student.backgroundRead ? ' (partly read from your transcripts — check it)' : '';
+  // Answered: one line with "Change". Not yet (DGS 2026-10-08, Option 1: the
+  // opening dialog asks only the program): the questions themselves, here,
+  // with what the transcripts imported above settled filled in and marked.
+  const backgroundLine = background && !answeringEarlier
+    ? el(
+        'p',
+        { class: 'hint background-line', 'data-key': 'transcripts.background' },
+        describeBackground(background) + readNote + ' — ',
+        el('button', { class: 'btn tiny link', 'data-key': changeKey, onclick: () => openBackgroundDialog(args.student, args.update, changeKey) }, 'Change'),
+        '.',
+      )
+    : el(
+        'fieldset',
+        { class: 'field group background-inline', id: 'earlier-degrees', 'data-key': 'transcripts.background' },
+        el('legend', { class: 'label' }, 'Your earlier degrees'),
+        el(
+          'p',
+          { class: 'hint' },
+          // Saved (complete, still open); what was read; else, with the Notre
+          // Dame transcript already in (nothing it could tell, or imported
+          // before 2026-10-08), just ask.
+          background
+            ? 'Your answers are saved. Change any of them here, then click Done.'
+            : args.student.backgroundRead
+              ? 'What your transcripts show is filled in below — check it, and answer the rest. These answers decide which earlier transcripts to add here and how CSE §5.2 applies to them.'
+              : args.student.courses.some((c) => c.fromNdTranscript)
+                ? 'Answer these questions. They decide which earlier transcripts to add here and how CSE §5.2 applies to them.'
+                : 'Import your Notre Dame transcript above and part of this fills itself in; answer the rest. These answers decide which earlier transcripts to add here and how CSE §5.2 applies to them.',
+        ),
+        backgroundQuestions(
+          background ?? args.student.backgroundDraft,
+          'earlier',
+          args.student.program,
+          (b) => {
+            answeringEarlier = true;
+            args.update((s) => answerBackground(s, b));
+          },
+          false,
+          args.student.backgroundRead ?? {},
+        ),
+        // Done: the student has checked what was read, so nothing is marked
+        // "read" after it; focus goes to the one-line answer's Change.
+        ...(background
+          ? [
+              el(
+                'button',
+                {
+                  class: 'btn',
+                  'data-key': 'earlier.done',
+                  onclick: () => {
+                    answeringEarlier = false;
+                    args.setFocusAfterRender?.(changeKey);
+                    args.update((s) => {
+                      s.backgroundRead = undefined;
+                    });
+                  },
+                },
+                'Done',
+              ),
+            ]
+          : []),
+      );
   return [
     backgroundLine,
     // A bachelor's and a master's from ONE university arrive in two shapes, and
@@ -1236,7 +1311,17 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             let bachelorsSet: Term | undefined;
             let bachelorsFromTranscript = false;
             let bachelorsBefore: Term | undefined;
+            let earlierRead = false as ReadingResult;
             update((s) => {
+              // The bachelor's university, for "same university?" (Option 1):
+              // only a university with undergraduate rows and no graduate rows
+              // on file from before this import — a master's transcript's own
+              // undergraduate rows are no bachelor's transcript, and neither
+              // is transfer credit on the Notre Dame record — and only one
+              // (review of Option 1, 2026-10-08).
+              const earlier = s.courses.filter((c) => c.origin === 'transfer' && !c.fromNdTranscript && !isNotreDameInstitution(c.institution) && c.institution);
+              const bachelorsCandidates = [...new Set(earlier.filter((c) => c.degreeLevel === 'bachelors').map((c) => c.institution!))].filter((u) => !earlier.some((c) => c.institution === u && c.degreeLevel !== 'bachelors'));
+              const bachelorsAt = s.backgroundDraft?.bachelors === 'elsewhere' && bachelorsCandidates.length === 1 ? bachelorsCandidates[0] : undefined;
               for (const r of ready) {
                 const degreeLevel = degreeLevelFor(p.slot, r.level);
                 if (degreeLevel !== 'bachelors') graduateRows += 1;
@@ -1263,6 +1348,16 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 // transcript's accepted transfer credit: one course, this row,
                 // carrying that acceptance (P3-import-1 (c), 2026-10-05).
                 if (absorbBlockRow(s, row)) merged += 1;
+              }
+              // What this transcript settles of the earlier-degrees answer
+              // (DGS 2026-10-08, Option 1): a bachelor's there, or a graduate
+              // degree there — finished when it says it was conferred, at the
+              // bachelor's university when that transcript is on the record.
+              if (!isNotreDameInstitution(university)) {
+                if (p.slot === 'bachelors') earlierRead = mergeReading(s, readBackgroundFromPriorBachelors(university));
+                else {
+                  earlierRead = mergeReading(s, readBackgroundFromPriorGraduate({ slot: p.slot, university, ...(p.conferred !== undefined ? { conferred: p.conferred } : {}), ...(bachelorsAt ? { bachelorsUniversity: bachelorsAt } : {}), sameUniversity }));
+                }
               }
               // "Prior graduate study" from the transcript (2026-09-03): a
               // graduate-degree conferral line → completed; a graduate
@@ -1337,15 +1432,17 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
                 (merged > 0 ? `; ${merged === 1 ? '1 of them was' : `${merged} of them were`} already on your Notre Dame transcript as accepted transfer credit, so each is kept as one course` : '') +
                 '.' +
                 (priorAutoSet === 'completed'
-                  ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the conferral line on your transcript — adjust it under Your standing if that’s wrong.'
+                  ? ' Prior graduate study was set to “Completed prior M.S. or Ph.D.” from the conferral line on your transcript — if that’s wrong, change it in the earlier-degrees questions in the Transcripts card.'
                   : priorAutoSet === 'unfinished'
-                    ? ' Prior graduate study was set to “Prior M.S., not completed” — no degree-conferral line was found on your transcript; pick “Completed prior M.S. or Ph.D.” under Your standing if you did earn the degree.'
+                    ? ' Prior graduate study was set to “Prior M.S., not completed” — no degree-conferral line was found on your transcript; if you did earn the degree, say so in the earlier-degrees questions in the Transcripts card.'
                     : '') +
                 (bachelorsSet
                   ? ` “Bachelor’s degree awarded” was set to ${termLabel(bachelorsSet)}${bachelorsFromTranscript ? ' from the conferral date on your transcript' : ''} — check it under Your standing.`
                   : bachelorsBefore
                     ? ` “Bachelor’s degree awarded” reads “Before ${termLabel(bachelorsBefore)}”, the first semester on this transcript — set the exact semester under Your standing if you know it.`
-                    : ''),
+                    : '') +
+                // Option 1 (DGS 2026-10-08): the earlier-degrees answers it filled in.
+                (earlierRead === 'disagree' ? ' Your transcripts disagree about your earlier degrees — answer those questions in the Transcripts card.' : earlierRead ? ' Your earlier degrees were partly filled in from it — check them in the Transcripts card.' : ''),
             );
           },
         },

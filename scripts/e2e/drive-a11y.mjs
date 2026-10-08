@@ -169,27 +169,18 @@ async function checkDialog(s, baseUrl) {
   await s.settle();
   if (!(await stillOpen())) throw new Error('opening dialog: Escape must not close it');
   if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must wait for the answers');
-  // The follow-ups appear one at a time and each must be VISIBLE before it
-  // is answered (2026-09-29: "Did you finish that degree?" never appeared
-  // after "same university?", and the drivers had clicked the hidden input).
-  const shown = (key) => s.evalJs(`(() => { const f = document.querySelector('[data-key="${key}"]')?.closest('fieldset'); return !!f && !f.hidden && getComputedStyle(f).display !== 'none'; })()`);
-  await s.evalJs(`(() => { for (const k of ['consent.program.phd', 'consent.bachelors.elsewhere', 'consent.graduate.elsewhere']) document.querySelector('[data-key="' + k + '"]')?.click(); })()`);
+  // Only the program is asked here since 2026-10-08 (DGS, Option 1): no
+  // earlier-degrees question in the dialog — they are on the page.
+  if (await s.evalJs(`!!document.querySelector('dialog.consent [data-key^="consent.bachelors."], dialog.consent [data-key^="consent.graduate."]')`)) throw new Error('opening dialog: the earlier-degrees questions belong on the page now');
+  await s.evalJs(`document.querySelector('[data-key="consent.program.phd"]').click()`);
   await s.settle();
-  if (!(await shown('consent.sameplace.no'))) throw new Error('opening dialog: "same university?" must follow "a degree elsewhere"');
-  if (await shown('consent.finished.yes')) throw new Error('opening dialog: "finished?" must wait for "same university?"');
-  await s.evalJs(`document.querySelector('[data-key="consent.sameplace.no"]').click()`);
-  await s.settle();
-  if (!(await shown('consent.finished.yes'))) throw new Error('opening dialog: "finished?" must appear once "same university?" is answered');
-  if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must still wait for "finished?"');
   await s.shot('consent-answered');
-  await s.evalJs(`document.querySelector('[data-key="consent.finished.yes"]').click()`);
-  await s.settle();
   // Enter does nothing while the button waits (2026-10-04): the notice is not ticked yet.
-  await s.evalJs(`document.querySelector('[data-key="consent.finished.yes"]').focus()`);
+  await s.evalJs(`document.querySelector('[data-key="consent.program.phd"]').focus()`);
   await key(s, 'Enter', 'Enter', 13);
   await s.settle();
   if (!(await stillOpen())) throw new Error('opening dialog: Enter must not continue while the button is inactive');
-  // Every question answered, the notice not yet acknowledged (2026-09-29): the
+  // The program chosen, the notice not yet acknowledged (2026-09-29): the
   // button waits for the tick INSIDE the notice, and the hint says so.
   if (!(await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`))) throw new Error('opening dialog: the button must wait for the acknowledgement tick');
   const hintText = await s.evalJs(`document.querySelector('.consent-hint')?.textContent ?? ''`);
@@ -197,14 +188,12 @@ async function checkDialog(s, baseUrl) {
   if (!(await s.evalJs(`!!document.querySelector('.consent-warning [data-key="consent.ack"]')`))) throw new Error('opening dialog: the acknowledgement must sit inside the notice');
   await s.evalJs(`document.querySelector('[data-key="consent.ack"]').click()`);
   await s.settle();
-  if (await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`)) throw new Error('opening dialog: the button must be live once every family is answered and the notice ticked');
+  if (await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.hasAttribute('disabled')`)) throw new Error('opening dialog: the button must be live once the program is chosen and the notice ticked');
   if (!(await s.evalJs(`document.querySelector('.consent-hint')?.hidden === true`))) throw new Error('opening dialog: the hint must go once the button is live');
   if ((await s.evalJs(`document.querySelector('dialog.consent .btn.primary')?.textContent`)) !== 'Continue') throw new Error('opening dialog: the button reads "Continue" since 2026-09-29');
-  // Three visible steps, each numbered by the CSS counter (getComputedStyle
-  // returns the counter expression, not its value, so the check is that the
-  // number is there and that exactly three steps show).
+  // One question, the program, and no number on it (Option 1, 2026-10-08).
   const steps = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('dialog.consent legend.step-title')].filter((l) => l.closest('fieldset') && !l.closest('fieldset').hidden).map((l) => getComputedStyle(l, '::before').content))`));
-  if (steps.length !== 3 || !steps.every((c) => /counter\(step\)/.test(c))) throw new Error('opening dialog: three numbered steps expected — ' + JSON.stringify(steps));
+  if (steps.length !== 1 || !steps.every((c) => c === 'none' || c === 'normal')) throw new Error('opening dialog: one question, unnumbered, expected — ' + JSON.stringify(steps));
   await key(s, 'Escape', 'Escape', 27);
   await key(s, 'Escape', 'Escape', 27);
   await s.settle();
@@ -216,7 +205,27 @@ async function checkDialog(s, baseUrl) {
   await s.waitFor(`!document.querySelector('dialog.consent')`);
   const focusAfter = await s.evalJs(`document.activeElement?.tagName + ':' + (document.activeElement?.textContent ?? '').slice(0, 30)`);
   if (!focusAfter.startsWith('H1:')) throw new Error('opening dialog: focus did not land on the page heading after closing — ' + focusAfter);
-  console.log('  opening notice: focus inside, Tab contained, Escape never closes it, Enter does nothing until the button is live and then continues like it, focus returns to the heading');
+  // The earlier-degrees questions on the page (2026-10-08, Option 1): in the
+  // Transcripts card, each follow-up just below the answer that asks it.
+  if (!(await s.evalJs(`!!document.querySelector('#earlier-degrees [data-key="earlier.bachelors.elsewhere"]')`))) throw new Error('the earlier-degrees questions must be in the Transcripts card');
+  await s.evalJs(`document.querySelector('[data-key="earlier.graduate.elsewhere"]').click()`);
+  await s.settle();
+  const under = await s.evalJs(`(() => { const row = document.querySelector('[data-key="earlier.graduate.elsewhere"]').closest('label'); const next = row?.nextElementSibling; return !!next && next.matches('fieldset') && !next.hidden && !!next.querySelector('[data-key="earlier.sameplace.no"]'); })()`);
+  if (!under) throw new Error('"same university?" must sit just below "Yes, at another university"');
+  // Each answer is clicked with focus on it, as a keyboard user would: the
+  // answer that completes the questions leaves them (and the focus) in place,
+  // saved, until Done; Done gives way to the one-line summary and puts focus
+  // on its Change (review of Option 1, 2026-10-08).
+  for (const k of ['earlier.bachelors.elsewhere', 'earlier.sameplace.no', 'earlier.finished.yes']) { await s.evalJs(`(() => { const i = document.querySelector('[data-key="${k}"]'); i.focus(); i.click(); })()`); await s.settle(); }
+  if (!(await s.evalJs(`!!document.querySelector('#earlier-degrees') && !!document.querySelector('[data-key="earlier.done"]')`))) throw new Error('complete: the questions stay, with Done');
+  if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'earlier.finished.yes') throw new Error('the completing answer must keep its focus');
+  await s.evalJs(`document.querySelector('#earlier-degrees').scrollIntoView({ block: 'start' })`);
+  await s.shot('earlier-degrees-done');
+  await s.evalJs(`(() => { const d = document.querySelector('[data-key="earlier.done"]'); d.focus(); d.click(); })()`);
+  await s.settle();
+  if (!(await s.evalJs(`!!document.querySelector('[data-key="transcripts.background"].background-line') && !document.querySelector('#earlier-degrees')`))) throw new Error('Done: the questions must give way to the one-line summary');
+  if ((await s.evalJs(`document.activeElement?.dataset?.key ?? ''`)) !== 'transcripts.background.change') throw new Error('Done must put focus on the summary’s Change');
+  console.log('  opening notice: focus inside, Tab contained, Escape never closes it, Enter does nothing until the button is live and then continues like it, focus returns to the heading; the earlier-degrees questions are on the page, keep focus through the completing answer, and give way to a summary on Done');
 }
 
 // 1b. The first screen belongs to the work, not the preamble (blue-team B1,

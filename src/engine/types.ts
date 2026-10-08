@@ -338,6 +338,19 @@ export interface Student {
      * they finished it, and `priorMs` follows (24 / 6 transfer credits). */
     alsoElsewhere?: boolean;
   };
+  /** The earlier-degrees answer while it is still INCOMPLETE (DGS 2026-10-08,
+   * Option 1): the opening dialog asks only the program, so the rest is
+   * answered on the page — partly read from the imported transcripts
+   * (src/ui/background-read.ts), partly by the student. Once every question
+   * that applies is answered it becomes `background` (and this is cleared);
+   * until then the engine sees no `background` and keeps its no-answer
+   * behaviour. The engine never reads this field. */
+  backgroundDraft?: Partial<NonNullable<Student['background']> & { integratedAdmittedTerm: Term }>;
+  /** Which parts of the earlier-degrees answer were read from transcripts,
+   * each with where from ("your Notre Dame transcript shows …"), so the page
+   * can say "read from your transcript — check it". A part the student
+   * changes is dropped from here. Display only. */
+  backgroundRead?: Partial<Record<keyof NonNullable<Student['background']> | 'integratedAdmittedTerm', string>>;
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
   /** True while priorMs holds a value INFERRED from an uploaded transcript
    * (2026-09-03) rather than chosen by the student — cleared when they touch

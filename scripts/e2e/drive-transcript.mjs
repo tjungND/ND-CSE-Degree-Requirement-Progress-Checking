@@ -6,7 +6,7 @@
 // "not yet reviewed" and the copy-ready review request appears).
 // `pdfs` is the name → path map run.mjs builds from tests/fixtures/.
 export async function driveTranscript(s, baseUrl, pdfs) {
-  const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf } = pdfs;
+  const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf, ndInsideNd: ndInsideNdPdf } = pdfs;
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -653,14 +653,12 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     await s.waitFor(`document.querySelector('.consent-overlay')`);
     await s.evalJs(`(() => {
       document.querySelector('[data-key="consent.program.${program}"]').click();
-      document.querySelector('[data-key="consent.bachelors.elsewhere"]').click();
-      document.querySelector('[data-key="consent.graduate.elsewhere"]').click();
-      document.querySelector('[data-key="consent.sameplace.no"]').click();
-      document.querySelector('[data-key="consent.finished.yes"]').click();
       document.querySelector('[data-key="consent.ack"]').click();
       document.querySelector('.consent-overlay button.btn').click();
     })()`);
     await s.waitFor(`!document.querySelector('.consent-overlay')`);
+    // The earlier degrees, on the page since 2026-10-08 (Option 1).
+    for (const k of ['earlier.bachelors.elsewhere', 'earlier.graduate.elsewhere', 'earlier.sameplace.no', 'earlier.finished.yes', 'earlier.done']) await s.evalJs(`document.querySelector('[data-key="${k}"]')?.click()`);
   };
   await chooseViaReset('mscse');
   await s.waitFor(`document.querySelector('.transcript-upload')?.textContent.includes('Current ND Unofficial MSCSE Transcript')`);
@@ -831,6 +829,58 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => b.textContent === 'Cancel').click()`);
   await s.waitFor(`!document.querySelector('.external-card .transcript-preview')`);
   console.log('  MSCSE preview: undergraduate rows are not offered on a core-sounding title, and no note names the qualifier');
+
+  // Option 1 (DGS 2026-10-08): the opening dialog asks only the program; the
+  // earlier degrees are asked on the page and read from the Notre Dame
+  // transcript where it can tell. A fresh Ph.D. record imports an insideND-
+  // layout transcript whose undergraduate terms end in Computer Engineering:
+  // "Notre Dame — CSE" comes back chosen, with where it was read; the graduate
+  // question and the 4+1 follow-up stay for the student.
+  {
+    await s.evalJs(`window.confirm = () => true; document.querySelector('[data-key="tools.reset"]').click()`);
+    await s.waitFor(`document.querySelector('.consent-overlay')`);
+    const dialogQuestions = await s.evalJs(`document.querySelectorAll('dialog.consent fieldset:not(.consent-program-group), dialog.consent .background-questions').length`);
+    if (dialogQuestions !== 0) throw new Error('the opening dialog must ask only the program (Option 1)');
+    await s.evalJs(`(() => { document.querySelector('[data-key="consent.program.phd"]').click(); document.querySelector('[data-key="consent.ack"]').click(); document.querySelector('.consent-overlay button.btn').click(); })()`);
+    await s.waitFor(`!document.querySelector('.consent-overlay') && !!document.querySelector('#earlier-degrees')`);
+    if (await s.evalJs(`!!document.querySelector('#earlier-degrees input:checked')`)) throw new Error('a fresh record has no earlier-degrees answer');
+    await s.setFileInput('.transcript-upload input[type=file]', ndInsideNdPdf);
+    await s.waitFor(`document.querySelector('.transcript-preview')`);
+    const entry = await s.evalJs(`document.querySelector('.transcript-preview .entry-term-line')?.textContent ?? ''`);
+    if (!entry.includes('Fall 2025')) throw new Error('the insideND transcript’s entry term is its first graduate term, Fall 2025: ' + entry.slice(0, 120));
+    await s.evalJs(`[...document.querySelectorAll('.transcript-preview button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`);
+    await s.waitFor(`!document.querySelector('.transcript-preview')`);
+    await s.waitFor(`document.querySelector('[data-key="earlier.bachelors.nd-cse"]')?.checked === true`);
+    const readToast = await s.evalJs(`[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ')`);
+    if (!readToast.includes('Your earlier degrees were partly filled in from it — check them in the Transcripts card.')) throw new Error('the import toast must say the earlier degrees were filled in: ' + readToast.slice(0, 300));
+    const note = await s.evalJs(`document.querySelector('[data-key="earlier.read.bachelors"]')?.textContent ?? ''`);
+    console.log('  read note:', note);
+    if (!/Read from your transcripts: your Notre Dame transcript shows undergraduate terms through Spring 2025, majoring in Computer Engineering/.test(note)) throw new Error('the bachelor’s answer must say where it was read: ' + note);
+    if (await s.evalJs(`!!document.querySelector('#earlier-degrees [data-key^="earlier.graduate."]:checked')`)) throw new Error('the transcript cannot tell the graduate history; it stays unanswered');
+    if (!(await s.evalJs(`!!document.querySelector('[data-key="earlier.ndintegrated.yes"]')`))) throw new Error('the 4+1 follow-up must be asked under “Notre Dame — CSE”');
+    if (!(await s.evalJs(`!!document.querySelector('.next-steps a[href="#earlier-degrees"]')`))) throw new Error('Next steps must point to the earlier-degrees questions while they are open');
+    if (!(await s.evalJs(`!!document.querySelector('[data-key="standing.background.goto"][href="#earlier-degrees"]')`))) throw new Error('the standing card must point to them too');
+    if ((await s.evalJs(`document.querySelector('#earlier-read-bachelors') && [...document.querySelectorAll('[data-key^="earlier.bachelors."]')].every(i => i.getAttribute('aria-describedby') === 'earlier-read-bachelors')`)) !== true) throw new Error('the read note must describe the bachelor’s choices for a screen reader');
+    await s.evalJs(`document.querySelector('#earlier-degrees').scrollIntoView({ block: 'start' })`);
+    await s.shot('earlier-degrees-read');
+    // The student changes it: the note goes, the answer is theirs.
+    await s.evalJs(`document.querySelector('[data-key="earlier.bachelors.nd-other"]').click()`);
+    await s.waitFor(`document.querySelector('[data-key="earlier.bachelors.nd-other"]')?.checked === true && !document.querySelector('[data-key="earlier.read.bachelors"]')`);
+    // A previous master's transcript from another university, imported while
+    // the graduate question is open: "Yes, at another university" is read
+    // (no conferral line, no bachelor's transcript: the two follow-ups stay).
+    await s.setFileInput('.external-file-masters', externalPdf);
+    await s.waitFor(`document.querySelector('.external-card .transcript-preview table tr:nth-child(2)')`);
+    await s.evalJs(`[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`);
+    await s.waitFor(`!document.querySelector('.external-card .transcript-preview') && document.querySelector('[data-key="earlier.graduate.elsewhere"]')?.checked === true`);
+    const gradNote = await s.evalJs(`document.querySelector('[data-key="earlier.read.graduate"]')?.textContent ?? ''`);
+    if (!gradNote.includes('you added a previous master’s transcript from Purdue University')) throw new Error('the graduate answer must say where it was read: ' + gradNote);
+    if (await s.evalJs(`!!document.querySelector('[data-key="earlier.finished.yes"]:checked, [data-key="earlier.finished.no"]:checked, [data-key="earlier.sameplace.no"]:checked, [data-key="earlier.sameplace.yes"]:checked')`)) throw new Error('no conferral line and no bachelor’s transcript: “finished” and “same university” stay for the student');
+    const extToast = await s.evalJs(`[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ')`);
+    if (!extToast.includes('Your earlier degrees were partly filled in from it')) throw new Error('the previous-transcript toast must say the earlier degrees were filled in: ' + extToast.slice(0, 300));
+    await s.shot('earlier-degrees-read-graduate');
+    console.log('  Option 1: a fresh Ph.D. record importing an insideND transcript gets “Notre Dame — CSE” chosen and marked as read; changing it drops the mark; a previous master’s transcript reads “Yes, at another university”');
+  }
 }
 
 // The Master's-slot preview of a text-layer transcript at a given window width

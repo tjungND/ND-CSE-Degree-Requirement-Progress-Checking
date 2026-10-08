@@ -1925,11 +1925,11 @@ function classifyPriorNdUndergraduate(
     return {
       ...extBase,
       notTransferCredit: true,
-      ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns MSCSE credit only for a student who was in the Integrated B.S. + M.S. (4+1) program (§3.5)${student.integratedBsMs === false ? '' : '; if you were, say so in the earlier-degrees questions (Your standing → Change)'}`,
+      ineligibleReason: `not counted — a 60000-level course taken as an undergraduate earns MSCSE credit only for a student who was in the Integrated B.S. + M.S. (4+1) program (§3.5)${student.integratedBsMs === false ? '' : '; if you were, say so in the earlier-degrees questions in the Transcripts card'}`,
     };
   }
   const plainBachelorsApproval = plainBachelorsSixk
-    ? `taken as an undergraduate outside the Integrated 4+1 program — the Academic Code (§4.6) lets it meet Ph.D. requirements only with the program’s advance approval; the DGS decides${student.integratedBsMs === false ? '' : '. If you were in the 4+1, say so in the earlier-degrees questions (Your standing → Change)'}`
+    ? `taken as an undergraduate outside the Integrated 4+1 program — the Academic Code (§4.6) lets it meet Ph.D. requirements only with the program’s advance approval; the DGS decides${student.integratedBsMs === false ? '' : '. If you were in the 4+1, say so in the earlier-degrees questions in the Transcripts card'}`
     : undefined;
   // A 4+1's pre-bachelor's CSE 68901/68902 DOES satisfy the MSCSE project or
   // thesis requirement (DGS 2026-10-03, P1-units-4plus1-17: "pre-bachelor

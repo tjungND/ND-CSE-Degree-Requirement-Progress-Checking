@@ -74,6 +74,17 @@ export function hasPriorGraduateStudy(student: Student): boolean {
  * the same rule the bachelor's award term follows (2026-09-06). */
 export function deriveNdMasters(student: Student): boolean {
   if (student.ndMasters !== undefined && student.ndMasters.inferred === undefined) return false; // their own answer
+  // A partial earlier-degrees answer that says the earlier graduate program
+  // was not the Notre Dame MSCSE held (another department, elsewhere, none, a
+  // transfer before finishing) settles it: a Notre Dame master's on the
+  // transcript is that other program's (policy review of Option 1, 2026-10-08;
+  // the same reason as the answered-question guard of 2026-10-03).
+  const g = student.backgroundDraft?.graduate;
+  if (student.background === undefined && g !== undefined && g !== 'nd-mscse' && g !== 'nd-4plus1') {
+    if (student.ndMasters === undefined) return false;
+    delete student.ndMasters;
+    return true;
+  }
   const held = (student.ndDegrees ?? []).find(
     (d) => (d.level === 'masters' || d.level === 'phd') && termIndex(conferralTerm(d.date)) < termIndex(student.entryTerm),
   );
@@ -106,6 +117,13 @@ export function derivePriorMs(student: Student): boolean {
   if (student.background !== undefined) return false;
   if (student.priorMs !== 'none' && student.priorMsInferred !== true) return false; // their own answer
   const before = student.priorMs;
+  // A partial answer's "No" to a graduate degree before this program settles
+  // it the same way (policy review of Option 1, 2026-10-08).
+  if (student.backgroundDraft?.graduate === 'none') {
+    student.priorMs = 'none';
+    student.priorMsInferred = undefined;
+    return student.priorMs !== before;
+  }
   if (hasPriorGraduateStudy(student)) {
     // Notre Dame's own master's degree is a fact the transcript records; any
     // other prior graduate coursework leaves "completed" to the student, with

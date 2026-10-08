@@ -239,19 +239,55 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `wideFilters` (a `matchMedia('(min-width: 861px)')`, `{ matches: true }` under node) and the bar is
   rebuilt on its `change` event — the values live in `filters`, not in the controls. In e2e, use
   `checkVisibility()` for anything inside a closed details: WebKit gives its content boxes.
-- **The opening dialog is where the student's situation is set** (DGS 2026-09-22, later the same
-  day): program AND earlier degrees, with follow-ups (4+1 at Notre Dame for an MSCSE student;
-  same-university and finished for a degree elsewhere). `applyBackground` writes `priorMs`,
-  `ndMasters` and `integratedBsMs` from the answer; the standing card's controls for those are
-  gone, the program tabs are gone (`.program-name` shows the choice), and imports skip their
-  inference of those facts while `student.background` exists. Reset (`resetAll`) empties the
-  record and calls `openOpeningDialog(undefined)` — the dialog is a function for that reason.
-- **The earlier-degrees questions** (DGS 2026-09-22): `src/ui/background.ts` owns the two questions
-  (`backgroundQuestions`, used by the opening dialog in app.ts and by the "Change" dialog
-  `openBackgroundDialog` from the Transcripts card), the row rule `priorSlotsFor(background)` and
-  `applyBackground` (what an answer settles on the standing card). `Student.background` is absent on
-  older records — every row shows then. The e2e consent helper (session-common.mjs) answers
-  "elsewhere / elsewhere / not the same place" so every previous row exists for the transcript driver.
+- **The opening dialog asks the program only** (DGS 2026-10-08, Option 1 — it asked the earlier
+  degrees too from 2026-09-22). The alpha notice and the program; `closeConsent` re-applies a
+  background that fits a changed program, else turns it back into a draft without its graduate
+  part. `applyBackground` writes `priorMs`, `ndMasters` and `integratedBsMs` from a COMPLETE answer;
+  the standing card's controls for those are gone, the program tabs are gone (`.program-name`
+  shows the choice), and imports skip their inference of those facts while `student.background`
+  exists. Reset (`resetAll`) empties the record and calls `openOpeningDialog(undefined)` — the
+  dialog is a function for that reason.
+- **The earlier-degrees questions** (DGS 2026-09-22; on the page since 2026-10-08): `src/ui/background.ts`
+  owns them (`backgroundQuestions(current, prefix, program, onChange, sequential, read)`), used
+  INLINE in the Transcripts card (`fieldset#earlier-degrees`, prefix `earlier`, external-upload.ts)
+  until the answer is complete, and by the "Change" dialog `openBackgroundDialog` (prefix
+  `background`) after. Row rules: `priorSlotsFor(background)` for an answer, `priorSlotsForDraft`
+  while unanswered. Next steps (next-steps.ts) and the standing card's “Earlier degrees” line link
+  to `#earlier-degrees` while it is open. The e2e consent helper (session-common.mjs) chooses the
+  program, then answers “elsewhere / elsewhere / not the same place / finished” inline and clicks
+  Done, so every previous row exists for the transcript driver. drive-transcript.mjs's last block
+  runs Option 1 end to end on tests/fixtures/nd-insidend-transcript.pdf (invented, insideND's
+  positioned columns) and the Purdue master's fixture.
+- **Answer, draft, reading (Option 1, 2026-10-08).** `Student.background` = the complete answer, the
+  only one the engine and the inferences read. `Student.backgroundDraft` = a partial answer, never
+  read outside the questions; `Student.backgroundRead` = per answer key, where an import read it
+  (“Read from your transcripts: … — change it if it is wrong.” under the question).
+  src/ui/background-read.ts: `readBackgroundFromNdTerms` (the ND transcript's per-term level and
+  major, parse.ts `ParsedTranscript.terms`: undergraduate terms → a Notre Dame bachelor's, the last
+  undergraduate major names CSE or another department — none is NOT read as another university,
+  since the transcript does not say which levels it covers; non-CSE graduate terms before the CSE
+  ones → `nd-other`), `readBackgroundFromPriorBachelors`
+  / `readBackgroundFromPriorGraduate` (a previous transcript from another university), `mergeReading`
+  (fills gaps only, never over a part already there, nothing once an answer exists; a degree
+  elsewhere read beside an MSCSE answer becomes `alsoElsewhere`), `answerBackground` (the student's
+  change drops that key's mark), `settleDraft` (a complete draft becomes the answer),
+  `withdrawBackground` (an applied answer back to a draft — undoes what `applyBackground` set and
+  re-runs the inferences; used when the dialog closes on a program change, or on a saved answer
+  `completeBackground` now rejects), `draftForProgram`, and `reconcileInferences` (after every
+  draft change: `deriveNdMasters` / `derivePriorMs` in prior-nd.ts now also yield to the draft's
+  graduate answer, and an inferred 4+1 to a draft “No”). On the page, `answeringEarlier`
+  (external-upload.ts, not saved) keeps the questions open after they complete, until “Done”
+  (`earlier.done`, focus to `transcripts.background.change`); “Done” and the Change dialog's Save
+  clear `backgroundRead`. A read note's id is `${prefix}-read-${key}` and each choice it concerns
+  carries it in `aria-describedby`. The term pickers report a change only when the term changes
+  (a semester picked before the year re-rendered the page and snapped back to Fall).
+  `isOtherDepartmentMajor` decides “another department” (a whole major name only); parse.ts reads
+  a College / Major value row only with as many cells as its header. `mergeReading` returns
+  `'filled' | 'disagree' | false` — a reading that contradicts a part READ from another
+  transcript clears it. Previous-transcript rows stay while their preview is open (graduate rows
+  while their courses are on file) whatever the answer says. What the
+  insideND transcript cannot say — the 4+1, the MSCSE, a transfer into the Ph.D., whether a
+  program was finished — the student answers. A read value stays if its import is removed.
 - **Status words on the page and in the advisor summary** (DGS 2026-09-22): `unmet` and
   `in_progress` both display "In progress" (report.ts `pillLabel`, advisor-summary.ts `tagFor`);
   an unmet row with `deadline.state === 'overdue'` displays "Overdue" (`isOverdue`, class
