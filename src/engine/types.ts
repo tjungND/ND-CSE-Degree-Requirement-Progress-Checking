@@ -766,6 +766,12 @@ export interface AuditReport {
    * Graduate School confers the degree only with none (policy review round 3,
    * P3-dh-3.1-3.13-3; DGS Handbook §3.23.1). */
   graduation?: { term: Term; registeredCredits: number; registered: boolean; incompletes?: string[] };
+  /** The semester the student plans to graduate in, once it has begun with a
+   * counted transfer course not yet recorded: CSE §5.2 considers a transfer
+   * request only "before the semester in which the graduate degree is
+   * conferred" (policy review round 3, P3-import-4; DGS 2026-10-07: option
+   * (b)). The processing request asks whether it was sent in time. */
+  transferRequestWindowClosed?: Term;
   /** The MSCSE's summer floor from the Parameters tab (summer_fulltime_credits_min),
    * for the glossary's "Full-time" (policy review round 3, P3-text-ui-5): read
    * from the sheet, never typed, so the two cannot drift. */

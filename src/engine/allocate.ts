@@ -604,6 +604,21 @@ export function earlierTransferPrograms(classified: readonly ClassifiedCourse[])
   return [...programs.values()];
 }
 
+/** CSE §5.2's "before the semester in which the graduate degree is conferred",
+ * named once the student has entered the semester they plan to graduate in
+ * (policy review round 3, P3-import-4; DGS 2026-10-07: option (b), "Term-aware
+ * wording"). `closed`: that semester has begun. No count or status changes. */
+export function conferralWindow(student: Student, todayIso: string | undefined): { before: string; closed?: Term } {
+  const g = student.graduationTerm;
+  if (g === undefined) return { before: 'before the semester your degree is conferred' };
+  const before = `before ${termLabel(g)}, the semester you plan to graduate in`;
+  return todayIso !== undefined && todayIso >= startOfTerm(g).date ? { before, closed: g } : { before };
+}
+/** The sentence once that semester has begun (P3-import-4 (b)). */
+export function transferWindowClosedText(g: Term): string {
+  return `you plan to graduate in ${termLabel(g)}, and §5.2 considers a transfer request only before that semester — if yours was not sent before then, ask the DGS`;
+}
+
 /** When the student's own Notre Dame MSCSE began, read from its earliest
  * course on the record — the admission §5.2's five-year window counts back
  * from (P3-prior-programs-4 (b)). Undefined without such a course. */
@@ -1722,11 +1737,15 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   // the Grad Admin recorded it, nothing is left to send — CSE §5.2 makes the
   // Graduate School's approval the last step — and the line says so, as the
   // §5.2 card does (policy review round 3, P3-import-5).
+  // The conferral semester named, or the window said closed (P3-import-4 (b)).
+  const window = conferralWindow(student, env.today);
   const processWhen = student.attestations.transferRecorded === true
     ? 'recorded by the Grad Admin, as you ticked under Approvals (§5.2)'
-    : firstSemesterDone
-      ? 'send the Grad Admin the processing request to have it recorded — before the semester your degree is conferred (§5.2)'
-      : 'send the Grad Admin the processing request once your first semester is complete — the Graduate School considers transfer requests only then, and before the semester your degree is conferred (§5.2)';
+    : window.closed !== undefined
+      ? transferWindowClosedText(window.closed)
+      : firstSemesterDone
+        ? `send the Grad Admin the processing request to have it recorded — ${window.before} (§5.2)`
+        : `send the Grad Admin the processing request once your first semester is complete — the Graduate School considers transfer requests only then, and ${window.before} (§5.2)`;
   return {
     ...extBase,
     reviewed,

@@ -386,11 +386,16 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   // suggested fix". So the Grad Admin is asked to submit the request, and to
   // check the record only once the student says the Graduate School approved it.
   const recorded = student.attestations.transferRecorded === true;
+  // Once the semester the student graduates in has begun (P3-import-4 (b)):
+  // §5.2 considers a request only before it, so the item asks whether it was
+  // sent in time rather than asking for it now; the warning sends the student
+  // to the DGS if it was not.
+  const closedWindow = report.transferRequestWindowClosed;
   const recommendedBy = (t: ProcessingTransfer): string => (t.state === 'approved' ? 'recommended by the DGS for my case' : 'recommended by the DGS in the course rules');
   const actions = [
     ...transfers.map(
       (t) =>
-        `${recorded ? 'Check that the transfer credit is on my record for' : 'Submit the Transfer of Credits request to the Graduate School for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}${t.cappedCredits !== undefined ? ` — ${formatCredits(t.cappedCredits)} of them within the §5.2 cap` : ''}) — ${recorded ? 'approved by the Graduate School, as I ticked' : recommendedBy(t)} (§5.2).`,
+        `${recorded ? 'Check that the transfer credit is on my record for' : closedWindow !== undefined ? 'Check whether the Transfer of Credits request was sent before ' + termLabel(closedWindow) + ', the semester I plan to graduate in, for' : 'Submit the Transfer of Credits request to the Graduate School for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}${t.cappedCredits !== undefined ? ` — ${formatCredits(t.cappedCredits)} of them within the §5.2 cap` : ''}) — ${recorded ? 'approved by the Graduate School, as I ticked' : recommendedBy(t)} (§5.2).`,
     ),
     ...milestones.map((m) => `Record the milestone: ${m.label}, ${m.date} (${m.section}).`),
     ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — the qualifier’s course components are complete and the form is not filed yet (§4.4).'] : []),

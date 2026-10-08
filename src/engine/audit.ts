@@ -3,7 +3,7 @@
 // argument so tests are deterministic.
 import { undergraduateGraduateCourseworkFlagFor } from './review.ts';
 import type { Rules } from '../data/types.ts';
-import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, levelOf, decidedCaseByCase, longInterruptionReadmission, mscseSeparation, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
+import { DUAL_DEGREE_SHARED_CREDITS_MAX, NON_DEGREE_CREDITS_MAX, allocate, classify, conferralWindow, levelOf, decidedCaseByCase, longInterruptionReadmission, mscseSeparation, overMaxTerms, registrationCaps, spentOnBachelorsAndMasters, type CapSpec, type CourseMark } from './allocate.ts';
 import { specialTracks } from './tracks.ts';
 import { decisionWording, decisionWordingDeep } from './decider.ts';
 import { beforeProgramStart } from './early-start.ts';
@@ -818,6 +818,21 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     }
   }
 
+  // CSE §5.2 considers a transfer request only "before the semester in which
+  // the graduate degree is conferred" (policy review round 3, P3-import-4;
+  // DGS 2026-10-07: option (b), "Term-aware wording"): once the semester the
+  // student plans to graduate in has begun, with a counted transfer course
+  // not yet recorded, the page says the window has closed and the processing
+  // request asks whether it was sent in time. No count or status changes —
+  // the app cannot tell a late request from one still being processed.
+  const transferWindow = conferralWindow(student, today);
+  const unrecordedTransfer =
+    student.attestations.transferRecorded !== true &&
+    classified.some((cc) => !cc.superseded && cc.ineligibleReason === undefined && cc.caps.includes('transfer') && cc.ndPosting === undefined && cc.tier !== 'provisional');
+  const transferRequestWindowClosed = transferWindow.closed !== undefined && unrecordedTransfer ? transferWindow.closed : undefined;
+  if (transferRequestWindowClosed !== undefined)
+    warnings.push(`You plan to graduate in ${termLabel(transferRequestWindowClosed)}; §5.2 considers a transfer request only before that semester — if yours was not sent before then, ask the DGS.`);
+
   // When the semester of graduation is worth asking (DGS 2026-10-05: "Let's
   // show it only when it matters"): the Ph.D. once the OCE is passed — the
   // dissertation is what is left — and the MSCSE once its total credits are
@@ -854,6 +869,7 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     // The MSCSE's summer-session sentence names the decider (2026-10-04).
     milestoneDeadlines: decisionWordingDeep(p, milestoneDeadlines),
     ...(graduation !== undefined ? { graduation } : {}),
+    ...(transferRequestWindowClosed !== undefined ? { transferRequestWindowClosed } : {}),
     ...(graduationInSight ? { graduationInSight: true as const } : {}),
   };
 }
