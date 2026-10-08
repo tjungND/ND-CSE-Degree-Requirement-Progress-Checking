@@ -30,7 +30,9 @@ describe('the transfer row names a working limit as one (P3-cse-5-6-1)', () => {
       phdStudent({ entryTerm: { season: 'fall', year: 2025 }, bachelorsAwarded: { season: 'spring', year: 2022 }, priorMs: 'none', ndMasters: { term: { season: 'spring', year: 2024 } }, courses: [UMASS] }),
     );
     assert.doesNotMatch(r.detail, /no earlier graduate program|§5\.2’s allowance/);
-    assert.match(r.detail, /The 6 is this page’s working limit: no document states a transfer allowance for your record/);
+    // Since 2026-10-07 (P3-prior-programs-6 (a)) the course waits for the DGS — taken in no program at that university.
+    assert.match(r.detail, /^Waiting for the DGS: COMPSCI 589/);
+    assert.match(r.detail, /The 6 is this page’s working limit: your earlier program is the Notre Dame MSCSE, one program with the Ph\.D\., and no document states a transfer allowance for a course taken outside a program elsewhere, so the DGS decides each course/);
   });
   it('a completed prior degree keeps §5.2’s allowance', () => {
     const r = transferRow(phdStudent({ entryTerm: { season: 'fall', year: 2025 }, bachelorsAwarded: { season: 'spring', year: 2021 }, priorMs: 'completed', courses: [UMASS] }));

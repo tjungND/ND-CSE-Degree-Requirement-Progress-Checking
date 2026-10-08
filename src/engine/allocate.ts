@@ -1654,7 +1654,14 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
   //   program and for a completed one, and nothing for graduate courses taken
   //   outside any program. The six of the unfinished case is used as the
   //   meter (decision 2026-08-31), but no such course counts until the DGS says.
-  const noPriorProgram = !fromNd && student.priorMs === 'none' && student.ndMasters === undefined;
+  // …and a Ph.D. student whose only earlier program is the Notre Dame MSCSE
+  // (policy review round 3, P3-prior-programs-6; DGS 2026-10-07: option (a)):
+  // a course from another university was taken in no program THERE — the
+  // case ruled on 2026-10-03 — so it waits for the DGS too, the 6 as the
+  // meter, instead of counting against a 6 no ruling gave it. A student who
+  // studied in a program there says so (P3-prior-programs-1), and gets 24 or 6.
+  const ndMscseOnly = student.ndMasters !== undefined;
+  const noPriorProgram = !fromNd && student.priorMs === 'none';
   // — an Incomplete from another university (policy review round 3,
   //   P3-ac-4-1; DGS 2026-10-05: "an outside I should be held for DGS
   //   review"): no final grade yet, so §5.2's B cannot be shown, and Notre
@@ -1665,7 +1672,13 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     ...(windowStartUnknown
       ? [`completed more than ${windowYears} years before your Ph.D. entry (before ${termLabel(shiftTermYears(entry, -windowYears!))}) — §5.2’s five years count back from your admission to the Notre Dame MSCSE, which this record does not date (no MSCSE course on it), so the DGS confirms it falls inside them`]
       : []),
-    ...(noPriorProgram ? ['taken outside any degree program — you have no earlier graduate program on your record, and the Academic Code states a transfer allowance only for an unfinished or a completed program (Academic Code §4.6), so the DGS decides whether, and how much, transfers'] : []),
+    ...(noPriorProgram
+      ? [
+          ndMscseOnly
+            ? 'taken outside any degree program at that university — your earlier graduate program is the Notre Dame MSCSE, one program with the Ph.D., and the Academic Code states a transfer allowance only for an unfinished or a completed program (Academic Code §4.6), so the DGS decides whether, and how much, transfers'
+            : 'taken outside any degree program — you have no earlier graduate program on your record, and the Academic Code states a transfer allowance only for an unfinished or a completed program (Academic Code §4.6), so the DGS decides whether, and how much, transfers',
+        ]
+      : []),
     ...(passFail ? [`graded S (pass/fail), which cannot show the ${transferFloor} that §5.2 requires — the DGS decides whether it transfers`] : []),
     ...(afterAdmission ? [`taken ${termLabel(c.term)}, after you entered — a course taken elsewhere after admission needs the department’s and the Graduate School’s approval in advance (§5.2; DGS Handbook §3.14); the DGS confirms it was approved`] : []),
   ];

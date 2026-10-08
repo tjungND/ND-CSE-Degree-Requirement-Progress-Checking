@@ -41,7 +41,8 @@ describe('the first semester (P3-dh-3.14-3.20-4)', () => {
     assert.equal(firstSemesterComplete(student(t('fall', 2025)), t('fall', 2025), '2026-01-05').done, true);
   });
   it('(b): a finished earlier Notre Dame graduate program meets it in the first semester', () => {
-    const ms = student(t('fall', 2026), { ndMasters: { term: t('spring', 2026) }, priorMs: 'none' });
+    // The outside course counts only with a program there (P3-prior-programs-6 (a), 2026-10-07): the student says so (P3-prior-programs-1).
+    const ms = student(t('fall', 2026), { ndMasters: { term: t('spring', 2026) }, priorMs: 'completed', background: { bachelors: 'elsewhere', graduate: 'nd-mscse', alsoElsewhere: true, finished: true } } as Partial<Student>);
     assert.deepEqual(firstSemesterComplete(ms, t('fall', 2026), '2026-10-06'), { done: true, byEarlierProgram: true });
     assert.match(transferNote(ms, '2026-10-06'), /only after your first semester \(met by your finished earlier Notre Dame graduate program\)/);
     const otherDept = student(t('fall', 2026), { background: { bachelors: 'elsewhere', graduate: 'nd-other', finished: true } } as Partial<Student>);

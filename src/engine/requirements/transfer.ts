@@ -78,7 +78,12 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
         ...(c.ndPostingHeld !== undefined ? [`on your Notre Dame record as accepted transfer credit, but ${c.ndPostingHeld.replace('; and ', ', and ')} — the DGS confirms it counts toward this degree`] : []),
         ...(c.passFailGrade ? ['graded pass/fail, which cannot show the B §5.2 requires'] : []),
         ...(c.afterAdmission ? ['taken after admission — the department and the Graduate School must have approved it in advance (DGS Handbook §3.14)'] : []),
-        ...(c.noPriorProgram ? ['taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (Academic Code §4.6)'] : []),
+        // A Notre Dame MSCSE holder's course taken in no program at that university (P3-prior-programs-6 (a), 2026-10-07).
+        ...(c.noPriorProgram
+          ? [ctx.student.ndMasters !== undefined
+              ? 'taken outside any degree program at that university — your earlier program is the Notre Dame MSCSE, and the Academic Code states no transfer allowance for a course taken outside a program (Academic Code §4.6)'
+              : 'taken outside any degree program — the Academic Code states no transfer allowance for a student with no earlier graduate program (Academic Code §4.6)']
+          : []),
         // P3-prior-programs-3 (3), 2026-10-07: said once, as the row's first fact.
         ...(c.twoPrograms ? ['from one of your two earlier graduate programs — the DGS decides how their allowances combine'] : []),
         // P3-prior-programs-4 (b), 2026-10-07.
@@ -156,7 +161,9 @@ export function transferRow(ctx: Ctx, opts: { id: string; group: string; capKeyC
             ? `The ${cap} is this page’s working limit: the Academic Code states six for an unfinished master’s and no figure for an unfinished Ph.D. (Academic Code §4.6), so the DGS decides each course and may put your case to the Graduate School`
             : `The ${cap} is §5.2’s allowance for a prior program that was not completed`
           : noPriorProgram
-            ? `The ${cap} is this page’s working limit: no document states a transfer allowance for a student with no earlier graduate program, so the DGS decides each course (DGS 2026-10-03)`
+            ? ctx.student.ndMasters !== undefined
+              ? `The ${cap} is this page’s working limit: your earlier program is the Notre Dame MSCSE, one program with the Ph.D., and no document states a transfer allowance for a course taken outside a program elsewhere, so the DGS decides each course (DGS 2026-10-03, 2026-10-07)`
+              : `The ${cap} is this page’s working limit: no document states a transfer allowance for a student with no earlier graduate program, so the DGS decides each course (DGS 2026-10-03)`
             : `The ${cap} is this page’s working limit: no document states a transfer allowance for your record, so the DGS decides each course (DGS 2026-10-03)`;
     // The action first (DGS 2026-09-27): the courses waiting for the DGS and
     // what to do, then the count against the allowance.
