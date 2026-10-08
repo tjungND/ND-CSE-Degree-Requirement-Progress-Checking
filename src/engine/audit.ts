@@ -331,11 +331,14 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
   // The Academic Code's §5.1 says the same for most students, but its
   // Appendix A.2 gives the Spring 2020 cohort three, so citing it alone would
   // be wrong for them; the CSE limit holds for everyone (policy review round
-  // 3, P3-cse-5-6-4, the citation part — whether Appendix A.2 still reaches a
-  // leave today is a question for the DGS).
+  // 3, P3-cse-5-6-4, the citation part). The Spring 2020 cohort keeps the
+  // department's two, and its warning names the Graduate School's three
+  // (P3-ac-5a-4; DGS 2026-10-07: option (a), "Keep two for everyone, and add
+  // a note for the cohort") — CSE §5.7 may be stricter than the Code, and a
+  // cohort student whose third semester was allowed is not alarmed.
   if ((student.leaveSemesters ?? 0) > 2) {
     warnings.push(
-      `${student.leaveSemesters} semesters on medical leave: a leave of absence lasts at most two consecutive semesters (§5.7) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3). Confirm your standing with the DGS.`,
+      `${student.leaveSemesters} semesters on medical leave: a leave of absence lasts at most two consecutive semesters (§5.7) — a student who did not return at its end needed readmission, and the program may reject some or all earlier credits (DGS Handbook §3.3).${ctx.covidCohort ? ' For students enrolled in Spring 2020, the Graduate School allowed three consecutive semesters (Academic Code Appendix A.2).' : ''} Confirm your standing with the DGS.`,
     );
   }
   // The Notre Dame MSCSE five years or more before the Ph.D. (DGS 2026-10-06,

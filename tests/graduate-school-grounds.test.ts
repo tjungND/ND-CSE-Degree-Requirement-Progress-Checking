@@ -179,5 +179,13 @@ describe('more than two semesters of medical leave', () => {
     assert.ok(w, 'the leave warning is shown');
     assert.match(labelCitations(w), /a leave of absence lasts at most two consecutive semesters \(CSE §5\.7\) — a student who did not return at its end needed readmission/);
     assert.doesNotMatch(w, /Academic Code §5\.1/);
+    assert.doesNotMatch(w, /Appendix A\.2/, 'the cohort note is for the Spring 2020 cohort only');
+  });
+  // P3-ac-5a-4 (DGS 2026-10-07: option (a), "Keep two for everyone, and add a note for the cohort").
+  it('a student enrolled in Spring 2020: still warned at three, with the Graduate School’s three named', () => {
+    const w = warningsOf(phdStudent({ entryTerm: fall(2019), leaveSemesters: 3 })).find((x) => /semesters on medical leave/.test(x));
+    assert.ok(w, 'the leave warning is shown');
+    assert.match(w, /needed readmission, and the program may reject some or all earlier credits \(DGS Handbook §3\.3\)\. For students enrolled in Spring 2020, the Graduate School allowed three consecutive semesters \(Academic Code Appendix A\.2\)\. Confirm your standing with the DGS\.$/);
+    assert.equal(warningsOf(phdStudent({ entryTerm: fall(2019), leaveSemesters: 2 })).some((x) => /semesters on medical leave/.test(x)), false);
   });
 });
