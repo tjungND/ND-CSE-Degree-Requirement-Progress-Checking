@@ -20,6 +20,7 @@ import { isEarlyStartCourse } from './early-start.ts';
 import { addDaysIso, addYearsIso, compareTerm, endOfTerm, normalizeEntryTerm, semesterNumber, shiftTermYears, startOfTerm, termIndex, termLabel, termOfDate } from './term.ts';
 import type { Attestations, CourseEntry, Grade, NdPosting, Program, Student, Term } from './types.ts';
 import { ndPostingOf, pairedBlockRows, sameTransferCourse } from './nd-posting.ts';
+import { isCovidCohort } from './requirements/context.ts';
 
 /** `nondegree` (2026-10-03): Academic Code §2.3 — "No more than 12 credit hours
  * earned by a student while in non-degree status may be counted toward a degree
@@ -184,6 +185,11 @@ export interface ClassifiedCourse {
   /** An Incomplete still inside its 30 + 14 days (Academic Code §4.4): the
    * date it lapses, for the course line. */
   incompleteDue?: string;
+  /** An Incomplete of a student in the Spring 2020 cohort (policy review
+   * round 3, P3-cse-5-6-4; DGS 2026-10-07: option (b)): the deadline stays
+   * 30 + 14 days, and the line notes that Academic Code Appendix A.1 may give
+   * 60 days, for the DGS to confirm. */
+  incompleteCohortNote?: true;
   /** An Incomplete past that date: an F unless the Graduate School extended
    * it — counted provisionally and sent to the DGS. */
   incompleteLapsed?: true;
@@ -903,8 +909,14 @@ export function classify(student: Student, rules: Rules, today?: string): {
     const incompleteDue = grade === 'I' && (c.origin === 'nd' || isNotreDameInstitution(c.institution)) ? incompleteDeadline(c.term) : undefined;
     const incompleteLapsed = incompleteDue !== undefined && today !== undefined && today > incompleteDue;
     const inGraduationTerm = incompleteDue !== undefined && student.graduationTerm !== undefined && compareTerm(c.term, student.graduationTerm) === 0;
+    // The Spring 2020 cohort keeps 30 + 14 days, with Appendix A.1's 60 named
+    // for the DGS to confirm (P3-cse-5-6-4 (b)): the Incomplete deadline is the
+    // Registrar's and the Graduate School's to administer, not the program's.
+    const cohortI = incompleteDue !== undefined && isCovidCohort(student, entry);
     const incompleteNote: Partial<ClassifiedCourse> =
-      incompleteDue === undefined ? {} : { incompleteDue, ...(incompleteLapsed ? { incompleteLapsed: true as const } : {}), ...(inGraduationTerm ? { incompleteInGraduationTerm: true as const } : {}) };
+      incompleteDue === undefined
+        ? {}
+        : { incompleteDue, ...(incompleteLapsed ? { incompleteLapsed: true as const } : {}), ...(inGraduationTerm ? { incompleteInGraduationTerm: true as const } : {}), ...(cohortI ? { incompleteCohortNote: true as const } : {}) };
     const withIncomplete = (cc: ClassifiedCourse): ClassifiedCourse => {
       if (incompleteDue === undefined || cc.ineligibleReason !== undefined) return { ...cc, ...incompleteNote };
       if (!incompleteLapsed) return { ...cc, ...incompleteNote };
@@ -912,7 +924,7 @@ export function classify(student: Student, rules: Rules, today?: string): {
         ...cc,
         ...incompleteNote,
         tier: 'provisional',
-        approvalPending: `Incomplete (I) past its deadline (about ${incompleteDue}) — it became an F unless the Graduate School extended it (Academic Code §4.4); the DGS confirms${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
+        approvalPending: `Incomplete (I) past its deadline (about ${incompleteDue}) — it became an F unless the Graduate School extended it (Academic Code §4.4)${cohortI ? `; for students enrolled in Spring 2020, Academic Code Appendix A.1 may give 60 days instead of 30` : ''}; the DGS confirms${cc.approvalPending ? `; ${cc.approvalPending}` : ''}`,
       };
     };
     // A dual-degree student's course that also counts toward the other
@@ -2600,7 +2612,10 @@ function buildExplanationText(
     // the grade"; CSE §5.1). The app does not know when grades were due, and
     // its stand-in, the term's nominal end, falls after it — so no date is
     // given. `incompleteDue` (44 days) still decides when the line lapses.
-    if (cc.incompleteDue !== undefined && !cc.incompleteLapsed) parts.push('Incomplete (I): finish the work within 30 calendar days of the date grades were due for that semester, or the I becomes an F; the instructor then has 14 days to report the grade (Academic Code §4.4; CSE §5.1)');
+    if (cc.incompleteDue !== undefined && !cc.incompleteLapsed)
+      parts.push(
+        `Incomplete (I): finish the work within 30 calendar days of the date grades were due for that semester, or the I becomes an F; the instructor then has 14 days to report the grade (Academic Code §4.4; CSE §5.1)${cc.incompleteCohortNote ? '. For students enrolled in Spring 2020, Academic Code Appendix A.1 may give 60 days — confirm with the DGS' : ''}`,
+      );
     // The semester the student graduates (P3-dh-3.1-3.13-3; DGS 2026-10-06, the optional (3)).
     if (cc.incompleteInGraduationTerm) parts.push(`${termLabel(cc.entry.term)} is your graduation semester, and the degree is conferred only with no I grades in it (DGS Handbook §3.23.1)`);
     // The pending note already says "transfer — …(§5.2)" (and the pre-approved

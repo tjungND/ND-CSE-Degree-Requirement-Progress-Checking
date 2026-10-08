@@ -209,3 +209,18 @@ describe('§5.1: Incompletes in a semester, or in consecutive semesters', () => 
     assert.match(i51(phdStudent({ entryTerm: fall(2025), courses: [inc('CSE 60641', fall(2025)), inc('CSE 60111', fall(2025))] })) ?? '', /^More than one Incomplete in one semester/);
   });
 });
+
+// The Spring 2020 cohort's Incomplete (policy review round 3, P3-cse-5-6-4;
+// DGS 2026-10-07: option (b)): 30 + 14 days, as for everyone, and the line
+// names Appendix A.1's 60 days for the DGS to confirm.
+describe('a Spring 2020 cohort student’s Incomplete (Academic Code Appendix A.1)', () => {
+  const lineOf = (s: Student, id: string, today: string) => audit(s, rules, today).courseLines.find((l) => l.courseId === id)!.text;
+  const withI = (entry: Student['entryTerm'], term: Student['entryTerm']) => phdStudent({ entryTerm: entry, courses: [ndCourse('CSE 60641', { term, grade: 'I' })] });
+  it('open: the rule, then the appendix for the DGS to confirm', () => {
+    assert.match(lineOf(withI(fall(2019), fall(2026)), 'CSE 60641', '2026-10-05'), /the instructor then has 14 days to report the grade \(Academic Code §4\.4; CSE §5\.1\)\. For students enrolled in Spring 2020, Academic Code Appendix A\.1 may give 60 days — confirm with the DGS/);
+    assert.doesNotMatch(lineOf(withI(fall(2021), fall(2026)), 'CSE 60641', '2026-10-05'), /Appendix A\.1/, 'not the cohort');
+  });
+  it('lapsed: still "the DGS confirms", with the appendix named', () => {
+    assert.match(lineOf(withI(fall(2019), spring(2025)), 'CSE 60641', '2026-10-05'), /it became an F unless the Graduate School extended it \(Academic Code §4\.4\); for students enrolled in Spring 2020, Academic Code Appendix A\.1 may give 60 days instead of 30; the DGS confirms/);
+  });
+});
