@@ -59,26 +59,33 @@ export const BACHELORS_OPTIONS: [BachelorsFrom, string][] = [
  * already hold the MSCSE. Each label is the option's HEAD line; the detail
  * that used to follow it in the same sentence is in GRADUATE_NOTES (DGS
  * 2026-09-29: the dialog read as a wall of long radio labels). */
+// Each option says whether it means a FINISHED degree (DGS 2026-10-08: a
+// student who moved from the MSCSE into the Ph.D. "did start the MSCSE at
+// Notre Dame" and could pick the finished-MSCSE option). The two Notre Dame
+// MSCSE options are the finished degree; the transfer option is the unfinished
+// one; the two whose follow-up asks say "finished or not".
 export function graduateOptions(program: Program): [GraduateBefore, string][] {
   return [
     ['none', 'No'],
-    ['elsewhere', 'Yes, at another university'],
+    ['elsewhere', 'Yes, at another university — finished or not'],
     ...(program === 'phd'
       ? ([
-          ['nd-mscse', 'Yes, the MSCSE at Notre Dame'],
-          ['nd-4plus1', 'Yes, the MSCSE at Notre Dame, through the Integrated 4+1'],
-          ['nd-mscse-transfer', 'I transferred into the Ph.D. from the Notre Dame MSCSE'],
+          ['nd-mscse', 'Yes — I finished the MSCSE at Notre Dame'],
+          ['nd-4plus1', 'Yes — I finished the MSCSE at Notre Dame through the Integrated 4+1'],
+          ['nd-mscse-transfer', 'I started the MSCSE at Notre Dame but did not finish it — I transferred into the Ph.D.'],
         ] as [GraduateBefore, string][])
       : []),
-    ['nd-other', 'Yes, at Notre Dame in another department'],
+    ['nd-other', 'Yes, at Notre Dame in another department — finished or not'],
   ];
 }
 /** The lighter second line under a graduate-degree option. */
 export const GRADUATE_NOTES: Partial<Record<GraduateBefore, string>> = {
-  elsewhere: 'a master’s, or Ph.D. study',
-  'nd-mscse': 'as a regular master’s student',
-  'nd-4plus1': 'the Integrated B.S. + M.S. program',
-  'nd-mscse-transfer': 'you started in the MSCSE and moved into the Ph.D. before finishing it; a degree from another university is asked next',
+  none: 'this is your first graduate program',
+  elsewhere: 'a master’s or Ph.D.; whether you finished it is asked next',
+  'nd-mscse': 'the degree was conferred, as a regular master’s student, before you entered the Ph.D.',
+  'nd-4plus1': 'the degree was conferred through the Integrated B.S. + M.S. program, before you entered the Ph.D.',
+  'nd-mscse-transfer': 'you moved into the Ph.D. before the MSCSE was conferred; a degree from another university is asked next',
+  'nd-other': 'a master’s or Ph.D. in another Notre Dame department; whether you finished it is asked next',
 };
 
 /** One selectable option row (DGS 2026-09-29: the opening dialog's radios
