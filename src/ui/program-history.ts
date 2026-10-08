@@ -115,6 +115,6 @@ export function priorStudyLabel(student: Student): string {
   // Unanswered, and nothing read from a transcript: the emails must not say
   // "no prior graduate degree" for a student nobody has asked yet (review of
   // Option 1, 2026-10-08 — the opening dialog no longer forces the answer).
-  if (b === undefined && student.priorMs === 'none' && student.priorMsInferred !== true) return 'not answered yet';
+  if (b === undefined && student.priorMs === 'none' && student.priorMsInferred !== true && student.backgroundDraft?.graduate !== 'none') return 'not answered yet';
   return PRIOR_LABELS[student.priorMs];
 }

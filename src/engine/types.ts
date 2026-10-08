@@ -351,6 +351,10 @@ export interface Student {
    * can say "read from your transcript — check it". A part the student
    * changes is dropped from here. Display only. */
   backgroundRead?: Partial<Record<keyof NonNullable<Student['background']> | 'integratedAdmittedTerm', string>>;
+  /** Which import each read part came from (review of Option 1, 2026-10-08):
+   * removing that import forgets what it read, while the answer is a draft. UI
+   * only. */
+  backgroundReadFrom?: Partial<Record<keyof NonNullable<Student['background']> | 'integratedAdmittedTerm', 'nd' | 'bachelors' | 'masters' | 'phd'>>;
   priorMs: 'none' | 'unfinished' | 'completed'; // §5.2 transfer caps
   /** True while priorMs holds a value INFERRED from an uploaded transcript
    * (2026-09-03) rather than chosen by the student — cleared when they touch

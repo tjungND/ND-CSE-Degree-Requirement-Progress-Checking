@@ -372,18 +372,16 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   }
   await s.shot('external-added');
 
-  // 3b) The combined ND import filled the Bachelor's slot with the prior Notre
-  // Dame undergraduate course; its Remove button frees the slot (and drops
-  // that course from the request: 6 → 5 pending).
-  await s.evalJs(`(() => {
-    const slot = [...document.querySelectorAll('.external-slot')].find((e) => e.textContent.includes('Previous Undergraduate Transcript'));
-    [...slot.querySelectorAll('button')].find((b) => b.textContent === 'Remove').click();
-  })()`);
-  await s.waitFor(`document.querySelector('.external-file-bachelors')`);
-  const afterRemove = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
-  // Five either way: a pending CSE 30321 leaves the count (6 → 5); a settled one was never in it (5 → 5).
-  if (!afterRemove.includes('Initiate the review request for 5 courses')) throw new Error('removing the prior ND undergraduate course should leave 5 pending: ' + afterRemove.slice(0, 140));
-  console.log('  prior ND undergraduate course removed via the Bachelor’s slot (5 pending)');
+  // 3b) The Notre Dame import's own pre-entry course does NOT fill the
+  // Previous Undergraduate row (blue/red-team review, 2026-10-08: that row's
+  // Remove deleted it, and a real bachelor's transcript could not be added):
+  // the row still offers its import, and CSE 30321 stays on the record.
+  {
+    const ugRow = await s.evalJs(`[...document.querySelectorAll('.external-slot')].find((e) => e.textContent.includes('Previous Undergraduate Transcript'))?.textContent ?? ''`);
+    if (/University of Notre Dame/.test(ugRow) || !(await s.evalJs(`!!document.querySelector('.external-file-bachelors')`))) throw new Error('the Notre Dame transcript’s own course must not fill the Previous Undergraduate row: ' + ugRow.slice(0, 160));
+    if (!(await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 30321')`))) throw new Error('the prior Notre Dame undergraduate course must stay on the record');
+    console.log('  the prior ND undergraduate course stays with the Notre Dame transcript; the Undergraduate row stays free');
+  }
 
   // 3d) A text-layer PDF with NO readable course line (DGS 2026-09-16) is
   //     offered OCR, with its own lead sentence; Cancel leaves nothing behind.
@@ -568,14 +566,15 @@ export async function driveTranscript(s, baseUrl, pdfs) {
 
   // 9) The Notre Dame transcript is removable like the others (2026-09-06):
   //    Remove takes back exactly what the import added — the 5 program
-  //    courses and the transcript's own transfer-credit line (the prior
-  //    undergraduate row went with the Bachelor's slot in 3b) — plus the GPA
-  //    it filled in; the hand-typed MATH 60610 and the external courses stay.
+  //    courses, the prior undergraduate row (CSE 30321; it stays with this
+  //    transcript since the blue/red-team review, 3b) and the transcript's
+  //    own transfer-credit line — plus the GPA it filled in; the hand-typed
+  //    MATH 60610 and the external courses stay.
   //    Undo puts everything back.
   const gpaBefore = await s.evalJs(`document.querySelector('input[step="0.01"]')?.value`);
   const idsBefore = await s.evalJs(`[...document.querySelectorAll('table.courses .cid')].map(e => e.textContent)`);
   const ndRowBefore = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
-  if (!ndRowBefore.includes('6 courses from your transcript')) throw new Error('ND row count before Remove: ' + ndRowBefore.slice(0, 120));
+  if (!ndRowBefore.includes('7 courses from your transcript')) throw new Error('ND row count before Remove: ' + ndRowBefore.slice(0, 120));
   const dgsBefore = await s.evalJs(`document.querySelector('.dgs-review')?.textContent ?? ''`);
   await s.evalJs(`document.querySelector('[data-key="import.nd.remove"]').click()`);
   await s.waitFor(`!document.querySelector('[data-key="import.nd.remove"]')`);
@@ -586,12 +585,12 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  after ND Remove:', JSON.stringify(idsAfterRemove), '| GPA:', JSON.stringify(gpaAfterRemove), '|', removeToast.slice(0, 120));
   // The transcript's transfer-credit line (EECS 58200 from Michigan, no degree
   // slot) had its own "graduate coursework (§5.2)" group — gone with it.
-  if (idsAfterRemove.length !== idsBefore.length - 6 || idsAfterRemove.some((id) => /^CSE 6/.test(id)) || headingsAfterRemove.includes('University of Michigan — graduate coursework (CSE §5.2)')) {
-    throw new Error('ND Remove must take back exactly the 6 transcript rows: ' + JSON.stringify(headingsAfterRemove));
+  if (idsAfterRemove.length !== idsBefore.length - 7 || idsAfterRemove.some((id) => /^CSE (6|30321)/.test(id)) || headingsAfterRemove.includes('University of Michigan — graduate coursework (CSE §5.2)')) {
+    throw new Error('ND Remove must take back exactly the 7 transcript rows: ' + JSON.stringify(headingsAfterRemove));
   }
   if (!idsAfterRemove.includes('MATH 60610') || !idsAfterRemove.includes('CS 58000')) throw new Error('ND Remove must keep hand-typed and external rows');
   if (gpaAfterRemove !== '') throw new Error('ND Remove must clear the GPA the transcript filled in');
-  if (!removeToast.startsWith('6 courses from your ND transcript removed, and the GPA it filled in.')) throw new Error('ND Remove toast wrong: ' + removeToast.slice(0, 120));
+  if (!removeToast.startsWith('7 courses from your ND transcript removed, and the GPA it filled in.')) throw new Error('ND Remove toast wrong: ' + removeToast.slice(0, 120));
   const ndRowAfter = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
   if (!ndRowAfter.includes('Import from PDF') || ndRowAfter.includes('from your transcript')) throw new Error('ND row after Remove: ' + ndRowAfter.slice(0, 120));
   await s.shot('nd-removed');
@@ -875,7 +874,11 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     await s.waitFor(`!document.querySelector('.external-card .transcript-preview') && document.querySelector('[data-key="earlier.graduate.elsewhere"]')?.checked === true`);
     const gradNote = await s.evalJs(`document.querySelector('[data-key="earlier.read.graduate"]')?.textContent ?? ''`);
     if (!gradNote.includes('you added a previous master’s transcript from Purdue University')) throw new Error('the graduate answer must say where it was read: ' + gradNote);
-    if (await s.evalJs(`!!document.querySelector('[data-key="earlier.finished.yes"]:checked, [data-key="earlier.finished.no"]:checked, [data-key="earlier.sameplace.no"]:checked, [data-key="earlier.sameplace.yes"]:checked')`)) throw new Error('no conferral line and no bachelor’s transcript: “finished” and “same university” stay for the student');
+    // The bachelor's is answered as Notre Dame's, so the master's elsewhere is
+    // not at the same university (blue/red-team review, 2026-10-08); no
+    // conferral line, so "finished" stays for the student.
+    if (await s.evalJs(`!!document.querySelector('[data-key="earlier.finished.yes"]:checked, [data-key="earlier.finished.no"]:checked')`)) throw new Error('no conferral line: “finished” stays for the student');
+    if (!(await s.evalJs(`document.querySelector('[data-key="earlier.sameplace.no"]')?.checked === true && /your bachelor’s is from Notre Dame/.test(document.querySelector('[data-key="earlier.read.samePlace"]')?.textContent ?? '')`))) throw new Error('a Notre Dame bachelor’s and a master’s elsewhere: “same university?” is read as No');
     const extToast = await s.evalJs(`[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ')`);
     if (!extToast.includes('Your earlier degrees were partly filled in from it')) throw new Error('the previous-transcript toast must say the earlier degrees were filled in: ' + extToast.slice(0, 300));
     await s.shot('earlier-degrees-read-graduate');

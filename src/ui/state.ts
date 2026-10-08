@@ -123,6 +123,15 @@ function validBackgroundRead(v: unknown): Student['backgroundRead'] {
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
+function validBackgroundReadFrom(v: unknown): Student['backgroundReadFrom'] {
+  if (!v || typeof v !== 'object') return undefined;
+  const out: NonNullable<Student['backgroundReadFrom']> = {};
+  for (const k of ['bachelors', 'ndIntegrated', 'integratedAdmittedTerm', 'graduate', 'samePlace', 'finished', 'transferredTerm', 'alsoElsewhere'] as const) {
+    const s = (v as Record<string, unknown>)[k];
+    if (s === 'nd' || s === 'bachelors' || s === 'masters' || s === 'phd') out[k] = s;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 function validNdMasters(v: unknown): Student['ndMasters'] {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
@@ -429,6 +438,7 @@ export function validateStudent(data: unknown, refusals: Refusal[] = []): Studen
     // Set explicitly: `...d` above would otherwise carry the raw values through.
     backgroundDraft: validBackground(raw['background']) === undefined ? validBackgroundDraft(raw['backgroundDraft']) : undefined,
     backgroundRead: validBackgroundRead(raw['backgroundRead']),
+    backgroundReadFrom: validBackgroundReadFrom(raw['backgroundReadFrom']),
     ndMasters: validNdMasters(raw['ndMasters']),
     ...(typeof raw['integratedBsMs'] === 'boolean' ? { integratedBsMs: raw['integratedBsMs'] as boolean } : {}),
     ...(typeof raw['integratedBsMs'] === 'boolean' && raw['integratedBsMsInferred'] && typeof (raw['integratedBsMsInferred'] as Record<string, unknown>)['how'] === 'string'

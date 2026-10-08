@@ -8,6 +8,7 @@
 // page's ADGS rewrite applies on the M.S. tab.
 import { termLabel } from '../engine/term.ts';
 import type { AuditReport, CourseLine, Student } from '../engine/types.ts';
+import { completeBackground } from './background.ts';
 
 export interface NextStep {
   text: string;
@@ -86,8 +87,16 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   if (settings.length > 0) steps.push({ text: `Check what your transcript set — ${settings.join(', ')} (Your standing).`, href: '#standing' });
   // The earlier-degrees questions, asked on the page since 2026-10-08 (DGS,
   // Option 1: the opening dialog asks only the program).
+  // Every question answered but not confirmed (the transcripts filled them):
+  // the step is to check them and click Done (review of Option 1, 2026-10-08).
   if (student.background === undefined)
-    steps.push({ text: 'Answer the questions about your earlier degrees in the Transcripts card — they decide which earlier transcripts to add and how §5.2 applies to them.', href: '#earlier-degrees' });
+    steps.push({
+      text:
+        completeBackground(student.backgroundDraft, student.program) !== undefined
+          ? 'Check the answers about your earlier degrees in the Transcripts card and click Done — they decide which earlier transcripts to add and how §5.2 applies to them.'
+          : 'Answer the questions about your earlier degrees in the Transcripts card — they decide which earlier transcripts to add and how §5.2 applies to them.',
+      href: '#earlier-degrees',
+    });
   // 2. The decisions the DGS has to make — the courses, two kinds (DGS
   // 2026-09-27); since policy review round 3 (P3-cse-1-2-2, DGS 2026-10-06)
   // also an advisor whose faculty status needs the DGS's approval and the

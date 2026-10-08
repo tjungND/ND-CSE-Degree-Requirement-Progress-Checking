@@ -11,6 +11,7 @@
 //
 // Parsing a PDF's text is inherently best-effort: everything parsed here is
 // shown to the student for confirmation before anything is added (never guess).
+import { isOtherDepartmentMajor } from './majors.ts';
 import { joinSpacedSubject } from '../data/assemble.ts';
 import { conferralTerm, termIndex, termLabel, termOfDate } from '../engine/term.ts';
 import type { Grade, Season, Term, TermGpa } from '../engine/types.ts';
@@ -397,14 +398,21 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     // "Major: …" lines, and insideND's table — a "College   Major   Academic
     // Standing" header with the values on the next line, cells three spaces
     // apart (rawLine keeps the gaps; `line` collapses them).
-    if (expectCollegeMajor) {
+    // A page break between the header and its values: the print's own header
+    // and footer lines come first (blue/red-team review, 2026-10-08) — they
+    // are skipped while the values are awaited.
+    const furniture = expectCollegeMajor && rawLine.trim().split(/\s{3,}/).every((cell) => PAGE_FURNITURE_RE.test(cell.trim()));
+    if (expectCollegeMajor && !furniture) {
       expectCollegeMajor = false;
       const cells = rawLine.trim().split(/\s{3,}/);
-      // Only a row with every column filled: with one cell missing there is
-      // no telling which (a blank major under "Academic Standing" read the
-      // standing as the major — review of Option 1, 2026-10-08).
-      if (term && !courseMatch && cells.length === collegeMajorCells) {
-        recordTerm(term, { college: cells[0]!.trim(), major: cells[1]!.trim() });
+      if (term && !courseMatch && cells.length >= 2) {
+        // With a cell blank, the second one may be the standing (a blank
+        // major beside "Good Standing"): a standing is never read as the
+        // major (review of Option 1, 2026-10-08). A blank standing leaves
+        // the college and the major, as they are.
+        const second = cells[1]!.trim();
+        const isStanding = cells.length < collegeMajorCells && /\b(standing|probation|warning|dismiss)/i.test(second);
+        recordTerm(term, isStanding ? { college: cells[0]!.trim() } : { college: cells[0]!.trim(), major: second });
         continue;
       }
     }
@@ -648,6 +656,8 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
   const labeled = gpaByLevel.graduate !== undefined || gpaByLevel.undergraduate !== undefined;
   const cumulativeGpa = labeled ? gpaByLevel.graduate : lastGpa;
 
+  // Every term the transcript heads, with its level and major (insideND).
+  const termList: TranscriptTerm[] = [...termRecords.entries()].sort((a, b) => a[0] - b[0]).map(([k, r]) => ({ ...r, ...(termLevelHints.has(k) ? { level: termLevelHints.get(k)! } : {}) }));
   return {
     isNotreDame: true,
     courses: unique,
@@ -655,11 +665,9 @@ export function parseTranscript(lines: string[]): ParsedTranscript {
     cumulativeGpaByLevel: labeled ? gpaByLevel : undefined,
     warnings,
     degreesAwarded,
-    entryTerm: inferEntryTerm({ courses: unique, admitTerms, newStudentTerms, degreesAwarded }),
+    entryTerm: inferEntryTerm({ courses: unique, admitTerms, newStudentTerms, degreesAwarded, terms: termList }),
     ...(termGpaByIndex.size > 0 ? { termGpas: [...termGpaByIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v) } : {}),
-    ...(termRecords.size > 0
-      ? { terms: [...termRecords.entries()].sort((a, b) => a[0] - b[0]).map(([k, r]) => ({ ...r, ...(termLevelHints.has(k) ? { level: termLevelHints.get(k)! } : {}) })) }
-      : {}),
+    ...(termList.length > 0 ? { terms: termList } : {}),
   };
 }
 
@@ -671,6 +679,13 @@ export function levelFromNumber(courseId: string): RegisteredLevel | undefined {
   const digit = Number(m[1]);
   return digit >= 6 ? 'graduate' : digit <= 4 ? 'undergraduate' : undefined;
 }
+
+/** A print's page header or footer cell, between a table header and its
+ * values at a page break: blank, "Page 2 of 3", the repeated "University of
+ * Notre Dame" / "(Unofficial) Academic Transcript" heading, the browser's URL,
+ * page number ("1/3") or date stamp ("10/8/26, 3:12 AM   Academic Transcript"
+ * is two such cells). */
+const PAGE_FURNITURE_RE = /^$|^page\s+\d+(?:\s+of\s+\d+)?$|^\d+\s*\/\s*\d+$|^university\s+of\s+notre\s+dame$|^(?:(?:un)?official\s+)?academic\s+transcript$|https?:\/\/|inside\.nd|^\d{1,2}\/\d{1,2}\/\d{2,4}(?:,?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?)?$/i;
 
 /** The current program's entry term (2026-09-05). Precedence:
  *   1. a stated admit / matriculation term (the latest one, when a transcript
@@ -691,6 +706,8 @@ export function inferEntryTerm(args: {
   admitTerms: Term[];
   newStudentTerms: Set<number>;
   degreesAwarded: DegreeAwarded[];
+  /** Each term's level and major, where the transcript marks them (insideND). */
+  terms?: readonly TranscriptTerm[];
 }): EntryTermInference | undefined {
   const { courses, admitTerms, newStudentTerms, degreesAwarded } = args;
   const byIndex = (a: Term, b: Term) => termIndex(a) - termIndex(b);
@@ -725,6 +742,35 @@ export function inferEntryTerm(args: {
           `a transfer into the Ph.D. from the MSCSE or from another Notre Dame graduate program keeps the earlier term (DGS 2026-09-26; DGS Handbook §3.15), so ${termLabel(earliest)} is set until you change it`,
       },
     };
+  }
+  // insideND marks every term's level ("Term Totals (Graduate)") and major
+  // (review of Option 1, 2026-10-08). The entry term is then the first
+  // GRADUATE term in CSE: a 4+1's senior-year graduate courses sit in
+  // undergraduate terms (the first term after the bachelor's is the master's
+  // year, DGS 2026-09-10), and graduate terms in another department are an
+  // earlier program. A term still in progress (no totals yet) counts when it
+  // follows the last marked term and every row in it is registered at the
+  // graduate level (a 4+1 senior's term mixes the two). With levels marked
+  // and no graduate term, nothing is read from the undergraduate ones. A
+  // stated admission or a "Student Type: New" term still decides first.
+  const marked = (args.terms ?? []).filter((t) => t.level !== undefined);
+  if (marked.length > 0 && degreesAwarded.length === 0 && newStudentTerms.size === 0) {
+    const lastMarked = Math.max(...marked.map((t) => termIndex(t.term)));
+    const allGraduate = (t: Term): boolean => {
+      const rows = courses.filter((c) => c.origin === 'nd' && termIndex(c.term) === termIndex(t));
+      return rows.length > 0 && rows.every((c) => c.level === 'graduate');
+    };
+    const candidates = (args.terms ?? []).filter((t) => t.level === 'graduate' || (t.level === undefined && termIndex(t.term) > lastMarked && allGraduate(t.term)));
+    const cse = candidates.find((t) => !isOtherDepartmentMajor(t.major));
+    if (cse === undefined) return undefined;
+    const before = candidates.filter((t) => termIndex(t.term) < termIndex(cse.term) && isOtherDepartmentMajor(t.major));
+    const how =
+      before.length > 0
+        ? `the first graduate-level term in Computer Science and Engineering on your transcript — your graduate terms in ${before[0]!.major} before it are another program`
+        : cse.level === undefined
+          ? 'the term in progress on your transcript, its first graduate-level term'
+          : 'the first graduate-level term on your transcript';
+    return cse.term.season === 'summer' ? { term: fallFor(cse.term), how: `${how} — a summer start, so your official matriculation is that fall` } : { term: cse.term, how };
   }
   const ndCourses = courses.filter((c) => c.origin === 'nd');
   const uniqueTerms = (list: ParsedCourse[]): Term[] => {

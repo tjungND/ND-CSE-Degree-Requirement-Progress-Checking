@@ -281,8 +281,20 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   clear `backgroundRead`. A read note's id is `${prefix}-read-${key}` and each choice it concerns
   carries it in `aria-describedby`. The term pickers report a change only when the term changes
   (a semester picked before the year re-rendered the page and snapped back to Fall).
+  Since the blue/red-team review (same night): a reading NEVER applies the answer — `mergeReading`
+  only fills the draft (with `backgroundReadFrom`, the source of each read part) and `confirmDraft`
+  (the inline "Done", shown once every question is filled) applies it; `forgetReadings(s, source)`
+  runs when an import is removed; a changed answer or a contradiction drops the follow-ups read for
+  it (GRADUATE_FOLLOW_UPS / BACHELORS_FOLLOW_UPS); `derivePriorMs` follows a draft's `finished`;
+  `sameUniversityReading` leaves nested names undecided. The major helpers live in
+  src/transcript/majors.ts (placeholders read nothing). parse.ts `inferEntryTerm` takes `terms`:
+  on insideND the entry term is the first GRADUATE term in CSE (in-progress terms only when every row
+  is GR), nothing when no graduate term; nd-upload.ts `bachelorsAwardRead` reads the last undergraduate
+  term as the award term when ND graduate terms follow. external.ts `saysConferred` (no level words,
+  no forecasts); nd-markers.ts `OTHER_NOTRE_DAMES`; external-upload `inSlot` skips every
+  `fromNdTranscript` row; Reset calls `resetPriorImports` / `resetNdImport`.
   `isOtherDepartmentMajor` decides “another department” (a whole major name only); parse.ts reads
-  a College / Major value row only with as many cells as its header. `mergeReading` returns
+  a College / Major value row of two or more cells (a standing value is never the major) and waits across page furniture for it. `mergeReading` returns
   `'filled' | 'disagree' | false` — a reading that contradicts a part READ from another
   transcript clears it. Previous-transcript rows stay while their preview is open (graduate rows
   while their courses are on file) whatever the answer says. What the

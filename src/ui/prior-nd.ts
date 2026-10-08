@@ -124,6 +124,17 @@ export function derivePriorMs(student: Student): boolean {
     student.priorMsInferred = undefined;
     return student.priorMs !== before;
   }
+  // …and its "finished" for an earlier program (elsewhere, or in another
+  // Notre Dame department) sets prior study to match, as the answer will: a
+  // printed conferral read as "finished" is a completed degree, not the
+  // "unfinished" the coursework alone suggests (review of Option 1,
+  // 2026-10-08 — the cap read 6 while the record said finished).
+  const draft = student.backgroundDraft;
+  if (draft?.finished !== undefined && (draft.graduate === 'elsewhere' || draft.graduate === 'nd-other' || (asksAlsoElsewhere(draft.graduate) && draft.alsoElsewhere === true))) {
+    student.priorMs = draft.finished ? 'completed' : 'unfinished';
+    student.priorMsInferred = true;
+    return student.priorMs !== before;
+  }
   if (hasPriorGraduateStudy(student)) {
     // Notre Dame's own master's degree is a fact the transcript records; any
     // other prior graduate coursework leaves "completed" to the student, with

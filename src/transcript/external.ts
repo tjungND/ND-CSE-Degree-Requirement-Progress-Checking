@@ -119,6 +119,13 @@ const DEGREE_DATE_LINE_RE =
   /degree\s+(?:completion\s+|conferral\s+|award(?:ed)?\s+)?date|\bconfer(?:ral)?\s+date|\bconferr|\bawarded\b|\bgranted\b|completion\s+date|completed\s+on|date\s+(?:of\s+)?(?:completion|conferral|graduation|award)|graduation\s+date|\bgraduated\b|colação\s+de\s+grau|fecha\s+de\s+(?:grado|egreso|titulaci[oó]n)|data\s+da\s+defesa|verliehen\s+am/i;
 /** A dated line that is a forecast, never an award. */
 const NOT_YET_RE = /expected|anticipated|projected|sought|in\s+progress|pending/i;
+/** A line that says a degree WAS conferred: an award word — not the level
+ * word "Graduate" / "Undergraduate" / "Postgraduate" (CONFER_RE's "graduat"
+ * is for "graduated" and "graduation date"), and not a forecast ("Expected
+ * Graduation", "Anticipated Completion", "Degree Sought", "Pending"). Review
+ * of Option 1, 2026-10-08: "Program: Master of Science   Level: Graduate" and
+ * "Anticipated Completion: Master of Science" read as a finished master's. */
+const saysConferred = (line: string): boolean => CONFER_RE.test(line.replace(/\b(?:under|post)?graduate\b/gi, ' ')) && !NOT_YET_RE.test(line);
 // Abbreviations from Indian, Bangladeshi and Commonwealth transcripts (2026-09-26).
 const GRAD_DEGREE_RE = /master|\bm\.?\s?sc?\.?\b|ph\.?\s?d|doctor of philosophy|integrated\s+m\.?\s?tech|dual\s+degree/i;
 const gradDegreeIn = (text: string): boolean => GRAD_DEGREE_RE.test(text) || GRAD_ABBR_RE.test(text) || GRAD_WORDS_RE.test(text);
@@ -1732,7 +1739,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // the status line under a bare degree name in the block (2026-09-20).
     const notConferred =
       NOT_CONFERRED_STATUS_RE.test(flat) || (degreeBlock > 0 && !CONFER_RE.test(flat) && NOT_CONFERRED_STATUS_RE.test(lines[lineIndex + 1] ?? ''));
-    const conferredHere = namesDegree && (CONFER_RE.test(flat) || degreeBlock > 0) && !NOT_COMPLETE_RE.test(flat) && !notConferred;
+    const conferredHere = namesDegree && (saysConferred(flat) || degreeBlock > 0) && !NOT_YET_RE.test(flat) && !NOT_COMPLETE_RE.test(flat) && !notConferred;
     if (degreeBlock > 0 && !lead) degreeBlock -= 1;
     if (conferredHere && gradDegreeIn(flat)) blockConferredGrad = true;
     // Named, not necessarily conferred: "Degree Sought: Bachelor of Science"
@@ -1941,7 +1948,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const levels = new Set(courses.map((c) => c.level).filter((l) => l !== undefined));
   const degreeConferred =
     blockConferredGrad ||
-    lines.some((l) => CONFER_RE.test(l) && gradDegreeIn(l) && !NOT_COMPLETE_RE.test(l) && !NOT_CONFERRED_STATUS_RE.test(l)) ||
+    lines.some((l) => saysConferred(l) && gradDegreeIn(l) && !NOT_COMPLETE_RE.test(l) && !NOT_CONFERRED_STATUS_RE.test(l)) ||
     undefined;
   // Quarter system (2026-09-11): the word "quarter" in a term header ("Fall
   // Quarter 2023", "Autumn Qtr 2023 Graduate") or in a credits heading

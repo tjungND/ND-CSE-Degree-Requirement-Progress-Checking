@@ -18,7 +18,7 @@ import { GPA_RANGE, formatValue, inRange, rangeSpan } from '../engine/ranges.ts'
 import { conferralTerm, termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { CourseEntry, Student, Term, TermGpa } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse, type TranscriptTerm } from '../transcript/parse.ts';
-import { mergeReading, readBackgroundFromNdTerms, type ReadingResult } from './background-read.ts';
+import { earlierDegreesState, forgetReadings, mergeReading, readBackgroundFromNdTerms, restoreEarlierDegrees, type ReadingResult } from './background-read.ts';
 import { el, inactiveButton, PREVIEW_OPEN_NOTE } from './dom.ts';
 import { plural } from './email-html.ts';
 import { ndRowLabel } from './external-upload.ts';
@@ -84,6 +84,13 @@ export function ndPreviewOpen(): boolean {
  * to miss and impossible to re-read. Cleared by the next import or Dismiss. */
 let ndImportError: string | undefined;
 
+/** Reset (review of Option 1, 2026-10-08): an open Notre Dame preview belonged
+ * to the old record. */
+export function resetNdImport(): void {
+  transcriptPreview = undefined;
+  ndImportError = undefined;
+}
+
 export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
   const fileInput = el('input', { type: 'file', accept: '.pdf,application/pdf', class: 'hidden', 'aria-label': 'ND unofficial transcript PDF' });
   const fail = (message: string): void => {
@@ -134,10 +141,10 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
       // qualifier's, so it is no reason to tick anything for an MSCSE
       // student.
       const entry = parsed.entryTerm?.term ?? args.student.entryTerm;
-      const bsTerm = bachelorsTermFor(parsed.degreesAwarded, args.student);
+      const bsTerm = bachelorsTermFor(parsed.degreesAwarded, args.student, parsed.terms);
       // Before the program began — the early-start summer just before a fall
       // entry is the program's own (P3-chg-other-1; DGS 2026-10-05).
-      const startFacts = startFactsFor(entry, parsed.degreesAwarded, args.student);
+      const startFacts = startFactsFor(entry, parsed.degreesAwarded, args.student, parsed.terms);
       const beforeStart = (c: ParsedCourse): boolean => beforeProgramStart({ term: c.term, registeredLevel: c.level }, startFacts);
       const qualifierApplies = args.student.program === 'phd';
       const irrelevantPrior = parsed.courses.map((c) => {
@@ -276,7 +283,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
             // back where it was, so the table order and the course.N.remove
             // keys are exactly as before the Remove.
             const removed = args.student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.fromNdTranscript === true);
-            const before = { gpa: args.student.gpa, gpaSource: args.student.gpaSource, termGpas: args.student.termGpas, priorMs: args.student.priorMs, inferred: args.student.priorMsInferred };
+            const before = { gpa: args.student.gpa, gpaSource: args.student.gpaSource, termGpas: args.student.termGpas, priorMs: args.student.priorMs, inferred: args.student.priorMsInferred, earlier: earlierDegreesState(args.student) };
             // The acceptances it marked on rows from other transcripts go too (P3-import-1).
             let unmarked: ReturnType<typeof stripNdPostings> = [];
             args.setFocusAfterRender('import.nd');
@@ -295,6 +302,9 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
                 s.priorMs = 'none';
                 s.priorMsInferred = undefined;
               }
+              // What it read into a draft answer goes with it (review of
+              // Option 1, 2026-10-08): a replacement is read afresh.
+              forgetReadings(s, 'nd');
             });
             args.toastWithAction(
               `${plural(removed.length, 'course')} from your ND transcript removed${before.gpaSource !== undefined ? ', and the GPA it filled in' : ''}.`,
@@ -311,6 +321,9 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
                   s.termGpas = before.termGpas;
                   s.priorMs = before.priorMs;
                   s.priorMsInferred = before.inferred;
+                  // …and what it had read into the earlier-degrees draft
+                  // (Remove forgot it; coverage review, 2026-10-08).
+                  restoreEarlierDegrees(s, before.earlier);
                 }),
               { ttlMs: 20000, focusKey: 'import.nd.remove' },
             );
@@ -340,21 +353,46 @@ export function bachelorsAwardFrom(degrees: DegreeAwarded[]): { term: Term; degr
   const d = degrees.find((x) => x.level === 'bachelors' && x.date !== undefined);
   return d ? { term: conferralTerm(d.date!), degree: d } : undefined;
 }
+/** The bachelor's award term a Notre Dame transcript states, with how it
+ * says so: a dated bachelor's degree (older layouts), else — insideND prints
+ * no degree — the last undergraduate term when Notre Dame graduate terms
+ * follow it: the semester the bachelor's was finished (blue/red-team review
+ * of Option 1, 2026-10-08; a 4+1's senior-year graduate courses are then
+ * undergraduate-career coursework, not a prior master's). */
+export function bachelorsAwardRead(degrees: DegreeAwarded[], terms: readonly TranscriptTerm[] | undefined): { term: Term; how: string; line: string } | undefined {
+  const bs = bachelorsAwardFrom(degrees);
+  if (bs)
+    return {
+      term: bs.term,
+      how: `the ${bs.degree.name} awarded ${bs.degree.date} on your Notre Dame transcript`,
+      line: `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date}, so ${termLabel(bs.term)} will be recorded as the semester you finished your bachelor’s — change it under Your standing if that is wrong.`,
+    };
+  if (degrees.length > 0 || !terms) return undefined;
+  const undergrad = terms.filter((t) => t.level === 'undergraduate');
+  if (undergrad.length === 0) return undefined;
+  const last = undergrad.reduce((a, b) => (termIndex(b.term) > termIndex(a.term) ? b : a));
+  if (!terms.some((t) => t.level === 'graduate' && termIndex(t.term) > termIndex(last.term))) return undefined;
+  return {
+    term: last.term,
+    how: 'the last undergraduate term on your Notre Dame transcript, before its graduate terms',
+    line: `Your transcript’s undergraduate terms end in ${termLabel(last.term)}, before its graduate terms, so ${termLabel(last.term)} will be recorded as the semester you finished your bachelor’s — change it under Your standing if that is wrong.`,
+  };
+}
 /** An import fills the field only while it is empty or still an import's own reading. */
 const bachelorsMayBeSet = (s: Student): boolean => s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined;
 /** The award term a Notre Dame import would use: the transcript's, when it
  * may still set the field; else whatever the student has. */
-const bachelorsTermFor = (degrees: DegreeAwarded[], student: Student): Term | undefined => {
-  const bs = bachelorsAwardFrom(degrees);
+const bachelorsTermFor = (degrees: DegreeAwarded[], student: Student, terms?: readonly TranscriptTerm[]): Term | undefined => {
+  const bs = bachelorsAwardRead(degrees, terms);
   return bs && bachelorsMayBeSet(student) ? bs.term : student.bachelorsAwarded;
 };
 
 /** What the early-start test reads (P3-chg-other-1; engine/early-start.ts),
  * as THIS transcript states it: its entry term, its bachelor's award term and
  * its dated degree lines — the facts the add below writes to the record. */
-const startFactsFor = (entry: Term, degrees: DegreeAwarded[], student: Student): EarlyStartFacts => ({
+const startFactsFor = (entry: Term, degrees: DegreeAwarded[], student: Student, terms?: readonly TranscriptTerm[]): EarlyStartFacts => ({
   entryTerm: entry,
-  bachelorsAwarded: bachelorsTermFor(degrees, student),
+  bachelorsAwarded: bachelorsTermFor(degrees, student, terms),
   ndDegrees: degrees.filter((d) => d.date !== undefined && d.level !== 'other').map((d) => ({ date: d.date! })),
   ndMasters: student.ndMasters,
 });
@@ -383,7 +421,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
   // The entry term the split below is judged against: the transcript's
   // reading while its checkbox is ticked, otherwise the standing card's.
   const entry = tp.useEntryTerm && tp.entryTerm ? tp.entryTerm.term : args.student.entryTerm;
-  const startFacts = startFactsFor(entry, tp.degreesAwarded, args.student);
+  const startFacts = startFactsFor(entry, tp.degreesAwarded, args.student, tp.terms);
   const beforeStart = (c: ParsedCourse): boolean => beforeProgramStart({ term: c.term, registeredLevel: c.level }, startFacts);
   const priorCount = tp.courses.filter((c) => c.origin === 'nd' && beforeStart(c)).length;
   box.append(
@@ -434,17 +472,11 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
   }
   // The dated bachelor's award (2026-09-06) fills "Bachelor's degree awarded"
   // under Your standing, unless the student already set it by hand.
-  const bs = bachelorsAwardFrom(tp.degreesAwarded);
+  const bs = bachelorsAwardRead(tp.degreesAwarded, tp.terms);
   if (bs && bachelorsMayBeSet(args.student)) {
-    box.append(
-      el(
-        'p',
-        { class: 'hint bachelors-line' },
-        // The §5.2 rule is under the field it governs, one card down
-        // (trim review 2026-09-18, P-13).
-        `Your transcript shows a ${bs.degree.name} awarded ${bs.degree.date}, so ${termLabel(bs.term)} will be recorded as the semester you finished your bachelor’s — change it under Your standing if that is wrong.`,
-      ),
-    );
+    // The §5.2 rule is under the field it governs, one card down (trim
+    // review 2026-09-18, P-13).
+    box.append(el('p', { class: 'hint bachelors-line' }, bs.line));
   }
   if (priorCount > 0) {
     // A lead and visible bullets (clarity review 2026-09-26; the 2026-09-18
@@ -503,7 +535,7 @@ export function ndTranscriptPreviewBlock(args: NdUploadArgs): HTMLElement {
             ? `transfer credit accepted on your Notre Dame record (posted ${termLabel(c.term)})`
             : 'transfer credit on your Notre Dame record — the transcript does not show its level, so the DGS confirms it'
         : prior
-          ? `taken before ${termLabel(entry)}, as ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student)) === 'bachelors' ? 'an undergraduate' : args.student.ndMasters !== undefined ? 'an MSCSE student' : 'a graduate student'}`
+          ? `taken before ${termLabel(entry)}, as ${priorNdDegreeLevel({ courseId: c.courseId, registeredLevel: c.level, term: c.term }, bachelorsTermFor(tp.degreesAwarded, args.student, tp.terms)) === 'bachelors' ? 'an undergraduate' : args.student.ndMasters !== undefined ? 'an MSCSE student' : 'a graduate student'}`
           : earlyStart
             ? `your early start, the summer before ${termLabel(entry)} — this program’s coursework`
             : '';
@@ -621,11 +653,11 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
     if (tp.gpaChoice !== 'none') args.refusedValues.delete('courses.gpa');
     // The bachelor's award term (2026-09-06), before the prior
     // rows are filed — they follow it when unlabelled.
-    const bs = bachelorsAwardFrom(tp.degreesAwarded);
+    const bs = bachelorsAwardRead(tp.degreesAwarded, tp.terms);
     if (bs && bachelorsMayBeSet(s)) {
       args.refusedValues.delete('standing.bachelors.year');
       s.bachelorsAwarded = bs.term;
-      s.bachelorsAwardedInferred = { how: `the ${bs.degree.name} awarded ${bs.degree.date} on your Notre Dame transcript` };
+      s.bachelorsAwardedInferred = { how: bs.how };
       bachelorsSet = bs.term;
     }
     for (const c of picked) {

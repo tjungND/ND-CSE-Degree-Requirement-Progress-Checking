@@ -7,8 +7,16 @@
 // "…@nd.edu", which made a real IIT transcript look like Notre Dame's. Nor
 // does a "Notre Dame, IN 46556" mailing address (a student's home address on
 // another university's transcript).
+/** Other institutions named Notre Dame (review of Option 1, 2026-10-08): the
+ * University of Notre Dame Australia, Notre Dame of Maryland University,
+ * Notre Dame de Namur University, Notre Dame College (Ohio), the College of
+ * Notre Dame, Notre Dame University–Louaize and the like. Their transcripts
+ * are not Notre Dame's, and they are not Notre Dame in a course's
+ * institution. */
+export const OTHER_NOTRE_DAMES = /university\s+of\s+notre\s+dame,?\s+australia|notre\s+dame\s+of\s+maryland|notre\s+dame\s+de\s+namur|(?<!university\s+of\s+)notre\s+dame\s+college(?!\s+of\b)|college\s+of\s+notre\s+dame|notre\s+dame\s+university|notre\s+dame\s+seishin|notre\s+dame\s+women/i;
+
 export function looksLikeNotreDameTranscript(text: string): boolean {
-  const noEmails = text.replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, ' ');
+  const noEmails = text.replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, ' ').replace(new RegExp(OTHER_NOTRE_DAMES.source, 'gi'), ' ');
   if (/university\s+of\s+notre\s+dame/i.test(noEmails)) return true;
   // insideND URLs live in the browser's print footer of the unofficial transcript.
   if (/\bnd\.edu\b/i.test(noEmails) || /\binside\.nd\b/i.test(noEmails)) return true;

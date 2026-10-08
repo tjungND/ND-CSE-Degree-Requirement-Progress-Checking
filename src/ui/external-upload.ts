@@ -12,8 +12,8 @@
 import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { creditSystemFactor, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
-import { backgroundQuestions, describeBackground, openBackgroundDialog, priorSlotsFor, priorSlotsForDraft } from './background.ts';
-import { answerBackground, mergeReading, type ReadingResult, readBackgroundFromPriorBachelors, readBackgroundFromPriorGraduate } from './background-read.ts';
+import { backgroundQuestions, completeBackground, describeBackground, openBackgroundDialog, priorSlotsFor, priorSlotsForDraft } from './background.ts';
+import { answerBackground, confirmDraft, earlierDegreesState, forgetReadings, mergeReading, restoreEarlierDegrees, type ReadingResult, readBackgroundFromPriorBachelors, readBackgroundFromPriorGraduate } from './background-read.ts';
 import { sameUniversity } from '../engine/nd-posting.ts';
 import { CORE_TITLE_RE } from '../engine/core-title.ts';
 import { priorNdUndergraduateCanCount } from '../engine/allocate.ts';
@@ -253,6 +253,19 @@ export interface ExternalCardArgs {
  * visit shows the one-line answer. */
 let answeringEarlier = false;
 
+/** Reset (a new record, review of Option 1, 2026-10-08): an open preview or a
+ * scan awaiting the OCR choice belonged to the old record — its Add would file
+ * courses and readings into the new one — and the answering-on-the-page state
+ * goes too. An OCR run already under way finishes into a preview the student
+ * can cancel. */
+export function resetPriorImports(): void {
+  preview = undefined;
+  importError = undefined;
+  previewError = undefined;
+  pendingScan = undefined;
+  answeringEarlier = false;
+}
+
 /** True while this module holds an unconfirmed import — an open preview, a
  * scan awaiting the OCR opt-in, or OCR in flight. app.ts combines it with its
  * own ND-preview state to block all import buttons. */
@@ -357,6 +370,11 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
   // Answered: one line with "Change". Not yet (DGS 2026-10-08, Option 1: the
   // opening dialog asks only the program): the questions themselves, here,
   // with what the transcripts imported above settled filled in and marked.
+  // Every question answered, but not yet confirmed: a draft the transcripts
+  // completed (or a program change left complete) — the student checks it and
+  // clicks Done; a reading never applies the answer itself (review of Option
+  // 1, 2026-10-08).
+  const draftComplete = !background && completeBackground(args.student.backgroundDraft, args.student.program) !== undefined;
   const backgroundLine = background && !answeringEarlier
     ? el(
         'p',
@@ -377,7 +395,9 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
           // before 2026-10-08), just ask.
           background
             ? 'Your answers are saved. Change any of them here, then click Done.'
-            : args.student.backgroundRead
+            : draftComplete
+              ? 'Every question below is answered — check the answers, then click Done to use them.'
+              : args.student.backgroundRead
               ? 'What your transcripts show is filled in below — check it, and answer the rest. These answers decide which earlier transcripts to add here and how CSE §5.2 applies to them.'
               : args.student.courses.some((c) => c.fromNdTranscript)
                 ? 'Answer these questions. They decide which earlier transcripts to add here and how CSE §5.2 applies to them.'
@@ -396,7 +416,7 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
         ),
         // Done: the student has checked what was read, so nothing is marked
         // "read" after it; focus goes to the one-line answer's Change.
-        ...(background
+        ...(background || draftComplete
           ? [
               el(
                 'button',
@@ -407,7 +427,8 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
                     answeringEarlier = false;
                     args.setFocusAfterRender?.(changeKey);
                     args.update((s) => {
-                      s.backgroundRead = undefined;
+                      if (!confirmDraft(s)) s.backgroundRead = undefined;
+                      s.backgroundReadFrom = undefined;
                     });
                   },
                 },
@@ -463,7 +484,12 @@ function coursesInSlot(student: Student, level: DegreeLevel): CourseEntry[] {
  * transfer-block rows, which an undergraduate block files as bachelor's
  * coursework too (P3-import-1 (b), 2026-10-05) but which that import owns. */
 function inSlot(c: CourseEntry, level: DegreeLevel): boolean {
-  return c.origin === 'transfer' && c.degreeLevel === level && !(c.fromNdTranscript === true && c.ndPosted !== undefined);
+  // Not the Notre Dame transcript's own rows — its transfer block, nor its
+  // pre-entry coursework re-filed as prior coursework: the Notre Dame row owns
+  // them, and a previous row showing them (with a Remove that deleted them)
+  // kept a student's real bachelor's transcript out (review of Option 1,
+  // 2026-10-08).
+  return c.origin === 'transfer' && c.degreeLevel === level && c.fromNdTranscript !== true;
 }
 
 /** A previous-degree transcript must be OFFICIAL (DGS 2026-09-15: "If the
@@ -640,7 +666,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
             // item 25): everything removed can be put back with one click.
             // Index-preserving (2026-09-06 evening): Undo puts every row back where it was.
             const removed = student.courses.map((c, i) => ({ c, i })).filter(({ c }) => inSlot(c, slot.level));
-            const priorBefore = { priorMs: student.priorMs, inferred: student.priorMsInferred };
+            const priorBefore = { priorMs: student.priorMs, inferred: student.priorMsInferred, earlier: earlierDegreesState(student) };
             // A course that also carried the Notre Dame record's acceptance
             // stays on the record as that transcript's block row (P3-import-1 (c)).
             const restored = removed.map(({ c }) => blockRowBack(c)).filter((c): c is CourseEntry => c !== undefined);
@@ -655,6 +681,9 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
                 s.priorMs = 'none';
                 s.priorMsInferred = undefined;
               }
+              // What this transcript read into a draft answer goes with it
+              // (review of Option 1, 2026-10-08).
+              forgetReadings(s, slot.level);
             });
             args.toastWithAction?.(
               `${removed.length} ${slot.label} course${removed.length === 1 ? '' : 's'} removed.`,
@@ -665,6 +694,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
                   for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
                   s.priorMs = priorBefore.priorMs;
                   s.priorMsInferred = priorBefore.inferred;
+                  restoreEarlierDegrees(s, priorBefore.earlier); // what Remove forgot (coverage review, 2026-10-08)
                 }),
               { ttlMs: 20000, focusKey: `ext.remove.${slot.level}` },
             );
@@ -1322,6 +1352,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               const earlier = s.courses.filter((c) => c.origin === 'transfer' && !c.fromNdTranscript && !isNotreDameInstitution(c.institution) && c.institution);
               const bachelorsCandidates = [...new Set(earlier.filter((c) => c.degreeLevel === 'bachelors').map((c) => c.institution!))].filter((u) => !earlier.some((c) => c.institution === u && c.degreeLevel !== 'bachelors'));
               const bachelorsAt = s.backgroundDraft?.bachelors === 'elsewhere' && bachelorsCandidates.length === 1 ? bachelorsCandidates[0] : undefined;
+              // …and the one graduate university on file, for a bachelor's
+              // transcript added after the master's.
+              const graduateCandidates = [...new Set(earlier.filter((c) => c.degreeLevel === 'masters' || c.degreeLevel === 'phd').map((c) => c.institution!))];
+              const graduateAt = graduateCandidates.length === 1 ? graduateCandidates[0] : undefined;
               for (const r of ready) {
                 const degreeLevel = degreeLevelFor(p.slot, r.level);
                 if (degreeLevel !== 'bachelors') graduateRows += 1;
@@ -1352,11 +1386,24 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               // What this transcript settles of the earlier-degrees answer
               // (DGS 2026-10-08, Option 1): a bachelor's there, or a graduate
               // degree there — finished when it says it was conferred, at the
-              // bachelor's university when that transcript is on the record.
+              // bachelor's university when that is known (a bachelor's at Notre
+              // Dame, one bachelor's transcript on file, or this transcript's
+              // own undergraduate record with its bachelor's conferral).
               if (!isNotreDameInstitution(university)) {
-                if (p.slot === 'bachelors') earlierRead = mergeReading(s, readBackgroundFromPriorBachelors(university));
+                if (p.slot === 'bachelors') earlierRead = mergeReading(s, readBackgroundFromPriorBachelors(university, graduateAt));
                 else {
-                  earlierRead = mergeReading(s, readBackgroundFromPriorGraduate({ slot: p.slot, university, ...(p.conferred !== undefined ? { conferred: p.conferred } : {}), ...(bachelorsAt ? { bachelorsUniversity: bachelorsAt } : {}), sameUniversity }));
+                  const ndBachelors = s.backgroundDraft?.bachelors === 'nd-cse' || s.backgroundDraft?.bachelors === 'nd-other';
+                  earlierRead = mergeReading(
+                    s,
+                    readBackgroundFromPriorGraduate({
+                      slot: p.slot,
+                      university,
+                      ...(p.conferred !== undefined ? { conferred: p.conferred } : {}),
+                      ...(bachelorsAt ? { bachelorsUniversity: bachelorsAt } : {}),
+                      ...(ndBachelors ? { bachelorsAtNotreDame: true } : {}),
+                      ...(p.bachelorsConferredOn !== undefined && p.mixedLevels ? { bachelorsOnThisTranscript: true } : {}),
+                    }),
+                  );
                 }
               }
               // "Prior graduate study" from the transcript (2026-09-03): a
@@ -1394,14 +1441,19 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               // semester, which is all §5.2 needs — every course on the
               // transcript is dated after it. The record holds the term just
               // before that semester; the page shows "Before <semester>".
-              // A term the student set by hand is left alone.
-              if (p.slot === 'masters' && !p.bachelorsRequired && p.bachelorsAwarded === undefined && (s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred !== undefined)) {
+              // A term the student set by hand is left alone, and so is one
+              // read from a conferral date — a bachelor's transcript's, or the
+              // Notre Dame record's: only an earlier "before" estimate gives
+              // way (blue/red-team review of Option 1, 2026-10-08).
+              // A standalone Ph.D. transcript says the same (coverage review,
+              // 2026-10-08: the Ph.D. row left the field empty and "required").
+              if (p.slot !== 'bachelors' && !p.bachelorsRequired && p.bachelorsAwarded === undefined && (s.bachelorsAwarded === undefined || s.bachelorsAwardedInferred?.before !== undefined)) {
                 const dated = ready.filter((r) => r.year !== undefined).map((r) => ({ season: r.season, year: r.year! }));
                 const first = dated.sort(compareTermIndex)[0];
                 if (first !== undefined) {
                   const wasBefore = s.bachelorsAwardedInferred?.before;
                   s.bachelorsAwarded = termBefore(first);
-                  s.bachelorsAwardedInferred = { how: `the first semester on your ${university} master’s transcript`, before: { ...first } };
+                  s.bachelorsAwardedInferred = { how: `the first semester on your ${university} ${p.slot === 'phd' ? 'Ph.D.' : 'master’s'} transcript`, before: { ...first } };
                   if (wasBefore === undefined || termIndex(wasBefore) !== termIndex(first)) bachelorsBefore = first;
                 }
               }

@@ -37,10 +37,10 @@ import {
 import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
 import { applyBackground, backgroundQuestions, choiceRow, completeBackground, describeBackground, openBackgroundDialog, type Background } from './background.ts';
-import { draftForProgram, reconcileInferences, settleDraft, withdrawBackground } from './background-read.ts';
-import { DEGREE_SLOTS, importsBusy, priorTranscriptSection } from './external-upload.ts';
+import { draftForProgram, pruneRead, reconcileInferences, withdrawBackground } from './background-read.ts';
+import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, resetPriorImports } from './external-upload.ts';
 import { statusMark } from './marks.ts';
-import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload } from './nd-upload.ts';
+import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload, resetNdImport } from './nd-upload.ts';
 import { deriveNdMasters, derivePriorMs, isNotreDameCourse, reclassifyNotreDameCourses } from './prior-nd.ts';
 import { isEarlyStartCourse } from '../engine/early-start.ts';
 import { applyDeciderRule, applyFirstMentionRule } from './first-mention.ts';
@@ -265,12 +265,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           if (fits) applyBackground(s, fits);
           else withdrawBackground(s, draftForProgram(s.background, s.program));
         } else if (s.backgroundDraft !== undefined) {
-          // A draft keeps what still applies, and is applied if that is all.
+          // A draft keeps what still applies; complete or not, the student
+          // confirms it on the page (review of Option 1, 2026-10-08).
           const d = draftForProgram(s.backgroundDraft, s.program);
           s.backgroundDraft = Object.keys(d).length > 0 ? d : undefined;
-          if (s.backgroundRead) for (const k of Object.keys(s.backgroundRead) as (keyof typeof d)[]) if (d[k] === undefined) delete s.backgroundRead[k];
-          if (s.backgroundRead && Object.keys(s.backgroundRead).length === 0) s.backgroundRead = undefined;
-          settleDraft(s);
+          pruneRead(s, d);
           reconcileInferences(s);
         }
       });
@@ -278,6 +277,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     if (consentDialog.open) consentDialog.close();
     consentDialog.remove();
     returnFocusTo();
+    // Say why the questions are back (coverage review, 2026-10-08).
+    if (incomplete && !programChanged) toast('A question about your earlier degrees was added since you answered them — answer it in the Transcripts card.');
   };
   agreeButton.addEventListener('click', closeConsent);
   // Escape never closes it (DGS 2026-09-23; until then it closed the notice
@@ -975,6 +976,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           // non-degree student corrects it (DGS 2026-10-07, option (a)).
           inferred.how !== 'assumed' && (inferred.alternative !== undefined || /first graduate-level term|earlier of the admit-term lines/.test(inferred.how))
             ? ` If you were a non-degree (unclassified or departmental non-degree) student at Notre Dame before your degree admission, set the entry term to that admission; up to ${NON_DEGREE_CREDITS_MAX} non-degree credits may count (Academic Code §2.3).`
+            : '',
+          // A Notre Dame MSCSE finished before the Ph.D. (blue/red-team review
+          // of Option 1, 2026-10-08): the Ph.D.'s clocks start at the Ph.D.
+          // admission (DGS 2026-09-10, 2026-09-26), which insideND's
+          // transcript does not show — its first graduate term is the MSCSE's.
+          student.program === 'phd' && inferred.how !== 'assumed' && !/admit-term|admission/.test(inferred.how) && heldNdMscse(student.background ?? student.backgroundDraft)
+            ? ' Your earlier degrees say you finished the Notre Dame MSCSE before the Ph.D.: your Ph.D. clocks start the semester you entered the Ph.D., which your transcript does not show — set that semester here.'
             : '',
         )
       : null;
@@ -3209,6 +3217,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     if (!window.confirm('Reset everything you have entered on this device and start over?')) return;
     cancelUndo();
     refusedValues.clear();
+    resetPriorImports();
+    resetNdImport();
     student = emptyStudent();
     clearLocal();
     render();
@@ -3223,6 +3233,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   if (loadRefusals.length > 0) applyRefusals(refusedValues, loadRefusals);
   render();
   for (const r of loadRefusals) toast(r.message);
+}
+
+/** The earlier-degrees answer (or draft) says the Notre Dame MSCSE was
+ * finished before this program: held as a regular master's student or
+ * through the 4+1. */
+function heldNdMscse(b: Partial<Background> | undefined): boolean {
+  return b?.graduate === 'nd-mscse' || b?.graduate === 'nd-4plus1';
 }
 
 function deadlineNote(d: MilestoneDeadline | undefined, id: string): HTMLElement | null {

@@ -6,6 +6,7 @@
 // on the name exactly as transcripts print it (the aliases column was retired
 // 2026-09-03), and course ids ignore spaces and hyphens — but a course
 // with no matching row is NEVER guessed at; it stays "not yet reviewed".
+import { OTHER_NOTRE_DAMES } from '../transcript/nd-markers.ts';
 import type { ExternalRule, Transferable } from './types.ts';
 
 /** Abbreviations transcripts use in an institution's name, spelled out (DGS
@@ -158,7 +159,7 @@ export function isCseCourse(
 export const NOTRE_DAME_ROW_UNIVERSITY = 'UNIVERSITY OF NOTRE DAME';
 
 export function isNotreDameInstitution(name: string | undefined): boolean {
-  if (name === undefined) return false;
+  if (name === undefined || OTHER_NOTRE_DAMES.test(name)) return false;
   const normalized = normalizeUniversity(name);
   return /\bnotre dame\b/.test(normalized) || normalized === 'nd';
 }
