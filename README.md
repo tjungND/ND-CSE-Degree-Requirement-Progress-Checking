@@ -195,8 +195,8 @@ in the code behind them — `ms_time_limit_years` (5 years, Academic Code §6.1.
 `summer_fulltime_credits_min` (6, DGS Handbook §10.3.2 — a sheet row by the DGS's choice,
 2026-10-04) and `phd_time_limit_years` (8, §6.2.6). The Academic Code calls its figures "minimum
 standards": a program may set higher ones, never lower. So these rows may be **tightened, never
-loosened** — the app follows whatever the row says, and the sheet diagnostics warn when one is set
-looser than the Graduate School allows (2026-10-07).
+loosened**: a stricter value is followed; a looser one is warned about in the sheet diagnostics and
+the app uses the Graduate School's value instead (2026-10-07).
 
 ### A6. Log the change and date it
 

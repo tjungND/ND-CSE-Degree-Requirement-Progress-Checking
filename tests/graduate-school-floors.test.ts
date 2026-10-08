@@ -2,7 +2,8 @@
 // constant behind them (policy review round 3, P3-ac-5b-6.1-4; DGS 2026-10-07:
 // "apply the suggested handling"). The Academic Code's figures are "minimum
 // standards … Individual programs may require higher standards": a row set
-// looser is warned about in the diagnostics; the verdicts still follow it.
+// looser is warned about in the diagnostics, and since 2026-10-07 (DGS:
+// option (a), "hold the Graduate School's floor") the app uses the floor.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { buildRules } from './helpers.ts';
@@ -26,11 +27,17 @@ describe('a Graduate School floor set looser on the sheet (P3-ac-5b-6.1-4)', () 
       assert.equal(issues.length, 1, key);
       assert.equal(issues[0]!.severity, 'warning');
       assert.match(issues[0]!.message, says);
+      assert.match(issues[0]!.message, /The app uses the Graduate School’s \d+ instead/);
+    });
+    it(`${key} = ${value}: the app reads the Graduate School’s value`, () => {
+      const floor = { ms_time_limit_years: 5, ms_total_credits_min: 30, gpa_min: 3, fulltime_credits_min: 9, summer_fulltime_credits_min: 6, phd_time_limit_years: 8 }[key];
+      assert.equal(buildRules({ parameters: { [key]: value } }).parameters.number(key), floor);
     });
   }
   it('tighter is fine: a program may require more', () => {
     for (const [key, value] of [['ms_time_limit_years', '4'], ['gpa_min', '3.3'], ['ms_total_credits_min', '33'], ['fulltime_credits_min', '12'], ['summer_fulltime_credits_min', '9'], ['phd_time_limit_years', '7']] as const) {
       assert.deepEqual(buildRules({ parameters: { [key]: value } }).issues.filter((i) => /looser than the Graduate School allows/.test(i.message)), [], key);
+      assert.equal(buildRules({ parameters: { [key]: value } }).parameters.number(key), Number(value), `${key}: a stricter row is followed`);
     }
   });
 });

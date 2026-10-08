@@ -5,16 +5,20 @@ import type { Parameters, SheetIssue } from './types.ts';
 import { DISPLAY_PARAMETER_KEYS, KNOWN_PARAMETER_KEYS, RETIRED_PARAMETER_KEYS } from './types.ts';
 
 /** Parameters rows whose number is also the Graduate School's minimum, with
- * no constant in the code behind them (README § A5b): each with its test for
- * "looser" and the Graduate School's sentence. */
-const GRADUATE_SCHOOL_FLOORS: { key: string; looser: (n: number) => boolean; limit: string; source: string }[] = [
-  { key: 'ms_time_limit_years', looser: (n) => n > 5, limit: 'at most 5 years', source: 'Academic Code §6.1.4: “All requirements for the master’s degree must be completed within five years.”' },
-  { key: 'ms_total_credits_min', looser: (n) => n < 30, limit: 'at least 30 credits', source: 'Academic Code §6.1.1: “At least thirty (30) credit hours are required for the master’s degree.”' },
-  { key: 'gpa_min', looser: (n) => n < 3, limit: 'at least 3.0', source: 'Academic Code §4.5: “Continuation in a graduate degree program, admission to degree candidacy, and graduation require maintenance of at least a 3.0 (B) cumulative grade point average”' },
-  { key: 'fulltime_credits_min', looser: (n) => n < 9, limit: 'at least 9 credits', source: 'Academic Code §3.3: “A full-time student is one who registers for at least nine credit hours per semester.”' },
-  { key: 'summer_fulltime_credits_min', looser: (n) => n < 6, limit: 'at least 6 credits', source: 'DGS Handbook §10.3.2: “may include summer session if the student is registered for six or more credits” — the DGS kept this row on the sheet on 2026-10-04, never to be set below six' },
-  { key: 'phd_time_limit_years', looser: (n) => n > 8, limit: 'at most 8 years', source: 'Academic Code §6.2.6: “The student must fulfill all doctoral requirements, including the dissertation, its defense, and the official submission within eight years from the time of matriculation”' },
+ * no constant in the code behind them (README § A5b): each with the Graduate
+ * School's value, its test for "looser" and the Graduate School's sentence.
+ * A looser row reads as the Graduate School's value (policy review round 3,
+ * P3-ac-5b-6.1-4; DGS 2026-10-07: option (a), "Yes — hold the Graduate
+ * School's floor"), as the Courses tab's §4.1 level guard already works. */
+const GRADUATE_SCHOOL_FLOORS: { key: string; floor: number; looser: (n: number) => boolean; limit: string; source: string }[] = [
+  { key: 'ms_time_limit_years', floor: 5, looser: (n) => n > 5, limit: 'at most 5 years', source: 'Academic Code §6.1.4: “All requirements for the master’s degree must be completed within five years.”' },
+  { key: 'ms_total_credits_min', floor: 30, looser: (n) => n < 30, limit: 'at least 30 credits', source: 'Academic Code §6.1.1: “At least thirty (30) credit hours are required for the master’s degree.”' },
+  { key: 'gpa_min', floor: 3, looser: (n) => n < 3, limit: 'at least 3.0', source: 'Academic Code §4.5: “Continuation in a graduate degree program, admission to degree candidacy, and graduation require maintenance of at least a 3.0 (B) cumulative grade point average”' },
+  { key: 'fulltime_credits_min', floor: 9, looser: (n) => n < 9, limit: 'at least 9 credits', source: 'Academic Code §3.3: “A full-time student is one who registers for at least nine credit hours per semester.”' },
+  { key: 'summer_fulltime_credits_min', floor: 6, looser: (n) => n < 6, limit: 'at least 6 credits', source: 'DGS Handbook §10.3.2: “may include summer session if the student is registered for six or more credits” — the DGS kept this row on the sheet on 2026-10-04, never to be set below six' },
+  { key: 'phd_time_limit_years', floor: 8, looser: (n) => n > 8, limit: 'at most 8 years', source: 'Academic Code §6.2.6: “The student must fulfill all doctoral requirements, including the dissertation, its defense, and the official submission within eight years from the time of matriculation”' },
 ];
+const FLOOR_OF = new Map(GRADUATE_SCHOOL_FLOORS.map((f) => [f.key, f]));
 
 export function makeParameters(
   raw: Map<string, { value: string; section: string; row: number }>,
@@ -85,9 +89,9 @@ export function makeParameters(
   // handling"). The Academic Code: "The following information represents the
   // minimum standards established by the Graduate School. Individual programs
   // may require higher standards." Such a row may be tightened, never
-  // loosened. A looser one is warned about and the verdicts still follow the
-  // row — whether the engine should hold the Graduate School's value instead
-  // is a question for the DGS.
+  // loosened. A looser one is warned about, and the app holds the Graduate
+  // School's value (number(), below; DGS 2026-10-07, P3-ac-5b-6.1-4 (a)).
+  // The warning names the value the app uses, so the next DGS sees why.
   for (const floor of GRADUATE_SCHOOL_FLOORS) {
     const entry = raw.get(floor.key);
     if (!entry || entry.value.trim() === '') continue;
@@ -98,7 +102,7 @@ export function makeParameters(
       tab: 'Parameters',
       row: entry.row,
       column: 'value',
-      message: `Parameters row ${entry.row}: '${floor.key}' is ${entry.value.trim()}, looser than the Graduate School allows — ${floor.limit} (${floor.source}). The app follows the row, so it would tell students they meet a requirement the Graduate School says they do not. A program may set a higher standard, never a lower one.`,
+      message: `Parameters row ${entry.row}: '${floor.key}' is ${entry.value.trim()}, looser than the Graduate School allows — ${floor.limit} (${floor.source}). The app uses the Graduate School’s ${floor.floor} instead: a program may set a higher standard, never a lower one. Set the row to ${floor.floor} or stricter.`,
     });
   }
 
@@ -133,7 +137,9 @@ export function makeParameters(
         badValue(key, 'a number');
         return undefined;
       }
-      return n;
+      // A Graduate School floor set looser reads as the floor (P3-ac-5b-6.1-4 (a)).
+      const floor = FLOOR_OF.get(key);
+      return floor !== undefined && floor.looser(n) ? floor.floor : n;
     },
     gradeLetter: (key) => {
       const entry = raw.get(key);
