@@ -502,7 +502,7 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
   // the way once its row is met, and the qualifier completion form once every
   // component is done but no form date is entered.
   if (byId.get('phd.msAlongTheWay')?.status === 'met') {
-    out.gradAdmin.push('Process the MSCSE awarded along the way (§4.5).');
+    out.gradAdmin.push('Process the MSCSE awarded along the way (§3.1, §4.5).');
     out.student.push('Send the Grad Admin the processing request for the MSCSE along the way (§3.1, §4.5).');
   }
   // The master's candidacy application, the MSCSE's or the MSCSE along the
@@ -511,9 +511,10 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
     out.student.push('Ask the Grad Admin to submit the Application for Admission to Master’s Degree Candidacy by the Graduate School calendar’s deadline (Academic Code §6.1.6).');
     out.gradAdmin.push('Submit my Application for Admission to Master’s Degree Candidacy to the Graduate School (Academic Code §6.1.6).');
   }
-  if (qualifier?.status === 'met' && /qualifier (completion )?form/.test(textOf(qualifier))) {
+  // Once the course components are complete (P3-cse-4a-3; DGS 2026-10-07: option (a)).
+  if (qualifier?.qualifierCourseComponentsDone === true && /qualifier (completion )?form/.test(textOf(qualifier))) {
     out.student.push('File the qualifier completion form with the Grad Admin (§4.4).');
-    out.gradAdmin.push('Record the completed qualifier once my form arrives (§4.4).');
+    out.gradAdmin.push(qualifier.status === 'met' ? 'Record the completed qualifier once my form arrives (§4.4).' : 'Record the qualifier’s completed course components once my form arrives (§4.4).');
   }
 
   // Course-level approvals — the per-course sign-off list.

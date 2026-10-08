@@ -71,7 +71,13 @@ describe('processingItems', () => {
     assert.ok(items.met.length >= 2, 'the GPA and the OCE rows are met');
     // The met requirements are one LINE on the card, so they are one item in
     // the chip (2026-09-08) — the chip and the card must agree.
-    assert.equal(items.count, 4, 'transfer + two milestones + the met-requirements line');
+    // + the qualifier completion form since 2026-10-07 (P3-cse-4a-3 (a)): the
+    // course components are complete, the research component is not.
+    assert.equal(items.qualifierFormDue, true);
+    const q = audit(s, rules, opts.todayIso).requirements.find((r) => r.id === 'phd.qualifier')!;
+    assert.notEqual(q.status, 'met', 'the research component is still open');
+    assert.match(q.detail, /The qualifier’s course components are complete — file the qualifier completion form with the Grad Admin now \(§4\.4\); the research component has its own form, which your advisor files \(§4\.4\.3\)/);
+    assert.equal(items.count, 5, 'transfer + two milestones + the qualifier form + the met-requirements line');
     assert.equal(items.count, items.lines.length, 'the chip counts exactly what the card lists');
     // Since 2026-09-28 the line tallies the open rows too, and the request
     // lists every requirement with its standing.
@@ -146,7 +152,7 @@ describe('gradAdminRequest', () => {
     assert.match(
       built.text,
     // (4 met and 5 in progress since 2026-10-04: the OCE and the RCR training show inside admission to candidacy.)
-      /\nAttached: copies of my transcripts as PDFs\. The official transcripts are to be sent directly to the Graduate School by each university’s registrar\.\n\nACTION REQUESTED\n1\. Submit the Transfer of Credits request to the Graduate School for CS 50300 Operating Systems \(Purdue University, Fall 2024, 3 credits\) — recommended by the DGS in the course rules \(§5\.2\)\.\n2\. Record the milestone: Advisor identified, 2026-09-10 \(§2\.3\)\.\n3\. Record the milestone: Oral Candidacy Exam \(OCE\) passed, 2029-04-01 \(§4\.5\)\.\n4\. Keep my standing below on file: 4 requirements met, 2 overdue, 5 in progress, 1 not started\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO SUBMIT TO THE GRADUATE SCHOOL/,
+      /\nAttached: copies of my transcripts as PDFs\. The official transcripts are to be sent directly to the Graduate School by each university’s registrar\.\n\nACTION REQUESTED\n1\. Submit the Transfer of Credits request to the Graduate School for CS 50300 Operating Systems \(Purdue University, Fall 2024, 3 credits\) — recommended by the DGS in the course rules \(§5\.2\)\.\n2\. Record the milestone: Advisor identified, 2026-09-10 \(§2\.3\)\.\n3\. Record the milestone: Oral Candidacy Exam \(OCE\) passed, 2029-04-01 \(§4\.5\)\.\n4\. Tell me what you need for the qualifier completion form — the qualifier’s course components are complete and the form is not filed yet \(§4\.4\)\.\n5\. Keep my standing below on file: 4 requirements met, 2 overdue, 5 in progress, 1 not started\.\n\nThank you!\n\n\(You may edit anything above this line\)\n-{10,}\n\(DO NOT MODIFY ANYTHING BELOW THIS LINE\)\n\nTRANSFER CREDIT TO SUBMIT TO THE GRADUATE SCHOOL/,
     );
     // ONE course table, each course with every requirement it feeds (DGS 2026-09-28).
     assert.match(built.text, /\nCOURSES COUNTED SO FAR\nCourse\tTitle\tCredits\tGrade\tTerm\tWhere\tCounts toward\nCS 50300\tOperating Systems\t3\tA\tFall 2024\tPurdue University\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\)\nCSE 60111\t\t3\tA\tFall 2026\tNotre Dame\t60 total credits \(§4\.2\); 24 regular-course credits \(§4\.2\); 9 regular credits at ND \(§4\.2\)\n/);

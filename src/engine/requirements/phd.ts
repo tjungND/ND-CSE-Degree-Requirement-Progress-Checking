@@ -695,6 +695,13 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
   const late = children.filter((c) => c.completedLate === true);
   const open = children.filter((c) => c.status !== 'met' && c.forfeitReview !== true && c.completedLate !== true);
   const doneCount = children.length - open.length;
+  // §4.4's "qualifier course requirement" is the course components — core
+  // knowledge and specialization, with §4.2's nine Notre Dame credits (policy
+  // review round 3, P3-cse-4a-3; DGS 2026-10-07: option (a)); the research
+  // component has its own form, which the advisor files (§4.4.3). Each part
+  // met: one completed late waits for the DGS's extension first (2026-10-06).
+  const courseParts = children.filter((c) => c.id !== 'phd.qualifier.research');
+  const courseComponentsDone = courseParts.length > 0 && courseParts.every((c) => c.status === 'met') && (!ndCredits || ndCredits.status === 'met');
   // The standing is the fact; everything else is a note (DGS 2026-10-03).
   const parts: DetailPart[] = [
     `${doneCount} of ${children.length} parts done${forfeited.length > 0 ? ` — ${forfeited.length === doneCount ? 'all' : forfeited.length} ${FORFEIT_FACT}, waiting for the DGS` : ''}${late.length > 0 ? ` — ${late.length === doneCount ? 'all' : late.length} after the deadline, waiting for the DGS` : ''}${open.length > 0 ? ` — still open: ${open.map(partName).join(', ')}` : ''}`,
@@ -765,12 +772,18 @@ function qualifierUmbrellaRow(ctx: Ctx, children: RequirementResult[], ndCredits
     }
     parts.push({ note: FORFEIT_NOTE });
   }
+  // The course components done, the research still open: the form is due now,
+  // not when the advisor's research decision arrives (P3-cse-4a-3 (a)).
+  if (courseComponentsDone && status !== 'met' && !ctx.student.milestones.qualifierFormFiled) {
+    parts.push({ note: 'The qualifier’s course components are complete — file the qualifier completion form with the Grad Admin now (§4.4); the research component has its own form, which your advisor files (§4.4.3)' });
+  }
   return {
     id: 'phd.qualifier',
     group: QUALIFIER,
     title: 'Qualifying examination — all components', // "all components", not "all three": five cards sit under it (DGS 2026-09-06)
     status,
     ...(completedLate ? { completedLate: true as const } : {}),
+    ...(courseComponentsDone ? { qualifierCourseComponentsDone: true as const } : {}),
     ...joinedDetail(parts),
     deadline,
     citation: { section: '§4.4', quote },

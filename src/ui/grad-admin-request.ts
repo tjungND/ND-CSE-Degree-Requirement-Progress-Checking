@@ -335,7 +335,10 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
   const byId = new Map(report.requirements.map((r) => [r.id, r]));
   const msAlongTheWay = byId.get('phd.msAlongTheWay')?.status === 'met';
   // A pass attested under the earlier rules (2026-09-21) was recorded back then; no form to chase.
-  const qualifierFormDue = byId.get('phd.qualifier')?.status === 'met' && !student.milestones.qualifierFormFiled && student.attestations.qualifierPassedUnderPriorRules !== true;
+  // Once the qualifier's course components are complete (P3-cse-4a-3; DGS
+  // 2026-10-07: option (a)) — not the whole qualifier, whose research part
+  // has the advisor's own form (§4.4.3).
+  const qualifierFormDue = byId.get('phd.qualifier')?.qualifierCourseComponentsDone === true && !student.milestones.qualifierFormFiled && student.attestations.qualifierPassedUnderPriorRules !== true;
   // The engine's admission row opens its note with "Every condition is met"
   // when only the application is left (phd.ts candidacyAdmissionRow).
   const admission = byId.get('phd.candidacyAdmission');
@@ -390,7 +393,7 @@ export function processingItems(report: AuditReport, student: Student, rules: Ru
         `${recorded ? 'Check that the transfer credit is on my record for' : 'Submit the Transfer of Credits request to the Graduate School for'} ${t.courseId}${t.title ? ` ${t.title}` : ''} (${t.institution ?? 'another university'}, ${t.termText}, ${formatCredits(t.credits)} credits${t.ndCredits !== undefined && t.ndCredits !== t.credits ? ` = ${formatCredits(t.ndCredits)} Notre Dame credits` : ''}${t.cappedCredits !== undefined ? ` — ${formatCredits(t.cappedCredits)} of them within the §5.2 cap` : ''}) — ${recorded ? 'approved by the Graduate School, as I ticked' : recommendedBy(t)} (§5.2).`,
     ),
     ...milestones.map((m) => `Record the milestone: ${m.label}, ${m.date} (${m.section}).`),
-    ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — every component is complete and the form is not filed yet (§4.4).'] : []),
+    ...(qualifierFormDue ? ['Tell me what you need for the qualifier completion form — the qualifier’s course components are complete and the form is not filed yet (§4.4).'] : []),
     ...(msAlongTheWay ? ['Process the MSCSE along the way — the self-check, which is the DGS’s review of the award (§3.1), shows its requirements met (§4.5).'] : []),
     ...(candidacyApplicationDue ? ['Initiate my Application for Admission to Doctoral Candidacy — the self-check shows every condition met (DGS Handbook §3.22.3).'] : []),
     ...(msCandidacyDue ? ['Initiate my Application for Admission to Master’s Degree Candidacy — the self-check shows a 3.0 GPA and 30 credits, counting this semester’s (Academic Code §6.1.6).'] : []),
@@ -535,7 +538,7 @@ export function gradAdminRequest(
   if (items.qualifierFormDue) {
     sections.push({
       heading: 'Qualifier completion form (§4.4)',
-      lines: ['The self-check shows every qualifier component complete, and the completion form is not filed yet — please tell me what you need from me.'],
+      lines: ['The self-check shows the qualifier’s course components complete (core knowledge, specialization and the nine Notre Dame credits; the research component has the advisor’s own form, §4.4.3), and the completion form is not filed yet — please tell me what you need from me.'],
     });
   }
   if (items.msAlongTheWay) {

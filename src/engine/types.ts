@@ -614,6 +614,14 @@ export interface RequirementResult {
    * qualifier row that waits on it; the OCE gate counts such a component as
    * done coursework. */
   completedLate?: true;
+  /** `phd.qualifier` only: the qualifier's COURSE components are complete —
+   * core knowledge, specialization and §4.2's nine Notre Dame credits, each
+   * met (policy review round 3, P3-cse-4a-3; DGS 2026-10-07: option (a)).
+   * §4.4's completion form is due then: "When the student has completed the
+   * qualifier course requirement, they must notify the CSE DGS office by
+   * filing the appropriate form"; the research component has the advisor's
+   * own form (§4.4.3). Every reminder of the form reads this. */
+  qualifierCourseComponentsDone?: true;
   /** A qualifier component (core knowledge, specialization): the semester it
    * was FIRST complete — the earliest courses that satisfy it, not the course
    * the row names (P3-cse-4a-2). Read against §4.4's deadline. */

@@ -377,7 +377,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     const r: AuditReport = {
       program: 'phd',
       requirements: [
-        { ...req('phd.qualifier', 'Qualifying examination — all components', 'met', 'Three components complete. Remember to file the qualifier completion form with the Grad Admin (§4.4)', 'Qualifying examination — §4.4', '§4.4') },
+        { ...req('phd.qualifier', 'Qualifying examination — all components', 'met', 'Three components complete. Remember to file the qualifier completion form with the Grad Admin (§4.4)', 'Qualifying examination — §4.4', '§4.4'), qualifierCourseComponentsDone: true },
         { ...req('phd.msAlongTheWay', 'MSCSE awarded along the way', 'met', 'OCE passed 2029-04-01, with 24 regular course credits and 6 research credits completed at Notre Dame.', 'Oral Candidacy Exam (OCE) — §4.5', '§4.5'), informational: true },
         {
           ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review', '', 'Approvals', '§3.2/§4.2/§5.2'),
@@ -399,7 +399,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     // passed in, as the page passes processingItems(...).transfers.
     const todo = actionItems(r, { courses: ['CS 50300'], recorded: false, firstSemesterDone: true });
     assert.deepEqual(todo.gradAdmin, [
-      'Process the MSCSE awarded along the way (§4.5).',
+      'Process the MSCSE awarded along the way (§3.1, §4.5).',
       'Record the completed qualifier once my form arrives (§4.4).',
       'Submit the Transfer of Credits request to the Graduate School for CS 50300 — recommended by the DGS (§5.2).',
     ]);
@@ -410,7 +410,7 @@ describe('to-dos: the Grad Admin list (2026-09-06 evening)', () => {
     assert.ok(todo.student.includes('Send the DGS the review request for CS 77777.'));
     const { text, html, subject } = advisorSummary(r, { todayIso: '2029-05-01', entryTerm: 'Fall 2026', priorStudy: 'Completed prior M.S. or Ph.D.', gpa: 3.5 });
     assert.equal(subject, 'Degree self-check — Ph.D., entered Fall 2026 — 2 of 3 met, 1 conditionally met');
-    assert.match(text, /\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Process the MSCSE awarded along the way \(§4\.5\)\.\n/);
+    assert.match(text, /\nWHAT THE GRAD ADMIN NEEDS TO DO\n- Process the MSCSE awarded along the way \(§3\.1, §4\.5\)\.\n/);
     assert.match(html, /<p><strong>What the Grad Admin needs to do<\/strong><\/p><ul><li>Process the MSCSE awarded along the way/);
   });
 });

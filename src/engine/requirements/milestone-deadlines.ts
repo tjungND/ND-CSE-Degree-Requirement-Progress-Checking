@@ -71,6 +71,7 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
   // Every part done, some after the deadline (P3-cse-4a-2, DGS 2026-10-06):
   // the form waits for the DGS's confirmation, and the box says so.
   const qualifierLate = rows.find((r) => r.id === 'phd.qualifier')?.completedLate === true;
+  const courseComponentsDone = rows.find((r) => r.id === 'phd.qualifier')?.qualifierCourseComponentsDone === true;
   if (qualifierPassedUnderPriorRules(ctx)) {
     const basis = 'Does not apply — you passed the qualifying examination under the earlier requirements';
     out.researchQualifierPassed = { basis };
@@ -110,12 +111,16 @@ export function phdMilestoneDeadlines(ctx: Ctx, rows: readonly RequirementResult
     // requirement within four (4) semesters of starting". The form records
     // the completion ("When the student has completed the qualifier course
     // requirement, they must notify the CSE DGS office by filing the
-    // appropriate form") and has no date of its own: once the qualifier is
-    // complete the box says so instead of a past four-semester date.
+    // appropriate form") and has no date of its own: once the qualifier's
+    // COURSE components are complete — core knowledge, specialization and the
+    // nine Notre Dame credits (policy review round 3, P3-cse-4a-3; DGS
+    // 2026-10-07: option (a)) — the box says so instead of a date.
     const due = qualifierDeadline(ctx);
     const semesters = ctx.params.number('qualifier_deadline_semesters');
     if (qualifierMet) {
       out.qualifierFormFiled = { basis: `No deadline of its own — the qualifier is complete${m.qualifierFormFiled ? '' : '; file the completion form with the Grad Admin'} (§4.4)` };
+    } else if (courseComponentsDone) {
+      out.qualifierFormFiled = { basis: `No deadline of its own — the qualifier’s course components are complete${m.qualifierFormFiled ? '' : '; file the completion form with the Grad Admin'} (§4.4)` };
     } else if (qualifierLate) {
       out.qualifierFormFiled = { basis: `No deadline of its own — every part is done, some after the deadline${m.qualifierFormFiled ? '' : '; once the DGS confirms the extension, file the completion form with the Grad Admin'} (§4.4)` };
     } else if (due !== undefined && semesters !== undefined) {
