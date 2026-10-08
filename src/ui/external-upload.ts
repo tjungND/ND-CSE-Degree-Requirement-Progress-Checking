@@ -416,12 +416,18 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
         ),
         // Done: the student has checked what was read, so nothing is marked
         // "read" after it; focus goes to the one-line answer's Change.
+        // A primary button in its own row, clear of the options (DGS
+        // 2026-10-08: "Leave some space between Done and others … make the
+        // Done button look nicer like the rest of the app page").
         ...(background || draftComplete
           ? [
               el(
+                'div',
+                { class: 'save-buttons earlier-done' },
+                el(
                 'button',
                 {
-                  class: 'btn',
+                  class: 'btn primary',
                   'data-key': 'earlier.done',
                   onclick: () => {
                     answeringEarlier = false;
@@ -433,6 +439,7 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
                   },
                 },
                 'Done',
+                ),
               ),
             ]
           : []),

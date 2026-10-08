@@ -379,6 +379,8 @@ fieldset.field.inline { margin: 0; }
 .background-questions fieldset[hidden] { display: none; }
 .background-line .btn.link { padding: 0 2px; min-height: 0; border: 0; background: none; color: var(--navy); text-decoration: underline; font-size: inherit; }
 .background-dialog .save-buttons { margin-top: 10px; }
+.background-inline .earlier-done { margin-top: 16px; }
+.background-inline .earlier-done .btn { margin-left: 0; }
 .radios .radio { font-size: 14px; }
 .radios input[type="radio"] { margin: 0 4px 0 0; }
 .step-no { color: var(--gold-text); }
