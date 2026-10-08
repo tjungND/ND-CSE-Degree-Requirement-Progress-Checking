@@ -294,7 +294,7 @@ export function backgroundQuestions(
     // Asked of every student with a Notre Dame CSE bachelor's (2026-10-03);
     // for the Ph.D. it sits under the graduate-degree question, which may
     // already have answered it (the MSCSE through the 4+1).
-    integratedBox.hidden = !asksIntegratedFor(state, program) || (program === 'phd' && sequential && state.graduate === undefined);
+    integratedBox.hidden = !asksIntegratedFor(state, program);
     elsewhereBox.replaceChildren(
       el('legend', { class: 'followup-title' }, 'Was it at the same university as your bachelor’s (a 4+1 or 5+1 program)?'),
       yesNo('sameplace', state.samePlace, (v) => {
@@ -356,13 +356,35 @@ export function backgroundQuestions(
     // after-render citation pass never reaches: label them here ("CSE §5.2",
     // DGS 2026-10-03, citations.ts).
     for (const box of [integratedBox, elsewhereBox, finishedBox, transferBox, alsoElsewhereBox]) labelCitationsIn(box);
+    placeFollowUps();
+  };
+  // Each follow-up sits just below the answer that asked it (DGS 2026-10-07:
+  // "Move these to where these selectors were triggered, just below them, so
+  // that it's more intuitive") — the 4+1 question under "Notre Dame —
+  // Computer Science and Engineering", "Was it at the same university…" and
+  // "Did you finish…" under "Yes, at another university", and so on. They used
+  // to follow the last numbered question, the Ph.D.'s 4+1 question after the
+  // graduate-degree one. A box with nothing asking it stays hidden where it is.
+  const placeFollowUps = (): void => {
+    const rowOf = (list: HTMLElement, name: string, value: string | undefined): Element | null =>
+      value === undefined ? null : (list.querySelector(`[data-key="${prefix}.${name}.${value}"]`)?.closest('label') ?? null);
+    const underRow = (row: Element | null, boxes: HTMLElement[]): void => {
+      let at = row;
+      if (at === null) return;
+      for (const box of boxes) {
+        at.after(box);
+        at = box;
+      }
+    };
+    underRow(rowOf(bachelorsChoices, 'bachelors', state.bachelors), [integratedBox]);
+    const g = state.graduate;
+    underRow(
+      rowOf(graduateChoices, 'graduate', g),
+      g === 'elsewhere' ? [elsewhereBox, finishedBox] : g === 'nd-other' ? [finishedBox] : g === 'nd-mscse-transfer' ? [transferBox, alsoElsewhereBox, finishedBox] : asksAlsoElsewhere(g) ? [alsoElsewhereBox, finishedBox] : [],
+    );
   };
   // A numbered step (CSS counts the visible ones): the question is the heading.
-  const graduateBox = el(
-    'fieldset',
-    { class: 'field group step' },
-    el('legend', { class: 'step-title' }, 'Did you hold, or start, a graduate degree before this program?'),
-    radios(
+  const graduateChoices = radios(
       'graduate',
       graduateOptions(program),
       state.graduate,
@@ -378,34 +400,28 @@ export function backgroundQuestions(
         onChange(state);
       },
       GRADUATE_NOTES,
-    ),
-  );
-  renderFollowUps();
-  // The MSCSE asks the 4+1 question right under the bachelor's answer (it
-  // decides which transcript rows show); the Ph.D. asks it after the graduate
-  // question, which may answer it (2026-10-03).
+    );
+  const graduateBox = el('fieldset', { class: 'field group step' }, el('legend', { class: 'step-title' }, 'Did you hold, or start, a graduate degree before this program?'), graduateChoices);
+  const bachelorsChoices = radios('bachelors', BACHELORS_OPTIONS, state.bachelors, (v) => {
+    state.bachelors = v as BachelorsFrom;
+    if (v !== 'nd-cse') state.ndIntegrated = undefined;
+    renderFollowUps();
+    onChange(state);
+  });
+  // The follow-ups start parked at the end, hidden; placeFollowUps moves each
+  // one under the answer that asks it.
   const questions = el(
     'div',
     { class: 'background-questions' },
-    el(
-      'fieldset',
-      { class: 'field group step' },
-      el('legend', { class: 'step-title' }, 'Where is your bachelor’s degree from?'),
-      radios('bachelors', BACHELORS_OPTIONS, state.bachelors, (v) => {
-        state.bachelors = v as BachelorsFrom;
-        if (v !== 'nd-cse') state.ndIntegrated = undefined;
-        renderFollowUps();
-        onChange(state);
-      }),
-    ),
-    ...(program === 'mscse' ? [integratedBox, graduateBox] : [graduateBox, integratedBox]),
+    el('fieldset', { class: 'field group step' }, el('legend', { class: 'step-title' }, 'Where is your bachelor’s degree from?'), bachelorsChoices),
+    graduateBox,
+    integratedBox,
     elsewhereBox,
-    // The transfer's own questions come before "Did you finish that degree?",
-    // which follows the other-university one (P3-prior-programs-2).
     transferBox,
     alsoElsewhereBox,
     finishedBox,
   );
+  renderFollowUps();
   labelCitationsIn(questions);
   return questions;
 }

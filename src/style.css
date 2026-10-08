@@ -255,6 +255,8 @@ legend.step-title::before { content: counter(step) '. '; }
 .choice-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
 /* A follow-up hangs under its step: a left rule, no number, a smaller question. */
 fieldset.field.group.background-followup { margin: 10px 0 0 12px; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); }
+/* Under the answer that asked it (DGS 2026-10-07), inside the option list. */
+.choices > fieldset.field.group.background-followup { margin: 2px 0 6px 14px; }
 legend.followup-title { font-size: 13.5px; font-weight: 600; color: var(--ink); margin: 0 0 6px; padding: 0; }
 .consent-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 18px; }
 .consent-hint { font-size: 13px; color: var(--muted); }
