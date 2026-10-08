@@ -867,6 +867,18 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     await s.evalJs(`[...document.querySelectorAll('.transcript-preview button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`);
     await s.waitFor(`!document.querySelector('.transcript-preview')`);
     await s.waitFor(`document.querySelector('[data-key="earlier.bachelors.nd-cse"]')?.checked === true`);
+    // CSE 40113, taken as an undergraduate: its "already counted toward"
+    // answer is chosen by the page (DGS 2026-10-08) — the select pre-filled
+    // and marked, the warning with the three points, the Next step.
+    const chosen = JSON.parse(await s.evalJs(`JSON.stringify((() => { const sel = document.querySelector('[data-key$=".countedToward"]'); return { value: sel?.value, note: sel?.closest('td')?.querySelector('.chosen-note')?.textContent ?? '', warning: document.querySelector('.warnings')?.textContent ?? '', step: [...document.querySelectorAll('.next-steps li')].map((li) => li.textContent).find((t) => /answer this page chose/.test(t)) ?? '' }; })())`));
+    if (chosen.value !== 'neither') throw new Error('the page must pre-fill the answer that counts the most credits (“Nothing — it was extra”): ' + JSON.stringify(chosen));
+    if (!/Chosen by this page to count the most credits toward your degree\. It must match what the Dean’s office, the Graduate School and the Registrar have on file/.test(chosen.note)) throw new Error('the pre-filled select must say the page chose it: ' + chosen.note);
+    if (!/This page chose the “already counted toward” answer for CSE 40113/.test(chosen.warning) || !/contact the DGS/.test(chosen.warning)) throw new Error('the floating warning must name the chosen answer and the DGS: ' + chosen.warning.slice(0, 300));
+    if (!/Check the “already counted toward” answer this page chose for CSE 40113/.test(chosen.step)) throw new Error('Next steps must ask the student to check the chosen answer: ' + chosen.step);
+    // The student's own pick clears the mark: note, warning and step go.
+    await s.evalJs(`(() => { const sel = document.querySelector('[data-key$=".countedToward"]'); sel.value = 'bs'; sel.dispatchEvent(new Event('change')); })()`);
+    await s.waitFor(`document.querySelector('[data-key$=".countedToward"]')?.value === 'bs' && !document.querySelector('.chosen-note') && !/This page chose/.test(document.querySelector('.warnings')?.textContent ?? '')`);
+    console.log('  “already counted toward” pre-filled for CSE 40113 (neither), said in the select, the warning and Next steps; the student’s own pick clears the mark');
     const readToast = await s.evalJs(`[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ')`);
     if (!readToast.includes('Your earlier degrees were partly filled in from it — check them in the Transcripts card.')) throw new Error('the import toast must say the earlier degrees were filled in: ' + readToast.slice(0, 300));
     const note = await s.evalJs(`document.querySelector('[data-key="earlier.read.bachelors"]')?.textContent ?? ''`);

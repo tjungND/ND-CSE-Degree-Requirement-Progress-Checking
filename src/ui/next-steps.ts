@@ -31,6 +31,9 @@ export interface NextStepsInput {
   /** Courses waiting for the student's answer — which degrees they already
    * counted toward (UI review, 2026-10-08). */
   needsAnswer?: string[];
+  /** Courses whose "already counted toward" answer the page chose for the
+   * student (DGS 2026-10-08) — to check against the official record. */
+  chosenAnswers?: string[];
 }
 
 const plural = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;
@@ -122,6 +125,17 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   if (asked.length > 0) {
     const ids = asked.length === 1 ? asked[0]! : `${asked.slice(0, -1).join(', ')} and ${asked[asked.length - 1]!}`;
     steps.push({ text: `Say which degrees ${ids} already counted toward — next to ${asked.length === 1 ? 'the course' : 'each course'} under Coursework.`, href: '#coursework' });
+  }
+  // …and the answers the page chose for them (DGS 2026-10-08): the step is
+  // to check them against what the Dean's office, the Graduate School and the
+  // Registrar have on file.
+  const chosen = input.chosenAnswers ?? [];
+  if (chosen.length > 0) {
+    const ids = chosen.length === 1 ? chosen[0]! : `${chosen.slice(0, -1).join(', ')} and ${chosen[chosen.length - 1]!}`;
+    steps.push({
+      text: `Check the “already counted toward” answer${chosen.length === 1 ? '' : 's'} this page chose for ${ids}, next to ${chosen.length === 1 ? 'the course' : 'each course'} under Coursework — ${chosen.length === 1 ? 'it' : 'they'} must match what the Dean’s office, the Graduate School and the Registrar have on file.`,
+      href: '#coursework',
+    });
   }
   // 2. The decisions the DGS has to make — the courses, two kinds (DGS
   // 2026-09-27); since policy review round 3 (P3-cse-1-2-2, DGS 2026-10-06)

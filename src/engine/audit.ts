@@ -471,6 +471,20 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
       `${list} ${one ? 'is' : 'are'} registered at the graduate level on your Notre Dame transcript — moved from undergraduate (UG) to graduate (GR) registration, which the Graduate School approves only before the bachelor’s degree is awarded — but the Integrated-program admission you gave, ${termLabel(student.integratedAdmitted)}, is after your bachelor’s degree (${termLabel(student.bachelorsAwarded)}). Check that term under Your standing. Until the two agree, ${one ? 'the course counts' : 'the courses count'} only provisionally, and the DGS confirms ${one ? 'it' : 'them'}.`,
     );
   }
+  // Answers the page chose (DGS 2026-10-08): "which degrees has this course
+  // already counted toward?" filled in to count the most credits, and said to
+  // the student in a warning that follows the screen — the three things the
+  // DGS asked for: that the page chose them, that they must match what the
+  // Dean's office, the Graduate School and the Registrar read from the
+  // system, and whom to ask.
+  const chosenIds = [...new Set(classified.filter((c) => c.entry.countedTowardInferred === true && !c.superseded).map((c) => c.entry.courseId))];
+  if (chosenIds.length > 0) {
+    const list = chosenIds.length === 1 ? chosenIds[0]! : `${chosenIds.slice(0, -1).join(', ')} and ${chosenIds[chosenIds.length - 1]!}`;
+    const one = chosenIds.length === 1;
+    warnings.push(
+      `This page chose the “already counted toward” answer for ${list} — which earlier degrees ${one ? 'it' : 'they'} counted toward — picking the answer that counts the most credits toward your degree. ${one ? 'That answer' : 'Those answers'} must match what the Dean’s office, the Graduate School and the Registrar have on file: check ${one ? 'it' : 'each one'} under Coursework, and if you are unsure, contact the DGS.`,
+    );
+  }
   // No course counts toward three degrees (DGS 2026-10-07, policy review
   // round 3, P3-fourplusone-1; the Graduate School's 2026-09-22 answer: "If 6
   // credits have double-counted to BS & MS, no more credits can double-count
@@ -704,6 +718,24 @@ export function audit(student: Student, rules: Rules, today: string): AuditRepor
     scored: scored.length,
   };
 
+  // A card whose count rests on an answer the page chose (DGS 2026-10-08:
+  // "If the selections could change the progress result card … there needs
+  // to be a hint about it in the card"): a fact on the card, naming the
+  // courses and their credits. The card's prose (`detail`, the emails') is
+  // left as it is.
+  const chosenCourseIds = new Set(student.courses.filter((c) => c.countedTowardInferred === true).map((c) => c.courseId));
+  if (chosenCourseIds.size > 0) {
+    for (const r of rows) {
+      const contribs = (r.contributions ?? []).filter((x) => chosenCourseIds.has(x.courseId));
+      if (contribs.length === 0) continue;
+      const ids = [...new Set(contribs.map((x) => x.courseId))];
+      const list = ids.length === 1 ? ids[0]! : `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]!}`;
+      const credits = contribs.reduce((sum, x) => sum + x.credits, 0);
+      const hint = `${list} (${formatCredits(credits)} credits) ${r.allowance ? `draw${ids.length === 1 ? 's' : ''} on this allowance` : `count${ids.length === 1 ? 's' : ''} here`} on ${ids.length === 1 ? 'an answer' : 'answers'} this page chose for you — check ${ids.length === 1 ? 'it' : 'them'} under Coursework.`;
+      r.detailParts = [...(r.detailParts ?? (r.detail ? [r.detail] : [])), hint];
+      if (r.shortDetailParts) r.shortDetailParts = [...r.shortDetailParts, hint];
+    }
+  }
   // Which requirements each course feeds (DGS request 2026-09-08). The rows
   // already say which courses satisfy them (`satisfiedBy`, written for the
   // processing request) and, since today, which will (`pendingBy`); this is

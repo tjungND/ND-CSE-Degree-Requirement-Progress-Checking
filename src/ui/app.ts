@@ -38,6 +38,7 @@ import { inferMsOption } from '../engine/requirements/mscse.ts';
 import { qualifierPriorRulesEligible } from '../engine/requirements/phd.ts';
 import { applyBackground, backgroundQuestions, choiceRow, completeBackground, describeBackground, openBackgroundDialog, type Background } from './background.ts';
 import { draftForProgram, mergeReading, pruneRead, reconcileInferences, withdrawBackground } from './background-read.ts';
+import { asksWhichDegrees, bestCountedToward, countedTowardOptions } from '../engine/counted-toward.ts';
 import { DEGREE_SLOTS, importsBusy, priorTranscriptSection, resetPriorImports } from './external-upload.ts';
 import { statusMark } from './marks.ts';
 import { type NdUploadArgs, ndPreviewOpen, ndTranscriptPreviewBlock, ndTranscriptUpload, resetNdImport } from './nd-upload.ts';
@@ -421,6 +422,53 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     for (const h of headlines) scoreObserver.observe(h);
   }
 
+  /** Next steps follows the screen once it scrolls out of view (DGS
+   * 2026-10-08: "let the Next Step always float around the screen so that
+   * students see them all the time, just like warnings"): the box turns
+   * fixed in the window's corner, above the warnings box, and comes back into
+   * the page when its place scrolls into view — so the report's head is not
+   * covered while the student reads it. Its host keeps the box's height
+   * meanwhile, so the column does not jump. The previous render's observer
+   * is dropped with its nodes; a box that was floating starts the next render
+   * floating, so a keystroke does not flash it in and out. */
+  let attentionObserver: IntersectionObserver | undefined;
+  let nextStepsFloating = false;
+  let nextStepsHeight = 0;
+  function watchNextSteps(): void {
+    attentionObserver?.disconnect();
+    attentionObserver = undefined;
+    const host = root.querySelector<HTMLElement>('.attention-host');
+    const box = host?.querySelector<HTMLElement>('.attention');
+    if (!host || !box || host.dataset['floatable'] !== 'true' || typeof IntersectionObserver === 'undefined') {
+      nextStepsFloating = false;
+      return;
+    }
+    const setFloating = (on: boolean): void => {
+      if (on && !box.classList.contains('floating')) {
+        nextStepsHeight = box.offsetHeight || nextStepsHeight;
+        host.style.minHeight = `${nextStepsHeight}px`;
+      }
+      box.classList.toggle('floating', on);
+      if (!on) host.style.minHeight = '';
+      nextStepsFloating = on;
+    };
+    if (nextStepsFloating) setFloating(true);
+    attentionObserver = new IntersectionObserver((entries) => {
+      const e = entries[0];
+      if (e) setFloating(!e.isIntersecting);
+    });
+    attentionObserver.observe(host);
+  }
+  /** The floating boxes stack: Next steps sits above the warnings box, so
+   * the warnings box's height (folded or open) is a CSS variable the Next
+   * steps box offsets by. Read after every render and whenever the warnings
+   * box is folded or unfolded, or the window resized. */
+  function layoutFloats(): void {
+    const warnings = root.querySelector<HTMLElement>('.warnings.floating');
+    document.documentElement.style.setProperty('--float-warnings', warnings ? `${warnings.offsetHeight + 8}px` : '0px');
+  }
+  window.addEventListener('resize', layoutFloats);
+
   /** Choices the page makes for the student (DGS 2026-09-12): whenever the
    * record itself shows the best answer, fill it in, say so in a toast, and
    * leave the control for the student to change. Only an UNSET choice is
@@ -475,9 +523,41 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           `Specialization group chosen automatically to cover the most distinct groups (§4.4.2): ${filled.join('; ')}. You can change it next to the course.`,
         );
       }
+      // "Which degrees has this course already counted toward?" (DGS
+      // 2026-10-08): filled in with the answer that counts the most credits
+      // toward the degree, marked as the page's choice — the engine then says
+      // so in a warning that follows the screen and on every card the answer
+      // moves, and Next steps asks the student to check it. No toast: the
+      // warning is the message. Re-read only when what it depends on changed
+      // (each reading runs the audit a few times).
+      const open = student.courses.filter((c) => (c.countedToward === undefined || c.countedTowardInferred === true) && asksWhichDegrees(c, student, rules));
+      if (open.length > 0) {
+        const key = JSON.stringify([
+          open.map((c) => [c.courseId, termIndex(c.term), c.credits, c.grade, c.degreeLevel, c.registeredLevel, c.dgsApproved, c.countedToward]),
+          student.bachelorsAwarded,
+          student.ndMasters?.term,
+          student.integratedBsMs,
+          student.entryTerm,
+        ]);
+        if (key !== countedTowardMemo) {
+          countedTowardMemo = key;
+          for (const choice of bestCountedToward(student, rules, todayIso)) {
+            const c = student.courses[choice.index]!;
+            if (c.countedToward === choice.answer && c.countedTowardInferred === true) continue;
+            c.countedToward = choice.answer;
+            c.countedTowardInferred = true;
+            autoChanged = true;
+          }
+        }
+      }
     }
     return notices;
   }
+  /** What the last pre-fill of the "already counted toward" answers read, so
+   * an unchanged record is not re-read on every render. */
+  let countedTowardMemo: string | undefined;
+  /** autoSelect changed the record without a toast (the warning says it). */
+  let autoChanged = false;
 
   // The Who-to-contact card lives in one of two places by width, as on the
   // course rules page (DGS 2026-09-30: "move the contacts to the top right
@@ -499,11 +579,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function render(): void {
     const memo = rememberFocus();
     let report = audit(student, rules, todayIso);
+    autoChanged = false;
     const autoNotices = autoSelect(report);
-    if (autoNotices.length > 0) {
+    if (autoNotices.length > 0 || autoChanged) {
       saveLocal(student);
       report = audit(student, rules, todayIso);
-      notice(autoNotices.join(' '));
+      if (autoNotices.length > 0) notice(autoNotices.join(' '));
     }
     // Nothing entered yet: the report describes the degree, not the student
     // (2026-09-08). Every row would otherwise read "Not yet" as if the student
@@ -524,12 +605,15 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // The courses waiting for the STUDENT's answer, not the DGS (UI review,
     // 2026-10-08): which degrees they already counted toward.
     const needsAnswer = student.courses.filter((c) => c.countedToward === undefined && asksWhichDegrees(c, student, rules)).map((c) => c.courseId);
+    // …and the ones the page answered for them (DGS 2026-10-08), to check.
+    const chosenAnswers = [...new Set(student.courses.filter((c) => c.countedTowardInferred === true && asksWhichDegrees(c, student, rules)).map((c) => c.courseId))];
     const next = {
       sentence: courseworkSentence(report, needsAnswer),
       steps: nextSteps({
         report,
         student,
         needsAnswer,
+        chosenAnswers,
         review: (() => {
           const pending = coursesNeedingDgsReviewFor(classified, student);
           return { unlisted: pending.filter((p) => p.unlisted).length, caseByCase: pending.filter((p) => !p.unlisted).length, earlierOnly: pending.length > 0 && pending.every((p) => p.kind !== 'nd') };
@@ -623,6 +707,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     applyDeciderRule(root, student.program); // DGS → ADGS for an MSCSE student (2026-09-11)
     labelCitationsIn(root); // "CSE §4.2" — which document a section is from (DGS 2026-10-03)
     watchScoreHeadlines();
+    watchNextSteps();
+    layoutFloats();
+    root.querySelector('.warnings.floating')?.addEventListener('toggle', () => requestAnimationFrame(layoutFloats));
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
     // so a keystroke in a title field does not chatter.
@@ -2469,6 +2556,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             update((s) => {
               const v = (e.target as HTMLSelectElement).value;
               s.courses[index]!.countedToward = (v || undefined) as CourseEntry['countedToward'];
+              delete s.courses[index]!.countedTowardInferred; // the student decided (DGS 2026-10-08)
             }),
         });
         // "Both" is the only answer that stops the course counting here: no
@@ -2488,28 +2576,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 ['mscse', 'Only my MSCSE'],
                 ['both', 'Both my bachelor’s degree and my MSCSE'],
               ] as const)
-            : holdsNdMasters
-              ? ([
-                  ['', 'Already counted toward…'],
-                  ['neither', 'Neither — it was extra'],
-                  ['bs', 'My bachelor’s degree'],
-                  ['mscse', 'My MSCSE'],
-                  ['both', 'Both my bachelor’s and my MSCSE'],
-                ] as const)
-              : // No Notre Dame master's: the only degree that can have used
-                // the course is the bachelor's (2026-09-22).
-                ([
-                  ['', 'Already counted toward…'],
-                  ['neither', 'Nothing — it was extra'],
-                  ['bs', 'My bachelor’s degree'],
-                ] as const);
+            : // The Ph.D.'s answers, from the engine (counted-toward.ts): four
+              // with a Notre Dame master's, two without (2026-09-22: only the
+              // bachelor's can have used the course then).
+              ([['', 'Already counted toward…'], ...countedTowardOptions(holdsNdMasters)] as readonly (readonly [string, string])[]);
         for (const [value, label] of choices) {
           sel.append(option(value, label, (c.countedToward ?? '') === value));
         }
         // The question in words above it (UI review, 2026-10-08): the select's
         // first option was the only place it was asked.
         countsCell.append(el('label', { class: 'counted-toward-label', for: selId }, 'Which degrees has this course already counted toward?'), el('div', {}, sel));
-        if (c.countedToward === undefined) {
+        if (c.countedTowardInferred === true) {
+          // The page's choice (DGS 2026-10-08), said under the select too.
+          countsCell.append(el('div', { class: 'group-hint chosen-note', 'data-key': `course.${index}.countedToward.chosen` }, 'Chosen by this page to count the most credits toward your degree. It must match what the Dean’s office, the Graduate School and the Registrar have on file — change it if it does not; if you are unsure, contact the DGS.'));
+        } else if (c.countedToward === undefined) {
           countsCell.append(
             el(
               'div',
@@ -3327,17 +3407,6 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 /** "CSE 60111", "CSE 60111 and CSE 60321", "A, B and C". */
 function listIds(ids: readonly string[]): string {
   return ids.length <= 1 ? (ids[0] ?? '') : `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]!}`;
-}
-
-/** Which degrees a course has already counted toward is asked of a Ph.D.
- * student (Graduate School via the DGS, 2026-09-10 evening; 2026-09-22) about
- * Notre Dame coursework taken as an undergraduate that COULD count here — the
- * course table's select and the Next-steps item read this one test (UI review,
- * 2026-10-08). The MSCSE is never asked (DGS 2026-09-11). */
-function asksWhichDegrees(c: CourseEntry, student: Student, rules: Rules): boolean {
-  const awardTerm = student.bachelorsAwarded;
-  const asUndergraduate = isNotreDameInstitution(c.institution) && (c.degreeLevel === 'bachelors' || (awardTerm !== undefined && termIndex(c.term) <= termIndex(awardTerm)));
-  return asUndergraduate && student.program === 'phd' && priorNdUndergraduateCanCount(c, resolveRuleRow(rules, c.courseId, c.term), student.program);
 }
 
 /** The earlier-degrees answer (or draft) says the Notre Dame MSCSE was
