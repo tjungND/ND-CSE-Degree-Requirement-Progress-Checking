@@ -218,3 +218,22 @@ L6-180 0 → 65.5 %, 0 → 96.6 %, 9 → 1; L0–L5 identical to the baseline (e
 0° reading). `--pinned` under the shipped config (`bench-out/ocr-step12-shipped-pinned/`): the two
 sideways pinned pages read as their upright selves — L6-180 external-transcript 0 → 2 of 3 rows right,
 CER 85.7 → 0.3 %; L6-90 nd-undergrad 0 → 4 of 5, CER 94.7 → 0.2 % — the other seven unchanged. On the medium set with all four turns always read (`bench-out/ocr-step12-rotation-trial-medium/` vs the step-11 ladder): L6-90 row accuracy 0 → 65.2 %, rows found 0 → 90.0 %, false rows 274 → 23; L6-180 0 → 64.4 %, 0 → 90.7 %, 48 → 15 — the turned levels read within a point or two of L2 / L5 — and L2 / L5 unchanged row for row except two junk pages a turn "beat" by 1.5 and 3.5 points (one false row each; the shipped margin of 5 keeps them upright). The early exit and the margin come from the trial figures kept in that run's `results.json` (`pageFigures`): upright pages score 70 or more nine times in ten and never under 21; the wrong way round never over 54.6; the right turn won 123 of 124 turned pages, by a median of 45.8 points.
+
+
+## Sign-off run of the shipped pipeline (2026-10-09, full ladder)
+
+`npm run ocr-bench -- --compare ~/degree-audit-samples/bench-out/ocr-full-20261009 --baseline ~/degree-audit-samples/bench-out/ocr-step11-after-20261009`
+(62 seeds: the generator PDFs and the public registrar PDFs; the shipped pipeline = word boxes through the layout
+stage, each page rendered at its scan's own resolution between 216 and 300 dpi, the orientation trial on page 1):
+
+| level | row accuracy | rows found | false rows (negatives) | CER | s/page |
+|---|---|---|---|---|---|
+| text (reference) | unchanged | | | | |
+| L0–L5 (clean … phone photo) | unchanged from step 11 | unchanged | unchanged | unchanged | 1.9–2.2 → 2.4–3.0 (the resolution step) |
+| L6-90 (sideways scan) | 0.0% → **65.2%** | 0% → 90.0% | 274 (30/36) → 23 (7/36) | 90.4% → 29.4% | 3.6 → 8.0 (the trial on page 1) |
+| L6-180 (upside down) | 0.0% → **64.4%** | 0% → 90.7% | 48 (20/36) → 15 (8/36) | 91.0% → 29.5% | 2.1 → 7.9 |
+| L7 (scanner text layer) | unchanged | | | | |
+
+The ten "regressions" the compare lists are all at L6: pages that read nothing before now read, and a few key/legend
+pages (Duke, Waterloo, UWO, HKU, the McGill course outline) yield one to six junk rows once turned — the same false
+rows those pages produce upright at L2/L5, now reachable. 113 improvements. Private seeds: none in this run.
