@@ -9,7 +9,7 @@
 // rules say" block was removed as redundant, 2026-09-06); anything unruled is
 // picked up by app.ts's single "Ask the DGS to review" card (the page itself
 // transmits nothing — FERPA).
-import { bachelorsPrefill, rowIsCompact } from '../transcript/preview-layout.ts';
+import { bachelorsPrefill, ocrReducedPagesNote, rowIsCompact, type OcrReducedPage } from '../transcript/preview-layout.ts';
 import { canonicalCourseId, resolveRuleRow } from '../data/assemble.ts';
 import { creditSystemFactor, findExternalRule, isNotreDameInstitution } from '../data/external.ts';
 import { backgroundQuestions, completeBackground, describeBackground, openBackgroundDialog, priorSlotsFor, priorSlotsForDraft } from './background.ts';
@@ -93,6 +93,10 @@ interface ExternalPreview {
   rows: PreviewRow[];
   /** Rows came from OCR of a scan — approximate; the preview says so. */
   fromOcr?: boolean;
+  /** OCR pages read below the usual resolution (OCR step 12, 2026-10-09:
+   * a much larger than letter-size page, squeezed under the canvas limits) —
+   * the banner names them (W-CL373). */
+  ocrReducedPages?: OcrReducedPage[];
   /** The transcript is marked unofficial (2026-09-17): accepted, with a warning
    * that the reviewers will require the official one. */
   unofficial?: boolean;
@@ -586,7 +590,7 @@ function previewFromParsed(
   parsed: ExternalParseResult,
   slot: DegreeLevel,
   args: ExternalCardArgs,
-  flags: { unofficial: boolean; fromOcr: boolean },
+  flags: { unofficial: boolean; fromOcr: boolean; ocrReducedPages?: OcrReducedPage[] },
 ): { mapped: PreviewRow[]; kept: { rows: PreviewRow[]; omitted: number } } | undefined {
   const mapped: PreviewRow[] = parsed.courses.map((c) => ({
     include: true,
@@ -612,7 +616,7 @@ function previewFromParsed(
     university: parsed.university ?? '',
     ...(flags.fromOcr
       ? // OCR misreads names too — the field stays editable (2026-09-06).
-        { fromOcr: true }
+        { fromOcr: true, ...(flags.ocrReducedPages?.length ? { ocrReducedPages: flags.ocrReducedPages } : {}) }
       : {
           // A name read from the transcript is locked; one recovered from an
           // acronym is pre-filled and editable (2026-09-08).
@@ -834,7 +838,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
             void (async () => {
               try {
                 const { ocrPdfToLines } = await import('../transcript/ocr.ts');
-                const { lines, pagesRead, pagesTotal } = await ocrPdfToLines(buffer, (progress) => {
+                const { lines, pagesRead, pagesTotal, reducedPages } = await ocrPdfToLines(buffer, (progress) => {
                   ocrBusy = progress;
                   render();
                 });
@@ -846,7 +850,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
                   failSlot(slot, `${ndInPreviousRow(student)} Use the digital PDF from insideND there, not a scan.`, render);
                   return;
                 }
-                if (!previewFromParsed(parsed, slot, args, { unofficial, fromOcr: true })) {
+                if (!previewFromParsed(parsed, slot, args, { unofficial, fromOcr: true, ocrReducedPages: reducedPages })) {
                   failSlot(slot, BACHELORS_IN_PROGRESS, render);
                   return;
                 }
@@ -1123,6 +1127,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             { class: 'ocr-banner', role: 'note' },
             el('strong', {}, 'Read by OCR from a scan — approximate. English transcripts only. '),
             'Check every field against your transcript before adding; rows marked ⚠ were hard to read.',
+            ...(p.ocrReducedPages?.length ? [' ', ocrReducedPagesNote(p.ocrReducedPages)] : []),
           ),
         ]
       : []),

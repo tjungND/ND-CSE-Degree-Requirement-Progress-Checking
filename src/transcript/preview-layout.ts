@@ -42,3 +42,26 @@ export function bachelorsPrefill<T>(handSet: T | undefined, fromTranscript: T | 
   if (fromTranscript !== undefined) return { term: fromTranscript, source: 'transcript' };
   return undefined;
 }
+
+/** A page the OCR path read below its usual resolution (OCR step 12,
+ * 2026-10-09): `ocrRenderScale` in ocr-lines.ts had to bring a much larger
+ * than letter-size page under 216 dpi so its canvas stays inside the limits
+ * iOS Safari draws nothing beyond. `page` is 1-based; `dpi` the resolution
+ * it was read at. */
+export interface OcrReducedPage {
+  page: number;
+  dpi: number;
+}
+
+/** The sentence the OCR banner adds for such pages (W-CL373): which pages,
+ * why, and the lowest resolution among them — so the student checks those
+ * rows with extra care. '' when no page was reduced. */
+export function ocrReducedPagesNote(pages: readonly OcrReducedPage[]): string {
+  if (pages.length === 0) return '';
+  const numbers = [...pages].sort((a, b) => a.page - b.page).map((p) => String(p.page));
+  const list = numbers.length === 1 ? numbers[0]! : `${numbers.slice(0, -1).join(', ')} and ${numbers[numbers.length - 1]!}`;
+  const dpi = Math.min(...pages.map((p) => p.dpi));
+  return numbers.length === 1
+    ? `Page ${list} is much larger than a letter page and was read at a lower resolution than usual (about ${dpi} dpi), so its rows may be rougher — check them with extra care.`
+    : `Pages ${list} are much larger than a letter page and were read at a lower resolution than usual (about ${dpi} dpi), so their rows may be rougher — check them with extra care.`;
+}

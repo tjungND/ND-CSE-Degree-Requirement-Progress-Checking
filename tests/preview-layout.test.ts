@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Term } from '../src/engine/types.ts';
-import { bachelorsPrefill, rowIsCompact } from '../src/transcript/preview-layout.ts';
+import { bachelorsPrefill, ocrReducedPagesNote, rowIsCompact } from '../src/transcript/preview-layout.ts';
 
 describe('preview row layout', () => {
   const read = { locked: true, credits: 3, grade: 'A', year: 2023 };
@@ -50,5 +50,21 @@ describe('which bachelor’s award term a preview shows', () => {
 
   it('a hand-set term with no conferral line on the transcript is still kept', () => {
     assert.deepEqual(bachelorsPrefill(hand, undefined), { term: hand, source: 'student' });
+  });
+});
+
+describe('ocrReducedPagesNote (OCR step 12, W-CL373)', () => {
+  it('says nothing when every page was read at the usual resolution', () => {
+    assert.equal(ocrReducedPagesNote([]), '');
+  });
+  it('names one page and its resolution', () => {
+    assert.equal(ocrReducedPagesNote([{ page: 2, dpi: 100 }]), 'Page 2 is much larger than a letter page and was read at a lower resolution than usual (about 100 dpi), so its rows may be rougher — check them with extra care.');
+  });
+  it('lists several pages in order, with the lowest resolution among them', () => {
+    assert.equal(
+      ocrReducedPagesNote([{ page: 3, dpi: 150 }, { page: 1, dpi: 100 }, { page: 2, dpi: 120 }]),
+      'Pages 1, 2 and 3 are much larger than a letter page and were read at a lower resolution than usual (about 100 dpi), so their rows may be rougher — check them with extra care.',
+    );
+    assert.match(ocrReducedPagesNote([{ page: 1, dpi: 90 }, { page: 2, dpi: 90 }]), /^Pages 1 and 2 are /);
   });
 });

@@ -8,9 +8,11 @@
 // university only issues paper.
 import * as pdfjs from 'pdfjs-dist';
 import './pdf.ts'; // configures pdfjs's bundled worker (side effect)
-import { OCR_ENGINE_PARAMETERS, ocrPageLayout, type ColumnHint, type OcrLine } from './ocr-lines.ts';
+import { OCR_ENGINE_PARAMETERS, ocrPageLayout, ocrRenderScale, ocrScaleReduced, paintedImageSizes, scanResolution, type ColumnHint, type OcrLine } from './ocr-lines.ts';
+import type { OcrReducedPage } from './preview-layout.ts';
 
 export type { OcrLine } from './ocr-lines.ts';
+export type { OcrReducedPage } from './preview-layout.ts';
 
 // pdf.js v6's page renderer uses Map.getOrInsertComputed / getOrInsert — 2025
 // JavaScript builtins that Safari and slightly older Chrome/Firefox lack. The
@@ -39,16 +41,28 @@ export interface OcrProgress {
 
 /** Keep runaway uploads bounded — a transcript is not a dissertation. */
 const MAX_PAGES = 10;
-/** ~220 dpi for a letter-size page — OCR accuracy improves markedly up to
- * ~300 dpi; 3.0 balances that against canvas memory on old laptops. */
-const RENDER_SCALE = 3.0;
+// The render scale is chosen PER PAGE by ocrRenderScale (ocr-lines.ts): the
+// scan's own resolution — the image the page paints over the page's inches,
+// read from pdfjs's operator list — between 216 dpi (the scale 3.0 the app used
+// before OCR step 12, 2026-10-09) and 300 (measured better on 300-dpi scans,
+// worse past the scan's own resolution; the bench's A/B is in
+// docs/OCR-BENCHMARK.md), lowered only for a page so large that its canvas
+// would pass iOS Safari's 4096-px / 16-megapixel limits, where nothing is drawn
+// at all. The pages that had to be lowered under 216 dpi come back in
+// `reducedPages` for the preview to say so.
+
+/** What `ocrPdfToLines` returns besides the lines: how many pages were read
+ * of how many, and the pages read below the usual resolution. */
+export interface OcrReadResult {
+  lines: OcrLine[];
+  pagesRead: number;
+  pagesTotal: number;
+  reducedPages: OcrReducedPage[];
+}
 
 /** OCR a scanned PDF into text lines with per-line confidence. Throws when the
  * browser cannot run the engine (very old browsers without WASM SIMD). */
-export async function ocrPdfToLines(
-  data: ArrayBuffer,
-  onProgress: (p: OcrProgress) => void,
-): Promise<{ lines: OcrLine[]; pagesRead: number; pagesTotal: number }> {
+export async function ocrPdfToLines(data: ArrayBuffer, onProgress: (p: OcrProgress) => void): Promise<OcrReadResult> {
   const { createWorker, OEM } = await import('tesseract.js');
   const asset = (name: string) => new URL(`ocr/${name}`, document.baseURI).href;
   onProgress({ label: 'Starting the text reader (first time downloads ~7 MB)', percent: 0 });
@@ -72,13 +86,18 @@ export async function ocrPdfToLines(
     const pagesTotal = doc.numPages;
     const pagesRead = Math.min(pagesTotal, MAX_PAGES);
     const lines: OcrLine[] = [];
+    const reducedPages: OcrReducedPage[] = [];
     // The previous page's column layout, handed on as pdf.ts hands a text
     // PDF's (a short last page may split by it — F4, 2026-10-09).
     let hint: ColumnHint | undefined;
     for (let p = 1; p <= pagesRead; p++) {
       onProgress({ label: `Reading page ${p} of ${pagesRead}`, percent: Math.round(((p - 1) / pagesRead) * 100) });
       const page = await doc.getPage(p);
-      const viewport = page.getViewport({ scale: RENDER_SCALE });
+      const base = page.getViewport({ scale: 1 }); // the page's size in PDF units, in its own rotation
+      const scanDpi = scanResolution(await paintedImageSizes(page, pdfjs.OPS), base.width, base.height);
+      const scale = ocrRenderScale(base.width, base.height, scanDpi);
+      if (ocrScaleReduced(scale)) reducedPages.push({ page: p, dpi: Math.round(scale * 72) });
+      const viewport = page.getViewport({ scale });
       const canvas = document.createElement('canvas');
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
@@ -87,13 +106,13 @@ export async function ocrPdfToLines(
       await page.render({ canvasContext: ctx, viewport }).promise;
       const { data: out } = await worker.recognize(canvas, {}, { blocks: true });
       // The pure stage (ocr-lines.ts): word boxes → layout.ts → the parser's
-      // lines, in the canvas's pixels over RENDER_SCALE = PDF units.
-      const read = ocrPageLayout(out.blocks, canvas.width, canvas.height, RENDER_SCALE, { hint });
+      // lines, in the canvas's pixels over the page's scale = PDF units.
+      const read = ocrPageLayout(out.blocks, canvas.width, canvas.height, scale, { hint });
       hint = read.hint;
       lines.push(...read.lines);
       lines.push({ text: '', confidence: 100 }); // page break, like pdfToLines
     }
-    return { lines, pagesRead, pagesTotal };
+    return { lines, pagesRead, pagesTotal, reducedPages };
   } finally {
     await loadingTask.destroy();
     await worker.terminate();
