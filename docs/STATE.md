@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-08 (DGS — most probable graduate answers first): `graduateOrder` (background.ts) orders the graduate-degree options per bachelor’s/4+1 situation; `syncGraduateRows` moves the rows. Open: the DGS may reorder any list.
+
 2026-10-08 (DGS — “approved my coursework”): the advisor-approval sentences say “coursework”, not “plan of study” (W-CL360); the per-course “for my plan of study” to-do and the §2.9 “dual-degree plan of study” are unchanged, pending the DGS. Open: whether to change those two.
 
 2026-10-08 (DGS — one Hide button for both floating boxes): the warnings box is a `section` with an `h3` + `report.warnings.toggle` button, same as Next steps; app.ts `layoutFloats` re-runs on that button’s click. UI only.

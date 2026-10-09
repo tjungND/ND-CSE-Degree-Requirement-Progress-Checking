@@ -131,18 +131,28 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
 // option should be hidden. … if 'Another university' was chosen for 'Bachelor'
 // question, the 'Yes I finished 4+1 at Notre Dame' should be hidden since
 // Notre Dame does not accept students seeking a second bachelor's degree."
-describe('graduate answers the other answers rule out are not offered (DGS 2026-10-08)', () => {
+// …and, later that day: "show the most common/probable choices first. If
+// someone started a degree program (4+1 or MS or PhD), the most common case is
+// that they finished the program" — the orders below.
+describe('graduate answers the other answers rule out are not offered, and the rest come most probable first (DGS 2026-10-08)', () => {
   const ids = (b: Partial<Background>, program: Program) => graduateOptionsFor(b, program).map(([v]) => v);
   const all = ['none', 'elsewhere', 'nd-mscse', 'nd-4plus1', 'nd-mscse-transfer', 'nd-other'];
   it('a bachelor’s from another university or another department: no MSCSE through the 4+1', () => {
     assert.deepEqual(ids({ bachelors: 'elsewhere' }, 'phd'), ['none', 'elsewhere', 'nd-mscse', 'nd-mscse-transfer', 'nd-other']);
-    assert.deepEqual(ids({ bachelors: 'nd-other' }, 'phd'), ['none', 'elsewhere', 'nd-mscse', 'nd-mscse-transfer', 'nd-other']);
+    assert.deepEqual(ids({ bachelors: 'nd-other' }, 'phd'), ['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other']);
     assert.deepEqual(ids({}, 'phd'), all, 'nothing answered yet: every option');
   });
-  it('Notre Dame CSE — “No” to the 4+1: no MSCSE through the 4+1; “Yes”: no MSCSE as a regular master’s student', () => {
-    assert.deepEqual(ids({ bachelors: 'nd-cse' }, 'phd'), all, 'the 4+1 still open: every option');
-    assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: false }, 'phd'), ['none', 'elsewhere', 'nd-mscse', 'nd-mscse-transfer', 'nd-other']);
-    assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: true }, 'phd'), ['none', 'elsewhere', 'nd-4plus1', 'nd-mscse-transfer', 'nd-other']);
+  it('Notre Dame CSE — “No” to the 4+1: no MSCSE through the 4+1; “Yes”: no MSCSE as a regular master’s student, the finished 4+1 first', () => {
+    assert.deepEqual(ids({ bachelors: 'nd-cse' }, 'phd'), ['none', 'nd-4plus1', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'], 'the 4+1 still open: every option, the Notre Dame ones first');
+    assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: false }, 'phd'), ['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other']);
+    assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: true }, 'phd'), ['nd-4plus1', 'nd-mscse-transfer', 'none', 'elsewhere', 'nd-other']);
+  });
+  it('the finished degree comes before the unfinished one wherever both show', () => {
+    for (const b of [{ bachelors: 'nd-cse' as const }, { bachelors: 'nd-cse' as const, ndIntegrated: true }, { bachelors: 'nd-cse' as const, ndIntegrated: false }, { bachelors: 'elsewhere' as const }, { bachelors: 'nd-other' as const }, {}]) {
+      const o = ids(b, 'phd');
+      const finished = Math.max(o.indexOf('nd-mscse'), o.indexOf('nd-4plus1'));
+      assert.ok(finished >= 0 && finished < o.indexOf('nd-mscse-transfer'), JSON.stringify(b) + ' → ' + o.join(','));
+    }
   });
   it('an MSCSE student in the 4+1 now was admitted as an undergraduate: no graduate degree came before this program', () => {
     assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: true }, 'mscse'), ['none']);

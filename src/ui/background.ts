@@ -101,9 +101,31 @@ export function graduatePossible(v: GraduateBefore, b: Partial<Background>, prog
   if (program === 'mscse' && inFourPlusOne) return v === 'none';
   return true;
 }
-/** The graduate-degree options still possible for a partial answer. */
+/** The graduate answers in the order a student is most likely to need them
+ * (DGS 2026-10-08: "show the most common/probable choices first. If someone
+ * started a degree program (4+1 or MS or PhD), the most common case is that
+ * they finished the program"): the finished Notre Dame MSCSE before the
+ * unfinished one, and after a "Yes" to the 4+1 the MSCSE through the 4+1
+ * first of all. The answers the other answers rule out are left out here. */
+function graduateOrder(b: Partial<Background>, program: Program): GraduateBefore[] {
+  if (program === 'mscse') return ['none', 'elsewhere', 'nd-other'];
+  if (b.bachelors === 'nd-cse') {
+    if (b.ndIntegrated === true) return ['nd-4plus1', 'nd-mscse-transfer', 'none', 'elsewhere', 'nd-other'];
+    if (b.ndIntegrated === false) return ['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'];
+    return ['none', 'nd-4plus1', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'];
+  }
+  if (b.bachelors === 'nd-other') return ['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'];
+  // Another university, or not answered yet.
+  return ['none', 'elsewhere', 'nd-mscse', 'nd-4plus1', 'nd-mscse-transfer', 'nd-other'];
+}
+/** The graduate-degree options still possible for a partial answer, most
+ * probable first (`graduateOrder`). */
 export function graduateOptionsFor(b: Partial<Background>, program: Program): [GraduateBefore, string][] {
-  return graduateOptions(program).filter(([v]) => graduatePossible(v, b, program));
+  const labels = new Map(graduateOptions(program));
+  const order = graduateOrder(b, program);
+  // Any option the order forgets still shows, last.
+  const all = [...order, ...[...labels.keys()].filter((v) => !order.includes(v))];
+  return all.filter((v) => labels.has(v) && graduatePossible(v, b, program)).map((v) => [v, labels.get(v)!]);
 }
 /** The lighter second line under a graduate-degree option. */
 export const GRADUATE_NOTES: Partial<Record<GraduateBefore, string>> = {
@@ -490,18 +512,23 @@ export function backgroundQuestions(
     if (v === undefined || !asksAlsoElsewhere(v)) state.alsoElsewhere = undefined;
   };
   // Only the graduate answers the bachelor's answer and the 4+1 follow-up
-  // leave possible are shown (DGS 2026-10-08); an answer they rule out is
-  // dropped, so the record never holds a contradiction, and the step waits
-  // for a new one. Every row is built, so the drivers' data-keys stay.
+  // leave possible are shown, most probable first (DGS 2026-10-08); an answer
+  // they rule out is dropped, so the record never holds a contradiction, and
+  // the step waits for a new one. Every row is built, so the drivers'
+  // data-keys stay; the rows are moved into order, not rebuilt.
   const syncGraduateRows = (): void => {
     if (state.graduate !== undefined && !graduatePossible(state.graduate, state, program)) setGraduate(undefined);
+    const rowOf = (value: string): HTMLElement | null => graduateChoices.querySelector<HTMLInputElement>(`[data-key="${prefix}.graduate.${value}"]`)?.closest<HTMLElement>('label') ?? null;
     for (const [value] of graduateOptions(program)) {
-      const input = graduateChoices.querySelector<HTMLInputElement>(`[data-key="${prefix}.graduate.${value}"]`);
-      const row = input?.closest<HTMLElement>('label');
-      if (!input || !row) continue;
+      const row = rowOf(value);
+      const input = row?.querySelector('input');
+      if (!row || !input) continue;
       row.hidden = !graduatePossible(value, state, program);
       input.checked = state.graduate === value;
     }
+    const wanted = graduateOptionsFor(state, program).map(([v]) => rowOf(v)).filter((r): r is HTMLElement => r !== null);
+    const shown = [...graduateChoices.children].filter((n): n is HTMLElement => n instanceof HTMLElement && n.matches('label.choice') && !n.hidden);
+    if (shown.length !== wanted.length || shown.some((r, i) => r !== wanted[i])) for (const row of wanted) graduateChoices.append(row);
   };
   // A numbered step (CSS counts the visible ones): the question is the heading.
   const graduateChoices = radios(
