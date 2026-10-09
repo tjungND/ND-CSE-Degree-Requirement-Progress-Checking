@@ -15,6 +15,7 @@
     "e2e": "node scripts/e2e/run.mjs",
     "e2e:webkit": "E2E_BROWSER=webkit node scripts/e2e/run.mjs",
     "diagnose": "node scripts/diagnose-transcript.mjs",
+    "replay": "node --experimental-strip-types scripts/dev/replay.mts",
     "sanitize": "node scripts/sanitize-transcript.mjs",
     "handbook-text": "node scripts/handbook-text.mjs"
   },
