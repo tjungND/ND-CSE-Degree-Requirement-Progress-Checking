@@ -414,3 +414,32 @@ Open issues (carried into Batch B unless marked for the DGS):
   `dropWatermarks`), F3 (Minerva's multi-term mark), F1c, and an "is this a transcript" gate for the
   course-outline page. The five original known-failing fixtures wait on Batch C, whose DGS answers are
   recorded (DECISIONS 2026-10-09).
+
+### Batch B step 8 — parser and layout fixes F4–F6 (2026-10-09)
+
+Three commits, by family, each verified with `npx tsc --noEmit`, the full `npm test` and the replay
+against the previous step's file (0 regressions at every step): F6 `bc5f1ba` (header words and
+header shapes), F5 + F3's multi-term mark `a803ef2` (what never names the university; the exemption
+block; the recipient line in nd-markers), F4 (the layout stage; the Alberta fixture regenerated from
+its PDF and its CR rows re-checked to S). The rules are quoted in the DECISIONS rows of the date; the
+handoff's "Batch B step 8" bullet indexes the code.
+
+| | after step 6 (`text-after-composed.json`) | after F6 | after F5 | after F4 (`text-after-F4.json`) |
+|---|---|---|---|---|
+| public exact | 133/168 | 142/168 | 146/168 | 147/168 |
+| public row recall / precision | 91.4% / 98.7% | 91.9% / 98.7% | 91.9% / 99.1% | 91.9% / 99.1% |
+| public cells title / credits / grade / term | 91.9 / 95.3 / 92.6 / 97.6% | 98.6 / 99.0 / 98.1 / 97.8% | 99.0 / 99.0 / 98.1 / 97.8% | 100 / 99.9 / 99.3 / 97.8% |
+| false rows on negatives | 1 (in 1/39) | 1 | 1 | 1 (the McGill course outline — the gate question) |
+| pdfs exact (`--verify`, 49 PDFs) | 36/49 | 43/49 | 46/49 | 47/49 |
+| pdfs cells title / credits / grade | 55.2 / 88.5 / 58.0% | 87.0 / 91.8 / 89.1% | 90.8 / 91.8 / 89.1% | 100 / 100 / 100% |
+| known-failing | 35 | 26 | 22 | 21 |
+| ms corpus | 48/48, 648/648 | unchanged | unchanged | unchanged |
+
+Still open after this step (their entries on the known-failing list name them): F2 (Workday's
+"2024-25 Winter Term 1" headers, Nepal's continuously numbered semesters), F3 (McMaster's
+digit-letter-digit numbers, SNU's dotted numbers, UCLA's one-digit numbers), F1 (UCLA's "IN
+PROGRESS" term header), Ladok's module lines and "Date of issue", Western's suffix terms, Oregon's
+glued grade symbols and key-page "quarter hours", the Ukrainian supplement (Cyrillic codes) and its
+grading-scale line, the Algerian relevé (CC15), Bangladesh's trimester evidence, the CUNY question,
+open question (g) (Sabanci's legend-defined P), and the transcript gate (a DGS question, DECISIONS).
+

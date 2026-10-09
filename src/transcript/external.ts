@@ -508,8 +508,13 @@ let lastHeaderCells: string[] = [];
 function cellKind(cell: string): { kind: ColumnKind; anchored: boolean } | undefined {
   const trimmed = cell.replace(/\s*\(.*\)\s*$/, '').trim();
   const halves = trimmed.split(/\s*\/\s*/);
+  const gradeRe = COLUMN_KIND_RES.find(([kind]) => kind === 'grade')![1];
   const match = (text: string): { kind: ColumnKind; anchored: boolean } | undefined => {
     for (const [kind, re] of COLUMN_KIND_RES) {
+      // The unanchored mark pattern finds "mark" inside "Grade Remark"
+      // (Alberta's grade column, F6 2026-10-09): a cell the grade pattern
+      // names whole is the grade, never a mark.
+      if (kind === 'mark' && gradeRe.test(text)) continue;
       if (re.test(text) || (kind === 'title' && re.test(cell)) || (kind === 'mark' && re.test(cell) && !/credit|unit|hour|grade|point/i.test(cell))) {
         return { kind, anchored: re.source.startsWith('^') };
       }

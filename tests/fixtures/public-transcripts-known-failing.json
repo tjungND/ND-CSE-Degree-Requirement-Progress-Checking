@@ -15,9 +15,6 @@
  "chulalongkorn": [
   "TH02 \u2014 DGS decision: Thailand's 'First Semester 2022' runs August\u2013December (the calendar-order rule reads it as the spring)"
  ],
- "pdf-alberta-crnc-sample": [
-  "F4 (Batch B) \u2014 page 2's header loses its 'Units' / 'Taken' runs in layout.ts dropWatermarks: the short-word rule (>= 8 occurrences at >= 4 x positions) counts the header word (5 headers x 2 columns) together with the GPA lines' 'units taken' at three more x positions, and drops the header runs; page 1 has one GPA x position fewer and keeps them \u2014 page 1 reads exact since F6 (the two-line header join), page 2's rows go through the position-free scan until the layout fix lands and the pinned lines are regenerated from the PDF"
- ],
  "pdf-evergreen-sample-raa": [
   "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column"
  ],

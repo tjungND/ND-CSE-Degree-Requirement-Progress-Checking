@@ -116,7 +116,17 @@ export function dropWatermarks(runs: Run[]): Run[] {
     // Six-letter phrases tile at ≥ 3 x positions; a SHORT word ("COPY",
     // 2026-09-05) must repeat more, at ≥ 4 positions — column headers ("HRS")
     // and subject codes sit at one or two x positions and survive.
-    if ((letters >= 6 && total >= 6 && at.size >= 3) || (total >= 8 && at.size >= 4)) tiled.add(key);
+    // F4 (transcript accuracy program, Batch B 2026-10-09): a tile's positions
+    // are the ones it repeats DOWN the page at (≥ 2 occurrences in the x
+    // bucket). Alberta's page 2 printed the header word "Units" at two x
+    // positions under five term headings AND once each in three GPA lines of
+    // running text ("… / 9.0 units taken = 3.1", whose x shifts with the
+    // numbers before it): thirteen occurrences at five positions passed for
+    // a tile and the header lost its "Units" / "Taken" runs. A lone
+    // occurrence at its own x never made a tile — the keep rule below already
+    // spares it — so it does not count toward the positions either.
+    const repeatedAt = [...at.values()].filter((n) => n >= 2).length;
+    if ((letters >= 6 && total >= 6 && at.size >= 3) || (total >= 8 && repeatedAt >= 4)) tiled.add(key);
   }
   if (tiled.size === 0) return upright;
   // A tiled phrase is dropped only where it repeats down the page; a lone
@@ -184,20 +194,22 @@ export function groupLines(runs: Run[]): string[] {
   // Joined with a space each, "University of Notre Dame" read as
   // "U n i v e r s i t y o f N o t r e D a m e" and the import rejected the
   // transcript as not Notre Dame's. In those files letters of one word touch
-  // (gap −0.4…+0.4 units) and words are ≥ 2 units apart, so where most runs
-  // are single characters (60%, over at least 20 runs — those files: 75–77%),
-  // runs that touch (≤ 1 unit) are joined with no space. Word-level PDFs —
-  // where most runs are words — read exactly as before.
-  const glyphLayout = runs.length >= 20 && runs.filter((r) => r.text.trim().length === 1).length >= 0.6 * runs.length;
+  // (gap −0.4…+0.4 units) and words are ≥ 2 units apart, so where most of a
+  // LINE's runs are single characters (80%, over at least two runs — F4,
+  // Batch B 2026-10-09: the page-level 60% rule left a page between 40% and
+  // 59% glyphs reading letter-spaced words, and joined a word-level line on
+  // a glyph page), runs that touch (≤ 1 unit) are joined with no space.
+  // Word-level lines — where most runs are words — read exactly as before.
   let current: Run[] = [];
   const flush = () => {
     if (current.length === 0) return;
     current.sort((a, b) => a.x - b.x);
+    const glyphLine = current.length >= 2 && current.filter((r) => r.text.trim().length === 1).length >= 0.8 * current.length;
     let text = '';
     let cursor = -Infinity;
     for (const r of current) {
       const gap = r.x - cursor;
-      if (text !== '') text += gap > 8 ? '   ' : glyphLayout && gap <= 1 ? '' : ' ';
+      if (text !== '') text += gap > 8 ? '   ' : glyphLine && gap <= 1 ? '' : ' ';
       text += r.text;
       cursor = r.x + r.width;
     }
@@ -228,24 +240,72 @@ export function groupLines(runs: Run[]): string[] {
  *      repeated header ("Attempted"), so it fails this test.
  * Runs that cross the band (headers) stay with the left column, where they
  * were read first. */
-export function splitColumns(runs: Run[], pageWidth: number): Run[][] {
-  const gapX = findColumnGap(runs, pageWidth);
-  if (gapX === undefined) return [runs];
-  const right = runs.filter((r) => r.x >= gapX - 2);
-  const left = runs.filter((r) => r.x < gapX - 2);
-  return repairStraddlers(left, right, gapX, Math.min(...right.map((r) => r.x)));
+export function splitColumns(runs: Run[], pageWidth: number, hint?: ColumnHint): Run[][] {
+  return columnLayout(runs, pageWidth, hint).columns;
 }
+
+/** Where a two-column page's columns meet (F4, Batch B 2026-10-09): the gap's
+ * x and the right column's left edge — handed to the NEXT page, whose runs may
+ * be too few for the full test (a Banner transcript's last page often holds
+ * one term in each column and nothing else). */
+export interface ColumnHint {
+  gapX: number;
+  rightEdge: number;
+}
+
+/** `splitColumns` with the layout it found: the columns, and the hint for the
+ * next page (this page's gap when it was found, else the hint the page split
+ * by, else none). */
+export function columnLayout(runs: Run[], pageWidth: number, hint?: ColumnHint): { columns: Run[][]; hint?: ColumnHint } {
+  const found = findColumnLayout(runs, pageWidth);
+  if (found !== undefined) return { columns: splitAt(runs, found), hint: found };
+  // A SHORT page — under the 40 runs the full test needs — splits at the
+  // previous page's gap only when its runs line up with that layout: at least
+  // 30% of its baselines hold a run that begins within 12 units of the hinted
+  // right edge (a Banner row is six runs and the two columns share their
+  // baselines, so neither runs nor "the first run of a line" is the measure),
+  // those runs include two different WORDY texts (a term header, "Ehrs:",
+  // "Good Standing" — the full test's wordy-edge evidence; a numbers column
+  // that happens to sit at the hinted edge has none), and nothing (bar a rule
+  // or a "CONTINUED" banner) crosses the gap. A one-column last page (Banner's
+  // legend page: full-width prose, nothing beginning at the right edge) fails
+  // these tests and is read whole, as before.
+  if (hint !== undefined && runs.length > 0 && runs.length < 40) {
+    const words = joinWords(runs);
+    const baselines = words.filter((r, i, all) => i === 0 || Math.abs(all[i - 1]!.y - r.y) > 2).length; // joinWords sorts by y
+    const atEdge = words.filter((r) => Math.abs(r.x - hint.rightEdge) <= 12);
+    const baselinesAtEdge = new Set(atEdge.map((r) => Math.round(r.y / 2))).size;
+    const wordyAtEdge = new Set(atEdge.filter((r) => /[A-Za-z]{4}/.test(r.text)).map((r) => r.text.trim())).size;
+    const crossing = words.filter((r) => !DECORATIVE_RE.test(r.text) && r.x < hint.gapX - 2 && r.x + r.width > hint.gapX + 2).length;
+    if (baselinesAtEdge >= 2 && baselinesAtEdge >= 0.3 * baselines && wordyAtEdge >= 2 && crossing === 0 && runs.some((r) => r.x < hint.gapX - 2)) {
+      return { columns: splitAt(runs, hint), hint };
+    }
+  }
+  return { columns: [runs] };
+}
+
+function splitAt(runs: Run[], at: ColumnHint): Run[][] {
+  const right = runs.filter((r) => r.x >= at.gapX - 2);
+  const left = runs.filter((r) => r.x < at.gapX - 2);
+  return repairStraddlers(left, right, at.gapX, Math.min(at.rightEdge, ...right.map((r) => r.x)));
+}
+
+/** Horizontal rules ("_____") and Banner's "CONTINUED ON NEXT COLUMN ****"
+ * banners are drawn to the full column width and touch the gap; they say
+ * nothing about the layout, so they do not count as crossings. */
+const DECORATIVE_RE = /^[\W_]+$|CONTINUED ON/i; // covers "_____", "-----", "*****" boxes
 
 /** The x of the vertical gap between a two-column page's columns (runs at
  * x ≥ gap − 2 belong to the right column), or undefined for a one-column
  * page. The three tests are described on `splitColumns`. Exported so the
  * transcript sanitizer (scripts/sanitize/) can de-identify column by column. */
 export function findColumnGap(runs: Run[], pageWidth: number): number | undefined {
+  return findColumnLayout(runs, pageWidth)?.gapX;
+}
+
+/** `findColumnGap` with the right column's left edge beside the gap. */
+function findColumnLayout(runs: Run[], pageWidth: number): ColumnHint | undefined {
   if (runs.length < 40 || !(pageWidth > 0)) return undefined;
-  // Horizontal rules ("_____") and Banner's "CONTINUED ON NEXT COLUMN ****"
-  // banners are drawn to the full column width and touch the gap; they say
-  // nothing about the layout, so they do not count as crossings.
-  const DECORATIVE_RE = /^[\W_]+$|CONTINUED ON/i; // covers "_____", "-----", "*****" boxes
   // Some generators emit one run PER WORD (the DGS's synthetic Oregon State
   // transcript, 2026-09-20): a title such as "ALGORITHMS: DESIGN, ANALYSIS,"
   // then never "crosses" the middle, because no single word does. The
@@ -291,7 +351,7 @@ export function findColumnGap(runs: Run[], pageWidth: number): number | undefine
     if (new Set(wordyAtEdge.map((r) => r.text.trim())).size < 3) continue;
     const numericOrGrade = right.filter((r) => /^[\d.,/]+$|^[A-Z][+\-]?$/.test(r.text.trim())).length;
     if (numericOrGrade > right.length * 0.75) continue; // a Banner column is ~half numbers (course numbers, credits, points)
-    return x;
+    return { gapX: x, rightEdge };
   }
   return undefined;
 }
@@ -354,11 +414,20 @@ function repairStraddlers(left: Run[], right: Run[], gapX: number, rightEdge: nu
 }
 
 /** A page's runs → its lines: watermarks dropped, then column by column when
- * the page has two. */
-export function runsToLines(runs: Run[], pageWidth: number): string[] {
-  const lines = splitColumns(dropWatermarks(runs), pageWidth).flatMap((column) => groupLines(column));
+ * the page has two. `hint` is the previous page's column layout
+ * (`pageLayout`), which a short last page may split by (F4, 2026-10-09). */
+export function runsToLines(runs: Run[], pageWidth: number, hint?: ColumnHint): string[] {
+  return pageLayout(runs, pageWidth, hint).lines;
+}
+
+/** `runsToLines` with the column layout to hand to the next page: callers
+ * that read a document page by page (src/transcript/pdf.ts,
+ * scripts/dev/pdf-lines-node.mts) pass each page's `hint` to the next. */
+export function pageLayout(runs: Run[], pageWidth: number, hint?: ColumnHint): { lines: string[]; hint?: ColumnHint } {
+  const layout = columnLayout(dropWatermarks(runs), pageWidth, hint);
+  const lines = layout.columns.flatMap((column) => groupLines(column));
   // A watermark that names the institution is worth one clean line at the
   // top of the page for the university guess (2026-09-05).
   const named = watermarkInstitution(runs);
-  return named ? [named, ...lines] : lines;
+  return { lines: named ? [named, ...lines] : lines, ...(layout.hint !== undefined ? { hint: layout.hint } : {}) };
 }

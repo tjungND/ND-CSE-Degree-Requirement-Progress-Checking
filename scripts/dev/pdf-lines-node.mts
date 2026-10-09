@@ -12,7 +12,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { runsFromTextItems, runsToLines, type Run } from '../../src/transcript/layout.ts';
+import { pageLayout, runsFromTextItems, type ColumnHint, type Run } from '../../src/transcript/layout.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -64,13 +64,17 @@ async function openDocument(file: string): Promise<any> {
 export async function pdfToLinesNode(file: string, onPage?: (page: PageRuns) => void): Promise<string[]> {
   const doc = await openDocument(file);
   const lines: string[] = [];
+  // The previous page's column layout, as the browser passes it (F4, 2026-10-09).
+  let hint: ColumnHint | undefined;
   try {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
       const content = await page.getTextContent();
       const viewport = page.getViewport({ scale: 1 });
       const { runs, width } = runsFromTextItems(content.items.filter((it: { str?: string }) => 'str' in it), viewport);
-      const pageLines = runsToLines(runs, width);
+      const read = pageLayout(runs, width, hint);
+      hint = read.hint;
+      const pageLines = read.lines;
       onPage?.({ page: p, runs, width, turned: width !== viewport.width, lines: pageLines });
       lines.push(...pageLines);
       lines.push('');

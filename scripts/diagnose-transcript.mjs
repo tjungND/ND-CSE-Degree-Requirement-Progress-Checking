@@ -28,7 +28,7 @@ if (!file) {
 }
 
 const { pdfToLinesNode } = await import(pathToFileURL(join(root, 'scripts', 'dev', 'pdf-lines-node.mts')).href);
-const { dropWatermarks, splitColumns } = await import(pathToFileURL(join(root, 'src', 'transcript', 'layout.ts')).href);
+const { dropWatermarks, columnLayout } = await import(pathToFileURL(join(root, 'src', 'transcript', 'layout.ts')).href);
 const { parseExternalTranscript } = await import(pathToFileURL(join(root, 'src', 'transcript', 'external.ts')).href);
 
 const mask = (s) => s.replace(/[A-Z]/g, 'A').replace(/[a-z]/g, 'a').replace(/\d/g, '9');
@@ -39,12 +39,16 @@ const showPhrase = (s) => (INSTITUTION_RE.test(s) ? s : mask(s));
 // sideways page is turned upright first — 2026-09-05); one structure line per
 // page as each is read.
 const pageReports = [];
+// The previous page's column layout, as the app passes it (F4, 2026-10-09).
+let hint;
 const allLines = await pdfToLinesNode(file, ({ page: p, runs, width, turned, lines }) => {
   const kept = dropWatermarks(runs);
   const rotated = runs.filter((r) => r.rotated).length;
   const dropped = runs.filter((r) => !r.rotated && !kept.includes(r));
   const phrases = [...new Set(dropped.map((r) => r.text.replace(/\s+/g, ' ').trim()))].map(showPhrase);
-  const columns = splitColumns(kept, width).length;
+  const layout = columnLayout(kept, width, hint);
+  hint = layout.hint;
+  const columns = layout.columns.length;
   pageReports.push(
     `page ${p}: width ${width.toFixed(0)}${turned ? ' (page turned upright)' : ''}, runs ${runs.length}, rotated ${rotated}, watermark runs dropped ${dropped.length}` +
       (phrases.length ? ` (${phrases.map((s) => JSON.stringify(s)).join(', ')})` : '') +

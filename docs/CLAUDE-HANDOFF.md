@@ -411,6 +411,51 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   on negatives 0/32) through all three commits and the review-fix commit that followed them (the
   2026-10-09 review of F1–F3: six findings, five DECISIONS rows) — a parser change that moves the
   board needs a fixture explaining why, not a re-baseline.
+- **Batch B step 8 — parser and layout fixes F4–F6** (2026-10-09, transcript accuracy program; the
+  DECISIONS rows of that date quote each rule, STATE.md's "Batch B step 8" paragraph and the plan's §5
+  the numbers). Three commits, each with its replay delta in the body — F6 `bc5f1ba`, F5 (+ F3's
+  multi-term mark) `a803ef2`, F4 (this one). `src/transcript/external.ts`: `cellKind` / `cellKinds`
+  (a header cell's kind with whether the pattern named it whole — a cell no pattern names whole is
+  cut at the one space where both parts are header words of different kinds, "Cr. / C.E.U. Grade";
+  a cell named only by a word inside it, "Remarks Earned", is cut only when its first part is a
+  remarks-type word; a cell the grade pattern names whole is never a mark, "Grade Remark");
+  `joinedHeaderKinds` (a two-line header joined column by column when every joined pair is a header
+  word — Alberta); the `stat` column kind (class statistics, with McMaster's "(242)" count) and the
+  header words of the composed fixtures (`COLUMN_KIND_RES`: Course Listing, Subno, TM, SU CREDIT,
+  C.E.U., CH, UNTS, Scope, GPs, Grade Remark, Classification-after-a-grade → flag, FHEQ Level stays
+  a flag); in `scanWithMap` four costed fit rules — `numericFillsRest` (the grade column is empty
+  when every remaining number has a numeric column of its own), `letterAfterNumericGrade` (the
+  2026-09-26 title-digit rule under a header, cost three), `statWithoutCredits` (cost one) and
+  `integerGradeInLetteredTable` with `headerGrades` (a registered row under a lettered grade column,
+  cost two; the first row of a table has no such evidence — a documented limit); `rowTermOf(cells,
+  mapped)` reads a bare TM ordinal only from a mapped cell; `transferScope` (the university guess
+  skips a transfer block), `VENDOR_RE` / `FROM_LINE_RE` / `AFFILIATED_RE` / `ACADEMIC_YEAR_LABEL_RE`
+  (never the university), the "academic / electronic transcript from" strip, the US-address strip,
+  the `exemptions` transfer block (Minerva's "Credits/Exemptions": bare rows skipped and counted until
+  the first full row), `MULTI_TERM_MARK_RE` in `dropSection`. `src/transcript/nd-markers.ts`:
+  `RECIPIENT_LABEL_RE` / `RECIPIENT_HEADING_RE` (a delivery cover addressed to Notre Dame is not a
+  Notre Dame transcript). `src/transcript/campus.ts`: a campus's own name resolves through the
+  system printed in the header. `src/transcript/layout.ts`: `dropWatermarks` counts a short word's
+  tile positions only where it repeats down the page; `pageLayout` / `columnLayout` / `ColumnHint`
+  (a short last page splits at the previous page's gap when ≥ 30% of its baselines hold a run at
+  the hinted right edge with two wordy texts there and nothing crosses — `src/transcript/pdf.ts`,
+  `scripts/dev/pdf-lines-node.mts` and `scripts/diagnose-transcript.mjs` pass the hint page to
+  page; `findColumnGap` keeps its shape for the sanitizer); the glyph join is per line (80% of a
+  baseline's runs). Pinned: `tests/public-transcript-rules.test.ts` (F6, F5, F3 blocks),
+  `tests/layout.test.ts` (the F4 block, with `banner-transcript.pdf` through the Node loader equal
+  to `BANNER_LINES`), `tests/campus.test.ts`. The Alberta fixture's lines were regenerated from its
+  PDF (only page 2's header pairs changed) and its CR rows re-checked to S. Off the known-failing
+  list: 14 fixtures (Alberta, nine Minerva pages, the eScrip-Safe wrapper, IIT, HEC, and the Minerva
+  cegep/transfer/multi-term pages); 21 remain, each entry naming only the families still open (F2,
+  F3, F1, CC15/CC16/TH02, the DGS questions, open question (g), the transcript gate). Numbers vs
+  `bench-out/text-after-composed.json` (Batch B step 6's baseline): public exact 133 → 147 of 168,
+  pdfs exact 36 → 47 of 49, 0 regressions at every step; files `text-after-F6.json`,
+  `text-after-F5.json`, `text-after-F4.json`. Not done here (other families, other agents): F2's
+  Workday / Nepal term headers, F3's McMaster / SNU / UCLA code shapes, F1's UCLA "IN PROGRESS"
+  header, Ladok's module lines and "Date of issue", Western's suffix terms, Oregon's glued symbols,
+  CUNY, the Ukrainian / Algerian pages, Bangladesh's trimester evidence; W-CL372 is the one new
+  student-facing string (the skipped-rows warning names a transfer-credit OR credits/exemptions
+  heading).
 - **The transcript replay and its scorer** (2026-10-09, transcript accuracy program, Batch A steps
   1–3). `scripts/dev/score.mts` is the ONE scorer: `scoreDocument(parsed, expected)` → header fields
   got/want/ok (skipped on a `negative`), rows aligned by `normalizeCourseId` + year then id alone

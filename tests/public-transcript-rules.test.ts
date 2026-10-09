@@ -516,14 +516,16 @@ describe('transcript accuracy program, Batch B — F6 header words (2026-10-09)'
       'Grade   Units   Units   Grade   Class   Class',
       'Course   Description   Remark   Taken   Passed   Points   Avg   Enrl',
       'ECE   541   DIGITAL SIGNAL PROCESSING   B   3.0   3.0   9.00   3.3   19',
+      'ECE   684   WIRELESS COMMUNICATION SYSTEMS   B+   3.0   3.0   9.90   3.3   16',
       'ENGG   600   ENG ETHICS AND PROFESSIONALISM   CR   0.5   0.5   0.00   XXX   170',
       'ECE   910A   DIRECTED RESEARCH PROJECT   IP   0.0   0.0   0.00   XXX   32',
       'TOTALS   9.5   9.5   27.90',
     );
     assert.deepEqual(cells(r, 'ECE 541'), ['DIGITAL SIGNAL PROCESSING', 3, 'B']);
+    assert.deepEqual(cells(r, 'ECE 684'), ['WIRELESS COMMUNICATION SYSTEMS', 3, 'B+'], '"Grade Remark" is the grade column, not a marks column ("Re-mark"): a signed grade reads');
     assert.deepEqual(cells(r, 'ENGG 600'), ['ENG ETHICS AND PROFESSIONALISM', 0.5, 'S'], 'CR is a pass (the legend: "grades of CR have met the requirements")');
     assert.deepEqual(cells(r, 'ECE 910A'), ['DIRECTED RESEARCH PROJECT', 0, 'IP']);
-    assert.equal(r.courses.length, 3, 'the TOTALS line is no row');
+    assert.equal(r.courses.length, 4, 'the TOTALS line is no row');
     // The upper line is not joined to a line whose pairs are not header words.
     const apart = doc('Some University', 'Fall 2023', 'Grade   Grade   Class   Class', 'Course   Title   Credits   Grade', 'CS 500   Topics   3   A');
     assert.deepEqual(cells(apart, 'CS 500'), ['Topics', 3, 'A']);

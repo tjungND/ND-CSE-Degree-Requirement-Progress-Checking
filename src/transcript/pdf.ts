@@ -6,7 +6,7 @@ import * as pdfjs from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 // Vite turns this into a relative asset URL inside dist/ at build time.
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { runsFromTextItems, runsToLines } from './layout.ts';
+import { pageLayout, runsFromTextItems, type ColumnHint } from './layout.ts';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -22,13 +22,18 @@ export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
   const loadingTask = pdfjs.getDocument({ data });
   const doc = await loadingTask.promise;
   const lines: string[] = [];
+  // The previous page's column layout: a short last page splits by it (F4,
+  // 2026-10-09).
+  let hint: ColumnHint | undefined;
   try {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
       const content = await page.getTextContent();
       const items = content.items.filter((it): it is TextItem => 'str' in it);
       const { runs, width } = runsFromTextItems(items, page.getViewport({ scale: 1 }));
-      lines.push(...runsToLines(runs, width));
+      const read = pageLayout(runs, width, hint);
+      hint = read.hint;
+      lines.push(...read.lines);
       lines.push(''); // page break
     }
   } finally {

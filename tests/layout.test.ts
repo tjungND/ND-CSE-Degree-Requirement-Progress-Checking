@@ -3,7 +3,9 @@
 // table — even one whose right half is all numbers — is never split.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { dropWatermarks, groupLines, isRepeatedPhraseRun, repeatedPhrase, runsFromTextItems, runsToLines, splitColumns, watermarkInstitution, type Run } from '../src/transcript/layout.ts';
+import { readFileSync } from 'node:fs';
+import { columnLayout, dropWatermarks, groupLines, isRepeatedPhraseRun, pageLayout, repeatedPhrase, runsFromTextItems, runsToLines, splitColumns, watermarkInstitution, type Run } from '../src/transcript/layout.ts';
+import { pdfToLinesNode } from '../scripts/dev/pdf-lines-node.mts';
 
 const W = 612;
 const run = (x: number, y: number, text: string, width = text.length * 4): Run => ({ x, y, text, width });
@@ -245,5 +247,105 @@ describe('page orientation and watermark bands', () => {
     assert.ok(!kept.includes('COPY'));
     assert.equal(kept.filter((t) => t === 'CSE').length, 10);
     assert.equal(kept.filter((t) => t === 'HRS').length, 3);
+  });
+});
+
+// ——— Transcript accuracy program, Batch B (DGS 2026-10-09): F4 layout ———
+describe('transcript accuracy program, Batch B — F4 layout (2026-10-09)', () => {
+  it('(a) a header word that repeats at two x positions under every term heading, and once each in lines of running text, is not a watermark tile (Alberta page 2)', () => {
+    // The positions are the public sample's (pdf-alberta-crnc-sample.pdf, page
+    // 2): "Units" at x 326.6 and 379.4 in five headers, and "units" at 197,
+    // 187.4 and 192.2 in three GPA lines whose numbers shift it; "Taken" at
+    // 326.6 in the headers and "taken" at 225.8, 216.2 and 221 in the same
+    // GPA lines. Thirteen and eight occurrences at five and four x positions.
+    const runs: Run[] = [];
+    const headerYs = [609.2, 508, 397.6, 324, 186];
+    for (const y of headerYs) {
+      runs.push(run(278.6, y, 'Grade', 24), run(326.6, y, 'Units', 24), run(379.4, y, 'Units', 24), run(427.4, y, 'Grade', 24), run(470.6, y, 'Class', 24), run(513.8, y, 'Class', 24));
+      runs.push(run(48.2, y - 9.2, 'Course', 28.8), run(115.4, y - 9.2, 'Description', 52.8), run(278.6, y - 9.2, 'Remark', 28.8), run(326.6, y - 9.2, 'Taken', 24), run(374.6, y - 9.2, 'Passed', 28.8), run(422.6, y - 9.2, 'Points', 28.8), run(480.2, y - 9.2, 'Avg', 14.4), run(518.6, y - 9.2, 'Enrl', 19.2));
+    }
+    for (const [x, y] of [[197, 443.6], [187.4, 360.8], [192.2, 130.8]] as const) {
+      runs.push(run(48.2, y, 'GPA:', 20), run(72, y, '60.00', 24), run(100, y, 'grade points /', 60), run(165, y, '24.0', 20), run(x, y, 'units', 24), run(x + 28.8, y, 'taken', 24), run(x + 57, y, '= 2.5', 24));
+    }
+    for (let i = 0; i < 12; i++) runs.push(run(48.2, 590 - i * 12, 'ENGL'), run(80, 590 - i * 12, `10${i}`), run(115.4, 590 - i * 12, 'INTRO TO CRITICAL ANALYSIS', 110), run(282, 590 - i * 12, 'B-'), run(330, 590 - i * 12, '3.0'), run(382, 590 - i * 12, '3.0'), run(426, 590 - i * 12, '8.10'), run(478, 590 - i * 12, '2.8'), run(520, 590 - i * 12, '36'));
+    const kept = dropWatermarks(runs).map((r) => r.text);
+    assert.equal(kept.filter((t) => t === 'Units').length, 10, 'every header "Units" survives');
+    assert.equal(kept.filter((t) => t === 'Taken').length, 5, 'every header "Taken" survives');
+    assert.equal(kept.length, runs.length, 'nothing on the page is a tile');
+    // The 2026-09-05 "COPY" tile still goes: four x positions, each repeated down the page.
+    const tile: Run[] = [];
+    for (let y = 700; y > 500; y -= 20) for (const x of [40, 190, 340, 490]) tile.push(run(x, y, 'COPY'));
+    assert.equal(dropWatermarks([...runs, ...tile]).filter((r) => r.text === 'COPY').length, 0);
+  });
+
+  it('(b) a short two-column last page splits at the previous page\'s gap when its runs line up with it; a short one-column page does not', () => {
+    const { hint } = columnLayout(twoColumnPage(), W);
+    assert.ok(hint !== undefined && hint.gapX > 240 && hint.gapX < 370 && Math.abs(hint.rightEdge - 310) <= 4, `the Banner page's layout: ${JSON.stringify(hint)}`);
+    // The last page: one term per column, 24 runs — under the 40 the full test needs.
+    const last: Run[] = [];
+    const column = (x0: number, label: string) => {
+      let y = 760;
+      last.push(run(x0, (y -= 10), `${label} Spring 2021`));
+      for (let i = 0; i < 2; i++) {
+        y -= 10;
+        last.push(run(x0, y, 'CS'), run(x0 + 27, y, `6${i}0`), run(x0 + 62, y, 'Course Title Words', 100), run(x0 + 182, y, '3.00'), run(x0 + 207, y, 'A'), run(x0 + 243, y, '12.00'));
+      }
+      last.push(run(x0, (y -= 10), 'Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 24.00 GPA: 4.00', 200));
+    };
+    column(33, 'Left');
+    column(310, 'Right');
+    assert.equal(splitColumns(last, W).length, 1, 'alone, a short page is never split');
+    const split = columnLayout(last, W, hint);
+    assert.equal(split.columns.length, 2);
+    const lines = runsToLines(last, W, hint);
+    const left = lines.indexOf('Left Spring 2021');
+    const right = lines.indexOf('Right Spring 2021');
+    assert.ok(left >= 0 && right > left, lines.join('\n'));
+    assert.ok(!lines.some((l) => (l.match(/12\.00/g) ?? []).length > 1), 'nothing spliced across the columns');
+    assert.deepEqual(split.hint, hint, 'the layout is handed on again');
+    // A one-column last page (Banner's legend: full-width prose, nothing at the right edge) is read whole.
+    const legend: Run[] = [];
+    for (let i = 0; i < 20; i++) legend.push(run(40, 700 - i * 12, 'Example Institute of Technology grades on a four-point scale as described in this legend.', 480));
+    assert.equal(columnLayout(legend, W, hint).columns.length, 1);
+    assert.deepEqual(runsToLines(legend, W, hint), runsToLines(legend, W));
+    // Runs at the right edge but a line crossing the gap: not split either.
+    const crossing = [...last, run(100, 650, 'A full-width note that runs across the middle of the page to the right column', 400)];
+    assert.equal(columnLayout(crossing, W, hint).columns.length, 1);
+    // Too few runs at the hinted edge (a one-column page whose text happens to start near it): not split.
+    const sparse: Run[] = [];
+    for (let i = 0; i < 20; i++) sparse.push(run(33, 700 - i * 12, `Line ${i} of prose in the left column only`, 200));
+    sparse.push(run(310, 300, 'Page 3', 30));
+    assert.equal(columnLayout(sparse, W, hint).columns.length, 1);
+  });
+
+  it('(b) tests/fixtures/banner-transcript.pdf reads through the Node layout stage exactly as tests/banner-transcript.test.ts pins it — the one-column legend page after the two-column pages unchanged', async () => {
+    const src = readFileSync(new URL('./banner-transcript.test.ts', import.meta.url), 'utf8');
+    const pinned = JSON.parse(/export const BANNER_LINES = (\[[\s\S]*?\n\]);/.exec(src)![1]!.replace(/,\s*\]$/, ']').replace(/'/g, '"')) as string[];
+    const got = await pdfToLinesNode(new URL('./fixtures/banner-transcript.pdf', import.meta.url).pathname);
+    assert.deepEqual(got, pinned);
+  });
+
+  it('(c) glyph-per-item runs are joined line by line: a glyph line among word-level lines reads as words, and a word-level line on a glyph page keeps its spaces', () => {
+    const glyphs = (x0: number, y: number, text: string): Run[] => {
+      const out: Run[] = [];
+      let x = x0;
+      for (const ch of text) {
+        if (ch === ' ') { x += 2.5; continue; }
+        out.push(run(x, y, ch, 4));
+        x += 4 + (out.length % 3 === 0 ? -0.3 : 0.2);
+      }
+      return out;
+    };
+    // Four word-level lines and one glyph line: under the old page-level
+    // rule (60% of the page's runs) the glyph line stayed letter-spaced.
+    const words: Run[] = [];
+    for (let i = 0; i < 4; i++) words.push(run(20, 300 - i * 12, 'CSE'), run(45, 300 - i * 12, `6064${i}`), run(80, 300 - i * 12, 'Graduate Operating Systems', 110), run(220, 300 - i * 12, '3.0'), run(250, 300 - i * 12, 'A'));
+    const mixed = [...words, ...glyphs(20, 240, 'University of Notre Dame')];
+    const lines = groupLines(mixed);
+    assert.ok(lines.includes('University of Notre Dame'), lines.join('\n'));
+    assert.ok(lines.includes('CSE   60640   Graduate Operating Systems   3.0   A'), lines.join('\n'));
+    // Two word-level runs that touch on a glyph page are not glued.
+    const glyphPage = [...glyphs(20, 300, 'Unofficial Academic Transcript'), ...glyphs(20, 280, 'Term: Fall Semester 2022'), run(20, 260, 'Graduate', 36), run(56, 260, 'Operating', 40)];
+    assert.ok(groupLines(glyphPage).includes('Graduate Operating'), groupLines(glyphPage).join('\n'));
   });
 });
