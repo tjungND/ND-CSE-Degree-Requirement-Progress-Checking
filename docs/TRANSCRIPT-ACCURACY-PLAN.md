@@ -545,3 +545,29 @@ glued grade symbols and key-page "quarter hours", the Ukrainian supplement (Cyri
 grading-scale line, the Algerian relevé (CC15), Bangladesh's trimester evidence, the CUNY question,
 open question (g) (Sabanci's legend-defined P), and the transcript gate (a DGS question, DECISIONS).
 
+
+### OCR step 10 — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`)
+
+One commit: `preserve_interword_spaces: '1'` set through `worker.setParameters` in `src/transcript/ocr.ts`
+and the whitespace collapse removed; the line builder is the new pure `src/transcript/ocr-lines.ts`
+(`OCR_ENGINE_PARAMETERS`, `ocrLineText`, `linesFromBlocks`), imported by `ocr.ts`, by the bench's
+`ocr-run.mjs` (whose default config is the app as shipped; `--no-interword` reproduces the app before
+this step, for A/B) and by `scripts/dev/ocr-lines.mjs`; `tests/ocr-lines.test.ts` pins it. Verified with
+`npx tsc --noEmit`, `npm test` (1594 pass) and `npm run build`.
+
+Numbers — `npm run ocr-bench -- --quick` (6 seeds, 12 pages, L0 / L2 / L5), before = the pre-step config
+(`bench-out/ocr-step10-before-quick/`), after = the shipped config (`bench-out/ocr-step10-after-quick/`):
+
+| level | row acc | rows found | false rows | field acc | CER | before → after |
+|---|---|---|---|---|---|---|
+| L0 | 55.2% | 82.8% | 10 (0/1 neg) | 87.5% | 60.6% | identical |
+| L2 | 51.7% | 82.8% | 12 (1/1 neg) | 85.0% | 60.3% | identical |
+| L5 | 48.3% | 79.3% | 11 (0/1 neg) | 87.8% | 60.2% | identical |
+
+0 regressions, 0 improvements: the engine now prints the column gaps (on the Banner L0 page 26 of 36
+lines carry runs of spaces; before, none) but the parser's cell split cannot use them while the
+two-column page is still spliced across columns — step 11 (word boxes → `layout.ts`) is where the gain
+is expected; this step is its precondition. The full-ladder A/B on the baseline's 62 seeds (the
+baseline's own degraded PDFs, manifests copied) was started detached into
+`bench-out/ocr-step10-20261009/` at the commit; its deltas are the open item in `docs/STATE.md`.
+`--pinned` waits for step 9's pinned pages.

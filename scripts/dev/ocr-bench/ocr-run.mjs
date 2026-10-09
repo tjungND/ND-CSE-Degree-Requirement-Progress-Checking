@@ -3,17 +3,21 @@
 // the SAME bundled core and English model (public/ocr, cacheMethod 'none' so
 // nothing is written into the tree), run in node on a page image or on an
 // image-only PDF rendered the way the browser renders it. With no knob set it
-// reproduces src/transcript/ocr.ts exactly — that is the bench's baseline:
+// reproduces src/transcript/ocr.ts as SHIPPED — that is the bench's `baseline`
+// config, and results.json's `meta.config` records its knob values, so a run
+// from before an OCR step and one after are told apart by those values:
 //
-//   ocr.ts:47  RENDER_SCALE = 3.0            → --scale 3 (pdfjs viewport scale; 216 dpi)
-//   ocr.ts:44  MAX_PAGES = 10                → --max-pages 10
-//   ocr.ts:56  createWorker('eng', OEM.LSTM_ONLY, …) — no setParameters call, so the
-//              engine keeps its defaults: PSM 6 (SINGLE_BLOCK), no user_defined_dpi,
-//              preserve_interword_spaces 0, tessedit_do_invert on
-//   ocr.ts:88  worker.recognize(canvas, {}, { blocks: true }) — no rotateAuto, no rectangle
-//   ocr.ts:89  text = line.text.replace(/\s+/g, ' ').trim(); empty lines dropped
-//   ocr.ts:90  confidence = line.confidence (the LINE's figure)
-//   ocr.ts:94  an empty line after every page (the page break the parser expects)
+//   ocr.ts     RENDER_SCALE = 3.0            → --scale 3 (pdfjs viewport scale; 216 dpi)
+//   ocr.ts     MAX_PAGES = 10                → --max-pages 10
+//   ocr.ts     createWorker('eng', OEM.LSTM_ONLY, …), then
+//              worker.setParameters(OCR_ENGINE_PARAMETERS) — preserve_interword_spaces 1
+//              since OCR step 10 (2026-10-09); every other engine default kept: PSM 6
+//              (SINGLE_BLOCK), no user_defined_dpi, tessedit_do_invert on
+//   ocr.ts     worker.recognize(canvas, {}, { blocks: true }) — no rotateAuto, no rectangle
+//   ocr-lines.ts  linesFromBlocks: the line's text with its inner spacing kept, ends
+//              trimmed, empty lines dropped; confidence = line.confidence (the LINE's figure)
+//              — imported from src/transcript/ocr-lines.ts, never copied by hand
+//   ocr.ts     an empty line after every page (the page break the parser expects)
 //
 // Knobs (each one an experiment the plan's steps 10–12 measure before it
 // touches src/):
@@ -21,6 +25,9 @@
 //   --psm 6              tessedit_pageseg_mode (api.md; 4 = single column, 11 = sparse)
 //   --dpi 300            user_defined_dpi (the engine assumes 70 when the image says nothing)
 //   --interword          preserve_interword_spaces=1 AND keep the runs of spaces in each line
+//                        (the shipped app since step 10 — the default)
+//   --no-interword       the app BEFORE step 10: no engine parameter, every run of whitespace
+//                        collapsed to one space (the 2026-10-09 baseline run; for A/B only)
 //   --threshold N        binarise at gray N (0–255) in node before the engine sees the page
 //   --invert 0|1         tessedit_do_invert
 //   --rotate-auto        recognize option rotateAuto (the engine's own skew estimate)
@@ -45,6 +52,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { pdfToPagePngs } from '../pdf-lines-node.mts';
+import { OCR_ENGINE_PARAMETERS, ocrLineText } from '../../../src/transcript/ocr-lines.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -54,7 +62,7 @@ export const BASELINE_CONFIG = Object.freeze({
   scale: 3.0,
   psm: undefined,
   dpi: undefined,
-  interword: false,
+  interword: true,
   threshold: undefined,
   invert: undefined,
   rotateAuto: false,
@@ -77,12 +85,12 @@ export function mergeConfig(...layers) {
   return out;
 }
 
-/** The engine parameters a config sets (empty for the baseline). */
+/** The engine parameters a config sets (the app's own for the baseline). */
 export function engineParameters(config) {
   const p = { ...config.params };
   if (config.psm !== undefined) p.tessedit_pageseg_mode = String(config.psm);
   if (config.dpi !== undefined) p.user_defined_dpi = String(config.dpi);
-  if (config.interword) p.preserve_interword_spaces = '1';
+  if (config.interword) Object.assign(p, OCR_ENGINE_PARAMETERS);
   if (config.invert !== undefined) p.tessedit_do_invert = String(config.invert);
   return p;
 }
@@ -100,15 +108,17 @@ export async function createOcrWorker(config = BASELINE_CONFIG) {
   return worker;
 }
 
-/** ocr.ts:82–91, as a pure function of the engine's `blocks` output: the
- * line texts and their LINE confidence. With `interword` the runs of spaces
- * survive (only the ends are trimmed) — the plan's step 10 experiment. */
-export function linesFromBlocks(blocks, { interword = false, words = false } = {}) {
+/** The app's walk over the engine's `blocks` (src/transcript/ocr-lines.ts
+ * `linesFromBlocks`), with the word boxes kept when `words` is set: the line
+ * texts through the app's own `ocrLineText` (inner spacing kept) and their
+ * LINE confidence. `interword: false` is the app before step 10 — every run of
+ * whitespace collapsed to one space — kept here for the A/B. */
+export function linesFromBlocks(blocks, { interword = true, words = false } = {}) {
   const lines = [];
   for (const block of blocks ?? []) {
     for (const paragraph of block.paragraphs ?? []) {
       for (const line of paragraph.lines ?? []) {
-        const text = interword ? line.text.replace(/[\r\n]+/g, '').replace(/^\s+|\s+$/g, '') : line.text.replace(/\s+/g, ' ').trim();
+        const text = interword ? ocrLineText(line.text) : line.text.replace(/\s+/g, ' ').trim();
         if (text === '') continue;
         const out = { text, confidence: line.confidence };
         if (words) {
@@ -224,6 +234,7 @@ export function parseOcrArgs(argv) {
     else if (a === '--psm') knobs.psm = Number(next());
     else if (a === '--dpi') knobs.dpi = Number(next());
     else if (a === '--interword') knobs.interword = true;
+    else if (a === '--no-interword') knobs.interword = false;
     else if (a === '--threshold') knobs.threshold = Number(next());
     else if (a === '--invert') knobs.invert = Number(next());
     else if (a === '--rotate-auto') knobs.rotateAuto = true;
