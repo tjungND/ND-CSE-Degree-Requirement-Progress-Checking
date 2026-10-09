@@ -713,8 +713,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // hides while a score headline is on screen, so the headline itself must
     // carry the mode; in the frame, which has no strip and no bar, likewise.
     // The headline is report.ts's; the chip is added here, after the fact,
-    // like the first-mention rule.
-    if (simulation) root.querySelector('.audit .scorehead .headline')?.append(' ', simulationChip()!);
+    // like the first-mention rule — on EVERY headline the bar watches
+    // (watchScoreHeadlines' selector): on a phone the report's own scorehead
+    // is hidden (style.css) and the summary copy at the top of the page is the
+    // headline on screen, so the chip on the report's alone left the phone
+    // without a marker (closing e2e, 2026-10-09).
+    if (simulation) for (const h of root.querySelectorAll('.summary-mobile .headline, .audit .scorehead .headline')) h.append(' ', simulationChip()!);
     // "Oral Candidacy Exam (OCE)" in full once, then "OCE" (DGS 2026-09-06
     // evening) — text nodes only, in document order, before focus is restored.
     applyFirstMentionRule(root);

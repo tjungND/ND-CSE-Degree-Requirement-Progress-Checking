@@ -356,7 +356,9 @@ describe('app.ts invariants the mode rests on (read from the source — the page
     assert.match(src, /transcriptGapSemesters\(student, realTodayIso\)/);
   });
   it('the Simulation chip beside the report headline and on the request cards is not gated on the frame', () => {
-    assert.match(src, /if \(simulation\) root\.querySelector\('\.audit \.scorehead \.headline'\)\?\.append\(' ', simulationChip\(\)!\);/);
+    // Every headline the sticky bar watches — the phone's summary copy and the report's — not the report's alone (closing e2e 2026-10-09: the phone showed no chip).
+    assert.match(src, /if \(simulation\) for \(const h of root\.querySelectorAll\('\.summary-mobile \.headline, \.audit \.scorehead \.headline'\)\) h\.append\(' ', simulationChip\(\)!\);/);
+    assert.match(src, /root\.querySelectorAll<HTMLElement>\('\.summary-mobile \.headline, \.audit \.scorehead \.headline'\)/); // the observer's own list, which the chip must follow
     assert.doesNotMatch(src, /isEmbedded\(\) \? simulationChip\(\)/);
   });
 });

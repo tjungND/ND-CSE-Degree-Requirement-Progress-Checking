@@ -636,8 +636,9 @@ semester the page is in), and the toast says which happened. The buttons that wo
 transcript imports and the OCR opt-in are greyed, and say why on hover or click (a transcript is
 real data — it is imported outside the mode); the two request cards still list what the plan
 would put before the DGS and the Grad Admin, and the Next steps list says so in one line instead
-of "Send …". A "Simulation" chip sits after the program name, beside the report's headline and on
-both request cards, so the mode stays in view on a phone too. A printed plan opens with
+of "Send …". A "Simulation" chip sits after the program name, beside the report's headline (on a phone, beside
+the score summary at the top of the page — the headline a phone shows) and on both request cards,
+so the mode stays in view on a phone too. A printed plan opens with
 "SIMULATION — not your real record", the real date it was printed on and the semester it pretends
 to be in. If a stored plan ever fails to show (a page that cannot draw it), the page offers to
 discard the simulation alone and show the record — the record is never cleared to recover from a

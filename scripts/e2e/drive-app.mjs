@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /** The WordPress-side listener, read out of the file the DGS copies and pastes
  * (docs/wordpress-footer-snippet.html) so the tested text and the pasted text
@@ -790,12 +792,16 @@ export async function driveApp(s, baseUrl) {
 }
 
 // E2E: simulation mode (DGS 2026-10-09; driven end to end since the review
-// fix of 2026-10-09 — the first build only accommodated the new button). The
-// record is the example. The real record's storage key must stay
-// byte-identical through entering, editing the copy, changing the semester,
-// a reload and Exit, while the simulation's own key holds the plan; the mode
-// must be marked on the page — on a phone too, beside the report headline,
-// where the sticky bar hides; nothing that sends may be active inside it.
+// fix of 2026-10-09, and through the whole mode since the closing verification
+// the same day). The record is the example. The real record's storage key
+// must stay byte-identical through entering, moving the semester two years
+// on, planning courses in the copy, saving the plan to a file, a reload,
+// Start over and Exit, while the simulation's own key holds the plan; the
+// mode must be marked on the page — on a phone too, beside the report
+// headline, where the sticky bar hides, and in the frame; nothing that sends
+// may be active inside it, and Next steps must say so in ONE step; a saved
+// plan loaded OUTSIDE the mode reopens the mode and leaves the record alone;
+// the course-rules page is not touched by a stored simulation.
 async function driveSimulation(s, baseUrl) {
   const LS = 'cse-degree-audit/v1/student';
   const SIM = 'cse-degree-audit/v1/simulation';
@@ -810,6 +816,8 @@ async function driveSimulation(s, baseUrl) {
   const realBefore = await s.evalJs(`localStorage.getItem('${LS}')`);
   if (!realBefore) throw new Error('the example must be saved as the record before the simulation starts');
   const outside = JSON.parse(await s.evalJs(`JSON.stringify({
+    title: document.title,
+    courses: document.querySelectorAll('table.courses .cid').length,
     banner: !!document.querySelector('.simulation-banner'),
     tools: !!document.querySelector('[data-key="tools.simulate"]'),
     coursework: !!document.querySelector('[data-key="coursework.simulate"]'),
@@ -818,6 +826,11 @@ async function driveSimulation(s, baseUrl) {
     sim: localStorage.getItem('${SIM}'),
   })`));
   if (outside.banner || !outside.tools || !outside.coursework || outside.marked || outside.chips !== 0 || outside.sim !== null) throw new Error('outside the mode: ' + JSON.stringify(outside));
+  // The report's pills and deadline chips, row by row: what a semester change must move.
+  const reportState = () => s.evalJs(`JSON.stringify([...document.querySelectorAll('.audit .req')].map((r) => [r.id, r.querySelector('.pill')?.textContent ?? '', [...r.querySelectorAll('.chip.deadline')].map((c) => c.textContent).join('|')]))`);
+  // Every sending or importing button, by data-key: inactive with a reason
+  // (aria-disabled + title), never a bare disabled; 'absent' when not rendered.
+  const inertButtons = (keys) => s.evalJs(`JSON.stringify(Object.fromEntries(${JSON.stringify(keys)}.map((k) => { const b = document.querySelector('[data-key="' + k + '"]'); return [k, b ? { disabled: b.getAttribute('aria-disabled'), reason: b.getAttribute('title') ?? '' } : 'absent']; })))`);
 
   // The way in, from the tools row.
   await s.evalJs(`document.querySelector('[data-key="tools.simulate"]').click()`);
@@ -825,7 +838,6 @@ async function driveSimulation(s, baseUrl) {
   await s.settle();
   const entered = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const sim = JSON.parse(localStorage.getItem('${SIM}') ?? 'null');
-    const inert = (k) => document.querySelector('[data-key="' + k + '"]')?.getAttribute('aria-disabled') ?? 'absent';
     return {
       lead: document.querySelector('.simulation-lead')?.textContent ?? '',
       marked: document.documentElement.classList.contains('simulation'),
@@ -836,49 +848,139 @@ async function driveSimulation(s, baseUrl) {
       simCourses: sim && sim.student ? sim.student.courses.length : -1,
       mastheadChip: !!document.querySelector('.masthead .chip-simulation'),
       headlineChip: !!document.querySelector('.audit .scorehead .headline .chip-simulation'),
-      standing: /simulated current semester: /.test(document.body.textContent),
+      standing: (document.body.textContent.match(/simulated current semester: (Spring|Summer|Fall) \\d{4}/) ?? [''])[0],
       status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
-      // The buttons that send or import, by data-key: inactive with a reason (aria-disabled), never a bare disabled.
-      inert: Object.fromEntries(['gradadmin.copy', 'save.copy', 'save.summary', 'tools.example', 'import.nd', 'review.copy'].map((k) => [k, inert(k)])),
       exits: ['simulation.exit', 'tools.simulate.exit', 'simulation.strip.exit'].filter((k) => !document.querySelector('[data-key="' + k + '"]')),
       resetLabel: document.querySelector('[data-key="tools.reset"]')?.textContent ?? '',
       wayIn: !!document.querySelector('[data-key="tools.simulate"], [data-key="coursework.simulate"]'),
       real: localStorage.getItem('${LS}'),
     };
   })())`));
+  entered.inert = JSON.parse(await inertButtons(['gradadmin.copy', 'save.copy', 'save.summary', 'tools.example', 'import.nd', 'review.copy']));
   console.log('  entered:', JSON.stringify({ ...entered, real: entered.real === realBefore ? 'unchanged' : 'CHANGED' }));
   if (!/^Simulation mode — this page is pretending it is (Spring|Summer|Fall) \d{4}; nothing here is your record\.$/.test(entered.lead)) throw new Error('the banner must name the semester: ' + entered.lead);
   if (!entered.picked || !entered.lead.includes(entered.picked) || !entered.title.startsWith('Simulating ' + entered.picked)) throw new Error('the banner, the picker and the tab title must name the same semester: ' + JSON.stringify([entered.lead, entered.picked, entered.title]));
-  if (!entered.marked || !entered.mastheadChip || !entered.headlineChip || !entered.standing) throw new Error('the mode must be marked on the page: ' + JSON.stringify(entered));
+  if (entered.title !== 'Simulating ' + entered.picked + ' — ' + outside.title) throw new Error('the tab title must be the original title behind the semester: ' + JSON.stringify([entered.title, outside.title]));
+  if (!entered.marked || !entered.mastheadChip || !entered.headlineChip) throw new Error('the mode must be marked on the page: ' + JSON.stringify(entered));
+  if (entered.standing !== 'simulated current semester: ' + entered.picked) throw new Error('the Your standing chip must name the simulated semester: ' + JSON.stringify([entered.standing, entered.picked]));
   if (entered.focused !== 'simulation.term') throw new Error('entering must focus the semester picker, not ' + entered.focused);
   if (!/^Simulation mode on: this page is pretending it is /.test(entered.status)) throw new Error('entering must be announced: ' + entered.status);
-  if (!entered.term || entered.simCourses < 3) throw new Error('the simulation key must hold the semester and a copy of the record: ' + JSON.stringify(entered));
+  if (!entered.term || entered.simCourses !== outside.courses) throw new Error('the simulation key must hold the semester and a copy of the record: ' + JSON.stringify(entered));
   for (const [k, v] of Object.entries(entered.inert)) {
-    if (v !== 'true' && !(k === 'review.copy' && v === 'absent')) throw new Error(`${k} must be inactive in the mode (aria-disabled="true"), got ${v}`);
+    if (k === 'review.copy' && v === 'absent') continue; // the example has nothing to review yet; the card is checked below
+    if (v === 'absent' || v.disabled !== 'true' || !/simulation mode/.test(v.reason)) throw new Error(`${k} must be inactive in the mode (aria-disabled="true") with a reason that names the mode, got ${JSON.stringify(v)}`);
   }
   if (entered.exits.length > 0 || !/^Start the simulation over/.test(entered.resetLabel) || entered.wayIn) throw new Error('the three ways out, the renamed Reset, no way in: ' + JSON.stringify(entered));
   if (entered.real !== realBefore) throw new Error('entering the mode must not touch the real record’s key');
   await s.shot('simulation-mode');
+  await s.shotElement('simulation-banner', '.simulation-banner');
 
-  // Edit the copy — a planned course — and move the semester two options on.
-  await s.evalJs(`(() => { const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CSE 60772'; id.dispatchEvent(new Event('change')); document.querySelector('[data-key="course.new.add"]').click(); })()`);
-  await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772')`);
-  const later = await s.evalJs(`(() => { const sel = document.querySelector('[data-key="simulation.term"]'); const o = sel.options[sel.selectedIndex + 2]; sel.value = o.value; sel.dispatchEvent(new Event('change')); return o.textContent; })()`);
+  // Two years on, same season: the report must move (a deadline comes due or
+  // passes, a pill changes), the page must say so, and the record must not.
+  const reportAtEntry = await reportState();
+  const later = await s.evalJs(`(() => {
+    const sel = document.querySelector('[data-key="simulation.term"]');
+    const [season, year] = sel.selectedOptions[0].textContent.split(' ');
+    const want = season + ' ' + (Number(year) + 2);
+    const o = [...sel.options].find((x) => x.textContent === want);
+    if (!o) throw new Error('the picker has no option ' + want + ': ' + [...sel.options].map((x) => x.textContent).join(', '));
+    sel.value = o.value;
+    sel.dispatchEvent(new Event('change'));
+    return want;
+  })()`);
   await s.waitFor(`(document.querySelector('.simulation-lead')?.textContent ?? '').includes(${JSON.stringify(later)})`);
   await s.settle();
-  const edited = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+  const reportLater = await reportState();
+  const moved = JSON.parse(await s.evalJs(`JSON.stringify({
+    title: document.title,
+    status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
+    standing: (document.body.textContent.match(/simulated current semester: (Spring|Summer|Fall) \\d{4}/) ?? [''])[0],
+    year: document.querySelector('[data-key="course.new.year"]')?.value ?? '',
+    real: localStorage.getItem('${LS}'),
+  })`));
+  const changedRows = JSON.parse(reportLater).filter((row, i) => JSON.stringify(row) !== JSON.stringify(JSON.parse(reportAtEntry)[i]));
+  console.log('  moved to ' + later + '; report rows that changed:', JSON.stringify(changedRows));
+  if (changedRows.length === 0) throw new Error('moving the simulation two years on must change the report (a pill or a deadline chip): ' + reportLater);
+  if (!moved.title.startsWith('Simulating ' + later) || moved.standing !== 'simulated current semester: ' + later) throw new Error('the title and the standing chip must follow the semester: ' + JSON.stringify(moved));
+  if (!moved.status.startsWith('Simulated current semester: ' + later)) throw new Error('a semester change must be announced: ' + moved.status);
+  if (moved.year !== later.split(' ')[1]) throw new Error('the course form’s year must default to the simulated year: ' + JSON.stringify([moved.year, later]));
+  if (moved.real !== realBefore) throw new Error('changing the semester must not touch the real record’s key');
+
+  // Plan two courses in the simulated semester: one the sheet knows, with the
+  // grade expected (A) — it must COUNT; and one the sheet does not know — it
+  // brings the review card, whose send button must be inert like the others.
+  const [laterSeason, laterYear] = later.split(' ');
+  const plan = async (id, grade) => {
+    await s.evalJs(`(() => {
+      const set = (k, v) => { const e = document.querySelector('[data-key="' + k + '"]'); e.value = v; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change')); };
+      set('course.new.id', ${JSON.stringify(id)});
+      set('course.new.credits', '3');
+      set('course.new.season', ${JSON.stringify(laterSeason.toLowerCase())});
+      set('course.new.year', ${JSON.stringify(laterYear)});
+      set('course.new.grade', ${JSON.stringify(grade)});
+      document.querySelector('[data-key="course.new.add"]').click();
+    })()`);
+    await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === ${JSON.stringify(id)})`);
+  };
+  await plan('CSE 60772', 'A');
+  await plan('MATH 60610', 'A');
+  await s.waitFor(`document.querySelector('[data-key="review.copy"]')`);
+  await s.settle();
+  const planned = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const sim = JSON.parse(localStorage.getItem('${SIM}') ?? 'null');
+    const tr = [...document.querySelectorAll('table.courses tr')].find((tr) => tr.querySelector('.cid')?.textContent === 'CSE 60772');
     return {
-      simHas: !!sim && sim.student.courses.some((c) => c.courseId === 'CSE 60772'),
-      title: document.title,
-      status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
+      row: sim && sim.student.courses.find((c) => c.courseId === 'CSE 60772'),
+      counts: !!tr?.querySelector('td.counts .mark-counts'),
+      countsText: tr?.querySelector('td.counts')?.textContent ?? '',
+      reviewed: !!document.querySelector('#dgs-review .cid'),
+      reviewSentence: /In simulation mode nothing is sent: these are the courses this plan would put before the DGS/.test(document.querySelector('#dgs-review')?.textContent ?? ''),
+      gradAdminSentence: /In simulation mode nothing is sent/.test(document.querySelector('#grad-admin')?.textContent ?? ''),
+      cardChips: ['#dgs-review', '#grad-admin'].map((id) => !!document.querySelector(id + ' .chip-simulation')),
+      steps: [...document.querySelectorAll('[data-key="report.nextsteps"] ol.next-steps li')].map((li) => ({ text: li.textContent, href: li.querySelector('a')?.getAttribute('href') ?? null })),
       real: localStorage.getItem('${LS}'),
     };
   })())`));
-  if (!edited.simHas || !edited.title.startsWith('Simulating ' + later)) throw new Error('the simulation key must hold the planned course and the new semester: ' + JSON.stringify(edited));
-  if (!edited.status.startsWith('Simulated current semester: ' + later)) throw new Error('a semester change must be announced: ' + edited.status);
-  if (edited.real !== realBefore) throw new Error('editing the simulation must not touch the real record’s key');
-  console.log('  edited the copy and moved to ' + later + '; the real record is unchanged');
+  planned.inert = JSON.parse(await inertButtons(['review.copy', 'gradadmin.copy', 'save.copy', 'save.summary']));
+  console.log('  planned:', JSON.stringify({ ...planned, real: planned.real === realBefore ? 'unchanged' : 'CHANGED' }));
+  if (!planned.row || planned.row.grade !== 'A' || planned.row.term.season !== laterSeason.toLowerCase() || planned.row.term.year !== Number(laterYear)) throw new Error('the planned course must be in the simulation key with its semester and grade: ' + JSON.stringify(planned.row));
+  if (!planned.counts) throw new Error('a course planned with the grade expected must count: ' + JSON.stringify(planned.countsText));
+  if (!planned.reviewed || !planned.reviewSentence || !planned.gradAdminSentence || !planned.cardChips.every(Boolean)) throw new Error('the review and Grad Admin cards must keep their lists, say nothing is sent, and carry the chip: ' + JSON.stringify(planned));
+  for (const [k, v] of Object.entries(planned.inert)) {
+    if (v === 'absent' || v.disabled !== 'true' || !/^Not available in simulation mode — nothing is sent from a plan\./.test(v.reason)) throw new Error(`${k} must be inactive in the mode with the sending reason, got ${JSON.stringify(v)}`);
+  }
+  const simSteps = planned.steps.filter((st) => /^In simulation mode nothing is sent/.test(st.text));
+  if (simSteps.length !== 1 || !/this plan would put 1 (course|item) before the DGS( and \d+ items? before the Grad Admin)?\.$/.test(simSteps[0].text)) throw new Error('Next steps must carry ONE simulation step with both counts: ' + JSON.stringify(planned.steps));
+  const sending = planned.steps.filter((st) => !/^In simulation mode/.test(st.text) && (st.href === '#dgs-review' || st.href === '#grad-admin' || /^Send the summary to your advisor/.test(st.text) || /^Send the processing request/.test(st.text)));
+  if (sending.length > 0) throw new Error('no request step may remain beside the simulation step: ' + JSON.stringify(sending));
+  if (planned.real !== realBefore) throw new Error('planning courses in the simulation must not touch the real record’s key');
+
+  // Save to a file inside the mode: the simulation file, named for the mode
+  // and the semester, its note FIRST. The download is caught in the page
+  // (no file lands on disk in a headless browser) and kept for the load below.
+  const saved = JSON.parse(await s.evalJs(`(async () => {
+    const files = [];
+    let blob;
+    const click = HTMLAnchorElement.prototype.click;
+    const make = URL.createObjectURL;
+    HTMLAnchorElement.prototype.click = function () { if (this.download) { files.push(this.download); return; } return click.call(this); };
+    URL.createObjectURL = function (b) { blob = b; return make.call(URL, b); };
+    try {
+      document.querySelector('[data-key="simulation.save"]').click();
+      return JSON.stringify({ files, text: blob ? await blob.text() : null, code: document.querySelector('[data-key="simulation.term"]').value });
+    } finally {
+      HTMLAnchorElement.prototype.click = click;
+      URL.createObjectURL = make;
+    }
+  })()`));
+  const payload = saved.text ? JSON.parse(saved.text) : null;
+  console.log('  saved:', JSON.stringify({ files: saved.files, keys: payload ? Object.keys(payload) : null, note: payload?.note }));
+  if (saved.files.length !== 1 || !saved.files[0].includes('-simulation-') || saved.files[0] !== `cse-degree-audit-phd-simulation-${saved.code}.json`) throw new Error('Save to a file in the mode must write the simulation file: ' + JSON.stringify(saved.files));
+  if (!payload || Object.keys(payload)[0] !== 'note' || payload.note !== `SIMULATION of ${later} — a planning copy, not this student's record`) throw new Error('the simulation file must open with its note: ' + JSON.stringify(payload && Object.keys(payload)));
+  if (payload.simulation?.term?.season !== laterSeason.toLowerCase() || payload.simulation?.term?.year !== Number(laterYear) || !payload.student?.courses?.some((c) => c.courseId === 'CSE 60772')) throw new Error('the simulation file must carry the semester and the plan: ' + JSON.stringify({ simulation: payload.simulation, courses: payload.student?.courses?.length }));
+  const simFile = join(tmpdir(), 'cse-degree-audit-e2e-simulation.json');
+  writeFileSync(simFile, saved.text);
+  if ((await s.evalJs(`localStorage.getItem('${LS}')`)) !== realBefore) throw new Error('saving the simulation to a file must not touch the real record’s key');
 
   // A reload reopens IN the mode, with the plan and its semester; the real
   // record is still untouched. (The "still on" toast may have expired by the
@@ -888,39 +990,108 @@ async function driveSimulation(s, baseUrl) {
   await s.settle();
   const reloaded = JSON.parse(await s.evalJs(`JSON.stringify({
     lead: document.querySelector('.simulation-lead')?.textContent ?? '',
-    course: [...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772'),
+    title: document.title,
+    courses: [...document.querySelectorAll('table.courses .cid')].map((e) => e.textContent).filter((t) => t === 'CSE 60772' || t === 'MATH 60610').length,
     toast: /Simulation mode is still on/.test(document.body.textContent),
     real: localStorage.getItem('${LS}'),
   })`));
   console.log('  reloaded in the mode:', JSON.stringify({ ...reloaded, real: reloaded.real === realBefore ? 'unchanged' : 'CHANGED' }));
-  if (!reloaded.lead.includes(later) || !reloaded.course) throw new Error('a reload must reopen in the mode with the plan and its semester: ' + JSON.stringify(reloaded));
+  if (!reloaded.lead.includes(later) || !reloaded.title.startsWith('Simulating ' + later) || reloaded.courses !== 2) throw new Error('a reload must reopen in the mode with the plan and its semester: ' + JSON.stringify(reloaded));
   if (reloaded.real !== realBefore) throw new Error('reopening in the mode must not touch the real record’s key');
 
   // On a phone (390 px) the mode must stay in view while the report's own
   // headline is: the sticky score bar hides there (P-66), so the headline
   // carries the chip (review fix 2026-10-09); once the headline scrolls off,
-  // the bar carries the mode.
+  // the bar carries the mode and the semester.
+  // (The headline a phone shows is the summary copy at the top of the page —
+  // the report's own scorehead is hidden there — and the bar watches both.)
   await s.setViewport({ width: 390, height: 900, mobile: true });
-  await s.evalJs(`document.querySelector('.audit .scorehead .headline').scrollIntoView({ block: 'center' })`);
-  await s.settle();
+  await s.evalJs(`document.querySelector('.summary-mobile .headline').scrollIntoView({ block: 'center' })`);
+  await s.settle(400);
   const phone = JSON.parse(await s.evalJs(`JSON.stringify((() => {
-    const chip = document.querySelector('.audit .scorehead .headline .chip-simulation');
+    const chip = document.querySelector('.summary-mobile .headline .chip-simulation');
     const r = chip?.getBoundingClientRect();
-    return { chipText: chip?.textContent ?? '', inView: !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight };
+    const bar = document.querySelector('.sticky-score');
+    return { chipText: chip?.textContent ?? '', inView: !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight, barHidden: !!bar && getComputedStyle(bar).display === 'none', wide: document.documentElement.scrollWidth > innerWidth };
   })())`));
-  if (phone.chipText !== 'Simulation' || !phone.inView) throw new Error('on a phone the report headline must carry the Simulation chip in view: ' + JSON.stringify(phone));
+  if (phone.chipText !== 'Simulation' || !phone.inView) throw new Error('on a phone the headline on screen must carry the Simulation chip in view: ' + JSON.stringify(phone));
+  if (!phone.barHidden) throw new Error('the sticky score bar hides while a headline is on screen (P-66) — the chip is then the marker: ' + JSON.stringify(phone));
+  if (phone.wide) throw new Error('the mode must not make a phone scroll sideways');
   await s.shot('simulation-phone-headline');
   await s.evalJs(`document.getElementById('inputs').scrollIntoView()`);
   await s.settle();
   const bar = await s.evalJs(`(() => { const b = document.querySelector('.sticky-score'); return b && getComputedStyle(b).display !== 'none' ? b.textContent : ''; })()`);
-  if (!/^Simulation · /.test(bar)) throw new Error('the phone’s sticky score bar must carry the mode once the headline is off screen: ' + JSON.stringify(bar));
-  console.log('  on a phone: the headline chip while the bar hides, the bar once it shows');
+  if (!bar.startsWith('Simulation · ' + later)) throw new Error('the phone’s sticky score bar must carry the mode and the semester once the headline is off screen: ' + JSON.stringify(bar));
+  await s.shot('simulation-phone-bar');
+  console.log('  on a phone: the headline chip while the bar hides, the bar (' + JSON.stringify(bar) + ') once it shows');
   await s.setViewport({ width: 1400, height: 1900 });
-  await s.evalJs('window.scrollTo(0, 0)');
+
+  // The frame (?embed=1) while the mode is on: the chip beside the report
+  // headline and on each request card, the banner first; the course-rules
+  // page, which holds no student data, is untouched by the stored simulation.
+  await s.open(new URL('?embed=1', baseUrl).href, '.masthead h1');
+  await s.waitFor(`document.querySelector('.simulation-banner') && document.querySelector('.audit .scorehead .headline')`);
+  await s.settle();
+  const framed = JSON.parse(await s.evalJs(`JSON.stringify({
+    embed: document.documentElement.classList.contains('embed'),
+    marked: document.documentElement.classList.contains('simulation'),
+    headlineChip: !!document.querySelector('.audit .scorehead .headline .chip-simulation'),
+    cardChips: ['#dgs-review', '#grad-admin'].map((id) => !!document.querySelector(id + ' .chip-simulation')),
+    bannerFirst: document.querySelector('main')?.querySelector('.card')?.classList.contains('simulation-banner') === true,
+    strip: (() => { const e = document.querySelector('.simulation-strip'); return e ? getComputedStyle(e).display : 'absent'; })(),
+    real: localStorage.getItem('${LS}'),
+  })`));
+  console.log('  in the frame:', JSON.stringify({ ...framed, real: framed.real === realBefore ? 'unchanged' : 'CHANGED' }));
+  if (!framed.embed || !framed.marked || !framed.headlineChip || !framed.cardChips.every(Boolean) || !framed.bannerFirst) throw new Error('the frame must mark the mode beside the headline, on each request card and in the banner: ' + JSON.stringify(framed));
+  if (framed.strip !== 'none' && framed.strip !== 'absent') throw new Error('the sticky strip is for the page outside the frame: ' + JSON.stringify(framed));
+  if (framed.real !== realBefore) throw new Error('the frame must not touch the real record’s key');
+  await s.shot('simulation-embed');
+  await s.open(new URL('courses.html', baseUrl).href);
+  const coursesPage = JSON.parse(await s.evalJs(`JSON.stringify({
+    banner: !!document.querySelector('.simulation-banner'),
+    marked: document.documentElement.classList.contains('simulation'),
+    title: document.title,
+    chips: document.querySelectorAll('.chip-simulation').length,
+    sim: localStorage.getItem('${SIM}') !== null,
+  })`));
+  if (coursesPage.banner || coursesPage.marked || /^Simulating/.test(coursesPage.title) || coursesPage.chips !== 0 || !coursesPage.sim) throw new Error('the course-rules page must not be touched by a stored simulation: ' + JSON.stringify(coursesPage));
+  console.log('  the course-rules page is not touched by the stored simulation');
+  await s.open(baseUrl);
+  await s.waitFor(`document.querySelector('.simulation-banner')`);
   await s.settle();
 
+  // Reset inside the mode is "Start the simulation over from my record": it
+  // asks, names what goes, then copies the record afresh — the planned
+  // courses gone, the semester kept, the real key untouched.
+  await s.evalJs(`document.querySelector('[data-key="tools.reset"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.confirm-check[open]')`);
+  const restartAsk = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const d = document.querySelector('dialog.confirm-check');
+    return { title: d.querySelector('h2').textContent, body: [...d.querySelectorAll('p')].map((p) => p.textContent).join(' '), buttons: [...d.querySelectorAll('button')].map((b) => b.textContent) };
+  })())`));
+  console.log('  start over asks:', JSON.stringify(restartAsk));
+  if (restartAsk.title !== 'Start the simulation over?' || !/This discards the simulation \(2 courses, 0 milestone dates and 0 other changes made since you entered; the simulated semester /.test(restartAsk.body) || !restartAsk.body.includes('still pretending it is ' + later)) throw new Error('Start over must say what it discards and which semester stays: ' + JSON.stringify(restartAsk));
+  await s.evalJs(`document.querySelector('[data-key="confirm.yes"]').click()`);
+  await s.waitFor(`!document.querySelector('dialog.confirm-check') && ![...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772')`);
+  await s.settle();
+  const restarted = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sim = JSON.parse(localStorage.getItem('${SIM}') ?? 'null');
+    return {
+      lead: document.querySelector('.simulation-lead')?.textContent ?? '',
+      courses: document.querySelectorAll('table.courses .cid').length,
+      simCourses: sim ? sim.student.courses.length : -1,
+      status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
+      real: localStorage.getItem('${LS}'),
+    };
+  })())`));
+  console.log('  started over:', JSON.stringify({ ...restarted, real: restarted.real === realBefore ? 'unchanged' : 'CHANGED' }));
+  if (!restarted.lead.includes(later) || restarted.courses !== outside.courses || restarted.simCourses !== outside.courses) throw new Error('Start over must keep the semester and copy the record afresh: ' + JSON.stringify(restarted));
+  if (!/^Simulation started over from your record; still pretending it is /.test(restarted.status)) throw new Error('starting over must be announced: ' + restarted.status);
+  if (restarted.real !== realBefore) throw new Error('starting the simulation over must not touch the real record’s key');
+
   // The way out asks first and says what goes; then the record is back,
-  // byte-identical, the plan is gone, and the sending buttons are live again.
+  // byte-identical, the plan is gone, the page is itself again, and the
+  // sending buttons are live.
   await s.evalJs(`document.querySelector('[data-key="simulation.exit"]').click()`);
   await s.waitFor(`document.querySelector('dialog.confirm-check[open]')`);
   const ask = JSON.parse(await s.evalJs(`JSON.stringify((() => {
@@ -928,7 +1099,7 @@ async function driveSimulation(s, baseUrl) {
     return { title: d.querySelector('h2').textContent, body: [...d.querySelectorAll('p')].map((p) => p.textContent).join(' '), buttons: [...d.querySelectorAll('button')].map((b) => b.textContent), focused: document.activeElement?.dataset?.key ?? '' };
   })())`));
   console.log('  exit asks:', JSON.stringify(ask));
-  if (ask.title !== 'Exit simulation mode?' || !/This discards the simulation: 1 course, /.test(ask.body) || !ask.body.includes('the simulated semester ' + later)) throw new Error('Exit must say what it discards: ' + JSON.stringify(ask));
+  if (ask.title !== 'Exit simulation mode?' || !/This discards the simulation: 0 courses, 0 milestone dates and 0 other changes made since you entered; the simulated semester /.test(ask.body) || !ask.body.includes('the simulated semester ' + later)) throw new Error('Exit must say what it discards (nothing since Start over) and the semester: ' + JSON.stringify(ask));
   if (ask.focused !== 'confirm.no') throw new Error('the safe answer must have focus: ' + ask.focused);
   await s.evalJs(`document.querySelector('[data-key="confirm.yes"]').click()`);
   await s.waitFor(`!document.querySelector('.simulation-banner') && !document.querySelector('dialog.confirm-check')`);
@@ -936,20 +1107,45 @@ async function driveSimulation(s, baseUrl) {
   const exited = JSON.parse(await s.evalJs(`JSON.stringify({
     sim: localStorage.getItem('${SIM}'),
     real: localStorage.getItem('${LS}'),
-    course: [...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772'),
+    courses: document.querySelectorAll('table.courses .cid').length,
+    planned: [...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772' || e.textContent === 'MATH 60610'),
     marked: document.documentElement.classList.contains('simulation'),
     title: document.title,
     chips: document.querySelectorAll('.chip-simulation').length,
     focused: document.activeElement?.dataset?.key ?? '',
     status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
     sendActive: document.querySelector('[data-key="save.copy"]')?.getAttribute('aria-disabled') ?? 'none',
+    wayIn: !!document.querySelector('[data-key="tools.simulate"]') && !!document.querySelector('[data-key="coursework.simulate"]'),
   })`));
   console.log('  exited:', JSON.stringify({ ...exited, real: exited.real === realBefore ? 'unchanged' : 'CHANGED' }));
-  if (exited.sim !== null || exited.course || exited.marked || /^Simulating/.test(exited.title) || exited.chips !== 0) throw new Error('Exit must drop the plan and unmark the page: ' + JSON.stringify(exited));
+  if (exited.sim !== null || exited.planned || exited.marked || exited.chips !== 0 || !exited.wayIn) throw new Error('Exit must drop the plan and unmark the page: ' + JSON.stringify(exited));
+  if (exited.courses !== outside.courses || exited.title !== outside.title) throw new Error('Exit must bring back the record’s courses and the tab title: ' + JSON.stringify([exited.courses, outside.courses, exited.title, outside.title]));
   if (exited.real !== realBefore) throw new Error('the real record must come back byte-identical to what it was before the simulation');
   if (exited.focused !== 'tools.simulate') throw new Error('Exit must return focus to the way in, not ' + exited.focused);
   if (!/^Simulation mode off/.test(exited.status)) throw new Error('exiting must be announced: ' + exited.status);
   if (exited.sendActive !== 'none') throw new Error('the advisor summary must be active again outside the mode');
+
+  // The saved plan, loaded OUTSIDE the mode through "Load a file": the mode
+  // comes back with the file's semester and courses, the toast says so, and
+  // the real record is untouched — the file is a plan, never a record.
+  await s.setFileInput('[data-key="save.fileinput"]', simFile);
+  await s.waitFor(`document.querySelector('.simulation-banner')`);
+  await s.settle();
+  const fromFile = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sim = JSON.parse(localStorage.getItem('${SIM}') ?? 'null');
+    return {
+      lead: document.querySelector('.simulation-lead')?.textContent ?? '',
+      title: document.title,
+      toast: (document.body.textContent.match(/Simulation file loaded — simulation mode is on for [^;]+; your record is untouched\\./) ?? [''])[0],
+      planned: [...document.querySelectorAll('table.courses .cid')].filter((e) => e.textContent === 'CSE 60772' || e.textContent === 'MATH 60610').length,
+      simTerm: sim ? sim.term : null,
+      real: localStorage.getItem('${LS}'),
+    };
+  })())`));
+  console.log('  loaded the saved plan outside the mode:', JSON.stringify({ ...fromFile, real: fromFile.real === realBefore ? 'unchanged' : 'CHANGED' }));
+  if (!fromFile.lead.includes(later) || !fromFile.title.startsWith('Simulating ' + later) || fromFile.planned !== 2 || fromFile.simTerm?.year !== Number(laterYear)) throw new Error('a simulation file loaded outside the mode must enter the mode with its semester and plan: ' + JSON.stringify(fromFile));
+  if (fromFile.toast !== `Simulation file loaded — simulation mode is on for ${later}; your record is untouched.`) throw new Error('loading a simulation file outside the mode must say so: ' + JSON.stringify(fromFile.toast));
+  if (fromFile.real !== realBefore) throw new Error('loading a simulation file must not touch the real record’s key');
   await s.evalJs(`localStorage.clear()`);
 }
 

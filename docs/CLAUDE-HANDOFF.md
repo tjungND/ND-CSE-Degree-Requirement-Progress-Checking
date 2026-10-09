@@ -1897,22 +1897,44 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
 - **The mode on the page**: `markSimulationMode()` (run by every render) sets `html.simulation`
   and the tab title; the banner is first in `<main>` after the print header; the strip
   (`.simulation-strip`) shows only at ≥ 901 px outside the frame, the phone's sticky score bar
-  carries the mode below that; a "Simulation" chip is repeated beside the report headline
-  (appended after `renderReport`, like the first-mention rule) and in each request card — in
-  EVERY mode since the review fix of 2026-10-09 (it was the frame's alone, and on a phone the
-  sticky bar hides while a score headline is on screen, leaving no marker in view). Enter
+  carries the mode below that; a "Simulation" chip is repeated beside EVERY score headline the
+  bar watches — `root.querySelectorAll('.summary-mobile .headline, .audit .scorehead .headline')`,
+  the selector `watchScoreHeadlines` uses (appended after `renderReport`, like the first-mention
+  rule) — and in each request card, in EVERY mode since the review fix of 2026-10-09 (it was the
+  frame's alone, and on a phone the sticky bar hides while a score headline is on screen, leaving
+  no marker in view). The closing e2e the same day found the review fix had chipped the report's
+  headline alone, which a phone HIDES (style.css: `.audit .scorehead { display: none }` under the
+  phone query) in favour of the `.summary-mobile` copy at the top of the page: the chip must follow
+  the observer's list, and tests/simulation.test.ts pins the two selectors to each other. Enter
   focuses the picker, Exit focuses `tools.simulate`; the three `srStatus` announcements are
   set AFTER `render()`, which otherwise overwrites them with "Report updated".
 - `confirmDialog` (copy-dialog.ts) now closes once: its queued `close` event used to call
   `returnFocusTo` a second time, after the caller had re-rendered the page without the
   opening control, and the heading fallback stole the focus Exit had just placed.
-- The e2e drives the mode (review fix 2026-10-09): `driveSimulation` in drive-app.mjs loads
-  the example, enters from `tools.simulate`, checks the banner / chips / announcements /
-  focus / inert buttons, adds a course, moves the picker two options on, reloads (reopens in
-  the mode), checks the phone headline chip at 390 px, exits through the confirmation, and
-  asserts the REAL key (`cse-degree-audit/v1/student`) byte-identical at every step while
-  `cse-degree-audit/v1/simulation` holds the plan and is gone after Exit (screenshots
-  `simulation-mode`, `simulation-phone-headline`). drive-app.mjs's tools-row order includes
+- The e2e drives the whole mode on both engines (closing verification 2026-10-09):
+  `driveSimulation` in drive-app.mjs loads the example, enters from `tools.simulate` (banner,
+  tab title = "Simulating <term> — " + the page's title, masthead and headline chips, the
+  standing chip, focus, announcement, the inert buttons WITH their reasons), moves the picker
+  two years on (same season) and asserts the report moved (pills / deadline chips row by row —
+  the Ph.D. example's qualifier rows go Overdue and candidacy comes due), plans CSE 60772 with
+  grade A in the simulated semester (it must COUNT: `td.counts .mark-counts`) and MATH 60610
+  (unknown to the sheet, so the review card and `review.copy` appear), checks the two cards'
+  one-sentence texts and chips and that Next steps carries ONE simulation step and no sending
+  step, saves to a file (the download is caught in the page by patching `HTMLAnchorElement.
+  prototype.click` and `URL.createObjectURL` — nothing lands on disk headless; the name is
+  `cse-degree-audit-phd-simulation-<code>.json`, the note first), reloads (reopens in the
+  mode), checks the phone at 390 px (the `.summary-mobile` headline chip in view while the
+  bar is hidden, then the bar's "Simulation · <term> — …" once the headline is off), the
+  frame (`?embed=1`: headline and card chips, the banner first, no strip) and the course-rules
+  page (untouched by the stored simulation), Starts over (the dialog names "2 courses"; the
+  copy is fresh, the semester kept), Exits (the dialog names "0 courses"; the record's course
+  count and the tab title back), then feeds the saved plan through `save.fileinput`
+  (`setFileInput` on the hidden input works in both engines) and asserts the mode re-entered
+  with the file's semester and plan and the toast — the REAL key
+  (`cse-degree-audit/v1/student`) byte-identical at every one of these steps while
+  `cse-degree-audit/v1/simulation` holds the plan and is gone after Exit. Screenshots
+  `simulation-mode`, `simulation-banner`, `simulation-phone-headline`, `simulation-phone-bar`,
+  `simulation-embed`. Iterating on it: `E2E_ONLY="app basics" npm run e2e` (about 25 s). drive-app.mjs's tools-row order includes
   `tools.simulate`; drive-a11y.mjs's first-screen tab-stop threshold is 13. The DOM-free
   invariants (one `saveLocal(` inside `persist()`, render-before-persist in
   `setSimulationTerm`, the preview flag on `routeLoadedFile`, the gap date, the ungated
