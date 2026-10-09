@@ -8,7 +8,7 @@
 // university only issues paper.
 import * as pdfjs from 'pdfjs-dist';
 import './pdf.ts'; // configures pdfjs's bundled worker (side effect)
-import { linesFromBlocks, OCR_ENGINE_PARAMETERS, type OcrLine } from './ocr-lines.ts';
+import { OCR_ENGINE_PARAMETERS, ocrPageLayout, type ColumnHint, type OcrLine } from './ocr-lines.ts';
 
 export type { OcrLine } from './ocr-lines.ts';
 
@@ -72,6 +72,9 @@ export async function ocrPdfToLines(
     const pagesTotal = doc.numPages;
     const pagesRead = Math.min(pagesTotal, MAX_PAGES);
     const lines: OcrLine[] = [];
+    // The previous page's column layout, handed on as pdf.ts hands a text
+    // PDF's (a short last page may split by it — F4, 2026-10-09).
+    let hint: ColumnHint | undefined;
     for (let p = 1; p <= pagesRead; p++) {
       onProgress({ label: `Reading page ${p} of ${pagesRead}`, percent: Math.round(((p - 1) / pagesRead) * 100) });
       const page = await doc.getPage(p);
@@ -83,7 +86,11 @@ export async function ocrPdfToLines(
       if (!ctx) throw new Error('no canvas 2d context');
       await page.render({ canvasContext: ctx, viewport }).promise;
       const { data: out } = await worker.recognize(canvas, {}, { blocks: true });
-      lines.push(...linesFromBlocks(out.blocks)); // the pure stage in ocr-lines.ts
+      // The pure stage (ocr-lines.ts): word boxes → layout.ts → the parser's
+      // lines, in the canvas's pixels over RENDER_SCALE = PDF units.
+      const read = ocrPageLayout(out.blocks, canvas.width, canvas.height, RENDER_SCALE, { hint });
+      hint = read.hint;
+      lines.push(...read.lines);
       lines.push({ text: '', confidence: 100 }); // page break, like pdfToLines
     }
     return { lines, pagesRead, pagesTotal };

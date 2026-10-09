@@ -1391,17 +1391,37 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   Safari every PDF read failed (system-generated ones then looked like scans). Before ever
   upgrading pdfjs, grep the new build + pdf.worker.min.mjs for those identifiers and check
   they are guarded, then test in real Safari.
-  Pages render via pdfjs at scale 3.0 (216 dpi), max 10 pages. The pure stage is
-  `src/transcript/ocr-lines.ts` (OCR step 10, 2026-10-09): `OCR_ENGINE_PARAMETERS` (empty — the one
-  place a step adds an engine parameter, with its measurement), `ocrLineText` (each line's whitespace
-  collapsed, as before), `ocrKeepSpaces` (the variant step 10 measured and did NOT adopt:
-  `preserve_interword_spaces` + spacing kept lost rows on office scans and added false rows on keys —
-  DECISIONS) and `linesFromBlocks`; `ocr.ts`, the bench's `ocr-run.mjs` and `scripts/dev/ocr-lines.mjs`
-  import it (never a hand copy). Every OCR change is an A/B on `npm run ocr-bench`
+  Pages render via pdfjs at scale 3.0 (216 dpi), max 10 pages. THE PIPELINE (OCR step 11,
+  2026-10-09): render → `worker.recognize(canvas, {}, { blocks: true })` → the pure
+  `src/transcript/ocr-lines.ts` → `src/transcript/layout.ts` → the parser. `blocksToRuns(blocks, scale,
+  pageHeightPx)` turns the engine's WORD boxes into layout `Run`s (pixels / scale = PDF units, y flipped
+  up, every run of a line at its line's baseline middle; words a word space apart — ≤ 0.55 of the line
+  height, `WORD_SPACE_SHARE`, measured on the pinned pages — are one phrase run, as pdfjs gives the
+  layout "College of Science" as one item; per-word runs made such a word a watermark tile) and
+  `ocrPageLayout(blocks, canvasWidth, canvasHeight, scale, { hint, confidence })` reads them through
+  `pageLayout` exactly as a text PDF's runs: watermark tiles dropped, a two-column page split and read
+  column by column, a gap past 8 units rendered as three spaces (the parser's cell split), the column
+  hint handed to the next page. The engine's own lines are NOT the parser's input any more (under its
+  default page segmentation it prints a two-column page's two columns as one line each — the splice
+  that lost the right column's rows). `layout.ts` gained `groupLineRuns` and `pageLayout().lineRuns`
+  (which runs made each line) for the confidence rule: each line's confidence is its least confident
+  word's (`OCR_LINE_CONFIDENCE = 'min-word'`; the A/B against the engine's line figure and the floor
+  calibration are in DECISIONS). Also in the module: `OCR_ENGINE_PARAMETERS` (empty — the one place a
+  step adds an engine parameter, with its measurement), and the step-9/10 builder kept for the bench —
+  `linesFromBlocks` (the engine's lines through `ocrLineText`, whitespace collapsed) and `ocrKeepSpaces`
+  (the step-10 variant, measured and NOT adopted: `preserve_interword_spaces` + spacing kept lost rows on
+  office scans and added false rows on keys — DECISIONS). `ocr.ts` (rendering + worker), the bench's
+  `ocr-run.mjs` (knobs `--engine-lines`, `--interword`, `--line-confidence`, `--image-dpi`) and
+  `scripts/dev/ocr-lines.mjs` import the module — never a hand copy. `tests/ocr-lines.test.ts` pins the
+  stage on hand-made blocks and on the nine pinned pages (`tests/fixtures/ocr-scans/`, the engine's
+  `blocks` captured once — `PINNED_READING` is each page's current reading); `tests/layout.test.ts` has
+  the OCR-word two-column page. Every OCR change is an A/B on `npm run ocr-bench`
   (docs/OCR-BENCHMARK.md) against a baseline made on the SAME parser code — a stale baseline confounds
   (step 10's lesson); `--compare` diffs two finished runs. Per-line confidences flow through
   `parseExternalTranscript(lines, confidences)` and rows under 80 get `lowConfidence` → ⚠ +
-  amber row in the preview (`.ocr-low`), plus the `.ocr-banner` warning. The ND uploader still
+  amber row in the preview (`.ocr-low`), plus the `.ocr-banner` warning (the floor was re-measured by
+  step 11 and kept: the flag's precision equals the share of wrong rows at every floor — see the
+  floor's comment in `external.ts`). The ND uploader still
   takes NO scans (digital insideND PDF only; OCR'd ND text redirects there). The e2e OCR leg
   runs the real engine in headless Chrome (~15-60 s; 120 s waitFor).
 - Updating the OCR assets: bump `tesseract.js` in package.json, `npm install`, re-copy

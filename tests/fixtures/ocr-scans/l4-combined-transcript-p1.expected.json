@@ -1,0 +1,176 @@
+{
+ "name": "l4-combined-transcript-p1",
+ "seed": "combined-transcript",
+ "family": "generator-external",
+ "parser": "external",
+ "level": "L4",
+ "page": 1,
+ "dpi": 200,
+ "file": "l4-combined-transcript-p1.jpg",
+ "bytes": 123988,
+ "ladderSeed": 7,
+ "params": {
+  "seal": {
+   "cx": 1150,
+   "cy": 1072,
+   "radius": 180,
+   "alpha": 0.55
+  },
+  "watermark": {
+   "text": "PURDUE UNIVERSITY",
+   "angle": 38
+  },
+  "jpegQ": 75
+ },
+ "truthLines": [
+  "Purdue University",
+  "Office of the Registrar",
+  "Official Transcript",
+  "Student: Jane Q. Boilermaker",
+  "Bachelor of Science in Computer Science \u0014 Conferred: May 11, 2024",
+  "Master of Science in Computer Science \u0014 Conferred: May 10, 2025",
+  "Fall 2023",
+  "CS 25100 Data Structures and Algorithms   4.0 A",
+  "CS 30700 Software Engineering I   3.0 A-",
+  "Spring 2024",
+  "CS 35400 Operating Systems   3.0 A",
+  "Fall 2024",
+  "CS 50300 Operating Systems   3.0 A",
+  "CS 58000 Algorithm Design   3.0 B+",
+  "Cumulative GPA: 3.80"
+ ],
+ "expected": {
+  "courses": [
+   "CS 25100 | Data Structures and Algorithms | 4 | A | fall 2023 | undergraduate",
+   "CS 30700 | Software Engineering I | 3 | A- | fall 2023 | undergraduate",
+   "CS 35400 | Operating Systems | 3 | A | spring 2024 | undergraduate",
+   "CS 50300 | Operating Systems | 3 | A | fall 2024 | graduate",
+   "CS 58000 | Algorithm Design | 3 | B+ | fall 2024 | graduate"
+  ],
+  "university": "Purdue University",
+  "campusSystem": null,
+  "campus": null,
+  "degreeConferred": true,
+  "bachelorsConferredOn": "2024-05-11",
+  "quarterSystem": null,
+  "trimesterSystem": null
+ },
+ "capturedWith": "scripts/dev/ocr-bench/ocr-run.mjs recognizePage (baseline config) on the pinned file; blocks trimmed by trimBlocks",
+ "width": 1700,
+ "height": 2201,
+ "ocrLines": [
+  {
+   "text": "Purdue University",
+   "confidence": 95
+  },
+  {
+   "text": "Office of the Registrar",
+   "confidence": 96
+  },
+  {
+   "text": "Official Transcript",
+   "confidence": 96
+  },
+  {
+   "text": "Student: Jane Q. Boilermaker",
+   "confidence": 91
+  },
+  {
+   "text": "Bachelor of Science in Computer Science [Conferred: May 11, 2024",
+   "confidence": 54
+  },
+  {
+   "text": "Master of Science in Computer Science [Conferred: May 10, 2025",
+   "confidence": 11
+  },
+  {
+   "text": "Fall 2023",
+   "confidence": 95
+  },
+  {
+   "text": "CS 25100   Data Structures and Algorithms   4.0 A",
+   "confidence": 59
+  },
+  {
+   "text": "CS 30700 Software Engineering |   3.0 A-",
+   "confidence": 84
+  },
+  {
+   "text": "Spring 2024",
+   "confidence": 96
+  },
+  {
+   "text": "CS 35400 Operating Systems   30 A",
+   "confidence": 93
+  },
+  {
+   "text": "Fall 2024",
+   "confidence": 96
+  },
+  {
+   "text": "CS 50300 Operating Systems   30 A",
+   "confidence": 87
+  },
+  {
+   "text": "CS 58000 Algorithm Design   3.0   B+",
+   "confidence": 90
+  },
+  {
+   "text": "Cumulative GPA: 3.80",
+   "confidence": 96
+  },
+  {
+   "text": "T   SA",
+   "confidence": 0
+  },
+  {
+   "text": "0   iy, DS",
+   "confidence": 3
+  },
+  {
+   "text": "x   o",
+   "confidence": 7
+  },
+  {
+   "text": "AY   o",
+   "confidence": 58
+  },
+  {
+   "text": ">",
+   "confidence": 16
+  },
+  {
+   "text": "fie   -",
+   "confidence": 21
+  },
+  {
+   "text": "©   .",
+   "confidence": 47
+  },
+  {
+   "text": "Z",
+   "confidence": 23
+  },
+  {
+   "text": "A   [e)",
+   "confidence": 0
+  },
+  {
+   "text": "J",
+   "confidence": 44
+  },
+  {
+   "text": "$   \\",
+   "confidence": 48
+  },
+  {
+   "text": "Ko   32",
+   "confidence": 44
+  },
+  {
+   "text": "23y   40",
+   "confidence": 82
+  }
+ ],
+ "ocrSeconds": 0.58
+}

@@ -185,7 +185,16 @@ export function watermarkInstitution(runs: Run[]): string | undefined {
  * left-to-right, with wide horizontal gaps rendered as three spaces so column
  * boundaries survive into the text (the parsers split cells on 2+ spaces). */
 export function groupLines(runs: Run[]): string[] {
-  const lines: string[] = [];
+  return groupLineRuns(runs).map((l) => l.text);
+}
+
+/** `groupLines` with the runs each line was built from, in reading order
+ * (OCR step 11, 2026-10-09): the OCR path builds its runs from word boxes
+ * that each carry the engine's confidence, and a line's confidence is the
+ * least of its words' — so it needs to know which runs made which line. The
+ * objects are the caller's own (never copied), so a caller may look them up. */
+export function groupLineRuns(runs: Run[]): { text: string; runs: Run[] }[] {
+  const lines: { text: string; runs: Run[] }[] = [];
   const sorted = [...runs].sort((a, b) => b.y - a.y || a.x - b.x);
   // ONE TEXT ITEM PER GLYPH (2026-10-08, from two insideND unofficial
   // transcripts the DGS redacted and provided, measured structure-only — a
@@ -222,7 +231,7 @@ export function groupLines(runs: Run[]): string[] {
       text += r.text;
       cursor = r.x + r.width;
     }
-    lines.push(text.trim());
+    lines.push({ text: text.trim(), runs: current });
     current = [];
   };
   for (const r of sorted) {
@@ -465,12 +474,16 @@ export function runsToLines(runs: Run[], pageWidth: number, hint?: ColumnHint): 
 
 /** `runsToLines` with the column layout to hand to the next page: callers
  * that read a document page by page (src/transcript/pdf.ts,
- * scripts/dev/pdf-lines-node.mts) pass each page's `hint` to the next. */
-export function pageLayout(runs: Run[], pageWidth: number, hint?: ColumnHint): { lines: string[]; hint?: ColumnHint } {
+ * scripts/dev/pdf-lines-node.mts, src/transcript/ocr-lines.ts) pass each
+ * page's `hint` to the next. `lineRuns[i]` holds the runs line `i` was built
+ * from (the institution line a watermark contributes has none). */
+export function pageLayout(runs: Run[], pageWidth: number, hint?: ColumnHint): { lines: string[]; lineRuns: Run[][]; hint?: ColumnHint } {
   const layout = columnLayout(dropWatermarks(runs), pageWidth, hint);
-  const lines = layout.columns.flatMap((column) => groupLines(column));
+  const grouped = layout.columns.flatMap((column) => groupLineRuns(column));
+  const lines = grouped.map((l) => l.text);
+  const lineRuns = grouped.map((l) => l.runs);
   // A watermark that names the institution is worth one clean line at the
   // top of the page for the university guess (2026-09-05).
   const named = watermarkInstitution(runs);
-  return { lines: named ? [named, ...lines] : lines, ...(layout.hint !== undefined ? { hint: layout.hint } : {}) };
+  return { lines: named ? [named, ...lines] : lines, lineRuns: named ? [[], ...lineRuns] : lineRuns, ...(layout.hint !== undefined ? { hint: layout.hint } : {}) };
 }

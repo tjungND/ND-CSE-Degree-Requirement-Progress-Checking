@@ -1,0 +1,112 @@
+{
+ "name": "l5-external-transcript-scan-p1",
+ "seed": "external-transcript-scan",
+ "family": "generator-scan",
+ "parser": "external",
+ "level": "L5",
+ "page": 1,
+ "dpi": 159,
+ "file": "l5-external-transcript-scan-p1.jpg",
+ "bytes": 67925,
+ "ladderSeed": 7,
+ "params": {
+  "corners": [
+   [
+    81,
+    69
+   ],
+   [
+    3314,
+    102
+   ],
+   [
+    3350,
+    4315
+   ],
+   [
+    49,
+    4373
+   ]
+  ],
+  "shadowAngle": 49.8,
+  "width": 1350,
+  "jpegQ": 50
+ },
+ "truthLines": [
+  "Purdue University",
+  "Office of the Registrar",
+  "Official Transcript",
+  "Student: John Q. Boilermaker",
+  "Program: Master of Science, Computer Science",
+  "Fall 2023",
+  "CS 50300    Operating Systems              3.0    A",
+  "CS 59000    Special Topics in Systems      3.0    A-",
+  "Spring 2024",
+  "CS 58000    Algorithm Design               3.0    B+",
+  "Cumulative GPA: 3.83"
+ ],
+ "expected": {
+  "courses": [
+   "CS 50300 | Operating Systems | 3 | A | fall 2023",
+   "CS 59000 | Special Topics in Systems | 3 | A- | fall 2023",
+   "CS 58000 | Algorithm Design | 3 | B+ | spring 2024"
+  ],
+  "university": "Purdue University",
+  "campusSystem": null,
+  "campus": null,
+  "degreeConferred": null,
+  "bachelorsConferredOn": null,
+  "quarterSystem": null,
+  "trimesterSystem": null
+ },
+ "capturedWith": "scripts/dev/ocr-bench/ocr-run.mjs recognizePage (baseline config) on the pinned file; blocks trimmed by trimBlocks",
+ "width": 1350,
+ "height": 1747,
+ "ocrLines": [
+  {
+   "text": "Purdue University",
+   "confidence": 95
+  },
+  {
+   "text": "Office of the Registrar",
+   "confidence": 96
+  },
+  {
+   "text": "Official Transcript",
+   "confidence": 92
+  },
+  {
+   "text": "Student: John Q. Boilermaker",
+   "confidence": 93
+  },
+  {
+   "text": "Program: Master of Science, Computer Science",
+   "confidence": 96
+  },
+  {
+   "text": "Fall 2023",
+   "confidence": 96
+  },
+  {
+   "text": "CS   50300   Operating   Systems   3.0   A",
+   "confidence": 78
+  },
+  {
+   "text": "CS   59000   Special   Topics   in   Systems   3.0   A-",
+   "confidence": 79
+  },
+  {
+   "text": "Spring 2024",
+   "confidence": 94
+  },
+  {
+   "text": "CS   58000   Algorithm   Design   3.0   B+",
+   "confidence": 95
+  },
+  {
+   "text": "Cumulative GPA: 3.83",
+   "confidence": 96
+  }
+ ],
+ "ocrSeconds": 0.33
+}

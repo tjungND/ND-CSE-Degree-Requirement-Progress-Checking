@@ -96,8 +96,10 @@ try {
       record.textLayerLines = await pdfToLinesNode(src);
       record.capturedWith = 'scripts/dev/pdf-lines-node.mts pdfToLinesNode (the app never OCRs a PDF with a text layer)';
     } else {
-      const page = await recognizePage(worker, src, undefined, { keepBlocks: true });
+      const page = await recognizePage(worker, src, undefined, { keepBlocks: true, dpi: entry.dpi });
       blocks = page.blocks;
+      record.width = page.width; // the page image's pixel size — the line builder's canvas
+      record.height = page.height;
       record.ocrLines = page.lines;
       record.ocrSeconds = Number(page.seconds.toFixed(2));
     }

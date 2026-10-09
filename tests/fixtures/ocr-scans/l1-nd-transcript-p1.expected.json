@@ -1,0 +1,173 @@
+{
+ "name": "l1-nd-transcript-p1",
+ "seed": "nd-transcript",
+ "family": "generator-nd",
+ "parser": "nd",
+ "level": "L1",
+ "page": 1,
+ "dpi": 200,
+ "file": "l1-nd-transcript-p1.jpg",
+ "bytes": 133961,
+ "ladderSeed": 7,
+ "params": {
+  "blurSigma": 0.6,
+  "jpegQ": 75
+ },
+ "truthLines": [
+  "University of Notre Dame",
+  "Unofficial Academic Transcript",
+  "This is not an official transcript.",
+  "Name : Jane Q. Student",
+  "Degrees Awarded",
+  "Bachelor of Science",
+  "Degree Date: May 16, 2021",
+  "TRANSFER CREDIT ACCEPTED BY INSTITUTION",
+  "202620: University of Michigan",
+  "EECS 58200 GR Operating Systems 3.000",
+  "INSTITUTION CREDIT",
+  "Fall Semester 2020",
+  "CSE 30321 UG Computer Architecture A 3.000 12.000",
+  "MATH 10550 UG Calculus I A 4.000 16.000",
+  "Spring Semester 2021",
+  "CSE 20110 UG Discrete Mathematics B+ 3.000 9.999",
+  "Fall Semester 2026",
+  "CSE 60641 GR Graduate Operating Systems A 3.000 12.000",
+  "CSE 63801 GR Research Seminar I S 1.000 0.000",
+  "Spring Semester 2027",
+  "CSE 60111 GR Complexity and Algorithms A- 3.000 11.001",
+  "CSE 60321 GR Advanced Computer Architecture B+ 3.000 9.999",
+  "TRANSCRIPT TOTALS (GRADUATE)",
+  "Overall: 13.000 13.000 13.000 10.000 33.000 3.300",
+  "COURSES IN PROGRESS",
+  "Fall Semester 2027",
+  "CSE 60876 GR Research Methods 3.000"
+ ],
+ "expected": {
+  "university": "University of Notre Dame",
+  "courses": [
+   "EECS 58200 | Operating Systems | 3 | IP | spring 2027 | graduate",
+   "CSE 30321 | Computer Architecture | 3 | A | fall 2020 | undergraduate",
+   "MATH 10550 | Calculus I | 4 | A | fall 2020 | undergraduate",
+   "CSE 20110 | Discrete Mathematics | 3 | B+ | spring 2021 | undergraduate",
+   "CSE 60641 | Graduate Operating Systems | 3 | A | fall 2026 | graduate",
+   "CSE 63801 | Research Seminar I | 1 | S | fall 2026 | graduate",
+   "CSE 60111 | Complexity and Algorithms | 3 | A- | spring 2027 | graduate",
+   "CSE 60321 | Advanced Computer Architecture | 3 | B+ | spring 2027 | graduate",
+   "CSE 60876 | Research Methods | 3 | IP | fall 2027 | graduate"
+  ]
+ },
+ "capturedWith": "scripts/dev/ocr-bench/ocr-run.mjs recognizePage (baseline config) on the pinned file; blocks trimmed by trimBlocks",
+ "width": 1700,
+ "height": 2201,
+ "ocrLines": [
+  {
+   "text": "University of Notre Dame",
+   "confidence": 96
+  },
+  {
+   "text": "Unofficial Academic Transcript",
+   "confidence": 96
+  },
+  {
+   "text": "This is not an official transcript.",
+   "confidence": 95
+  },
+  {
+   "text": "Name : Jane Q. Student",
+   "confidence": 91
+  },
+  {
+   "text": "Degrees Awarded",
+   "confidence": 96
+  },
+  {
+   "text": "Bachelor of Science",
+   "confidence": 96
+  },
+  {
+   "text": "Degree Date: May 16, 2021",
+   "confidence": 95
+  },
+  {
+   "text": "TRANSFER CREDIT ACCEPTED BY INSTITUTION",
+   "confidence": 95
+  },
+  {
+   "text": "202620: University of Michigan",
+   "confidence": 95
+  },
+  {
+   "text": "EECS 58200 GR Operating Systems 3.000",
+   "confidence": 92
+  },
+  {
+   "text": "INSTITUTION CREDIT",
+   "confidence": 96
+  },
+  {
+   "text": "Fall Semester 2020",
+   "confidence": 96
+  },
+  {
+   "text": "CSE 30321 UG Computer Architecture A 3.000 12.000",
+   "confidence": 95
+  },
+  {
+   "text": "MATH 10550 UG Calculus | A 4.000 16.000",
+   "confidence": 92
+  },
+  {
+   "text": "Spring Semester 2021",
+   "confidence": 95
+  },
+  {
+   "text": "CSE 20110 UG Discrete Mathematics B+ 3.000 9.999",
+   "confidence": 96
+  },
+  {
+   "text": "Fall Semester 2026",
+   "confidence": 95
+  },
+  {
+   "text": "CSE 60641 GR Graduate Operating Systems A 3.000 12.000",
+   "confidence": 95
+  },
+  {
+   "text": "CSE 63801 GR Research Seminar | S 1.000 0.000",
+   "confidence": 92
+  },
+  {
+   "text": "Spring Semester 2027",
+   "confidence": 96
+  },
+  {
+   "text": "CSE 60111 GR Complexity and Algorithms A- 3.000 11.001",
+   "confidence": 92
+  },
+  {
+   "text": "CSE 60321 GR Advanced Computer Architecture B+ 3.000 9.999",
+   "confidence": 96
+  },
+  {
+   "text": "TRANSCRIPT TOTALS (GRADUATE)",
+   "confidence": 96
+  },
+  {
+   "text": "Overall: 13.000 13.000 13.000 10.000 33.000 3.300",
+   "confidence": 95
+  },
+  {
+   "text": "COURSES IN PROGRESS",
+   "confidence": 95
+  },
+  {
+   "text": "Fall Semester 2027",
+   "confidence": 96
+  },
+  {
+   "text": "CSE 60876 GR Research Methods 3.000",
+   "confidence": 95
+  }
+ ],
+ "ocrSeconds": 0.81
+}

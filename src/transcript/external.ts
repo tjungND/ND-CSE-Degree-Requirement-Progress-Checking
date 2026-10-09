@@ -1046,7 +1046,16 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
   return undefined;
 }
 
-/** OCR lines below this confidence get their rows flagged in the preview. */
+/** OCR lines below this confidence get their rows flagged in the preview.
+ * Since OCR step 11 (2026-10-09) a line's confidence is its least confident
+ * WORD's (src/transcript/ocr-lines.ts OCR_LINE_CONFIDENCE). The floor was
+ * re-measured then on the bench (DECISIONS 2026-10-09): on degraded scans of
+ * 32 public and generator documents the flag's precision sits at the share of
+ * rows that are wrong whatever the floor (72–75 % from 70 to 88), so the data
+ * hold no better number than 80 — which catches 60 % of the wrong rows while
+ * flagging 60 % of all rows; the engine's own line figure caught 21 % at the
+ * same floor. The engine is confidently wrong on digits ("3.0" read as "30"
+ * at 93): a cell-level check, not a floor, is the route to those (plan 2.5). */
 const OCR_CONFIDENCE_FLOOR = 80;
 
 export function parseExternalTranscript(lines: string[], confidences?: number[]): ExternalParseResult {

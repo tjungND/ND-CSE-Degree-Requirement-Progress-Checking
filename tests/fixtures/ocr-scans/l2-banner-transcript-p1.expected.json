@@ -1,0 +1,338 @@
+{
+ "name": "l2-banner-transcript-p1",
+ "seed": "banner-transcript",
+ "family": "generator-external",
+ "parser": "external",
+ "level": "L2",
+ "page": 1,
+ "dpi": 150,
+ "file": "l2-banner-transcript-p1.jpg",
+ "bytes": 150918,
+ "ladderSeed": 7,
+ "params": {
+  "skewDeg": 0.53,
+  "noiseSigma": 6,
+  "lightAngleDeg": 263.5,
+  "jpegQ": 60
+ },
+ "truthLines": [
+  "SSN: ***-**-0000 CWID 00000000 Date of Birth: 01-JAN Date Issued: 01-SEP-2026",
+  "OFFI Official Transcript",
+  "Record of: Jane Q. Student",
+  "Issued To: Jane Q. Student",
+  "STUDENT@ND.EDU",
+  "Course Level: Graduate",
+  "Matriculated: Fall 2019",
+  "Program : Doctor of Philosophy",
+  "College : College of Science",
+  "Major : Computer Science",
+  "Degree Awarded Doctor of Philosophy 15-MAY-2024",
+  "SUBJ NO.   COURSE TITLE   CRED GRD   PTS R",
+  "_____________________________________________________________",
+  "TRANSFER CREDIT ACCEPTED BY THE INSTITUTION:",
+  ". CS Dept Pre-Req Equivlnts",
+  "CS   401   Intro to Advanced Studies I   0.00   TR",
+  "CS   450   Operating Systems   0.00   TR",
+  "Ehrs: 0.00 GPA-Hrs: 0.00 QPts: 0.00 GPA: 0.00",
+  "INSTITUTION CREDIT:",
+  "Fall 2019",
+  "College of Science",
+  "Computer Science",
+  "CS   430   Introduction Algorithms   3.00   A   12.00",
+  "CS   536   Science of Programming   3.00   A   12.00",
+  "HUM   601   TA Seminar   0.00   S   0.00",
+  "Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 24.00 GPA: 4.00",
+  "Good Standing",
+  "Spring 2020",
+  "College of Science",
+  "Computer Science",
+  "CS   535   Dsgn and Anlys of Algorithms   3.00   A   12.00",
+  "CS   550   Advnc Operating Syst   3.00   B+   9.99",
+  "Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 21.99 GPA: 3.67",
+  "Good Standing",
+  "******************** CONTINUED ON NEXT COLUMN *******************",
+  "Institution Information continued:",
+  "Fall 2020",
+  "College of Science",
+  "Computer Science",
+  "CS   553   Cloud Computing   3.00   A   12.00",
+  "CS   597   Reading and Special Problems   3.00   A   12.00",
+  "Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 24.00 GPA: 4.00",
+  "Good Standing",
+  "Spring 2021",
+  "College of Science",
+  "Computer Science",
+  "CS   595   Econ & Priv Issues in Big Data   3.00   A   12.00",
+  "CS   691   Research and Thesis Ph.D.   4.00   S   0.00",
+  "Ehrs: 7.00 GPA-Hrs: 3.00 QPts: 12.00 GPA: 4.00",
+  "Good Standing",
+  "Summer 2021",
+  "College of Science",
+  "Computer Science",
+  "INTR   010   Summer Internship   0.00   NG   0.00",
+  "Ehrs: 0.00 GPA-Hrs: 0.00 QPts: 0.00 GPA: 0.00",
+  "Good Standing",
+  "********************** TRANSCRIPT TOTALS ***********************",
+  "TOTAL INSTITUTION 19.00 15.00 57.99 3.87",
+  "********************** END OF TRANSCRIPT ***********************"
+ ],
+ "expected": {
+  "courses": [
+   "CS 430 | Introduction Algorithms | 3 | A | fall 2019 | graduate",
+   "CS 536 | Science of Programming | 3 | A | fall 2019 | graduate",
+   "HUM 601 | TA Seminar | 0 | S | fall 2019 | graduate",
+   "CS 535 | Dsgn and Anlys of Algorithms | 3 | A | spring 2020 | graduate",
+   "CS 550 | Advnc Operating Syst | 3 | B+ | spring 2020 | graduate",
+   "CS 553 | Cloud Computing | 3 | A | fall 2020 | graduate",
+   "CS 597 | Reading and Special Problems | 3 | A | fall 2020 | graduate",
+   "CS 595 | Econ & Priv Issues in Big Data | 3 | A | spring 2021 | graduate",
+   "CS 691 | Research and Thesis Ph.D. | 4 | S | spring 2021 | graduate",
+   "INTR 010 | Summer Internship | 0 | NG | summer 2021 | graduate"
+  ],
+  "university": null,
+  "campusSystem": null,
+  "campus": null,
+  "degreeConferred": true,
+  "bachelorsConferredOn": null,
+  "quarterSystem": null,
+  "trimesterSystem": null
+ },
+ "capturedWith": "scripts/dev/ocr-bench/ocr-run.mjs recognizePage (baseline config) on the pinned file; blocks trimmed by trimBlocks",
+ "width": 1275,
+ "height": 1650,
+ "ocrLines": [
+  {
+   "text": "SSN: #*-#+.0000 CWID 00000000 Date of Birth: 01-JAN Date Issued: 01-SEP-2026",
+   "confidence": 43
+  },
+  {
+   "text": "OFFI Official Transcript",
+   "confidence": 58
+  },
+  {
+   "text": "Record of: Jane Q. Student",
+   "confidence": 91
+  },
+  {
+   "text": "Issued To: Jane Q. Student",
+   "confidence": 92
+  },
+  {
+   "text": "STUDENT@ND.EDU",
+   "confidence": 89
+  },
+  {
+   "text": "Course Level: Graduate",
+   "confidence": 96
+  },
+  {
+   "text": "Matriculated: Fall 2019",
+   "confidence": 92
+  },
+  {
+   "text": "Program : Doctor of Philosophy",
+   "confidence": 91
+  },
+  {
+   "text": "College : College of Science",
+   "confidence": 88
+  },
+  {
+   "text": "Major : Computer Science",
+   "confidence": 91
+  },
+  {
+   "text": "Degree Awarded Doctor of Philosophy 15-MAY-2024",
+   "confidence": 86
+  },
+  {
+   "text": "SUBJ NO.   COURSE TITLE   CRED GRD   PTSR",
+   "confidence": 91
+  },
+  {
+   "text": "TRANSFER CREDIT ACCEPTED BY THE INSTITUTION:",
+   "confidence": 95
+  },
+  {
+   "text": ". CS Dept Pre-Req Equivints",
+   "confidence": 60
+  },
+  {
+   "text": "cs   401   Intro to Advanced Studies |   0.00   TR",
+   "confidence": 83
+  },
+  {
+   "text": "cs   450   Operating Systems   000   TR",
+   "confidence": 82
+  },
+  {
+   "text": "Ehrs: 0.00 GPA-Hrs: 0.00 QPts: 0.00 GPA: 0.00",
+   "confidence": 80
+  },
+  {
+   "text": "INSTITUTION CREDIT:",
+   "confidence": 95
+  },
+  {
+   "text": "Fall 2019",
+   "confidence": 94
+  },
+  {
+   "text": "College of Science",
+   "confidence": 96
+  },
+  {
+   "text": "Computer Science",
+   "confidence": 94
+  },
+  {
+   "text": "cs   430   Introduction Algorithms   3.00   A   12,00",
+   "confidence": 54
+  },
+  {
+   "text": "cs   536   Science of Programming   3.00   A   12.00",
+   "confidence": 72
+  },
+  {
+   "text": "HUM   601   TA Seminar   000   S   0.00",
+   "confidence": 62
+  },
+  {
+   "text": "Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 24.00 GPA: 4.00",
+   "confidence": 85
+  },
+  {
+   "text": "Good Standing",
+   "confidence": 94
+  },
+  {
+   "text": "Spring 2020",
+   "confidence": 96
+  },
+  {
+   "text": "College of Science",
+   "confidence": 96
+  },
+  {
+   "text": "Computer Science",
+   "confidence": 94
+  },
+  {
+   "text": "cs   535   Dsgn and Anlys of Algorithms ~~ 3.00   A   12.00",
+   "confidence": 53
+  },
+  {
+   "text": "Cs   550   Advnc Operating Syst   3.00   B+   9.99",
+   "confidence": 67
+  },
+  {
+   "text": "Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 21.99 GPA: 3.67",
+   "confidence": 81
+  },
+  {
+   "text": "Good Standing",
+   "confidence": 96
+  },
+  {
+   "text": "nmwrkemssessststs CONTINUED ON NEXT COLUMN *ssssssrssasentas",
+   "confidence": 0
+  },
+  {
+   "text": "Institution Information continued:",
+   "confidence": 95
+  },
+  {
+   "text": "Fall 2020",
+   "confidence": 95
+  },
+  {
+   "text": "College of Science",
+   "confidence": 94
+  },
+  {
+   "text": "Computer Science",
+   "confidence": 95
+  },
+  {
+   "text": "cs   553   Cloud Computing   300   A   12.00",
+   "confidence": 88
+  },
+  {
+   "text": "cs   597   Reading and Special Problems   3.00   A   12.00",
+   "confidence": 46
+  },
+  {
+   "text": "Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 24.00 GPA: 4.00",
+   "confidence": 88
+  },
+  {
+   "text": "Good Standing",
+   "confidence": 95
+  },
+  {
+   "text": "Spring 2021",
+   "confidence": 93
+  },
+  {
+   "text": "College of Science",
+   "confidence": 95
+  },
+  {
+   "text": "Computer Science",
+   "confidence": 89
+  },
+  {
+   "text": "cs   595   Econ & Priv Issues in Big Data   3.00   A   12.00",
+   "confidence": 64
+  },
+  {
+   "text": "cs   691   Research and Thesis Ph.D.   400   S   0.00",
+   "confidence": 85
+  },
+  {
+   "text": "Ehrs: 7.00 GPA-Hrs: 3.00 QPts: 12.00 GPA: 4.00",
+   "confidence": 82
+  },
+  {
+   "text": "Good Standing",
+   "confidence": 96
+  },
+  {
+   "text": "Summer 2021",
+   "confidence": 95
+  },
+  {
+   "text": "College of Science",
+   "confidence": 96
+  },
+  {
+   "text": "Computer Science",
+   "confidence": 96
+  },
+  {
+   "text": "INTR   010   ‘Summer Internship   0.00   NG   0.00",
+   "confidence": 80
+  },
+  {
+   "text": "Ehrs: 0.00 GPA-Hrs: 0.00 QPts: 0.00 GPA: 0.00",
+   "confidence": 87
+  },
+  {
+   "text": "Good Standing",
+   "confidence": 94
+  },
+  {
+   "text": "*memsernnnerecere TRANSCRIPT TOTALS tht   tarastiss",
+   "confidence": 0
+  },
+  {
+   "text": "TOTAL INSTITUTION 19.00 15.00 57.99 3.87",
+   "confidence": 91
+  },
+  {
+   "text": "Fake: END OF TRANSCRIPT Sribakatiiriak",
+   "confidence": 0
+  }
+ ],
+ "ocrSeconds": 1.49
+}

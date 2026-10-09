@@ -4,7 +4,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { readFileSync } from 'node:fs';
-import { columnLayout, dropWatermarks, groupLines, isRepeatedPhraseRun, pageLayout, repeatedPhrase, runsFromTextItems, runsToLines, splitColumns, watermarkInstitution, type Run } from '../src/transcript/layout.ts';
+import { columnLayout, dropWatermarks, groupLineRuns, groupLines, isRepeatedPhraseRun, pageLayout, repeatedPhrase, runsFromTextItems, runsToLines, splitColumns, watermarkInstitution, type Run } from '../src/transcript/layout.ts';
+import { blocksToRuns, type OcrBlockLike } from '../src/transcript/ocr-lines.ts';
 import { pdfToLinesNode } from '../scripts/dev/pdf-lines-node.mts';
 
 const W = 612;
@@ -412,5 +413,96 @@ describe('transcript accuracy program, Batch B — F4 layout (2026-10-09)', () =
     for (let i = 0; i < 4; i++) words.push(run(20, 400 - i * 12, 'CSE'), run(45, 400 - i * 12, `6064${i}`), run(80, 400 - i * 12, 'Graduate Operating Systems', 110), run(220, 400 - i * 12, '3.0'), run(250, 400 - i * 12, 'A'));
     const wordPage = groupLines([...words, ...mixedLine]);
     assert.ok(wordPage.includes('F a l l 2023   Main   G R'), wordPage.join('\n'));
+  });
+});
+
+// ——— OCR word boxes (OCR step 11, 2026-10-09) ———
+// The OCR path builds its runs from the engine's word boxes (src/transcript/
+// ocr-lines.ts blocksToRuns) and reads them through the same layout stage as a
+// text PDF's runs. What an OCR page looks like here: every row of a two-column
+// Banner page is ONE engine line across both columns (the engine's default
+// page segmentation), each word an ink-tight box at 216 dpi (scale 3), a
+// word space ~9 px, a cell gap ~60 px, every run of a line at the line's
+// baseline; nothing is rotated, and a cell is never wider than its ink.
+describe('an OCR-word two-column page', () => {
+  /** An engine line laid out at `x` px on baseline `y` px: 20 px per
+   * character, `gaps` the pixel gap after each word. */
+  const engineLine = (text: string, x: number, y: number, gaps: number[]): NonNullable<NonNullable<OcrBlockLike['paragraphs']>[number]['lines']>[number] => {
+    const words = [];
+    let at = x;
+    const parts = text.split(' ');
+    for (let i = 0; i < parts.length; i++) {
+      const w = parts[i]!.length * 20;
+      words.push({ text: parts[i]!, confidence: 90, bbox: { x0: at, y0: y - 22, x1: at + w, y1: y + 8 } });
+      at += w + (gaps[i] ?? 9);
+    }
+    const x1 = words[words.length - 1]!.bbox.x1;
+    return { text: `${text}\n`, confidence: 90, bbox: { x0: x, y0: y - 22, x1, y1: y + 8 }, baseline: { x0: x, y0: y, x1, y1: y }, words };
+  };
+  const cells = [60, 60, 9, 9, 60, 60, 60]; // subject · number · title (three words) · credits · grade · points
+  const words = [9, 9, 9, 9, 9, 9, 9];
+  /** The page as the engine sees it: left and right column rows on one baseline each. */
+  function ocrBannerPage(): Run[] {
+    const lines: ReturnType<typeof engineLine>[] = [];
+    let y = 300;
+    const row = (left: string, leftGaps: number[], right: string, rightGaps: number[]) => {
+      const l = engineLine(left, 100, y, leftGaps);
+      const r = engineLine(right, 1400, y, rightGaps);
+      lines.push({ ...l, text: `${left} ${right}\n`, bbox: { ...l.bbox!, x1: r.bbox!.x1 }, baseline: { ...l.baseline!, x1: r.baseline!.x1 }, words: [...(l.words ?? []), ...(r.words ?? [])] });
+      y += 40;
+    };
+    lines.push(engineLine('SSN: ***-**-0000 CWID 00000000 Date Issued: 01-SEP-2026', 100, 100, [9, 60, 9, 60, 9, 9]));
+    row('Fall 2019', words, 'Fall 2020', words);
+    row('College of Science', words, 'College of Science', words);
+    row('Computer Science', words, 'Computer Science', words);
+    for (let i = 0; i < 12; i++) row(`CS 5${i}0 Course Title Words 3.00 A 12.00`, cells, `CS 6${i}0 Other Title Words 3.00 B+ 9.99`, cells);
+    row('Ehrs: 36.00 GPA-Hrs: 36.00 QPts: 144.00 GPA: 4.00', words, 'Ehrs: 36.00 GPA-Hrs: 36.00 QPts: 144.00 GPA: 4.00', words);
+    row('Good Standing', words, 'Good Standing', words);
+    return blocksToRuns([{ paragraphs: [{ lines }] }], 3, 3300);
+  }
+
+  it('splits into two columns at the gap between the word boxes and reads the left column before the right, cells three spaces apart', () => {
+    const runs = ocrBannerPage();
+    // Phrase runs, not word runs: "Course Title Words" is one run, its cells are separate.
+    assert.ok(runs.some((r) => r.text === 'Course Title Words') && runs.some((r) => r.text === '12.00'));
+    const { columns, hint } = columnLayout(runs, 2550 / 3);
+    assert.equal(columns.length, 2);
+    assert.ok(hint !== undefined && hint.gapX > 1000 / 3 && hint.gapX < 1400 / 3 && Math.abs(hint.rightEdge - 1400 / 3) <= 4, JSON.stringify(hint));
+    const lines = runsToLines(runs, 2550 / 3);
+    const left = lines.indexOf('Fall 2019');
+    const right = lines.indexOf('Fall 2020');
+    assert.ok(left >= 0 && right > left, lines.join('\n'));
+    assert.equal(lines[left + 3], 'CS   500   Course Title Words   3.00   A   12.00');
+    assert.equal(lines[right + 3], 'CS   600   Other Title Words   3.00   B+   9.99');
+    assert.ok(!lines.some((l) => (l.match(/12\.00|9\.99/g) ?? []).length > 1), 'nothing spliced across the columns');
+    // The one-letter grade cells sit a cell gap from their neighbours: never glued by the glyph join.
+    assert.ok(lines.every((l) => !/\d\.00A|A12\.00|B\+9/.test(l)), lines.join('\n'));
+    // The full-width header line stays with the left column (read first), as a text PDF's does.
+    assert.ok(lines.indexOf('SSN: ***-**-0000   CWID 00000000   Date Issued: 01-SEP-2026') < left, lines.join('\n'));
+  });
+
+  it('groupLineRuns hands back the very run objects each line was built from, in reading order, and pageLayout aligns them with its lines', () => {
+    const runs = ocrBannerPage();
+    const grouped = groupLineRuns(runs);
+    assert.deepEqual(grouped.map((l) => l.text), groupLines(runs));
+    for (const l of grouped) for (const r of l.runs) assert.ok(runs.includes(r), 'the same objects, never copies');
+    assert.equal(grouped.reduce((n, l) => n + l.runs.length, 0), runs.length, 'every run lands on exactly one line');
+    const page = pageLayout(runs, 2550 / 3);
+    assert.equal(page.lineRuns.length, page.lines.length);
+    const row = page.lines.indexOf('CS   500   Course Title Words   3.00   A   12.00');
+    assert.deepEqual(page.lineRuns[row]!.map((r) => r.text), ['CS', '500', 'Course Title Words', '3.00', 'A', '12.00']);
+    // The text path's callers are untouched: the same lines as before.
+    assert.deepEqual(page.lines, runsToLines(runs, 2550 / 3));
+  });
+
+  it('a tiled word is still a watermark when the engine reads it as its own run, and a phrase is not', () => {
+    // Per-word runs of "COPY" across the page: the 2026-09-05 tile rule drops them …
+    const runs = ocrBannerPage();
+    const tile: ReturnType<typeof engineLine>[] = [];
+    for (let y = 400; y < 1200; y += 80) tile.push(engineLine('COPY COPY COPY COPY', 200, y, [500, 500, 500]));
+    const withTile = [...runs, ...blocksToRuns([{ paragraphs: [{ lines: tile }] }], 3, 3300)];
+    assert.equal(dropWatermarks(withTile).filter((r) => r.text === 'COPY').length, 0);
+    // … while "College of Science", repeated down each of the two columns, is a phrase at two x positions and stays.
+    assert.equal(dropWatermarks(runs).filter((r) => r.text === 'College of Science').length, 2);
   });
 });

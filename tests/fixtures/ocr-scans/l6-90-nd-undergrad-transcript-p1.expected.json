@@ -1,0 +1,195 @@
+{
+ "name": "l6-90-nd-undergrad-transcript-p1",
+ "seed": "nd-undergrad-transcript",
+ "family": "generator-nd",
+ "parser": "nd",
+ "level": "L6-90",
+ "page": 1,
+ "dpi": 200,
+ "file": "l6-90-nd-undergrad-transcript-p1.jpg",
+ "bytes": 100505,
+ "ladderSeed": 7,
+ "params": {
+  "rotation": 90,
+  "jpegQ": 75
+ },
+ "truthLines": [
+  "University of Notre Dame",
+  "Official Academic Transcript",
+  "Name : Jane Q. Student",
+  "Degrees Awarded",
+  "Bachelor of Science",
+  "Degree Date: May 17, 2026",
+  "INSTITUTION CREDIT",
+  "Fall Semester 2024",
+  "MATH 10550 UG Calculus I A 4.000 16.000",
+  "CSE 20110 UG Discrete Mathematics A 3.000 12.000",
+  "Spring Semester 2025",
+  "CSE 40113 UG Design/Analysis of Algorithms A 3.000 12.000",
+  "Fall Semester 2025",
+  "CSE 40166 UG Computer Graphics A- 3.000 11.001",
+  "CSE 60641 UG Graduate Operating Systems A 3.000 12.000",
+  "TRANSCRIPT TOTALS (UNDERGRADUATE)",
+  "Overall: 16.000 16.000 16.000 16.000 60.000 3.750"
+ ],
+ "expected": {
+  "university": "University of Notre Dame",
+  "courses": [
+   "MATH 10550 | Calculus I | 4 | A | fall 2024 | undergraduate",
+   "CSE 20110 | Discrete Mathematics | 3 | A | fall 2024 | undergraduate",
+   "CSE 40113 | Design/Analysis of Algorithms | 3 | A | spring 2025 | undergraduate",
+   "CSE 40166 | Computer Graphics | 3 | A- | fall 2025 | undergraduate",
+   "CSE 60641 | Graduate Operating Systems | 3 | A | fall 2025 | undergraduate"
+  ]
+ },
+ "capturedWith": "scripts/dev/ocr-bench/ocr-run.mjs recognizePage (baseline config) on the pinned file; blocks trimmed by trimBlocks",
+ "width": 2201,
+ "height": 1700,
+ "ocrLines": [
+  {
+   "text": "od °3   00 mToOwOo   m=",
+   "confidence": 7
+  },
+  {
+   "text": "$3   gufgopsis   FEFfas",
+   "confidence": 0
+  },
+  {
+   "text": "82   os?   SmE28   &8&353%",
+   "confidence": 0
+  },
+  {
+   "text": "ET)   258838 n8TES Q   2   3   ® Sssaga ®..   =x",
+   "confidence": 0
+  },
+  {
+   "text": "[el   F238   g 2   greg",
+   "confidence": 0
+  },
+  {
+   "text": "od   A229   535   Se   5",
+   "confidence": 0
+  },
+  {
+   "text": "83 oT   ccBcacda2 £Eg2353598 3   gra Re gq   g8<",
+   "confidence": 0
+  },
+  {
+   "text": "83 8S   SERS2cES = T   [SR ar!   Pos? 82 92287",
+   "confidence": 0
+  },
+  {
+   "text": "og   00890089   588528",
+   "confidence": 0
+  },
+  {
+   "text": "oF   SeReNz oA   2220946",
+   "confidence": 0
+  },
+  {
+   "text": "|=}   a 3   © 3a   0   3   g   5",
+   "confidence": 0
+  },
+  {
+   "text": "of, oe   §%B $c   £5388°8 5 veo   -   4 5°   &§ $2 §",
+   "confidence": 0
+  },
+  {
+   "text": "Ba   58   BS   C=   nN   $325",
+   "confidence": 1
+  },
+  {
+   "text": "—   =   =   T=   =   ge 3",
+   "confidence": 22
+  },
+  {
+   "text": "9   2   £9   =",
+   "confidence": 48
+  },
+  {
+   "text": "83   SQ   2   I   [<2]   ©",
+   "confidence": 34
+  },
+  {
+   "text": "g¢   90   3   52   5   “3°",
+   "confidence": 4
+  },
+  {
+   "text": "SR   28   %   = >   -",
+   "confidence": 2
+  },
+  {
+   "text": "bx   E35   ©   3s",
+   "confidence": 26
+  },
+  {
+   "text": "o@ S%   ab 5   [=i EY   23 = 9",
+   "confidence": 0
+  },
+  {
+   "text": "o> S8   Q wn > 7   a >   a2 0",
+   "confidence": 0
+  },
+  {
+   "text": "82   Sw   8   22",
+   "confidence": 22
+  },
+  {
+   "text": "os   To   2   w8",
+   "confidence": 51
+  },
+  {
+   "text": "gx   38   3   go",
+   "confidence": 33
+  },
+  {
+   "text": "Sm   5S   3   2°",
+   "confidence": 47
+  },
+  {
+   "text": "ef   22   @   oS",
+   "confidence": 33
+  },
+  {
+   "text": "5   wb   >   Pe",
+   "confidence": 3
+  },
+  {
+   "text": "tS)   oo   w   8",
+   "confidence": 0
+  },
+  {
+   "text": "SP   [=4   8",
+   "confidence": 15
+  },
+  {
+   "text": "S   gs   8",
+   "confidence": 40
+  },
+  {
+   "text": "=   e   ©",
+   "confidence": 41
+  },
+  {
+   "text": "nN   -",
+   "confidence": 26
+  },
+  {
+   "text": "o   Ing",
+   "confidence": 34
+  },
+  {
+   "text": "=)   o",
+   "confidence": 40
+  },
+  {
+   "text": "S   1S]",
+   "confidence": 57
+  },
+  {
+   "text": "1S]",
+   "confidence": 53
+  }
+ ],
+ "ocrSeconds": 1.12
+}

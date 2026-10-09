@@ -1,0 +1,104 @@
+{
+ "name": "l3-uc-system-transcript-p1",
+ "seed": "uc-system-transcript",
+ "family": "generator-external",
+ "parser": "external",
+ "level": "L3",
+ "page": 1,
+ "dpi": 200,
+ "file": "l3-uc-system-transcript-p1.png",
+ "bytes": 72948,
+ "ladderSeed": 7,
+ "params": {
+  "skewDeg": -2.78,
+  "saltPepper": 0.002,
+  "streaks": [
+   [
+    "v",
+    1222
+   ],
+   [
+    "v",
+    681
+   ],
+   [
+    "h",
+    685
+   ]
+  ],
+  "borderBands": {
+   "bottom": 17
+  }
+ },
+ "truthLines": [
+  "UNIVERSITY OF CALIFORNIA",
+  "Office of the Registrar",
+  "Official Transcript",
+  "Student: Jane Q. Triton",
+  "Program: Master of Science, Computer Science",
+  "Fall Quarter 2023",
+  "CSE 202 Algorithm Design and Analysis   4.0 A",
+  "Winter Quarter 2024",
+  "CSE 221 Operating Systems   4.0 A-",
+  "Cumulative GPA: 3.85"
+ ],
+ "expected": {
+  "courses": [
+   "CSE 202 | Algorithm Design and Analysis | 4 | A | fall 2023",
+   "CSE 221 | Operating Systems | 4 | A- | spring 2024"
+  ],
+  "university": "University of California",
+  "campusSystem": "University of California",
+  "campus": null,
+  "degreeConferred": null,
+  "bachelorsConferredOn": null,
+  "quarterSystem": true,
+  "trimesterSystem": null
+ },
+ "capturedWith": "scripts/dev/ocr-bench/ocr-run.mjs recognizePage (baseline config) on the pinned file; blocks trimmed by trimBlocks",
+ "width": 1700,
+ "height": 2201,
+ "ocrLines": [
+  {
+   "text": "UNIVERSITY OF CALIFORNIA",
+   "confidence": 96
+  },
+  {
+   "text": "Office of the Registrar",
+   "confidence": 95
+  },
+  {
+   "text": "Official Transcript",
+   "confidence": 95
+  },
+  {
+   "text": "Student: Jane Q: Triton",
+   "confidence": 23
+  },
+  {
+   "text": "Program: Master of Science, Computer Science",
+   "confidence": 96
+  },
+  {
+   "text": "Fall Quarter 2023",
+   "confidence": 96
+  },
+  {
+   "text": "CSE 202 Algorithm Design and Analysis   4.0 A",
+   "confidence": 61
+  },
+  {
+   "text": "Winter Quarter 2024",
+   "confidence": 96
+  },
+  {
+   "text": "CSE 221 Operating Systems   4.0 A-",
+   "confidence": 91
+  },
+  {
+   "text": "Cumulative GPA: 3.85   )",
+   "confidence": 0
+  }
+ ],
+ "ocrSeconds": 0.25
+}

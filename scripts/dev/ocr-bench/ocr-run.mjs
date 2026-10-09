@@ -14,8 +14,10 @@
 //              the engine keeps its defaults: PSM 6 (SINGLE_BLOCK), no user_defined_dpi,
 //              preserve_interword_spaces 0, tessedit_do_invert on
 //   ocr.ts     worker.recognize(canvas, {}, { blocks: true }) — no rotateAuto, no rectangle
-//   ocr-lines.ts  linesFromBlocks: each line's whitespace collapsed to one space, ends
-//              trimmed, empty lines dropped; confidence = line.confidence (the LINE's figure)
+//   ocr-lines.ts  ocrPageLayout: the engine's word boxes → layout runs (scale = pixels per
+//              PDF unit: the render scale for a PDF, dpi / 72 for a page image) → layout.ts
+//              (watermarks, columns, cell gaps) → lines, each with the least confidence of
+//              its words (OCR_LINE_CONFIDENCE), the previous page's column hint handed on
 //              — imported from src/transcript/ocr-lines.ts, never copied by hand
 //   ocr.ts     an empty line after every page (the page break the parser expects)
 //
@@ -24,17 +26,24 @@
 //   --scale 3.0          pdfjs render scale for a PDF (72 × scale dpi)
 //   --psm 6              tessedit_pageseg_mode (api.md; 4 = single column, 11 = sparse)
 //   --dpi 300            user_defined_dpi (the engine assumes 70 when the image says nothing)
-//   --interword          preserve_interword_spaces=1 AND keep the runs of spaces in each line
-//                        (ocr-lines.ts ocrKeepSpaces) — measured by OCR step 10 and not
-//                        adopted; --no-interword is the default, spelled out
+//   --engine-lines       the line builder OCR steps 9–10 shipped (ocr-lines.ts linesFromBlocks:
+//                        the engine's own lines, whitespace collapsed, the LINE's confidence)
+//                        instead of the word-box layout of step 11
+//   --interword          preserve_interword_spaces=1 AND the engine's lines with their runs of
+//                        spaces kept (ocrKeepSpaces; implies --engine-lines) — measured by OCR
+//                        step 10 and not adopted; --no-interword is the default, spelled out
+//   --line-confidence min-word|engine-line   the figure a built line carries (step 11's A/B:
+//                        the least confident word, or the engine's line confidence)
+//   --image-dpi N        the dpi of a page IMAGE given directly (a PDF's pages are rendered at
+//                        72 × scale); default 72 × scale
 //   --threshold N        binarise at gray N (0–255) in node before the engine sees the page
 //   --invert 0|1         tessedit_do_invert
 //   --rotate-auto        recognize option rotateAuto (the engine's own skew estimate)
 //   --words              keep word boxes + confidences per line in the output JSON
 //   --max-pages N        pages read per PDF
-//   --config file.json   any of the above as JSON keys {scale, psm, dpi, interword,
-//                        threshold, invert, rotateAuto, words, maxPages, params:{…}};
-//                        command-line knobs override the file
+//   --config file.json   any of the above as JSON keys {scale, psm, dpi, engineLines, interword,
+//                        lineConfidence, imageDpi, threshold, invert, rotateAuto, words, maxPages,
+//                        params:{…}}; command-line knobs override the file
 //   --out out.json       write { config, documents: [{ file, pages: [...], lines }] }
 //
 //   node --experimental-strip-types scripts/dev/ocr-bench/ocr-run.mjs [knobs] scan.pdf page.png …
@@ -51,7 +60,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { pdfToPagePngs } from '../pdf-lines-node.mts';
-import { OCR_ENGINE_PARAMETERS, ocrKeepSpaces, ocrLineText } from '../../../src/transcript/ocr-lines.ts';
+import { linesFromBlocks as engineLinesFromBlocks, OCR_ENGINE_PARAMETERS, OCR_LINE_CONFIDENCE, ocrKeepSpaces, ocrLineText, ocrPageLayout } from '../../../src/transcript/ocr-lines.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -61,7 +70,10 @@ export const BASELINE_CONFIG = Object.freeze({
   scale: 3.0,
   psm: undefined,
   dpi: undefined,
+  engineLines: false,
   interword: false,
+  lineConfidence: OCR_LINE_CONFIDENCE,
+  imageDpi: undefined,
   threshold: undefined,
   invert: undefined,
   rotateAuto: false,
@@ -107,28 +119,33 @@ export async function createOcrWorker(config = BASELINE_CONFIG) {
   return worker;
 }
 
-/** The app's walk over the engine's `blocks` (src/transcript/ocr-lines.ts
- * `linesFromBlocks`), with the word boxes kept when `words` is set: the line
- * texts through the app's own `ocrLineText` (whitespace collapsed) and their
- * LINE confidence; under `interword` through `ocrKeepSpaces` (inner spacing
- * kept — the step-10 variant). Both rules live in ocr-lines.ts. */
-export function linesFromBlocks(blocks, { interword = false, words = false } = {}) {
-  const lines = [];
-  for (const block of blocks ?? []) {
-    for (const paragraph of block.paragraphs ?? []) {
-      for (const line of paragraph.lines ?? []) {
-        const text = interword ? ocrKeepSpaces(line.text) : ocrLineText(line.text);
-        if (text === '') continue;
-        const out = { text, confidence: line.confidence };
-        if (words) {
-          out.bbox = line.bbox;
-          out.words = (line.words ?? []).map((w) => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }));
+/** The app's lines from the engine's `blocks` — src/transcript/ocr-lines.ts
+ * `ocrPageLayout` (word boxes → layout.ts → lines; `scale` = pixels per PDF
+ * unit, `hint` the previous page's column layout, `lineConfidence` the
+ * figure each line carries) — or, under `engineLines` / `interword`, the
+ * builder OCR steps 9–10 shipped (`linesFromBlocks` there: the engine's own
+ * lines through `ocrLineText`, or `ocrKeepSpaces` under `interword`). With
+ * `words` set, each line also lists the engine's words (text, confidence,
+ * box) — for the engine-line builder, its line's; for the layout builder,
+ * nothing (the runs are the lines). Every rule lives in ocr-lines.ts. */
+export function linesFromBlocks(blocks, { width, height, scale, hint, engineLines = false, interword = false, lineConfidence = OCR_LINE_CONFIDENCE, words = false } = {}) {
+  if (engineLines || interword) {
+    const lines = [];
+    const engine = engineLinesFromBlocks(blocks, interword ? ocrKeepSpaces : ocrLineText);
+    if (!words) return { lines: engine };
+    let i = 0;
+    for (const block of blocks ?? []) {
+      for (const paragraph of block.paragraphs ?? []) {
+        for (const line of paragraph.lines ?? []) {
+          if ((interword ? ocrKeepSpaces(line.text) : ocrLineText(line.text)) === '') continue;
+          lines.push({ ...engine[i++], bbox: line.bbox, words: (line.words ?? []).map((w) => ({ text: w.text, confidence: w.confidence, bbox: w.bbox })) });
         }
-        lines.push(out);
       }
     }
+    return { lines };
   }
-  return lines;
+  if (!(width > 0 && height > 0 && scale > 0)) throw new Error(`linesFromBlocks: the page size and scale are needed (got ${width}×${height} at ${scale})`);
+  return ocrPageLayout(blocks, width, height, scale, { hint, confidence: lineConfidence });
 }
 
 /** The engine's blocks cut down to what a line builder needs — line text,
@@ -152,6 +169,29 @@ export function trimBlocks(blocks) {
   }));
 }
 
+/** A PNG's or JPEG's pixel size from its header (no decoder): the page size
+ * the line builder needs — the browser has the canvas, node has only a file.
+ * PNG: the IHDR chunk's width and height; JPEG: the first start-of-frame
+ * marker's height and width. */
+export function imageSize(image) {
+  const buf = Buffer.isBuffer(image) ? image : readFileSync(image);
+  if (buf.length >= 24 && buf.readUInt32BE(0) === 0x89504e47) return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let at = 2;
+    while (at + 9 < buf.length) {
+      if (buf[at] !== 0xff) throw new Error(`imageSize: not a JPEG marker at byte ${at}`);
+      const marker = buf[at + 1];
+      if (marker === 0xff) { at += 1; continue; } // fill byte
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { at += 2; continue; } // standalone markers
+      const sof = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+      if (sof) return { height: buf.readUInt16BE(at + 5), width: buf.readUInt16BE(at + 7) };
+      at += 2 + buf.readUInt16BE(at + 2);
+    }
+    throw new Error('imageSize: no start-of-frame marker in the JPEG');
+  }
+  throw new Error(`imageSize: ${Buffer.isBuffer(image) ? 'the buffer' : image} is neither PNG nor JPEG`);
+}
+
 /** Binarise a page in node (the --threshold knob): gray ≥ N → white, else black. */
 async function thresholdImage(file, level) {
   const { createCanvas, loadImage } = await import('@napi-rs/canvas');
@@ -173,16 +213,21 @@ async function thresholdImage(file, level) {
 
 /** One page image (a path or a Buffer) through the engine. Returns the
  * app-shaped lines, the seconds the recognize call took, the engine's
- * rotation estimate when --rotate-auto was on, and the trimmed blocks when
- * `keepBlocks` is set (the pin script). */
-export async function recognizePage(worker, image, config = BASELINE_CONFIG, { keepBlocks = false } = {}) {
+ * rotation estimate when --rotate-auto was on, the image's pixel size, the
+ * column hint for the next page, and the trimmed blocks when `keepBlocks` is
+ * set (the pin script). `dpi` is the image's own (a page given directly;
+ * `--image-dpi`), else the page is taken as rendered at 72 × config.scale;
+ * `hint` is the previous page's column layout. */
+export async function recognizePage(worker, image, config = BASELINE_CONFIG, { keepBlocks = false, dpi, hint } = {}) {
   const input = config.threshold !== undefined ? await thresholdImage(image, Number(config.threshold)) : image;
   const options = config.rotateAuto ? { rotateAuto: true } : {};
   const t0 = process.hrtime.bigint();
   const { data } = await worker.recognize(input, options, { blocks: true, text: false });
   const seconds = Number(process.hrtime.bigint() - t0) / 1e9;
-  const lines = linesFromBlocks(data.blocks, { interword: config.interword, words: config.words });
-  const out = { lines, seconds, rotateRadians: data.rotateRadians ?? 0 };
+  const { width, height } = imageSize(input);
+  const scale = (dpi ?? config.imageDpi ?? 72 * config.scale) / 72;
+  const read = linesFromBlocks(data.blocks, { width, height, scale, hint, engineLines: config.engineLines, interword: config.interword, lineConfidence: config.lineConfidence, words: config.words });
+  const out = { lines: read.lines, hint: read.hint, seconds, rotateRadians: data.rotateRadians ?? 0, width, height };
   if (keepBlocks) out.blocks = trimBlocks(data.blocks);
   return out;
 }
@@ -206,8 +251,10 @@ export async function ocrDocument(worker, file, config = BASELINE_CONFIG, workDi
   const lines = [];
   const pages = [];
   let seconds = 0;
+  let hint; // the previous page's column layout, as ocr.ts hands it on
   for (let p = 0; p < pagesRead; p++) {
-    const page = await recognizePage(worker, pageFiles[p], config, extra);
+    const page = await recognizePage(worker, pageFiles[p], config, { ...extra, ...(isPdf ? { dpi: 72 * config.scale } : {}), hint });
+    hint = page.hint;
     lines.push(...page.lines);
     lines.push({ text: '', confidence: 100 }); // ocr.ts:94 — the page break
     seconds += page.seconds;
@@ -232,8 +279,13 @@ export function parseOcrArgs(argv) {
     if (a === '--scale') knobs.scale = Number(next());
     else if (a === '--psm') knobs.psm = Number(next());
     else if (a === '--dpi') knobs.dpi = Number(next());
+    else if (a === '--engine-lines') knobs.engineLines = true;
     else if (a === '--interword') knobs.interword = true;
     else if (a === '--no-interword') knobs.interword = false;
+    else if (a === '--line-confidence') {
+      knobs.lineConfidence = next();
+      if (knobs.lineConfidence !== 'min-word' && knobs.lineConfidence !== 'engine-line') throw new Error(`--line-confidence takes min-word or engine-line (got ${knobs.lineConfidence})`);
+    } else if (a === '--image-dpi') knobs.imageDpi = Number(next());
     else if (a === '--threshold') knobs.threshold = Number(next());
     else if (a === '--invert') knobs.invert = Number(next());
     else if (a === '--rotate-auto') knobs.rotateAuto = true;

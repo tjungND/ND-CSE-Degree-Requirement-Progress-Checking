@@ -294,7 +294,7 @@ export async function runBench(argv) {
         let seconds = 0;
         if (/\.pdf$/i.test(s.file)) lines = await pdfToLinesNode(s.file);
         else {
-          const page = await recognizePage(worker, s.file, config);
+          const page = await recognizePage(worker, s.file, config, { dpi: s.dpi }); // a page image at its own dpi
           lines = [...page.lines, { text: '', confidence: 100 }];
           seconds = page.seconds;
         }

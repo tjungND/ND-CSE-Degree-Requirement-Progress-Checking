@@ -1,0 +1,70 @@
+{
+ "name": "l7-nd-undergrad-in-progress-transcript-p1",
+ "seed": "nd-undergrad-in-progress-transcript",
+ "family": "generator-nd",
+ "parser": "nd",
+ "level": "L7",
+ "page": 1,
+ "dpi": 150,
+ "file": "l7-nd-undergrad-in-progress-transcript-p1.pdf",
+ "bytes": 99727,
+ "ladderSeed": 7,
+ "params": {
+  "skewDeg": 0.53,
+  "noiseSigma": 6,
+  "lightAngleDeg": 263.5,
+  "jpegQ": 60,
+  "textLayerLines": 17
+ },
+ "truthLines": [
+  "University of Notre Dame",
+  "Official Academic Transcript",
+  "Name : Jane Q. Student",
+  "INSTITUTION CREDIT",
+  "Fall Semester 2024",
+  "MATH 10550 UG Calculus I A 4.000 16.000",
+  "CSE 20110 UG Discrete Mathematics A 3.000 12.000",
+  "Spring Semester 2025",
+  "CSE 40113 UG Design/Analysis of Algorithms A 3.000 12.000",
+  "Fall Semester 2025",
+  "CSE 40166 UG Computer Graphics A- 3.000 11.001",
+  "CSE 60641 UG Graduate Operating Systems A 3.000 12.000",
+  "TRANSCRIPT TOTALS (UNDERGRADUATE)",
+  "Overall: 16.000 16.000 16.000 16.000 60.000 3.750",
+  "COURSES IN PROGRESS",
+  "Spring Semester 2026",
+  "CSE 40113 UG Design/Analysis of Algorithms 3.000"
+ ],
+ "expected": {
+  "university": "University of Notre Dame",
+  "courses": [
+   "MATH 10550 | Calculus I | 4 | A | fall 2024 | undergraduate",
+   "CSE 20110 | Discrete Mathematics | 3 | A | fall 2024 | undergraduate",
+   "CSE 40113 | Design/Analysis of Algorithms | 3 | A | spring 2025 | undergraduate",
+   "CSE 40166 | Computer Graphics | 3 | A- | fall 2025 | undergraduate",
+   "CSE 60641 | Graduate Operating Systems | 3 | A | fall 2025 | undergraduate",
+   "CSE 40113 | Design/Analysis of Algorithms | 3 | IP | spring 2026 | undergraduate"
+  ]
+ },
+ "capturedWith": "scripts/dev/pdf-lines-node.mts pdfToLinesNode (the app never OCRs a PDF with a text layer)",
+ "textLayerLines": [
+  "University of Notre Dame",
+  "Offical Acaemic rancrpt",
+  "Name : ane Q. Studen",
+  "ISTITTION CREIT",
+  "Fall Semestcr 2024",
+  "MATH 10550 UG Calculus I A 4.00O l6.000",
+  "CSE 20110 UC Disrete Mathernacs A 3.000 1.000",
+  "Sig Semeste 2025",
+  "CSE 40113 UG Den/nalysis of Alorithms A ,000 12.000",
+  "Fal1 Semcster 2025",
+  "CSE 4016 UG Compute Grapics A- 3.000 11.001",
+  "CSE 6041 UG Graduatc Operoting Systms A 3.00O 12.000",
+  "TRANSCRIPT TOTALS (UNDERCRADUATE)",
+  "Overall: 16.000 16.000 16.000 16.000 0.O00 3.750",
+  "CUSES IN PROGRESS",
+  "Spri Semester 2026",
+  "CS O113 UC Design/Analysis of Algoritrns 3.000",
+  ""
+ ]
+}

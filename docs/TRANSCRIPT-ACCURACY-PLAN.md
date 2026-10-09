@@ -582,3 +582,42 @@ probes are attributable. A clean before run on today's code (`bench-out/ocr-step
 was started detached at the second commit; `npm run ocr-bench -- --compare <after> --baseline <before>`
 prints the clean deltas (open item in `docs/STATE.md`). Every later OCR A/B takes that run, made on
 today's parser, as its baseline. `--pinned` waits for step 9's pinned pages.
+
+### OCR step 11 — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`): word boxes through the layout stage
+
+The pipeline is now render → recognize (`blocks`) → `src/transcript/ocr-lines.ts` → `src/transcript/layout.ts`
+→ parser. `blocksToRuns(blocks, scale, pageHeightPx)` turns the engine's word boxes into the layout's `Run`s
+(pixels / scale = PDF units, y flipped up, every run of a line at its line's baseline middle) and
+`ocrPageLayout(blocks, canvasWidth, canvasHeight, scale, { hint, confidence })` reads them through `pageLayout`
+exactly as a text PDF's runs are read: watermark tiles dropped, a two-column page split and read column by
+column, a gap past 8 units rendered as three spaces, the column hint handed to the next page. `ocr.ts` keeps
+rendering and the worker; the bench's `ocr-run.mjs` and `scripts/dev/ocr-lines.mjs` import the same module
+(`--engine-lines` / `--interword` run the step-9/10 builder, kept as `linesFromBlocks`). One rule of its own:
+words of one engine line a word space apart — at most 0.55 of the line's height (`WORD_SPACE_SHARE`; word spaces
+measure 0.2–0.5 on the pinned pages, cell gaps 0.75 or more) — are one phrase run, as pdfjs gives the layout
+"College of Science" as one item (per-word runs made "Science" a watermark tile on the Banner page). Each line's
+confidence is its least confident word's (`OCR_LINE_CONFIDENCE = 'min-word'`; the A/B and the floor are in
+DECISIONS). `layout.ts` gained `groupLineRuns` and `pageLayout().lineRuns`; the text path is unchanged (replay
+0 / 0 against `text-batch-b-final.json`). Tests: `tests/ocr-lines.test.ts` (hand-made blocks, a two-column page the
+engine read across both columns, the hint across pages, the glyph join on word boxes, and every pinned page's
+reading under `PINNED_READING`), `tests/layout.test.ts` (an OCR-word two-column page, `groupLineRuns`, per-word
+tiles vs phrases). Step 9's nine pinned pages (`tests/fixtures/ocr-scans/`, 0.96 MB, placeholder identities) are
+committed with this step; their `.expected.json` now carries the page's pixel `width` / `height`.
+
+Numbers, same parser (`--quick`: 6 seeds, 12 pages; before = `bench-out/ocr-step11-before-quick/`, after =
+`bench-out/ocr-step11-after-quick/`):
+
+| level | row acc | rows found | false rows | field acc | CER | flag P/R |
+|---|---|---|---|---|---|---|
+| L0 | 55.2 → 65.5 % | 82.8 → 93.1 % | 10 → 2 | 87.5 → 88.9 % | 60.6 → 22.5 % | 85.7 / 33.3 → 44.4 / 80.0 % |
+| L2 | 51.7 → 62.1 % | 82.8 → 93.1 % | 12 → 2 | 85.0 → 86.7 % | 60.3 → 23.5 % | 87.5 / 33.3 → 41.2 / 63.6 % |
+| L5 | 48.3 → 58.6 % | 79.3 → 93.1 % | 11 → 4 | 87.8 → 88.9 % | 60.2 → 30.6 % | 75.0 / 15.0 → 70.6 / 85.7 % |
+
+Per seed: the Banner transcript 4/5 → 7/8, 3/6 → 6/9, 2/5 → 5/9 rows right/found of 10 at L0/L2/L5 (CER 54 → 9 %);
+the Vaasa template's 10–11 extra rows → 0–1 (CER 33 → 17 %); the other generator seeds identical. One regression:
+Stanford's grade key (a negative) 0 → 2 false rows at L0 and 0 → 3 at L5 — junk lines read at confidence 18–33
+whose cells the parser's cell path takes for a code ("CONTIN 44", "343332"), all flagged; the position-free scan
+had refused them (a cell-level rule belongs to step 2.5). `--pinned` (`bench-out/ocr-step11-after-pinned/` vs
+`-before-pinned/`): the L2 Banner page 5/6 → 6/10 rows right/found, CER 67.6 → 11.8 %; the other eight pages
+identical (the sideways L6 pages read nothing either way). Verified: `npx tsc --noEmit`, `npm test` 1605 pass,
+`npm run build`.

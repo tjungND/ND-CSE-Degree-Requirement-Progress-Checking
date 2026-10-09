@@ -1,0 +1,93 @@
+{
+ "name": "l6-180-external-transcript-p1",
+ "seed": "external-transcript",
+ "family": "generator-external",
+ "parser": "external",
+ "level": "L6-180",
+ "page": 1,
+ "dpi": 200,
+ "file": "l6-180-external-transcript-p1.jpg",
+ "bytes": 71680,
+ "ladderSeed": 7,
+ "params": {
+  "rotation": 180,
+  "jpegQ": 75
+ },
+ "truthLines": [
+  "Purdue University",
+  "Office of the Registrar",
+  "Official Transcript",
+  "Student: John Q. Boilermaker",
+  "Program: Master of Science, Computer Science",
+  "Fall 2023",
+  "CS 50300 Operating Systems   3.0 A",
+  "CS 59000 Special Topics in Systems   3.0 A-",
+  "Spring 2024",
+  "CS 58000 Algorithm Design   3.0 B+",
+  "Cumulative GPA: 3.83"
+ ],
+ "expected": {
+  "courses": [
+   "CS 50300 | Operating Systems | 3 | A | fall 2023",
+   "CS 59000 | Special Topics in Systems | 3 | A- | fall 2023",
+   "CS 58000 | Algorithm Design | 3 | B+ | spring 2024"
+  ],
+  "university": "Purdue University",
+  "campusSystem": null,
+  "campus": null,
+  "degreeConferred": null,
+  "bachelorsConferredOn": null,
+  "quarterSystem": null,
+  "trimesterSystem": null
+ },
+ "capturedWith": "scripts/dev/ocr-bench/ocr-run.mjs recognizePage (baseline config) on the pinned file; blocks trimmed by trimBlocks",
+ "width": 1700,
+ "height": 2201,
+ "ocrLines": [
+  {
+   "text": "€8'€ '¥dO aAe|Inung",
+   "confidence": 0
+  },
+  {
+   "text": "+8   0'€   ubisaq wiyobly 0008S SO",
+   "confidence": 24
+  },
+  {
+   "text": "¥zoz bunds",
+   "confidence": 10
+  },
+  {
+   "text": "-V 0€   swajsAs ul saido] [e1oads 0006S SO",
+   "confidence": 0
+  },
+  {
+   "text": "Vv 0€   swalsAs Bunesado 0005 SO",
+   "confidence": 0
+  },
+  {
+   "text": "€202 Ired",
+   "confidence": 54
+  },
+  {
+   "text": "90U319S JaIndwo) ‘22uaIdS JO IBISe weiboid",
+   "confidence": 0
+  },
+  {
+   "text": "Jaxewls|iog ‘O uyor Juspms",
+   "confidence": 0
+  },
+  {
+   "text": "1duosuel] [eyo",
+   "confidence": 9
+  },
+  {
+   "text": "rensifay ay Jo 00",
+   "confidence": 26
+  },
+  {
+   "text": "Ausianun anpind",
+   "confidence": 49
+  }
+ ],
+ "ocrSeconds": 0.28
+}
