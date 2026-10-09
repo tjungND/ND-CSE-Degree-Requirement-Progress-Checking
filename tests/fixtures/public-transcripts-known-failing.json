@@ -60,5 +60,69 @@
  ],
  "pdf-mcgill-minerva-not-a-transcript": [
   "Batch B \u2014 no 'is this a transcript at all' gate: a course outline's one line ('COMP 250   001 Intro to Computer Science   3') reads as a course row; the McGill project refuses the page because its header never says Transcript"
+ ],
+ "workday-student-ubc": [
+  "F2 (Batch B) \u2014 the Workday period header '2024-25 Winter Term 1 (09/03/2024-12/20/2024)' reads as spring of the range's END year although its dates (and UBC's Term 1) say fall: rows 1-5 read spring 2025, want fall 2024 (ten rows in all)",
+  "F6 (Batch B) \u2014 'Course Listing' is not a known header word, so the rows go through the position-free scan: W / T / SD join the title and the Earned 0.00 reads as the grade ('Machine Learning W | 3 | 0.00', want 'Machine Learning | 3 | W'); the two in-progress rows read grade 0.00, want ?"
+ ],
+ "colleague-lesley-style": [
+  "F5 (Batch B) \u2014 Colleague's transfer rows (grade TR, no 'Transfer Credit' heading before them) read as course rows: 'MATH 1200 | Calculus I | 4 | TR' and 'CSCIE 1100 | Introduction to Computer Science | 3 | TR' are read ahead of the 23 expected rows (25 read)",
+  "F1c (Batch B) \u2014 an ungraded current-term row 'ECOMP-6900 01 Graduate Project   3.00   2026FA' under the header-mapped Grade / Credits / Term reads credits ? and grade 3.00 (want 3 and ?)"
+ ],
+ "cunyfirst-ccny": [
+  "new (Batch B): the CUNY system line 'The City University of New York' beats the issuing college's header 'THE CITY COLLEGE OF NEW YORK' as the university (the strong-name rule rates 'University' above 'College', and CUNY is not a multi-campus system in src/transcript/campus.ts); all 33 rows exact"
+ ],
+ "uoregon-banner-quarter": [
+  "new (Batch B): UO's group and P/N-only symbols glued to the grade ('immediately following the grade', the key says) leave it unread or raw \u2014 'B>1' and 'C+>3' read ?, 'P*' stays raw (want S), 'N' stays raw (want U: the key tail's 'N No Pass' does not set the legend's N-means-fail hint, whose regex wants 'not satisfactory', 'no credit' or 'unsatisfactory')",
+  "new (Batch B): 'credits are recorded in quarter hours' on the key page does not set quarterSystem (the rule reads only term headers and credits headings; the term lines never say 'Quarter')"
+ ],
+ "ucla-etranscript": [
+  "F3 (Batch B) \u2014 a one-digit course number is not read as a code: 'PHYSICS 1A' and 'ENGCOMP 3' yield no row (31 rows read of 33; 'ENGCOMP 30' reads)",
+  "F1 (Batch B) \u2014 a term header ending in 'IN PROGRESS' ('SPRING QUARTER 2024   IN PROGRESS') does not open an in-progress block: its rows read grade ? instead of IP",
+  "F5 (Batch B) \u2014 the eTranscript cover page's 'Recipient: University of Notre Dame \u2026' line sits in the header before the first course line and makes looksLikeNotreDame true (not compared by this test; the app would redirect the transcript to the Notre Dame row)"
+ ],
+ "peoplesoft-escripsafe-wrapped": [
+  "F5 (Batch B) \u2014 the eScrip-Safe cover sheet's 'Official Academic Transcript from Binghamton University' heading is read as the university ('Academic Transcript from Binghamton University'), so the SUNY campus resolution is lost (campusSystem and campus null); its 'Receiver Information' and 'To: University of Notre Dame' margin lines make looksLikeNotreDame true; all 16 rows exact"
+ ],
+ "mcmaster-mosaic": [
+  "F3 (Batch B) \u2014 McMaster's digit-letter-digit course numbers ('COMPSCI 1MD3', 'SFWRENG 4G06A/B', 'COMPSCI 6F03') are not codes to leadCode: 27 of the 31 rows yield no row at all (only the CAS 701 / 790 / 791 rows read)",
+  "F6 (Batch B) \u2014 the TM and MEDIAN header words are unmapped: 'CAS 701' reads title 'Logic and Discrete Mathematics in Software Engineering 1 3 A+', credits 12 (the MEDIAN cell's class size) and no grade; TM = 2 must read the session's winter = spring ('CAS 791 \u2026 IP' reads fall 2023, want spring 2024)"
+ ],
+ "western-ontario-rows": [
+  "new (Batch B): Western's course-number suffix letter decides the term inside a FALL/WINTER session (A / Q / R / F = first term = fall, B = second term = spring) and nothing in readTermLine reads a row's suffix: the nine B-suffix rows read the session's fall ('MATH 1600B | Linear Algebra I | 0.5 | 71 | fall 2019', want spring 2020); the other 25 rows exact"
+ ],
+ "ladok-verifiable": [
+  "F1 (Batch B) \u2014 a one-letter last title word is read as the grade ahead of the printed mark: 'EDAG01   Efficient C   7.5 hp   3   2025-01-14' reads title 'Efficient' with grade 'C' (want 'Efficient C', grade 3)",
+  "new (Batch B): Ladok's module lines \u2014 a 4-digit module code under its course ('0107   Project report   4.5 hp   G', '0207   Oral presentation   3.0 hp   G') \u2014 read as course rows (18 rows read, 16 expected)",
+  "new (Batch B): the Degrees block's 'Degree of Master of Science (120 credits) \u2026   Date of issue:   2025-06-27' is a conferral CONFER_RE does not read ('Date of issue' is not an award word): degreeConferred null, want true"
+ ],
+ "snu-english-transcript": [
+  "F3 (Batch B) \u2014 SNU's dotted course numbers are not read as codes: '4190.669' reads id '4190' (the '.669' dropped) and the six 'M1522.001000' rows are lost entirely (10 rows read of 16)",
+  "F6 (Batch B) \u2014 the Classification column after the grade is unmapped and joins the title ('Computer Architecture and Compiler Major Elective', 'Research in Computer Science Research')",
+  "F1c (Batch B) \u2014 a title ending in a digit loses it to the credits: '4190.701   Research in Computer Science 2   3   U' reads credits 2"
+ ],
+ "sabanci-dual-credit": [
+  "F6 (Batch B) \u2014 Sabanci's header words LEVEL / SU CREDIT / QUALITY POINT / ECTS CREDIT / REPEAT are not mapped: the LEVEL and GRADE cells join the title ('Introduction to Computing UG A-'), the ECTS CREDIT reads as the credits (6, want 3) and the SU CREDIT '3.00' as the grade \u2014 all 29 rows",
+  "open question (g) \u2014 the legend-defined P (Progressing) on 'CS 593   Master Thesis' must read IP, not the pass S a bare P means, once the header maps"
+ ],
+ "ukraine-supplement": [
+  "new (Batch B): Cyrillic course codes ('\u041e\u041a 1', '\u0412\u0411 1.1') and bilingual Ukrainian/English column words \u2014 leadCode and COLUMN_KIND_RES are Latin-only \u2014 read no course row (0 of 15); a bilingual grade cell ('\u0432\u0456\u0434\u043c\u0456\u043d\u043d\u043e / excellent') is one printed value",
+  "new (Batch B): a false row from the section-4.4 grading-scale line \u2014 '90-100 | \u0432\u0456\u0434\u043c\u0456\u043d\u043d\u043e / excellent (A); | ? | A | fall 2023' (the range '90-100' opens like a code, the ECTS letter in parentheses reads as its grade) \u2014 a negative-fixture concern"
+ ],
+ "algeria-lmd-releve": [
+  "CC15 \u2014 DGS decision: the 16 mati\u00e8re rows are code-less and are imported with an empty id box (0 rows read today; the UE lines' 'UEF 1.1' codes open no false row)",
+  "new (Batch B): French LMD headings 'Note / Cr\u00e9dits / session', decimal-comma marks ('14,50', '09,75'), 'Semestre I' / 'Semestre II' under 'Ann\u00e9e Universitaire : 2022/2023', and the UE line carrying its first mati\u00e8re"
+ ],
+ "iit-grade-card": [
+  "F6 (Batch B) \u2014 the L-T-P column (mapped as workload) holds '3-1-0', not a number, so the header-mapped scan rejects every row and the position-free scan keeps '3-1-0' in the title and drops the CRD credits ('Programming and Data Structures 3-1-0 | ?', want '\u2026 | 4') \u2014 all 21 rows; 'Subno' is not a known code header word (the fallback still reads the code)"
+ ],
+ "pakistan-hec-semester": [
+  "F6 (Batch B) \u2014 'CH' (credit hours in HEC / NUST / UET usage) maps to the workload kind, so no credits column is mapped: a W / I / WF / IP row loses its credits ('CS 202 | Discrete Structures | ? | W', want 3; four rows) where a letter-grade row recovers them through the position-free scan"
+ ],
+ "bangladesh-private-university": [
+  "new (Batch B): trimester evidence outside the two shapes the 2026-09-20 rule reads ('<season> Trimester <year>' header, 'Trimester units/credits' heading) \u2014 the 'Trimester GPA' totals label and the legend's 'three academic terms in each academic year in the trimester system' sentence do not set trimesterSystem (null, want true); the DGS decides whether these count; all 24 rows exact"
+ ],
+ "nepal-tribhuvan-ioe-semester": [
+  "F2 (Batch B) \u2014 'Semester: III' / 'Semester: IV' under 'Academic Year: 2081/082 B.S. (2024/2025 A.D.)' read as the range's summer (the three-terms-in-one-year rule: an ordinal above 2 under an academic-year range), while continuously numbered semesters run odd = first (fall 2024) and even = second (spring 2025) term of their academic year \u2014 ten rows"
  ]
 }
