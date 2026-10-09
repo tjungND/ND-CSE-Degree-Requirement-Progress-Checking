@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-09 (DGS — transcript import accuracy program): plan and research record in `docs/TRANSCRIPT-ACCURACY-PLAN.md`; Batch A (scorer, replay, Node pdfjs loader, parser fixes F1–F3, new public specimens) running first, then Batch B (composed layouts, F4–F6), the OCR benchmark and pipeline steps, the engine gate; Batch C waits for the DGS’s answers. Outside folder `~/degree-audit-samples/` (public-pdfs/, private/, bench-out/). The session runs auto-approved (bypass permissions) since 2026-10-09.
+
 2026-10-09 (DGS — the UI review’s answers, group 3: items 11, 13): parse.ts `alternative.otherProgram` + the “not finished” note and Next step; nd-upload.ts `takeNdImport`/`putBackNdImport` shared by Remove and the replacing “Import again”. All sixteen answers are now applied (5, 10, 12, 15, 16 needed no change).
 
 2026-10-09 (DGS — the UI review’s answers, group 2: items 2, 3, 7, 8): fresh-record earlier-degrees fold line with “Answer here” (`freshRecord`, external-upload.ts; drivers click `earlier.answer` first); the three process paragraphs shortened (W-CL365); project/thesis option under Milestones (data-key unchanged); phone CSS: pill wraps under the title, `.audit .scorehead` and `.audit > .meters` hidden.
