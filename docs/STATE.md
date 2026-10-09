@@ -666,7 +666,7 @@ holds a Notre Dame master's. Nothing counts until they answer.
 
 ## Deployed
 
-`origin/main` on GitHub deploys to https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
+`origin/main` on GitHub deploys to https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Simulation/
 (self-check) and `/courses.html` (course rules). Everything described below is merged and live as of
 `fb77d20` (2026-09-13); the DGS pushes every commit himself, so a branch named here is history, not a
 queue. Recent commits, newest first:

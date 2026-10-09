@@ -105,9 +105,9 @@ describe('advisor summary: sections in handbook order, rows coloured by status',
     assert.match(text, /\nWHAT I NEED TO DO\n- Complete 46 more credits toward the total-credit requirement \(9 of them in progress\) \(§4\.2\)\.\n- Complete 12 more credits of regular courses \(3 of them in progress\) \(§4\.2\)\.\n- Send the DGS the review request for MATH 60610\.\n/);
     // Each list in its reader's words (DGS 2026-09-28): the advisor approves
     // a non-CSE course for the plan of study; the DGS approves it for the student.
-    assert.match(text, /\nACTION REQUESTED — WHAT I NEED FROM YOU, MY ADVISOR\n1\. Approve MATH 60610 — a course from outside CSE, for my plan of study \(§3\.2\/§4\.2\)\.\n\nMY STANDING/);
+    assert.match(text, /\nACTION REQUESTED — WHAT I NEED FROM YOU, MY ADVISOR\n1\. Approve MATH 60610 — a course from outside CSE, for my coursework \(§3\.2\/§4\.2\)\.\n\nMY STANDING/);
     assert.match(text, /\nWHAT THE DGS NEEDS TO DO\n- Approve MATH 60610 for me — a course from outside CSE \(§3\.2\/§4\.2\)\.\n/);
-    assert.match(html, /<p><strong>Action requested — what I need from you, my advisor<\/strong><\/p><ol><li>Approve MATH 60610 — a course from outside CSE, for my plan of study/);
+    assert.match(html, /<p><strong>Action requested — what I need from you, my advisor<\/strong><\/p><ol><li>Approve MATH 60610 — a course from outside CSE, for my coursework/);
     assert.match(html, /<p><strong>What I need to do<\/strong><\/p><ul><li>Complete 46 more credits/);
     assert.match(html, /<p><strong>What the DGS needs to do<\/strong><\/p><ul><li>Approve MATH 60610 for me/);
   });
@@ -146,9 +146,9 @@ describe('advisor summary: the 2026-09-28 format items', () => {
 
   it('approvalItems: the page’s reasons, re-voiced for each reader (the 2026-09-28 bug: "send the review request" reached the advisor and the DGS)', () => {
     const unlisted = approvalItems('MATH 60610', 'not in the course rules yet — send the review request so the DGS can enter it; a course from outside CSE also needs your advisor’s approval (§4.2)', 'phd');
-    assert.deepEqual(unlisted, { advisor: 'Approve MATH 60610 — a course from outside CSE, for my plan of study (§4.2).', dgs: 'Enter MATH 60610 in the course rules — it is not listed yet; a course from outside CSE also needs my advisor’s approval (§4.2).' });
+    assert.deepEqual(unlisted, { advisor: 'Approve MATH 60610 — a course from outside CSE, for my coursework (§4.2).', dgs: 'Enter MATH 60610 in the course rules — it is not listed yet; a course from outside CSE also needs my advisor’s approval (§4.2).' });
     assert.deepEqual(approvalItems('STAT 51200', 'listed as case by case — needs the DGS’s approval for you (§5.2)', 'phd'), { dgs: 'Decide on STAT 51200 for me — the course rules say case by case (§5.2).' });
-    assert.deepEqual(approvalItems('CSE 40567', 'needs advisor + DGS approval per the course rules', 'phd'), { advisor: 'Approve CSE 40567 — a course below the 60000 level, for my plan of study (§4.2).', dgs: 'Approve CSE 40567 for me — a course below the 60000 level (§4.2).' });
+    assert.deepEqual(approvalItems('CSE 40567', 'needs advisor + DGS approval per the course rules', 'phd'), { advisor: 'Approve CSE 40567 — a course below the 60000 level, for my coursework (§4.2).', dgs: 'Approve CSE 40567 for me — a course below the 60000 level (§4.2).' });
     assert.deepEqual(approvalItems('CS 50300', 'transfer credit needs a DGS recommendation (§5.2)', 'phd'), { dgs: 'Recommend the transfer credit for CS 50300 (§5.2).' });
     for (const item of Object.values({ ...unlisted, ...approvalItems('CSE 40567', 'needs advisor + DGS approval per the course rules', 'mscse') })) assert.doesNotMatch(item, /send the review request|your advisor/);
   });

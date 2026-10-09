@@ -4,10 +4,10 @@ A web page where Notre Dame CSE graduate students self-check, requirement by req
 they stand against the Graduate Studies Handbook (§3 MSCSE, §4 Ph.D.), with the handbook section
 cited on every line. It is a self-check, not an official audit.
 
-- **Live app (simulation tool):** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
+- **Live app (simulation tool):** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Simulation/
   (the address is shown under the repository's *Settings → Pages*; it changes if the repository is
   ever transferred to another account — see the handoff checklist)
-- **Public course-rules list:** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/courses.html
+- **Public course-rules list:** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Simulation/courses.html
   — which courses count toward each degree, their core area and specialization category, when
   they are typically offered, and whether the DGS has confirmed the row. Generated live from the
   same sheet; safe to link from cse.nd.edu and to send to students, and embeddable in an ND
@@ -16,7 +16,7 @@ cited on every line. It is a self-check, not an official audit.
   https://docs.google.com/spreadsheets/d/1C8zYQvLN3gsOpjQHR1RMKdekB1VC_nv9rwSJ_RQCxVA/edit
   — in the **CSE Department Adminstration: Graduate Programs** shared drive (moved there on
   2026-09-21; the drive owns it, so it stays behind when a DGS hands over)
-- **Code:** this repository, https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking
+- **Code:** this repository, https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Simulation
 
 The app was built so that a Director of Graduate Studies (DGS) can run it **without being a
 programmer**. Everything that changes from year to year — which courses count, their
@@ -328,8 +328,8 @@ Open a terminal and run, one line at a time:
 ```bash
 cd ~/Documents            # any folder that is NOT inside Google Drive / OneDrive / Dropbox sync
                           # and has no ":" (colon) anywhere in its path — both break the tooling
-git clone https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking.git
-cd ND-CSE-Degree-Requirement-Progress-Checking
+git clone https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Simulation.git
+cd ND-CSE-Degree-Requirement-Progress-Simulation
 npm install               # installs the packages the app needs (about a minute)
 npm test                  # expect: every test passes — the summary ends with "fail 0"
 npm run dev               # local copy of the app at http://localhost:5173 — Ctrl+C to stop
@@ -344,7 +344,7 @@ Google fetch; that is fine for development.
 **Claude Code**
 
 ```bash
-cd ND-CSE-Degree-Requirement-Progress-Checking
+cd ND-CSE-Degree-Requirement-Progress-Simulation
 claude                    # first run: log in with your Claude account in the browser window it opens
 ```
 
@@ -354,7 +354,7 @@ makes it propose a plan before touching files — use it for every non-trivial c
 **Codex**
 
 ```bash
-cd ND-CSE-Degree-Requirement-Progress-Checking
+cd ND-CSE-Degree-Requirement-Progress-Simulation
 codex                     # first run: choose "Sign in with ChatGPT"
 ```
 
@@ -505,7 +505,7 @@ script goes in a plugin field rather than on the page. Do not ask ND to grant `u
 Add a **Shortcode block** containing exactly this — the `?embed=1` is what matters:
 
 ```
-[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/courses.html?embed=1" width="100%" height="1200" scrolling="yes"]
+[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Simulation/courses.html?embed=1" width="100%" height="1200" scrolling="yes"]
 ```
 
 This needs the **`iframe` plugin by webvitaly**, which is already active on `sites.nd.edu`.
@@ -564,7 +564,7 @@ The same `?embed=1` works on the self-check tool, but it is embedded differently
 fixed height and `scrolling="yes"`**:
 
 ```
-[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/?embed=1" width="100%" height="1400" scrolling="yes" allow="clipboard-write"]
+[iframe src="https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Simulation/?embed=1" width="100%" height="1400" scrolling="yes" allow="clipboard-write"]
 ```
 
 Since 2026-09-16 it resizes its frame just like the course-rules page (add it to the E3
@@ -640,7 +640,7 @@ tooling (details in `MAINTENANCE.md`).
    `data/sheet-urls.json`, but a drive whose sharing settings forbid publishing would break them.
 2. **Repository:** add the next DGS as **Admin** (*Settings → Collaborators*), or transfer the
    repository (*Settings → General → Transfer ownership*). A transfer changes the live URL to
-   `https://<new-owner>.github.io/ND-CSE-Degree-Requirement-Progress-Checking/` — then re-enable
+   `https://<new-owner>.github.io/ND-CSE-Degree-Requirement-Progress-Simulation/` — then re-enable
    *Settings → Pages → Source: GitHub Actions*, update the link or iframe on cse.nd.edu, and
    update the URL at the top of this file. If a WordPress page embeds the course rules, update
    the shortcode's address **and** `APP_ORIGIN` in the footer snippet (see

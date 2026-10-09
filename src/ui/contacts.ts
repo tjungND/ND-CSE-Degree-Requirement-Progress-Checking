@@ -132,5 +132,5 @@ export function contactCard(): HTMLElement {
 }
 
 // The public source repository, linked from the footer's license line.
-export const REPO_URL = 'https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Checking';
+export const REPO_URL = 'https://github.com/tjungND/ND-CSE-Degree-Requirement-Progress-Simulation';
 export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE.md`;

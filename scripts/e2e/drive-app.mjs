@@ -1424,7 +1424,7 @@ async function driveWordPressSnippet(s, baseUrl) {
       // The snippet finds its frames by the repository name in the src, which
       // the preview server's flat path has not got; the parameter puts it there
       // (the page ignores parameters it does not know).
-      frame.src = 'courses.html?embed=1&e2e=ND-CSE-Degree-Requirement-Progress-Checking';
+      frame.src = 'courses.html?embed=1&e2e=ND-CSE-Degree-Requirement-Progress-Simulation';
       frame.style.cssText = 'width:700px;height:900px;border:0';
       document.body.append(frame);
       await new Promise((r) => frame.addEventListener('load', r, { once: true }));

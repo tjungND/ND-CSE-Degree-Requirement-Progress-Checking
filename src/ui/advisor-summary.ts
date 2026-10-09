@@ -621,7 +621,7 @@ export function approvalItems(course: string, reason: string, program: 'mscse' |
   const transfer = /§5\.2|transfer/i.test(reason) && !nonCse && !below;
   const what = nonCse ? ' — a course from outside CSE' : below ? ' — a course below the 60000 level' : '';
   const out: { advisor?: string; dgs?: string } = {};
-  if (/advisor/i.test(reason)) out.advisor = `Approve ${course}${what ? `${what},` : ''} for my plan of study (${section}).`;
+  if (/advisor/i.test(reason)) out.advisor = `Approve ${course}${what ? `${what},` : ''} for my coursework (${section}).`; // "coursework", not "plan of study" (DGS 2026-10-09)
   if (/DGS|review|rules sheet|transfer|case by case/i.test(reason)) {
     out.dgs = unlisted
       ? `Enter ${course} in the course rules — it is not listed yet${nonCse ? '; a course from outside CSE also needs my advisor’s approval' : ''} (${section}).`
