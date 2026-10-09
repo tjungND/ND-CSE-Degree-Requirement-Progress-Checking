@@ -46,6 +46,132 @@ export interface OcrLine {
  * `blocksToRuns` below). `ocr-run.mjs --interword` still runs the variant. */
 export const OCR_ENGINE_PARAMETERS: Readonly<Record<string, string>> = Object.freeze({});
 
+/** The resolutions the OCR path renders a page at (OCR step 12, plan step
+ * 2.3, 2026-10-09): a scanned page is read at ITS OWN resolution — the pixels
+ * of the image the page paints over the page's inches (`scanResolution`) —
+ * floored at `OCR_BASE_DPI`, the 216 dpi of the scale 3.0 the app used from
+ * 2026-09-02 (a 150-dpi office scan or a phone photo is upsampled to it, as
+ * before), and capped at `OCR_TARGET_DPI`, the 300 dpi Tesseract's own
+ * documentation names as the engine's sweet spot. Measured on the bench
+ * (docs/OCR-BENCHMARK.md; the DECISIONS row of that date): on 300-dpi sources
+ * 300 beats 216 (62 seeds: exact 36 → 40, row accuracy 66.3 → 70.0 %, false
+ * rows 15 → 9, 1.18 × the time), while on the ladder's 150–200-dpi sources a
+ * flat 300 lost rows (L5 58.1 → 52.2 %) — upsampling past 216 blurs the small
+ * type and one misread header cell unmaps a table — so a page is never
+ * rendered past its scan's resolution unless that is under 216. A page whose
+ * resolution cannot be read (no image painted) is read at 216, as before. */
+export const OCR_BASE_DPI = 216;
+export const OCR_TARGET_DPI = 300;
+
+/** The pixel size of an image a page paints, as pdfjs reports it. */
+export interface PaintedImage {
+  width: number;
+  height: number;
+}
+
+/** The structural slice of a pdfjs `PDFPageProxy` that `paintedImageSizes`
+ * reads: the operator list (any pdfjs build — the browser's or the legacy
+ * build in node). */
+export interface PdfPageLike {
+  getOperatorList(): Promise<{ fnArray: number[]; argsArray: unknown[] }>;
+}
+
+/** The pdfjs operator codes `paintedImageSizes` looks for (`pdfjs.OPS`). */
+export interface PdfOpsLike {
+  paintImageXObject: number;
+  paintImageXObjectRepeat: number;
+  paintInlineImageXObject: number;
+  paintImageMaskXObject: number;
+}
+
+/** Every image a page paints, with its pixel size (OCR step 12), from the
+ * operator list alone: an image XObject's operator carries `[objectId,
+ * width, height]` (a scan is one such image, covering the page), an inline
+ * image's or an image mask's carries the image itself with its `width` and
+ * `height`. The decoded image object is never asked for — pdfjs resolves
+ * some only when they are drawn (a logo on a vector page never was, and a
+ * reader that waited for it hung the bench) — and nothing is drawn: the
+ * operator list is the one `page.render` builds anyway. */
+export async function paintedImageSizes(page: PdfPageLike, ops: PdfOpsLike): Promise<PaintedImage[]> {
+  const list = await page.getOperatorList();
+  const sizes: PaintedImage[] = [];
+  const size = (width: unknown, height: unknown): PaintedImage | undefined => (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0 ? { width, height } : undefined);
+  for (let i = 0; i < list.fnArray.length; i++) {
+    const fn = list.fnArray[i];
+    const args = list.argsArray[i] as unknown[] | undefined;
+    let s: PaintedImage | undefined;
+    if (fn === ops.paintImageXObject || fn === ops.paintImageXObjectRepeat) s = size(args?.[1], args?.[2]);
+    else if (fn === ops.paintInlineImageXObject || fn === ops.paintImageMaskXObject) {
+      const img = args?.[0] as { width?: unknown; height?: unknown } | null | undefined;
+      s = size(img?.width, img?.height);
+    }
+    if (s) sizes.push(s);
+  }
+  return sizes;
+}
+
+/** A scanned page's own resolution in dpi, from the largest image it paints
+ * over the page's size in PDF units: the image's pixels per inch of page,
+ * read in whichever orientation (the image as painted, or turned a quarter
+ * — a sideways scan) makes its two axes agree, and then the mean of the two.
+ * `undefined` when the page paints no image (a vector-drawn page has no scan
+ * resolution) — the caller falls back to `OCR_BASE_DPI`. */
+export function scanResolution(images: readonly PaintedImage[], pageWidthPt: number, pageHeightPt: number): number | undefined {
+  if (!(pageWidthPt > 0 && pageHeightPt > 0)) return undefined;
+  let largest: PaintedImage | undefined;
+  for (const img of images) if (largest === undefined || img.width * img.height > largest.width * largest.height) largest = img;
+  if (largest === undefined) return undefined;
+  const reading = (w: number, h: number) => {
+    const dx = w / (pageWidthPt / 72);
+    const dy = h / (pageHeightPt / 72);
+    return { dpi: (dx + dy) / 2, mismatch: Math.abs(dx - dy) / Math.max(dx, dy) };
+  };
+  const upright = reading(largest.width, largest.height);
+  const turned = reading(largest.height, largest.width);
+  const best = turned.mismatch < upright.mismatch ? turned : upright;
+  return Math.round(best.dpi);
+}
+
+/** iOS Safari draws NOTHING on a canvas wider or taller than 4096 px or
+ * larger than 16 megapixels (WebKit's canvas limits — the page comes out
+ * blank and the engine reads an empty image, with no error anywhere), so the
+ * render scale is capped to keep every canvas inside both. A Letter, A4 or
+ * legal page fits at 300 dpi; a poster-sized or double-page scan does not,
+ * and is read at the largest scale that fits — the preview says so. */
+export const OCR_MAX_CANVAS_SIDE_PX = 4096;
+export const OCR_MAX_CANVAS_AREA_PX = 16_000_000;
+
+/** The pdfjs render scale for a page of the given size in PDF units (points,
+ * 72 per inch): the scan's own resolution (`scanDpi`, from `scanResolution`;
+ * `OCR_BASE_DPI` when unknown) clamped between `OCR_BASE_DPI` and
+ * `OCR_TARGET_DPI`, over 72 — then lowered only as far as the canvas caps
+ * require. Whole-pixel canvases: ocr.ts rounds the viewport UP, so the scale
+ * is stepped down in thousandths until the rounded-up canvas fits. Pure —
+ * the unit test covers Letter, A4, legal and an oversized page at each
+ * resolution. */
+export function ocrRenderScale(pageWidthPt: number, pageHeightPt: number, scanDpi?: number): number {
+  if (!(pageWidthPt > 0 && pageHeightPt > 0)) throw new Error(`ocrRenderScale: the page size must be positive (got ${pageWidthPt}×${pageHeightPt})`);
+  const dpi = Math.min(OCR_TARGET_DPI, Math.max(OCR_BASE_DPI, scanDpi !== undefined && scanDpi > 0 ? scanDpi : OCR_BASE_DPI));
+  const fits = (s: number) => {
+    const w = Math.ceil(pageWidthPt * s);
+    const h = Math.ceil(pageHeightPt * s);
+    return w <= OCR_MAX_CANVAS_SIDE_PX && h <= OCR_MAX_CANVAS_SIDE_PX && w * h <= OCR_MAX_CANVAS_AREA_PX;
+  };
+  const wanted = Math.min(dpi / 72, OCR_MAX_CANVAS_SIDE_PX / Math.max(pageWidthPt, pageHeightPt), Math.sqrt(OCR_MAX_CANVAS_AREA_PX / (pageWidthPt * pageHeightPt)));
+  let thousandths = Math.floor(wanted * 1000);
+  while (thousandths > 1 && !fits(thousandths / 1000)) thousandths -= 1;
+  return thousandths / 1000;
+}
+
+/** Whether a page is read at a REDUCED resolution: below `OCR_BASE_DPI`, the
+ * 216 dpi the app always used, because the canvas caps forced
+ * `ocrRenderScale` down that far — an oversized scan, read worse than any
+ * page was before, and the preview says so (a legal page at 293 dpi or a
+ * tabloid at 241 is not reduced). */
+export function ocrScaleReduced(scale: number): boolean {
+  return scale * 72 < OCR_BASE_DPI;
+}
+
 /** A pixel box as the engine reports it (image pixels, y down). */
 export interface OcrBox {
   x0: number;
@@ -181,6 +307,48 @@ export function blocksToRuns(blocks: readonly OcrBlockLike[] | null | undefined,
     }
   }
   return runs;
+}
+
+/** The orientation trial (OCR step 12, plan step 2.4): page 1 of a scan is
+ * read the way it comes, and when the engine's mean word confidence in that
+ * reading is under `OCR_ORIENTATION_TRIAL_SKIP_ABOVE` the page is read again
+ * turned a quarter, a half and three quarters (`OCR_TRIAL_TURNS`, degrees
+ * clockwise); a turned reading wins only when it beats the reading as it
+ * came by `OCR_ORIENTATION_TRIAL_MARGIN` points, and the winning turn is
+ * applied to every later page. A sideways or upside-down scan read nothing
+ * before (0 rows at every L6 level of the bench); turned, it reads as its
+ * upright self. Both figures are the measurement's (the DECISIONS row of
+ * that date, 62 seeds × L2 / L5 / L6-90 / L6-180 with all four turns read):
+ * an upright page scores 70 or more nine times in ten (median 89.9) and a
+ * page the wrong way round never more than 54.6, so the exit at 70 keeps a
+ * 15-point margin and spares nine pages in ten the three extra recognitions;
+ * the right turn won by a median of 45.8 points and by 11.3 or more on
+ * every page but a form that reads junk every way, while the two upright
+ * pages a turn "beat" (both junk, every reading 19–25) won by 1.5 and 3.5 —
+ * the margin of 5 sits between. */
+export const OCR_TRIAL_TURNS = [90, 180, 270] as const;
+export const OCR_ORIENTATION_TRIAL_SKIP_ABOVE = 70;
+export const OCR_ORIENTATION_TRIAL_MARGIN = 5;
+
+/** The mean of the engine's word confidences over a page's blocks (blank
+ * words skipped; 0 for a page with no word): the figure the orientation
+ * trial compares (OCR step 12, plan step 2.4) — a page read the right way
+ * up scores far above the same page read sideways or upside down. */
+export function meanWordConfidence(blocks: readonly OcrBlockLike[] | null | undefined): number {
+  let sum = 0;
+  let n = 0;
+  for (const block of blocks ?? []) {
+    for (const paragraph of block.paragraphs ?? []) {
+      for (const line of paragraph.lines ?? []) {
+        for (const word of line.words ?? []) {
+          if (word.text.trim() === '') continue;
+          sum += word.confidence;
+          n += 1;
+        }
+      }
+    }
+  }
+  return n === 0 ? 0 : sum / n;
 }
 
 /** A page's blocks → the lines the parser reads, with the column layout the

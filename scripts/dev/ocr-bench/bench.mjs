@@ -1,8 +1,10 @@
 // The OCR benchmark's orchestrator (2026-10-09, transcript accuracy program,
 // OCR step 9): seeds (seeds.mts) → clean 300-dpi pages (pdfToPagePngs, or
 // render-lines.py's pages) → the degradation ladder (degrade.py) → the app's
-// OCR path on each level's image-only PDF (ocr-run.mjs: pdfjs at scale 3.0,
-// the bundled Tesseract, ocr.ts's line builder) → the app's parser → the one
+// OCR path on each level's image-only PDF (ocr-run.mjs: pdfjs at the app's
+// per-page scale — the scan's own resolution between 216 and 300 dpi since OCR
+// step 12; --config {"scale": 3} is the fixed 216 dpi before it — the bundled
+// Tesseract, ocr-lines.ts's line builder) → the app's parser → the one
 // scorer plus CER, flags and seconds (score.mts here) → results.csv,
 // results.md, results.json, and deltas against an earlier run.
 //
@@ -47,7 +49,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseExternalTranscript } from '../../../src/transcript/external.ts';
 import { pdfToLinesNode, pdfToPagePngs } from '../pdf-lines-node.mts';
 import { collectSeeds, FAMILIES, ndAsParsed } from './seeds.mts';
-import { BASELINE_CONFIG, createOcrWorker, mergeConfig, ocrDocument, recognizePage } from './ocr-run.mjs';
+import { BASELINE_CONFIG, createOcrWorker, mergeConfig, ocrDocument, recognizePage, rotationTrial } from './ocr-run.mjs';
 import { aggregate, aggregateFigures, pct, scoreBench } from './score.mts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -294,7 +296,8 @@ export async function runBench(argv) {
         let seconds = 0;
         if (/\.pdf$/i.test(s.file)) lines = await pdfToLinesNode(s.file);
         else {
-          const page = await recognizePage(worker, s.file, config, { dpi: s.dpi }); // a page image at its own dpi
+          // A page image at its own dpi; page 1 of a document, so the app's orientation trial applies.
+          const page = config.rotationTrial ? await rotationTrial(worker, s.file, config, { dpi: s.dpi }) : await recognizePage(worker, s.file, config, { dpi: s.dpi });
           lines = [...page.lines, { text: '', confidence: 100 }];
           seconds = page.seconds;
         }
@@ -344,6 +347,7 @@ export async function runBench(argv) {
           let lines;
           let seconds = 0;
           let pagesRead;
+          let pageFigures;
           if (level === 'L7') {
             // The app never OCRs a PDF with a text layer: the exact path reads the poor layer.
             lines = await pdfToLinesNode(entry.pdf);
@@ -353,8 +357,13 @@ export async function runBench(argv) {
             lines = doc.lines;
             seconds = doc.seconds;
             pagesRead = doc.pagesRead;
+            pageFigures = doc.pages.map(({ file: _f, blocks: _b, ...figures }) => figures);
           }
           const row = scoreBench({ seed, level, dpi: entry.dpi, config: config.name, parsed: parseLines(seed.parser, lines), ocrLines: lines.map((l) => (typeof l === 'string' ? l : l.text)), seconds, pagesRead });
+          // What the runner knew per page (OCR step 12): the render dpi, the engine's mean word
+          // confidence, the rotation the trial chose and its four figures — results.json keeps
+          // them so a knob's effect can be read page by page without a second run.
+          if (pageFigures !== undefined) row.pageFigures = pageFigures;
           rows.push(row);
           say(`  ${seed.id} @ ${level}: ${row.negative ? `${row.parsedRows} false row(s)` : `rows right/found/expected ${row.rightRows}/${row.matched}/${row.expectedRows}, extra ${row.extra}`}, CER ${pct(row.cer.distance, row.cer.truthChars)}, ${pagesRead} page(s) in ${seconds.toFixed(1)} s`);
           if (o.only !== undefined && !row.exact) for (const d of row.diffs.slice(0, 12)) say('     ' + d);

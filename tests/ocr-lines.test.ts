@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { blocksToRuns, linesFromBlocks, OCR_ENGINE_PARAMETERS, OCR_LINE_CONFIDENCE, ocrKeepSpaces, ocrLinesFromPage, ocrLineText, ocrPageLayout, TITLE_WORD_SPACE_SHARE, titleWord, WORD_SPACE_SHARE, type OcrBlockLike } from '../src/transcript/ocr-lines.ts';
+import { blocksToRuns, linesFromBlocks, meanWordConfidence, OCR_BASE_DPI, OCR_ENGINE_PARAMETERS, OCR_LINE_CONFIDENCE, OCR_MAX_CANVAS_AREA_PX, OCR_MAX_CANVAS_SIDE_PX, OCR_TARGET_DPI, ocrKeepSpaces, ocrLinesFromPage, ocrLineText, ocrPageLayout, ocrRenderScale, ocrScaleReduced, paintedImageSizes, scanResolution, TITLE_WORD_SPACE_SHARE, titleWord, WORD_SPACE_SHARE, type OcrBlockLike } from '../src/transcript/ocr-lines.ts';
 import { groupLines } from '../src/transcript/layout.ts';
 import { parseExternalTranscript } from '../src/transcript/external.ts';
 import { parseTranscript } from '../src/transcript/parse.ts';
@@ -381,4 +381,101 @@ test('linesFromBlocks (the engine-line builder) walks blocks → paragraphs → 
 test('the app sets no engine parameter today (preserve_interword_spaces was measured and not adopted)', () => {
   assert.deepEqual({ ...OCR_ENGINE_PARAMETERS }, {});
   assert.ok(Object.isFrozen(OCR_ENGINE_PARAMETERS));
+});
+
+test('ocrRenderScale: the scan\'s own resolution between 216 and 300 dpi — a 150-dpi scan or an unknown one at 216 (the old scale 3.0), a 240-dpi scan at 240, a 300- or 600-dpi scan at 300', () => {
+  assert.equal(ocrRenderScale(612, 792), 3.0);
+  assert.equal(ocrRenderScale(612, 792, 150), 3.0);
+  assert.equal(ocrRenderScale(612, 792, 216), 3.0);
+  assert.equal(ocrRenderScale(612, 792, 240), Math.floor((240 / 72) * 1000) / 1000);
+  assert.equal(ocrRenderScale(612, 792, 300), Math.floor((300 / 72) * 1000) / 1000);
+  assert.equal(ocrRenderScale(612, 792, 600), ocrRenderScale(612, 792, 300));
+  assert.equal(ocrRenderScale(612, 792, 0), 3.0);
+  assert.equal(ocrRenderScale(612, 792, Number.NaN), 3.0);
+  assert.equal(OCR_BASE_DPI, 216);
+  assert.equal(OCR_TARGET_DPI, 300);
+});
+
+test('ocrRenderScale at 300 dpi: Letter and A4 render at the full 300, legal and tabloid at the largest scale under the 4096-px side cap, a near-square oversized page under the 16-megapixel cap (iOS Safari draws nothing beyond either); only a page brought under 216 dpi counts as reduced', () => {
+  const canvas = (w: number, h: number) => {
+    const s = ocrRenderScale(w, h, 300);
+    return { scale: s, width: Math.ceil(w * s), height: Math.ceil(h * s) };
+  };
+  const within = (c: { width: number; height: number }) => c.width <= OCR_MAX_CANVAS_SIDE_PX && c.height <= OCR_MAX_CANVAS_SIDE_PX && c.width * c.height <= OCR_MAX_CANVAS_AREA_PX;
+  const target = Math.floor((OCR_TARGET_DPI / 72) * 1000) / 1000; // 4.166
+  // Letter 8.5 × 11 in and A4 210 × 297 mm: the target scale, well inside the caps.
+  for (const [w, h] of [[612, 792], [595.276, 841.89]] as const) {
+    const c = canvas(w, h);
+    assert.equal(c.scale, target, `${w}×${h}`);
+    assert.ok(within(c));
+    assert.ok(!ocrScaleReduced(c.scale));
+  }
+  // Legal 8.5 × 14 in (1008 pt tall): 300 dpi would be 4200 px, so the side cap
+  // lowers it to 4.063 (293 dpi) — the canvas is 4096 px tall exactly, not reduced.
+  const legal = canvas(612, 1008);
+  assert.equal(legal.scale, 4.063);
+  assert.equal(legal.height, OCR_MAX_CANVAS_SIDE_PX);
+  assert.ok(within(legal) && !ocrScaleReduced(legal.scale));
+  // Landscape reads the same as portrait.
+  assert.equal(ocrRenderScale(1008, 612, 300), ocrRenderScale(612, 1008, 300));
+  // Tabloid 11 × 17 in (792 × 1224 pt): 4096 / 1224 → 3.346 (241 dpi), still not reduced.
+  const tabloid = canvas(792, 1224);
+  assert.equal(tabloid.scale, 3.346);
+  assert.equal(tabloid.height, OCR_MAX_CANVAS_SIDE_PX);
+  assert.ok(within(tabloid) && !ocrScaleReduced(tabloid.scale));
+  // A near-square oversized page (a 40 × 40 in drawing, 2880 pt): the area cap binds
+  // before the side cap — 1.388 (100 dpi), the largest thousandth that fits — and
+  // the page IS reduced, so the preview will say so; the same at 216.
+  const square = canvas(2880, 2880);
+  assert.equal(square.scale, 1.388);
+  assert.ok(within(square), `${square.width}×${square.height}`);
+  assert.ok(!within({ width: Math.ceil(2880 * 1.389), height: Math.ceil(2880 * 1.389) }), 'one thousandth more would not fit');
+  assert.ok(ocrScaleReduced(square.scale));
+  assert.equal(ocrRenderScale(2880, 2880), 1.388);
+  // Whole thousandths, so a logged scale reads back exactly; a bad size throws.
+  for (const [w, h] of [[612, 792], [612, 1008], [792, 1224], [2880, 2880]] as const) assert.equal(ocrRenderScale(w, h, 300), Math.round(ocrRenderScale(w, h, 300) * 1000) / 1000);
+  assert.throws(() => ocrRenderScale(0, 792), /positive/);
+  assert.throws(() => ocrRenderScale(612, Number.NaN), /positive/);
+});
+
+test('scanResolution: the largest painted image\'s pixels per inch of page, read upright or turned a quarter, whichever makes the axes agree; no image → undefined', () => {
+  // A 150-dpi letter scan (1275 × 1650 px on 612 × 792 pt), with a small logo beside it.
+  assert.equal(scanResolution([{ width: 1275, height: 1650 }, { width: 200, height: 80 }], 612, 792), 150);
+  // A 300-dpi scan; the bench's L0 at 300 dpi.
+  assert.equal(scanResolution([{ width: 2550, height: 3300 }], 612, 792), 300);
+  // A sideways scan: the image is painted turned, so its width runs along the page's height.
+  assert.equal(scanResolution([{ width: 1650, height: 1275 }], 612, 792), 150);
+  // A phone photo sized as if 8.5 in wide (the bench's L5): 1350 px over 522.58 pt → 186.
+  assert.equal(scanResolution([{ width: 1350, height: 1748 }], 522.5806, 676.6452), 186);
+  assert.equal(scanResolution([], 612, 792), undefined);
+  assert.equal(scanResolution([{ width: 1275, height: 1650 }], 0, 792), undefined);
+});
+
+test('paintedImageSizes: an image XObject\'s size comes from its operator\'s arguments (never from the object store — pdfjs resolves some images only when drawn), an inline image\'s or a mask\'s from the image itself; other operators and sizeless images are skipped', async () => {
+  const ops = { paintImageXObject: 85, paintImageXObjectRepeat: 88, paintInlineImageXObject: 86, paintImageMaskXObject: 83 };
+  const page = {
+    getOperatorList: async () => ({
+      fnArray: [1, ops.paintImageXObject, 2, ops.paintInlineImageXObject, ops.paintImageMaskXObject, ops.paintImageXObject, ops.paintImageXObjectRepeat, ops.paintImageXObject],
+      argsArray: [[], ['img_p0_1', 1275, 1650], [0.5], [{ width: 40, height: 30 }], [{ width: 7, height: 9 }], ['img_p0_2', 2550, 3300], ['img_p0_1', 1275, 1650], ['img_p0_3']],
+    }),
+  };
+  assert.deepEqual(await paintedImageSizes(page, ops), [
+    { width: 1275, height: 1650 },
+    { width: 40, height: 30 },
+    { width: 7, height: 9 },
+    { width: 2550, height: 3300 },
+    { width: 1275, height: 1650 },
+  ]);
+  assert.deepEqual(await paintedImageSizes({ getOperatorList: async () => ({ fnArray: [], argsArray: [] }) }, ops), []);
+});
+
+test('meanWordConfidence: the mean over every non-blank word of the page, 0 with no word', () => {
+  const a = engineLine('CS 50300 Operating Systems', 0, 100, [9, 9, 9], [90, 80, 70, 60]);
+  const b = engineLine('Fall 2023', 0, 200, [9], [100, 100]);
+  assert.equal(meanWordConfidence([block(a), block(b)]), (90 + 80 + 70 + 60 + 100 + 100) / 6);
+  const blank = engineLine('x', 0, 300, [], [5]);
+  blank.words![0]!.text = '  ';
+  assert.equal(meanWordConfidence([block(a, blank)]), (90 + 80 + 70 + 60) / 4);
+  assert.equal(meanWordConfidence([]), 0);
+  assert.equal(meanWordConfidence(null), 0);
 });

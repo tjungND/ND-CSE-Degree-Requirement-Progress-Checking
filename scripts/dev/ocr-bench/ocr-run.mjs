@@ -7,13 +7,19 @@
 // config, and results.json's `meta.config` records its knob values, so a run
 // from before an OCR step and one after are told apart by those values:
 //
-//   ocr.ts     RENDER_SCALE = 3.0            → --scale 3 (pdfjs viewport scale; 216 dpi)
+//   ocr.ts     ocrRenderScale(width, height, scanDpi) per page → --scale auto (the scan's own
+//              resolution between 216 and 300 dpi under the canvas caps — OCR step 12; --scale 3
+//              is the fixed 216 dpi the app used before it)
 //   ocr.ts     MAX_PAGES = 10                → --max-pages 10
 //   ocr.ts     createWorker('eng', OEM.LSTM_ONLY, …), then worker.setParameters(
 //              OCR_ENGINE_PARAMETERS) when that set is non-empty — it is empty today, so
 //              the engine keeps its defaults: PSM 6 (SINGLE_BLOCK), no user_defined_dpi,
 //              preserve_interword_spaces 0, tessedit_do_invert on
 //   ocr.ts     worker.recognize(canvas, {}, { blocks: true }) — no rotateAuto, no rectangle
+//   ocr.ts     the orientation trial on page 1 (OCR step 12: read as it comes; under
+//              OCR_ORIENTATION_TRIAL_SKIP_ABOVE mean word confidence, read turned 90/180/270° too and
+//              keep the best turn for every page) → --rotation-trial (the default; --no-rotation-trial
+//              is the app before step 12)
 //   ocr-lines.ts  ocrPageLayout: the engine's word boxes → layout runs (scale = pixels per
 //              PDF unit: the render scale for a PDF, dpi / 72 for a page image) → layout.ts
 //              (watermarks, columns, cell gaps) → lines, each with the least confidence of
@@ -23,9 +29,22 @@
 //
 // Knobs (each one an experiment the plan's steps 10–12 measure before it
 // touches src/):
-//   --scale 3.0          pdfjs render scale for a PDF (72 × scale dpi)
+//   --scale 3.0          pdfjs render scale for a PDF (72 × scale dpi); `auto` = the app's
+//                        ocrRenderScale(width, height, scanDpi) per page — the scan's own
+//                        resolution between 216 and 300 dpi, under the canvas caps (OCR step 12,
+//                        plan step 2.3; the app as shipped since that step)
 //   --psm 6              tessedit_pageseg_mode (api.md; 4 = single column, 11 = sparse)
-//   --dpi 300            user_defined_dpi (the engine assumes 70 when the image says nothing)
+//   --dpi 300            user_defined_dpi (the engine assumes 70 when the image says nothing);
+//                        `auto` = each page's own dpi, set per recognize call
+//   --border N           N px of white added around the page before the engine sees it; the
+//                        word boxes are shifted back so the lines read as the page's own
+//   --rotation-trial     the app's orientation trial (plan step 2.4, the default): page 1 read as it
+//                        comes and, when its mean word confidence is under
+//                        OCR_ORIENTATION_TRIAL_SKIP_ABOVE, turned 90°, 180° and 270° too; the best
+//                        reading's turn is kept for every page; --no-rotation-trial switches it off
+//   --trial-always       with --rotation-trial: all four turns regardless (the measurement's form)
+//   --binary-dir <dir>   write the engine's own binarised page (imageBinary) per page — the
+//                        proof that a thresholding_method parameter took effect
 //   --engine-lines       the line builder OCR steps 9–10 shipped (ocr-lines.ts linesFromBlocks:
 //                        the engine's own lines, whitespace collapsed, the LINE's confidence)
 //                        instead of the word-box layout of step 11
@@ -42,8 +61,9 @@
 //   --words              keep word boxes + confidences per line in the output JSON
 //   --max-pages N        pages read per PDF
 //   --config file.json   any of the above as JSON keys {scale, psm, dpi, engineLines, interword,
-//                        lineConfidence, imageDpi, threshold, invert, rotateAuto, words, maxPages,
-//                        params:{…}}; command-line knobs override the file
+//                        lineConfidence, imageDpi, threshold, invert, rotateAuto, border,
+//                        rotationTrial, trialAlways, binaryDir, words, maxPages, params:{…}}; command-line
+//                        knobs override the file
 //   --out out.json       write { config, documents: [{ file, pages: [...], lines }] }
 //
 //   node --experimental-strip-types scripts/dev/ocr-bench/ocr-run.mjs [knobs] scan.pdf page.png …
@@ -55,19 +75,19 @@
 // FERPA: prints and writes verbatim OCR text — public and synthetic pages
 // only; a private seed's outputs stay outside the repository.
 import { createWorker, OEM } from 'tesseract.js';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { pdfToPagePngs } from '../pdf-lines-node.mts';
-import { linesFromBlocks as engineLinesFromBlocks, OCR_ENGINE_PARAMETERS, OCR_LINE_CONFIDENCE, ocrKeepSpaces, ocrLineText, ocrPageLayout } from '../../../src/transcript/ocr-lines.ts';
+import { pdfToPagePngsAt } from '../pdf-lines-node.mts';
+import { linesFromBlocks as engineLinesFromBlocks, meanWordConfidence, OCR_ENGINE_PARAMETERS, OCR_LINE_CONFIDENCE, OCR_ORIENTATION_TRIAL_MARGIN, OCR_ORIENTATION_TRIAL_SKIP_ABOVE, OCR_TRIAL_TURNS, ocrKeepSpaces, ocrLineText, ocrPageLayout, ocrRenderScale } from '../../../src/transcript/ocr-lines.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 /** The app as shipped (see the header for the ocr.ts line each value mirrors). */
 export const BASELINE_CONFIG = Object.freeze({
   name: 'baseline',
-  scale: 3.0,
+  scale: 'auto',
   psm: undefined,
   dpi: undefined,
   engineLines: false,
@@ -77,10 +97,21 @@ export const BASELINE_CONFIG = Object.freeze({
   threshold: undefined,
   invert: undefined,
   rotateAuto: false,
+  border: undefined,
+  rotationTrial: true,
+  trialAlways: false,
+  binaryDir: undefined,
   words: false,
   maxPages: 10,
   params: {},
 });
+
+/** The dpi a PDF page is rendered at under `config.scale`: a fixed scale, or
+ * the app's own `ocrRenderScale` for the page's size and its scan's
+ * resolution (`auto` — what ocr.ts does). */
+export function pageDpi(config, page) {
+  return 72 * (config.scale === 'auto' ? ocrRenderScale(page.widthPt, page.heightPt, page.scanDpi) : config.scale);
+}
 
 /** Baseline + a config file + command-line knobs, later ones winning. */
 export function mergeConfig(...layers) {
@@ -100,7 +131,7 @@ export function mergeConfig(...layers) {
 export function engineParameters(config) {
   const p = { ...OCR_ENGINE_PARAMETERS, ...config.params };
   if (config.psm !== undefined) p.tessedit_pageseg_mode = String(config.psm);
-  if (config.dpi !== undefined) p.user_defined_dpi = String(config.dpi);
+  if (config.dpi !== undefined && config.dpi !== 'auto') p.user_defined_dpi = String(config.dpi);
   if (config.interword) p.preserve_interword_spaces = '1';
   if (config.invert !== undefined) p.tessedit_do_invert = String(config.invert);
   return p;
@@ -211,6 +242,39 @@ async function thresholdImage(file, level) {
   return canvas.toBuffer('image/png');
 }
 
+/** Draw a page image onto a fresh canvas: turned by `rotation` degrees
+ * clockwise (0, 90, 180, 270) and with `border` px of white around it. */
+async function redrawImage(file, { rotation = 0, border = 0 } = {}) {
+  const { createCanvas, loadImage } = await import('@napi-rs/canvas');
+  const img = await loadImage(file);
+  const turned = rotation === 90 || rotation === 270;
+  const w = (turned ? img.height : img.width) + 2 * border;
+  const h = (turned ? img.width : img.height) + 2 * border;
+  const canvas = createCanvas(w, h);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.drawImage(img, -img.width / 2, -img.height / 2);
+  return canvas.toBuffer('image/png');
+}
+
+/** The engine's boxes moved by (dx, dy): what a page read with a white border
+ * needs so its words sit where they sit on the page itself. */
+export function shiftBlocks(blocks, dx, dy) {
+  const box = (b) => (b ? { x0: b.x0 + dx, y0: b.y0 + dy, x1: b.x1 + dx, y1: b.y1 + dy } : b);
+  return (blocks ?? []).map((b) => ({
+    ...b,
+    bbox: box(b.bbox),
+    paragraphs: (b.paragraphs ?? []).map((p) => ({
+      ...p,
+      bbox: box(p.bbox),
+      lines: (p.lines ?? []).map((l) => ({ ...l, bbox: box(l.bbox), baseline: box(l.baseline), words: (l.words ?? []).map((w) => ({ ...w, bbox: box(w.bbox) })) })),
+    })),
+  }));
+}
+
 /** One page image (a path or a Buffer) through the engine. Returns the
  * app-shaped lines, the seconds the recognize call took, the engine's
  * rotation estimate when --rotate-auto was on, the image's pixel size, the
@@ -218,18 +282,57 @@ async function thresholdImage(file, level) {
  * set (the pin script). `dpi` is the image's own (a page given directly;
  * `--image-dpi`), else the page is taken as rendered at 72 × config.scale;
  * `hint` is the previous page's column layout. */
-export async function recognizePage(worker, image, config = BASELINE_CONFIG, { keepBlocks = false, dpi, hint } = {}) {
-  const input = config.threshold !== undefined ? await thresholdImage(image, Number(config.threshold)) : image;
+export async function recognizePage(worker, image, config = BASELINE_CONFIG, { keepBlocks = false, dpi, hint, rotation = 0, label } = {}) {
+  let input = config.threshold !== undefined ? await thresholdImage(image, Number(config.threshold)) : image;
+  const border = Number(config.border ?? 0);
+  if (rotation !== 0 || border > 0) input = await redrawImage(input, { rotation, border });
   const options = config.rotateAuto ? { rotateAuto: true } : {};
+  const pageDpiValue = dpi ?? config.imageDpi ?? (config.scale === 'auto' ? undefined : 72 * config.scale);
+  if (pageDpiValue === undefined) throw new Error('recognizePage: a page image needs its dpi (--image-dpi) when --scale is auto');
+  // A per-page dpi hint (--dpi auto) is a recognize-call parameter: tesseract.js sets any
+  // option it does not know as a Tesseract variable for that call and restores it after.
+  if (config.dpi === 'auto') options.user_defined_dpi = String(Math.round(pageDpiValue));
   const t0 = process.hrtime.bigint();
-  const { data } = await worker.recognize(input, options, { blocks: true, text: false });
+  const { data } = await worker.recognize(input, options, { blocks: true, text: false, ...(config.binaryDir ? { imageBinary: true } : {}) });
   const seconds = Number(process.hrtime.bigint() - t0) / 1e9;
-  const { width, height } = imageSize(input);
-  const scale = (dpi ?? config.imageDpi ?? 72 * config.scale) / 72;
-  const read = linesFromBlocks(data.blocks, { width, height, scale, hint, engineLines: config.engineLines, interword: config.interword, lineConfidence: config.lineConfidence, words: config.words });
-  const out = { lines: read.lines, hint: read.hint, seconds, rotateRadians: data.rotateRadians ?? 0, width, height };
-  if (keepBlocks) out.blocks = trimBlocks(data.blocks);
+  if (config.binaryDir && data.imageBinary) {
+    mkdirSync(config.binaryDir, { recursive: true });
+    const name = `${(label ?? (typeof image === 'string' ? basename(image).replace(/\.[a-z]+$/i, '') : 'page'))}${rotation ? `-r${rotation}` : ''}.binary.png`;
+    writeFileSync(join(config.binaryDir, name), Buffer.from(data.imageBinary.replace(/^data:image\/png;base64,/, ''), 'base64'));
+  }
+  const padded = imageSize(input);
+  // With a border, the words are reported in the padded image; the lines are the page's.
+  const blocks = border > 0 ? shiftBlocks(data.blocks, -border, -border) : data.blocks;
+  const width = padded.width - 2 * border;
+  const height = padded.height - 2 * border;
+  const scale = pageDpiValue / 72;
+  const read = linesFromBlocks(blocks, { width, height, scale, hint, engineLines: config.engineLines, interword: config.interword, lineConfidence: config.lineConfidence, words: config.words });
+  const out = { lines: read.lines, hint: read.hint, seconds, rotateRadians: data.rotateRadians ?? 0, width, height, rotation, meanConfidence: meanWordConfidence(data.blocks) };
+  if (keepBlocks) out.blocks = trimBlocks(blocks);
   return out;
+}
+
+/** The four-rotation trial (plan step 2.4): the page read at 0°, 90°, 180°
+ * and 270°; the reading with the highest mean word confidence wins and its
+ * rotation is handed on for the document's other pages. `seconds` is the
+ * whole trial's engine time (about four times one page's). */
+export async function rotationTrial(worker, image, config, extra = {}) {
+  let best = await recognizePage(worker, image, config, { ...extra, rotation: 0 });
+  const trial = { 0: Math.round(best.meanConfidence * 10) / 10 };
+  let seconds = best.seconds;
+  // The app's early exit (OCR_ORIENTATION_TRIAL_SKIP_ABOVE): a page that reads well as
+  // it comes is not tried turned; --trial-always measures all four turns regardless.
+  if (config.trialAlways || best.meanConfidence < OCR_ORIENTATION_TRIAL_SKIP_ABOVE) {
+    const asItCame = best.meanConfidence;
+    for (const rotation of OCR_TRIAL_TURNS) {
+      const page = await recognizePage(worker, image, config, { ...extra, rotation });
+      trial[rotation] = Math.round(page.meanConfidence * 10) / 10;
+      seconds += page.seconds;
+      // The app's rule: a turned reading wins only by OCR_ORIENTATION_TRIAL_MARGIN over the page as it came.
+      if (page.meanConfidence > best.meanConfidence && page.meanConfidence >= asItCame + OCR_ORIENTATION_TRIAL_MARGIN) best = page;
+    }
+  }
+  return { ...best, seconds, trial };
 }
 
 /** A document the way ocr.ts reads one: a PDF rendered by pdfjs at
@@ -240,9 +343,14 @@ export async function recognizePage(worker, image, config = BASELINE_CONFIG, { k
 export async function ocrDocument(worker, file, config = BASELINE_CONFIG, workDir, extra = {}) {
   const isPdf = /\.pdf$/i.test(file);
   let pageFiles;
+  let pageDpis; // per page, for a PDF (a page image's dpi is the caller's --image-dpi)
+  let scanDpis; // per page, for a PDF: the scan's own resolution (undefined when no image is painted)
   if (isPdf) {
     const dir = workDir ?? mkdtempSync(join(tmpdir(), 'ocr-run-'));
-    pageFiles = await pdfToPagePngs(file, 72 * config.scale, dir);
+    const rendered = await pdfToPagePngsAt(file, (page) => pageDpi(config, page), dir);
+    pageFiles = rendered.map((r) => r.path);
+    pageDpis = rendered.map((r) => r.dpi);
+    scanDpis = rendered.map((r) => r.scanDpi);
   } else {
     pageFiles = [file];
   }
@@ -252,13 +360,16 @@ export async function ocrDocument(worker, file, config = BASELINE_CONFIG, workDi
   const pages = [];
   let seconds = 0;
   let hint; // the previous page's column layout, as ocr.ts hands it on
+  let rotation = 0; // the rotation the trial on page 1 chose (--rotation-trial)
   for (let p = 0; p < pagesRead; p++) {
-    const page = await recognizePage(worker, pageFiles[p], config, { ...extra, ...(isPdf ? { dpi: 72 * config.scale } : {}), hint });
+    const pageExtra = { ...extra, ...(isPdf ? { dpi: pageDpis[p] } : {}), hint, rotation };
+    const page = p === 0 && config.rotationTrial ? await rotationTrial(worker, pageFiles[p], config, pageExtra) : await recognizePage(worker, pageFiles[p], config, pageExtra);
+    rotation = page.rotation;
     hint = page.hint;
     lines.push(...page.lines);
     lines.push({ text: '', confidence: 100 }); // ocr.ts:94 — the page break
     seconds += page.seconds;
-    pages.push({ file: pageFiles[p], lines: page.lines.length, seconds: page.seconds, rotateRadians: page.rotateRadians, ...(page.blocks ? { blocks: page.blocks } : {}) });
+    pages.push({ file: pageFiles[p], lines: page.lines.length, seconds: page.seconds, rotateRadians: page.rotateRadians, ...(isPdf ? { dpi: pageDpis[p], scanDpi: scanDpis[p] } : {}), rotation: page.rotation, meanConfidence: Math.round(page.meanConfidence * 10) / 10, ...(page.trial ? { trial: page.trial } : {}), ...(page.blocks ? { blocks: page.blocks } : {}) });
   }
   return { file, lines, pages, pagesRead, pagesTotal, seconds, renderedPages: isPdf ? pageFiles : [] };
 }
@@ -276,9 +387,18 @@ export function parseOcrArgs(argv) {
       if (v === undefined) throw new Error(`${a} needs a value`);
       return v;
     };
-    if (a === '--scale') knobs.scale = Number(next());
-    else if (a === '--psm') knobs.psm = Number(next());
-    else if (a === '--dpi') knobs.dpi = Number(next());
+    if (a === '--scale') {
+      const v = next();
+      knobs.scale = v === 'auto' ? 'auto' : Number(v);
+    } else if (a === '--psm') knobs.psm = Number(next());
+    else if (a === '--dpi') {
+      const v = next();
+      knobs.dpi = v === 'auto' ? 'auto' : Number(v);
+    } else if (a === '--border') knobs.border = Number(next());
+    else if (a === '--rotation-trial') knobs.rotationTrial = true;
+    else if (a === '--no-rotation-trial') knobs.rotationTrial = false;
+    else if (a === '--trial-always') knobs.trialAlways = true;
+    else if (a === '--binary-dir') knobs.binaryDir = resolve(next());
     else if (a === '--engine-lines') knobs.engineLines = true;
     else if (a === '--interword') knobs.interword = true;
     else if (a === '--no-interword') knobs.interword = false;
@@ -315,7 +435,7 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(p
     for (const file of files) {
       const doc = await ocrDocument(worker, file, config, workDir);
       documents.push(doc);
-      console.log(`${basename(file)}: ${doc.pagesRead}/${doc.pagesTotal} page(s), ${doc.lines.length} lines, ${doc.seconds.toFixed(2)} s`);
+      console.log(`${basename(file)}: ${doc.pagesRead}/${doc.pagesTotal} page(s), ${doc.lines.length} lines, ${doc.seconds.toFixed(2)} s${doc.pages.map((pg) => `${pg.trial ? ` [trial ${Object.entries(pg.trial).map(([r, c]) => `${r}°:${c}`).join(' ')} → ${pg.rotation}°]` : ''}`).join('')}`);
       if (!out) for (const l of doc.lines) console.log(l.text === '' ? '' : `  [${String(Math.round(l.confidence)).padStart(3)}] ${l.text}`);
     }
   } finally {

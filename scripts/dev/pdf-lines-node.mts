@@ -13,6 +13,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { pageLayout, runsFromTextItems, type ColumnHint, type Run } from '../../src/transcript/layout.ts';
+import { paintedImageSizes, scanResolution } from '../../src/transcript/ocr-lines.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -93,20 +94,47 @@ export async function pdfToLinesNode(file: string, onPage?: (page: PageRuns) => 
  * dependency — when that package is missing (an `npm ci --omit=optional`, an
  * unsupported platform) the error says so instead of failing inside pdfjs. */
 export async function pdfToPagePngs(file: string, dpi: number, outDir: string): Promise<string[]> {
+  if (!(dpi > 0)) throw new Error(`pdfToPagePngs: dpi must be positive, got ${dpi}`);
+  return (await pdfToPagePngsAt(file, () => dpi, outDir)).map((p) => p.path);
+}
+
+/** One rendered page of `pdfToPagePngsAt`: where it went, the dpi it was
+ * rendered at, and the page's size in PDF units (points) at scale 1. */
+export interface RenderedPage {
+  page: number;
+  path: string;
+  dpi: number;
+  widthPt: number;
+  heightPt: number;
+  /** The scan's own resolution (`scanResolution`), undefined for a page that paints no image. */
+  scanDpi: number | undefined;
+}
+
+/** `pdfToPagePngs` with the dpi chosen PER PAGE from the page's size and its
+ * scan's resolution — the OCR bench's `--scale auto` (OCR step 12,
+ * 2026-10-09), which renders each page as src/transcript/ocr.ts does with
+ * `ocrRenderScale(width, height, scanDpi)`: `dpiOf` receives the page number,
+ * its size in points (in its own rotation, as pdfjs reports it) and the
+ * resolution of the image it paints, and returns the dpi. */
+export async function pdfToPagePngsAt(file: string, dpiOf: (page: { page: number; widthPt: number; heightPt: number; scanDpi: number | undefined }) => number, outDir: string): Promise<RenderedPage[]> {
   let canvasLib: { createCanvas: (w: number, h: number) => any };
   try {
     canvasLib = await import('@napi-rs/canvas');
   } catch (e) {
     throw new Error(`pdfToPagePngs: @napi-rs/canvas is not available (${e instanceof Error ? e.message : String(e)}); it is pdfjs-dist's optional dependency — reinstall with \`npm ci\` without --omit=optional.`);
   }
-  if (!(dpi > 0)) throw new Error(`pdfToPagePngs: dpi must be positive, got ${dpi}`);
   mkdirSync(outDir, { recursive: true });
   const stem = basename(file).replace(/\.pdf$/i, '');
+  const lib = await pdfjs();
   const doc = await openDocument(file);
-  const out: string[] = [];
+  const out: RenderedPage[] = [];
   try {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
+      const base = page.getViewport({ scale: 1 });
+      const scanDpi = scanResolution(await paintedImageSizes(page, lib.OPS), base.width, base.height);
+      const dpi = dpiOf({ page: p, widthPt: base.width, heightPt: base.height, scanDpi });
+      if (!(dpi > 0)) throw new Error(`pdfToPagePngs: dpi must be positive, got ${dpi} for page ${p}`);
       const viewport = page.getViewport({ scale: dpi / 72 });
       const canvas = canvasLib.createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
       const ctx = canvas.getContext('2d');
@@ -116,7 +144,7 @@ export async function pdfToPagePngs(file: string, dpi: number, outDir: string): 
       await page.render({ canvasContext: ctx, viewport }).promise;
       const path = join(outDir, `${stem}-p${p}.png`);
       writeFileSync(path, canvas.toBuffer('image/png'));
-      out.push(path);
+      out.push({ page: p, path, dpi, widthPt: base.width, heightPt: base.height, scanDpi });
     }
   } finally {
     await doc.destroy();
