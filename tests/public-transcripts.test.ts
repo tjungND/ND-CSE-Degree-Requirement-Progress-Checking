@@ -20,11 +20,15 @@
 // list must still FAIL — so the list stays honest — and comes off it when its
 // parser change lands. Run one fixture by hand with
 //   node --experimental-strip-types scripts/dev/parse-lines.mts <lines.json>
+// and the whole corpus, scored row by row, with `npm run replay -- --corpus
+// public` (scripts/dev/replay.mts; its `exact` is this test's pass criterion,
+// pinned by tests/replay-score.test.ts).
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { parseExternalTranscript } from '../src/transcript/external.ts';
+import { rowOf } from './helpers/row-of.ts';
 
 const DIR = new URL('./fixtures/public-transcripts/', import.meta.url).pathname;
 type Expected = {
@@ -43,9 +47,6 @@ type Expected = {
 const expected = JSON.parse(readFileSync(join(DIR, 'expected.json'), 'utf8')) as Record<string, Expected>;
 const sources = JSON.parse(readFileSync(join(DIR, 'sources.json'), 'utf8')) as Record<string, { institution: string; url: string }>;
 const KNOWN_FAILING: Record<string, string[]> = JSON.parse(readFileSync(new URL('./fixtures/public-transcripts-known-failing.json', import.meta.url).pathname, 'utf8'));
-
-export const rowOf = (c: ReturnType<typeof parseExternalTranscript>['courses'][number]): string =>
-  `${c.courseId} | ${c.title ?? ''} | ${c.credits ?? '?'} | ${c.grade ?? c.rawGrade ?? '?'} | ${c.season ?? ''} ${c.year ?? ''}${c.level ? ' | ' + c.level : ''}`;
 
 /** Every difference between the parse and the expectation, as messages. */
 function differences(name: string): string[] {

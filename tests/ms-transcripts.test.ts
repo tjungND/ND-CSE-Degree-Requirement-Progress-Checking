@@ -11,14 +11,13 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { parseExternalTranscript } from '../src/transcript/external.ts';
+import { rowOf } from './helpers/row-of.ts';
 
 const DIR = new URL('./fixtures/ms-transcripts/', import.meta.url).pathname;
 const expected = JSON.parse(readFileSync(join(DIR, 'expected.json'), 'utf8')) as Record<
   string,
   { university: string | null; campusSystem: string | null; campus: string | null; degreeConferred: true | null; bachelorsConferredOn: string | null; quarterSystem: true | null; courses: string[] }
 >;
-const rowOf = (c: ReturnType<typeof parseExternalTranscript>['courses'][number]): string =>
-  `${c.courseId} | ${c.title ?? ''} | ${c.credits ?? '?'} | ${c.grade ?? c.rawGrade ?? '?'} | ${c.season ?? ''} ${c.year ?? ''}${c.level ? ' | ' + c.level : ''}`;
 
 describe('the 48 synthetic master’s transcripts (DGS, 2026-09-20)', () => {
   const files = readdirSync(DIR).filter((n) => n.endsWith('.json') && n !== 'expected.json').sort();

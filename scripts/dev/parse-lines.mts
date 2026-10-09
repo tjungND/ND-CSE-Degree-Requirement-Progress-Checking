@@ -2,11 +2,11 @@
 // print what it read. Usage: node --experimental-strip-types parse-lines.mts lines.json
 import { readFileSync } from 'node:fs';
 import { parseExternalTranscript } from '../../src/transcript/external.ts';
+import { rowOf } from '../../tests/helpers/row-of.ts';
 const file = process.argv[2];
 if (!file) { console.error('usage: parse-lines.mts <lines.json>'); process.exit(2); }
 const lines = JSON.parse(readFileSync(file, 'utf8')) as string[];
 const r = parseExternalTranscript(lines);
-const rowOf = (c: any) => `${c.courseId} | ${c.title ?? ''} | ${c.credits ?? '?'} | ${c.grade ?? c.rawGrade ?? '?'} | ${c.season ?? ''} ${c.year ?? ''}${c.level ? ' | ' + c.level : ''}`;
 console.log(JSON.stringify({
   hasTextLayer: r.hasTextLayer, looksLikeNotreDame: r.looksLikeNotreDame,
   university: r.university ?? null, universityGuessed: r.universityGuessed ?? null, campusSystem: r.campusSystem ?? null, campus: r.campus ?? null,

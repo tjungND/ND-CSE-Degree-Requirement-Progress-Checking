@@ -2,10 +2,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseExternalTranscript } from '../../src/transcript/external.ts';
+import { rowOf } from '../../tests/helpers/row-of.ts';
 const DIR = new URL('../../tests/fixtures/public-transcripts/', import.meta.url).pathname;
 const expected = JSON.parse(readFileSync(join(DIR, 'expected.json'), 'utf8'));
 const known = JSON.parse(readFileSync(new URL('../../tests/fixtures/public-transcripts-known-failing.json', import.meta.url).pathname, 'utf8'));
-const rowOf = (c: any) => `${c.courseId} | ${c.title ?? ''} | ${c.credits ?? '?'} | ${c.grade ?? c.rawGrade ?? '?'} | ${c.season ?? ''} ${c.year ?? ''}${c.level ? ' | ' + c.level : ''}`;
 const only = process.argv[2];
 let pass = 0, fail = 0;
 for (const f of readdirSync(DIR).filter((n) => n.endsWith('.json') && !['expected.json', 'sources.json'].includes(n)).sort()) {
