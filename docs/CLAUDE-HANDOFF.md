@@ -1856,6 +1856,54 @@ changed, so nobody undoes it by accident:
 - **Every colour in `src/style.css` is a token** (`tests/theme.test.ts` fails on a literal outside `:root` and `@media print`). Add a new colour as a token with BOTH values: the light one in `:root`, the dark one in `:root[data-theme="dark"]` (inside `@media screen`, so printouts stay light). `--navy` is text and rules; a filled control uses `--navy-fill` with `--on-fill` text — one colour in light, two in dark.
 - The e2e (drive-a11y `checkNightMode`) switches each page to Dark, runs axe (contrast), screenshots `app-dark.png` / `courses-dark.png`, and switches back to Auto.
 
+## Simulation mode (DGS 2026-10-09) — the sandboxed record
+
+The DGS asked for a planning mode: a student changes the "current term", adds the courses and
+milestones they expect, and sees how the report would read then — with no request, Grad Admin
+request or advisor report possible, and the record untouched. `src/ui/simulation.ts` is the
+pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts` under
+"simulation mode". What a later session must not undo:
+
+- **Two storage keys, one `student` variable.** The real record stays under state.ts's
+  `LS_KEY`. The simulation is a deep copy under `SIM_KEY` (`cse-degree-audit/v1/simulation`,
+  `{ term, student }`), swapped into `let student`, with the real one kept in `realStudent`.
+  `persist()` is the ONLY call to `saveLocal`/`saveSimulation` in app.ts — every save in the
+  file goes through it, and in the mode it writes the simulation, never the real key. If you
+  add a save, call `persist()`; a bare `saveLocal(student)` would re-create the path that
+  turns a plan into the record.
+- **Exit restores from memory** (`realStudent`) and never re-saves it; `clearSimulation()`
+  drops the copy. No real record on the device → the opening dialog, as after Reset. Reset in
+  the mode is `restartSimulation` (a fresh copy, same semester); the real record cannot be
+  cleared from inside the mode.
+- **`todayIso` is a function** — `todayIso()` is the simulated date (`simulationToday`:
+  the real date while the semester is the real one, else the semester's first day);
+  `realTodayIso` is the real one. The readers that must stay real are marked "(D5)" in
+  app.ts: the transcript's gap questions, the rules' date line, the print header's date.
+- **The picker** lists `simulationTerms(realTodayIso)` (real current term → same season ten
+  years on, summers included); `defaultSimulationTerm` is the next fall/spring on fall/spring
+  slots; a stored or loaded semester is `clampSimulationTerm`ed on load so time never runs
+  backwards. Option values are the `termShort` codes, parsed back with `parseTermCode`.
+- **The saved file** in the mode is `simulationFilePayload` — `note` FIRST, then
+  `simulation.term`, `savedAt`, `student` — named `cse-degree-audit-<program>-simulation-<SP28>.json`.
+  `validateStudent` ignores the two extra keys, so an older build loads it as a record;
+  `simulationTermOfFile` is how this build tells the two apart: loaded outside the mode it
+  enters the mode with that semester (the real record untouched); inside the mode any file
+  loads into the simulation.
+- **The mode on the page**: `markSimulationMode()` (run by every render) sets `html.simulation`
+  and the tab title; the banner is first in `<main>` after the print header; the strip
+  (`.simulation-strip`) shows only at ≥ 901 px outside the frame, the phone's sticky score bar
+  carries the mode below that; in the frame a "Simulation" chip is repeated beside the report
+  headline (appended after `renderReport`, like the first-mention rule) and in each request
+  card. Enter focuses the picker, Exit focuses `tools.simulate`; the three `srStatus`
+  announcements are set AFTER `render()`, which otherwise overwrites them with "Report updated".
+- `confirmDialog` (copy-dialog.ts) now closes once: its queued `close` event used to call
+  `returnFocusTo` a second time, after the caller had re-rendered the page without the
+  opening control, and the heading fallback stole the focus Exit had just placed.
+- The drivers know the new button: drive-app.mjs's tools-row order includes `tools.simulate`;
+  drive-a11y.mjs's first-screen tab-stop threshold is 13. Still to build (the plan's D6, D7,
+  D10): the inert imports / Load example / request buttons in the mode, the Next-steps
+  "nothing is sent" step, the Coursework grade hint and the print header's SIMULATION line.
+
 ## Invariants — keep these true
 
 1. `npm test` and `npm run build` green before anything merges; `npm run e2e` for UI changes.

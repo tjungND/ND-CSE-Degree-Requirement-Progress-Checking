@@ -268,7 +268,16 @@ export function confirmDialog(opts: {
         el('div', { class: 'save-buttons' }, confirm, cancel),
       ),
     );
+    // Once only: a button click closes the dialog, and the `close` event that
+    // follows (queued, after the caller's continuation has run) must not put
+    // focus back a second time — the control the dialog was opened from may
+    // be gone by then (simulation mode's Exit re-renders the page without it,
+    // 2026-10-09), and the page-heading fallback would steal the focus the
+    // caller had just placed.
+    let done = false;
     const close = (): void => {
+      if (done) return;
+      done = true;
       if (dialog.open) dialog.close();
       dialog.remove();
       returnFocusTo(opts.returnFocusKey);

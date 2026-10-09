@@ -1372,3 +1372,55 @@ table.courses tr[hidden] { display: none !important; }
 .attention.floating.folded h3 { margin-bottom: -8px; }
 @media (max-width: 900px) { .attention.floating { left: 12px; right: 12px; width: auto; bottom: calc(64px + var(--float-warnings, 0px)); max-height: 35vh; } }
 @media print { .attention.floating { position: static; width: auto; max-height: none; overflow: visible; box-shadow: none; } .attention.floating h3 { position: static; margin: 0 0 4px; padding: 0; } .attention h3 .attention-toggle { display: none !important; } .attention.floating.folded .attention-body { display: block; } }
+
+/* ---------- simulation mode (DGS 2026-10-09; src/ui/simulation.ts, app.ts) ---------- */
+/* The whole page says so: a 6-px navy rule across the top of the document at
+   every width, the banner first in <main>, a "Simulation" chip after the
+   program name, the tab title, and — at desk width — a one-line strip pinned
+   to the top. On a phone the sticky score bar carries the mode instead of a
+   second fixed element. */
+html.simulation { border-top: 6px solid var(--navy-fill); }
+.simulation-banner { background: var(--navy-fill); color: var(--on-fill); border-color: var(--navy-fill); }
+.simulation-banner .simulation-lead { margin: 0 0 10px; font-size: 16px; line-height: 1.4; }
+.simulation-banner .simulation-lead strong { text-transform: uppercase; letter-spacing: 0.06em; }
+.simulation-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 18px; }
+.simulation-banner .field.inline .label { color: var(--on-fill); }
+.simulation-banner select { color: var(--ink); background: var(--card); }
+.simulation-banner .save-buttons { margin: 0; }
+.simulation-banner .btn { margin-left: 0; }
+.simulation-banner details.rare { margin-top: 10px; }
+.simulation-banner details.rare > summary { color: var(--on-fill); }
+.simulation-banner details.rare p { margin: 6px 0 0; font-size: 13px; line-height: 1.45; }
+.simulation-banner :where(select, button, summary):focus-visible { outline-color: var(--on-fill); outline-offset: 1px; }
+/* The chip beside the program name (and, in the frame, beside the report
+   headline and in each request card): bordered, so it reads apart from the
+   filled program pill next to it. */
+.program-name-wrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip-simulation { margin-left: 0; background: var(--card); color: var(--navy); border: 2px solid var(--navy); padding: 2px 9px; }
+h2 .chip-simulation, .headline .chip-simulation { margin-left: 8px; }
+/* The way in, at the foot of the Coursework card. */
+.simulate-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.simulate-foot .hint { margin: 0 0 8px; }
+.simulate-foot .save-buttons { margin: 0; }
+/* The strip: desk width only (≥ 901 px — the phone block's sticky score bar
+   takes over below that, app.ts). The page is pushed down by its height so
+   the masthead is never under it; a focused control is never hidden behind it. */
+.simulation-strip { display: none; }
+@media (min-width: 901px) {
+  html.simulation:not(.embed) body { padding-top: 34px; }
+  html.simulation:not(.embed) { scroll-padding-top: 40px; }
+  html.simulation:not(.embed) .simulation-strip { display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 950; align-items: center; justify-content: center; gap: 14px; height: 34px; padding: 0 14px; box-sizing: border-box; background: var(--navy-fill); color: var(--on-fill); font-weight: 700; font-size: 14px; border-bottom: 2px solid var(--gold); }
+  .simulation-strip .btn { background: var(--on-fill); color: var(--navy-fill); border-color: var(--on-fill); margin: 0; font-weight: 600; }
+  .simulation-strip .btn:focus-visible { outline-color: var(--on-fill); outline-offset: 1px; }
+}
+/* On the phone bar the mode comes first, set apart by case; the score follows. */
+.sticky-score .sticky-sim { text-transform: uppercase; letter-spacing: 0.04em; }
+/* Paper: the banner prints as a boxed notice (its controls cannot be acted
+   on); the strip is a screen thing. */
+@media print {
+  html.simulation { border-top: 6px solid #000; }
+  .simulation-strip { display: none !important; }
+  .simulation-banner { background: none; color: #000; border: 2px solid #000; page-break-inside: avoid; }
+  .simulation-banner .simulation-controls, .simulation-banner details.rare { display: none; }
+  .chip-simulation { border-color: #000; color: #000; }
+}

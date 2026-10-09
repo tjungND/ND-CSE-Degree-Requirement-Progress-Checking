@@ -605,6 +605,28 @@ anchor into its frame, so a cross-link lands at the top of the ND page — the r
 courses for this area" link, which filters the course list on the full page, cannot filter it
 there.
 
+## Simulation mode — what a student sees when planning ahead (DGS 2026-10-09)
+
+"Simulate a future semester" (in the tools row at the top, and at the foot of the Coursework
+card) puts the page into **simulation mode**: a navy banner first on the page says which
+semester it is pretending to be in, a picker changes that semester (the current one up to ten
+years ahead, summers included; it starts at the next fall or spring), and the student adds the
+courses and milestone dates they expect — the report then shows how they would stand then.
+"Exit simulation mode" (the banner, the tools row, and the strip pinned to the top on a wide
+screen) asks first, says what would be discarded, and brings the real record back untouched.
+
+What the mode cannot do, on purpose: nothing done in it ever reaches the real record (the
+simulation is a separate copy in the browser's storage, and the real record is never written
+while the mode is on); transcripts are imported outside the mode; the review request, the Grad
+Admin request and the advisor summary cannot be sent from it. The student can still print, and
+can **save the plan to a file**: `cse-degree-audit-<program>-simulation-<SP28>.json`, whose
+first line is a note (`"SIMULATION of Spring 2028 — a planning copy, not this student's
+record"`), then `simulation.term`, `savedAt` and the planning copy under `student`. Loading that
+file later reopens it in simulation mode with that semester, leaving the real record alone; an
+**older build** of the app, which does not know the two extra keys, would load it as an ordinary
+record — so a student who opened a plan on an old copy of the page should check the first line
+of the file before trusting what they see. Reloading the page keeps the mode on (a toast says so).
+
 ## Where things live
 
 `src/engine/` — rule engine, one pure function per requirement with the handbook sentence quoted

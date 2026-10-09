@@ -19,7 +19,24 @@ import { uncoveredRegistrationGaps } from '../engine/registration-gaps.ts';
 import { termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import type { AuditReport, CourseEntry, CourseLine, MilestoneDateKey, MilestoneDeadline, Program, Season, Student, Term } from '../engine/types.ts';
 import { deadlineText } from './milestone-deadline.ts';
-import { clear, el, inactiveButton, option } from './dom.ts';
+import { PREVIEW_OPEN_NOTE, clear, el, inactiveButton, option } from './dom.ts';
+import {
+  type Simulation,
+  changesSentence,
+  clampSimulationTerm,
+  clearSimulation,
+  countChangesSince,
+  defaultSimulationTerm,
+  loadSimulation,
+  parseSimulationTermCode,
+  saveSimulation,
+  simulationFileName,
+  simulationFilePayload,
+  simulationTermCode,
+  simulationTermOfFile,
+  simulationTerms,
+  simulationToday,
+} from './simulation.ts';
 import { siblingAnchorAttrs } from './sibling-links.ts';
 import { BETA_NOTICE, BETA_SCOPE_NOTICE, RULES_ACCURACY_NOTICE, handbookLink, rulesDateLine } from './handbook.ts';
 import { DGS, GRAD_ADMIN, LICENSE_URL, REPO_URL, applyContactOverrides, contactCard, mailto, reportToDgs, deciderContact } from './contacts.ts';
@@ -65,11 +82,12 @@ import {
   type Refusal,
   SEASONS,
   clearLocal,
+  downloadJson,
   emptyStudent,
   exportFile,
-  importFile,
   loadLocal,
   saveLocal,
+  validateStudent,
 } from './state.ts';
 
 // (The §4.4.1 core-title keywords moved to src/engine/core-title.ts on
@@ -125,7 +143,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * it came from, so a figure that vanished is never unexplained. */
   const loadRefusals: Refusal[] = [];
   const saved = loadLocal(loadRefusals);
-  let student: Student = saved ?? emptyStudent();
+  // Simulation mode (DGS 2026-10-09; src/ui/simulation.ts): a stored
+  // simulation means the student left the page in the mode, so it reopens in
+  // it — the planning copy is the page's record, the real record stays in
+  // memory (realStudent) and in its own storage key, untouched. A simulated
+  // semester that has since become the past is lifted to the real one.
+  const simulationRefusals: Refusal[] = [];
+  let simulation: Simulation | undefined = loadSimulation(simulationRefusals);
+  if (simulation) simulation.term = clampSimulationTerm(simulation.term, today.iso);
+  /** The real record while the mode is on — what Exit puts back. Undefined
+   * when no record was ever saved on this device. */
+  let realStudent: Student | undefined = saved;
+  let student: Student = simulation?.student ?? saved ?? emptyStudent();
+  /** The refusals of the record the page shows: the simulation's own when the
+   * page opens in the mode (D11). */
+  const activeRefusals = simulation ? simulationRefusals : loadRefusals;
   // Department-approval gate (DGS request, 2026-09-03): shown on EVERY visit
   // until the student clicks Agree — the tool is under testing and not yet
   // approved by the department. Nothing is stored about the click.
@@ -325,12 +357,20 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // fall through to the DGS's email link).
   if (openModal(consentDialog)) (agreeButton.hasAttribute('disabled') ? consentDialog.querySelector<HTMLElement>('input[type=radio]') ?? agreeButton : agreeButton).focus();
   };
-  openOpeningDialog(saved);
+  // Prefilled from the ACTIVE record — the simulation's when the page opens in
+  // the mode (D11), the saved record otherwise.
+  openOpeningDialog(simulation?.student ?? saved);
 
   // Established on the loading card (DGS 2026-09-07): the date at Notre Dame,
   // from the server this page came from when it answers, and read in Notre
   // Dame's own zone either way — never the device's idea of the calendar.
-  const todayIso = today.iso;
+  const realTodayIso = today.iso;
+  /** The date the AUDIT runs against: the real one, or in simulation mode the
+   * simulated semester's (simulationToday — the real date while the simulated
+   * semester is the real one, else its first day). Questions about the
+   * transcript (its empty semesters, unregistered gaps), the rules' date, the
+   * print header's "printed on" and a saved file's savedAt keep the real date. */
+  const todayIso = (): string => (simulation ? simulationToday(simulation.term, realTodayIso) : realTodayIso);
   // No default (policy review 2026-10-03, P1-residency-enrollment-c7): with
   // the Parameters row missing the residency rows cannot be evaluated, and
   // the Full-time terms list says so instead of counting from a built-in 9.
@@ -354,9 +394,23 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
    * the coursework table, which is built later in the same pass. */
   let groupChoices: Record<string, string[]> = {};
 
+  /** The ONE place the record is saved (D1): in simulation mode the planning
+   * copy goes under its own key and the real record is never written; outside
+   * it, the record itself. Every save in this file goes through here — this
+   * is the only call to state.ts's saver — so no path can turn a plan into
+   * the real record (D2). */
+  const persist = (): void => {
+    if (simulation) {
+      simulation.student = student;
+      saveSimulation(simulation);
+    } else {
+      saveLocal(student);
+    }
+  };
+
   const update = (mutate: (s: Student) => void): void => {
     mutate(student);
-    saveLocal(student);
+    persist();
     render();
   };
 
@@ -508,11 +562,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   function render(): void {
     const memo = rememberFocus();
-    let report = audit(student, rules, todayIso);
+    markSimulationMode(); // the <html> class and the tab title follow the mode and its semester
+    let report = audit(student, rules, todayIso());
     const autoNotices = autoSelect(report);
     if (autoNotices.length > 0) {
-      saveLocal(student);
-      report = audit(student, rules, todayIso);
+      persist();
+      report = audit(student, rules, todayIso());
       notice(autoNotices.join(' '));
     }
     // Nothing entered yet: the report describes the degree, not the student
@@ -528,7 +583,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // the next-steps list counts its items, and the Grad Admin card shows and
     // copies it. Its count comes from processingItems, which `history` does
     // not touch, so this one call (the card's, with history) serves both.
-    const gaRequest = gradAdminRequest(report, student, rules, { todayIso, entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa, history: programHistory(student) }, classified);
+    const gaRequest = gradAdminRequest(report, student, rules, { todayIso: todayIso(), entryTerm: termLabel(student.entryTerm), priorStudy: priorStudyLabel(student), gpa: student.gpa, history: programHistory(student) }, classified);
     // What the record calls for next (DGS 2026-09-27): read once here, drawn
     // under the dial, in the phone summary and as the numbered list.
     // The courses waiting for the STUDENT's answer, not the DGS (UI review,
@@ -561,8 +616,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'p',
           { class: 'print-header' },
-          `Self-check printed on ${todayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS decides eligibility, the Grad Admin processes it.`, // "decides", as everywhere else (trim review 2026-09-18, P-60)
+          `Self-check printed on ${realTodayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS decides eligibility, the Grad Admin processes it.`, // "decides", as everywhere else (trim review 2026-09-18, P-60); the real date even in simulation mode (D5)
         ),
+        // Simulation mode's banner (DGS 2026-10-09): first thing in <main>, so
+        // that nothing on the page can be read as the student's record while
+        // the mode is on.
+        simulationBanner(),
+        simulationStrip(),
         // The example is saved like any other record, so say whose it is until
         // the student takes it back (2026-09-08). What it says is counted from
         // the rows themselves (R5, 2026-09-18): "Nothing here came from you"
@@ -621,12 +681,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'nav',
           { class: 'sticky-score', 'aria-label': 'Your score, and jumps between inputs and report' },
-          el('span', { class: 'sticky-text' }, scoreLine(report)),
+          // On a phone the mode is said HERE, in the one fixed bar the page
+          // already has (D9) — a second fixed strip would eat the small screen.
+          el('span', { class: 'sticky-text' }, simulation ? el('span', { class: 'sticky-sim' }, `Simulation · ${termLabel(simulation.term)}`) : null, simulation ? ' — ' : null, scoreLine(report)),
           el('a', { href: '#inputs' }, 'Inputs ↑'),
           el('a', { href: '#report' }, 'Report ↓'),
         ),
       ),
     );
+    // Embedded, the banner scrolls out of a tall frame that has no sticky
+    // strip, so the mode is repeated beside the report's headline (and in
+    // each request card, where those are built). The headline is report.ts's;
+    // the chip is added here, after the fact, like the first-mention rule.
+    if (simulation && isEmbedded()) root.querySelector('.audit .scorehead .headline')?.append(' ', simulationChip()!);
     // "Oral Candidacy Exam (OCE)" in full once, then "OCE" (DGS 2026-09-06
     // evening) — text nodes only, in document order, before focus is restored.
     applyFirstMentionRule(root);
@@ -693,7 +760,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
                 el('a', siblingAnchorAttrs('course-rules', window.location.search, isEmbedded()), 'course rules page'),
                 '.',
               ),
-              el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(termOfDate(todayIso)), todayIso)),
+              el('p', { class: 'effective' }, rulesDateLine(rules, termLabel(termOfDate(realTodayIso)), realTodayIso)), // the rules' date is a fact about the sheet: real even in simulation mode (D5)
               // The rules spreadsheet, linked with its faculty-only note (DGS, 2026-09-04).
               sheetSourceLine(),
             ]),
@@ -725,7 +792,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'div',
         { class: 'masthead-tools' },
-        el('span', { class: 'program-name' }, student.program === 'mscse' ? 'M.S. in CSE (Handbook §3)' : 'Ph.D. (Handbook §4)'),
+        el('span', { class: 'program-name-wrap' }, el('span', { class: 'program-name' }, student.program === 'mscse' ? 'M.S. in CSE (Handbook §3)' : 'Ph.D. (Handbook §4)'), simulationChip()),
         el(
           'div',
           {},
@@ -733,13 +800,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           // The storage card's three buttons, here too (DGS 2026-09-24), between
           // Load example and the advisor summary. "Load a file" opens the storage
           // card's own file input, so there is one import path.
-          el('button', { class: 'btn', 'data-key': 'tools.save', onclick: () => exportFile(student) }, 'Save to a file'),
+          el('button', { class: 'btn', 'data-key': 'tools.save', onclick: saveActiveToFile }, 'Save to a file'),
           el('button', { class: 'btn', 'data-key': 'tools.load', onclick: () => document.querySelector<HTMLInputElement>('[data-key="save.fileinput"]')?.click() }, 'Load a file'),
           el('button', { class: 'btn', 'data-key': 'tools.print', onclick: () => window.print() }, 'Print'),
           // Between Load example and Reset (DGS 2026-09-22); it was at the end
           // of the report from the trim review (P-72) until then.
           advisorSummaryButton(report),
-          el('button', { class: 'btn', 'data-key': 'tools.reset', onclick: resetAll }, 'Reset'),
+          // Simulation mode (DGS 2026-10-09): the way in, between the advisor
+          // summary and Reset; in the mode the same slot holds a second way out.
+          simulation ? exitSimulationButton('tools.simulate.exit') : simulateButton('tools.simulate'),
+          resetButton('tools.reset'),
         ),
       ),
     );
@@ -1294,7 +1364,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   /** The empty falls and springs on the Notre Dame transcript (withdrawals.ts
    * transcriptGapSemesters; through the current semester since P3-dh-3.1-3.13-2). */
   function transcriptGaps(): Term[] | undefined {
-    return transcriptGapSemesters(student, todayIso);
+    return transcriptGapSemesters(student, realTodayIso); // a question about the transcript: the real date even in simulation mode (D5)
   }
 
   function clockFields(): HTMLElement {
@@ -1414,7 +1484,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const gapUnanswered =
       (gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined) ||
       (withdrawals.length > 0 && student.readmittedTerm === undefined) ||
-      uncoveredRegistrationGaps(student, todayIso) !== undefined;
+      uncoveredRegistrationGaps(student, realTodayIso) !== undefined; // the transcript's gaps: the real date even in simulation mode (D5)
     return rareFold(
       'clocks',
       onFile.length > 0 ? `${summary} — on file: ${onFile.join(', ')}` : summary,
@@ -1528,7 +1598,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // anything the student entered — it was a bare "Fall 2026" and read like the
   // entry term (DGS 2026-09-07), so it now says what it is.
   function currentSemesterChip(): string {
-    return `current semester: ${termLabel(termOfDate(todayIso))}`;
+    // In simulation mode the chip says the semester is the pretended one (D5).
+    return `${simulation ? 'simulated ' : ''}current semester: ${termLabel(termOfDate(todayIso()))}`;
   }
 
   /** The entry-term question names the actual program and where it is (DGS
@@ -1556,7 +1627,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // Ph.D. run broke there. Summers appear on the MSCSE tab only (§3.3's "one
     // summer session"); on the Ph.D. tab a summer tick changes nothing (§4.3).
     const entry = normalizeEntryTerm(student.entryTerm).term;
-    const now = termOfDate(todayIso);
+    const now = termOfDate(todayIso()); // through the simulated semester in simulation mode, so a planned research-only term can be ticked
     const terms = new Map<number, Term>();
     for (let seq = semesterSeq(entry); seq <= semesterSeq(now); seq++) {
       const t: Term = { season: seq % 2 === 1 ? 'fall' : 'spring', year: Math.floor(seq / 2) };
@@ -1935,6 +2006,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           : el('p', { class: 'empty' }, student.program === 'phd' ? 'No core-area-relevant courses on this transcript.' : 'No courses from this transcript can count toward the MSCSE.'),
       ]),
     );
+    // The way into simulation mode, where a student planning courses is
+    // looking (D8; DGS 2026-10-09: "make something to let students see and
+    // know they can enter the simulation mode") — outside the mode only.
+    if (!simulation) {
+      card.append(
+        el(
+          'div',
+          { class: 'simulate-foot' },
+          el('p', { class: 'hint' }, 'Planning ahead? Simulate a future semester: pick the semester, add the courses and milestones you expect, and see how the report would read then — your record stays as it is.'),
+          el('div', { class: 'save-buttons' }, simulateButton('coursework.simulate')),
+        ),
+      );
+    }
     return card;
   }
 
@@ -2019,7 +2103,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'card dgs-review', id: 'dgs-review' },
-      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, what)),
+      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, what), isEmbedded() ? simulationChip() : null), // the mode repeated here in the frame (D9)
       // Earlier coursework waits on the earlier-degrees answer (UI review,
       // 2026-10-08): said first; the request itself stays (DGS 2026-09-03).
       student.background === undefined && pending.some((p) => p.kind !== 'nd')
@@ -2106,7 +2190,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       min: String(TERM_YEAR_RANGE.min),
       'aria-label': 'Term — year',
       'data-key': 'course.new.year',
-      value: String(termOfDate(todayIso).year), // the year at Notre Dame, like every other date on the page — not the device clock
+      value: String(termOfDate(todayIso()).year), // the year at Notre Dame, like every other date on the page — not the device clock; the simulated year in simulation mode
     });
     const termYearError = errorLine('new-course-year-error');
     const gradeSel = el('select', { 'data-key': 'course.new.grade' });
@@ -2650,7 +2734,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'section',
       { class: 'card grad-admin-request', id: 'grad-admin' },
-      el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, plural(n, 'item'))),
+      el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, plural(n, 'item')), isEmbedded() ? simulationChip() : null), // the mode repeated here in the frame (D9)
       // Two people, two jobs (DGS 2026-09-06; the button sentence DGS
       // 2026-09-15). While there is nothing to send, the paragraph told the
       // student to click a button that does nothing, so the n = 0 state is
@@ -3000,7 +3084,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // passed the examination under the requirements in force at the time.
       // Hidden before then — a ticked box on an earlier record is ignored by
       // the engine, which says so in a warning.
-      if (qualifierPriorRulesEligible(student.entryTerm, todayIso) || a.qualifierPassedUnderPriorRules) {
+      if (qualifierPriorRulesEligible(student.entryTerm, todayIso()) || a.qualifierPassedUnderPriorRules) {
         card.append(
           rareFold(
             'prior-rules',
@@ -3077,14 +3161,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           // The processing request's transfer list (P3-emails-1).
           const transfers = processingItems(report, student, rules).transfers.map((t) => t.courseId);
           const built = advisorSummary(report, {
-            todayIso,
+            todayIso: todayIso(),
             entryTerm: termLabel(student.entryTerm),
             priorStudy: priorStudyLabel(student),
             gpa: student.gpa,
             advisors,
             history: programHistory(student),
             unofficialNote: unofficialTranscriptNote(student.courses),
-            transfers: { courses: transfers, recorded: student.attestations.transferRecorded === true, firstSemesterDone: firstSemesterComplete(student, normalizeEntryTerm(student.entryTerm).term, todayIso).done },
+            transfers: { courses: transfers, recorded: student.attestations.transferRecorded === true, firstSemesterDone: firstSemesterComplete(student, normalizeEntryTerm(student.entryTerm).term, todayIso()).done },
             qualifierFrom: qualifierTransferTerm(),
           });
           void copyDialog({
@@ -3109,19 +3193,31 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       if (!file) return;
       try {
         const refusals: Refusal[] = [];
-        const imported = await importFile(file, refusals);
+        const raw: unknown = JSON.parse(await file.text());
+        const imported = validateStudent(raw, refusals);
+        // A SIMULATION file (D3) carries its semester. Loaded outside the mode
+        // it opens the mode with that semester and leaves the real record
+        // untouched; inside the mode, any file — a record or a simulation —
+        // loads into the simulation, never into the real record (D2).
+        const fileTerm = simulationTermOfFile(raw);
         cancelUndo();
         refusedValues.clear(); // this file's own refusals replace the page's
         const previous = student;
+        const previousSimulation = simulation;
+        if (fileTerm !== undefined && !simulation) {
+          realStudent = student;
+          simulation = { term: clampSimulationTerm(fileTerm, realTodayIso), student: imported };
+        }
         student = imported;
         try {
           render(); // render BEFORE persisting, so a file that crashes rendering is never saved
         } catch (renderErr) {
           student = previous;
+          simulation = previousSimulation;
           render();
           throw renderErr;
         }
-        saveLocal(student);
+        persist();
         // A number the file carried that the app would not keep goes back into
         // its own field, refused, rather than disappearing (R1, 2026-09-18).
         if (refusals.length > 0) {
@@ -3129,7 +3225,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           render();
         }
         // "File", as the buttons say (trim review 2026-09-18, P-62).
-        toast(refusals.length > 0 ? `File loaded. ${refusals.map((r) => r.message).join(' ')}` : 'File loaded.');
+        const loaded =
+          simulation && previousSimulation === undefined
+            ? `Simulation file loaded — simulation mode is on for ${termLabel(simulation.term)}; your record is untouched.`
+            : simulation
+              ? `File loaded into the simulation — your record is untouched.`
+              : 'File loaded.';
+        toast(refusals.length > 0 ? `${loaded} ${refusals.map((r) => r.message).join(' ')}` : loaded);
+        if (simulation && previousSimulation === undefined) {
+          setFocusAfterRender('simulation.term');
+          render();
+          srStatus.textContent = `Simulation mode on: this page is pretending it is ${termLabel(simulation.term)}. Nothing here is your record.`;
+        }
       } catch (err) {
         toast(err instanceof Error ? err.message : 'That file could not be read.');
       }
@@ -3161,7 +3268,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'div',
         { class: 'save-buttons' },
-        el('button', { class: 'btn primary', 'data-key': 'save.file', onclick: () => exportFile(student) }, 'Save to a file'),
+        el('button', { class: 'btn primary', 'data-key': 'save.file', onclick: saveActiveToFile }, 'Save to a file'),
         el('button', { class: 'btn', 'data-key': 'save.load', onclick: () => (fileInput as HTMLInputElement).click() }, 'Load a file'),
         el('button', { class: 'btn', 'data-key': 'save.print', onclick: () => window.print() }, 'Print'),
         // Reset beside Print (DGS 2026-09-22) — the card whose sentence tells a
@@ -3169,10 +3276,185 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // Also here (DGS 2026-09-23), with its own key so focus returns to
         // the right one of the two buttons.
         advisorSummaryButton(report, 'save.summary'),
-        el('button', { class: 'btn', 'data-key': 'save.reset', onclick: resetAll }, 'Reset'),
+        resetButton('save.reset'),
       ),
       fileInput,
     );
+  }
+
+  // ---------- simulation mode (DGS 2026-10-09; src/ui/simulation.ts) ----------
+
+  /** The mode on the document: `html.simulation` (the top rule, the strip,
+   * the print treatment — style.css) and the tab title naming the semester.
+   * Called by every render, so a semester change reaches the title too. */
+  const baseTitle = document.title;
+  function markSimulationMode(): void {
+    document.documentElement.classList.toggle('simulation', simulation !== undefined);
+    document.title = simulation ? `Simulating ${termLabel(simulation.term)} — ${baseTitle}` : baseTitle;
+  }
+
+  /** The "Simulation" chip — after the program name in the masthead and, in
+   * embed mode, beside the report headline and in each request card. Null
+   * outside the mode. */
+  function simulationChip(): HTMLElement | null {
+    return simulation ? el('span', { class: 'chip-start chip-simulation' }, 'Simulation') : null;
+  }
+
+  /** "Save to a file" — the record's file outside the mode, the simulation's
+   * (D3: the note first, the semester, then the planning copy) inside it. */
+  function saveActiveToFile(): void {
+    if (simulation) downloadJson(simulationFileName(student.program, simulation.term), simulationFilePayload(student, simulation.term, new Date().toISOString()));
+    else exportFile(student);
+  }
+
+  /** The way in. Inactive while a transcript preview is open: the preview's
+   * rows belong to the real record, and the mode must start from a settled one. */
+  function simulateButton(key: string): HTMLElement {
+    if (ndPreviewOpen() || importsBusy()) return inactiveButton({ class: 'btn', 'data-key': key }, PREVIEW_OPEN_NOTE, toast, 'Simulate a future semester');
+    return el('button', { class: 'btn', 'data-key': key, onclick: enterSimulation }, 'Simulate a future semester');
+  }
+
+  function exitSimulationButton(key: string): HTMLElement {
+    return el('button', { class: 'btn', 'data-key': key, onclick: () => void exitSimulation(key) }, 'Exit simulation mode');
+  }
+
+  /** Reset — or, in the mode, a fresh copy of the real record (D6): the
+   * real record is never cleared from inside the simulation. */
+  function resetButton(key: string): HTMLElement {
+    if (simulation) return el('button', { class: 'btn', 'data-key': key, onclick: () => void restartSimulation(key) }, 'Start the simulation over from my record');
+    return el('button', { class: 'btn', 'data-key': key, onclick: resetAll }, 'Reset');
+  }
+
+  /** Enter the mode: the record stays as it is (in memory and in its own
+   * storage key); a deep copy of it becomes the page's record, dated to the
+   * next fall or spring (defaultSimulationTerm). */
+  function enterSimulation(): void {
+    if (simulation || ndPreviewOpen() || importsBusy()) return;
+    cancelUndo(); // an Undo would splice real rows into the copy
+    refusedValues.clear();
+    realStudent = student;
+    const term = defaultSimulationTerm(realTodayIso);
+    simulation = { term, student: JSON.parse(JSON.stringify(student)) as Student };
+    student = simulation.student;
+    saveSimulation(simulation);
+    setFocusAfterRender('simulation.term');
+    render();
+    // After render(), which announces a changed headline itself: the mode is
+    // the news here.
+    srStatus.textContent = `Simulation mode on: this page is pretending it is ${termLabel(term)}. Nothing here is your record.`;
+  }
+
+  /** The semester picker's change. */
+  function setSimulationTerm(term: Term): void {
+    if (!simulation) return;
+    simulation.term = term;
+    saveSimulation(simulation);
+    render();
+    srStatus.textContent = `Simulated current semester: ${termLabel(term)}. Report updated.`;
+  }
+
+  /** Leave the mode, after saying what goes: the planning copy is discarded
+   * and the real record comes back from memory — it is never re-saved, since
+   * nothing in the mode could have changed it. With no real record on this
+   * device (the page was reloaded with only a simulation stored, and nothing
+   * was ever saved outside it), the opening dialog returns as after Reset. */
+  async function exitSimulation(returnFocusKey: string): Promise<void> {
+    if (!simulation) return;
+    const term = simulation.term;
+    const changes = countChangesSince(realStudent ?? emptyStudent(), student);
+    const ok = await confirmDialog({
+      title: 'Exit simulation mode?',
+      body: [
+        `This discards the simulation: ${changesSentence(changes, term)}. Save it to a file first if you want to keep the plan.`,
+        'Your record comes back exactly as it was when you entered.',
+      ],
+      confirmLabel: 'Exit and discard the simulation',
+      cancelLabel: 'Stay in the simulation',
+      returnFocusKey,
+    });
+    if (!ok) return;
+    cancelUndo();
+    refusedValues.clear();
+    resetPriorImports();
+    resetNdImport();
+    simulation = undefined;
+    clearSimulation();
+    if (realStudent) {
+      student = realStudent;
+      setFocusAfterRender('tools.simulate');
+      render();
+    } else {
+      student = emptyStudent();
+      render();
+      openOpeningDialog(undefined);
+    }
+    srStatus.textContent = 'Simulation mode off. This is your record again.';
+  }
+
+  /** Start over inside the mode: a fresh copy of the real record, the same
+   * simulated semester (D6). */
+  async function restartSimulation(returnFocusKey: string): Promise<void> {
+    if (!simulation) return;
+    const ok = await confirmDialog({
+      title: 'Start the simulation over?',
+      body: [`This discards the simulation (${changesSentence(countChangesSince(realStudent ?? emptyStudent(), student), simulation.term)}) and starts again from a fresh copy of your record, still pretending it is ${termLabel(simulation.term)}.`],
+      confirmLabel: 'Start over from my record',
+      cancelLabel: 'Keep the simulation',
+      returnFocusKey,
+    });
+    if (!ok) return;
+    cancelUndo();
+    refusedValues.clear();
+    resetPriorImports();
+    resetNdImport();
+    simulation.student = JSON.parse(JSON.stringify(realStudent ?? emptyStudent())) as Student;
+    student = simulation.student;
+    saveSimulation(simulation);
+    render();
+    if (!realStudent) openOpeningDialog(undefined); // no record to copy: the degree is chosen as after Reset
+    srStatus.textContent = `Simulation started over from your record; still pretending it is ${termLabel(simulation.term)}.`;
+  }
+
+  /** The banner (D9): first in <main>, navy, the semester named in its lead;
+   * the semester picker, Exit, Save to a file, and the explanation behind a
+   * selector. Null outside the mode. */
+  function simulationBanner(): HTMLElement | null {
+    if (!simulation) return null;
+    const term = simulation.term;
+    const select = el('select', {
+      'data-key': 'simulation.term',
+      id: 'simulation-term',
+      onchange: (e) => {
+        const picked = parseSimulationTermCode((e.target as HTMLSelectElement).value);
+        if (picked) setSimulationTerm(picked);
+      },
+    });
+    for (const t of simulationTerms(realTodayIso)) select.append(option(simulationTermCode(t), termLabel(t), compareTerm(t, term) === 0));
+    return el(
+      'section',
+      { class: 'card simulation-banner', role: 'note', 'aria-labelledby': 'simulation-lead' },
+      el('p', { class: 'simulation-lead', id: 'simulation-lead' }, el('strong', {}, 'Simulation mode'), ` — this page is pretending it is ${termLabel(term)}; nothing here is your record.`),
+      el(
+        'div',
+        { class: 'simulation-controls' },
+        el('label', { class: 'field inline simulation-term' }, el('span', { class: 'label' }, 'Current semester in this simulation'), select),
+        el('div', { class: 'save-buttons' }, exitSimulationButton('simulation.exit'), el('button', { class: 'btn', 'data-key': 'simulation.save', onclick: saveActiveToFile }, 'Save to a file')),
+      ),
+      rareFold(
+        'simulation.about',
+        'What simulation mode does',
+        false,
+        el('p', {}, `The page audits a copy of your record as if today were in ${termLabel(term)}: add the courses you plan to take with the grades you expect, enter the milestone dates you aim for, and the report shows how you would stand then. Change the semester above to look further ahead.`),
+        el('p', {}, 'Your real record is set aside, untouched, and comes back when you exit; nothing you do here changes it. Transcripts are imported outside the mode, and no request or summary can be sent from here — this is a plan, not a record. You can save the plan to a file or print it; loading that file later reopens it in simulation mode.'),
+      ),
+    );
+  }
+
+  /** The sticky strip at desk width (≥ 901 px, style.css): one line, the
+   * semester, Exit. On phones the sticky score bar carries the mode instead. */
+  function simulationStrip(): HTMLElement | null {
+    if (!simulation) return null;
+    return el('div', { class: 'simulation-strip' }, el('span', {}, `Simulation — ${termLabel(simulation.term)}`), el('button', { class: 'btn tiny', 'data-key': 'simulation.strip.exit', onclick: () => void exitSimulation('simulation.strip.exit') }, 'Exit'));
   }
 
   // ---------- diagnostics ----------
@@ -3279,8 +3561,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     }
     cancelUndo(); // a stale Undo would splice old rows into the replaced record
     refusedValues.clear(); // …and a stale refusal would mark a box the record no longer has
-    student = exampleFor(program, todayIso);
-    saveLocal(student);
+    student = exampleFor(program, todayIso());
+    persist();
     render();
     // No visible toast: the banner at the top of the inputs says the same
     // and names the right button, and the toast covered the page on a phone.
@@ -3344,7 +3626,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       'Undo',
       () => {
         student = before;
-        saveLocal(student);
+        persist();
         render();
       },
       { ttlMs: 20000 },
@@ -3368,9 +3650,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // A record already on this device may carry a number an older build let
   // through (R1, 2026-09-18): it is refused now, shown back in its field, and
   // said out loud once the page is up — never dropped in silence.
-  if (loadRefusals.length > 0) applyRefusals(refusedValues, loadRefusals);
+  if (activeRefusals.length > 0) applyRefusals(refusedValues, activeRefusals);
   render();
-  for (const r of loadRefusals) toast(r.message);
+  for (const r of activeRefusals) toast(r.message);
+  // Reopened in simulation mode (the student left the page in it): say so
+  // once, beyond the banner — a returning student may not expect it.
+  if (simulation) toast(`Simulation mode is still on — this page is pretending it is ${termLabel(simulation.term)}. Exit it to see your record.`);
 }
 
 /** "CSE 60111", "CSE 60111 and CSE 60321", "A, B and C". */

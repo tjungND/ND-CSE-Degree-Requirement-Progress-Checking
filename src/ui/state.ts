@@ -512,11 +512,16 @@ export function clearLocal(): void {
 }
 
 export function exportFile(student: Student): void {
-  const payload = { savedAt: new Date().toISOString(), student };
+  downloadJson(selfCheckFileName(student.program), { savedAt: new Date().toISOString(), student });
+}
+
+/** Hand the browser a JSON file to save — the record's (exportFile) or, in
+ * simulation mode, the planning copy's (src/ui/simulation.ts). */
+export function downloadJson(fileName: string, payload: unknown): void {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = selfCheckFileName(student.program);
+  a.download = fileName;
   a.click();
   URL.revokeObjectURL(a.href);
 }

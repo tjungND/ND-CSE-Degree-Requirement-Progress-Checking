@@ -273,8 +273,9 @@ async function checkFirstScreen(s, baseUrl) {
   // Send summary (DGS 2026-09-22) and Save / Load / Print (DGS 2026-09-24),
   // at the DGS's request; the skip link still jumps straight to the inputs.
   // The Auto · Light · Dark switch (night mode, DGS 2026-10-04) is one more —
-  // one tab stop, an ARIA radio group, so 12.
-  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 12) {
+  // one tab stop, an ARIA radio group, so 12. "Simulate a future semester"
+  // in the tools row (simulation mode, DGS 2026-10-09) makes it 13.
+  if (first.firstEntryIndex < 0 || first.firstEntryIndex > 13) {
     throw new Error('a data-entry control must come early in the tab order, not 20th: ' + first.firstEntryIndex);
   }
   if (first.contactInMasthead || !first.contactAtEnd) throw new Error('the who-to-contact card belongs at the end: ' + JSON.stringify(first));
