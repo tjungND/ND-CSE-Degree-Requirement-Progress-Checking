@@ -1504,7 +1504,10 @@ changed, so nobody undoes it by accident:
   `graduatePossible(v, partial, program)` is the one rule (4+1 option only for nd-cse without a "No";
   no regular-master's MSCSE after a "Yes"; MSCSE tab + "Yes" → only "No"); `graduateOptionsFor`
   filters the list in `graduateOrder`'s most-probable-first order for the situation (DGS, later
-  that day), `completeBackground` refuses a ruled-out answer, and `backgroundQuestions` builds every
+  that day; `wasInFourPlusOne` = the follow-up's Yes OR the `nd-4plus1` answer, which now sets the
+  follow-up to Yes instead of clearing it — the follow-up is asked for every nd-cse answer, and
+  `completeBackground` reads an old `nd-4plus1` record without it as Yes; "No" is ruled out after a
+  Yes on the Ph.D. tab), `completeBackground` refuses a ruled-out answer, and `backgroundQuestions` builds every
   row (the drivers' data-keys stay) and `syncGraduateRows` hides/unhides them, moves them into that
   order and drops a ruled-out chosen answer on each re-render of the follow-ups. `.choice[hidden]`
   is the CSS.

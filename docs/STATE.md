@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-08 (DGS — the order reset; no “No” after a 4+1 Yes): choosing the 4+1 MSCSE now answers the 4+1 follow-up Yes (it stays shown); `wasInFourPlusOne` drives order and options; “No” is hidden after a Yes on the Ph.D. tab. Open: whether “another university” / “another department” should also hide after a Yes.
+
 2026-10-08 (DGS — most probable graduate answers first): `graduateOrder` (background.ts) orders the graduate-degree options per bachelor’s/4+1 situation; `syncGraduateRows` moves the rows. Open: the DGS may reorder any list.
 
 2026-10-08 (DGS — “approved my coursework”): the advisor-approval sentences say “coursework”, not “plan of study” (W-CL360); the per-course “for my plan of study” to-do and the §2.9 “dual-degree plan of study” are unchanged, pending the DGS. Open: whether to change those two.

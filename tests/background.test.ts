@@ -87,7 +87,7 @@ describe('earlier degrees → previous-transcript rows (DGS 2026-09-22)', () => 
       const bachelors = graduate === 'nd-4plus1' ? 'nd-cse' : 'elsewhere';
       assert.equal(completeBackground({ bachelors, graduate }, 'phd'), undefined, `${graduate}: the other-university question is open`);
       const done = completeBackground({ bachelors, graduate, alsoElsewhere: true, finished: true }, 'phd')!;
-      assert.deepEqual(done, { bachelors, graduate, alsoElsewhere: true, finished: true });
+      assert.deepEqual(done, { bachelors, ...(graduate === 'nd-4plus1' ? { ndIntegrated: true } : {}), graduate, alsoElsewhere: true, finished: true });
       assert.deepEqual(priorSlotsFor(done), bachelors === 'elsewhere' ? ['bachelors', 'masters', 'phd'] : ['masters', 'phd']);
       const s = { ...phdStudent(), program: 'phd' as const };
       applyBackground(s, done);
@@ -145,7 +145,12 @@ describe('graduate answers the other answers rule out are not offered, and the r
   it('Notre Dame CSE — “No” to the 4+1: no MSCSE through the 4+1; “Yes”: no MSCSE as a regular master’s student, the finished 4+1 first', () => {
     assert.deepEqual(ids({ bachelors: 'nd-cse' }, 'phd'), ['none', 'nd-4plus1', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'], 'the 4+1 still open: every option, the Notre Dame ones first');
     assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: false }, 'phd'), ['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other']);
-    assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: true }, 'phd'), ['nd-4plus1', 'nd-mscse-transfer', 'none', 'elsewhere', 'nd-other']);
+    // …and no "No": the 4+1 is a graduate program started (DGS 2026-10-08, later).
+    assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: true }, 'phd'), ['nd-4plus1', 'nd-mscse-transfer', 'elsewhere', 'nd-other']);
+  });
+  it('choosing the MSCSE through the 4+1 answers the 4+1 question: the order and the hidden options stay (DGS 2026-10-08: they went back to the open-4+1 ones)', () => {
+    assert.deepEqual(ids({ bachelors: 'nd-cse', graduate: 'nd-4plus1' }, 'phd'), ['nd-4plus1', 'nd-mscse-transfer', 'elsewhere', 'nd-other']);
+    assert.deepEqual(ids({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'nd-4plus1' }, 'phd'), ['nd-4plus1', 'nd-mscse-transfer', 'elsewhere', 'nd-other']);
   });
   it('the finished degree comes before the unfinished one wherever both show', () => {
     for (const b of [{ bachelors: 'nd-cse' as const }, { bachelors: 'nd-cse' as const, ndIntegrated: true }, { bachelors: 'nd-cse' as const, ndIntegrated: false }, { bachelors: 'elsewhere' as const }, { bachelors: 'nd-other' as const }, {}]) {
@@ -164,7 +169,8 @@ describe('graduate answers the other answers rule out are not offered, and the r
     assert.equal(completeBackground({ bachelors: 'nd-cse', ndIntegrated: false, graduate: 'nd-4plus1', alsoElsewhere: false }, 'phd'), undefined);
     assert.equal(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'nd-mscse', alsoElsewhere: false }, 'phd'), undefined);
     assert.equal(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'elsewhere', samePlace: false, finished: true }, 'mscse'), undefined);
-    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', graduate: 'nd-4plus1', alsoElsewhere: false }, 'phd'), { bachelors: 'nd-cse', graduate: 'nd-4plus1', alsoElsewhere: false });
-    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' }, 'phd'), { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' }, 'a 4+1 who went straight into the Ph.D. (2026-10-03) still answers No');
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', graduate: 'nd-4plus1', alsoElsewhere: false }, 'phd'), { bachelors: 'nd-cse', ndIntegrated: true, graduate: 'nd-4plus1', alsoElsewhere: false }, 'the 4+1 answer fills the 4+1 question (a record saved before 2026-10-08)');
+    assert.equal(completeBackground({ bachelors: 'nd-cse', ndIntegrated: true, graduate: 'none' }, 'phd'), undefined, 'a 4+1 who went into the Ph.D. without finishing the MSCSE transferred into it (DGS 2026-10-08)');
+    assert.deepEqual(completeBackground({ bachelors: 'nd-cse', ndIntegrated: false, graduate: 'none' }, 'phd'), { bachelors: 'nd-cse', ndIntegrated: false, graduate: 'none' });
   });
 });

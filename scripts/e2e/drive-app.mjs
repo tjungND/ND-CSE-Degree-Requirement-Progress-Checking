@@ -191,11 +191,18 @@ export async function driveApp(s, baseUrl) {
   await expectGraduate(['none', 'nd-4plus1', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'], 'with Notre Dame CSE and the 4+1 still open');
   await s.evalJs(`document.querySelector('[data-key="background.graduate.nd-mscse"]').click()`);
   await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.yes"]').click()`);
-  await expectGraduate(['nd-4plus1', 'nd-mscse-transfer', 'none', 'elsewhere', 'nd-other'], 'after Yes to the 4+1');
+  await expectGraduate(['nd-4plus1', 'nd-mscse-transfer', 'elsewhere', 'nd-other'], 'after Yes to the 4+1 (no "No": the 4+1 is a graduate program started)');
   const dropped = JSON.parse(await s.evalJs(`JSON.stringify({ checked: !!document.querySelector('dialog.background-dialog [data-key^="background.graduate."]:checked'), saveDisabled: document.querySelector('[data-key="background.save"]').disabled })`));
   if (dropped.checked || !dropped.saveDisabled) throw new Error('a graduate answer the 4+1 answer rules out must be dropped, with Save waiting: ' + JSON.stringify(dropped));
+  // Choosing the MSCSE through the 4+1 keeps the order (DGS 2026-10-08: it
+  // went back to the open-4+1 order) and the 4+1 follow-up, answered Yes.
+  await s.evalJs(`document.querySelector('[data-key="background.graduate.nd-4plus1"]').click()`);
+  await expectGraduate(['nd-4plus1', 'nd-mscse-transfer', 'elsewhere', 'nd-other'], 'after choosing the MSCSE through the 4+1');
+  const stay = JSON.parse(await s.evalJs(`JSON.stringify((() => { const y = document.querySelector('[data-key="background.ndintegrated.yes"]'); return { yes: y.checked, shown: !y.closest('fieldset').hidden, chosen: document.querySelector('[data-key="background.graduate.nd-4plus1"]').checked }; })())`));
+  if (!stay.yes || !stay.shown || !stay.chosen) throw new Error('choosing the MSCSE through the 4+1 keeps the 4+1 follow-up shown and at Yes: ' + JSON.stringify(stay));
   await s.evalJs(`document.querySelector('[data-key="background.ndintegrated.no"]').click()`);
   await expectGraduate(['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'], 'after No to the 4+1');
+  if (await s.evalJs(`!!document.querySelector('dialog.background-dialog [data-key^="background.graduate."]:checked')`)) throw new Error('No to the 4+1 must drop the MSCSE-through-the-4+1 answer');
   await s.evalJs(`document.querySelector('[data-key="background.cancel"]').click()`);
   await s.waitFor(`!document.querySelector('dialog.background-dialog')`);
   console.log('  earlier degrees: the graduate options follow the bachelor’s and 4+1 answers; an answer they rule out is dropped');

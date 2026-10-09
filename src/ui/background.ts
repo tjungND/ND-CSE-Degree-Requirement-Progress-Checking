@@ -86,7 +86,7 @@ export function graduateOptions(program: Program): [GraduateBefore, string][] {
  * degree"). An answer that is not possible is not shown, and one already
  * given is dropped when a later answer rules it out. */
 export function graduatePossible(v: GraduateBefore, b: Partial<Background>, program: Program): boolean {
-  const inFourPlusOne = b.bachelors === 'nd-cse' && b.ndIntegrated === true;
+  const inFourPlusOne = wasInFourPlusOne(b);
   // The MSCSE through the Integrated 4+1 is CSE's program for its own
   // undergraduates (§3.5: "For current undergraduate students, an optimal
   // route to earning the MSCSE degree is through the Department's Integrated
@@ -94,8 +94,12 @@ export function graduatePossible(v: GraduateBefore, b: Partial<Background>, prog
   // department rules it out, as does "No" to the 4+1 follow-up.
   if (v === 'nd-4plus1') return b.bachelors === undefined || (b.bachelors === 'nd-cse' && b.ndIntegrated !== false);
   // A 4+1 student who finished the MSCSE finished it through the 4+1, not as
-  // a regular master's student.
+  // a regular master's student; and the 4+1 IS a graduate program started —
+  // "either the student finished 4+1 and entered PhD fresh, or they started
+  // MSCSE through 4+1 but transferred to PhD" (DGS 2026-10-08, later), so a
+  // Ph.D. student who was in it cannot answer "No".
   if (v === 'nd-mscse') return !inFourPlusOne;
+  if (v === 'none' && program === 'phd') return !inFourPlusOne;
   // An MSCSE student in the 4+1 now was admitted while an undergraduate, so
   // no graduate degree — anywhere — came before this program.
   if (program === 'mscse' && inFourPlusOne) return v === 'none';
@@ -110,13 +114,20 @@ export function graduatePossible(v: GraduateBefore, b: Partial<Background>, prog
 function graduateOrder(b: Partial<Background>, program: Program): GraduateBefore[] {
   if (program === 'mscse') return ['none', 'elsewhere', 'nd-other'];
   if (b.bachelors === 'nd-cse') {
-    if (b.ndIntegrated === true) return ['nd-4plus1', 'nd-mscse-transfer', 'none', 'elsewhere', 'nd-other'];
+    if (wasInFourPlusOne(b)) return ['nd-4plus1', 'nd-mscse-transfer', 'elsewhere', 'nd-other'];
     if (b.ndIntegrated === false) return ['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'];
     return ['none', 'nd-4plus1', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'];
   }
   if (b.bachelors === 'nd-other') return ['none', 'nd-mscse', 'nd-mscse-transfer', 'elsewhere', 'nd-other'];
   // Another university, or not answered yet.
   return ['none', 'elsewhere', 'nd-mscse', 'nd-4plus1', 'nd-mscse-transfer', 'nd-other'];
+}
+/** Was the student in Notre Dame's Integrated 4+1: the follow-up's "Yes", or
+ * the graduate answer "the MSCSE through the 4+1", which says the same thing
+ * (DGS 2026-10-08: choosing that answer used to clear the follow-up, and the
+ * options went back to the order for a 4+1 still open). */
+function wasInFourPlusOne(b: Partial<Background>): boolean {
+  return b.bachelors === 'nd-cse' && (b.ndIntegrated === true || b.graduate === 'nd-4plus1');
 }
 /** The graduate-degree options still possible for a partial answer, most
  * probable first (`graduateOrder`). */
@@ -152,12 +163,12 @@ export function choiceRow(opts: { name: string; value: string; head: string; sub
 /** Which bachelor's answers ask the Integrated 4+1 follow-up: a Notre Dame
  * CSE bachelor's, for BOTH programs since 2026-10-03 (a Ph.D. student whose
  * master's year became the Ph.D.'s first could not say they were in the 4+1,
- * and lost every senior-year graduate course — policy review). A Ph.D.
- * student who holds the MSCSE through the 4+1 (`nd-4plus1`) has answered it
- * already. */
-function asksIntegratedFor(b: Partial<Background>, program: Program): boolean {
-  if (b.bachelors !== 'nd-cse') return false;
-  return program === 'mscse' || b.graduate !== 'nd-4plus1';
+ * and lost every senior-year graduate course — policy review). Until
+ * 2026-10-08 a Ph.D. student who chose the MSCSE through the 4+1 was not
+ * asked (the answer was implied); now the follow-up stays, answered "Yes" by
+ * that choice, so the one fact has one place to be changed. */
+function asksIntegratedFor(b: Partial<Background>, _program: Program): boolean {
+  return b.bachelors === 'nd-cse';
 }
 /** Which graduate answers ask "Did you finish it?": a degree elsewhere, and a
  * degree at Notre Dame in another department (2026-10-03) — the Academic
@@ -178,13 +189,16 @@ export function completeBackground(b: Partial<Background> | undefined, program: 
   // again until the student picks one that is possible.
   if (!graduatePossible(b.graduate, b, program)) return undefined;
   const asksIntegrated = asksIntegratedFor(b, program);
-  if (asksIntegrated && b.ndIntegrated === undefined) return undefined;
+  // The MSCSE through the 4+1 answers the 4+1 question (a record saved before
+  // 2026-10-08 holds that answer without the follow-up's).
+  const integrated = b.ndIntegrated ?? (b.graduate === 'nd-4plus1' ? true : undefined);
+  if (asksIntegrated && integrated === undefined) return undefined;
   if (b.graduate === 'elsewhere' && (b.samePlace === undefined || b.finished === undefined)) return undefined;
   if (b.graduate === 'nd-other' && b.finished === undefined) return undefined;
   if (asksAlsoElsewhere(b.graduate) && (b.alsoElsewhere === undefined || (b.alsoElsewhere && b.finished === undefined))) return undefined;
   return {
     bachelors: b.bachelors,
-    ...(asksIntegrated ? { ndIntegrated: b.ndIntegrated === true } : {}),
+    ...(asksIntegrated ? { ndIntegrated: integrated === true } : {}),
     // The 4+1 admission term (2026-10-04): asked of an MSCSE "yes", optional.
     ...(asksIntegrated && program === 'mscse' && b.ndIntegrated === true && b.integratedAdmittedTerm ? { integratedAdmittedTerm: b.integratedAdmittedTerm } : {}),
     graduate: b.graduate,
@@ -537,8 +551,10 @@ export function backgroundQuestions(
       state.graduate,
       (v) => {
         setGraduate(v as GraduateBefore);
-        // The MSCSE through the 4+1 answers the Ph.D.'s 4+1 follow-up.
-        if (program === 'phd' && v === 'nd-4plus1') state.ndIntegrated = undefined;
+        // The MSCSE through the 4+1 answers the Ph.D.'s 4+1 follow-up: "Yes"
+        // (2026-10-08; it used to clear the follow-up, which reordered and
+        // re-showed the options for a 4+1 still open).
+        if (program === 'phd' && v === 'nd-4plus1') state.ndIntegrated = true;
         renderFollowUps();
         onChange(state);
       },
