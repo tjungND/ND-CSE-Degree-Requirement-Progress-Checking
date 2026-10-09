@@ -1396,7 +1396,8 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `src/transcript/ocr-lines.ts` → `src/transcript/layout.ts` → the parser. `blocksToRuns(blocks, scale,
   pageHeightPx)` turns the engine's WORD boxes into layout `Run`s (pixels / scale = PDF units, y flipped
   up, every run of a line at its line's baseline middle; words a word space apart — ≤ 0.55 of the line
-  height, `WORD_SPACE_SHARE`, measured on the pinned pages — are one phrase run, as pdfjs gives the
+  height, `WORD_SPACE_SHARE`, measured on the pinned pages, or two TITLE WORDS ≤ 1.1 apart,
+  `TITLE_WORD_SPACE_SHARE`, a monospace face's cell — are one phrase run, as pdfjs gives the
   layout "College of Science" as one item; per-word runs made such a word a watermark tile) and
   `ocrPageLayout(blocks, canvasWidth, canvasHeight, scale, { hint, confidence })` reads them through
   `pageLayout` exactly as a text PDF's runs: watermark tiles dropped, a two-column page split and read

@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { blocksToRuns, linesFromBlocks, OCR_ENGINE_PARAMETERS, OCR_LINE_CONFIDENCE, ocrKeepSpaces, ocrLinesFromPage, ocrLineText, ocrPageLayout, WORD_SPACE_SHARE, type OcrBlockLike } from '../src/transcript/ocr-lines.ts';
+import { blocksToRuns, linesFromBlocks, OCR_ENGINE_PARAMETERS, OCR_LINE_CONFIDENCE, ocrKeepSpaces, ocrLinesFromPage, ocrLineText, ocrPageLayout, TITLE_WORD_SPACE_SHARE, titleWord, WORD_SPACE_SHARE, type OcrBlockLike } from '../src/transcript/ocr-lines.ts';
 import { groupLines } from '../src/transcript/layout.ts';
 import { parseExternalTranscript } from '../src/transcript/external.ts';
 import { parseTranscript } from '../src/transcript/parse.ts';
@@ -64,16 +64,39 @@ test('blocksToRuns: a word box becomes a run in PDF units, y up, at its line\'s 
 });
 
 test('blocksToRuns: the threshold is a share of the line height, so a larger font tolerates a wider space and a smaller one less', () => {
-  // The same 20 px gap: a word space on a 60 px line (0.33), a boundary on a 30 px line (0.67).
-  const big = engineLine('Operating Systems', 0, 300, [20], [90, 90], 60);
-  const small = engineLine('Operating Systems', 0, 300, [20], [90, 90], 30);
-  assert.deepEqual(blocksToRuns([block(big)], 1, 1000).map((r) => r.text), ['Operating Systems']);
-  assert.deepEqual(blocksToRuns([block(small)], 1, 1000).map((r) => r.text), ['Operating', 'Systems']);
+  // The same 20 px gap: a word space on a 60 px line (0.33), a boundary on a
+  // 30 px line (0.67) — between a word and a number, which only the word-space
+  // share governs (two title words have the wider share of the next test).
+  const big = engineLine('Fall 2023', 0, 300, [20], [90, 90], 60);
+  const small = engineLine('Fall 2023', 0, 300, [20], [90, 90], 30);
+  assert.deepEqual(blocksToRuns([block(big)], 1, 1000).map((r) => r.text), ['Fall 2023']);
+  assert.deepEqual(blocksToRuns([block(small)], 1, 1000).map((r) => r.text), ['Fall', '2023']);
   // Exactly the share joins (≤), one pixel more splits.
   const edge = engineLine('a b', 0, 300, [Math.floor(WORD_SPACE_SHARE * 40)], [90, 90], 40);
   assert.deepEqual(blocksToRuns([block(edge)], 1, 1000).map((r) => r.text), ['a b']);
   const over = engineLine('a b', 0, 300, [Math.floor(WORD_SPACE_SHARE * 40) + 1], [90, 90], 40);
   assert.deepEqual(blocksToRuns([block(over)], 1, 1000).map((r) => r.text), ['a', 'b']);
+});
+
+test('blocksToRuns: two title words up to the monospace share apart are one phrase; a number, a code or a short grade never joins across that gap', () => {
+  // A Courier row at 30 px line height: a word space is a whole cell, 26 px
+  // (0.87 of the height); a two-space cell gap 52 px (1.73).
+  const mono = engineLine('CS 50300 Operating Systems 3.0 A', 0, 300, [26, 52, 26, 52, 26], [90, 90, 90, 90, 90, 90], 30);
+  assert.deepEqual(blocksToRuns([block(mono)], 1, 1000).map((r) => r.text), ['CS', '50300', 'Operating Systems', '3.0', 'A']);
+  // A proportional title followed by a two-letter grade 0.8 of the height away: the grade stays a cell.
+  const graded = engineLine('Intro to Advanced Studies TR 0.00', 0, 300, [9, 9, 9, 24, 24], [90, 90, 90, 90, 90, 90], 30);
+  assert.deepEqual(blocksToRuns([block(graded)], 1, 1000).map((r) => r.text), ['Intro to Advanced Studies', 'TR', '0.00']);
+  // An all-capitals title's two-letter words break the phrase (they are what a grade looks like); its longer words join.
+  const caps = engineLine('INTRO TO ADVANCED STUDIES', 0, 300, [26, 26, 26], [90, 90, 90, 90], 30);
+  assert.deepEqual(blocksToRuns([block(caps)], 1, 1000).map((r) => r.text), ['INTRO', 'TO', 'ADVANCED STUDIES']);
+  // The bound: exactly the share joins, a pixel more does not; a wider gap is a column.
+  const edge = engineLine('Operating Systems', 0, 300, [Math.floor(TITLE_WORD_SPACE_SHARE * 30)], [90, 90], 30);
+  assert.deepEqual(blocksToRuns([block(edge)], 1, 1000).map((r) => r.text), ['Operating Systems']);
+  const over = engineLine('Operating Systems', 0, 300, [Math.floor(TITLE_WORD_SPACE_SHARE * 30) + 1], [90, 90], 30);
+  assert.deepEqual(blocksToRuns([block(over)], 1, 1000).map((r) => r.text), ['Operating', 'Systems']);
+  // What counts as a title word.
+  for (const w of ['Operating', 'of', 'Ph.D.', "Dean's", 'Econ', 'STUDIES', 'Anlys', 'Pre-Req']) assert.ok(titleWord(w), w);
+  for (const w of ['TR', 'CR', 'NG', 'IP', 'A', 'B+', 'I', '3.00', '50300', 'CS', '&', '|', '2023', 'A-']) assert.ok(!titleWord(w), w);
 });
 
 test('blocksToRuns: a skewed line\'s words share the baseline\'s middle; blank words are skipped; a line without a baseline or a box still places its words', () => {

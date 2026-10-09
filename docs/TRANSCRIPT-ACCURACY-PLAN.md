@@ -595,7 +595,11 @@ rendering and the worker; the bench's `ocr-run.mjs` and `scripts/dev/ocr-lines.m
 (`--engine-lines` / `--interword` run the step-9/10 builder, kept as `linesFromBlocks`). One rule of its own:
 words of one engine line a word space apart — at most 0.55 of the line's height (`WORD_SPACE_SHARE`; word spaces
 measure 0.2–0.5 on the pinned pages, cell gaps 0.75 or more) — are one phrase run, as pdfjs gives the layout
-"College of Science" as one item (per-word runs made "Science" a watermark tile on the Banner page). Each line's
+"College of Science" as one item (per-word runs made "Science" a watermark tile on the Banner page); two TITLE
+WORDS (letters only, ≥ 2, ≥ 3 when all capitals — never a grade) up to 1.1 of the line height apart are one
+phrase too (`TITLE_WORD_SPACE_SHARE`): a monospace face's word space is a whole cell, 0.8–0.9 of the height, and
+the app's own scan fixture (DejaVu Sans Mono rows) read "Operating   Systems" under the first tier alone; the
+tier is neutral on rows (`--quick`, `--pinned`), CER within 1.4 points on one key page. Each line's
 confidence is its least confident word's (`OCR_LINE_CONFIDENCE = 'min-word'`; the A/B and the floor are in
 DECISIONS). `layout.ts` gained `groupLineRuns` and `pageLayout().lineRuns`; the text path is unchanged (replay
 0 / 0 against `text-batch-b-final.json`). Tests: `tests/ocr-lines.test.ts` (hand-made blocks, a two-column page the

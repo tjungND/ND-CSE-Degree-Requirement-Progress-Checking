@@ -108,6 +108,31 @@ export const OCR_LINE_CONFIDENCE: OcrConfidenceRule = 'min-word';
  * boundary between runs for the layout's column and spacing tests. */
 export const WORD_SPACE_SHARE = 0.55;
 
+/** The wider share two TITLE WORDS may be apart and still be one phrase (OCR
+ * step 11, later the same day). In a monospace face — Courier, the face many
+ * registrars print official transcripts in; the app's own scan fixture sets
+ * its course rows in DejaVu Sans Mono — a word space is a whole character
+ * cell, 0.8–0.9 of the line height once the letters' side bearings are added,
+ * and two cells (a two-space cell gap) 1.7 or more; `WORD_SPACE_SHARE` alone
+ * cut "Operating Systems" into "Operating" and "Systems" there, and a phone
+ * photo's perspective stretches a proportional title's spaces the same way
+ * (0.76–0.96 on the pinned L5 page). A proportional table's cell gaps measure
+ * 0.75–0.96 too, but they sit between a title and a NUMBER, a one-letter
+ * grade or a code — so the wider share applies only between two words that
+ * are letters alone, each of at least two letters and, when all capitals, at
+ * least three ("TR", "CR", "NG", "IP" and a one-letter grade never join a
+ * title); the narrowest column gap on the pinned pages is 1.14. */
+export const TITLE_WORD_SPACE_SHARE = 1.1;
+
+/** A word that may be part of a title phrase under `TITLE_WORD_SPACE_SHARE`:
+ * letters (with an apostrophe, a period, a hyphen or an ampersand inside), at
+ * least two of them, three when they are all capitals. */
+export function titleWord(text: string): boolean {
+  if (!/^[A-Za-z][A-Za-z'’.&-]*$/.test(text)) return false;
+  const letters = (text.match(/[A-Za-z]/g) ?? []).length;
+  return letters >= (text === text.toUpperCase() ? 3 : 2);
+}
+
 /** The engine's blocks → the layout's `Run`s, in the page's reading frame
  * (OCR step 11, 2026-10-09). `scale` is pixels per PDF unit (the pdfjs render
  * scale — 3.0 in ocr.ts — or dpi / 72 for a page image), `pageHeightPx` the
@@ -116,9 +141,11 @@ export const WORD_SPACE_SHARE = 0.55;
  * the engine's baseline at the line's middle, so a skewed line's words still
  * sit within the 2-unit tolerance `groupLines` groups by, and two fragments
  * the engine read as separate lines on one baseline merge again. Words a
- * word space apart (`WORD_SPACE_SHARE`) are one run; a wider gap — a cell
- * boundary, a column gap — ends the run, and the layout stage measures it in
- * the same units as a text PDF's runs (three spaces past 8 units). A word
+ * word space apart (`WORD_SPACE_SHARE`; two title words up to
+ * `TITLE_WORD_SPACE_SHARE`, a monospace face's space) are one run; a wider
+ * gap — a cell boundary, a column gap — ends the run, and the layout stage
+ * measures it in the same units as a text PDF's runs (three spaces past 8
+ * units). A word
  * with no text (the engine's spacing artefacts) is skipped; a line with no
  * baseline falls back to the bottom of its box, one with no box to its
  * words' tallest. */
@@ -135,8 +162,11 @@ export function blocksToRuns(blocks: readonly OcrBlockLike[] | null | undefined,
         const y = (pageHeightPx - baselinePx) / scale;
         let current: OcrRun | undefined;
         let endPx = 0;
+        let previous: string | undefined; // the text of the word before this one
         for (const word of words) {
-          if (current !== undefined && word.bbox.x0 - endPx <= WORD_SPACE_SHARE * heightPx) {
+          const gapPx = word.bbox.x0 - endPx;
+          const joins = current !== undefined && (gapPx <= WORD_SPACE_SHARE * heightPx || (gapPx <= TITLE_WORD_SPACE_SHARE * heightPx && previous !== undefined && titleWord(previous) && titleWord(word.text)));
+          if (current !== undefined && joins) {
             current.text += ` ${word.text}`;
             current.width = Math.max(current.width, word.bbox.x1 / scale - current.x);
             current.confidence = Math.min(current.confidence, word.confidence);
@@ -145,6 +175,7 @@ export function blocksToRuns(blocks: readonly OcrBlockLike[] | null | undefined,
             runs.push(current);
           }
           endPx = Math.max(endPx, word.bbox.x1);
+          previous = word.text;
         }
       }
     }
