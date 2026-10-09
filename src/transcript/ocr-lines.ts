@@ -13,30 +13,42 @@ export interface OcrLine {
   confidence: number;
 }
 
-/** The engine parameters the app sets once the worker is up (the bench's
- * runner sets the same object, so node and the browser read alike).
+/** The engine parameters the app sets once the worker is up — none today.
+ * The bench's runner (scripts/dev/ocr-bench/ocr-run.mjs) sets this same
+ * object, so node and the browser read alike; a step that adopts a parameter
+ * (PSM, user_defined_dpi — plan step 12) adds it here with its measurement.
  *
- * `preserve_interword_spaces`: the engine prints a wide gap between two words
- * as SEVERAL spaces — the gap measured in space widths — instead of one. A
- * transcript's column gaps then survive into the line, and the parser's cell
- * split on three or more spaces (src/transcript/external.ts) can fire for an
- * OCR line exactly as it does for a text PDF's, where layout.ts renders a wide
- * gap as three spaces. Until 2026-10-09 the engine printed one space per gap
- * and ocr.ts collapsed every run of whitespace besides, so no OCR line ever
- * reached the parser's column-mapped path — only its position-free token
- * scan. */
-export const OCR_ENGINE_PARAMETERS = Object.freeze({ preserve_interword_spaces: '1' });
+ * Measured and NOT adopted (OCR step 10, 2026-10-09): `preserve_interword_spaces`
+ * = '1', which makes the engine print a wide gap between two words as several
+ * spaces (the gap in space widths) so a column gap could reach the parser's
+ * three-space cell split. On the bench it was neutral on `--quick`, and on the
+ * same code it lost rows on scan-quality pages (Alberta L2: 23 → 21 rows, 13
+ * of them mis-celled — at 150 dpi the engine prints the title–grade gap as one
+ * space and only the points gap as three, so the header-mapped path reads
+ * points as credits and loses the grade), added false rows on a grade key
+ * (Duke L0: 3 → 5) and on sideways junk (ANU L6-90: 0 → 1). The engine's space
+ * counts are not reliable column evidence; word-box geometry is (step 11).
+ * `ocr-run.mjs --interword` still runs the variant. */
+export const OCR_ENGINE_PARAMETERS: Readonly<Record<string, string>> = Object.freeze({});
 
 /** The structural subset of tesseract.js's `Block` this file reads. */
 export interface OcrBlockLike {
   paragraphs?: { lines?: { text: string; confidence: number }[] }[];
 }
 
-/** A line's text as the parser should see it: the engine's line break
- * removed, both ends trimmed, and every INNER space kept — the column gaps
- * `preserve_interword_spaces` printed are the evidence the parser splits on
- * (a run of one or two spaces stays inside a cell, as in a text PDF). */
+/** A line's text as the parser should see it: every run of whitespace (the
+ * engine's line break included) collapsed to one space, both ends trimmed —
+ * so an OCR line goes through the parser's position-free token scan, never
+ * its column-mapped path (whose evidence the engine cannot give it; see
+ * OCR_ENGINE_PARAMETERS). `ocrKeepSpaces` is the measured alternative. */
 export function ocrLineText(raw: string): string {
+  return raw.replace(/\s+/g, ' ').trim();
+}
+
+/** The variant OCR step 10 measured and did not adopt: the engine's line
+ * break removed, the ends trimmed, every INNER space kept. The bench's
+ * runner uses it under `--interword`; the app does not. */
+export function ocrKeepSpaces(raw: string): string {
   return raw.replace(/[\r\n]+/g, ' ').trim();
 }
 

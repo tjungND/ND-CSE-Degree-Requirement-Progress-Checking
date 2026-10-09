@@ -1391,12 +1391,15 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   Safari every PDF read failed (system-generated ones then looked like scans). Before ever
   upgrading pdfjs, grep the new build + pdf.worker.min.mjs for those identifiers and check
   they are guarded, then test in real Safari.
-  Pages render via pdfjs at scale 3.0 (216 dpi), max 10 pages. Since OCR step 10 (2026-10-09) the
-  worker gets `preserve_interword_spaces: '1'` and the pure `src/transcript/ocr-lines.ts`
-  (`linesFromBlocks`, `ocrLineText`) keeps each line's inner spacing — a column gap arrives as a run
-  of spaces, so the parser's three-space cell split can fire; the bench's `ocr-run.mjs` and
-  `scripts/dev/ocr-lines.mjs` import that module (never a hand copy), and every OCR change is an
-  A/B on `npm run ocr-bench` (docs/OCR-BENCHMARK.md) before it ships. Per-line confidences flow through
+  Pages render via pdfjs at scale 3.0 (216 dpi), max 10 pages. The pure stage is
+  `src/transcript/ocr-lines.ts` (OCR step 10, 2026-10-09): `OCR_ENGINE_PARAMETERS` (empty — the one
+  place a step adds an engine parameter, with its measurement), `ocrLineText` (each line's whitespace
+  collapsed, as before), `ocrKeepSpaces` (the variant step 10 measured and did NOT adopt:
+  `preserve_interword_spaces` + spacing kept lost rows on office scans and added false rows on keys —
+  DECISIONS) and `linesFromBlocks`; `ocr.ts`, the bench's `ocr-run.mjs` and `scripts/dev/ocr-lines.mjs`
+  import it (never a hand copy). Every OCR change is an A/B on `npm run ocr-bench`
+  (docs/OCR-BENCHMARK.md) against a baseline made on the SAME parser code — a stale baseline confounds
+  (step 10's lesson); `--compare` diffs two finished runs. Per-line confidences flow through
   `parseExternalTranscript(lines, confidences)` and rows under 80 get `lowConfidence` → ⚠ +
   amber row in the preview (`.ocr-low`), plus the `.ocr-banner` warning. The ND uploader still
   takes NO scans (digital insideND PDF only; OCR'd ND text redirects there). The e2e OCR leg

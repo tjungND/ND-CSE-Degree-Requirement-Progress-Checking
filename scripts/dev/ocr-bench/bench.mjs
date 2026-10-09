@@ -27,6 +27,8 @@
 //   --fetch             rebuild missing public PDFs from sources.json (verified by SHA-256)
 //   --out <dir>         default $TRANSCRIPT_SAMPLES/bench-out/ocr-<date>/ (never under the repo)
 //   --baseline <dir>    an earlier --out dir; prints per-level deltas, regressions first; exit 1 if any
+//   --compare <dir>     no run: print the deltas of that finished --out dir against --baseline
+//                       (two runs made separately — a before and an after on the same code)
 //   --yes               run --full without stopping at the estimate
 //
 // Output (all under --out): <seed>/master/ (300-dpi pages), <seed>/<level>/
@@ -60,7 +62,7 @@ const DEFAULT_SECONDS_PER_PAGE = 1.6;
 const PREP_SECONDS_PER_PAGE = 0.6;
 
 function parseArgs(argv) {
-  const o = { preset: undefined, levels: undefined, families: undefined, only: undefined, dpi: 200, seed: 7, config: undefined, seedsDir: undefined, skins: ['mono', 'ruled', 'banner'], fetch: false, out: undefined, baseline: undefined, yes: false };
+  const o = { preset: undefined, levels: undefined, families: undefined, only: undefined, dpi: 200, seed: 7, config: undefined, seedsDir: undefined, skins: ['mono', 'ruled', 'banner'], fetch: false, out: undefined, baseline: undefined, compare: undefined, yes: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -80,6 +82,7 @@ function parseArgs(argv) {
     else if (a === '--fetch') o.fetch = true;
     else if (a === '--out') o.out = resolve(next());
     else if (a === '--baseline') o.baseline = resolve(next());
+    else if (a === '--compare') o.compare = resolve(next());
     else if (a === '--yes') o.yes = true;
     else throw new Error(`unknown option ${a} (see the header of scripts/dev/ocr-bench/bench.mjs)`);
   }
@@ -256,9 +259,23 @@ async function pinnedSeeds() {
   return seeds;
 }
 
+/** --compare: the deltas between two finished runs, printed as a run's own
+ * --baseline block would be (regressions first; exit 1 if any). */
+function compareRuns(baselineDir, currentDir, say) {
+  for (const dir of [baselineDir, currentDir]) if (!existsSync(join(dir, 'results.json'))) throw new Error(`${join(dir, 'results.json')} not found`);
+  const { lines, regressions } = deltas(readJson(join(baselineDir, 'results.json')), readJson(join(currentDir, 'results.json')));
+  say(`== deltas: ${currentDir} vs ${baselineDir} ==`);
+  for (const l of lines) say(l);
+  return regressions > 0 ? 1 : 0;
+}
+
 export async function runBench(argv) {
   const o = parseArgs(argv);
   const say = (s = '') => console.log(s);
+  if (o.compare !== undefined) {
+    if (o.baseline === undefined) throw new Error('--compare needs --baseline <dir> (the run to compare against)');
+    return compareRuns(o.baseline, o.compare, say);
+  }
   const configFile = o.config ? readJson(o.config) : undefined;
   const config = mergeConfig(configFile);
   if (o.config && configFile?.name === undefined) config.name = basename(o.config).replace(/\.json$/, '');

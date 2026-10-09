@@ -546,17 +546,19 @@ grading-scale line, the Algerian relevé (CC15), Bangladesh's trimester evidence
 open question (g) (Sabanci's legend-defined P), and the transcript gate (a DGS question, DECISIONS).
 
 
-### OCR step 10 — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`)
+### OCR step 10 — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`): measured, not adopted
 
-One commit: `preserve_interword_spaces: '1'` set through `worker.setParameters` in `src/transcript/ocr.ts`
-and the whitespace collapse removed; the line builder is the new pure `src/transcript/ocr-lines.ts`
-(`OCR_ENGINE_PARAMETERS`, `ocrLineText`, `linesFromBlocks`), imported by `ocr.ts`, by the bench's
-`ocr-run.mjs` (whose default config is the app as shipped; `--no-interword` reproduces the app before
-this step, for A/B) and by `scripts/dev/ocr-lines.mjs`; `tests/ocr-lines.test.ts` pins it. Verified with
-`npx tsc --noEmit`, `npm test` (1594 pass) and `npm run build`.
+Two commits. The first (`75b4f9a`) set `preserve_interword_spaces: '1'` through `worker.setParameters` in
+`src/transcript/ocr.ts`, removed the whitespace collapse, and moved the line builder into the new pure
+`src/transcript/ocr-lines.ts`, imported by `ocr.ts`, by the bench's `ocr-run.mjs` and by
+`scripts/dev/ocr-lines.mjs` (never a hand copy); `tests/ocr-lines.test.ts` pins it. The second reversed the
+shipped behaviour on the evidence below and kept the plumbing: `OCR_ENGINE_PARAMETERS` (empty — where a
+later step adds a parameter with its measurement), `ocrLineText` (the collapse), `ocrKeepSpaces` (the
+variant, behind `ocr-run.mjs --interword`), and the bench's `--compare <dir> --baseline <dir>` for two
+finished runs. Both verified with `npx tsc --noEmit`, `npm test` (1594 pass) and `npm run build`.
 
-Numbers — `npm run ocr-bench -- --quick` (6 seeds, 12 pages, L0 / L2 / L5), before = the pre-step config
-(`bench-out/ocr-step10-before-quick/`), after = the shipped config (`bench-out/ocr-step10-after-quick/`):
+Numbers on the same code — `npm run ocr-bench -- --quick` (6 seeds, 12 pages), before = the collapse
+(`bench-out/ocr-step10-before-quick/`), after = the variant (`bench-out/ocr-step10-after-quick/`):
 
 | level | row acc | rows found | false rows | field acc | CER | before → after |
 |---|---|---|---|---|---|---|
@@ -564,10 +566,19 @@ Numbers — `npm run ocr-bench -- --quick` (6 seeds, 12 pages, L0 / L2 / L5), be
 | L2 | 51.7% | 82.8% | 12 (1/1 neg) | 85.0% | 60.3% | identical |
 | L5 | 48.3% | 79.3% | 11 (0/1 neg) | 87.8% | 60.2% | identical |
 
-0 regressions, 0 improvements: the engine now prints the column gaps (on the Banner L0 page 26 of 36
-lines carry runs of spaces; before, none) but the parser's cell split cannot use them while the
-two-column page is still spliced across columns — step 11 (word boxes → `layout.ts`) is where the gain
-is expected; this step is its precondition. The full-ladder A/B on the baseline's 62 seeds (the
-baseline's own degraded PDFs, manifests copied) was started detached into
-`bench-out/ocr-step10-20261009/` at the commit; its deltas are the open item in `docs/STATE.md`.
-`--pinned` waits for step 9's pinned pages.
+Per-seed probes of the full ladder, same code, both configurations: Alberta's CR/NC sample at L2 (office
+scan, 150 dpi) 23 → 21 rows with 13 of 21 mis-celled — the engine prints the title–grade gap as one space
+and only the points gap as three, so the header-mapped path reads points as credits and loses the grade;
+Duke's grade key at L0 3 → 5 false rows; ANU's sideways L6-90 page 0 → 1 junk row (confidence 34, flagged).
+The engine's space counts shrink with resolution and are not column evidence; word-box geometry is
+(step 11, which rebuilds lines from boxes and needs no engine spacing).
+
+The full ladder with the variant (`bench-out/ocr-step10-20261009/`, the baseline's 62 seeds and degraded
+PDFs, 620 rows, 41 min): row accuracy 50.0 / 48.5 / 42.2 / 49.6 / 36.3 / 44.4 % and false rows 21 / 23 /
+25 / 24 / 22 / 23 at L0–L5; L6-90 315 false rows, L6-180 52. Its deltas against `ocr-baseline-20261009`
+(47 regressions, 36 improvements; L6-90 221 → 315) are confounded: that baseline ran at 11:05 on the
+parser before Batch B's F4–F6 (its `text` row 49/62 exact, today's 60/62), so only the L6-90 jump and the
+probes are attributable. A clean before run on today's code (`bench-out/ocr-step10-before-20261009/`)
+was started detached at the second commit; `npm run ocr-bench -- --compare <after> --baseline <before>`
+prints the clean deltas (open item in `docs/STATE.md`). Every later OCR A/B takes that run, made on
+today's parser, as its baseline. `--pinned` waits for step 9's pinned pages.

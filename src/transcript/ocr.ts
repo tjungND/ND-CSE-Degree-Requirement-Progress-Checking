@@ -65,8 +65,9 @@ export async function ocrPdfToLines(
   });
   const loadingTask = pdfjs.getDocument({ data });
   try {
-    // Column gaps survive as several spaces (ocr-lines.ts says why; OCR step 10, 2026-10-09).
-    await worker.setParameters({ ...OCR_ENGINE_PARAMETERS });
+    // The engine parameters the app has adopted (none today — ocr-lines.ts
+    // records what OCR step 10 measured and rejected); set only when there are any.
+    if (Object.keys(OCR_ENGINE_PARAMETERS).length > 0) await worker.setParameters({ ...OCR_ENGINE_PARAMETERS });
     const doc = await loadingTask.promise;
     const pagesTotal = doc.numPages;
     const pagesRead = Math.min(pagesTotal, MAX_PAGES);
@@ -82,7 +83,7 @@ export async function ocrPdfToLines(
       if (!ctx) throw new Error('no canvas 2d context');
       await page.render({ canvasContext: ctx, viewport }).promise;
       const { data: out } = await worker.recognize(canvas, {}, { blocks: true });
-      lines.push(...linesFromBlocks(out.blocks)); // inner spacing kept — the pure stage in ocr-lines.ts
+      lines.push(...linesFromBlocks(out.blocks)); // the pure stage in ocr-lines.ts
       lines.push({ text: '', confidence: 100 }); // page break, like pdfToLines
     }
     return { lines, pagesRead, pagesTotal };

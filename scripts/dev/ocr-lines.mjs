@@ -1,8 +1,8 @@
 // OCR page images into the app's OCR lines (text + confidence) with the
 // bundled engine (public/ocr), mirroring src/transcript/ocr.ts: the same
 // engine parameters and the same line builder (src/transcript/ocr-lines.ts —
-// inner spacing kept since OCR step 10, 2026-10-09), an empty line between
-// pages. For PUBLIC sample documents only — the output is verbatim text
+// whitespace collapsed; OCR step 10 measured keeping it and did not adopt it),
+// an empty line between pages. For PUBLIC sample documents only — the output is verbatim text
 // (scripts/sanitize-scan.py is the tool for a real scan). Render the pages
 // first, e.g. with PyMuPDF at 200 dpi; the browser renders at pdfjs scale 3.0
 // (~216 dpi). The bench's scripts/dev/ocr-bench/ocr-run.mjs is the fuller tool.
@@ -20,7 +20,7 @@ if (!out || images.length === 0) {
   process.exit(2);
 }
 const worker = await createWorker('eng', OEM.LSTM_ONLY, { langPath: join(root, 'public', 'ocr'), gzip: true, cacheMethod: 'none', logger: () => {} });
-await worker.setParameters({ ...OCR_ENGINE_PARAMETERS });
+if (Object.keys(OCR_ENGINE_PARAMETERS).length > 0) await worker.setParameters({ ...OCR_ENGINE_PARAMETERS });
 const lines = [];
 for (const image of images) {
   const { data } = await worker.recognize(image, {}, { blocks: true, text: false });
