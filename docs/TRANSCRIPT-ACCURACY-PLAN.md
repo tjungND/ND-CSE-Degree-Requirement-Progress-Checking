@@ -625,3 +625,49 @@ had refused them (a cell-level rule belongs to step 2.5). `--pinned` (`bench-out
 `-before-pinned/`): the L2 Banner page 5/6 → 6/10 rows right/found, CER 67.6 → 11.8 %; the other eight pages
 identical (the sideways L6 pages read nothing either way). Verified: `npx tsc --noEmit`, `npm test` 1605 pass,
 `npm run build`.
+
+The full ladder, same parser (62 seeds — 26 positives, 36 negatives — 151 pages, 620 rows; before =
+`bench-out/ocr-step10-before-20261009/`, the clean run of today's parser with the engine's lines, 43.9 min;
+after = `bench-out/ocr-step11-after-20261009/`, 43.9 min, 2.17 s/page; `--compare` prints the deltas):
+
+| level | exact | row acc | rows found | false rows (negatives with any) | field acc | CER | flag P/R |
+|---|---|---|---|---|---|---|---|
+| L0 | 34 → 35 /62 | 50.0 → 65.2 % | 87.8 → 89.6 % | 19 (5/36) → 13 (6/36) | 81.7 → 87.3 % | 40.5 → 29.1 % | 76.9 / 8.3 → 70.0 / 53.2 % |
+| L1 | 33 → 34 | 48.9 → 63.7 % | 88.5 → 90.7 % | 24 (6) → 15 (7) | 81.3 → 86.3 % | 40.4 → 29.5 % | 61.5 / 6.1 → 72.0 / 61.4 % |
+| L2 | 34 → 32 | 46.3 → 54.1 % | 86.7 → 88.1 % | 24 (6) → 16 (7) | 80.3 → 80.9 % | 45.5 → 37.2 % | 86.4 / 14.3 → 70.8 / 63.0 % |
+| L3 | 34 → 33 | 45.6 → 41.5 % | 83.7 → 81.9 % | 27 (6) → 19 (8) | 83.9 → 81.4 % | 42.6 → 42.2 % | 76.9 / 15.4 → 60.8 / 59.4 % |
+| L4 | 32 → 29 | 38.1 → 41.5 % | 85.9 → 86.3 % | 22 (5) → 17 (8) | 76.1 → 73.1 % | 42.3 → 32.0 % | 81.8 / 23.8 → 88.1 / 69.6 % |
+| L5 | 34 → 34 | 47.4 → 58.1 % | 87.0 → 89.6 % | 23 (4) → 21 (5) | 81.2 → 83.8 % | 42.3 → 35.8 % | 84.2 / 12.3 → 79.5 / 66.0 % |
+| L6-90 | 7 → 6 | 0 % | 0 % | 221 (29) → 274 (30) | — | 90.5 → 90.4 % | — |
+| L6-180 | 15 → 16 | 0 % | 0 % | 54 (21) → 48 (20) | — | 91.2 → 91.0 % | — |
+| L7 | 30 | 1.1 % | 38.1 % | 100 (6) | 56.7 % | 17.3 % | unchanged (the text layer, never OCR'd) |
+
+128 regression lines, 126 improvement lines (the bench counts a CER move of a point as one). What moved, by
+family: the two-column Banner seed reads column by column at every level (rows right/found 4/5 → 7/8 at L0,
+6/6 → 9/10 at L1, 3/6 → 6/9 at L2, 6/6 → 9/10 at L4, 2/5 → 5/9 at L5 of 10; its watermarked twin likewise,
+with one extra row each level); the Minerva long record 10 → 49 rows right of 49 at L0/L1 (exact), 47 at L2,
+48 at L5; the CEGEP record exact at L0/L1; the Vaasa template's 10–11 extra rows → 0–1 at every level; the
+ANU sample +1 row found at L2. The losses, all three the parser's cell path on OCR'd cells where the
+position-free token scan had been tolerant — the word-box lines themselves are right, and match the text
+fixture's line for line: (1) the Alberta sample (PeopleSoft, two-row header): rows right 19 → 18 / 19 → 3 /
+18 → 7 / 17 → 12 / 21 → 9 of 24 at L1–L5 — one misread header word ("Avy" for "Avg", "~~", a stray "2")
+unmaps the term's columns and the rows under it read their grade into the title ("DIGITAL SIGNAL PROCESSING B
+3.0 | 3 | ?") or not at all, while the block whose header the engine read clean (Fall 2019) is exact; (2) the
+Minerva multi-term pages: the section cell and the diamond's misreading stay in the title cell ("<> 001
+Capstone Design Project"; multi-term-courses rows right 5 → 1 at L0/L1/L5, 4 → 0 at L4; pass-fail L4 2 → 0;
+transfer-credits L2 3 → 2; simple-record L4 5 → 4) and every Minerva page's CER rises 0.3–1 → 9–15 % (the
+layout now reads the page's header block as cells and in a different order — rows unaffected); (3) negatives:
+15 seed × level lines at L0–L5 gained a false row (Duke's key 3 → 4 / 3 → 5 / 2 → 3 / 5 → 10 at L0 / L2 / L3 /
+L5, Western Ontario's key 0 → 1 at L0–L4, Stanford's 0 → 2 / 3, McGill's key L4 0 → 2, UTK L3 0 → 1, Tokyo L4
+0 → 1, the Minerva "too many pages" L2 0 → 1) — junk cells the cell path takes for a code — against more
+lines that lost theirs (total false rows down at every readable level); sideways L6-90 junk 221 → 274. One
+loss is the layout's: the insideND page at L4 only (the seal and watermark level) splits its one-column table
+into two columns — short titles never cross the middle, the right half's repeated header phrases ("Credit
+Hours", "Quality Points", "Academic Standing") pass the wordy-edge test, and `headerStraddles` does not veto a
+left header that already holds "Grade" — so the ND parser reads 0 of 5 rows there (the same page reads as
+before at L0–L3 and L5). Verdict: ADOPTED — the structural gains (two-column scans, long records, false rows
+and CER down at every readable level, flag recall 6–24 → 53–70 %) outweigh the losses, and the losses have one
+cause the next OCR step owns: the header-mapped cell path must tolerate OCR noise at least as well as the
+token scan did (a fuzzy header word, a stray cell, a title cell's leading section number and symbol), and a
+one-column table's split needs a veto that the ND header's "Grade" does not disarm. The Alberta family is the
+first target: it is the one real registrar scan family in the bench and it lost most at office-scan quality.
