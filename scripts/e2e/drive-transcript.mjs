@@ -106,6 +106,27 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if (!ndRow.includes('7 courses from your transcript') || !ndRow.includes('Import again') || !(await s.evalJs(`!!document.querySelector('[data-key="import.nd.remove"]')`))) {
     throw new Error('the Notre Dame row must show the imported count, Remove and Import again: ' + ndRow.slice(0, 160));
   }
+  // "Import again" replaces the earlier import (UI review item 13; DGS
+  // 2026-10-09: option (b)): the same PDF again previews with every row ticked
+  // (nothing "already entered"), Add leaves the same 7 rows and says the
+  // earlier ones were replaced, and one Undo puts the earlier import back.
+  await s.setFileInput('.transcript-upload input[type=file]', ndPdf);
+  await s.waitFor(`document.querySelector('.transcript-preview table tr:nth-child(2)')`);
+  // The same 7 rows ticked as the first time (the two undergraduate rows that
+  // cannot matter start unticked either time); none held back as a duplicate.
+  const againTicked = JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('.transcript-preview table tr')].slice(1).map(tr => tr.querySelector('.cell-check input')?.checked))`));
+  const againNotes = await s.evalJs(`document.querySelector('.transcript-preview')?.textContent ?? ''`);
+  if (againTicked.filter((on) => on === true).length !== 7 || /already entered|already on your record/i.test(againNotes)) throw new Error('re-importing the same transcript must offer the same rows again (the earlier import is replaced): ' + JSON.stringify(againTicked) + ' ' + againNotes.slice(0, 160));
+  await s.evalJs(`document.querySelector('[data-key="preview.add"]').click()`);
+  await s.waitFor(`!document.querySelector('.transcript-preview')`);
+  const againToast = await s.evalJs(`[...document.querySelectorAll('.toast')].map(t => t.textContent).join(' | ')`);
+  const againRow = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
+  if (!againRow.includes('7 courses from your transcript') || !/The 7 courses imported earlier were replaced\./.test(againToast)) throw new Error('Import again must replace the earlier import and say so: ' + againRow.slice(0, 100) + ' | ' + againToast.slice(0, 200));
+  await s.evalJs(`[...document.querySelectorAll('.toast button')].find(b => b.textContent === 'Undo').click()`);
+  await s.settle();
+  const undone = await s.evalJs(`document.querySelector('.transcript-upload')?.textContent ?? ''`);
+  if (!undone.includes('7 courses from your transcript')) throw new Error('Undo must put the earlier import back: ' + undone.slice(0, 100));
+  console.log('  Import again: every row offered, the earlier import replaced (7 rows stay 7), Undo restores it');
   // The standing card now shows the term read from the transcript, flagged.
   const entryNote = await s.evalJs(`document.querySelector('.entry-note')?.textContent ?? ''`);
   // By data-key, not by max=2040: a year has no upper bound since the DGS's

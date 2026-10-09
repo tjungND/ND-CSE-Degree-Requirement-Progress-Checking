@@ -97,7 +97,14 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   const inferred = student.entryTermInferred;
   const earlierGraduate = (student.background ?? student.backgroundDraft)?.graduate;
   const heldMscseReading = student.program === 'phd' && inferred !== undefined && inferred.how !== 'assumed' && !/admit-term|admission/.test(inferred.how) && (earlierGraduate === 'nd-mscse' || earlierGraduate === 'nd-4plus1');
+  // A move into CSE from an UNFINISHED program in another Notre Dame
+  // department (UI review item 11; DGS 2026-10-09: option (b)): the term read
+  // is the first CSE term; the transfer keeps the earlier program's clock, so
+  // the step names its first term, read from the transcript.
+  const earlierBackground = student.background ?? student.backgroundDraft;
+  const unfinishedOther = inferred?.alternative?.otherProgram === true && earlierBackground?.graduate === 'nd-other' && earlierBackground.finished === false;
   if (heldMscseReading) steps.push({ text: `Set the semester you entered the Ph.D. (Your standing) — ${termLabel(student.entryTerm)}, read from your transcript, is your MSCSE’s first semester.`, href: '#standing' });
+  else if (unfinishedOther && inferred?.alternative) steps.push({ text: `Set the semester you entered your earlier Notre Dame program (Your standing) — ${termLabel(student.entryTerm)}, read from your transcript, is your first CSE semester; a move from an unfinished program keeps that program’s clock, and your transcript shows ${termLabel(inferred.alternative.term)} (DGS Handbook §3.15).`, href: '#standing' });
   else if (student.entryTermInferred) settings.push(`first semester ${termLabel(student.entryTerm)}`);
   if (student.bachelorsAwardedInferred && student.bachelorsAwarded) settings.push(`bachelor’s degree ${termLabel(student.bachelorsAwarded)}`);
   if (settings.length > 0) steps.push({ text: `Check what your transcript set — ${settings.join(', ')} (Your standing).`, href: '#standing' });

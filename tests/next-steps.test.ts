@@ -176,3 +176,32 @@ describe('UI review (2026-10-08): what waits for the student, and what waits for
     assert.equal(steps[0]?.text, 'Set the semester you entered the Ph.D. (Your standing) — Fall 2024, read from your transcript, is your MSCSE’s first semester.');
   });
 });
+
+// UI review item 11 (DGS 2026-10-09: option (b)): a move into CSE from an
+// unfinished program in another Notre Dame department keeps that program's
+// clock, so the step asks for its first term once the answer says "not finished".
+describe('entry term after an unfinished program in another Notre Dame department (item 11, 2026-10-09)', () => {
+  const base = (): Student => ({
+    ...phdStudent(),
+    entryTerm: { season: 'fall', year: 2022 },
+    entryTermInferred: {
+      how: 'the first graduate-level term in Computer Science and Engineering on your transcript — your graduate terms in Electrical Engineering before it are another program',
+      alternative: { term: { season: 'fall', year: 2021 }, why: 'your transcript shows graduate terms in Electrical Engineering from Fall 2021 …', otherProgram: true },
+    },
+  });
+  const stepsOf = (s: Student) => nextSteps({ report: audit(s, buildRules(), '2027-06-01'), student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0 }).map((x) => x.text);
+  it('"not finished": the step names the earlier program’s first term, read from the transcript', () => {
+    const s = { ...base(), background: { bachelors: 'elsewhere' as const, graduate: 'nd-other' as const, finished: false } };
+    const steps = stepsOf(s);
+    assert.ok(steps.some((t) => t === 'Set the semester you entered your earlier Notre Dame program (Your standing) — Fall 2022, read from your transcript, is your first CSE semester; a move from an unfinished program keeps that program’s clock, and your transcript shows Fall 2021 (DGS Handbook §3.15).'), steps.join(' | '));
+    assert.ok(!steps.some((t) => /Check what your transcript set — first semester/.test(t)), 'not the generic check as well');
+  });
+  it('"finished", or no answer yet: the first CSE term stands, with the generic check', () => {
+    for (const background of [{ bachelors: 'elsewhere' as const, graduate: 'nd-other' as const, finished: true }, undefined]) {
+      const s = { ...base(), background };
+      const steps = stepsOf(s);
+      assert.ok(!steps.some((t) => /earlier Notre Dame program/.test(t)), steps.join(' | '));
+      assert.ok(steps.some((t) => /Check what your transcript set — first semester Fall 2022/.test(t)), steps.join(' | '));
+    }
+  });
+});

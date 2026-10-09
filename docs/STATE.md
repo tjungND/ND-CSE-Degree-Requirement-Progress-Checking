@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-09 (DGS — the UI review’s answers, group 3: items 11, 13): parse.ts `alternative.otherProgram` + the “not finished” note and Next step; nd-upload.ts `takeNdImport`/`putBackNdImport` shared by Remove and the replacing “Import again”. All sixteen answers are now applied (5, 10, 12, 15, 16 needed no change).
+
 2026-10-09 (DGS — the UI review’s answers, group 2: items 2, 3, 7, 8): fresh-record earlier-degrees fold line with “Answer here” (`freshRecord`, external-upload.ts; drivers click `earlier.answer` first); the three process paragraphs shortened (W-CL365); project/thesis option under Milestones (data-key unchanged); phone CSS: pill wraps under the title, `.audit .scorehead` and `.audit > .meters` hidden.
 
 2026-10-09 (DGS — the UI review’s answers, group 1: items 1, 4, 6, 9, 14 + the names): standing one-liner for the own MSCSE; Start-here badge/callout only on a fresh record; fold titles name in-progress vs waiting (`Contribution.kind`); the one-university fold respects “same university? No”; nd-markers.ts `headerOf` + transfer-heading rule, with the issuer’s own labels anywhere. Heading “Graduate Degree Requirement Simulation Tool”; title/README/package “…Progress Simulation”. Open: renaming the GitHub repository (moves the Pages URL) — the DGS decides and runs it.

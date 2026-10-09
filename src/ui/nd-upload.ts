@@ -90,6 +90,86 @@ let ndImportError: string | undefined;
 
 /** Reset (review of Option 1, 2026-10-08): an open Notre Dame preview belonged
  * to the old record. */
+/** What an earlier Notre Dame import put on the record, taken back: the rows
+ * with their positions (Undo puts each back where it was, 2026-09-06
+ * evening), the GPA figures, an inferred prior study, what it read into the
+ * earlier-degrees draft, the acceptances it marked on other transcripts' rows
+ * (P3-import-1) — and, for a replacement, the standing-card facts the new
+ * import may overwrite. Used by Remove and, since 2026-10-09 (UI review item
+ * 13; DGS: option (b)), by "Import again", which replaces the earlier import
+ * — what the row's hint told students to do by hand — with one Undo. */
+interface NdImportSnapshot {
+  removed: { c: CourseEntry; i: number }[];
+  before: {
+    gpa: Student['gpa'];
+    gpaSource: Student['gpaSource'];
+    termGpas: Student['termGpas'];
+    priorMs: Student['priorMs'];
+    inferred: Student['priorMsInferred'];
+    earlier: ReturnType<typeof earlierDegreesState>;
+    entryTerm: Term;
+    entryTermInferred: Student['entryTermInferred'];
+    bachelorsAwarded: Student['bachelorsAwarded'];
+    bachelorsAwardedInferred: Student['bachelorsAwardedInferred'];
+    ndDegrees: Student['ndDegrees'];
+  };
+  unmarked: ReturnType<typeof stripNdPostings>;
+}
+function takeNdImport(s: Student): NdImportSnapshot {
+  const removed = s.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.fromNdTranscript === true);
+  const before: NdImportSnapshot['before'] = {
+    gpa: s.gpa,
+    gpaSource: s.gpaSource,
+    termGpas: s.termGpas,
+    priorMs: s.priorMs,
+    inferred: s.priorMsInferred,
+    earlier: earlierDegreesState(s),
+    entryTerm: { ...s.entryTerm },
+    entryTermInferred: s.entryTermInferred,
+    bachelorsAwarded: s.bachelorsAwarded,
+    bachelorsAwardedInferred: s.bachelorsAwardedInferred,
+    ndDegrees: s.ndDegrees,
+  };
+  const unmarked = stripNdPostings(s);
+  s.courses = s.courses.filter((c) => c.fromNdTranscript !== true);
+  if (s.gpaSource !== undefined) {
+    s.gpa = undefined; // the transcript's figure — a hand-typed GPA has no gpaSource and stays
+    s.gpaSource = undefined;
+  }
+  s.termGpas = undefined; // the transcript's own figures go with it (2026-10-04)
+  if (s.priorMsInferred === true && !s.courses.some((c) => c.origin === 'transfer' && (c.degreeLevel === 'masters' || c.degreeLevel === 'phd'))) {
+    s.priorMs = 'none';
+    s.priorMsInferred = undefined;
+  }
+  // What it read into a draft answer goes with it (review of Option 1,
+  // 2026-10-08): a replacement is read afresh.
+  forgetReadings(s, 'nd');
+  return { removed, before, unmarked };
+}
+/** Undo: the earlier import back as it was; `standing` too for a replacement. */
+function putBackNdImport(s: Student, snap: NdImportSnapshot, standing = false): void {
+  for (const { c, i } of snap.removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
+  for (const { index, posting } of snap.unmarked) {
+    const row = s.courses[index];
+    if (row && row.origin === 'transfer') row.ndPosted = posting;
+  }
+  s.gpa = snap.before.gpa;
+  s.gpaSource = snap.before.gpaSource;
+  s.termGpas = snap.before.termGpas;
+  s.priorMs = snap.before.priorMs;
+  s.priorMsInferred = snap.before.inferred;
+  // …and what it had read into the earlier-degrees draft (Remove forgot it;
+  // coverage review, 2026-10-08).
+  restoreEarlierDegrees(s, snap.before.earlier);
+  if (standing) {
+    s.entryTerm = { ...snap.before.entryTerm };
+    s.entryTermInferred = snap.before.entryTermInferred;
+    s.bachelorsAwarded = snap.before.bachelorsAwarded;
+    s.bachelorsAwardedInferred = snap.before.bachelorsAwardedInferred;
+    s.ndDegrees = snap.before.ndDegrees;
+  }
+}
+
 export function resetNdImport(): void {
   transcriptPreview = undefined;
   ndImportError = undefined;
@@ -127,13 +207,16 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
         fail('This looks like an ND transcript, but no course lines could be read from it. Add your courses manually, and tell the DGS so the parser can be improved.');
         return;
       }
+      // An earlier Notre Dame import is replaced by this one (UI review item
+      // 13; DGS 2026-10-09: option (b)), so its rows are not "already entered".
+      const kept = { ...args.student, courses: args.student.courses.filter((row) => row.fromNdTranscript !== true) };
       const duplicate = parsed.courses.map(
         (c) =>
-          args.student.courses.some((s) => s.courseId === c.courseId && termIndex(s.term) === termIndex(c.term)) ||
+          kept.courses.some((s) => s.courseId === c.courseId && termIndex(s.term) === termIndex(c.term)) ||
           // (c): a transfer-block row is already entered when another
           // transcript brought the same course from the same university, in
           // whatever term that transcript dates it (P3-import-1, 2026-10-05).
-          twinOfBlockRow(args.student, c) !== undefined,
+          twinOfBlockRow(kept, c) !== undefined,
       );
       // The entry term read from the transcript (2026-09-05) is applied
       // unless the student unticks it in the preview. Pre-entry Notre Dame
@@ -286,49 +369,15 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
             // Index-preserving (2026-09-06 evening): Undo puts every row
             // back where it was, so the table order and the course.N.remove
             // keys are exactly as before the Remove.
-            const removed = args.student.courses.map((c, i) => ({ c, i })).filter(({ c }) => c.fromNdTranscript === true);
-            const before = { gpa: args.student.gpa, gpaSource: args.student.gpaSource, termGpas: args.student.termGpas, priorMs: args.student.priorMs, inferred: args.student.priorMsInferred, earlier: earlierDegreesState(args.student) };
-            // The acceptances it marked on rows from other transcripts go too (P3-import-1).
-            let unmarked: ReturnType<typeof stripNdPostings> = [];
+            let snap: NdImportSnapshot | undefined;
             args.setFocusAfterRender('import.nd');
             args.update((s) => {
-              unmarked = stripNdPostings(s);
-              s.courses = s.courses.filter((c) => c.fromNdTranscript !== true);
-              if (s.gpaSource !== undefined) {
-                s.gpa = undefined; // the transcript's figure — a hand-typed GPA has no gpaSource and stays
-                s.gpaSource = undefined;
-              }
-              s.termGpas = undefined; // the transcript's own figures go with it (2026-10-04)
-              if (
-                s.priorMsInferred === true &&
-                !s.courses.some((c) => c.origin === 'transfer' && (c.degreeLevel === 'masters' || c.degreeLevel === 'phd'))
-              ) {
-                s.priorMs = 'none';
-                s.priorMsInferred = undefined;
-              }
-              // What it read into a draft answer goes with it (review of
-              // Option 1, 2026-10-08): a replacement is read afresh.
-              forgetReadings(s, 'nd');
+              snap = takeNdImport(s);
             });
             args.toastWithAction(
-              `${plural(removed.length, 'course')} from your ND transcript removed${before.gpaSource !== undefined ? ', and the GPA it filled in' : ''}.`,
+              `${plural(snap!.removed.length, 'course')} from your ND transcript removed${snap!.before.gpaSource !== undefined ? ', and the GPA it filled in' : ''}.`,
               'Undo',
-              () =>
-                args.update((s) => {
-                  for (const { c, i } of removed) s.courses.splice(Math.min(i, s.courses.length), 0, c);
-                  for (const { index, posting } of unmarked) {
-                    const row = s.courses[index];
-                    if (row && row.origin === 'transfer') row.ndPosted = posting;
-                  }
-                  s.gpa = before.gpa;
-                  s.gpaSource = before.gpaSource;
-                  s.termGpas = before.termGpas;
-                  s.priorMs = before.priorMs;
-                  s.priorMsInferred = before.inferred;
-                  // …and what it had read into the earlier-degrees draft
-                  // (Remove forgot it; coverage review, 2026-10-08).
-                  restoreEarlierDegrees(s, before.earlier);
-                }),
+              () => args.update((s) => putBackNdImport(s, snap!)),
               { ttlMs: 20000, focusKey: 'import.nd.remove' },
             );
           },
@@ -337,7 +386,8 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
       ),
       ' · ',
       importButton,
-      el('span', { class: 'hint-inline' }, ' — after new grades post, remove these and import the updated PDF; courses you typed in by hand are kept.'),
+      // "Import again" replaces these (UI review item 13; DGS 2026-10-09).
+      el('span', { class: 'hint-inline' }, ' — after new grades post, import the updated PDF: it replaces these; courses you typed in by hand are kept.'),
     );
   } else {
     parts.push(
@@ -687,7 +737,12 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
   let bachelorsSet: Term | undefined;
   let ndMastersSet = false;
   let earlierRead = false as ReadingResult;
+  // "Import again" replaces the earlier Notre Dame import (UI review item 13;
+  // DGS 2026-10-09: option (b)): remove, then add — one Undo. A hand-corrected
+  // row from the earlier import is replaced too; Undo restores it.
+  let replaced: NdImportSnapshot | undefined;
   args.update((s) => {
+    if (s.courses.some((c) => c.fromNdTranscript === true)) replaced = takeNdImport(s);
     if (tp.useEntryTerm && tp.entryTerm) {
       s.entryTerm = { ...tp.entryTerm.term };
       s.entryTermInferred = { how: tp.entryTerm.how, alternative: tp.entryTerm.alternative };
@@ -796,7 +851,7 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
   const read: string[] = [];
   if (appliedEntry) read.push(`your first semester (${termLabel(appliedEntry)})`);
   if (bachelorsSet) read.push(`your bachelor’s semester (${termLabel(bachelorsSet)})`);
-  args.toast(
+  const message =
     `Added ${plural(picked.length, 'course')} from the transcript${priorAdded > 0 ? ` (${priorAdded} from before you entered)` : ''}.` +
       (read.length > 0 ? ` ${read.length === 1 ? 'One thing was' : 'Two things were'} read from your transcript — ${read.join(' and ')} — please confirm ${read.length === 1 ? 'it' : 'them'} under Your standing.` : '') +
       (priorSet === 'completed'
@@ -806,6 +861,19 @@ function applyNdPreview(tp: NdPreview, args: NdUploadArgs): void {
           : '') +
       (ndMastersSet ? ' A Notre Dame master’s degree on your transcript was taken as the MSCSE — the §4.5 along-the-way row is left out for you; if it is another department’s, say so in the earlier-degrees questions in the Transcripts card.' : '') +
       // Option 1 (DGS 2026-10-08): the earlier-degrees answers it filled in.
-      (earlierRead === 'disagree' ? ' Your transcripts disagree about your earlier degrees — answer those questions in the Transcripts card.' : earlierRead ? ' Your earlier degrees were partly filled in from it — check them in the Transcripts card.' : ''),
-  );
+      (earlierRead === 'disagree' ? ' Your transcripts disagree about your earlier degrees — answer those questions in the Transcripts card.' : earlierRead ? ' Your earlier degrees were partly filled in from it — check them in the Transcripts card.' : '');
+  if (replaced) {
+    const snap = replaced;
+    args.toastWithAction(
+      `${message} The ${plural(snap.removed.length, 'course')} imported earlier ${snap.removed.length === 1 ? 'was' : 'were'} replaced.`,
+      'Undo',
+      () =>
+        args.update((s) => {
+          stripNdPostings(s);
+          s.courses = s.courses.filter((c) => c.fromNdTranscript !== true);
+          putBackNdImport(s, snap, true);
+        }),
+      { ttlMs: 20000, focusKey: 'import.nd' },
+    );
+  } else args.toast(message);
 }

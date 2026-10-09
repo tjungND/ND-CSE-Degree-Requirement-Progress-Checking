@@ -340,6 +340,10 @@ describe('the entry term from insideND’s term levels and majors (blue/red-team
     });
     assert.deepEqual(e?.term, { season: 'fall', year: 2022 });
     assert.match(e?.how ?? '', /Electrical Engineering before it are another program/);
+    // The other program's first term is the other reading (UI review item 11; DGS 2026-10-09: option (b)).
+    assert.deepEqual(e?.alternative?.term, { season: 'fall', year: 2021 });
+    assert.equal(e?.alternative?.otherProgram, true);
+    assert.match(e?.alternative?.why ?? '', /graduate terms in Electrical Engineering from Fall 2021.*keeps the earlier clock \(DGS Handbook §3\.15\)/);
   });
   it('only undergraduate terms: nothing is read', () => {
     const e = inferEntryTerm({ courses: [nd('fall', 2023, 'undergraduate')], admitTerms: [], newStudentTerms: new Set(), degreesAwarded: [], terms: [T('fall', 2023, 'undergraduate', 'Computer Engineering')] });

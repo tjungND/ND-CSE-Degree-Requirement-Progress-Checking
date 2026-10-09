@@ -313,7 +313,7 @@ export interface Student {
    * standing card warns while it is set — the §4.3 residency count and every
    * deadline (§4.3 eight-year limit, §4.4.3 eighteen months, §4.5 eighth
    * semester) hang on this term. */
-  entryTermInferred?: { how: string; alternative?: { term: Term; why: string } };
+  entryTermInferred?: { how: string; alternative?: { term: Term; why: string; otherProgram?: true } };
   /** The student's earlier degrees, asked in the opening dialog (DGS
    * 2026-09-22): where the bachelor's is from and whether a graduate degree
    * came before this program. Decides which transcript rows are shown

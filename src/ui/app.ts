@@ -999,12 +999,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     // its first graduate term is the MSCSE's. The action comes right after the
     // reading (UI review, 2026-10-08).
     const heldMscseReading = student.program === 'phd' && inferred !== undefined && inferred.how !== 'assumed' && !/admit-term|admission/.test(inferred.how) && heldNdMscse(student.background ?? student.backgroundDraft);
+    // A move into CSE from an unfinished program in another Notre Dame
+    // department (UI review item 11; DGS 2026-10-09: option (b)): the term read
+    // is the first CSE term; the transfer keeps the earlier clock (DGS Handbook
+    // §3.15), so the note asks for that program's first term, which the
+    // transcript shows.
+    const earlierAnswer = student.background ?? student.backgroundDraft;
+    const unfinishedOtherReading = inferred?.alternative?.otherProgram === true && earlierAnswer?.graduate === 'nd-other' && earlierAnswer.finished === false;
     const entryNote = inferred
       ? el(
           'p',
           { class: 'hint warn entry-note' },
           inferred.how === 'assumed'
             ? `${termLabel(student.entryTerm)} is assumed — set the semester you entered the program. `
+            : unfinishedOtherReading && inferred.alternative
+              ? `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Your earlier degrees say you moved into CSE from an unfinished program in another Notre Dame department — a program transfer, which keeps that program’s clock (DGS Handbook §3.15): set the semester you entered it, ${termLabel(inferred.alternative.term)} on your transcript. `
             : heldMscseReading
               ? `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). That is your MSCSE’s first semester: your earlier degrees say you finished the Notre Dame MSCSE before the Ph.D., so set the semester you entered the Ph.D. here — your transcript does not show it. `
               : `${termLabel(student.entryTerm)} was read from your transcript (${inferred.how}). Check it. `,
@@ -1015,7 +1024,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
             // the clock.
             ? `The residency count (§4.3) and every deadline (§4.2’s first-year seminars, §4.3, §4.4, §4.4.3, §4.5 and admission to candidacy) are counted from this term — your matriculation at the Graduate School, which a transfer from another Notre Dame program does not reset.${heldMscseReading ? '' : mscseClockSentence()}`
             : 'The residency count and the five-year limit on completing the degree (§3.3) are counted from this term.',
-          inferred.alternative ? ` Note: ${inferred.alternative.why}.` : '',
+          inferred.alternative && !unfinishedOtherReading ? ` Note: ${inferred.alternative.why}.` : '',
           // A non-degree semester read as the program's start (policy review
           // round 3, P3-dh-front-1-2-3, part (1)): said where the import picked
           // an earlier admission or the first graduate-level term. The import
@@ -1030,7 +1039,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           // A Ph.D. reading that may be the MSCSE's start waits for the
           // earlier-degrees answer, which says whether it is (verification of
           // the UI review, 2026-10-08).
-          inferred.how !== 'assumed' && !heldMscseReading && (student.program === 'mscse' || student.background !== undefined || /admit-term|admission/.test(inferred.how))
+          inferred.how !== 'assumed' && !heldMscseReading && !unfinishedOtherReading && (student.program === 'mscse' || student.background !== undefined || /admit-term|admission/.test(inferred.how))
             ? el(
                 'button',
                 {

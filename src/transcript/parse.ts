@@ -61,7 +61,7 @@ export interface EntryTermInference {
    * separate degree finished BEFORE this program (entry = the term after it),
    * or a degree earned along the way (entry unchanged). The earlier term is
    * chosen — earlier deadlines are the safe error — and the card names this. */
-  alternative?: { term: Term; why: string };
+  alternative?: { term: Term; why: string; /** The other program's first term (UI review item 11, 2026-10-09). */ otherProgram?: true };
 }
 
 export interface ParsedTranscript {
@@ -770,7 +770,22 @@ export function inferEntryTerm(args: {
         : cse.level === undefined
           ? 'the term in progress on your transcript, its first graduate-level term'
           : 'the first graduate-level term on your transcript';
-    return cse.term.season === 'summer' ? { term: fallFor(cse.term), how: `${how} — a summer start, so your official matriculation is that fall` } : { term: cse.term, how };
+    const term = fallFor(cse.term);
+    // The other program's first term is the other reading (UI review item 11;
+    // DGS 2026-10-09: option (b)): the import cannot know whether that program
+    // was finished — a finished degree keeps the CSE term, a move from an
+    // unfinished one keeps the earlier clock — so the CSE term is set and the
+    // earlier-degrees answer "not finished" then asks for this one.
+    const first = before[0];
+    const alternative =
+      first === undefined
+        ? undefined
+        : {
+            term: fallFor(first.term),
+            why: `your transcript shows graduate terms in ${first.major} from ${termLabel(fallFor(first.term))}, before your first CSE term. If you moved into CSE from that program without finishing it, your entry term is ${termLabel(fallFor(first.term))} — a transfer between Notre Dame programs keeps the earlier clock (DGS Handbook §3.15); after a finished degree there it stays ${termLabel(term)}`,
+            otherProgram: true as const,
+          };
+    return { term, how: cse.term.season === 'summer' ? `${how} — a summer start, so your official matriculation is that fall` : how, ...(alternative ? { alternative } : {}) };
   }
   const ndCourses = courses.filter((c) => c.origin === 'nd');
   const uniqueTerms = (list: ParsedCourse[]): Term[] => {
