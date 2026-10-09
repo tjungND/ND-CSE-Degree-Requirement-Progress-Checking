@@ -22,6 +22,12 @@ describe('multi-campus systems', () => {
     const deep = [...Array.from({ length: 45 }, () => 'x'), 'Degrees awarded by other institutions: University of California, Los Angeles'];
     assert.equal(resolveCampus('University of California', deep).campus, undefined);
   });
+  it('a campus’s own name resolves through the system printed in the header (an eScrip-Safe cover names "Binghamton University"; F5, 2026-10-09)', () => {
+    const r = resolveCampus('Binghamton University', ['Official Academic Transcript from Binghamton University', ...HEAD, 'BINGHAMTON UNIVERSITY, STATE UNIVERSITY OF NEW YORK']);
+    assert.equal(r.system?.system, 'State University of New York');
+    assert.equal(r.campus?.name, 'Binghamton');
+    assert.equal(resolveCampus('Binghamton University', HEAD).system, undefined, 'without the system in the header the name is its own');
+  });
   it('schools whose bare name means the flagship are not systems', () => {
     for (const name of ['Purdue University', 'Michigan State University', 'California State University', 'Notre Dame']) {
       assert.equal(resolveCampus(name).system, undefined, name);

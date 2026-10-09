@@ -873,6 +873,29 @@ function guessedUniversity(lines: string[]): { university?: string; universityGu
 
 const expandName = (name: string | undefined): string | undefined => (name === undefined ? undefined : expandInstitutionAbbreviations(name));
 
+/** Which lines sit inside a transfer-credit block (F5, 2026-10-09), for the
+ * university guess: opened by Banner's "TRANSFER CREDIT ACCEPTED BY …",
+ * PeopleSoft's "Transfer Credits" / "Transfer Credit from …", a bare
+ * "TRANSFER CREDIT:" heading (Evergreen) or the transfer table header; closed
+ * by "INSTITUTION CREDIT", the block's own totals, a graduate-record banner,
+ * another short all-capitals section heading ending in a colon ("EVERGREEN
+ * CREDIT:"), a page break, or a short term header that names no institution.
+ * The heading line itself counts as inside. */
+function transferScope(lines: readonly string[]): boolean[] {
+  const SECTION_HEADING_LINE_RE = /^[A-Z][A-Z &/'-]{2,40}:\s*$/;
+  const TERM_LINE_RE = /^(?:fall|spring|summer|autumn|winter|term|semester)\b[^\n]{0,30}\b(?:19|20)\d{2}\b[^\n]{0,20}$/i;
+  let inside = false;
+  return lines.map((raw) => {
+    const line = raw.replace(/\s{2,}/g, ' ').trim();
+    if (TRANSFER_BANNER_RE.test(line) || TRANSFER_TABLE_RE.test(line) || TRANSFER_PEOPLESOFT_RE.test(line)) return (inside = true);
+    if (!inside) return false;
+    if (line === '' || INSTITUTION_CREDIT_RE.test(line) || TRANSFER_END_RE.test(line) || TRANSFER_TOTALS_RE.test(line)) return (inside = false);
+    if (SECTION_HEADING_LINE_RE.test(line) && !/transfer/i.test(line)) return (inside = false);
+    if (TERM_LINE_RE.test(line) && !NAMES_INSTITUTION_RE.test(line)) return (inside = false);
+    return true;
+  });
+}
+
 /** Guess the institution from the first page's header lines: the earliest
  * digit-free line that names a university-like body. */
 function guessUniversity(lines: string[], weak: boolean): string | undefined {
@@ -903,9 +926,33 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
       .replace(/\s{2,}/g, ' ')
       .replace(/\s*::\s*[A-Z][A-Za-z .]*?\s*-?\s*\d{3}\s?\d{3}\s*$/, '')
       .replace(/[\s,]+-\s*\d{3}\s?\d{3}\s*$/, '')
+      // "The Evergreen State College - Olympia, Washington 98505": a US
+      // address after a dash is not part of the name (F5, 2026-10-09).
+      .replace(/\s+[-–—]\s+[A-Za-z .']{3,30},\s+[A-Za-z .]{2,30}\s+\d{5}(?:-\d{4})?\s*$/, '')
       .trim();
+  // Never the university (F5, 2026-10-09): a transcript-delivery vendor named
+  // on a cover or authentication page; Minerva's "From: Dawson College - 24
+  // credits" (the source of an exemption); an affiliated or constituent
+  // college line ("Affiliated College: Huron University College"); the label
+  // of an academic year ("Année Universitaire :", "Año Académico").
+  const VENDOR_RE = /\bparchment\b|\bcredentials?\s+solutions?\b|\bnational\s+student\s+clearinghouse\b|\bescrip-?safe\b|\bglobalsign\b|\bmy\s*equals\b|\bdigitary\b/i;
+  const FROM_LINE_RE = /^\s*from\s*:/i;
+  const AFFILIATED_RE = /^\s*(?:affiliat\w*|constituent|federated|partner)\s+(?:college|university|institution|school)s?\s*:/i;
+  const ACADEMIC_YEAR_LABEL_RE = /\bann[ée]e\s+universitaire\b|\ba[ñn]o\s+(?:universitario|acad[ée]mico|lectivo)\b|\bano\s+(?:letivo|acad[êe]mico)\b|\banno\s+accademico\b|\bacademic\s+year\s*:/i;
   const plausible = (c: string) =>
-    c.length >= 4 && c.length <= 80 && !/\d{3,}/.test(c) && !DIVISION_RE.test(c) && !SENTENCE_RE.test(c) && !GENERIC_ONLY_RE.test(c) && !DEGREE_PHRASE_RE.test(c) && !REPEATED_RE.test(c) && !TRANSFER_FROM_RE.test(c);
+    c.length >= 4 &&
+    c.length <= 80 &&
+    !/\d{3,}/.test(c) &&
+    !DIVISION_RE.test(c) &&
+    !SENTENCE_RE.test(c) &&
+    !GENERIC_ONLY_RE.test(c) &&
+    !DEGREE_PHRASE_RE.test(c) &&
+    !REPEATED_RE.test(c) &&
+    !TRANSFER_FROM_RE.test(c) &&
+    !VENDOR_RE.test(c) &&
+    !FROM_LINE_RE.test(c) &&
+    !AFFILIATED_RE.test(c) &&
+    !ACADEMIC_YEAR_LABEL_RE.test(c);
   /** Candidate name cells: the whole line first when it is a short,
    * digit-free name spaced out across the page ("UNIVERSITY   OF   SOUTHERN
    * CALIFORNIA", 2026-09-05), then each cell at a column gap (a merged
@@ -929,7 +976,10 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
       // "ANNA UNIVERSITY :: CHENNAI 600 025", "… TIRUCHIRAPPALLI - 620 015" (2026-09-26).
       .replace(/\s*::\s*[A-Z][A-Za-z .]*?\s*-?\s*\d{3}\s?\d{3}\s*$/, '')
       .replace(/[\s,]+-\s*\d{3}\s?\d{3}\s*$/, '')
-      .replace(/^(unofficial|official)?\s*transcript\s*(of|from)?\s*/i, '')
+      // "Official Academic Transcript from Binghamton University" — an
+      // eScrip-Safe cover's heading (F5, 2026-10-09): the record words before
+      // the name may include "academic" / "electronic".
+      .replace(/^(unofficial|official)?\s*(?:electronic\s+)?(?:academic\s+)?transcript\s*(of|from)?\s*/i, '')
       // A bare leading "UNOFFICIAL" ("UNOFFICIAL University at Buffalo
       // Transcript", DGS 2026-09-14).
       .replace(/^(unofficial|official)\s+/i, '')
@@ -944,6 +994,12 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
   // Header first (the first 30 lines), then the rest of the document: Banner
   // official transcripts name the institution only on the legend page
   // (2026-09-05), so the header may hold nothing but divisions and programs.
+  // A transfer-credit block names OTHER schools (F5, 2026-10-09 — Evergreen's
+  // "TRANSFER CREDIT:" rows read "University of Washington" as the
+  // university): its lines are skipped, from the heading to the next section
+  // heading, "INSTITUTION CREDIT", a totals line or a term header that names
+  // no institution (a transfer term inside Banner's block does name one).
+  const inTransfer = transferScope(lines);
   const passes: [string[], RegExp][] = weak
     ? [[lines.slice(0, 30), WEAK_RE]]
     : [
@@ -951,7 +1007,8 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
         [lines, STRONG_RE],
       ];
   for (const [scope, re] of passes) {
-    for (const line of scope) {
+    for (const [i, line] of scope.entries()) {
+      if (inTransfer[i]) continue;
       for (const cell of cells(line)) {
         if (!re.test(cell)) continue;
         const name = stripRecordWords(cell);
@@ -1676,8 +1733,17 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * one- or two-digit first token before a wordy title is the section, never
    * a title word or the credits ("CS-101   01   Calculus 2   3   B" read
    * credits 2). A section glued to the number ("CS 105-01") is untouched. */
-  const dropSection = (tokens: string[]): string[] =>
-    tokens.length >= 2 && /^0\d{1,2}$/.test(tokens[0]!) && /^[\p{L}]/u.test(tokens[1]!) && /[\p{L}]{2}/u.test(tokens[1]!) ? tokens.slice(1) : tokens;
+  /** Minerva's multi-term mark (F3, Batch B 2026-10-09): a Wingdings diamond
+   * — a private-use glyph (U+F0B2) in the text layer — or a superscript
+   * "²" when the font is missing, printed right after the course number
+   * ("MATH 470J1 ²   001 Honours Research Project"). A lone symbol token
+   * before the section or the title is the mark, dropped; a connector the
+   * title may start with ("&", "/", "-") is left alone. */
+  const MULTI_TERM_MARK_RE = /^(?:[\u00B2\u00B3\u00B9\u2070-\u2079\u2460-\u24FF\u25C6\u25C7\u25CA\u2662\u2666\u2756\u2727\u2726\u2605\u2606\u2022\u00B0\u2020\u2021\u00A7\u00B6]|[\uE000-\uF8FF])$/u;
+  const dropSection = (raw: string[]): string[] => {
+    const tokens = raw.length >= 2 && MULTI_TERM_MARK_RE.test(raw[0]!) ? raw.slice(1) : raw;
+    return tokens.length >= 2 && /^0\d{1,2}$/.test(tokens[0]!) && /^[\p{L}]/u.test(tokens[1]!) && /[\p{L}]{2}/u.test(tokens[1]!) ? tokens.slice(1) : tokens;
+  };
   const leadCode = (flat: string): { code: string; tokens: string[]; date?: string; preCell?: string } | undefined => {
     // A stray 1–2-letter security mark merged onto the row's start ("XK ITWS
     // 1882 …", 2026-09-05) is skipped when a real code follows it. Three
@@ -1786,7 +1852,14 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // Those rows are not this university's courses — importing them here would
   // let undergraduate work masquerade as graduate transfer credit — so they are
   // skipped and counted (2026-09-05).
-  let transferBlock: 'banner' | 'table' | undefined;
+  // …and Minerva's "Credits/Exemptions" block (F5, 2026-10-09): "From: Dawson
+  // College - 24 credits" then bare rows — a code and "EXC" or a credit
+  // value, no title ("COMP   202   EXC", "MATH   140   3", "TRNS   XXX   6").
+  // Those are exemptions from another school's work, skipped and counted like
+  // the transfer rows; the block ends at the first full course row (title,
+  // credits, grade) or the next term header.
+  let transferBlock: 'banner' | 'table' | 'exemptions' | undefined;
+  const EXEMPTIONS_HEADING_RE = /^\s*credits?\s*\/\s*exemptions?\b|^\s*exemptions?\s*(?:and|\/|&)\s*credits?\b/i;
   // Banner's "COURSES IN PROGRESS" section (public keys, 2026-09-26): its rows
   // print credits and no grade — they are in progress until the next term
   // header or section heading, as the Notre Dame parser reads its own.
@@ -1833,6 +1906,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // term header.
     if (TRANSFER_BANNER_RE.test(line)) transferBlock = 'banner';
     else if (TRANSFER_TABLE_RE.test(line)) transferBlock = 'table';
+    else if (EXEMPTIONS_HEADING_RE.test(line)) transferBlock = 'exemptions';
     // PeopleSoft's block (public keys, 2026-09-26): a bare "Transfer Credits"
     // heading, "Transfer Credit from <school>", "Applied Toward … Program";
     // closed by "Course Trans GPA" / "Transfer Totals" or the next term header.
@@ -1845,7 +1919,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (term) {
       // (The in-progress section's own term line — "Term: Fall 2024" under
       // "COURSES IN PROGRESS" — does not end it; a section heading does.)
-      if (transferBlock === 'table') transferBlock = undefined; // the table ends at the next term header
+      if (transferBlock === 'table' || transferBlock === 'exemptions') transferBlock = undefined; // the table ends at the next term header
       // A bare term header ends Banner's block too (2026-09-20) — one that
       // names an institution is a transfer term inside it.
       if (transferBlock === 'banner' && !NAMES_INSTITUTION_RE.test(line)) transferBlock = undefined;
@@ -2145,6 +2219,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // the rest of the line is TOKENIZED: credits and grade are searched among
     // the tokens after the title; the title is the leading run of wordy tokens.
     if (!lead) return lineIndex;
+    // An exemption row has no title: a code and "EXC" or a number. The first
+    // row with a title ends the block and is read as the university's own.
+    const bareExemption = transferBlock === 'exemptions' && !lead.tokens.some((t) => /[\p{L}]{2}/u.test(t) && !/^[A-Z]{1,4}$/.test(t));
+    if (transferBlock === 'exemptions' && !bareExemption) transferBlock = undefined;
     if (transferBlock !== undefined) {
       transferRowsSkipped += 1;
       return lineIndex;

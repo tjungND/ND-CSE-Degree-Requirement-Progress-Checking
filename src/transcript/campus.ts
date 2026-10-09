@@ -214,7 +214,12 @@ export function resolveCampus(university: string | undefined, lines: readonly st
     // UNIVERSITY OF NEW YORK" (DGS 2026-09-20). A system named inside the
     // printed name counts only when the name also names one of its campuses,
     // so "California State University" still belongs to no system.
-    MULTI_CAMPUS_SYSTEMS.find((s) => key.includes(' ' + normalizeUniversity(s.system)) && s.campuses.some((cp) => cp.aliases.test(university)));
+    MULTI_CAMPUS_SYSTEMS.find((s) => key.includes(' ' + normalizeUniversity(s.system)) && s.campuses.some((cp) => cp.aliases.test(university))) ??
+    // The campus's own name alone ("Binghamton University", read from an
+    // eScrip-Safe cover — F5, Batch B 2026-10-09) belongs to a system only
+    // when the header prints that system's name ("… STATE UNIVERSITY OF NEW
+    // YORK") and the name is one of its campuses.
+    MULTI_CAMPUS_SYSTEMS.find((s) => normalizeUniversity(lines.slice(0, 40).join(' ')).includes(normalizeUniversity(s.system)) && s.campuses.some((cp) => cp.aliases.test(university)));
   if (system === undefined) return {};
   const inName = system.campuses.find((cp) => cp.aliases.test(university));
   if (inName) return { system, campus: inName };

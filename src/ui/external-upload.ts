@@ -1201,7 +1201,10 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
           el(
             'p',
             { class: 'hint warn' },
-            `${p.transferSkipped} row${p.transferSkipped === 1 ? '' : 's'} listed under “Transfer credit accepted by the institution” ${p.transferSkipped === 1 ? 'was' : 'were'} left out — those courses were taken at another school and belong on that school’s own transcript.`,
+            // Since F5 (2026-10-09) the skipped rows may also come from a
+            // "Credits/Exemptions" block (Minerva), so the heading is named
+            // generically (W-CL372).
+            `${p.transferSkipped} row${p.transferSkipped === 1 ? '' : 's'} listed under a transfer-credit or credits/exemptions heading ${p.transferSkipped === 1 ? 'was' : 'were'} left out — those courses were taken at another school and belong on that school’s own transcript.`,
           ),
         ]
       : []),

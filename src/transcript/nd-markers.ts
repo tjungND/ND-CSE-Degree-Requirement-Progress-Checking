@@ -46,7 +46,21 @@ export function looksLikeNotreDameTranscript(text: string): boolean {
   return lines.some((line, i) => {
     if (!/notre\s+dame/i.test(line)) return false;
     if (lines.slice(Math.max(0, i - 3), i + 1).some((l) => /transfer/i.test(l))) return false;
+    // The RECIPIENT of another university's transcript (F5, Batch B
+    // 2026-10-09): a delivery cover names Notre Dame as where the document
+    // goes — UCLA's "Recipient: University of Notre Dame", eScrip-Safe's
+    // "To: University of Notre Dame" and the lines under its "Receiver
+    // Information" heading. A label before the mention, or such a heading up
+    // to three lines above, says the line is not the issuer's.
+    if (RECIPIENT_LABEL_RE.test(line)) return false;
+    if (lines.slice(Math.max(0, i - 3), i).some((l) => RECIPIENT_HEADING_RE.test(l))) return false;
     if (/university\s+of\s+notre\s+dame/i.test(line)) return true;
     return !/notre\s+dame,?\s+(in|indiana)\b/i.test(line);
   });
 }
+/** "Recipient:", "To:", "Sent to", "Delivered to", "Receiver", "Destination",
+ * "Requested by", "Order(ed) by" — before the mention of Notre Dame on the
+ * same line. */
+const RECIPIENT_LABEL_RE = /\b(?:recipient|to|sent\s+to|deliver(?:ed)?\s+to|receiver|destination|requested\s+by|order(?:ed)?\s+(?:by|for)|release\s+to)\s*:[^\n]*notre\s+dame/i;
+/** A heading that opens the recipient's block on a delivery cover. */
+const RECIPIENT_HEADING_RE = /^\s*(?:receiver|recipient|destination|deliver(?:y|ed)\s+to|sent\s+to)(?:\s+information|\s+details)?\s*:?\s*$/i;

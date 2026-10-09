@@ -625,3 +625,88 @@ describe('transcript accuracy program, Batch B — F6 header words (2026-10-09)'
     assert.deepEqual(cells(r, 'COSC 6560'), ['Cloud Computing', 3, 'S']);
   });
 });
+
+// ——— Transcript accuracy program, Batch B (DGS 2026-10-09): F5 the university, F3 the multi-term mark ———
+describe('transcript accuracy program, Batch B — F5 the university and the blocks that never name it (2026-10-09)', () => {
+  it('a transfer-credit block names other schools: Evergreen’s "TRANSFER CREDIT:" rows never become the university, and a US address after a dash is not part of the name', () => {
+    const r = doc(
+      'Record of Academic Achievement',
+      'The Evergreen State College - Olympia, Washington 98505',
+      'DEGREES CONFERRED:',
+      'Bachelor of Science   Awarded 15 Dec 2006',
+      'TRANSFER CREDIT:',
+      'Start   End   Credits   Title',
+      '09/2002   12/2002   5   University of Washington',
+      '01/2003   06/2004   85   South Puget Sound Community College',
+      'EVERGREEN CREDIT:',
+      'Start   End   Credits   Title',
+      '09/2004   06/2005   44   Introduction to Natural Science',
+    );
+    assert.equal(r.university, 'The Evergreen State College');
+    assert.equal(r.campusSystem, undefined);
+  });
+  it('an eScrip-Safe cover: "Official Academic Transcript from X" names X, the receiver block is not the issuer, and the campus resolves through the header’s system name', () => {
+    const lines = JSON.parse(readFileSync(new URL('./fixtures/public-transcripts/peoplesoft-escripsafe-wrapped.json', import.meta.url), 'utf8')) as string[];
+    const r = parseExternalTranscript(lines);
+    assert.equal(r.looksLikeNotreDame, false, 'the recipient block ("Receiver Information" / "To: University of Notre Dame") never redirects the transcript to the Notre Dame row');
+    assert.equal(r.university, 'Binghamton University');
+    assert.equal(r.campusSystem, 'State University of New York');
+    assert.equal(r.campus, 'Binghamton');
+  });
+  it('a UCLA eTranscript cover: "Recipient: University of Notre Dame" is where the document goes, not who issued it', () => {
+    const lines = JSON.parse(readFileSync(new URL('./fixtures/public-transcripts/ucla-etranscript.json', import.meta.url), 'utf8')) as string[];
+    const r = parseExternalTranscript(lines);
+    assert.equal(r.looksLikeNotreDame, false);
+    assert.equal(r.university, 'University of California, Los Angeles');
+    // A Notre Dame transcript is still recognised by its own labels.
+    const nd = doc('University of Notre Dame', 'Unofficial Academic Transcript', 'Fall 2023', 'CSE 60641   Graduate Operating Systems   3.0   A');
+    assert.equal(nd.looksLikeNotreDame, true);
+    const recipientOnly = doc('Some University', 'Recipient:   University of Notre Dame   Graduate Admissions', 'Fall 2023', 'CS 500   Topics   3   A');
+    assert.equal(recipientOnly.looksLikeNotreDame, false);
+  });
+  it('a delivery vendor (Parchment, Credentials Solutions, National Student Clearinghouse, eScrip-Safe, GlobalSign) is never the university', () => {
+    const r = doc('Parchment Exchange — University Transcript Services', 'Credentials Solutions University Delivery', 'National Student Clearinghouse   Electronic Transcript', 'Fall 2023', 'CS 500   Topics   3   A');
+    assert.equal(r.university, undefined);
+    const nsc = doc('National Student Clearinghouse   Electronic Transcript', 'Order Number: 000000000   Sent: 10/09/2026', '', 'EXAMPLE STATE UNIVERSITY', 'Office of the Registrar', 'Fall 2023', 'CS 500   Topics   3   A');
+    assert.equal(nsc.university, 'EXAMPLE STATE UNIVERSITY');
+  });
+  it('"From: <college> - N credits", an affiliated-college line and an academic-year label never name the university', () => {
+    const r = doc('Some Institute of Technology', 'Affiliated College: Huron University College', 'Année Universitaire :   2022/2023', 'Fall 2023', 'From: Dawson College - 24 credits', 'CS 500   Topics   3   A');
+    assert.equal(r.university, 'Some Institute of Technology');
+    const fromOnly = doc('Office of the Registrar', 'From: Concordia University - 6 credits', 'Fall 2023', 'CS 500   Topics   3   A');
+    assert.equal(fromOnly.university, undefined);
+  });
+  it('Minerva’s Credits/Exemptions block: its bare rows are skipped and counted like transfer rows, and the first full course row ends it', () => {
+    const r = doc(
+      'Some University',
+      'Subject   Number   Title   Cr. / C.E.U. Grade   Remarks Earned   Class',
+      'Avg.',
+      'Fall 2024',
+      'Credits/Exemptions',
+      'From: Dawson College - 24 credits',
+      'COMP   202   EXC',
+      'MATH   133   EXC',
+      'From: Advanced Placement - 7 credits',
+      'MATH   140   3',
+      'ECON   2XX   3',
+      'COMP 250   001 Intro to Computer Science   3   A-   3   B',
+      'MATH 141   001 Calculus 2   4   B+   4   B',
+      'Winter 2025',
+      'Credits/Exemptions',
+      'From: Concordia University - 6 credits',
+      'TRNS   XXX   6',
+      'PHYS   131   EXC',
+      'COMP 251   001 Algorithms and Data Structures   3   B   3   B',
+    );
+    assert.deepEqual(r.courses.map((c) => c.courseId), ['COMP 250', 'MATH 141', 'COMP 251']);
+    assert.equal(r.transferRowsSkipped, 4, 'COMP 202, MATH 133, MATH 140, PHYS 131 (TRNS XXX and ECON 2XX are no code)');
+    assert.equal(r.university, 'Some University');
+  });
+  it('F3: Minerva’s multi-term mark after the course number — a private-use diamond or a superscript ² — is dropped before the section number', () => {
+    const r = doc('Some University', 'Subject   Number   Title   Cr. / C.E.U. Grade   Remarks Earned   Class', 'Avg.', 'Fall 2025', 'ECSE 458D1    001 Capstone Design Project   3   A   3   B', 'MATH 470J1 ²   001 Honours Research Project   1   A-   1   B', 'RW   FACC 400N1    001 Engineering Professional Practice   1');
+    assert.deepEqual(r.courses.map((c) => [c.courseId, c.title, c.credits, c.grade]), [['ECSE 458D1', 'Capstone Design Project', 3, 'A'], ['MATH 470J1', 'Honours Research Project', 1, 'A-'], ['FACC 400N1', 'Engineering Professional Practice', 1, undefined]]);
+    // A symbol that is not a mark ("&" is a title connector) leaves the row readable as before.
+    const amp = doc('Some University', 'Fall 2025', 'CS 500   & Advanced Topics   3   A');
+    assert.deepEqual([row(amp, 'CS 500')?.credits, row(amp, 'CS 500')?.grade], [3, 'A']);
+  });
+});

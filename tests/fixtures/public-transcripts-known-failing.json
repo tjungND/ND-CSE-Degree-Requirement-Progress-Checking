@@ -19,17 +19,7 @@
   "F4 (Batch B) \u2014 page 2's header loses its 'Units' / 'Taken' runs in layout.ts dropWatermarks: the short-word rule (>= 8 occurrences at >= 4 x positions) counts the header word (5 headers x 2 columns) together with the GPA lines' 'units taken' at three more x positions, and drops the header runs; page 1 has one GPA x position fewer and keeps them \u2014 page 1 reads exact since F6 (the two-line header join), page 2's rows go through the position-free scan until the layout fix lands and the pinned lines are regenerated from the PDF"
  ],
  "pdf-evergreen-sample-raa": [
-  "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column",
-  "F5 (Batch B) \u2014 the TRANSFER CREDIT block's 'University of Washington' is read as the university (and campus system) instead of 'The Evergreen State College'"
- ],
- "pdf-mcgill-minerva-transfer-credits": [
-  "F5 (Batch B) \u2014 the Credits/Exemptions block ('From: Dawson College - 24 credits', 'COMP 202   EXC', 'MATH 140   3') reads as course rows and its source line as the university"
- ],
- "pdf-mcgill-minerva-multi-term-courses": [
-  "F3 (Batch B) \u2014 the multi-term mark (a Wingdings diamond, or '\u00b2' when the font is missing) after the course number leaves ' 001' / '\u00b2 001' in the title"
- ],
- "pdf-mcgill-minerva-cegep-engineering": [
-  "F5 (Batch B) \u2014 the Credits/Exemptions block ('From: Vanier College - 25 credits', 'COMP 202   EXC') reads as course rows and its source line as the university"
+  "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column"
  ],
  "pdf-mcgill-minerva-not-a-transcript": [
   "Batch B \u2014 no 'is this a transcript at all' gate: a course outline's one line ('COMP 250   001 Intro to Computer Science   3') reads as a course row; the McGill project refuses the page because its header never says Transcript"
@@ -50,11 +40,7 @@
  ],
  "ucla-etranscript": [
   "F3 (Batch B) \u2014 a one-digit course number is not read as a code: 'PHYSICS 1A' and 'ENGCOMP 3' yield no row (31 rows read of 33; 'ENGCOMP 30' reads)",
-  "F1 (Batch B) \u2014 a term header ending in 'IN PROGRESS' ('SPRING QUARTER 2024   IN PROGRESS') does not open an in-progress block: its rows read grade ? instead of IP",
-  "F5 (Batch B) \u2014 the eTranscript cover page's 'Recipient: University of Notre Dame \u2026' line sits in the header before the first course line and makes looksLikeNotreDame true (not compared by this test; the app would redirect the transcript to the Notre Dame row)"
- ],
- "peoplesoft-escripsafe-wrapped": [
-  "F5 (Batch B) \u2014 the eScrip-Safe cover sheet's 'Official Academic Transcript from Binghamton University' heading is read as the university ('Academic Transcript from Binghamton University'), so the SUNY campus resolution is lost (campusSystem and campus null); its 'Receiver Information' and 'To: University of Notre Dame' margin lines make looksLikeNotreDame true; all 16 rows exact"
+  "F1 (Batch B) \u2014 a term header ending in 'IN PROGRESS' ('SPRING QUARTER 2024   IN PROGRESS') does not open an in-progress block: its rows read grade ? instead of IP"
  ],
  "mcmaster-mosaic": [
   "F3 (Batch B) \u2014 McMaster's digit-letter-digit course numbers ('COMPSCI 1MD3', 'SFWRENG 4G06A/B', 'COMPSCI 6F03') are not codes to leadCode: 27 of the 31 rows yield no row at all (only the CAS 701 / 790 / 791 rows read)"
