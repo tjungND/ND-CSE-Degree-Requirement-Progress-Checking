@@ -103,7 +103,7 @@ export interface Score {
 }
 
 /** One row of either side, split back into the cells rowOf printed. */
-interface RowCells {
+export interface RowCells {
   text: string;
   id: string;
   key: string; // normalized id
@@ -127,12 +127,14 @@ export function splitRow(text: string): RowCells {
 }
 
 /** Pair expected rows with parsed rows: id + year first, then id alone. Each
- * row is used at most once; ties go to document order. */
-function alignRows(want: RowCells[], got: RowCells[]): { pairs: [RowCells, RowCells][]; missing: RowCells[]; extra: RowCells[] } {
-  const pairs: [RowCells, RowCells][] = [];
+ * row is used at most once; ties go to document order. Exported (generic over
+ * the row type) for the OCR bench, which needs the pairs themselves to say
+ * which parsed row was wrong (scripts/dev/ocr-bench/score.mts). */
+export function alignRows<R extends RowCells>(want: R[], got: R[]): { pairs: [R, R][]; missing: R[]; extra: R[] } {
+  const pairs: [R, R][] = [];
   const gotFree = got.map(() => true);
   const wantFree = want.map(() => true);
-  const pass = (same: (w: RowCells, g: RowCells) => boolean) => {
+  const pass = (same: (w: R, g: R) => boolean) => {
     want.forEach((w, wi) => {
       if (!wantFree[wi]) return;
       const gi = got.findIndex((g, i) => gotFree[i] && same(w, g));
