@@ -341,3 +341,76 @@ Risks the critic raised (each addressed in §2):
 - Licence/provenance (text plan §2a Q7): the McGill set's MIT licence and 'identities fake by construction' are asserted, not verified at a pinned commit; and a student project's imitation of Minerva is not registrar geometry — calibrating to it risks fitting the imitation. Vendor pages (Parchment, NSC, eScrip-Safe, GlobalSign) committed verbatim as negative fixtures are copyrighted commercial content; the registrar-key precedent exists but should be stated in sources.json and the lines kept minimal.
 - Sequencing: both plans edit `src/transcript/layout.ts` (text F4 hint and glyph join; OCR 2.1 routes word boxes through it) and both need the scorer and node loader; done in parallel they will conflict and double-count the layout tests.
 - Scope of the DGS list: CC16 (an engineering gap, not on the DGS's (a)–(g) list), the ANU re-pin (anticipated in DECISIONS 2026-09-26), Augraphy, the benchmark table's location and the render-scale/rotation internals are Claude's calls; asking the DGS 21 questions dilutes the eight that genuinely reverse a recorded decision or set policy.
+
+## 5. Progress
+
+### Batch A — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`)
+
+Commits, oldest first; each was verified with `npx tsc --noEmit` and the full `npm test` before it was
+made, and the parser commits with the replay against the baseline:
+
+- `d124c11` rowOf moves to tests/helpers/row-of.ts; nothing imports a test file any more (step 1)
+- `433a376` One scorer for parsed transcripts: scripts/dev/score.mts, pinned by tests/replay-score.test.ts (step 1)
+- `ab2bdff` One Node pdfjs loader: scripts/dev/pdf-lines-node.mts (lines and page PNGs) (step 2)
+- `bbee934` Replay: npm run replay scores both corpora and a PDF folder; public-status is its alias (step 3)
+- `bcd810a` tests/external-names.test.ts: every listed university name keeps reading unchanged (F5 precondition)
+- `26daf0e` Docs for the transcript replay: tests/README, MAINTENANCE, the handoff, STATE, three DECISIONS rows
+- `335f0b6` External parser F1: two-line rows (code alone, wrapped title), points vs grade, in-progress integer in the title
+- `5d516d0` External parser F2: term-code cells (2023FA, 202310) and Workday term headers
+- `ed8861d` External parser F3: "ENG M 612" subjects, Workday's dash after the number, Colleague's section cell
+- `dd3b3cb` Parser fixes F1-F3: review fixes (six confirmed findings, five DECISIONS rows)
+- `2bf3185` Batch A step 5: twenty public specimens as fixtures (Alberta CR/NC, Evergreen RAA, five negatives, the McGill Minerva set)
+- `eb9cd8f` Specimens: review fixes (the McGill ground truth's two `unrecognized` lines pinned as rows)
+- the closing commit "Batch A: verification and records" — this section, STATE.md, the handoff's Batch A
+  index, and the WordPress footer snippet's repository name (the rename commit `5b28784` had missed
+  `docs/wordpress-footer-snippet.html`, which failed the e2e's snippet check on both engines).
+
+Numbers — before is `bench-out/text-baseline-20261009.json` (after step 3, before any parser change),
+after is `bench-out/text-batch-a-final.json`; on the 127 fixtures both hold: 0 regressions, 0 improvements.
+
+| | before | after |
+|---|---|---|
+| public fixtures (positive + negative) | 127 (95 + 32) | 147 (108 + 39) |
+| known-failing | 5 (5 still failing) | 18 (18 still failing, 0 now passing) |
+| exact (= the test's pass) | 122/127 | 129/147 |
+| row recall | 1113/1164 (95.6%) | 1248/1328 (94.0%) |
+| row precision | 1113/1113 (100%) | 1248/1255 (99.4%) |
+| false rows on negatives | 0 (in 0/32) | 1 (in 1/39) |
+| cells title / credits / grade / term / level | 100 / 100 / 100 / 99.3 / 100% | 93.8 / 98.4 / 94.2 / 99.4 / 100% |
+| ms corpus | 48/48 exact, 648/648 rows | 48/48 exact, 648/648 rows |
+| pdfs board (`public-pdfs/`, `--verify`) | — | 20 PDFs, 20 hash ok; exact 7/20; recall 135/164 (82.3%); precision 135/142 (95.1%); cells 42.2 / 85.2 / 45.9 / 100 / 100% |
+| `npm test` | 1475 pass | 1536 pass, 0 fail |
+
+Every drop on the public board is the 20 specimens pinned to the truth (13 known-failing, each naming
+its Batch B family); the F1–F3 commits and their review fixes left the board identical to the baseline
+(false rows on negatives stayed 0/32). At the closing commit `npx tsc --noEmit`, `npm run build`,
+`npm run e2e` (Chrome) and `E2E_BROWSER=webkit npm run e2e` pass, and `public-status` reports the five
+original known-failing fixtures and the 13 specimens failing.
+
+Deviations from §2, each recorded in `docs/DECISIONS.md` (2026-10-09): `tests/replay-score.test.ts`
+pins six cases, not three, and asserts `exact` against both corpus tests for every fixture; F1b's
+points evidence is the header in force (`columnKinds`) — the review found the planned document-wide
+"a Points column was mapped" flag wrong; the McGill set is thirteen pages, not twelve; the
+known-failing list names each fixture's family, which answers the critic's "ungated change" case (a
+listed fixture that starts passing still fails the test until the list is edited on purpose).
+
+Open issues (carried into Batch B unless marked for the DGS):
+
+- **DGS:** Melbourne (My eQuals sample, 403) and Limerick (Digitary sample, 404) refuse automated fetch
+  — download them in a browser if wanted. Nothing else planned for Batch A was dropped.
+- **DGS:** `docs/wordpress-footer-snippet.html` now names the renamed repository; the copy pasted into
+  WordPress's footer field must be re-pasted from it when the iframes move to the new Pages address —
+  the deployed copy matches frames by the old name and would leave the frame at its starting height.
+- The pdfs board does not apply the known-failing list, so its exact 7/20 reads worse than the public
+  board's 129/147 for the same documents.
+- `sources.json` labels 18 US negatives `USA` and 37 fixtures `US`; the per-country board splits them.
+- From the F1–F3 review, unfixed: a remark with no function word and a real grade cell after a bare
+  code ("Excellent performance in all courses   4   A") still reads as that code's row — nothing on
+  the line distinguishes it from a title.
+- The build's chunk warning (`src/transcript/external.ts` imported dynamically and statically) predates
+  Batch A (present at `e34279d`).
+- Batch B's first targets are the 13 specimen fixtures: F6 (Alberta's and Minerva's headers), F5
+  (transfer and exemption blocks read as the university), F4 (Alberta page 2's header runs dropped by
+  `dropWatermarks`), F3 (Minerva's multi-term mark), F1c, and an "is this a transcript" gate for the
+  course-outline page. The five original known-failing fixtures wait on Batch C, whose DGS answers are
+  recorded (DECISIONS 2026-10-09).

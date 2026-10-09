@@ -360,6 +360,32 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   out of this batch: a two-column split needs three DIFFERENT wordy texts at the right edge (one
   repeated header such as "Attempted" is a table, not a column), and the crossing test reads per-word
   runs joined into phrases (some generators emit one run per word).
+- **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
+  after this one carry the reasons, STATE.md's "Batch A done" paragraph and
+  `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:
+  `scripts/dev/score.mts:scoreDocument` — the one metric (header fields got/want, rows aligned by
+  `normalizeCourseId` + year, cells per field, `exact` = the test's pass), pinned by
+  `tests/replay-score.test.ts`; `tests/helpers/row-of.ts:rowOf` — the row string every corpus test
+  and script compares; `scripts/dev/pdf-lines-node.mts:pdfToLinesNode` / `pdfToPagePngs` — the one
+  Node pdfjs loader (the browser's own line builder; page PNGs through `@napi-rs/canvas`);
+  `scripts/dev/replay.mts` (`npm run replay`: `--corpus`, `--pdfs`, `--verify`, `--only`, `--out`,
+  `--baseline` — regressions first, exit 1 — and `--quiet`) — the scoreboard per corpus, lens and
+  country; `scripts/dev/public-status.mts` — its alias; `tests/external-names.test.ts` — the F5
+  precondition (every ExternalCourses name read as printed). The parser, all in
+  `src/transcript/external.ts`, each rule pinned in `tests/public-transcript-rules.test.ts`:
+  F1 `tailGradeToken` + `RowScan.gradeText` (a code alone, or a wrapped title, takes the next line
+  only when it ends in the credits and a grade), `columnKinds` (points vs grade under the header in
+  force), `gradelessRow` (the in-progress integer in the title); F2 `TERM_CODE_CELL_RE` /
+  `rowTermOf` (compact term-code cells), `bannerTermKey` / `IDENTIFIER_LABEL_RE` / `plausibleYear`
+  (six-digit Banner codes only with the document's own key), `PAREN_DATES_RE` / `rangeYear`
+  (Workday term headers); F3 `LEAD_CODE_RE` (a one-letter middle, a dash after the number, never a
+  term word), `dropSection` (Colleague's section cell). The specimens: 20 `pdf-*` line lists in
+  `tests/fixtures/public-transcripts/` (Alberta CR/NC, Evergreen RAA, five negatives, 13 McGill
+  Minerva pages), each with a `sources.json` note naming its placeholder, the PDFs under their
+  fixture names in `~/degree-audit-samples/public-pdfs/` (`--verify` hashes them), 13 of them on
+  `tests/fixtures/public-transcripts-known-failing.json` with the Batch B family each waits on.
+  Replay files in `~/degree-audit-samples/bench-out/`: `text-baseline-20261009.json` (before Batch
+  A) and `text-batch-a-final.json` (after; identical on the 127 fixtures both hold).
 - **Parser fixes F1–F3** (2026-10-09, transcript accuracy program, Batch A step 4; the DECISIONS rows
   of that date quote each rule). Each lives beside its code in `src/transcript/external.ts`:
   `tailGradeToken` (a code alone on its line, or a wrapped title with a four-word continuation,
@@ -400,7 +426,7 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   folder, which changed a few column gaps). `npm run replay` (`scripts/dev/replay.mts`; `--corpus`,
   `--pdfs`, `--verify`, `--only`, `--out`, `--baseline`, `--quiet`) prints the scoreboard per corpus
   and per sources.json lens/country; `public-status.mts` is its alias and now agrees with the test
-  (122/127, 5 known-failing). Sample PDFs live outside the repo in `$TRANSCRIPT_SAMPLES`
+  (122/127, 5 known-failing at step 3; 129/147, 18 known-failing at the end of Batch A). Sample PDFs live outside the repo in `$TRANSCRIPT_SAMPLES`
   (default `~/degree-audit-samples/`: `public-pdfs/`, `private/`, `bench-out/`); the baseline is
   `bench-out/text-baseline-20261009.json`. `tests/external-names.test.ts` is the F5 precondition:
   every ExternalCourses name (fixture tab + `data/snapshot.json`) must keep reading as printed —
