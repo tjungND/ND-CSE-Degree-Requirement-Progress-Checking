@@ -232,7 +232,7 @@ last edit (see "Sync" below).
   install webkit` per Mac) with screenshots in `.e2e-out/webkit/`; run it too whenever layout
   changed, since Chrome alone missed a Safari-only bug that day. When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
-- **Transcript replay** (2026-10-09): `npm run replay` scores every pinned transcript fixture (the 147
+- **Transcript replay** (2026-10-09): `npm run replay` scores every pinned transcript fixture (the 168
   public line lists and the 48 synthetic master's ones) and any sample PDFs kept outside the repo
   through the current parser, and prints a scoreboard — fixtures exact (the test's pass), row recall
   and precision, cell accuracy per field, false rows read from keys and legends, the known-failing

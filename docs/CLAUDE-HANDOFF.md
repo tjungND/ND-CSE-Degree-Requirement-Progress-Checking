@@ -411,6 +411,39 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   on negatives 0/32) through all three commits and the review-fix commit that followed them (the
   2026-10-09 review of F1–F3: six findings, five DECISIONS rows) — a parser change that moves the
   board needs a fixture explaining why, not a re-baseline.
+- **Batch B at a glance** (2026-10-09, transcript accuracy program — the index; the bullet after this
+  one carries the reasons, STATE.md's "Batch B done" paragraph and `docs/TRANSCRIPT-ACCURACY-PLAN.md`
+  §5 the numbers). The fixtures (step 6, `ab2d41c`): 21 composed line lists in
+  `tests/fixtures/public-transcripts/`, each `kind: composed` in `sources.json` with the registrar or
+  vendor documentation it follows (Workday Student, Colleague, CUNYfirst, Oregon's Banner quarter,
+  UCLA's eTranscript, McMaster Mosaic, Western Ontario, Ladok, SNU, Sabanci, the Ukrainian supplement,
+  the Algerian relevé, IIT, NIT, HEC, an Iranian translator rendering, North South University,
+  Tribhuvan IOE, and the Parchment / NSC / eScrip-Safe wrappers around existing fixtures), the open
+  ones on `tests/fixtures/public-transcripts-known-failing.json` with their family. The parser and
+  the layout stage (step 8: F6 `bc5f1ba`, F5 + F3's mark `a803ef2`, F4 `4ca40c7`, the review
+  `0af7c3d`; pinned in `tests/public-transcript-rules.test.ts`, `tests/layout.test.ts` and
+  `tests/campus.test.ts`): `src/transcript/external.ts:cellKinds` / `joinedHeaderKinds` (header
+  cells cut at a space, two-line headers joined), the `stat` column kind and the composed fixtures'
+  words in `COLUMN_KIND_RES`, `scanWithMap` (`numericFillsRest`, `letterAfterNumericGrade`,
+  `statWithoutCredits`, `integerGradeInLetteredTable`), `fits` / `postCells` /
+  `TERM_NUMBER_HEADER_RE` / `rowTermOf` (a bare number is a term cell only under a term-numbering
+  word, McMaster's ordinal only under "TM"), `creditHoursHeader` / `IBERIAN_HEADER_WORD_RE` ("CH"),
+  `transferScope` / `VENDOR_RE` / `FROM_LINE_RE` / `AFFILIATED_RE` / `ACADEMIC_YEAR_LABEL_RE` (what
+  never names the university), the `exemptions` block, `MULTI_TERM_MARK_RE`;
+  `src/transcript/nd-markers.ts:RECIPIENT_LABEL_RE` / `RECIPIENT_HEADING_RE`;
+  `src/transcript/campus.ts:resolveCampus` (a campus under its printed system);
+  `src/transcript/layout.ts:dropWatermarks` (tiles only where a word repeats down the page),
+  `pageLayout` / `columnLayout` / `ColumnHint` / `courseColumnEvidence` (the short last page split by
+  the previous page's gap), `groupLines` / `glyphPage` (the glyph join per line). Not built: step 7's
+  positioned PDFs (`tests/fixtures/make-transcript-pdfs.mjs` unchanged — the short two-column last
+  page is a run-array case, the Parchment wrapper a composed line list; DECISIONS 2026-10-09). The
+  closing commit fixed `scripts/e2e/drive-transcript.mjs`, which still asserted the skipped-rows
+  warning's pre-W-CL372 sentence (a student-facing sentence the e2e reads changes in the driver in
+  the same commit). Replay files in `~/degree-audit-samples/bench-out/`: `text-after-composed.json`
+  (after step 6), `text-after-F6.json`, `text-after-F5.json`, `text-after-F4.json`,
+  `text-after-F4F6-review.json`, and `text-batch-b-final.json` (the end of Batch B — against
+  `text-batch-a-final.json`: 0 regressions, 22 improvements, public exact 129/147 → 147/168, pdfs
+  7/20 → 47/49 as `public-pdfs/` grew to 49 through the OCR benchmark's `--fetch`).
 - **Batch B step 8 — parser and layout fixes F4–F6** (2026-10-09, transcript accuracy program; the
   DECISIONS rows of that date quote each rule, STATE.md's "Batch B step 8" paragraph and the plan's §5
   the numbers). Three commits, each with its replay delta in the body — F6 `bc5f1ba`, F5 (+ F3's
@@ -486,7 +519,7 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   folder, which changed a few column gaps). `npm run replay` (`scripts/dev/replay.mts`; `--corpus`,
   `--pdfs`, `--verify`, `--only`, `--out`, `--baseline`, `--quiet`) prints the scoreboard per corpus
   and per sources.json lens/country; `public-status.mts` is its alias and now agrees with the test
-  (122/127, 5 known-failing at step 3; 129/147, 18 known-failing at the end of Batch A). Sample PDFs live outside the repo in `$TRANSCRIPT_SAMPLES`
+  (122/127, 5 known-failing at step 3; 129/147, 18 known-failing at the end of Batch A; 147/168, 21 at the end of Batch B). Sample PDFs live outside the repo in `$TRANSCRIPT_SAMPLES`
   (default `~/degree-audit-samples/`: `public-pdfs/`, `private/`, `bench-out/`); the baseline is
   `bench-out/text-baseline-20261009.json`. `tests/external-names.test.ts` is the F5 precondition:
   every ExternalCourses name (fixture tab + `data/snapshot.json`) must keep reading as printed —

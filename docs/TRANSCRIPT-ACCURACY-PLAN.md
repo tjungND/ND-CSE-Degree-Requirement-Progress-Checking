@@ -415,6 +415,96 @@ Open issues (carried into Batch B unless marked for the DGS):
   course-outline page. The five original known-failing fixtures wait on Batch C, whose DGS answers are
   recorded (DECISIONS 2026-10-09).
 
+### Batch B — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`)
+
+Commits, oldest first; each was verified with `npx tsc --noEmit` and the full `npm test` before it was
+made, and the parser and layout commits with the replay against the previous step's file:
+
+- `ab2d41c` Batch B step 6: 21 composed layout fixtures (Workday, Colleague, CUNYfirst, Oregon, UCLA,
+  McMaster, Western, Ladok, SNU, Sabanci, Ukraine, Algeria, IIT, NIT, HEC, Iran, NSU, Tribhuvan;
+  Parchment, NSC and eScrip-Safe wrappers)
+- `bc5f1ba` External parser F6: header words and header shapes the column reader could not map (step 8)
+- `a803ef2` External parser F5: vendor covers, transfer and exemption blocks and recipient lines never
+  name the university; F3: Minerva's multi-term mark (step 8)
+- `4ca40c7` Layout F4: watermark tiles counted where a word repeats down the page, a short last page
+  split by the previous page's column hint, the glyph join per line; Alberta reads exact (step 8)
+- `0af7c3d` Batch B F4-F6: review fixes (four confirmed findings, four DECISIONS rows)
+- the closing commit "Batch B: verification and records" — this section, STATE.md, the handoff's
+  "Batch B at a glance" index, the counts in `MAINTENANCE.md` and `tests/README.md`, one DECISIONS
+  row (step 7 deferred; the e2e driver), and `scripts/e2e/drive-transcript.mjs`, which still asserted
+  the skipped-rows warning's pre-W-CL372 sentence ("listed under “Transfer credit accepted by the
+  institution”") and so failed Chrome's transcript-upload driver on the Banner preview until it read
+  the F5 sentence (`a803ef2` had not run the e2e — another agent's task).
+
+(The OCR benchmark's `c7cc8c8` sits between the step-6 and step-8 commits on the branch; it belongs
+to the OCR steps, not to Batch B.)
+
+Step 7 — positioned PDFs through `tests/fixtures/make-transcript-pdfs.mjs` (a Banner transcript with
+a short two-column last page, a Parchment-wrapped Banner transcript) — was not built: F4 is pinned by
+run-array cases in `tests/layout.test.ts` and by `banner-transcript.pdf` read through the Node
+loader, and the Parchment wrapper exists as a composed line list (`pdf-key-rice-parchment-wrapped`).
+It stays an open item below (DECISIONS 2026-10-09).
+
+Numbers — before is `bench-out/text-batch-a-final.json` (the end of Batch A), after is
+`bench-out/text-batch-b-final.json`; on the 147 fixtures both hold: 0 regressions, 22 improvements
+(eleven fixtures, each on the public and the pdfs board — Alberta and the ten McGill Minerva record
+pages, now exact).
+
+| | before | after |
+|---|---|---|
+| public fixtures (positive + negative) | 147 (108 + 39) | 168 (129 + 39) |
+| known-failing | 18 (18 still failing) | 21 (21 still failing, 0 now passing) |
+| exact (= the test's pass) | 129/147 | 147/168 (87.5%) |
+| row recall | 1248/1328 (94.0%) | 1663/1809 (91.9%) |
+| row precision | 1248/1255 (99.4%) | 1663/1678 (99.1%) |
+| false rows on negatives | 1 (in 1/39) | 1 (in 1/39) |
+| cells title / credits / grade / term / level | 93.8 / 98.4 / 94.2 / 99.4 / 100% | 100 / 99.9 / 99.3 / 97.8 / 100% |
+| ms corpus | 48/48 exact, 648/648 rows | 48/48 exact, 648/648 rows |
+| pdfs board (`public-pdfs/`, `--verify`) | 20 PDFs, 20 hash ok; exact 7/20; recall 135/164 (82.3%); precision 135/142 (95.1%); cells 42.2 / 85.2 / 45.9 / 100 / 100% | 49 PDFs, 49 hash ok; exact 47/49; recall 184/203 (90.6%); precision 184/184 (100%); cells 100 / 100 / 100 / 100 / 100% |
+| `npm test` | 1536 pass | 1585 pass, 0 fail (1590 with the OCR step's two uncommitted test files) |
+
+The pdfs board grew from 20 to 49 PDFs because the OCR benchmark's `--fetch` re-downloaded the keys
+and forms Batch A had not (each verified against `sources.json`; four links were dead and Rice's key
+had changed upstream, so 49 of the 54 `pdf` entries are on disk); its two failures are Evergreen's
+code-less RAA (CC15, Batch C) and the McGill course outline's one false row (the transcript gate).
+The recall and term drops on the public board are the 21 composed fixtures pinned to the truth
+(14 of them known-failing, each naming its family); the parser commits only raised the board
+(step 8's table below: 133 → 147 exact over F6, F5 and F4, 0 regressions at every step). At the
+closing commit `npx tsc --noEmit`, `npm run build`, `npm run e2e` (Chrome) and
+`E2E_BROWSER=webkit npm run e2e` pass, and `public-status` reports "exact 147/168 (87.5%),
+known-failing 21 (21 still failing, 0 now passing), test: passes".
+
+Deviations from §2, each recorded in `docs/DECISIONS.md` (2026-10-09): step 7's positioned PDFs were
+not built (above); F4's "30% of runs" became 30% of a short page's baselines holding a run at the
+hinted edge, with two wordy texts there, nothing crossing and a course column on both sides (the F4
+row and its review row); the glyph join is per line at 80%, with the page-level 60% signal as a
+second trigger at 50% (the review row); the known-failing list grew to 35 at step 6 and shrank to 21
+through step 8, each entry naming only the families still open.
+
+Open issues (carried into the OCR steps and Batch C unless marked for the DGS):
+
+- **DGS:** the transcript gate — the McGill course-outline page still reads one false row (the one
+  false row on the negatives); a step-8 DECISIONS row proposes an "is this a transcript at all?" test
+  and asks before any page-level guess.
+- **DGS:** whether "The City University of New York" is a campus system for `campus.ts` (the
+  CUNYfirst fixture's system line beats the college's header), and whether a "Trimester GPA" totals
+  label and a registrar's calendar sentence count as trimester evidence (the North South fixture).
+- **DGS:** open question (g) — Sabanci's legend-defined P (Progressing).
+- Families still open on 14 composed fixtures (their known-failing entries name them): F2 (Workday's
+  "2024-25 Winter Term 1" headers; Nepal's continuously numbered semesters under an academic-year
+  range), F3 (McMaster's digit-letter-digit, SNU's dotted and UCLA's one-digit course numbers), F1
+  (UCLA's "IN PROGRESS" term header), Ladok's module lines and "Date of issue", Western's
+  course-number suffix terms, Oregon's glued grade symbols and key-page "quarter hours", the
+  Ukrainian supplement's Cyrillic codes and grading-scale line, the Algerian relevé (CC15, Batch C),
+  Bangladesh's trimester evidence (the DGS question above).
+- Step 7's positioned PDFs: the short two-column last page and the Parchment-wrapped Banner
+  transcript are pinned on run arrays and a composed line list, not on pdfjs's own text runs.
+- The term cell at 97.8% on the public board is the composed term headers above, all on the list.
+  From Batch A, still open: the remark-row case from the F1–F3 review, the pdfs board not applying
+  the known-failing list (its 47/49 now reads better than the public board's 147/168 only because
+  the composed fixtures have no PDF), the `USA` / `US` country labels in `sources.json`, and the
+  build's chunk warning.
+
 ### Batch B step 8 — parser and layout fixes F4–F6 (2026-10-09)
 
 Three commits, by family, each verified with `npx tsc --noEmit`, the full `npm test` and the replay

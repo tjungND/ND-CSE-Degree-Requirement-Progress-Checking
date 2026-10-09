@@ -492,7 +492,8 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  Banner two-column transcript:', bannerUni, '|', bannerRows, 'rows |', JSON.stringify(bannerIds));
   if (bannerUni !== 'Example Institute of Technology') throw new Error('Banner institution not found on the legend page: ' + bannerUni);
   if (bannerRows !== 10) throw new Error(`expected 10 institution-credit rows from the Banner transcript, got ${bannerRows}`);
-  if (!/2 rows listed under .Transfer credit accepted by the institution. were left out/.test(transferNote)) {
+  // W-CL372 (F5, 2026-10-09): the heading is named generically since Minerva's "Credits/Exemptions" block is skipped like a transfer block.
+  if (!/2 rows listed under a transfer-credit or credits\/exemptions heading were left out/.test(transferNote)) {
     throw new Error('transfer-credit block note missing: ' + transferNote);
   }
   await s.shot('banner-preview');
