@@ -1,11 +1,13 @@
 # OCR benchmark — method, seeds, baseline (2026-10-09)
 
-The opt-in OCR path (`src/transcript/ocr.ts`: a scanned external transcript's PDF rendered by pdfjs
-at scale 3.0, read by the bundled Tesseract in `public/ocr/`, every line's whitespace collapsed, the
-line's confidence kept, then `parseExternalTranscript`) had no accuracy number before this bench
-(plan `docs/TRANSCRIPT-ACCURACY-PLAN.md` §2 step 9). This file is the method, the seed sections, the
-baseline table and how to run it — written so the next maintainer can repeat a run, add a seed, or
-judge an OCR change by its numbers rather than by one lucky scan.
+The opt-in OCR path (`src/transcript/ocr.ts`: a scanned external transcript's PDF rendered by pdfjs,
+read by the bundled Tesseract in `public/ocr/`, then `parseExternalTranscript`) had no accuracy
+number before this bench (plan `docs/TRANSCRIPT-ACCURACY-PLAN.md` §2 step 9; the path then rendered
+at a fixed scale 3.0 and fed the engine's own lines, whitespace collapsed — since steps 11 and 12 it
+renders at the scan's own resolution and reads the engine's word boxes through the layout stage).
+This file is the method, the seed sections, the baseline and the ladder so far, every measured
+change with its verdict, and how to run it — written so the next maintainer can repeat a run, add
+a seed, or judge an OCR change by its numbers rather than by one lucky scan.
 
 Everything lives in `scripts/dev/ocr-bench/` and is dev-only: `npm run ocr-bench` never runs in
 `npm test`, needs Python 3 with Pillow and numpy (the same two the scan sanitizer needs), and writes
@@ -146,6 +148,45 @@ Adding a seed: a generator PDF is picked up by name in `seeds.mts` (`GENERATOR_P
 needs its `sources.json` `pdf` entry (URL, SHA-256, bytes) and `expected.json` rows, as for the
 replay; a line-list fixture is rendered automatically under `--families synthetic-render`.
 
+
+## Baseline and the ladder so far (2026-10-09)
+
+Four full-ladder runs exist under `~/degree-audit-samples/bench-out/` (62 seeds — the 13 generator
+PDFs and the 49 public PDFs, 26 positives + 36 negatives, 151 pages, 620 rows each, ≈ 44 min):
+
+| run | code | use |
+|---|---|---|
+| `ocr-baseline-20261009/` (11:05) | the step-9 pipeline — the engine's own lines, whitespace collapsed — on the parser BEFORE Batch B's F4–F6 | the pinned pages were cut from it; its `text` row is 49/62 exact against 60/62 today, so deltas against it are confounded (step 10's lesson) and it is kept as history, not as a baseline |
+| `ocr-step10-before-20261009/` | the same pipeline on today's parser | the clean "before" of the OCR steps: every number below starts here |
+| `ocr-step11-after-20261009/` | word boxes through the layout stage (step 11) | the ladder in force for L0–L5 after step 12 too: the source-aware scale renders the ladder's 150–200-dpi sources exactly as before (`--quick` and the medium set 0 / 0), and the orientation trial leaves every upright page its 0° reading |
+| `ocr-full-20261009/` | the shipped pipeline (steps 11 + 12) | the sign-off run, started detached by the closing verification; read it with `--compare ~/degree-audit-samples/bench-out/ocr-full-20261009 --baseline ~/degree-audit-samples/bench-out/ocr-step11-after-20261009` — expected: L0–L5 within the trial's two junk pages of identical, L6-90 / L6-180 from 0 to about 65 % row accuracy |
+
+By level, before (`ocr-step10-before`) → after (`ocr-step11-after`; the L6 figures from the step-12
+medium-set trial run `ocr-step12-rotation-trial-medium/`, which read all four turns):
+
+| level | exact | row acc | rows found | false rows (negatives with any) | field acc | CER | flag P/R | s/page |
+|---|---|---|---|---|---|---|---|---|
+| text | 60/62 | 93.0 % | 93.0 % | 1 (1/36) | 100 % | 0 | — | 0 |
+| L0 | 34 → 35 | 50.0 → 65.2 % | 87.8 → 89.6 % | 19 (5) → 13 (6) | 81.7 → 87.3 % | 40.5 → 29.1 % | 76.9 / 8.3 → 70.0 / 53.2 % | 1.93 |
+| L1 | 33 → 34 | 48.9 → 63.7 % | 88.5 → 90.7 % | 24 (6) → 15 (7) | 81.3 → 86.3 % | 40.4 → 29.5 % | 61.5 / 6.1 → 72.0 / 61.4 % | 1.96 |
+| L2 | 34 → 32 | 46.3 → 54.1 % | 86.7 → 88.1 % | 24 (6) → 16 (7) | 80.3 → 80.9 % | 45.5 → 37.2 % | 86.4 / 14.3 → 70.8 / 63.0 % | 2.16 |
+| L3 | 34 → 33 | 45.6 → 41.5 % | 83.7 → 81.9 % | 27 (6) → 19 (8) | 83.9 → 81.4 % | 42.6 → 42.2 % | 76.9 / 15.4 → 60.8 / 59.4 % | 1.87 |
+| L4 | 32 → 29 | 38.1 → 41.5 % | 85.9 → 86.3 % | 22 (5) → 17 (8) | 76.1 → 73.1 % | 42.3 → 32.0 % | 81.8 / 23.8 → 88.1 / 69.6 % | 2.04 |
+| L5 | 34 → 34 | 47.4 → 58.1 % | 87.0 → 89.6 % | 23 (4) → 21 (5) | 81.2 → 83.8 % | 42.3 → 35.8 % | 84.2 / 12.3 → 79.5 / 66.0 % | 1.79 |
+| L6-90 | 7 → 34 | 0 → 65.2 % | 0 → 90.0 % | 221 (29) → 23 (7) | — → 87.4 % | 90.5 → 29.4 % | — → 69.9 / 56.7 % | 3.63 → ≈ 8 (four readings of page 1) |
+| L6-180 | 15 → 33 | 0 → 64.4 % | 0 → 90.7 % | 54 (21) → 15 (8) | — → 86.4 % | 91.2 → 29.5 % | — → 70.3 / 52.3 % | 2.07 → ≈ 8 |
+| L7 | 30 | 1.1 % | 38.1 % | 100 (6) | 56.7 % | 17.3 % | — | 0 (the text layer, never OCR'd) |
+
+And on 300-dpi sources (L0 rendered at `--dpi 300`, 62 seeds): 216 dpi (`ocr-step12-before-l0-300/`)
+→ the source-aware scale (`ocr-step12-shipped-l0-300/`): exact 36 → 40, row accuracy 66.3 → 70.0 %,
+rows found 89.3 → 92.2 %, false rows 15 → 9, 1.18 × the time.
+
+Where the losses sit (the step-11 verdict, unchanged by step 12): the parser's header-mapped cell
+path on OCR'd cells — one misread header word unmaps a table (Alberta 19 → 3 rows right at L2),
+a section cell left in the title (Minerva), junk cells taken for a code on 15 negative lines — and
+one layout case (the insideND page at L4 split into two columns). Those are plan step 2.5's; the
+two-pass deskew (keep `rotateAuto`'s reading only when the engine's own estimate is ≥ 1.5°) is the
+next preprocessing candidate.
 
 ## OCR step 12 — the engine's parameters, the render scale, preprocessing (2026-10-09)
 

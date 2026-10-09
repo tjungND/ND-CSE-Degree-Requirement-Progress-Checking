@@ -721,3 +721,132 @@ the medium set (16 → 17, 21 → 23) — out by the false-row rule. A 10-px whi
 scrambles a key page's reading order. Verified: `npx tsc --noEmit`, `npm test` 1615 pass, `npm run
 build`; e2e not run (not this agent's — the OCR leg on Chrome and WebKit should be run before the DGS ships
 this: the scan fixture still reads its three rows at the shipped scale, measured in node).
+
+### Closing verification — 2026-10-09 (Batch B and OCR steps 9–12, plan steps 1–2.4)
+
+The whole program since the plan commit `e34279d`, by step (30 commits before the closing one, all on
+`claude/policy-compliance-degree-engine-44a431`):
+
+| step | commits |
+|---|---|
+| Batch A 1–3, the harness | `d124c11` rowOf · `433a376` the scorer · `ab2bdff` the Node pdfjs loader · `bbee934` the replay · `bcd810a` external-names · `26daf0e` docs |
+| Batch A 4, F1–F3 | `335f0b6` F1 · `5d516d0` F2 · `ed8861d` F3 · `dd3b3cb` review fixes |
+| Batch A 5, specimens | `2bf3185` twenty public specimens · `eb9cd8f` review fixes |
+| Batch A closing | `3b576f2` |
+| Batch B 6, composed fixtures | `ab2d41c` (21) |
+| Batch B 8, F4–F6 | `bc5f1ba` F6 · `a803ef2` F5 + F3's mark · `4ca40c7` F4 · `0af7c3d` review fixes |
+| Batch B closing | `f1ebb50` (step 7 deferred) |
+| OCR 9, the bench | `c7cc8c8` (stopped by the harness mid-task; its `MAINTENANCE.md` section, `tests/ocr-assets.test.ts`, `tests/ocr-bench-score.test.ts` and DECISIONS row land in the closing commit below) |
+| OCR 10 | `75b4f9a` the variant · `dce9b05` the verdict (not adopted; plumbing stays) |
+| OCR 11 (2.1) | `4cdee5f` word boxes through the layout stage, the pinned pages · `689c0e0` the title-word tier · `3aa3805` the ladder's verdict |
+| OCR 12 (2.2–2.4) | `350abb9` knobs, helpers, the parameters not adopted · `c830544` the source-aware scale · `9f0fc49` the orientation trial |
+| closing | "Batch B and OCR steps 1-2.4: verification and records" — this section, STATE.md, the handoff's program index, `docs/OCR-BENCHMARK.md` ("Baseline and the ladder so far"), `MAINTENANCE.md`, `tests/README.md`, one DECISIONS row |
+
+Verified at HEAD before the closing commit (started 17:40 EDT): `npx tsc --noEmit` clean; `npm test`
+1615 pass / 0 fail (1475 at `e34279d`; the two step-9 test files add 5); `npm run build` OK (the
+chunk warning that predates the program); `npm run e2e` Chrome 63.9 s "E2E passed" and
+`E2E_BROWSER=webkit npm run e2e` 58.5 s "E2E passed", the OCR leg on both reading "Purdue University"
+and 2 core-relevant rows from the scan fixture, 1 field fixed by hand, 5 external course lines after
+adding (`.e2e-out/external-ocr-preview.png` and `.e2e-out/webkit/external-ocr-preview.png` are the
+same 1400 × 1900 frame on both engines: the preview's "Add 2 selected courses" / "Cancel" buttons at
+the top edge, then "Your standing" with Fall 2026 read from the transcript and the three not-full-time
+semesters, "Coursework" with the six Notre Dame rows, the result cards and "Next steps (10)" on the
+right, and the two toasts "Reading the transcript… (it never leaves this browser)" and the
+specialization-group note — the OCR table itself sits above the frame, where the driver asserted the
+banner, the university and the row count in the DOM).
+
+**Text, before → after the program** (`bench-out/text-baseline-20261009.json`, after Batch A's harness
+and before any parser change → `bench-out/text-final-20261009.json`, written at the close; against
+`text-batch-a-final.json`: 0 regressions, 22 improvements — Alberta and the ten Minerva record pages,
+each on the public and the pdfs board — 21 public and 29 pdfs entries new):
+
+| | before (`e34279d` + harness) | after |
+|---|---|---|
+| public fixtures (positive + negative) | 127 (95 + 32) | 168 (129 + 39) |
+| known-failing | 5 | 21 (21 still failing, 0 now passing) |
+| exact (= the test's pass) | 122/127 | 147/168 (87.5 %) |
+| row recall / precision | 95.6 % / 100 % | 91.9 % / 99.1 % |
+| false rows on negatives | 0 (in 0/32) | 1 (in 1/39, the McGill course outline — the gate question) |
+| cells title / credits / grade / term / level | 100 / 100 / 100 / 99.3 / 100 % | 100 / 99.9 / 99.3 / 97.8 / 100 % |
+| ms corpus | 48/48, 648/648 | 48/48, 648/648 |
+| pdfs board (`public-pdfs/`, `--verify`) | — (20 PDFs at the end of Batch A: exact 7/20) | 49 PDFs, 49 hash ok; exact 47/49; recall 90.6 %; precision 100 %; cells 100 / 100 / 100 / 100 / 100 % |
+| `npm test` | 1475 | 1615 |
+
+The recall and term drops are the 41 fixtures added and pinned to the truth (specimens and composed
+layouts; 16 of them still on the list with their family); every parser commit only raised the board.
+
+**OCR, before → after the program** (the full ladder, 62 seeds — 26 positives, 36 negatives — 151
+pages, 620 rows; before = `bench-out/ocr-step10-before-20261009/`, the step-9 pipeline on today's
+parser; after = `ocr-step11-after-20261009/` for L0–L5, which the shipped pipeline reproduces on the
+ladder's 150–200-dpi sources, and `ocr-step12-rotation-trial-medium/` for L6; the whole table is in
+`docs/OCR-BENCHMARK.md` "Baseline and the ladder so far"):
+
+| level | exact | row acc | rows found | false rows | CER | flag P / R |
+|---|---|---|---|---|---|---|
+| L0 clean | 34 → 35 /62 | 50.0 → 65.2 % | 87.8 → 89.6 % | 19 → 13 | 40.5 → 29.1 % | 76.9 / 8.3 → 70.0 / 53.2 % |
+| L1 good scan | 33 → 34 | 48.9 → 63.7 % | 88.5 → 90.7 % | 24 → 15 | 40.4 → 29.5 % | 61.5 / 6.1 → 72.0 / 61.4 % |
+| L2 office scan | 34 → 32 | 46.3 → 54.1 % | 86.7 → 88.1 % | 24 → 16 | 45.5 → 37.2 % | 86.4 / 14.3 → 70.8 / 63.0 % |
+| L3 photocopy | 34 → 33 | 45.6 → 41.5 % | 83.7 → 81.9 % | 27 → 19 | 42.6 → 42.2 % | 76.9 / 15.4 → 60.8 / 59.4 % |
+| L4 stamped | 32 → 29 | 38.1 → 41.5 % | 85.9 → 86.3 % | 22 → 17 | 42.3 → 32.0 % | 81.8 / 23.8 → 88.1 / 69.6 % |
+| L5 phone photo | 34 → 34 | 47.4 → 58.1 % | 87.0 → 89.6 % | 23 → 21 | 42.3 → 35.8 % | 84.2 / 12.3 → 79.5 / 66.0 % |
+| L6-90 sideways | 7 → 34 | 0 → 65.2 % | 0 → 90.0 % | 221 → 23 | 90.5 → 29.4 % | — → 69.9 / 56.7 % |
+| L6-180 upside down | 15 → 33 | 0 → 64.4 % | 0 → 90.7 % | 54 → 15 | 91.2 → 29.5 % | — → 70.3 / 52.3 % |
+| L7 text layer | 30 | 1.1 % | 38.1 % | 100 | 17.3 % | unchanged (never OCR'd) |
+| L0 on 300-dpi sources | 36 → 40 | 66.3 → 70.0 % | 89.3 → 92.2 % | 15 → 9 | — | — (`ocr-step12-before-l0-300` → `-shipped-l0-300`, 1.18 × the time) |
+
+At the close: `npm run ocr-bench -- --pinned` (`bench-out/ocr-final-pinned-20261009/`) is identical to
+step 12's shipped run — L0 2/3, L1 7/9, L2 6/10, L3 exact, L4 2/5, L5 exact, L6-180 2/3, L6-90 4/5
+rows right/expected, L7 0/6 (the text layer), 1.08 s/page. The medium set under the shipped config
+(`bench-out/ocr-final-medium-20261009/`, 62 seeds at L2 / L5, against the 11:05 `ocr-baseline-20261009`
+as the task asked — a confounded pair, that run predating F4–F6): L2 row accuracy 44.4 → 54.1 %, rows
+found 86.7 → 88.1 %, false rows 27 (6/36 negatives) → 16 (7/36), field accuracy 79.8 → 80.9 %, CER
+45.6 → 37.2 %, flag P / R 91.3 / 14.9 → 70.8 / 63.0 %; L5 45.2 → 58.1 %, 87.0 → 89.6 %, 26 (4) → 21 (5),
+80.7 → 83.8 %, 42.4 → 35.8 %, 90.0 / 12.9 → 79.5 / 66.0 %; `text` 60.0 → 93.0 % row accuracy and 8 → 1
+false rows (the parser, not the OCR); 34 regression lines, 49 improvements, 186 rows in 15.4 min. The
+shipped config's L2 and L5 boards are identical, row for row, to the step-11 ladder's and to step 12's
+`-before-medium` (54.1 % / 58.1 %, false rows 16 / 21), so the same-parser delta is 0 / 0 — the only
+moved figure is s/page (3.04 / 2.49 against 2.16 / 1.79), because the two e2e runs shared the machine
+with this run. The clean step-10
+deltas, left unpasted by step 10 (`--compare ocr-step10-20261009 --baseline ocr-step10-before-20261009`):
+L0 false rows 19 → 21; L1 row acc 48.9 → 48.5 %; L2 46.3 → 42.2 %, false rows 24 → 25; L3 45.6 →
+49.6 %, false rows 27 → 24; L4 38.1 → 36.3 %; L5 47.4 → 44.4 %; L6-90 false rows 221 → 315; 48
+regression lines, 16 improvements — the verdict (not adopted) stands. The full ladder on the shipped
+pipeline — the sign-off run — was started detached at the close:
+`~/degree-audit-samples/bench-out/ocr-full-20261009/` (log `ocr-full-20261009.log`, ≈ 45 min); read it
+with `npm run ocr-bench -- --compare ~/degree-audit-samples/bench-out/ocr-full-20261009 --baseline
+~/degree-audit-samples/bench-out/ocr-step11-after-20261009` — expected L0–L5 within the trial's two
+junk pages of identical and L6 as the row above; paste its "By level" board into
+`docs/OCR-BENCHMARK.md` under "Baseline and the ladder so far" and a line into STATE.md.
+
+Deviations from §2, each in DECISIONS (2026-10-09): step 7's positioned PDFs deferred (Batch B);
+step 9's harness committed in two parts (the stopped step's leftovers in the closing commit); step
+10 measured and reversed; step 12's "300 dpi" shipped as a source-aware scale, not a flat one; the
+full ladder's sign-off read after the close rather than waited for.
+
+Open issues, all steps (the DGS's are marked):
+
+- **DGS:** Batch C — CC15 code-less rows, CC16 side-by-side terms, TH02, the adjacent-line conferral,
+  OCR numeric corrections, image strips, scanner-embedded poor text layers (his answers are recorded,
+  DECISIONS 2026-10-09 `d3a853d`; nothing lands before his numbered go-ahead).
+- **DGS:** the transcript gate — "is this a transcript at all?" (the McGill course-outline page, the
+  one false row on the negatives); whether "The City University of New York" is a campus system;
+  whether "Trimester GPA" and a calendar sentence are trimester evidence; open question (g)
+  (Sabanci's legend-defined P).
+- **DGS:** Melbourne (403) and Limerick (404) specimens for his browser; the five public PDFs not on
+  disk (UConn, Delaware, Jadavpur, Chulalongkorn — dead links; Rice — changed upstream).
+- **DGS:** `docs/wordpress-footer-snippet.html` must be re-pasted into WordPress when the iframes move
+  to the renamed Pages address (Batch A).
+- Text: the 16 composed and specimen fixtures still on the known-failing list with their families (F2
+  Workday / Nepal, F3 McMaster / SNU / UCLA numbers, F1 UCLA's "IN PROGRESS", Ladok's module lines,
+  Western's suffix terms, Oregon's glued symbols, the Ukrainian supplement, Algeria CC15, Bangladesh);
+  the remark-row case from the F1–F3 review; the pdfs board not applying the known-failing list; the
+  `USA` / `US` labels in `sources.json`; the build's chunk warning; step 7's positioned PDFs.
+- OCR: plan step 2.5 — the header-mapped cell path's tolerance of OCR noise (Alberta 19 → 3 rows right
+  at L2 after step 11; a misread Minerva header cell is what made a flat 300 dpi lose), the title
+  cell's leading section number and symbol, junk cells taken for a code on the negatives, the
+  insideND one-column table split at L4; the two-pass deskew (keep `rotateAuto`'s reading only when
+  the engine's estimate is ≥ 1.5°); steps 2.6–2.7 (term-header repair, an OCR-tolerant `isUnofficial`,
+  cell-level flags, the image strip) after the DGS's Batch C answers; `--full` with the synthetic
+  renders never run (estimated only); the engine gate (step 14) not started; line CER is
+  order-sensitive (a multi-column page read across columns scores high even with every word right).
+- The sign-off ladder `ocr-full-20261009/` — its board to be pasted (above).

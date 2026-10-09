@@ -360,6 +360,36 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   out of this batch: a two-column split needs three DIFFERENT wordy texts at the right edge (one
   repeated header such as "Attempted" is a table, not a column), and the crossing test reads per-word
   runs joined into phrases (some generators emit one run per word).
+- **The transcript accuracy program at a glance** (2026-10-09 — the index of the whole program on
+  the branch `claude/policy-compliance-degree-engine-44a431`; the plan and research record is
+  `docs/TRANSCRIPT-ACCURACY-PLAN.md`, its §5 the numbers per step, STATE.md's paragraphs of the date
+  the running account, `docs/OCR-BENCHMARK.md` the OCR method and every measured change). The
+  commits, by step, from the plan commit `e34279d`: Batch A — `d124c11` `433a376` `ab2bdff`
+  `bbee934` `bcd810a` `26daf0e` (steps 1–3, the harness), `335f0b6` `5d516d0` `ed8861d` `dd3b3cb`
+  (step 4, F1–F3 and their review), `2bf3185` `eb9cd8f` (step 5, the specimens), `3b576f2` (the
+  closing); Batch B — `ab2d41c` (step 6, the composed fixtures), `bc5f1ba` `a803ef2` `4ca40c7`
+  `0af7c3d` (step 8, F6 / F5 + F3 / F4 and their review), `f1ebb50` (the closing; step 7 deferred);
+  OCR — `c7cc8c8` (step 9, the bench), `75b4f9a` `dce9b05` (step 10, measured and not adopted),
+  `4cdee5f` `689c0e0` `3aa3805` (step 11, word boxes through the layout stage), `350abb9` `c830544`
+  `9f0fc49` (step 12, the source-aware scale and the orientation trial), then the closing commit
+  "Batch B and OCR steps 1-2.4: verification and records" (this bullet; the step-9 leftovers —
+  `MAINTENANCE.md` "Measuring OCR", `tests/ocr-assets.test.ts`, `tests/ocr-bench-score.test.ts`,
+  one DECISIONS row — landed in it). The three bullets after this one index Batch A, F1–F3 and
+  Batch B; the OCR pipeline is the "`public/ocr/` holds the self-hosted OCR engine" bullet and the
+  "OCR step 12" bullet. Rules the program taught, each in DECISIONS: a parser change that moves the
+  board needs a fixture explaining why, never a re-baseline; every OCR A/B is measured against a
+  run made on the SAME parser code (`ocr-baseline-20261009`, the 11:05 run, predates F4–F6 and is
+  history only — the clean before is `ocr-step10-before-20261009`, the ladder in force
+  `ocr-step11-after-20261009`), and a worse false-row count on the negatives is a regression
+  whatever the rows gained; a student-facing sentence the e2e reads changes in the driver in the
+  same commit; a step whose task excludes the e2e says so in STATE, and the closing verification
+  runs both engines. Replay files and bench runs live in `~/degree-audit-samples/bench-out/`
+  (`text-*.json`; `ocr-*/`), never in the repo. What is next, in order: the full ladder's sign-off
+  run `ocr-full-20261009/` (started detached by the closing verification; read with
+  `npm run ocr-bench -- --compare <it> --baseline …/ocr-step11-after-20261009`), Batch C once the
+  DGS answers (CC15, CC16, TH02, the transcript gate, the CUNY and trimester questions, open
+  question (g)), plan steps 2.5–2.7 (the header-mapped cell path's tolerance of OCR noise is what
+  turns the 300-dpi gain on; the two-pass deskew), then the engine gate (step 14).
 - **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
   after this one carry the reasons, STATE.md's "Batch A done" paragraph and
   `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:

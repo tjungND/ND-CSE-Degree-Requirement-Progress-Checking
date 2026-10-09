@@ -60,3 +60,16 @@ them), `private/` the DGS's own synthetic PDFs and sanitized scans (never named 
 `bench-out/` the `--out` files. Before a parser change, `npm run replay -- --out before.json`; after it,
 `npm run replay -- --baseline before.json` prints every document that got worse first (exit code 1), then
 every one that got better. The `--out` file holds counts only, never a document's text.
+
+## Measuring OCR
+
+`npm run ocr-bench` (`scripts/dev/ocr-bench/`, 2026-10-09; dev-only, never in `npm test`) degrades the
+generator PDFs and the public registrar PDFs down a seeded ladder (clean raster, good scan, office scan,
+photocopy, stamped, phone photo, turned, a poor scanner text layer), runs the app's real OCR path on every
+level and scores it with the same scorer as the replay plus line CER, flag precision/recall and seconds
+per page — method, seeds and every measured change in `docs/OCR-BENCHMARK.md`, the commands in
+`MAINTENANCE.md` "Measuring OCR". Two tests guard it in `npm test`: `ocr-bench-score.test.ts` pins the
+bench's own scoring pieces (Levenshtein, line CER, flag counts), and `ocr-assets.test.ts` fails when
+`public/ocr/` grows past 7.5 MB — the download cap a second engine or a bigger model must clear with the
+DGS first (plan step 14, the engine gate). `ocr-lines.test.ts` pins the pure stage (word boxes → lines)
+on the nine pages of `fixtures/ocr-scans/` without the engine.

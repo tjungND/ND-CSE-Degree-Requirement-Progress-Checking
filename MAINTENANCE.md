@@ -310,6 +310,44 @@ outputs are git-ignored (`sanitized-*.pdf`, `sanitized-scan-*.png`, and the olde
 remain the judge of what leaves your computer. The tools preserve page rotation, so a landscape
 transcript sanitizes to a landscape copy the app reads the same way (2026-09-05).
 
+## Measuring OCR
+
+The opt-in OCR path (scanned external transcripts, `src/transcript/ocr.ts`) has a benchmark of
+its own, `scripts/dev/ocr-bench/` (2026-10-09; dev-only, never part of `npm test`; method and
+baseline numbers in `docs/OCR-BENCHMARK.md`). It takes clean documents — the generator PDFs in
+`tests/fixtures/`, the public registrar PDFs kept outside the repo in
+`~/degree-audit-samples/public-pdfs/` (rebuilt from `sources.json` with `--fetch`, each verified by
+SHA-256), optionally line-list fixtures rendered to pages — degrades them down a seeded ladder
+(L0 clean raster … L5 phone photo, L6 rotated, L7 a poor scanner text layer; Pillow + numpy, so
+`python3 -c "import PIL, numpy"` must work), wraps every level as an image-only PDF, runs the
+app's real path on it (pdfjs at the app's own per-page scale — the scan's resolution between
+216 and 300 dpi since OCR step 12 — → the bundled Tesseract in `public/ocr/` → the word boxes
+through `src/transcript/ocr-lines.ts` and the layout stage → the parser) and scores it with the
+replay's scorer plus line CER, flag precision/recall and seconds per page.
+
+    npm run ocr-bench -- --quick                                   # one seed per family × L0/L2/L5, about a minute
+    npm run ocr-bench -- --quick --out ~/degree-audit-samples/bench-out/ocr-before-quick     # BEFORE a change, same code
+    npm run ocr-bench -- --quick --baseline ~/degree-audit-samples/bench-out/ocr-before-quick # after it: the deltas
+    npm run ocr-bench -- --families generator-external,generator-nd,generator-scan,public-pdf --levels L2,L5   # the medium set, ~12 min
+    npm run ocr-bench -- --levels L0,L1,L2,L3,L4,L5,L6,L7 --families generator-external,generator-nd,generator-scan,public-pdf --dpi 200   # the full ladder, ~45 min
+    npm run ocr-bench -- --full          # adds the synthetic renders; prints the estimate (hours); add --yes to run it, attended
+    npm run ocr-bench -- --pinned        # the nine committed pages in tests/fixtures/ocr-scans/
+    npm run ocr-bench -- --compare <after-dir> --baseline <before-dir>   # the deltas of two finished runs
+
+Every A/B of an OCR change (`--config knobs.json` holds the engine knobs: scale, PSM, dpi,
+interword spaces, threshold, invert, rotateAuto, border, rotationTrial) is `--quick` — and, for
+a verdict, the medium set: two step-12 verdicts reversed between the two — against a run made
+on the SAME parser code just before the change (a stale baseline confounds: the 11:05 run
+`ocr-baseline-20261009` predates Batch B's parser fixes, step 10's lesson); `--baseline` prints
+the per-level deltas with regressions first and exits 1 on any, and a worse false-row count on
+the negatives is a regression whatever the rows gained. Output goes under
+`~/degree-audit-samples/bench-out/ocr-<date>/` (`results.csv`, `results.md`, `results.json`,
+and every degraded page) — never under the repo. Your own scans go in with `--seeds-dir <dir>`
+(PDFs plus an `expected.json` in the corpus shape); they are named `private-NN` in every
+output and appear in `results.md` as one aggregate line, and nothing about them belongs in a
+committed file. `tests/ocr-assets.test.ts` fails when `public/ocr/` grows past 7.5 MB — the cap
+a second engine or a bigger model must clear with you first.
+
 ## Repo peculiarities you should know
 
 - **`public/ocr/` holds the self-hosted OCR engine** (tesseract.js v7 worker, SIMD+LSTM WASM
