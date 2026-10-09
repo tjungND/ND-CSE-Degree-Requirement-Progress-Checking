@@ -14,5 +14,51 @@
  ],
  "chulalongkorn": [
   "TH02 \u2014 DGS decision: Thailand's 'First Semester 2022' runs August\u2013December (the calendar-order rule reads it as the spring)"
+ ],
+ "pdf-alberta-crnc-sample": [
+  "F6 (Batch B) \u2014 PeopleSoft SQR's two-line header (Grade Remark / Units Taken / Units Passed / Grade Points / Class Avg / Class Enrl) is not mapped: the title swallows the grade and units, the points or the class size read as the credits, and ten rows are lost",
+  "F4 (Batch B) \u2014 page 2's header loses its 'Units' / 'Taken' runs in layout.ts dropWatermarks: the short-word rule (>= 8 occurrences at >= 4 x positions) counts the header word (5 headers x 2 columns) together with the GPA lines' 'units taken' at three more x positions, and drops the header runs; page 1 has one GPA x position fewer and keeps them"
+ ],
+ "pdf-evergreen-sample-raa": [
+  "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column",
+  "F5 (Batch B) \u2014 the TRANSFER CREDIT block's 'University of Washington' is read as the university (and campus system) instead of 'The Evergreen State College'"
+ ],
+ "pdf-mcgill-minerva-simple-record": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
+ ],
+ "pdf-mcgill-minerva-registered-courses": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
+ ],
+ "pdf-mcgill-minerva-pass-fail": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
+ ],
+ "pdf-mcgill-minerva-failures": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
+ ],
+ "pdf-mcgill-minerva-deferred-grades": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
+ ],
+ "pdf-mcgill-minerva-remarks-and-unknown-lines": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
+  "F6 (Batch B) \u2014 the Remarks cell (I / E / A / EXC) between the grade and Earned is not mapped; 'TBA' credits read as the grade"
+ ],
+ "pdf-mcgill-minerva-transfer-credits": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
+  "F5 (Batch B) \u2014 the Credits/Exemptions block ('From: Dawson College - 24 credits', 'COMP 202   EXC', 'MATH 140   3') reads as course rows and its source line as the university"
+ ],
+ "pdf-mcgill-minerva-multi-term-courses": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
+  "F3 (Batch B) \u2014 the multi-term mark (a Wingdings diamond, or '\u00b2' when the font is missing) after the course number leaves ' 001' / '\u00b2 001' in the title"
+ ],
+ "pdf-mcgill-minerva-long-record": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
+ ],
+ "pdf-mcgill-minerva-cegep-engineering": [
+  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
+  "F5 (Batch B) \u2014 the Credits/Exemptions block ('From: Vanier College - 25 credits', 'COMP 202   EXC') reads as course rows and its source line as the university",
+  "F1c (Batch B) \u2014 'Electric Circuits 2   3' (registered, no grade, header unmapped) reads credits 2 and grade 3"
+ ],
+ "pdf-mcgill-minerva-not-a-transcript": [
+  "Batch B \u2014 no 'is this a transcript at all' gate: a course outline's one line ('COMP 250   001 Intro to Computer Science   3') reads as a course row; the McGill project refuses the page because its header never says Transcript"
  ]
 }

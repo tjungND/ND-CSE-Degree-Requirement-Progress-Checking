@@ -1186,5 +1186,285 @@
    "bytes": 249257,
    "pages_text_lines": 595
   }
+ },
+ "pdf-alberta-crnc-sample": {
+  "institution": "University of Alberta",
+  "country": "Canada",
+  "url": "https://www.ualberta.ca/en/registrar/media-library/forms/cr-nc-transcript-sample.pdf",
+  "kind": "registrar SAMPLE unofficial record (PDF, PeopleSoft SQR print, two pages: a Master of Engineering record and a Bachelor of Arts record, each ending \"End of Transcript\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "9f201244e724a69d41ca7e690f2330837fd264d4b79b2e6ea03c8d2677bca2b9",
+   "bytes": 8279,
+   "pages_text_lines": 90
+  },
+  "note": "Two fictitious students in one PDF — the registrar's placeholders 'Sample Two Student' (ID 1578110) and 'Sample One Student' (ID 1571314) — read as one line list, which is what the app would see. Expectation = the 24 printed rows: 'ENG M 612' (one-letter middle, F3), CR / IP tokens kept raw, 'Winter Term' = spring, 0.5 and 3.8 units, the COVID-19 narrative paragraph between terms, the two-line header 'Grade Units Units Grade Class Class / Course Description Remark Taken Passed Points Avg Enrl'. No level is pinned: the term lines name the degree ('Master of Engineering (Crse)', 'Bachelor of Arts') and the admission sentence names the Faculty of Graduate Studies, but nothing the parser's level rules read (an explicit level marker or a dated bachelor's conferral) is printed — a Batch B question. Known-failing today (F6, F4 — see public-transcripts-known-failing.json): 14 rows read, with the grade and units inside the title; page 2's line list lacks the header's 'Units' / 'Taken' words because dropWatermarks' short-word rule counts them with the GPA lines' 'units taken' (the scratchpad trace of 2026-10-09)."
+ },
+ "pdf-evergreen-sample-raa": {
+  "institution": "The Evergreen State College",
+  "country": "US",
+  "url": "https://www.evergreen.edu/sites/default/files/2023-07/sample-raa.pdf",
+  "kind": "registrar SAMPLE Record of Academic Achievement (PDF, one page; a code-less narrative transcript: programs with credit-equivalency sub-rows, no grades)",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "07337925f2553039def02c6dd361fc7f2024a4ff429cc65e79388ae7998972af",
+   "bytes": 15689,
+   "pages_text_lines": 39
+  },
+  "note": "The sample's Last / First / MI / Student ID fields are blank (the placeholder). Code-less (CC15): each program line ('09/2004   06/2005   44   Introduction to Natural Science') is followed by title-only sub-rows ('13 - General Chemistry with Laboratory') whose credits sum to the program's — the sub-rows are the pinned rows (empty code, credits from the leading number, no grade: Evergreen writes narrative evaluations, the program's start year as the fall term, the leading '*' dropped), the program line is the total, not a row. The TRANSFER CREDIT block (University of Washington, South Puget Sound Community College) is not a row. 'Bachelor of Science   Awarded 15 Dec 2006' dates the conferral, so every row is undergraduate by the conferral rule. Known-failing until the DGS decides CC15; the parser also reads the transfer block's 'University of Washington' as the university and campus system today (F5, Batch B)."
+ },
+ "pdf-key-hampshire": {
+  "institution": "Hampshire College",
+  "country": "US",
+  "url": "https://www.hampshire.edu/sites/default/files/centralrecords/17F%20Transcript%20Explanation%20and%20Key.pdf",
+  "kind": "transcript explanation and key (PDF back page: narrative evaluations, Five College institution codes, completion-status notations)",
+  "lens": "us-private",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "6c3161ff6c0c448e72571389e7ebaf5dcbd9f370e6fe57675ec19e912b194408",
+   "bytes": 176588,
+   "pages_text_lines": 50
+  },
+  "note": "A back page with no student: Division I–III explanation, credit recommendations, the Courses header explanation (Course / Title / CmplStat / Inst/Cred / Div/Use) and the EVL / W / INC / NO / TR / NR / AUD statuses. Must yield no course row. Reads clean today (university null)."
+ },
+ "pdf-key-uwo": {
+  "institution": "The University of Western Ontario",
+  "country": "Canada",
+  "url": "https://registrar.uwo.ca/services/pdfs/Transcript_2022_back.pdf",
+  "kind": "transcript back page 2022 (PDF: grading scales, course-number suffixes, affiliated colleges, two columns)",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "c061acc7fa09f1e5957628badc989a7757ed31b2f8091ab9788eff50fbb82d6e",
+   "bytes": 160087,
+   "pages_text_lines": 110
+  },
+  "note": "A back page with no student. Must yield no course row. The parser reads 'UNIVERSITY COLLEGE, HURON' (the affiliated-colleges line) as the university today — not compared on a negative, listed for Batch B (F5)."
+ },
+ "pdf-arucc-legend-guidelines": {
+  "institution": "ARUCC (Association of Registrars of the Universities and Colleges of Canada)",
+  "country": "Canada",
+  "url": "https://guide.arucc.ca/uploads/pdf/Transcript_Legend_Best_Practice_Guidelines.pdf",
+  "kind": "best-practice guideline for transcript legends (PDF, two pages; not a transcript, names what a legend should list)",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "5a94c748d74f9f739102dba76fc8e95e48b6a752cf3c2304c8016d973be22039",
+   "bytes": 547605,
+   "pages_text_lines": 52
+  },
+  "note": "An association's guideline with placeholders ('ABC University', '<xxx URL>') and no student. Must yield no course row. The parser reads 'certificate, college diploma, etc.)' as the university today — not compared on a negative, listed for Batch B (F5)."
+ },
+ "pdf-parchment-authentication": {
+  "institution": "Parchment (vendor page hosted by Savannah State University)",
+  "country": "US",
+  "url": "https://ssu.edu/wp-content/uploads/2015/01/Blue-Ribbon-Electronic-Transcript-Security-Features-from-Parchment.pdf",
+  "kind": "vendor authentication page ('How to Authenticate This Official Transcript', the blue-ribbon certificate explanation) that travels inside a Parchment-delivered transcript PDF",
+  "lens": "us-public",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "7451cfc0c6cb02de92367f970718d087d84557bf54a1ac0252808cc26be2837b",
+   "bytes": 73760,
+   "pages_text_lines": 34
+  },
+  "note": "A commercial vendor's page, so the line list is kept minimal: 9 of the page's 34 lines — the headings and every line naming Parchment, the transcript, the certificate or the blue ribbon, i.e. the lines the parser must ignore (pages_text_lines counts the whole page; regenerate with pdf-to-lines.mts and apply the same filter). Must yield no course row and must never set the university to 'Parchment' (pinned in tests/public-transcript-rules.test.ts). Reads clean today (university null)."
+ },
+ "pdf-algeria-mesrs-releve-modele": {
+  "institution": "MESRS (Algeria's Ministry of Higher Education) — LMD relevé de notes template, hosted by Université d'El Oued",
+  "country": "Algeria",
+  "url": "https://old.univ-eloued.dz/images/Forumphoto/ha_ge2018/PDF/MODELE_RELEVE_DE_NOTES_MESRS_LM.pdf",
+  "kind": "blank LMD transcript template (PDF form in French: Nom / Prénom / N° d'inscription empty, U.E.F / U.E.D / U.E.T / U.E.M unit rows, Admis / Ajourné decision line; a poor text layer with stray glyphs)",
+  "lens": "mideast-africa-latam",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "72e4c9e1e65d650392ab4468aeb8f633671ca3daded83813dfd29062df47ca71",
+   "bytes": 40223,
+   "pages_text_lines": 39
+  },
+  "note": "A blank template: the Nom / Prénom / date-of-birth / N° d'inscription fields are empty (the placeholder). Must yield no course row. The parser reads 'Année Universitaire:' as the university today — not compared on a negative, listed for Batch B (F5)."
+ },
+ "pdf-mcgill-minerva-simple-record": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/simple-record.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"simple-record\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "cb3bb2656991f1395035d571908cd1328e787819ec08a5f28dc2794bd995ea9a",
+   "bytes": 78519,
+   "pages_text_lines": 64
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. Nine completed rows over three terms (Fall, Winter, Summer)."
+ },
+ "pdf-mcgill-minerva-registered-courses": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/registered-courses.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"registered-courses\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "766378a5fa48aa6cddff0beb5a28fa38592fbe0a96530b2ed4e7ce6edb044570",
+   "bytes": 76739,
+   "pages_text_lines": 51
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. Registered ('RW') rows with no grade yet, after two completed terms."
+ },
+ "pdf-mcgill-minerva-pass-fail": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/pass-fail.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"pass-fail\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "5741954f19c61ba203b9a57c352f96b93d002f77ed3370f7086878b234a4b9ef",
+   "bytes": 74641,
+   "pages_text_lines": 37
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. P / S / U / F grades on satisfactory/unsatisfactory courses; the printed P is pinned as the app's S (mapGrade), the 0-credit FACC 250."
+ },
+ "pdf-mcgill-minerva-withdrawals": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/withdrawals.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"withdrawals\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "a9e7845f533b4ae52059f1807ba2c5c6608447820a4097dc3d83f8901b7d3836",
+   "bytes": 76599,
+   "pages_text_lines": 50
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. W / WF / WL kept raw. Reads correctly today."
+ },
+ "pdf-mcgill-minerva-failures": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/failures.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"failures\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "08ef706bc6b8fcb55bba2c08c3265c3bced4196f8ce2409a1b01294f2f1f5de6",
+   "bytes": 77281,
+   "pages_text_lines": 51
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. F / J / KF grades and the two retakes a term later (paired by year in the scorer)."
+ },
+ "pdf-mcgill-minerva-deferred-grades": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/deferred-grades.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"deferred-grades\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "62de514a80e61404780558d87b07bb1121e91434c32028bee05d74ceb1ee59e2",
+   "bytes": 75846,
+   "pages_text_lines": 38
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. K / KE / L / L* / NR tokens kept raw."
+ },
+ "pdf-mcgill-minerva-remarks-and-unknown-lines": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/remarks-and-unknown-lines.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"remarks-and-unknown-lines\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "0f7b7ef26b1f49fe3d4f8f984580ec522f79d80f42c0e80db2a6e3e2066ee891",
+   "bytes": 75802,
+   "pages_text_lines": 38
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. The Remarks cell (I / E / A / EXC) between the grade and Earned; the ground truth's two `unrecognized` lines ('… 3   ZZ   3', '… TBA   A   NaN   B') are pinned as rows with their raw tokens (ZZ as the grade; credits unknown, grade A) — the app keeps a raw value and flags it rather than dropping the row."
+ },
+ "pdf-mcgill-minerva-transfer-credits": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/transfer-credits.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"transfer-credits\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "a93e4e4d74f482c2db0663928f689b2ab48d906cbd661c4619acaa866e940234",
+   "bytes": 79175,
+   "pages_text_lines": 64
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. Credits/Exemptions blocks ('From: Dawson College - 24 credits', 'COMP 202   EXC', 'TRNS   XXX   6'), 'PREVIOUS EDUCATION Quebec CEGEP/IB'; the transfer and exemption rows are not in the expectation."
+ },
+ "pdf-mcgill-minerva-multi-term-courses": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/multi-term-courses.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"multi-term-courses\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "b917ec3b8da8b181c448eb12fba5fdbe0abdb26bea6e545261b8d1362d0e27df",
+   "bytes": 78973,
+   "pages_text_lines": 61
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. D1/D2, J1/J2/J3, N1/N2 multi-term suffixes with a Wingdings diamond (or '²' where the font is missing) after the number; registered rows."
+ },
+ "pdf-mcgill-minerva-long-record": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/long-record.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"long-record\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "da853b38bdbc657bf1988fab01b02dd7afe025e5592f6562705141bdcc5e0b22",
+   "bytes": 89898,
+   "pages_text_lines": 181
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. Five pages, 48 'Synthetic Course n' rows plus one registered row, a page break inside Fall 2024's rows."
+ },
+ "pdf-mcgill-minerva-cegep-engineering": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/cegep-engineering.pdf",
+  "kind": "synthetic Minerva unofficial transcript (student-project rendering; scenario \"cegep-engineering\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "8b538da256870281562b71880c41acb4bf3e326a477cd3cc9b8b5769b8b13948",
+   "bytes": 80033,
+   "pages_text_lines": 70
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. B.Eng with CEGEP exemptions ('From: Vanier College - 25 credits'), a P grade (pinned S), registered rows; 'Electric Circuits 2   3'."
+ },
+ "pdf-mcgill-minerva-not-a-transcript": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/not-a-transcript.pdf",
+  "kind": "synthetic non-transcript page from the same generator (scenario \"not-a-transcript\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "a9cd03d092fc42d7ff693fc32255cd17209fc2866e1748d635c003a9a897afdb",
+   "bytes": 55477,
+   "pages_text_lines": 7
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. A course outline page ('COMP 250 Course Outline' header, one course line, a sentence mentioning the transcript) — negative: no row."
+ },
+ "pdf-mcgill-minerva-too-many-pages": {
+  "institution": "McGill University (Minerva layout imitation, student project)",
+  "country": "Canada",
+  "url": "https://github.com/CBC-Mcgill/McGill-Plan-Your-Degree/blob/28c7e04af4953949624e1cac64a6086ccb615daf/lib/transcript/fixtures/too-many-pages.pdf",
+  "kind": "synthetic non-transcript page from the same generator (scenario \"too-many-pages\")",
+  "lens": "europe-canada-anz",
+  "from": "pdf — the registrar PDF itself, run through scripts/dev/pdf-to-lines.mts (2026-10-09)",
+  "pdf": {
+   "sha256": "b0e5f7c8c1595c42de72cc2bf57f535e883178138a22dce2ba47a5f928a290ea",
+   "bytes": 57850,
+   "pages_text_lines": 84
+  },
+  "note": "LAYOUT IMITATION, not a registrar document: a student project's Chromium (Playwright) rendering of McGill's Minerva 'UNOFFICIAL Transcript' page — CBC-Mcgill/McGill-Plan-Your-Degree, lib/transcript/fixtures, pinned at commit 28c7e04af4953949624e1cac64a6086ccb615daf (LICENSE: MIT, (c) 2026 CBC McGill; checked 2026-10-09). Identities are generated: lib/transcript/fixtures/generate.mts holds each scenario's fictitious identity as a literal (sequential McGill IDs 260900001–260900011, a permanent code built from the name) and its course rows as its own synthetic data; the project's own test asserts the parse never contains them. Expected rows converted from the project's <scenario>.json ground truth by a one-off script (Winter = spring; a printed P is pinned as the app's S; transfer and exemption rows excluded — the app skips transfer blocks). No parser rule may rest on these fixtures alone. 21 pages of 'Page n' under the Minerva header — negative: no row. Reads clean today."
  }
 }

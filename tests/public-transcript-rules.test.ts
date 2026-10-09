@@ -3,6 +3,7 @@
 // cannot silently undo another. The 93 fixtures in tests/public-transcripts
 // cover the layouts whole; these cover the reasoning.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { isoOrEuropeanDate, parseExternalTranscript } from '../src/transcript/external.ts';
 
@@ -453,5 +454,17 @@ describe('transcript accuracy program, Batch A — review of F1–F3 (2026-10-09
     assert.deepEqual([row(r, 'CS 700')?.credits, row(r, 'CS 700')?.rawGrade], [4, '16.00'], 'the header in force maps no Points column: the number stays the printed grade');
     const keyed = doc('Some University', 'Course   Title   Credits   Grade   Points', 'Fall 2023', 'CS 700   Advanced Topics in Computing', '4   16.00');
     assert.deepEqual([row(keyed, 'CS 700')?.credits, row(keyed, 'CS 700')?.rawGrade], [4, undefined], 'under the Points header the number is points');
+  });
+});
+
+describe('transcript accuracy program, Batch A — new public specimens (2026-10-09)', () => {
+  it('a vendor authentication page (Parchment) names no university and yields no course row', () => {
+    // The page travels inside a Parchment-delivered transcript PDF; the pinned
+    // line list is tests/fixtures/public-transcripts/pdf-parchment-authentication.json.
+    const lines = JSON.parse(readFileSync(new URL('./fixtures/public-transcripts/pdf-parchment-authentication.json', import.meta.url), 'utf8')) as string[];
+    const r = parseExternalTranscript(lines);
+    assert.equal(r.courses.length, 0);
+    assert.ok(!/parchment/i.test(r.university ?? ''), `the vendor is never the university: ${r.university}`);
+    assert.equal(r.university, undefined);
   });
 });
