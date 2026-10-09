@@ -14,8 +14,9 @@
 // names an institution; anything else is masked too.
 //
 // Needs the repo's node_modules (npm install) and Node ≥ 22.18 (it imports the
-// app's TypeScript directly, like `npm test` does).
-import { readFileSync } from 'node:fs';
+// app's TypeScript directly, like `npm test` does). The pdfjs loop is the
+// shared one in scripts/dev/pdf-lines-node.mts (2026-10-09), so this reads a
+// page exactly as the replay and pdf-to-lines.mts do.
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -26,40 +27,32 @@ if (!file) {
   process.exit(2);
 }
 
-const pdfjs = await import(pathToFileURL(join(root, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.mjs')).href);
-const { dropWatermarks, splitColumns, runsToLines, runsFromTextItems } = await import(pathToFileURL(join(root, 'src', 'transcript', 'layout.ts')).href);
+const { pdfToLinesNode } = await import(pathToFileURL(join(root, 'scripts', 'dev', 'pdf-lines-node.mts')).href);
+const { dropWatermarks, splitColumns } = await import(pathToFileURL(join(root, 'src', 'transcript', 'layout.ts')).href);
 const { parseExternalTranscript } = await import(pathToFileURL(join(root, 'src', 'transcript', 'external.ts')).href);
 
 const mask = (s) => s.replace(/[A-Z]/g, 'A').replace(/[a-z]/g, 'a').replace(/\d/g, '9');
 const INSTITUTION_RE = /universit|college|institute|school|polytechnic|official|unofficial|copy/i;
 const showPhrase = (s) => (INSTITUTION_RE.test(s) ? s : mask(s));
 
-const data = new Uint8Array(readFileSync(file));
-const doc = await pdfjs.getDocument({ data, useWorkerFetch: false, isEvalSupported: false, disableFontFace: true }).promise;
-console.log(`pages: ${doc.numPages}`);
-const allLines = [];
-for (let p = 1; p <= doc.numPages; p++) {
-  const page = await doc.getPage(p);
-  const content = await page.getTextContent();
-  // Runs in the page's reading orientation, exactly as the app takes them
-  // (a sideways page is turned upright first — 2026-09-05).
-  const viewport = page.getViewport({ scale: 1 });
-  const { runs, width } = runsFromTextItems(content.items.filter((it) => 'str' in it), viewport);
-  const turned = width !== viewport.width ? ' (page turned upright)' : '';
+// Runs in the page's reading orientation, exactly as the app takes them (a
+// sideways page is turned upright first — 2026-09-05); one structure line per
+// page as each is read.
+const pageReports = [];
+const allLines = await pdfToLinesNode(file, ({ page: p, runs, width, turned, lines }) => {
   const kept = dropWatermarks(runs);
   const rotated = runs.filter((r) => r.rotated).length;
   const dropped = runs.filter((r) => !r.rotated && !kept.includes(r));
   const phrases = [...new Set(dropped.map((r) => r.text.replace(/\s+/g, ' ').trim()))].map(showPhrase);
   const columns = splitColumns(kept, width).length;
-  const lines = runsToLines(runs, width);
-  console.log(
-    `page ${p}: width ${width.toFixed(0)}${turned}, runs ${runs.length}, rotated ${rotated}, watermark runs dropped ${dropped.length}` +
+  pageReports.push(
+    `page ${p}: width ${width.toFixed(0)}${turned ? ' (page turned upright)' : ''}, runs ${runs.length}, rotated ${rotated}, watermark runs dropped ${dropped.length}` +
       (phrases.length ? ` (${phrases.map((s) => JSON.stringify(s)).join(', ')})` : '') +
       `, read as ${columns} column${columns === 1 ? '' : 's'}, ${lines.length} lines`,
   );
-  allLines.push(...lines, '');
-}
-await doc.destroy();
+});
+console.log(`pages: ${pageReports.length}`);
+for (const line of pageReports) console.log(line);
 
 const parsed = parseExternalTranscript(allLines);
 console.log(`\nhasTextLayer: ${parsed.hasTextLayer}, looksLikeNotreDame: ${parsed.looksLikeNotreDame}`);
