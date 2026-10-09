@@ -360,6 +360,26 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   out of this batch: a two-column split needs three DIFFERENT wordy texts at the right edge (one
   repeated header such as "Attempted" is a table, not a column), and the crossing test reads per-word
   runs joined into phrases (some generators emit one run per word).
+- **The transcript replay and its scorer** (2026-10-09, transcript accuracy program, Batch A steps
+  1–3). `scripts/dev/score.mts` is the ONE scorer: `scoreDocument(parsed, expected)` → header fields
+  got/want/ok (skipped on a `negative`), rows aligned by `normalizeCourseId` + year then id alone
+  (matched / missing / extra), cell accuracy per field over the matched pairs, and `exact` = the
+  corpus test's own pass criterion — `tests/replay-score.test.ts` asserts that equality for every
+  fixture of both corpora, so never let the scorer and the tests drift. `rowOf` lives in
+  `tests/helpers/row-of.ts` (nothing imports a `*.test.ts` file — that runs its suite).
+  `scripts/dev/pdf-lines-node.mts` is the one Node pdfjs loader (`pdfToLinesNode(file, onPage?)`,
+  the browser's `runsFromTextItems` → `runsToLines` with verbosity 0 and the standard-font folder;
+  `pdfToPagePngs(file, dpi, outDir)` through pdfjs + `@napi-rs/canvas`, pdfjs-dist's own optional
+  dependency, for the OCR bench) — `pdf-to-lines.mts`, `diagnose-transcript.mjs` and the replay call
+  it (diagnose therefore now opens a PDF exactly as pdf-to-lines does; it used to omit the font
+  folder, which changed a few column gaps). `npm run replay` (`scripts/dev/replay.mts`; `--corpus`,
+  `--pdfs`, `--verify`, `--only`, `--out`, `--baseline`, `--quiet`) prints the scoreboard per corpus
+  and per sources.json lens/country; `public-status.mts` is its alias and now agrees with the test
+  (122/127, 5 known-failing). Sample PDFs live outside the repo in `$TRANSCRIPT_SAMPLES`
+  (default `~/degree-audit-samples/`: `public-pdfs/`, `private/`, `bench-out/`); the baseline is
+  `bench-out/text-baseline-20261009.json`. `tests/external-names.test.ts` is the F5 precondition:
+  every ExternalCourses name (fixture tab + `data/snapshot.json`) must keep reading as printed —
+  run it before touching `guessUniversity` / `stripRecordWords` / `normalizeUniversity`.
 - **A university named only in an image** (2026-09-08): `NAME_ONLY_IN_IMAGE` in
   src/transcript/external.ts maps an acronym to a school's real name, tried ONLY after every
   text-reading pass in `guessUniversity` has failed. Keep it that way — it is a fallback, not a

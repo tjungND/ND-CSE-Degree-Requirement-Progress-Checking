@@ -25,7 +25,7 @@ line dumps used for regression checks in that session (session scratchpads only)
 | `fixtures/public-transcripts/` | 127 + `expected.json`, `sources.json` | public | 93 line lists composed on 2026-09-26 from public registrar sample transcripts, transcript keys, ECTS and credential-evaluator templates (rows composed to the documented layout, "SAMPLE STUDENT" / "000000000" where a name or id would print; only the SJTU and Peradeniya templates carry the rows their publishers printed), and 34 `pdf-*` line lists read by the app's own layout stage from public registrar PDFs later the same day (the ANU sample transcript, whose registrar prints the placeholder "Filanes Filankesov Filankesovich" / 5123456; the University of Vaasa template with `[Student's Name]`; and 32 keys, legends, forms and regulations pinned as producing no course row). `sources.json` names each source (URL; for the PDFs also SHA-256, byte size and line count); the PDFs are not committed. `../public-transcripts-known-failing.json` lists the fixtures waiting on a DGS decision. |
 | `fixtures/rules/` | 4 CSVs | synthetic | Sample tabs of the rules sheet (Courses, Categories, Parameters, ExternalCourses) modelled on the live sheet for the parser and validation tests. Course rules, not student data. |
 | `scenarios/` | 71 + `README.md` | synthetic | One invented student per file — program, entry term, GPA, courses, milestones — and the audit result expected of it. No names. `scenarios/README.md` documents the keys. |
-| `helpers/student.ts`, `helpers.ts` | — | synthetic | Builders for invented student records used by the unit tests. |
+| `helpers/student.ts`, `helpers/row-of.ts`, `helpers.ts` | — | synthetic | Builders for invented student records used by the unit tests; `rowOf`, the one-line course-row form both transcript corpora are pinned against (nothing imports it from a `*.test.ts` file — importing a test file runs it). |
 | documents written inline in `*.test.ts` | — | synthetic | Minimal transcripts and sheet rows typed into the tests ("Some University", "SAMPLE STUDENT", "CS 500 Topics 3.00 A"). |
 
 ## Adding a fixture
@@ -41,3 +41,21 @@ line dumps used for regression checks in that session (session scratchpads only)
   without revealing it, `scripts/diagnose-transcript.mjs` prints shapes only; to share a
   de-identified copy with the maintainer, the sanitizers in `MAINTENANCE.md` — but neither
   output belongs in this folder.
+
+## Replaying the transcript corpora
+
+`npm run replay` runs every line-list fixture of both transcript corpora (`fixtures/public-transcripts/`,
+`fixtures/ms-transcripts/`) through the current parser and scores each against its `expected.json` entry with
+the one scorer, `scripts/dev/score.mts` (its header comment defines the metric; `replay-score.test.ts`
+pins it and asserts its `exact` is exactly what `public-transcripts.test.ts` and `ms-transcripts.test.ts`
+decide). The scoreboard says, per corpus and — for the public corpus — per `sources.json` lens and country:
+fixtures exact (= the test's pass), row recall (expected rows found, by course id + year) and precision,
+cell accuracy for title / credits / grade / term / level over the matched rows, false rows read from
+`negative` keys and legends, and the known-failing list's status (`npm run replay -- --corpus public` is
+what `scripts/dev/public-status.mts` now runs; `--only <name>` prints one fixture's full diffs). Sample PDFs
+live OUTSIDE the repo in `$TRANSCRIPT_SAMPLES` (default `~/degree-audit-samples/`): `public-pdfs/` holds
+re-downloaded registrar PDFs (rebuildable from the URLs and SHA-256s in `sources.json`; `--verify` checks
+them), `private/` the DGS's own synthetic PDFs and sanitized scans (never named in any committed file),
+`bench-out/` the `--out` files. Before a parser change, `npm run replay -- --out before.json`; after it,
+`npm run replay -- --baseline before.json` prints every document that got worse first (exit code 1), then
+every one that got better. The `--out` file holds counts only, never a document's text.

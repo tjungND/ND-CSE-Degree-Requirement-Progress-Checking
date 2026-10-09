@@ -232,6 +232,18 @@ last edit (see "Sync" below).
   install webkit` per Mac) with screenshots in `.e2e-out/webkit/`; run it too whenever layout
   changed, since Chrome alone missed a Safari-only bug that day. When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
+- **Transcript replay** (2026-10-09): `npm run replay` scores every pinned transcript fixture (the 127
+  public line lists and the 48 synthetic master's ones) and any sample PDFs kept outside the repo
+  through the current parser, and prints a scoreboard — fixtures exact (the test's pass), row recall
+  and precision, cell accuracy per field, false rows read from keys and legends, the known-failing
+  list's status — per corpus and, for the public corpus, per lens and country. Sample PDFs go in
+  `~/degree-audit-samples/` (or `$TRANSCRIPT_SAMPLES`): `public-pdfs/` for re-downloaded registrar
+  PDFs (`--verify` checks their SHA-256 against `tests/fixtures/public-transcripts/sources.json`),
+  `private/` for your own synthetic PDFs and sanitized scans (never named in a committed file),
+  `bench-out/` for the numbers. Save the numbers before a parser change (`npm run replay -- --out
+  before.json`) and compare after it (`npm run replay -- --baseline before.json`): regressions print
+  first and make the exit code 1. `tests/README.md` has the details; the scorer is
+  `scripts/dev/score.mts` and the runner `scripts/dev/replay.mts`.
 - **For AI coding sessions**: `CLAUDE.md` holds the project rules (Claude Code reads it
   automatically; Codex reads `AGENTS.md`, which points to it); `docs/CLAUDE-HANDOFF.md` is the
   context capsule (design decisions, invariants, recipes); `.claude/skills/run-app/` teaches
