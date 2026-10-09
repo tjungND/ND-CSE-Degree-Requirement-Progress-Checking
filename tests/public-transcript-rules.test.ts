@@ -182,3 +182,75 @@ describe('public-transcript rules (2026-09-26)', () => {
     assert.equal(row(r, 'CS 500')?.season, undefined);
   });
 });
+
+// ——— Transcript accuracy program, Batch A (DGS 2026-10-09): parser fixes F1–F3 ———
+// Each rule here was probed on docs/TRANSCRIPT-ACCURACY-PLAN.md §1 and is
+// pinned with the shape that failed AND the neighbouring shape that must keep
+// reading as before (the critic's tightenings, plan §2 step 4).
+describe('transcript accuracy program, Batch A — F1 continuation, points and in-progress rows (2026-10-09)', () => {
+  it('F1a (i): a code alone on its line takes the title and the numbers from the next line — only when that line ends in the credits and a grade token', () => {
+    const r = doc(
+      'Some University',
+      'Fall 2023',
+      'CS 500',
+      'Advanced Topics   3   A',
+      'CS 501',
+      'Seminar in Computing   1.00   S',
+      'CS 502',
+      'The document explains A process and the criteria',
+      'CS 503',
+      '3.00   A',
+    );
+    assert.deepEqual([row(r, 'CS 500')?.title, row(r, 'CS 500')?.credits, row(r, 'CS 500')?.grade], ['Advanced Topics', 3, 'A']);
+    assert.deepEqual([row(r, 'CS 501')?.title, row(r, 'CS 501')?.credits, row(r, 'CS 501')?.grade], ['Seminar in Computing', 1, 'S']);
+    assert.equal(row(r, 'CS 502'), undefined, 'a sentence after a bare code is not its row');
+    assert.equal(row(r, 'CS 503'), undefined, 'numbers alone carry no title: not the shape');
+  });
+  it('F1a (ii): a wrapped title whose continuation carries four or more words is taken only when that line ends in the credits and a grade token', () => {
+    const r = doc(
+      'Some University',
+      'Fall 2023',
+      'CS 500   Advanced Topics in Distributed',
+      'Systems and Cloud Infrastructure Design   3   A',
+      'CS 501   Advanced Topics in Distributed',
+      'Systems and Cloud Infrastructure Design   3.00   3.00   A   12.00',
+      'CS 502   Advanced Topics in Distributed',
+      'Systems and Cloud Infrastructure Design   3   85',
+      'CS 503   Advanced Topics in Computing',
+      'Introductory courses carry 3 credits and are graded A',
+      'CS 504   Advanced Topics in Computing',
+      'The document explains A process and the criteria',
+      'CS 505   Seminar in Computing',
+      '1.00   A',
+    );
+    assert.equal(row(r, 'CS 500')?.title, 'Advanced Topics in Distributed Systems and Cloud Infrastructure Design');
+    assert.deepEqual([row(r, 'CS 500')?.credits, row(r, 'CS 500')?.grade], [3, 'A']);
+    assert.deepEqual([row(r, 'CS 501')?.credits, row(r, 'CS 501')?.grade], [3, 'A'], 'the Earned echo and the points may sit around the grade');
+    assert.deepEqual([row(r, 'CS 502')?.credits, row(r, 'CS 502')?.rawGrade], [3, '85'], 'a numeric mark is a grade token');
+    assert.equal(row(r, 'CS 503'), undefined, 'a sentence that mentions a number and a letter is not a numbers tail');
+    assert.equal(row(r, 'CS 504'), undefined, 'the 2026-09-26 rule stays: the next sentence is never the numbers');
+    assert.deepEqual([row(r, 'CS 505')?.credits, row(r, 'CS 505')?.grade], [1, 'A'], 'the numbers-only continuation reads as before');
+  });
+  it('F1b: a gradeless row’s trailing two-decimal number is its points only under a header that mapped a Points column, or in the credits/earned/points triple — a 20-point mark keeps its number', () => {
+    const plain = doc('Some University', 'Fall 2023', 'CS 500   Topics   4   16.0', 'CS 501   Topics   3   12.0', 'CS 502   Topics   3.00   3.00   12.00', 'CS 503   Topics   3.00   12.00');
+    assert.deepEqual([row(plain, 'CS 500')?.credits, row(plain, 'CS 500')?.rawGrade], [4, '16.0'], 'credits 4, mark 16.0: the product test alone decides nothing');
+    assert.deepEqual([row(plain, 'CS 501')?.credits, row(plain, 'CS 501')?.rawGrade], [3, '12.0'], 'credits 3, mark 12.0');
+    assert.deepEqual([row(plain, 'CS 502')?.credits, row(plain, 'CS 502')?.rawGrade], [3, undefined], 'the credits/earned/points triple');
+    assert.deepEqual([row(plain, 'CS 503')?.credits, row(plain, 'CS 503')?.rawGrade], [3, '12.00'], 'no header: the number stays the printed grade');
+    const keyed = doc('Some University', 'Course   Title   Credits   Grade   Points', 'Fall 2023', 'CS 500   Advanced Topics in Computing', '3.00   12.00', 'CS 501   Topics   4   16.00', 'CS 502   Topics   3   B+   9.00');
+    assert.deepEqual([row(keyed, 'CS 500')?.credits, row(keyed, 'CS 500')?.grade, row(keyed, 'CS 500')?.rawGrade], [3, undefined, undefined], 'a Points column was mapped: the trailing number is points');
+    assert.deepEqual([row(keyed, 'CS 501')?.credits, row(keyed, 'CS 501')?.rawGrade], [4, undefined]);
+    assert.deepEqual([row(keyed, 'CS 502')?.credits, row(keyed, 'CS 502')?.grade], [3, 'B+'], 'a grade token on the row is still the grade');
+  });
+  it('F1c: the integer before a trailing decimal is the title’s only inside an in-progress block or under a header with no grade or mark column', () => {
+    const ip = doc('Some University', 'Fall 2023', 'COURSES IN PROGRESS', 'MATH 1220   Calculus 2   3.0');
+    assert.deepEqual([row(ip, 'MATH 1220')?.title, row(ip, 'MATH 1220')?.credits, row(ip, 'MATH 1220')?.grade], ['Calculus 2', 3, 'IP']);
+    const noGrade = doc('Some University', 'Course   Title   Credits', 'Fall 2023', 'MATH 1220   Calculus 2   3.0');
+    assert.deepEqual([row(noGrade, 'MATH 1220')?.title, row(noGrade, 'MATH 1220')?.credits], ['Calculus 2', 3]);
+    const marks = doc('Some University', 'Course   Title   Credits   Mark', 'Fall 2023', 'CS 500   Topics 1   5.0');
+    assert.deepEqual([row(marks, 'CS 500')?.title, row(marks, 'CS 500')?.credits, row(marks, 'CS 500')?.rawGrade], ['Topics', 1, '5.0'], 'under a marks header the integer is the credits and the decimal the mark');
+    const plain = doc('Some University', 'Fall 2023', 'CS 500   Topics 1   5.0', 'CS 600   Master Thesis 15   8.7');
+    assert.deepEqual([row(plain, 'CS 500')?.title, row(plain, 'CS 500')?.credits, row(plain, 'CS 500')?.rawGrade], ['Topics', 1, '5.0'], 'no block, no header: no bound on the integer decides it');
+    assert.deepEqual([row(plain, 'CS 600')?.title, row(plain, 'CS 600')?.credits, row(plain, 'CS 600')?.rawGrade], ['Master Thesis', 15, '8.7']);
+  });
+});

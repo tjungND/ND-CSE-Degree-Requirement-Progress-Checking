@@ -989,13 +989,21 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // one- or two-decimal value; a larger one ("Master Thesis 15   8.7") is
       // the credits and the decimal a grade. Banner's three-decimal credits
       // ("College Calculus 1   4.000") keep the wider rule.
+      // F1c (transcript accuracy program, 2026-10-09): a row that ENDS in a
+      // one- or two-decimal value with no grade after it ("Calculus 2   3.0")
+      // keeps the integer in the title only where the row is known to print
+      // no grade — inside an in-progress block, or under a header that mapped
+      // no grade or mark column. Anywhere else "Master Thesis 15   8.7" is
+      // credits and a grade, and no bound on the integer alone decides it.
+      const gradelessRow = inProgressBlock || (columnKinds !== undefined && !columnKinds.includes('grade') && !columnKinds.includes('mark'));
       const integerInTitle =
         !titleDone &&
         /^\d{1,2}$/.test(token) &&
         nextToken !== undefined &&
         asCredits(nextToken) !== undefined &&
         (/^\d{1,2}[.,]\d{3}$/.test(nextToken) ||
-          (/^\d{1,2}[.,]\d{1,2}$/.test(nextToken) && Number(token) <= 3 && tokens[k + 2] !== undefined && mapGrade(tokens[k + 2]!, legend) !== undefined));
+          (/^\d{1,2}[.,]\d{1,2}$/.test(nextToken) && Number(token) <= 3 && tokens[k + 2] !== undefined && mapGrade(tokens[k + 2]!, legend) !== undefined) ||
+          (/^\d{1,2}[.,]\d{1,2}$/.test(nextToken) && tokens[k + 2] === undefined && gradelessRow));
       // A lone lowercase letter between title words is a word of the title
       // ("Introducción a la Programación", "Álgebra y Geometría" — 2026-09-26),
       // never the grade A that its capital would be.
@@ -1125,12 +1133,20 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         // grade, when a grade-like token still follows (2026-09-26).
         const zeroEarned =
           value === 0 && tokens[k - 1] === into.creditsText && tokens.slice(k + 1).some((t) => mapGrade(t, legend) !== undefined || /^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(t));
+        const pointsCell = pointsColumnMapped && nextToken === undefined && into.credits !== undefined && /^\d{1,3}[.,]\d{2}$/.test(token);
         if (echoesCredits || zeroEarned) sawEcho = true;
         // A grade-shaped token replaces a numeric guess only when that guess
         // looks like a points value ("12.00   W"); a printed MARK keeps its
         // number and the band beside it is dropped (Sydney "78   DI", 2026-09-26).
         else if (gradeShaped && (into.rawGrade === undefined || decimalsOf(into.rawGrade) >= 2)) into.rawGrade = /^W\d$/.test(bareToken) ? 'W' : bareToken;
-        else if (into.rawGrade === undefined && numericGrade && !sawEcho) into.rawGrade = token; // after "earned" comes "points"
+        // F1b (transcript accuracy program, 2026-10-09): a gradeless row's
+        // trailing two-decimal number after the credits ("3.00   12.00") is
+        // its quality points only when this document's table header mapped a
+        // Points column after the title (the row fell through the map), or in
+        // the credits/earned/points triple (sawEcho). Without that evidence
+        // the number stays the printed grade: "4   16.0" is a mark out of 20
+        // as often as it is points, and the product test would be a guess.
+        else if (into.rawGrade === undefined && numericGrade && !sawEcho && !pointsCell) into.rawGrade = token; // after "earned" comes "points"
       }
       if (wordy && !gradeShaped && token.length > 1) tail.push(token);
     }
@@ -1148,6 +1164,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * and a level or flag cell between the code and the title is consumed
    * first. */
   let columnKinds: ColumnKind[] | undefined;
+  /** Whether any table header of this document mapped a Points column after
+   * the title — the only evidence that a gradeless row's trailing number is
+   * points (F1b, 2026-10-09). */
+  let pointsColumnMapped = false;
   const numericToken = (t: string) => /^-?\d{1,3}(?:[.,]\d{1,3})?$/.test(t);
   const gradeLike = (t: string): boolean => {
     const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(t) ? t.slice(1, -1) : t;
@@ -1156,6 +1176,20 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (/^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(upper) && bare === upper && bare.length <= 5) return true;
     if (/^0[A-F][+-]?$/.test(upper) || FRACTION_MARK_RE.test(bare) || LODE_RE.test(bare) || GRADE_WORD_RE.test(bare) || CJK_GRADE_RE.test(bare) || bare === 'Fx' || /^(?:Ab|Abs|Absent)$/i.test(bare)) return true;
     return numericToken(bare) && Number(bare.replace(',', '.')) <= 100;
+  };
+  /** A line whose tail is a row's numbers (F1a, 2026-10-09): its last tokens
+   * are the credits, then a grade token — with, optionally, the Earned echo
+   * between them and one points number or a repeat mark after. Nothing wordy
+   * follows the credits but the grade itself, so "carry 3 credits and are
+   * graded A" is not such a tail while "… Design   3   A" is. */
+  const endsInCreditsAndGrade = (rawTokens: string[]): boolean => {
+    const tokens = joinGradePhrases(rawTokens).filter((t) => !/^[*#@]$/.test(t));
+    let at = tokens.length - 1;
+    // Points after the grade ("3   A   12.00"): one trailing number more.
+    if (at >= 2 && numericToken(tokens[at]!) && !numericToken(tokens[at - 1]!)) at -= 1;
+    const grade = tokens[at];
+    if (at < 1 || grade === undefined || !gradeLike(grade)) return false;
+    return asCredits(tokens[at - 1]!) !== undefined;
   };
   const fits = (kind: ColumnKind, t: string): boolean => {
     if (PLACEHOLDER_TOKEN_RE.test(t)) return true; // an empty cell printed as "-"
@@ -1831,7 +1865,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // admitted in a batch and there were 8 repeaters").
     if (!courseLikeTitle(into.titleParts)) return lineIndex;
     let usedContinuation = false;
-    if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined && into.titleParts.length > 0) {
+    if (into.credits === undefined && into.grade === undefined && into.rawGrade === undefined) {
       // Two-line rows (2026-09-04): some registrars print the code + title on
       // one line and the numbers on the next. If the NEXT line has no code of
       // its own, few tokens, and yields a credit or grade, treat it as this
@@ -1842,10 +1876,24 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         // The continuation holds the row's NUMBERS: a next line of words is
         // the following prose sentence, not this row's credits (2026-09-26).
         const nextWordy = nextTokens.filter((tk) => /[\p{L}]{2}/u.test(tk)).length;
-        if (nextTokens.length <= 8 && nextWordy <= 3) {
+        const numbersOnly = into.titleParts.length > 0 && nextTokens.length <= 8 && nextWordy <= 3;
+        // Two shapes more (F1a, transcript accuracy program, 2026-10-09), each
+        // taken ONLY when the next line ENDS in the credits and a grade token
+        // — so a sentence that merely mentions a number is still refused:
+        // (i) a code printed alone on its line, with the title and the
+        // numbers on the next ("CS 500" / "Advanced Topics   3   A"); (ii) a
+        // wrapped title whose continuation carries four or more words
+        // ("Systems and Cloud Infrastructure Design   3   A").
+        const codeAlone = into.titleParts.length === 0 && lead.tokens.length === 0 && nextWordy >= 1 && nextTokens.length <= 12 && endsInCreditsAndGrade(nextTokens);
+        const wrappedTitle = into.titleParts.length > 0 && nextWordy >= 4 && nextTokens.length <= 12 && endsInCreditsAndGrade(nextTokens);
+        if (numbersOnly || codeAlone || wrappedTitle) {
           const probe = { titleParts: [...into.titleParts], credits: undefined, grade: undefined, rawGrade: undefined } as RowScan;
           scanTokens(nextTokens, probe);
-          if (probe.credits !== undefined || probe.grade !== undefined || probe.rawGrade !== undefined) {
+          const read = probe.credits !== undefined || probe.grade !== undefined || probe.rawGrade !== undefined;
+          // The two new shapes must yield the credits AND a grade token, and
+          // a title that reads as a course's.
+          const whole = probe.credits !== undefined && (probe.grade !== undefined || probe.rawGrade !== undefined) && probe.titleParts.length > 0 && courseLikeTitle(probe.titleParts);
+          if (numbersOnly ? read : whole) {
             into.credits = probe.credits;
             into.grade = probe.grade;
             into.rawGrade = probe.rawGrade;
@@ -1924,6 +1972,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const header = readColumnHeader(flat);
       if (header) {
         columnKinds = header;
+        if (header.indexOf('points') > header.indexOf('title')) pointsColumnMapped = true;
         if ((globalThis as any).__DEBUG_COLUMNS) console.log('HEADER', JSON.stringify(flat), header);
         continue;
       }
