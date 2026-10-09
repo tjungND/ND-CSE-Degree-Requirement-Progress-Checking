@@ -455,7 +455,22 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   header, Ladok's module lines and "Date of issue", Western's suffix terms, Oregon's glued symbols,
   CUNY, the Ukrainian / Algerian pages, Bangladesh's trimester evidence; W-CL372 is the one new
   student-facing string (the skipped-rows warning names a transfer-credit OR credits/exemptions
-  heading).
+  heading). **The 2026-10-09 review of F4–F6** (one commit, "Batch B F4-F6: review fixes"; four
+  confirmed findings, each reproduced on HEAD, fixed and pinned; four DECISIONS rows): in
+  `external.ts`, `fits(kind, token, header)` takes the header word over the column (`postCells`,
+  from `lastHeaderCells`) — a bare one- or two-digit number is a term cell only under a word that
+  numbers terms (`TERM_NUMBER_HEADER_RE`) and is READ as McMaster's ordinal only under "TM"
+  (`rowTermOf(cells, ordinal)`; under "Semester" / "Year" the row keeps its header's term); "CH" in
+  a Portuguese or Spanish header (`IBERIAN_HEADER_WORD_RE`) is the workload, and under an English
+  CH header a value outside the narrow credit-hour range leaves the credits blank
+  (`creditHoursHeader`). In `layout.ts`, the hinted split asks both sides for a course column
+  (`courseColumnEvidence`: a term header, a Banner total or section title, a course code, a subject
+  run followed by its number), so a label/value block is read whole; `groupLines` joins a line at
+  50% glyphs when the page is 60% glyphs over 20 runs (`glyphPage`), the 80% line test otherwise.
+  Pinned in the "review of F4–F6" block of `tests/public-transcript-rules.test.ts` and the
+  "(b, review)" / "(c, review)" cases of `tests/layout.test.ts`; replay
+  `bench-out/text-after-F4F6-review.json` identical to `text-after-F4.json` (0 regressions,
+  0 improvements).
 - **The transcript replay and its scorer** (2026-10-09, transcript accuracy program, Batch A steps
   1–3). `scripts/dev/score.mts` is the ONE scorer: `scoreDocument(parsed, expected)` → header fields
   got/want/ok (skipped on a `negative`), rows aligned by `normalizeCourseId` + year then id alone

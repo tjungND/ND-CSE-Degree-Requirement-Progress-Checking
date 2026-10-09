@@ -711,4 +711,44 @@ describe('transcript accuracy program, Batch B — F5 the university and the blo
     const amp = doc('Some University', 'Fall 2025', 'CS 500   & Advanced Topics   3   A');
     assert.deepEqual([row(amp, 'CS 500')?.credits, row(amp, 'CS 500')?.grade], [3, 'A']);
   });
+
+});
+
+// ——— The 2026-10-09 review of F4–F6: the two external.ts findings (the two
+// layout.ts findings are pinned in tests/layout.test.ts) ———
+describe('transcript accuracy program, Batch B — review of F4–F6 (2026-10-09)', () => {
+  const cells = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.title, row(r, id)?.credits, row(r, id)?.grade ?? row(r, id)?.rawGrade];
+  const term = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.season, row(r, id)?.year];
+  it('review: a bare number in a term column is McMaster’s ordinal only under "TM"; under "Semester" or "Year" it is consumed and the row keeps its header’s term', () => {
+    // TM: the ordinal places the row by McMaster's legend, by design.
+    const tm = doc('McMASTER UNIVERSITY', 'FALL/WINTER 2023-2024', 'COURSE   DESCRIPTION   TM   UNITS   GRADE   MEDIAN', 'CAS 701   Logic and Discrete Mathematics   2   3   A+   B+ (12)');
+    assert.deepEqual(term(tm, 'CAS 701'), ['spring', 2024]);
+    assert.deepEqual(cells(tm, 'CAS 701'), ['Logic and Discrete Mathematics', 3, 'A']); // A+ maps to the app's A, as the McMaster case above pins
+    // A continuously numbered Semester column (Nepal, HEC): 1–4 are the
+    // document's own numbering, whose calendar it does not give — before the
+    // review 2 read spring 2023, 3 summer 2023 and 4 swallowed the title.
+    const sem = doc('Some University', 'Academic Year 2022-2023', 'Course Code   Course Title   Credits   Grade   Semester', 'CS 101   Programming   3   A   1', 'CS 102   Data Structures   3   B+   2', 'CS 201   Algorithms   4   A-   3', 'CS 202   Databases   4   B   4');
+    for (const id of ['CS 101', 'CS 102', 'CS 201', 'CS 202']) assert.deepEqual(term(sem, id), ['fall', 2022], `${id} keeps the header's term`);
+    assert.deepEqual(cells(sem, 'CS 201'), ['Algorithms', 4, 'A-']);
+    assert.deepEqual(cells(sem, 'CS 202'), ['Databases', 4, 'B'], 'the trailing 4 is the semester cell, not the title’s');
+    // A year-of-study column: the same.
+    const year = doc('Some University', 'Session 2022-2023', 'Course Code   Course Title   Credits   Grade   Year', 'CS 1001   Programming   3   A   1', 'CS 2001   Data Structures   3   B+   2', 'CS 3001   Algorithms   4   A-   3');
+    for (const id of ['CS 1001', 'CS 2001', 'CS 3001']) assert.deepEqual(term(year, id), ['fall', 2022], `${id} keeps the header's term`);
+    assert.deepEqual(cells(year, 'CS 3001'), ['Algorithms', 4, 'A-']);
+  });
+  it('review: "CH" beside a Portuguese or Spanish header word is the carga horária (hours, never the credits); under an English header a CH value above the credit-hour range is consumed but not read as credits', () => {
+    // A histórico that prints only CH and no Créditos column: before the
+    // review its 60 and 90 hours read as the credits.
+    const hours = doc('Universidade Exemplo', 'Período Letivo 2022/1', 'Código   Disciplina   CH   Nota   Situação', 'DCC 001   Programação de Computadores   60   85   AP', 'MAT 001   Cálculo I   90   72   AP');
+    assert.deepEqual(cells(hours, 'DCC 001'), ['Programação de Computadores', undefined, '85']);
+    assert.deepEqual(cells(hours, 'MAT 001'), ['Cálculo I', undefined, '72']);
+    const conceito = doc('Universidade Exemplo', '1º Semestre 2022', 'Código   Disciplina   CH   Conceito   Situação', 'DCC 001   Programação de Computadores   60   A   AP');
+    assert.deepEqual(cells(conceito, 'DCC 001'), ['Programação de Computadores', undefined, 'A']);
+    assert.deepEqual(term(conceito, 'DCC 001'), ['spring', 2022]);
+    // HEC's English header keeps CH as the credit hours (pinned above); a 45
+    // under it is no credit count — the row reads, its credits blank.
+    const hec = doc('UNIVERSITY OF ENGINEERING AND TECHNOLOGY LAHORE', 'Semester: Spring 2020 (10-02-2020 to 26-06-2020)', 'Course Code   Course Title   CH   Grade   GPs', 'CS-201   Object Oriented Programming   4   B   12.00', 'CS-301   Software Engineering   45   B   12.00');
+    assert.deepEqual(cells(hec, 'CS 201'), ['Object Oriented Programming', 4, 'B']);
+    assert.deepEqual(cells(hec, 'CS 301'), ['Software Engineering', undefined, 'B']);
+  });
 });

@@ -490,6 +490,18 @@ const COLUMN_KIND_RES: readonly (readonly [ColumnKind, RegExp])[] = [
   ['stat', /^(?:class(?:\s*(?:avg\.?|average|enrl\.?|enrol(?:l)?ment|size|rank|median))?|median|avg\.?|average|siz|size|enrl\.?)$/i],
 ];
 
+/** A header cell in Portuguese or Spanish — the words a Brazilian histórico
+ * escolar or a Latin American certificado prints over its columns (F6 review,
+ * 2026-10-09). Beside such a cell "CH" is the carga horária (hours), not the
+ * credit hours. Anchored: the whole cell, its parenthesis stripped. */
+const IBERIAN_HEADER_WORD_RE = /^(?:c[óo]digo|disciplina|asignatura|materia|clave|nota|conceito|calificaci[oó]n|situa[çc][aã]o|cr[ée]ditos?|per[ií]odo(?:\s*letivo)?|semestre|a[ñn]o|turma|carga\s*hor[aá]ria|frequ[êe]ncia|resultado)$/i;
+/** A header word over a TERM column under which a bare one- or two-digit
+ * number is the document's own term numbering (F6 review, 2026-10-09): "TM"
+ * (McMaster's term-of-session ordinal), "Semester", "Term", "Session",
+ * "Period", "Year", "Quarter". Under a date word ("Date", "Announced on",
+ * "Datum") a bare number is no term cell at all. */
+const TERM_NUMBER_HEADER_RE = /^(?:tm|term|semester|semestre|session|period|periodo|per[ií]odo(?:\s*letivo)?|year|academic\s*year|quarter)$/i;
+
 /** The kinds of a header line, in column order — or undefined when the line
  * is not a course-table header: fewer than three cells, fewer than three of
  * them recognised, no course/title column, or nothing to read (no credits,
@@ -597,6 +609,14 @@ function readColumnHeader(flat: string): ColumnKind[] | undefined {
   // "CH" beside a real credits word (a Brazilian carga horária next to
   // Créditos) is the workload; alone it is the credit hours (F6, 2026-10-09).
   if (kinds.filter((k) => k === 'credits').length >= 2) cells.forEach((c, i) => { if (kinds[i] === 'credits' && /^ch$/i.test(c)) kinds[i] = 'workload'; });
+  // "CH" in a header written in Portuguese or Spanish is the carga horária
+  // too (F6 review, 2026-10-09): a histórico that prints only CH and no
+  // Créditos column read its 60 and 90 HOURS as the credits. The language of
+  // the header's other cells is the evidence — "Código", "Disciplina", "Nota",
+  // "Conceito", "Situação", "Período" — HEC's English "Course Code / Course
+  // Title / CH / Grade / GPs" keeps CH as the credit hours. The hours are
+  // never converted to credits: the credits stay blank for the student.
+  if (cells.some((c) => IBERIAN_HEADER_WORD_RE.test(c.replace(/\s*\(.*\)\s*$/, '')))) cells.forEach((c, i) => { if (kinds[i] === 'credits' && /^ch$/i.test(c)) kinds[i] = 'workload'; });
   // No credits column: a "Points" column BEFORE the grade is the credits (New
   // Zealand, UK credit points), and Iranian "Theoretical / Practical" cells
   // are credit hours of each kind.
@@ -1384,7 +1404,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (at < 1 || grade === undefined || !gradeLike(grade)) return undefined;
     return asCredits(tokens[at - 1]!) !== undefined ? grade : undefined;
   };
-  const fits = (kind: ColumnKind, t: string): boolean => {
+  /** Does token `t` belong in a column of kind `kind`? `header` is the word
+   * the header printed over that column (F6 review, 2026-10-09), for the
+   * kind whose cell shape depends on it: a bare number is a term cell only
+   * under a term-numbering word. */
+  const fits = (kind: ColumnKind, t: string, header?: string): boolean => {
     if (PLACEHOLDER_TOKEN_RE.test(t)) return true; // an empty cell printed as "-"
     switch (kind) {
       case 'credits':
@@ -1410,9 +1434,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         return /^(?:UG|UGRD|GR|GRAD|U|G|L|V|M|[4-8]|undergraduate|graduate|postgraduate|masters?|doctoral)$/i.test(t);
       case 'term':
         // …or a compact / six-digit term code ("2023FA", "202310" — F2, 2026-10-09).
-        // …or a bare term ordinal under a "TM" column (McMaster, F6 2026-10-09).
         // …or an ISO date (Ladok's "Date" column, F6 2026-10-09).
-        return /^(?:\d{4}(?:-\d)?|[A-Z]\d{2}|S1S2|A1A2|S[12]|A[12]|(?:fall|spring|summer|autumn|winter)\w*|\d{1,2}[-/.]\w{2,3}[-/.]\d{2,4}|\d{4}-\d{2}-\d{2}|[1-3])$/i.test(t) || TERM_CODE_CELL_RE.test(t);
+        // …or a bare one- or two-digit term number, only under a header word
+        // that numbers terms (TERM_NUMBER_HEADER_RE — F6 review, 2026-10-09:
+        // "TM", "Semester", "Year", "Session"): the cell is consumed, so the
+        // row's title and credits read right, and its MEANING is read only
+        // under McMaster's "TM" (rowTermOf); a semester number or a year of
+        // study whose calendar the document does not give leaves the row with
+        // its header's term. Under a date word a bare number is nothing.
+        return (
+          /^(?:\d{4}(?:-\d)?|[A-Z]\d{2}|S1S2|A1A2|S[12]|A[12]|(?:fall|spring|summer|autumn|winter)\w*|\d{1,2}[-/.]\w{2,3}[-/.]\d{2,4}|\d{4}-\d{2}-\d{2})$/i.test(t) ||
+          TERM_CODE_CELL_RE.test(t) ||
+          (header !== undefined && TERM_NUMBER_HEADER_RE.test(header.replace(/\s*\(.*\)\s*$/, '')) && /^\d{1,2}$/.test(t))
+        );
       case 'flag':
         // A short mark ("R", "H", "*", "ORD") or a course-type word — never a
         // word that could be part of the title ("IT Risk Management").
@@ -1443,6 +1477,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const pre = codeAt >= 0 ? columnKinds.slice(codeAt + 1, titleAt).filter((k) => k === 'level') : [];
     const post = columnKinds.slice(titleAt + 1).filter((k) => k !== 'code' && k !== 'serial');
     if (post.length === 0) return undefined;
+    // The header word over each of those columns (lastHeaderCells is set
+    // beside columnKinds, cell for kind), for the fits that depend on it.
+    const postCells = lastHeaderCells.slice(titleAt + 1).filter((_, i) => columnKinds![titleAt + 1 + i] !== 'code' && columnKinds![titleAt + 1 + i] !== 'serial');
     // Cells between the code and the title (Banner Self-Service's Level).
     let start = 0;
     const preValues: Partial<Record<ColumnKind, string>> = {};
@@ -1480,7 +1517,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         // A letter token under a MARK column, with a grade column still to
         // come, is that column's (Toronto "0.50   SDF": the mark is blank).
         const gradeFollows = kind === 'mark' && t !== undefined && /^[A-Za-z]/.test(t) && post.slice(post.indexOf(kind) + 1).includes('grade');
-        if (t !== undefined && fits(kind, t) && !lastNumeric && !numericFillsRest && !gradeFollows) {
+        if (t !== undefined && fits(kind, t, postCells[c]) && !lastNumeric && !numericFillsRest && !gradeFollows) {
           values.push(PLACEHOLDER_TOKEN_RE.test(t) ? undefined : t);
           i += 1;
           // "1 semester", "2 years" — the duration's unit word goes with it.
@@ -1587,11 +1624,23 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (creditsToken === undefined && gradeToken === undefined) return undefined;
     // A term cell on the row (U Tokyo "2022   S1S2", DTU "E23", UNAM "2019-1",
     // a result date) — read after the values are known.
-    const termCells = post.map((k, i) => (k === 'term' ? best!.values[i] : undefined)).filter((t): t is string => t !== undefined);
-    const rowTerm = rowTermOf(termCells, true);
+    // A bare term NUMBER is read only under McMaster's "TM" (F6 review,
+    // 2026-10-09): under "Semester", "Year" or "Session" the cell was consumed
+    // (fits) but says nothing the parser can place, so it is not handed on.
+    const termCells = post.flatMap((k, i) => (k === 'term' && best!.values[i] !== undefined ? [{ value: best!.values[i]!, ordinal: /^tm$/i.test((postCells[i] ?? '').replace(/\s*\(.*\)\s*$/, '')) }] : []));
+    const rowTerm = rowTermOf(
+      termCells.filter((c) => c.ordinal || !/^\d{1,2}$/.test(c.value)).map((c) => c.value),
+      termCells.some((c) => c.ordinal),
+    );
     into.titleParts = title.filter((t) => !/^[*#@]$/.test(t));
+    // "CH" is the credit hours (HEC: 1–4, the narrow asCredits range): a
+    // value above 30 under it — a carga horária of 45 whose header gave no
+    // language evidence — is consumed by position but not read as a credit
+    // count (F6 review, 2026-10-09); the row keeps its title and grade and
+    // its credits stay blank for the student, never 45.
+    const creditHoursHeader = post.some((k, i) => k === 'credits' && best!.values[i] !== undefined && /^ch$/i.test((postCells[i] ?? '').replace(/\s*\(.*\)\s*$/, '')));
     if (creditsToken !== undefined) {
-      into.credits = asCreditsWide(creditsToken);
+      into.credits = creditHoursHeader && asCredits(creditsToken) === undefined ? undefined : asCreditsWide(creditsToken);
       into.creditsText = creditsToken;
     }
     if (gradeToken !== undefined) {
@@ -1670,7 +1719,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const documentYears = lines.flatMap((l) => [...l.replace(/\b(?:19|20)\d{4}\b/g, ' ').matchAll(/\b(19[5-9]\d|20[0-4]\d)\b/g)].map((m) => Number(m[1])));
   const yearSpan = documentYears.length > 0 ? { min: Math.min(...documentYears) - 1, max: Math.max(...documentYears) + 1 } : undefined;
   const plausibleYear = (y: number): boolean => yearSpan !== undefined && y >= yearSpan.min && y <= yearSpan.max;
-  const rowTermOf = (cells: string[], mapped = false): { year?: number; season?: Season } => {
+  const rowTermOf = (cells: string[], ordinal = false): { year?: number; season?: Season } => {
     let year: number | undefined;
     let season: Season | undefined;
     for (const c of cells) {
@@ -1697,9 +1746,14 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // session's first term — the fall of its first year — 2 the second (the
       // spring of its second year), 3 the summer; under a one-year header
       // ("SPRING/SUMMER 2021") the ordinal keeps that year.
-      // Only a cell the header mapped as the term: the serial number before a
-      // code ("No.   Course Code …") is never one.
-      if (mapped && /^[1-3]$/.test(c) && currentYear !== undefined) {
+      // Only a cell the header mapped as the term AND headed "TM" (`ordinal`
+      // — F6 review, 2026-10-09: a continuously numbered "Semester" column
+      // or a year-of-study "Year" column read 2 as the spring of the second
+      // year and 3 as the summer; the serial number before a code ("No.
+      // Course Code …") is never one either). McMaster's legend is the only
+      // key the parser has for a bare number: "TM: term in which the course
+      // was taken".
+      if (ordinal && /^[1-3]$/.test(c) && currentYear !== undefined) {
         const second = academicRange?.second ?? (currentSeason === 'fall' ? currentYear + 1 : currentYear);
         if (c === '1') { year = academicRange?.first ?? currentYear; season = 'fall'; }
         else if (c === '2') { year = second; season = 'spring'; }

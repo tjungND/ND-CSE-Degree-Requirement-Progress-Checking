@@ -348,4 +348,69 @@ describe('transcript accuracy program, Batch B — F4 layout (2026-10-09)', () =
     const glyphPage = [...glyphs(20, 300, 'Unofficial Academic Transcript'), ...glyphs(20, 280, 'Term: Fall Semester 2022'), run(20, 260, 'Graduate', 36), run(56, 260, 'Operating', 40)];
     assert.ok(groupLines(glyphPage).includes('Graduate Operating'), groupLines(glyphPage).join('\n'));
   });
+
+  // ——— The 2026-10-09 review of F4 ———
+  it('(b, review) a short one-column label/value page whose values start at the hinted right edge is not split: both sides must show a course column', () => {
+    const { hint } = columnLayout(twoColumnPage(), W);
+    assert.ok(hint !== undefined);
+    // Labels left, wordy values at the previous page's right edge, nothing
+    // crossing — before the review this split into eight lines and the
+    // conferral line lost its date.
+    const block: Run[] = [];
+    let y = 700;
+    for (const [label, value] of [['Degree Awarded:', 'Bachelor of Science'], ['Conferred:', 'May 20, 2024'], ['Major:', 'Computer Science'], ['Honors:', 'Cum Laude']] as const) {
+      block.push(run(50, y, label), run(hint.rightEdge, y, value));
+      y -= 12;
+    }
+    assert.equal(columnLayout(block, W, hint).columns.length, 1);
+    assert.deepEqual(runsToLines(block, W, hint), ['Degree Awarded:   Bachelor of Science', 'Conferred:   May 20, 2024', 'Major:   Computer Science', 'Honors:   Cum Laude']);
+    // A term printed as a VALUE ("Entry Term:   Fall 2020") is evidence on the right only: still one column.
+    const withTerm = [...block, run(50, y, 'Entry Term:'), run(hint.rightEdge, y, 'Fall 2020')];
+    assert.equal(columnLayout(withTerm, W, hint).columns.length, 1);
+    assert.ok(runsToLines(withTerm, W, hint).includes('Entry Term:   Fall 2020'));
+    // A short last page whose LEFT column is rows only (its term header on the
+    // previous page) and whose right column opens with a term header still
+    // splits: the subject and number runs on the shared baselines are the
+    // left side's evidence.
+    const last: Run[] = [];
+    y = 750;
+    last.push(run(310, y, 'Right Spring 2021'));
+    for (let i = 0; i < 2; i++) {
+      y -= 10;
+      for (const x0 of [33, 310]) last.push(run(x0, y, 'CS'), run(x0 + 27, y, `6${i}0`), run(x0 + 62, y, 'Course Title Words', 100), run(x0 + 182, y, '3.00'), run(x0 + 207, y, 'A'), run(x0 + 243, y, '12.00'));
+    }
+    for (const x0 of [33, 310]) last.push(run(x0, y - 10, 'Ehrs: 6.00 GPA-Hrs: 6.00 QPts: 24.00 GPA: 4.00', 200));
+    assert.equal(columnLayout(last, W, hint).columns.length, 2);
+    const lines = runsToLines(last, W, hint);
+    assert.ok(!lines.some((l) => (l.match(/12\.00/g) ?? []).length > 1), lines.join('\n'));
+    assert.ok(lines.indexOf('Right Spring 2021') > lines.findIndex((l) => l.startsWith('Ehrs:')), 'the left column is read whole before the right');
+  });
+
+  it('(c, review) on a page that is mostly glyphs, a line half glyphs and half words is joined too; on a word-level page the line test alone decides', () => {
+    const glyphs = (x0: number, y: number, text: string): Run[] => {
+      const out: Run[] = [];
+      let x = x0;
+      for (const ch of text) {
+        if (ch === ' ') { x += 2.5; continue; }
+        out.push(run(x, y, ch, 4));
+        x += 4 + (out.length % 3 === 0 ? -0.3 : 0.2);
+      }
+      return out;
+    };
+    // The insideND pages measure 75–77% glyphs page-wide: a line of six glyph
+    // runs beside two word runs (75%) read "F a l l 2023   Main   G R" under
+    // the 80% line test alone, and "G P A 3.500" (75%) likewise.
+    const mixedLine = [...glyphs(20, 260, 'Fall'), run(40, 260, '2023'), run(200, 260, 'Main'), ...glyphs(230, 260, 'GR')];
+    const glyphPage = [...glyphs(20, 300, 'University of Notre Dame'), ...glyphs(20, 280, 'Unofficial Academic Transcript'), ...mixedLine, ...glyphs(20, 240, 'GPA'), run(40, 240, '3.500'), run(20, 220, 'Graduate', 36), run(56, 220, 'Operating', 40)];
+    const lines = groupLines(glyphPage);
+    assert.ok(lines.includes('Fall 2023   Main   GR'), lines.join('\n'));
+    assert.ok(lines.includes('GPA 3.500'), lines.join('\n'));
+    assert.ok(lines.includes('Graduate Operating'), 'a word-level line on the glyph page keeps its spaces');
+    // The same 75% line on a WORD-level page (four Banner rows, 20 runs) is
+    // not a glyph line: the page's share is below 60%, the line's below 80%.
+    const words: Run[] = [];
+    for (let i = 0; i < 4; i++) words.push(run(20, 400 - i * 12, 'CSE'), run(45, 400 - i * 12, `6064${i}`), run(80, 400 - i * 12, 'Graduate Operating Systems', 110), run(220, 400 - i * 12, '3.0'), run(250, 400 - i * 12, 'A'));
+    const wordPage = groupLines([...words, ...mixedLine]);
+    assert.ok(wordPage.includes('F a l l 2023   Main   G R'), wordPage.join('\n'));
+  });
 });

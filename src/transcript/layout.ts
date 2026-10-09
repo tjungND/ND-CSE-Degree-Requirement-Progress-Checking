@@ -200,11 +200,20 @@ export function groupLines(runs: Run[]): string[] {
   // 59% glyphs reading letter-spaced words, and joined a word-level line on
   // a glyph page), runs that touch (≤ 1 unit) are joined with no space.
   // Word-level lines — where most runs are words — read exactly as before.
+  // On a page that is itself mostly glyphs (60% of 20 or more runs — the
+  // insideND pages measure 75–77%, so a quarter of their runs are words) a
+  // line is joined at half (F4 review, 2026-10-09): "F a l l 2023 Main G R"
+  // and "G P A 3.500" — six glyph runs beside two word runs, three beside
+  // one — are glyph lines the 80% test alone missed. The page's share never
+  // joins a word-level line (two word runs, 0%): such a line on a glyph page
+  // keeps its spaces, as pinned.
+  const singles = (rs: Run[]) => rs.filter((r) => r.text.trim().length === 1).length;
+  const glyphPage = runs.length >= 20 && singles(runs) >= 0.6 * runs.length;
   let current: Run[] = [];
   const flush = () => {
     if (current.length === 0) return;
     current.sort((a, b) => a.x - b.x);
-    const glyphLine = current.length >= 2 && current.filter((r) => r.text.trim().length === 1).length >= 0.8 * current.length;
+    const glyphLine = current.length >= 2 && (singles(current) >= 0.8 * current.length || (glyphPage && singles(current) >= 0.5 * current.length));
     let text = '';
     let cursor = -Infinity;
     for (const r of current) {
@@ -266,22 +275,56 @@ export function columnLayout(runs: Run[], pageWidth: number, hint?: ColumnHint):
   // baselines, so neither runs nor "the first run of a line" is the measure),
   // those runs include two different WORDY texts (a term header, "Ehrs:",
   // "Good Standing" — the full test's wordy-edge evidence; a numbers column
-  // that happens to sit at the hinted edge has none), and nothing (bar a rule
-  // or a "CONTINUED" banner) crosses the gap. A one-column last page (Banner's
-  // legend page: full-width prose, nothing beginning at the right edge) fails
-  // these tests and is read whole, as before.
+  // that happens to sit at the hinted edge has none), nothing (bar a rule
+  // or a "CONTINUED" banner) crosses the gap, AND both sides show what a
+  // course column holds (F4 review, 2026-10-09 — a one-column label/value
+  // block, "Degree Awarded:   Bachelor of Science" / "Conferred:   May 20,
+  // 2024", lines up with the hint too: labels left, wordy values at the
+  // edge, nothing crossing; split, the conferral line parted from its date
+  // and the same-line evidence rule of 2026-09-03 could no longer read the
+  // award): a term header, a course code or number, a column header word, a
+  // running total or a Banner section title — left of the gap on a baseline
+  // that also holds a run at the edge, and among the runs at the edge
+  // (`courseColumnEvidence`). A one-column last page (Banner's legend page:
+  // full-width prose, nothing beginning at the right edge) fails these tests
+  // and is read whole, as before.
   if (hint !== undefined && runs.length > 0 && runs.length < 40) {
     const words = joinWords(runs);
     const baselines = words.filter((r, i, all) => i === 0 || Math.abs(all[i - 1]!.y - r.y) > 2).length; // joinWords sorts by y
     const atEdge = words.filter((r) => Math.abs(r.x - hint.rightEdge) <= 12);
-    const baselinesAtEdge = new Set(atEdge.map((r) => Math.round(r.y / 2))).size;
+    const edgeBaselines = new Set(atEdge.map((r) => Math.round(r.y / 2)));
+    const baselinesAtEdge = edgeBaselines.size;
     const wordyAtEdge = new Set(atEdge.filter((r) => /[A-Za-z]{4}/.test(r.text)).map((r) => r.text.trim())).size;
     const crossing = words.filter((r) => !DECORATIVE_RE.test(r.text) && r.x < hint.gapX - 2 && r.x + r.width > hint.gapX + 2).length;
-    if (baselinesAtEdge >= 2 && baselinesAtEdge >= 0.3 * baselines && wordyAtEdge >= 2 && crossing === 0 && runs.some((r) => r.x < hint.gapX - 2)) {
+    const leftOnEdgeBaselines = words.filter((r) => r.x < hint.gapX - 2 && edgeBaselines.has(Math.round(r.y / 2)));
+    const continues = courseColumnEvidence(leftOnEdgeBaselines) && courseColumnEvidence(atEdge);
+    if (baselinesAtEdge >= 2 && baselinesAtEdge >= 0.3 * baselines && wordyAtEdge >= 2 && crossing === 0 && continues) {
       return { columns: splitAt(runs, hint), hint };
     }
   }
   return { columns: [runs] };
+}
+
+/** What a transcript's course column prints, as the hinted split's positive
+ * evidence (F4 review, 2026-10-09): a term header ("Spring 2021", "Term:
+ * Fall 2013"), a Banner section title or running total ("INSTITUTION
+ * CREDIT", "Ehrs: 6.00 …", "Good Standing"), a course code ("ACMS 60850",
+ * "CS-610") or a subject run followed within 40 units on its baseline by the
+ * course number ("CS" "610" — Banner prints the two in separate runs). A
+ * label ("Degree Awarded:", "Term:"), a degree name, a date or a number
+ * alone is none of these. */
+const TERM_HEADER_RE = /\b(?:fall|spring|summer|autumn|winter)\s+(?:19|20)\d{2}\b/i;
+const SECTION_OR_TOTAL_RE = /^(?:ehrs|gpa-hrs|qpts|overall|good\s+standing|dean'?s\s+list|term\s+(?:gpa|totals?)|current\s+term|cumulative|institution\s+credit|transfer\s+credit|transcript\s+totals|courses?\s+in\s+progress)\b/i;
+const COURSE_CODE_RE = /^[A-Z]{2,5}[- ]?\d{3,5}[A-Z]{0,2}$/;
+const SUBJECT_RUN_RE = /^[A-Z]{2,5}$/;
+const COURSE_NUMBER_RE = /^(?!(?:19|20)\d{2}$)\d{3,5}[A-Z]{0,2}$/;
+function courseColumnEvidence(runs: Run[]): boolean {
+  for (const r of runs) {
+    const text = r.text.trim();
+    if (TERM_HEADER_RE.test(text) || SECTION_OR_TOTAL_RE.test(text) || COURSE_CODE_RE.test(text)) return true;
+    if (SUBJECT_RUN_RE.test(text) && runs.some((n) => Math.abs(n.y - r.y) <= 2 && n.x > r.x && n.x - (r.x + r.width) <= 40 && COURSE_NUMBER_RE.test(n.text.trim()))) return true;
+  }
+  return false;
 }
 
 function splitAt(runs: Run[], at: ColumnHint): Run[][] {

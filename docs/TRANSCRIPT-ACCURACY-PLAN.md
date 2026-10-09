@@ -435,6 +435,18 @@ handoff's "Batch B step 8" bullet indexes the code.
 | known-failing | 35 | 26 | 22 | 21 |
 | ms corpus | 48/48, 648/648 | unchanged | unchanged | unchanged |
 
+**Review of F4–F6 (2026-10-09)** — four confirmed findings, one commit ("Batch B F4-F6: review
+fixes"), each reproduced on HEAD and pinned: F6's term ordinal fired under any header-mapped term
+column (a numbered Semester or Year column read 2 as spring and 3 as summer) — a bare number is now
+a term cell only under a term-numbering header word and is read as the ordinal only under "TM";
+F6's "CH" read a Brazilian histórico's 60 and 90 hours as credits — CH beside a Portuguese or
+Spanish header word is the carga horária, and an English CH value above the credit-hour range
+leaves the credits blank; F4's hinted split parted a label/value "Degree Awarded: / Conferred:"
+page — both sides must now show a course column (a term header, a Banner total, a code); F4's
+per-line glyph join left a 75% line on a glyph page letter-spaced — the page-level 60% signal is
+back as a second trigger. Board unchanged (`text-after-F4F6-review.json` vs `text-after-F4.json`:
+0 regressions, 0 improvements); `npm test` 1590 pass. The rules are in the four DECISIONS rows.
+
 Still open after this step (their entries on the known-failing list name them): F2 (Workday's
 "2024-25 Winter Term 1" headers, Nepal's continuously numbered semesters), F3 (McMaster's
 digit-letter-digit numbers, SNU's dotted numbers, UCLA's one-digit numbers), F1 (UCLA's "IN
