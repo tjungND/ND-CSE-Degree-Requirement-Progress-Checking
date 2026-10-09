@@ -909,8 +909,13 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // "18CS51", "18CSC301T" (a scheme year before the letters); UNAM's
   // zero-padded "0001" (any four-digit number outside the year range — a
   // 2000–2049 key is refused as a year, a known limit).
+  // F3 (transcript accuracy program, 2026-10-09): a three-token subject with
+  // a one-letter middle, "ENG M 612" / "MATH E 101" (the middle letter must
+  // be printed as a capital — "Use a 2019 edition" is prose); and Workday's
+  // dash after the number, "CS 101 - Title", dropped from the tail so the
+  // title's own words and numbers are read as on any other row.
   const LEAD_CODE_RE =
-    /^((?:[A-Z]{2,10}|[A-Z]{2,4}\d[A-Z]{2,6})[- ]?\d{2,6}(?:\.\d{1,3})?[A-Z]{0,3}\d?|[A-Z]{2,10}-[A-Z]{1,2}[. ]\d{2,5}[A-Z]{0,3}|[A-Z]{2,10} [A-Z]{2,4} \d{2,5}[A-Z]{0,3}|[A-Z]{2,10}(?: [A-Z]{2,4})? [A-Z]{1,2}\d{2,5}(?:\.\d{1,2})?[A-Z]?|[A-Z]\d \d{3,4}|\d{2}-\d{3}|[A-Z]{2,4}\.\d{2,5}\.\d{1,3}[A-Z]{0,3}|[A-Z]{2}\d\.\d{3}|\d{1,2}\.(?:\d{3,4}|[A-Z]{1,3}\d{0,3})[A-Z]?|\d{4}-\d{4}|\d{3}-\d{4}-\d{2}[A-Z]?|[A-Z]\d[A-Z0-9]{3}[A-Z]|\d{2}[A-Z]{2,6}\d{2,4}[A-Z]{0,2}|\d{5,10}|\d{4})\b[.:]?\s*(.*)$/;
+    /^((?:[A-Z]{2,10}|[A-Z]{2,4}\d[A-Z]{2,6})[- ]?\d{2,6}(?:\.\d{1,3})?[A-Z]{0,3}\d?|[A-Z]{2,10}-[A-Z]{1,2}[. ]\d{2,5}[A-Z]{0,3}|[A-Z]{2,10} [A-Z]{1,4} \d{2,5}[A-Z]{0,3}|[A-Z]{2,10}(?: [A-Z]{2,4})? [A-Z]{1,2}\d{2,5}(?:\.\d{1,2})?[A-Z]?|[A-Z]\d \d{3,4}|\d{2}-\d{3}|[A-Z]{2,4}\.\d{2,5}\.\d{1,3}[A-Z]{0,3}|[A-Z]{2}\d\.\d{3}|\d{1,2}\.(?:\d{3,4}|[A-Z]{1,3}\d{0,3})[A-Z]?|\d{4}-\d{4}|\d{3}-\d{4}-\d{2}[A-Z]?|[A-Z]\d[A-Z0-9]{3}[A-Z]|\d{2}[A-Z]{2,6}\d{2,4}[A-Z]{0,2}|\d{5,10}|\d{4})\b[.:]?\s*(?:[-–—]\s+)?(.*)$/;
   /** Codes that are digits with a dot or dash, or a four-digit key: taken only
    * when a wordy title follows, so a totals line ("12.000   3.000") or a bare
    * year never starts a row. */
@@ -1448,6 +1453,13 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   /** A date cell that may open a row before the code (Peradeniya "27-Jun-19
    * GP101 English I A 3", 2026-09-26): dd-Mon-yy, dd/mm/yyyy, yyyy-mm-dd. */
   const LEAD_DATE_RE = /^(?:\d{1,2}[-/.][A-Za-z]{3}[-/.]\d{2,4}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{4}-\d{2}-\d{2})$/;
+  /** Colleague prints the section in its own cell right after the code
+   * ("CS-101   01   Intro to CS   3   A" — F3, 2026-10-09): a zero-padded
+   * one- or two-digit first token before a wordy title is the section, never
+   * a title word or the credits ("CS-101   01   Calculus 2   3   B" read
+   * credits 2). A section glued to the number ("CS 105-01") is untouched. */
+  const dropSection = (tokens: string[]): string[] =>
+    tokens.length >= 2 && /^0\d{1,2}$/.test(tokens[0]!) && /^[\p{L}]/u.test(tokens[1]!) && /[\p{L}]{2}/u.test(tokens[1]!) ? tokens.slice(1) : tokens;
   const leadCode = (flat: string): { code: string; tokens: string[]; date?: string; preCell?: string } | undefined => {
     // A stray 1–2-letter security mark merged onto the row's start ("XK ITWS
     // 1882 …", 2026-09-05) is skipped when a real code follows it. Three
@@ -1473,7 +1485,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (!num) continue;
       const subject = subjectCell.toUpperCase();
       if (CODE_STOPWORDS_RE.test(subject.replace(/ /g, ''))) continue;
-      const tokens = tokensOf([num[2]!.trim(), ...cells.slice(i + 2)]);
+      // The one-letter middle of a two-word subject cell is a capital (F3).
+      if (/^[A-Za-z]+ [A-Za-z]$/.test(subjectCell) && !/ [A-Z]$/.test(subjectCell)) continue;
+      const tokens = dropSection(tokensOf([num[2]!.trim().replace(/^[-–—]\s+/, ''), ...cells.slice(i + 2)]));
       if (looksLikeIdentifierLine(subject, tokens)) continue;
       const date = i === 1 && LEAD_DATE_RE.test(cells[0]!) ? cells[0] : undefined;
       return { code: colonSubject ? `${subject}${num[1]!}` : `${subject} ${num[1]!.toUpperCase()}`, tokens, ...(date ? { date } : {}), ...(i === 1 ? { preCell: cells[0] } : {}) };
@@ -1489,6 +1503,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const m = LEAD_CODE_RE.exec(cell.toUpperCase());
       if (!m) continue;
       const code = m[1]!;
+      // The one-letter middle of "ENG M 612" is printed as a capital; "Use a
+      // 2019 edition" is prose (F3, 2026-10-09).
+      if (/^[A-Z]{2,10} [A-Z] \d/.test(code) && !/^[A-Za-z]+ [A-Z] /.test(cell)) return undefined;
       // A bare year or a year range is not a course code: on its own it is a
       // term line; as a first cell ("2022/2023   052513   …", Politecnico di
       // Milano) the code may follow it (2026-09-26).
@@ -1516,7 +1533,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (code.split(/[^A-Z]+/).some((w) => CODE_STOPWORDS_RE.test(w))) return undefined;
       if (!subjectCase(cell.slice(0, code.length).replace(/\d.*$/, ''))) return undefined; // "Chapter 3": prose, not a code
       const rest = cell.slice(cell.length - m[2]!.length); // same indices — toUpperCase is length-stable for these codes
-      const tokens = tokensOf([rest, ...cells.slice(idx + 1)]);
+      const tokens = dropSection(tokensOf([rest, ...cells.slice(idx + 1)]));
       if (looksLikeIdentifierLine(code.replace(/[^A-Z]/g, ''), tokens)) return undefined;
       const date = idx === 1 && LEAD_DATE_RE.test(cells[0]!) ? cells[0] : undefined;
       return { code, tokens, ...(date ? { date } : {}), ...(idx === 1 ? { preCell: cells[0] } : {}) };

@@ -313,3 +313,40 @@ describe('transcript accuracy program, Batch A — F2 term cells and Workday hea
     assert.deepEqual(term(r, 'CS 104'), ['summer', 2024]);
   });
 });
+
+describe('transcript accuracy program, Batch A — F3 course-code shapes (2026-10-09)', () => {
+  const cells = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.title, row(r, id)?.credits, row(r, id)?.grade];
+  it('F3: a three-token subject with a one-letter middle is a course code when that letter is printed as a capital', () => {
+    const r = doc(
+      'Some University',
+      'Fall 2023',
+      'ENG M 612   Engineering Management   3   A',
+      'MATH E 101   Calculus   4   B',
+      'ENG M   613   Project Management   3   A',
+      'Use a 2019 edition of the handbook   3   A',
+      'SEE A 100 level course   3   A',
+    );
+    assert.deepEqual(r.courses.map((c) => c.courseId), ['ENG M 612', 'MATH E 101', 'ENG M 613']);
+    assert.deepEqual(cells(r, 'ENG M 612'), ['Engineering Management', 3, 'A']);
+    assert.deepEqual(cells(r, 'MATH E 101'), ['Calculus', 4, 'B']);
+    assert.deepEqual(cells(r, 'ENG M 613'), ['Project Management', 3, 'A'], 'the subject and the number in separate cells');
+  });
+  it('F3: Workday’s dash after the course number and Colleague’s section cell after the code are not the title’s or the credits’', () => {
+    const r = doc(
+      'Some University',
+      'Fall 2023',
+      'CS 101 - Calculus 1   3   A',
+      'CS 102 - Introduction to Programming   A   3   3   12',
+      'CS-103   01   Calculus 2   3   B',
+      'CS-104   01   Data Structures   3.00   A',
+      'CS 105-01   Networks   3   A',
+    );
+    assert.deepEqual(cells(r, 'CS 101'), ['Calculus 1', 3, 'A']);
+    assert.deepEqual(cells(r, 'CS 102'), ['Introduction to Programming', 3, 'A']);
+    assert.deepEqual(cells(r, 'CS 103'), ['Calculus 2', 3, 'B']);
+    assert.deepEqual(cells(r, 'CS 104'), ['Data Structures', 3, 'A']);
+    assert.deepEqual(cells(r, 'CS 105'), ['Networks', 3, 'A'], 'a section glued to the number reads as before');
+    const mapped = doc('Some University', 'Course   Section   Title   Credits   Grade', 'Fall 2023', 'CS-103   01   Calculus 2   3   B');
+    assert.deepEqual(cells(mapped, 'CS 103'), ['Calculus 2', 3, 'B'], 'under a Section header the mapped path sees the same tokens');
+  });
+});
