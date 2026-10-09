@@ -207,6 +207,11 @@ async function checkDialog(s, baseUrl) {
   if (!focusAfter.startsWith('H1:')) throw new Error('opening dialog: focus did not land on the page heading after closing — ' + focusAfter);
   // The earlier-degrees questions on the page (2026-10-08, Option 1): in the
   // Transcripts card, each follow-up just below the answer that asks it.
+  // A fresh record shows one line with "Answer here" (UI review item 2; DGS
+  // 2026-10-09): the questions come after the click.
+  if (!(await s.evalJs(`!!document.querySelector('#earlier-degrees [data-key="earlier.answer"]')`))) throw new Error('a fresh record must fold the earlier-degrees questions behind "Answer here"');
+  await s.evalJs(`document.querySelector('[data-key="earlier.answer"]').click()`);
+  await s.waitFor(`!!document.querySelector('#earlier-degrees [data-key="earlier.bachelors.elsewhere"]')`);
   if (!(await s.evalJs(`!!document.querySelector('#earlier-degrees [data-key="earlier.bachelors.elsewhere"]')`))) throw new Error('the earlier-degrees questions must be in the Transcripts card');
   await s.evalJs(`document.querySelector('[data-key="earlier.graduate.elsewhere"]').click()`);
   await s.settle();

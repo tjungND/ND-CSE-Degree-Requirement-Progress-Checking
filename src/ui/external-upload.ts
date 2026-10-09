@@ -375,7 +375,34 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
   // clicks Done; a reading never applies the answer itself (review of Option
   // 1, 2026-10-08).
   const draftComplete = !background && completeBackground(args.student.backgroundDraft, args.student.program) !== undefined;
-  const backgroundLine = background && !answeringEarlier
+  // A fresh record (UI review item 2; DGS 2026-10-09: option (b)): no answer,
+  // no draft, nothing read and no Notre Dame transcript yet — one line, with
+  // "Answer here" for the student who has no transcript to import; the
+  // questions themselves once a transcript is in, a draft exists, or the
+  // student asked for them.
+  const freshRecord = !background && !args.student.backgroundDraft && !args.student.backgroundRead && !args.student.courses.some((c) => c.fromNdTranscript === true) && !answeringEarlier;
+  const backgroundLine = freshRecord
+    ? el(
+        'p',
+        { class: 'hint background-line background-fold', id: 'earlier-degrees', 'data-key': 'transcripts.background' },
+        el('strong', {}, 'Your earlier degrees'),
+        ' — import your Notre Dame transcript first; it answers part of this. No transcript to import? ',
+        el(
+          'button',
+          {
+            class: 'btn tiny link',
+            'data-key': 'earlier.answer',
+            onclick: () => {
+              answeringEarlier = true;
+              args.setFocusAfterRender?.('earlier.bachelors.elsewhere');
+              args.update(() => undefined);
+            },
+          },
+          'Answer here',
+        ),
+        '.',
+      )
+    : background && !answeringEarlier
     ? el(
         'p',
         { class: 'hint background-line', 'data-key': 'transcripts.background' },

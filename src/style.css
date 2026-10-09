@@ -1096,12 +1096,17 @@ tr.ocr-low td { background: var(--note-bg); }
   .external-slot .slot-label { display: block; margin-bottom: 4px; }
   .external-slot .slot-sep { display: none; }
   .external-slot .hint-inline { display: block; margin-top: 4px; }
-  /* The status pill parks flush right on the title's first line, so a reader
-     scanning six screens of rows finds it in one place (2026-09-08). `.pill`
-     is already nowrap, so the title is what must be allowed to shrink. */
-  .req-head { flex-wrap: nowrap; }
+  /* The status pill parks flush right — on the title's first line when it
+     fits, else on a line of its own under the title (UI review item 8 (1);
+     DGS 2026-10-09): a long pill used to squeeze the title to four lines
+     (the 2026-09-08 one-line rule). `.pill` is already nowrap. */
+  .req-head { flex-wrap: wrap; }
   .req-head .req-title { min-width: 0; }
-  .req-head .pill { flex: none; }
+  .req-head .pill { flex: none; margin-left: auto; }
+  /* The report column's own dial and meters are hidden on phones (UI review
+     item 8 (3); DGS 2026-10-09): the summary at the top and the sticky bar
+     already show them, so the report starts with Next steps. */
+  .audit .scorehead, .audit > .meters { display: none; }
   .scorehead { gap: 10px; }
   .dial { width: 64px; height: 64px; }
 

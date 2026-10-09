@@ -634,6 +634,7 @@ export async function driveApp(s, baseUrl) {
   })()`);
   await s.waitFor(`!document.querySelector('.consent-overlay')`);
   // The earlier degrees, on the page since 2026-10-08 (Option 1).
+  await s.evalJs(`document.querySelector('[data-key="earlier.answer"]')?.click()`); // a fresh record folds the questions (UI review item 2, 2026-10-09)
   for (const k of ['earlier.bachelors.elsewhere', 'earlier.graduate.none', 'earlier.done']) await s.evalJs(`document.querySelector('[data-key="${k}"]')?.click()`);
   await s.evalJs(`(() => { window.confirm = window.__confirm; })()`);
   await s.waitFor(

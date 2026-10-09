@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-09 (DGS — the UI review’s answers, group 2: items 2, 3, 7, 8): fresh-record earlier-degrees fold line with “Answer here” (`freshRecord`, external-upload.ts; drivers click `earlier.answer` first); the three process paragraphs shortened (W-CL365); project/thesis option under Milestones (data-key unchanged); phone CSS: pill wraps under the title, `.audit .scorehead` and `.audit > .meters` hidden.
+
 2026-10-09 (DGS — the UI review’s answers, group 1: items 1, 4, 6, 9, 14 + the names): standing one-liner for the own MSCSE; Start-here badge/callout only on a fresh record; fold titles name in-progress vs waiting (`Contribution.kind`); the one-university fold respects “same university? No”; nd-markers.ts `headerOf` + transfer-heading rule, with the issuer’s own labels anywhere. Heading “Graduate Degree Requirement Simulation Tool”; title/README/package “…Progress Simulation”. Open: renaming the GitHub repository (moves the Pages URL) — the DGS decides and runs it.
 
 2026-10-08 (DGS — the order reset; no “No” after a 4+1 Yes): choosing the 4+1 MSCSE now answers the 4+1 follow-up Yes (it stays shown); `wasInFourPlusOne` drives order and options; “No” is hidden after a Yes on the Ph.D. tab. Open: whether “another university” / “another department” should also hide after a Yes.

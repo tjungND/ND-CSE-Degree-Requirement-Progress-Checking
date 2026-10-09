@@ -444,8 +444,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         student.msOption = inferred;
         notices.push(
           inferred === 'project'
-            ? 'Project or thesis option set to “M.S. project” from your record (a Master’s project course or an accepted project report). Change it under Your standing if that is wrong.'
-            : 'Project or thesis option set to “M.S. thesis” from your record (thesis direction or a defense). Change it under Your standing if that is wrong.',
+            ? 'Project or thesis option set to “M.S. project” from your record (a Master’s project course or an accepted project report). Change it under Milestones if that is wrong.'
+            : 'Project or thesis option set to “M.S. thesis” from your record (thesis direction or a defense). Change it under Milestones if that is wrong.',
         );
       }
     }
@@ -1196,19 +1196,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       bsNote,
       earlierDegreesLine,
     );
-    if (student.program === 'mscse') {
-      const optGroup = radios(
-        'standing.msOption',
-        [
-          ['undecided', 'Undecided'],
-          ['project', 'M.S. project (§3.4 i)'],
-          ['thesis', 'M.S. thesis (§3.4 ii)'],
-        ],
-        student.msOption ?? 'undecided',
-        (value) => update((s) => void (s.msOption = value as Student['msOption'])),
-      );
-      card.append(fieldset('Project or thesis option (§3.4)', optGroup));
-    }
+    // The MSCSE project/thesis option moved to the top of the MSCSE part of
+    // Milestones (UI review item 7; DGS 2026-10-09: option (b)): its effect —
+    // which milestone fields show — is visible where the choice is made.
 
     const ftTerms = fullTimeTerms(classified);
     if (ftTerms) card.append(ftTerms);
@@ -1842,11 +1832,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       const entry = normalizeEntryTerm(student.entryTerm).term;
       const cutoff = windowYears === undefined ? undefined : termLabel({ season: entry.season, year: entry.year - windowYears });
       const window = windowYears === undefined ? 'within the years §5.2 allows (the number is missing from the rules sheet)' : `within ${windowYears} years before you entered (${cutoff} or later)`;
-      const grade = floor === undefined ? 'with the grade §5.2 requires (missing from the rules sheet)' : `with a grade of ${floor} or better (a pass/fail grade cannot show it, so the DGS decides those)`;
+      const grade = floor === undefined ? 'with the grade §5.2 requires (missing from the rules sheet)' : `with a grade of ${floor} or better (the DGS decides pass/fail grades)`;
+      // Shortened in place (UI review item 3; DGS 2026-10-09: option (b)):
+      // the three checks, every role, § and the timing kept.
       return (
-        `Transfer credit (§5.2): a graduate course from ${fromNotreDame ? 'your earlier Notre Dame program' : 'another university'} can count toward this degree if you took it after your bachelor’s degree, ${window}, and ${grade} — this page checks those three. ` +
-        `Which courses transfer (normally CSE-related ones, ${transferLimitStated() ? `up to ${transferCapLimit()} credits` : `and how much — no document states a credit limit for your case, so this page holds it to ${transferCapLimit()} until the DGS decides`}) is the DGS’s recommendation; the Graduate School approves it, and the Grad Admin records the credit once your university’s official transcript has reached the Graduate School. ` +
-        `Until the DGS decides, every graduate course here is a candidate: the review request in the Transcripts card asks for the decisions at any time; the processing request below the milestones goes to the Grad Admin after your first semester — the Graduate School considers transfer requests only then, and before the semester your degree is conferred.`
+        `Transfer credit (§5.2): a graduate course from ${fromNotreDame ? 'your earlier Notre Dame program' : 'another university'} can count if you took it after your bachelor’s degree, ${window}, and ${grade} — this page checks those three. ` +
+        `Which courses transfer (normally CSE-related ones, ${transferLimitStated() ? `up to ${transferCapLimit()} credits` : `and how much — no document sets a limit for your case; this page holds it to ${transferCapLimit()} until the DGS decides`}) is the DGS’s recommendation, approved by the Graduate School and recorded by the Grad Admin once your official transcript reaches the Graduate School. ` +
+        `Until the DGS decides, every graduate course here is a candidate: send the review request (Transcripts card) at any time; the processing request (below the milestones) goes to the Grad Admin after your first semester, before the semester your degree is conferred.`
       );
     };
     const card = el(
@@ -2027,13 +2019,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint' },
+        // Shortened in place (UI review item 3; DGS 2026-10-09: option (b)).
         el('strong', {}, 'Decisions are made only by email: '),
-        `initiate the review request by clicking the button below — it opens the request for you to check and send from your own email app to the ${deciderTitle(student.program)} (`,
+        `the button below opens the review request in your own email app, for you to check and send to the ${deciderTitle(student.program)} (`,
         mailto(decider.email),
         // The DGS's own sentence (2026-09-15) and the attach reminder
         // (2026-09-03); the email's format and the two-roles statement are
         // said by the dialog and the Grad Admin card (trim review 2026-09-18, P-5).
-        '). Attach your transcript PDFs (Bachelor’s / Master’s / Ph.D. — whichever apply) to the same email.',
+        '). Attach your transcript PDFs (whichever apply) to the same email.',
       ),
       // The process (DGS 2026-09-27): a course not in the course rules is
       // entered by the DGS after this request — yes, no, or case by case —
@@ -2043,7 +2036,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint process-note' },
-        `A course that is not in the course rules yet goes to the ${deciderTitle(student.program)} through this request; the ${deciderTitle(student.program)} enters it — yes, no, or case by case — and this page reads the updated rules the next time you open it. A course marked case by case needs the ${deciderTitle(student.program)}’s answer for you: send this request, then tick the box next to the course once it is approved.`,
+        `A course not in the course rules yet reaches the ${deciderTitle(student.program)} through this request; the ${deciderTitle(student.program)} enters it — yes, no, or case by case — and this page reads the updated rules on your next visit. A case-by-case course needs the ${deciderTitle(student.program)}’s answer for you: once it is given, tick the box next to the course.`,
       ),
       ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
       ...notes.map((t) => el('div', { class: 'review-line review-note', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, 'Note'), ` — ${t}`)),
@@ -2668,14 +2661,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         : el(
             'p',
             { class: 'hint' },
+            // Shortened in place (UI review item 3; DGS 2026-10-09: option
+            // (b)): the bold sentence, every role and § kept.
             el('strong', {}, 'Two people, two jobs. '),
             'The DGS decides; the Grad Admin (',
             `${GRAD_ADMIN.name}, `,
             mailto(GRAD_ADMIN.email),
             student.program === 'phd'
-              ? ') processes what is decided and keeps the official record — transfer credit (§5.2), the qualifier, exam and defense forms (§4.4–4.7), the MSCSE along the way (§4.5) and the requirements you have met. '
-              : ') processes what is decided and keeps the official record — transfer credit (§5.2), the project or thesis forms (§3.4) and the requirements you have met. ',
-            `The button opens the request in your own email app, to the Grad Admin with the DGS in cc${needsTranscripts ? ' — attach copies of your transcripts' : ''}.`,
+              ? ') records it — transfer credit (§5.2), the qualifier, exam and defense forms (§4.4–4.7), the MSCSE along the way (§4.5), the requirements you have met. '
+              : ') records it — transfer credit (§5.2), the project or thesis forms (§3.4), the requirements you have met. ',
+            `The button opens the request in your email app, to the Grad Admin with the DGS in cc${needsTranscripts ? ' — attach your transcript PDFs' : ''}.`,
           ),
       ...built.items.lines.map((text) => el('div', { class: 'review-line', 'data-keep-dgs': '' }, text)),
       el('div', { class: 'save-buttons' }, button),
@@ -2764,6 +2759,24 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
     if (student.program === 'mscse') {
       const opt = student.msOption ?? 'undecided';
+      // The project/thesis option, at the top of the MSCSE part (UI review
+      // item 7; DGS 2026-10-09: option (b)) — it was under Your standing. The
+      // data-key keeps its old name: the drivers and a remembered focus use it.
+      card.append(
+        fieldset(
+          'Project or thesis option (§3.4)',
+          radios(
+            'standing.msOption',
+            [
+              ['undecided', 'Undecided'],
+              ['project', 'M.S. project (§3.4 i)'],
+              ['thesis', 'M.S. thesis (§3.4 ii)'],
+            ],
+            opt,
+            (value) => update((s) => void (s.msOption = value as Student['msOption'])),
+          ),
+        ),
+      );
       if (opt !== 'project') {
         card.append(
           // Academic Code §6.1.7 (policy review 2026-10-04, P2-ac-5b-6.1-14).

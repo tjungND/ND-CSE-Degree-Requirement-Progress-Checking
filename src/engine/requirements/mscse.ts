@@ -426,7 +426,7 @@ function optionRows(ctx: Ctx): RequirementResult[] {
   // While no route is chosen or visible, the two rows are ALTERNATIVES (§3.4:
   // "in one of two ways"): either finished satisfies both (F4, 2026-09-12).
   const eitherDone = option === 'undecided' && (m.thesisDefensePassed !== undefined || m.projectReportAccepted !== undefined);
-  const alternative: DetailPart[] = option === 'undecided' ? [{ note: 'Either route satisfies §3.4 — pick yours under Your standing' }] : [];
+  const alternative: DetailPart[] = option === 'undecided' ? [{ note: 'Either route satisfies §3.4 — pick yours under Milestones' }] : [];
   // §3.3: "Failure to complete all requirements for the M.S. degree within 5
   // years results in forfeiture of degree eligibility." A thesis defense or a
   // project report dated after the limit cannot simply read Met — the same

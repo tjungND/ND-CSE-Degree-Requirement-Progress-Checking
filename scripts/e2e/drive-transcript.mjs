@@ -156,7 +156,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   // `p30321` is that course's share of every later count in this driver.
   const p30321 = listed30321 ? 0 : 1;
   const wantReview = 2 + p30321;
-  if (!ndReview.includes(`Initiate the review request for ${wantReview} courses`) || ndReview.includes('Grad Admin') || !ndReview.includes('email app to the DGS')) {
+  if (!ndReview.includes(`Initiate the review request for ${wantReview} courses`) || ndReview.includes('Grad Admin') || !ndReview.includes('send to the DGS')) { // the shortened paragraph (UI review item 3, 2026-10-09)
     throw new Error('review card wrong: ' + ndReview.slice(0, 140));
   }
   console.log('  unlisted ND course → review request offered');
@@ -657,6 +657,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     })()`);
     await s.waitFor(`!document.querySelector('.consent-overlay')`);
     // The earlier degrees, on the page since 2026-10-08 (Option 1).
+    await s.evalJs(`document.querySelector('[data-key="earlier.answer"]')?.click()`); // a fresh record folds the questions (UI review item 2, 2026-10-09)
     for (const k of ['earlier.bachelors.elsewhere', 'earlier.graduate.elsewhere', 'earlier.sameplace.no', 'earlier.finished.yes', 'earlier.done']) await s.evalJs(`document.querySelector('[data-key="${k}"]')?.click()`);
   };
   await chooseViaReset('mscse');

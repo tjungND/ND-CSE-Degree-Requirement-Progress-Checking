@@ -80,6 +80,7 @@ export function sessionHelpers({ navigate, evalJs, shot }) {
       // degree elsewhere at another university, so every previous row shows.
       // One click per render: each answer re-renders the questions.
       // Then Done: the questions stay open, saved, until it (2026-10-08).
+      await evalJs(`document.querySelector('[data-key="earlier.answer"]')?.click()`); // a fresh record folds the questions (UI review item 2, 2026-10-09)
       for (const k of ['earlier.bachelors.elsewhere', 'earlier.graduate.elsewhere', 'earlier.sameplace.no', 'earlier.finished.yes', 'earlier.done']) {
         await evalJs(`document.querySelector('[data-key="${k}"]')?.click()`);
       }
