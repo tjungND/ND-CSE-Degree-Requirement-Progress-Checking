@@ -362,21 +362,29 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   runs joined into phrases (some generators emit one run per word).
 - **Parser fixes F1–F3** (2026-10-09, transcript accuracy program, Batch A step 4; the DECISIONS rows
   of that date quote each rule). Each lives beside its code in `src/transcript/external.ts`:
-  `endsInCreditsAndGrade` (a code alone on its line, or a wrapped title with a four-word continuation,
-  takes the next line only when it ENDS in the credits and a grade token — the 2026-09-26 "numbers
-  line only" rule stays for shorter continuations); `pointsColumnMapped` (a gradeless row's trailing
-  two-decimal number is points only under a header that mapped a Points column, or in the
-  credits/earned/points triple — never from credits × 4); `gradelessRow` in `scanTokens` (the integer
+  `tailGradeToken` (a code alone on its line, or a wrapped title with a four-word continuation,
+  takes the next line only when it ENDS in the credits and a grade token, the row's grade is read
+  from THAT cell — `RowScan.gradeText` — and the words added to the title hold no `PROSE_WORD_RE`
+  word; the 2026-09-26 "numbers line only" rule stays for shorter continuations); the header in
+  force, `columnKinds` (a gradeless row's trailing two-decimal number is points only under the
+  CURRENT header when it mapped a Points column, or in the credits/earned/points triple — never from
+  credits × 4, never from another table's header); `gradelessRow` in `scanTokens` (the integer
   before a trailing decimal joins the title only in an in-progress block or under a header with no
   grade/mark column); `TERM_CODE_CELL_RE`, `rowTermOf` and `bannerTermKey` (compact "2023FA" codes
   decoded from a header-mapped term cell or the first cell before the course code; six-digit Banner
   codes only with the document's own key line, because the convention differs between schools —
-  Notre Dame's 202610 is Fall 2026); `PAREN_DATES_RE` in `readTermLine` (Workday's parenthesised
-  date range stripped); `LEAD_CODE_RE` (a one-letter middle, "ENG M 612", printed as a capital; a
-  dash after the number dropped) and `dropSection` (Colleague's zero-padded section cell). Every rule
-  is pinned in `tests/public-transcript-rules.test.ts`; the replay stayed identical to the baseline
-  (false rows on negatives 0/32) through all three commits — a parser change that moves the board
-  needs a fixture explaining why, not a re-baseline.
+  Notre Dame's 202610 is Fall 2026; the key is read from the whole document before the rows, from
+  lines that are not course rows, only when the code's year is within one of the named year and the
+  number is not labelled as an identifier, and a decoded year is kept only within a year of the
+  document's printed years — `plausibleYear`); `PAREN_DATES_RE` and `rangeYear` in `readTermLine`
+  (Workday's parenthesised date range stripped — or, when it holds the line's only year, the dates'
+  year taken); `LEAD_CODE_RE` (a one-letter middle, "ENG M 612", printed as a capital; a dash after
+  the number dropped; a term word of `TERM_WORD_RE` never a subject, so "SEMESTRE I 2019" stays a
+  heading) and `dropSection` (Colleague's zero-padded section cell). Every rule is pinned in
+  `tests/public-transcript-rules.test.ts`; the replay stayed identical to the baseline (false rows
+  on negatives 0/32) through all three commits and the review-fix commit that followed them (the
+  2026-10-09 review of F1–F3: six findings, five DECISIONS rows) — a parser change that moves the
+  board needs a fixture explaining why, not a re-baseline.
 - **The transcript replay and its scorer** (2026-10-09, transcript accuracy program, Batch A steps
   1–3). `scripts/dev/score.mts` is the ONE scorer: `scoreDocument(parsed, expected)` → header fields
   got/want/ok (skipped on a `negative`), rows aligned by `normalizeCourseId` + year then id alone

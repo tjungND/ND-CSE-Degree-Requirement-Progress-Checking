@@ -269,6 +269,10 @@ interface RowScan {
   creditsText?: string;
   grade?: Grade;
   rawGrade?: string;
+  /** The token the position-free scan read the grade or raw grade from —
+   * F1a's continuation check asks whether it was the line's last grade cell
+   * (review 2026-10-09). */
+  gradeText?: string;
   titleParts: string[];
 }
 
@@ -1077,6 +1081,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         into.titleParts.length === 0 && into.grade === undefined && asGr !== undefined && nextToken !== undefined && asCredits(nextToken) !== undefined;
       if (gradeFirst) {
         into.grade = asGr;
+        into.gradeText = token;
         titleDone = true;
         continue;
       }
@@ -1120,6 +1125,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         const passFail = isPassFailToken(bareToken, legend);
         if (into.rawGrade === undefined || !passFail) {
           into.grade = asGr;
+          into.gradeText = token;
           into.rawGrade = undefined;
         }
         continue;
@@ -1138,20 +1144,30 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         // grade, when a grade-like token still follows (2026-09-26).
         const zeroEarned =
           value === 0 && tokens[k - 1] === into.creditsText && tokens.slice(k + 1).some((t) => mapGrade(t, legend) !== undefined || /^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(t));
-        const pointsCell = pointsColumnMapped && nextToken === undefined && into.credits !== undefined && /^\d{1,3}[.,]\d{2}$/.test(token);
+        // The header in force is the evidence, as in scanWithMap (review
+        // 2026-10-09): a document-wide flag let a Points column mapped pages
+        // earlier drop a mark under a later header that mapped none.
+        const pointsMapped = columnKinds !== undefined && columnKinds.indexOf('points') > columnKinds.indexOf('title');
+        const pointsCell = pointsMapped && nextToken === undefined && into.credits !== undefined && /^\d{1,3}[.,]\d{2}$/.test(token);
         if (echoesCredits || zeroEarned) sawEcho = true;
         // A grade-shaped token replaces a numeric guess only when that guess
         // looks like a points value ("12.00   W"); a printed MARK keeps its
         // number and the band beside it is dropped (Sydney "78   DI", 2026-09-26).
-        else if (gradeShaped && (into.rawGrade === undefined || decimalsOf(into.rawGrade) >= 2)) into.rawGrade = /^W\d$/.test(bareToken) ? 'W' : bareToken;
+        else if (gradeShaped && (into.rawGrade === undefined || decimalsOf(into.rawGrade) >= 2)) {
+          into.rawGrade = /^W\d$/.test(bareToken) ? 'W' : bareToken;
+          into.gradeText = token;
+        }
         // F1b (transcript accuracy program, 2026-10-09): a gradeless row's
         // trailing two-decimal number after the credits ("3.00   12.00") is
-        // its quality points only when this document's table header mapped a
+        // its quality points only when the table header IN FORCE mapped a
         // Points column after the title (the row fell through the map), or in
         // the credits/earned/points triple (sawEcho). Without that evidence
         // the number stays the printed grade: "4   16.0" is a mark out of 20
         // as often as it is points, and the product test would be a guess.
-        else if (into.rawGrade === undefined && numericGrade && !sawEcho && !pointsCell) into.rawGrade = token; // after "earned" comes "points"
+        else if (into.rawGrade === undefined && numericGrade && !sawEcho && !pointsCell) {
+          into.rawGrade = token; // after "earned" comes "points"
+          into.gradeText = token;
+        }
       }
       if (wordy && !gradeShaped && token.length > 1) tail.push(token);
     }
@@ -1169,10 +1185,6 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * and a level or flag cell between the code and the title is consumed
    * first. */
   let columnKinds: ColumnKind[] | undefined;
-  /** Whether any table header of this document mapped a Points column after
-   * the title — the only evidence that a gradeless row's trailing number is
-   * points (F1b, 2026-10-09). */
-  let pointsColumnMapped = false;
   const numericToken = (t: string) => /^-?\d{1,3}(?:[.,]\d{1,3})?$/.test(t);
   const gradeLike = (t: string): boolean => {
     const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(t) ? t.slice(1, -1) : t;
@@ -1186,15 +1198,17 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * are the credits, then a grade token — with, optionally, the Earned echo
    * between them and one points number or a repeat mark after. Nothing wordy
    * follows the credits but the grade itself, so "carry 3 credits and are
-   * graded A" is not such a tail while "… Design   3   A" is. */
-  const endsInCreditsAndGrade = (rawTokens: string[]): boolean => {
+   * graded A" is not such a tail while "… Design   3   A" is. Returns that
+   * grade token (the row's grade must be read from IT, review 2026-10-09),
+   * or undefined when the line has no such tail. */
+  const tailGradeToken = (rawTokens: string[]): string | undefined => {
     const tokens = joinGradePhrases(rawTokens).filter((t) => !/^[*#@]$/.test(t));
     let at = tokens.length - 1;
     // Points after the grade ("3   A   12.00"): one trailing number more.
     if (at >= 2 && numericToken(tokens[at]!) && !numericToken(tokens[at - 1]!)) at -= 1;
     const grade = tokens[at];
-    if (at < 1 || grade === undefined || !gradeLike(grade)) return false;
-    return asCredits(tokens[at - 1]!) !== undefined;
+    if (at < 1 || grade === undefined || !gradeLike(grade)) return undefined;
+    return asCredits(tokens[at - 1]!) !== undefined ? grade : undefined;
   };
   const fits = (kind: ColumnKind, t: string): boolean => {
     if (PLACEHOLDER_TOKEN_RE.test(t)) return true; // an empty cell printed as "-"
@@ -1393,17 +1407,39 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // beside the term it names ("202310 … Fall 2022", "Fall 2022 (202310)"),
   // one entry per term part seen. Without a key the row keeps its header's
   // term (never guess).
+  // Bounds from the 2026-10-09 review (a key was read from any line, with
+  // any offset, and decoded any six-digit cell): Banner names an academic
+  // year by either of its calendar years, so the code's year is the named
+  // year or one off it — "NOIDA 201301   Term: Spring 2023" (a postal code
+  // beside an entry term, offset −10) is no key; a number the line labels as
+  // an identifier ("Student ID 202310   Entry Term Fall 2022") is none
+  // either; a course row never carries one (the pre-pass before the row
+  // loop skips rows); and a decoded year must lie within a year of the years
+  // the document prints (plausibleYear) — "200010" under a "202310 = Fall
+  // 2022" key is not the fall of 1999. The key is read from the WHOLE
+  // document before any row is, so a legend printed after the rows decodes
+  // them too.
   const bannerTermKey = new Map<string, { season: Season; offset: number }>();
   const BANNER_KEY_FORWARD_RE = /\b((?:19|20)\d{2})(\d{2})\b[^0-9]{0,24}?\b(fall|autumn|spring|summer|winter)\b[^0-9]{0,24}?\b((?:19|20)\d{2})\b/gi;
   const BANNER_KEY_REVERSE_RE = /\b(fall|autumn|spring|summer|winter)\b[^0-9]{0,24}?\b((?:19|20)\d{2})\b[^0-9]{0,8}\(\s*((?:19|20)\d{2})(\d{2})\s*\)/gi;
+  /** A label right before a number that says it is an identifier, not a term
+   * code: "Student ID 202310", "No. 202310", "PIN 201301". */
+  const IDENTIFIER_LABEL_RE = /\b(?:id|no\.?|num(?:ber)?|pin|zip|postal|phone|tel|fax|ref|roll|reg(?:istration)?|ssn|student)\s*[:#.]?\s*$/i;
   const readBannerTermKey = (line: string): void => {
-    const note = (part: string, seasonWord: string, codeYear: number, namedYear: number) => {
+    const note = (part: string, seasonWord: string, codeYear: number, namedYear: number, codeAt: number) => {
       const season = seasonOf(seasonWord);
-      if (season !== undefined && !bannerTermKey.has(part)) bannerTermKey.set(part, { season, offset: codeYear - namedYear });
+      if (season === undefined || Math.abs(codeYear - namedYear) > 1) return;
+      if (IDENTIFIER_LABEL_RE.test(line.slice(0, codeAt))) return;
+      if (!bannerTermKey.has(part)) bannerTermKey.set(part, { season, offset: codeYear - namedYear });
     };
-    for (const m of line.matchAll(BANNER_KEY_FORWARD_RE)) note(m[2]!, m[3]!, Number(m[1]), Number(m[4]));
-    for (const m of line.matchAll(BANNER_KEY_REVERSE_RE)) note(m[4]!, m[1]!, Number(m[3]), Number(m[2]));
+    for (const m of line.matchAll(BANNER_KEY_FORWARD_RE)) note(m[2]!, m[3]!, Number(m[1]), Number(m[4]), m.index!);
+    for (const m of line.matchAll(BANNER_KEY_REVERSE_RE)) note(m[4]!, m[1]!, Number(m[3]), Number(m[2]), line.indexOf(`${m[3]}${m[4]}`, m.index!));
   };
+  // Every four-digit year the document prints outside its six-digit codes —
+  // term headers, dates, the key line itself — widened by a year each way.
+  const documentYears = lines.flatMap((l) => [...l.replace(/\b(?:19|20)\d{4}\b/g, ' ').matchAll(/\b(19[5-9]\d|20[0-4]\d)\b/g)].map((m) => Number(m[1])));
+  const yearSpan = documentYears.length > 0 ? { min: Math.min(...documentYears) - 1, max: Math.max(...documentYears) + 1 } : undefined;
+  const plausibleYear = (y: number): boolean => yearSpan !== undefined && y >= yearSpan.min && y <= yearSpan.max;
   const rowTermOf = (cells: string[]): { year?: number; season?: Season } => {
     let year: number | undefined;
     let season: Season | undefined;
@@ -1423,7 +1459,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const banner = /^((?:19|20)\d{2})(\d{2})$/.exec(c);
       if (banner) {
         const key = bannerTermKey.get(banner[2]!);
-        if (key) { year = Number(banner[1]) - key.offset; season = key.season; }
+        const decoded = key ? Number(banner[1]) - key.offset : undefined;
+        if (key && decoded !== undefined && plausibleYear(decoded)) { year = decoded; season = key.season; }
         continue;
       }
       const jp = /^(S|A)(?:1|2|1S2|1A2)?$/.exec(c);
@@ -1484,7 +1521,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const num = NUMBER_RE.exec(numberCell);
       if (!num) continue;
       const subject = subjectCell.toUpperCase();
-      if (CODE_STOPWORDS_RE.test(subject.replace(/ /g, ''))) continue;
+      if (CODE_STOPWORDS_RE.test(subject.replace(/ /g, '')) || subject.split(' ').some((w) => TERM_WORD_RE.test(w))) continue; // a term word is never a subject (review 2026-10-09)
       // The one-letter middle of a two-word subject cell is a capital (F3).
       if (/^[A-Za-z]+ [A-Za-z]$/.test(subjectCell) && !/ [A-Z]$/.test(subjectCell)) continue;
       const tokens = dropSection(tokensOf([num[2]!.trim().replace(/^[-–—]\s+/, ''), ...cells.slice(i + 2)]));
@@ -1513,7 +1550,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         if (idx === 0 && cells.length > 1 && /^(?:19|20)\d{2}(?:[-–/](?:19|20)?\d{2})?$/.test(cell)) continue;
         return undefined;
       }
-      if (/^[A-Z]{2,10} (19|20)\d{2}$/.test(code) && m[2]!.trim() === '' && cells.length === 1) return undefined; // "IAP 2023" — a term, not a course
+      // "IAP 2023" — and, since the 2026-10-09 review of F3, "SEMESTRE I
+      // 2019" / "SEMESTRE I 2019-2020": a code whose number is a bare year,
+      // alone in its cell with nothing but a year range after it, is a term
+      // heading, not a course.
+      if (/^[A-Z]{2,10}(?: [A-Z]{1,4})? (19|20)\d{2}$/.test(code) && /^(?:[-–/](?:19|20)?\d{2})?$/.test(m[2]!.trim()) && cells.length === 1) return undefined;
       // A digit-led or mixed code must be followed by a title (letters), or it
       // is a number on a totals line.
       // The rest of the cell in its printed case (the match ran on the
@@ -1529,8 +1570,13 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // UConn) and a number the line continues ("199719/98", NUS) are not codes.
       if (/^\d000-\d999$/.test(code)) return undefined;
       if (/^\d{5,10}$/.test(code) && cell[code.length] === '/') return undefined;
-      // Every word of the subject is tested ("TERM GPA 12" is no course).
-      if (code.split(/[^A-Z]+/).some((w) => CODE_STOPWORDS_RE.test(w))) return undefined;
+      // Every word of the subject is tested ("TERM GPA 12" is no course), and
+      // a term word is never a subject (review 2026-10-09: F3's one-letter-
+      // middle shape read the headings "SEMESTRE I 2019", "CICLO I 2019",
+      // "PERIODO I 2019", "TRIMESTER I 2019" as course codes, and a line
+      // leadCode accepts never opens a term — TERM_WORD_RE is the one list,
+      // so a term word added there is refused here without a second edit).
+      if (code.split(/[^A-Z]+/).some((w) => CODE_STOPWORDS_RE.test(w) || TERM_WORD_RE.test(w))) return undefined;
       if (!subjectCase(cell.slice(0, code.length).replace(/\d.*$/, ''))) return undefined; // "Chapter 3": prose, not a code
       const rest = cell.slice(cell.length - m[2]!.length); // same indices — toUpperCase is length-stable for these codes
       const tokens = dropSection(tokensOf([rest, ...cells.slice(idx + 1)]));
@@ -1614,7 +1660,6 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // Track the nearest term-ish header so course rows inherit its year.
     if (IN_PROGRESS_HEADING_RE.test(line)) inProgressBlock = true;
     else if (SECTION_HEADING_RE.test(line)) inProgressBlock = false;
-    readBannerTermKey(line);
     const term = readTermLine(line);
     if (term) {
       // (The in-progress section's own term line — "Term: Fall 2024" under
@@ -1659,6 +1704,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const ubcStyle = lines.some((l) => MONTH_RANGE_RE.test(l) && /\bterm\s*[12]\b/i.test(l));
   const maxOrdinal = Math.max(1, ...lines.map((l) => ordinalOf(l) ?? 0).filter((n) => n < 4));
   const PAREN_DATES_RE = /\s*\((?=[^()]*\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})[^()]*\)/g;
+  /** The year a parenthesised date range places its term in (review
+   * 2026-10-09): the year of the date the term starts on — or, for a spring,
+   * summer or winter term whose range starts in the December before ("Winter
+   * Term (12/01/2023-03/15/2024)" is the 2024 term), the year it ends in.
+   * Four-digit years only: a two-digit year ("09/05/23") is not read. */
+  const rangeYear = (paren: string | undefined, season: Season | undefined): number | undefined => {
+    if (paren === undefined) return undefined;
+    const years = [...paren.matchAll(/\b(?:\d{1,2}[/.-]\d{1,2}[/.-]((?:19|20)\d{2})|((?:19|20)\d{2})-\d{2}-\d{2})\b/g)].map((m) => Number(m[1] ?? m[2]));
+    if (years.length === 0) return undefined;
+    const first = years[0]!;
+    const last = years[years.length - 1]!;
+    return season !== undefined && season !== 'fall' && last === first + 1 ? last : first;
+  };
   const readTermLine = (line: string): TermRead | undefined => {
     if (!TERM_WORD_RE.test(line) && !YEAR_PART_RE.test(line) && !SLASH_ORDINAL_RE.test(line) && !/\bsession\s*:/i.test(line)) return undefined;
     // A year whose last digit the PDF sets apart ("200 3   FULL YEAR", the
@@ -1666,8 +1724,14 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // Workday's "2023 Fall Semester (09/05/2023-12/15/2023)" (F2, 2026-10-09):
     // the parenthesised date range is dropped before anything reads the
     // line — its "2023-12" read as an academic year 2023/2012 and put a
-    // spring term in 2005.
-    const flat = line.replace(/\s{2,}/g, ' ').trim().replace(/\b((?:19|20)\d) (\d)\b/g, '$1$2').replace(PAREN_DATES_RE, '');
+    // spring term in 2005. When that range holds the line's ONLY year
+    // ("Fall Semester (09/05/2023-12/15/2023)", review 2026-10-09) the
+    // term's year is the one its dates give (rangeYear) — dropping the
+    // range left the rows beneath with no year at all.
+    const joined = line.replace(/\s{2,}/g, ' ').trim().replace(/\b((?:19|20)\d) (\d)\b/g, '$1$2');
+    const outside = joined.replace(PAREN_DATES_RE, '');
+    const parenYear = YEAR_RE.test(outside) ? undefined : rangeYear(joined.match(PAREN_DATES_RE)?.[0], seasonOf(outside));
+    const flat = parenYear === undefined ? outside : `${outside} ${parenYear}`.trim();
     // A course row never opens a term ("ENGL 2010   Intermediate Writing").
     if (leadCode(line.replace(/\s{2,}/g, '  ').trim())) return undefined;
     // Long lines are prose — unless bilingual (the Latin half before a
@@ -1952,15 +2016,32 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         // numbers on the next ("CS 500" / "Advanced Topics   3   A"); (ii) a
         // wrapped title whose continuation carries four or more words
         // ("Systems and Cloud Infrastructure Design   3   A").
-        const codeAlone = into.titleParts.length === 0 && lead.tokens.length === 0 && nextWordy >= 1 && nextTokens.length <= 12 && endsInCreditsAndGrade(nextTokens);
-        const wrappedTitle = into.titleParts.length > 0 && nextWordy >= 4 && nextTokens.length <= 12 && endsInCreditsAndGrade(nextTokens);
+        const tailGrade = nextTokens.length <= 12 ? tailGradeToken(nextTokens) : undefined;
+        const codeAlone = into.titleParts.length === 0 && lead.tokens.length === 0 && nextWordy >= 1 && tailGrade !== undefined;
+        const wrappedTitle = into.titleParts.length > 0 && nextWordy >= 4 && tailGrade !== undefined;
         if (numbersOnly || codeAlone || wrappedTitle) {
           const probe = { titleParts: [...into.titleParts], credits: undefined, grade: undefined, rawGrade: undefined } as RowScan;
           scanTokens(nextTokens, probe);
           const read = probe.credits !== undefined || probe.grade !== undefined || probe.rawGrade !== undefined;
           // The two new shapes must yield the credits AND a grade token, and
-          // a title that reads as a course's.
-          const whole = probe.credits !== undefined && (probe.grade !== undefined || probe.rawGrade !== undefined) && probe.titleParts.length > 0 && courseLikeTitle(probe.titleParts);
+          // a title that reads as a course's — and, since the 2026-10-09
+          // review (a footnote after a code line read as its row: "Approved
+          // for graduate credit by petition   3   B+" gave grade S from
+          // "Approved", "Credits applied toward the degree this semester
+          // 12   3.5" gave credits 12), the grade must be the line's last
+          // grade cell (tailGrade), never a pass or grade WORD read earlier
+          // in it, and the words the continuation adds to the title may hold
+          // no function word at all (PROSE_WORD_RE): a sentence says "from",
+          // "by", "this", "is"; a course title that does ("Learning from
+          // Data") is three words, which the numbers-only rule still reads.
+          const added = probe.titleParts.slice(into.titleParts.length).map((w) => w.replace(/[^\p{L}]/gu, ''));
+          const whole =
+            probe.credits !== undefined &&
+            (probe.grade !== undefined || probe.rawGrade !== undefined) &&
+            probe.gradeText === tailGrade &&
+            probe.titleParts.length > 0 &&
+            courseLikeTitle(probe.titleParts) &&
+            !added.some((w) => PROSE_WORD_RE.test(w));
           if (numbersOnly ? read : whole) {
             into.credits = probe.credits;
             into.grade = probe.grade;
@@ -2028,6 +2109,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (usedContinuation) lineIndex += 1; // the continuation line is consumed
     return lineIndex;
   };
+  // The document's own Banner term key, read from every line that is not a
+  // course row, BEFORE the rows — a legend printed after them names their
+  // codes too (review 2026-10-09).
+  for (const l of lines) if (!leadCode(l.replace(/\s{2,}/g, '  ').trim())) readBannerTermKey(l);
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex]!;
     trackTermAndTransfer(line);
@@ -2040,7 +2125,6 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const header = readColumnHeader(flat);
       if (header) {
         columnKinds = header;
-        if (header.indexOf('points') > header.indexOf('title')) pointsColumnMapped = true;
         if ((globalThis as any).__DEBUG_COLUMNS) console.log('HEADER', JSON.stringify(flat), header);
         continue;
       }

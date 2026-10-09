@@ -350,3 +350,108 @@ describe('transcript accuracy program, Batch A — F3 course-code shapes (2026-1
     assert.deepEqual(cells(mapped, 'CS 103'), ['Calculus 2', 3, 'B'], 'under a Section header the mapped path sees the same tokens');
   });
 });
+
+// ——— The 2026-10-09 review of F1–F3: the regressions and loose ends it found, each probed on HEAD and pinned here ———
+describe('transcript accuracy program, Batch A — review of F1–F3 (2026-10-09)', () => {
+  const term = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.season, row(r, id)?.year];
+  const one = (header: string) => term(doc('Some University', header, 'CS 101   Programming   3   A'), 'CS 101');
+  it('review of F3: an all-capitals term heading with a Roman numeral is a term, never a one-letter-middle course code', () => {
+    assert.deepEqual(one('SEMESTRE I 2019'), ['spring', 2019]);
+    assert.deepEqual(one('CICLO I 2019'), ['spring', 2019]);
+    assert.deepEqual(one('PERIODO I 2019'), ['spring', 2019]);
+    assert.deepEqual(one('TRIMESTER I 2019'), [undefined, 2019], 'a trimester ordinal names no season (as before F3)');
+    assert.deepEqual(one('SEMESTRE I 2019-2020'), ['fall', 2019]);
+    assert.deepEqual(one('Semestre I 2019'), ['spring', 2019]);
+    assert.deepEqual(one('SEMESTER I 2019'), ['spring', 2019]);
+    assert.deepEqual(one('SEMESTRE I DE 2019'), ['spring', 2019]);
+    const two = doc('Some University', 'SEMESTRE I 2019', 'CS 101   Programming   3   A', 'SEMESTRE II 2019', 'CS 102   Data Structures   3   B');
+    assert.deepEqual(term(two, 'CS 101'), ['spring', 2019]);
+    assert.deepEqual(term(two, 'CS 102'), ['fall', 2019], 'the second of two semesters in one calendar year, in calendar order');
+    const code = doc('Some University', 'Fall 2019', 'ENG M 612   Engineering Management   3   A', 'ENG M 2019   Edition Studies   3   B');
+    assert.deepEqual([row(code, 'ENG M 612')?.title, ...term(code, 'ENG M 612')], ['Engineering Management', 'fall', 2019], 'the F3 shape itself still reads');
+    assert.deepEqual([row(code, 'ENG M 2019')?.title, row(code, 'ENG M 2019')?.credits], ['Edition Studies', 3], 'a year-shaped course number with a title after it is a code');
+  });
+  it('review of F2: a term header whose only year is inside its parenthesised date range takes the year the dates give', () => {
+    assert.deepEqual(one('Fall Semester (09/05/2023-12/15/2023)'), ['fall', 2023]);
+    assert.deepEqual(one('Semester 1 (27/02/2023-23/06/2023)'), ['spring', 2023]);
+    assert.deepEqual(one('Semester 2 (24/07/2023-17/11/2023)'), ['fall', 2023], 'was spring 2017 before F2 — the range passed for an academic year');
+    assert.deepEqual(one('Summer Session I (05/15/2023-06/30/2023)'), ['summer', 2023], 'was summer 2006 before F2');
+    assert.deepEqual(one('Winter Term (12/01/2023-03/15/2024)'), ['spring', 2024], 'a winter term that starts in the December before is the later year’s');
+    assert.deepEqual(one('Fall Term (09/01/2023-01/15/2024)'), ['fall', 2023], 'a fall term that ends after New Year is the earlier year’s');
+    assert.deepEqual(one('2023 Fall Semester (09/05/2023-12/15/2023)'), ['fall', 2023], 'Workday’s year outside the range reads as pinned');
+    assert.deepEqual(one('Fall Semester (09/05/23-12/15/23)'), [undefined, undefined], 'a two-digit year is not read: never guess');
+  });
+  it('review of F1a: a sentence or footnote after a bare code or a wrapped title is never the row’s numbers — the grade must be the line’s last grade cell and the added title words hold no function word', () => {
+    const r = doc(
+      'Some University',
+      'Fall 2023',
+      'CS 500   Thesis Research',
+      'Credits applied toward the degree this semester 12   3.5',
+      'CS 501   Independent Study',
+      'Repeated course excluded from degree credit 3   A',
+      'CS 502   Independent Study',
+      'Approved for graduate credit by petition 3   B+',
+      'CS 503   Advanced Topics',
+      'Minimum passing mark in graduate courses is 3   60',
+      'CS 504',
+      'Transferred from partner institution with 3   CR',
+      'CS 505',
+      'Seminar in Computing   1.00   Pass',
+      'CS 506   Advanced Topics in Distributed',
+      'Systems and Cloud Infrastructure Design   3   A',
+      'CS 507   Introduction to Machine',
+      'Learning from Data   3   A',
+    );
+    for (const id of ['CS 500', 'CS 501', 'CS 502', 'CS 503', 'CS 504']) assert.equal(row(r, id), undefined, `${id}: the next line is a sentence, not its numbers`);
+    const cells = (id: string) => [row(r, id)?.title, row(r, id)?.credits, row(r, id)?.grade];
+    assert.deepEqual(cells('CS 505'), ['Seminar in Computing', 1, 'S'], 'a pass word IN the grade cell is the grade');
+    assert.deepEqual(cells('CS 506'), ['Advanced Topics in Distributed Systems and Cloud Infrastructure Design', 3, 'A'], 'the F1a shape itself still reads');
+    assert.deepEqual(cells('CS 507'), ['Introduction to Machine Learning from Data', 3, 'A'], 'three words: the 2026-09-26 numbers-only rule reads a title with "from"');
+  });
+  it('review of F2: the Banner key is bounded — a year off by more than one, a labelled identifier, a key on a course row, or a decode outside the document’s years is refused', () => {
+    const postal = doc('Some University', 'Fall 2021', 'Student identification number and postal code: 201301, admitted for the Spring 2023 intake', '202301   CS 101   Programming   3   A');
+    assert.deepEqual(term(postal, 'CS 101'), ['fall', 2021], 'a postal code beside an entry term (offset −10) is no key: the row keeps its header');
+    const labelled = doc('Some University', 'Student ID 202310   Entry Term Fall 2022', 'Fall 2021', '202310   CS 101   Programming   3   A');
+    assert.deepEqual(term(labelled, 'CS 101'), ['fall', 2021], 'a number the line labels as an ID is no key');
+    const onRow = doc('Some University', 'Fall 2021', 'CS 101   Programming   3   A   Fall 2022 (202310)', '202310   CS 102   Data Structures   3   B');
+    assert.deepEqual(term(onRow, 'CS 102'), ['fall', 2021], 'a course row never carries the key');
+    const farOff = doc(
+      'Some University',
+      'Term codes on this record: 202310 is the Fall 2022 semester of the academic year.',
+      '200010   CS 101   Programming   3   A',
+      '200110   CS 102   Data Structures   3   B',
+      '202310   CS 103   Systems   3   A',
+    );
+    assert.deepEqual(term(farOff, 'CS 101'), [undefined, undefined], 'a decode of 1999 in a document that prints only 2022 is refused');
+    assert.deepEqual(term(farOff, 'CS 102'), [undefined, undefined]);
+    assert.deepEqual(term(farOff, 'CS 103'), ['fall', 2022], 'the key still decodes the code it names');
+    const threeOff = doc('Some University', 'Term codes on this record: 202310 is the Fall 2020 semester of the academic year.', '202310   CS 101   Programming   3   A');
+    assert.deepEqual(term(threeOff, 'CS 101'), [undefined, undefined], 'a code three years off its named year is outside Banner’s convention: no key, no guess');
+  });
+  it('review of F2: the key is read from the whole document before the rows, so a legend printed after them decodes them too', () => {
+    const r = doc(
+      'Some University',
+      '202310   CS 101   Programming   3   A',
+      '202320   CS 102   Data Structures   3   B',
+      'Term codes on this record: 202310 is the Fall 2022 semester, 202320 is the Spring 2023 semester.',
+    );
+    assert.deepEqual(term(r, 'CS 101'), ['fall', 2022]);
+    assert.deepEqual(term(r, 'CS 102'), ['spring', 2023]);
+  });
+  it('review of F1b: the points evidence is the table header in force, not any header the document printed', () => {
+    const r = doc(
+      'Some University',
+      'Course   Title   Credits   Grade   Points',
+      'Fall 2022',
+      'CS 400   Topics   3   A   12.00',
+      'TRANSFER CREDIT',
+      'Course   Title   Credits   Grade',
+      'Fall 2023',
+      'CS 700   Advanced Topics in Computing',
+      '4   16.00',
+    );
+    assert.deepEqual([row(r, 'CS 700')?.credits, row(r, 'CS 700')?.rawGrade], [4, '16.00'], 'the header in force maps no Points column: the number stays the printed grade');
+    const keyed = doc('Some University', 'Course   Title   Credits   Grade   Points', 'Fall 2023', 'CS 700   Advanced Topics in Computing', '4   16.00');
+    assert.deepEqual([row(keyed, 'CS 700')?.credits, row(keyed, 'CS 700')?.rawGrade], [4, undefined], 'under the Points header the number is points');
+  });
+});
