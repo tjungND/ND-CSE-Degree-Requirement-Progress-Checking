@@ -468,3 +468,160 @@ describe('transcript accuracy program, Batch A — new public specimens (2026-10
     assert.equal(r.university, undefined);
   });
 });
+
+// ——— Transcript accuracy program, Batch B (DGS 2026-10-09): F6 header words ———
+// Each header shape below was composed from a registrar's documentation or
+// read from a public specimen (tests/fixtures/public-transcripts/sources.json)
+// and pinned here on a minimal document, so the corpus fixture that depends on
+// it cannot be the only thing holding the rule.
+describe('transcript accuracy program, Batch B — F6 header words (2026-10-09)', () => {
+  const cells = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.title, row(r, id)?.credits, row(r, id)?.grade ?? row(r, id)?.rawGrade];
+  const term = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.season, row(r, id)?.year];
+  const MINERVA = ['Subject   Number   Title   Cr. / C.E.U. Grade   Remarks Earned   Class', 'Avg.'];
+  it('Minerva: a header cell holding two words of different kinds is two columns ("Cr. / C.E.U. Grade", "Remarks Earned"); the section number and the class average never reach the row', () => {
+    const r = doc(
+      'Some University',
+      ...MINERVA,
+      'Fall 2024',
+      'COMP 202   001 Foundations of Programming   3   A   3   B',
+      'MATH 140   001 Calculus 1   3   A-   3   B',
+      'COMP 251   001 Algorithms and Data Structures   3   A   I   3   B',
+      'MATH 222   001 Calculus 3   3   B   E   0   B',
+      'BIOL 111   001 Principles: Organismal Biology   3   B+   EXC   0   B',
+      'COMP 302   001 Programming Lang & Paradigms   3   ZZ   3',
+      'COMP 303   001 Software Design   TBA   A   NaN   B',
+      'MATH 133   001 Linear Algebra and Geometry   3   W   0',
+    );
+    assert.deepEqual(cells(r, 'COMP 202'), ['Foundations of Programming', 3, 'A']);
+    assert.deepEqual(cells(r, 'MATH 140'), ['Calculus 1', 3, 'A-'], 'the title keeps its digit: a fit that reads it as the credits and the credits as a numeric grade with the letter grade left over costs more');
+    assert.deepEqual(cells(r, 'COMP 251'), ['Algorithms and Data Structures', 3, 'A'], 'a Remarks cell between the grade and the earned units');
+    assert.deepEqual(cells(r, 'MATH 222'), ['Calculus 3', 3, 'B']);
+    assert.deepEqual(cells(r, 'BIOL 111'), ['Principles: Organismal Biology', 3, 'B+']);
+    assert.deepEqual(cells(r, 'COMP 302'), ['Programming Lang & Paradigms', 3, 'ZZ']);
+    assert.deepEqual(cells(r, 'COMP 303'), ['Software Design', undefined, 'A'], 'TBA credits and NaN earned units are empty cells, never a grade');
+    assert.deepEqual(cells(r, 'MATH 133'), ['Linear Algebra and Geometry', 3, 'W']);
+  });
+  it('Minerva: a registered row with no grade under a header whose grade column has held only letters keeps its trailing digit in the title and reads the last number as the credits', () => {
+    const lettered = doc('Some University', ...MINERVA, 'Fall 2025', 'ECSE 200   001 Electric Circuits 1   3   A-   3   B', 'Fall 2026', 'RW   ECSE 210   001 Electric Circuits 2   3');
+    assert.deepEqual(cells(lettered, 'ECSE 210'), ['Electric Circuits 2', 3, undefined]);
+    // The first row of a table carries no such evidence: the recorded rule
+    // (2026-09-26, F1c) reads the integer as the credits and the number as a grade.
+    const first = doc('Some University', ...MINERVA, 'Fall 2026', 'RW   ECSE 210   001 Electric Circuits 2   3');
+    assert.deepEqual(cells(first, 'ECSE 210'), ['Electric Circuits', 2, '3']);
+  });
+  it('Alberta: a header printed on two lines is joined column by column when every joined pair is a header word, and the class statistics are skipped', () => {
+    const r = doc(
+      'UNIVERSITY OF ALBERTA - UNOFFICIAL RECORD',
+      'Winter Term 2019   Master of Engineering (Crse)',
+      'Grade   Units   Units   Grade   Class   Class',
+      'Course   Description   Remark   Taken   Passed   Points   Avg   Enrl',
+      'ECE   541   DIGITAL SIGNAL PROCESSING   B   3.0   3.0   9.00   3.3   19',
+      'ENGG   600   ENG ETHICS AND PROFESSIONALISM   CR   0.5   0.5   0.00   XXX   170',
+      'ECE   910A   DIRECTED RESEARCH PROJECT   IP   0.0   0.0   0.00   XXX   32',
+      'TOTALS   9.5   9.5   27.90',
+    );
+    assert.deepEqual(cells(r, 'ECE 541'), ['DIGITAL SIGNAL PROCESSING', 3, 'B']);
+    assert.deepEqual(cells(r, 'ENGG 600'), ['ENG ETHICS AND PROFESSIONALISM', 0.5, 'S'], 'CR is a pass (the legend: "grades of CR have met the requirements")');
+    assert.deepEqual(cells(r, 'ECE 910A'), ['DIRECTED RESEARCH PROJECT', 0, 'IP']);
+    assert.equal(r.courses.length, 3, 'the TOTALS line is no row');
+    // The upper line is not joined to a line whose pairs are not header words.
+    const apart = doc('Some University', 'Fall 2023', 'Grade   Grade   Class   Class', 'Course   Title   Credits   Grade', 'CS 500   Topics   3   A');
+    assert.deepEqual(cells(apart, 'CS 500'), ['Topics', 3, 'A']);
+  });
+  it('Workday: "Course Listing" opens the code and title column, the grade column before the units may be empty on an in-progress row, and a numeric grade stays one when the numbers after it do not fill their columns', () => {
+    const r = doc(
+      'Some University',
+      'Fall 2024',
+      'Course Listing   Grade   Units   Earned   Grade Points',
+      'CPSC 540 - Machine Learning   W   3.00   0.00   0.00',
+      "CPSC 549 - Master's Thesis   T   12.00   0.00   0.00",
+      'CPSC 554K - Topics in Human-Computer Interaction   SD   3.00   0.00   0.00',
+      'CPSC 539L - Topics in Programming Languages   3.00   0.00   0.00',
+      'CPSC 500 - Fundamentals of Algorithm Design and Analysis   A   3.00   3.00   12.00',
+    );
+    assert.deepEqual(cells(r, 'CPSC 540'), ['Machine Learning', 3, 'W']);
+    assert.deepEqual(cells(r, 'CPSC 549'), ["Master's Thesis", 12, 'T']);
+    assert.deepEqual(cells(r, 'CPSC 554K'), ['Topics in Human-Computer Interaction', 3, 'SD']);
+    assert.deepEqual(cells(r, 'CPSC 539L'), ['Topics in Programming Languages', 3, undefined], 'three numbers, three numeric columns after the grade: the grade is empty');
+    assert.deepEqual(cells(r, 'CPSC 500'), ['Fundamentals of Algorithm Design and Analysis', 3, 'A']);
+    const numeric = doc('Some University', 'Fall 2024', 'Course   Title   Grade   Units', 'CS 500   Topics   3.5   3.00', 'CS 501   Seminar   3.00');
+    assert.deepEqual(cells(numeric, 'CS 500'), ['Topics', 3, '3.5'], 'two numbers for one numeric column: the first is the grade');
+    assert.deepEqual(cells(numeric, 'CS 501'), ['Seminar', 3, undefined], 'one number for one numeric column: the grade is empty');
+  });
+  it('McMaster: "TM" is the term of the session (1 = fall of its first year, 2 = spring of its second, 3 = summer) and "MEDIAN" is a class statistic with its class size', () => {
+    const r = doc(
+      'McMASTER UNIVERSITY',
+      'FALL/WINTER 2023-2024   Level 4',
+      'COURSE   DESCRIPTION   TM   UNITS   GRADE   MEDIAN',
+      'CAS 701   Logic and Discrete Mathematics in Software Engineering   1   3   A+   B+ (12)',
+      'CAS 791   M.A.Sc. Thesis   2   0   IP',
+      'SPRING/SUMMER 2021',
+      'COURSE   DESCRIPTION   TM   UNITS   GRADE   MEDIAN',
+      'CAS 702   Data Science and Machine Learning   3   3   B   C+ (62)',
+      'TM: term in which the course was taken.  MEDIAN: median grade and number of students in the course.',
+    );
+    assert.deepEqual(cells(r, 'CAS 701'), ['Logic and Discrete Mathematics in Software Engineering', 3, 'A']);
+    assert.deepEqual(term(r, 'CAS 701'), ['fall', 2023]);
+    assert.deepEqual(cells(r, 'CAS 791'), ['M.A.Sc. Thesis', 0, 'IP']);
+    assert.deepEqual(term(r, 'CAS 791'), ['spring', 2024]);
+    assert.deepEqual(cells(r, 'CAS 702'), ['Data Science and Machine Learning', 3, 'B']);
+    assert.deepEqual(term(r, 'CAS 702'), ['summer', 2021]);
+    // The serial number before a code ("No.   Course Code …") is never a term ordinal.
+    const serial = doc('Some University', 'Fall 2022', 'No.   Course Code   Course Title   Credits   Grade', '2   CS 500   Topics   3   A');
+    assert.deepEqual(term(serial, 'CS 500'), ['fall', 2022]);
+  });
+  it('Sabanci: LEVEL, SU CREDIT, QUALITY POINT, ECTS CREDIT and REPEAT map — the local credits, not the ECTS, are the row’s', () => {
+    const r = doc(
+      'SABANCI UNIVERSITY',
+      '2019-2020 FALL',
+      'COURSE CODE   COURSE TITLE   LEVEL   GRADE   SU CREDIT   QUALITY POINT   ECTS CREDIT   REPEAT',
+      'CS 201   Introduction to Computing   UG   A-   3.00   11.10   6.00',
+      'AL 102   Academic Literacies   UG   S   0.00   0.00   3.00',
+      'MATH 102   Calculus II   UG   B   3.00   9.00   6.00   R',
+      'CS 502   Advanced Algorithms   GR   A   3.00   12.00   10.00',
+    );
+    assert.deepEqual(cells(r, 'CS 201'), ['Introduction to Computing', 3, 'A-']);
+    assert.equal(row(r, 'CS 201')?.level, 'undergraduate');
+    assert.deepEqual(cells(r, 'AL 102'), ['Academic Literacies', 0, 'S']);
+    assert.deepEqual(cells(r, 'MATH 102'), ['Calculus II', 3, 'B']);
+    assert.deepEqual(cells(r, 'CS 502'), ['Advanced Algorithms', 3, 'A']);
+    assert.equal(row(r, 'CS 502')?.level, 'graduate');
+  });
+  it('IIT grade card: "Subno" is the code, "L-T-P" a workload cell that holds "3-1-0", "CRD" the credits and "GRD" the grade', () => {
+    const r = doc('INDIAN INSTITUTE OF TECHNOLOGY KHARAGPUR', 'Semester Autumn 2022', 'Subno   Name   L-T-P   CRD   GRD', 'CS10001   Programming and Data Structures   3-1-0   4   EX', 'CS19001   Programming and Data Structures Laboratory   0-0-3   2   A');
+    assert.deepEqual(cells(r, 'CS 10001'), ['Programming and Data Structures', 4, 'EX']);
+    assert.deepEqual(cells(r, 'CS 19001'), ['Programming and Data Structures Laboratory', 2, 'A']);
+  });
+  it('HEC: "CH" is the credit hours and "GPs" the points, so a withdrawn or incomplete row keeps its credits; "CH" beside a real credits word is the workload', () => {
+    const hec = doc('UNIVERSITY OF ENGINEERING AND TECHNOLOGY LAHORE', 'Semester: Spring 2020 (10-02-2020 to 26-06-2020)', 'Course Code   Course Title   CH   Grade   GPs', 'CS-202   Discrete Structures   3   W   -', 'IS-101   Islamic Studies   2   I   -', 'CS-201   Object Oriented Programming   4   B   12.00');
+    assert.deepEqual(cells(hec, 'CS 202'), ['Discrete Structures', 3, 'W']);
+    assert.deepEqual(cells(hec, 'IS 101'), ['Islamic Studies', 2, 'I']);
+    assert.deepEqual(cells(hec, 'CS 201'), ['Object Oriented Programming', 4, 'B']);
+    const hours = doc('Universidade Exemplo', 'Período Letivo 2022/1', 'Código   Disciplina   CH   Créditos   Nota', 'MAT 101   Cálculo I   60   4   8.5');
+    assert.deepEqual(cells(hours, 'MAT 101'), ['Cálculo I', 4, '8.5']);
+  });
+  it('SNU: a "Classification" column after a grade column is a course-type cell, not a second grade', () => {
+    const r = doc('SEOUL NATIONAL UNIVERSITY', '1st Semester, 2022', 'Course No.   Course Title   Credits   Grade   Classification', 'CS 501   Theory of Computation   3   A0   Major Required', 'CS 502   Research in Computer Science   1   S   Research', 'CS 503   Advanced Algorithms   3   B+   Major Elective');
+    assert.deepEqual(cells(r, 'CS 501'), ['Theory of Computation', 3, 'A']);
+    assert.deepEqual(cells(r, 'CS 502'), ['Research in Computer Science', 1, 'S']);
+    assert.deepEqual(cells(r, 'CS 503'), ['Advanced Algorithms', 3, 'B+']);
+  });
+  it('Ladok: "Scope" is the credits with its "hp" unit, "Date" an ISO date that places the row, and a one-letter last title word stays in the title', () => {
+    const r = doc('LUND UNIVERSITY   Official transcript of records', 'Completed courses', 'Code   Name   Scope   Grade   Date   Note', 'EDAG01   Efficient C   7.5 hp   3   2025-01-14', 'EDAN20   Language Technology   7.5 hp   4   2023-10-27', 'EDAN95   Applied Machine Learning   7.5 hp   G   2024-01-12');
+    assert.deepEqual(cells(r, 'EDAG 01'), ['Efficient C', 7.5, '3']);
+    assert.deepEqual(term(r, 'EDAG 01'), ['spring', 2025]);
+    assert.deepEqual(cells(r, 'EDAN 20'), ['Language Technology', 7.5, '4']);
+    assert.deepEqual(term(r, 'EDAN 20'), ['fall', 2023]);
+    assert.deepEqual(cells(r, 'EDAN 95'), ['Applied Machine Learning', 7.5, 'G']);
+  });
+  it('Western: "UNTS", "GRD", "AVG" and "SIZ" map; a Roman numeral ending the title is never the grade, and a statistic is never filled while the credits stay empty', () => {
+    const r = doc('THE UNIVERSITY OF WESTERN ONTARIO', 'FALL/WINTER 2019-2020   Year 1', 'COURSE   TITLE   UNTS   GRD   AVG   SIZ', 'ENGSCI 1050   Foundations of Engineering Practice   1.00   78   72   623', 'PHYSICS 1402B   Physics for Engineering Students II   0.50   WDN', 'CALCULUS 1000A   Calculus I   0.50   DEF');
+    assert.deepEqual(cells(r, 'ENGSCI 1050'), ['Foundations of Engineering Practice', 1, '78']);
+    assert.deepEqual(cells(r, 'PHYSICS 1402B'), ['Physics for Engineering Students II', 0.5, 'WDN']);
+    assert.deepEqual(cells(r, 'CALCULUS 1000A'), ['Calculus I', 0.5, 'DEF']);
+  });
+  it('Marquette / Utah: "CR" after the earned units is the grade Credit, never a unit word', () => {
+    const r = doc('Marquette University', 'Spring 2018', 'Course   Description   Attempted   Earned   Grade   Points', 'COSC 6560   Cloud Computing   3.00   3.00   CR   0.000');
+    assert.deepEqual(cells(r, 'COSC 6560'), ['Cloud Computing', 3, 'S']);
+  });
+});

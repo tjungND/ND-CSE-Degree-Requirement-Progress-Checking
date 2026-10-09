@@ -16,54 +16,26 @@
   "TH02 \u2014 DGS decision: Thailand's 'First Semester 2022' runs August\u2013December (the calendar-order rule reads it as the spring)"
  ],
  "pdf-alberta-crnc-sample": [
-  "F6 (Batch B) \u2014 PeopleSoft SQR's two-line header (Grade Remark / Units Taken / Units Passed / Grade Points / Class Avg / Class Enrl) is not mapped: the title swallows the grade and units, the points or the class size read as the credits, and ten rows are lost",
-  "F4 (Batch B) \u2014 page 2's header loses its 'Units' / 'Taken' runs in layout.ts dropWatermarks: the short-word rule (>= 8 occurrences at >= 4 x positions) counts the header word (5 headers x 2 columns) together with the GPA lines' 'units taken' at three more x positions, and drops the header runs; page 1 has one GPA x position fewer and keeps them"
+  "F4 (Batch B) \u2014 page 2's header loses its 'Units' / 'Taken' runs in layout.ts dropWatermarks: the short-word rule (>= 8 occurrences at >= 4 x positions) counts the header word (5 headers x 2 columns) together with the GPA lines' 'units taken' at three more x positions, and drops the header runs; page 1 has one GPA x position fewer and keeps them \u2014 page 1 reads exact since F6 (the two-line header join), page 2's rows go through the position-free scan until the layout fix lands and the pinned lines are regenerated from the PDF"
  ],
  "pdf-evergreen-sample-raa": [
   "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column",
   "F5 (Batch B) \u2014 the TRANSFER CREDIT block's 'University of Washington' is read as the university (and campus system) instead of 'The Evergreen State College'"
  ],
- "pdf-mcgill-minerva-simple-record": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
- ],
- "pdf-mcgill-minerva-registered-courses": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
- ],
- "pdf-mcgill-minerva-pass-fail": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
- ],
- "pdf-mcgill-minerva-failures": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
- ],
- "pdf-mcgill-minerva-deferred-grades": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
- ],
- "pdf-mcgill-minerva-remarks-and-unknown-lines": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
-  "F6 (Batch B) \u2014 the Remarks cell (I / E / A / EXC) between the grade and Earned is not mapped; 'TBA' credits read as the grade"
- ],
  "pdf-mcgill-minerva-transfer-credits": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
   "F5 (Batch B) \u2014 the Credits/Exemptions block ('From: Dawson College - 24 credits', 'COMP 202   EXC', 'MATH 140   3') reads as course rows and its source line as the university"
  ],
  "pdf-mcgill-minerva-multi-term-courses": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
   "F3 (Batch B) \u2014 the multi-term mark (a Wingdings diamond, or '\u00b2' when the font is missing) after the course number leaves ' 001' / '\u00b2 001' in the title"
  ],
- "pdf-mcgill-minerva-long-record": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title"
- ],
  "pdf-mcgill-minerva-cegep-engineering": [
-  "F6 (Batch B) \u2014 Minerva's header (Subject / Number / Title / Cr. / C.E.U. / Grade / Remarks / Earned / Class Avg.) is not mapped: a row's Earned and Class Avg. cells read as the credits and grade and the printed credits and grade join the title",
-  "F5 (Batch B) \u2014 the Credits/Exemptions block ('From: Vanier College - 25 credits', 'COMP 202   EXC') reads as course rows and its source line as the university",
-  "F1c (Batch B) \u2014 'Electric Circuits 2   3' (registered, no grade, header unmapped) reads credits 2 and grade 3"
+  "F5 (Batch B) \u2014 the Credits/Exemptions block ('From: Vanier College - 25 credits', 'COMP 202   EXC') reads as course rows and its source line as the university"
  ],
  "pdf-mcgill-minerva-not-a-transcript": [
   "Batch B \u2014 no 'is this a transcript at all' gate: a course outline's one line ('COMP 250   001 Intro to Computer Science   3') reads as a course row; the McGill project refuses the page because its header never says Transcript"
  ],
  "workday-student-ubc": [
-  "F2 (Batch B) \u2014 the Workday period header '2024-25 Winter Term 1 (09/03/2024-12/20/2024)' reads as spring of the range's END year although its dates (and UBC's Term 1) say fall: rows 1-5 read spring 2025, want fall 2024 (ten rows in all)",
-  "F6 (Batch B) \u2014 'Course Listing' is not a known header word, so the rows go through the position-free scan: W / T / SD join the title and the Earned 0.00 reads as the grade ('Machine Learning W | 3 | 0.00', want 'Machine Learning | 3 | W'); the two in-progress rows read grade 0.00, want ?"
+  "F2 (Batch B) \u2014 the Workday period header '2024-25 Winter Term 1 (09/03/2024-12/20/2024)' reads as spring of the range's END year although its dates (and UBC's Term 1) say fall: rows 1-5 read spring 2025, want fall 2024 (ten rows in all)"
  ],
  "colleague-lesley-style": [
   "F5 (Batch B) \u2014 Colleague's transfer rows (grade TR, no 'Transfer Credit' heading before them) read as course rows: 'MATH 1200 | Calculus I | 4 | TR' and 'CSCIE 1100 | Introduction to Computer Science | 3 | TR' are read ahead of the 23 expected rows (25 read)",
@@ -85,24 +57,20 @@
   "F5 (Batch B) \u2014 the eScrip-Safe cover sheet's 'Official Academic Transcript from Binghamton University' heading is read as the university ('Academic Transcript from Binghamton University'), so the SUNY campus resolution is lost (campusSystem and campus null); its 'Receiver Information' and 'To: University of Notre Dame' margin lines make looksLikeNotreDame true; all 16 rows exact"
  ],
  "mcmaster-mosaic": [
-  "F3 (Batch B) \u2014 McMaster's digit-letter-digit course numbers ('COMPSCI 1MD3', 'SFWRENG 4G06A/B', 'COMPSCI 6F03') are not codes to leadCode: 27 of the 31 rows yield no row at all (only the CAS 701 / 790 / 791 rows read)",
-  "F6 (Batch B) \u2014 the TM and MEDIAN header words are unmapped: 'CAS 701' reads title 'Logic and Discrete Mathematics in Software Engineering 1 3 A+', credits 12 (the MEDIAN cell's class size) and no grade; TM = 2 must read the session's winter = spring ('CAS 791 \u2026 IP' reads fall 2023, want spring 2024)"
+  "F3 (Batch B) \u2014 McMaster's digit-letter-digit course numbers ('COMPSCI 1MD3', 'SFWRENG 4G06A/B', 'COMPSCI 6F03') are not codes to leadCode: 27 of the 31 rows yield no row at all (only the CAS 701 / 790 / 791 rows read)"
  ],
  "western-ontario-rows": [
   "new (Batch B): Western's course-number suffix letter decides the term inside a FALL/WINTER session (A / Q / R / F = first term = fall, B = second term = spring) and nothing in readTermLine reads a row's suffix: the nine B-suffix rows read the session's fall ('MATH 1600B | Linear Algebra I | 0.5 | 71 | fall 2019', want spring 2020); the other 25 rows exact"
  ],
  "ladok-verifiable": [
-  "F1 (Batch B) \u2014 a one-letter last title word is read as the grade ahead of the printed mark: 'EDAG01   Efficient C   7.5 hp   3   2025-01-14' reads title 'Efficient' with grade 'C' (want 'Efficient C', grade 3)",
   "new (Batch B): Ladok's module lines \u2014 a 4-digit module code under its course ('0107   Project report   4.5 hp   G', '0207   Oral presentation   3.0 hp   G') \u2014 read as course rows (18 rows read, 16 expected)",
   "new (Batch B): the Degrees block's 'Degree of Master of Science (120 credits) \u2026   Date of issue:   2025-06-27' is a conferral CONFER_RE does not read ('Date of issue' is not an award word): degreeConferred null, want true"
  ],
  "snu-english-transcript": [
   "F3 (Batch B) \u2014 SNU's dotted course numbers are not read as codes: '4190.669' reads id '4190' (the '.669' dropped) and the six 'M1522.001000' rows are lost entirely (10 rows read of 16)",
-  "F6 (Batch B) \u2014 the Classification column after the grade is unmapped and joins the title ('Computer Architecture and Compiler Major Elective', 'Research in Computer Science Research')",
-  "F1c (Batch B) \u2014 a title ending in a digit loses it to the credits: '4190.701   Research in Computer Science 2   3   U' reads credits 2"
+  "F1c (Batch B) \u2014 a title ending in a digit loses it to the credits: '4190.701   Research in Computer Science 2   3   U' reads credits 2 \u2014 the F6 header mapping (the Classification column is a course-type cell since 2026-10-09) reads such a row right once the F3 code shape lands; re-check then"
  ],
  "sabanci-dual-credit": [
-  "F6 (Batch B) \u2014 Sabanci's header words LEVEL / SU CREDIT / QUALITY POINT / ECTS CREDIT / REPEAT are not mapped: the LEVEL and GRADE cells join the title ('Introduction to Computing UG A-'), the ECTS CREDIT reads as the credits (6, want 3) and the SU CREDIT '3.00' as the grade \u2014 all 29 rows",
   "open question (g) \u2014 the legend-defined P (Progressing) on 'CS 593   Master Thesis' must read IP, not the pass S a bare P means, once the header maps"
  ],
  "ukraine-supplement": [
@@ -112,12 +80,6 @@
  "algeria-lmd-releve": [
   "CC15 \u2014 DGS decision: the 16 mati\u00e8re rows are code-less and are imported with an empty id box (0 rows read today; the UE lines' 'UEF 1.1' codes open no false row)",
   "new (Batch B): French LMD headings 'Note / Cr\u00e9dits / session', decimal-comma marks ('14,50', '09,75'), 'Semestre I' / 'Semestre II' under 'Ann\u00e9e Universitaire : 2022/2023', and the UE line carrying its first mati\u00e8re"
- ],
- "iit-grade-card": [
-  "F6 (Batch B) \u2014 the L-T-P column (mapped as workload) holds '3-1-0', not a number, so the header-mapped scan rejects every row and the position-free scan keeps '3-1-0' in the title and drops the CRD credits ('Programming and Data Structures 3-1-0 | ?', want '\u2026 | 4') \u2014 all 21 rows; 'Subno' is not a known code header word (the fallback still reads the code)"
- ],
- "pakistan-hec-semester": [
-  "F6 (Batch B) \u2014 'CH' (credit hours in HEC / NUST / UET usage) maps to the workload kind, so no credits column is mapped: a W / I / WF / IP row loses its credits ('CS 202 | Discrete Structures | ? | W', want 3; four rows) where a letter-grade row recovers them through the position-free scan"
  ],
  "bangladesh-private-university": [
   "new (Batch B): trimester evidence outside the two shapes the 2026-09-20 rule reads ('<season> Trimester <year>' header, 'Trimester units/credits' heading) \u2014 the 'Trimester GPA' totals label and the legend's 'three academic terms in each academic year in the trimester system' sentence do not set trimesterSystem (null, want true); the DGS decides whether these count; all 24 rows exact"

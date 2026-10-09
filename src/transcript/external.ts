@@ -453,24 +453,41 @@ function asCreditsWide(token: string): number | undefined {
  * 2026-09-26): marks columns before the grade (Indian universities), the
  * grade before the credits (Banner Self-Service), attempted/earned pairs
  * (PeopleSoft), ECTS beside a local grade (Europe), a level or type cell. */
-type ColumnKind = 'code' | 'title' | 'credits' | 'ects' | 'attempted' | 'earned' | 'grade' | 'points' | 'mark' | 'level' | 'flag' | 'term' | 'serial' | 'workload' | 'duration';
+// 'stat' (F6, transcript accuracy program, 2026-10-09): a class statistic
+// beside the row — Alberta's "Class Avg" / "Class Enrl", Minerva's "Class
+// Avg.", McMaster's "MEDIAN" ("B+ (242)": the median grade and the class
+// size) — a number, a grade, a placeholder or a parenthesised count that says
+// nothing about the student's own result.
+type ColumnKind = 'code' | 'title' | 'credits' | 'ects' | 'attempted' | 'earned' | 'grade' | 'points' | 'mark' | 'level' | 'flag' | 'term' | 'serial' | 'workload' | 'duration' | 'stat';
 
 const COLUMN_KIND_RES: readonly (readonly [ColumnKind, RegExp])[] = [
   ['serial', /^(?:s\.?\s*)?(?:no\.?|sl\.?\s*no\.?|sr\.?\s*no\.?|#|s\.?\s*n\.?)$/i],
-  ['term', /^(?:term|semester|session|period|periodo|período|date|year|academic\s*year|semester\s*ending\s*date|quarter|exam\s*(?:period|month|date)|month\s*&?\s*year|announced\s*on|declared\s*on|date\s*of\s*result|result\s*date|completed|month\/year|pr[üu]fungsdatum|datum|fecha|data|semestre|per[ií]odo\s*letivo)$/i],
-  ['code', /^(?:course|subject|subj\.?|subject\s*code|course\s*(?:code|id|no\.?|number|num\.?|unit\s*code)|code|kode(?:\s*\/\s*code)?|no\.?|number|cat\.?\s*no\.?|ref\.?|clave|código|codigo|course\s*unit|crs\.?(?:\s*no\.?)?|crse(?:\s*no\.?)?|dept\s*crs|modulnummer|modul-?nr\.?|modul\s*no\.?|kennung)$/i],
+  // "TM" (F6, 2026-10-09): McMaster's term-of-session ordinal column.
+  ['term', /^(?:term|tm|semester|session|period|periodo|período|date|year|academic\s*year|semester\s*ending\s*date|quarter|exam\s*(?:period|month|date)|month\s*&?\s*year|announced\s*on|declared\s*on|date\s*of\s*result|result\s*date|completed|month\/year|pr[üu]fungsdatum|datum|fecha|data|semestre|per[ií]odo\s*letivo)$/i],
+  ['code', /^(?:course|subject|subj\.?|subject\s*code|course\s*(?:code|id|no\.?|number|num\.?|unit\s*code|listing)|subno|sub\.?\s*no\.?|subject\s*no\.?|code|kode(?:\s*\/\s*code)?|no\.?|number|cat\.?\s*no\.?|ref\.?|clave|código|codigo|course\s*unit|crs\.?(?:\s*no\.?)?|crse(?:\s*no\.?)?|dept\s*crs|modulnummer|modul-?nr\.?|modul\s*no\.?|kennung)$/i],
   ['title', /(?:title|name|description|nama|titre|denominaci|disciplina|asignatura|materia|curso|course\s*unit\s*name|subject\s*name|unit\s*of\s*study|modul(?!nummer|-?nr|\s*no)|module|lehrveranstaltung)/i],
   ['flag', /^(?:r|rpt|repeat(?:ed)?|h|flag|notes?|remarks?|type|course\s*type|category|status|exam\s*type|tipo(?:\s*de\s*examen)?|mode|comments?|excl\.?|incl\.?|situa[çc][aã]o|section|sec\.?|instructor|room|days|time|campus|component|delivery|part|option|classification\s*code|core\/elective|elective\/core|resit|pass\/fail|p\/f|honor\s*code|notation|code)$/i],
   ['mark', /(?:marks?|mrk|score|internals?|externals?|total|theor(?:y|etical)|practical|term\s*work|assessment|exam(?:ination)?|full|max|obtained|nota\b|média|media\b|promedio|calif|punt|out\s*of)/i],
   ['attempted', /(?:attempt|taken|enrol|registered|inscri)/i],
   ['earned', /(?:earned|passed|aprobad|obtid|erworben)/i],
-  ['points', /^(?:(?:quality|grade|honor|gpa)\s*(?:points?|pts?)|q\.?\s*pts?|g\.?\s*pts?|gp|pts?|points?|qpts?|gpa\s*hrs?|gpa|c\s*\*\s*g|cxg|credit\s*x\s*grade|credits?\s*\*\s*(?:grade\s*)?points?)$/i],
-  ['workload', /^(?:ch|carga\s*hor[aá]ria|workload|contact\s*hours|hours\s*per\s*week|lecture\s*hours|l-t-p|ltp|wochenstunden|sws|freq\.?|frequ[êe]ncia|attendance|presença|asistencia)$/i],
+  ['points', /^(?:(?:quality|grade|honor|gpa)\s*(?:points?|pts?)|q\.?\s*pts?|g\.?\s*pts?|gps?|pts?|points?|qpts?|gpa\s*hrs?|gpa|c\s*\*\s*g|cxg|credit\s*x\s*grade|credits?\s*\*\s*(?:grade\s*)?points?)$/i],
+  // "CH" left this list for the credits (F6, 2026-10-09): HEC / NUST / UET
+  // transcripts print credit hours as CH; a second credits cell beside it is
+  // handled below (readColumnHeader).
+  ['workload', /^(?:carga\s*hor[aá]ria|workload|contact\s*hours|hours\s*per\s*week|lecture\s*hours|l-t-p|ltp|wochenstunden|sws|freq\.?|frequ[êe]ncia|attendance|presença|asistencia)$/i],
   ['duration', /^duration/i],
   ['ects', /^(?:ects(?:\s*credits?)?|ects\s*cr\.?|credit\s*\(?ects\)?)$/i],
-  ['credits', /^(?:credits?|cr\.?|crd|crds|cr\.?\s*hrs?\.?|hrs?\.?|hours|credit\s*(?:hours?|hrs?|value|units?|points?|weight)|units?|cu|course\s*units?|unit\s*value|sem\.?\s*hrs?|semester\s*(?:hours?|credits?)|quarter\s*(?:units?|hours?|hrs?)|sks(?:\s*\/\s*credits?)?|weight|wgt|units?\s*of\s*credit|cp|cfu|créditos?(?:\s+(?:aula|trabalho))?|creditos?|crédits?|kredit|c)$/i],
-  ['grade', /^(?:grade|grd|gr|letter\s*grade|final\s*grade|results?|outcome|nilai(?:\s*\/\s*grade)?|grado|voto|calificaci[oó]n|betyg|karakter|note|conceito|grade\s*letter|grade\s*\(?letter\)?|local\s*grade|ects\s*grade|honor|honou?rs|classification)$/i],
+  // F6 (2026-10-09): Sabanci's "SU CREDIT", Minerva's "C.E.U." (continuing-
+  // education units, printed beside "Cr."), HEC's "CH" (credit hours).
+  // Ladok's "Scope" (Swedish omfattning) is the course's credits (F6).
+  ['credits', /^(?:credits?|cr\.?|crd|crds|unts|scope|omfattning|su\s*credits?|c\.?e\.?u\.?s?|ch|cr\.?\s*hrs?\.?|hrs?\.?|hours|credit\s*(?:hours?|hrs?|value|units?|points?|weight)|units?|cu|course\s*units?|unit\s*value|sem\.?\s*hrs?|semester\s*(?:hours?|credits?)|quarter\s*(?:units?|hours?|hrs?)|sks(?:\s*\/\s*credits?)?|weight|wgt|units?\s*of\s*credit|cp|cfu|créditos?(?:\s+(?:aula|trabalho))?|creditos?|crédits?|kredit|c)$/i],
+  // "Grade Remark" (F6, 2026-10-09): Alberta's grade column, two words.
+  ['grade', /^(?:grade|grd|gr|letter\s*grade|grade\s*remarks?|final\s*grade|results?|outcome|nilai(?:\s*\/\s*grade)?|grado|voto|calificaci[oó]n|betyg|karakter|note|conceito|grade\s*letter|grade\s*\(?letter\)?|local\s*grade|ects\s*grade|honor|honou?rs|classification)$/i],
+  // ("FHEQ Level" stays a flag column: a framework level 7 module in an
+  // integrated master's year is still undergraduate work — F6 review, 2026-10-09.)
   ['level', /^(?:level|lvl|career|academic\s*career|ug\/gr|course\s*level)$/i],
+  // Western's "AVG" and "SIZ" (class average and size) beside its "UNTS".
+  ['stat', /^(?:class(?:\s*(?:avg\.?|average|enrl\.?|enrol(?:l)?ment|size|rank|median))?|median|avg\.?|average|siz|size|enrl\.?)$/i],
 ];
 
 /** The kinds of a header line, in column order — or undefined when the line
@@ -480,24 +497,76 @@ const COLUMN_KIND_RES: readonly (readonly [ColumnKind, RegExp])[] = [
 /** The header's cell texts, kept beside the kinds (Sharif "Theoretical /
  * Practical" are credit hours, not marks, when no credits column exists). */
 let lastHeaderCells: string[] = [];
-function readColumnHeader(flat: string): ColumnKind[] | undefined {
-  const cells = flat.split(/\s{2,}/).map((c) => c.trim().replace(/[.:]+$/, '')).filter((c) => c.length > 0);
-  if (cells.length < 3 || cells.length > 14) return undefined;
-  if (cells.some((c) => /\d{3,}/.test(c))) return undefined; // a row, a date, a code
-  let known = 0;
-  const kinds: ColumnKind[] = cells.map((cell) => {
-    // "Credits (ECTS)", "Grade (Letter)", "Score (10)" — the parenthesis
-    // qualifies the column, it does not rename it; a slash joins two languages
-    // ("Kode / Code") and the first half decides.
-    const head = cell.replace(/\s*\(.*\)\s*$/, '').split(/\s*\/\s*/)[0]!.trim();
+/** The kind ONE header cell names, read the way readColumnHeader always has
+ * (2026-09-26): "Credits (ECTS)", "Grade (Letter)", "Score (10)" — the
+ * parenthesis qualifies the column, it does not rename it; a slash joins two
+ * languages ("Kode / Code") and the first half decides — since F6 (2026-10-09)
+ * only when every other half is itself a header word, so Minerva's "Cr. /
+ * C.E.U. Grade" is not cut at its slash. `anchored` says the pattern named the
+ * cell as a whole; the title, mark, attempted and earned patterns match a
+ * word inside the cell ("Course Title", "Internal Marks", "Units Taken"). */
+function cellKind(cell: string): { kind: ColumnKind; anchored: boolean } | undefined {
+  const trimmed = cell.replace(/\s*\(.*\)\s*$/, '').trim();
+  const halves = trimmed.split(/\s*\/\s*/);
+  const match = (text: string): { kind: ColumnKind; anchored: boolean } | undefined => {
     for (const [kind, re] of COLUMN_KIND_RES) {
-      if (re.test(head) || (kind === 'title' && re.test(cell)) || (kind === 'mark' && re.test(cell) && !/credit|unit|hour|grade|point/i.test(cell))) {
-        known += 1;
-        return kind;
+      if (re.test(text) || (kind === 'title' && re.test(cell)) || (kind === 'mark' && re.test(cell) && !/credit|unit|hour|grade|point/i.test(cell))) {
+        return { kind, anchored: re.source.startsWith('^') };
       }
     }
-    return 'flag';
-  });
+    return undefined;
+  };
+  const head = halves.length > 1 && halves.slice(1).every((h) => match(h) !== undefined) ? halves[0]! : trimmed;
+  return match(head);
+}
+/** The kinds a header cell names — usually one. Two when the PDF's layout
+ * stage joined two header words into one cell with a single space between
+ * them (F6, 2026-10-09: Minerva's "Cr. / C.E.U. Grade" and "Remarks Earned"
+ * are the credits and the grade, the remarks and the earned units): a cell
+ * no pattern names as a whole is cut at the one space where both parts are
+ * header words of different kinds; a cell a pattern names only by a word
+ * inside it ("Remarks Earned" holds "earned") is cut only when its first part
+ * is a remarks-type word — "Units Taken", "Credits Earned", "Course Title",
+ * "Marks Obtained" stay one column, as does any cell a pattern names whole
+ * ("Grade Points", "Credit Hours"). */
+function cellKinds(cell: string): ColumnKind[] {
+  const whole = cellKind(cell);
+  if (whole?.anchored) return [whole.kind];
+  const words = cell.trim().split(/\s+/);
+  for (let cut = words.length - 1; cut >= 1; cut--) {
+    const first = cellKind(words.slice(0, cut).join(' '));
+    const second = cellKind(words.slice(cut).join(' '));
+    if (!first || !second || first.kind === second.kind) continue;
+    if (whole === undefined || (first.anchored && first.kind === 'flag')) return [first.kind, second.kind];
+  }
+  return [whole?.kind ?? 'flag'];
+}
+/** A cell is "known whole" when a pattern names it as it stands — the test the
+ * two-line header join asks of every joined pair (joinedHeaderKinds). */
+const knownWhole = (cell: string): boolean => cellKind(cell) !== undefined;
+function readColumnHeader(flat: string): ColumnKind[] | undefined {
+  const rawCells = flat.split(/\s{2,}/).map((c) => c.trim().replace(/[.:]+$/, '')).filter((c) => c.length > 0);
+  if (rawCells.length < 3 || rawCells.length > 14) return undefined;
+  if (rawCells.some((c) => /\d{3,}/.test(c))) return undefined; // a row, a date, a code
+  // A cell that holds two header words is two cells from here on.
+  const cells: string[] = [];
+  const kinds: ColumnKind[] = [];
+  let known = 0;
+  for (const cell of rawCells) {
+    const ks = cellKinds(cell);
+    if (ks.length === 2) {
+      const words = cell.trim().split(/\s+/);
+      // The cut cellKinds made: the longest tail that is a header word.
+      let cut = words.length - 1;
+      for (; cut >= 1; cut--) if (cellKind(words.slice(0, cut).join(' '))?.kind === ks[0] && cellKind(words.slice(cut).join(' '))?.kind === ks[1]) break;
+      cells.push(words.slice(0, cut).join(' '), words.slice(cut).join(' '));
+    } else cells.push(cell);
+    for (const k of ks) {
+      kinds.push(k);
+      if (k !== 'flag' || knownWhole(cell)) known += 1;
+    }
+  }
+  if (cells.length > 14) return undefined;
   if (known < 3 || known < Math.ceil(cells.length * 0.6)) return undefined;
   if (!kinds.includes('code') && !kinds.includes('title')) return undefined;
   if (!kinds.some((k) => k === 'credits' || k === 'ects' || k === 'grade' || k === 'mark' || k === 'attempted' || k === 'earned')) return undefined;
@@ -515,6 +584,14 @@ function readColumnHeader(flat: string): ColumnKind[] | undefined {
   else if (firstCode < 0 && kinds.filter((k) => k === 'title').length >= 2) kinds[firstTitle] = 'code';
   const titleAt = kinds.indexOf('title');
   for (let i = titleAt + 1; i < kinds.length; i++) if (kinds[i] === 'code' || kinds[i] === 'title' || kinds[i] === 'serial') kinds[i] = 'flag';
+  // A second grade column headed "Classification" (SNU, KAIST: "Major
+  // Elective" / "Research") is a course-type cell, not a grade — the UK's
+  // degree classification keeps the word in the grade list for a transcript
+  // that prints no other grade column (F6, 2026-10-09).
+  if (kinds.filter((k) => k === 'grade').length >= 2) cells.forEach((c, i) => { if (kinds[i] === 'grade' && /^classification$/i.test(c)) kinds[i] = 'flag'; });
+  // "CH" beside a real credits word (a Brazilian carga horária next to
+  // Créditos) is the workload; alone it is the credit hours (F6, 2026-10-09).
+  if (kinds.filter((k) => k === 'credits').length >= 2) cells.forEach((c, i) => { if (kinds[i] === 'credits' && /^ch$/i.test(c)) kinds[i] = 'workload'; });
   // No credits column: a "Points" column BEFORE the grade is the credits (New
   // Zealand, UK credit points), and Iranian "Theoretical / Practical" cells
   // are credit hours of each kind.
@@ -530,7 +607,33 @@ function readColumnHeader(flat: string): ColumnKind[] | undefined {
   return kinds;
 }
 
-const PLACEHOLDER_TOKEN_RE = /^(?:[-–—_]+|n\/a|\.{2,}|\*+)$/i; // bare "NA" is Illinois Tech's non-attendance grade, not a blank
+/** A header printed on TWO lines (F6, 2026-10-09 — Alberta's PeopleSoft SQR
+ * record: "Grade   Units   Units   Grade   Class   Class" over "Course
+ * Description   Remark   Taken   Passed   Points   Avg   Enrl"): the upper
+ * line's words are the top halves of the LAST (or the first) columns of the
+ * lower line. The two are joined only when neither is a header on its own and
+ * every joined pair is a header word as it stands ("Grade Remark", "Units
+ * Taken", "Units Passed", "Grade Points", "Class Avg", "Class Enrl") — one
+ * pair that is not, and the lines are left as they were. */
+function joinedHeaderKinds(upper: string, lower: string): ColumnKind[] | undefined {
+  const cellsOf = (flat: string) => flat.split(/\s{2,}/).map((c) => c.trim().replace(/[.:]+$/, '')).filter((c) => c.length > 0);
+  const up = cellsOf(upper);
+  const low = cellsOf(lower);
+  if (up.length < 2 || up.length > low.length || low.length > 14) return undefined;
+  if ([...up, ...low].some((c) => /\d{3,}/.test(c))) return undefined;
+  if (readColumnHeader(upper) !== undefined) return undefined; // a header of its own
+  for (const offset of [low.length - up.length, 0]) {
+    const joined = low.map((c, i) => (i >= offset && i < offset + up.length ? `${up[i - offset]} ${c}` : c));
+    if (!joined.every((c, i) => (i >= offset && i < offset + up.length ? knownWhole(c) : true))) continue;
+    const kinds = readColumnHeader(joined.join('   '));
+    if (kinds !== undefined) return kinds;
+  }
+  return undefined;
+}
+
+// "TBA" and "NaN" (F6, 2026-10-09): Minerva prints TBA for credits not yet
+// set and NaN for the earned units beside them — empty cells, never a grade.
+const PLACEHOLDER_TOKEN_RE = /^(?:[-–—_]+|n\/a|\.{2,}|\*+|tba|nan)$/i; // bare "NA" is Illinois Tech's non-attendance grade, not a blank
 
 /** Institutions whose transcript prints its NAME only as an image, but whose
  * text carries an unmistakable acronym (DGS 2026-09-08: Johns Hopkins prints
@@ -1185,9 +1288,18 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * and a level or flag cell between the code and the title is consumed
    * first. */
   let columnKinds: ColumnKind[] | undefined;
+  /** What the grade column of the header in force has held so far: rows whose
+   * mapped grade was a letter (or any non-number) and rows whose was a number
+   * — the evidence `integerGradeInLetteredTable` reads (2026-10-09). Reset
+   * with every new header. */
+  let headerGrades = { letters: 0, numbers: 0 };
   const numericToken = (t: string) => /^-?\d{1,3}(?:[.,]\d{1,3})?$/.test(t);
   const gradeLike = (t: string): boolean => {
     const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(t) ? t.slice(1, -1) : t;
+    // A Roman numeral above I ends a title ("Physics for Engineering Students
+    // II") and is no registrar's grade (F6 review, 2026-10-09); "I" alone
+    // stays an Incomplete.
+    if (/^(?:II|III|IV)$/.test(bare)) return false;
     if (mapGrade(bare, legend) !== undefined) return true;
     const upper = bare.toUpperCase();
     if (/^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(upper) && bare === upper && bare.length <= 5) return true;
@@ -1219,9 +1331,15 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       case 'attempted':
       case 'earned':
       case 'points':
-      case 'workload':
       case 'duration':
         return numericToken(t);
+      case 'workload':
+        // …or IIT's lecture-tutorial-practical hours, "3-1-0" (F6, 2026-10-09).
+        return numericToken(t) || /^\d{1,2}-\d{1,2}-\d{1,2}$/.test(t);
+      case 'stat':
+        // A class statistic: a number, a grade, a placeholder ("XXX" where no
+        // average is computed), a parenthesised class size (F6, 2026-10-09).
+        return numericToken(t) || gradeLike(t) || /^X+$/i.test(t) || /^\(\d+\)$/.test(t) || /^\d{1,3}(?:[.,]\d+)?%$/.test(t);
       case 'mark':
         return numericToken(t) || /^\d{1,3}(?:[.,]\d{1,2})?\/\d{1,3}$/.test(t) || /^[A-Z]{1,3}$/.test(t) || /^\d{1,3}(?:[.,]\d+)?%$/.test(t);
       case 'grade':
@@ -1230,7 +1348,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         return /^(?:UG|UGRD|GR|GRAD|U|G|L|V|M|[4-8]|undergraduate|graduate|postgraduate|masters?|doctoral)$/i.test(t);
       case 'term':
         // …or a compact / six-digit term code ("2023FA", "202310" — F2, 2026-10-09).
-        return /^(?:\d{4}(?:-\d)?|[A-Z]\d{2}|S1S2|A1A2|S[12]|A[12]|(?:fall|spring|summer|autumn|winter)\w*|\d{1,2}[-/.]\w{2,3}[-/.]\d{2,4})$/i.test(t) || TERM_CODE_CELL_RE.test(t);
+        // …or a bare term ordinal under a "TM" column (McMaster, F6 2026-10-09).
+        // …or an ISO date (Ladok's "Date" column, F6 2026-10-09).
+        return /^(?:\d{4}(?:-\d)?|[A-Z]\d{2}|S1S2|A1A2|S[12]|A[12]|(?:fall|spring|summer|autumn|winter)\w*|\d{1,2}[-/.]\w{2,3}[-/.]\d{2,4}|\d{4}-\d{2}-\d{2}|[1-3])$/i.test(t) || TERM_CODE_CELL_RE.test(t);
       case 'flag':
         // A short mark ("R", "H", "*", "ORD") or a course-type word — never a
         // word that could be part of the title ("IT Risk Management").
@@ -1277,7 +1397,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const values: (string | undefined)[] = [];
       let i = 0;
       let blanks = 0;
-      for (const kind of post) {
+      for (let c = 0; c < post.length; c++) {
+        const kind = post[c]!;
         // A repeat / exclusion mark beside a value ("C- #", "A *") belongs to
         // no column; step over it.
         while (tail[i] !== undefined && /^[*#@]$/.test(tail[i]!)) i += 1;
@@ -1286,14 +1407,30 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         // is the row's last token and a points column follows (a gradeless
         // row: "3.00   3.00   12.00").
         const lastNumeric = kind === 'grade' && t !== undefined && numericToken(t) && i === tail.length - 1 && post.slice(post.indexOf(kind) + 1).includes('points');
+        // The grade column is empty when every token left has a numeric
+        // column of its own after it (F6, 2026-10-09 — Workday prints the
+        // grade FIRST, "Grade   Units   Earned   Grade Points", and an
+        // in-progress row "3.00   0.00   0.00" put its units in the grade).
+        // Exactly as many tokens as numeric columns: "3.5   3.00" under
+        // "Grade   Units" keeps its numeric grade.
+        const numericAfter = post.slice(c + 1).filter((k) => k === 'credits' || k === 'attempted' || k === 'earned' || k === 'points' || k === 'ects' || k === 'mark' || k === 'workload' || k === 'stat').length;
+        const numericFillsRest = kind === 'grade' && t !== undefined && numericToken(t) && numericAfter > 0 && tail.length - i === numericAfter;
         // A letter token under a MARK column, with a grade column still to
         // come, is that column's (Toronto "0.50   SDF": the mark is blank).
         const gradeFollows = kind === 'mark' && t !== undefined && /^[A-Za-z]/.test(t) && post.slice(post.indexOf(kind) + 1).includes('grade');
-        if (t !== undefined && fits(kind, t) && !lastNumeric && !gradeFollows) {
+        if (t !== undefined && fits(kind, t) && !lastNumeric && !numericFillsRest && !gradeFollows) {
           values.push(PLACEHOLDER_TOKEN_RE.test(t) ? undefined : t);
           i += 1;
           // "1 semester", "2 years" — the duration's unit word goes with it.
           if (kind === 'duration' && tail[i] !== undefined && /^(?:semesters?|years?|terms?|weeks?|months?|quarters?)$/i.test(tail[i]!)) i += 1;
+          // McMaster's MEDIAN prints the class size after the median grade,
+          // "B+ (242)" — the count goes with the statistic (F6, 2026-10-09).
+          if (kind === 'stat' && tail[i] !== undefined && /^\(\d+\)$/.test(tail[i]!)) i += 1;
+          // Ladok prints the unit after the value, "7.5 hp" (higher-education
+          // credits); the unit word goes with its credits (F6, 2026-10-09).
+          // Only that unit: "CR" after the earned units is the grade Credit
+          // (Marquette, Utah), never a unit word.
+          if ((kind === 'credits' || kind === 'ects' || kind === 'attempted' || kind === 'earned') && tail[i] !== undefined && /^hp$/i.test(tail[i]!)) i += 1;
         } else {
           values.push(undefined);
           blanks += 1;
@@ -1318,7 +1455,36 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // a one-digit mark is the absent student's zero.
       const creditsAt = post.findIndex((k) => k === 'credits' || k === 'attempted' || k === 'earned' || k === 'ects');
       const oneDigitMark = markAt >= 0 && gradeAt >= 0 && creditsAt >= 0 && creditsAt < markAt && values[markAt] !== undefined && /^\d$/.test(values[markAt]!) && values[gradeAt] !== undefined && !numericToken(values[gradeAt]!) && mapGrade(values[gradeAt]!, legend) === undefined;
-      const cost = blanks + (oneDigitMark ? 1 : 0);
+      // A registered row under a lettered grade column (F1c under a mapped
+      // header, 2026-10-09 — Minerva's "RW   ECSE 210   001 Electric Circuits
+      // 2   3"): where every row read so far under this header printed a
+      // LETTER in the grade column, a bare one-digit integer that ends the
+      // row is not its grade — the fit that keeps the digit in the title and
+      // reads the last number as the credits wins. Two blanks' worth, so it
+      // outweighs the one blank the longer title costs.
+      const integerGradeInLetteredTable = gradeAt >= 0 && values[gradeAt] !== undefined && /^\d$/.test(values[gradeAt]!) && headerGrades.letters > 0 && headerGrades.numbers === 0 && tail.length === 2 && /^\d{1,2}$/.test(tail[0]!);
+      // A class statistic is printed only beside the row's own cells: a fit
+      // that fills a stat column while the credits column stays empty has
+      // put the credits in the statistic ("Physics for Engineering Students
+      // II   0.50   WDN" read II as the grade and 0.50 as the class average —
+      // F6 review, 2026-10-09) and costs one more.
+      const statWithoutCredits = creditsAt >= 0 && values[creditsAt] === undefined && post.some((k, i) => k === 'stat' && values[i] !== undefined);
+      // "Calculus 1   3   A-   3   B" (Minerva, F6 review 2026-10-09): the
+      // position-free scan's 2026-09-26 rule — a small integer after title
+      // words, then integer credits, then a grade-like token: the integer is
+      // the title's — holds under a header too. A fit that reads the integer
+      // as the credits, the credits as a NUMERIC grade and leaves a grade-
+      // shaped token of two or more characters ("A-", "WF"; a one-letter
+      // repeat flag "R" does not count) in a later column costs three, so the
+      // fit with that token as the grade wins even when it leaves more
+      // columns empty.
+      // Only that shape: the misread "grade" is a bare integer (the real
+      // credits) and the token after it is letters only — DTU's "5   10   E23"
+      // (grade 10, exam period E23) and TUM's "8   1,7   bestanden" are read
+      // as printed.
+      const letterAfterNumericGrade =
+        creditsAt >= 0 && gradeAt >= 0 && values[creditsAt] !== undefined && /^\d{1,2}$/.test(values[creditsAt]!) && values[gradeAt] !== undefined && /^\d{1,2}$/.test(values[gradeAt]!) && values.slice(gradeAt + 1).some((v) => v !== undefined && /^[A-Z]{1,3}[+-]?$/.test(v) && (v.length >= 2 || mapGrade(v, legend) !== undefined));
+      const cost = blanks + (oneDigitMark ? 1 : 0) + (integerGradeInLetteredTable ? 2 : 0) + (statWithoutCredits ? 1 : 0) + (letterAfterNumericGrade ? 3 : 0);
       if (best === undefined || cost < best.blanks) best = { s, values, blanks: cost };
     }
     if (!best) return undefined;
@@ -1360,13 +1526,15 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // A term cell on the row (U Tokyo "2022   S1S2", DTU "E23", UNAM "2019-1",
     // a result date) — read after the values are known.
     const termCells = post.map((k, i) => (k === 'term' ? best!.values[i] : undefined)).filter((t): t is string => t !== undefined);
-    const rowTerm = rowTermOf(termCells);
+    const rowTerm = rowTermOf(termCells, true);
     into.titleParts = title.filter((t) => !/^[*#@]$/.test(t));
     if (creditsToken !== undefined) {
       into.credits = asCreditsWide(creditsToken);
       into.creditsText = creditsToken;
     }
     if (gradeToken !== undefined) {
+      if (numericToken(gradeToken)) headerGrades.numbers += 1;
+      else headerGrades.letters += 1;
       const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(gradeToken) ? gradeToken.slice(1, -1) : gradeToken;
       const mapped = mapGrade(bare, legend);
       if (mapped !== undefined) into.grade = mapped;
@@ -1440,7 +1608,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   const documentYears = lines.flatMap((l) => [...l.replace(/\b(?:19|20)\d{4}\b/g, ' ').matchAll(/\b(19[5-9]\d|20[0-4]\d)\b/g)].map((m) => Number(m[1])));
   const yearSpan = documentYears.length > 0 ? { min: Math.min(...documentYears) - 1, max: Math.max(...documentYears) + 1 } : undefined;
   const plausibleYear = (y: number): boolean => yearSpan !== undefined && y >= yearSpan.min && y <= yearSpan.max;
-  const rowTermOf = (cells: string[]): { year?: number; season?: Season } => {
+  const rowTermOf = (cells: string[], mapped = false): { year?: number; season?: Season } => {
     let year: number | undefined;
     let season: Season | undefined;
     for (const c of cells) {
@@ -1461,6 +1629,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         const key = bannerTermKey.get(banner[2]!);
         const decoded = key ? Number(banner[1]) - key.offset : undefined;
         if (key && decoded !== undefined && plausibleYear(decoded)) { year = decoded; season = key.season; }
+        continue;
+      }
+      // A bare term ordinal (McMaster's TM column, F6 2026-10-09): 1 is the
+      // session's first term — the fall of its first year — 2 the second (the
+      // spring of its second year), 3 the summer; under a one-year header
+      // ("SPRING/SUMMER 2021") the ordinal keeps that year.
+      // Only a cell the header mapped as the term: the serial number before a
+      // code ("No.   Course Code …") is never one.
+      if (mapped && /^[1-3]$/.test(c) && currentYear !== undefined) {
+        const second = academicRange?.second ?? (currentSeason === 'fall' ? currentYear + 1 : currentYear);
+        if (c === '1') { year = academicRange?.first ?? currentYear; season = 'fall'; }
+        else if (c === '2') { year = second; season = 'spring'; }
+        else { year = second; season = 'summer'; }
         continue;
       }
       const jp = /^(S|A)(?:1|2|1S2|1A2)?$/.exec(c);
@@ -2125,7 +2306,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const header = readColumnHeader(flat);
       if (header) {
         columnKinds = header;
+        headerGrades = { letters: 0, numbers: 0 };
         if ((globalThis as any).__DEBUG_COLUMNS) console.log('HEADER', JSON.stringify(flat), header);
+        continue;
+      }
+      // A header printed on two lines (F6, 2026-10-09): this line holds the
+      // top halves of the next line's column words.
+      const nextFlat = lines[lineIndex + 1]?.replace(/\s{2,}/g, '  ').trim();
+      const joined = nextFlat !== undefined && !leadCode(nextFlat) ? joinedHeaderKinds(flat, nextFlat) : undefined;
+      if (joined) {
+        columnKinds = joined;
+        headerGrades = { letters: 0, numbers: 0 };
+        if ((globalThis as any).__DEBUG_COLUMNS) console.log('HEADER (two lines)', JSON.stringify(flat), JSON.stringify(nextFlat), joined);
+        lineIndex += 1;
         continue;
       }
     }
