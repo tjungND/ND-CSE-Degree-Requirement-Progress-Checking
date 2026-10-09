@@ -254,3 +254,62 @@ describe('transcript accuracy program, Batch A — F1 continuation, points and i
     assert.deepEqual([row(plain, 'CS 600')?.title, row(plain, 'CS 600')?.credits, row(plain, 'CS 600')?.rawGrade], ['Master Thesis', 15, '8.7']);
   });
 });
+
+describe('transcript accuracy program, Batch A — F2 term cells and Workday headers (2026-10-09)', () => {
+  const term = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.season, row(r, id)?.year];
+  it('F2: compact term codes are read from the first cell before the course code or a header-mapped term cell — never from a trailing cell', () => {
+    const pre = doc(
+      'Some University',
+      'Fall 2021',
+      '2023FA   CS 101   Programming   3   A',
+      '2024SP   CS 102   Data Structures   3   B',
+      '2023SU   CS 103   Systems   3   A',
+      '2024WI   CS 104   Networks   3   A',
+      'CS 105   Security   3   A   2023FA',
+    );
+    assert.deepEqual(term(pre, 'CS 101'), ['fall', 2023]);
+    assert.deepEqual(term(pre, 'CS 102'), ['spring', 2024]);
+    assert.deepEqual(term(pre, 'CS 103'), ['summer', 2023]);
+    assert.deepEqual(term(pre, 'CS 104'), ['spring', 2024], 'a winter term sits where the spring does, as a "Winter" header would');
+    assert.deepEqual(term(pre, 'CS 105'), ['fall', 2021], 'a trailing cell no header mapped is not the row\'s term');
+    const mapped = doc('Some University', 'Term   Course   Title   Credits   Grade', '2024SP   CS 101   Programming   3   A');
+    assert.deepEqual(term(mapped, 'CS 101'), ['spring', 2024]);
+    const last = doc('Some University', 'Course   Title   Credits   Grade   Term', 'CS 101   Programming   3   A   2023FA');
+    assert.deepEqual(term(last, 'CS 101'), ['fall', 2023], 'Colleague prints the term as the last cell — mapped by the header');
+  });
+  it('F2: a six-digit Banner term code before the course code is a term cell, decoded only by the document’s own key; a six-digit course id is never re-termed', () => {
+    const noKey = doc('Some University', 'Fall 2021', '202310   CS 102   Data Structures   3   B');
+    assert.deepEqual([row(noKey, 'CS 102')?.title, ...term(noKey, 'CS 102')], ['Data Structures', 'fall', 2021], 'no key: the code is not the course id, and the row keeps the header\'s term');
+    assert.equal(row(noKey, '202310'), undefined);
+    const keyed = doc(
+      'Some University',
+      'Term codes on this record: 202310 is the Fall 2022 semester, 202320 is the Spring 2023 semester.',
+      '202310   CS 101   Programming   3   A',
+      '202320   CS 102   Data Structures   3   B',
+      '202330   CS 103   Systems   3   A',
+    );
+    assert.deepEqual(term(keyed, 'CS 101'), ['fall', 2022]);
+    assert.deepEqual(term(keyed, 'CS 102'), ['spring', 2023]);
+    assert.deepEqual(term(keyed, 'CS 103'), [undefined, undefined], 'a term part the key does not name stays unread');
+    const sixDigitId = doc('Some University', 'Fall 2021', '202310   Advanced Topics   3   A', 'CS 103   Programming   3   A   202320');
+    assert.deepEqual([row(sixDigitId, '202310')?.title, ...term(sixDigitId, '202310')], ['Advanced Topics', 'fall', 2021], 'a six-digit course id before a title is a course id');
+    assert.deepEqual(term(sixDigitId, 'CS 103'), ['fall', 2021], 'a trailing six-digit cell is never the term');
+  });
+  it('F2: a Workday term header’s parenthesised date range is stripped before the season and year are read', () => {
+    const r = doc(
+      'Some University',
+      '2023 Fall Semester (09/05/2023-12/15/2023)',
+      'CS 101   Programming   3   A',
+      'Spring 2024 Term (01/16/2024-05/10/2024)',
+      'CS 102   Data Structures   3   B',
+      'Fall 2023 Term',
+      'CS 103   Systems   3   A',
+      'Summer 2024 Semester (05/20/2024 - 08/09/2024)',
+      'CS 104   Networks   3   A',
+    );
+    assert.deepEqual(term(r, 'CS 101'), ['fall', 2023]);
+    assert.deepEqual(term(r, 'CS 102'), ['spring', 2024]);
+    assert.deepEqual(term(r, 'CS 103'), ['fall', 2023]);
+    assert.deepEqual(term(r, 'CS 104'), ['summer', 2024]);
+  });
+});

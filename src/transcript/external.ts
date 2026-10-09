@@ -1210,7 +1210,8 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       case 'level':
         return /^(?:UG|UGRD|GR|GRAD|U|G|L|V|M|[4-8]|undergraduate|graduate|postgraduate|masters?|doctoral)$/i.test(t);
       case 'term':
-        return /^(?:\d{4}(?:-\d)?|[A-Z]\d{2}|S1S2|A1A2|S[12]|A[12]|(?:fall|spring|summer|autumn|winter)\w*|\d{1,2}[-/.]\w{2,3}[-/.]\d{2,4})$/i.test(t);
+        // …or a compact / six-digit term code ("2023FA", "202310" — F2, 2026-10-09).
+        return /^(?:\d{4}(?:-\d)?|[A-Z]\d{2}|S1S2|A1A2|S[12]|A[12]|(?:fall|spring|summer|autumn|winter)\w*|\d{1,2}[-/.]\w{2,3}[-/.]\d{2,4})$/i.test(t) || TERM_CODE_CELL_RE.test(t);
       case 'flag':
         // A short mark ("R", "H", "*", "ORD") or a course-type word — never a
         // word that could be part of the title ("IT Risk Management").
@@ -1374,12 +1375,52 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * semester of the 2019 academic year, which begins in August 2018) and
    * "2019-2", Uniandes' "2019-10 / -20 / -19" (spring / fall / summer), or a
    * full date, which termOfDate places. */
+  /** A term-code cell (F2, transcript accuracy program, 2026-10-09): the
+   * compact "2023FA" / "2024SP" / "2023SU" / "2024WI" (Colleague, Workday)
+   * or Banner's six-digit "202310". Read ONLY from a cell the header mapped
+   * as the term, or from the first cell of a row whose second cell is the
+   * course code — never from a trailing cell no header named. */
+  const TERM_CODE_CELL_RE = /^(?:19|20)\d{2}(?:FA|SP|SU|WI|\d{2})$/i;
+  // Six-digit Banner codes name a term only by a convention that differs
+  // between schools — Notre Dame's 202610 is Fall 2026 (src/transcript/
+  // parse.ts), elsewhere 202310 is Spring 2023 or Fall 2022 — so a row's code
+  // is decoded only with the document's OWN key: a line that prints a code
+  // beside the term it names ("202310 … Fall 2022", "Fall 2022 (202310)"),
+  // one entry per term part seen. Without a key the row keeps its header's
+  // term (never guess).
+  const bannerTermKey = new Map<string, { season: Season; offset: number }>();
+  const BANNER_KEY_FORWARD_RE = /\b((?:19|20)\d{2})(\d{2})\b[^0-9]{0,24}?\b(fall|autumn|spring|summer|winter)\b[^0-9]{0,24}?\b((?:19|20)\d{2})\b/gi;
+  const BANNER_KEY_REVERSE_RE = /\b(fall|autumn|spring|summer|winter)\b[^0-9]{0,24}?\b((?:19|20)\d{2})\b[^0-9]{0,8}\(\s*((?:19|20)\d{2})(\d{2})\s*\)/gi;
+  const readBannerTermKey = (line: string): void => {
+    const note = (part: string, seasonWord: string, codeYear: number, namedYear: number) => {
+      const season = seasonOf(seasonWord);
+      if (season !== undefined && !bannerTermKey.has(part)) bannerTermKey.set(part, { season, offset: codeYear - namedYear });
+    };
+    for (const m of line.matchAll(BANNER_KEY_FORWARD_RE)) note(m[2]!, m[3]!, Number(m[1]), Number(m[4]));
+    for (const m of line.matchAll(BANNER_KEY_REVERSE_RE)) note(m[4]!, m[1]!, Number(m[3]), Number(m[2]));
+  };
   const rowTermOf = (cells: string[]): { year?: number; season?: Season } => {
     let year: number | undefined;
     let season: Season | undefined;
     for (const c of cells) {
       const y = /^((?:19|20)\d{2})$/.exec(c);
       if (y) { year = Number(y[1]); continue; }
+      // "2023FA": the calendar year and the season's two letters; a winter
+      // term sits where the spring does, as a "Winter" header would (seasonOf).
+      const compact = /^((?:19|20)\d{2})(FA|SP|SU|WI)$/i.exec(c);
+      if (compact) {
+        const part = compact[2]!.toUpperCase();
+        year = Number(compact[1]);
+        season = part === 'FA' ? 'fall' : part === 'SU' ? 'summer' : 'spring';
+        continue;
+      }
+      // "202310": decoded by the document's key, or left unread.
+      const banner = /^((?:19|20)\d{2})(\d{2})$/.exec(c);
+      if (banner) {
+        const key = bannerTermKey.get(banner[2]!);
+        if (key) { year = Number(banner[1]) - key.offset; season = key.season; }
+        continue;
+      }
       const jp = /^(S|A)(?:1|2|1S2|1A2)?$/.exec(c);
       if (jp && /^(?:S1S2|A1A2|S1|S2|A1|A2)$/.test(c)) { season = jp[1] === 'S' ? 'spring' : 'fall'; continue; }
       const dk = /^([EF])(\d{2})$/.exec(c);
@@ -1424,7 +1465,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const rawSubjectCell = cells[i];
       const numberCell = cells[i + 1];
       if (rawSubjectCell === undefined || numberCell === undefined || cells.length < i + 3) break;
-      if (i === 1 && !/^[A-Za-z]{1,3}$/.test(cells[0]!) && !LEAD_DATE_RE.test(cells[0]!)) break; // only a short division/security cell, or a date, may precede
+      if (i === 1 && !/^[A-Za-z]{1,3}$/.test(cells[0]!) && !LEAD_DATE_RE.test(cells[0]!) && !TERM_CODE_CELL_RE.test(cells[0]!)) break; // only a short division/security cell, a date or a term code (F2) may precede
       const subjectCell = rawSubjectCell.replace(CROSS_LISTED_SUBJECT_RE, '').replace(SUBJECT_TRAILING_DASH_RE, '');
       const colonSubject = COLON_SUBJECT_RE.test(subjectCell);
       if (!colonSubject && (!SUBJECT_RE.test(subjectCell) || !subjectCase(subjectCell) || proseSubject(subjectCell))) continue;
@@ -1441,6 +1482,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const cell = cells[idx];
       if (cell === undefined) break;
       if (idx === 1 && /[a-z]{3}/i.test(cells[0]!) && !LEAD_DATE_RE.test(cells[0]!)) break; // wordy first cell → not a leading term/date
+      // A term-code cell before a letter-led course code ("202310   CS 101   …",
+      // F2 2026-10-09) is the row's term cell, not its code — while "202310
+      // Advanced Topics   3   A" keeps the six-digit code as the course id.
+      if (idx === 0 && TERM_CODE_CELL_RE.test(cell) && cells[1] !== undefined && /^[A-Z]/.test(LEAD_CODE_RE.exec(cells[1]!.toUpperCase())?.[1] ?? '')) continue;
       const m = LEAD_CODE_RE.exec(cell.toUpperCase());
       if (!m) continue;
       const code = m[1]!;
@@ -1552,6 +1597,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // Track the nearest term-ish header so course rows inherit its year.
     if (IN_PROGRESS_HEADING_RE.test(line)) inProgressBlock = true;
     else if (SECTION_HEADING_RE.test(line)) inProgressBlock = false;
+    readBannerTermKey(line);
     const term = readTermLine(line);
     if (term) {
       // (The in-progress section's own term line — "Term: Fall 2024" under
@@ -1595,11 +1641,16 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // January–April term (2026-09-26).
   const ubcStyle = lines.some((l) => MONTH_RANGE_RE.test(l) && /\bterm\s*[12]\b/i.test(l));
   const maxOrdinal = Math.max(1, ...lines.map((l) => ordinalOf(l) ?? 0).filter((n) => n < 4));
+  const PAREN_DATES_RE = /\s*\((?=[^()]*\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})[^()]*\)/g;
   const readTermLine = (line: string): TermRead | undefined => {
     if (!TERM_WORD_RE.test(line) && !YEAR_PART_RE.test(line) && !SLASH_ORDINAL_RE.test(line) && !/\bsession\s*:/i.test(line)) return undefined;
     // A year whose last digit the PDF sets apart ("200 3   FULL YEAR", the
     // ANU sample, 2026-09-26) is joined back before anything reads it.
-    const flat = line.replace(/\s{2,}/g, ' ').trim().replace(/\b((?:19|20)\d) (\d)\b/g, '$1$2');
+    // Workday's "2023 Fall Semester (09/05/2023-12/15/2023)" (F2, 2026-10-09):
+    // the parenthesised date range is dropped before anything reads the
+    // line — its "2023-12" read as an academic year 2023/2012 and put a
+    // spring term in 2005.
+    const flat = line.replace(/\s{2,}/g, ' ').trim().replace(/\b((?:19|20)\d) (\d)\b/g, '$1$2').replace(PAREN_DATES_RE, '');
     // A course row never opens a term ("ENGL 2010   Intermediate Writing").
     if (leadCode(line.replace(/\s{2,}/g, '  ').trim())) return undefined;
     // Long lines are prose — unless bilingual (the Latin half before a
