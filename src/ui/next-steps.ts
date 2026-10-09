@@ -31,9 +31,42 @@ export interface NextStepsInput {
   /** Courses waiting for the student's answer — which degrees they already
    * counted toward (UI review, 2026-10-08). */
   needsAnswer?: string[];
+  /** Simulation mode (DGS 2026-10-09: "no DGS request, grad admin request,
+   * or advisor report should be possible"): true while the mode is on. The
+   * steps that send something — the review request, the processing request,
+   * what follows the DGS's answer, the candidacy application, the advisor
+   * summary — are folded into ONE "nothing is sent" step that carries the
+   * union of their `covers`, so the attention list below reads the same. */
+  simulation?: boolean;
 }
 
 const plural = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+/** The advisor summary's step — a constant so the simulation fold can tell
+ * it apart (it is the one step without a place on the page). */
+const ADVISOR_SUMMARY_STEP = 'Send the summary to your advisor whenever you like.';
+
+/** The simulation's one step in place of every step that sends something
+ * (D7): the first of them keeps its place in the list, the rest go, and the
+ * union of their `covers` stays so attentionRows is unchanged. Nothing to
+ * fold → the list as it is. */
+function foldSentSteps(steps: NextStep[], dgs: { count: number; allCourses: boolean }, processingCount: number): NextStep[] {
+  const sends = (s: NextStep): boolean => s.href === '#dgs-review' || s.href === '#grad-admin' || s.text === ADVISOR_SUMMARY_STEP;
+  const first = steps.findIndex(sends);
+  if (first < 0) return steps;
+  const covers = [...new Set(steps.filter(sends).flatMap((s) => s.covers ?? []))];
+  const before = dgs.count > 0 ? `${plural(dgs.count, dgs.allCourses ? 'course' : 'item')} before the DGS` : '';
+  const toRecord = processingCount > 0 ? `${plural(processingCount, 'item')} before the Grad Admin` : '';
+  const text =
+    before && toRecord
+      ? `In simulation mode nothing is sent: this plan would put ${before} and ${toRecord}.`
+      : before || toRecord
+        ? `In simulation mode nothing is sent: this plan would put ${before || toRecord}.`
+        : 'In simulation mode nothing is sent — no request or summary goes out from a plan.';
+  const href = dgs.count > 0 ? '#dgs-review' : processingCount > 0 ? '#grad-admin' : undefined;
+  const folded: NextStep = { text, ...(href ? { href } : {}), ...(covers.length > 0 ? { covers } : {}) };
+  return [...steps.slice(0, first), folded, ...steps.slice(first + 1).filter((s) => !sends(s))];
+}
 
 /** The review request's advisor item (shared.ts advisorReviewFlag): the
  * advisor step names it, so the count of other items leaves it out. */
@@ -226,7 +259,12 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   else if (allRequirementsMet(report) && gradIncompletes.length === 0)
     steps.push({ text: g !== undefined ? `Complete ND Roll Call in ${termLabel(g.term)}, the semester you graduate — you are registered for it (Academic Code §3.7).` : GRADUATION_SEMESTER_STEP });
   // 6. The advisor summary, any time.
-  if (hasCourses) steps.push({ text: 'Send the summary to your advisor whenever you like.' });
+  if (hasCourses) steps.push({ text: ADVISOR_SUMMARY_STEP });
+  // Simulation mode (D7): the sending steps become one "nothing is sent"
+  // step naming what the plan would put before the DGS (the review card's
+  // courses, plus the advisor and the other items when there are any) and
+  // before the Grad Admin (the processing request's count).
+  if (input.simulation) return foldSentSteps(steps, { count: reviewCount + (advisorToDgs ? 1 : 0) + otherItems, allCourses: !advisorToDgs && otherItems === 0 }, processingCount);
   return steps;
 }
 

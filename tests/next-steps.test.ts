@@ -54,6 +54,41 @@ describe('next steps (DGS 2026-09-27)', () => {
     assert.deepEqual(steps[1]?.covers, ['phd.transfer', 'ms.transfer', 'shared.approvals']);
     assert.deepEqual(steps[2]?.covers, ['shared.advisor']);
   });
+  // Simulation mode (DGS 2026-10-09: "no DGS request, grad admin request, or
+  // advisor report should be possible"; D7): the sending steps fold into one.
+  it('in simulation mode the review, processing, after-the-answer and advisor-summary steps become ONE "nothing is sent" step carrying their covers', () => {
+    const s: Student = { ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
+    s.entryTermInferred = { how: 'the admit-term line on your transcript' };
+    const r = report([row('shared.advisor', 'unmet'), row('shared.approvals', 'needs_dgs_review')]);
+    const input = { report: r, student: s, review: { unlisted: 1, caseByCase: 1 }, processingCount: 2 };
+    const plain = nextSteps(input);
+    assert.equal(plain.filter((x) => x.href === '#dgs-review' || x.href === '#grad-admin' || /advisor whenever/.test(x.text)).length, 4, 'four sending steps outside the mode');
+    const steps = nextSteps({ ...input, simulation: true });
+    assert.deepEqual(steps.map((x) => x.text), [
+      'Check what your transcript set — first semester Fall 2026 (Your standing).',
+      'In simulation mode nothing is sent: this plan would put 2 courses before the DGS and 2 items before the Grad Admin.',
+      'Enter your advisor’s name under Milestones.',
+      'Confirm your advisor approved your coursework and tick the box under Approvals.',
+    ]);
+    assert.equal(steps[1]?.href, '#dgs-review', 'in the review step’s place, pointing at its card');
+    // The union of the folded steps' covers, so the attention list is unchanged.
+    assert.deepEqual(steps[1]?.covers, ['phd.transfer', 'ms.transfer', 'shared.approvals']);
+    assert.deepEqual(new Set(steps.flatMap((x) => x.covers ?? [])), new Set(plain.flatMap((x) => x.covers ?? [])));
+  });
+  it('the one step names what there is: the Grad Admin alone, "items" when the DGS has more than courses, and the plain sentence when nothing would be sent', () => {
+    const s: Student = { ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
+    s.attestations.advisorApprovedPlan = true;
+    const settled = report([row('shared.advisor', 'met'), row('shared.approvals', 'not_applicable')]);
+    assert.deepEqual(nextSteps({ report: settled, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 2, simulation: true }), [
+      { text: 'In simulation mode nothing is sent: this plan would put 2 items before the Grad Admin.', href: '#grad-admin' },
+    ]);
+    const advisorToDgs = report([row('shared.advisor', 'needs_dgs_review'), row('shared.approvals', 'not_applicable')]);
+    const st = nextSteps({ report: advisorToDgs, student: s, review: { unlisted: 1, caseByCase: 0 }, processingCount: 0, simulation: true });
+    assert.deepEqual(st, [{ text: 'In simulation mode nothing is sent: this plan would put 2 items before the DGS.', href: '#dgs-review', covers: ['phd.transfer', 'ms.transfer', 'shared.approvals', 'shared.advisor'] }]);
+    assert.deepEqual(nextSteps({ report: settled, student: s, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0, simulation: true }), [{ text: 'In simulation mode nothing is sent — no request or summary goes out from a plan.' }]);
+    // Nothing to fold: the list as it is (an empty record has no steps).
+    assert.deepEqual(nextSteps({ report: report([row('shared.advisor', 'met')]), student: { ...phdStudent(), background: ANSWERED }, review: { unlisted: 0, caseByCase: 0 }, processingCount: 0, simulation: true }), []);
+  });
   it('a settled record has only the advisor summary left; an empty record has nothing', () => {
     const s: Student = { ...phdStudent(), background: ANSWERED, courses: [{ courseId: 'CSE 60641', credits: 3, term: { season: 'fall', year: 2026 }, grade: 'A', origin: 'nd' }] };
     s.attestations.advisorApprovedPlan = true;

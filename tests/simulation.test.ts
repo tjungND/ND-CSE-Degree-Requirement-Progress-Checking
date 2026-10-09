@@ -13,6 +13,7 @@ import {
   defaultSimulationTerm,
   loadSimulation,
   parseSimulationTermCode,
+  routeLoadedFile,
   simulationFileName,
   simulationFilePayload,
   simulationTermCode,
@@ -112,6 +113,72 @@ describe('the saved file', () => {
   });
   it('loadSimulation is undefined where there is no localStorage (node)', () => {
     assert.equal(loadSimulation(), undefined);
+  });
+});
+
+// Where "Load a file" puts a file (D3; DGS 2026-10-09) — the pure router
+// app.ts's file input calls. The real record is the page's `student` outside
+// the mode and `realStudent` inside it; no route writes it (D2).
+describe('routeLoadedFile — a record or a simulation file, outside or inside the mode', () => {
+  const REAL = '2026-10-09';
+  const SP28 = { season: 'spring' as const, year: 2028 };
+  const FA27 = { season: 'fall' as const, year: 2027 };
+  const onPage = phdStudent({ courses: [ndCourse('CSE 60641')] });
+  const inFile = phdStudent({ courses: [ndCourse('CSE 60111'), ndCourse('CSE 60321')] });
+  const recordFile = { savedAt: 'x', student: inFile };
+  const simulationFile = simulationFilePayload(inFile, SP28, 'x');
+
+  it('a plain record file outside the mode replaces the record, the mode stays off', () => {
+    const r = routeLoadedFile(recordFile, { student: onPage, simulation: undefined, realStudent: undefined }, REAL);
+    assert.equal(r.outcome, 'record');
+    assert.equal(r.simulation, undefined);
+    assert.equal(r.realStudent, undefined);
+    assert.deepEqual(r.student.courses.map((c) => c.courseId), ['CSE 60111', 'CSE 60321']);
+  });
+  it('a simulation file outside the mode enters the mode with its semester; the record on the page is kept, untouched', () => {
+    const before = JSON.stringify(onPage);
+    const r = routeLoadedFile(simulationFile, { student: onPage, simulation: undefined, realStudent: undefined }, REAL);
+    assert.equal(r.outcome, 'entered');
+    assert.deepEqual(r.simulation?.term, SP28);
+    assert.equal(r.simulation?.student, r.student, 'the simulation holds the page’s new record');
+    assert.equal(r.realStudent, onPage, 'the record that was on the page is what Exit puts back');
+    assert.equal(JSON.stringify(onPage), before, 'and it was not changed');
+    assert.deepEqual(r.student.courses.map((c) => c.courseId), ['CSE 60111', 'CSE 60321']);
+  });
+  it('a plain record file inside the mode loads into the simulation, same semester; the real record is untouched', () => {
+    const real = phdStudent({ courses: [ndCourse('CSE 60427')] });
+    const before = JSON.stringify(real);
+    const r = routeLoadedFile(recordFile, { student: onPage, simulation: { term: FA27, student: onPage }, realStudent: real }, REAL);
+    assert.equal(r.outcome, 'into-simulation');
+    assert.deepEqual(r.simulation?.term, FA27, 'the page’s semester, since the file has none');
+    assert.equal(r.simulation?.student, r.student);
+    assert.equal(r.realStudent, real);
+    assert.equal(JSON.stringify(real), before);
+    assert.deepEqual(r.student.courses.map((c) => c.courseId), ['CSE 60111', 'CSE 60321']);
+  });
+  it('a simulation file inside the mode replaces the simulation, semester included', () => {
+    const real = phdStudent({ courses: [ndCourse('CSE 60427')] });
+    const r = routeLoadedFile(simulationFile, { student: onPage, simulation: { term: FA27, student: onPage }, realStudent: real }, REAL);
+    assert.equal(r.outcome, 'into-simulation');
+    assert.deepEqual(r.simulation?.term, SP28, 'the file’s semester');
+    assert.equal(r.realStudent, real);
+    assert.deepEqual(r.student.courses.map((c) => c.courseId), ['CSE 60111', 'CSE 60321']);
+  });
+  it('a simulation file saved for a semester now past is lifted to the real current one', () => {
+    const old = simulationFilePayload(inFile, { season: 'spring', year: 2025 }, 'x');
+    const r = routeLoadedFile(old, { student: onPage, simulation: undefined, realStudent: undefined }, REAL);
+    assert.deepEqual(r.simulation?.term, termOfDate(REAL));
+  });
+  it('validateStudent reads the student inside a simulation file exactly as it reads a record file — nothing stripped, nothing added', () => {
+    const fromSimulation = validateStudent(JSON.parse(JSON.stringify(simulationFile)));
+    const fromRecord = validateStudent(JSON.parse(JSON.stringify(recordFile)));
+    const bare = validateStudent(JSON.parse(JSON.stringify(inFile)));
+    assert.deepEqual(fromSimulation, fromRecord);
+    assert.deepEqual(fromSimulation, bare);
+  });
+  it('a file that is not a record is refused before anything on the page changes', () => {
+    assert.throws(() => routeLoadedFile({ simulation: { term: SP28 }, student: { schemaVersion: 2 } }, { student: onPage, simulation: undefined, realStudent: undefined }, REAL), /schemaVersion 2/);
+    assert.throws(() => routeLoadedFile('nope', { student: onPage, simulation: undefined, realStudent: undefined }, REAL), /not a saved audit/);
   });
 });
 

@@ -1900,9 +1900,30 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
   `returnFocusTo` a second time, after the caller had re-rendered the page without the
   opening control, and the heading fallback stole the focus Exit had just placed.
 - The drivers know the new button: drive-app.mjs's tools-row order includes `tools.simulate`;
-  drive-a11y.mjs's first-screen tab-stop threshold is 13. Still to build (the plan's D6, D7,
-  D10): the inert imports / Load example / request buttons in the mode, the Next-steps
-  "nothing is sent" step, the Coursework grade hint and the print header's SIMULATION line.
+  drive-a11y.mjs's first-screen tab-stop threshold is 13. Nothing in the mode is driven by the
+  e2e yet.
+- **Nothing is sent from the mode (D6/D7).** In the mode `review.copy`, `gradadmin.copy`
+  (whatever its count), `save.copy` / `save.summary`, `tools.example`, `import.nd`, the three
+  `ext.import.<level>` buttons and `ext.scan.ocr` are `inactiveButton`s with a reason —
+  `simulationSendNote(what)` and `SIMULATION_EXAMPLE_NOTE` in app.ts, `SIMULATION_IMPORT_NOTE`
+  in dom.ts, which reaches the two upload modules through the `simulation` flag on
+  `NdUploadArgs` / `ExternalCardArgs` (set beside `blocked` in `transcriptsCard`). Remove,
+  Change and a waiting scan's Cancel stay active: they edit the copy or clear the scan. If you
+  add a control that sends, emails or imports, gate it on `simulation` the same way; a bare
+  `disabled` would hide the reason. The review and Grad Admin cards keep their lists and show
+  one sentence in place of their instruction paragraphs; `nextSteps({ simulation: true })`
+  folds every sending step (href `#dgs-review` / `#grad-admin`, plus `ADVISOR_SUMMARY_STEP`)
+  into one step carrying the union of their `covers` (`foldSentSteps`), so `attentionRows` is
+  the same in and out of the mode — a new sending step must use one of those two hrefs or it
+  will survive the fold.
+- **Where "Load a file" puts a file** is `routeLoadedFile` (simulation.ts, pure, tested):
+  outside the mode a record replaces the record and a simulation file enters the mode with its
+  semester (the page's record becomes `realStudent`); inside the mode any file loads into the
+  simulation (a simulation file brings its semester). The handler destructures its result
+  into `student` / `simulation` / `realStudent` and restores all three if the render throws.
+- **D10 on the page**: the Coursework card's hint in the mode (a planned course needs its
+  expected grade — In progress never counts) and the print header's "SIMULATION — not your
+  real record. Printed on <real date>; the current semester in this simulation is <term> — …".
 
 ## Invariants — keep these true
 

@@ -30,7 +30,7 @@ import { reclassifyNotreDameCourses } from './prior-nd.ts';
 import { canonicalUniversityName } from './university-name.ts';
 import { confirmDialog } from './copy-dialog.ts';
 import { parseTranscript } from '../transcript/parse.ts';
-import { el, inactiveButton, option, PREVIEW_OPEN_NOTE } from './dom.ts';
+import { el, inactiveButton, option, PREVIEW_OPEN_NOTE, SIMULATION_IMPORT_NOTE } from './dom.ts';
 import { campusQuestion, MULTI_CAMPUS_SYSTEMS } from '../transcript/campus.ts';
 
 type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
@@ -248,6 +248,12 @@ export interface ExternalCardArgs {
   /** One transcript at a time (2026-09-03): true while ANY preview is open,
    * disabling every import button until it is confirmed or cancelled. */
   blocked: boolean;
+  /** Simulation mode (DGS 2026-10-09, D6): true while the mode is on — the
+   * three Import buttons and the OCR opt-in are inactive with their own
+   * reason (SIMULATION_IMPORT_NOTE: a transcript is real data; it is imported
+   * outside the mode). Remove, Change and the scan's Cancel stay active: they
+   * edit the planning copy or clear a pending scan, never the record. */
+  simulation?: boolean;
   /** Focus this data-key after the next render (app.ts's focus keeper). */
   setFocusAfterRender?: (key: string) => void;
 }
@@ -764,7 +770,8 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       // aria-label and no enclosing group label, so a screen-reader user
       // reached four identical controls and could not tell which transcript
       // each one wanted. The file inputs behind them were already named.
-      button(
+      // In simulation mode the import is inactive with its own reason (D6).
+      (args.simulation ? (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string) => inactiveButton(attrs, SIMULATION_IMPORT_NOTE, toast, label) : button)(
         {
           class: 'btn',
           'data-key': `ext.import.${slot.level}`,
@@ -828,8 +835,11 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
     el(
       'div',
       { class: 'save-buttons' },
-      el(
-        'button',
+      // In simulation mode the opt-in is inactive with the imports' reason
+      // (D6): the scan was uploaded before the mode (a simulation file loaded
+      // over a waiting scan), and OCR would read real data into a plan. Cancel
+      // stays active so the waiting scan can be cleared.
+      (args.simulation ? (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string) => inactiveButton(attrs, SIMULATION_IMPORT_NOTE, args.toast, label) : (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string) => el('button', attrs, label))(
         {
           class: 'btn primary',
           'data-key': 'ext.scan.ocr',

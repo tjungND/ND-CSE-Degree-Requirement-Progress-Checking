@@ -127,6 +127,39 @@ export function simulationTermOfFile(raw: unknown): Term | undefined {
   return { season: term.season as Season, year: term.year };
 }
 
+/** What the page holds before a file is loaded, and what it holds after. */
+export interface LoadedFileRoute {
+  /** The page's record after the load (the one every control edits). */
+  student: Student;
+  /** The mode after the load: unchanged for a record loaded outside it. */
+  simulation: Simulation | undefined;
+  /** The real record kept in memory for Exit: unchanged, or — when a
+   * simulation file enters the mode — the record that was on the page. */
+  realStudent: Student | undefined;
+  /** Which of the three routes was taken, for the toast. */
+  outcome: 'record' | 'entered' | 'into-simulation';
+}
+
+/** Where "Load a file" puts a file (D3; DGS 2026-10-09): OUTSIDE the mode an
+ * ordinary record replaces the record, and a simulation file enters the
+ * mode with its semester (clamped so time never runs backwards), leaving the
+ * record on the page untouched in memory; INSIDE the mode any file — a
+ * record or a simulation — loads into the simulation, never into the real
+ * record (D2); a simulation file brings its own semester with it. Pure: the
+ * caller renders and persists. Throws what validateStudent throws. */
+export function routeLoadedFile(raw: unknown, page: { student: Student; simulation: Simulation | undefined; realStudent: Student | undefined }, realIso: string, refusals: Refusal[] = []): LoadedFileRoute {
+  const imported = validateStudent(raw, refusals);
+  const fileTerm = simulationTermOfFile(raw);
+  if (page.simulation) {
+    const term = fileTerm === undefined ? page.simulation.term : clampSimulationTerm(fileTerm, realIso);
+    return { student: imported, simulation: { term, student: imported }, realStudent: page.realStudent, outcome: 'into-simulation' };
+  }
+  if (fileTerm !== undefined) {
+    return { student: imported, simulation: { term: clampSimulationTerm(fileTerm, realIso), student: imported }, realStudent: page.student, outcome: 'entered' };
+  }
+  return { student: imported, simulation: undefined, realStudent: page.realStudent, outcome: 'record' };
+}
+
 // ---------- localStorage (mirrors state.ts loadLocal / saveLocal / clearLocal) ----------
 
 export function loadSimulation(refusals: Refusal[] = []): Simulation | undefined {

@@ -29,11 +29,11 @@ import {
   defaultSimulationTerm,
   loadSimulation,
   parseSimulationTermCode,
+  routeLoadedFile,
   saveSimulation,
   simulationFileName,
   simulationFilePayload,
   simulationTermCode,
-  simulationTermOfFile,
   simulationTerms,
   simulationToday,
 } from './simulation.ts';
@@ -87,7 +87,6 @@ import {
   exportFile,
   loadLocal,
   saveLocal,
-  validateStudent,
 } from './state.ts';
 
 // (The §4.4.1 core-title keywords moved to src/engine/core-title.ts on
@@ -109,6 +108,16 @@ function entrySeasonOptions(selected?: Season): HTMLOptionElement[] {
 function gradeLabel(g: string): string {
   return g === 'IP' ? 'In progress' : g === 'I' ? 'I (incomplete)' : g === 'W' ? 'W (withdrawn)' : g === 'V' ? 'V (audit)' : g;
 }
+
+// Simulation mode (DGS 2026-10-09: "no DGS request, grad admin request, or
+// advisor report should be possible"; D6/D7): the reasons the inactive
+// buttons give on hover and click. The imports' reason is dom.ts's
+// SIMULATION_IMPORT_NOTE, shared with the two upload modules.
+/** "Load example" in the mode. */
+const SIMULATION_EXAMPLE_NOTE = 'Not available in simulation mode — the example is a record of its own. Exit the simulation to load it.';
+/** The three things that send: "the review request", "the processing
+ * request", "the summary to your advisor". */
+const simulationSendNote = (what: string): string => `Not available in simulation mode — nothing is sent from a plan. Exit the simulation to send ${what} from your record.`;
 
 /** A §4.4.2 group's short name (short-names.ts) from its code, or the code
  * itself when the Categories tab does not define it. */
@@ -600,6 +609,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           return { unlisted: pending.filter((p) => p.unlisted).length, caseByCase: pending.filter((p) => !p.unlisted).length, earlierOnly: pending.length > 0 && pending.every((p) => p.kind !== 'nd') };
         })(),
         processingCount: gaRequest.items.count,
+        simulation: simulation !== undefined, // the sending steps fold into one "nothing is sent" step (D7)
       }),
       nearest: nearestDeadline(report),
     };
@@ -616,7 +626,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'p',
           { class: 'print-header' },
-          `Self-check printed on ${realTodayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS decides eligibility, the Grad Admin processes it.`, // "decides", as everywhere else (trim review 2026-09-18, P-60); the real date even in simulation mode (D5)
+          // In simulation mode the printed page says so first, with the real
+          // date it was printed on and the semester it pretends to be in (D10).
+          simulation
+            ? `SIMULATION — not your real record. Printed on ${realTodayIso}; the current semester in this simulation is ${termLabel(simulation.term)} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS decides eligibility, the Grad Admin processes it.`
+            : `Self-check printed on ${realTodayIso} — ${student.program === 'mscse' ? 'M.S. in CSE (§3)' : 'Ph.D. (§4)'}, entered ${termLabel(student.entryTerm)} — not an official audit; the DGS decides eligibility, the Grad Admin processes it.`, // "decides", as everywhere else (trim review 2026-09-18, P-60); the real date even in simulation mode (D5)
         ),
         // Simulation mode's banner (DGS 2026-10-09): first thing in <main>, so
         // that nothing on the page can be read as the student's record while
@@ -796,7 +810,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         el(
           'div',
           {},
-          el('button', { class: 'btn', 'data-key': 'tools.example', onclick: loadExample }, 'Load example'),
+          // In simulation mode the example stays outside (D6): it is a record
+          // of its own, and the mode holds a copy of the student's.
+          simulation
+            ? inactiveButton({ class: 'btn', 'data-key': 'tools.example' }, SIMULATION_EXAMPLE_NOTE, toast, 'Load example')
+            : el('button', { class: 'btn', 'data-key': 'tools.example', onclick: loadExample }, 'Load example'),
           // The storage card's three buttons, here too (DGS 2026-09-24), between
           // Load example and the advisor summary. "Load a file" opens the storage
           // card's own file input, so there is one import path.
@@ -1931,6 +1949,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       field('Graduate-level cumulative GPA (from your transcript, §2.2)', gpaInput),
       gpaError,
       gpaNote,
+      // In the mode (D10): a planned course needs the grade the student
+      // expects — the form's default, In progress, never counts as complete.
+      simulation ? el('p', { class: 'hint simulation-hint' }, 'In this simulation, give each course you plan to take the grade you expect — a course left “In progress” never counts as complete.') : null,
       courseForm(),
       el('h3', { class: 'subhead', id: 'nd-courses' }, 'ND'),
       // The marks defined once, above the first table, and the one handbook
@@ -2031,7 +2052,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   // confirms (or cancels) it — one transcript at a time.
   function transcriptsCard(): HTMLElement {
     const busy = ndPreviewOpen() || importsBusy();
-    const ndArgs: NdUploadArgs = { student, rules, update, toast, toastWithAction, render, blocked: busy, setFocusAfterRender, refusedValues };
+    // In simulation mode every import is inactive with its reason (D6): a
+    // transcript is real data; the mode holds a plan.
+    const inSimulation = simulation !== undefined;
+    const ndArgs: NdUploadArgs = { student, rules, update, toast, toastWithAction, render, blocked: busy, simulation: inSimulation, setFocusAfterRender, refusedValues };
     // "Start here" made prominent (DGS 2026-09-15): a filled badge in the
     // heading and a bold callout line above the hint — until a transcript is
     // on the record (UI review item 4; DGS 2026-10-08: option (b)): a prompt
@@ -2062,9 +2086,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       busy
         ? el('p', { class: 'hint warn' }, 'One transcript at a time: confirm the open preview below (“Add …”) or cancel it before importing another PDF.')
         : null,
+      // Said once above the four inactive buttons, so the card does not read
+      // as broken; each button repeats the reason on hover and click.
+      inSimulation ? el('p', { class: 'hint simulation-hint' }, 'In simulation mode the imports are off — a transcript is real data; exit the simulation to import it into your record.') : null,
       ndTranscriptUpload(ndArgs),
       ndPreviewOpen() ? ndTranscriptPreviewBlock(ndArgs) : null,
-      ...priorTranscriptSection({ student, rules, update, toast, toastWithAction, render, blocked: busy, setFocusAfterRender }),
+      ...priorTranscriptSection({ student, rules, update, toast, toastWithAction, render, blocked: busy, simulation: inSimulation, setFocusAfterRender }),
     );
   }
 
@@ -2109,34 +2136,45 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       student.background === undefined && pending.some((p) => p.kind !== 'nd')
         ? el('p', { class: 'hint warn', 'data-key': 'review.answer-first' }, 'Answer the ', el('a', { href: '#earlier-degrees' }, 'earlier-degrees questions in the Transcripts card'), ' first — the answers can change which of these courses need review.')
         : '',
-      el(
-        'p',
-        { class: 'hint' },
-        // Shortened in place (UI review item 3; DGS 2026-10-09: option (b)).
-        el('strong', {}, 'Decisions are made only by email: '),
-        `the button below opens the review request in your own email app, for you to check and send to the ${deciderTitle(student.program)} (`,
-        mailto(decider.email),
-        // The DGS's own sentence (2026-09-15) and the attach reminder
-        // (2026-09-03); the email's format and the two-roles statement are
-        // said by the dialog and the Grad Admin card (trim review 2026-09-18, P-5).
-        '). Attach your transcript PDFs (whichever apply) to the same email.',
-      ),
-      // The process (DGS 2026-09-27): a course not in the course rules is
-      // entered by the DGS after this request — yes, no, or case by case —
-      // and the page reads the updated rules on its next visit; a
-      // case-by-case course needs the DGS's answer for this student,
-      // recorded by the tick on the course.
-      el(
-        'p',
-        { class: 'hint process-note' },
-        `A course not in the course rules yet reaches the ${deciderTitle(student.program)} through this request; the ${deciderTitle(student.program)} enters it — yes, no, or case by case — and this page reads the updated rules on your next visit. A case-by-case course needs the ${deciderTitle(student.program)}’s answer for you: once it is given, tick the box next to the course.`,
-      ),
+      // In simulation mode (D7) the two instruction paragraphs — the email
+      // app, the address, the attach reminder, the process — become one
+      // sentence: nothing is sent from a plan. The course list stays.
+      ...(simulation
+        ? [el('p', { class: 'hint simulation-hint' }, `In simulation mode nothing is sent: these are the courses this plan would put before the ${deciderTitle(student.program)} — exit the simulation to send the review request from your record.`)]
+        : [
+            el(
+              'p',
+              { class: 'hint' },
+              // Shortened in place (UI review item 3; DGS 2026-10-09: option (b)).
+              el('strong', {}, 'Decisions are made only by email: '),
+              `the button below opens the review request in your own email app, for you to check and send to the ${deciderTitle(student.program)} (`,
+              mailto(decider.email),
+              // The DGS's own sentence (2026-09-15) and the attach reminder
+              // (2026-09-03); the email's format and the two-roles statement are
+              // said by the dialog and the Grad Admin card (trim review 2026-09-18, P-5).
+              '). Attach your transcript PDFs (whichever apply) to the same email.',
+            ),
+            // The process (DGS 2026-09-27): a course not in the course rules is
+            // entered by the DGS after this request — yes, no, or case by case —
+            // and the page reads the updated rules on its next visit; a
+            // case-by-case course needs the DGS's answer for this student,
+            // recorded by the tick on the course.
+            el(
+              'p',
+              { class: 'hint process-note' },
+              `A course not in the course rules yet reaches the ${deciderTitle(student.program)} through this request; the ${deciderTitle(student.program)} enters it — yes, no, or case by case — and this page reads the updated rules on your next visit. A case-by-case course needs the ${deciderTitle(student.program)}’s answer for you: once it is given, tick the box next to the course.`,
+            ),
+          ]),
       ...pending.map((p) => line(p.course.entry.courseId, where(p), p.reason)),
       ...notes.map((t) => el('div', { class: 'review-line review-note', 'data-keep-dgs': '' }, el('span', { class: 'cid' }, 'Note'), ` — ${t}`)),
       el(
         'div',
         { class: 'save-buttons' },
-        el(
+        // In the mode the button is inactive with its reason (D7): no request
+        // leaves a plan — `inactiveButton`, so the reason can be shown.
+        simulation
+          ? inactiveButton({ class: 'btn', 'data-key': 'review.copy' }, simulationSendNote('the review request'), toast, `Initiate the review request for ${what}`)
+          : el(
           'button',
           {
             class: 'btn',
@@ -2705,8 +2743,10 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const needsTranscripts = built.items.transfers.length > 0;
     const label = 'Initiate the request';
     const attrs = { class: 'btn', 'data-key': 'gradadmin.copy' };
-    const button =
-      n === 0
+    const button = simulation
+      ? // In the mode nothing is sent (D7): inactive with its reason, whatever the count.
+        inactiveButton(attrs, simulationSendNote('the processing request'), toast, label)
+      : n === 0
         ? inactiveButton(
             attrs,
             'Nothing to process yet — this button becomes active as soon as any requirement is met, or a transfer credit the DGS has approved, a milestone date, or the MSCSE along the way appears in your record.',
@@ -2742,7 +2782,17 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       // review 2026-09-18, P-4). The full paragraph no longer points at "the
       // review request above" (a card most students never see) or repeats
       // "the page itself sends nothing" (step 3 of the dialog) — P-19.
-      n === 0
+      // In simulation mode (D7) the paragraph is one sentence: nothing is
+      // sent from a plan; the item list below stays.
+      simulation
+        ? el(
+            'p',
+            { class: 'hint simulation-hint' },
+            n === 0
+              ? 'In simulation mode nothing is sent — and nothing in this plan is ready for the Grad Admin yet.'
+              : `In simulation mode nothing is sent: these are the ${plural(n, 'item')} this plan would put before the Grad Admin — exit the simulation to send the processing request from your record.`,
+          )
+        : n === 0
         ? el(
             'p',
             { class: 'hint' },
@@ -3151,6 +3201,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   }
 
   function advisorSummaryButton(report: ReturnType<typeof audit>, key = 'save.copy'): HTMLElement {
+    // In simulation mode the summary is not sent (D7): inactive with its reason.
+    if (simulation) return inactiveButton({ class: 'btn', 'data-key': key }, simulationSendNote('the summary to your advisor'), toast, 'Send summary to advisor');
     return el(
       'button',
       {
@@ -3194,26 +3246,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       try {
         const refusals: Refusal[] = [];
         const raw: unknown = JSON.parse(await file.text());
-        const imported = validateStudent(raw, refusals);
-        // A SIMULATION file (D3) carries its semester. Loaded outside the mode
-        // it opens the mode with that semester and leaves the real record
-        // untouched; inside the mode, any file — a record or a simulation —
-        // loads into the simulation, never into the real record (D2).
-        const fileTerm = simulationTermOfFile(raw);
+        // Where the file goes (D3, routeLoadedFile — pure, tested): outside
+        // the mode a record replaces the record and a SIMULATION file enters
+        // the mode with its semester, the real record untouched; inside the
+        // mode any file loads into the simulation, never into the real
+        // record (D2). validateStudent's errors are thrown from inside it.
+        const route = routeLoadedFile(raw, { student, simulation, realStudent }, realTodayIso, refusals);
         cancelUndo();
         refusedValues.clear(); // this file's own refusals replace the page's
-        const previous = student;
+        const previous = { student, simulation, realStudent };
         const previousSimulation = simulation;
-        if (fileTerm !== undefined && !simulation) {
-          realStudent = student;
-          simulation = { term: clampSimulationTerm(fileTerm, realTodayIso), student: imported };
-        }
-        student = imported;
+        ({ student, simulation, realStudent } = route);
         try {
           render(); // render BEFORE persisting, so a file that crashes rendering is never saved
         } catch (renderErr) {
-          student = previous;
-          simulation = previousSimulation;
+          ({ student, simulation, realStudent } = previous);
           render();
           throw renderErr;
         }
@@ -3225,14 +3272,19 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           render();
         }
         // "File", as the buttons say (trim review 2026-09-18, P-62).
+        // A simulation file loaded inside the mode brings its semester: the
+        // toast names it when it differs from the one the page was in.
+        const movedTo = simulation && previousSimulation && compareTerm(previousSimulation.term, simulation.term) !== 0 ? simulation.term : undefined;
         const loaded =
-          simulation && previousSimulation === undefined
+          route.outcome === 'entered' && simulation
             ? `Simulation file loaded — simulation mode is on for ${termLabel(simulation.term)}; your record is untouched.`
-            : simulation
-              ? `File loaded into the simulation — your record is untouched.`
+            : route.outcome === 'into-simulation'
+              ? movedTo
+                ? `Simulation file loaded into the simulation — now pretending it is ${termLabel(movedTo)}; your record is untouched.`
+                : `File loaded into the simulation — your record is untouched.`
               : 'File loaded.';
         toast(refusals.length > 0 ? `${loaded} ${refusals.map((r) => r.message).join(' ')}` : loaded);
-        if (simulation && previousSimulation === undefined) {
+        if (route.outcome === 'entered' && simulation) {
           setFocusAfterRender('simulation.term');
           render();
           srStatus.textContent = `Simulation mode on: this page is pretending it is ${termLabel(simulation.term)}. Nothing here is your record.`;

@@ -41,6 +41,12 @@ export function option(value: string, label: string, selected = false): HTMLOpti
 export const PREVIEW_OPEN_NOTE =
   'Not available while a transcript preview is open: finish selecting and adding those courses (“Add …”), or cancel the preview, and this button becomes active again.';
 
+/** Why every transcript import (and the OCR opt-in) is inactive in simulation
+ * mode (DGS 2026-10-09, D6): a transcript is real data, and the mode holds a
+ * plan — it is imported into the record, outside the mode. */
+export const SIMULATION_IMPORT_NOTE =
+  'Not available in simulation mode — a transcript is real data. Exit the simulation, import it into your record, and simulate from there.';
+
 /** A button that is inactive for a stated reason. Not the `disabled`
  * attribute: a disabled button gets no hover, no focus and no click, so its
  * reason could never be shown. `aria-disabled` keeps it in the tab order and

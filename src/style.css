@@ -1398,6 +1398,10 @@ html.simulation { border-top: 6px solid var(--navy-fill); }
 .program-name-wrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .chip-simulation { margin-left: 0; background: var(--card); color: var(--navy); border: 2px solid var(--navy); padding: 2px 9px; }
 h2 .chip-simulation, .headline .chip-simulation { margin-left: 8px; }
+/* The mode's own sentences on the cards (D6/D7/D10: the imports are off, nothing
+   is sent, give each planned course its grade): a navy rule marks them as the
+   mode's, not the card's usual hint. */
+.simulation-hint { border-left: 3px solid var(--navy); padding-left: 8px; }
 /* The way in, at the foot of the Coursework card. */
 .simulate-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
 .simulate-foot .hint { margin: 0 0 8px; }

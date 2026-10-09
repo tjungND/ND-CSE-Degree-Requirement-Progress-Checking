@@ -19,7 +19,7 @@ import { conferralTerm, termIndex, termLabel, termOfDate, termShort } from '../e
 import type { CourseEntry, Student, Term, TermGpa } from '../engine/types.ts';
 import { parseTranscript, type DegreeAwarded, type EntryTermInference, type ParsedCourse, type TranscriptTerm } from '../transcript/parse.ts';
 import { earlierDegreesState, forgetReadings, mergeReading, readBackgroundFromNdTerms, restoreEarlierDegrees, type ReadingResult } from './background-read.ts';
-import { el, inactiveButton, PREVIEW_OPEN_NOTE } from './dom.ts';
+import { el, inactiveButton, PREVIEW_OPEN_NOTE, SIMULATION_IMPORT_NOTE } from './dom.ts';
 import { plural } from './email-html.ts';
 import { ndRowLabel } from './external-upload.ts';
 import { postingOf, stripNdPostings, twinOfBlockRow } from './nd-posted.ts';
@@ -38,6 +38,11 @@ export interface NdUploadArgs {
   render: () => void;
   /** One transcript at a time (2026-09-03): true while ANY preview is open. */
   blocked: boolean;
+  /** Simulation mode (DGS 2026-10-09, D6): true while the mode is on — the
+   * Import button is inactive with its own reason (SIMULATION_IMPORT_NOTE: a
+   * transcript is real data; it is imported outside the mode). Remove stays
+   * active: it edits the planning copy, never the record. */
+  simulation?: boolean;
   setFocusAfterRender: (key: string) => void;
   refusedValues: RefusedValues;
 }
@@ -338,7 +343,11 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
   // reason can be shown.
   const button = (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string): HTMLButtonElement =>
     args.blocked ? inactiveButton(attrs, PREVIEW_OPEN_NOTE, args.toast, label) : el('button', attrs, label);
-  const importButton = button(
+  // In simulation mode the import itself is inactive with its own reason
+  // (D6) — a transcript is real data; the mode holds a plan.
+  const importButtonOf = (attrs: Record<string, string | boolean | ((ev: Event) => void)>, label: string): HTMLButtonElement =>
+    args.simulation ? inactiveButton(attrs, SIMULATION_IMPORT_NOTE, args.toast, label) : button(attrs, label);
+  const importButton = importButtonOf(
     {
       class: 'btn',
       'data-key': 'import.nd',

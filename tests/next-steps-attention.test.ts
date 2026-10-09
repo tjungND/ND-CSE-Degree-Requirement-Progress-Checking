@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { audit } from '../src/engine/audit.ts';
 import type { Milestones, Student, Term } from '../src/engine/types.ts';
+import { nextSteps } from '../src/ui/next-steps.ts';
 import { attentionRows } from '../src/ui/report.ts';
 import { buildRules } from './helpers.ts';
 import { ndCourse, phdStudent } from './helpers/student.ts';
@@ -60,6 +61,25 @@ describe('Next steps: the OCE when it is due, the submission only after the defe
     const ids = listed(ready(2022, { candidacyPassed: '2026-09-20' }), '2026-10-05');
     assert.ok(!ids.includes('phd.candidacy'));
     assert.ok(!ids.includes('phd.dissertation.submitted'), 'still no defense');
+  });
+  // Simulation mode (DGS 2026-10-09; D7): the folded "nothing is sent" step
+  // carries the union of the sending steps' covers, so the rows the list
+  // leaves out are exactly the same in and out of the mode.
+  it('in simulation mode the attention rows are unchanged: the one folded step covers what the sending steps covered', () => {
+    const s = ready(2022, { candidacyPassed: '2026-09-20' });
+    const report = audit(s, rules, '2026-10-05');
+    const input = { report, student: s, review: { unlisted: 1, caseByCase: 0 }, processingCount: 3 };
+    const plain = nextSteps(input);
+    const folded = nextSteps({ ...input, simulation: true });
+    assert.ok(plain.some((x) => x.href === '#dgs-review') && plain.some((x) => x.href === '#grad-admin'), 'the record has sending steps to fold');
+    assert.equal(folded.filter((x) => /^In simulation mode nothing is sent/.test(x.text)).length, 1, 'said once');
+    assert.ok(!folded.some((x) => (x.href === '#dgs-review' || x.href === '#grad-admin') && !/^In simulation mode/.test(x.text)), 'no other step sends');
+    const covered = (steps: typeof plain) => new Set(steps.flatMap((x) => x.covers ?? []));
+    assert.deepEqual(covered(folded), covered(plain));
+    assert.deepEqual(
+      attentionRows(report, covered(folded)).map((r) => r.id),
+      attentionRows(report, covered(plain)).map((r) => r.id),
+    );
   });
   it('the MSCSE thesis: no submission step before the thesis defense', () => {
     const thesis: Student = phdStudent({

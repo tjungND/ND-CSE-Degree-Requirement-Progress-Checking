@@ -627,6 +627,16 @@ file later reopens it in simulation mode with that semester, leaving the real re
 record — so a student who opened a plan on an old copy of the page should check the first line
 of the file before trusting what they see. Reloading the page keeps the mode on (a toast says so).
 
+Inside the mode, "Load a file" loads any file — a saved record or a saved plan — into the
+simulation, never into the real record (a plan brings its own semester with it; a record keeps the
+semester the page is in), and the toast says which happened. The buttons that would send something
+(the review request, the processing request, the advisor summary), Load example, the four
+transcript imports and the OCR opt-in are greyed, and say why on hover or click (a transcript is
+real data — it is imported outside the mode); the two request cards still list what the plan
+would put before the DGS and the Grad Admin, and the Next steps list says so in one line instead
+of "Send …". A printed plan opens with "SIMULATION — not your real record", the real date it was
+printed on and the semester it pretends to be in.
+
 ## Where things live
 
 `src/engine/` — rule engine, one pure function per requirement with the handbook sentence quoted
