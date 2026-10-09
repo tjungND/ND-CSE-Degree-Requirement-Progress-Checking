@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Term } from '../src/engine/types.ts';
-import { bachelorsPrefill, ocrReducedPagesNote, rowIsCompact } from '../src/transcript/preview-layout.ts';
+import { bachelorsPrefill, ocrReducedPagesNote, ocrTurnedNote, rowIsCompact } from '../src/transcript/preview-layout.ts';
 
 describe('preview row layout', () => {
   const read = { locked: true, credits: 3, grade: 'A', year: 2023 };
@@ -66,5 +66,14 @@ describe('ocrReducedPagesNote (OCR step 12, W-CL373)', () => {
       'Pages 1, 2 and 3 are much larger than a letter page and were read at a lower resolution than usual (about 100 dpi), so their rows may be rougher — check them with extra care.',
     );
     assert.match(ocrReducedPagesNote([{ page: 1, dpi: 90 }, { page: 2, dpi: 90 }]), /^Pages 1 and 2 are /);
+  });
+});
+
+describe('ocrTurnedNote (OCR step 12, W-CL374)', () => {
+  it('says nothing for a scan read as it came, names a sideways or an upside-down scan', () => {
+    assert.equal(ocrTurnedNote(0), '');
+    assert.equal(ocrTurnedNote(90), 'The scan was sideways and was turned the right way up before reading.');
+    assert.equal(ocrTurnedNote(270), 'The scan was sideways and was turned the right way up before reading.');
+    assert.equal(ocrTurnedNote(180), 'The scan was upside down and was turned the right way up before reading.');
   });
 });

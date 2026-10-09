@@ -8,7 +8,7 @@
 // university only issues paper.
 import * as pdfjs from 'pdfjs-dist';
 import './pdf.ts'; // configures pdfjs's bundled worker (side effect)
-import { OCR_ENGINE_PARAMETERS, ocrPageLayout, ocrRenderScale, ocrScaleReduced, paintedImageSizes, scanResolution, type ColumnHint, type OcrLine } from './ocr-lines.ts';
+import { meanWordConfidence, OCR_ENGINE_PARAMETERS, OCR_ORIENTATION_TRIAL_MARGIN, OCR_ORIENTATION_TRIAL_SKIP_ABOVE, OCR_TRIAL_TURNS, ocrPageLayout, ocrRenderScale, ocrScaleReduced, paintedImageSizes, scanResolution, type ColumnHint, type OcrLine } from './ocr-lines.ts';
 import type { OcrReducedPage } from './preview-layout.ts';
 
 export type { OcrLine } from './ocr-lines.ts';
@@ -52,12 +52,15 @@ const MAX_PAGES = 10;
 // `reducedPages` for the preview to say so.
 
 /** What `ocrPdfToLines` returns besides the lines: how many pages were read
- * of how many, and the pages read below the usual resolution. */
+ * of how many, the pages read below the usual resolution, and the quarter
+ * turn (degrees clockwise) the orientation trial applied — 0 when the scan
+ * was the right way up. */
 export interface OcrReadResult {
   lines: OcrLine[];
   pagesRead: number;
   pagesTotal: number;
   reducedPages: OcrReducedPage[];
+  turned: 0 | 90 | 180 | 270;
 }
 
 /** OCR a scanned PDF into text lines with per-line confidence. Throws when the
@@ -90,6 +93,9 @@ export async function ocrPdfToLines(data: ArrayBuffer, onProgress: (p: OcrProgre
     // The previous page's column layout, handed on as pdf.ts hands a text
     // PDF's (a short last page may split by it — F4, 2026-10-09).
     let hint: ColumnHint | undefined;
+    // The quarter turn page 1's orientation trial chose (ocr-lines.ts,
+    // OCR_TRIAL_TURNS); every later page is read turned the same way.
+    let turned: OcrReadResult['turned'] = 0;
     for (let p = 1; p <= pagesRead; p++) {
       onProgress({ label: `Reading page ${p} of ${pagesRead}`, percent: Math.round(((p - 1) / pagesRead) * 100) });
       const page = await doc.getPage(p);
@@ -97,22 +103,43 @@ export async function ocrPdfToLines(data: ArrayBuffer, onProgress: (p: OcrProgre
       const scanDpi = scanResolution(await paintedImageSizes(page, pdfjs.OPS), base.width, base.height);
       const scale = ocrRenderScale(base.width, base.height, scanDpi);
       if (ocrScaleReduced(scale)) reducedPages.push({ page: p, dpi: Math.round(scale * 72) });
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('no canvas 2d context');
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      const { data: out } = await worker.recognize(canvas, {}, { blocks: true });
+      // The page rendered turned `turn` degrees clockwise from its own
+      // rotation and recognised; the engine's mean word confidence says how
+      // well it read (a page the wrong way round scores far lower).
+      const readTurned = async (turn: number) => {
+        const viewport = page.getViewport({ scale, rotation: (base.rotation + turn) % 360 });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('no canvas 2d context');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const { data: out } = await worker.recognize(canvas, {}, { blocks: true });
+        return { blocks: out.blocks, width: canvas.width, height: canvas.height, confidence: meanWordConfidence(out.blocks) };
+      };
+      let best = await readTurned(turned);
+      if (p === 1 && best.confidence < OCR_ORIENTATION_TRIAL_SKIP_ABOVE) {
+        // The orientation trial (OCR step 12): page 1 read poorly as it came —
+        // try it turned, and keep the turn that reads clearly better (by the
+        // margin) for every page.
+        onProgress({ label: 'Checking which way up the scan is', percent: 0 });
+        const asItCame = best.confidence;
+        for (const turn of OCR_TRIAL_TURNS) {
+          const other = await readTurned(turn);
+          if (other.confidence > best.confidence && other.confidence >= asItCame + OCR_ORIENTATION_TRIAL_MARGIN) {
+            best = other;
+            turned = turn;
+          }
+        }
+      }
       // The pure stage (ocr-lines.ts): word boxes → layout.ts → the parser's
       // lines, in the canvas's pixels over the page's scale = PDF units.
-      const read = ocrPageLayout(out.blocks, canvas.width, canvas.height, scale, { hint });
+      const read = ocrPageLayout(best.blocks, best.width, best.height, scale, { hint });
       hint = read.hint;
       lines.push(...read.lines);
       lines.push({ text: '', confidence: 100 }); // page break, like pdfToLines
     }
-    return { lines, pagesRead, pagesTotal, reducedPages };
+    return { lines, pagesRead, pagesTotal, reducedPages, turned };
   } finally {
     await loadingTask.destroy();
     await worker.terminate();

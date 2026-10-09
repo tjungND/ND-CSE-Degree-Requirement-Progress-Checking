@@ -65,3 +65,11 @@ export function ocrReducedPagesNote(pages: readonly OcrReducedPage[]): string {
     ? `Page ${list} is much larger than a letter page and was read at a lower resolution than usual (about ${dpi} dpi), so its rows may be rougher — check them with extra care.`
     : `Pages ${list} are much larger than a letter page and were read at a lower resolution than usual (about ${dpi} dpi), so their rows may be rougher — check them with extra care.`;
 }
+
+/** The sentence the OCR banner adds when the orientation trial turned the
+ * scan before reading it (OCR step 12; W-CL374): a quarter turn either way
+ * is "sideways", a half turn "upside down". '' when it was the right way up. */
+export function ocrTurnedNote(turned: 0 | 90 | 180 | 270): string {
+  if (turned === 0) return '';
+  return `The scan was ${turned === 180 ? 'upside down' : 'sideways'} and was turned the right way up before reading.`;
+}

@@ -671,3 +671,53 @@ cause the next OCR step owns: the header-mapped cell path must tolerate OCR nois
 token scan did (a fuzzy header word, a stray cell, a title cell's leading section number and symbol), and a
 one-column table's split needs a veto that the ND header's "Grade" does not disarm. The Alberta family is the
 first target: it is the one real registrar scan family in the bench and it lost most at office-scan quality.
+
+### OCR step 12 — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`): the engine's parameters, the render scale, preprocessing (plan steps 2.2–2.4)
+
+Every knob an A/B on the same parser against a baseline made on the same code: `--quick` (6 seeds, 12 pages,
+L0 / L2 / L5; `bench-out/ocr-step12-before-quick/`), the medium set (62 seeds, 151 pages at L2 and L5;
+`-before-medium/`, whose figures equal the step-11 full ladder's row for row, so that ladder served as the
+baseline for L3 and L6), and for the resolution a run of L0 at 300 dpi (`-before-l0-300/`). The table of every
+experiment with its numbers and verdict is in `docs/OCR-BENCHMARK.md` ("OCR step 12"); the DECISIONS rows of
+this date carry the reasons. The runner grew the knobs the step needed (`ocr-run.mjs`: `--scale auto`, `--dpi
+auto`, `--border`, `--rotation-trial` / `--trial-always`, `--binary-dir`; `bench.mjs` keeps each page's render
+dpi, scan dpi, mean word confidence and trial figures in `results.json` as `pageFigures`).
+
+**2.2 — PSM and the dpi hint: nothing adopted.** PSM 4 and 11 (and 3, run as an extra) all lose rows at L2 /
+L5 (row accuracy 58.6 → 27.6 / 34.5 / 27.6 % at L5 on `--quick`; PSM 11 keeps the words and loses the grade
+cells, grade accuracy 85 → 56 %) for a cleaner reading of one key page; `user_defined_dpi = 216` changes no
+line on `--quick` or the medium set — a no-op for the LSTM engine. PSM 6 stays; `OCR_ENGINE_PARAMETERS` is
+still empty.
+
+**2.3 — the render scale: adopted as a SOURCE-AWARE scale.** `ocrRenderScale(pageWidthPt, pageHeightPt,
+scanDpi)` in `src/transcript/ocr-lines.ts` renders a page at its scan's own resolution — the largest image the
+page paints over the page's inches, read from pdfjs's operator list (`paintedImageSizes`: the operator's own
+`[id, width, height]`, never the decoded object, which pdfjs resolves only when drawn; `scanResolution`) —
+floored at `OCR_BASE_DPI` 216 (the scale 3.0 the app used before) and capped at `OCR_TARGET_DPI` 300, then
+lowered only as far as iOS Safari's canvas caps require (4096 px a side, 16 megapixels; whole thousandths,
+the rounded-up canvas checked; unit-tested on Letter, A4, legal, tabloid and a 40-inch page). Evidence: a
+flat 300 was a wash at L2 (54.1 → 53.7 %) and LOST at L5 (58.1 → 52.2 %) on the ladder's 150–200-dpi sources —
+the rows read better and more confidently at 300, but Minerva's header cell "Cr./C.E.U." came out
+"Cr./C.E\U." and the parser's header-mapped path lost every grade under it (the step-2.5 brittleness named
+by step 11) — while on 300-dpi sources (L0 at 300, 62 seeds) 300 beat 216: exact 36 → 40, row accuracy 66.3
+→ 70.0 %, rows found 89.3 → 92.2 %, false rows 15 → 9, 1.18 × the time (the DGS had accepted up to 2 ×). Under
+the shipped rule every ladder level reads exactly as before (`--quick` 0 / 0) and the L0-at-300 board is the
+300 one. `ocr.ts` computes the scale per page; a page the caps bring under 216 dpi is listed in
+`reducedPages` and the preview's OCR banner names it with its dpi (W-CL373, `ocrReducedPagesNote` in
+`preview-layout.ts`); a legal page (293 dpi) or a tabloid (241) is not reduced. The runner's `--scale auto`
+is the same rule and is now the bench's baseline config (`--scale 3` reproduces the app before this step).
+
+**2.4 — preprocessing: the orientation trial adopted; the rest measured and not adopted.** The ORIENTATION TRIAL (`ocr.ts`, constants in `ocr-lines.ts`): page 1 is read as it comes and, when the engine's mean word confidence in that reading (`meanWordConfidence`) is under `OCR_ORIENTATION_TRIAL_SKIP_ABOVE` = 70, rendered turned 90 / 180 / 270° (`OCR_TRIAL_TURNS`, pdfjs's viewport rotation) and read again; a turned reading wins only by `OCR_ORIENTATION_TRIAL_MARGIN` = 5 points over the page as it came, and the winning turn is applied to every later page; the preview's banner says the scan was turned (W-CL374, `ocrTurnedNote`). Measured with all four turns always read (medium set, 248 rows): L6-90 row accuracy 0 → 65.2 %, rows found 0 → 90.0 %, false rows 274 → 23; L6-180 0 → 64.4 %, 0 → 90.7 %, 48 → 15; L2 / L5 unchanged but for two junk pages the margin now keeps upright. The two figures are the trial's own data: upright pages score ≥ 70 nine times in ten (median 89.9), the wrong way round ≤ 54.6; the right turn wins by a median of 45.8 points and by ≥ 11.3 on all but a junk form page, the two wrong "wins" by 1.5 and 3.5. Cost: about three extra page-1 recognitions for one page in ten (and for every sideways scan). `--quick` with L6: L6-90 0 → 69.0 %, L6-180 0 → 65.5 %, L0–L5 identical.
+`rotateAuto` (the engine's own skew correction) gains 17 points at L3 (photocopies skewed 2–3°: row accuracy
+41.5 → 58.9 %, false rows 19 → 15) and loses 16 at L2 (office scans skewed ±0.5–1.5°: 54.1 → 37.8 %, the
+Minerva long record 47 → 1) at 1.25–1.3 × the time — the engine's angle is accurate at both levels (0.5–0.6°
+applied where L2 lost, 2.8° at L3), so the small-angle re-rendering itself hurts; not adopted, and the
+next step's candidate is the two-pass form (keep the deskewed reading only when the engine's estimate is
+≥ 1.5°, else read the page plain again). `thresholding_method` was proven to reach the engine (`--binary-dir`
+writes the engine's own binarised page; 0, 1 and 2 differ byte for byte) and then rejected: 1 (Leptonica
+Otsu) reads nothing at L2 and takes 18 s/page, 2 (Sauvola) cuts false rows (16 → 14, 21 → 14) but loses rows
+(L2 54.1 → 41.1 %). `tessedit_do_invert = 0` is 3–7 % faster and +1.5 / +0.4 points, but adds false rows on
+the medium set (16 → 17, 21 → 23) — out by the false-row rule. A 10-px white border is neutral on rows and
+scrambles a key page's reading order. Verified: `npx tsc --noEmit`, `npm test` 1615 pass, `npm run
+build`; e2e not run (not this agent's — the OCR leg on Chrome and WebKit should be run before the DGS ships
+this: the scan fixture still reads its three rows at the shipped scale, measured in node).

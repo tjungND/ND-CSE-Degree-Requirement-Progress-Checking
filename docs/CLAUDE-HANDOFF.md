@@ -1391,7 +1391,8 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   Safari every PDF read failed (system-generated ones then looked like scans). Before ever
   upgrading pdfjs, grep the new build + pdf.worker.min.mjs for those identifiers and check
   they are guarded, then test in real Safari.
-  Pages render via pdfjs at scale 3.0 (216 dpi), max 10 pages. THE PIPELINE (OCR step 11,
+  Pages render via pdfjs at the per-page scale of OCR step 12 (the scan's own resolution between
+  216 and 300 dpi — the step-12 bullet below; a fixed 3.0 = 216 dpi before it), max 10 pages. THE PIPELINE (OCR step 11,
   2026-10-09): render → `worker.recognize(canvas, {}, { blocks: true })` → the pure
   `src/transcript/ocr-lines.ts` → `src/transcript/layout.ts` → the parser. `blocksToRuns(blocks, scale,
   pageHeightPx)` turns the engine's WORD boxes into layout `Run`s (pixels / scale = PDF units, y flipped
@@ -1425,6 +1426,36 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   floor's comment in `external.ts`). The ND uploader still
   takes NO scans (digital insideND PDF only; OCR'd ND text redirects there). The e2e OCR leg
   runs the real engine in headless Chrome (~15-60 s; 120 s waitFor).
+- **OCR step 12 — the render scale and the orientation trial** (2026-10-09, plan steps 2.2–2.4; the
+  A/B table is docs/OCR-BENCHMARK.md "OCR step 12", the reasons the DECISIONS rows of that date). The
+  page scale is no longer a constant: `ocr.ts` asks `ocrRenderScale(width, height, scanDpi)`
+  (ocr-lines.ts) per page — the scan's own resolution from `paintedImageSizes(page, pdfjs.OPS)` +
+  `scanResolution` (the operator list's `[id, width, height]`; NEVER `page.objs.get` — pdfjs resolves
+  some images only when drawn, and a reader that waited on one hung on a vector page's logo), between
+  `OCR_BASE_DPI` 216 and `OCR_TARGET_DPI` 300, stepped down in thousandths until the rounded-up canvas
+  fits iOS Safari's caps (`OCR_MAX_CANVAS_SIDE_PX` 4096, `OCR_MAX_CANVAS_AREA_PX` 16 M — above them
+  WebKit draws nothing and the engine reads a blank page with no error). Why not a flat 300: on the
+  ladder's 150–200-dpi sources it LOST rows (a misread header cell unmaps a table in the parser's
+  header-mapped path — step 2.5's job), on 300-dpi sources it won by 4 points of row accuracy at 1.18 ×
+  the time. Pages brought under 216 dpi come back as `reducedPages` and the OCR banner names them
+  (W-CL373, `ocrReducedPagesNote` in preview-layout.ts). Page 1 also gets the ORIENTATION TRIAL: read
+  as it comes and, when `meanWordConfidence` of that reading is under `OCR_ORIENTATION_TRIAL_SKIP_ABOVE`
+  (70 (and a turned reading must beat the page as it came by `OCR_ORIENTATION_TRIAL_MARGIN` = 5 points) — measured: every upright page of the medium set scored above it, every page read the
+  wrong way round below), rendered turned 90 / 180 / 270° (`page.getViewport({ scale, rotation })`,
+  `OCR_TRIAL_TURNS`) and the best reading's turn applied to every later page; the result's `turned` is
+  shown on the banner (W-CL374, `ocrTurnedNote`). Sideways and upside-down scans read nothing before
+  (0 rows at every L6 level); now they read as their upright selves. The bench mirrors both:
+  `ocr-run.mjs` `--scale auto` (the baseline config since this step; `--scale 3` = the app before it)
+  and `--rotation-trial` with the same early exit (`--trial-always` forces all four turns — the
+  measurement's form); `bench.mjs` keeps each page's dpi, scan dpi, mean confidence, rotation and
+  trial figures in `results.json` (`pageFigures`). Measured and NOT adopted, numbers in DECISIONS:
+  PSM 3 / 4 / 11, `user_defined_dpi` (a no-op), `rotateAuto` (+17 at L3, −16 at L2 — the two-pass
+  form, keeping the deskew only when the engine's own estimate is ≥ 1.5°, is the next candidate),
+  `thresholding_method` 1 / 2 (`--binary-dir` proves the parameter reaches the engine),
+  `tessedit_do_invert = 0` (false rows up on the medium set), a 10-px border. `OCR_ENGINE_PARAMETERS`
+  is still empty. A medium-set run (`--families generator-external,generator-nd,generator-scan,public-pdf
+  --levels L2,L5`) takes ~12 min and is the A/B to trust over `--quick` (the flat-300 and invert
+  verdicts reversed between the two).
 - Updating the OCR assets: bump `tesseract.js` in package.json, `npm install`, re-copy
   `node_modules/tesseract.js/dist/worker.min.js` and
   `node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js` into `public/ocr/`, and
