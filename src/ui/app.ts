@@ -376,9 +376,13 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   const realTodayIso = today.iso;
   /** The date the AUDIT runs against: the real one, or in simulation mode the
    * simulated semester's (simulationToday — the real date while the simulated
-   * semester is the real one, else its first day). Questions about the
-   * transcript (its empty semesters, unregistered gaps), the rules' date, the
-   * print header's "printed on" and a saved file's savedAt keep the real date. */
+   * semester is the real one, else its first day). The transcript's empty
+   * semesters (transcriptGapSemesters — a question about the transcript), the
+   * rules' date, the print header's "printed on" and a saved file's savedAt
+   * keep the real date. The registration-gap question (uncoveredRegistrationGaps)
+   * follows the engine, which only ever sees this date: in the mode a plan
+   * that leaves a fall or spring unregistered is warned about, and the fold
+   * the warning points at opens off the same date (review fix 2026-10-09). */
   const todayIso = (): string => (simulation ? simulationToday(simulation.term, realTodayIso) : realTodayIso);
   // No default (policy review 2026-10-03, P1-residency-enrollment-c7): with
   // the Parameters row missing the residency rows cannot be evaluated, and
@@ -703,11 +707,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         ),
       ),
     );
-    // Embedded, the banner scrolls out of a tall frame that has no sticky
-    // strip, so the mode is repeated beside the report's headline (and in
-    // each request card, where those are built). The headline is report.ts's;
-    // the chip is added here, after the fact, like the first-mention rule.
-    if (simulation && isEmbedded()) root.querySelector('.audit .scorehead .headline')?.append(' ', simulationChip()!);
+    // The mode is repeated beside the report's headline (and in each request
+    // card, where those are built) in every mode (review fix 2026-10-09): on a
+    // phone the sticky score bar — the one marker that follows the student —
+    // hides while a score headline is on screen, so the headline itself must
+    // carry the mode; in the frame, which has no strip and no bar, likewise.
+    // The headline is report.ts's; the chip is added here, after the fact,
+    // like the first-mention rule.
+    if (simulation) root.querySelector('.audit .scorehead .headline')?.append(' ', simulationChip()!);
     // "Oral Candidacy Exam (OCE)" in full once, then "OCE" (DGS 2026-09-06
     // evening) — text nodes only, in document order, before focus is restored.
     applyFirstMentionRule(root);
@@ -1502,7 +1509,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     const gapUnanswered =
       (gaps !== undefined && gaps.length > 0 && (student.leaveSemesters ?? 0) === 0 && student.readmittedTerm === undefined) ||
       (withdrawals.length > 0 && student.readmittedTerm === undefined) ||
-      uncoveredRegistrationGaps(student, realTodayIso) !== undefined; // the transcript's gaps: the real date even in simulation mode (D5)
+      uncoveredRegistrationGaps(student, todayIso()) !== undefined; // the SAME date the engine's warning reads (audit.ts) — in simulation mode the simulated one, so the fold the warning points at is open (review fix 2026-10-09; DECISIONS)
     return rareFold(
       'clocks',
       onFile.length > 0 ? `${summary} — on file: ${onFile.join(', ')}` : summary,
@@ -2130,7 +2137,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'div',
       { class: 'card dgs-review', id: 'dgs-review' },
-      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, what), isEmbedded() ? simulationChip() : null), // the mode repeated here in the frame (D9)
+      el('h2', {}, `Ask the ${deciderTitle(student.program)} to review `, el('span', { class: 'chip-note' }, what), simulationChip()), // the mode repeated on the card (D9; in every mode since the review fix of 2026-10-09)
       // Earlier coursework waits on the earlier-degrees answer (UI review,
       // 2026-10-08): said first; the request itself stays (DGS 2026-09-03).
       student.background === undefined && pending.some((p) => p.kind !== 'nd')
@@ -2774,7 +2781,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     return el(
       'section',
       { class: 'card grad-admin-request', id: 'grad-admin' },
-      el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, plural(n, 'item')), isEmbedded() ? simulationChip() : null), // the mode repeated here in the frame (D9)
+      el('h2', {}, 'Ask the Grad Admin to process ', el('span', { class: 'chip-note' }, plural(n, 'item')), simulationChip()), // the mode repeated on the card (D9; in every mode since the review fix of 2026-10-09)
       // Two people, two jobs (DGS 2026-09-06; the button sentence DGS
       // 2026-09-15). While there is nothing to send, the paragraph told the
       // student to click a button that does nothing, so the n = 0 state is
@@ -3250,8 +3257,12 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
         // the mode a record replaces the record and a SIMULATION file enters
         // the mode with its semester, the real record untouched; inside the
         // mode any file loads into the simulation, never into the real
-        // record (D2). validateStudent's errors are thrown from inside it.
-        const route = routeLoadedFile(raw, { student, simulation, realStudent }, realTodayIso, refusals);
+        // record (D2). validateStudent's errors are thrown from inside it —
+        // and so is the refusal of a simulation file while a transcript
+        // preview or scan is open (review fix 2026-10-09): the same guard the
+        // Simulate button has, since the preview's Add would otherwise file
+        // the real transcript's rows into the plan and Exit would drop them.
+        const route = routeLoadedFile(raw, { student, simulation, realStudent, previewOpen: ndPreviewOpen() || importsBusy() }, realTodayIso, refusals);
         cancelUndo();
         refusedValues.clear(); // this file's own refusals replace the page's
         const previous = { student, simulation, realStudent };
@@ -3345,9 +3356,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     document.title = simulation ? `Simulating ${termLabel(simulation.term)} — ${baseTitle}` : baseTitle;
   }
 
-  /** The "Simulation" chip — after the program name in the masthead and, in
-   * embed mode, beside the report headline and in each request card. Null
-   * outside the mode. */
+  /** The "Simulation" chip — after the program name in the masthead, beside
+   * the report headline and in each request card (everywhere since the review
+   * fix of 2026-10-09; it was the frame's alone). Null outside the mode. */
   function simulationChip(): HTMLElement | null {
     return simulation ? el('span', { class: 'chip-start chip-simulation' }, 'Simulation') : null;
   }
@@ -3396,12 +3407,22 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     srStatus.textContent = `Simulation mode on: this page is pretending it is ${termLabel(term)}. Nothing here is your record.`;
   }
 
-  /** The semester picker's change. */
+  /** The semester picker's change. The page is rendered BEFORE the semester
+   * is saved — as the file path does — so a semester that crashes rendering
+   * is never stored and re-thrown on every reload (review fix 2026-10-09):
+   * the previous semester comes back, and the error reaches the console. */
   function setSimulationTerm(term: Term): void {
     if (!simulation) return;
+    const previous = simulation.term;
     simulation.term = term;
-    saveSimulation(simulation);
-    render();
+    try {
+      render();
+    } catch (err) {
+      simulation.term = previous;
+      render();
+      throw err;
+    }
+    persist();
     srStatus.textContent = `Simulated current semester: ${termLabel(term)}. Report updated.`;
   }
 

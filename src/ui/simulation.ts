@@ -127,6 +127,14 @@ export function simulationTermOfFile(raw: unknown): Term | undefined {
   return { season: term.season as Season, year: term.year };
 }
 
+/** Why a simulation file is refused while a transcript preview or a scan is
+ * open (review fix 2026-10-09): the preview's rows belong to the REAL record,
+ * and entering the mode under it would let its Add file them into the plan —
+ * and Exit would then discard them. Same rule as the Simulate button's
+ * PREVIEW_OPEN_NOTE, worded for the file. */
+export const SIMULATION_FILE_PREVIEW_NOTE =
+  'That is a simulation file, and a transcript preview is open: add those courses to your record (“Add …”) or cancel the preview first, then load the file.';
+
 /** What the page holds before a file is loaded, and what it holds after. */
 export interface LoadedFileRoute {
   /** The page's record after the load (the one every control edits). */
@@ -146,8 +154,12 @@ export interface LoadedFileRoute {
  * record on the page untouched in memory; INSIDE the mode any file — a
  * record or a simulation — loads into the simulation, never into the real
  * record (D2); a simulation file brings its own semester with it. Pure: the
- * caller renders and persists. Throws what validateStudent throws. */
-export function routeLoadedFile(raw: unknown, page: { student: Student; simulation: Simulation | undefined; realStudent: Student | undefined }, realIso: string, refusals: Refusal[] = []): LoadedFileRoute {
+ * caller renders and persists. Throws what validateStudent throws — and
+ * SIMULATION_FILE_PREVIEW_NOTE when a simulation file would enter the mode
+ * while a transcript preview or scan is open (`page.previewOpen`, the same
+ * guard the Simulate button has; review fix 2026-10-09): the preview belongs
+ * to the record, so the mode must start from a settled one. */
+export function routeLoadedFile(raw: unknown, page: { student: Student; simulation: Simulation | undefined; realStudent: Student | undefined; previewOpen?: boolean }, realIso: string, refusals: Refusal[] = []): LoadedFileRoute {
   const imported = validateStudent(raw, refusals);
   const fileTerm = simulationTermOfFile(raw);
   if (page.simulation) {
@@ -155,6 +167,7 @@ export function routeLoadedFile(raw: unknown, page: { student: Student; simulati
     return { student: imported, simulation: { term, student: imported }, realStudent: page.realStudent, outcome: 'into-simulation' };
   }
   if (fileTerm !== undefined) {
+    if (page.previewOpen) throw new Error(SIMULATION_FILE_PREVIEW_NOTE);
     return { student: imported, simulation: { term: clampSimulationTerm(fileTerm, realIso), student: imported }, realStudent: page.student, outcome: 'entered' };
   }
   return { student: imported, simulation: undefined, realStudent: page.realStudent, outcome: 'record' };
@@ -189,6 +202,49 @@ export function clearSimulation(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Whether anything is stored under SIM_KEY — readable or not. The crash
+ * fallback in main.ts asks this before it offers to clear anything. */
+export function simulationStored(): boolean {
+  try {
+    return localStorage.getItem(SIM_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+// ---------- the crash fallback (main.ts) ----------
+
+/** What main.ts offers when startApp throws (review fix 2026-10-09). With a
+ * simulation stored, the page opened IN the mode and drew the planning copy,
+ * so the copy — not the record — is what broke the page: the one button
+ * discards the simulation and keeps the record (a plan is disposable; the
+ * record is not). It used to clear the record's key alone, which lost the
+ * record and left the simulation to crash the page again on the reload.
+ * Without a simulation stored, the record is cleared as before — and the
+ * simulation key with it, so nothing stored can survive a "start fresh". Pure. */
+export interface CrashRecovery {
+  /** The sentence above the button. */
+  message: string;
+  /** The button's label. */
+  button: string;
+  /** Which storage the button clears. */
+  clears: 'simulation' | 'all';
+}
+export function crashRecovery(simulationStored: boolean, reason: string | undefined): CrashRecovery {
+  const why = reason ? ` (${reason})` : '';
+  return simulationStored
+    ? {
+        message: `Something went wrong showing the simulation you left open${why}. You can discard the simulation and go back to your record — or close this tab if you want to try again later.`,
+        button: 'Discard the simulation and show my record',
+        clears: 'simulation',
+      }
+    : {
+        message: `Something went wrong showing your saved data${why}. You can clear it and start fresh — or close this tab if you want to try again later.`,
+        button: 'Clear saved data and start fresh',
+        clears: 'all',
+      };
 }
 
 // ---------- what Exit discards ----------

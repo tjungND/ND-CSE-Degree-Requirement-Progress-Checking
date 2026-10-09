@@ -1878,7 +1878,12 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
 - **`todayIso` is a function** — `todayIso()` is the simulated date (`simulationToday`:
   the real date while the semester is the real one, else the semester's first day);
   `realTodayIso` is the real one. The readers that must stay real are marked "(D5)" in
-  app.ts: the transcript's gap questions, the rules' date line, the print header's date.
+  app.ts: the transcript's empty semesters (`transcriptGapSemesters`, the standing fold's
+  summary line), the rules' date line, the print header's date. The registration-gap
+  question (`uncoveredRegistrationGaps`, which opens the `clocks` fold) reads `todayIso()`
+  — the engine's date, since the engine gets one `today` and is not changed; the review
+  fix of 2026-10-09 (DECISIONS) ended a split where the report warned about the plan's
+  empty semesters while the fold it pointed at stayed closed. Do not move it back.
 - **The picker** lists `simulationTerms(realTodayIso)` (real current term → same season ten
   years on, summers included); `defaultSimulationTerm` is the next fall/spring on fall/spring
   slots; a stored or loaded semester is `clampSimulationTerm`ed on load so time never runs
@@ -1892,16 +1897,32 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
 - **The mode on the page**: `markSimulationMode()` (run by every render) sets `html.simulation`
   and the tab title; the banner is first in `<main>` after the print header; the strip
   (`.simulation-strip`) shows only at ≥ 901 px outside the frame, the phone's sticky score bar
-  carries the mode below that; in the frame a "Simulation" chip is repeated beside the report
-  headline (appended after `renderReport`, like the first-mention rule) and in each request
-  card. Enter focuses the picker, Exit focuses `tools.simulate`; the three `srStatus`
-  announcements are set AFTER `render()`, which otherwise overwrites them with "Report updated".
+  carries the mode below that; a "Simulation" chip is repeated beside the report headline
+  (appended after `renderReport`, like the first-mention rule) and in each request card — in
+  EVERY mode since the review fix of 2026-10-09 (it was the frame's alone, and on a phone the
+  sticky bar hides while a score headline is on screen, leaving no marker in view). Enter
+  focuses the picker, Exit focuses `tools.simulate`; the three `srStatus` announcements are
+  set AFTER `render()`, which otherwise overwrites them with "Report updated".
 - `confirmDialog` (copy-dialog.ts) now closes once: its queued `close` event used to call
   `returnFocusTo` a second time, after the caller had re-rendered the page without the
   opening control, and the heading fallback stole the focus Exit had just placed.
-- The drivers know the new button: drive-app.mjs's tools-row order includes `tools.simulate`;
-  drive-a11y.mjs's first-screen tab-stop threshold is 13. Nothing in the mode is driven by the
-  e2e yet.
+- The e2e drives the mode (review fix 2026-10-09): `driveSimulation` in drive-app.mjs loads
+  the example, enters from `tools.simulate`, checks the banner / chips / announcements /
+  focus / inert buttons, adds a course, moves the picker two options on, reloads (reopens in
+  the mode), checks the phone headline chip at 390 px, exits through the confirmation, and
+  asserts the REAL key (`cse-degree-audit/v1/student`) byte-identical at every step while
+  `cse-degree-audit/v1/simulation` holds the plan and is gone after Exit (screenshots
+  `simulation-mode`, `simulation-phone-headline`). drive-app.mjs's tools-row order includes
+  `tools.simulate`; drive-a11y.mjs's first-screen tab-stop threshold is 13. The DOM-free
+  invariants (one `saveLocal(` inside `persist()`, render-before-persist in
+  `setSimulationTerm`, the preview flag on `routeLoadedFile`, the gap date, the ungated
+  chips) are read from the source by tests/simulation.test.ts — a refactor that renames
+  those lines must update the test, not drop it.
+- **The crash fallback** (main.ts, review fix 2026-10-09): `crashRecovery(simulationStored(),
+  reason)` decides what the one button clears. With a simulation stored the page opened in the
+  mode and drew the copy, so the button discards the simulation and keeps the record; without
+  one it clears both keys. Never clear the record's key alone — that was the data-loss bug.
+  `setSimulationTerm` renders before `persist()` for the same reason the file handler does.
 - **Nothing is sent from the mode (D6/D7).** In the mode `review.copy`, `gradadmin.copy`
   (whatever its count), `save.copy` / `save.summary`, `tools.example`, `import.nd`, the three
   `ext.import.<level>` buttons and `ext.scan.ocr` are `inactiveButton`s with a reason —
@@ -1921,6 +1942,10 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
   semester (the page's record becomes `realStudent`); inside the mode any file loads into the
   simulation (a simulation file brings its semester). The handler destructures its result
   into `student` / `simulation` / `realStudent` and restores all three if the render throws.
+  It passes `previewOpen: ndPreviewOpen() || importsBusy()`, and the router refuses a
+  simulation file that would enter the mode under an open preview or scan
+  (`SIMULATION_FILE_PREVIEW_NOTE`, review fix 2026-10-09) — the same guard `enterSimulation`
+  has; otherwise the preview's Add filed the real transcript's rows into the plan.
 - **D10 on the page**: the Coursework card's hint in the mode (a planned course needs its
   expected grade — In progress never counts) and the print header's "SIMULATION — not your
   real record. Printed on <real date>; the current semester in this simulation is <term> — …".

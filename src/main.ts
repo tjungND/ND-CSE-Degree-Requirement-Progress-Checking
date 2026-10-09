@@ -7,6 +7,7 @@ import { startApp } from './ui/app.ts';
 import { startTheme } from './ui/theme.ts';
 import { markEmbedMode, startHeightBroadcast, trackInteractions } from './ui/embed.ts';
 import { clearLocal } from './ui/state.ts';
+import { clearSimulation, crashRecovery, simulationStored } from './ui/simulation.ts';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (app) {
@@ -27,17 +28,21 @@ if (app) {
       startApp(app, rules, today);
     } catch (err) {
       // Saved data from an old version (or a bad import) must never brick the
-      // page — offer a way out instead of a blank screen.
+      // page — offer a way out instead of a blank screen. With a simulation
+      // stored (simulation mode, DGS 2026-10-09) the page opened in the mode
+      // and drew the planning copy, so the copy is what broke it: the button
+      // discards the simulation and keeps the record (review fix 2026-10-09 —
+      // it used to clear the record alone and leave the simulation to crash
+      // the reload). Without one, "start fresh" clears both keys.
       app.textContent = '';
+      const plan = crashRecovery(simulationStored(), err instanceof Error ? err.message : undefined);
       const msg = document.createElement('p');
-      msg.textContent =
-        'Something went wrong showing your saved data' +
-        (err instanceof Error ? ` (${err.message})` : '') +
-        '. You can clear it and start fresh — or close this tab if you want to try again later.';
+      msg.textContent = plan.message;
       const btn = document.createElement('button');
-      btn.textContent = 'Clear saved data and start fresh';
+      btn.textContent = plan.button;
       btn.addEventListener('click', () => {
-        clearLocal();
+        if (plan.clears === 'all') clearLocal();
+        clearSimulation();
         location.reload();
       });
       app.append(msg, btn);

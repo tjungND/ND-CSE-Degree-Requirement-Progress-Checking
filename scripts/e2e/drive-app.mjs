@@ -785,7 +785,172 @@ export async function driveApp(s, baseUrl) {
   if (!printFold.during.every(Boolean)) throw new Error('beforeprint must open every closed footer disclosure so the printed page carries its text (P-71): ' + JSON.stringify(printFold));
   if (printFold.after.join() !== printFold.before.join()) throw new Error('afterprint must return the footer disclosures to the state the student had (P-71): ' + JSON.stringify(printFold));
 
+  await driveSimulation(s, baseUrl);
   await driveAppEmbed(s, baseUrl);
+}
+
+// E2E: simulation mode (DGS 2026-10-09; driven end to end since the review
+// fix of 2026-10-09 — the first build only accommodated the new button). The
+// record is the example. The real record's storage key must stay
+// byte-identical through entering, editing the copy, changing the semester,
+// a reload and Exit, while the simulation's own key holds the plan; the mode
+// must be marked on the page — on a phone too, beside the report headline,
+// where the sticky bar hides; nothing that sends may be active inside it.
+async function driveSimulation(s, baseUrl) {
+  const LS = 'cse-degree-audit/v1/student';
+  const SIM = 'cse-degree-audit/v1/simulation';
+  await s.open(baseUrl);
+  await s.evalJs(`localStorage.clear()`);
+  await s.open(baseUrl);
+  await s.waitFor(`document.querySelectorAll('.req').length > 5`);
+  // The example as the record. (The button asks first when the record holds
+  // courses, and a real `confirm` would block the page.)
+  await s.evalJs(`(() => { const c = window.confirm; window.confirm = () => true; [...document.querySelectorAll('button')].find((b) => b.textContent === 'Load example').click(); window.confirm = c; })()`);
+  await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
+  const realBefore = await s.evalJs(`localStorage.getItem('${LS}')`);
+  if (!realBefore) throw new Error('the example must be saved as the record before the simulation starts');
+  const outside = JSON.parse(await s.evalJs(`JSON.stringify({
+    banner: !!document.querySelector('.simulation-banner'),
+    tools: !!document.querySelector('[data-key="tools.simulate"]'),
+    coursework: !!document.querySelector('[data-key="coursework.simulate"]'),
+    marked: document.documentElement.classList.contains('simulation'),
+    chips: document.querySelectorAll('.chip-simulation').length,
+    sim: localStorage.getItem('${SIM}'),
+  })`));
+  if (outside.banner || !outside.tools || !outside.coursework || outside.marked || outside.chips !== 0 || outside.sim !== null) throw new Error('outside the mode: ' + JSON.stringify(outside));
+
+  // The way in, from the tools row.
+  await s.evalJs(`document.querySelector('[data-key="tools.simulate"]').click()`);
+  await s.waitFor(`document.querySelector('.simulation-banner')`);
+  await s.settle();
+  const entered = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sim = JSON.parse(localStorage.getItem('${SIM}') ?? 'null');
+    const inert = (k) => document.querySelector('[data-key="' + k + '"]')?.getAttribute('aria-disabled') ?? 'absent';
+    return {
+      lead: document.querySelector('.simulation-lead')?.textContent ?? '',
+      marked: document.documentElement.classList.contains('simulation'),
+      title: document.title,
+      focused: document.activeElement?.dataset?.key ?? '',
+      picked: document.querySelector('[data-key="simulation.term"]')?.selectedOptions[0]?.textContent ?? '',
+      term: sim && sim.term ? sim.term : null,
+      simCourses: sim && sim.student ? sim.student.courses.length : -1,
+      mastheadChip: !!document.querySelector('.masthead .chip-simulation'),
+      headlineChip: !!document.querySelector('.audit .scorehead .headline .chip-simulation'),
+      standing: /simulated current semester: /.test(document.body.textContent),
+      status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
+      // The buttons that send or import, by data-key: inactive with a reason (aria-disabled), never a bare disabled.
+      inert: Object.fromEntries(['gradadmin.copy', 'save.copy', 'save.summary', 'tools.example', 'import.nd', 'review.copy'].map((k) => [k, inert(k)])),
+      exits: ['simulation.exit', 'tools.simulate.exit', 'simulation.strip.exit'].filter((k) => !document.querySelector('[data-key="' + k + '"]')),
+      resetLabel: document.querySelector('[data-key="tools.reset"]')?.textContent ?? '',
+      wayIn: !!document.querySelector('[data-key="tools.simulate"], [data-key="coursework.simulate"]'),
+      real: localStorage.getItem('${LS}'),
+    };
+  })())`));
+  console.log('  entered:', JSON.stringify({ ...entered, real: entered.real === realBefore ? 'unchanged' : 'CHANGED' }));
+  if (!/^Simulation mode — this page is pretending it is (Spring|Summer|Fall) \d{4}; nothing here is your record\.$/.test(entered.lead)) throw new Error('the banner must name the semester: ' + entered.lead);
+  if (!entered.picked || !entered.lead.includes(entered.picked) || !entered.title.startsWith('Simulating ' + entered.picked)) throw new Error('the banner, the picker and the tab title must name the same semester: ' + JSON.stringify([entered.lead, entered.picked, entered.title]));
+  if (!entered.marked || !entered.mastheadChip || !entered.headlineChip || !entered.standing) throw new Error('the mode must be marked on the page: ' + JSON.stringify(entered));
+  if (entered.focused !== 'simulation.term') throw new Error('entering must focus the semester picker, not ' + entered.focused);
+  if (!/^Simulation mode on: this page is pretending it is /.test(entered.status)) throw new Error('entering must be announced: ' + entered.status);
+  if (!entered.term || entered.simCourses < 3) throw new Error('the simulation key must hold the semester and a copy of the record: ' + JSON.stringify(entered));
+  for (const [k, v] of Object.entries(entered.inert)) {
+    if (v !== 'true' && !(k === 'review.copy' && v === 'absent')) throw new Error(`${k} must be inactive in the mode (aria-disabled="true"), got ${v}`);
+  }
+  if (entered.exits.length > 0 || !/^Start the simulation over/.test(entered.resetLabel) || entered.wayIn) throw new Error('the three ways out, the renamed Reset, no way in: ' + JSON.stringify(entered));
+  if (entered.real !== realBefore) throw new Error('entering the mode must not touch the real record’s key');
+  await s.shot('simulation-mode');
+
+  // Edit the copy — a planned course — and move the semester two options on.
+  await s.evalJs(`(() => { const id = document.querySelector('[data-key="course.new.id"]'); id.value = 'CSE 60772'; id.dispatchEvent(new Event('change')); document.querySelector('[data-key="course.new.add"]').click(); })()`);
+  await s.waitFor(`[...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772')`);
+  const later = await s.evalJs(`(() => { const sel = document.querySelector('[data-key="simulation.term"]'); const o = sel.options[sel.selectedIndex + 2]; sel.value = o.value; sel.dispatchEvent(new Event('change')); return o.textContent; })()`);
+  await s.waitFor(`(document.querySelector('.simulation-lead')?.textContent ?? '').includes(${JSON.stringify(later)})`);
+  await s.settle();
+  const edited = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const sim = JSON.parse(localStorage.getItem('${SIM}') ?? 'null');
+    return {
+      simHas: !!sim && sim.student.courses.some((c) => c.courseId === 'CSE 60772'),
+      title: document.title,
+      status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
+      real: localStorage.getItem('${LS}'),
+    };
+  })())`));
+  if (!edited.simHas || !edited.title.startsWith('Simulating ' + later)) throw new Error('the simulation key must hold the planned course and the new semester: ' + JSON.stringify(edited));
+  if (!edited.status.startsWith('Simulated current semester: ' + later)) throw new Error('a semester change must be announced: ' + edited.status);
+  if (edited.real !== realBefore) throw new Error('editing the simulation must not touch the real record’s key');
+  console.log('  edited the copy and moved to ' + later + '; the real record is unchanged');
+
+  // A reload reopens IN the mode, with the plan and its semester; the real
+  // record is still untouched. (The "still on" toast may have expired by the
+  // time the opening notice is answered — logged, not asserted.)
+  await s.open(baseUrl);
+  await s.waitFor(`document.querySelector('.simulation-banner')`);
+  await s.settle();
+  const reloaded = JSON.parse(await s.evalJs(`JSON.stringify({
+    lead: document.querySelector('.simulation-lead')?.textContent ?? '',
+    course: [...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772'),
+    toast: /Simulation mode is still on/.test(document.body.textContent),
+    real: localStorage.getItem('${LS}'),
+  })`));
+  console.log('  reloaded in the mode:', JSON.stringify({ ...reloaded, real: reloaded.real === realBefore ? 'unchanged' : 'CHANGED' }));
+  if (!reloaded.lead.includes(later) || !reloaded.course) throw new Error('a reload must reopen in the mode with the plan and its semester: ' + JSON.stringify(reloaded));
+  if (reloaded.real !== realBefore) throw new Error('reopening in the mode must not touch the real record’s key');
+
+  // On a phone (390 px) the mode must stay in view while the report's own
+  // headline is: the sticky score bar hides there (P-66), so the headline
+  // carries the chip (review fix 2026-10-09); once the headline scrolls off,
+  // the bar carries the mode.
+  await s.setViewport({ width: 390, height: 900, mobile: true });
+  await s.evalJs(`document.querySelector('.audit .scorehead .headline').scrollIntoView({ block: 'center' })`);
+  await s.settle();
+  const phone = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const chip = document.querySelector('.audit .scorehead .headline .chip-simulation');
+    const r = chip?.getBoundingClientRect();
+    return { chipText: chip?.textContent ?? '', inView: !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight };
+  })())`));
+  if (phone.chipText !== 'Simulation' || !phone.inView) throw new Error('on a phone the report headline must carry the Simulation chip in view: ' + JSON.stringify(phone));
+  await s.shot('simulation-phone-headline');
+  await s.evalJs(`document.getElementById('inputs').scrollIntoView()`);
+  await s.settle();
+  const bar = await s.evalJs(`(() => { const b = document.querySelector('.sticky-score'); return b && getComputedStyle(b).display !== 'none' ? b.textContent : ''; })()`);
+  if (!/^Simulation · /.test(bar)) throw new Error('the phone’s sticky score bar must carry the mode once the headline is off screen: ' + JSON.stringify(bar));
+  console.log('  on a phone: the headline chip while the bar hides, the bar once it shows');
+  await s.setViewport({ width: 1400, height: 1900 });
+  await s.evalJs('window.scrollTo(0, 0)');
+  await s.settle();
+
+  // The way out asks first and says what goes; then the record is back,
+  // byte-identical, the plan is gone, and the sending buttons are live again.
+  await s.evalJs(`document.querySelector('[data-key="simulation.exit"]').click()`);
+  await s.waitFor(`document.querySelector('dialog.confirm-check[open]')`);
+  const ask = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const d = document.querySelector('dialog.confirm-check');
+    return { title: d.querySelector('h2').textContent, body: [...d.querySelectorAll('p')].map((p) => p.textContent).join(' '), buttons: [...d.querySelectorAll('button')].map((b) => b.textContent), focused: document.activeElement?.dataset?.key ?? '' };
+  })())`));
+  console.log('  exit asks:', JSON.stringify(ask));
+  if (ask.title !== 'Exit simulation mode?' || !/This discards the simulation: 1 course, /.test(ask.body) || !ask.body.includes('the simulated semester ' + later)) throw new Error('Exit must say what it discards: ' + JSON.stringify(ask));
+  if (ask.focused !== 'confirm.no') throw new Error('the safe answer must have focus: ' + ask.focused);
+  await s.evalJs(`document.querySelector('[data-key="confirm.yes"]').click()`);
+  await s.waitFor(`!document.querySelector('.simulation-banner') && !document.querySelector('dialog.confirm-check')`);
+  await s.settle();
+  const exited = JSON.parse(await s.evalJs(`JSON.stringify({
+    sim: localStorage.getItem('${SIM}'),
+    real: localStorage.getItem('${LS}'),
+    course: [...document.querySelectorAll('table.courses .cid')].some((e) => e.textContent === 'CSE 60772'),
+    marked: document.documentElement.classList.contains('simulation'),
+    title: document.title,
+    chips: document.querySelectorAll('.chip-simulation').length,
+    focused: document.activeElement?.dataset?.key ?? '',
+    status: document.querySelector('.visually-hidden[role="status"]')?.textContent ?? '',
+    sendActive: document.querySelector('[data-key="save.copy"]')?.getAttribute('aria-disabled') ?? 'none',
+  })`));
+  console.log('  exited:', JSON.stringify({ ...exited, real: exited.real === realBefore ? 'unchanged' : 'CHANGED' }));
+  if (exited.sim !== null || exited.course || exited.marked || /^Simulating/.test(exited.title) || exited.chips !== 0) throw new Error('Exit must drop the plan and unmark the page: ' + JSON.stringify(exited));
+  if (exited.real !== realBefore) throw new Error('the real record must come back byte-identical to what it was before the simulation');
+  if (exited.focused !== 'tools.simulate') throw new Error('Exit must return focus to the way in, not ' + exited.focused);
+  if (!/^Simulation mode off/.test(exited.status)) throw new Error('exiting must be announced: ' + exited.status);
+  if (exited.sendActive !== 'none') throw new Error('the advisor summary must be active again outside the mode');
+  await s.evalJs(`localStorage.clear()`);
 }
 
 // E2E: ?embed=1 on the self-check tool (DGS 2026-09-16). The same chrome trim

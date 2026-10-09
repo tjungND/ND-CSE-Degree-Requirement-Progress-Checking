@@ -1,26 +1,39 @@
 // Simulation mode (DGS 2026-10-09) — the DOM-free half of src/ui/simulation.ts:
 // the semester picker's list and default, the simulated "today", the saved
-// file's name and shape, and what the Exit confirmation counts.
+// file's name and shape, and what the Exit confirmation counts. The review
+// fixes of 2026-10-09 are pinned at the end: the crash fallback's choice of
+// key, a simulation file under an open preview, the registration-gap date,
+// and the app.ts invariants the mode rests on (read from the source, since
+// the page has no node-side DOM; the mode itself is driven by the e2e,
+// scripts/e2e/drive-app.mjs driveSimulation).
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
+import { audit } from '../src/engine/audit.ts';
+import { uncoveredRegistrationGaps } from '../src/engine/registration-gaps.ts';
 import { termOfDate } from '../src/engine/term.ts';
+import type { Term } from '../src/engine/types.ts';
 import { validateStudent } from '../src/ui/state.ts';
 import {
+  SIMULATION_FILE_PREVIEW_NOTE,
   SIMULATION_YEARS_AHEAD,
   changesSentence,
   clampSimulationTerm,
   countChangesSince,
+  crashRecovery,
   defaultSimulationTerm,
   loadSimulation,
   parseSimulationTermCode,
   routeLoadedFile,
   simulationFileName,
   simulationFilePayload,
+  simulationStored,
   simulationTermCode,
   simulationTermOfFile,
   simulationTerms,
   simulationToday,
 } from '../src/ui/simulation.ts';
+import { buildRules } from './helpers.ts';
 import { ndCourse, phdStudent } from './helpers/student.ts';
 
 describe('defaultSimulationTerm — the next fall or spring, on fall/spring slots', () => {
@@ -227,5 +240,123 @@ describe('countChangesSince — what Exit would discard', () => {
       changesSentence({ courses: 3, milestoneDates: 1, other: 2 }, { season: 'spring', year: 2028 }),
       '3 courses, 1 milestone date and 2 other changes made since you entered; the simulated semester Spring 2028',
     );
+  });
+});
+
+// ---------- review fixes (2026-10-09) ----------
+
+describe('a simulation file while a transcript preview or scan is open (review fix 2026-10-09)', () => {
+  const REAL = '2026-10-09';
+  const SP28 = { season: 'spring' as const, year: 2028 };
+  const onPage = phdStudent({ courses: [ndCourse('CSE 60641')] });
+  const inFile = phdStudent({ courses: [ndCourse('CSE 60111')] });
+  const simulationFile = simulationFilePayload(inFile, SP28, 'x');
+  const recordFile = { savedAt: 'x', student: inFile };
+
+  it('is refused outside the mode, before anything on the page changes — the preview belongs to the record', () => {
+    const before = JSON.stringify(onPage);
+    assert.throws(() => routeLoadedFile(simulationFile, { student: onPage, simulation: undefined, realStudent: undefined, previewOpen: true }, REAL), (err: unknown) => err instanceof Error && err.message === SIMULATION_FILE_PREVIEW_NOTE);
+    assert.equal(JSON.stringify(onPage), before);
+    assert.match(SIMULATION_FILE_PREVIEW_NOTE, /transcript preview is open/);
+  });
+  it('a plain record file is routed as before while the preview is open (the preview was never the mode’s business)', () => {
+    assert.equal(routeLoadedFile(recordFile, { student: onPage, simulation: undefined, realStudent: undefined, previewOpen: true }, REAL).outcome, 'record');
+  });
+  it('with no preview open the file enters the mode as before', () => {
+    assert.equal(routeLoadedFile(simulationFile, { student: onPage, simulation: undefined, realStudent: undefined, previewOpen: false }, REAL).outcome, 'entered');
+  });
+  it('inside the mode the flag changes nothing — no preview can be open there (the imports are inert)', () => {
+    const real = phdStudent({ courses: [ndCourse('CSE 60427')] });
+    assert.equal(routeLoadedFile(simulationFile, { student: onPage, simulation: { term: SP28, student: onPage }, realStudent: real, previewOpen: true }, REAL).outcome, 'into-simulation');
+  });
+});
+
+describe('the crash fallback (main.ts; review fix 2026-10-09) — which key it clears', () => {
+  it('with a simulation stored, discards the simulation and keeps the record', () => {
+    const plan = crashRecovery(true, 'boom');
+    assert.equal(plan.clears, 'simulation');
+    assert.equal(plan.message, 'Something went wrong showing the simulation you left open (boom). You can discard the simulation and go back to your record — or close this tab if you want to try again later.');
+    assert.equal(plan.button, 'Discard the simulation and show my record');
+  });
+  it('without one, clears everything — the simulation key included — with the wording the page always had', () => {
+    const plan = crashRecovery(false, undefined);
+    assert.equal(plan.clears, 'all');
+    assert.equal(plan.message, 'Something went wrong showing your saved data. You can clear it and start fresh — or close this tab if you want to try again later.');
+    assert.equal(plan.button, 'Clear saved data and start fresh');
+  });
+  it('simulationStored is false where there is no localStorage (node)', () => {
+    assert.equal(simulationStored(), false);
+  });
+});
+
+describe('the registration-gap question reads the date the engine reads (review fix 2026-10-09)', () => {
+  // A transcript registered Fall 2025 through Fall 2026, one leave semester entered, no readmission.
+  const fall = (year: number): Term => ({ season: 'fall', year });
+  const spring = (year: number): Term => ({ season: 'spring', year });
+  const nd = (id: string, term: Term) => ndCourse(id, { term, fromNdTranscript: true });
+  const student = phdStudent({ entryTerm: fall(2025), leaveSemesters: 1, courses: [nd('CSE 60641', fall(2025)), nd('CSE 60111', spring(2026)), nd('CSE 60321', fall(2026))] });
+  const REAL = '2026-10-09';
+  const SP28 = spring(2028);
+  const rules = buildRules();
+  const gapWarning = (today: string, s = student) => audit(s, rules, today).warnings.find((w) => /^Your Notre Dame transcript shows no registration in/.test(w));
+
+  it('on the real date there is nothing to say — the transcript runs to the current semester', () => {
+    assert.equal(uncoveredRegistrationGaps(student, REAL), undefined);
+    assert.equal(gapWarning(REAL), undefined);
+  });
+  it('simulating Spring 2028 with nothing planned for 2027: the engine warns about Spring 2027 and Fall 2027, and the fold opener, read off the same date, agrees', () => {
+    const today = simulationToday(SP28, REAL);
+    assert.match(gapWarning(today)!, /no registration in Spring 2027 and Fall 2027 — 2 semesters, more than the 1 semester of medical leave/);
+    // What app.ts's `gapUnanswered` reads: defined → the Your standing fold opens where the warning points.
+    assert.deepEqual(uncoveredRegistrationGaps(student, today), [spring(2027), fall(2027)]);
+    // …and what it read before the fix (the real date): undefined → the fold stayed closed under an open warning.
+    assert.equal(uncoveredRegistrationGaps(student, REAL), undefined);
+  });
+  it('planning a course in each of those semesters clears the warning and closes the question', () => {
+    const planned = { ...student, courses: [...student.courses, ndCourse('CSE 60427', { term: spring(2027) }), ndCourse('CSE 60876', { term: fall(2027) })] };
+    const today = simulationToday(SP28, REAL);
+    assert.equal(uncoveredRegistrationGaps(planned, today), undefined);
+    assert.equal(gapWarning(today, planned), undefined);
+  });
+});
+
+describe('app.ts invariants the mode rests on (read from the source — the page has no node-side DOM)', () => {
+  const src = readFileSync(new URL('../src/ui/app.ts', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+  /** The text of one function or arrow in app.ts, from its head to the first line that closes at its indentation. */
+  const bodyOf = (head: string, close: string): string => {
+    const start = src.indexOf(head);
+    assert.ok(start >= 0, `app.ts has ${head}`);
+    const end = src.indexOf(close, start);
+    assert.ok(end > start, `…and it closes with ${JSON.stringify(close)}`);
+    return src.slice(start, end);
+  };
+
+  it('saveLocal( is called exactly once, inside persist() — no path turns a plan into the record (D2)', () => {
+    assert.equal((src.match(/\bsaveLocal\(/g) ?? []).length, 1);
+    assert.ok(bodyOf('const persist = (): void => {', '\n  };').includes('saveLocal(student)'));
+  });
+  it('a semester change renders before it is saved, so a semester that crashes rendering is never stored and re-thrown on every reload', () => {
+    const body = bodyOf('function setSimulationTerm(', '\n  }\n');
+    assert.ok(body.includes('render()') && body.includes('persist()'), 'renders and persists');
+    assert.ok(body.indexOf('render()') < body.indexOf('persist()'), 'render first');
+    assert.ok(!body.includes('saveSimulation('), 'through the one persist() gate');
+  });
+  it('the crash fallback clears the simulation key, and the record only when no simulation is stored', () => {
+    assert.match(main, /crashRecovery\(simulationStored\(\)/);
+    assert.match(main, /if \(plan\.clears === 'all'\) clearLocal\(\);\s*clearSimulation\(\);/);
+  });
+  it('a simulation file is routed with the preview state, like the Simulate button', () => {
+    assert.match(src, /routeLoadedFile\(raw, \{ student, simulation, realStudent, previewOpen: ndPreviewOpen\(\) \|\| importsBusy\(\) \}/);
+    assert.match(src, /if \(simulation \|\| ndPreviewOpen\(\) \|\| importsBusy\(\)\) return;/, 'enterSimulation’s guard');
+  });
+  it('the Your standing fold opens off the date the engine reads (todayIso()); the transcript’s own empty semesters keep the real date (D5)', () => {
+    assert.match(src, /uncoveredRegistrationGaps\(student, todayIso\(\)\) !== undefined/);
+    assert.doesNotMatch(src, /uncoveredRegistrationGaps\(student, realTodayIso\)/);
+    assert.match(src, /transcriptGapSemesters\(student, realTodayIso\)/);
+  });
+  it('the Simulation chip beside the report headline and on the request cards is not gated on the frame', () => {
+    assert.match(src, /if \(simulation\) root\.querySelector\('\.audit \.scorehead \.headline'\)\?\.append\(' ', simulationChip\(\)!\);/);
+    assert.doesNotMatch(src, /isEmbedded\(\) \? simulationChip\(\)/);
   });
 });
