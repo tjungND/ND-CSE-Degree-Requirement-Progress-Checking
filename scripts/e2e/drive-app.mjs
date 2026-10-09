@@ -346,20 +346,28 @@ export async function driveApp(s, baseUrl) {
   console.log('  0-credit course added after confirming — line and warning both explain it');
   // The warning follows the screen (DGS 2026-10-05): fixed in the window's
   // corner, open, still in view at the bottom of the page; folded by its
-  // summary, it stays folded through the next re-render.
-  const floatCheck = JSON.parse(await s.evalJs(`JSON.stringify((() => {
-    window.scrollTo(0, document.documentElement.scrollHeight);
+  // Hide button — the same button as Next steps (DGS 2026-10-08), no
+  // disclosure triangle — it stays folded through the next re-render.
+  const warnState = async () => JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const box = document.querySelector('.warnings');
     const r = box.getBoundingClientRect();
-    return { floating: box.classList.contains('floating'), position: getComputedStyle(box).position, open: box.open, inView: r.top >= 0 && r.bottom <= window.innerHeight && r.height > 20 };
+    const t = box.querySelector('[data-key="report.warnings.toggle"]');
+    return { floating: box.classList.contains('floating'), position: getComputedStyle(box).position, details: box.tagName === 'DETAILS' || !!box.querySelector('summary'), folded: box.classList.contains('folded'), bodyShown: getComputedStyle(box.querySelector('.warnings-body')).display !== 'none', button: t ? t.textContent : null, expanded: t?.getAttribute('aria-expanded'), inView: r.top >= 0 && r.bottom <= window.innerHeight && r.height > 20 };
   })())`));
-  if (!floatCheck.floating || floatCheck.position !== 'fixed' || !floatCheck.open || !floatCheck.inView) throw new Error('the warning must float in view when the page is scrolled: ' + JSON.stringify(floatCheck));
-  await s.evalJs(`document.querySelector('.warnings summary').click()`);
+  await s.evalJs(`window.scrollTo(0, document.documentElement.scrollHeight)`);
+  await s.settle(300);
+  const floatCheck = await warnState();
+  if (!floatCheck.floating || floatCheck.position !== 'fixed' || floatCheck.details || floatCheck.folded || !floatCheck.bodyShown || floatCheck.button !== 'Hide' || floatCheck.expanded !== 'true' || !floatCheck.inView) throw new Error('the warning must float in view when the page is scrolled, open, with a Hide button: ' + JSON.stringify(floatCheck));
+  await s.evalJs(`document.querySelector('[data-key="report.warnings.toggle"]').click()`);
   await s.evalJs(`(() => { const d = document.querySelector('[data-key="milestone.advisorName"]'); d.dispatchEvent(new Event('change')); })()`);
   await s.settle();
-  if (await s.evalJs(`document.querySelector('.warnings').open`)) throw new Error('a folded warning box must stay folded after a re-render');
-  await s.evalJs(`document.querySelector('.warnings summary').click(); window.scrollTo(0, 0)`);
-  console.log('  the warning floats in view when the page is scrolled down; folded, it stays folded');
+  const warnHidden = await warnState();
+  if (!warnHidden.folded || warnHidden.bodyShown || warnHidden.button !== 'Show' || warnHidden.expanded !== 'false') throw new Error('a folded warning box must stay folded after a re-render, its button saying Show: ' + JSON.stringify(warnHidden));
+  await s.evalJs(`document.querySelector('[data-key="report.warnings.toggle"]').click(); window.scrollTo(0, 0)`);
+  await s.settle(300);
+  const warnShown = await warnState();
+  if (warnShown.folded || !warnShown.bodyShown || warnShown.button !== 'Hide') throw new Error('Show must open the warning box again: ' + JSON.stringify(warnShown));
+  console.log('  the warning floats in view when the page is scrolled down; its Hide button folds it (Show opens it), and folded stays folded');
   // Next steps floats like the warnings (DGS 2026-10-08): fixed in the corner
   // above the warnings box at any scroll position, foldable to its heading
   // (remembered across a re-render).

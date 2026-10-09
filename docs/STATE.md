@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-08 (this session, branch `claude/policy-compliance-degree-engine-44a431`).
 
+2026-10-08 (DGS — “approved my coursework”): the advisor-approval sentences say “coursework”, not “plan of study” (W-CL360); the per-course “for my plan of study” to-do and the §2.9 “dual-degree plan of study” are unchanged, pending the DGS. Open: whether to change those two.
+
+2026-10-08 (DGS — one Hide button for both floating boxes): the warnings box is a `section` with an `h3` + `report.warnings.toggle` button, same as Next steps; app.ts `layoutFloats` re-runs on that button’s click. UI only.
+
 2026-10-08 (DGS — graduate answers the other answers rule out are hidden): `graduatePossible` (background.ts) decides which graduate-degree options show beside the bachelor’s answer and the 4+1 follow-up; an answer a later click rules out is dropped and Done/Save waits. UI only, no Changelog row.
 
 2026-10-08 (DGS — the approval tick on undergraduate-time Notre Dame courses): offered wherever an approval the DGS gives for this student is pending (UG→GR move, §4.6 advance approval, BS + Ph.D. double count, §3.5 non-CSE, a contradicted admission term) and settling it; a course not in the course rules still has no tick. Wording W-CL359; Changelog row 118.

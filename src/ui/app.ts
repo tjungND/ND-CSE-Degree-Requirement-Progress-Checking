@@ -634,7 +634,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     labelCitationsIn(root); // "CSE §4.2" — which document a section is from (DGS 2026-10-03)
     watchScoreHeadlines();
     layoutFloats();
-    root.querySelector('.warnings.floating')?.addEventListener('toggle', () => requestAnimationFrame(layoutFloats));
+    root.querySelector('.warnings.floating .warnings-toggle')?.addEventListener('click', () => requestAnimationFrame(layoutFloats));
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
     // so a keystroke in a title field does not chatter.
@@ -2880,7 +2880,8 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     card.append(
       // The two-roles sentence is the next card's opening (trim review 2026-09-18, P-16).
       el('p', { class: 'hint' }, 'Tick only what has actually been approved.'),
-      attestation('My advisor approved my plan of study (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
+      // "coursework", not "plan of study" (DGS 2026-10-08) — the field keeps its name.
+      attestation('My advisor approved my coursework (' + (student.program === 'mscse' ? '§3.2' : '§4.2') + ')', a.advisorApprovedPlan, (v, s) => (s.attestations.advisorApprovedPlan = v)),
     );
     // The Graduate School's extension of the time limit (policy review
     // 2026-10-04, P2-ac-6.2-app-7, P2-dh-3.14-3.20-27, P2-dh-10-10) — rare, so

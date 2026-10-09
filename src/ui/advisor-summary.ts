@@ -528,7 +528,7 @@ export function actionItems(report: AuditReport, transfers?: AdvisorTransfers): 
     // not a course list; the plan-of-study one still makes an advisor to-do.
     if (typeof part === 'string' || 'note' in part) {
       const statement = typeof part === 'string' ? part : part.note;
-      if (/plan of study/.test(statement)) out.advisor.push(`Approve my plan of study (${report.program === 'mscse' ? '§3.2' : '§4.2'}).`);
+      if (/approved your coursework/.test(statement)) out.advisor.push(`Approve my coursework (${report.program === 'mscse' ? '§3.2' : '§4.2'}).`);
       continue;
     }
     if ('warn' in part || 'check' in part) continue; // a warning, or a condition, is not a course to chase
@@ -734,7 +734,7 @@ function dropsFromEmail(statement: string, r: RequirementResult): boolean {
 const REWRITES: [RegExp, string][] = [
   // "tick the box" since the trim review (P-55, 2026-09-18); "attestation" kept
   // so an older fixture still re-voices.
-  [/^Confirm your advisor approved your plan of study \(([^)]*)\) and tick the (attestation|box).*$/i, 'Advisor approval of my plan of study ($1) is not yet recorded'],
+  [/^Confirm your advisor approved your coursework \(([^)]*)\) and tick the (attestation|box).*$/i, 'Advisor approval of my coursework ($1) is not yet recorded'],
   [/^Enter your (?:graduate-level )?cumulative GPA\b.*$/i, 'Cumulative GPA not entered yet'],
   // The §4.4.2 retake advice is written for the student; the advisor needs the
   // course, the grade and the §, and the to-do list already says "Retake or

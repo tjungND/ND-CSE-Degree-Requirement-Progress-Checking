@@ -540,7 +540,7 @@ describe('the sign-off row names who must act (2026-09-07)', () => {
     const s = student([{ courseId: 'CS 50300' }]); // the course itself is settled by the sheet's yes (2026-09-27)
     const row = approvals(s);
     assert.equal(row.status, 'in_progress');
-    assert.match(row.detail ?? '', /advisor approved your plan of study/);
+    assert.match(row.detail ?? '', /advisor approved your coursework/);
     assert.doesNotMatch(row.detail ?? '', /The DGS has still to decide/);
   });
 

@@ -177,7 +177,7 @@ export function nextSteps(input: NextStepsInput): NextStep[] {
   if (advisor?.status === 'unmet') steps.push({ text: 'Enter your advisor’s name under Milestones.', href: '#milestones', covers: ['shared.advisor'] });
   else if (advisor?.status === 'cannot_evaluate')
     steps.push({ text: `Answer under Milestones whether your ${thesis ? 'thesis ' : ''}advisor is tenured or tenure-track CSE faculty (§2.3).`, href: '#milestones', covers: ['shared.advisor'] });
-  if (hasCourses && !student.attestations.advisorApprovedPlan) steps.push({ text: 'Confirm your advisor approved your plan of study and tick the box under Approvals.', href: '#milestones' });
+  if (hasCourses && !student.attestations.advisorApprovedPlan) steps.push({ text: 'Confirm your advisor approved your coursework and tick the box under Approvals.', href: '#milestones' });
   // The MSCSE thesis topic (policy review round 3, P3-emails-4 (3); DGS
   // 2026-10-07: option (a)) — the step the advisor email's to-do already
   // carries (Academic Code §6.1.7: "With the approval of his or her advisor,

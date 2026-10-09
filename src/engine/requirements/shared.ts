@@ -418,7 +418,8 @@ export function approvalsRow(ctx: Ctx): RequirementResult {
   // advisor-summary.ts REWRITES re-voices the first sentence; keep in step.
   const instructions: DetailPart[] = [];
   if (planUnconfirmed) {
-    instructions.push({ note: `Confirm your advisor approved your plan of study (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the box below the milestones` });
+    // "coursework", not "plan of study" (DGS 2026-10-08); advisor-summary.ts reads this sentence.
+    instructions.push({ note: `Confirm your advisor approved your coursework (${ctx.student.program === 'mscse' ? '§3.2' : '§4.2'}) and tick the box below the milestones` });
   }
   // Only when a course waits on the DGS: a list that waits only on the
   // Graduate School's plan approval, or only on the advisor, has no DGS

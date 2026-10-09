@@ -497,16 +497,22 @@ fieldset.ft-terms:not(.clock-fields):not(.nondegree) > details { grid-column: 1 
 
 /* audit panel */
 .warnings { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; font-size: 13px; color: var(--warn-ink); }
-.warnings summary { cursor: pointer; font-weight: 600; }
+.warnings h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; font-weight: 600; color: inherit; }
+.warnings h3 .warnings-toggle { display: none; margin-left: auto; }
 .warnings .warning-line { margin-top: 6px; }
 /* The warnings follow the screen (DGS 2026-10-05): fixed in the window's
    bottom-right corner, over the page, with its summary as the way to fold it
    to one line. On a phone it spans the width above the score bar. Printed, it
    is back in the page. */
 .warnings.floating { position: fixed; right: 18px; bottom: 18px; z-index: 950; width: min(440px, calc(100vw - 36px)); max-height: 45vh; overflow: auto; margin: 0; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
-.warnings.floating summary { position: sticky; top: -8px; margin: -8px -12px 0; padding: 8px 12px; background: var(--warn-bg); }
+/* The same heading-and-Hide-button shape as Next steps (DGS 2026-10-08). */
+.warnings.floating h3 { position: sticky; top: -8px; margin: -8px -12px 0; padding: 8px 12px; background: var(--warn-bg); }
+.warnings.floating h3 .warnings-toggle { display: inline-flex; }
+.warnings.floating.folded { max-height: none; overflow: visible; }
+.warnings.floating.folded .warnings-body { display: none; }
+.warnings.floating.folded h3 { margin-bottom: -8px; }
 @media (max-width: 900px) { .warnings.floating { left: 12px; right: 12px; width: auto; bottom: 64px; max-height: 40vh; } }
-@media print { .warnings.floating { position: static; width: auto; max-height: none; overflow: visible; box-shadow: none; margin: 10px 0; } .warnings.floating summary { position: static; margin: 0; padding: 0; } }
+@media print { .warnings.floating { position: static; width: auto; max-height: none; overflow: visible; box-shadow: none; margin: 10px 0; } .warnings.floating h3 { position: static; margin: 0; padding: 0; } .warnings h3 .warnings-toggle { display: none !important; } .warnings.floating.folded .warnings-body { display: block; } }
 /* §3.5 / §3.6 track note (2026-09-10). Informational, not a warning: the
    amber .warnings box says "something is wrong with your entry", and neither
    of these is. Navy on a tint of it, and it sits above the dial. */

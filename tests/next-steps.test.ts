@@ -45,7 +45,7 @@ describe('next steps (DGS 2026-09-27)', () => {
       'Check what your transcript set — first semester Fall 2026, bachelor’s degree Spring 2021 (Your standing).',
       'Send the review request: 1 course is not in the course rules yet, and 1 needs the DGS’s approval for you.',
       'Enter your advisor’s name under Milestones.',
-      'Confirm your advisor approved your plan of study and tick the box under Approvals.',
+      'Confirm your advisor approved your coursework and tick the box under Approvals.',
       'When the DGS answers, come back to this page — it reads the latest course rules — and tick the box next to each course approved for you; then send the processing request, and the Grad Admin records it.',
       'Send the summary to your advisor whenever you like.',
     ]);

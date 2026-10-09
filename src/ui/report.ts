@@ -549,33 +549,54 @@ export function renderReport(report: AuditReport, untouched = false, next?: Next
   // Since 2026-10-05 (DGS: "If there is a warning to the student, can you show
   // it as a floating message that follows the screen even when the page is
   // scrolled down?") the box floats in the corner of the window, open, and
-  // its summary collapses it to one line; collapsed stays collapsed until
-  // the warnings change. Its place in the document — and so the reading
-  // order — is unchanged. Embedded, it stays in the page (a content-height
-  // frame has no window corner to follow), folded as before.
+  // folds to its heading; folded stays folded until the warnings change. Its
+  // place in the document — and so the reading order — is unchanged.
+  // Embedded, it stays in the page (a content-height frame has no window
+  // corner to follow), open. Since 2026-10-08 (DGS: the two floating boxes
+  // "use different buttons/selector to hide the details. Use 'Hide' button
+  // for both") it is the same shape as Next steps below — a heading with a
+  // Hide/Show button, not a <details> with a disclosure triangle.
   const floating = !isEmbedded();
   const warningsKey = report.warnings.join('\n');
+  const warningsFolded = floating && collapsedWarnings === warningsKey;
   const warningsFold =
     report.warnings.length === 0
       ? null
       : el(
-          'details',
-          { class: `warnings${floating ? ' floating' : ''}`, role: 'note', 'data-keep-dgs': '', 'data-key': 'report.warnings' },
+          'section',
+          { class: `warnings${floating ? ' floating' : ''}${warningsFolded ? ' folded' : ''}`, role: 'note', 'aria-labelledby': 'warnings-title', 'data-keep-dgs': '', 'data-key': 'report.warnings' },
           el(
-            'summary',
-            {},
+            'h3',
+            { id: 'warnings-title' },
             `⚠ ${report.warnings.length === 1 ? 'One thing' : `${report.warnings.length} things`} to check` +
               (report.warnings.every((w) => /is dated .* which is after /.test(w)) ? ' — a course dated after this semester' : ''),
+            ...(floating
+              ? [
+                  el(
+                    'button',
+                    {
+                      class: 'btn tiny warnings-toggle',
+                      type: 'button',
+                      'data-key': 'report.warnings.toggle',
+                      'aria-expanded': warningsFolded ? 'false' : 'true',
+                      'aria-controls': 'warnings-body',
+                      onclick: (e: Event) => {
+                        const box = (e.currentTarget as HTMLElement).closest('.warnings')!;
+                        const folded = !box.classList.contains('folded');
+                        collapsedWarnings = folded ? warningsKey : undefined;
+                        box.classList.toggle('folded', folded);
+                        const t = box.querySelector('.warnings-toggle');
+                        t?.setAttribute('aria-expanded', folded ? 'false' : 'true');
+                        if (t) t.textContent = folded ? 'Show' : 'Hide';
+                      },
+                    },
+                    warningsFolded ? 'Show' : 'Hide',
+                  ),
+                ]
+              : []),
           ),
-          ...report.warnings.map((w) => el('div', { class: 'warning-line' }, `⚠ ${w}`)),
+          el('div', { id: 'warnings-body', class: 'warnings-body' }, ...report.warnings.map((w) => el('div', { class: 'warning-line' }, `⚠ ${w}`))),
         );
-  if (warningsFold && floating) {
-    const box = warningsFold as HTMLDetailsElement;
-    box.open = collapsedWarnings !== warningsKey;
-    box.addEventListener('toggle', () => {
-      collapsedWarnings = box.open ? undefined : warningsKey;
-    });
-  }
 
   panel.append(
     el('a', { class: 'jump-link back-link', href: '#main' }, '↑ Back to your inputs'),

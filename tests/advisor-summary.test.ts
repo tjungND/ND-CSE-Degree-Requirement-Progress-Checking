@@ -252,7 +252,7 @@ describe('actionItems: the rest of the rules', () => {
           informational: true,
           detailParts: [
             { lead: 'The DGS has still to decide these — send the review request', items: ['CS 51000 (transfer — not yet reviewed by the DGS; needs DGS + Graduate School approval (§5.2))', 'CSE 60999 (not in the course rules — counted provisionally; needs DGS review)'] },
-            'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the box below the milestones',
+            'Confirm your advisor approved your coursework (§3.2/§4.2) and tick the box below the milestones',
             'Once approved, tick the box under “Approvals you already have”',
           ],
         },
@@ -273,7 +273,7 @@ describe('actionItems: the rest of the rules', () => {
       'Defend the dissertation (§4.7).',
       'Send the DGS the review request for CS 51000, CSE 60999.',
     ]);
-    assert.deepEqual(todo.advisor, ['Approve my plan of study (§4.2).']); // the degree's own section only (2026-09-11)
+    assert.deepEqual(todo.advisor, ['Approve my coursework (§4.2).']); // the degree's own section only (2026-09-11)
     assert.deepEqual(todo.dgs, [
       'Confirm the Operating Systems core-knowledge course named in the review request (§4.4.1).',
       // In the DGS's own words (2026-09-28): a §5.2 recommendation, a row to enter.
@@ -328,13 +328,13 @@ describe('whyFor re-voices the engine detail for the advisor', () => {
       ...req('shared.approvals', 'Courses still to be approved or processed', 'needs_dgs_review'),
       detailParts: [
         { lead: 'Your advisor and the DGS must both approve these — send the review request', items: ['MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2))'] },
-        'Confirm your advisor approved your plan of study (§3.2/§4.2) and tick the box below the milestones',
+        'Confirm your advisor approved your coursework (§3.2/§4.2) and tick the box below the milestones',
         'Once approved, tick the box under “Approvals you already have”',
       ],
     };
     assert.equal(
       whyFor(r),
-      'My advisor and the DGS must both approve these — send the review request: MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2)). Advisor approval of my plan of study (§3.2/§4.2) is not yet recorded.',
+      'My advisor and the DGS must both approve these — send the review request: MATH 60610 (non-CSE course — needs advisor + DGS approval (§3.2/§4.2)). Advisor approval of my coursework (§3.2/§4.2) is not yet recorded.',
     );
     assert.equal(whyFor(req('x', 'x', 'in_progress', 'No advisor entered — was expected by your first semester. Talk to the DGS.')), 'No advisor entered — was expected by my first semester.');
     assert.equal(whyFor(req('x', 'x', 'cannot_evaluate', "Cannot evaluate — the rules sheet is missing 'ms_regular_credits_min'. Ask the DGS to add it to the Parameters tab")), "Cannot evaluate — the rules sheet is missing 'ms_regular_credits_min'.");
