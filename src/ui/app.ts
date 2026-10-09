@@ -673,7 +673,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           embed ? null : el('div', { class: 'eyebrow' }, 'University of Notre Dame · Computer Science and Engineering'),
           themeToggle(),
         ),
-        el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Degree Requirement Self-check Tool'),
+        el('h1', embed ? { tabindex: '-1', class: 'visually-hidden' } : { tabindex: '-1' }, 'Graduate Degree Requirement Simulation Tool'),
         // Embedded, the WordPress page carries its own introduction: none of
         // the masthead text is shown (DGS 2026-09-16, "get rid of the texts at
         // the top"). The storage warning below stays — it is a safety note.
@@ -889,7 +889,11 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
           ? ` You also finished a graduate degree at another university, so up to ${finished} credits from it may transfer (§5.2), counted back five years from your admission to the MSCSE; it would be ${unfinished} if that program were unfinished.`
           : ` Your graduate program at another university was not finished, so up to ${unfinished} credits from it may transfer (§5.2), counted back five years from your admission to the MSCSE; it would be ${finished} after a finished degree.`
         : '';
-      return ` ${ownMscseSentence()}${outside}`;
+      // One line here (UI review item 1; DGS 2026-10-08: option (c)) — the
+      // reason sits once above the MSCSE's courses; unless five years or more
+      // separate the two, when the full sentence is the warning itself.
+      const own = mscseSeparation(student) === undefined ? 'Your MSCSE courses count as Ph.D. coursework, not transfer credit — see Coursework.' : ownMscseSentence();
+      return ` ${own}${outside}`;
     }
     // No stated limit without an earlier program (policy review round 3,
     // P3-cse-5-6-1; DGS 2026-10-06): §5.2 caps only what comes from an
@@ -1943,13 +1947,18 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   function transcriptsCard(): HTMLElement {
     const busy = ndPreviewOpen() || importsBusy();
     const ndArgs: NdUploadArgs = { student, rules, update, toast, toastWithAction, render, blocked: busy, setFocusAfterRender, refusedValues };
+    // "Start here" made prominent (DGS 2026-09-15): a filled badge in the
+    // heading and a bold callout line above the hint — until a transcript is
+    // on the record (UI review item 4; DGS 2026-10-08: option (b)): a prompt
+    // to start above "18 courses from your transcript" read oddly. A row from
+    // an uploaded transcript is flagged (Notre Dame) or carries its slot's
+    // degree level (another university; hand-typed rows have none).
+    const fresh = !student.courses.some((c) => c.fromNdTranscript === true || (c.origin === 'transfer' && c.degreeLevel !== undefined));
     return el(
       'div',
       { class: 'card external-card' },
-      // "Start here" made prominent (DGS 2026-09-15): a filled badge in the
-      // heading and a bold callout line above the hint.
-      el('h2', {}, el('span', { class: 'step-no' }, '1. '), 'Transcripts ', el('span', { class: 'chip-start' }, 'Start here')),
-      el('p', { class: 'start-callout' }, 'Import your transcripts, and most of the page below fills itself in.'), // the badge beside the title already says START HERE (DGS 2026-09-19, P-52)
+      el('h2', {}, el('span', { class: 'step-no' }, '1. '), 'Transcripts ', ...(fresh ? [el('span', { class: 'chip-start' }, 'Start here')] : [])),
+      ...(fresh ? [el('p', { class: 'start-callout' }, 'Import your transcripts, and most of the page below fills itself in.')] : []), // the badge beside the title already says START HERE (DGS 2026-09-19, P-52)
       // Shorter sentences (usability review 2026-09-05, item 10): the same
       // facts, none over 25 words. "Nothing is uploaded" is the strip line
       // above, the toast during the read and the OCR opt-in; the card keeps

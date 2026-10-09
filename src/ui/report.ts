@@ -435,13 +435,19 @@ function requirementCard(r: RequirementResult): HTMLElement {
   );
 }
 
-/** "Courses counted (4 · 12 credits)", plus the pending ones when there are any. */
+/** "Courses counted (4 · 12 credits)", plus the pending ones when there are
+ * any, named by kind — "2 in progress", "1 waiting for the DGS" (UI review
+ * item 6; DGS 2026-10-08: option (b); "pending" meant in-progress courses
+ * here and DGS-waiting ones in the score head). */
 function contribSummary(contrib: readonly Contribution[]): string {
   const counted = contrib.filter((c) => !c.pending);
-  const pending = contrib.filter((c) => c.pending);
+  const inProgress = contrib.filter((c) => c.pending && c.kind !== 'waiting');
+  const waiting = contrib.filter((c) => c.pending && c.kind === 'waiting');
   const credits = (list: readonly Contribution[]) => formatCredits(list.reduce((n, c) => n + c.credits, 0));
-  const head = counted.length > 0 ? `Courses counted (${counted.length} · ${credits(counted)} credits)` : 'Courses counted (none yet)';
-  return pending.length > 0 ? `${head} · ${pending.length} pending (${credits(pending)} credits)` : head;
+  const parts = [counted.length > 0 ? `Courses counted (${counted.length} · ${credits(counted)} credits)` : 'Courses counted (none yet)'];
+  if (inProgress.length > 0) parts.push(`${inProgress.length} in progress (${credits(inProgress)} credits)`);
+  if (waiting.length > 0) parts.push(`${waiting.length} waiting for the DGS (${credits(waiting)} credits)`);
+  return parts.join(' · ');
 }
 
 /** courses.html understands filter query parameters (2026-09-05, item 29),

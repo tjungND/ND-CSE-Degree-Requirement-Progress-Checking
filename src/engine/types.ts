@@ -591,6 +591,10 @@ export interface Contribution {
   courseId: string;
   credits: number;
   pending?: true;
+  /** Why it is pending — in progress, or waiting for a decision (UI review
+   * item 6; DGS 2026-10-08: "pending" named in-progress courses in the fold
+   * title and DGS-waiting ones in the score head). */
+  kind?: 'in_progress' | 'waiting';
 }
 
 export interface RequirementResult {

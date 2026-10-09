@@ -18,7 +18,7 @@ describe('course contributions on credit rows (DGS 2026-09-22)', () => {
   const byId = (list: { courseId: string }[] | undefined) => [...(list ?? [])].sort((a, b) => a.courseId.localeCompare(b.courseId));
   it('the total-credit row names every counted course with its credits, and the in-progress one as pending', () => {
     assert.deepEqual(byId(row('phd.credits.total').contributions), [
-      { courseId: 'CSE 60111', credits: 3, pending: true },
+      { courseId: 'CSE 60111', credits: 3, pending: true, kind: 'in_progress' },
       { courseId: 'CSE 60641', credits: 3 },
       { courseId: 'CSE 63801', credits: 1 },
     ]);

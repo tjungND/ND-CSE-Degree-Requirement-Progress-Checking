@@ -155,6 +155,12 @@ describe('Notre Dame markers (shared by both parsers)', () => {
     assert.equal(looksLikeNotreDameTranscript('University of Notre Dame, Notre Dame, IN 46556'), true);
   });
 
+  it('a Notre Dame named after the first course line, or in a transfer-credit block, is not a marker (review of Option 1, item 14; DGS 2026-10-08: option (b))', () => {
+    assert.equal(looksLikeNotreDameTranscript('Purdue University\nOfficial Transcript\nCS 18000 Problem Solving A 4.00\nTransfer Credit from University of Notre Dame\nCSE 30151 Theory of Computing B 3.00'), false, 'after the first course line');
+    assert.equal(looksLikeNotreDameTranscript('Purdue University\nTRANSFER CREDIT ACCEPTED BY THE INSTITUTION\nUniversity of Notre Dame\nCSE 30151 Theory of Computing TA 3.00\nCS 18000 Problem Solving A 4.00'), false, 'under a transfer heading in the header');
+    assert.equal(looksLikeNotreDameTranscript('University of Notre Dame\nUnofficial Academic Transcript\nCSE 60641 Operating Systems A 3.00'), true, 'the issuer, in the header');
+  });
+
   it('the ND parser rejects another university\'s transcript that carries an nd.edu e-mail', () => {
     assert.equal(parseTranscript(BANNER_LINES).isNotreDame, false);
   });

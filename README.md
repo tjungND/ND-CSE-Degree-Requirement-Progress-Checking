@@ -1,10 +1,10 @@
-# ND CSE Degree Requirement Progress Checking
+# ND CSE Degree Requirement Progress Simulation
 
 A web page where Notre Dame CSE graduate students self-check, requirement by requirement, where
 they stand against the Graduate Studies Handbook (§3 MSCSE, §4 Ph.D.), with the handbook section
 cited on every line. It is a self-check, not an official audit.
 
-- **Live app (self-check tool):** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
+- **Live app (simulation tool):** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/
   (the address is shown under the repository's *Settings → Pages*; it changes if the repository is
   ever transferred to another account — see the handoff checklist)
 - **Public course-rules list:** https://tjungnd.github.io/ND-CSE-Degree-Requirement-Progress-Checking/courses.html

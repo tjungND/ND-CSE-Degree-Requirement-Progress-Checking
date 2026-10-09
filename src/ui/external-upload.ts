@@ -444,6 +444,10 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
             ]
           : []),
       );
+  // The "one university" fold is not opened by code for a student who answered
+  // "same university? No" (UI review item 9; DGS 2026-10-08: option (b)); it
+  // still opens for a preview, a Yes, or a Master's transcript without a No.
+  const shapeSamePlace = (background ?? args.student.backgroundDraft)?.samePlace;
   return [
     backgroundLine,
     // A bachelor's and a master's from ONE university arrive in two shapes, and
@@ -472,7 +476,7 @@ export function priorTranscriptSection(args: ExternalCardArgs): (HTMLElement | n
       ? null
       : el(
       'details',
-      { class: 'combined-note', 'data-key': 'transcripts.shape', open: coursesInSlot(args.student, 'masters').length > 0 || preview !== undefined || background?.samePlace === true },
+      { class: 'combined-note', 'data-key': 'transcripts.shape', open: preview !== undefined || shapeSamePlace === true || (coursesInSlot(args.student, 'masters').length > 0 && shapeSamePlace !== false) },
       el('summary', {}, 'Did one university give you both a bachelor’s and a master’s (a 4+1 or 5+1)? Read this before importing them.'),
       el('strong', {}, 'A bachelor’s and a master’s from the same university'),
       ' (a 4+1 or 5+1) come as two transcripts or one. ',
