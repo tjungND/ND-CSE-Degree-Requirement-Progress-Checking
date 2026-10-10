@@ -6,7 +6,7 @@
 // "not yet reviewed" and the copy-ready review request appears).
 // `pdfs` is the name → path map run.mjs builds from tests/fixtures/.
 export async function driveTranscript(s, baseUrl, pdfs) {
-  const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf, ndInsideNd: ndInsideNdPdf } = pdfs;
+  const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf, ndInsideNd: ndInsideNdPdf, codeless: codelessPdf } = pdfs;
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -442,6 +442,56 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   if (!bachNote.includes('do not transfer') || !bachNote.includes('1 other course was read and left out')) {
     throw new Error('bachelors preview note missing/wrong: ' + bachNote.slice(0, 160));
   }
+  // The scanned line beside each OCR row (Batch C answer (5), DGS 2026-10-09;
+  // the e2e leg 2026-10-10): a flagged row (⚠, under the confidence floor)
+  // shows its strip at once — a canvas drawn from the page copy, with ink on
+  // it — and any other row the "show the scanned line" toggle (W-CL413/414).
+  const strips = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const ink = (c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let k = 0; k < d.length; k += 4) if (d[k] < 128) n++; return n; };
+    return {
+      head: !!document.querySelector('.external-card .transcript-preview th.scan-head'),
+      rows: [...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map((tr) => {
+        const cell = tr.querySelector('td.cell-scan');
+        const canvas = cell?.querySelector('.scan-strip > canvas');
+        const box = canvas?.getBoundingClientRect();
+        return {
+          id: tr.querySelector('input[data-key$=".id"]')?.value ?? '',
+          flagged: tr.classList.contains('ocr-low'),
+          toggle: cell?.querySelector('details.scan-line > summary')?.textContent ?? null,
+          canvas: canvas ? { w: canvas.width, h: canvas.height, shownW: Math.round(box.width), shownH: Math.round(box.height), ink: ink(canvas), label: canvas.getAttribute('aria-label') } : null,
+        };
+      }),
+    };
+  })())`));
+  console.log('  OCR scanned-line strips:', JSON.stringify(strips));
+  const flaggedRows = strips.rows.filter((r) => r.flagged);
+  if (!strips.head || flaggedRows.length === 0) throw new Error('the OCR preview must carry the scanned-line column and at least one flagged row on this scan: ' + JSON.stringify(strips));
+  for (const r of flaggedRows) {
+    if (!r.canvas || r.canvas.w < 200 || r.canvas.h < 20 || r.canvas.shownW < 100 || r.canvas.shownH < 10 || r.canvas.ink < 200 || r.canvas.label !== 'The scanned line this row was read from') throw new Error('a flagged OCR row must show its scanned line at once, drawn: ' + JSON.stringify(r));
+  }
+  for (const r of strips.rows.filter((x) => !x.flagged)) {
+    if (r.toggle !== 'show the scanned line' || r.canvas) throw new Error('an unflagged OCR row keeps its scanned line behind the toggle: ' + JSON.stringify(r));
+  }
+  await s.shotElement('external-ocr-strip', '.external-card .transcript-preview');
+  // At phone width the strip takes the row's full width and scrolls sideways
+  // inside its own box — the page never does (DGS 2026-09-06 layout rule).
+  await s.setViewport({ width: 390, height: 1900, mobile: true, settleMs: 300 });
+  const phoneStrip = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const c = document.querySelector('.external-card .transcript-preview tr.ocr-low .scan-strip > canvas');
+    const r = c?.getBoundingClientRect();
+    return { pageSideways: document.documentElement.scrollWidth - window.innerWidth, shownW: r ? Math.round(r.width) : 0, shownH: r ? Math.round(r.height) : 0, left: r ? Math.round(r.left) : -1 };
+  })())`));
+  console.log('  OCR strip at 390 px:', JSON.stringify(phoneStrip));
+  if (phoneStrip.pageSideways > 0 || phoneStrip.shownW < 100 || phoneStrip.shownH < 10 || phoneStrip.left < 0) throw new Error('the scanned-line strip at phone width: ' + JSON.stringify(phoneStrip));
+  // The crop is of the preview alone: the window's floating panels (Next
+  // steps, the warnings, the toasts, the phone's score bar) are held out of
+  // it — WebKit's element shot paints them over a 1900-px-tall phone frame.
+  await s.evalJs(`(() => { const st = document.createElement('style'); st.id = 'e2e-no-float'; st.textContent = '.attention.floating, .warnings.floating, .toast-stack, .sticky-score { visibility: hidden !important; }'; document.head.append(st); })()`);
+  await s.shotElement('phone-external-ocr-strip', '.external-card .transcript-preview');
+  await s.evalJs(`document.getElementById('e2e-no-float')?.remove()`);
+  await s.setViewport({ width: 1400, height: 1900, settleMs: 300 });
+  // The whole frame from the preview's top (the crops above leave the page scrolled).
+  await s.evalJs(`document.querySelector('.external-card .transcript-preview').scrollIntoView({ block: 'start' })`);
   await s.shot('external-ocr-preview');
   // Do what the preview tells every student to do: check the fields and fix
   // what OCR got wrong (an empty credits box blocks that row from being added).
@@ -465,6 +515,12 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   const ocrLines = (await groupLines('Purdue University — Previous Master’s Transcript')).length + (await groupLines('Purdue University — Previous Undergraduate Transcript')).length;
   if (ocrLines !== 5) throw new Error(`expected 5 external course lines (3 typed + 2 core-relevant OCR), got ${ocrLines}`);
   console.log('  5 external courses (3 typed + 2 core-relevant OCR) in the coursework table');
+  // The strips were in memory only (Batch C answer (5)): gone with the
+  // preview, and nothing of the scan reached the saved record.
+  const savedAfterOcr = await s.evalJs(`localStorage.getItem('cse-degree-audit/v1/student') ?? ''`);
+  if ((await s.evalJs(`document.querySelectorAll('.scan-strip, canvas.scan-strip-image').length`)) !== 0) throw new Error('the scanned-line strips must leave with the preview');
+  if (savedAfterOcr === '' || /data:image|ocrRead|sourceLines|lowConfidence/.test(savedAfterOcr)) throw new Error('the saved record must hold no image, data: URL or OCR field after an OCR import');
+  console.log('  after Add: no strip left on the page; the saved record holds no image or OCR field');
   // Undergrad core-title rule (2026-09-03; relevance filter 2026-09-04): only
   // the two keyword-matching bachelors courses were added, and both join the
   // request — MATH + EECS 58200 (2) + masters slot (3) + those two = 7 pending.
@@ -663,6 +719,54 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     await s.waitFor(`[...document.querySelectorAll('h3.subhead')].some(h => h.textContent.includes('University of California, San Diego'))`);
     console.log('  campus chosen → courses filed under "University of California, San Diego"');
     await s.shot('uc-campus-picker');
+  }
+
+  // A transcript that prints no course numbers (CC15, DGS 2026-10-09; the e2e
+  // leg 2026-10-10): each row comes in with an EMPTY, required course-id box,
+  // unticked, its tick box disabled; Add adds nothing until an id is typed;
+  // typing one ticks the row, and only that row is added, under the typed id.
+  {
+    await s.evalJs(`localStorage.clear()`);
+    await s.open(baseUrl, '.transcript-upload');
+    await s.setFileInput('.external-file-masters', codelessPdf);
+    await s.waitFor(`document.querySelector('.external-card .transcript-preview [data-key="ext.preview.codeMissing"]')`);
+    const readRows = async () => JSON.parse(await s.evalJs(`JSON.stringify([...document.querySelectorAll('.external-card .transcript-preview table tr')].slice(1).map((tr, i) => {
+      const id = tr.querySelector('input[data-key="ext.row.' + i + '.id"]');
+      const cb = tr.querySelector('input[data-key="ext.row.' + i + '.include"]');
+      return { title: tr.querySelector('[data-key="ext.row.' + i + '.title"]')?.textContent || tr.querySelector('[data-key="ext.row.' + i + '.title"]')?.value || '', id: id?.value ?? null, required: id?.required ?? null, invalid: id?.getAttribute('aria-invalid') ?? null, placeholder: id?.placeholder ?? null, ticked: cb?.checked ?? null, disabled: cb?.disabled ?? null };
+    }))`));
+    const addLabel = () => s.evalJs(`document.querySelector('[data-key="ext.preview.add"]')?.textContent ?? ''`);
+    const before = await readRows();
+    const note = await s.evalJs(`document.querySelector('[data-key="ext.preview.codeMissing"]').textContent`);
+    const uni = await s.evalJs(`document.querySelector('[data-key="ext.preview.university"]')?.value ?? ''`);
+    console.log('  code-less transcript:', uni, '|', JSON.stringify(before), '|', await addLabel());
+    if (uni !== 'Example Normal University' || before.length !== 3 || before.map((r) => r.title).join(' | ') !== 'Advanced Operating Systems | Machine Learning | Distributed Computing') throw new Error('the code-less transcript must read its three rows: ' + uni + ' ' + JSON.stringify(before));
+    if (!before.every((r) => r.id === '' && r.required === true && r.invalid === 'true' && r.placeholder === 'course number' && r.ticked === false && r.disabled === true)) throw new Error('every code-less row starts with an empty, required id box and a disabled, unticked box: ' + JSON.stringify(before));
+    if (!note.startsWith('3 courses on this transcript have no course number printed')) throw new Error('the preview must say once that course numbers are missing (W-CL409): ' + note.slice(0, 120));
+    if ((await addLabel()) !== 'Add 0 selected courses') throw new Error('no code-less row counts toward Add until it has an id: ' + (await addLabel()));
+    await s.shotElement('codeless-preview', '.external-card .transcript-preview');
+    // Add with every id box empty: refused out loud, nothing added.
+    await s.evalJs(`document.querySelector('[data-key="ext.preview.add"]').click()`);
+    await s.waitFor(`/No rows are complete yet/.test(document.querySelector('.external-card .import-error')?.textContent ?? '')`);
+    if (await s.evalJs(`[...document.querySelectorAll('h3.subhead')].some((h) => h.textContent.includes('Example Normal University'))`)) throw new Error('Add must add nothing while every id box is empty');
+    if (!(await s.evalJs(`!!document.querySelector('.external-card .transcript-preview')`))) throw new Error('the preview must stay open after the refused Add');
+    console.log('  Add with every id box empty → refused (“No rows are complete yet”), nothing added');
+    // Type an id into the first row: it ticks, and Add counts it.
+    await s.evalJs(`(() => { const i = document.querySelector('[data-key="ext.row.0.id"]'); i.value = 'CS 60100'; i.dispatchEvent(new Event('change')); })()`);
+    await s.waitFor(`document.querySelector('[data-key="ext.row.0.include"]')?.checked === true`);
+    const after = await readRows();
+    console.log('  after typing an id into row 1:', JSON.stringify(after), '|', await addLabel());
+    if (after[0].disabled !== false || after[0].invalid !== null || !after.slice(1).every((r) => r.ticked === false && r.disabled === true)) throw new Error('typing an id ticks that row only: ' + JSON.stringify(after));
+    if ((await addLabel()) !== 'Add 1 selected course') throw new Error('Add counts the row once its id is typed: ' + (await addLabel()));
+    await s.shotElement('codeless-preview-filled', '.external-card .transcript-preview');
+    await s.evalJs(`document.querySelector('[data-key="ext.preview.add"]').click()`);
+    await s.waitFor(`!document.querySelector('.external-card .transcript-preview') && [...document.querySelectorAll('h3.subhead')].some((h) => h.textContent.includes('Example Normal University'))`);
+    const added = await s.evalJs(`(() => { const h = [...document.querySelectorAll('h3.subhead')].find((h) => h.textContent.includes('Example Normal University')); const t = h?.nextElementSibling?.matches('.table-scroll') ? h.nextElementSibling : h?.nextElementSibling?.nextElementSibling; return [...(t?.querySelectorAll('tr') ?? [])].slice(1).map((tr) => tr.querySelector('.cid').textContent); })()`);
+    const saved = JSON.parse(await s.evalJs(`localStorage.getItem('cse-degree-audit/v1/student') ?? '{}'`));
+    const savedIds = (saved.courses ?? []).map((c) => c.courseId);
+    console.log('  added:', JSON.stringify(added), '| saved course ids:', JSON.stringify(savedIds));
+    if (JSON.stringify(added) !== JSON.stringify(['CS 60100']) || !savedIds.includes('CS 60100') || savedIds.some((id) => typeof id !== 'string' || id.trim() === '')) throw new Error('only the row with a typed id is added, under that id, and no empty id is saved');
+    console.log('  code-less transcript: the id box blocked Add until filled; the one filled row was added as CS 60100');
   }
 
   await s.evalJs(`localStorage.clear()`);

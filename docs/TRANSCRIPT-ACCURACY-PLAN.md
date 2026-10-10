@@ -1077,3 +1077,89 @@ Open issues:
   rule.
 - `dateOnLine` does not read “February 26th, 2024” (an ordinal ending), so that graduation date is no conferral
   under the adjacent-line rule — pre-existing, now a test note.
+
+### Next stage — verification and records — done 2026-10-10 (branch `claude/policy-compliance-degree-engine-44a431`)
+
+One commit, "Transcript accuracy next stage: verification and records", closing the stage that ran on
+2026-10-09/10: Batch C's text side (`418f9d1` `33e037f` `300eb52` `3f9a7f3` `5acf871`), the engine gate
+(`cbbae3e`), OCR step 2.5 (`a120c2b` `5620628` `ce56a71` `81b038d` `bc36cde` `4288662`), Batch C's OCR side
+(`21c56f9` `e001129` `2560c53` `2c3888f`) and the review fixes (`5b8b521`). Nothing in `src/` changed in this
+commit: it adds the two e2e legs those batches asked for, a fixture for one of them, and the records.
+`origin/main` was fetched and merged first (already up to date).
+
+**The e2e legs** (`scripts/e2e/drive-transcript.mjs`, run on Chrome and WebKit):
+
+- **The scanned-line strip** (Batch C answer (5)), in the existing OCR leg (`external-transcript-scan.pdf`, the
+  Bachelor's row): the preview carries the hidden “Scanned line” column header; every ⚠ row shows its strip
+  at once as a drawn canvas (both rows of this scan are flagged on both engines: canvases 815 × 40 and
+  829 × 40 px, shown 780 × 40 at 1400 px, 851 and 886 dark pixels, named “The scanned line this row was read
+  from”); an unflagged row would have to show the “show the scanned line” toggle and no canvas. At 390 px the
+  page does not scroll sideways (the strip is 489 × 26 px from x = 49 and scrolls inside its own box). After
+  Add no strip is left on the page, and the saved record holds no `data:image`, `ocrRead`, `sourceLines` or
+  `lowConfidence`. Crops: `external-ocr-strip.png`, `phone-external-ocr-strip.png` (the window's floating
+  panels are held out of that crop — WebKit's element shot paints them over a 1900-px-tall phone frame).
+- **CC15, a code-less transcript** (new fixture `tests/fixtures/codeless-transcript.pdf` from
+  `make-transcript-pdfs.mjs`: an invented “Example Normal University” record, a title column and no code
+  column, cells positioned like the insideND fixture's; not a bench seed — the bench's generator list is
+  explicit), in the Master's row of a fresh record: three rows, each with an EMPTY id box that is required,
+  `aria-invalid`, placeholder “course number”, its tick box unticked and disabled; W-CL409 above the table;
+  “Add 0 selected courses”; Add refused out loud (“No rows are complete yet …”) with nothing added; typing
+  “CS 60100” into the first box ticks that row only (“Add 1 selected course”); Add files exactly CS 60100 under
+  the university and the saved record holds no empty id. Crops: `codeless-preview.png`,
+  `codeless-preview-filled.png`.
+
+**Numbers** (all at HEAD `5b8b521` + this commit's driver and fixture; times from `date`, 00:39–01:08 EDT):
+
+| check | result |
+|---|---|
+| `npx tsc --noEmit` | clean |
+| `npm test` | 1738 pass / 0 fail |
+| `npm run build` | OK (the chunk warning that predates the program) |
+| text replay vs `text-final-20261009.json` → `bench-out/text-final-20261010.json` | 0 regressions, 7 improvements (cairo, chesicc, chulalongkorn, nankai, Evergreen on both boards, sjtu's rows) |
+| public board | exact 147 → 152/168 (90.5 %); known-failing 21 → 16 (16 still failing, 0 now passing); recall 91.9 → 95.8 % (1733/1809); precision 99.1 % (1733/1748); false rows on negatives 1 (in 1/39, the McGill course outline) unchanged; cells title 100 / credits 99.9 / grade 99.3 → 99.4 / term 97.8 → 97.5 / level 100 % |
+| ms / pdfs boards | ms 48/48, 648/648 unchanged; pdfs exact 47 → 48/49, recall 90.6 → 100 % (203/203), precision 100 %, false rows 1 (in 1/34) unchanged |
+| OCR `--pinned` (`bench-out/final-20261010-pinned/` vs `review-fix-after-pinned/`) | 0 / 0: L0 2/3, L1 7/9, L2 6/10, L3 exact, L4 2/5, L5 exact, L6-180 2/3, L6-90 4/5, L7 0/6 rows right/expected; 1.08 s/page |
+| OCR medium set, a fresh engine run (`bench-out/final-20261010-medium/` vs the sign-off run `ocr-full-20261009/`) | 0 regressions, 11 improvements (step 2.5's: Alberta, Minerva's multi-term page, Stanford's / Duke's / Western's keys; Evergreen at text / L2 / L5). L2 row acc 54.1 → 63.0 %, rows found 88.1 → 92.6 %, false rows 16 (7/36) → 13 (6/36), field acc 80.9 → 83.8 %, flag P/R 70.8 / 63.0 → 61.3 / 61.3 %; L5 58.1 → 67.0 %, 89.6 → 94.1 %, 21 (5/36) → 14 (4/36), 83.8 → 86.8 %, 79.5 / 66.0 → 66.7 / 59.8 %; `text` row acc 93.0 → 100 %. 186 rows, 15.3 min, 2.76 s/page. Against the review fixes' re-parse of the same lines (`review-fix-after-medium/`): identical boards (s/page only, 3.24 → 3.03 and 2.65 → 2.48) — a fresh engine run reproduces the `--reparse` |
+| `npm run e2e` (Chrome) | “E2E passed”, 72.2 s, four drivers |
+| `E2E_BROWSER=webkit npm run e2e` | “E2E passed”, 74.9 s, four drivers; the same figures as Chrome in both new legs |
+
+**What the OCR preview screenshots show** (both engines alike): the Bachelor's-row preview under its
+“Read by OCR from a scan — approximate. English transcripts only.” banner and the undergraduate note (“1 other
+course was read and left out”); “Purdue University” in the University box; two ⚠ rows, each with its strip — a
+grey band with the scanned line in the scan's monospace (“CS 50300   Operating Systems   3.0   A”, “CS 58000
+Algorithm Design   3.0   B+”) across the row's full width under its fields. Row 1 reads 3 / A / Fall 2023; row 2
+reads its title as “Algorithm Design B.D” with the credits box EMPTY, and the strip under it shows the “3.0” the
+engine misread — the case the strip exists for. At 390 px each row stacks its fields and the strip shows the
+line's left part (“CS 50300   Operating Systems”); the credits and grade end of the line sits off to the right
+inside the strip's own scroll box. The full frame (`external-ocr-preview.png`) has the preview at the top, then
+Your standing, Coursework and the result cards, with Next steps and the warnings floating bottom-right. The
+code-less crops show the three rows with red-bordered empty “course number” boxes, greyed tick boxes and
+“Add 0 selected courses”; after the id is typed, the first row ticked with “CS 60100” and “Add 1 selected
+course”, and the refused-Add message still at the top (it stays until the next Add).
+
+Open issues from this verification (the DGS's are marked):
+
+- **DGS:** at phone width the strip shows only the left ~60 % of the line (the recorded “never below 60 % of its
+  own pixels” rule, Batch C (5)): the credits and grade a flagged row most often needs are behind a sideways
+  swipe inside the strip, on both engines. Options: fit the whole line to the card at phone widths (glyphs at
+  about a third of their pixels), or keep the rule and show a visible scroll cue. Not changed here.
+- The unflagged row's “show the scanned line” toggle has no e2e coverage: both rows of the scan fixture are
+  flagged on both engines (the toggle is pinned in node by `tests/scan-strip.test.ts` only).
+- The scanner-layer preview (Batch C (6)) still has no e2e fixture: the generator makes no image page with an
+  invisible text layer of an EXTERNAL transcript (the committed L7 page is a Notre Dame one, which the
+  external import refuses).
+- OCR flag precision / recall at the medium set fell between the sign-off run and step 2.5 (L2 70.8 / 63.0 →
+  61.3 / 61.3 %, L5 79.5 / 66.0 → 66.7 / 59.8 %: `ocr-step25-auto-medium` already 65.6 / 62.4 and 76.5 / 65.0,
+  `step26-before-medium` the present figures) and has not moved since. Rows found and false rows improved, so
+  the bench calls it no regression; the figures fit the step-2.5 guard removing rows that were flagged wrong
+  rows, but that is not checked row by row — a follow-up.
+- The OCR leg's second row: the engine read “3.0” as “B.D” into the title (no digit, so the numeric correction
+  rightly does not apply); the student types the credits, as before this stage.
+- Pre-existing, seen in the crops: the “Credit system on this transcript” select shows “Semest” (also in the
+  combined preview); a full-size text-layer row prints its term as “FA23” under TERM with an empty YEAR column —
+  code-less rows are always full-size, so they show it every time.
+- Carried, unchanged: the L7 trade (DGS); the transcript gate, CUNY, trimester evidence, question (g), a city
+  for a country, Thai summers and Buddhist-era years (DGS); Melbourne / Limerick and the five public PDFs not
+  on disk (DGS); the WordPress footer snippet (DGS); a sanitized Workday sample (DGS, later); the 16
+  known-failing text fixtures; Alberta's “Avy” and dropped “Points”; Duke's key; colon / dropped-point numerics;
+  rule (b) on short-word titles; TH02's English-only heading words; `dateOnLine` and ordinal dates.

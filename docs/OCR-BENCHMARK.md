@@ -473,3 +473,33 @@ never corrected; only a decimal or a grade may leave a title): `--quick`, the me
 side, TH02's country evidence, the adjacent-line conferral's value cell and the in-progress gate — every saved
 OCR line set under bench-out (1,752 files) re-parsed by both parsers: 3 documents changed, all three the L7
 lines above. DECISIONS 2026-10-10.
+
+## Verification at the close of the next stage (2026-10-10)
+
+The shipped pipeline at `5b8b521` (Batch C's OCR side and its review fixes), measured fresh — the engine run
+again, not a re-parse:
+
+- `--pinned` (`bench-out/final-20261010-pinned/` against `review-fix-after-pinned/`): 0 regressions, 0
+  improvements — L0 2/3, L1 7/9, L2 6/10, L3 exact, L4 2/5, L5 exact, L6-180 2/3, L6-90 4/5 rows right of
+  expected, L7 0/6 (a Notre Dame page; the level measures the text layer); 1.08 s/page.
+- The medium set (62 seeds, 151 pages, L2 / L5; `bench-out/final-20261010-medium/`, 15.3 min) against the
+  sign-off run `ocr-full-20261009/`: 0 regressions, 11 improvements — every one of them step 2.5's or Evergreen's
+  (CC15) — and against the review fixes' `--reparse` of the same lines (`review-fix-after-medium/`) identical
+  boards, only s/page differing. So a fresh engine run reproduces the re-parse exactly, as `--reparse` assumes.
+
+| level | exact | row acc | rows found | precision | false rows (negatives with any) | field acc | CER | flag P / R | s/page |
+|---|---|---|---|---|---|---|---|---|---|
+| text | 61/62 | 100.0 % (93.0) | 100.0 % (93.0) | 100.0 % | 1 (1/36) | 100.0 % | 0.0 % | — | — |
+| L2 | 33/62 | 63.0 % (54.1) | 92.6 % (88.1) | 98.0 % | 13 (6/36) (16, 7/36) | 83.8 % (80.9) | 37.2 % | 61.3 / 61.3 % (70.8 / 63.0) | 3.03 |
+| L5 | 35/62 | 67.0 % (58.1) | 94.1 % (89.6) | 98.4 % | 14 (4/36) (21, 5/36) | 86.8 % (83.8) | 35.8 % | 66.7 / 59.8 % (79.5 / 66.0) | 2.48 |
+
+(The sign-off run's figure in brackets.) The flag figures are the one column that fell: they moved between the
+sign-off run and step 2.5 (`ocr-step25-auto-medium`: 65.6 / 62.4 and 76.5 / 65.0 %; `step26-before-medium`: the
+present figures) and not since. The rows and the false rows improved, so the bench's rule calls it no
+regression; that the step-2.5 junk-code guard removed rows which had been flagged wrong rows would explain both
+falling together, but it has not been checked row by row (an open item in plan §5).
+
+The e2e now looks at the strips in a real browser on both engines (plan §5 “Next stage — verification and
+records”): the e2e scan's two rows are both flagged, each strip a drawn 815–829 × 40 px canvas shown at 780 ×
+40 px at 1400 px wide and 489 × 26 px at 390 px (where the line's right end — credits, grade — sits behind a
+sideways scroll inside the strip; put to the DGS).

@@ -440,6 +440,18 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   every new caller that parses such a layer (the app, the bench's L7, a script) must pass it, or real rows
   vanish; (e) `undergraduateInProgress` counts a raw result as final only as a mark (`FINAL_MARK_RE`) or a
   band word (`BAND_WORD_RE`) — a new band system's words go in that list, never "any raw grade".
+- **The next stage's verification** (2026-10-10, one commit "Transcript accuracy next stage: verification and
+  records"; plan §5 has the numbers and what the screenshots show). The e2e now covers two Batch C answers on
+  BOTH engines, in `scripts/e2e/drive-transcript.mjs`: the scanned-line strip in the existing OCR leg (every ⚠
+  row's `td.cell-scan .scan-strip > canvas` drawn with ink and named W-CL414; an unflagged row's toggle and no
+  canvas; at 390 px no page scroll; after Add no strip and no OCR field in the saved record) and a CC15 leg on
+  `tests/fixtures/codeless-transcript.pdf` (a fresh record, Master's row: empty required ids, disabled ticks,
+  “Add 0 selected courses”, the refused Add, one typed id → one row added under it). The fixture is made by
+  `make-transcript-pdfs.mjs` with cells at fixed x — a code-less table needs the gaps a single text stream
+  closes — and it is NOT a bench seed (`GENERATOR_PDFS` in `scripts/dev/ocr-bench/seeds.mts` is an explicit
+  list, so adding a fixture PDF never moves the bench). A phone crop of the preview hides the window's floating
+  panels first (WebKit's element shot paints them in). The e2e scan's rows are both flagged, so the unflagged
+  toggle is still pinned only in node, and no e2e fixture is a scanner-layer PDF yet.
 - **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
   after this one carry the reasons, STATE.md's "Batch A done" paragraph and
   `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:

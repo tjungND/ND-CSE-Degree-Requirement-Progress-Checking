@@ -309,6 +309,25 @@ const NO_LINES = [
   'The grading scale, credit definitions and academic standing codes are described in the legend printed on the reverse of this page.',
 ];
 
+// A transcript that prints NO course numbers (CC15, DGS 2026-10-09; the e2e
+// leg added 2026-10-10): a title column and no code column, as Nankai's and
+// CHESICC's records print them. Each row is imported with an EMPTY, required
+// course-id box; the row cannot be ticked, and Add adds nothing, until the
+// student types an id. Invented institution and student.
+const CODELESS = [
+  'Example Normal University',
+  'Graduate School Record of Graduate Coursework',
+  'Name: Sample Student   Student No.: 000000000',
+  'Program: Master of Engineering, Computer Science and Technology',
+  'COURSE NAME   CREDIT   RESULT   COURSE TYPE',
+  '2023-2024 Academic Year   First Semester',
+  'Advanced Operating Systems   3   A   Degree Course',
+  'Machine Learning   3   B+   Elective',
+  '2023-2024 Academic Year   Second Semester',
+  'Distributed Computing   3   A-   Degree Course',
+  'TOTAL CREDITS: 9',
+];
+
 const COMBINED = [
   'Purdue University',
   'Office of the Registrar',
@@ -394,6 +413,15 @@ writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
 writeFileSync(join(here, 'uc-system-transcript.pdf'), makePdf(UC_SYSTEM));
 writeFileSync(join(here, 'no-lines-transcript.pdf'), makePdf(NO_LINES));
+// Each cell at its column's x (a single text stream closes the gaps the
+// header's cells are lined up by): title, credit, result, course type.
+writeFileSync(join(here, 'codeless-transcript.pdf'), makePositionedPdf([
+  CODELESS.flatMap((line, i) => {
+    const cells = line.split(/ {3,}/);
+    const xs = cells.length === 4 ? [40, 260, 320, 380] : cells.length === 2 ? [40, 260] : [40];
+    return cells.map((text, c) => ({ x: xs[c], y: 750 - 14 * i, text, size: 9 }));
+  }),
+]));
 writeFileSync(join(here, 'banner-transcript.pdf'), makePositionedPdf(bannerPages()));
 
 // The same transcript over a text watermark (2026-09-05: real UMass / Western

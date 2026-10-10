@@ -230,7 +230,14 @@ last edit (see "Sync" below).
   `E2E_BROWSER=webkit npm run e2e` runs the same drivers on Safari's engine (Playwright's WebKit
   build — `playwright-core` is a devDependency, the browser a one-time `npx playwright-core
   install webkit` per Mac) with screenshots in `.e2e-out/webkit/`; run it too whenever layout
-  changed, since Chrome alone missed a Safari-only bug that day. When a student finds a
+  changed, since Chrome alone missed a Safari-only bug that day. Since 2026-10-10 the transcript
+  driver also checks, on both engines, the OCR preview's scanned-line strips (drawn at once on a
+  ⚠ row, gone after Add, never in the saved record; a crop at 390 px) and a transcript that prints
+  no course numbers (`tests/fixtures/codeless-transcript.pdf`: the empty, required id box keeps the
+  row unticked and Add refuses until an id is typed). Every fixture PDF comes from
+  `node tests/fixtures/make-transcript-pdfs.mjs` (the scan from `make-scan-fixture.py`); the
+  generator rewrites the others byte for byte, so a new fixture shows up in `git status` alone.
+  When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
 - **Transcript replay** (2026-10-09): `npm run replay` scores every pinned transcript fixture (the 168
   public line lists and the 48 synthetic master's ones) and any sample PDFs kept outside the repo
@@ -328,7 +335,7 @@ replay's scorer plus line CER, flag precision/recall and seconds per page.
     npm run ocr-bench -- --quick                                   # one seed per family × L0/L2/L5, about a minute
     npm run ocr-bench -- --quick --out ~/degree-audit-samples/bench-out/ocr-before-quick     # BEFORE a change, same code
     npm run ocr-bench -- --quick --baseline ~/degree-audit-samples/bench-out/ocr-before-quick # after it: the deltas
-    npm run ocr-bench -- --families generator-external,generator-nd,generator-scan,public-pdf --levels L2,L5   # the medium set, ~12 min
+    npm run ocr-bench -- --families generator-external,generator-nd,generator-scan,public-pdf --levels L2,L5   # the medium set, ~15 min
     npm run ocr-bench -- --levels L0,L1,L2,L3,L4,L5,L6,L7 --families generator-external,generator-nd,generator-scan,public-pdf --dpi 200   # the full ladder, ~45 min
     npm run ocr-bench -- --full          # adds the synthetic renders; prints the estimate (hours); add --yes to run it, attended
     npm run ocr-bench -- --pinned        # the nine committed pages in tests/fixtures/ocr-scans/
