@@ -362,6 +362,12 @@ export function readyToAdd(r: Pick<PreviewRow, 'include' | 'courseId' | 'grade' 
 export const CODE_MISSING_PLACEHOLDER = 'course number';
 export const CODE_MISSING_NOTE =
   'This transcript prints no course number for this course. Type the number the university gives it (its course catalog or your syllabus) to add it; until then the row is not ticked.';
+/** "Is this a transcript at all?" (DGS 2026-10-10, answer 4a; W-CL421): a
+ * text PDF with one course-like line, no university named and no GPA or
+ * totals — nothing is imported, and the course is typed by hand. */
+export function notATranscriptMessage(filename: string): string {
+  return `“${filename}” does not look like a transcript: it names no university, prints no GPA or credit totals, and only one line in it reads like a course. Nothing was imported. If it is your transcript, add the course by hand below.`;
+}
 /** A scan whose scanner embedded its own text (Batch C answer (6), DGS
  * 2026-10-09): the OCR offer beside its preview — the lead (W-CL416), the
  * sentence (W-CL417), the button that keeps the previewed rows and withdraws
@@ -816,6 +822,10 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       // of our own engine's poor lines does not read it (review fix
       // 2026-10-10): it dropped real rows there, which the answer wanted kept.
       const parsed = scannedTextLayer ? parseExternalTranscript(lines, lines.map(() => SCANNER_LAYER_CONFIDENCE), { scannerLayer: true }) : parseExternalTranscript(lines);
+      // A course outline or syllabus, not a record (DGS 2026-10-10, answer
+      // 4a): said so, nothing imported — and no OCR offer, which would read
+      // the same one line.
+      if (parsed.notATranscript) return fail(notATranscriptMessage(file.name));
       if (!parsed.hasTextLayer) {
         // A scan or photo: never OCR silently — offer it (DGS decision 2026-09-02).
         pendingScan = { slot: slot.level, buffer, filename: file.name };
@@ -1407,7 +1417,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               { class: `hint ${detected ? 'warn' : ''} quarter-note` },
               el('label', {}, 'Credit system on this transcript: ', sel),
               detected
-                ? ` — read from its term headers. Its credits will be converted (${example(p.creditSystem === 'quarter' ? 'quarter' : 'trimester')}, §5.2 pro-rata). Change this if the parser misread; the DGS’s ruling for the university overrides it either way.`
+                ? ` — read from how the transcript names its terms. Its credits will be converted (${example(p.creditSystem === 'quarter' ? 'quarter' : 'trimester')}, §5.2 pro-rata). Change this if the parser misread; the DGS’s ruling for the university overrides it either way.`
                 : ' — change this if your university counts in quarter or trimester hours and the parser did not notice; credits are then converted pro-rata (§5.2).',
             );
           })(),

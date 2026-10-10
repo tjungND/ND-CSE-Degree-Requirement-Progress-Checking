@@ -1157,7 +1157,7 @@ Open issues from this verification (the DGS's are marked):
 - Pre-existing, seen in the crops: the “Credit system on this transcript” select shows “Semest” (also in the
   combined preview); a full-size text-layer row prints its term as “FA23” under TERM with an empty YEAR column —
   code-less rows are always full-size, so they show it every time.
-- Carried, unchanged: the transcript gate, CUNY, trimester evidence, question (g), Thai
+- Carried, unchanged: question (g), Thai
   summers and Buddhist-era years (DGS); Melbourne / Limerick and the five public PDFs not
   on disk (DGS); the WordPress footer snippet (DGS); a sanitized Workday sample (DGS, later); the 16
   known-failing text fixtures; Alberta's “Avy” and dropped “Points”; Duke's key; colon / dropped-point numerics;
@@ -1170,5 +1170,8 @@ Open issues from this verification (the DGS's are marked):
 2. “(a)” — the L7 trade is kept: a scanner's own text layer skips the junk-code guard, every row shown ticked and
    flagged; L7 false rows 94 → 100 accepted, real rows never dropped. No code change.
 3. “No” — a city in a university's name does not stand for its country; SJTU stays known-failing (`328b1ac`).
-4. Waiting: the transcript gate (McGill's course-outline row), CUNY as a campus system, “Trimester GPA” as
-   trimester evidence.
+4. “4a (a), 4b (a), 4c (a)” — (a) the transcript gate as proposed: one row, no university, no GPA or totals on a
+   text layer → nothing imported, W-CL421 (`notATranscript`); (b) CUNY is a campus system, its 26 colleges, the
+   first-named college in its header wins and a transfer-credit line names none; (c) “Trimester GPA: 3.47” is trimester
+   evidence and “Quarter GPA” quarter evidence, a key's sentence neither. Text replay 0 regressions, public exact
+   151 → 154/168, false rows on negatives 1 → 0, pdfs 49/49; OCR `--reparse` (L0–L7, the medium set) unchanged.

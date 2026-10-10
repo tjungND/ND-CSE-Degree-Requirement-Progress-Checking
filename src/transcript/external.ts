@@ -111,6 +111,14 @@ export interface ExternalParseResult {
    * university's courses — they are left out and counted here so the preview
    * can say so (2026-09-05). */
   transferRowsSkipped?: number;
+  /** "Is this a transcript at all?" (DGS 2026-10-10, answer 4a): a text
+   * layer whose ONE course-like line comes with no university named and no
+   * GPA or totals line anywhere — a course outline, a syllabus, a class
+   * schedule. `courses` is then empty: the upload says the document does not
+   * look like a transcript and the student types the course by hand. Never
+   * set on OCR or a scanner's layer (every row of a scan is kept, flagged —
+   * DGS 2026-10-10, answer 2). */
+  notATranscript?: true;
   courses: ExternalCourseCandidate[];
 }
 
@@ -3305,6 +3313,17 @@ export function parseExternalTranscript(lines: string[], confidences?: number[],
   // seven-week terms (two or more of A–D).
   const legendIndex = lines.findIndex((l) => /^\s*(?:transcript\s+key|legend|key\s+to\s+(?:the\s+)?transcript|guide\s+to\s+transcript|explanation\s+of\s+(?:the\s+)?transcript|grading\s+(?:system|scale|key))\b/i.test(l.replace(/\s{2,}/g, ' ').trim()));
   const legendStart = legendIndex < 0 ? lines.length : legendIndex;
+  // A term's GPA labelled with the term's name, printed with its value
+  // ("Trimester GPA: 3.47", North South University; DGS 2026-10-10, answer
+  // 4c) is the registrar saying what its terms are — read for quarters too,
+  // so the two calendars are read alike. Only the label with a number after
+  // it, before any legend: a key's sentence ("three academic terms in each
+  // academic year in the trimester system", "prior transcripts show quarter
+  // hours") may describe another era, and is not read.
+  const termGpaLabel = (word: RegExp): boolean => {
+    const label = new RegExp(`${word.source}\\s+(?:g\\.?\\s?p\\.?\\s?a\\.?|grade\\s+point\\s+average)\\s*:?\\s*\\d`, 'i');
+    return lines.slice(0, legendStart).some((l) => label.test(l));
+  };
   const termHeaders = lines.filter((l) => TERM_WORD_RE.test(l) && YEAR_RE.test(l) && l.replace(/\s{2,}/g, ' ').length < 60);
   const autumnWinterSpring = [/\bautumn\b/i, /\bwinter\b/i, /\bspring\b/i].every((re) => termHeaders.some((l) => re.test(l)));
   const wpiTerms = new Set(termHeaders.map((l) => WPI_TERM_RE.exec(l)?.[1]?.toUpperCase()).filter((t) => t !== undefined));
@@ -3315,32 +3334,66 @@ export function parseExternalTranscript(lines: string[], confidences?: number[],
     // State keys, 2026-09-26) and nothing at or after a legend heading.
     lines.slice(0, legendStart).some((l) => /\b(quarter|qtr)\s+(units?|hours?|hrs?|credits?)\b/i.test(l) && l.replace(/\s{2,}/g, ' ').trim().length < 60 && !/\b(is|are|was|were|show|shown|prior|converted|conversion|equal|equals)\b/i.test(l)) ||
     autumnWinterSpring ||
-    wpiTerms.size >= 2
+    wpiTerms.size >= 2 ||
+    termGpaLabel(/\b(?:quarter|qtr)/i)
       ? (true as const)
       : undefined;
   const trimesterSystem =
     !quarterSystem &&
     (lines.some((l) => /\b(fall|spring|summer|autumn|winter)\s+(trimester|tri)\b/i.test(l) && YEAR_RE.test(l)) ||
-      lines.some((l) => /\btrimester\s+(units?|hours?|hrs?|credits?)\b/i.test(l)))
+      lines.some((l) => /\btrimester\s+(units?|hours?|hrs?|credits?)\b/i.test(l)) ||
+      termGpaLabel(/\btrimester/i))
       ? (true as const)
       : undefined;
+  // Spelled out for everyone who reads it (DGS 2026-09-08): the student,
+  // the DGS review request and the Grad Admin processing request.
+  const named = withCampus(guessedUniversity(lines), lines);
+  // "Is this a transcript at all?" (DGS 2026-10-10, answer 4a — the gate
+  // proposed on 2026-10-09, adopted as proposed): ONE course row, no
+  // institution named and no GPA or totals line is a course outline, not a
+  // record (the McGill project's outline page read "COMP 250 001 Intro to
+  // Computer Science 3" as a course). Its row is not offered; the cost the
+  // DGS accepted is that a one-course transcript with neither a name nor a
+  // total is typed by hand. A text layer only: a scan's rows are all kept.
+  // "Names no institution" is read widely (review, 2026-10-10): besides a
+  // name the reader recognised, any short line with an institution word or a
+  // record title ("UCLA Extension", "Georgia Tech", "Official Transcript")
+  // keeps the row, and so does a transfer row the parser set aside — the
+  // document then printed more than one course.
+  const notATranscript =
+    !ocrLines &&
+    courses.length === 1 &&
+    transferRowsSkipped === 0 &&
+    named.university === undefined &&
+    !lines.some((l) => l.replace(/\s{2,}/g, ' ').trim().length < 60 && INSTITUTION_OR_RECORD_RE.test(l)) &&
+    !lines.some((l) => RECORD_FIGURES_RE.test(l));
   return {
     ...(quarterSystem ? { quarterSystem } : {}),
     ...(trimesterSystem ? { trimesterSystem } : {}),
     hasTextLayer: true,
     looksLikeNotreDame,
-    // Spelled out for everyone who reads it (DGS 2026-09-08): the student,
-    // the DGS review request and the Grad Admin processing request.
-    ...withCampus(guessedUniversity(lines), lines),
+    ...named,
     degreeConferred,
     bachelorsConferredOn,
     ...(bachelorsConferred || bachelorsConferredOn !== undefined ? { bachelorsConferred: true as const } : {}),
     ...(bachelorsNamed ? { bachelorsNamed: true as const } : {}),
     mixedLevels: levels.size > 1 ? true : undefined,
     transferRowsSkipped: transferRowsSkipped > 0 ? transferRowsSkipped : undefined,
-    courses,
+    ...(notATranscript ? { notATranscript: true as const } : {}),
+    courses: notATranscript ? [] : courses,
   };
 }
+
+/** A line any academic record prints and a course outline does not: a GPA,
+ * a grade-point or quality-point figure, a total, a cumulative line, credits
+ * or hours earned (the transcript gate, DGS 2026-10-10 answer 4a). Broad on
+ * purpose — every match keeps a document's one row offered. */
+const RECORD_FIGURES_RE =
+  /\b(?:[cs]?gpa|[sc]pi|wam|g\.\s?p\.\s?a|qpa|grade\s+points?|quality\s+points?|totals?|cumulative|cum\.?\s+(?:gpa|credits?|hours?)|weighted\s+(?:average|percentage|mean)|average\s+(?:mark|grade|score|percentage)|(?:credits?|hours?|hrs|units?|ects)\s+(?:earned|attempted|passed|obtained)|earned\s+(?:credits?|hours?|hrs|units?))\b/i;
+/** A short line naming an institution or a record (the transcript gate): a
+ * name the university reader does not recognise still names one. */
+const INSTITUTION_OR_RECORD_RE =
+  /\b(?:universit\w*|universidad|universidade|università|college|institut\w*|school|extension|polytechnic|polytechnique|academy|tech|transcript|academic\s+record|record\s+of)\b/i;
 
 /** One unreviewed course, pre-rendered for the review request (the caller
  * supplies the term label and slot label so this stays UI- and engine-free). */

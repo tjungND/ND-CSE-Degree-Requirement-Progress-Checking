@@ -2,18 +2,12 @@
  "sjtu-lifelong-template": [
   "CC16 read since Batch C (2026-10-09): both halves of every side-by-side row are read, each under its column\u2019s semester, and a one-group line\u2019s term is left blank (its column cannot be told from the text). Still open: \u20182001 Academic Year\u2019 with \u20181st Semester   2nd Semester\u2019 is a single-year academic year whose first semester is the fall in China and the spring in Korea or Japan \u2014 only a country calendar places it, and the template prints no country (\u2018SHANGHAI\u2019 in the university\u2019s name only): 14 rows read with a blank term, want fall/spring"
  ],
- "pdf-mcgill-minerva-not-a-transcript": [
-  "Batch B \u2014 no 'is this a transcript at all' gate: a course outline's one line ('COMP 250   001 Intro to Computer Science   3') reads as a course row; the McGill project refuses the page because its header never says Transcript"
- ],
  "workday-student-ubc": [
   "F2 (Batch B) \u2014 the Workday period header '2024-25 Winter Term 1 (09/03/2024-12/20/2024)' reads as spring of the range's END year although its dates (and UBC's Term 1) say fall: rows 1-5 read spring 2025, want fall 2024 (ten rows in all)"
  ],
  "colleague-lesley-style": [
   "F5 (Batch B) \u2014 Colleague's transfer rows (grade TR, no 'Transfer Credit' heading before them) read as course rows: 'MATH 1200 | Calculus I | 4 | TR' and 'CSCIE 1100 | Introduction to Computer Science | 3 | TR' are read ahead of the 23 expected rows (25 read)",
   "F1c (Batch B) \u2014 an ungraded current-term row 'ECOMP-6900 01 Graduate Project   3.00   2026FA' under the header-mapped Grade / Credits / Term reads credits ? and grade 3.00 (want 3 and ?)"
- ],
- "cunyfirst-ccny": [
-  "new (Batch B): the CUNY system line 'The City University of New York' beats the issuing college's header 'THE CITY COLLEGE OF NEW YORK' as the university (the strong-name rule rates 'University' above 'College', and CUNY is not a multi-campus system in src/transcript/campus.ts); all 33 rows exact"
  ],
  "uoregon-banner-quarter": [
   "new (Batch B): UO's group and P/N-only symbols glued to the grade ('immediately following the grade', the key says) leave it unread or raw \u2014 'B>1' and 'C+>3' read ?, 'P*' stays raw (want S), 'N' stays raw (want U: the key tail's 'N No Pass' does not set the legend's N-means-fail hint, whose regex wants 'not satisfactory', 'no credit' or 'unsatisfactory')",
@@ -47,9 +41,6 @@
  "algeria-lmd-releve": [
   "CC15 \u2014 DGS decision: the 16 mati\u00e8re rows are code-less and are imported with an empty id box (0 rows read today; the UE lines' 'UEF 1.1' codes open no false row)",
   "new (Batch B): French LMD headings 'Note / Cr\u00e9dits / session', decimal-comma marks ('14,50', '09,75'), 'Semestre I' / 'Semestre II' under 'Ann\u00e9e Universitaire : 2022/2023', and the UE line carrying its first mati\u00e8re"
- ],
- "bangladesh-private-university": [
-  "new (Batch B): trimester evidence outside the two shapes the 2026-09-20 rule reads ('<season> Trimester <year>' header, 'Trimester units/credits' heading) \u2014 the 'Trimester GPA' totals label and the legend's 'three academic terms in each academic year in the trimester system' sentence do not set trimesterSystem (null, want true); the DGS decides whether these count; all 24 rows exact"
  ],
  "nepal-tribhuvan-ioe-semester": [
   "F2 (Batch B) \u2014 'Semester: III' / 'Semester: IV' under 'Academic Year: 2081/082 B.S. (2024/2025 A.D.)' read as the range's summer (the three-terms-in-one-year rule: an ordinal above 2 under an academic-year range), while continuously numbered semesters run odd = first (fall 2024) and even = second (spring 2025) term of their academic year \u2014 ten rows"

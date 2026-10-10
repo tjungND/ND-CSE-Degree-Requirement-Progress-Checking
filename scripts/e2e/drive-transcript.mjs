@@ -6,7 +6,7 @@
 // "not yet reviewed" and the copy-ready review request appears).
 // `pdfs` is the name → path map run.mjs builds from tests/fixtures/.
 export async function driveTranscript(s, baseUrl, pdfs) {
-  const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf, ndInsideNd: ndInsideNdPdf, codeless: codelessPdf } = pdfs;
+  const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf, ndInsideNd: ndInsideNdPdf, codeless: codelessPdf, outline: outlinePdf } = pdfs;
   await s.open(baseUrl, '.transcript-upload');
   await s.evalJs(`localStorage.clear()`);
   await s.open(baseUrl, '.transcript-upload');
@@ -413,6 +413,19 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  text PDF with no course lines → OCR offered');
   await s.evalJs(`document.querySelector('[data-key="ext.scan.cancel"]').click()`);
   await s.waitFor(`!document.querySelector('.ocr-optin')`);
+
+  // 3e) A course outline, not a transcript (DGS 2026-10-10, answer 4a): one
+  //     course-like line, no university named, no GPA or totals — the upload
+  //     says so and imports nothing: no preview, no OCR offer.
+  await s.setFileInput('.external-file-phd', outlinePdf);
+  await s.waitFor(`document.querySelector('[data-key="ext.error.phd"]')`);
+  const outline = await s.evalJs(`document.querySelector('[data-key="ext.error.phd"]')?.textContent ?? ''`);
+  if (!/“course-outline\.pdf” does not look like a transcript/.test(outline) || !/Nothing was imported\. If it is your transcript, add the course by hand below\./.test(outline)) throw new Error('a course outline must be refused with its own message: ' + outline.slice(0, 200));
+  if (await s.evalJs(`!!document.querySelector('.ocr-optin') || !!document.querySelector('.transcript-preview')`)) throw new Error('a course outline must open no preview and no OCR offer');
+  await s.shot('external-not-a-transcript');
+  console.log('  course outline → "does not look like a transcript", nothing imported');
+  await s.evalJs(`document.querySelector('[data-key="ext.error.phd"] button').click()`);
+  await s.waitFor(`!document.querySelector('[data-key="ext.error.phd"]')`);
 
   // 4) Scanned transcript (Bachelor's slot) → explicit OCR opt-in (English only)
   //    → OCR in the browser (self-hosted WASM) → flagged preview → add.

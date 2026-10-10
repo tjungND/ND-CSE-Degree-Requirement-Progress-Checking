@@ -3008,9 +3008,9 @@
   ]
  },
  "cunyfirst-ccny": {
-  "university": "THE CITY COLLEGE OF NEW YORK",
-  "campusSystem": null,
-  "campus": null,
+  "university": "The City College of New York",
+  "campusSystem": "City University of New York",
+  "campus": "City College",
   "degreeConferred": null,
   "bachelorsConferredOn": "2024-06-01",
   "quarterSystem": null,

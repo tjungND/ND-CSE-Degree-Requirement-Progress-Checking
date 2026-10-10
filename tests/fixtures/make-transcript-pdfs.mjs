@@ -309,6 +309,20 @@ const NO_LINES = [
   'The grading scale, credit definitions and academic standing codes are described in the legend printed on the reverse of this page.',
 ];
 
+// A course outline, not a transcript (DGS 2026-10-10, answer 4a — the e2e leg
+// added the same day): one course-like line, no university named, no GPA or
+// totals. The upload says it does not look like a transcript and imports
+// nothing. Invented course page in the shape of the McGill project's outline.
+const OUTLINE = [
+  '1/15/26, 10:30 AM   CSCI 250 Course Outline',
+  'CSCI 250 Introduction to Computer Science',
+  'Fall 2025',
+  'CSCI 250   001 Introduction to Computer Science   3',
+  'Prerequisite: CSCI 202. Bring your unofficial transcript to advising if you need a prerequisite waiver.',
+  'Lectures meet twice a week; laboratory sections meet weekly in the computing laboratory, beginning in the second week of the term.',
+  'Office hours, the reading list and the assignment schedule are posted on the course website before the first lecture.',
+];
+
 // A transcript that prints NO course numbers (CC15, DGS 2026-10-09; the e2e
 // leg added 2026-10-10): a title column and no code column, as Nankai's and
 // CHESICC's records print them. Each row is imported with an EMPTY, required
@@ -413,6 +427,7 @@ writeFileSync(join(here, 'other-transcript.pdf'), makePdf(OTHER));
 writeFileSync(join(here, 'external-transcript.pdf'), makePdf(EXTERNAL));
 writeFileSync(join(here, 'uc-system-transcript.pdf'), makePdf(UC_SYSTEM));
 writeFileSync(join(here, 'no-lines-transcript.pdf'), makePdf(NO_LINES));
+writeFileSync(join(here, 'course-outline.pdf'), makePdf(OUTLINE));
 // Each cell at its column's x (a single text stream closes the gaps the
 // header's cells are lined up by): title, credit, result, course type.
 writeFileSync(join(here, 'codeless-transcript.pdf'), makePositionedPdf([

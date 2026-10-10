@@ -216,6 +216,17 @@ describe('quarter-system detection (2026-09-11)', () => {
     assert.equal(r.quarterSystem, undefined);
     assert.equal(parseExternalTranscript(['Old Harbour University', ...HEAD, 'Fall 2023', 'Course   Title   Trimester Hours   Grade', 'CS 501   Algorithms   4   A']).trimesterSystem, true);
   });
+  it('a term GPA labelled with the term’s name, printed with its value, says so too — never a key’s sentence (DGS 2026-10-10, answer 4c)', () => {
+    const nsu = ['North South University', ...HEAD, 'Spring 2022', 'CSE 115   Programming Language I   3   A-', 'Trimester GPA: 3.47   CGPA: 3.47   Credits Earned: 10'];
+    assert.equal(parseExternalTranscript(nsu).trimesterSystem, true);
+    assert.equal(parseExternalTranscript(['Old Harbour University', ...HEAD, 'Fall 2023', 'CS 501   Algorithms   4   A', 'Trimester G.P.A.   3.50']).trimesterSystem, true);
+    assert.equal(parseExternalTranscript(['Old Harbour University', ...HEAD, 'Autumn 2023', 'CS 501   Algorithms   4   A', 'Quarter GPA: 3.20   Cumulative GPA: 3.20']).quarterSystem, true);
+    // A key's sentence, or the label inside a key, may describe another era.
+    const key = ['North South University', ...HEAD, 'Spring 2022', 'CSE 115   Programming Language I   3   A-', 'CGPA: 3.47', 'Grading System', 'The University follows three academic terms in each academic year in the trimester system.', 'Trimester GPA: 4.00 is the highest attainable.'];
+    assert.equal(parseExternalTranscript(key).trimesterSystem, undefined);
+    // The label without its value is prose.
+    assert.equal(parseExternalTranscript(['North South University', ...HEAD, 'Spring 2022', 'CSE 115   Programming Language I   3   A-', 'The Trimester GPA is computed on courses taken that trimester.']).trimesterSystem, undefined);
+  });
   it('a semester transcript, or a lone Winter session, says nothing', () => {
     assert.equal(parseExternalTranscript(['Purdue University', ...HEAD, 'Fall 2023', 'CS 50300   Operating Systems   3.0   A']).quarterSystem, undefined);
     assert.equal(parseExternalTranscript(['Purdue University', ...HEAD, 'Winter 2024', 'CS 50300   Operating Systems   3.0   A']).quarterSystem, undefined);

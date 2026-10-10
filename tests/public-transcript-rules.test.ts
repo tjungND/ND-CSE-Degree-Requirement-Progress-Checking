@@ -112,7 +112,9 @@ describe('public-transcript rules (2026-09-26)', () => {
     assert.equal(row(r, 'CS 310')?.rawGrade, '0F');
   });
   it('a level named in one cell, Confer Date, and degree abbreviations with their dots', () => {
-    const r = doc('HKUST', 'Program: MSc in Information Technology   Career: Postgraduate', 'Degree:   B.Sc. Engineering   Confer Date:   06/15/2024', 'Fall 2022', 'COMP 5211   Advanced Artificial Intelligence   3   A-');
+    // The header prints the school's name, as HKUST's does: a document with one
+    // course, no name and no totals is no transcript (DGS 2026-10-10, answer 4a).
+    const r = doc('The Hong Kong University of Science and Technology', 'Program: MSc in Information Technology   Career: Postgraduate', 'Degree:   B.Sc. Engineering   Confer Date:   06/15/2024', 'Fall 2022', 'COMP 5211   Advanced Artificial Intelligence   3   A-');
     assert.equal(row(r, 'COMP 5211')?.level, 'graduate');
     assert.equal(r.bachelorsConferredOn, '2024-06-15');
     // "be applied toward a degree" is prose, not a B.E.

@@ -8,7 +8,7 @@
 // "Purdue University" alone means the flagship, and asking would only be
 // noise. (University of Washington is listed at the DGS's request, 2026-09-13;
 // University of Michigan on 2026-09-20 — Dearborn and Flint transcripts print
-// the bare name too.)
+// the bare name too; the City University of New York on 2026-10-10.)
 import { normalizeUniversity } from '../data/external.ts';
 
 export interface Campus {
@@ -24,6 +24,12 @@ export interface MultiCampusSystem {
   /** The system's bare name as transcripts print it. */
   system: string;
   campuses: readonly Campus[];
+  /** In the header, the campus named FIRST wins (CUNY, DGS 2026-10-10: its
+   * transcripts print the issuing college at the top and other colleges in
+   * transfer lines below). Other systems keep list order, which puts the
+   * flagship first — a student named "Martin" or a home town of "Flint" in
+   * the header must not move a Knoxville or Ann Arbor transcript. */
+  firstNamedWins?: true;
 }
 
 const c = (name: string, full: string, aliases: RegExp): Campus => ({ name, full, aliases });
@@ -188,7 +194,56 @@ export const MULTI_CAMPUS_SYSTEMS: readonly MultiCampusSystem[] = [
       c('Binghamton', 'Binghamton University', /\bBinghamton\b/i),
     ],
   },
+  {
+    // DGS 2026-10-10 (answer 4b): "The City University of New York" is 26
+    // colleges, each with its own courses — a CUNYfirst transcript prints the
+    // system's name under the college's ("THE CITY COLLEGE OF NEW YORK" /
+    // "The City University of New York"), and the system's name used to win.
+    // Every college is listed, by the name and in the order
+    // cuny.edu/about/colleges/ prints them (2026-10-10), so no student is left
+    // without their own. An alias names the college and nothing else: its
+    // name with its institution word ("Baruch College", never a surname
+    // "Baruch" on a student's name line), "City College" never inside "New
+    // York City College of Technology", "York College" never inside "New
+    // York College", "Queens College" never "Queensborough"; no two-letter
+    // acronym, which a course prefix in the header could print.
+    system: 'City University of New York',
+    firstNamedWins: true,
+    campuses: [
+      c('Baruch', 'Baruch College', /\bBaruch College\b/i),
+      c('Borough of Manhattan', 'Borough of Manhattan Community College', /\bBorough of Manhattan\b|\bBMCC\b/i),
+      c('Bronx', 'Bronx Community College', /\bBronx Community College\b/i),
+      c('Brooklyn', 'Brooklyn College', /\bBrooklyn College\b/i),
+      c('Staten Island', 'College of Staten Island', /\bCollege of Staten Island\b/i),
+      c('Graduate School of Journalism', 'Craig Newmark Graduate School of Journalism', /\bGraduate School of Journalism\b/i),
+      c('Graduate Center', 'CUNY Graduate Center', /\bGraduate Center\b|\bGraduate School and University Center\b/i),
+      c('Graduate School of Public Health', 'CUNY Graduate School of Public Health and Health Policy', /\bGraduate School of Public Health\b/i),
+      c('School of Labor and Urban Studies', 'CUNY School of Labor and Urban Studies', /\bSchool of Labor and Urban Studies\b/i),
+      c('School of Law', 'CUNY School of Law', /\bSchool of Law\b/i),
+      c('School of Medicine', 'CUNY School of Medicine', /\bSchool of Medicine\b/i),
+      c('School of Professional Studies', 'CUNY School of Professional Studies', /\bSchool of Professional Studies\b/i),
+      c('Guttman', 'Guttman Community College', /\bGuttman Community College\b/i),
+      c('Hostos', 'Hostos Community College', /\bHostos Community College\b/i),
+      c('Hunter', 'Hunter College', /\bHunter College\b/i),
+      c('John Jay', 'John Jay College of Criminal Justice', /\bJohn Jay College\b/i),
+      c('Kingsborough', 'Kingsborough Community College', /\bKingsborough Community College\b/i),
+      c('LaGuardia', 'LaGuardia Community College', /\bLa\s?Guardia Community College\b/i),
+      c('Lehman', 'Lehman College', /\bLehman College\b/i),
+      c('Macaulay', 'Macaulay Honors College', /\bMacaulay Honors College\b/i),
+      c('Medgar Evers', 'Medgar Evers College', /\bMedgar Evers College\b/i),
+      c('City Tech', 'New York City College of Technology', /\bNew York City College of Technology\b|\bCity Tech\b/i),
+      c('Queens', 'Queens College', /\bQueens College\b/i),
+      c('Queensborough', 'Queensborough Community College', /\bQueensborough Community College\b/i),
+      c('City College', 'The City College of New York', /(?<!York\s)\bCity College\b(?!\s+of\s+Technology)|\bCCNY\b/i),
+      c('York', 'York College', /(?<!New\s)\bYork College\b/i),
+    ],
+  },
 ];
+
+/** A header line that names ANOTHER school as the source of transfer credit
+ * ("Transfer Credit from Borough of Manhattan Community College", CUNYfirst)
+ * names no campus of this transcript's own (DGS 2026-10-10, answer 4b). */
+const TRANSFER_FROM_RE = /\btransfer(?:red)?\s+(?:credits?\s+)?from\b|\bcredits?\s+(?:accepted\s+)?from\b/i;
 
 export interface CampusResolution {
   /** The system the printed name belongs to; undefined when it is not one. */
@@ -219,15 +274,37 @@ export function resolveCampus(university: string | undefined, lines: readonly st
     // eScrip-Safe cover — F5, Batch B 2026-10-09) belongs to a system only
     // when the header prints that system's name ("… STATE UNIVERSITY OF NEW
     // YORK") and the name is one of its campuses.
-    MULTI_CAMPUS_SYSTEMS.find((s) => normalizeUniversity(lines.slice(0, 40).join(' ')).includes(normalizeUniversity(s.system)) && s.campuses.some((cp) => cp.aliases.test(university)));
+    // The printed name must BE the campus's full name: an alias inside a
+    // longer name ("FORDHAM UNIVERSITY SCHOOL OF LAW" holds CUNY's "School of
+    // Law") with the system named elsewhere in the header (a prior
+    // institution's line) is another school (review, 2026-10-10).
+    MULTI_CAMPUS_SYSTEMS.find((s) => normalizeUniversity(lines.slice(0, 40).join(' ')).includes(normalizeUniversity(s.system)) && s.campuses.some((cp) => normalizeUniversity(cp.full) === key));
   if (system === undefined) return {};
   const inName = system.campuses.find((cp) => cp.aliases.test(university));
   if (inName) return { system, campus: inName };
   // The header first — a campus named in the first lines is the transcript's
   // own; a city deep in the record could be another school's address in a
   // "degrees awarded by other institutions" block, so only the header decides.
-  const header = lines.slice(0, 40).join('\n');
-  const inHeader = system.campuses.find((cp) => cp.aliases.test(header));
+  // A transfer-credit line names no campus of this transcript's own, and in
+  // CUNY's header the campus named FIRST wins (DGS 2026-10-10, answer 4b: a
+  // City College transcript lists "Transfer Credit from Borough of Manhattan
+  // Community College" on line 14). Other systems keep list order
+  // (`firstNamedWins`).
+  const header = lines
+    .slice(0, 40)
+    .filter((l) => !TRANSFER_FROM_RE.test(l))
+    .join('\n');
+  let inHeader: Campus | undefined;
+  if (system.firstNamedWins) {
+    let at = Infinity;
+    for (const cp of system.campuses) {
+      const m = cp.aliases.exec(header);
+      if (m && m.index < at) {
+        inHeader = cp;
+        at = m.index;
+      }
+    }
+  } else inHeader = system.campuses.find((cp) => cp.aliases.test(header));
   return inHeader ? { system, campus: inHeader } : { system };
 }
 

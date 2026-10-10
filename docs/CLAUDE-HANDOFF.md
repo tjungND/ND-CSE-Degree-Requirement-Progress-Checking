@@ -1695,6 +1695,18 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `ext.preview.campus` select is required and writes the campus's full name into `p.university`.
   Do not add a school whose bare name means its flagship — the picker would fire on every
   Purdue transcript (University of Washington is the DGS's deliberate exception, 2026-09-13).
+  CUNY (DGS 2026-10-10) lists all 26 colleges; an alias must name ONE college only (test every new
+  alias against the other colleges' full names — `tests/campus.test.ts` loops over them), and each alias
+  carries its institution word (a surname on a name line is no college). Only CUNY sets `firstNamedWins`
+  (the header's first-named campus wins); every other system keeps list order, flagship first — do not
+  flip that globally (a student named Martin moved Knoxville to Martin in review). A transfer-credit line
+  names no campus (`TRANSFER_FROM_RE`); a name joins a system via the header only when it IS a campus's
+  full name (Fordham's School of Law is not CUNY's).
+- **The transcript gate** (DGS 2026-10-10, answer 4a): `parseExternalTranscript` returns no course and
+  `notATranscript` for a TEXT layer with one course row, no transfer row set aside, no university (read,
+  or a short `INSTITUTION_OR_RECORD_RE` line) and no `RECORD_FIGURES_RE` line;
+  the upload shows W-CL421 and offers no OCR. Never widen it to scans (answer 2: a scan keeps every row),
+  and a new synthetic test document with one row needs a university line, or it is gated.
 
 - **The multi-cap order search is memoized, not factorial** (hotfix 2026-09-16). `bestMultiOrder`
   chooses the processing order for courses that draw on more than one cap; it used to enumerate
