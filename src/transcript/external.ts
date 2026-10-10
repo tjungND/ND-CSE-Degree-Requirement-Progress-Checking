@@ -579,8 +579,115 @@ function cellKinds(cell: string): ColumnKind[] {
 /** A cell is "known whole" when a pattern names it as it stands — the test the
  * two-line header join asks of every joined pair (joinedHeaderKinds). */
 const knownWhole = (cell: string): boolean => cellKind(cell) !== undefined;
-function readColumnHeader(flat: string): ColumnKind[] | undefined {
-  const rawCells = flat.split(/\s{2,}/).map((c) => c.trim().replace(/[.:]+$/, '')).filter((c) => c.length > 0);
+
+// ---------------------------------------------------------------------------
+// A scanned header's OCR noise (OCR plan step 2.5, 2026-10-09). The
+// header-mapped row path reads WHERE the grade and the credits sit from the
+// header line; on a scan one misread header word left a table unmapped and its
+// rows read their grade into the title (the bench: Alberta's sample 19 → 3 rows
+// right at office-scan quality; Minerva's "Cr./C.E.U." read "Cr./C.E\U." and
+// every grade under it was lost). These repairs — the noise marks, a word
+// one letter off, a two-line header's run-together lower line — run ONLY on
+// OCR lines (parseExternalTranscript was given confidences); a text layer's
+// header is read exactly as before. Measured in docs/OCR-BENCHMARK.md
+// ("Plan step 2.5") and DECISIONS 2026-10-09.
+// ---------------------------------------------------------------------------
+
+/** Marks a scan prints for specks, stains and table rules — never part of a
+ * header word: backslash, tilde, equals, bars, underscores, carets, quotes,
+ * guillemets, braces and angle brackets, ¢ © ® ¬ and "!". A header cell is
+ * read with them removed ("Cr./C.E\U." is "Cr./C.EU.", "Avg ~~ Enrl" is "Avg
+ * Enrl"); a cell of nothing but noise is no cell. The full stop, the slash,
+ * the hyphen, "&", "#", "*" and parentheses stay: header words use them
+ * ("Cr.", "Kode / Code", "L-T-P", "Month & Year", "#", "C * G", "Grade (Letter)"). */
+const OCR_HEADER_NOISE_RE = /[\\~=|_^`"“”‘’«»¢©®¬{}<>!]+/g;
+const ocrHeaderCell = (cell: string): string => cell.replace(OCR_HEADER_NOISE_RE, '').replace(/\s+/g, ' ').trim().replace(/[.:]+$/, '');
+
+/** The header words (four letters or more) a scan's misread word may be
+ * repaired to — every one a word COLUMN_KIND_RES names on its own, so a
+ * repaired cell is read by exactly the patterns a printed one is
+ * (tests/ocr-header-noise.test.ts asserts that each one maps). Lower case,
+ * compared without case. Add a word here when a header word joins
+ * COLUMN_KIND_RES and a scan of it is seen misread. */
+const OCR_HEADER_WORDS: readonly string[] = [
+  // the course and its title
+  'course', 'subject', 'code', 'number', 'title', 'name', 'description', 'module',
+  // credits and units
+  'credit', 'credits', 'units', 'unit', 'hours', 'scope', 'weight', 'ects', 'unts',
+  // grades, marks and points
+  'grade', 'result', 'results', 'outcome', 'classification', 'marks', 'mark', 'score', 'total', 'obtained', 'points', 'point', 'qpts',
+  // attempted / earned
+  'attempted', 'taken', 'enrolled', 'registered', 'earned', 'passed',
+  // terms and dates
+  'term', 'semester', 'session', 'period', 'year', 'date', 'quarter', 'completed',
+  // flags and statistics
+  'remark', 'remarks', 'notes', 'type', 'category', 'status', 'section', 'repeat', 'repeated', 'comments', 'instructor', 'class', 'average', 'median', 'enrl',
+  // the level
+  'level', 'career',
+];
+const OCR_HEADER_WORD_SET = new Set(OCR_HEADER_WORDS);
+
+/** True when `a` becomes `b` by at most one inserted, deleted or substituted
+ * character (Levenshtein distance ≤ 1) — the misread of a single glyph. */
+function withinOneEdit(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+
+/** A scanned header cell no pattern names, with each word of four letters
+ * or more that is not a header word replaced by the header word a single
+ * glyph away ("Gradc" → "grade", "Crcdits" → "credits", "Remaik" →
+ * "remark"); undefined when no word could be repaired, when a word's
+ * candidates name different kinds of column ("Unite" is one glyph from
+ * "unit" and from "units" — both the credits, so either), or when the
+ * repaired cell is still no header cell. Words of three letters or fewer
+ * are never repaired: "Avy" is one glyph from "Avg" — and from "Any" and
+ * "Ave". A word with a digit or a symbol inside is never repaired. */
+export function ocrRepairHeaderCell(cell: string): string | undefined {
+  let changed = false;
+  const words = cell.split(' ').map((word) => {
+    const bare = word.replace(/[.:]+$/, '');
+    const letters = bare.toLowerCase();
+    if (letters.length < 4 || OCR_HEADER_WORD_SET.has(letters) || !/^\p{L}+$/u.test(letters)) return word;
+    const candidates = OCR_HEADER_WORDS.filter((w) => withinOneEdit(letters, w));
+    if (candidates.length === 0) return word;
+    const kindsOf = (w: string) => JSON.stringify(cellKinds(w));
+    if (candidates.some((w) => kindsOf(w) !== kindsOf(candidates[0]!))) return word;
+    changed = true;
+    return candidates[0]!;
+  });
+  if (!changed) return undefined;
+  const repaired = words.join(' ');
+  return knownWhole(repaired) ? repaired : undefined;
+}
+/** A cell a column pattern names as it stands (`knownWhole`) — exported for
+ * tests/ocr-header-noise.test.ts, which checks every OCR_HEADER_WORDS entry. */
+export const isHeaderCell = knownWhole;
+export { OCR_HEADER_WORDS };
+
+/** The cells of a header line, and — on an OCR line — each cell with the
+ * scan's noise removed (`ocrHeaderCell`). */
+function headerCellsOf(flat: string, ocr: boolean): string[] {
+  const raw = flat.split(/\s{2,}/).map((c) => c.trim().replace(/[.:]+$/, '')).filter((c) => c.length > 0);
+  return ocr ? raw.map(ocrHeaderCell).filter((c) => c.length > 0) : raw;
+}
+
+/** On an OCR line the cells of a header that is ALREADY evidenced as one —
+ * at least three of its cells, and 60 % of them, named by a pattern exactly —
+ * have their unknown cells repaired (`ocrRepairHeaderCell`). A line with less
+ * evidence is left as read: a fuzzy match is never what makes a line a header. */
+function ocrRepairedCells(cells: string[]): string[] {
+  const exact = cells.reduce((n, c) => n + (knownWhole(c) || cellKinds(c).some((k) => k !== 'flag') ? 1 : 0), 0);
+  if (exact < 3 || exact < Math.ceil(cells.length * 0.6)) return cells;
+  return cells.map((c) => (knownWhole(c) || cellKinds(c).some((k) => k !== 'flag') ? c : (ocrRepairHeaderCell(c) ?? c)));
+}
+
+function readColumnHeader(flat: string, ocr = false): ColumnKind[] | undefined {
+  const rawCells = ocr ? ocrRepairedCells(headerCellsOf(flat, true)) : headerCellsOf(flat, false);
   if (rawCells.length < 3 || rawCells.length > 14) return undefined;
   if (rawCells.some((c) => /\d{3,}/.test(c))) return undefined; // a row, a date, a code
   // A cell that holds two header words is two cells from here on.
@@ -658,17 +765,42 @@ function readColumnHeader(flat: string): ColumnKind[] | undefined {
  * every joined pair is a header word as it stands ("Grade Remark", "Units
  * Taken", "Units Passed", "Grade Points", "Class Avg", "Class Enrl") — one
  * pair that is not, and the lines are left as they were. */
-function joinedHeaderKinds(upper: string, lower: string): ColumnKind[] | undefined {
-  const cellsOf = (flat: string) => flat.split(/\s{2,}/).map((c) => c.trim().replace(/[.:]+$/, '')).filter((c) => c.length > 0);
-  const up = cellsOf(upper);
-  const low = cellsOf(lower);
-  if (up.length < 2 || up.length > low.length || low.length > 14) return undefined;
-  if ([...up, ...low].some((c) => /\d{3,}/.test(c))) return undefined;
-  if (readColumnHeader(upper) !== undefined) return undefined; // a header of its own
+function joinedHeaderKinds(upper: string, lower: string, ocr = false): ColumnKind[] | undefined {
+  const up = headerCellsOf(upper, ocr);
+  if (up.length < 2 || [...up, lower].some((c) => /\d{3,}/.test(c))) return undefined;
+  if (readColumnHeader(upper, ocr) !== undefined) return undefined; // a header of its own
+  const asRead = headerCellsOf(lower, ocr);
+  const kinds = joinAt(up, asRead, ocr);
+  if (kinds !== undefined || !ocr) return kinds;
+  // A scan's lower line may come with two or more of its one-word cells run
+  // together, the engine having read their gap as a word space ("Remark Taken
+  // Passed Points" — OCR plan step 2.5): split back into words when every word
+  // is a header word on its own (or one glyph from one: "Avg BEnrl"), then
+  // joined by the same rule.
+  const word = (w: string) => (knownWhole(w) ? w : ocrRepairHeaderCell(w));
+  const split = asRead.flatMap((c) => {
+    const words = c.split(' ').map(word);
+    return words.length > 1 && words.every((w) => w !== undefined) ? (words as string[]) : [c];
+  });
+  return split.length > asRead.length ? joinAt(up, split, ocr) : undefined;
+}
+/** joinedHeaderKinds' join of an upper line's cells over a lower line's. */
+function joinAt(up: string[], low: string[], ocr: boolean): ColumnKind[] | undefined {
+  if (up.length > low.length || low.length > 14) return undefined;
   for (const offset of [low.length - up.length, 0]) {
-    const joined = low.map((c, i) => (i >= offset && i < offset + up.length ? `${up[i - offset]} ${c}` : c));
-    if (!joined.every((c, i) => (i >= offset && i < offset + up.length ? knownWhole(c) : true))) continue;
-    const kinds = readColumnHeader(joined.join('   '));
+    const paired = (i: number) => i >= offset && i < offset + up.length;
+    let joined = low.map((c, i) => (paired(i) ? `${up[i - offset]} ${c}` : c));
+    if (!joined.every((c, i) => !paired(i) || knownWhole(c))) {
+      // A scan (OCR plan step 2.5): a joined pair one glyph off a header word
+      // is repaired ("Units Takcn" → "Units taken") — only when 60 % of the
+      // pairs, and at least three, are header words exactly as read.
+      if (!ocr) continue;
+      const exact = joined.filter((c, i) => paired(i) && knownWhole(c)).length;
+      if (exact < 3 || exact < Math.ceil(up.length * 0.6)) continue;
+      joined = joined.map((c, i) => (paired(i) && !knownWhole(c) ? (ocrRepairHeaderCell(c) ?? c) : c));
+      if (!joined.every((c, i) => !paired(i) || knownWhole(c))) continue;
+    }
+    const kinds = readColumnHeader(joined.join('   '), ocr);
     if (kinds !== undefined) return kinds;
   }
   return undefined;
@@ -1082,6 +1214,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     return { hasTextLayer: false, looksLikeNotreDame: false, courses: [] };
   }
   const looksLikeNotreDame = looksLikeNotreDameTranscript(allText);
+  // The lines came from the OCR path (each with the engine's confidence):
+  // the scan-only repairs of OCR plan step 2.5 apply — never to a text layer.
+  const ocrLines = confidences !== undefined;
 
   const courses: ExternalCourseCandidate[] = [];
   const legend = readLegend(lines);
@@ -2824,7 +2959,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // needs the tokens.
     const lead = leadCode(flat);
     if (!lead) {
-      const header = readColumnHeader(flat);
+      const header = readColumnHeader(flat, ocrLines);
       if (header) {
         columnKinds = header;
         headerGrades = { letters: 0, numbers: 0 };
@@ -2834,7 +2969,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       // A header printed on two lines (F6, 2026-10-09): this line holds the
       // top halves of the next line's column words.
       const nextFlat = lines[lineIndex + 1]?.replace(/\s{2,}/g, '  ').trim();
-      const joined = nextFlat !== undefined && !leadCode(nextFlat) ? joinedHeaderKinds(flat, nextFlat) : undefined;
+      const joined = nextFlat !== undefined && !leadCode(nextFlat) ? joinedHeaderKinds(flat, nextFlat, ocrLines) : undefined;
       if (joined) {
         columnKinds = joined;
         headerGrades = { letters: 0, numbers: 0 };
