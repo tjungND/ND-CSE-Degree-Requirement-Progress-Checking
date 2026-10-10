@@ -419,3 +419,39 @@ takes the repeated word for a tile on the skewed word boxes — so those tables 
 grade key still yields "SP 40 / HP 35 / LP 25" rows (the engine drops the decimal point of "4.0") and its
 false rows remain the largest; a misread digit in a cell ("3:0", "3.0:") is Batch C's answer (4), the
 numeric correction shown beside the raw reading.
+
+
+## Batch C, the OCR side — numeric corrections, scanned-line strips, scanner text layers (2026-10-09/10)
+
+The DGS's answers (4)–(6) of 2026-10-09 (DECISIONS rows of that date; the plan's §5 "Batch C, the OCR side").
+
+**(4) OCR numeric corrections** (`21c56f9`): a credits or grade cell printed with a letter for a digit
+("3.O", "l.5", "8O") or a plus read as "t" ("Bt") is read corrected on OCR lines only, and only where it
+fills a value the scan's own reading left empty. On the same OCR lines read by HEAD `4288662`'s parser
+and by the rule (`--reparse`): the whole ladder L0–L6 (`ocr-step25-lines-auto/`), the medium set
+(`ocr-step25-auto-medium/`) and `--quick` — every level unchanged, 0 regression lines, 0 improvements;
+`--pinned` 0 / 0. Tesseract's LSTM printed no such number or "Bt" in a course row of the 62 seeds; a
+survey of the saved lines found 17 letter-for-digit numbers and 38 "At / Bt / Ct / Dt", all on keys,
+legends, junk lines and Vaasa's two titles ("Course I1" for "Course II" — a title, which the rule leaves
+alone). Where the rule acts is a scanner's own layer (L7, below).
+
+**(5) Scanned-line strips** (`e001129`): a preview-only change — every OCR line carries its pixel box and
+every OCR row its source lines; the parser's values are untouched (`--reparse` of the ladder and the medium
+set: 0 / 0).
+
+**(6) Scanner text layers** (`2560c53`): a PDF whose every page is a scan (one image over ≥ 90 % of the
+page, no text visible over it) with a text layer is read OCR-grade. L7 on the sign-off run's own 62 L7
+PDFs (`bench-out/step26c-l7-exact/` → `-app/`, `-flag/`):
+
+| L7 read as | row acc | rows found | false rows (negatives with any) | field acc | flag P / R |
+|---|---|---|---|---|---|
+| exact (before; the 2026-09-06 lock) | 1.1 % | 38.1 % | 100 (6/36) | 56.7 % | — / 0 % |
+| **OCR-grade (`--l7 app`, adopted)** | 1.1 % | 37.8 % | 94 (5/36) | 57.3 % | 99.0 / 100 % |
+| exact, every row flagged (`--l7 flag-only`) | 1.1 % | 38.1 % | 100 (6/36) | 56.7 % | 99.0 / 100 % |
+
+Detected on 62 of 62 L7 PDFs; on none of the generator fixtures with text; of the 49 public PDFs on two
+real scans with an OCR layer (Algeria's relevé template, Cornell's key — negatives, 0 rows either way).
+The one regression line is ANU's sample at L7 (rows found 13 → 12, extras 13 → 9): the poor layer turned
+its placeholder title "CLASS" into "CLA5S", which the junk-code guard refuses on a low-confidence line;
+McGill's key loses its false row and Minerva's transfer page one extra. Row accuracy stays at 1 % because
+the seeded layer garbles nearly every title — the level measures false rows and flags, not titles.

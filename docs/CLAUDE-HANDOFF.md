@@ -410,6 +410,24 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   `tests/codeless-import.test.ts` and the four Batch C blocks of `tests/public-transcript-rules.test.ts`. A parser change to
   these paths is measured on the OCR side by re-parsing the saved `ocr-lines.json` of a bench run (the OCR agent's
   `--reparse`, or a HEAD-vs-change A/B of the parser on those lines) — no engine run needed.
+- **Batch C, the OCR side** (2026-10-10 — the DGS's answers (4)–(6); `21c56f9` `e001129` `2560c53`, plan §5 and
+  docs/OCR-BENCHMARK.md "Batch C, the OCR side" have the numbers). (4) `ocrCellCorrection` / `scanLead` /
+  `ocrCorrectedScan` in `src/transcript/external.ts` (OCR lines only): a corrected token is used only where it
+  FILLS credits or a grade the scan's own reading left empty, the title word for word less only corrected tokens
+  a raw reading took into it; `readMappedValues` now records `gradeText` so a mapped grade can be traced to its
+  token; the row carries `ocrRead` (preview only — `ocrRawNote` / `ocrRawTitle`). (5) `OcrLine.box` / `.page`
+  (`ocrPageLayout`, `ocr.ts`), `ExternalCourseCandidate.sourceLines` (OCR parses only), `src/transcript/scan-strip.ts`
+  (pure: `stripRegion`, `stripPageSize`, `scaledRegion`), `ocr.ts` keeps `pageImages` (≤ 1,700 px copies; the
+  engine's canvases are emptied once read), `src/ui/scan-strips.ts` holds them for ONE preview in a Map keyed by
+  row objects and empties them at every close (`releaseScanStrips` — called wherever `preview` is reset; a new
+  close path must call it too); the Add builds courses through `courseEntryOf`, field by field — never spread a
+  preview row into a `CourseEntry`, or the OCR extras reach the record (`tests/scan-strip.test.ts` would fail).
+  (6) `src/transcript/scanner-layer.ts` (`pageLayerFigures`: the CTM through save/restore/cm/forms, the text
+  rendering mode with the graphics state; image-backed = an image over ≥ 90 % of the page and no visible text
+  after it), `pdf.ts` `pdfToLinesForImport` (operator lists only for a PDF with text, and only while every page is
+  a scan), `SCANNER_LAYER_CONFIDENCE` (0) for every line, `pendingScan.reason` `'scanner-layer'` (the offer beside
+  the preview, withdrawn by `withdrawScannerLayerOffer` on Add / Cancel; Try OCR clears the preview). The bench's
+  L7 reads the same way (`--l7 app`; `exact` / `flag-only` for the A/B; `pdfScanPagesNode`).
 - **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
   after this one carry the reasons, STATE.md's "Batch A done" paragraph and
   `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:

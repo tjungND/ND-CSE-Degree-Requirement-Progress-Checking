@@ -1008,3 +1008,33 @@ Open issues from this step:
   correction shown beside the raw reading (plan step 2.6).
 - Rule (b) refuses a real course titled only with short words ("Lab for CS 2000", 2 of 2,457 fixture
   rows) on a low-confidence scan line.
+
+### Batch C, the OCR side — done 2026-10-10 (branch `claude/policy-compliance-degree-engine-44a431`): the DGS's answers (4)–(6)
+
+Commits: `21c56f9` (4) OCR numeric corrections · `e001129` (5) the scanned line beside a row · `2560c53` (6)
+scanner text layers read OCR-grade · the records commit. One DECISIONS row per item (2026-10-09); wording
+W-CL411–W-CL420; `docs/OCR-BENCHMARK.md` "Batch C, the OCR side". The e2e was not run (another agent's): the
+OCR leg on Chrome and WebKit should look at items (4) and (5) before this ships, and no e2e fixture is a
+scanner-layer PDF yet (item (6)).
+
+| item | what | where | measured |
+|---|---|---|---|
+| (4) | On OCR lines only, `ocrCellCorrection` rewrites a number with ≥ 1 real digit and ≥ 1 O/o/l/I/\| ("3.O" → 3.0, "8O" → 80) and a grade "At/Bt/Ct/Dt" (→ A+ … D+); `ocrCorrectedScan` keeps the corrected reading only where it FILLS credits or a grade the scan left empty, every other value and every title word as read (a corrected token a raw reading took into the title may leave it). The row is flagged and carries `ocrRead`; the preview prints "scan shows “3.O”" under the box (W-CL411/412). Never: S/B/Z/G, a colon for a point, a code, a title, a name, the university. | `src/transcript/external.ts` (`ocrCellCorrection`, `scanLead`, `ocrCorrectedScan`, `readMappedValues` now records `gradeText`), `src/ui/external-upload.ts` (`ocrRawNote`, `ocrRawTitle`), `tests/ocr-numeric-correction.test.ts` (12) | `--reparse` of the whole ladder L0–L6, the medium set and `--quick`: every level unchanged, 0 / 0; `--pinned` 0 / 0; text replay 0 / 0 against HEAD's own. The engine never printed the shape in a course row of the 62 seeds; it acts on scanner layers (L7). |
+| (5) | Every OCR line carries its pixel box (`OcrLine.box`, its words' union) and page; every OCR row its `sourceLines`; `stripRegion` crops them, padded, from a copy of the page kept at ≤ 1,700 px (the engine's canvas and every trial reading are emptied once read). Flagged rows show the strip at once, the others behind "show the scanned line" (W-CL413–415). The copies and regions live in `src/ui/scan-strips.ts`'s Map keyed by the preview's rows — never on a row — and are emptied when the preview closes; the Add builds each course field by field (`courseEntryOf`). | `src/transcript/ocr-lines.ts`, `ocr.ts`, `scan-strip.ts`, `src/ui/scan-strips.ts`, `external-upload.ts`, `src/style.css`; `tests/scan-strip.test.ts` (9) — after Add, the record, `saveLocal`'s copy and `exportFile`'s JSON hold no image, data: URL or OCR field | parser values untouched: `--reparse` of the ladder and the medium set 0 / 0 |
+| (6) | A PDF whose EVERY page is a scan (an image over ≥ 90 % of the page, no text visible over it — modes 3/7 after the image, or text under it) with a text layer: its lines are parsed at `SCANNER_LAYER_CONFIDENCE` (0) — every row flagged, the scan-only repairs on — in an OCR preview with its own banner and ⚠ text; OCR is offered beside it ("Try OCR" replaces the preview; "Keep the rows below", Add and Cancel withdraw the offer). A system PDF over a background image keeps the exact path. | `src/transcript/scanner-layer.ts`, `pdf.ts` (`pdfToLinesForImport`), `external-upload.ts` (W-CL416–420), the bench's `--l7`, `scripts/dev/pdf-lines-node.mts` (`pdfScanPagesNode`); `tests/scanner-layer.test.ts` (11) | L7 (62 seeds) exact → OCR-grade: rows found 38.1 → 37.8 %, false rows 100 (6/36) → 94 (5/36), field acc 56.7 → 57.3 %, flag P/R —/0 → 99.0/100 %; one regression line (ANU, a placeholder title garbled to "CLA5S"); detected on 62/62 L7, no generator fixture, 2 public scans (negatives, 0 rows either way) |
+
+Open issues from this batch:
+
+- A colon or a dropped point in a numeric cell ("3:0", "3.0:", "38" for "3.8", Duke's "SP 40") is not a
+  letter-for-digit shape and stays raw — the DGS's answer covers letters only; a colon is also IISc's
+  lecture:lab pair.
+- The correction does not touch a code-less row (CC15) or a two-line row's numbers line, and it never
+  REPLACES a value the scan read: under a mapped header a misread grade ("Compilers   3.00   Bt   9.90")
+  can push the row's cells one column over, read 9.9 as the credits, and stay that way (flagged by the
+  odd-credits check). Each is a measured follow-up.
+- The strips were checked in node only (regions, release, the no-save assertion); the browser has not
+  drawn one in this batch — the OCR leg of the e2e on both engines is the check, with a look at a phone
+  width.
+- ANU's L7 placeholder row, refused by the junk-code guard on the scanner's garbled title.
+- An e2e leg for a scanner-layer PDF (the generator has none; the committed L7 page is a Notre Dame page,
+  which the external import refuses).
