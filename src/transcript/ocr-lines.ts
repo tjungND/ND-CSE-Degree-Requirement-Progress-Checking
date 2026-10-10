@@ -59,7 +59,13 @@ export const OCR_ENGINE_PARAMETERS: Readonly<Record<string, string>> = Object.fr
  * flat 300 lost rows (L5 58.1 → 52.2 %) — upsampling past 216 blurs the small
  * type and one misread header cell unmaps a table — so a page is never
  * rendered past its scan's resolution unless that is under 216. A page whose
- * resolution cannot be read (no image painted) is read at 216, as before. */
+ * resolution cannot be read (no image painted) is read at 216, as before.
+ * Re-tested after plan step 2.5 made the parser tolerate a misread header
+ * (DECISIONS 2026-10-09, (c)): a flat 300 still loses — the medium set gained
+ * rows (L2 63.0 → 67.0 %, L5 67.0 → 69.6 %) almost all from one document, with
+ * new false rows on four keys, and the photocopy level collapsed (row accuracy
+ * 44.1 → 7.8 %, false rows 15 → 28): upsampling a 200-dpi photocopy's speckle
+ * and hard tone curve to 300 is worse than reading it at 216. Keep the floor. */
 export const OCR_BASE_DPI = 216;
 export const OCR_TARGET_DPI = 300;
 
