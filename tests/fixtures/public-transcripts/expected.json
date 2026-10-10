@@ -1061,15 +1061,15 @@
   "quarterSystem": null,
   "trimesterSystem": null,
   "courses": [
-   " | Advanced Algorithm Design and Analysis | 3 | 92 | fall 2021",
-   " | Dialectics of Nature | 1 | S | fall 2021",
-   " | Academic English | 2 | 85 | fall 2021",
-   " | Machine Learning | 3 | 88 | fall 2021",
-   " | Distributed Computing | 3 | 90 | spring 2022",
-   " | Theory and Practice of Socialism with Chinese Characteristics | 2 | S | spring 2022",
-   " | Data Mining | 3 | B | spring 2022",
-   " | Academic Seminar | 1 | S | fall 2022",
-   " | Master Thesis Proposal | 0 | S | fall 2022"
+   " | Advanced Algorithm Design and Analysis | 3 | 92 | fall 2021 | graduate",
+   " | Dialectics of Nature | 1 | S | fall 2021 | graduate",
+   " | Academic English | 2 | 85 | fall 2021 | graduate",
+   " | Machine Learning | 3 | 88 | fall 2021 | graduate",
+   " | Distributed Computing | 3 | 90 | spring 2022 | graduate",
+   " | Theory and Practice of Socialism with Chinese Characteristics | 2 | S | spring 2022 | graduate",
+   " | Data Mining | 3 | B | spring 2022 | graduate",
+   " | Academic Seminar | 1 | S | fall 2022 | graduate",
+   " | Master Thesis Proposal | 0 | S | fall 2022 | graduate"
   ]
  },
  "chesicc-verification-report": {
@@ -1567,19 +1567,19 @@
   "campusSystem": null,
   "campus": null,
   "degreeConferred": null,
-  "bachelorsConferredOn": "2022-07-15",
+  "bachelorsConferredOn": null,
   "quarterSystem": null,
   "trimesterSystem": null,
   "courses": [
-   " | Mathematics 1 | ? | Excellent | fall 2018 | undergraduate",
-   " | Physics 1 | ? | Good | fall 2018 | undergraduate",
-   " | Mechanics | ? | Very Good | fall 2018 | undergraduate",
-   " | Computer Programming | ? | Excellent | fall 2018 | undergraduate",
-   " | Data Structures and Algorithms | ? | Very Good | fall 2019 | undergraduate",
-   " | Logic Design | ? | Pass | fall 2019 | undergraduate",
-   " | Electronics | ? | Fail | fall 2019 | undergraduate",
-   " | Graduation Project | ? | Excellent | fall 2021 | undergraduate",
-   " | Computer Architecture | ? | Very Good | fall 2021 | undergraduate"
+   " | Mathematics 1 | ? | Excellent | fall 2018",
+   " | Physics 1 | ? | Good | fall 2018",
+   " | Mechanics | ? | Very Good | fall 2018",
+   " | Computer Programming | ? | Excellent | fall 2018",
+   " | Data Structures and Algorithms | ? | Very Good | fall 2019",
+   " | Logic Design | ? | Pass | fall 2019",
+   " | Electronics | ? | Fail | fall 2019",
+   " | Graduation Project | ? | Excellent | fall 2021",
+   " | Computer Architecture | ? | Very Good | fall 2021"
   ]
  },
  "unilag": {

@@ -16,7 +16,16 @@ import { resolveCampus } from './campus.ts';
 import { MONTHS, dateOnLine } from './parse.ts';
 
 export interface ExternalCourseCandidate {
+  /** The course number as printed — `''` when `codeMissing`. */
   courseId: string;
+  /** CC15 (DGS 2026-10-09, transcript accuracy program Batch C): the
+   * transcript prints course NAMES and no course numbers (Chinese and
+   * Egyptian statements, the CHESICC report, Evergreen's credit
+   * breakdown). The row is imported with an EMPTY course id the student
+   * must type before it can be added; `courseId` is then `''`, never a
+   * made-up number, and the course stays "not yet reviewed by the DGS"
+   * until an ExternalCourses row matches the id the student typed. */
+  codeMissing?: true;
   title?: string;
   credits?: number;
   /** Mapped app grade when the transcript's token is unambiguous; otherwise
@@ -296,6 +305,11 @@ interface LegendHints {
    * D is a Distinction (70–79), not the app's D, CR a Credit band, P the
    * 50–59 pass — every band is left raw beside its mark for the DGS. */
   hdScale?: true;
+  /** "Pass" and "Fail" are BANDS of a percentage scale here — Cairo's
+   * "Excellent 85-100%, Very Good 75-84%, Good 65-74%, Pass 60-64%, Fail
+   * below 60%" (CC15, Batch C 2026-10-09): Pass is the lowest graded band,
+   * not the app's ungraded S, so both words are left raw for the student. */
+  passFailBands?: true;
 }
 
 function readLegend(lines: string[]): LegendHints {
@@ -317,6 +331,9 @@ function readLegend(lines: string[]): LegendHints {
     // An HD grade on a row, or a legend naming the High Distinction: the
     // Australian scale, where D is a Distinction (the ANU sample, 2026-09-26).
     if (/\bhigh\s+distinction\b/i.test(l) || /(?:^|\s)HD\s*\*?$/.test(l)) hints.hdScale = true;
+    // "Pass 60-64%" beside another band word with its own range ("Good
+    // 65-74%"): the pass is a band of the scale the legend spells out.
+    if (/\bpass\s*[:=–-]?\s*\(?\s*\d{1,3}(?:[.,]\d+)?\s*%?\s*[-–]\s*\d{1,3}(?:[.,]\d+)?\s*%/i.test(l) && /\b(?:excellent|very\s+good|good|fair|distinction|merit)\s*[:=–-]?\s*\(?\s*\d{1,3}(?:[.,]\d+)?\s*%?\s*[-–]\s*\d{1,3}/i.test(l)) hints.passFailBands = true;
   }
   return hints;
 }
@@ -363,6 +380,7 @@ function mapGrade(token: string, legend: LegendHints = {}, inGradePosition = tru
   if (t === 'S' && legend.sIsTop) return undefined;
   if (t === 'NP' && legend.npPasses) return 'S';
   if (t === 'P' && legend.pIsLetter) return undefined;
+  if (legend.passFailBands && /^(?:PASS|FAIL)$/.test(t)) return undefined;
   if (PASS_TOKENS.has(t)) return 'S';
   if (FAIL_TOKENS.has(t)) return 'U';
   if (IN_PROGRESS_TOKENS.has(t)) return 'IP';
@@ -1393,6 +1411,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (/^(?:II|III|IV)$/.test(bare)) return false;
     if (mapGrade(bare, legend) !== undefined) return true;
     const upper = bare.toUpperCase();
+    // A pass or fail word is grade-shaped even where the legend makes it a
+    // band left raw (Cairo's "Pass 60-64%" — CC15, Batch C 2026-10-09).
+    if (legend.passFailBands && /^(?:PASS|FAIL)$/.test(upper)) return true;
     if (/^[A-Z][A-Z+\-/0-9.]{0,3}\*?$/.test(upper) && bare === upper && bare.length <= 5) return true;
     if (/^0[A-F][+-]?$/.test(upper) || FRACTION_MARK_RE.test(bare) || LODE_RE.test(bare) || GRADE_WORD_RE.test(bare) || CJK_GRADE_RE.test(bare) || bare === 'Fx' || /^(?:Ab|Abs|Absent)$/i.test(bare)) return true;
     return numericToken(bare) && Number(bare.replace(',', '.')) <= 100;
@@ -1603,12 +1624,27 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const title = tokens.slice(start, best.s);
     const creditsFound = post.some((k, i) => (k === 'credits' || k === 'ects' || k === 'attempted' || k === 'earned') && best!.values[i] !== undefined);
     if (!creditsFound && (title.some((t) => /^\d{1,2}[.,]\d{1,3}$/.test(t)) || (title.length > 1 && /^\d{1,2}$/.test(title[title.length - 1]!)))) return undefined;
+    return readMappedValues(post, postCells, best.values, title, preValues, into);
+  };
+  /** One row's values, matched to the header's columns after the title (by
+   * scanWithMap's fit, or cell for cell by the code-less reader — CC15,
+   * Batch C 2026-10-09), read into `into`: the credits, the grade (or the
+   * mark), the row's term cell, its level cell. Undefined when the row has
+   * neither a credit value nor a grade. */
+  const readMappedValues = (
+    post: ColumnKind[],
+    postCells: string[],
+    values: (string | undefined)[],
+    title: string[],
+    preValues: Partial<Record<ColumnKind, string>>,
+    into: RowScan,
+  ): { level?: Level; year?: number; season?: Season } | undefined => {
     const value = (kind: ColumnKind, nth = 0): string | undefined => {
       let seen = 0;
-      for (let i = 0; i < post.length; i++) if (post[i] === kind) { if (seen === nth) return best!.values[i]; seen += 1; }
+      for (let i = 0; i < post.length; i++) if (post[i] === kind) { if (seen === nth) return values[i]; seen += 1; }
       return undefined;
     };
-    const creditsValues = post.map((k, i) => (k === 'credits' ? best!.values[i] : undefined)).filter((t): t is string => t !== undefined);
+    const creditsValues = post.map((k, i) => (k === 'credits' ? values[i] : undefined)).filter((t): t is string => t !== undefined);
     // The local credits first; ECTS only where nothing else is printed (METU
     // "Credit   Grade   ECTS"). Two credits cells are summed only when they are
     // the theoretical and practical hours (Sharif "3   0").
@@ -1623,7 +1659,12 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // "66   CR", "78   DI"): the mark is the grade, the band derives from it
     // (GT05, 2026-09-26). A letter grade the app knows (HUST "8.7   B+") wins.
     let band: string | undefined;
-    if (gradeToken !== undefined && lastMark !== undefined && numericToken(lastMark) && Number(lastMark.replace(',', '.')) > 0 && (isPassFailToken(gradeToken, legend) || mapGrade(gradeToken, legend) === undefined)) {
+    // …except under a "Full Mark" / "Max Marks" column (CC15, Batch C
+    // 2026-10-09 — Cairo's "Subject   Full Mark   Marks Obtained   Grade"):
+    // the mark is out of a maximum that differs row by row (128 of 150, 64 of
+    // 100), on no scale of its own, and the grade column's word is the result.
+    const perRowMaximum = postCells.some((c) => /^(?:full|max(?:imum)?\.?)\s+marks?$/i.test(c.replace(/\s*\(.*\)\s*$/, '')));
+    if (!perRowMaximum && gradeToken !== undefined && lastMark !== undefined && numericToken(lastMark) && Number(lastMark.replace(',', '.')) > 0 && (isPassFailToken(gradeToken, legend) || mapGrade(gradeToken, legend) === undefined)) {
       // The band stays beside the mark in what the student is shown ("62 CR",
       // "77 D" — the ANU sample, 2026-09-26): the mark alone reads as a
       // grade on an unknown scale.
@@ -1636,7 +1677,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // A bare term NUMBER is read only under McMaster's "TM" (F6 review,
     // 2026-10-09): under "Semester", "Year" or "Session" the cell was consumed
     // (fits) but says nothing the parser can place, so it is not handed on.
-    const termCells = post.flatMap((k, i) => (k === 'term' && best!.values[i] !== undefined ? [{ value: best!.values[i]!, ordinal: /^tm$/i.test((postCells[i] ?? '').replace(/\s*\(.*\)\s*$/, '')) }] : []));
+    const termCells = post.flatMap((k, i) => (k === 'term' && values[i] !== undefined ? [{ value: values[i]!, ordinal: /^tm$/i.test((postCells[i] ?? '').replace(/\s*\(.*\)\s*$/, '')) }] : []));
     const rowTerm = rowTermOf(
       termCells.filter((c) => c.ordinal || !/^\d{1,2}$/.test(c.value)).map((c) => c.value),
       termCells.some((c) => c.ordinal),
@@ -1647,7 +1688,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // language evidence — is consumed by position but not read as a credit
     // count (F6 review, 2026-10-09); the row keeps its title and grade and
     // its credits stay blank for the student, never 45.
-    const creditHoursHeader = post.some((k, i) => k === 'credits' && best!.values[i] !== undefined && /^ch$/i.test((postCells[i] ?? '').replace(/\s*\(.*\)\s*$/, '')));
+    const creditHoursHeader = post.some((k, i) => k === 'credits' && values[i] !== undefined && /^ch$/i.test((postCells[i] ?? '').replace(/\s*\(.*\)\s*$/, '')));
     if (creditsToken !== undefined) {
       into.credits = creditHoursHeader && asCredits(creditsToken) === undefined ? undefined : asCreditsWide(creditsToken);
       into.creditsText = creditsToken;
@@ -1662,7 +1703,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     }
     // A status word beside a one-letter grade decides it (TUM "B   bestanden":
     // B is bestanden, a pass, not the letter B — 2026-09-26).
-    const statusValues = post.map((k, i) => (k === 'flag' ? best!.values[i] : undefined)).filter((t): t is string => t !== undefined);
+    const statusValues = post.map((k, i) => (k === 'flag' ? values[i] : undefined)).filter((t): t is string => t !== undefined);
     const germanStatus = statusValues.find((t) => /^(?:bestanden|nicht bestanden|nb)$/i.test(t));
     const statusGrade = germanStatus === undefined ? undefined : mapGrade(germanStatus, legend);
     if (statusGrade !== undefined && gradeToken !== undefined && /^[BU]$/.test(gradeToken)) {
@@ -1967,6 +2008,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   type Lead = ReturnType<typeof leadCode>;
   /** Block and term tracking for one line: which transfer block the scan is
    * in, and the year, season and level the next course rows inherit. */
+  /** The line trackTermAndTransfer just read was a term header — never a
+   * code-less course row (CC15). */
+  let termLineHere = false;
+  const OWN_CREDIT_HEADING_RE = /^\s*(?!TRANSFER\b)[A-Z][A-Z'&.-]+(?:\s+[A-Z][A-Z'&.-]+){0,3}\s+CREDIT\s*:\s*$/;
   const trackTermAndTransfer = (line: string): void => {
     // Transfer blocks: Banner's "TRANSFER CREDIT ACCEPTED BY …" until
     // "INSTITUTION CREDIT"; PeopleSoft's "Term  Course  Transfer Course …"
@@ -1980,10 +2025,16 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     // closed by "Course Trans GPA" / "Transfer Totals" or the next term header.
     else if (TRANSFER_PEOPLESOFT_RE.test(line)) transferBlock = 'table';
     else if (INSTITUTION_CREDIT_RE.test(line) || TRANSFER_END_RE.test(line) || TRANSFER_TOTALS_RE.test(line)) transferBlock = undefined;
+    // …and the institution's own credit heading after it (CC15, Batch C
+    // 2026-10-09): Evergreen's "TRANSFER CREDIT:" block ends at "EVERGREEN
+    // CREDIT:" — a heading in capitals that names a credit other than a
+    // transfer.
+    else if (transferBlock !== undefined && OWN_CREDIT_HEADING_RE.test(line)) transferBlock = undefined;
     // Track the nearest term-ish header so course rows inherit its year.
     if (IN_PROGRESS_HEADING_RE.test(line)) inProgressBlock = true;
     else if (SECTION_HEADING_RE.test(line)) inProgressBlock = false;
-    const term = readTermLine(line);
+    const term = codelessRowShape(line) ? undefined : readTermLine(line);
+    termLineHere = term !== undefined;
     if (term) {
       // (The in-progress section's own term line — "Term: Fall 2024" under
       // "COURSES IN PROGRESS" — does not end it; a section heading does.)
@@ -2280,13 +2331,192 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (parts.length >= 6 && new Set(words.filter((w) => PROSE_WORD_RE.test(w))).size >= 2) return false;
     return true;
   };
+  // ---------------------------------------------------------------------
+  // Code-less rows — CC15 (DGS 2026-10-09, transcript accuracy program,
+  // Batch C: code-less transcripts "are IMPORTED with an empty required
+  // course-id box the student fills before the row can be added; the course
+  // stays 'not yet reviewed by the DGS' until an ExternalCourses match").
+  // Chinese and Egyptian statements, the CHESICC verification report and
+  // Evergreen's narrative record print course NAMES and no course numbers.
+  // Such a row is pushed with `courseId: ''` and `codeMissing: true` — never
+  // a made-up number — and only from two shapes that carry their own
+  // evidence; a document that prints a course number on any row keeps none
+  // of them (filtered after the loop): there a line without a code is a
+  // total, a remark or another school's credit, not a course.
+  // ---------------------------------------------------------------------
+  /** Code-less rows pushed, and transfer-block lines of that shape skipped —
+   * both dropped when the document turns out to print course numbers. */
+  let codelessSkipped = 0;
+  /** A title cell that is a label, a total or a sentence, never a course. */
+  const NOT_COURSE_TITLE_RE = /[:@]|\b(?:totals?|subtotal|gpa|cgpa|sgpa|average|cumulative|earned|attempted|credits?|hours|units|points|semester|term|page|report|date)\b/i;
+  /** An academic-year cell ("2018-2019", "2021/2022"). */
+  const ACADEMIC_YEAR_CELL_RE = /^((?:19|20)\d{2})\s*[-–/]\s*((?:19|20)?\d{2})$/;
+  /** The term the cells BEFORE a code-less row's title name: the CHESICC
+   * report's "2018-2019   1" — an academic year and the number of its
+   * semester under a "Semester" header word — is the first (fall 2018) or
+   * second (spring 2019) semester of that year, the rule readTermLine
+   * applies to "2018-2019 First Semester"; a third number, or a number with
+   * no academic year beside it, names nothing the parser can place. */
+  const preTitleTerm = (cells: string[], headers: string[]): { year?: number; season?: Season } | undefined => {
+    let range: { first: number; second: number } | undefined;
+    let ordinal: string | undefined;
+    const rest: string[] = [];
+    cells.forEach((c, i) => {
+      const r = ACADEMIC_YEAR_CELL_RE.exec(c);
+      if (r) {
+        const first = Number(r[1]);
+        const second = r[2]!.length === 4 ? Number(r[2]) : Number(r[1]!.slice(0, 2) + r[2]);
+        if (second === first + 1) range = { first, second };
+        return;
+      }
+      if (/^[1-3]$/.test(c) && /^(?:semester|term|semestre|sem)$/i.test((headers[i] ?? '').replace(/\s*\(.*\)\s*$/, ''))) {
+        ordinal = c;
+        return;
+      }
+      rest.push(c);
+    });
+    if (range && ordinal === '1') return { year: range.first, season: 'fall' };
+    if (range && ordinal === '2') return { year: range.second, season: 'spring' };
+    const t = rowTermOf(rest);
+    return t.year !== undefined ? t : undefined;
+  };
+  /** Push one code-less course row. */
+  const pushCodeless = (row: Omit<ExternalCourseCandidate, 'courseId' | 'codeMissing'>, level: Level | undefined): void => {
+    courses.push({ courseId: '', codeMissing: true, ...row });
+    rowLevels.push(level ?? blockLevel);
+  };
+  /** Shape 1 — a table whose header names a title column and no code column
+   * (Nankai's "COURSE NAME   CREDIT   RESULT   COURSE TYPE", the CHESICC
+   * report's "Academic Year   Semester   Course Name   Credit   Score   Course
+   * Type", Cairo's "Subject   Full Mark   Marks Obtained   Grade"): a line
+   * whose cells line up with the header's columns ONE FOR ONE, each cell
+   * fitting its column — a wordy title, a credit value or a grade where the
+   * header says so. A line that does not line up (a totals line, a
+   * label/value line, a sentence, a row of another table) is no row.
+   * `kinds` / `headers` default to the header in force; the side-by-side
+   * reader (CC16) passes one group's. True when a row was read. */
+  const codelessFit = (cells: string[], kinds: ColumnKind[] | undefined, headers: string[]): { titleAt: number; titleTokens: string[]; post: ColumnKind[] } | undefined => {
+    if (!kinds) return undefined;
+    const titleAt = kinds.indexOf('title');
+    if (titleAt < 0 || kinds.includes('code') || cells.length !== kinds.length) return undefined;
+    const pre = kinds.slice(0, titleAt);
+    const post = kinds.slice(titleAt + 1);
+    if (pre.some((k) => k !== 'term' && k !== 'serial')) return undefined;
+    if (post.some((k) => k === 'code' || k === 'serial' || k === 'title')) return undefined;
+    const title = cells[titleAt]!.trim();
+    const titleTokens = title.split(/\s+/);
+    if (!/^[\p{L}(]/u.test(title) || (title.match(/[\p{L}]/gu) ?? []).length < 4 || title.length > 90) return undefined;
+    if (NOT_COURSE_TITLE_RE.test(title) || TOTALS_LINE_RE.test(title) || leadCode(title) || !courseLikeTitle(titleTokens)) return undefined;
+    // Every other cell fits its column (a printed placeholder fits any).
+    for (let i = 0; i < kinds.length; i++) {
+      if (i === titleAt) continue;
+      const c = cells[i]!.trim();
+      const kind = kinds[i]!;
+      if (PLACEHOLDER_TOKEN_RE.test(c)) continue;
+      const ok =
+        kind === 'serial' ? /^\d{1,3}\.?$/.test(c)
+        : kind === 'term' ? ACADEMIC_YEAR_CELL_RE.test(c) || fits('term', c, headers[i])
+        : kind === 'credits' || kind === 'ects' || kind === 'attempted' || kind === 'earned' ? asCreditsWide(c) !== undefined
+        : kind === 'grade' ? gradeLike(c)
+        : kind === 'mark' ? fits('mark', c) || gradeLike(c)
+        : kind === 'flag' ? fits('flag', c) || /^[\p{L}][\p{L} .&/'-]*$/u.test(c)
+        : fits(kind, c, headers[i]);
+      if (!ok) return undefined;
+    }
+    return { titleAt, titleTokens, post };
+  };
+  /** A line the header in force reads as a code-less course row — never a
+   * term header, whatever season word its title holds ("2019-2020   2
+   * Summer Practice   2.0   85"). */
+  const codelessRowShape = (line: string): boolean => codelessFit(line.replace(/\s{2,}/g, '  ').trim().split(/\s{2,}/), columnKinds, lastHeaderCells) !== undefined;
+  const readCodelessCells = (cells: string[], lineIndex: number, kinds: ColumnKind[] | undefined = columnKinds, headers: string[] = lastHeaderCells, term?: { year?: number; season?: Season } | null): boolean => {
+    const fit = codelessFit(cells, kinds, headers);
+    if (!fit) return false;
+    const { titleAt, titleTokens, post } = fit;
+    const values = cells.slice(titleAt + 1).map((c) => (PLACEHOLDER_TOKEN_RE.test(c.trim()) ? undefined : c.trim()));
+    const into: RowScan = { titleParts: [] };
+    const mapped = readMappedValues(post, headers.slice(titleAt + 1), values, titleTokens, {}, into);
+    if (!mapped) return false; // neither a credit value nor a grade
+    if (transferBlock !== undefined) {
+      codelessSkipped += 1;
+      return true;
+    }
+    if (inProgressBlock && into.grade === undefined && into.rawGrade === undefined) into.grade = 'IP';
+    const rowTerm = mapped.year !== undefined || mapped.season !== undefined ? mapped : (term ?? preTitleTerm(cells.slice(0, titleAt), headers.slice(0, titleAt)));
+    const confidence = confidences?.[lineIndex];
+    const oddCredits = confidences !== undefined && into.credits !== undefined && (into.credits * 2) % 1 !== 0;
+    // `term === null`: the side-by-side reader cannot tell which term a
+    // half-row belongs to — the term stays blank for the student.
+    const year = term === null ? undefined : (rowTerm?.year ?? currentYear);
+    const season = term === null ? undefined : rowTerm?.year !== undefined || rowTerm?.season !== undefined ? rowTerm?.season : currentSeason;
+    pushCodeless(
+      {
+        title: into.titleParts.join(' ').slice(0, 90),
+        credits: into.credits,
+        grade: into.grade,
+        rawGrade: into.rawGrade,
+        year,
+        season,
+        lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
+      },
+      mapped.level,
+    );
+    return true;
+  };
+  /** Shape 2 — Evergreen's credit breakdown: a program line (start and end
+   * month, its credits, its title — "09/2004   06/2005   44   Introduction
+   * to Natural Science") followed by lines "13 - General Chemistry with
+   * Laboratory", "*6 - Organic Chemistry with Laboratory" (the asterisk marks
+   * upper-division credit) whose credits add up EXACTLY to the program's.
+   * Those lines are the courses — credits from the leading number, no grade
+   * (Evergreen writes narrative evaluations), the term the program started
+   * in — and the program line is their total, not a row. A list that does
+   * not add up is read as nothing. Returns the last line consumed. */
+  const PROGRAM_LINE_RE = /^(\d{1,2})\/((?:19|20)\d{2})\s{2,}\d{1,2}\/(?:19|20)\d{2}\s{2,}(\d{1,3}(?:\.\d{1,2})?)\s{2,}(\p{L}.*)$/u;
+  const BREAKDOWN_LINE_RE = /^\*?\s*(\d{1,2}(?:\.\d{1,2})?)\s+[-–]\s+(\p{L}.*)$/u;
+  const readCreditBreakdown = (flat: string, lineIndex: number): number | undefined => {
+    const program = PROGRAM_LINE_RE.exec(flat);
+    if (!program || Number(program[1]) < 1 || Number(program[1]) > 12) return undefined;
+    const parts: { credits: number; title: string; at: number }[] = [];
+    for (let j = lineIndex + 1; j < lines.length; j++) {
+      const m = BREAKDOWN_LINE_RE.exec(lines[j]!.replace(/\s+/g, ' ').trim());
+      if (!m) break;
+      const title = m[2]!.trim();
+      if (!courseLikeTitle(title.split(' ')) || NOT_COURSE_TITLE_RE.test(title)) break;
+      parts.push({ credits: Number(m[1]), title, at: j });
+    }
+    const total = Number(program[3]);
+    const sum = parts.reduce((n, p) => n + p.credits, 0);
+    if (parts.length === 0 || Math.abs(sum - total) > 0.001) return undefined;
+    const last = parts[parts.length - 1]!.at;
+    if (transferBlock !== undefined) {
+      codelessSkipped += parts.length;
+      return last;
+    }
+    const start = termOfDate(`${program[2]}-${program[1]!.padStart(2, '0')}-15`);
+    for (const p of parts) {
+      const confidence = confidences?.[p.at];
+      pushCodeless({ title: p.title.slice(0, 90), credits: p.credits, year: start.year, season: start.season, lowConfidence: confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR ? true : undefined }, undefined);
+    }
+    return last;
+  };
+  /** A line with no course code: one of the two code-less shapes, or nothing.
+   * Returns the index of the last line consumed. */
+  const readCodelessRow = (line: string, flat: string, lineIndex: number): number => {
+    if (termLineHere) return lineIndex;
+    const breakdown = readCreditBreakdown(flat, lineIndex);
+    if (breakdown !== undefined) return breakdown;
+    readCodelessCells(flat.split(/\s{2,}/), lineIndex);
+    return lineIndex;
+  };
   const readCourseRow = (line: string, flat: string, lead: Lead, lineIndex: number): number => {
     if (flat.length < 6) return lineIndex;
     // The course code is expected at the start of the row (or right after a
     // leading term/date cell). Column gaps are unreliable across layouts, so
     // the rest of the line is TOKENIZED: credits and grade are searched among
     // the tokens after the title; the title is the leading run of wordy tokens.
-    if (!lead) return lineIndex;
+    // A line with no code may still be a code-less course (CC15, Batch C).
+    if (!lead) return readCodelessRow(line, flat, lineIndex);
     // An exemption row has no title: a code and "EXC" or a number. The first
     // row with a title ends the block and is read as the university's own.
     const bareExemption = transferBlock === 'exemptions' && !lead.tokens.some((t) => /[\p{L}]{2}/u.test(t) && !/^[A-Z]{1,4}$/.test(t));
@@ -2472,6 +2702,18 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     readDegreeSignals(flat, lead, lineIndex);
     lineIndex = readCourseRow(line, flat, lead, lineIndex);
   }
+  // CC15: a document that prints a course number on any row has no
+  // code-less courses — a line there without a code is a total, a remark or
+  // another school's credit — so the code-less rows go (and so do the
+  // transfer lines of that shape the count would otherwise report).
+  if (courses.some((c) => !c.codeMissing)) {
+    for (let i = courses.length - 1; i >= 0; i--) {
+      if (courses[i]!.codeMissing) {
+        courses.splice(i, 1);
+        rowLevels.splice(i, 1);
+      }
+    }
+  } else transferRowsSkipped += codelessSkipped;
   // Per-row level (2026-09-05): the row's or block's own marker first; else,
   // with a dated bachelor's conferral, the row's term against that date; else
   // the closing totals line's level.

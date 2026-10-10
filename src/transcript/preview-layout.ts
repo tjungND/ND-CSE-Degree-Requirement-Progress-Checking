@@ -25,10 +25,13 @@ export interface PreviewRowValues {
   grade: string;
   /** Undefined when the parser could not read the year. */
   year?: number;
+  /** The transcript printed no course number (CC15, DGS 2026-10-09): the
+   * Course id box is an input for as long as the preview is open. */
+  codeMissing?: boolean;
 }
 
 export function rowIsCompact(r: PreviewRowValues): boolean {
-  return r.locked && r.credits !== undefined && r.grade !== '' && r.year !== undefined;
+  return r.locked && r.codeMissing !== true && r.credits !== undefined && r.grade !== '' && r.year !== undefined;
 }
 
 /** Which bachelor's award term a previous-transcript preview should show, and

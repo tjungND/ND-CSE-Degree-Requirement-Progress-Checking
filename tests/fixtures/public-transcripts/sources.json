@@ -365,7 +365,8 @@
   "url": "https://www.mianfeiwendang.com/doc/96e48aa6afbe4075894a4571",
   "kind": "institutional template mirror (GRADUATE STUDENT'S WORK RECORD form); header and grading note from the form, rows illustrative",
   "lens": "east-asia",
-  "from": "east-asia/nankai-graduate-record.json"
+  "from": "east-asia/nankai-graduate-record.json",
+  "note": "Code-less (CC15, read since Batch C, DGS 2026-10-09): rows under “COURSE NAME   CREDIT   RESULT   COURSE TYPE” are imported with an EMPTY course id. “GRADUATE STUDENT’S WORK RECORD” makes every row graduate (CELL_LEVEL_RE, 2026-09-26) — the expectation gained the level on 2026-10-09."
  },
  "chesicc-verification-report": {
   "institution": "CHESICC / CSSD verification report (Zhejiang University record)",
@@ -373,7 +374,8 @@
   "url": "https://www.chsi.com.cn/en/pvr/brief_chesat.jsp",
   "kind": "official description of the verification report (fields); rows illustrative; verifier separated label and value cells",
   "lens": "east-asia",
-  "from": "east-asia/verify/chesicc-verification-report.corrected.json"
+  "from": "east-asia/verify/chesicc-verification-report.corrected.json",
+  "note": "Code-less (CC15, read since Batch C, DGS 2026-10-09): rows are imported with an EMPTY course id; the academic-year and semester cells before the title place each row (2018-2019 + 1 = fall 2018, + 2 = spring 2019)."
  },
  "hkust": {
   "institution": "Hong Kong University of Science and Technology",
@@ -541,7 +543,8 @@
   "url": "https://www.scholaro.com/db/Countries/Egypt/Grading-System/Cairo-University-13334",
   "kind": "credential-evaluator grading table; per-year statement composed (no codes, word grades, marks out of a full mark)",
   "lens": "mideast-africa-latam",
-  "from": "mideast-africa-latam/cairo.json"
+  "from": "mideast-africa-latam/cairo.json",
+  "note": "Code-less (CC15, read since Batch C, DGS 2026-10-09): rows under “Subject   Full Mark   Marks Obtained   Grade” are imported with an EMPTY course id; under a Full Mark column the grade word is the result (the mark is out of a per-row maximum), and the legend’s “Pass 60-64%” makes Pass and Fail bands left raw. The expectation’s bachelorsConferredOn was ‘2022-07-15’ until 2026-10-09: “Date of Graduation: July 2022” sits 19 lines below “Degree: Bachelor of Science in Engineering”, outside the bachelor’s six-line window and the DGS’s adjacent-line rule (Batch C item 3), so nothing dates the conferral and the rows carry no level (the slot’s applies)."
  },
  "unilag": {
   "institution": "University of Lagos",
@@ -1213,7 +1216,7 @@
    "bytes": 15689,
    "pages_text_lines": 39
   },
-  "note": "The sample's Last / First / MI / Student ID fields are blank (the placeholder). Code-less (CC15): each program line ('09/2004   06/2005   44   Introduction to Natural Science') is followed by title-only sub-rows ('13 - General Chemistry with Laboratory') whose credits sum to the program's — the sub-rows are the pinned rows (empty code, credits from the leading number, no grade: Evergreen writes narrative evaluations, the program's start year as the fall term, the leading '*' dropped), the program line is the total, not a row. The TRANSFER CREDIT block (University of Washington, South Puget Sound Community College) is not a row. 'Bachelor of Science   Awarded 15 Dec 2006' dates the conferral, so every row is undergraduate by the conferral rule. Known-failing until the DGS decides CC15; the parser also reads the transfer block's 'University of Washington' as the university and campus system today (F5, Batch B)."
+  "note": "The sample's Last / First / MI / Student ID fields are blank (the placeholder). Code-less (CC15): each program line ('09/2004   06/2005   44   Introduction to Natural Science') is followed by title-only sub-rows ('13 - General Chemistry with Laboratory') whose credits sum to the program's — the sub-rows are the pinned rows (empty code, credits from the leading number, no grade: Evergreen writes narrative evaluations, the program's start year as the fall term, the leading '*' dropped), the program line is the total, not a row. The TRANSFER CREDIT block (University of Washington, South Puget Sound Community College) is not a row. 'Bachelor of Science   Awarded 15 Dec 2006' dates the conferral, so every row is undergraduate by the conferral rule. Read since Batch C (CC15, DGS 2026-10-09): each sub-row is a code-less row with an EMPTY course id the student types; the breakdown is read only because its credits add up to the program line’s (44, 46, 16), and “EVERGREEN CREDIT:” closes the transfer block."
  },
  "pdf-key-hampshire": {
   "institution": "Hampshire College",

@@ -23,7 +23,7 @@ import { BACHELORS_YEAR_RANGE, COURSE_CREDITS_RANGE, TERM_YEAR_RANGE, inRange, i
 import { termBefore, termIndex, termLabel, termOfDate, termShort } from '../engine/term.ts';
 import { SEASONS } from './state.ts';
 import type { CourseEntry, Grade, Program, Season, Student, Term } from '../engine/types.ts';
-import type { ExternalParseResult } from '../transcript/external.ts';
+import type { ExternalCourseCandidate, ExternalParseResult } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
 import { absorbBlockRow, blockRowBack, blockRowFor } from './nd-posted.ts';
 import { reclassifyNotreDameCourses } from './prior-nd.ts';
@@ -85,6 +85,13 @@ interface PreviewRow {
    * editable. Imported rows keep the course id and title the transcript
    * printed (2026-09-06 — text-layer imports only; OCR rows stay editable). */
   manual?: boolean;
+  /** CC15 (DGS 2026-10-09, Batch C): the transcript prints no course number
+   * for this course. The Course id box is an empty REQUIRED input even on a
+   * text-layer import; the row starts unticked and cannot be ticked or added
+   * until the student types an id (`idStillMissing`) — `''` never reaches
+   * canonicalCourseId, the duplicate checks, the review request or the saved
+   * record. */
+  codeMissing?: true;
 }
 
 interface ExternalPreview {
@@ -296,7 +303,7 @@ function isRelevantRow(university: string, rules: Rules, r: PreviewRow, program:
   // examination's §4.4.1, which the MSCSE does not have (DGS 2026-09-11).
   const qualifier = program === 'phd';
   if (qualifier && (CORE_TITLE_RE.test(r.title) || findExternalRule(rules.external, university, r.courseId) !== undefined)) return true;
-  if (!isNotreDameInstitution(university) || r.year === undefined) return false;
+  if (!isNotreDameInstitution(university) || r.year === undefined || r.courseId.trim() === '') return false;
   const rule = resolveRuleRow(rules, r.courseId, { season: r.season, year: r.year });
   // Notre Dame's own undergraduate coursework can do more than demonstrate a
   // core area: 60000-level courses count in full, and a CSE course below that
@@ -314,6 +321,29 @@ function isBlockedRow(p: ExternalPreview, rules: Rules, r: PreviewRow, program: 
 
 /** Why an undergraduate row that cannot matter is not selectable (DGS
  * request 2026-09-06): shown on hover and read to screen readers. */
+/** A code-less row (CC15, DGS 2026-10-09: "IMPORTED with an empty required
+ * course-id box the student fills before the row can be added") whose box is
+ * still empty: it cannot be ticked, is left out of "Add N selected", and its
+ * `''` never reaches canonicalCourseId, the duplicate checks, the review
+ * request or the saved record. */
+export function idStillMissing(r: { codeMissing?: true; courseId: string }): boolean {
+  return r.codeMissing === true && r.courseId.trim() === '';
+}
+/** The rows "Add N selected" adds: ticked, with a course id, credits, a grade
+ * and a year — a row missing any of them is skipped, as it always was. */
+export function readyToAdd(r: Pick<PreviewRow, 'include' | 'courseId' | 'grade' | 'credits' | 'year'>): boolean {
+  return r.include && r.courseId.trim() !== '' && r.grade !== '' && r.credits !== undefined && r.year !== undefined;
+}
+/** The empty Course id box of a code-less row (W-CL407) and why it is
+ * empty, on the box and on the tick box it locks (W-CL408). */
+export const CODE_MISSING_PLACEHOLDER = 'course number';
+export const CODE_MISSING_NOTE =
+  'This transcript prints no course number for this course. Type the number the university gives it (its course catalog or your syllabus) to add it; until then the row is not ticked.';
+/** The preview's one line when any row has no course number (W-CL409). */
+export function codeMissingHint(n: number): string {
+  return `${n === 1 ? 'One course on this transcript has' : `${n} courses on this transcript have`} no course number printed: type each one in its empty “Course id” box — from the university’s course catalog or your syllabus — and the row is ticked; a course without one is not added. The DGS rules on these courses by the number you type.`;
+}
+
 const BLOCKED_ROW_NOTE =
   'Not selectable: this course is not related to the core-knowledge areas (Alg, OS, Comp Arch — §4.4.1), and undergraduate credits do not transfer (§5.2), so there is nothing to add. If you took it as a graduate student, change “Taken as” to Graduate and it becomes selectable.';
 
@@ -585,9 +615,35 @@ const BACHELORS_IN_PROGRESS =
  * line). Then a row without a readable grade is a parsing gap to fix in the
  * preview, not an in-progress course — the transcript is complete (DGS
  * 2026-09-16: a false "still in progress"). */
-export function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string }[], degreeStated = false): boolean {
+/** A row whose grade cell printed a result the app has no letter for — a
+ * mark ("92"), a band word ("Very Good"), a "Pass" a legend makes a band —
+ * carries `rawGrade`: that is a FINAL result for the student to map, not a
+ * course without one (CC15, Batch C 2026-10-09: the code-less Chinese and
+ * Egyptian bachelor's statements print only such results, and were refused
+ * here as "still in progress"). */
+export function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string; rawGrade?: string }[], degreeStated = false): boolean {
   if (slot !== 'bachelors' || degreeStated) return false;
-  return rows.some((r) => r.grade === '' || r.grade === 'IP');
+  return rows.some((r) => (r.grade === '' && !r.rawGrade) || r.grade === 'IP');
+}
+
+/** One parsed course as a preview row: ticked, the transcript's level or the
+ * slot's — or, for a course printed without a number (CC15, DGS 2026-10-09),
+ * unticked with an empty id box until the student types one. */
+export function previewRowOf(c: ExternalCourseCandidate, slot: DegreeLevel): PreviewRow {
+  return {
+    include: true,
+    courseId: c.courseId,
+    title: c.title ?? '',
+    credits: c.credits,
+    grade: (c.grade ?? '') as Grade | '',
+    rawGrade: c.rawGrade,
+    season: c.season ?? ('fall' as Season),
+    year: c.year,
+    lowConfidence: c.lowConfidence,
+    level: c.level ?? slotDefaultLevel(slot),
+    levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
+    ...(c.codeMissing ? { codeMissing: true as const, include: false } : {}),
+  };
 }
 
 /** The half of an external import both routes share — the text layer
@@ -601,19 +657,7 @@ function previewFromParsed(
   args: ExternalCardArgs,
   flags: { unofficial: boolean; fromOcr: boolean; ocrReducedPages?: OcrReducedPage[]; ocrTurned?: 0 | 90 | 180 | 270 },
 ): { mapped: PreviewRow[]; kept: { rows: PreviewRow[]; omitted: number } } | undefined {
-  const mapped: PreviewRow[] = parsed.courses.map((c) => ({
-    include: true,
-    courseId: c.courseId,
-    title: c.title ?? '',
-    credits: c.credits,
-    grade: (c.grade ?? '') as Grade | '',
-    rawGrade: c.rawGrade,
-    season: c.season ?? ('fall' as Season),
-    year: c.year,
-    lowConfidence: c.lowConfidence,
-    level: c.level ?? slotDefaultLevel(slot),
-    levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
-  }));
+  const mapped: PreviewRow[] = parsed.courses.map((c) => previewRowOf(c, slot));
   if (undergraduateInProgress(slot, mapped, parsed.bachelorsConferred === true)) return undefined;
   const termPrefill = prefillLevelsByTerm(mapped, slot, parsed.bachelorsNamed === true);
   const mixed = parsed.mixedLevels === true || new Set(mapped.map((r) => r.level)).size > 1;
@@ -943,18 +987,24 @@ function previewRow(
   ctx: { rules: Rules; student: Student; toast: (msg: string) => void; render: () => void; blockedNote: string },
 ): HTMLElement {
   const { rules, student, toast, render, blockedNote } = ctx;
-  const who = () => (r.courseId.trim() ? r.courseId.trim() : `row ${i + 1}`);
+  // A code-less row (CC15) is named by its title until it has an id.
+  const who = () => (r.courseId.trim() ? r.courseId.trim() : r.codeMissing && r.title.trim() ? `“${r.title.trim()}”` : `row ${i + 1}`);
   // An undergraduate row that cannot matter is not selectable (DGS request
   // 2026-09-06): the box is disabled and the row explains why on hover; a
   // change of "Taken as" re-renders, so the box follows the level.
   const blocked = isBlockedRow(p, rules, r, student.program);
   if (blocked) r.include = false;
+  // A code-less row (CC15, DGS 2026-10-09) cannot be ticked until its id is
+  // typed — the same lock, with its own reason.
+  const idMissing = idStillMissing(r);
+  if (idMissing) r.include = false;
   const noteId = `ext-row-${i}-note`;
+  const idNoteId = `ext-row-${i}-idnote`;
   const cb = el('input', {
     type: 'checkbox',
     'aria-label': `Add ${who()}`,
     'data-key': `ext.row.${i}.include`,
-    ...(blocked ? { disabled: 'disabled', 'aria-describedby': noteId, title: blockedNote } : {}),
+    ...(blocked ? { disabled: 'disabled', 'aria-describedby': noteId, title: blockedNote } : idMissing ? { disabled: 'disabled', 'aria-describedby': idNoteId, title: CODE_MISSING_NOTE } : {}),
     onchange: (e) => {
       r.include = (e.target as HTMLInputElement).checked;
       render(); // the Add button's count follows (item 13)
@@ -965,10 +1015,28 @@ function previewRow(
   // 2026-09-06): fixed for a text-layer import; editable for OCR rows (the
   // reader misreads) and rows typed by hand.
   const locked = !p.fromOcr && !r.manual;
-  const idIn = locked
+  // …except the id of a course the transcript printed no number for (CC15):
+  // an empty, required box the student fills, editable for as long as the
+  // preview is open; filling it ticks the row, emptying it unticks it.
+  const idOpen = !locked || r.codeMissing === true;
+  const idIn = !idOpen
     ? el('span', { class: 'course-id locked', 'data-key': `ext.row.${i}.id` }, r.courseId)
-    : el('input', { value: r.courseId, class: 'course-id', 'aria-label': `Course id, ${who()}`, 'data-key': `ext.row.${i}.id` });
-  if (!locked) idIn.addEventListener('change', () => (r.courseId = (idIn as HTMLInputElement).value));
+    : el('input', {
+        value: r.courseId,
+        class: 'course-id',
+        'aria-label': `Course id, ${who()}`,
+        'data-key': `ext.row.${i}.id`,
+        ...(r.codeMissing ? { required: 'required', 'aria-required': 'true', placeholder: CODE_MISSING_PLACEHOLDER, title: CODE_MISSING_NOTE, 'aria-describedby': idNoteId, ...(idMissing ? { 'aria-invalid': 'true' } : {}) } : {}),
+      });
+  if (idOpen) {
+    idIn.addEventListener('change', () => {
+      r.courseId = (idIn as HTMLInputElement).value;
+      if (r.codeMissing) {
+        r.include = !idStillMissing(r) && !isBlockedRow(p, rules, r, student.program);
+        render(); // the tick box and the Add button's count follow
+      }
+    });
+  }
   const titleIn = locked
     ? el('span', { class: 'course-title locked', 'data-key': `ext.row.${i}.title` }, r.title)
     : el('input', { value: r.title, class: 'course-title', 'aria-label': `Title for ${who()}`, 'data-key': `ext.row.${i}.title` });
@@ -1023,7 +1091,7 @@ function previewRow(
   // One line only when nothing is left to fill in (DGS bug 2026-09-07): a
   // text-layer row whose credits, grade or year the parser missed renders
   // full-size controls, and the one-line form cannot wrap around them.
-  const compactRow = rowIsCompact({ locked, credits: r.credits, grade: r.grade, year: r.year });
+  const compactRow = rowIsCompact({ locked, credits: r.credits, grade: r.grade, year: r.year, codeMissing: r.codeMissing === true });
   let seasonSel: HTMLElement;
   let yearIn: HTMLElement | null;
   if (termLocked) {
@@ -1092,6 +1160,7 @@ function previewRow(
       r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null,
       cb,
       blocked ? el('span', { id: noteId, class: 'visually-hidden' }, blockedNote) : null,
+      r.codeMissing ? el('span', { id: idNoteId, class: 'visually-hidden' }, CODE_MISSING_NOTE) : null,
     ),
     el('td', { class: 'cell-course', 'data-label': 'Course id' }, idIn),
     // (The greyed row + disabled box are the visible cue; the reason is the
@@ -1230,10 +1299,16 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
     // Courses already on the Notre Dame transcript as accepted transfer credit
     // (P3-import-1 (c), 2026-10-05): adding keeps each as one course.
     ...(() => {
-      const onRecord = p.rows.filter((r) => blockRowFor(student, { courseId: r.courseId, institution: p.university, origin: 'transfer' } as CourseEntry) !== undefined).map((r) => r.courseId.trim());
+      // (A row with no id yet — CC15 — is no course to compare.)
+      const onRecord = p.rows.filter((r) => r.courseId.trim() !== '' && blockRowFor(student, { courseId: r.courseId, institution: p.university, origin: 'transfer' } as CourseEntry) !== undefined).map((r) => r.courseId.trim());
       return onRecord.length > 0
         ? [el('p', { class: 'hint on-record-note' }, `${onRecord.join(', ')} ${onRecord.length === 1 ? 'is' : 'are'} already on your Notre Dame transcript as accepted transfer credit — adding keeps each as one course, with that acceptance.`)]
         : [];
+    })(),
+    // Courses printed without a number (CC15, DGS 2026-10-09).
+    ...(() => {
+      const codeless = p.rows.filter((r) => r.codeMissing).length;
+      return codeless > 0 ? [el('p', { class: 'hint code-missing-note', 'data-key': 'ext.preview.codeMissing' }, codeMissingHint(codeless))] : [];
     })(),
     el(
       'p',
@@ -1320,7 +1395,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   const rowEls = p.rows.map((r, i) => previewRow(p, r, i, { rules, student, toast, render, blockedNote }));
   table.append(...rowEls);
   const selectAll = (on: boolean) => {
-    for (const r of p.rows) r.include = on && !isBlockedRow(p, rules, r, student.program);
+    for (const r of p.rows) r.include = on && !isBlockedRow(p, rules, r, student.program) && !idStillMissing(r);
     render();
   };
   box.append(
@@ -1375,7 +1450,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               problem('Enter the semester your bachelor’s degree was awarded — required for a combined bachelor’s + master’s transcript: courses dated in or before it count as undergraduate coursework (§5.2).', 'ext.preview.bachelors.year');
               return;
             }
-            const ready = p.rows.filter((r) => r.include && r.courseId.trim() !== '' && r.grade !== '' && r.credits !== undefined && r.year !== undefined);
+            const ready = p.rows.filter(readyToAdd);
             const skipped = p.rows.filter((r) => r.include).length - ready.length;
             if (ready.length === 0) {
               problem('No rows are complete yet — every added row needs a course id, credits, a grade and a year.', 'ext.preview.error');

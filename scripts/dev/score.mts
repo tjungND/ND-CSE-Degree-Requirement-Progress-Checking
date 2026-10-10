@@ -21,7 +21,10 @@
 // by `normalizeCourseId` (src/data/external.ts — case, spaces and punctuation
 // ignored) plus the year when BOTH sides have one, so a retake in another year
 // (two "COMP SCI 760" rows) pairs with its own year; then by id alone among
-// what is still unmatched (one side lost or mis-read the year). Each expected
+// what is still unmatched (one side lost or mis-read the year). A CODE-LESS
+// row (CC15, Batch C 2026-10-09: the id is empty on both sides) pairs by its
+// title instead — case, spaces and punctuation ignored — plus the year, then
+// by the title alone; an empty id never pairs by id. Each expected
 // row pairs with at most one parsed row, in document order. From the pairs:
 //   rows.matched / missing (expected rows with no partner — recall's loss) /
 //   extra (parsed rows with no partner — precision's loss: a false row, a row
@@ -146,6 +149,10 @@ export function alignRows<R extends RowCells>(want: R[], got: R[]): { pairs: [R,
   };
   pass((w, g) => w.key !== '' && w.key === g.key && w.year !== undefined && g.year !== undefined && w.year === g.year);
   pass((w, g) => w.key !== '' && w.key === g.key);
+  // Code-less rows (CC15): by title, with the year when both sides have one.
+  const titleKey = (r: R) => r.cells.title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  pass((w, g) => w.key === '' && g.key === '' && titleKey(w) !== '' && titleKey(w) === titleKey(g) && w.year !== undefined && g.year !== undefined && w.year === g.year);
+  pass((w, g) => w.key === '' && g.key === '' && titleKey(w) !== '' && titleKey(w) === titleKey(g));
   return {
     pairs,
     missing: want.filter((_, i) => wantFree[i]),

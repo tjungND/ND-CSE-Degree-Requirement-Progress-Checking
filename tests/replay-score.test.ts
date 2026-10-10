@@ -73,6 +73,18 @@ describe('scoreDocument on tiny documents', () => {
     assert.deepEqual(s.cells.title, { right: 2, total: 2 });
   });
 
+  it('code-less rows (CC15) pair by title, with the year, and never by their empty id', () => {
+    const want = [course('', { title: 'Data Mining', grade: undefined, rawGrade: '88' }), course('', { title: 'Machine Learning', grade: undefined, rawGrade: '90', year: 2024 })];
+    // Parsed in the other order; the Data Mining row's mark misread; a third
+    // code-less row the expectation does not hold is a false row.
+    const got = [course('', { title: 'machine  learning', grade: undefined, rawGrade: '90', year: 2024 }), course('', { title: 'Data Mining', grade: undefined, rawGrade: '86' }), course('', { title: 'Total', grade: undefined, rawGrade: '812' })];
+    const s = scoreDocument({ university: 'Purdue University', degreeConferred: true, courses: got }, { ...header, courses: want.map(rowOf) });
+    assert.equal(s.rows.matched, 2);
+    assert.deepEqual(s.rows.extra, [rowOf(got[2]!)]);
+    assert.deepEqual(s.cells.grade, { right: 1, total: 2 });
+    assert.deepEqual(s.cells.title, { right: 1, total: 2 }); // matched ignoring case and spaces; the printed cell still differs
+  });
+
   it('a header field is scored only when the expectation lists it', () => {
     const s = scoreDocument({ university: 'Purdue University', trimesterSystem: true, courses: [] }, { university: 'Purdue University', courses: [] });
     assert.deepEqual(Object.keys(s.header), ['university']);

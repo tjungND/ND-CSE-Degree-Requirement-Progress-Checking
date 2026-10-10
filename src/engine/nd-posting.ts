@@ -51,6 +51,9 @@ export function sameTransferCourse(a: CourseEntry, b: CourseEntry): boolean {
     b.origin === 'transfer' &&
     !isNotreDameInstitution(a.institution) &&
     !isNotreDameInstitution(b.institution) &&
+    // An empty id names no course (a code-less import row is never saved
+    // without one — CC15, DGS 2026-10-09 — but two blanks are not a match).
+    normalizeCourseId(a.courseId) !== '' &&
     normalizeCourseId(a.courseId) === normalizeCourseId(b.courseId) &&
     sameUniversity(a.institution, b.institution)
   );

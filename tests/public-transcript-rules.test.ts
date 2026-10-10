@@ -752,3 +752,72 @@ describe('transcript accuracy program, Batch B — review of F4–F6 (2026-10-09
     assert.deepEqual(cells(hec, 'CS 301'), ['Software Engineering', undefined, 'B']);
   });
 });
+
+// ——— Batch C (DGS 2026-10-09): the text-side answers ———
+describe('transcript accuracy program, Batch C — CC15 code-less rows (2026-10-09)', () => {
+  const titled = (r: ReturnType<typeof parseExternalTranscript>, title: string) => r.courses.find((c) => c.title === title);
+  const read = (r: ReturnType<typeof parseExternalTranscript>, title: string) => {
+    const c = titled(r, title);
+    return c ? [c.courseId, c.codeMissing, c.credits, c.grade ?? c.rawGrade, c.season, c.year] : undefined;
+  };
+  it('under a header with a title column and no code column, a line whose cells line up with it is a course with an EMPTY id', () => {
+    const r = doc('NANKAI UNIVERSITY', 'COURSE NAME   CREDIT   RESULT   COURSE TYPE', '2021-2022 Academic Year   First Semester', 'Machine Learning   3   88   Elective', 'Dialectics of Nature   1   PASSED   Compulsory', '2021-2022 Academic Year   Second Semester', 'Data Mining   3   B   Degree Course');
+    assert.deepEqual(read(r, 'Machine Learning'), ['', true, 3, '88', 'fall', 2021]);
+    assert.deepEqual(read(r, 'Dialectics of Nature'), ['', true, 1, 'S', 'fall', 2021]);
+    assert.deepEqual(read(r, 'Data Mining'), ['', true, 3, 'B', 'spring', 2022]);
+    assert.equal(r.courses.length, 3);
+  });
+  it('a line that does not line up with the header one cell for one is no row: totals, label/value lines, fewer cells, a title that is a label', () => {
+    const r = doc('NANKAI UNIVERSITY', 'COURSE NAME   CREDIT   RESULT   COURSE TYPE', '2021-2022 Academic Year   First Semester', 'Machine Learning   3   88   Elective', 'TOTAL CREDITS: 18   AVERAGE SCORE: 88.75', 'Semester Totals   15   3.50   Compulsory', 'Data Structures and Algorithms   79', 'Weighted Average Score   86   88   Overall', 'Bachelor Degree Tests');
+    assert.deepEqual(r.courses.map((c) => c.title), ['Machine Learning']);
+  });
+  it('a code-less line is never read without a header naming a title and no code column', () => {
+    assert.equal(doc('NANKAI UNIVERSITY', '2021-2022 Academic Year   First Semester', 'Machine Learning   3   88   Elective').courses.length, 0);
+    // A header WITH a code column: the code-less line is not a course.
+    assert.equal(doc('Some University', 'Fall 2023', 'Course Code   Course Title   Credits   Grade', 'Machine Learning   3   A   Elective').courses.length, 0);
+  });
+  it('a document that prints a course number on any row keeps no code-less row', () => {
+    const r = doc('Some University', 'Course Title   Credits   Grade', 'Fall 2023', 'CS 500   Advanced Topics   3   A', 'Graduate Seminar   1   S');
+    assert.deepEqual(r.courses.map((c) => c.courseId), ['CS 500']);
+  });
+  it('the CHESICC report: an academic year and its semester number before the title place the row (1 → fall, 2 → spring of the second year)', () => {
+    const r = doc('Institution:   Zhejiang University', 'Academic Year   Semester   Course Name   Credit   Score   Course Type', '2018-2019   1   Advanced Mathematics I   5.0   92   Compulsory', '2018-2019   2   Data Structures   4.0   Pass   Compulsory', '2021-2022   2   Graduation Project   8.0   Good   Compulsory', '2019-2020   3   Summer Practice   2.0   85   Elective');
+    assert.deepEqual(read(r, 'Advanced Mathematics I'), ['', true, 5, '92', 'fall', 2018]);
+    assert.deepEqual(read(r, 'Data Structures'), ['', true, 4, 'S', 'spring', 2019]);
+    assert.deepEqual(read(r, 'Graduation Project'), ['', true, 8, 'Good', 'spring', 2022]);
+    // A third number names no term the parser can place: the row is read, its term left blank.
+    assert.deepEqual(read(r, 'Summer Practice'), ['', true, 2, '85', undefined, undefined]);
+  });
+  it('Cairo: under a "Full Mark" column the grade word is the result, not the marks obtained; a legend that bands "Pass 60-64%" leaves Pass and Fail raw', () => {
+    const base = ['CAIRO UNIVERSITY', 'Academic Year 2019/2020   First Year', 'Subject   Full Mark   Marks Obtained   Grade', 'Data Structures and Algorithms   150   118   Very Good', 'Logic Design   100   64   Pass', 'Electronics   100   55   Fail', 'Total   1000   705   Good'];
+    const banded = doc(...base, 'Grades: Excellent 85-100%, Very Good 75-84%, Good 65-74%, Pass 60-64%, Fail below 60%.');
+    assert.deepEqual(read(banded, 'Data Structures and Algorithms'), ['', true, undefined, 'Very Good', 'fall', 2019]);
+    assert.deepEqual(read(banded, 'Logic Design'), ['', true, undefined, 'Pass', 'fall', 2019]);
+    assert.deepEqual(read(banded, 'Electronics'), ['', true, undefined, 'Fail', 'fall', 2019]);
+    assert.equal(titled(banded, 'Total'), undefined);
+    // Without the banded legend a pass is the app's S, a fail its U.
+    const plain = doc(...base);
+    assert.equal(titled(plain, 'Logic Design')?.grade, 'S');
+    assert.equal(titled(plain, 'Electronics')?.grade, 'U');
+    // A coded row under the same header reads its grade word too (the
+    // full-mark rule is the header's, not the code-less reader's).
+    const coded = doc('CAIRO UNIVERSITY', 'Academic Year 2019/2020', 'Code   Subject   Full Mark   Marks Obtained   Grade', 'CMP 201   Data Structures   150   118   Very Good');
+    assert.equal(row(coded, 'CMP 201')?.rawGrade, 'Very Good');
+  });
+  it('Evergreen: the lines under a program line are its courses only when their credits add up to the program’s', () => {
+    const lines = ['Record of Academic Achievement', 'The Evergreen State College - Olympia, Washington 98505', 'EVERGREEN CREDIT:', 'Start   End   Credits   Title', '09/2004   06/2005   20   Introduction to Natural Science', '13 - General Chemistry with Laboratory', '*4 - Precalculus', '3 - History and Philosophy of Science'];
+    const r = doc(...lines);
+    assert.deepEqual(r.courses.map((c) => [c.courseId, c.codeMissing, c.title, c.credits, c.grade ?? c.rawGrade, c.season, c.year]), [
+      ['', true, 'General Chemistry with Laboratory', 13, undefined, 'fall', 2004],
+      ['', true, 'Precalculus', 4, undefined, 'fall', 2004],
+      ['', true, 'History and Philosophy of Science', 3, undefined, 'fall', 2004],
+    ]);
+    // 13 + 4 + 2 is not 20: nothing says these lines are the program's breakdown.
+    assert.equal(doc(...lines.slice(0, -1), '2 - History and Philosophy of Science').courses.length, 0);
+  });
+  it('code-less rows under a transfer heading are skipped and counted; the institution’s own CREDIT heading ends the block', () => {
+    const r = doc('Record of Academic Achievement', 'The Evergreen State College - Olympia, Washington 98505', 'TRANSFER CREDIT:', '09/2002   12/2002   5   Transfer Studies', '3 - Composition', '2 - Speech', 'EVERGREEN CREDIT:', '09/2004   06/2005   4   Precalculus Program', '4 - Precalculus');
+    assert.deepEqual(r.courses.map((c) => c.title), ['Precalculus']);
+    assert.equal(r.transferRowsSkipped, 2);
+  });
+});

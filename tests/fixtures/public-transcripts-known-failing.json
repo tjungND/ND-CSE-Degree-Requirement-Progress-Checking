@@ -1,22 +1,9 @@
 {
- "cairo": [
-  "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column"
- ],
- "chesicc-verification-report": [
-  "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column"
- ],
- "nankai-graduate-record": [
-  "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column"
- ],
  "sjtu-lifelong-template": [
-  "CC15 \u2014 DGS decision: no code column",
-  "CC16 \u2014 two semesters printed side by side"
+  "CC16 \u2014 two semesters printed side by side (CC15, the code-less rows, landed 2026-10-09: the 2003 table now reads its two rows with an empty id; the side-by-side 2001 and 2002 tables and the 2003 table\u2019s \u20181st Semester\u2019 line wait on CC16)"
  ],
  "chulalongkorn": [
   "TH02 \u2014 DGS decision: Thailand's 'First Semester 2022' runs August\u2013December (the calendar-order rule reads it as the spring)"
- ],
- "pdf-evergreen-sample-raa": [
-  "CC15 \u2014 DGS decision: a transcript with course NAMES and no code column"
  ],
  "pdf-mcgill-minerva-not-a-transcript": [
   "Batch B \u2014 no 'is this a transcript at all' gate: a course outline's one line ('COMP 250   001 Intro to Computer Science   3') reads as a course row; the McGill project refuses the page because its header never says Transcript"
