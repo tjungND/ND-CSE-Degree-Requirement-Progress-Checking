@@ -1567,19 +1567,19 @@
   "campusSystem": null,
   "campus": null,
   "degreeConferred": null,
-  "bachelorsConferredOn": null,
+  "bachelorsConferredOn": "2022-07-15",
   "quarterSystem": null,
   "trimesterSystem": null,
   "courses": [
-   " | Mathematics 1 | ? | Excellent | fall 2018",
-   " | Physics 1 | ? | Good | fall 2018",
-   " | Mechanics | ? | Very Good | fall 2018",
-   " | Computer Programming | ? | Excellent | fall 2018",
-   " | Data Structures and Algorithms | ? | Very Good | fall 2019",
-   " | Logic Design | ? | Pass | fall 2019",
-   " | Electronics | ? | Fail | fall 2019",
-   " | Graduation Project | ? | Excellent | fall 2021",
-   " | Computer Architecture | ? | Very Good | fall 2021"
+   " | Mathematics 1 | ? | Excellent | fall 2018 | undergraduate",
+   " | Physics 1 | ? | Good | fall 2018 | undergraduate",
+   " | Mechanics | ? | Very Good | fall 2018 | undergraduate",
+   " | Computer Programming | ? | Excellent | fall 2018 | undergraduate",
+   " | Data Structures and Algorithms | ? | Very Good | fall 2019 | undergraduate",
+   " | Logic Design | ? | Pass | fall 2019 | undergraduate",
+   " | Electronics | ? | Fail | fall 2019 | undergraduate",
+   " | Graduation Project | ? | Excellent | fall 2021 | undergraduate",
+   " | Computer Architecture | ? | Very Good | fall 2021 | undergraduate"
   ]
  },
  "unilag": {
