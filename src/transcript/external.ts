@@ -1984,8 +1984,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * before the section or the title is the mark, dropped; a connector the
    * title may start with ("&", "/", "-") is left alone. */
   const MULTI_TERM_MARK_RE = /^(?:[\u00B2\u00B3\u00B9\u2070-\u2079\u2460-\u24FF\u25C6\u25C7\u25CA\u2662\u2666\u2756\u2727\u2726\u2605\u2606\u2022\u00B0\u2020\u2021\u00A7\u00B6]|[\uE000-\uF8FF])$/u;
+  /** The mark as a SCAN reads it (OCR plan step 2.5, 2026-10-09): the engine
+   * has no glyph for the diamond and prints "<>", "<~", "©" — or "2" for the
+   * superscript. On an OCR line a first token of one to three characters
+   * with no letter and at most one digit in it is that mark when the
+   * zero-padded section and a wordy title follow it ("ECSE 458D1 <>   001
+   * Capstone Design Project", "MATH 470J1 2   001   Honours Research
+   * Project"): all three are the evidence, so a lone digit or symbol anywhere
+   * else is read as before. */
+  const OCR_MARK_RE = /^[^\p{L}\d]{0,3}\d?[^\p{L}\d]{0,3}$/u;
+  const ocrMark = (raw: string[]): boolean =>
+    ocrLines && raw.length >= 3 && raw[0]!.length <= 3 && OCR_MARK_RE.test(raw[0]!) && /^0\d{1,2}$/.test(raw[1]!) && /^[\p{L}]/u.test(raw[2]!) && /[\p{L}]{2}/u.test(raw[2]!);
   const dropSection = (raw: string[]): string[] => {
-    const tokens = raw.length >= 2 && MULTI_TERM_MARK_RE.test(raw[0]!) ? raw.slice(1) : raw;
+    const tokens = raw.length >= 2 && (MULTI_TERM_MARK_RE.test(raw[0]!) || ocrMark(raw)) ? raw.slice(1) : raw;
     return tokens.length >= 2 && /^0\d{1,2}$/.test(tokens[0]!) && /^[\p{L}]/u.test(tokens[1]!) && /[\p{L}]{2}/u.test(tokens[1]!) ? tokens.slice(1) : tokens;
   };
   const leadCode = (flat: string): { code: string; tokens: string[]; date?: string; preCell?: string } | undefined => {
