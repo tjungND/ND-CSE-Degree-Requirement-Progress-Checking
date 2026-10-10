@@ -388,8 +388,9 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   run `ocr-full-20261009/` (started detached by the closing verification; read with
   `npm run ocr-bench -- --compare <it> --baseline …/ocr-step11-after-20261009`), Batch C once the
   DGS answers (CC15, CC16, TH02, the transcript gate, the CUNY and trimester questions, open
-  question (g)), plan steps 2.5–2.7 (the header-mapped cell path's tolerance of OCR noise is what
-  turns the 300-dpi gain on; the two-pass deskew). The engine gate (step 14) was measured offline on
+  question (g)), plan steps 2.5–2.7 (2.5 — the header-mapped path's tolerance of OCR noise — is done,
+  the "OCR step 2.5" bullet; the 300-dpi render it was to turn on was re-tested and still loses; next
+  the two-pass deskew and 2.6–2.7). The engine gate (step 14) was measured offline on
   2026-10-09 and PP-OCRv6_tiny NOT adopted (+7.7 points of row accuracy on L2–L5 against the +10 asked;
   flag recall 64.6 → 21.4 %): the runner, model fetcher and calibration live in
   `scripts/dev/ocr-bench/engine-gate/` with their own `package.json` (never installed by the root
@@ -1505,6 +1506,29 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   is still empty. A medium-set run (`--families generator-external,generator-nd,generator-scan,public-pdf
   --levels L2,L5`) takes ~12 min and is the A/B to trust over `--quick` (the flat-300 and invert
   verdicts reversed between the two).
+- **OCR step 2.5 — the parser on a scan's noise** (2026-10-09, plan step 2.5; the A/B table is
+  docs/OCR-BENCHMARK.md "Plan step 2.5", the reasons four DECISIONS rows of that date; commits `a120c2b`
+  `5620628` `ce56a71` `81b038d` `bc36cde`). Three rules in `src/transcript/external.ts`, each gated
+  on `ocrLines` (= `confidences !== undefined`) so a text layer never reaches them: (a) a header line's
+  cells lose the scan's noise marks (`OCR_HEADER_NOISE_RE`, `headerCellsOf`), and on a line already
+  ≥ 60 % header an unknown cell's words of ≥ 4 letters are repaired to the `OCR_HEADER_WORDS` entry one
+  letter away (`ocrRepairHeaderCell`, `withinOneEdit`; every entry must be a header cell on its own —
+  `tests/ocr-header-noise.test.ts` checks, so a word added to `COLUMN_KIND_RES` that scans misread goes in
+  both); a two-line header's lower line run together by the engine is split back into its words
+  (`joinedHeaderKinds` → `joinAt`). (d) `dropSection` takes a scan's reading of Minerva's diamond
+  (`OCR_MARK_RE`: ≤ 3 characters, no letter, ≤ 1 digit) only before a zero-padded section and a title.
+  (b) `ocrJunkCode` (lines under `OCR_CONFIDENCE_FLOOR` only): an all-lower-case subject with a letter
+  whose capital differs, a decimal number taken for a code (`leadCode` now returns `printed` — the code
+  as printed — and `decimalCell`), a title with no word of four letters. The bench gained `--reparse
+  <run>`: every run saves `<seed>/<level>/ocr-lines.json`, and a parser change is A/B'd by re-parsing the
+  same lines with HEAD's parser and the change (a HEAD copy via `git archive HEAD src scripts tests
+  package.json tsconfig.json | tar -x -C <dir>` with `node_modules`, `public`, `data` symlinked) —
+  seconds, not a 45-minute ladder. Check a guard on the synthetic renders of the layouts the public seeds
+  lack (`--families synthetic-render --only <fixture> --skins ruled --levels L2,L5`): that is how the two
+  stricter forms of (b) were caught costing real rows (Addis Ababa's "Math 1011", CMU / DTU rows whose
+  credits the scan misread). (c) re-tested the flat 300 dpi on the new parser
+  and did NOT adopt it (`bc36cde`): the medium set's gain was one document's (Evergreen) with new false rows
+  on four keys, and the photocopy level collapsed (44.1 → 7.8 % row accuracy) — `OCR_BASE_DPI` stays 216.
 - Updating the OCR assets: bump `tesseract.js` in package.json, `npm install`, re-copy
   `node_modules/tesseract.js/dist/worker.min.js` and
   `node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js` into `public/ocr/`, and

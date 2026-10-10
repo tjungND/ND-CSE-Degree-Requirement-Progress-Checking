@@ -951,3 +951,60 @@ Open issues:
   Paddle's boxes at L2 and L5 (Tesseract's at L4) — plan step 2.5's ground, measurable with either engine.
 - A future engine needs a confidence rule of its own before the ⚠ flag can trust it (Paddle's probabilities
   stay high on wrong rows).
+
+### OCR step 2.5 — done 2026-10-09 (branch `claude/policy-compliance-degree-engine-44a431`): the parser on a scan's noise
+
+Commits: `a120c2b` the bench's `--reparse` (every run saves the lines the parser read; a parser-only A/B
+re-scores them without the engine) · `5620628` (a) header noise · `ce56a71` (d) Minerva's multi-term mark as
+a scan reads it · `81b038d` (b) the junk-code guard · `bc36cde` (c) the flat 300 re-tested, not adopted · the records commit. Each rule runs ONLY on
+OCR lines (`parseExternalTranscript` given confidences); the text replay against HEAD's own
+(`bench-out/text-step25-head-5acf871.json`) was 0 / 0 after every commit. The tables and the lines used are in
+`docs/OCR-BENCHMARK.md` "Plan step 2.5"; the reasons in four DECISIONS rows of this date.
+
+- **(a)** `src/transcript/external.ts`: the scan's noise marks (`OCR_HEADER_NOISE_RE`) are no part of a
+  header cell; a header cell no pattern names has each word of four letters or more repaired to the
+  header word one letter away (`ocrRepairHeaderCell`, `OCR_HEADER_WORDS` — 61 words, each a header cell
+  on its own), only on a line already ≥ 60 % named exactly (two-line headers: 60 % of the joined pairs);
+  a two-line header's run-together lower line is split back into its words (`joinedHeaderKinds` →
+  `joinAt`). Pinned: `tests/ocr-header-noise.test.ts` (7).
+- **(d)** `dropSection`: a first token of one to three characters with no letter and at most one digit
+  ("<>", "<~", "2") is Minerva's mark when the zero-padded section and a wordy title follow. Pinned:
+  `tests/ocr-row-noise.test.ts` (2).
+- **(b)** `ocrJunkCode`, on lines under `OCR_CONFIDENCE_FLOOR`: an all-lower-case subject with a letter
+  whose capital differs, a decimal number taken for a code (`leadCode`'s new `decimalCell`), a title with
+  no word of four letters. Two stricter forms cost real rows on rendered layouts and were not adopted.
+  Pinned: `tests/ocr-row-noise.test.ts` (3).
+
+Numbers — the medium set (62 seeds, 151 pages, L2 / L5) at the shipped scale, the same lines read by
+HEAD `5acf871`'s parser and by the three rules: L2 row accuracy 58.1 → 63.0 %, rows found 92.2 → 92.6 %,
+false rows 16 (7/36 negatives) → 13 (6/36), field accuracy 81.8 → 83.8 %; L5 62.2 → 67.0 %, 93.7 → 94.1 %,
+21 (5/36) → 14 (4/36), 84.5 → 86.8 %; 0 regression lines (Alberta 3 → 11 and 9 → 16 rows right of 24,
+Minerva's multi-term page 2 → 7 and 1 → 7 of 8, Stanford's key L5 3 → 0 false rows, Duke's 5 → 3 and
+10 → 7, Western Ontario's L2 1 → 0). On the whole ladder (L0–L6, the shipped-scale lines, `bench-out/ocr-step25-lines-auto/`) every level gains with no row lost: row accuracy 72.2 → 74.8 / 70.7 → 73.3 / 58.1 → 63.0 / 43.3 → 44.1 / 44.8 → 46.7 / 62.2 → 67.0 % at L0–L5, 72.2 → 74.8 / 71.5 → 74.1 % at L6-90 / L6-180; false rows 13 → 11 / 15 → 11 / 16 → 13 / 19 → 15 / 27 → 23 / 21 → 14, 23 → 13 / 15 → 12; 0 regression lines, 33 improvements. `--quick`: false rows L0 2 → 1, L5 4 → 1, rows
+unchanged; `--pinned` 0 / 0 after each rule; ten numeric-code / capitalised-subject layouts rendered and
+scanned (synthetic, L2 / L5) 0 / 0. Verified: `npx tsc --noEmit`, `npm test` 1699 pass; e2e not run
+(not this agent's — no student-facing string changed; the OCR leg should be run on Chrome and WebKit
+before the DGS ships this). No wording entries: the step adds no student-facing string.
+
+**(c) not adopted** (`bc36cde`): the flat 300-dpi render re-tested on the new parser, same parser both sides
+(`ocr-step25-flat300-medium` + `-flat300-rest` against `ocr-step25-lines-auto`). The medium set gains — L2 row
+accuracy 63.0 → 67.0 %, rows found 92.6 → 96.7 %, false rows 13 → 13; L5 67.0 → 69.6 %, 94.1 → 96.7 %, 14 → 9 —
+but almost all of it is Evergreen (19 rows at 300 against 11 at 216: one breakdown line is missing at 216 and the
+program's sum refuses all eight); without it, +3 rows right at L2 and −1 at L5; and new false rows appear on four
+keys and the Banner pair. On the other levels: L0 74.8 → 77.0 %, L1 73.3 → 76.3 %, but L3 (the photocopy) 44.1 →
+7.8 % with false rows 15 → 28 at 3.3 → 10.4 s/page, and L4 46.7 → 39.6 %. `OCR_BASE_DPI` stays 216.
+
+Open issues from this step:
+
+- Alberta's first table: "Avy" (Avg) is a three-letter misread, never repaired by rule (one letter from
+  "Any" and "Ave" too) — the table stays unmapped.
+- Alberta's page 2: the LAYOUT stage drops "Points" from three of the four lower header lines on the
+  scan (the engine reads the word at confidence 84–95; `dropWatermarks` takes the repeated word for a tile
+  on the skewed word boxes), so those tables stay unmapped — a `layout.ts` change for the OCR path, to be
+  measured on the ladder and the text replay.
+- Duke's grade key still reads "SP 40 / HP 35 / LP 25" rows (the engine drops the point of "4.0"); its false
+  rows remain the largest on the negatives.
+- A misread digit inside a cell ("3:0", "3.0:", "38" for "3.8") is Batch C's answer (4) — the numeric
+  correction shown beside the raw reading (plan step 2.6).
+- Rule (b) refuses a real course titled only with short words ("Lab for CS 2000", 2 of 2,457 fixture
+  rows) on a low-confidence scan line.

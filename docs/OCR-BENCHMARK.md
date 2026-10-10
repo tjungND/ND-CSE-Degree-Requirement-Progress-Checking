@@ -345,3 +345,72 @@ of models, is the research's accuracy pick), or a new runtime:
 numerics, not the browser's time; `--only <seed>` prints the row diffs; `--trial-always` reads all four turns.)
 `trial-calibration-L1/` holds the trial's L1 figures only (read from the working tree with an earlier word
 splitter; confidences do not depend on either). FERPA: public and generator seeds only.
+
+
+## Plan step 2.5 — the parser on a scan's noise (2026-10-09)
+
+The step-11 and step-12 verdicts left one cause behind most OCR losses: the parser's header-mapped path
+read a scan's header line as strictly as a text layer's, so one misread or run-together header cell left
+a table unmapped (Alberta 19 → 3 rows right at L2; Minerva's "Cr./C.E.U." read "Cr./C.E\U." at 300 dpi),
+the multi-term mark stayed in Minerva's titles, and junk cells became course codes on the keys. Three
+rules, each on OCR lines ONLY (`parseExternalTranscript` given confidences — a text layer reads exactly as
+before: the replay against HEAD's own is 0 / 0 after each), each with its DECISIONS row and tests, then
+the flat 300-dpi render re-tested on the new parser.
+
+**How a parser rule is measured now.** Every bench run writes the lines the parser read
+(`<seed>/<level>/ocr-lines.json`); `npm run ocr-bench -- --reparse <run>` re-scores them with today's
+parser and starts no engine. The engine is deterministic, so a reparse equals a fresh run — checked: the
+step's `--quick` lines reparsed with HEAD's parser reproduce `ocr-step12-shipped-quick` row for row. Every
+row below is the SAME OCR lines read by the parser before and after the rule. The lines:
+`ocr-step25-auto-medium/` (the shipped scale; the medium set, 62 seeds, L2 / L5), `ocr-step25-flat300-medium/`
+and `ocr-step25-flat300-rest/` (scale 4.1667 = 300 dpi; L2 / L5 and L0 / L1 / L3 / L4),
+`ocr-step25-before-20261009/` + `ocr-step25-rest/` (the shipped scale at L0–L6), `ocr-step25a-quick/`,
+and `ocr-step25-synth/` — ten line-list fixtures with numeric course codes or capitalised subjects
+(Addis Ababa, Polimi, DTU, Chulalongkorn, the Iran rendering, Delhi, UNAM, Sharif, MIT, CMU) rendered
+in the `ruled` skin and scanned at L2 / L5, the check that a guard costs no real row on layouts the
+public seeds do not cover.
+
+Row accuracy / rows found / false rows (negatives with any), the medium set; "before" is HEAD `5acf871`
+(Batch C's parser):
+
+| rule | L2 | L5 | flat-300 lines L2 | flat-300 lines L5 | other checks | verdict |
+|---|---|---|---|---|---|---|
+| before | 58.1 / 92.2 / 16 (7) | 62.2 / 93.7 / 21 (5) | 60.7 / 96.7 / 17 (7) | 58.5 / 96.7 / 11 (6) | — | — |
+| (a) header noise: noise marks out of header cells; a word ≥ 4 letters one letter off a header word repaired on a line already ≥ 60 % header; a two-line header's run-together lower line split back | 61.1 / 92.6 / 16 | 64.8 / 94.1 / 21 | 64.4 / 96.7 / 17 | 67.0 / 96.7 / 11 | `--quick`, `--pinned` 0 / 0 | adopted `5620628` — Alberta 3 → 11 / 9 → 16 rows right; Minerva's three header pages 0 → 4–5 on the 300-dpi lines |
+| (d) Minerva's multi-term mark as a scan reads it ("<>", "<~", "2") before the section and the title | 63.0 / 92.6 / 16 | 67.0 / 94.1 / 21 | 67.0 / 96.7 / 17 | 69.6 / 96.7 / 11 | 0 / 0 | adopted `ce56a71` — the multi-term page 2 → 7 / 1 → 7 of 8 |
+| (b) the junk-code guard on lines under the floor (80): an all-lower-case subject with a letter whose capital differs, a decimal number taken for a code, a title with no word of four letters | 63.0 / 92.6 / 13 (6) | 67.0 / 94.1 / 14 (4) | 67.0 / 96.7 / 13 (5) | 69.6 / 96.7 / 9 (5) | `--quick` false rows L0 2 → 1, L5 4 → 1; synthetic 0 / 0 | adopted `81b038d` |
+| (b) with any lower-case letter refused ("Contin", "Math") | — / — / 12 | — / — / 12 | — / — / 13 | — / — / 8 | the Addis Ababa render loses 2 of 9 rows (L2), 1 (L5) | not adopted |
+| (b) with a numeric code needing its credits (and a grade) | unchanged rows | | | | the renders lose 3 (34) real rows whose credits the scan misread | not adopted |
+
+The three rules together, same lines: L2 58.1 → 63.0 %, rows found 92.2 → 92.6 %, false rows 16 → 13,
+field accuracy 81.8 → 83.8 %; L5 62.2 → 67.0 %, 93.7 → 94.1 %, 21 → 14, 84.5 → 86.8 %; 0 regression lines.
+On the whole ladder — the shipped-scale lines of L0–L6 (`ocr-step25-lines-auto/`: the full run's lines for 41 seeds; it was stopped there while another agent's engine gate held the machine, and the other 21 seeds were read in parallel into `ocr-step25-rest/`; L2 / L5 from the medium run) — every level gains and loses no row: row accuracy 72.2 → 74.8 / 70.7 → 73.3 / 58.1 → 63.0 / 43.3 → 44.1 / 44.8 → 46.7 / 62.2 → 67.0 % at L0–L5 and 72.2 → 74.8 / 71.5 → 74.1 % at L6-90 / L6-180; false rows 13 → 11 / 15 → 11 / 16 → 13 / 19 → 15 / 27 → 23 / 21 → 14 and 23 → 13 / 15 → 12; 0 regression lines, 33 improvements.
+
+**(c) The flat 300-dpi render, re-tested on the new parser — NOT adopted** (`bc36cde`). Step 12 rejected a flat
+300 because a misread header cell unmapped a table; with rules (a), (d), (b) in place the same pages were read at a
+flat 300 dpi (`--config {"scale": 4.1667}`; `ocr-step25-flat300-medium/` + `-flat300-rest/`) and scored by the same
+parser against the shipped scale (`ocr-step25-lines-auto/`):
+
+| level | row acc | rows found | false rows (negatives with any) | note |
+|---|---|---|---|---|
+| L0 clean (200 dpi) | 74.8 → 77.0 % | 96.7 → 96.7 % | 11 (5) → 9 (3) | |
+| L1 good scan | 73.3 → 76.3 % | 97.8 → 97.4 % | 11 (4) → 7 (4) | |
+| L2 office scan | 63.0 → 67.0 % | 92.6 → 96.7 % | 13 (6) → 13 (5) | new false rows: the generator's "other" page 0 → 1, Duke 3 → 4, the Banner pair's extras |
+| L3 photocopy | 44.1 → **7.8 %** | 84.4 → 51.9 % | 15 (6) → 28 (7) | 3.3 → 10.4 s/page: the upsampled speckle reads so poorly (median mean word confidence 62) that the orientation trial reads page 1 four times |
+| L4 stamped | 46.7 → 39.6 % | 89.6 → 88.9 % | 23 (6) → 12 (6) | the Minerva long record 28 → 1 rows right |
+| L5 phone photo | 67.0 → 69.6 % | 94.1 → 96.7 % | 14 (4) → 9 (5) | new false rows: Stanford 0 → 1, Tokyo 0 → 1 |
+
+The medium set's gain is almost all one document: Evergreen's code-less credit list reads 19 rows at 300 against 11
+at 216, because at 216 one breakdown line ("*5 - Microbiology with Laboratory") is missing from the OCR lines and
+the program's sum then refuses all eight; without Evergreen it is +3 rows right at L2 and −1 at L5. The task's
+criterion — the medium set improves WITHOUT new false rows — fails (new false rows on four keys and the Banner pair,
+the totals held only by others vanishing), and the photocopy level collapses. `OCR_BASE_DPI` stays 216 (its comment
+in `src/transcript/ocr-lines.ts` carries this re-test); Evergreen's lost line at 216 is the open item.
+
+Left for the next step (2.6–2.7 and a layout fix): Alberta's "Avy" (a three-letter misread, never
+repaired by rule) keeps its first table unmapped; on Alberta's page 2 the LAYOUT stage drops "Points"
+from three of the four lower header lines — the engine reads it (confidence 84–95), `dropWatermarks`
+takes the repeated word for a tile on the skewed word boxes — so those tables stay unmapped too; Duke's
+grade key still yields "SP 40 / HP 35 / LP 25" rows (the engine drops the decimal point of "4.0") and its
+false rows remain the largest; a misread digit in a cell ("3:0", "3.0:") is Batch C's answer (4), the
+numeric correction shown beside the raw reading.

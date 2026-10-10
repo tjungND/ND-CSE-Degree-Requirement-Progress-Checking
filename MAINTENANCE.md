@@ -333,6 +333,7 @@ replay's scorer plus line CER, flag precision/recall and seconds per page.
     npm run ocr-bench -- --full          # adds the synthetic renders; prints the estimate (hours); add --yes to run it, attended
     npm run ocr-bench -- --pinned        # the nine committed pages in tests/fixtures/ocr-scans/
     npm run ocr-bench -- --compare <after-dir> --baseline <before-dir>   # the deltas of two finished runs
+    npm run ocr-bench -- --levels L2,L5 --families … --reparse <run-dir> --out <dir>   # a PARSER change: re-score a run's saved OCR lines, no engine, seconds
 
 Every A/B of an OCR change (`--config knobs.json` holds the engine knobs: scale, PSM, dpi,
 interword spaces, threshold, invert, rotateAuto, border, rotationTrial) is `--quick` — and, for
