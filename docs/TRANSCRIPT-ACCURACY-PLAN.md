@@ -1069,9 +1069,8 @@ changed; the scanner-layer preview has no e2e fixture yet).
 
 Open issues:
 
-- **DGS:** the L7 trade — 6 more flagged extras (94 → 100, the exact path's figure) against real rows the guard
-  dropped silently. A middle way, if wanted: on a scanner layer, show the rows the guard would refuse UNTICKED
-  (still visible and editable) instead of ticked — a preview change with its own wording.
+- ~~**DGS:** the L7 trade~~ — closed 2026-10-10, DGS “(a)”: kept as built (every row of a scanner's layer shown
+  ticked and flagged; 94 → 100 accepted). See “The DGS's answers to the stage report” below.
 - TH02's heading test reads English institution words only (University / Institute / Polytechnic / College): a
   Thai heading printed only in Thai script, or a name with none of those words, falls back to the calendar-order
   rule.
@@ -1158,8 +1157,18 @@ Open issues from this verification (the DGS's are marked):
 - Pre-existing, seen in the crops: the “Credit system on this transcript” select shows “Semest” (also in the
   combined preview); a full-size text-layer row prints its term as “FA23” under TERM with an empty YEAR column —
   code-less rows are always full-size, so they show it every time.
-- Carried, unchanged: the L7 trade (DGS); the transcript gate, CUNY, trimester evidence, question (g), a city
-  for a country, Thai summers and Buddhist-era years (DGS); Melbourne / Limerick and the five public PDFs not
+- Carried, unchanged: the transcript gate, CUNY, trimester evidence, question (g), Thai
+  summers and Buddhist-era years (DGS); Melbourne / Limerick and the five public PDFs not
   on disk (DGS); the WordPress footer snippet (DGS); a sanitized Workday sample (DGS, later); the 16
   known-failing text fixtures; Alberta's “Avy” and dropped “Points”; Duke's key; colon / dropped-point numerics;
   rule (b) on short-word titles; TH02's English-only heading words; `dateOnLine` and ordinal dates.
+
+### The DGS's answers to the stage report (2026-10-10)
+
+1. “yes, shrink” — the scanned-line strip shrinks to fit the row at any width (`328b1ac`; `src/ui/scan-strips.ts`,
+   `src/style.css`; the e2e asserts no sideways scroll at 390 px on both engines).
+2. “(a)” — the L7 trade is kept: a scanner's own text layer skips the junk-code guard, every row shown ticked and
+   flagged; L7 false rows 94 → 100 accepted, real rows never dropped. No code change.
+3. “No” — a city in a university's name does not stand for its country; SJTU stays known-failing (`328b1ac`).
+4. Waiting: the transcript gate (McGill's course-outline row), CUNY as a campus system, “Trimester GPA” as
+   trimester evidence.

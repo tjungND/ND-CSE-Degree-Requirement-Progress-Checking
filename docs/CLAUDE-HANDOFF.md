@@ -438,7 +438,8 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   lets only a decimal or a grade leave a title; (d) `parseExternalTranscript`'s third argument
   `{ scannerLayer: true }` (`ExternalParseOptions`) turns the junk-code guard OFF for a scanner's own layer —
   every new caller that parses such a layer (the app, the bench's L7, a script) must pass it, or real rows
-  vanish; (e) `undergraduateInProgress` counts a raw result as final only as a mark (`FINAL_MARK_RE`) or a
+  vanish (the DGS kept this trade on 2026-10-10, “(a)”: L7's 94 → 100 flagged extras over any real row lost);
+  (e) `undergraduateInProgress` counts a raw result as final only as a mark (`FINAL_MARK_RE`) or a
   band word (`BAND_WORD_RE`) — a new band system's words go in that list, never "any raw grade".
 - **The next stage's verification** (2026-10-10, one commit "Transcript accuracy next stage: verification and
   records"; plan §5 has the numbers and what the screenshots show). The e2e now covers two Batch C answers on
