@@ -846,3 +846,33 @@ describe('transcript accuracy program, Batch C — CC16 side-by-side semesters (
     assert.deepEqual(r.courses.map((c) => c.title), ['College English']);
   });
 });
+
+describe('transcript accuracy program, Batch C — TH02 country calendars (2026-10-09)', () => {
+  const termOf = (r: ReturnType<typeof parseExternalTranscript>, id: string) => [row(r, id)?.season, row(r, id)?.year];
+  const thai = ['CHULALONGKORN UNIVERSITY', 'OFFICE OF THE REGISTRAR   Bangkok, Thailand', 'TRANSCRIPT OF RECORDS'];
+  const terms = ['First Semester 2022', 'Course No.   Course Title   Credits   Grade', '2110501   Computer Architecture   3   A', 'Second Semester 2022', '2110521   Machine Learning   3   A', 'First Semester 2023', '2110620   Special Topics   3   W'];
+  it('Thailand: "First Semester 2022" is August–December (the fall), the second semester the spring of the next year', () => {
+    const r = doc(...thai, ...terms);
+    assert.deepEqual(termOf(r, '2110501'), ['fall', 2022]);
+    assert.deepEqual(termOf(r, '2110521'), ['spring', 2023]);
+    assert.deepEqual(termOf(r, '2110620'), ['fall', 2023]);
+  });
+  it('without the country named in a header cell the calendar-order rule stands; a course title naming it is no evidence', () => {
+    const plain = doc('CHULALONGKORN UNIVERSITY', 'TRANSCRIPT OF RECORDS', ...terms);
+    assert.deepEqual(termOf(plain, '2110501'), ['spring', 2022]);
+    assert.deepEqual(termOf(plain, '2110521'), ['fall', 2022]);
+    const title = doc('SOME UNIVERSITY', 'TRANSCRIPT OF RECORDS', 'Course No.   Course Title   Credits   Grade', 'First Semester 2022', 'HIST 101   History of Thailand   3   A');
+    assert.deepEqual(termOf(title, 'HIST 101'), ['spring', 2022]);
+  });
+  it('a transcript that prints a term’s month range is read by its own months, never by the table', () => {
+    const r = doc(...thai, 'First Semester 2022 (Jun - Oct 2022)', 'Course No.   Course Title   Credits   Grade', '2110501   Computer Architecture   3   A', 'Second Semester 2022', '2110521   Machine Learning   3   A');
+    assert.deepEqual(termOf(r, '2110501'), ['fall', 2022]);
+    assert.deepEqual(termOf(r, '2110521'), ['fall', 2022], 'the calendar-order rule, not the table');
+  });
+  it('a single-year academic year is placed by the country calendar: side-by-side columns and a lone semester line', () => {
+    const cols = doc(...thai, '2022 Academic Year', '1st Semester   2nd Semester', 'Course   Credits   Score   Course   Credits   Score', 'Computer Architecture   3   A   Machine Learning   3   B+');
+    assert.deepEqual(cols.courses.map((c) => [c.title, c.season, c.year]), [['Computer Architecture', 'fall', 2022], ['Machine Learning', 'spring', 2023]]);
+    const lone = doc(...thai, '2022 Academic Year', '1st Semester', 'Course   Credits   Score', 'Computer Architecture   3   A');
+    assert.deepEqual(lone.courses.map((c) => [c.title, c.season, c.year]), [['Computer Architecture', 'fall', 2022]]);
+  });
+});

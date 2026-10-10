@@ -2024,8 +2024,15 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * "2018-2019 First Semester"); anything else is not placed. */
   const placeSemester = (n: number): { year: number; season: Season } | null => {
     if (academicRange) return n === 1 ? { year: academicRange.first, season: 'fall' } : n === 2 ? { year: academicRange.second, season: 'spring' } : n === 3 ? { year: academicRange.second, season: 'summer' } : null;
+    // A single-year academic year ("2022 Academic Year") is placed only by
+    // the document's country calendar (TH02).
+    if (academicYearAlone !== undefined) return calendarSemester(n, academicYearAlone) ?? null;
     return null;
   };
+  /** The year of a single-year academic-year header in force ("2001
+   * Academic Year", "Academic Year: 2022") — not a calendar year. */
+  let academicYearAlone: number | undefined;
+  const ACADEMIC_YEAR_ALONE_RE = /^(?:((?:19|20)\d{2})\s+academic\s+year|academic\s+year\s*:?\s*((?:19|20)\d{2}))$/i;
   const readSemesterColumns = (line: string): boolean => {
     const cells = line.replace(/\s{2,}/g, '  ').trim().split(/\s{2,}/);
     if (cells.length < 1 || cells.length > 2 || !cells.every((c) => SEMESTER_CELL_RE.test(c))) return false;
@@ -2059,10 +2066,19 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     else if (SECTION_HEADING_RE.test(line)) inProgressBlock = false;
     // Two semesters named side by side ("First Semester   Second Semester")
     // head the two halves of a CC16 table — not one term header.
-    const twoColumns = readSemesterColumns(line) && semesterColumns!.length === 2;
-    const term = twoColumns || codelessRowShape(line) ? undefined : readTermLine(line);
+    const semesterLine = readSemesterColumns(line);
+    const twoColumns = semesterLine && semesterColumns!.length === 2;
+    // One semester alone under a single-year academic year that the country
+    // calendar places ("2022 Academic Year" / "1st Semester", TH02) is that
+    // term's header.
+    const lone = semesterLine && !twoColumns && academicYearAlone !== undefined ? semesterColumns![0] : null;
+    const term: TermRead | undefined = lone ? { ...lone, explicit: true } : twoColumns || codelessRowShape(line) ? undefined : readTermLine(line);
     termLineHere = term !== undefined;
     if (term) semesterColumns = undefined;
+    if (term && !lone) {
+      const alone = ACADEMIC_YEAR_ALONE_RE.exec(line.replace(/\s+/g, ' ').trim());
+      academicYearAlone = alone && term.season === undefined ? term.year : undefined;
+    }
     if (term) {
       // (The in-progress section's own term line — "Term: Fall 2024" under
       // "COURSES IN PROGRESS" — does not end it; a section heading does.)
@@ -2118,6 +2134,57 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const first = years[0]!;
     const last = years[years.length - 1]!;
     return season !== undefined && season !== 'fall' && last === first + 1 ? last : first;
+  };
+  // -------------------------------------------------------------------
+  // TH02 — academic calendars set at COUNTRY level (DGS 2026-10-09,
+  // transcript accuracy program, Batch C: "a small country-level
+  // academic-calendar table in code beside readTermLine (Thailand first),
+  // each entry with its source, used only when the transcript prints no
+  // month range itself"). A transcript that numbers its semesters within a
+  // printed year ("First Semester 2022") without their months is placed by
+  // its country's calendar when the document names the country; without one
+  // the calendar-order rule below stands (2026-09-26). An entry needs a
+  // source a future DGS can open, and the country as the document prints it
+  // — a city or an institution's name is not evidence (a question for the
+  // DGS before China, whose single-year "2001 Academic Year" SJTU's template
+  // prints with no country, can be added). The year a semester is numbered
+  // in is the ACADEMIC year, which opens in the first semester.
+  // -------------------------------------------------------------------
+  interface CountryCalendar {
+    country: string;
+    /** A header cell that names the country: "Bangkok, Thailand", "Bangkok
+     * 10330, Thailand", "THAILAND" — never a course title ("History of
+     * Thailand" has no comma before the name). */
+    evidence: RegExp;
+    /** Each numbered semester: its season, and the years after the academic
+     * year it was numbered in. */
+    semesters: Partial<Record<1 | 2 | 3, { season: Season; yearOffset: 0 | 1 }>>;
+    source: string;
+  }
+  const COUNTRY_CALENDARS: readonly CountryCalendar[] = [
+    {
+      country: 'Thailand',
+      evidence: /^(?:[\p{L}][\p{L}\d .'-]*,\s*(?:\d{5}\s+)?|\d{5}\s+)?(?:kingdom\s+of\s+)?thailand\.?$/iu,
+      // First Semester August–December → the fall of the academic year;
+      // Second Semester January–May → the spring of the next calendar year;
+      // the Summer Session June–July → its summer.
+      semesters: { 1: { season: 'fall', yearOffset: 0 }, 2: { season: 'spring', yearOffset: 1 }, 3: { season: 'summer', yearOffset: 1 } },
+      source:
+        'Chulalongkorn University, Faculty of Science, academic calendar (https://www.sis.sc.chula.ac.th/?p=32, read 2026-10-09): "First Semester: August – December; Second Semester: January – May; Summer Session (Optional): June – July"; the Office of the Registrar dates academic year 2568 (2025) from a first semester opening 4 August 2025 and a second opening 5 January 2026 (Start_EndDates_E-Sem2568.pdf, reg.chula.ac.th).',
+    },
+  ];
+  /** The country calendar this document is placed by: its country named in
+   * a header cell (the first 15 lines), and no term printed with its own
+   * month range anywhere (the transcript's months win). */
+  const countryCalendar: CountryCalendar | undefined = (() => {
+    if (lines.some((l) => MONTH_RANGE_RE.test(l) && TERM_WORD_RE.test(l))) return undefined;
+    const cells = lines.slice(0, 15).flatMap((l) => l.split(/\s{2,}/).map((c) => c.trim()));
+    return COUNTRY_CALENDARS.find((c) => cells.some((cell) => c.evidence.test(cell)));
+  })();
+  /** A numbered semester of `academicYear` by the country's calendar. */
+  const calendarSemester = (n: number, academicYear: number): { year: number; season: Season } | undefined => {
+    const place = countryCalendar?.semesters[n as 1 | 2 | 3];
+    return place ? { year: academicYear + place.yearOffset, season: place.season } : undefined;
   };
   const readTermLine = (line: string): TermRead | undefined => {
     if (!TERM_WORD_RE.test(line) && !YEAR_PART_RE.test(line) && !SLASH_ORDINAL_RE.test(line) && !/\bsession\s*:/i.test(line)) return undefined;
@@ -2246,8 +2313,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       if (range) return ordinal === 1 ? { year, season: 'fall' } : ordinal === 2 ? { year: secondYear(range), season: 'spring' } : { year: secondYear(range), season: 'summer' };
       // One calendar year, numbered terms: in calendar order — the first is
       // the spring, the last the fall, a middle one the summer (UNSW's three
-      // terms). Thailand's "First Semester 2022" (August–December) is the one
-      // documented exception (DECISIONS.md, 2026-09-26).
+      // terms) — unless the document's country numbers them in its academic
+      // year (TH02, above: Thailand's "First Semester 2022" is August–December).
+      const byCountry = calendarSemester(ordinal, year);
+      if (byCountry) return { ...byCountry, explicit: true };
       if (ubcSessionYear !== undefined && year === ubcSessionYear) return ordinal === 1 ? { year, season: 'fall' } : { year: year + 1, season: 'spring' };
       if (maxOrdinal >= 3) return { year, season: ordinal === 1 ? 'spring' : ordinal === 2 ? 'summer' : 'fall', explicit: true };
       return { year, season: ordinal === 1 ? 'spring' : ordinal === 2 ? 'fall' : 'summer', explicit: true };
