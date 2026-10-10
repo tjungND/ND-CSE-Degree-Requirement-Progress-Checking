@@ -156,7 +156,7 @@ export interface ClassifiedCourse {
   superseded?: boolean;
   /** Who said the credits were quarter hours: the DGS's ExternalCourses row,
    * or the transcript's own term headers (2026-09-11). */
-  creditSystemSource?: 'sheet' | 'transcript';
+  creditSystemSource?: 'sheet' | 'transcript' | 'student';
   /** Transfer rows only (F5, 2026-09-12): the DGS has reviewed this course —
    * an ExternalCourses verdict, or a Courses-tab row for a Notre Dame course —
    * so the §5.2 checkbox can settle it. */
@@ -1806,7 +1806,7 @@ function classifyTransfer(env: ClassifyEnv, c: CourseEntry, rule: RuleCourse | u
     // the only thing that works when a course's credits vary by term.
     effectiveCredits: ndEquivalentCredits(c.credits, external, creditSystem, conversionFactor),
     ...(external?.ndCredits === undefined && (creditSystem === 'quarter' || creditSystem === 'trimester') && conversionFactor !== undefined
-      ? { creditsConverted: true as const, convertedFrom: creditSystem, conversionFactor, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : 'transcript') as 'sheet' | 'transcript' }
+      ? { creditsConverted: true as const, convertedFrom: creditSystem, conversionFactor, creditSystemSource: (sheetCreditSystem !== undefined ? 'sheet' : c.creditSystemChosen ? 'student' : 'transcript') as 'sheet' | 'transcript' | 'student' }
       : {}),
     approvalPending: settled
       ? undefined
@@ -2644,7 +2644,7 @@ function buildExplanationText(
       parts.push(`counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'}, as your Notre Dame record shows them (the ${cc.entry.institution ?? 'other'} transcript shows ${formatCredits(cc.entry.credits)})`);
     } else if (cc.effectiveCredits !== undefined && cc.effectiveCredits !== cc.entry.credits) {
       parts.push(
-        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the ${cc.convertedFrom ?? 'quarter'} system at ${creditSystemFactorLabel(cc.conversionFactor ?? 1)}${cc.creditSystemSource === 'transcript' ? ` — your transcript says ${cc.convertedFrom ?? 'quarter'} terms; the DGS’s decision for the university can correct this` : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
+        `counted as ${formatCredits(cc.effectiveCredits)} ND ${cc.effectiveCredits === 1 ? 'credit' : 'credits'} ${cc.creditsConverted ? `converted from the ${cc.convertedFrom ?? 'quarter'} system at ${creditSystemFactorLabel(cc.conversionFactor ?? 1)}${cc.creditSystemSource === 'transcript' ? ` — your transcript says ${cc.convertedFrom ?? 'quarter'} terms; the DGS’s decision for the university can correct this` : cc.creditSystemSource === 'student' ? ` — you chose ${cc.convertedFrom ?? 'quarter'} terms when importing; the DGS’s decision for the university can correct this` : ''}` : 'per the DGS’s value for this course'} (transcript shows ${formatCredits(cc.entry.credits)}; §5.2)`,
       );
     }
     // The cap covers both levels below 60000 since 2026-09-09, so the line

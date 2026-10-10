@@ -958,6 +958,15 @@ table.course-rules tr.deep-linked td, table.course-rules tr.deep-linked th { bac
   /* Pills are colour on screen and grey boxes on paper: give the text its own
      weight so "Yes" and "No" stay apart when the ink does not. */
   .courses-page .pill { border: 1px solid #999; font-weight: 700; }
+  /* Portrait paper is a table too (DGS 2026-10-10, "Tables"), and it is
+     680–720 px wide: the All courses table needed 870 px and a schedule table
+     757, so their right-hand columns were cut off the sheet. The paper has its
+     own margins, a cell needs less air than on screen, and a pill may wrap
+     ("With DGS / approval") — then every column fits. */
+  #app.courses-page { padding-left: 0; padding-right: 0; }
+  /* `tbody th` and the schedule tables' cells too: their own rules outrank a bare `th`. */
+  table.course-rules th, table.course-rules td, table.course-rules tbody th, table.course-rules.schedule-table th, table.course-rules.schedule-table td { padding: 4px 5px; }
+  table.course-rules .pill { white-space: normal; display: inline-block; border-radius: 8px; }
 }
 
 /* who-to-contact card, at the end of every page (names live in src/ui/contacts.ts) */
@@ -1285,7 +1294,16 @@ tr.ocr-low td { background: var(--note-bg); }
 }
 
 /* ---------- courses.html on phones and tablets in portrait: cards instead of the 980 px table ---------- */
+/* On SCREEN only (DGS 2026-10-10, "Tables"): a browser lays a printout out at
+   the paper's width, under 861 px on portrait Letter or A4, and this block
+   printed the course list as 36 pages of phone cards; on paper the list is
+   the table at every size. Wrapping a long title is right at any narrow
+   width, so those two rules stay for print too. */
 @media (max-width: 860px) {
+  .schedule-table td.cell-title, .schedule-table th[scope='col'] { white-space: normal; }
+  .ov-item { white-space: normal; }
+}
+@media screen and (max-width: 860px) {
   .mobile-only { display: flex; }
   .filters .filter.mobile-only { display: flex; grid-column: 1 / -1; flex-direction: row; align-items: flex-end; gap: 12px; }
   .courses-page .table-scroll { overflow: visible; border: 0; background: none; }
@@ -1456,6 +1474,16 @@ table.courses tr[hidden] { display: none !important; }
      the box (cross-browser review, 2026-10-10). Embedded pages have no bar. */
   html:not(.embed) { scroll-padding-bottom: calc(88px + var(--float-warnings, 0px) + var(--float-steps, 0px)); scroll-padding-top: 24px; }
 }
+/* The report's folds print as the screen has them (DGS 2026-10-10, item 1:
+   "Let paper match the screen"): a closed one is its heading. Chrome, Edge,
+   Opera and Safari do that by themselves; Firefox printed every closed fold
+   open, handbook quote and all. */
+@media print { #report details:not([open]) > :not(summary) { display: none !important; } }
+/* Paper ends where the content does: the room left above for the score bar and
+   the floating boxes (and #app's own 60 px) printed a blank last sheet when the
+   report ended near a page's foot (DGS 2026-10-10, item 1: with the folds as the
+   screen has them, Chrome's Letter portrait ran to an empty fifth page). */
+@media print { #app, #app:not(.courses-page), html.embed #app { padding-bottom: 0; } }
 @media print { .attention.floating { position: static; width: auto; max-height: none; overflow: visible; box-shadow: none; } .attention.floating h3 { position: static; margin: 0 0 4px; padding: 0; } .attention h3 .attention-toggle { display: none !important; } .attention.floating.folded .attention-body { display: block; } }
 
 /* ---------- simulation mode (DGS 2026-10-09; src/ui/simulation.ts, app.ts) ---------- */

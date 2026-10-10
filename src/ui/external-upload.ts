@@ -163,6 +163,10 @@ interface ExternalPreview {
    * trimester 2026-09-12); the student can correct it in the preview.
    * `undefined` = semester / not stated. */
   creditSystem?: 'quarter' | 'trimester' | 'semester';
+  /** What the parser read, kept when the student changes `creditSystem`, so
+   * the note says who chose it (DGS 2026-10-10, item 3: a hand-picked system
+   * was still "read from how the transcript names its terms"). */
+  creditSystemRead?: 'quarter' | 'trimester';
 }
 
 /** The preview's "Bachelor's degree awarded" (DGS 2026-09-06 evening): in the
@@ -695,13 +699,38 @@ export function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string
   return rows.some((r) => (r.grade === '' && !finalResult(r.rawGrade)) || r.grade === 'IP');
 }
 
+/** The note beside "Credit system on this transcript" (DGS 2026-10-10, item 3:
+ * a system the student picked by hand still said it was "read from how the
+ * transcript names its terms"). `read` is what the transcript reader found
+ * (W-CL424 keeps its sentence when the menu still says that); a choice the
+ * student made says so and what the reader found (W-CL427: quarter or
+ * trimester picked by hand; W-CL428: semester picked over a system the reader
+ * found). The reader can miss a system, so a choice over "nothing found" says
+ * the reader found none, not that the transcript names none. Any non-semester
+ * system, or any choice against the reader, is a warning: credits change. */
+export function creditSystemNote(read: 'quarter' | 'trimester' | undefined, selected: 'quarter' | 'trimester' | 'semester' | undefined): { text: string; warn: boolean } {
+  const chosen = selected === 'quarter' || selected === 'trimester' ? selected : undefined;
+  const example = (sys: 'quarter' | 'trimester') => `a 4-credit course counts ${(4 * (creditSystemFactor(sys) ?? 1)).toFixed(2)} Notre Dame credits`;
+  if (chosen !== undefined && chosen === read) {
+    return { text: ` — read from how the transcript names its terms. Its credits will be converted (${example(chosen)}, §5.2 pro-rata). Change this if the parser misread; the DGS’s ruling for the university overrides it either way.`, warn: true };
+  }
+  const found = read ? `the parser read ${read} hours` : 'the parser found none on the transcript';
+  if (chosen !== undefined) {
+    return { text: ` — chosen by you; ${found}. Its credits will be converted (${example(chosen)}, §5.2 pro-rata); the DGS’s ruling for the university overrides your choice.`, warn: true };
+  }
+  if (read !== undefined) {
+    return { text: ` — chosen by you; ${found}. Its credits will be counted as printed; the DGS’s ruling for the university overrides your choice.`, warn: true };
+  }
+  return { text: ' — change this if your university counts in quarter or trimester hours and the parser did not notice; credits are then converted pro-rata (§5.2).', warn: false };
+}
+
 /** The course one ready preview row becomes on Add — built field by field
  * from the values the student checked, never by copying the row, so nothing
  * the preview holds besides them reaches the record, its JSON export or its
  * localStorage copy: not the scan's raw readings (`ocrRead`, Batch C answer
  * (4)), and not the scanned-line images, which are not on the row at all
  * (src/ui/scan-strips.ts, answer (5) — tests/scan-strip.test.ts asserts it). */
-export function courseEntryOf(r: PreviewRow, p: Pick<ExternalPreview, 'slot' | 'unofficial' | 'creditSystem'>, university: string): CourseEntry {
+export function courseEntryOf(r: PreviewRow, p: Pick<ExternalPreview, 'slot' | 'unofficial' | 'creditSystem' | 'creditSystemRead'>, university: string): CourseEntry {
   return {
     courseId: canonicalCourseId(r.courseId),
     title: r.title.trim() || undefined,
@@ -718,7 +747,11 @@ export function courseEntryOf(r: PreviewRow, p: Pick<ExternalPreview, 'slot' | '
     ...(p.unofficial ? { fromUnofficialTranscript: true as const } : {}),
     // The mark as printed, when the student mapped it to a letter (2026-10-03).
     ...(r.rawGrade ? { transcriptMark: r.rawGrade } : {}),
-    ...((p.creditSystem === 'quarter' || p.creditSystem === 'trimester') && !isNotreDameInstitution(university) ? { creditSystem: p.creditSystem } : {}),
+    ...((p.creditSystem === 'quarter' || p.creditSystem === 'trimester') && !isNotreDameInstitution(university)
+      ? // Who chose it (DGS 2026-10-10, item 3): the report says "you chose …"
+        // rather than "your transcript says …" for a system picked by hand.
+        { creditSystem: p.creditSystem, ...(p.creditSystem !== p.creditSystemRead ? { creditSystemChosen: true as const } : {}) }
+      : {}),
   };
 }
 
@@ -779,6 +812,7 @@ function previewFromParsed(
     campusFromTranscript: parsed.campus !== undefined,
     conferred: parsed.degreeConferred,
     creditSystem: parsed.quarterSystem ? 'quarter' : parsed.trimesterSystem ? 'trimester' : undefined,
+    creditSystemRead: parsed.quarterSystem ? 'quarter' : parsed.trimesterSystem ? 'trimester' : undefined,
     bachelorsConferredOn: parsed.bachelorsConferredOn,
     ...bachelors,
     rows: kept.rows,
@@ -1392,7 +1426,6 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // basis"). A quarter transcript's 4 credits are 2.64 Notre Dame
             // credits, a trimester's 3.52; the DGS's row for the university
             // overrides whatever is chosen.
-            const detected = p.creditSystem === 'quarter' || p.creditSystem === 'trimester';
             // The Graduate School's factors (DGS Handbook §3.14), in code
             // since 2026-10-04 — they were sheet rows from 2026-09-12.
             const factorOf = (sys: 'quarter' | 'trimester') => creditSystemFactor(sys) ?? 1;
@@ -1401,7 +1434,6 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // 0.66" were cut there); the sentence after the menu gives the
             // effect in credits.
             const at = (sys: 'quarter' | 'trimester') => `(× ${factorOf(sys).toFixed(2)})`;
-            const example = (sys: 'quarter' | 'trimester') => `a 4-credit course counts ${(4 * factorOf(sys)).toFixed(2)} Notre Dame credits`;
             const sel = el('select', { 'data-key': 'ext.preview.creditsystem' });
             for (const [value, label] of [
               ['semester', 'Semester hours (as printed)'],
@@ -1417,13 +1449,12 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
               p.creditSystem = v === 'quarter' || v === 'trimester' ? v : 'semester';
               render();
             });
+            const { text: note, warn } = creditSystemNote(p.creditSystemRead, p.creditSystem);
             return el(
               'p',
-              { class: `hint ${detected ? 'warn' : ''} quarter-note` },
+              { class: `hint ${warn ? 'warn' : ''} quarter-note` },
               el('label', {}, 'Credit system on this transcript: ', sel),
-              detected
-                ? ` — read from how the transcript names its terms. Its credits will be converted (${example(p.creditSystem === 'quarter' ? 'quarter' : 'trimester')}, §5.2 pro-rata). Change this if the parser misread; the DGS’s ruling for the university overrides it either way.`
-                : ' — change this if your university counts in quarter or trimester hours and the parser did not notice; credits are then converted pro-rata (§5.2).',
+              note,
             );
           })(),
         ]

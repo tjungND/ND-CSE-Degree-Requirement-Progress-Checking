@@ -138,6 +138,10 @@ export interface CourseEntry {
    * correctable in the preview. A `credit_system` cell in the DGS's
    * ExternalCourses tab for the university always wins over it. */
   creditSystem?: 'quarter' | 'semester' | 'trimester';
+  /** transfer-only: the STUDENT chose `creditSystem` in the import preview —
+   * the transcript reader had not read it there (DGS 2026-10-10, item 3). The
+   * report then says "you chose quarter terms", not "your transcript says". */
+  creditSystemChosen?: true;
 }
 
 /** ISO dates (YYYY-MM-DD), all optional — milestones are dates, not checkboxes. */

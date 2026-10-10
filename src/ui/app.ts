@@ -449,15 +449,14 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   /** The footer's disclosure ("Where the rules come from"; "What is still
    * being tested" went with P-3, 2026-09-19) prints OPEN and return to what the student had (trim
    * review 2026-09-18, P-71): closed, they printed as two bare headings.
-   * So does every fold in the report since 2026-10-10 — "Relevant Policies"
-   * with its handbook quote, "Courses counted", the track notes, the terms:
-   * Chrome, Edge and Opera printed each closed one as a bare heading
-   * (Safari could not be printed here), Firefox printed them open (cross-browser review; the
-   * course page's legend has printed open since P-32).
+   * The report's folds ("Relevant Policies", "Courses counted", the track
+   * notes) print as the student left them on screen (DGS 2026-10-10: "Let
+   * paper match the screen") — a closed one as its heading only, in every
+   * browser; style.css keeps Firefox, which printed them open, to that.
    * Only the ones this handler opened are closed again; restoreFocus reads
    * the open state from the DOM, so a later re-render keeps the screen state. */
   window.addEventListener('beforeprint', () => {
-    document.querySelectorAll<HTMLDetailsElement>('footer.legal details:not([open]), #report details:not([open])').forEach((d) => {
+    document.querySelectorAll<HTMLDetailsElement>('footer.legal details:not([open])').forEach((d) => {
       d.dataset.printOpened = '';
       d.open = true;
     });

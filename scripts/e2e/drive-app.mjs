@@ -768,13 +768,13 @@ export async function driveApp(s, baseUrl) {
   // Printing opens the footer's closed disclosure ("Where the rules come
   // from") and closes it again afterwards
   // (trim review 2026-09-18, P-71): a closed <details> prints as a bare
-  // heading with nothing under it. The report's folds too since 2026-10-10
-  // ("Relevant Policies" with its handbook quote, "Courses counted"…): Chrome
-  // printed them closed and Firefox open (cross-browser review). The handler
-  // listens for beforeprint / afterprint, so dispatching the events stands in
-  // for the print dialog headless Chrome cannot show. One report fold is left
-  // open beforehand, as a student would leave it, so the "return to what the
-  // student had" half is exercised too: afterprint closes only what printing opened.
+  // heading with nothing under it. The report's folds print as the screen has
+  // them (DGS 2026-10-10, item 1: "Let paper match the screen"): printing
+  // leaves them alone, and under print media a closed one shows its heading
+  // only — Firefox printed every closed fold open until style.css said so. The
+  // handler listens for beforeprint / afterprint, so dispatching the events
+  // stands in for the print dialog headless Chrome cannot show. One report
+  // fold is left open beforehand, as a student would leave it.
   const printFold = JSON.parse(await s.evalJs(`JSON.stringify((() => {
     const all = () => [...document.querySelectorAll('footer.legal details, #report details')];
     const original = all().map((d) => d.open);
@@ -786,12 +786,37 @@ export async function driveApp(s, baseUrl) {
     window.dispatchEvent(new Event('afterprint'));
     const after = all().map((d) => d.open);
     all().forEach((d, i) => { d.open = original[i]; });
-    return { n: before.length, kept, report: document.querySelectorAll('#report details').length, before, during, after };
+    const footer = all().map((d) => d.matches('footer.legal details'));
+    return { n: before.length, kept, footer, report: document.querySelectorAll('#report details').length, before, during, after };
   })())`));
-  console.log(`  disclosures around printing (footer and report): ${printFold.before.filter(Boolean).length} open of ${printFold.n} → ${printFold.during.filter(Boolean).length} open while printing → ${printFold.after.filter(Boolean).length} open after (the student's own)`);
+  console.log(`  disclosures around printing (footer and report): ${printFold.before.filter(Boolean).length} open of ${printFold.n} → ${printFold.during.filter(Boolean).length} open while printing (the footer's, and the student's own) → ${printFold.after.filter(Boolean).length} open after`);
   if (printFold.n < 2 || printFold.report < 1 || printFold.kept < 0) throw new Error('expected the footer disclosure and the report\'s folds: ' + JSON.stringify(printFold));
-  if (!printFold.during.every(Boolean)) throw new Error('beforeprint must open every closed footer and report disclosure so the printed page carries its text (P-71): ' + JSON.stringify(printFold));
+  const wrongWhilePrinting = printFold.during.filter((open, i) => open !== (printFold.footer[i] || printFold.before[i])).length;
+  if (wrongWhilePrinting > 0) throw new Error('beforeprint must open the footer\'s disclosure (P-71) and leave every report fold as the student had it (DGS 2026-10-10): ' + JSON.stringify(printFold));
   if (printFold.after.join() !== printFold.before.join()) throw new Error('afterprint must return the disclosures to the state the student had (P-71): ' + JSON.stringify(printFold));
+  // Under print media a closed report fold shows only its heading, in every engine.
+  await s.send('Emulation.setEmulatedMedia', { media: 'print' });
+  await s.settle(100);
+  const foldPrint = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const all = [...document.querySelectorAll('#report details')];
+    const shown = all.find((d) => d.getClientRects().length > 0 && d.querySelector('.rule-quote'));
+    const folds = shown ? [shown, ...all.filter((d) => d !== shown)] : all;
+    folds.forEach((d, i) => { d.open = i === 0; });
+    // Firefox prints a closed <details> open whatever the screen does, so the
+    // closed folds are judged by the print rule itself (display: none on all
+    // but the summary) — and a bare text node, which no rule can hide, fails.
+    const inked = (d) => [...d.children].filter((c) => c.tagName !== 'SUMMARY' && getComputedStyle(c).display !== 'none' && c.getClientRects().length > 0).length;
+    const unhidden = (d) => [...d.childNodes].filter((c) => (c.nodeType === 3 ? c.textContent.trim() !== '' : c.nodeType === 1 && c.tagName !== 'SUMMARY' && getComputedStyle(c).display !== 'none')).length;
+    // Paper ends where the content does: no bottom padding (it printed a blank last sheet).
+    const r = { open: inked(folds[0]), closedShowing: folds.slice(1).filter((d) => unhidden(d) > 0).length, closed: folds.length - 1, padBottom: getComputedStyle(document.querySelector('#app')).paddingBottom };
+    folds.forEach((d) => { d.open = false; });
+    return r;
+  })())`));
+  await s.send('Emulation.setEmulatedMedia', { media: '' });
+  await s.settle(100);
+  if (foldPrint.open < 1 || foldPrint.closedShowing > 0) throw new Error('on paper an open report fold prints its text and a closed one its heading only: ' + JSON.stringify(foldPrint));
+  if (foldPrint.padBottom !== '0px') throw new Error(`on paper the page must end where the report does (a blank last sheet): #app padding-bottom ${foldPrint.padBottom}`);
+  console.log(`  report folds on paper: the open one prints its text; ${foldPrint.closed} closed ones print their heading only`);
   await checkContactWhilePrinting(s, 'index.html');
 
   await driveSimulation(s, baseUrl);
@@ -1599,7 +1624,7 @@ async function checkPrintColumns(s, baseUrl, query) {
       // Chrome repeated the header as an empty band on later landscape pages),
       // and the card never splits across two sheets (2026-10-10).
       const sorts = [...document.querySelectorAll('table.course-rules th .sort')].map((b) => getComputedStyle(b).display);
-      return JSON.stringify({ border: cs.borderTopWidth, padding: cs.paddingTop, breakInside: cs.breakInside, sorts: sorts.length, sortsNotContents: sorts.filter((d) => d !== 'contents').length });
+      return JSON.stringify({ border: cs.borderTopWidth, padding: cs.paddingTop, breakInside: cs.breakInside, sorts: sorts.length, sortsNotContents: sorts.filter((d) => d !== 'contents').length, appPadBottom: getComputedStyle(document.querySelector('#app')).paddingBottom });
     })()`),
   );
   await s.send('Emulation.setEmulatedMedia', { media: '' });
@@ -1614,6 +1639,7 @@ async function checkPrintColumns(s, baseUrl, query) {
   if (card.missing) throw new Error('the contact card is not on the page at all');
   if (card.border !== '0px' || card.padding !== '0px') throw new Error(`the contact card prints as a box (border ${card.border}, padding ${card.padding})`);
   if (card.breakInside !== 'avoid') throw new Error(`the contact card may split across two printed sheets (break-inside ${card.breakInside})`);
+  if (card.appPadBottom !== '0px') throw new Error(`on paper the page must end where the content does (a blank last sheet): #app padding-bottom ${card.appPadBottom}`);
   if (card.sorts < 1 || card.sortsNotContents > 0) throw new Error(`on paper the sort buttons must be plain header text (${card.sortsNotContents} of ${card.sorts} are not display: contents)`);
   console.log(`  printing courses.html${query || ' (plain)'}: ${tables.length} tables, every column keeps its heading (last: ${[...new Set(tables.map((t) => t.lastHeader))].join(', ')}); contact card unboxed`);
 }
@@ -1702,6 +1728,35 @@ async function checkPrintAtPaperWidth(s, baseUrl) {
   if (!during.every(Boolean)) throw new Error(`a schedule card closed while printing at paper width (${JSON.stringify({ before, during, after })})`);
   if (!after.every(Boolean)) throw new Error(`the schedule cards must be open again at desk width after printing (${JSON.stringify(after)})`);
   console.log(`  printing at paper width (740 px): ${during.length} schedule card(s) stay open, and open at 1400 px after`);
+
+  // On paper the course list is a TABLE at every size (DGS 2026-10-10,
+  // "Tables"): the phone cards are screen-only, where they printed 36 pages on
+  // portrait paper. And the table fits the sheet: at A4 portrait's 717 px the
+  // All courses table needed 870 px and its right-hand columns were cut off.
+  // As a real print does it: beforeprint (which opens the schedules), then the
+  // paper's width, then print media.
+  await s.evalJs(`window.dispatchEvent(new Event('beforeprint'))`);
+  await s.setViewport({ width: 717, height: 1900, settleMs: 250 });
+  await s.send('Emulation.setEmulatedMedia', { media: 'print' });
+  await s.settle(200);
+  const paper = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const tables = [...document.querySelectorAll('table.course-rules')].map((t) => {
+      const row = t.querySelector('tbody tr:not(.empty-row)');
+      const r = t.getBoundingClientRect();
+      return { schedule: t.classList.contains('schedule-table'), row: row ? getComputedStyle(row).display : null, head: getComputedStyle(t.querySelector('thead')).position, right: Math.round(r.right), scroll: t.parentElement.scrollWidth - t.parentElement.clientWidth };
+    });
+    const open = [...document.querySelectorAll('.sched-details')].map((d) => d.open);
+    return { width: innerWidth, page: document.documentElement.scrollWidth, open, tables };
+  })())`));
+  await s.send('Emulation.setEmulatedMedia', { media: '' });
+  await s.evalJs(`window.dispatchEvent(new Event('afterprint'))`);
+  await s.setViewport({ width: 1400, height: 1900, settleMs: 250 });
+  if (!paper.open.length || !paper.open.every(Boolean)) throw new Error('the schedules must be open while printing on portrait paper: ' + JSON.stringify(paper.open));
+  const cards = paper.tables.filter((t) => t.row !== 'table-row' || t.head === 'absolute');
+  if (paper.tables.length < 2 || cards.length > 0) throw new Error('on paper every course table must print as a table, not as cards: ' + JSON.stringify(paper));
+  const cut = paper.tables.filter((t) => t.right > paper.width || t.scroll > 0);
+  if (paper.page > paper.width || cut.length > 0) throw new Error(`the course tables must fit portrait paper (${paper.width} px) or their right-hand columns are cut off: ` + JSON.stringify(paper));
+  console.log(`  printing on portrait paper (${paper.width} px): ${paper.tables.length} course tables print as tables and fit (widest ends at ${Math.max(...paper.tables.map((t) => t.right))} px)`);
 }
 
 // The contact card while printing, on either page (cross-browser review,

@@ -304,6 +304,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  inactive Remove explained itself, nothing removed');
   await s.shot('external-preview');
   await checkPreviewSelects(s); // after the shot: it visits 320 px and comes back
+  await checkCreditNote(s);
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`,
   );
@@ -1144,6 +1145,36 @@ async function checkCompactPreview(s, width) {
 // included — at 1400 and at 320 px. Safari ignores a drop-down's vertical
 // padding, so the preview's drop-downs were about 21 px tall until they were
 // given the boxes' height (the one-line rows keep their small "Taken as").
+// The credit-system note says who chose the system (DGS 2026-10-10, item 3):
+// a system the student picks by hand was still "read from how the transcript
+// names its terms". The menu is changed and put back, so nothing else moves.
+// This fixture is a semester transcript, so it drives one branch in the page;
+// tests/credit-system-note.test.ts covers every reading × choice.
+async function checkCreditNote(s) {
+  const note = () => s.evalJs(`JSON.stringify((() => {
+    const p = document.querySelector('.external-card .transcript-preview .quarter-note');
+    const sel = p?.querySelector('[data-key="ext.preview.creditsystem"]');
+    return p ? { value: sel.value, text: p.textContent.replace(/\\s+/g, ' ').trim() } : null;
+  })())`).then(JSON.parse);
+  const pick = async (value) => {
+    await s.evalJs(`(() => { const sel = document.querySelector('.external-card .transcript-preview [data-key="ext.preview.creditsystem"]'); sel.value = ${JSON.stringify('VALUE')}; sel.dispatchEvent(new Event('change', { bubbles: true })); })()`.replace('VALUE', value));
+    await s.settle(100);
+    return note();
+  };
+  const start = await note();
+  if (!start) throw new Error('expected the credit-system menu in the external preview');
+  const read = /read from how the transcript names its terms/.test(start.text);
+  const other = start.value === 'semester' ? 'quarter' : 'semester';
+  const changed = await pick(other);
+  const back = await pick(start.value);
+  const want = read
+    ? /chosen by you; the parser read (quarter|trimester) hours\. Its credits will be counted as printed/
+    : /chosen by you; the parser found none on the transcript\. Its credits will be converted \(a 4-credit course counts 2\.64 Notre Dame credits/;
+  if (/read from how/.test(changed.text) || !want.test(changed.text)) throw new Error('a credit system chosen by hand must say so: ' + JSON.stringify({ start, changed }));
+  if (back.text !== start.text) throw new Error('putting the parser\'s reading back must restore its note: ' + JSON.stringify({ start, back }));
+  console.log(`  credit-system note: "${changed.text.split(' — ')[1]?.slice(0, 70)}…" when chosen by hand; the parser's note back when undone`);
+}
+
 async function checkPreviewSelects(s) {
   const measure = () => s.evalJs(`JSON.stringify((() => {
     const preview = document.querySelector('.external-card .transcript-preview');

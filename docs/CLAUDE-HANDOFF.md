@@ -478,8 +478,12 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   stops under them (the folded bar covered the footer's last links on every phone; a focused link
   sat under the box at 1024 px); at ≤900 px that padding is 24 px more than the bar and boxes,
   with 24 px at the top, because Firefox does not scroll a focused control whose top is already
-  inside the padded window (it stopped a third under the box); `beforeprint` opens the report's folds (Chrome printed them as
-  bare headings — the DECISIONS row; Firefox printed them open); the course page's schedule cards
+  inside the padded window (it stopped a third under the box); the report's folds print as the screen has them (DGS, same
+  day, reversing Claude's “print them open”: `beforeprint` opens only the footer's disclosure,
+  and a print rule hides a closed fold's contents, which Firefox printed); the course list
+  prints as the table on every paper (the 860 px card block is `@media screen`; DGS “Tables”),
+  fitted to portrait's ~717 px by dropping the page's side padding, tightening cells and letting
+  pills wrap; on paper `#app` has no bottom padding (it left a blank last sheet); the course page's schedule cards
   and both pages' contact card ignore the width listeners while printing (Chrome lays a printout
   out at the paper's width: it closed the schedule on portrait paper and moved the card after
   pagination, leaving a blank last sheet), and `placeContact` moves the card only when its host
@@ -492,8 +496,10 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   'wasm-unsafe-eval' fails at once into the plain message instead of hanging at 0 % and blocking
   every import; the Notre Dame
   refusal check reads only the stretch a match can cover (`endsWithUniversityOf`: the first
-  version was quadratic). The e2e pins the print folds (with a student's open fold kept), printing
-  at paper width (`checkPrintAtPaperWidth`), the narrowest phone loaded at 320 px folded and
+  version was quadratic). The e2e pins the print folds (the footer's opened, the report's left as the
+  student had them, a closed one's contents hidden under print media), printing at paper width
+  and the course tables on portrait paper (`checkPrintAtPaperWidth`), the credit-system note
+  when changed by hand (`checkCreditNote`), the narrowest phone loaded at 320 px folded and
   unfolded (`checkNarrowestPhone`), the desk widths' padding (`checkDeskFloats`), the form's
   drop-down heights (row 3's included) and year box (`checkFormControls`), the stripes — due
   soon, not started, overdue (`checkCardStripes`), the preview's drop-downs at 1400 and 320 px
@@ -504,8 +510,7 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   done, by choice: real Safari (needs `safaridriver --enable`), Opera/Edge (Chromium — the Chrome
   run), iOS (no simulator runtime on the Mac); the opening notice's `:has()` highlight; Firefox's
   smaller ◐; headings left at the foot of a printed page; a two-line sticky score bar reaching
-  under the warnings box; and the course list printing as cards on portrait paper (a question for
-  the DGS).
+  under the warnings box.
 - **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
   after this one carry the reasons, STATE.md's "Batch A done" paragraph and
   `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:
