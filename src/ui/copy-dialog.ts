@@ -41,19 +41,28 @@ export interface CopyDialogOptions {
 /** Write a message to the clipboard in BOTH flavours (2026-09-03):
  * text/plain keeps tab-separated rows; text/html carries real tables — HTML
  * email flattens tabs to spaces, but a table survives Gmail and pastes into
- * Sheets as cells. Falls back to plain text where ClipboardItem is
- * unsupported; rejects when the browser refuses the clipboard altogether. */
+ * Sheets as cells. Rejects when the browser refuses the clipboard altogether.
+ *
+ * A browser without ClipboardItem (Firefox before 127 — its ESR 115 — and any
+ * older engine) could copy only the plain text through the async API, and the
+ * tables were lost (cross-browser review, 2026-10-10). There the legacy
+ * command, which carries both flavours, is tried FIRST: before any `await`,
+ * so it still runs inside the click that opened the dialog. */
 export async function writeClipboard(built: { text: string; html: string }): Promise<void> {
-  try {
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'text/plain': new Blob([built.text], { type: 'text/plain' }),
-        'text/html': new Blob([built.html], { type: 'text/html' }),
-      }),
-    ]);
-    return;
-  } catch {
-    /* fall through */
+  const asyncHtml = typeof ClipboardItem !== 'undefined' && typeof navigator.clipboard?.write === 'function';
+  if (!asyncHtml && copyViaCommand(built)) return;
+  if (asyncHtml) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([built.text], { type: 'text/plain' }),
+          'text/html': new Blob([built.html], { type: 'text/html' }),
+        }),
+      ]);
+      return;
+    } catch {
+      /* fall through */
+    }
   }
   try {
     await navigator.clipboard.writeText(built.text);
@@ -61,12 +70,18 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
   } catch {
     /* fall through */
   }
-  // Inside a cross-origin <iframe> Chrome refuses the async clipboard unless
-  // the frame carries allow="clipboard-write" (DGS 2026-09-16). The legacy
-  // command still works there within the click that opened the dialog. It
-  // copied the plain text only until 2026-09-23, so the embedded page's
-  // requests pasted without their tables (DGS: "They used to be"); a `copy`
-  // listener now hands the command BOTH flavours, as the async path does.
+  if (asyncHtml && copyViaCommand(built)) return;
+  throw new Error('clipboard blocked');
+}
+
+/** The legacy copy command, with BOTH flavours. Inside a cross-origin
+ * <iframe> Chrome refuses the async clipboard unless the frame carries
+ * allow="clipboard-write" (DGS 2026-09-16); the command still works there
+ * within the click that opened the dialog. It copied the plain text only
+ * until 2026-09-23, so the embedded page's requests pasted without their
+ * tables (DGS: "They used to be"); a `copy` listener now hands the command
+ * both flavours, as the async path does. True when the browser copied. */
+function copyViaCommand(built: { text: string; html: string }): boolean {
   const ta = document.createElement('textarea');
   ta.value = built.text;
   ta.setAttribute('readonly', '');
@@ -90,7 +105,7 @@ export async function writeClipboard(built: { text: string; html: string }): Pro
   }
   document.removeEventListener('copy', both);
   ta.remove();
-  if (!ok) throw new Error('clipboard blocked');
+  return ok;
 }
 
 /** A mailto: link for the recipient (DGS request 2026-09-13): the default

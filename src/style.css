@@ -451,7 +451,22 @@ button[disabled], button.inactive[aria-disabled="true"] { opacity: 0.45; cursor:
 .course-form .row1 input { width: 100%; }
 .course-form .row2 { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .course-form .row3 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* A field may shrink below its drop-down's longest choice ("Grad student —
+   after your bachelor’s degree was awarded …"): without this the page
+   scrolled sideways on every phone once Where was another university
+   (cross-browser review, 2026-10-10). */
+.course-form .row3 > .field { min-width: 0; }
 .course-form .row2 input[type='number'] { width: 72px; }
+/* Firefox always draws a number box's spinner, and at 72 px it covered the
+   last digit of the year ("202" and half a 6; cross-browser review
+   2026-10-10). The phone rule below keeps its 64 px box without a spinner. */
+.course-form .row2 input[type='number'][data-key='course.new.year'] { width: 84px; }
+/* Safari ignores the vertical padding of a native drop-down (WebKit draws it
+   23 px tall beside the 38.5 px boxes) but honours a height: the boxes' own,
+   the body's 1.5 line plus 2 × 7 px padding and 2 × 1 px border, at any font
+   size (cross-browser review, 2026-10-10). Every drop-down of the
+   add-a-course form, and the simulation banner's. */
+.course-form select, .simulation-banner select { height: calc(1.5em + 16px); }
 .hidden { display: none !important; }
 
 table.courses { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
@@ -471,6 +486,13 @@ table.courses tr.dropped .cid { text-decoration: line-through; color: var(--grey
 .mark-in_progress { color: var(--info); }
 .mark-pending { color: var(--warn); }
 .mark-excluded { color: var(--bad); }
+/* ✕ (U+2715) is in none of the page's fonts. Chrome on a Mac falls back to
+   Zapf Dingbats; Safari to a font whose ✕ is a small thin ×, beside a full
+   size ✓ (cross-browser review, 2026-10-10). Named, so every engine draws the
+   same mark; Windows has it in Segoe UI Symbol. */
+/* Regular weight: Zapf Dingbats has one, and Safari and Firefox faux-bolded it
+   inside the bold marks while Chrome did not. */
+.mark-excluded > [aria-hidden='true'], .btn.tiny.remove, .x-glyph { font-family: 'Zapf Dingbats', 'Segoe UI Symbol', -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 400; }
 .empty { color: var(--muted); font-style: italic; }
 
 .attest { display: block; margin: 6px 0; font-size: 13px; }
@@ -691,12 +713,9 @@ ul.req-detail.detail-list li.check > .mark { position: absolute; left: -1.3em; t
    unmet row past its deadline (.s-overdue) keeps the red. */
 .req.s-unmet { border-left-color: var(--warn); }
 .pill.s-unmet { background: var(--warn-bg); color: var(--warn); }
-.req.s-unmet:has(.pill.s-overdue) { border-left-color: var(--bad); }
 .pill.s-duesoon { background: var(--due-bg); color: var(--due-ink); box-shadow: inset 0 0 0 1px var(--due-line); }
-.req:has(.pill.s-duesoon) { border-left-color: var(--due-line); }
 .pill.s-overdue { background: var(--bad-bg); color: var(--bad); }
 /* A stage that has not begun (the dissertation rows before the OCE, DGS 2026-09-22): grey, not amber. */
-.req.s-unmet:has(.pill.s-notstarted) { border-left-color: var(--line); }
 .pill.s-notstarted { background: var(--neutral-bg-2); color: var(--muted); }
 .req.s-needs_dgs_review { border-left-color: var(--info); }
 .pill.s-needs_dgs_review { background: var(--info-bg); color: var(--info); }
@@ -706,6 +725,14 @@ ul.req-detail.detail-list li.check > .mark { position: absolute; left: -1.3em; t
 .req.s-not_applicable { border-left-color: var(--line); background: var(--na-bg); }
 .req.s-not_applicable .req-title { color: var(--muted); }
 .pill.s-not_applicable { background: var(--neutral-bg-4); color: var(--muted); }
+/* The stripe follows the card's pill (report.ts puts the pill's state on the
+   card as req-overdue / req-duesoon / req-notstarted). These were :has() rules
+   until 2026-10-10, which Firefox before 121 (ESR 115) drops: an overdue card
+   lost its red (cross-browser review). After the status rules above, so the
+   deadline alert still wins over them, as the :has() rule's weight made it. */
+.req.s-unmet.req-overdue { border-left-color: var(--bad); }
+.req.req-duesoon { border-left-color: var(--due-line); }
+.req.s-unmet.req-notstarted { border-left-color: var(--line); }
 
 .legal { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 
@@ -923,6 +950,11 @@ table.course-rules tr.deep-linked td, table.course-rules tr.deep-linked th { bac
   .courses-page .banner { background: none; border: 0; border-left: 3px solid #999; padding: 4px 0 4px 10px; font-size: 10.5px; color: #333; }
   .table-scroll { border: 0; overflow: visible; }
   table.course-rules { min-width: 0; font-size: 11px; }
+  /* The sort buttons are controls; on paper their labels are plain header text.
+     As buttons, Chrome repeated the All courses header on every page after the
+     first few as an empty grey band on landscape paper (cross-browser review,
+     2026-10-10). */
+  table.course-rules th .sort { display: contents; }
   /* Pills are colour on screen and grey boxes on paper: give the text its own
      weight so "Yes" and "No" stay apart when the ink does not. */
   .courses-page .pill { border: 1px solid #999; font-weight: 700; }
@@ -941,7 +973,7 @@ table.course-rules tr.deep-linked td, table.course-rules tr.deep-linked th { bac
 .contact-card .scope { display: block; color: var(--muted); font-size: 12px; }
 .contact-card a { color: inherit; }
 /* Printed, the card is text, not a boxed aside. */
-@media print { .contact-card { border: 0; padding: 0; } }
+@media print { .contact-card { border: 0; padding: 0; break-inside: avoid; page-break-inside: avoid; } } /* never split across two sheets (2026-10-10) */
 
 /* loading card (src/ui/loading.ts) */
 .load-card { max-width: 560px; margin: 36px auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; }
@@ -999,6 +1031,18 @@ table.course-rules tr.deep-linked td, table.course-rules tr.deep-linked th { bac
 .external-card .transcript-preview .bachelors-field input[type="number"] { width: 88px; } /* not in a table column, so it can breathe */
 .external-card .transcript-preview select { max-width: 74px; }
 .external-card .transcript-preview select.row-level { max-width: 118px; } /* Taken as: "UG student" / "Grad student" (DGS 2026-09-07) */
+/* The credit system is a sentence, not a table cell: the 74 px cap cut
+   "Semester hours — counted as printed" to "Semest" in every engine
+   (cross-browser review, 2026-10-10). */
+.external-card .transcript-preview .quarter-note select { max-width: 100%; }
+/* Nor is the bachelor's-degree season beside its year: "Summer" was cut at
+   every width, "Spring" on a phone (cross-browser review, 2026-10-10). */
+.external-card .transcript-preview .bachelors-field select { max-width: 100%; }
+/* Safari ignores a drop-down's vertical padding here too (see the add-a-course
+   form above): the preview's boxes are the 1.5 line + 2 × 4 px padding + 2 × 1 px
+   border. The one-line (compact) rows keep their small "Taken as" drop-down. */
+.external-card .transcript-preview select { height: calc(1.5em + 10px); }
+.external-card .transcript-preview tr.compact select { height: auto; }
 abbr.term { text-decoration: underline dotted; text-decoration-color: var(--line); cursor: help; } /* "FA26" in a table cell; the full name is the tooltip (DGS 2026-09-07) */
 .external-card .transcript-preview table.courses td, .external-card .transcript-preview table.courses th { padding: 6px 3px; }
 .transcript-preview tr.prior-row .cid, .transcript-preview tr.prior-row input.course-id, .transcript-preview tr.prior-row .course-id.locked { color: var(--muted); } /* rows filed as prior coursework / unticked as irrelevant */
@@ -1047,7 +1091,8 @@ tr.ocr-low td { background: var(--note-bg); }
   .sticky-score .sticky-text { flex: 1 1 auto; font-weight: 700; }
   .sticky-score a { color: var(--on-fill); text-decoration: underline; font-weight: 600; min-height: 24px; display: inline-flex; align-items: center; }
   .sticky-score a:focus-visible { outline-color: var(--on-fill); outline-offset: 1px; }
-  html { scroll-padding-bottom: 64px; } /* a focused control is never hidden behind the bar (WCAG 2.4.11) */
+  /* A focused control is never hidden behind the bar (WCAG 2.4.11): see the
+     floating boxes' rules near the end of this file, which add their room. */
   /* Room for that bar — on the page that has one. courses.html never renders a
      .sticky-score, so the rule was only adding 76 px of blank page to it; in a
      frame sized to its content that blank is visible trailing white space
@@ -1385,6 +1430,32 @@ table.courses tr[hidden] { display: none !important; }
 .attention.floating.folded .attention-body { display: none; }
 .attention.floating.folded h3 { margin-bottom: -8px; }
 @media (max-width: 900px) { .attention.floating { left: 12px; right: 12px; width: auto; bottom: calc(64px + var(--float-warnings, 0px)); max-height: 35vh; } }
+/* Room for the floating boxes at the end of the page, as well as for the
+   score bar (cross-browser review, 2026-10-10): the folded Next steps bar sat
+   over the footer's last lines and links on every phone and tablet, with
+   nowhere left to scroll. app.ts layoutFloats measures each box into
+   --float-warnings and --float-steps. Screen only: paper has no fixed boxes. */
+@media screen {
+  #app:not(.courses-page) { padding-bottom: calc(60px + var(--float-warnings, 0px) + var(--float-steps, 0px)); }
+  /* …and a focused control never stops under them (WCAG 2.4.11): at 1024 px the
+     boxes reach into the page's left column. */
+  html { scroll-padding-bottom: calc(18px + var(--float-warnings, 0px) + var(--float-steps, 0px)); }
+}
+/* From 1121 px up the report column is at least 480 px wide, so the 440 px
+   boxes float over it alone and never reach the footer's column: their room
+   goes under the report column, not under the whole page. */
+@media screen and (min-width: 1121px) {
+  #app:not(.courses-page) { padding-bottom: 60px; }
+  .layout > .audit-col { padding-bottom: calc(var(--float-warnings, 0px) + var(--float-steps, 0px)); }
+}
+@media screen and (max-width: 900px) {
+  #app:not(.courses-page) { padding-bottom: calc(76px + var(--float-warnings, 0px) + var(--float-steps, 0px)); }
+  /* WCAG 2.4.11, as the bar's own rule. 24 px more than the bar and boxes, and
+     24 px at the top: Firefox does not scroll a focused control whose top is
+     already inside the padded window, so with less it stopped a third under
+     the box (cross-browser review, 2026-10-10). Embedded pages have no bar. */
+  html:not(.embed) { scroll-padding-bottom: calc(88px + var(--float-warnings, 0px) + var(--float-steps, 0px)); scroll-padding-top: 24px; }
+}
 @media print { .attention.floating { position: static; width: auto; max-height: none; overflow: visible; box-shadow: none; } .attention.floating h3 { position: static; margin: 0 0 4px; padding: 0; } .attention h3 .attention-toggle { display: none !important; } .attention.floating.folded .attention-body { display: block; } }
 
 /* ---------- simulation mode (DGS 2026-10-09; src/ui/simulation.ts, app.ts) ---------- */

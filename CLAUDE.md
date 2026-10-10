@@ -113,8 +113,9 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
   transferability — unmatched courses always show "not yet reviewed by the DGS".
 - `tests/` — **node's built-in runner** (`node --test`; that's why relative imports carry `.ts`
   extensions). One JSON fixture per student scenario in `tests/scenarios/`; add a scenario for
-  every bug fixed. `npm run e2e` drives real headless Chrome and `E2E_BROWSER=webkit npm run e2e`
-  Safari's engine through the same drivers (see `.claude/skills/run-app/`).
+  every bug fixed. `npm run e2e` drives real headless Chrome, `E2E_BROWSER=webkit npm run e2e`
+  Safari's engine and `E2E_BROWSER=firefox npm run e2e` Firefox through the same drivers (see
+  `.claude/skills/run-app/`).
 - `scripts/sync-sheet.ts` + `.github/workflows/` — six-hourly sheet snapshot (rewritten, committed
   and redeployed only when the sheet content changed), CI tests, Pages deploy.
 
@@ -156,8 +157,9 @@ it lives in git history only. `DGS-READ-THIS.md` was replaced by `README.md` on 
   every new one. Keep `docs/STATE.md` and the handoff current as you go, not at the end.
 - The DGS sends numbered lists of changes; answer them by number. Verify EVERY change before
   calling it done — `npx tsc --noEmit`, `npm test`, `npm run build`, `npm run e2e`, and look at the
-  screenshots — and check Safari's engine too when layout changed (`E2E_BROWSER=webkit npm run e2e`;
-  Chromium alone missed a Safari-only bug on 2026-09-06). Show the result (screenshot or preview)
+  screenshots — and check Safari's engine and Firefox too when layout changed (`E2E_BROWSER=webkit
+  npm run e2e`, `E2E_BROWSER=firefox npm run e2e`; Chromium alone missed a Safari-only bug on
+  2026-09-06 and a Firefox-only one on 2026-10-10). Show the result (screenshot or preview)
   in the reply that delivers it. Since 2026-10-04 (DGS: "From now on, commit and give the line to
   merge and push without my approval") a verified batch is committed at once and the reply ends with
   the merge-and-push line; revisions the DGS asks for afterwards are new commits.

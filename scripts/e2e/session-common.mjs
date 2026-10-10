@@ -1,9 +1,10 @@
 // The choreography every e2e session shares, whatever the browser behind it:
-// cdp.mjs (headless Chrome over the DevTools Protocol) and webkit.mjs
-// (Playwright's WebKit — Safari's engine, E2E_BROWSER=webkit) each supply the
+// cdp.mjs (headless Chrome over the DevTools Protocol), webkit.mjs
+// (Playwright's WebKit — Safari's engine, E2E_BROWSER=webkit) and firefox.mjs
+// (Firefox over WebDriver BiDi, E2E_BROWSER=firefox) each supply the
 // primitives (navigate / evalJs / shot) and get the same waitFor and open back,
 // so the drivers see the loading card and the opening notice handled
-// identically in both browsers. Change the page's start-up flow here, once.
+// identically in every browser. Change the page's start-up flow here, once.
 
 /** Let the page paint: one animation frame, then `ms` more for whatever the
  * frame kicked off (a ResizeObserver, a scroll handler). Both backends build

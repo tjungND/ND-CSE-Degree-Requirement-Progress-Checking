@@ -6,8 +6,18 @@
 //   E2E_BROWSER=webkit npm run e2e   Playwright's WebKit — Safari's engine — through the
 //     (= npm run e2e:webkit)         SAME drivers; screenshots in .e2e-out/webkit/. One-time
 //                                    setup per Mac:  npx playwright-core install webkit
+//   E2E_BROWSER=firefox npm run e2e  the installed Firefox (Gecko), headless, over WebDriver
+//     (= npm run e2e:firefox)        BiDi (scripts/e2e/firefox.mjs) through the SAME drivers;
+//                                    screenshots in .e2e-out/firefox/. FIREFOX_BIN overrides
+//                                    the binary. Edge, Opera and Brave are Chromium — the
+//                                    Chrome run covers their engine.
 //   E2E_ONLY=<substring>             run a single driver while iterating (e.g. E2E_ONLY=access)
 //   E2E_BUILD=1                      rebuild dist/ first even if it looks up to date
+//   E2E_PORT=<port>                  the preview server's port (default 4273), so runs of
+//                                    different engines can go on at the same time
+//   E2E_DEBUG_PORT=<port>            the browser's remote-control port (Chrome default 9333;
+//                                    Firefox default 0 = any free port); Chrome's throwaway
+//                                    profile is per port, so two Chrome runs never share one
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,19 +29,60 @@ import { driveApp, driveCourses } from './drive-app.mjs';
 import { driveTranscript } from './drive-transcript.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PREVIEW_PORT = 4273; // not 4173, so a dev's own preview keeps running
-const DEBUG_PORT = 9333;
 
 const browserKind = (process.env.E2E_BROWSER ?? 'chrome').toLowerCase();
-if (browserKind !== 'chrome' && browserKind !== 'webkit') {
-  console.error(`E2E_BROWSER must be "chrome" (the default) or "webkit", not "${process.env.E2E_BROWSER}".`);
+if (!['chrome', 'webkit', 'firefox'].includes(browserKind)) {
+  console.error(`E2E_BROWSER must be "chrome" (the default), "webkit" or "firefox", not "${process.env.E2E_BROWSER}".`);
   process.exit(2);
 }
+
+const portFrom = (name, fallback) => {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0 || n > 65535) {
+    console.error(`${name} must be a port number, not "${raw}".`);
+    process.exit(2);
+  }
+  return n;
+};
+const PREVIEW_PORT = portFrom('E2E_PORT', 4273); // not 4173, so a dev's own preview keeps running
+// Chrome's DevTools port, or Firefox's WebDriver BiDi port (0: Firefox picks a
+// free one and says which). WebKit is launched by Playwright, which needs none.
+const DEBUG_PORT = portFrom('E2E_DEBUG_PORT', browserKind === 'firefox' ? 0 : 9333);
+if (browserKind === 'chrome' && DEBUG_PORT === 0) {
+  console.error('E2E_DEBUG_PORT=0 works for Firefox only; give Chrome a real port.');
+  process.exit(2);
+}
+
+// Is something already answering on this port? A second run on the same ports
+// would reuse the first run's preview server and drive its browser — and,
+// since Chrome's profile is emptied at start, delete that browser's profile.
+// Checked before anything is cleared or built. (Two runs started in the same
+// instant can both pass; give concurrent runs their own E2E_PORT and
+// E2E_DEBUG_PORT.)
+async function answers(url) {
+  try {
+    await fetch(url, { signal: AbortSignal.timeout(1500) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+if (await answers(`http://localhost:${PREVIEW_PORT}/`)) {
+  console.error(`Port ${PREVIEW_PORT} is already in use (another e2e run?) — set E2E_PORT to a free one.`);
+  process.exit(2);
+}
+if (browserKind === 'chrome' && (await answers(`http://127.0.0.1:${DEBUG_PORT}/json/version`))) {
+  console.error(`Port ${DEBUG_PORT} is already in use by another browser — set E2E_DEBUG_PORT to a free one.`);
+  process.exit(2);
+}
+
 // Each browser clears only its own screenshots (Chrome: the top-level PNGs;
-// WebKit: the webkit/ folder), so one run never erases the other's frames.
+// WebKit and Firefox: their own folder), so one run never erases another's frames.
 const outRoot = join(root, '.e2e-out');
-const outDir = browserKind === 'webkit' ? join(outRoot, 'webkit') : outRoot;
-if (browserKind === 'webkit') rmSync(outDir, { recursive: true, force: true });
+const outDir = browserKind === 'chrome' ? outRoot : join(outRoot, browserKind);
+if (browserKind !== 'chrome') rmSync(outDir, { recursive: true, force: true });
 else if (existsSync(outRoot)) for (const f of readdirSync(outRoot)) if (f.endsWith('.png')) rmSync(join(outRoot, f));
 mkdirSync(outDir, { recursive: true });
 
@@ -89,6 +140,8 @@ if (buildReason) {
 }
 
 const children = [];
+let webkitBrowser; // closed in the finally below (Playwright owns that process, not `children`)
+let firefoxBrowser; // closed in the finally below; its process is also in `children`
 const cleanup = () => {
   for (const c of children) {
     try {
@@ -97,14 +150,19 @@ const cleanup = () => {
       /* already gone */
     }
   }
+  firefoxBrowser?.removeProfile();
 };
 process.on('exit', cleanup);
-process.on('SIGINT', () => process.exit(130));
+// Ctrl-C, and a timeout wrapper ending the run (timeout(1) sends SIGTERM, a
+// `perl -e 'alarm …'` wrapper SIGALRM): leave through process.exit so the
+// cleanup above runs and no browser or preview server is left behind.
+for (const [signal, n] of [['SIGINT', 2], ['SIGTERM', 15], ['SIGHUP', 1], ['SIGALRM', 14]]) {
+  process.on(signal, () => process.exit(128 + n));
+}
 
 let failed = false;
 const runStarted = Date.now();
 const seconds = (since) => ((Date.now() - since) / 1000).toFixed(1);
-let webkitBrowser; // closed in the finally below (Playwright owns that process, not `children`)
 try {
   // vite is spawned directly (not through npm) so kill() reaches the server.
   const vite = spawn(
@@ -124,13 +182,27 @@ try {
     const context = await webkitBrowser.newContext({ viewport: { width: 1400, height: 1900 } });
     console.log(`headless WebKit ${webkitBrowser.version()} up (Playwright)`);
     openSessionFor = () => openWebkitSession(context, outDir);
+  } else if (browserKind === 'firefox') {
+    // Imported lazily, like WebKit: only this run needs it. Firefox runs from a
+    // fresh profile in the temp folder, removed when the run ends.
+    const { launchFirefox } = await import('./firefox.mjs');
+    firefoxBrowser = await launchFirefox({ port: DEBUG_PORT });
+    children.push(firefoxBrowser.process);
+    console.log(`headless Firefox ${firefoxBrowser.version} up (WebDriver BiDi, ${firefoxBrowser.url})`);
+    openSessionFor = () => firefoxBrowser.openSession(outDir);
   } else {
+    // One profile per port: a second Chrome on the same profile would hand its
+    // tabs to the first and quit. Emptied first, as WebKit's context and
+    // Firefox's profile start empty: a record the last run left in it made
+    // Chrome's opening notice a returning student's (2026-10-10).
+    const chromeProfile = join(tmpdir(), `cse-audit-e2e-profile-${DEBUG_PORT}`);
+    rmSync(chromeProfile, { recursive: true, force: true });
     const chrome = spawn(
       findChrome(),
       [
         '--headless=new',
         `--remote-debugging-port=${DEBUG_PORT}`,
-        `--user-data-dir=${join(tmpdir(), 'cse-audit-e2e-profile')}`,
+        `--user-data-dir=${chromeProfile}`,
         '--no-first-run',
         '--no-sandbox', // required on CI runners; harmless locally
         'about:blank',
@@ -191,6 +263,7 @@ try {
   console.error('e2e harness error:', err instanceof Error ? err.message : err);
 } finally {
   if (webkitBrowser) await webkitBrowser.close().catch(() => {});
+  if (firefoxBrowser) await firefoxBrowser.close().catch(() => {});
   cleanup();
 }
 

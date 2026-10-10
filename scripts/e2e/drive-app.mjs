@@ -43,6 +43,7 @@ export async function driveApp(s, baseUrl) {
   if (!/checks(, plus \d+ allowances?)?$/.test(firstVisit.summary)) throw new Error('the fold must name what it holds: ' + firstVisit.summary);
   if (firstVisit.dialStroke === 'var(--bad)') throw new Error('an empty record must not paint the dial red');
   await s.shot('app-initial-phd');
+  await checkFormControls(s);
   await checkSheetLink(s, 'app');
 
   await s.evalJs(
@@ -135,6 +136,7 @@ export async function driveApp(s, baseUrl) {
   await s.evalJs(`document.querySelector('details.req-more[data-key="${moreKey}"] > summary')?.click()`); // and close it again
   await s.waitFor(`!document.querySelector('details.req-more[data-key="${moreKey}"]')?.open`);
   await s.shot('app-example-phd');
+  await checkCardStripes(s, ['due', 'line']);
 
   // The candidacy card's conditions carry marks (DGS 2026-10-06: "it's hard to
   // see what are met and what are not met"): a met one ✓ and an open one, each
@@ -766,26 +768,31 @@ export async function driveApp(s, baseUrl) {
   // Printing opens the footer's closed disclosure ("Where the rules come
   // from") and closes it again afterwards
   // (trim review 2026-09-18, P-71): a closed <details> prints as a bare
-  // heading with nothing under it. The handler listens for beforeprint /
-  // afterprint, so dispatching the events stands in for the print dialog
-  // headless Chrome cannot show. One fold is left open beforehand so the
-  // "return to what the student had" half is exercised too.
+  // heading with nothing under it. The report's folds too since 2026-10-10
+  // ("Relevant Policies" with its handbook quote, "Courses counted"…): Chrome
+  // printed them closed and Firefox open (cross-browser review). The handler
+  // listens for beforeprint / afterprint, so dispatching the events stands in
+  // for the print dialog headless Chrome cannot show. One report fold is left
+  // open beforehand, as a student would leave it, so the "return to what the
+  // student had" half is exercised too: afterprint closes only what printing opened.
   const printFold = JSON.parse(await s.evalJs(`JSON.stringify((() => {
-    const all = () => [...document.querySelectorAll('footer.legal details')];
+    const all = () => [...document.querySelectorAll('footer.legal details, #report details')];
     const original = all().map((d) => d.open);
-    all().forEach((d) => { d.open = false; }); // one fold since P-3 (2026-09-19): closed → opened → closed again
+    const kept = all().findIndex((d) => d.matches('#report .req-more'));
+    all().forEach((d, i) => { d.open = i === kept; }); // the student's one open fold; the rest closed → opened → closed again
     const before = all().map((d) => d.open);
     window.dispatchEvent(new Event('beforeprint'));
     const during = all().map((d) => d.open);
     window.dispatchEvent(new Event('afterprint'));
     const after = all().map((d) => d.open);
     all().forEach((d, i) => { d.open = original[i]; });
-    return { n: before.length, before, during, after };
+    return { n: before.length, kept, report: document.querySelectorAll('#report details').length, before, during, after };
   })())`));
-  console.log('  footer disclosures around printing:', JSON.stringify(printFold));
-  if (printFold.n < 1) throw new Error('expected the footer disclosure: ' + JSON.stringify(printFold));
-  if (!printFold.during.every(Boolean)) throw new Error('beforeprint must open every closed footer disclosure so the printed page carries its text (P-71): ' + JSON.stringify(printFold));
-  if (printFold.after.join() !== printFold.before.join()) throw new Error('afterprint must return the footer disclosures to the state the student had (P-71): ' + JSON.stringify(printFold));
+  console.log(`  disclosures around printing (footer and report): ${printFold.before.filter(Boolean).length} open of ${printFold.n} → ${printFold.during.filter(Boolean).length} open while printing → ${printFold.after.filter(Boolean).length} open after (the student's own)`);
+  if (printFold.n < 2 || printFold.report < 1 || printFold.kept < 0) throw new Error('expected the footer disclosure and the report\'s folds: ' + JSON.stringify(printFold));
+  if (!printFold.during.every(Boolean)) throw new Error('beforeprint must open every closed footer and report disclosure so the printed page carries its text (P-71): ' + JSON.stringify(printFold));
+  if (printFold.after.join() !== printFold.before.join()) throw new Error('afterprint must return the disclosures to the state the student had (P-71): ' + JSON.stringify(printFold));
+  await checkContactWhilePrinting(s, 'index.html');
 
   await driveSimulation(s, baseUrl);
   await driveAppEmbed(s, baseUrl);
@@ -905,6 +912,7 @@ async function driveSimulation(s, baseUrl) {
   if (!moved.status.startsWith('Simulated current semester: ' + later)) throw new Error('a semester change must be announced: ' + moved.status);
   if (moved.year !== later.split(' ')[1]) throw new Error('the course form’s year must default to the simulated year: ' + JSON.stringify([moved.year, later]));
   if (moved.real !== realBefore) throw new Error('changing the semester must not touch the real record’s key');
+  await checkCardStripes(s, ['bad', 'line']); // two years on, the example has overdue cards
 
   // Plan two courses in the simulated semester: one the sheet knows, with the
   // grade expected (A) — it must COUNT; and one the sheet does not know — it
@@ -1278,7 +1286,9 @@ export async function driveCourses(s, baseUrl) {
   const after = await s.evalJs(`document.querySelectorAll('.all-courses table.course-rules tbody tr:not(.note-row)').length`);
   console.log(`  core-area filter: ${before} → ${after} rows`);
   if (!(after > 0 && after < before)) throw new Error('core-area filter did not narrow the table');
-  await s.shot('courses-filtered');
+  // The table itself: a window-sized shot from the top of the page never
+  // reached it, so this picture was the unfiltered page (2026-10-10).
+  await s.shotElement('courses-filtered', '.all-courses');
 
   // The DGS's notes are the DGS's (2026-09-09): no Notes column, no
   // disclosure, and nothing on the page carries them.
@@ -1545,6 +1555,7 @@ export async function driveCourses(s, baseUrl) {
 
   await checkPrintColumns(s, baseUrl, '');
   await checkPrintColumns(s, baseUrl, '?embed=1');
+  await checkPrintAtPaperWidth(s, baseUrl);
   await driveCoursesEmbed(s, baseUrl);
 }
 
@@ -1584,7 +1595,11 @@ async function checkPrintColumns(s, baseUrl, query) {
       const c = document.querySelector('.contact-card');
       if (!c) return JSON.stringify({ missing: true });
       const cs = getComputedStyle(c);
-      return JSON.stringify({ border: cs.borderTopWidth, padding: cs.paddingTop });
+      // On paper the sort buttons are plain header text (display: contents —
+      // Chrome repeated the header as an empty band on later landscape pages),
+      // and the card never splits across two sheets (2026-10-10).
+      const sorts = [...document.querySelectorAll('table.course-rules th .sort')].map((b) => getComputedStyle(b).display);
+      return JSON.stringify({ border: cs.borderTopWidth, padding: cs.paddingTop, breakInside: cs.breakInside, sorts: sorts.length, sortsNotContents: sorts.filter((d) => d !== 'contents').length });
     })()`),
   );
   await s.send('Emulation.setEmulatedMedia', { media: '' });
@@ -1598,7 +1613,132 @@ async function checkPrintColumns(s, baseUrl, query) {
   }
   if (card.missing) throw new Error('the contact card is not on the page at all');
   if (card.border !== '0px' || card.padding !== '0px') throw new Error(`the contact card prints as a box (border ${card.border}, padding ${card.padding})`);
+  if (card.breakInside !== 'avoid') throw new Error(`the contact card may split across two printed sheets (break-inside ${card.breakInside})`);
+  if (card.sorts < 1 || card.sortsNotContents > 0) throw new Error(`on paper the sort buttons must be plain header text (${card.sortsNotContents} of ${card.sorts} are not display: contents)`);
   console.log(`  printing courses.html${query || ' (plain)'}: ${tables.length} tables, every column keeps its heading (last: ${[...new Set(tables.map((t) => t.lastHeader))].join(', ')}); contact card unboxed`);
+}
+
+// The add-a-course form as each engine draws it (cross-browser review,
+// 2026-10-10): Safari ignores a drop-down's vertical padding, so its
+// drop-downs were 23 px tall beside 38.5 px boxes until they were given the
+// boxes' height; Firefox always draws a number box's spinner, which covered the
+// last digit of "2026" in the 72 px year box. Row 3 ("From another
+// university": the University box, Taken as, the specialization group, Add)
+// is shown for the measurement and hidden again, so nothing on the page
+// changes and nothing depends on the sheet.
+async function checkFormControls(s) {
+  const m = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const form = document.querySelector('.course-form');
+    const hidden = [...form.querySelectorAll('.row3 .hidden')];
+    hidden.forEach((e) => e.classList.remove('hidden'));
+    const h = (e) => Math.round(e.getBoundingClientRect().height * 2) / 2;
+    const box = form.querySelector('.row2 input:not([type="checkbox"])');
+    const selects = [...form.querySelectorAll('select')].filter((e) => e.getClientRects().length > 0).map((e) => ({ k: e.dataset.key, h: h(e) }));
+    const others = ['course.new.institution', 'course.new.add'].map((k) => form.querySelector('[data-key="' + k + '"]')).filter((e) => e && e.getClientRects().length > 0).map((e) => ({ k: e.dataset.key, h: h(e) }));
+    hidden.forEach((e) => e.classList.add('hidden'));
+    const year = form.querySelector('[data-key="course.new.year"]');
+    const was = year.value;
+    year.value = '2026';
+    const fit = { scroll: year.scrollWidth, client: year.clientWidth };
+    year.value = was;
+    return { box: box ? h(box) : 0, selects, others, fit };
+  })())`));
+  const keys = m.selects.map((x) => x.k);
+  if (!['course.new.season', 'course.new.level', 'course.new.group'].every((k) => keys.includes(k))) throw new Error('expected the form\'s drop-downs, row 3\'s included: ' + JSON.stringify(keys));
+  const off = [...m.selects, ...m.others].filter((x) => Math.abs(x.h - m.box) > 1);
+  if (off.length > 0) throw new Error(`the add-a-course drop-downs, boxes and button must be as tall as its boxes (${m.box} px): ${JSON.stringify([...m.selects, ...m.others])}`);
+  if (m.fit.scroll > m.fit.client) throw new Error(`the year box cuts "2026" (${m.fit.scroll} > ${m.fit.client} px)`);
+  console.log(`  add-a-course form: ${m.selects.length} drop-downs as tall as the boxes (${m.box} px); "2026" fits the year box (${m.fit.scroll}/${m.fit.client} px)`);
+}
+
+// The cards' left stripe follows the pill (cross-browser review, 2026-10-10):
+// a card overdue is red, one due soon the deadline colour, a stage not started
+// grey. These were :has() rules, which Firefox before 121 drops; they are now
+// classes the card carries. Keyed on the pill, so a card whose classes drift
+// from its pill fails here.
+async function checkCardStripes(s, need) {
+  const m = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const probe = document.createElement('div');
+    document.body.append(probe);
+    const token = (t) => { probe.style.color = 'var(' + t + ')'; return getComputedStyle(probe).color; };
+    const want = { bad: token('--bad'), due: token('--due-line'), line: token('--line') };
+    probe.remove();
+    const cards = [...document.querySelectorAll('#report .req')].flatMap((req) => {
+      const pill = req.querySelector('.req-head .pill');
+      if (!pill) return [];
+      const unmet = req.classList.contains('s-unmet');
+      const kind = unmet && pill.classList.contains('s-notstarted') ? 'line' : unmet && pill.classList.contains('s-overdue') ? 'bad' : pill.classList.contains('s-duesoon') ? 'due' : null;
+      return kind ? [{ id: req.id, kind, ok: getComputedStyle(req).borderLeftColor === want[kind] }] : [];
+    });
+    return { cards, wrong: cards.filter((c) => !c.ok) };
+  })())`));
+  const missing = need.filter((k) => !m.cards.some((c) => c.kind === k));
+  if (missing.length > 0) throw new Error(`expected ${missing.join(' and ')} cards here: ` + JSON.stringify(m.cards));
+  if (m.wrong.length > 0) throw new Error('a card\'s stripe does not follow its pill: ' + JSON.stringify(m.wrong));
+  const n = (k) => m.cards.filter((c) => c.kind === k).length;
+  console.log(`  card stripes follow the pill: ${n('due')} due soon, ${n('line')} not started, ${n('bad')} overdue`);
+}
+
+// E2E: printing from a desk-width window (cross-browser review, 2026-10-10).
+// Chrome — so Edge and Opera too — lays a printout out at the paper's width,
+// about 740 px on portrait Letter or A4, which is under the schedule cards'
+// 861 px breakpoint. The cards' width listener then closed the "Offered this
+// semester" card that beforeprint had just opened, and it printed as a bare
+// heading. Emulating print media alone never narrows the page, so this check
+// fires beforeprint, narrows the window as the paper does, and looks.
+async function checkPrintAtPaperWidth(s, baseUrl) {
+  await s.setViewport({ width: 1400, height: 1900 });
+  await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
+  await checkContactWhilePrinting(s, 'courses.html');
+  const opens = () => s.evalJs(`JSON.stringify([...document.querySelectorAll('.sched-details')].map((d) => d.open))`).then(JSON.parse);
+  const before = await opens();
+  await s.evalJs(`window.dispatchEvent(new Event('beforeprint'))`);
+  await s.setViewport({ width: 740, height: 1900, settleMs: 250 });
+  const during = await opens();
+  await s.evalJs(`window.dispatchEvent(new Event('afterprint'))`);
+  await s.setViewport({ width: 1400, height: 1900, settleMs: 250 });
+  const after = await opens();
+  if (before.length < 1) throw new Error('expected the schedule cards on courses.html');
+  if (!during.every(Boolean)) throw new Error(`a schedule card closed while printing at paper width (${JSON.stringify({ before, during, after })})`);
+  if (!after.every(Boolean)) throw new Error(`the schedule cards must be open again at desk width after printing (${JSON.stringify(after)})`);
+  console.log(`  printing at paper width (740 px): ${during.length} schedule card(s) stay open, and open at 1400 px after`);
+}
+
+// The contact card while printing, on either page (cross-browser review,
+// 2026-10-10). It sits in the masthead from 900 px up and at the end of the
+// page below. Chrome lays a printout out at the paper's width (~740 px on
+// portrait paper) and fired the width listener mid-print: the card moved after
+// pagination — printed on the last page, or leaving a blank last sheet. It now
+// stays put until afterprint, then takes the place the window wants, and a
+// print never drops keyboard focus from a link inside it.
+async function checkContactWhilePrinting(s, page) {
+  const where = () => s.evalJs(`(() => { const c = document.querySelector('.contact-card'); return !c ? 'none' : c.closest('.masthead') ? 'masthead' : 'end'; })()`);
+  await s.setViewport({ width: 1400, height: 1900, settleMs: 200 });
+  const before = await where();
+  await s.evalJs(`window.dispatchEvent(new Event('beforeprint'))`);
+  await s.setViewport({ width: 740, height: 1900, settleMs: 250 });
+  const during = await where();
+  await s.evalJs(`window.dispatchEvent(new Event('afterprint'))`);
+  await s.settle(150);
+  const afterNarrow = await where();
+  await s.setViewport({ width: 1400, height: 1900, settleMs: 250 });
+  const afterWide = await where();
+  const steps = { before, during, afterNarrow, afterWide };
+  if (before !== 'masthead' || during !== 'masthead' || afterNarrow !== 'end' || afterWide !== 'masthead') {
+    throw new Error(`${page}: the contact card must stay put while printing and then follow the window: ${JSON.stringify(steps)}`);
+  }
+  const focus = await s.evalJs(`(() => {
+    const a = document.querySelector('.contact-card a');
+    if (!a) return 'no link';
+    a.focus();
+    window.dispatchEvent(new Event('beforeprint'));
+    window.dispatchEvent(new Event('afterprint'));
+    const kept = document.activeElement === a;
+    a.blur();
+    return kept ? 'kept' : 'lost to ' + (document.activeElement?.tagName ?? 'nothing');
+  })()`);
+  if (focus !== 'kept') throw new Error(`${page}: printing must leave keyboard focus on the contact card's link (${focus})`);
+  console.log(`  ${page}: the contact card stays in the masthead while printing at paper width, goes to the end at 740 px after, back at 1400; focus kept`);
 }
 
 // E2E: ?embed=1 — the course-rules page inside someone else's page

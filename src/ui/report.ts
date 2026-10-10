@@ -426,7 +426,10 @@ function requirementCard(r: RequirementResult): HTMLElement {
   );
   return el(
     'div',
-    { class: `req s-${r.status}`, id: reqAnchorId(r.id) },
+    // The pill's display state on the card too (req-overdue, req-duesoon,
+    // req-notstarted), so the stripe's colour needs no :has() — which
+    // Firefox before 121 (ESR 115) lacks (cross-browser review, 2026-10-10).
+    { class: `req s-${r.status}${r.allowance ? '' : pillState(r).replace(/ s-/g, ' req-')}`, id: reqAnchorId(r.id) },
     head,
     chips.childElementCount > 0 ? chips : null,
     detailNode,
@@ -829,6 +832,10 @@ function attentionList(report: AuditReport, untouched = false): HTMLElement | nu
           'li',
           {},
           el('a', { href: `#${reqAnchorId(r.id)}` }, r.title),
+          // A space, so a narrow line can break before the pill (cross-browser
+          // review, 2026-10-10: at 320 px "In progress · due next semester"
+          // ran out of the box and the page scrolled sideways).
+          ' ',
           el('span', { class: `pill s-${r.status} small${pillState(r)}` }, pillLabel(r)),
           r.deadline && r.deadline.state === 'overdue' ? el('span', { class: 'attention-overdue' }, ' — deadline passed') : null,
           el('span', { class: 'attention-next', 'data-keep-dgs': '' }, ` ${firstSentence(r.detail)}`),

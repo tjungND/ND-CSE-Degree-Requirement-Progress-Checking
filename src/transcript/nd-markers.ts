@@ -12,8 +12,66 @@
  * Notre Dame de Namur University, Notre Dame College (Ohio), the College of
  * Notre Dame, Notre Dame University–Louaize and the like. Their transcripts
  * are not Notre Dame's, and they are not Notre Dame in a course's
- * institution. */
-export const OTHER_NOTRE_DAMES = /university\s+of\s+notre\s+dame,?\s+australia|notre\s+dame\s+of\s+maryland|notre\s+dame\s+de\s+namur|(?<!university\s+of\s+)notre\s+dame\s+college(?!\s+of\b)|college\s+of\s+notre\s+dame|notre\s+dame\s+university|notre\s+dame\s+seishin|notre\s+dame\s+women/i;
+ * institution. "Notre Dame College" right after "University of" is not one
+ * of them (group 1, refused by `otherNotreDameSpans`). Read it only through
+ * `namesOtherNotreDame` and `withoutOtherNotreDames`.
+ *
+ * That refusal was a lookbehind inside the pattern until 2026-10-10. Safari
+ * before 16.4 cannot compile a lookbehind, and every iOS browser is Safari;
+ * this pattern is built when the shared module loads, so both pages were
+ * blank there (cross-browser review). The check is now written out in code.
+ * tests/browser-support.test.ts keeps lookbehinds out of src/. */
+const OTHER_NOTRE_DAMES = /university\s+of\s+notre\s+dame,?\s+australia|notre\s+dame\s+of\s+maryland|notre\s+dame\s+de\s+namur|(notre\s+dame\s+college)(?!\s+of\b)|college\s+of\s+notre\s+dame|notre\s+dame\s+university|notre\s+dame\s+seishin|notre\s+dame\s+women/gi;
+const ENDS_UNIVERSITY_OF = /university\s+of\s+$/i;
+const WHITESPACE = /\s/;
+
+/** Does text[0, end) end with "university\s+of\s+"? The same answer as
+ * ENDS_UNIVERSITY_OF on the whole prefix, read from the only stretch a match
+ * can cover — the whitespace before `end`, "of", the whitespace before it and
+ * the ten letters of "university" — so a long transcript with many refusals
+ * stays linear (review, 2026-10-10). */
+function endsWithUniversityOf(text: string, end: number): boolean {
+  let i = end;
+  while (i > 0 && WHITESPACE.test(text[i - 1]!)) i--;
+  if (i === end || i < 2) return false;
+  const beforeOf = i - 2;
+  i = beforeOf;
+  while (i > 0 && WHITESPACE.test(text[i - 1]!)) i--;
+  if (i === beforeOf || i < 10) return false;
+  return ENDS_UNIVERSITY_OF.test(text.slice(i - 10, end));
+}
+
+/** Each [start, end) where `text` names another Notre Dame, in order. This
+ * is the same scan the old lookbehind made: a refused match moves on by one
+ * character, as the regex engine itself would. */
+function otherNotreDameSpans(text: string): Array<[number, number]> {
+  const re = new RegExp(OTHER_NOTRE_DAMES.source, 'gi');
+  const spans: Array<[number, number]> = [];
+  for (let m = re.exec(text); m !== null; m = re.exec(text)) {
+    if (m[1] !== undefined && endsWithUniversityOf(text, m.index)) {
+      re.lastIndex = m.index + 1;
+      continue;
+    }
+    spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
+}
+
+/** Does `text` name an institution other than Notre Dame that is called Notre Dame? */
+export function namesOtherNotreDame(text: string): boolean {
+  return otherNotreDameSpans(text).length > 0;
+}
+
+/** `text` with each other Notre Dame replaced by a space. */
+export function withoutOtherNotreDames(text: string): string {
+  let out = '';
+  let at = 0;
+  for (const [start, end] of otherNotreDameSpans(text)) {
+    out += text.slice(at, start) + ' ';
+    at = end;
+  }
+  return out + text.slice(at);
+}
 
 /** The part of a transcript that names the university that issued it: the
  * lines before its first course line (a subject code, a number and a title).
@@ -27,7 +85,7 @@ function headerOf(text: string): string {
 }
 
 export function looksLikeNotreDameTranscript(text: string): boolean {
-  const noEmails = text.replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, ' ').replace(new RegExp(OTHER_NOTRE_DAMES.source, 'gi'), ' ');
+  const noEmails = withoutOtherNotreDames(text.replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, ' '));
   // insideND URLs live in the browser's print footer of the unofficial transcript.
   if (/\bnd\.edu\b/i.test(noEmails) || /\binside\.nd\b/i.test(noEmails)) return true;
   // The issuer's own labels, anywhere: the official transcript's

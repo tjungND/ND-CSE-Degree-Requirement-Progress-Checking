@@ -5,6 +5,10 @@
 // sandbox the ExternalCourses tab is unconfigured, so everything is honestly
 // "not yet reviewed" and the copy-ready review request appears).
 // `pdfs` is the name → path map run.mjs builds from tests/fixtures/.
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 export async function driveTranscript(s, baseUrl, pdfs) {
   const { nd: ndPdf, other: otherPdf, external: externalPdf, scan: scanPdf, banner: bannerPdf, watermarked: watermarkedPdf, combined: combinedPdf, ndUg: ndUgPdf, uc: ucPdf, ndOfficial: ndOfficialPdf, noLines: noLinesPdf, ndUgInProgress: ndUgInProgressPdf, ndInsideNd: ndInsideNdPdf, codeless: codelessPdf, outline: outlinePdf } = pdfs;
   await s.open(baseUrl, '.transcript-upload');
@@ -28,6 +32,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   await s.shot('transcript-rejected');
   await s.evalJs(`document.querySelector('.transcript-upload .import-error button').click()`);
   await s.waitFor(`!document.querySelector('.transcript-upload .import-error')`);
+  await checkUnreadablePdf(s);
 
   // 2) ND transcript (COMBINED since 2026-09-05: a B.S. before the Ph.D.) →
   //    preview reads the entry term (Fall 2026, the first graduate-level term),
@@ -187,6 +192,10 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   console.log('  Grad Admin card after the ND import:', JSON.stringify(gaState));
   if (gaState.inactive === 'true' || !/^\d+ requirements? met, \d+ in progress, \d+ not started — /.test(gaState.line)) throw new Error('the Grad Admin button must be active on met requirements alone: ' + JSON.stringify(gaState));
   await s.shotElement('grad-admin-met-only', '.grad-admin-request');
+  // The review card at the top of the window: the page leaves room for the
+  // floating boxes at its end since 2026-10-10, so a shot left at the end showed
+  // the footer and blank space instead of the card.
+  await s.evalJs(`document.querySelector('.dgs-review').scrollIntoView({ block: 'start' })`);
   await s.shot('nd-review');
   // Copy → the check-before-you-send dialog (2026-09-06 evening): the DGS by
   // name and address, the subject, the message; OK closes it, focus returns.
@@ -294,6 +303,7 @@ export async function driveTranscript(s, baseUrl, pdfs) {
   }
   console.log('  inactive Remove explained itself, nothing removed');
   await s.shot('external-preview');
+  await checkPreviewSelects(s); // after the shot: it visits 320 px and comes back
   await s.evalJs(
     `[...document.querySelectorAll('.external-card button')].find(b => /^Add \\d+ selected course/.test(b.textContent)).click()`,
   );
@@ -436,6 +446,22 @@ export async function driveTranscript(s, baseUrl, pdfs) {
     throw new Error('the OCR opt-in must state English-only');
   }
   await s.shot('external-ocr-optin');
+  // 4a) A page that may not compile WebAssembly — a host's Content-Security-
+  //     Policy without 'wasm-unsafe-eval' (cross-browser review, 2026-10-10):
+  //     OCR says it cannot run, at once, instead of hanging at 0 % and blocking
+  //     every import. Stood in for by a WebAssembly.Module that refuses.
+  await s.evalJs(`(() => { window.__e2eWasmModule = WebAssembly.Module; WebAssembly.Module = function () { throw new WebAssembly.CompileError('refused (e2e)'); }; })()`);
+  try {
+    await s.evalJs(`[...document.querySelectorAll('.ocr-optin button')].find(b => b.textContent === 'Try OCR (English only)').click()`);
+    await s.waitFor(`document.querySelector('[data-key="ext.error.bachelors"]')?.textContent.includes('The text reader could not run in this browser')`, 15000);
+  } finally {
+    await s.evalJs(`(() => { WebAssembly.Module = window.__e2eWasmModule; delete window.__e2eWasmModule; })()`);
+  }
+  console.log('  OCR where WebAssembly may not run: "The text reader could not run in this browser" at once');
+  await s.evalJs(`document.querySelector('[data-key="ext.error.bachelors"] button').click()`);
+  await s.waitFor(`!document.querySelector('[data-key="ext.error.bachelors"]')`);
+  await s.setFileInput('.external-file-bachelors', scanPdf);
+  await s.waitFor(`document.querySelector('.ocr-optin')`);
   await s.evalJs(
     `[...document.querySelectorAll('.ocr-optin button')].find(b => b.textContent === 'Try OCR (English only)').click()`,
   );
@@ -1108,3 +1134,94 @@ async function checkCompactPreview(s, width) {
   console.log(`  compact preview at ${width} px: content box ${m.previewWidth} px, ${m.rows.length} rows of ${m.rows.map((row) => row.height).join('/')} px, columns at x=${m.rows[0]?.columns}; header ${JSON.stringify(m.header.labels)} at x=${m.header.left}–${m.header.right} over the dropdown at ${m.header.selectLeft}–${m.header.selectRight}`);
   if (problems.length) throw new Error(`compact preview at ${width} px (content box ${m.previewWidth} px): ${problems.join('; ')}`);
 }
+
+// The previous-transcript preview's drop-downs as each engine draws them
+// (cross-browser review, 2026-10-10). The credit system and the bachelor's
+// season are sentences' fields, not table cells: the 74 px cell cap cut
+// "Semester hours — counted as printed" to "Semest", and on a 320 px phone
+// even the uncapped label was cut (W-CL426 shortened the choices). Each must
+// be as wide as its own longest choice — the engine's intrinsic size, arrow
+// included — at 1400 and at 320 px. Safari ignores a drop-down's vertical
+// padding, so the preview's drop-downs were about 21 px tall until they were
+// given the boxes' height (the one-line rows keep their small "Taken as").
+async function checkPreviewSelects(s) {
+  const measure = () => s.evalJs(`JSON.stringify((() => {
+    const preview = document.querySelector('.external-card .transcript-preview');
+    const fits = (e) => {
+      if (!e) return null;
+      const w = e.getBoundingClientRect().width;
+      const saved = ['width', 'min-width', 'max-width'].map((k) => [k, e.style.getPropertyValue(k), e.style.getPropertyPriority(k)]);
+      e.style.setProperty('width', 'auto', 'important');
+      e.style.setProperty('min-width', '0', 'important');
+      e.style.setProperty('max-width', 'none', 'important');
+      const natural = e.getBoundingClientRect().width;
+      for (const [k, v, p] of saved) e.style.setProperty(k, v, p);
+      return { w: Math.round(w * 10) / 10, natural: Math.round(natural * 10) / 10, label: e.selectedOptions[0]?.textContent ?? '' };
+    };
+    const year = preview.querySelector('[data-key="ext.preview.bachelors.year"]');
+    const h = (e) => Math.round(e.getBoundingClientRect().height * 2) / 2;
+    const tall = [...preview.querySelectorAll('select')].filter((e) => e.getClientRects().length > 0 && !e.closest('tr.compact')).map((e) => ({ k: e.dataset.key || e.className, h: h(e) }));
+    return { credit: fits(preview.querySelector('[data-key="ext.preview.creditsystem"]')), season: fits(preview.querySelector('.bachelors-field select')), year: year ? h(year) : null, tall, pageScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  })())`).then(JSON.parse);
+  const judge = (m, width) => {
+    for (const [name, f] of [['credit-system', m.credit], ['bachelor\'s season', m.season]]) {
+      if (!f) throw new Error(`the ${name} drop-down is missing from the preview at ${width} px`);
+      if (f.w < f.natural - 0.5) throw new Error(`the ${name} drop-down cuts its choices at ${width} px: ${f.w} px wide, its longest choice needs ${f.natural} px ("${f.label}")`);
+    }
+    if (m.year === null) throw new Error('expected the bachelor\'s year box in the preview');
+    const short = m.tall.filter((x) => Math.abs(x.h - m.year) > 1);
+    if (m.tall.length < 2 || short.length > 0) throw new Error(`the preview's drop-downs must be as tall as its boxes (${m.year} px) at ${width} px: ` + JSON.stringify(m.tall));
+    if (m.pageScroll > 0) throw new Error(`the page scrolls sideways at ${width} px with the preview open (${m.pageScroll} px)`);
+  };
+  const wide = await measure();
+  judge(wide, 1400);
+  const scrollY = await s.evalJs('window.scrollY');
+  await s.setViewport({ width: 320, height: 700, mobile: true, settleMs: 250 });
+  const phone = await measure();
+  await s.setViewport({ width: 1400, height: 1900, settleMs: 250 });
+  await s.evalJs(`window.scrollTo(0, ${scrollY})`); // as it was, for the shots that follow
+  judge(phone, 320);
+  console.log(`  preview drop-downs: the credit system "${wide.credit.label}" whole at 1400 px (${wide.credit.w}/${wide.credit.natural}) and 320 px (${phone.credit.w}/${phone.credit.natural}); the season whole; ${wide.tall.length} drop-down(s) as tall as the boxes (${wide.year} px, ${phone.year} px on the phone)`);
+}
+
+// 1b) A file pdf.js cannot read, on both import rows (cross-browser review,
+//     2026-10-10): the plain "could not be read" messages — and, in a browser
+//     too old to run the PDF reader at all (older than Safari 16.4, Chrome 94,
+//     Firefox 93), W-CL425 instead, so a student is not sent to fetch another
+//     PDF for nothing. That browser is stood in for by making the probe's
+//     class-static-block compile throw a SyntaxError, as such an engine would.
+async function checkUnreadablePdf(s) {
+  const file = join(tmpdir(), 'cse-audit-e2e-not-a-pdf.pdf');
+  writeFileSync(file, 'This is plain text, not a PDF.\n');
+  const TOO_OLD = 'This browser is too old to read a PDF here. Update it (Safari 16.4, Chrome 94 or Firefox 93, or newer) and import again, or add your courses manually.';
+  const rows = [
+    { input: '.transcript-upload input[type=file]', error: '.transcript-upload .import-error', plain: 'That PDF could not be read (a scanned image, or not a PDF?). Add your courses manually.' },
+    { input: '.external-file-phd', error: '[data-key="ext.error.phd"]', plain: 'That PDF could not be read (is it a PDF?). Only system-generated PDFs are accepted.' },
+  ];
+  const tryRow = async (row) => {
+    await s.setFileInput(row.input, file);
+    await s.waitFor(`document.querySelector('${row.error.replace(/'/g, "\\'")}')`);
+    const text = await s.evalJs(`document.querySelector('${row.error.replace(/'/g, "\\'")}').textContent`);
+    await s.evalJs(`document.querySelector('${row.error.replace(/'/g, "\\'")} button').click()`);
+    await s.waitFor(`!document.querySelector('${row.error.replace(/'/g, "\\'")}')`);
+    return text;
+  };
+  for (const row of rows) {
+    const plain = await tryRow(row);
+    if (!plain.includes(row.plain) || plain.includes('too old')) throw new Error(`an unreadable file must say "${row.plain}": ${plain.slice(0, 160)}`);
+  }
+  await s.evalJs(`(() => {
+    window.__e2eFunction = window.Function;
+    window.Function = new Proxy(window.__e2eFunction, { construct(target, args) { if (/static\\s*\\{/.test(String(args[args.length - 1]))) throw new SyntaxError('Unexpected token'); return Reflect.construct(target, args); } });
+  })()`);
+  try {
+    for (const row of rows) {
+      const old = await tryRow(row);
+      if (!old.includes(TOO_OLD)) throw new Error('a browser too old for the PDF reader must be told so (W-CL425): ' + old.slice(0, 160));
+    }
+  } finally {
+    await s.evalJs(`(() => { window.Function = window.__e2eFunction; delete window.__e2eFunction; })()`);
+  }
+  console.log('  unreadable file: "could not be read" on both rows; W-CL425 on both when the browser cannot run the PDF reader');
+}
+

@@ -230,7 +230,11 @@ last edit (see "Sync" below).
   `E2E_BROWSER=webkit npm run e2e` runs the same drivers on Safari's engine (Playwright's WebKit
   build — `playwright-core` is a devDependency, the browser a one-time `npx playwright-core
   install webkit` per Mac) with screenshots in `.e2e-out/webkit/`; run it too whenever layout
-  changed, since Chrome alone missed a Safari-only bug that day. Since 2026-10-10 the transcript
+  changed, since Chrome alone missed a Safari-only bug that day. Since 2026-10-10
+  `E2E_BROWSER=firefox npm run e2e` runs them on the installed Firefox too (headless, a
+  throwaway profile, WebDriver BiDi — `scripts/e2e/firefox.mjs`, nothing to install), with
+  screenshots in `.e2e-out/firefox/`; `E2E_PORT` / `E2E_DEBUG_PORT` move the ports so two
+  engines can run at once. Since 2026-10-10 the transcript
   driver also checks, on both engines, the OCR preview's scanned-line strips (drawn at once on a
   ⚠ row, gone after Add, never in the saved record; a crop at 390 px) and a transcript that prints
   no course numbers (`tests/fixtures/codeless-transcript.pdf`: the empty, required id box keeps the
@@ -239,6 +243,33 @@ last edit (see "Sync" below).
   generator rewrites the others byte for byte, so a new fixture shows up in `git status` alone.
   When a student finds a
   wrong verdict: add a scenario JSON reproducing it, fix, keep the scenario forever.
+- **Browsers** (cross-browser review, 2026-10-10). The pages are built for Vite's default floor —
+  no `build.target` in `vite.config.ts`, so Safari 14, Chrome 87, Firefox 78 — and verified in
+  Chrome, Safari's engine (WebKit) and Firefox; Edge, Opera, Brave and Samsung Internet are
+  Chromium, and every browser on an iPhone or iPad is Safari underneath. Two things the build
+  does NOT catch, so keep them out by hand:
+  - **No regex lookbehind in `src/`.** esbuild cannot lower one for Safari before 16.4 and,
+    instead of failing, rewrites it as `new RegExp("…")`, which throws there at run time. Two
+    of them ran as the shared module loaded and left both pages BLANK on Safari 14–16.3
+    (iOS 15 and 16.0–16.3 devices included) until 2026-10-10; `tests/browser-support.test.ts`
+    fails on one now. Write the check out in code (see `otherNotreDameSpans` in
+    `src/transcript/nd-markers.ts`).
+  - **pdf.js is imported from its LEGACY build** (`pdfjs-dist/legacy/build/pdf.mjs` and its
+    worker, in `src/transcript/pdf.ts` and `ocr.ts`). The modern build calls
+    `Promise.withResolvers` unguarded, so every transcript import failed — blaming the file — on
+    Safari before 17.4, Chrome before 119 and Firefox before 121. The legacy build reads the same
+    text and lowers the transcript-import floor to Safari 16.4, Chrome 94, Firefox 93 (OCR needs
+    WebAssembly SIMD, which those versions have). The same test pins every pdf.js import in
+    `src/`. Below that floor a failed import says the browser is too old to read a PDF and to
+    update it or add the courses by hand (`src/ui/pdf-support.ts`), instead of blaming the file.
+  A host that adds a Content-Security-Policy must allow `'wasm-unsafe-eval'` for the opt-in OCR
+  (the engine is WebAssembly); without it OCR says it cannot run here, at once.
+  Left as they are, cosmetic only: `:has()`, which Firefox before 121 (ESR 115) lacks, still
+  styles the opening notice's answers (the chosen one's highlight and focus ring — the radio dot
+  still shows it) and three layout details of the compact transcript preview (its Level header,
+  a separator dot, one-line rows that do not wrap). Real Safari can be automated only after
+  `safaridriver --enable` (an administrator's password, once per Mac); the harness uses
+  Playwright's WebKit build instead, which is Safari's engine but not Safari itself.
 - **Transcript replay** (2026-10-09): `npm run replay` scores every pinned transcript fixture (the 168
   public line lists and the 48 synthetic master's ones) and any sample PDFs kept outside the repo
   through the current parser, and prints a scoreboard — fixtures exact (the test's pass), row recall

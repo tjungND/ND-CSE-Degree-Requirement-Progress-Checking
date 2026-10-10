@@ -6,7 +6,7 @@
 // and the app still makes no external network calls. System-generated PDFs
 // remain the encouraged, exact path; this is the fallback for students whose
 // university only issues paper.
-import * as pdfjs from 'pdfjs-dist';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'; // the build pdf.ts uses, whose worker it configures
 import './pdf.ts'; // configures pdfjs's bundled worker (side effect)
 import { meanWordConfidence, OCR_ENGINE_PARAMETERS, OCR_ORIENTATION_TRIAL_MARGIN, OCR_ORIENTATION_TRIAL_SKIP_ABOVE, OCR_TRIAL_TURNS, ocrPageLayout, ocrRenderScale, ocrScaleReduced, paintedImageSizes, scanResolution, type ColumnHint, type OcrLine } from './ocr-lines.ts';
 import type { OcrReducedPage } from './preview-layout.ts';
@@ -101,8 +101,20 @@ function keepPageCopy(source: HTMLCanvasElement): OcrPageImage | undefined {
 }
 
 /** OCR a scanned PDF into text lines with per-line confidence. Throws when the
- * browser cannot run the engine (very old browsers without WASM SIMD). */
+ * browser cannot run the engine (very old browsers without WASM SIMD), or when
+ * the page may not compile WebAssembly at all. */
 export async function ocrPdfToLines(data: ArrayBuffer, onProgress: (p: OcrProgress) => void): Promise<OcrReadResult> {
+  // A host that serves the page under a Content-Security-Policy without
+  // 'wasm-unsafe-eval' forbids the engine; its worker then never answers, and
+  // the import sat at "Starting the text reader… 0%" for good, blocking every
+  // other import (cross-browser review, 2026-10-10). The worker inherits the
+  // page's policy, so compiling the smallest module here asks the same
+  // question and fails at once, into the caller's plain message.
+  try {
+    new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]));
+  } catch {
+    throw new Error('WebAssembly cannot run on this page');
+  }
   const { createWorker, OEM } = await import('tesseract.js');
   const asset = (name: string) => new URL(`ocr/${name}`, document.baseURI).href;
   onProgress({ label: 'Starting the text reader (first time downloads ~7 MB)', percent: 0 });

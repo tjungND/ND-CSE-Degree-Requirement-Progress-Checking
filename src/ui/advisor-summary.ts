@@ -690,10 +690,26 @@ function flatten(p: DetailPart, r?: RequirementResult): string {
 }
 
 /** Split prose into statements at ". " before a capital or digit, sparing the
- * abbreviations the details use (M.S., Ph.D., e.g., i.e., vs., etc.). */
+ * abbreviations the details use (M.S., Ph.D., e.g., i.e., vs., etc.). The
+ * abbreviation test is written out rather than a lookbehind: Safari before
+ * 16.4 cannot compile one, and this runs on every render of the audit page
+ * (cross-browser review, 2026-10-10). */
 function splitStatements(detail: string): string[] {
-  return detail.split(/(?<!\b(?:M\.S|Ph\.D|e\.g|i\.e|vs|etc|No))\.\s+(?=[A-Z0-9(“"])/);
+  const out: string[] = [];
+  const stop = /\.\s+(?=[A-Z0-9(“"])/g;
+  let start = 0;
+  for (let m = stop.exec(detail); m !== null; m = stop.exec(detail)) {
+    if (ABBREVIATION_BEFORE.test(detail.slice(0, m.index))) {
+      stop.lastIndex = m.index + 1;
+      continue;
+    }
+    out.push(detail.slice(start, m.index));
+    start = m.index + m[0].length;
+  }
+  out.push(detail.slice(start));
+  return out;
 }
+const ABBREVIATION_BEFORE = /\b(?:M\.S|Ph\.D|e\.g|i\.e|vs|etc|No)$/;
 
 /** The page's own form inside a statement — "…; enter the date under
  * Milestones once it is approved", "Enter your advisor under Milestones. A

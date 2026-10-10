@@ -26,6 +26,7 @@ import type { CourseEntry, Grade, Program, Season, Student, Term } from '../engi
 import type { ExternalCourseCandidate, ExternalParseResult } from '../transcript/external.ts';
 import { prefillLevelsByTerm } from '../transcript/level-prefill.ts';
 import { absorbBlockRow, blockRowBack, blockRowFor } from './nd-posted.ts';
+import { BROWSER_TOO_OLD_FOR_PDFS, browserTooOldForPdfs } from './pdf-support.ts';
 import { reclassifyNotreDameCourses } from './prior-nd.ts';
 import { canonicalUniversityName } from './university-name.ts';
 import { confirmDialog } from './copy-dialog.ts';
@@ -857,7 +858,7 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       }
       render();
     } catch {
-      fail('That PDF could not be read (is it a PDF?). Only system-generated PDFs are accepted.');
+      fail(browserTooOldForPdfs() ? BROWSER_TOO_OLD_FOR_PDFS : 'That PDF could not be read (is it a PDF?). Only system-generated PDFs are accepted.');
     } finally {
       (fileInput as HTMLInputElement).value = '';
     }
@@ -1395,13 +1396,17 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             // The Graduate School's factors (DGS Handbook §3.14), in code
             // since 2026-10-04 — they were sheet rows from 2026-09-12.
             const factorOf = (sys: 'quarter' | 'trimester') => creditSystemFactor(sys) ?? 1;
-            const at = (sys: 'quarter' | 'trimester') => `converted at ${factorOf(sys).toFixed(2)}`;
+            // Short enough to show whole on a 320 px phone (cross-browser
+            // review, 2026-10-10: "— counted as printed" / "— converted at
+            // 0.66" were cut there); the sentence after the menu gives the
+            // effect in credits.
+            const at = (sys: 'quarter' | 'trimester') => `(× ${factorOf(sys).toFixed(2)})`;
             const example = (sys: 'quarter' | 'trimester') => `a 4-credit course counts ${(4 * factorOf(sys)).toFixed(2)} Notre Dame credits`;
             const sel = el('select', { 'data-key': 'ext.preview.creditsystem' });
             for (const [value, label] of [
-              ['semester', 'Semester hours — counted as printed'],
-              ['quarter', `Quarter hours — ${at('quarter')}`],
-              ['trimester', `Trimester hours — ${at('trimester')}`],
+              ['semester', 'Semester hours (as printed)'],
+              ['quarter', `Quarter hours ${at('quarter')}`],
+              ['trimester', `Trimester hours ${at('trimester')}`],
             ] as const) {
               const o = el('option', { value }, label);
               if ((p.creditSystem ?? 'semester') === value) o.setAttribute('selected', 'selected');

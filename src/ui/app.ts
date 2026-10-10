@@ -449,16 +449,21 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   /** The footer's disclosure ("Where the rules come from"; "What is still
    * being tested" went with P-3, 2026-09-19) prints OPEN and return to what the student had (trim
    * review 2026-09-18, P-71): closed, they printed as two bare headings.
+   * So does every fold in the report since 2026-10-10 — "Relevant Policies"
+   * with its handbook quote, "Courses counted", the track notes, the terms:
+   * Chrome, Edge and Opera printed each closed one as a bare heading
+   * (Safari could not be printed here), Firefox printed them open (cross-browser review; the
+   * course page's legend has printed open since P-32).
    * Only the ones this handler opened are closed again; restoreFocus reads
    * the open state from the DOM, so a later re-render keeps the screen state. */
   window.addEventListener('beforeprint', () => {
-    document.querySelectorAll<HTMLDetailsElement>('footer.legal details:not([open])').forEach((d) => {
+    document.querySelectorAll<HTMLDetailsElement>('footer.legal details:not([open]), #report details:not([open])').forEach((d) => {
       d.dataset.printOpened = '';
       d.open = true;
     });
   });
   window.addEventListener('afterprint', () => {
-    document.querySelectorAll<HTMLDetailsElement>('footer.legal details[data-print-opened]').forEach((d) => {
+    document.querySelectorAll<HTMLDetailsElement>('details[data-print-opened]').forEach((d) => {
       d.open = false;
       delete d.dataset.printOpened;
     });
@@ -490,11 +495,16 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
 
   /** The two floating boxes stack: Next steps sits above the warnings box
    * (DGS 2026-10-08), so the warnings box's height — folded or open — is a
-   * CSS variable the Next steps box offsets by. Read after every render,
-   * when the warnings box is folded or unfolded, and when the window resizes. */
+   * CSS variable the Next steps box offsets by. The Next steps box's own
+   * height is one too: the page leaves room for both at its end, so they
+   * never sit over the footer's last lines (cross-browser review,
+   * 2026-10-10). Read after every render, when either box is folded or
+   * unfolded, and when the window resizes. */
   function layoutFloats(): void {
     const warnings = root.querySelector<HTMLElement>('.warnings.floating');
+    const steps = root.querySelector<HTMLElement>('.attention.floating');
     document.documentElement.style.setProperty('--float-warnings', warnings ? `${warnings.offsetHeight + 8}px` : '0px');
+    document.documentElement.style.setProperty('--float-steps', steps ? `${steps.offsetHeight + 8}px` : '0px');
   }
   window.addEventListener('resize', layoutFloats);
 
@@ -566,12 +576,29 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
   const contactHost = el('div', { class: 'contact-host' });
   const mainContactHost = el('div', { class: 'contact-host' });
   const contactNode = contactCard();
+  // Moved only when its host changes: re-inserting the card drops keyboard
+  // focus from a link inside it (which every print did, review 2026-10-10).
   const placeContact = (wide: boolean): void => {
-    (wide && !isEmbedded() ? contactHost : mainContactHost).append(contactNode);
+    const host = wide && !isEmbedded() ? contactHost : mainContactHost;
+    if (contactNode.parentElement !== host) host.append(contactNode);
   };
   const wideEnough = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 900px)') : undefined;
   placeContact(wideEnough ? wideEnough.matches : true);
-  wideEnough?.addEventListener?.('change', (ev) => placeContact((ev as MediaQueryListEvent).matches));
+  // While printing the card stays where the screen had it (cross-browser
+  // review, 2026-10-10): Chrome lays a printout out at the paper's width and
+  // fired this change mid-print, so the card moved after the pages were laid
+  // out — a blank last sheet on landscape paper from a narrow window.
+  let printingNow = false;
+  wideEnough?.addEventListener?.('change', (ev) => {
+    if (!printingNow) placeContact((ev as MediaQueryListEvent).matches);
+  });
+  window.addEventListener('beforeprint', () => {
+    printingNow = true;
+  });
+  window.addEventListener('afterprint', () => {
+    printingNow = false;
+    placeContact(wideEnough ? wideEnough.matches : true);
+  });
 
   function render(): void {
     const memo = rememberFocus();
@@ -727,6 +754,7 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
     watchScoreHeadlines();
     layoutFloats();
     root.querySelector('.warnings.floating .warnings-toggle')?.addEventListener('click', () => requestAnimationFrame(layoutFloats));
+    root.querySelector('.attention.floating .attention-toggle')?.addEventListener('click', () => requestAnimationFrame(layoutFloats));
     restoreFocus(memo);
     // Announce the recomputed result to screen readers — only when it changed,
     // so a keystroke in a title field does not chatter.
@@ -1984,7 +2012,9 @@ export function startApp(root: HTMLElement, rules: Rules, today: NotreDameNow): 
       el(
         'p',
         { class: 'hint course-key' },
-        `Key: ✓ counts · ◐ in progress · ● pending approval · ✕ does not count. Regular courses are the lecture courses the course rules list as regular; seminar, research and project credits count toward the ${totalCreditsWord()} total only (${student.program === 'mscse' ? '§3.2' : '§4.2'}).`,
+        'Key: ✓ counts · ◐ in progress · ● pending approval · ',
+        el('span', { class: 'x-glyph' }, '✕'), // the table's own ✕ (style.css)
+        ` does not count. Regular courses are the lecture courses the course rules list as regular; seminar, research and project credits count toward the ${totalCreditsWord()} total only (${student.program === 'mscse' ? '§3.2' : '§4.2'}).`,
       ),
       nd.length > 0
         ? courseTable(courseLines, nd)

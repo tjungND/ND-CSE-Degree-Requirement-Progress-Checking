@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Light and dark since 2026-10-04 (night mode; data-theme on <html>). -->
     <meta name="color-scheme" content="light dark" />
+    <!-- No icon file: without this line every browser asks the server for
+         /favicon.ico, gets a 404 and Chrome logs it as a console error
+         (cross-browser review, 2026-10-10). -->
+    <link rel="icon" href="data:," />
     <!-- Night mode before the first paint (DGS 2026-10-04; src/ui/theme.ts has the
          rest and must agree): a saved Light/Dark wins; otherwise the device's
          setting, except embedded (?embed=1), where Auto stays light. -->

@@ -23,5 +23,5 @@ The non-negotiables, spelled out in `CLAUDE.md`:
   official transcript, and future transcripts must read the same name (DGS 2026-10-07). The
   transcript reader must keep reading the names the sheet already lists.
 - `npm test` and `npm run build` must pass before you call anything done; run `npm run e2e` for
-  UI-visible changes (and `E2E_BROWSER=webkit npm run e2e` — Safari's engine — when layout
-  changed) and look at the screenshots. Add a scenario in `tests/scenarios/` for every bug fixed.
+  UI-visible changes (and `E2E_BROWSER=webkit npm run e2e` — Safari's engine — and
+  `E2E_BROWSER=firefox npm run e2e` when layout changed) and look at the screenshots. Add a scenario in `tests/scenarios/` for every bug fixed.

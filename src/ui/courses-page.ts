@@ -277,12 +277,29 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
   const contactHost = el('div', { class: 'contact-host' });
   const mainContactHost = el('div', { class: 'contact-host' });
   const contactNode = contactCard();
+  // Moved only when its host changes: re-inserting the card drops keyboard
+  // focus from a link inside it (which every print did, review 2026-10-10).
   const placeContact = (wide: boolean): void => {
-    (wide ? contactHost : mainContactHost).append(contactNode);
+    const host = wide ? contactHost : mainContactHost;
+    if (contactNode.parentElement !== host) host.append(contactNode);
   };
   const wideEnough = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 900px)') : undefined;
   placeContact(wideEnough ? wideEnough.matches : true);
-  wideEnough?.addEventListener?.('change', (ev) => placeContact((ev as MediaQueryListEvent).matches));
+  // While printing the card stays where the screen had it (cross-browser
+  // review, 2026-10-10): Chrome lays a printout out at the paper's width and
+  // fired this change mid-print, so the card moved after the pages were laid
+  // out — a blank last sheet on landscape paper from a narrow window.
+  let printingNow = false;
+  wideEnough?.addEventListener?.('change', (ev) => {
+    if (!printingNow) placeContact((ev as MediaQueryListEvent).matches);
+  });
+  window.addEventListener('beforeprint', () => {
+    printingNow = true;
+  });
+  window.addEventListener('afterprint', () => {
+    printingNow = false;
+    placeContact(wideEnough ? wideEnough.matches : true);
+  });
   /** Whether the filter bar is the desk grid (no fold) — see filterBar. Tests
    * run without matchMedia and get the desk bar. */
   const wideFilters: { matches: boolean; addEventListener?: (t: string, f: () => void) => void } =
@@ -616,16 +633,24 @@ export function renderCoursesPage(root: HTMLElement, rules: Rules, today: NotreD
       // rotated tablet in the wrong state.
       const wide = typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 861px)') : undefined;
       d.open = wide ? wide.matches : true;
+      // While printing the width does not decide: Chrome (so Edge and Opera
+      // too) lays the page out at the paper's width — under 861 px on
+      // portrait Letter or A4 — and fired this change between beforeprint and
+      // afterprint, closing the card the print had just opened, so the
+      // schedule printed as a bare heading (cross-browser review, 2026-10-10).
+      let printing = false;
       wide?.addEventListener?.('change', (ev) => {
-        d.open = (ev as MediaQueryListEvent).matches;
+        if (!printing) d.open = (ev as MediaQueryListEvent).matches;
       });
       // On paper both schedules print in full, whatever the window was doing.
       let openBefore = d.open;
       window.addEventListener('beforeprint', () => {
+        printing = true;
         openBefore = d.open;
         d.open = true;
       });
       window.addEventListener('afterprint', () => {
+        printing = false;
         d.open = openBefore;
       });
       return d;

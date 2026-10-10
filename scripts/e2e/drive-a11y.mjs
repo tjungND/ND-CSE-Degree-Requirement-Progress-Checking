@@ -37,6 +37,8 @@ export async function driveA11y(s, baseUrl) {
   await checkMobilePieces(s, 'app');
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 390);
   await checkPhone(s, 'app', `document.querySelectorAll('table.courses tr').length > 3`, 820);
+  await checkNarrowestPhone(s, baseUrl);
+  await checkDeskFloats(s);
   await s.open(new URL('courses.html', baseUrl).href, '.all-courses table.course-rules');
   await checkAxe(s, 'course-rules page');
   await checkNightMode(s, 'courses', 'course-rules page');
@@ -394,6 +396,138 @@ async function checkPhone(s, page, readyExpr, width = 390) {
     if (phone.pillRights.length > 1) throw new Error('the status pill must park in one column: ' + JSON.stringify(phone.pillRights));
   }
   console.log(`  ${width < 600 ? 'phone' : 'tablet'} width (${width} px), ${page} page: no horizontal scrolling`);
+  await s.setViewport({ width: 1400, height: 1900 });
+}
+
+// 3c. The narrowest phone, 320 px — also a 1280 px window at 400 % zoom (WCAG
+// 1.4.10) — with the example record (cross-browser review, 2026-10-10, the
+// same in Chrome, Safari's engine and Firefox): the Next steps pill ran out of
+// its line, scrolling the unfolded box and the embedded page sideways; and at
+// the end of the page the folded Next steps bar sat over the footer's last
+// links (WCAG 2.4.11). The page is loaded AT 320 px, as a phone loads it: the
+// box folds when the report renders, not when a window is resized. The end of
+// the page is measured folded and unfolded — the room the page leaves follows
+// the box (layoutFloats re-measures on Show / Hide).
+async function checkNarrowestPhone(s, baseUrl) {
+  await s.setViewport({ width: 320, height: 640, mobile: true });
+  await s.open(baseUrl, '.masthead h1');
+  await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
+  await s.settle(250);
+  const frame = `new Promise((r) => requestAnimationFrame(() => setTimeout(r, 150)))`;
+  const toggle = () => s.evalJs(`(async () => { document.querySelector('.attention.floating .attention-toggle').click(); await ${frame}; return true; })()`);
+  const box = JSON.parse(await s.evalJs(`(async () => {
+    const b = document.querySelector('.attention.floating');
+    if (!b) return JSON.stringify({ missing: true });
+    const folded = b.classList.contains('folded');
+    if (folded) { b.querySelector('.attention-toggle').click(); await ${frame}; }
+    const m = { folded, scroll: b.scrollWidth, client: b.clientWidth };
+    if (folded) { b.querySelector('.attention-toggle').click(); await ${frame}; }
+    return JSON.stringify(m);
+  })()`));
+  if (box.missing) throw new Error('expected the floating Next steps box with the example record');
+  if (!box.folded) throw new Error('at 320 px the Next steps box must load folded');
+  if (box.scroll > box.client) throw new Error(`the unfolded Next steps box scrolls sideways at 320 px (${box.scroll} > ${box.client})`);
+  // A focused control stops clear of the bar and the boxes: 24 px more than
+  // them at the bottom, 24 px at the top — Firefox does not scroll a control
+  // whose top is already inside the padded window (2026-10-10).
+  const pad = JSON.parse(await s.evalJs(`JSON.stringify((() => {
+    const root = document.documentElement;
+    const v = (k) => parseFloat(root.style.getPropertyValue(k)) || 0;
+    const cs = getComputedStyle(root);
+    return { bottom: parseFloat(cs.scrollPaddingBottom), top: parseFloat(cs.scrollPaddingTop), boxes: v('--float-warnings') + v('--float-steps') };
+  })())`));
+  if (Math.abs(pad.bottom - (88 + pad.boxes)) > 0.5 || pad.top !== 24) throw new Error('at 320 px a focused control can stop under the bar or the boxes: ' + JSON.stringify(pad));
+  // Row 3 ("From another university"): its long "Taken as" choices ran the
+  // phone page sideways until its fields could shrink (2026-10-10).
+  const row3 = JSON.parse(await s.evalJs(`(async () => {
+    const origin = document.querySelector('[data-key="course.new.origin"]');
+    const was = origin.value;
+    origin.value = 'transfer';
+    origin.dispatchEvent(new Event('change', { bubbles: true }));
+    await ${frame};
+    const shown = [...document.querySelectorAll('.course-form .row3 select')].filter((e) => e.getClientRects().length > 0).length;
+    const m = { shown, scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth };
+    const o = document.querySelector('[data-key="course.new.origin"]');
+    o.value = was;
+    o.dispatchEvent(new Event('change', { bubbles: true }));
+    await ${frame};
+    return JSON.stringify(m);
+  })()`));
+  if (row3.shown < 1) throw new Error('expected row 3 of the add-a-course form with Where = another university');
+  if (row3.scroll > row3.client) throw new Error(`with Where = another university the page scrolls sideways at 320 px (${row3.scroll} > ${row3.client})`);
+  // Scrolled to the end; every footer link not in a closed fold (Chrome still
+  // gives those a box) must be the topmost thing at its own position.
+  const atEnd = async (state) => {
+    const m = JSON.parse(await s.evalJs(`(async () => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await ${frame};
+      const links = [...document.querySelectorAll('footer.legal a')].filter((a) => a.getClientRects().length > 0 && !a.closest('details:not([open])'));
+      const covered = links.filter((a) => {
+        const r = a.getClientRects()[a.getClientRects().length - 1];
+        if (r.bottom <= 0) return false; // scrolled past, above the screen
+        const top = document.elementFromPoint(r.left + Math.min(r.width / 2, 8), Math.max(0, Math.min(r.top + r.height / 2, innerHeight - 1)));
+        a.dataset.e2eCoveredBy = top ? String(top.className || top.tagName).slice(0, 40) : 'nothing';
+        return !(top && (top === a || a.contains(top)));
+      }).map((a) => (a.textContent || '').trim().slice(0, 30) + ' under ' + a.dataset.e2eCoveredBy);
+      return JSON.stringify({ links: links.length, covered, steps: getComputedStyle(document.documentElement).getPropertyValue('--float-steps').trim() });
+    })()`));
+    if (m.links < 1) throw new Error('expected the footer\'s links');
+    if (m.covered.length > 0) throw new Error(`at the end of the page (${state}) a floating box covers footer links at 320 px: ${m.covered.join(' | ')}`);
+    return m;
+  };
+  const folded = await atEnd('Next steps folded');
+  await s.shot('phone-320-app'); // the end of the page, folded: the footer's last lines clear of the bar
+  await toggle();
+  const unfolded = await atEnd('Next steps unfolded');
+  await toggle();
+  await s.evalJs(`window.scrollTo(0, 0)`);
+  await s.open(new URL('?embed=1', baseUrl).href, '.masthead h1');
+  await s.waitFor(`document.querySelectorAll('table.courses tr').length > 3`);
+  await s.settle(250);
+  const embed = JSON.parse(await s.evalJs(`JSON.stringify({ scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, pills: document.querySelectorAll('.attention li .pill').length })`));
+  await s.shot('phone-320-embed');
+  if (embed.pills < 1) throw new Error('expected the Next steps list in the embedded page');
+  if (embed.scrollW > embed.clientW) throw new Error(`the embedded page scrolls sideways at 320 px (${embed.scrollW} > ${embed.clientW})`);
+  console.log(`  narrowest phone (320 px): Next steps box loads folded, ${box.scroll}/${box.client} px unfolded; footer's ${folded.links} link(s) clear of the floating boxes at the end, folded (room ${folded.steps}) and unfolded (room ${unfolded.steps}); embedded page ${embed.scrollW}/${embed.clientW} px`);
+  await s.setViewport({ width: 1400, height: 1900 });
+  await s.open(baseUrl, '.masthead h1');
+}
+
+// 3d. The floating boxes at desk width (cross-browser review, 2026-10-10): a
+// focused control never stops under them (scroll-padding-bottom = 18 px + the
+// boxes, measured by layoutFloats), and from 1121 px, where the 440 px boxes
+// sit over the report column alone, their room is under that column, not
+// under the whole page (it had left up to 355 px of blank after the footer).
+async function checkDeskFloats(s) {
+  const read = () => s.evalJs(`JSON.stringify((() => {
+    const root = document.documentElement;
+    const v = (k) => parseFloat(root.style.getPropertyValue(k)) || 0;
+    const px = (e, k) => parseFloat(getComputedStyle(e)[k]);
+    return {
+      boxes: v('--float-warnings') + v('--float-steps'),
+      folded: document.querySelector('.attention.floating')?.classList.contains('folded') ?? null,
+      scrollPad: px(root, 'scrollPaddingBottom'),
+      app: px(document.getElementById('app'), 'paddingBottom'),
+      report: px(document.getElementById('report'), 'paddingBottom'),
+    };
+  })())`).then(JSON.parse);
+  const toggle = () => s.evalJs(`(async () => { document.querySelector('.attention.floating .attention-toggle').click(); await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 150))); return true; })()`);
+  const seen = [];
+  for (const width of [1024, 1440]) {
+    await s.setViewport({ width, height: 900, settleMs: 250 });
+    for (const state of ['as loaded', 'toggled']) {
+      if (state === 'toggled') await toggle();
+      const m = await read();
+      seen.push(`${width} ${m.folded ? 'folded' : 'open'}: boxes ${m.boxes}, scroll-padding ${m.scrollPad}, #app ${m.app}, #report ${m.report}`);
+      if (m.folded === null || m.boxes <= 0) throw new Error(`expected the floating Next steps box at ${width} px: ` + JSON.stringify(m));
+      if (Math.abs(m.scrollPad - (18 + m.boxes)) > 0.5) throw new Error(`at ${width} px a focused control can stop under the floating boxes: scroll-padding-bottom ${m.scrollPad}, boxes ${m.boxes}`);
+      const wantApp = width >= 1121 ? 60 : 60 + m.boxes;
+      const wantReport = width >= 1121 ? m.boxes : 0;
+      if (Math.abs(m.app - wantApp) > 0.5 || Math.abs(m.report - wantReport) > 0.5) throw new Error(`at ${width} px the boxes' room is in the wrong place: #app ${m.app} (want ${wantApp}), #report ${m.report} (want ${wantReport})`);
+    }
+    await toggle(); // as loaded again
+  }
+  console.log('  desk widths, the floating boxes\' room and focus padding: ' + seen.join('; '));
   await s.setViewport({ width: 1400, height: 1900 });
 }
 

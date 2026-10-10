@@ -16,8 +16,15 @@ export interface Campus {
   name: string;
   /** The campus's full name, as the ExternalCourses tab should key it. */
   full: string;
-  /** How a transcript may name the campus: its city, its acronym, its town. */
+  /** How a transcript may name the campus: its city, its acronym, its town.
+   * Read only through `campusNamedAt`. */
   aliases: RegExp;
+  /** A match of the aliases' group 1 does not count when the text before it
+   * ends with this ("City College" right after "York ", inside "New York City
+   * College of Technology"). This is a lookbehind, written out: Safari before
+   * 16.4 cannot compile one, and the list below is built when the module
+   * loads (cross-browser review, 2026-10-10). */
+  notAfter?: RegExp;
 }
 
 export interface MultiCampusSystem {
@@ -32,7 +39,23 @@ export interface MultiCampusSystem {
   firstNamedWins?: true;
 }
 
-const c = (name: string, full: string, aliases: RegExp): Campus => ({ name, full, aliases });
+const c = (name: string, full: string, aliases: RegExp, notAfter?: RegExp): Campus => (notAfter ? { name, full, aliases, notAfter } : { name, full, aliases });
+
+/** Where `text` first names the campus, or -1. A match `notAfter` refuses
+ * moves the search on by one character, as the regex engine itself would. */
+export function campusNamedAt(cp: Campus, text: string): number {
+  if (cp.notAfter === undefined) return cp.aliases.exec(text)?.index ?? -1;
+  const re = new RegExp(cp.aliases.source, cp.aliases.flags.replace('g', '') + 'g');
+  for (let m = re.exec(text); m !== null; m = re.exec(text)) {
+    if (m[1] !== undefined && cp.notAfter.test(text.slice(0, m.index))) {
+      re.lastIndex = m.index + 1;
+      continue;
+    }
+    return m.index;
+  }
+  return -1;
+}
+const names = (cp: Campus, text: string): boolean => campusNamedAt(cp, text) >= 0;
 
 export const MULTI_CAMPUS_SYSTEMS: readonly MultiCampusSystem[] = [
   {
@@ -234,8 +257,8 @@ export const MULTI_CAMPUS_SYSTEMS: readonly MultiCampusSystem[] = [
       c('City Tech', 'New York City College of Technology', /\bNew York City College of Technology\b|\bCity Tech\b/i),
       c('Queens', 'Queens College', /\bQueens College\b/i),
       c('Queensborough', 'Queensborough Community College', /\bQueensborough Community College\b/i),
-      c('City College', 'The City College of New York', /(?<!York\s)\bCity College\b(?!\s+of\s+Technology)|\bCCNY\b/i),
-      c('York', 'York College', /(?<!New\s)\bYork College\b/i),
+      c('City College', 'The City College of New York', /(\bCity College\b)(?!\s+of\s+Technology)|\bCCNY\b/i, /York\s$/i),
+      c('York', 'York College', /(\bYork College\b)/i, /New\s$/i),
     ],
   },
 ];
@@ -269,7 +292,7 @@ export function resolveCampus(university: string | undefined, lines: readonly st
     // UNIVERSITY OF NEW YORK" (DGS 2026-09-20). A system named inside the
     // printed name counts only when the name also names one of its campuses,
     // so "California State University" still belongs to no system.
-    MULTI_CAMPUS_SYSTEMS.find((s) => key.includes(' ' + normalizeUniversity(s.system)) && s.campuses.some((cp) => cp.aliases.test(university))) ??
+    MULTI_CAMPUS_SYSTEMS.find((s) => key.includes(' ' + normalizeUniversity(s.system)) && s.campuses.some((cp) => names(cp, university))) ??
     // The campus's own name alone ("Binghamton University", read from an
     // eScrip-Safe cover — F5, Batch B 2026-10-09) belongs to a system only
     // when the header prints that system's name ("… STATE UNIVERSITY OF NEW
@@ -280,7 +303,7 @@ export function resolveCampus(university: string | undefined, lines: readonly st
     // institution's line) is another school (review, 2026-10-10).
     MULTI_CAMPUS_SYSTEMS.find((s) => normalizeUniversity(lines.slice(0, 40).join(' ')).includes(normalizeUniversity(s.system)) && s.campuses.some((cp) => normalizeUniversity(cp.full) === key));
   if (system === undefined) return {};
-  const inName = system.campuses.find((cp) => cp.aliases.test(university));
+  const inName = system.campuses.find((cp) => names(cp, university));
   if (inName) return { system, campus: inName };
   // The header first — a campus named in the first lines is the transcript's
   // own; a city deep in the record could be another school's address in a
@@ -298,13 +321,13 @@ export function resolveCampus(university: string | undefined, lines: readonly st
   if (system.firstNamedWins) {
     let at = Infinity;
     for (const cp of system.campuses) {
-      const m = cp.aliases.exec(header);
-      if (m && m.index < at) {
+      const i = campusNamedAt(cp, header);
+      if (i >= 0 && i < at) {
         inHeader = cp;
-        at = m.index;
+        at = i;
       }
     }
-  } else inHeader = system.campuses.find((cp) => cp.aliases.test(header));
+  } else inHeader = system.campuses.find((cp) => names(cp, header));
   return inHeader ? { system, campus: inHeader } : { system };
 }
 

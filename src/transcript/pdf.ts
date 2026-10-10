@@ -2,10 +2,19 @@
 // this app has beyond Vite: it is the only way to read a transcript PDF fully
 // client-side, which the no-backend / data-never-leaves-the-browser constraint
 // requires). The worker is bundled by Vite (?url) — no CDN, works offline.
-import * as pdfjs from 'pdfjs-dist';
+//
+// The LEGACY build (cross-browser review, 2026-10-10): pdf.js's modern build
+// calls Promise.withResolvers unguarded, so every transcript import failed —
+// blaming the file — on Safari before 17.4 (iOS 16 included), Chrome before
+// 119 and Firefox before 121 (ESR 115). The legacy build reads the same text
+// (same items, positions and widths on every fixture, in all three engines)
+// and needs Safari 16.4, Chrome 94, Firefox 93. The Node tools
+// (scripts/dev/pdf-lines-node.mts, the replay) already read with it.
+// tests/browser-support.test.ts keeps both imports on it.
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 // Vite turns this into a relative asset URL inside dist/ at build time.
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import { pageLayout, runsFromTextItems, type ColumnHint } from './layout.ts';
 import { pageScanLayer } from './scanner-layer.ts';
 

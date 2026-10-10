@@ -23,10 +23,12 @@
 // course is read by the person who decides it).
 
 /** The first run of digits in a course id, when it is a course number of 3 to
- * 5 digits ("ECE 4804" → "4804"; "6.006" and "30240233" have none). */
+ * 5 digits ("ECE 4804" → "4804"; "6.006" and "30240233" have none). The
+ * leftmost greedy match IS the first whole run; no lookbehind, which Safari
+ * before 16.4 cannot compile (cross-browser review, 2026-10-10). */
 function courseNumber(courseId: string): string | undefined {
-  const m = /(?<![0-9])([0-9]+)(?![0-9])/.exec(courseId);
-  return m && m[1]!.length >= 3 && m[1]!.length <= 5 ? m[1] : undefined;
+  const m = /[0-9]+/.exec(courseId);
+  return m && m[0].length >= 3 && m[0].length <= 5 ? m[0] : undefined;
 }
 
 /** Does the course number look like an undergraduate course, as most

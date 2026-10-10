@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Launch, drive, and screenshot the degree-audit app. Use when asked to run/preview the app, verify a UI change in a real browser (Chrome or Safari's engine), take screenshots, or exercise the transcript-upload flow end to end.
+description: Launch, drive, and screenshot the degree-audit app. Use when asked to run/preview the app, verify a UI change in a real browser (Chrome, Safari's engine or Firefox), take screenshots, or exercise the transcript-upload flow end to end.
 ---
 
 # Running and driving the degree-audit app
@@ -14,10 +14,13 @@ description: Launch, drive, and screenshot the degree-audit app. Use when asked 
 | Full browser e2e in Chrome (screenshots + assertions) | `npm run e2e` → screenshots in `.e2e-out/` |
 | The same e2e on Safari's engine (WebKit) | `E2E_BROWSER=webkit npm run e2e` (= `npm run e2e:webkit`) → `.e2e-out/webkit/` |
 | One-time WebKit setup per Mac | `npx playwright-core install webkit` (≈100 MB, into `~/Library/Caches/ms-playwright/`) |
+| The same e2e on Firefox (Gecko) | `E2E_BROWSER=firefox npm run e2e` (= `npm run e2e:firefox`) → `.e2e-out/firefox/` — the installed Firefox, no setup |
+| Two runs side by side | `E2E_PORT=<port>` (preview server, default 4273) and `E2E_DEBUG_PORT=<port>` (Chrome's DevTools port, default 9333) |
 | One driver only, while iterating | `E2E_ONLY=<substring of the driver name> npm run e2e` (e.g. `E2E_ONLY=access`) |
 | Unit/scenario tests (no browser) | `npm test` |
 
-Run BOTH browsers for anything that changes layout: on 2026-09-06 Chrome rendered a CSS
+Run ALL THREE browsers for anything that changes layout (Firefox since 2026-10-10, when its
+always-drawn number spinner was found covering the last digit of the year box): on 2026-09-06 Chrome rendered a CSS
 subgrid that Safari broke (cells overlapping, a row overflowing its card), and the same evening
 the first WebKit run found the one-line preview rows keyed on a 600 px preview when the recorded
 decision said 560 — an 1100 px window (preview 582 px) showed two-line rows in both engines.
@@ -37,8 +40,19 @@ decision said 560 — an 1100 px window (preview 582 px) showed two-line rows in
   session shape the drivers use and translates the few DevTools commands they call directly
   (`Page.navigate`; `Emulation.setDeviceMetricsOverride` → the viewport size only;
   `Input.dispatchKeyEvent` → `page.keyboard`); an untranslated command throws on purpose — add it there.
+- **Firefox (`E2E_BROWSER=firefox`, 2026-10-10)** — the INSTALLED Firefox (`FIREFOX_BIN` overrides
+  the path), headless, from a throwaway profile in the temp folder (deleted at the end; its
+  `user.js` turns off updates, telemetry and first-run pages, keeps downloads inside it and
+  reports a light device). `scripts/e2e/firefox.mjs` speaks WebDriver BiDi — Firefox's own remote
+  protocol — over Node's built-in WebSocket: no geckodriver, no dependency. Same session shape,
+  same translated commands; print media is emulated by swapping `print` and `screen` in the
+  page's own media queries through the CSSOM (BiDi has no media emulation), so
+  `matchMedia('print')` still answers false. A native alert/confirm is dismissed and logged.
+  Edge, Opera and Brave are Chromium (the Chrome run is their engine); every iOS browser is
+  WebKit. Real Safari can be scripted only after `safaridriver --enable` (an admin password,
+  once per Mac) — the harness does not use it.
 
-The start-up choreography both share — `waitFor`, the loading card, the opening notice — lives
+The start-up choreography all three share — `waitFor`, the loading card, the opening notice — lives
 in `scripts/e2e/session-common.mjs`; change the page's start-up flow there, once. Four drivers,
 each in a fresh tab, in this order:
 
@@ -101,6 +115,10 @@ Look at the screenshots you take — a blank frame means the page didn't render.
   as `loading-failed.png` first). That's expected, not a bug.
 - Student state persists in localStorage per origin; drivers call `localStorage.clear()` and
   reload to get a clean slate.
-- Each browser clears only its own screenshots (`.e2e-out/*.png` vs `.e2e-out/webkit/`), so a
-  Chrome run and a WebKit run can be compared side by side.
+- Each browser clears only its own screenshots (`.e2e-out/*.png` vs `.e2e-out/webkit/` and
+  `.e2e-out/firefox/`), so the runs can be compared side by side. A Chrome run with `E2E_ONLY`
+  still clears ALL the top-level Chrome PNGs — run the full suite again before comparing.
+- Firefox picks a free BiDi port itself (`E2E_DEBUG_PORT=0`, its default here) and prints it.
+- A run refuses to start when its preview port (or Chrome's DevTools port) already answers —
+  another run is using it; set `E2E_PORT` / `E2E_DEBUG_PORT`, or free the port (above).
 - `npx` misbehaves if any parent folder name ever contains a colon — see MAINTENANCE.md.

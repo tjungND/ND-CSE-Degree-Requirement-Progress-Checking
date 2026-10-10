@@ -57,6 +57,12 @@ export async function openWebkitSession(context, outDir) {
     await settle(120);
     const el = page.locator(selector).first();
     if ((await el.count()) === 0) throw new Error('shotElement: nothing matches ' + selector);
+    // Scrolled to the top of the window first, as cdp.mjs and firefox.mjs do:
+    // Playwright scrolls only as far as it must, so the floating boxes and
+    // toasts landed in different places and the engines' shots did not
+    // compare (2026-10-10).
+    await el.evaluate((e) => e.scrollIntoView({ block: 'start' }));
+    await settle(60);
     await el.screenshot({ path: join(outDir, `${name}.png`) });
     console.log('  screenshot:', `${name}.png`);
   };

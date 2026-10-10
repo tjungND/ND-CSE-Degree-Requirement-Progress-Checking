@@ -23,6 +23,7 @@ import { el, inactiveButton, PREVIEW_OPEN_NOTE, SIMULATION_IMPORT_NOTE } from '.
 import { plural } from './email-html.ts';
 import { ndRowLabel } from './external-upload.ts';
 import { postingOf, stripNdPostings, twinOfBlockRow } from './nd-posted.ts';
+import { BROWSER_TOO_OLD_FOR_PDFS, browserTooOldForPdfs } from './pdf-support.ts';
 import { deriveNdMasters, derivePriorMs, hasPriorGraduateStudy, priorNdDegreeLevel, reclassifyNotreDameCourses } from './prior-nd.ts';
 import type { RefusedValues } from './refusals.ts';
 
@@ -303,7 +304,7 @@ export function ndTranscriptUpload(args: NdUploadArgs): HTMLElement {
       };
       args.render();
     } catch {
-      fail('That PDF could not be read (a scanned image, or not a PDF?). Add your courses manually.');
+      fail(browserTooOldForPdfs() ? BROWSER_TOO_OLD_FOR_PDFS : 'That PDF could not be read (a scanned image, or not a PDF?). Add your courses manually.');
     } finally {
       (fileInput as HTMLInputElement).value = '';
     }

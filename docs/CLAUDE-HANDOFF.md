@@ -453,6 +453,59 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   list, so adding a fixture PDF never moves the bench). A phone crop of the preview hides the window's floating
   panels first (WebKit's element shot paints them in). The e2e scan's rows are both flagged, so the unflagged
   toggle is still pinned only in node, and no e2e fixture is a scanner-layer PDF yet.
+- **The cross-browser review** (2026-10-10; DGS: “verify everything (both app and course page) and
+  make sure things are shown correctly in Safari, Firefox, Opera, and other common web browsers”;
+  DECISIONS has two rows, MAINTENANCE.md § Browsers the floors). Found by a static audit of `dist/`
+  (with fuzz-checked rewrites), a Firefox e2e backend, a 120-load layout matrix (3 engines × 4
+  pages × 5 viewports × light/dark) and real print-to-PDF; each finding re-verified by a second
+  agent. What changed, and why it must stay: the five regex lookbehinds are written out in code
+  (both pages were blank on Safari 14–16.3 — invariant 8); pdf.js's legacy build; `writeClipboard`
+  tries the copy command FIRST where `ClipboardItem` is missing (Firefox ESR 115 lost the
+  tables), before any `await`, so it is still inside the click; the cards' stripe colours come from
+  `req-overdue` / `req-duesoon` / `req-notstarted` classes, not `:has()`; the add-a-course year box
+  is 84 px (Firefox always draws a spinner); every `.course-form` drop-down and the simulation
+  banner's take the text boxes' height, `calc(1.5em + 16px)`, and the transcript preview's
+  `calc(1.5em + 10px)` except the compact rows' small "Taken as" (WebKit ignores a drop-down's
+  padding but honours a height — `min-height` does nothing there); the preview's credit-system and
+  bachelor's-season selects are no longer capped at 74 px, and the credit-system choices are short
+  enough for a 320 px phone (W-CL426); row 3's fields may shrink (`min-width: 0` — "Taken as"
+  ran the phone page sideways once Where was another university); ✕ names its font, at weight 400
+  (Safari drew a small ×, and faux-bolded Zapf Dingbats as Firefox did); a space before each Next
+  steps pill so it can wrap at 320 px; `layoutFloats` measures the Next steps box into
+  `--float-steps` (and again on Show / Hide), and the page leaves room for both floating boxes at
+  its end — under the whole page below 1121 px, under the report column from 1121 px, where the
+  440 px boxes cannot reach the footer — plus `scroll-padding-bottom` so a focused control never
+  stops under them (the folded bar covered the footer's last links on every phone; a focused link
+  sat under the box at 1024 px); at ≤900 px that padding is 24 px more than the bar and boxes,
+  with 24 px at the top, because Firefox does not scroll a focused control whose top is already
+  inside the padded window (it stopped a third under the box); `beforeprint` opens the report's folds (Chrome printed them as
+  bare headings — the DECISIONS row; Firefox printed them open); the course page's schedule cards
+  and both pages' contact card ignore the width listeners while printing (Chrome lays a printout
+  out at the paper's width: it closed the schedule on portrait paper and moved the card after
+  pagination, leaving a blank last sheet), and `placeContact` moves the card only when its host
+  changes (re-inserting it dropped keyboard focus on every print); the card never splits across
+  sheets (`break-inside: avoid`); on paper the All courses header's sort buttons are
+  `display: contents` (Chrome repeated the header as an empty band on later landscape pages);
+  `<link rel="icon" href="data:,">` on both pages (no /favicon.ico 404); below the PDF floor a
+  failed import says the browser is too old (`src/ui/pdf-support.ts`, W-CL425); OCR compiles an
+  empty WebAssembly module before starting its worker, so a host's CSP without
+  'wasm-unsafe-eval' fails at once into the plain message instead of hanging at 0 % and blocking
+  every import; the Notre Dame
+  refusal check reads only the stretch a match can cover (`endsWithUniversityOf`: the first
+  version was quadratic). The e2e pins the print folds (with a student's open fold kept), printing
+  at paper width (`checkPrintAtPaperWidth`), the narrowest phone loaded at 320 px folded and
+  unfolded (`checkNarrowestPhone`), the desk widths' padding (`checkDeskFloats`), the form's
+  drop-down heights (row 3's included) and year box (`checkFormControls`), the stripes — due
+  soon, not started, overdue (`checkCardStripes`), the preview's drop-downs at 1400 and 320 px
+  (`checkPreviewSelects`), the contact card while printing and its focus
+  (`checkContactWhilePrinting`) and an unreadable file with and without the old-browser message
+  (`checkUnreadablePdf`), in all three engines; Chrome's e2e profile is emptied each run, and a run
+  refuses ports another run is using. Not
+  done, by choice: real Safari (needs `safaridriver --enable`), Opera/Edge (Chromium — the Chrome
+  run), iOS (no simulator runtime on the Mac); the opening notice's `:has()` highlight; Firefox's
+  smaller ◐; headings left at the foot of a printed page; a two-line sticky score bar reaching
+  under the warnings box; and the course list printing as cards on portrait paper (a question for
+  the DGS).
 - **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
   after this one carry the reasons, STATE.md's "Batch A done" paragraph and
   `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:
@@ -1483,7 +1536,10 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   Uint8Array.fromBase64, Float16Array) in its main AND worker code, which Safari lacks, so on
   Safari every PDF read failed (system-generated ones then looked like scans). Before ever
   upgrading pdfjs, grep the new build + pdf.worker.min.mjs for those identifiers and check
-  they are guarded, then test in real Safari.
+  they are guarded, then test in real Safari. Since 2026-10-10 the app imports the LEGACY build
+  (`pdfjs-dist/legacy/build/pdf.mjs` + its worker): the modern v4 build calls
+  `Promise.withResolvers` unguarded, failing every import on Safari < 17.4, Chrome < 119, Firefox
+  < 121; the legacy one polyfills it and reads identical text (the Node tools already used it).
   Pages render via pdfjs at the per-page scale of OCR step 12 (the scan's own resolution between
   216 and 300 dpi — the step-12 bullet below; a fixed 3.0 = 216 dpi before it), max 10 pages. THE PIPELINE (OCR step 11,
   2026-10-09): render → `worker.recognize(canvas, {}, { blocks: true })` → the pure
@@ -2085,6 +2141,11 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
    `MAINTENANCE.md` + fixtures/samples updated together.
 7. Handbook beats code; DGS decisions live in `docs/DECISIONS.md` — read before overruling,
    append when a new call is made (date, question, decision, who).
+8. No regex lookbehind in `src/` (2026-10-10): esbuild silently turns one into a run-time
+   `new RegExp`, which Safari before 16.4 cannot compile — two of them blanked both pages there.
+   `tests/browser-support.test.ts` enforces it; write the check out in code instead
+   (`otherNotreDameSpans`, `campusNamedAt`, `splitStatements` are the patterns). pdf.js stays on
+   its LEGACY build (same test).
 
 ## How to verify like the original session did
 
@@ -2099,6 +2160,11 @@ pure half (tests: `tests/simulation.test.ts`); the plumbing is in `src/ui/app.ts
   (Playwright's WebKit build; one-time `npx playwright-core install webkit` per Mac), screenshots
   in `.e2e-out/webkit/`. Run it too whenever layout changed — Chrome alone missed a Safari-only
   bug on 2026-09-06.
+- `E2E_BROWSER=firefox npm run e2e` (or `npm run e2e:firefox`, 2026-10-10) — the same drivers on
+  the installed Firefox, headless, over WebDriver BiDi (`scripts/e2e/firefox.mjs`; no dependency,
+  a throwaway profile), screenshots in `.e2e-out/firefox/`. Run it with WebKit's whenever layout
+  changed: Firefox alone draws a number box's spinner at all times, and alone printed the
+  report's folds open. `E2E_PORT` / `E2E_DEBUG_PORT` move the ports.
 - `npm run sync-sheet` — fetches the live sheet, prints its diagnostics, and rewrites the
   snapshot only if the sheet content changed (it says which tabs).
 - Read screenshots you take. A wrong verdict is easier to spot in the rendered report than in
