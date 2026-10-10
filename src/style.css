@@ -1014,6 +1014,9 @@ abbr.term { text-decoration: underline dotted; text-decoration-color: var(--line
 .ocr-banner { background: var(--note-bg); border: 1px solid var(--note-line); color: var(--note-ink); border-radius: 8px; padding: 8px 12px; margin: 6px 0 10px; font-size: 13px; }
 .ocr-progress { margin-top: 10px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 tr.ocr-low td { background: var(--note-bg); }
+/* What the scan showed in a credits or grade cell the OCR numeric correction filled (Batch C answer (4),
+   DGS 2026-10-09): under the value, small, in the scan's own characters. */
+.transcript-preview .ocr-raw { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); white-space: nowrap; cursor: help; }
 
 /* ---------- phones and tablets (2026-09-05, usability review items 2, 13, 30) ---------- */
 /* Wide screens: the report sits beside the inputs, so the mobile-only pieces stay hidden. */

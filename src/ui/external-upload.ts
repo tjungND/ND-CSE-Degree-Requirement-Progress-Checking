@@ -66,6 +66,10 @@ interface PreviewRow {
   year: number | undefined;
   /** OCR read this row's line poorly — the preview marks it for checking. */
   lowConfidence?: boolean;
+  /** OCR only (Batch C answer (4), DGS 2026-10-09): what the scan showed in a
+   * credits or grade cell the parser corrected ("3.O", "Bt") — shown beside
+   * the value, never saved (the Add builds each course field by field). */
+  ocrRead?: { credits?: string; grade?: string };
   /** The level the student was registered at for this row (2026-09-05 —
    * combined B.S.+M.S. / 4+1 transcripts): from the transcript when it says,
    * else the slot's level. Undergraduate rows can only satisfy §4.4.1 core
@@ -339,6 +343,16 @@ export function readyToAdd(r: Pick<PreviewRow, 'include' | 'courseId' | 'grade' 
 export const CODE_MISSING_PLACEHOLDER = 'course number';
 export const CODE_MISSING_NOTE =
   'This transcript prints no course number for this course. Type the number the university gives it (its course catalog or your syllabus) to add it; until then the row is not ticked.';
+/** Beside a credits or grade value the OCR numeric correction filled (Batch C
+ * answer (4), DGS 2026-10-09): what the scan itself shows (W-CL411), and on
+ * hover / to a screen reader what the app made of it (W-CL412). */
+export function ocrRawNote(raw: string): string {
+  return `scan shows “${raw}”`;
+}
+export function ocrRawTitle(raw: string): string {
+  return `The scan shows “${raw}” here — a letter where a digit or a plus sign belongs — so the box was filled in with what it stands for. Check it against your transcript.`;
+}
+
 /** The preview's one line when any row has no course number (W-CL409). */
 export function codeMissingHint(n: number): string {
   return `${n === 1 ? 'One course on this transcript has' : `${n} courses on this transcript have`} no course number printed: type each one in its empty “Course id” box — from the university’s course catalog or your syllabus — and the row is ticked; a course without one is not added. The DGS rules on these courses by the number you type.`;
@@ -640,6 +654,7 @@ export function previewRowOf(c: ExternalCourseCandidate, slot: DegreeLevel): Pre
     season: c.season ?? ('fall' as Season),
     year: c.year,
     lowConfidence: c.lowConfidence,
+    ...(c.ocrRead ? { ocrRead: { ...c.ocrRead } } : {}),
     level: c.level ?? slotDefaultLevel(slot),
     levelSource: (c.level ? 'transcript' : 'slot') as PreviewRow['levelSource'],
     ...(c.codeMissing ? { codeMissing: true as const, include: false } : {}),
@@ -1086,6 +1101,18 @@ function previewRow(
     for (const g of GRADES) gradeSel.append(option(g, g === 'IP' ? 'In progress' : g, r.grade === g));
     gradeSel.addEventListener('change', () => (r.grade = (gradeSel as HTMLSelectElement).value as Grade | ''));
   }
+  // What the scan showed in a credits or grade cell the OCR numeric
+  // correction filled (Batch C answer (4), DGS 2026-10-09): beside the value,
+  // and named by the box for a screen reader.
+  const rawNote = (field: 'credits' | 'grade', box: HTMLElement): HTMLElement | null => {
+    const raw = r.ocrRead?.[field];
+    if (raw === undefined) return null;
+    const id = `ext-row-${i}-${field}-raw`;
+    box.setAttribute('aria-describedby', [box.getAttribute('aria-describedby'), id].filter(Boolean).join(' '));
+    return el('span', { class: 'ocr-raw', id, title: ocrRawTitle(raw), 'data-key': `ext.row.${i}.${field}.raw` }, ocrRawNote(raw));
+  };
+  const creditsRaw = rawNote('credits', crIn);
+  const gradeRaw = rawNote('grade', gradeSel);
   // The term: one locked "Fall 2023" when the transcript gave both parts.
   const termLocked = locked && r.year !== undefined;
   // One line only when nothing is left to fill in (DGS bug 2026-09-07): a
@@ -1166,8 +1193,8 @@ function previewRow(
     // (The greyed row + disabled box are the visible cue; the reason is the
     // hover text and the box's aria-describedby — DGS 2026-09-06: no tag.)
     el('td', { class: 'cell-title', 'data-label': 'Title' }, titleIn),
-    el('td', { class: `cell-meta${locked && r.credits !== undefined ? ' locked-cell' : ''}`, 'data-label': 'Credits' }, crIn),
-    el('td', { class: `cell-meta${locked && r.grade !== '' ? ' locked-cell' : ''}`, 'data-label': 'Grade' }, gradeSel),
+    el('td', { class: `cell-meta${locked && r.credits !== undefined ? ' locked-cell' : ''}`, 'data-label': 'Credits' }, crIn, creditsRaw),
+    el('td', { class: `cell-meta${locked && r.grade !== '' ? ' locked-cell' : ''}`, 'data-label': 'Grade' }, gradeSel, gradeRaw),
     el('td', { class: `cell-meta${termLocked ? ' locked-cell' : ''}`, 'data-label': 'Term' }, seasonSel),
     termLocked ? el('td', { class: 'cell-meta cell-empty', 'data-label': 'Year' }) : el('td', { class: 'cell-meta', 'data-label': 'Year' }, yearIn),
     el('td', { class: 'cell-meta level-cell', 'data-label': 'Taken as' }, levelSel),

@@ -37,8 +37,15 @@ export interface ExternalCourseCandidate {
    * Term column starts from it instead of always "Fall". */
   season?: Season;
   /** OCR only: the source line read below the confidence floor — the preview
-   * marks the row so the student checks it against the paper. */
+   * marks the row so the student checks it against the paper. Also set on a
+   * row whose credits or grade the parser corrected (`ocrRead`). */
   lowConfidence?: boolean;
+  /** OCR only (Batch C answer (4), DGS 2026-10-09): the scan's OWN reading of
+   * a cell the parser corrected from an unambiguous letter-for-digit shape —
+   * credits "3.O" read as 3.0, a grade "Bt" read as B+ (`ocrCellCorrection`).
+   * The preview shows it beside the corrected value and the row stays
+   * flagged; it is never saved with the course. */
+  ocrRead?: { credits?: string; grade?: string };
   /** The level the student was registered at for this row, when the
    * transcript says (2026-09-05 — combined B.S.+M.S. and 4+1 transcripts):
    * a UG/GR-style level cell on the row, a "Level: Graduate" / "Term Totals
@@ -668,6 +675,38 @@ export function ocrRepairHeaderCell(cell: string): string | undefined {
  * tests/ocr-header-noise.test.ts, which checks every OCR_HEADER_WORDS entry. */
 export const isHeaderCell = knownWhole;
 export { OCR_HEADER_WORDS };
+
+// ---------------------------------------------------------------------------
+// OCR numeric corrections (Batch C, the DGS's answer (4) of 2026-10-09: "OCR-
+// only numeric cells: unambiguous letter-for-digit shapes inside credits/grade
+// cells are corrected, the ⚠ flag stays and the raw reading is shown beside the
+// value; names, titles and the university string are never altered").
+// ---------------------------------------------------------------------------
+
+/** The letters a scan prints for a digit and that no number contains: a
+ * capital or small O for 0, a small l, a capital I or a bar for 1. Nothing
+ * else — S, B, Z and G are grades or words as often as they are 5, 8, 2 and 6,
+ * and a colon for a decimal point ("3:0") is also a lecture:lab pair ("3:1",
+ * IISc), so none of those is ever rewritten. */
+const OCR_DIGIT_LOOKALIKES: Readonly<Record<string, string>> = { O: '0', o: '0', l: '1', I: '1', '|': '1' };
+
+/** The corrected form of ONE token a scan may have misread inside a credits or
+ * grade cell, or undefined when the token is not such a misreading:
+ *  - a number of up to three digits, with an optional point or comma and up to
+ *    three decimals, written with at least one real digit AND at least one
+ *    letter shaped like a digit ("3.O" → "3.0", "l.5" → "1.5", "4,O0" → "4,00",
+ *    "8O" → "80"); a token with no real digit ("IO", "I", "l") is a word;
+ *  - a letter grade A–D whose plus the engine read as a "t" ("Bt" → "B+").
+ * The caller (`readCourseRow`) decides whether the corrected token is used: only
+ * where it then fills the row's credits or grade that the scan's own reading
+ * left empty, and never when it would change a title word. */
+export function ocrCellCorrection(token: string): string | undefined {
+  if (/^[\dOoIl|]{1,3}(?:[.,][\dOoIl|]{1,3})?$/.test(token) && /\d/.test(token) && /[OoIl|]/.test(token)) {
+    return token.replace(/[OoIl|]/g, (ch) => OCR_DIGIT_LOOKALIKES[ch]!);
+  }
+  const plus = /^([A-D])t$/.exec(token);
+  return plus ? `${plus[1]}+` : undefined;
+}
 
 /** The cells of a header line, and — on an OCR line — each cell with the
  * scan's noise removed (`ocrHeaderCell`). */
@@ -1829,6 +1868,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       into.creditsText = creditsToken;
     }
     if (gradeToken !== undefined) {
+      // The cell the grade was read from — the OCR numeric correction asks
+      // whether it was a corrected token (Batch C answer (4), 2026-10-09).
+      into.gradeText = gradeToken;
       if (numericToken(gradeToken)) headerGrades.numbers += 1;
       else headerGrades.letters += 1;
       const bare = /^\([A-Za-z]{1,2}[+-]?\)$/.test(gradeToken) ? gradeToken.slice(1, -1) : gradeToken;
@@ -2836,6 +2878,64 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (lead.decimalCell) return true;
     return !into.titleParts.some((w) => /\p{L}{4}/u.test(w));
   };
+  /** One row's tokens after its code, read: by the header's columns when the
+   * row fits them (`scanWithMap`), else by the position-free scan after a
+   * leading UG/GR level cell. `tokens` are the ones the scan read (the level
+   * cell taken off). */
+  type LeadScan = { into: RowScan; mapped: ReturnType<typeof scanWithMap>; rowLevel?: Level; tokens: string[] };
+  const scanLead = (tokens: string[]): LeadScan => {
+    const into: RowScan = { titleParts: [] };
+    const mapped = scanWithMap(tokens, into);
+    if (mapped) return { into, mapped, ...(mapped.level !== undefined ? { rowLevel: mapped.level } : {}), tokens };
+    let rest = tokens;
+    let rowLevel: Level | undefined;
+    if (rest.length > 0 && ROW_LEVEL_RE.test(rest[0]!)) {
+      rowLevel = /^U/.test(rest[0]!) ? 'undergraduate' : 'graduate';
+      rest = rest.slice(1);
+    }
+    scanTokens(rest, into);
+    return { into, mapped: undefined, ...(rowLevel !== undefined ? { rowLevel } : {}), tokens: rest };
+  };
+  /** The OCR numeric correction of one row (Batch C answer (4), DGS
+   * 2026-10-09). Each token `ocrCellCorrection` would rewrite is rewritten and
+   * the row read again; that second reading is kept ONLY when
+   *  - it fills the row's credits, or its grade, that the scan's own reading
+   *    (`raw`) left empty, from a corrected token — never a value the raw
+   *    reading already had ("Course I1   5.00": a "II" misread in a title
+   *    would become 11 credits; the raw reading's 5.00 stands);
+   *  - every other value is the raw reading's; and
+   *  - the title is the raw reading's word for word, less only the corrected
+   *    tokens a raw reading took into it ("Operating Systems l.0" → "Operating
+   *    Systems" with 1.0 credits) — no corrected form ever lands in a title, and
+   *    no title word is ever rewritten.
+   * Returns the kept reading with the raw text of each corrected cell, or
+   * undefined (the raw reading stands, as do the header's grade counts it
+   * made). Codes, titles, names and the university are never touched: the
+   * code is read before the tokens, and the rest is not a cell. */
+  const ocrCorrectedScan = (tokens: string[], raw: LeadScan, headerGradesBefore: { letters: number; numbers: number }): { scan: LeadScan; read: { credits?: string; grade?: string } } | undefined => {
+    const fixes = tokens.map((t) => ocrCellCorrection(t));
+    if (!fixes.some((f) => f !== undefined)) return undefined;
+    const afterRaw = { ...headerGrades };
+    headerGrades = { ...headerGradesBefore };
+    const fixed = scanLead(tokens.map((t, i) => fixes[i] ?? t));
+    const rawOf = (text: string | undefined): string | undefined => {
+      const i = text === undefined ? -1 : fixes.indexOf(text);
+      return i >= 0 ? tokens[i] : undefined;
+    };
+    const a = raw.into;
+    const b = fixed.into;
+    const creditsRead = a.credits === undefined && b.credits !== undefined ? rawOf(b.creditsText) : undefined;
+    const gradeRead = a.grade === undefined && a.rawGrade === undefined && (b.grade !== undefined || b.rawGrade !== undefined) ? rawOf(b.gradeText) : undefined;
+    const creditsKept = creditsRead !== undefined || b.credits === a.credits;
+    const gradeKept = gradeRead !== undefined || (b.grade === a.grade && b.rawGrade === a.rawGrade);
+    const correctedRaw = new Set(tokens.filter((_, i) => fixes[i] !== undefined));
+    const titleKept = b.titleParts.join('\u0000') === a.titleParts.filter((t) => !correctedRaw.has(t)).join('\u0000');
+    if ((creditsRead === undefined && gradeRead === undefined) || !creditsKept || !gradeKept || !titleKept) {
+      headerGrades = afterRaw;
+      return undefined;
+    }
+    return { scan: fixed, read: { ...(creditsRead !== undefined ? { credits: creditsRead } : {}), ...(gradeRead !== undefined ? { grade: gradeRead } : {}) } };
+  };
   const readCourseRow = (line: string, flat: string, lead: Lead, lineIndex: number): number => {
     // The row line's own confidence, before a title line below it is consumed.
     const rowConfidence = confidences?.[lineIndex];
@@ -2854,27 +2954,29 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       transferRowsSkipped += 1;
       return lineIndex;
     }
-    let rowLevel: Level | undefined;
-    const into: RowScan = { titleParts: [] };
     // The header's column order first (2026-09-26); the position-free scan
     // when there is no header or the row does not fit it.
-    const mapped = scanWithMap(lead.tokens, into);
+    const headerGradesBefore = { ...headerGrades };
+    let scan = scanLead(lead.tokens);
+    // OCR numeric corrections (Batch C answer (4), DGS 2026-10-09): on an OCR
+    // line, a credits or grade cell the scan printed with a letter for a digit
+    // ("3.O", "Bt") is read corrected — only where that fills what the scan's
+    // own reading left empty (`ocrCorrectedScan`); the row is then flagged and
+    // the preview shows the raw reading beside the value.
+    let ocrRead: ExternalCourseCandidate['ocrRead'];
+    if (ocrLines) {
+      const corrected = ocrCorrectedScan(lead.tokens, scan, headerGradesBefore);
+      if (corrected) ({ scan, read: ocrRead } = corrected);
+    }
+    const { into, mapped } = scan;
+    const rowLevel: Level | undefined = scan.rowLevel;
     let cellTerm: { year?: number; season?: Season } | undefined;
     // A term cell before the code (Unicamp "1S/2022   MO 417   …").
     if (lead.preCell !== undefined && !lead.date) {
       const pre = rowTermOf([lead.preCell]);
       if (pre.year !== undefined) cellTerm = pre;
     }
-    if (mapped) {
-      rowLevel = mapped.level;
-      if (mapped.year !== undefined || mapped.season !== undefined) cellTerm = { year: mapped.year ?? cellTerm?.year, season: mapped.season ?? cellTerm?.season };
-    } else {
-      if (lead.tokens.length > 0 && ROW_LEVEL_RE.test(lead.tokens[0]!)) {
-        rowLevel = /^U/.test(lead.tokens[0]!) ? 'undergraduate' : 'graduate';
-        lead.tokens.shift();
-      }
-      scanTokens(lead.tokens, into);
-    }
+    if (mapped && (mapped.year !== undefined || mapped.season !== undefined)) cellTerm = { year: mapped.year ?? cellTerm?.year, season: mapped.season ?? cellTerm?.season };
     // Lines a course row never looks like (the registrar keys and regulations
     // that travel as a transcript's back page, 2026-09-26): a program line
     // ("3500   BACHELOR OF CLASSES", the ANU sample), an address or e-mail
@@ -2903,7 +3005,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         // wrapped title whose continuation carries four or more words
         // ("Systems and Cloud Infrastructure Design   3   A").
         const tailGrade = nextTokens.length <= 12 ? tailGradeToken(nextTokens) : undefined;
-        const codeAlone = into.titleParts.length === 0 && lead.tokens.length === 0 && nextWordy >= 1 && tailGrade !== undefined;
+        const codeAlone = into.titleParts.length === 0 && scan.tokens.length === 0 && nextWordy >= 1 && tailGrade !== undefined;
         const wrappedTitle = into.titleParts.length > 0 && nextWordy >= 4 && tailGrade !== undefined;
         if (numbersOnly || codeAlone || wrappedTitle) {
           const probe = { titleParts: [...into.titleParts], credits: undefined, grade: undefined, rawGrade: undefined } as RowScan;
@@ -2990,7 +3092,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       rawGrade: into.rawGrade,
       year: cellTerm?.year ?? (rowYear ? Number(rowYear[1]) : currentYear),
       season: cellTerm?.season ?? (rowYear ? (seasonOf(yearLine) ?? currentSeason) : currentSeason),
-      lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits ? true : undefined,
+      // A corrected cell keeps the row flagged (Batch C answer (4)).
+      lowConfidence: (confidence !== undefined && confidence < OCR_CONFIDENCE_FLOOR) || oddCredits || ocrRead !== undefined ? true : undefined,
+      ...(ocrRead !== undefined ? { ocrRead } : {}),
     });
     rowLevels.push(rowLevel ?? blockLevel);
     if (usedContinuation) lineIndex += 1; // the continuation line is consumed
