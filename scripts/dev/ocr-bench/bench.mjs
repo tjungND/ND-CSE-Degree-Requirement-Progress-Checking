@@ -32,6 +32,12 @@
 //   --compare <dir>     no run: print the deltas of that finished --out dir against --baseline
 //                       (two runs made separately — a before and an after on the same code)
 //   --yes               run --full without stopping at the estimate
+//   --l7 app|exact|flag-only   how L7 (a scan with its scanner's own text layer) is read: `app`
+//                       (the default) as the app reads it since Batch C answer (6), 2026-10-09 —
+//                       every page a scan → the text OCR-grade (each line at
+//                       SCANNER_LAYER_CONFIDENCE: flagged, the scan-only repairs on); `exact` as
+//                       before it (the 2026-09-06 lock: the exact path, nothing flagged);
+//                       `flag-only` the exact parse with every row flagged (the alternative measured)
 //   --reparse <dir>     no engine: re-parse and re-score the OCR lines an earlier run saved
 //                       (<dir>/<seed>/<level>/ocr-lines.json — every run writes them since plan
 //                       step 2.5) with TODAY's parser — a parser-only A/B in seconds, exact
@@ -53,7 +59,8 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseExternalTranscript } from '../../../src/transcript/external.ts';
-import { pdfToLinesNode, pdfToPagePngs } from '../pdf-lines-node.mts';
+import { pdfScanPagesNode, pdfToLinesNode, pdfToPagePngs } from '../pdf-lines-node.mts';
+import { SCANNER_LAYER_CONFIDENCE } from '../../../src/transcript/scanner-layer.ts';
 import { collectSeeds, FAMILIES, ndAsParsed } from './seeds.mts';
 import { BASELINE_CONFIG, createOcrWorker, mergeConfig, ocrDocument, recognizePage, rotationTrial } from './ocr-run.mjs';
 import { aggregate, aggregateFigures, pct, scoreBench } from './score.mts';
@@ -70,7 +77,7 @@ const DEFAULT_SECONDS_PER_PAGE = 1.6;
 const PREP_SECONDS_PER_PAGE = 0.6;
 
 function parseArgs(argv) {
-  const o = { preset: undefined, levels: undefined, families: undefined, only: undefined, dpi: 200, seed: 7, config: undefined, seedsDir: undefined, skins: ['mono', 'ruled', 'banner'], fetch: false, out: undefined, baseline: undefined, compare: undefined, reparse: undefined, yes: false };
+  const o = { preset: undefined, levels: undefined, families: undefined, only: undefined, dpi: 200, seed: 7, config: undefined, seedsDir: undefined, skins: ['mono', 'ruled', 'banner'], fetch: false, out: undefined, baseline: undefined, compare: undefined, reparse: undefined, yes: false, l7: 'app' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -92,6 +99,10 @@ function parseArgs(argv) {
     else if (a === '--baseline') o.baseline = resolve(next());
     else if (a === '--compare') o.compare = resolve(next());
     else if (a === '--reparse') o.reparse = resolve(next());
+    else if (a === '--l7') {
+      o.l7 = next();
+      if (!['app', 'exact', 'flag-only'].includes(o.l7)) throw new Error(`--l7 takes app, exact or flag-only (got ${o.l7})`);
+    }
     else if (a === '--yes') o.yes = true;
     else throw new Error(`unknown option ${a} (see the header of scripts/dev/ocr-bench/bench.mjs)`);
   }
@@ -119,13 +130,15 @@ function parseArgs(argv) {
 
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
-/** The parser the seed names, on OCR lines (text + confidence) or plain lines. */
-function parseLines(parser, lines) {
+/** The parser the seed names, on OCR lines (text + confidence) or plain lines.
+ * `flagAll`: every row flagged after an exact parse (`--l7 flag-only`). */
+function parseLines(parser, lines, flagAll = false) {
   const texts = lines.map((l) => (typeof l === 'string' ? l : l.text));
   if (parser === 'nd') return ndAsParsed(texts);
   const confidences = lines.length > 0 && typeof lines[0] !== 'string' ? lines.map((l) => l.confidence) : undefined;
   const p = parseExternalTranscript(texts, confidences);
-  return { university: p.university, campusSystem: p.campusSystem, campus: p.campus, degreeConferred: p.degreeConferred, bachelorsConferredOn: p.bachelorsConferredOn, quarterSystem: p.quarterSystem, trimesterSystem: p.trimesterSystem, courses: p.courses };
+  const courses = flagAll ? p.courses.map((c) => ({ ...c, lowConfidence: true })) : p.courses;
+  return { university: p.university, campusSystem: p.campusSystem, campus: p.campus, degreeConferred: p.degreeConferred, bachelorsConferredOn: p.bachelorsConferredOn, quarterSystem: p.quarterSystem, trimesterSystem: p.trimesterSystem, courses };
 }
 
 /** Clean 300-dpi pages of a seed (rendered once, cached in <out>/<seed>/master). */
@@ -373,9 +386,17 @@ export async function runBench(argv) {
           let seconds = 0;
           let pagesRead;
           let pageFigures;
+          let flagAll = false;
           if (level === 'L7') {
-            // The app never OCRs a PDF with a text layer: the exact path reads the poor layer.
-            lines = await pdfToLinesNode(entry.pdf);
+            // A PDF with a text layer takes the text path; since Batch C answer (6) (DGS
+            // 2026-10-09) one whose every page is a scan has that layer read OCR-grade —
+            // each line at SCANNER_LAYER_CONFIDENCE, so every row is flagged and the
+            // scan-only repairs apply (`--l7 app`, as src/ui/external-upload.ts does). The
+            // ND parser's seeds are read as the ND upload reads them (exact).
+            const text = await pdfToLinesNode(entry.pdf);
+            const scanned = o.l7 !== 'exact' && seed.parser !== 'nd' && text.some((l) => /\S/.test(l)) && (await pdfScanPagesNode(entry.pdf)).everyPageScanned;
+            lines = scanned && o.l7 === 'app' ? text.map((t) => ({ text: t, confidence: SCANNER_LAYER_CONFIDENCE })) : text;
+            flagAll = scanned && o.l7 === 'flag-only';
             pagesRead = manifest.pages;
           } else {
             const doc = await ocrDocument(worker, entry.pdf, config, join(seedDir, level, 'render'));
@@ -387,7 +408,7 @@ export async function runBench(argv) {
           // The lines the parser read, kept for --reparse (a parser-only A/B without the engine).
           mkdirSync(join(seedDir, level), { recursive: true });
           writeFileSync(join(seedDir, level, 'ocr-lines.json'), JSON.stringify({ config: config.name, dpi: entry.dpi, seconds, pagesRead, pageFigures, lines }));
-          const row = scoreBench({ seed, level, dpi: entry.dpi, config: config.name, parsed: parseLines(seed.parser, lines), ocrLines: lines.map((l) => (typeof l === 'string' ? l : l.text)), seconds, pagesRead });
+          const row = scoreBench({ seed, level, dpi: entry.dpi, config: config.name, parsed: parseLines(seed.parser, lines, flagAll), ocrLines: lines.map((l) => (typeof l === 'string' ? l : l.text)), seconds, pagesRead });
           // What the runner knew per page (OCR step 12): the render dpi, the engine's mean word
           // confidence, the rotation the trial chose and its four figures — results.json keeps
           // them so a knob's effect can be read page by page without a second run.

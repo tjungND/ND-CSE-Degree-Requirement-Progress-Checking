@@ -37,9 +37,14 @@ only under `~/degree-audit-samples/bench-out/` (`$TRANSCRIPT_SAMPLES`), never un
 
    Every level is re-wrapped as an image-only PDF by the bench's own writer (lossless FlateDecode for
    PNG levels, the level's own JPEG bytes for JPEG levels — Pillow's PDF writer would re-encode every
-   page as JPEG q75), so the app's real path runs on it. L7 is the one level the app never OCRs: a
-   PDF with a text layer takes the exact path (`hasTextLayer`), rows locked, no flags — so the bench
-   reads L7 with `pdfToLinesNode` exactly as the app would.
+   page as JPEG q75), so the app's real path runs on it. L7 is the one level the app does not OCR on
+   its own: a PDF with a text layer takes the text path (`hasTextLayer`). Until Batch C answer (6)
+   (2026-10-09) that was the exact path — rows locked, no flags; since then a PDF whose EVERY page is
+   a scan (one image over the page, no text visible over it — `src/transcript/scanner-layer.ts`) has
+   its text read OCR-grade (each line at `SCANNER_LAYER_CONFIDENCE`: every row flagged, the scan-only
+   repairs on) and OCR offered beside the preview. The bench reads L7 with `pdfToLinesNode` and the
+   same test (`pdfScanPagesNode`) exactly as the app would; `--l7 exact` reads it as before the
+   change, `--l7 flag-only` as the exact parse with every row flagged (the alternative measured).
 4. **The engine** (`ocr-run.mjs`, grown from `scripts/dev/ocr-lines.mjs`): the same tesseract.js,
    core and English model as the app (`public/ocr/`, `cacheMethod: 'none'`), on the level's PDF
    rendered as the app renders it — since OCR step 12 at the scan's own resolution between 216 and

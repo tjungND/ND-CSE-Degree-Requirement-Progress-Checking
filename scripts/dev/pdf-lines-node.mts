@@ -14,6 +14,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { pageLayout, runsFromTextItems, type ColumnHint, type Run } from '../../src/transcript/layout.ts';
 import { paintedImageSizes, scanResolution } from '../../src/transcript/ocr-lines.ts';
+import { pageScanLayer, type PageLayerFigures } from '../../src/transcript/scanner-layer.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -84,6 +85,24 @@ export async function pdfToLinesNode(file: string, onPage?: (page: PageRuns) => 
     await doc.destroy();
   }
   return lines;
+}
+
+/** Whether every page of a PDF is a scan — one image covering the page and no
+ * text visible over it — as src/transcript/pdf.ts's `pdfToLinesForImport` asks
+ * it (Batch C answer (6), 2026-10-09; the same `pageScanLayer`), with each
+ * page's figures. Unlike the browser it reads every page (for the figures)
+ * and does not look at the text: the browser's `scannedTextLayer` is this
+ * AND a text layer with anything in it. */
+export async function pdfScanPagesNode(file: string): Promise<{ everyPageScanned: boolean; pages: PageLayerFigures[] }> {
+  const lib = await pdfjs();
+  const doc = await openDocument(file);
+  const pages: PageLayerFigures[] = [];
+  try {
+    for (let p = 1; p <= doc.numPages; p++) pages.push(await pageScanLayer(await doc.getPage(p), lib.OPS));
+  } finally {
+    await doc.destroy();
+  }
+  return { everyPageScanned: pages.length > 0 && pages.every((f) => f.imageBacked), pages };
 }
 
 /** Render every page of a PDF to a PNG at `dpi` (72 = the page's own size),

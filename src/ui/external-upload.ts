@@ -33,6 +33,7 @@ import { parseTranscript } from '../transcript/parse.ts';
 import { el, inactiveButton, option, PREVIEW_OPEN_NOTE, SIMULATION_IMPORT_NOTE } from './dom.ts';
 import { campusQuestion, MULTI_CAMPUS_SYSTEMS } from '../transcript/campus.ts';
 import { stripRegion, type StripRegion } from '../transcript/scan-strip.ts';
+import { SCANNER_LAYER_CONFIDENCE } from '../transcript/scanner-layer.ts';
 import { emptyPageImages, holdScanStrips, holdsScanStrips, releaseScanStrips, scanStripFor } from './scan-strips.ts';
 
 type DegreeLevel = NonNullable<CourseEntry['degreeLevel']>;
@@ -107,6 +108,10 @@ interface ExternalPreview {
   rows: PreviewRow[];
   /** Rows came from OCR of a scan — approximate; the preview says so. */
   fromOcr?: boolean;
+  /** …from the text a SCANNER embedded in the scan, read OCR-grade (Batch C
+   * answer (6), DGS 2026-10-09; `fromOcr` is set too: rows editable, every
+   * one flagged). The banner and the ⚠ say whose reading it is. */
+  scannerLayer?: true;
   /** OCR pages read below the usual resolution (OCR step 12, 2026-10-09:
    * a much larger than letter-size page, squeezed under the canvas limits) —
    * the banner names them (W-CL373). */
@@ -245,7 +250,17 @@ function failSlot(slot: DegreeLevel, message: string, render: () => void): void 
  * (DGS decision 2026-09-02: never OCR without asking; English only). */
 /** `reason` 'no-lines' (DGS 2026-09-16): a text-layer PDF from which no
  * course line could be read is offered OCR too, the same opt-in. */
-let pendingScan: { slot: DegreeLevel; buffer: ArrayBuffer; filename: string; reason?: 'scan' | 'no-lines' } | undefined;
+/** `reason` 'scanner-layer' (Batch C answer (6), DGS 2026-10-09): a scan whose
+ * scanner embedded its own text — its rows are previewed OCR-grade and OCR is
+ * offered BESIDE that preview; choosing OCR replaces the preview, adding or
+ * cancelling the preview withdraws the offer. */
+let pendingScan: { slot: DegreeLevel; buffer: ArrayBuffer; filename: string; reason?: 'scan' | 'no-lines' | 'scanner-layer' } | undefined;
+/** The OCR offer beside a scanner-layer preview belongs to that preview: once
+ * it is added or cancelled the offer goes too — OCR would read the same
+ * courses in again (Batch C answer (6)). */
+function withdrawScannerLayerOffer(): void {
+  if (pendingScan?.reason === 'scanner-layer') pendingScan = undefined;
+}
 /** OCR in flight — drives the progress line. */
 let ocrBusy: { label: string; percent: number } | undefined;
 
@@ -347,6 +362,22 @@ export function readyToAdd(r: Pick<PreviewRow, 'include' | 'courseId' | 'grade' 
 export const CODE_MISSING_PLACEHOLDER = 'course number';
 export const CODE_MISSING_NOTE =
   'This transcript prints no course number for this course. Type the number the university gives it (its course catalog or your syllabus) to add it; until then the row is not ticked.';
+/** A scan whose scanner embedded its own text (Batch C answer (6), DGS
+ * 2026-10-09): the OCR offer beside its preview — the lead (W-CL416), the
+ * sentence (W-CL417), the button that keeps the previewed rows and withdraws
+ * the offer (W-CL418) — the preview's banner (W-CL419) and each row's ⚠
+ * (W-CL420: hover text · screen-reader name). */
+export function scannerLayerLead(filename: string): string {
+  return `“${filename}” is a scan that carries its scanner’s own reading of the text. `;
+}
+export const SCANNER_LAYER_OFFER =
+  'The rows below were read from that reading — approximate, so every row can be edited and is marked ⚠. You can instead read the page images with the built-in text recognition (OCR), which replaces those rows: ';
+export const SCANNER_LAYER_KEEP = 'Keep the rows below';
+export const SCANNER_LAYER_BANNER_LEAD = 'Read from the text your scanner embedded in this scan — approximate. ';
+export const SCANNER_LAYER_BANNER = 'That text is the scanner’s own recognition, so every row is marked ⚠: check every field against your transcript before adding.';
+export const SCANNER_LAYER_ROW_FLAG = 'Read from the scanner’s embedded text — check it carefully';
+export const SCANNER_LAYER_ROW_FLAG_NAME = 'read from the scanner’s text';
+
 /** Beside a credits or grade value the OCR numeric correction filled (Batch C
  * answer (4), DGS 2026-10-09): what the scan itself shows (W-CL411), and on
  * hover / to a screen reader what the app made of it (W-CL412). */
@@ -701,7 +732,7 @@ function previewFromParsed(
   parsed: ExternalParseResult,
   slot: DegreeLevel,
   args: ExternalCardArgs,
-  flags: { unofficial: boolean; fromOcr: boolean; ocrReducedPages?: OcrReducedPage[]; ocrTurned?: 0 | 90 | 180 | 270 },
+  flags: { unofficial: boolean; fromOcr: boolean; scannerLayer?: boolean; ocrReducedPages?: OcrReducedPage[]; ocrTurned?: 0 | 90 | 180 | 270 },
 ): { mapped: PreviewRow[]; kept: { rows: PreviewRow[]; omitted: number } } | undefined {
   const mapped: PreviewRow[] = parsed.courses.map((c) => previewRowOf(c, slot));
   if (undergraduateInProgress(slot, mapped, parsed.bachelorsConferred === true)) return undefined;
@@ -716,7 +747,7 @@ function previewFromParsed(
     university: parsed.university ?? '',
     ...(flags.fromOcr
       ? // OCR misreads names too — the field stays editable (2026-09-06).
-        { fromOcr: true, ...(flags.ocrReducedPages?.length ? { ocrReducedPages: flags.ocrReducedPages } : {}), ...(flags.ocrTurned ? { ocrTurned: flags.ocrTurned } : {}) }
+        { fromOcr: true, ...(flags.scannerLayer ? { scannerLayer: true as const } : {}), ...(flags.ocrReducedPages?.length ? { ocrReducedPages: flags.ocrReducedPages } : {}), ...(flags.ocrTurned ? { ocrTurned: flags.ocrTurned } : {}) }
       : {
           // A name read from the transcript is locked; one recovered from an
           // acronym is pre-filled and editable (2026-09-08).
@@ -750,11 +781,11 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
     importError = undefined;
     toast('Reading the transcript… (it never leaves this browser)');
     try {
-      const { pdfToLines } = await import('../transcript/pdf.ts'); // pdfjs loads lazily
+      const { pdfToLinesForImport } = await import('../transcript/pdf.ts'); // pdfjs loads lazily
       // Keep the original bytes: pdfjs consumes the buffer it is given, and a
       // scan goes on to OCR (the student deciding) with the same file.
       const buffer = await file.arrayBuffer();
-      const lines = await pdfToLines(buffer.slice(0));
+      const { lines, scannedTextLayer } = await pdfToLinesForImport(buffer.slice(0));
       const unofficial = isUnofficial(lines); // accepted with a warning on the preview (DGS 2026-09-17)
       const { parseExternalTranscript } = await import('../transcript/external.ts');
       // A NOTRE DAME transcript never belongs in a previous-degree row (DGS
@@ -763,26 +794,37 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       // the earlier degrees, their courses and the entry term from it.
       // Accepting it here too listed every earlier course twice.
       if (parseTranscript(lines).isNotreDame) return fail(ndInPreviousRow(student));
-      const parsed = parseExternalTranscript(lines);
+      // A scan whose scanner embedded its own text (every page one image
+      // covering the page, the text invisible over it — Batch C answer (6),
+      // DGS 2026-10-09, reversing the 2026-09-06 lock for this case only):
+      // that text is another engine's reading, so it is read OCR-grade —
+      // every line at SCANNER_LAYER_CONFIDENCE, every row editable and
+      // flagged — and OCR is offered beside the preview.
+      const parsed = scannedTextLayer ? parseExternalTranscript(lines, lines.map(() => SCANNER_LAYER_CONFIDENCE)) : parseExternalTranscript(lines);
       if (!parsed.hasTextLayer) {
         // A scan or photo: never OCR silently — offer it (DGS decision 2026-09-02).
         pendingScan = { slot: slot.level, buffer, filename: file.name };
         render();
         return;
       }
-      const made = previewFromParsed(parsed, slot.level, args, { unofficial, fromOcr: false });
+      const made = previewFromParsed(parsed, slot.level, args, { unofficial, fromOcr: scannedTextLayer, ...(scannedTextLayer ? { scannerLayer: true } : {}) });
       if (!made) return fail(BACHELORS_IN_PROGRESS);
       const { mapped, kept } = made;
       if (mapped.length === 0) {
         // No course line in the text layer (DGS 2026-09-16): offer OCR — the
         // text layer may be an image's stray caption, or a layout the parser
-        // cannot read that the OCR path can. Same opt-in as a scan.
+        // cannot read that the OCR path can. Same opt-in as a scan — and a
+        // scanned PDF whose embedded text gave no course is offered it as the
+        // scan it is.
         preview = undefined;
         releaseScanStrips();
-        pendingScan = { slot: slot.level, buffer, filename: file.name, reason: 'no-lines' };
+        pendingScan = { slot: slot.level, buffer, filename: file.name, reason: scannedTextLayer ? 'scan' : 'no-lines' };
         render();
         return;
-      } else if (kept.rows.length === 0) {
+      }
+      // The scanner's reading is previewed, and OCR offered beside it.
+      if (scannedTextLayer) pendingScan = { slot: slot.level, buffer, filename: file.name, reason: 'scanner-layer' };
+      if (kept.rows.length === 0) {
         previewError =
           args.student.program === 'phd'
             ? `All ${mapped.length} courses read from this transcript were left out — none matched the Alg / OS / Comp Arch core keywords, and none are in the DGS’s course rules. Courses taken as an undergraduate student do not transfer, whether or not the course itself is a graduate course (§5.2); if a course belongs to a core area under a different title, add it by hand below.`
@@ -915,10 +957,14 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
       {},
       scan.reason === 'no-lines'
         ? el('strong', {}, `No course-like lines could be read from “${scan.filename}” — its layout is new to the parser. `)
-        : el('strong', {}, `“${scan.filename}” looks like a scanned or photographed transcript. `),
+        : scan.reason === 'scanner-layer'
+          ? el('strong', {}, scannerLayerLead(scan.filename))
+          : el('strong', {}, `“${scan.filename}” looks like a scanned or photographed transcript. `),
       scan.reason === 'no-lines'
         ? 'You can try the built-in text recognition (OCR) on it instead, which reads the page as an image, or add the courses by hand below (and please tell the DGS which university, so parsing can be improved). OCR: '
-        : 'A scan cannot be read exactly — the reliable route is a system-generated PDF from your university’s portal. You can instead try the built-in text recognition (OCR): ',
+        : scan.reason === 'scanner-layer'
+          ? SCANNER_LAYER_OFFER
+          : 'A scan cannot be read exactly — the reliable route is a system-generated PDF from your university’s portal. You can instead try the built-in text recognition (OCR): ',
       el('strong', {}, 'English-language transcripts only'),
       // "check every field" and "never leaves your browser" are said by the
       // card hint above and the preview heading (trim review 2026-09-18, P-89).
@@ -938,6 +984,13 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
           onclick: () => {
             const { slot, buffer } = scan;
             pendingScan = undefined;
+            // OCR replaces the preview of the scanner's own text (Batch C
+            // answer (6)): its rows must not be added beside OCR's.
+            if (scan.reason === 'scanner-layer') {
+              preview = undefined;
+              releaseScanStrips();
+              previewError = undefined;
+            }
             ocrBusy = { label: 'Starting the text reader', percent: 0 };
             render();
             void (async () => {
@@ -995,7 +1048,7 @@ function scanOptInBlock(args: ExternalCardArgs): HTMLElement {
         },
         'Try OCR (English only)',
       ),
-      el('button', { class: 'btn', 'data-key': 'ext.scan.cancel', onclick: () => { pendingScan = undefined; render(); } }, 'Cancel'),
+      el('button', { class: 'btn', 'data-key': 'ext.scan.cancel', onclick: () => { pendingScan = undefined; render(); } }, scan.reason === 'scanner-layer' ? SCANNER_LAYER_KEEP : 'Cancel'),
     ),
   );
 }
@@ -1236,7 +1289,11 @@ function previewRow(
     el(
       'td',
       { class: 'cell-check' },
-      r.lowConfidence ? el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠') : null,
+      r.lowConfidence
+        ? p.scannerLayer
+          ? el('span', { title: SCANNER_LAYER_ROW_FLAG, 'aria-label': SCANNER_LAYER_ROW_FLAG_NAME }, '⚠')
+          : el('span', { title: 'OCR read this line poorly — check it carefully', 'aria-label': 'low OCR confidence' }, '⚠')
+        : null,
       cb,
       blocked ? el('span', { id: noteId, class: 'visually-hidden' }, blockedNote) : null,
       r.codeMissing ? el('span', { id: idNoteId, class: 'visually-hidden' }, CODE_MISSING_NOTE) : null,
@@ -1285,7 +1342,9 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
   box.append(
     el('h3', {}, `${slotLabel} — check every line, fix what the parser got wrong, then add`),
     ...(previewError ? [el('div', { class: 'import-error', role: 'alert', tabindex: '-1', 'data-key': 'ext.preview.error' }, previewError)] : []),
-    ...(p.fromOcr
+    ...(p.fromOcr && p.scannerLayer
+      ? [el('div', { class: 'ocr-banner', role: 'note', 'data-key': 'ext.preview.scannerLayer' }, el('strong', {}, SCANNER_LAYER_BANNER_LEAD), SCANNER_LAYER_BANNER)]
+      : p.fromOcr
       ? [
           el(
             'div',
@@ -1682,6 +1741,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
             const undergraduateRows = ready.length - graduateRows;
             preview = undefined;
             releaseScanStrips();
+            withdrawScannerLayerOffer();
             previewError = undefined;
             render();
             toast(
@@ -1712,7 +1772,7 @@ function previewBlock(args: ExternalCardArgs): HTMLElement {
         // 'selected' — the word Select all / Select none and the ND preview use (trim review 2026-09-18, P-58).
         `Add ${selected} selected course${selected === 1 ? '' : 's'}`,
       ),
-      el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; releaseScanStrips(); previewError = undefined; render(); } }, 'Cancel'),
+      el('button', { class: 'btn', 'data-key': 'ext.preview.cancel', onclick: () => { preview = undefined; releaseScanStrips(); withdrawScannerLayerOffer(); previewError = undefined; render(); } }, 'Cancel'),
     ),
   );
   return box;

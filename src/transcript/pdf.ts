@@ -7,6 +7,7 @@ import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 // Vite turns this into a relative asset URL inside dist/ at build time.
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { pageLayout, runsFromTextItems, type ColumnHint } from './layout.ts';
+import { pageScanLayer } from './scanner-layer.ts';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -19,12 +20,28 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
  * landscape page — /Rotate 90, or content drawn sideways — reads like any
  * other (2026-09-05). */
 export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
+  return (await readPdf(data, false)).lines;
+}
+
+/** `pdfToLines` for an external transcript's import (Batch C answer (6), DGS
+ * 2026-10-09), which also asks whether EVERY page is a scan — one image
+ * covering the page, no text visible over it (src/transcript/scanner-layer.ts)
+ * — so that a text layer a scanner embedded is read as OCR-grade, not as
+ * printed. The operator lists are read only for a PDF with text at all, and
+ * only while every page so far is a scan: a system-generated PDF stops at its
+ * first page, and a scan with no text (the OCR offer's case) costs nothing. */
+export async function pdfToLinesForImport(data: ArrayBuffer): Promise<{ lines: string[]; scannedTextLayer: boolean }> {
+  return readPdf(data, true);
+}
+
+async function readPdf(data: ArrayBuffer, scanCheck: boolean): Promise<{ lines: string[]; scannedTextLayer: boolean }> {
   const loadingTask = pdfjs.getDocument({ data });
   const doc = await loadingTask.promise;
   const lines: string[] = [];
   // The previous page's column layout: a short last page splits by it (F4,
   // 2026-10-09).
   let hint: ColumnHint | undefined;
+  let everyPageScanned = false;
   try {
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p);
@@ -36,8 +53,12 @@ export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
       lines.push(...read.lines);
       lines.push(''); // page break
     }
+    if (scanCheck && doc.numPages > 0 && lines.some((l) => /\S/.test(l))) {
+      everyPageScanned = true;
+      for (let p = 1; p <= doc.numPages && everyPageScanned; p++) everyPageScanned = (await pageScanLayer(await doc.getPage(p), pdfjs.OPS)).imageBacked;
+    }
   } finally {
     await loadingTask.destroy();
   }
-  return lines;
+  return { lines, scannedTextLayer: everyPageScanned };
 }
