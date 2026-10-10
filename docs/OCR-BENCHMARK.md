@@ -448,6 +448,7 @@ PDFs (`bench-out/step26c-l7-exact/` → `-app/`, `-flag/`):
 | exact (before; the 2026-09-06 lock) | 1.1 % | 38.1 % | 100 (6/36) | 56.7 % | — / 0 % |
 | **OCR-grade (`--l7 app`, adopted)** | 1.1 % | 37.8 % | 94 (5/36) | 57.3 % | 99.0 / 100 % |
 | exact, every row flagged (`--l7 flag-only`) | 1.1 % | 38.1 % | 100 (6/36) | 56.7 % | 99.0 / 100 % |
+| **OCR-grade without the junk-code guard (review fix 2026-10-10, shipped)** | 1.1 % | 38.1 % | 100 (6/36) | 56.7 % | 99.0 / 100 % |
 
 Detected on 62 of 62 L7 PDFs; on none of the generator fixtures with text; of the 49 public PDFs on two
 real scans with an OCR layer (Algeria's relevé template, Cornell's key — negatives, 0 rows either way).
@@ -455,3 +456,20 @@ The one regression line is ANU's sample at L7 (rows found 13 → 12, extras 13 �
 its placeholder title "CLASS" into "CLA5S", which the junk-code guard refuses on a low-confidence line;
 McGill's key loses its false row and Minerva's transfer page one extra. Row accuracy stays at 1 % because
 the seeded layer garbles nearly every title — the level measures false rows and flags, not titles.
+
+**Review fixes (2026-10-10).** A review found the guard behind those gains dropping REAL rows on a scanner's
+layer — read at confidence 0, every row went through OCR step 2.5 (b): titles with no four-letter word ("Dir
+Res", "Art"), lower-case subjects ("ee 501"), decimal course numbers (all ten of SNU's rows). The guard now
+reads only our engine's poor lines (`{ scannerLayer: true }`; the bench's L7 passes it, fresh and `--reparse`).
+`--reparse` of `step26c-l7-app`, HEAD `2c3888f`'s parser → the fix (`bench-out/review-fix-before-l7` →
+`review-fix-after-l7`): rows found 37.8 → 38.1 %, field acc 57.3 → 56.7 %, false rows 94 (5/36) → 100 (6/36) —
+the exact path's figure; against `step26c-l7-exact` 0 / 0 with flags 99.0 / 100 %. Three regression lines, each
+a row the guard had dropped, each flagged in the preview: ANU rows found 12 → 13 ("CLA5S" back) with extras
+9 → 13, McGill's key 0 → 1 false row, Minerva's transfer page 2 → 3 extras. The 216 line fixtures read as a
+scanner layer now lose 0 rows the text path reads (HEAD lost 12). The same batch narrowed the numeric
+correction (a bar is a table rule, never a 1; a whole number of strokes — "I1" — or led by a letter — "IO1" — is
+never corrected; only a decimal or a grade may leave a title): `--quick`, the medium set, the ladder L0–L6 and
+`--pinned` 0 / 0 (`review-fix-before-*` → `review-fix-after-*`), and no L7 row changed by it; and, on the text
+side, TH02's country evidence, the adjacent-line conferral's value cell and the in-progress gate — every saved
+OCR line set under bench-out (1,752 files) re-parsed by both parsers: 3 documents changed, all three the L7
+lines above. DECISIONS 2026-10-10.

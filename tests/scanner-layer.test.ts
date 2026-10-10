@@ -11,7 +11,7 @@
 // such a layer OCR-grade (every row flagged, the scan-only repairs on); the
 // preview's wording.
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { pdfScanPagesNode, pdfToLinesNode } from '../scripts/dev/pdf-lines-node.mts';
 import { parseExternalTranscript } from '../src/transcript/external.ts';
@@ -93,7 +93,7 @@ describe('the parser reads a scanner\'s text OCR-grade', () => {
   const lines = ['Purdue University', 'Office of the Registrar', 'Official Academic Transcript', 'Student: Jane Q. Student', 'Fall 2023', 'CS 50300   Operating Systems   3.O   A', 'CS 58000   Algorithm Design   3.0   B+', '', 'This document lists the courses taken by the student at the university and is issued by the registrar.'];
 
   it('every row flagged, and the scan-only repairs apply (the numeric correction here); the same text as a text layer: nothing flagged, nothing corrected', () => {
-    const scanner = parseExternalTranscript(lines, lines.map(() => SCANNER_LAYER_CONFIDENCE)).courses;
+    const scanner = parseExternalTranscript(lines, lines.map(() => SCANNER_LAYER_CONFIDENCE), { scannerLayer: true }).courses;
     assert.deepEqual(scanner.map((c) => [c.courseId, c.credits, c.grade, c.lowConfidence, c.ocrRead]), [['CS 50300', 3, 'A', true, { credits: '3.O' }], ['CS 58000', 3, 'B+', true, undefined]]);
     const exact = parseExternalTranscript(lines).courses;
     assert.deepEqual(exact.map((c) => [c.courseId, c.credits, c.grade, c.lowConfidence, c.ocrRead]), [['CS 50300', undefined, 'A', undefined, undefined], ['CS 58000', 3, 'B+', undefined, undefined]]);
@@ -101,6 +101,30 @@ describe('the parser reads a scanner\'s text OCR-grade', () => {
 
   it('the confidence is under the parser\'s floor (80): a line no engine of ours read is vouched for by nobody', () => {
     assert.ok(SCANNER_LAYER_CONFIDENCE < 80);
+  });
+
+  // Review fix 2026-10-10: at confidence 0 every row went through the junk-code
+  // guard of our engine's poor lines, and real rows were dropped silently — the
+  // answer wanted them editable and flagged.
+  const asScanner = (l: string[]) => parseExternalTranscript(l, l.map(() => SCANNER_LAYER_CONFIDENCE), { scannerLayer: true }).courses;
+  const ids = (cs: { courseId: string }[]) => cs.map((c) => c.courseId);
+  it('no row the text path reads is dropped: short titles, lower-case subjects, decimal course numbers — each kept and flagged', () => {
+    const table = ['Western State University', 'Office of the Registrar', 'Official Academic Transcript', 'Student: Sample Student', 'Fall 2023', 'Course   Title   Credits   Grade', 'CS 501   Dir Res   3   A', 'CS 502   Adv Top OS   3   A', 'CS 503   Sel Top AI   3   B', 'ART 101   Art   3   A', 'CS 504   Operating Systems   3   A', 'ee 501   Circuits and Signals   3   A', 'math 520   Real Analysis   3   B', '', 'This document lists the courses taken by the student at the university and is issued by the registrar.'];
+    const text = parseExternalTranscript(table).courses;
+    const scanner = asScanner(table);
+    assert.equal(text.length, 7);
+    assert.deepEqual(ids(scanner), ids(text));
+    assert.ok(scanner.every((c) => c.lowConfidence === true));
+    // SNU prints decimal course numbers ("4190.669"): all ten rows, as on the text path.
+    const snu = JSON.parse(readFileSync(new URL('./fixtures/public-transcripts/snu-english-transcript.json', import.meta.url), 'utf8')) as string[];
+    assert.deepEqual(ids(asScanner(snu)), ids(parseExternalTranscript(snu).courses));
+    assert.equal(asScanner(snu).length, 10);
+  });
+
+  it('our own engine\'s poorly read lines keep the guard (OCR plan step 2.5 (b)): the option is the scanner layer\'s alone', () => {
+    const junk = ['Some University', 'Office of the Registrar', 'Official Academic Transcript', 'Fall 2023', 'ec   20   Grade distribution   3   A', 'CS 50300   Operating Systems   3   A', '', 'This document lists the courses taken by the student at the university and is issued by the registrar.', 'Credits are semester hours. Grades: A, A-, B+, B, B-, C+, C, D, F.'];
+    assert.deepEqual(ids(parseExternalTranscript(junk, junk.map(() => 40)).courses), ['CS 50300']);
+    assert.deepEqual(ids(asScanner(junk)), ['EC 20', 'CS 50300']);
   });
 });
 

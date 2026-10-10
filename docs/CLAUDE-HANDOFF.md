@@ -402,11 +402,12 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   the filter after the loop); `readMappedValues` (scanWithMap's value reading, shared with the code-less reader; the “Full Mark”
   exception to GT05 lives there); `sideBySide()` / `sideBySideHalves` and `semesterColumns` / `placeSemester` (CC16 — the
   “First Semester   Second Semester” line heads two columns and is no term header); `COUNTRY_CALENDARS` / `countryCalendar` /
-  `calendarSemester` beside `readTermLine` (TH02 — add a country with its source and a header-cell evidence pattern; the table
+  `calendarSemester` beside `readTermLine` (TH02 — add a country with its source and an evidence pattern for a cell of the
+  institution's heading, `institutionHeading`; the table
   is consulted only for NUMBERED semesters and never when a term prints its months); `adjacentConferral` beside
   `degreeConferred`. In `src/ui/external-upload.ts`: `previewRowOf` (a code-less row starts unticked), `idStillMissing`,
   `readyToAdd`, `CODE_MISSING_NOTE` / `codeMissingHint` (W-CL407–W-CL409); `undergraduateInProgress` treats a printed raw
-  result as final. `sameTransferCourse` refuses two empty ids. The replay scorer pairs code-less rows by title. Pinned by
+  result as final when it is a mark or a band word (narrowed by the 2026-10-10 review fix). `sameTransferCourse` refuses two empty ids. The replay scorer pairs code-less rows by title. Pinned by
   `tests/codeless-import.test.ts` and the four Batch C blocks of `tests/public-transcript-rules.test.ts`. A parser change to
   these paths is measured on the OCR side by re-parsing the saved `ocr-lines.json` of a bench run (the OCR agent's
   `--reparse`, or a HEAD-vs-change A/B of the parser on those lines) — no engine run needed.
@@ -428,6 +429,17 @@ git clones OUTSIDE any Drive/OneDrive/Dropbox folder (`MAINTENANCE.md` § repo p
   a scan), `SCANNER_LAYER_CONFIDENCE` (0) for every line, `pendingScan.reason` `'scanner-layer'` (the offer beside
   the preview, withdrawn by `withdrawScannerLayerOffer` on Add / Cancel; Try OCR clears the preview). The bench's
   L7 reads the same way (`--l7 app`; `exact` / `flag-only` for the A/B; `pdfScanPagesNode`).
+- **Batch C review fixes** (2026-10-10, one commit; DECISIONS 2026-10-10 has five rows, plan §5 the numbers).
+  Invariants a later change must keep: (a) a country calendar reads the country ONLY from `institutionHeading`
+  (the institution's line and the two under it, ended by any field line — `PERSON_FIELD_RE` names a person's
+  fields printed without a colon); never widen it back to "any header cell"; (b) `labelledCell` takes the next
+  cell only when it is no label, and the adjacent conferral needs a `bareDate`; (c) `ocrCellCorrection` never
+  corrects a bar, a whole number of strokes (I/l/1) or a whole number led by a letter, and `ocrCorrectedScan`
+  lets only a decimal or a grade leave a title; (d) `parseExternalTranscript`'s third argument
+  `{ scannerLayer: true }` (`ExternalParseOptions`) turns the junk-code guard OFF for a scanner's own layer —
+  every new caller that parses such a layer (the app, the bench's L7, a script) must pass it, or real rows
+  vanish; (e) `undergraduateInProgress` counts a raw result as final only as a mark (`FINAL_MARK_RE`) or a
+  band word (`BAND_WORD_RE`) — a new band system's words go in that list, never "any raw grade".
 - **Batch A at a glance** (2026-10-09, transcript accuracy program — the index; the two bullets
   after this one carry the reasons, STATE.md's "Batch A done" paragraph and
   `docs/TRANSCRIPT-ACCURACY-PLAN.md` §5 the numbers). The harness:

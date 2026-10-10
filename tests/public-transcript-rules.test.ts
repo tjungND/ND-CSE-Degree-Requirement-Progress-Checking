@@ -869,6 +869,30 @@ describe('transcript accuracy program, Batch C — TH02 country calendars (2026-
     assert.deepEqual(termOf(r, '2110501'), ['fall', 2022]);
     assert.deepEqual(termOf(r, '2110521'), ['fall', 2022], 'the calendar-order rule, not the table');
   });
+  it('review fix 2026-10-10: the country must be the INSTITUTION’s — a student’s nationality or address is no evidence', () => {
+    // SNU prints "Seoul 08826, Republic of Korea" under its name; a Thai
+    // student's nationality below it must not move Korea's semesters.
+    const snu = JSON.parse(readFileSync(new URL('./fixtures/public-transcripts/snu-english-transcript.json', import.meta.url), 'utf8')) as string[];
+    const placed = (lines: string[]) => parseExternalTranscript(lines).courses.map((c) => `${c.courseId} ${c.season} ${c.year}`);
+    assert.deepEqual(placed([...snu.slice(0, 4), 'Nationality   Thailand', ...snu.slice(4)]), placed(snu));
+    const korea = ['KOREA UNIVERSITY', 'Seoul 02841, Republic of Korea', 'ACADEMIC TRANSCRIPT', 'Name:   SAMPLE STUDENT   Student ID:   0000'];
+    const rows = ['2022 1st Semester', 'Course No.   Course Title   Credits   Grade', 'COSE 501   Advanced Algorithms   3   A', '2022 2nd Semester', 'COSE 502   Machine Learning   3   A'];
+    const korean = (...extra: string[]) => [termOf(doc(...korea, ...extra, ...rows), 'COSE 501'), termOf(doc(...korea, ...extra, ...rows), 'COSE 502')];
+    const calendarOrder = [['spring', 2022], ['fall', 2022]];
+    assert.deepEqual(korean(), calendarOrder);
+    assert.deepEqual(korean('Nationality   Thailand'), calendarOrder);
+    assert.deepEqual(korean('Address   99 Sukhumvit Road   Bangkok, Thailand'), calendarOrder);
+    assert.deepEqual(korean('Citizenship:   Thailand'), calendarOrder);
+    // A person's field right under the institution's name ends its heading there.
+    const under = doc('KOREA UNIVERSITY', 'Nationality   Thailand', 'Seoul 02841, Republic of Korea', ...rows);
+    assert.deepEqual([termOf(under, 'COSE 501'), termOf(under, 'COSE 502')], calendarOrder);
+    // A mailing block printed ABOVE the institution's name is never its heading.
+    const mailing = doc('SAMPLE STUDENT', '99 Sukhumvit Road', 'Bangkok 10110, Thailand', 'KOREA UNIVERSITY', 'Seoul 02841, Republic of Korea', ...rows);
+    assert.deepEqual([termOf(mailing, 'COSE 501'), termOf(mailing, 'COSE 502')], calendarOrder);
+    // The institution's own heading still names it: on the line under the name, or on its own line.
+    assert.deepEqual(termOf(doc('MAHIDOL UNIVERSITY', 'Nakhon Pathom 73170', 'THAILAND', 'TRANSCRIPT OF RECORDS', 'First Semester 2022', 'Course No.   Course Title   Credits   Grade', 'EGCO 503   Data Mining   3   A'), 'EGCO 503'), ['fall', 2022]);
+    assert.deepEqual(termOf(doc('MAHIDOL UNIVERSITY', 'TRANSCRIPT OF RECORDS', 'Name:   SAMPLE STUDENT', 'THAILAND', 'First Semester 2022', 'Course No.   Course Title   Credits   Grade', 'EGCO 503   Data Mining   3   A'), 'EGCO 503'), ['spring', 2022], 'a country after a field line is not the heading');
+  });
   it('a single-year academic year is placed by the country calendar: side-by-side columns and a lone semester line', () => {
     const cols = doc(...thai, '2022 Academic Year', '1st Semester   2nd Semester', 'Course   Credits   Score   Course   Credits   Score', 'Computer Architecture   3   A   Machine Learning   3   B+');
     assert.deepEqual(cols.courses.map((c) => [c.title, c.season, c.year]), [['Computer Architecture', 'fall', 2022], ['Machine Learning', 'spring', 2023]]);
@@ -894,5 +918,18 @@ describe('transcript accuracy program, Batch C — adjacent-line graduate confer
     assert.equal(conferred('Degree: Master of Engineering', 'Expected Date of Graduation: 30 June 2027'), null, 'a forecast');
     assert.equal(conferred('Degree: Bachelor of Engineering', 'Date of Graduation: 30 June 2024'), null, 'a bachelor’s is not a graduate conferral');
     assert.equal(conferred('Degree: Master of Engineering (in progress)', 'Date of Graduation: 30 June 2024'), null, 'a status that says not yet');
+  });
+  it('review fix 2026-10-10: an EMPTY "Date of Graduation:" never borrows the next label’s date, and a status before a date is no conferral', () => {
+    const degree = 'Degree:   Master of Science in Engineering';
+    assert.equal(conferred('Date of Graduation:   Date of Issue: 15 March 2024', degree), null, 'the issue date');
+    assert.equal(conferred('Date of Graduation:   Date of Admission: 2 March 2022', degree), null, 'the admission date');
+    assert.equal(conferred(degree, 'Date of Graduation:   Date of Issue:   15 March 2024'), null, 'the label alone in its cell, the issue label after it');
+    assert.equal(conferred('Date of Graduation:   Withdrawn 2023-06-30', degree), null, 'a withdrawal');
+    assert.equal(conferred('Date of Graduation:   Expected February 2025', degree), null);
+    assert.equal(conferred('Date of Graduation:   Pending (2025-02-26)', degree), null);
+    // The date in the next cell, or in the label's own, still reads.
+    assert.equal(conferred('Date of Graduation:   2024-02-26', degree), true);
+    assert.equal(conferred(degree, 'Date of Graduation:   February 26, 2024'), true);
+    assert.equal(conferred(degree, 'Date of Graduation: 30 June 2024'), true);
   });
 });

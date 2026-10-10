@@ -669,10 +669,23 @@ const BACHELORS_IN_PROGRESS =
  * carries `rawGrade`: that is a FINAL result for the student to map, not a
  * course without one (CC15, Batch C 2026-10-09: the code-less Chinese and
  * Egyptian bachelor's statements print only such results, and were refused
- * here as "still in progress"). */
+ * here as "still in progress"). Only those two shapes (review fix 2026-10-10:
+ * ANY raw grade had come to count, so a status code — REG, CUR, PEND, NR,
+ * NG, DEF, I, X — let an unfinished bachelor's record through): a MARK
+ * (`FINAL_MARK_RE`) or a BAND WORD (`BAND_WORD_RE`). Any other raw grade is a
+ * code the app cannot read, and the row counts as one without a final grade,
+ * as it did before CC15. */
+const FINAL_MARK_RE = /^\d{1,3}(?:[.,]\d{1,3})?(?:\s*\/\s*\d{1,3})?\s*%?(?:\s*(?:[A-Za-z]{1,3}|e\s+lode))?$/i;
+// A mark: "92", "14,50", "16/20", "85%", and the band letters a transcript
+// prints beside it ("61 CR", "47 FA", "30 e lode"). A band word: the grading
+// bands of the Chinese and Egyptian statements CC15 was decided for
+// ("Excellent", "Very Good", "Good", "Pass", "Fail") and their usual
+// neighbours — never a status ("Incomplete", "Registered", "Pending").
+const BAND_WORD_RE = /^(?:excellent|outstanding|very\s+good|good|fair|average|medium|acceptable|satisfactory|pass(?:ed)?|fail(?:ed)?|weak|very\s+weak|poor|distinction|merit)$/i;
 export function undergraduateInProgress(slot: DegreeLevel, rows: { grade: string; rawGrade?: string }[], degreeStated = false): boolean {
   if (slot !== 'bachelors' || degreeStated) return false;
-  return rows.some((r) => (r.grade === '' && !r.rawGrade) || r.grade === 'IP');
+  const finalResult = (raw: string | undefined) => raw !== undefined && (FINAL_MARK_RE.test(raw.trim()) || BAND_WORD_RE.test(raw.trim().replace(/\s+/g, ' ')));
+  return rows.some((r) => (r.grade === '' && !finalResult(r.rawGrade)) || r.grade === 'IP');
 }
 
 /** The course one ready preview row becomes on Add — built field by field
@@ -799,8 +812,10 @@ function slotRow(slot: { level: DegreeLevel; label: string }, args: ExternalCard
       // DGS 2026-10-09, reversing the 2026-09-06 lock for this case only):
       // that text is another engine's reading, so it is read OCR-grade —
       // every line at SCANNER_LAYER_CONFIDENCE, every row editable and
-      // flagged — and OCR is offered beside the preview.
-      const parsed = scannedTextLayer ? parseExternalTranscript(lines, lines.map(() => SCANNER_LAYER_CONFIDENCE)) : parseExternalTranscript(lines);
+      // flagged — and OCR is offered beside the preview. The junk-code guard
+      // of our own engine's poor lines does not read it (review fix
+      // 2026-10-10): it dropped real rows there, which the answer wanted kept.
+      const parsed = scannedTextLayer ? parseExternalTranscript(lines, lines.map(() => SCANNER_LAYER_CONFIDENCE), { scannerLayer: true }) : parseExternalTranscript(lines);
       if (!parsed.hasTextLayer) {
         // A scan or photo: never OCR silently — offer it (DGS decision 2026-09-02).
         pendingScan = { slot: slot.level, buffer, filename: file.name };

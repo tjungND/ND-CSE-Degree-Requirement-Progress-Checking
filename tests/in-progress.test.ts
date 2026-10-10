@@ -13,6 +13,19 @@ describe('is the undergraduate transcript still in progress?', () => {
     assert.equal(undergraduateInProgress('bachelors', rows, true), false, 'the transcript says the degree was conferred');
     assert.equal(undergraduateInProgress('bachelors', [{ grade: 'A' }, { grade: 'B+' }]), false);
   });
+  // CC15 (2026-10-09) let a printed raw result count as final; the review fix
+  // of 2026-10-10 limits that to what CC15 was decided for — a mark or a band
+  // word. A status code the app cannot read is no final result.
+  it('a raw MARK or BAND WORD is a final result; a raw status code is not (review fix 2026-10-10)', () => {
+    const lastRow = (rawGrade: string) => undergraduateInProgress('bachelors', [{ grade: 'A' }, { grade: '', rawGrade }]);
+    for (const code of ['NR', 'NG', 'R', 'Z', 'PEND', 'CUR', 'REG', 'X', 'DEF', 'DE', 'I', 'NA', 'Incomplete', 'Registered', 'In Progress', 'Pending']) {
+      assert.equal(lastRow(code), true, code);
+    }
+    for (const result of ['92', '14,50', '16/20', '128', '85%', '61 CR', '47 FA', '30 e lode', 'Excellent', 'Very Good', 'Good', 'Pass', 'Fail', 'very  good']) {
+      assert.equal(lastRow(result), false, result);
+    }
+    assert.equal(undergraduateInProgress('bachelors', [{ grade: '', rawGrade: 'REG' }], true), false, 'a stated conferral still wins');
+  });
   it('never applies to a master\'s or Ph.D. slot', () => {
     assert.equal(undergraduateInProgress('masters', rows), false);
     assert.equal(undergraduateInProgress('phd', rows), false);

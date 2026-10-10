@@ -53,7 +53,11 @@ export interface PdfLayerOps {
  * parser's floor (OCR_CONFIDENCE_FLOOR, 80) — every row it gives is flagged,
  * and the parser's scan-only repairs (OCR plan step 2.5, the numeric
  * corrections of Batch C answer (4)) apply, as they do to our own OCR's lines.
- * ocr-lines.ts gives a line with no engine word the same 0. */
+ * ocr-lines.ts gives a line with no engine word the same 0. The caller also
+ * passes `{ scannerLayer: true }`: the junk-code guard, which DROPS rows on our
+ * engine's poorly read lines, never reads a scanner's layer (review fix
+ * 2026-10-10 — at 0 it refused every short-titled, lower-case or
+ * decimal-numbered real row). */
 export const SCANNER_LAYER_CONFIDENCE = 0;
 
 /** The share of the page an image must cover to be the page's scan — a

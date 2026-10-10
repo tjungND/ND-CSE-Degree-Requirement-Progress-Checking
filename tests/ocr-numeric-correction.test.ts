@@ -36,7 +36,8 @@ describe('ocrCellCorrection — the token rule', () => {
     assert.equal(ocrCellCorrection('4,O0'), '4,00');
     assert.equal(ocrCellCorrection('3.0O0'), '3.000');
     assert.equal(ocrCellCorrection('8O'), '80');
-    assert.equal(ocrCellCorrection('|2'), '12');
+    assert.equal(ocrCellCorrection('1O'), '10');
+    assert.equal(ocrCellCorrection('1.l'), '1.1', 'a decimal is no Roman numeral');
     assert.equal(ocrCellCorrection('Bt'), 'B+');
     assert.equal(ocrCellCorrection('At'), 'A+');
     assert.equal(ocrCellCorrection('Ct'), 'C+');
@@ -47,6 +48,15 @@ describe('ocrCellCorrection — the token rule', () => {
     for (const t of ['IO', 'I', 'l', 'O', 'Il', 'II', '3.0', '12', 'A', 'B+', 'S', '5', 'B8', '3:0', '38', 'Et', 'Ft', 'bt', 'B4', 'At,', 'Algorithms', '1234O', '3.0000', 'CS']) {
       assert.equal(ocrCellCorrection(t), undefined, t);
     }
+  });
+
+  it('review fix 2026-10-10: a bar is a table rule, never a 1; a whole number of strokes is a Roman numeral; a whole number led by a letter is a word', () => {
+    // A ruled scan glues its rule to the value: "3|" is 3 beside a rule, not 31.
+    for (const t of ['3|', '|3', '8|', '1|', '|2', '4.0|', '3.|0', '|']) assert.equal(ocrCellCorrection(t), undefined, t);
+    // "I1", "1I", "l1", "11l": the strokes of "II" or "III" as often as 11.
+    for (const t of ['I1', '1I', 'l1', '1l', '11l', 'I11']) assert.equal(ocrCellCorrection(t), undefined, t);
+    // A letter first: "IO1" (I/O 1?), "O5".
+    for (const t of ['IO1', 'O5', 'o8', 'l0']) assert.equal(ocrCellCorrection(t), undefined, t);
   });
 });
 
@@ -84,6 +94,31 @@ describe('the OCR row path: a corrected cell fills only what the scan left empty
     assert.deepEqual({ title: vaasa!.title, credits: vaasa!.credits, grade: vaasa!.grade, read: vaasa!.ocrRead }, { title: 'Course I1', credits: 5, grade: 'A', read: undefined });
     const [at] = ocr(page('CS 50300   Data At Scale   3.0   A')).courses;
     assert.deepEqual({ title: at!.title, grade: at!.grade, read: at!.ocrRead }, { title: 'Data At Scale', grade: 'A', read: undefined });
+  });
+
+  it('review fix 2026-10-10: a bar glued to a value invents no number — the cell stays empty, as the scan left it, and nothing is reported as corrected', () => {
+    const header = 'Course   Title   Credits   Grade';
+    for (const r of ['CS 501   Algorithms   3|   A', 'CS 501   Algorithms   |3   A']) {
+      const [row] = ocr(page(header, r)).courses;
+      assert.equal(row!.credits, undefined, r);
+      assert.equal(row!.grade, 'A', r);
+      assert.equal(row!.ocrRead, undefined, r);
+    }
+    const [mark] = ocr(page(header, 'CS 501   Algorithms   3   8|')).courses;
+    assert.deepEqual({ credits: mark!.credits, grade: mark!.grade, raw: mark!.rawGrade, read: mark!.ocrRead }, { credits: 3, grade: undefined, raw: undefined, read: undefined });
+  });
+
+  it('review fix 2026-10-10: a title’s numeral stays in the title — "Calculus I1" (a misread "Calculus II") is never 11 credits', () => {
+    const header = 'Course   Title   Credits   Grade';
+    for (const lines of [page(header, 'MATH 501   Calculus I1   A'), page('MATH 501   Calculus I1   A')]) {
+      const [calc] = ocr(lines).courses;
+      assert.deepEqual({ title: calc!.title, credits: calc!.credits, grade: calc!.grade, read: calc!.ocrRead }, { title: 'Calculus I1', credits: undefined, grade: 'A', read: undefined });
+    }
+    const [strokes] = ocr(page('MATH 501   Calculus 1I   A')).courses;
+    assert.deepEqual({ credits: strokes!.credits, read: strokes!.ocrRead }, { credits: undefined, read: undefined }, '"1I" is no 11 either');
+    // A decimal still leaves the title: no title word has a point inside it.
+    const [os] = ocr(page('CS 50300   Operating Systems   l.0   A')).courses;
+    assert.deepEqual({ title: os!.title, credits: os!.credits, read: os!.ocrRead }, { title: 'Operating Systems', credits: 1, read: { credits: 'l.0' } });
   });
 
   it('the course code is never corrected — "CS 58O0" stays as the scan shows it', () => {

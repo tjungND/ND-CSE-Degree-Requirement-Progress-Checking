@@ -1038,3 +1038,42 @@ Open issues from this batch:
 - ANU's L7 placeholder row, refused by the junk-code guard on the scanner's garbled title.
 - An e2e leg for a scanner-layer PDF (the generator has none; the committed L7 page is a Notre Dame page,
   which the external import refuses).
+
+### Batch C review fixes — done 2026-10-10 (branch `claude/policy-compliance-degree-engine-44a431`)
+
+One commit, "Transcript accuracy next stage: review fixes": a review of the Batch C commits found five places
+where a rule read more than its evidence; each reproduced, fixed, pinned by a test that fails on HEAD `2c3888f`,
+and recorded (DECISIONS 2026-10-10, five rows). No student-facing string changed (W-CL411/W-CL412 are true again
+as written).
+
+| finding | was | now | pinned |
+|---|---|---|---|
+| TH02 (`300eb52`) | any header cell naming Thailand — a student's “Nationality   Thailand” or address — put a Korean transcript on Thailand's calendar (SNU: 9 of 10 rows moved) | only the INSTITUTION's heading (`institutionHeading`: the line naming the institution and the two under it, ending at any field line; a mailing block above it never counts) | `tests/public-transcript-rules.test.ts` |
+| adjacent conferral (`3f9a7f3`) | an empty “Date of Graduation:” borrowed the next cell — another label's date, or “Withdrawn 2023-06-30” — and set `degreeConferred` | the next cell only when it is no label; the value a date and nothing else (`bareDate`) | same file |
+| numeric correction (`21c56f9`) | a bar read as 1 (“3\|” → 31 credits); “Calculus I1” → 11 credits, title “Calculus” | no bar, no whole number of strokes, no whole number led by a letter; only a decimal or a grade leaves a title | `tests/ocr-numeric-correction.test.ts` |
+| scanner layer + junk guard (`2560c53`, `81b038d`) | at confidence 0 every row went through the guard: short titles, lower-case subjects, decimal codes dropped (SNU 10 of 10) | `{ scannerLayer: true }` — the guard reads only our engine's poor lines | `tests/scanner-layer.test.ts` |
+| in-progress gate (`418f9d1`) | any raw grade counted as final — REG, CUR, PEND, NR, I … let an unfinished bachelor's through | only a mark or a band word | `tests/in-progress.test.ts` |
+
+Numbers — text replay vs `text-final-20261009.json`: 0 regressions (public exact 152/168, recall 95.8 %, precision
+99.1 %, false rows on negatives 1 in 1/39; pdfs 48/49, 1 in 1/34; ms 48/48), vs HEAD's own
+(`text-review-fix-head.json`) 0 / 0. OCR, the same lines read by HEAD's parser and the fix (`--reparse`,
+`bench-out/review-fix-before-*` → `-after-*`): `--quick`, the medium set (L2 63.0 % / L5 67.0 % row accuracy,
+false rows 13 / 14) and the ladder L0–L6 unchanged, 0 / 0; `--pinned` 0 / 0; the medium set against
+`ocr-full-20261009` 0 regressions, 11 improvements (step 2.5's, unchanged). L7: rows found 37.8 → 38.1 %, false
+rows 94 (5/36) → 100 (6/36) = the exact path's figure, three regression lines (ANU's recovered “CLA5S” row and
+4 garbled extras, McGill's key 0 → 1, Minerva's transfer page 2 → 3), each a row the guard had dropped, each
+flagged. Every saved OCR line set under bench-out (1,752 files) re-parsed by both parsers: 3 documents changed,
+the three L7 lines. The 216 line fixtures read as a scanner layer: rows the text path reads and the layer loses,
+12 → 0. `npx tsc --noEmit`, `npm test` 1738 pass. Not run: the e2e (not this agent's — no student-facing string
+changed; the scanner-layer preview has no e2e fixture yet).
+
+Open issues:
+
+- **DGS:** the L7 trade — 6 more flagged extras (94 → 100, the exact path's figure) against real rows the guard
+  dropped silently. A middle way, if wanted: on a scanner layer, show the rows the guard would refuse UNTICKED
+  (still visible and editable) instead of ticked — a preview change with its own wording.
+- TH02's heading test reads English institution words only (University / Institute / Polytechnic / College): a
+  Thai heading printed only in Thai script, or a name with none of those words, falls back to the calendar-order
+  rule.
+- `dateOnLine` does not read “February 26th, 2024” (an ordinal ending), so that graduation date is no conferral
+  under the adjacent-line rule — pre-existing, now a test note.

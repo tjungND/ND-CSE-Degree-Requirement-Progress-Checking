@@ -689,11 +689,14 @@ export { OCR_HEADER_WORDS };
 // ---------------------------------------------------------------------------
 
 /** The letters a scan prints for a digit and that no number contains: a
- * capital or small O for 0, a small l, a capital I or a bar for 1. Nothing
+ * capital or small O for 0, a small l or a capital I for 1. Nothing
  * else — S, B, Z and G are grades or words as often as they are 5, 8, 2 and 6,
  * and a colon for a decimal point ("3:0") is also a lecture:lab pair ("3:1",
- * IISc), so none of those is ever rewritten. */
-const OCR_DIGIT_LOOKALIKES: Readonly<Record<string, string>> = { O: '0', o: '0', l: '1', I: '1', '|': '1' };
+ * IISc), so none of those is ever rewritten. A bar "|" is NOT a letter for 1
+ * (review fix 2026-10-10): on a ruled scan it is the table's own rule glued to
+ * a value ("3|" is 3 beside a rule, not 31), so a token with a bar is never
+ * corrected. */
+const OCR_DIGIT_LOOKALIKES: Readonly<Record<string, string>> = { O: '0', o: '0', l: '1', I: '1' };
 
 /** The corrected form of ONE token a scan may have misread inside a credits or
  * grade cell, or undefined when the token is not such a misreading:
@@ -702,12 +705,20 @@ const OCR_DIGIT_LOOKALIKES: Readonly<Record<string, string>> = { O: '0', o: '0',
  *    letter shaped like a digit ("3.O" → "3.0", "l.5" → "1.5", "4,O0" → "4,00",
  *    "8O" → "80"); a token with no real digit ("IO", "I", "l") is a word;
  *  - a letter grade A–D whose plus the engine read as a "t" ("Bt" → "B+").
+ * Two shapes are ambiguous and never corrected (review fix 2026-10-10): a whole
+ * number made only of strokes — I, l and 1 — is a Roman numeral as often as a
+ * number ("Calculus I1" is a misread "Calculus II", never 11 credits), and a
+ * whole number whose FIRST character is a letter ("IO1", "O5") reads as a word
+ * before a number. A decimal ("l.5", "I.0") keeps its letter-first form: no
+ * word or numeral has a point inside it.
  * The caller (`readCourseRow`) decides whether the corrected token is used: only
  * where it then fills the row's credits or grade that the scan's own reading
  * left empty, and never when it would change a title word. */
 export function ocrCellCorrection(token: string): string | undefined {
-  if (/^[\dOoIl|]{1,3}(?:[.,][\dOoIl|]{1,3})?$/.test(token) && /\d/.test(token) && /[OoIl|]/.test(token)) {
-    return token.replace(/[OoIl|]/g, (ch) => OCR_DIGIT_LOOKALIKES[ch]!);
+  if (/^[\dOoIl]{1,3}(?:[.,][\dOoIl]{1,3})?$/.test(token) && /\d/.test(token) && /[OoIl]/.test(token)) {
+    const whole = !/[.,]/.test(token);
+    if (whole && (/^[1Il]+$/.test(token) || !/^\d/.test(token))) return undefined;
+    return token.replace(/[OoIl]/g, (ch) => OCR_DIGIT_LOOKALIKES[ch]!);
   }
   const plus = /^([A-D])t$/.exec(token);
   return plus ? `${plus[1]}+` : undefined;
@@ -1240,6 +1251,41 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
   return undefined;
 }
 
+/** The lines that are the INSTITUTION's own heading, where a country calendar
+ * (TH02, DGS 2026-10-09) may find the institution's country — review fix
+ * 2026-10-10: any header cell used to count, so a student's "Nationality
+ * Thailand" or "Address   …   Bangkok, Thailand" on a Korean transcript moved
+ * every numbered semester onto Thailand's calendar. The heading is the first
+ * line of the first 15 that names an institution (a cell with "University",
+ * "Institute", "Polytechnic" or "College" in it) and carries no field, and the
+ * two lines right under it while they carry no field either — "CHULALONGKORN
+ * UNIVERSITY" / "OFFICE OF THE REGISTRAR   Bangkok, Thailand". A line carries a
+ * field when a cell is a label ("Name:", "Date of Birth:", "Address:") or its
+ * first cell names a person's field without a colon (`PERSON_FIELD_RE`:
+ * "Nationality   Thailand"); the heading ends there. Lines above the
+ * institution's name (a mailing block printed first) are never its heading.
+ * Nothing else is evidence: a country printed only elsewhere, or a heading the
+ * test cannot find, leaves the calendar-order rule of 2026-09-26 in force. */
+const PERSON_FIELD_RE =
+  /^(?:nationality|citizenship|citizen\s+of|(?:mailing|home|permanent|present|current|postal|correspondence|contact)?\s*address|place\s+of\s+birth|birth\s*place|born\b|country(?:\s+of\s+(?:birth|citizenship|origin|residence))?|domicile|residence|home\s+country|native\s+country|passport|name|student|sex|gender|date\s+of\s+birth|dob)\b/i;
+const INSTITUTION_WORD_RE = /\buniversit|\binstitute\b|\bpolytechnic\b|\bcollege\b/i;
+function institutionHeading(lines: readonly string[]): string[] {
+  const cellsOf = (line: string) => line.split(/\s{2,}/).map((c) => c.trim()).filter((c) => c.length > 0);
+  const carriesField = (line: string): boolean => {
+    const cells = cellsOf(line);
+    return cells.some((c) => /^[^:]{1,40}:(?:\s|$)/.test(c)) || (cells.length > 0 && PERSON_FIELD_RE.test(cells[0]!));
+  };
+  const head = lines.slice(0, 15);
+  const at = head.findIndex((l) => !carriesField(l) && cellsOf(l).some((c) => INSTITUTION_WORD_RE.test(c)));
+  if (at < 0) return [];
+  const heading = [head[at]!];
+  for (const l of head.slice(at + 1, at + 3)) {
+    if (carriesField(l)) break;
+    heading.push(l);
+  }
+  return heading;
+}
+
 /** OCR lines below this confidence get their rows flagged in the preview.
  * Since OCR step 11 (2026-10-09) a line's confidence is its least confident
  * WORD's (src/transcript/ocr-lines.ts OCR_LINE_CONFIDENCE). The floor was
@@ -1252,7 +1298,21 @@ function guessUniversity(lines: string[], weak: boolean): string | undefined {
  * at 93): a cell-level check, not a floor, is the route to those (plan 2.5). */
 const OCR_CONFIDENCE_FLOOR = 80;
 
-export function parseExternalTranscript(lines: string[], confidences?: number[]): ExternalParseResult {
+/** How the lines were made, beyond their confidences. */
+export interface ExternalParseOptions {
+  /** The lines are a SCANNER's own embedded text (Batch C answer (6), DGS
+   * 2026-10-09), read OCR-grade at SCANNER_LAYER_CONFIDENCE: every row flagged
+   * and the scan-only repairs on — but the junk-code guard off (review fix
+   * 2026-10-10). The guard was measured on our engine's word boxes, where a
+   * low confidence means the engine read the line poorly; a scanner's layer
+   * carries no confidence at all (0 means "vouched for by nobody"), and on it
+   * the guard dropped real rows silently — "Dir Res", "Art", "ee 501", every
+   * row of a transcript whose course numbers are decimals ("4190.669"). The
+   * DGS's answer asked for those rows editable and flagged, not dropped. */
+  scannerLayer?: boolean;
+}
+
+export function parseExternalTranscript(lines: string[], confidences?: number[], options: ExternalParseOptions = {}): ExternalParseResult {
   const allText = lines.join('\n');
   if (allText.replace(/\s+/g, '').length < 200) {
     return { hasTextLayer: false, looksLikeNotreDame: false, courses: [] };
@@ -2353,9 +2413,10 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // -------------------------------------------------------------------
   interface CountryCalendar {
     country: string;
-    /** A header cell that names the country: "Bangkok, Thailand", "Bangkok
-     * 10330, Thailand", "THAILAND" — never a course title ("History of
-     * Thailand" has no comma before the name). */
+    /** A cell of the institution's heading that names the country: "Bangkok,
+     * Thailand", "Bangkok 10330, Thailand", "THAILAND" — never a course title
+     * ("History of Thailand" has no comma before the name), and never a
+     * person's field (`institutionHeading`). */
     evidence: RegExp;
     /** Each numbered semester: its season, and the years after the academic
      * year it was numbered in. */
@@ -2375,11 +2436,12 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     },
   ];
   /** The country calendar this document is placed by: its country named in
-   * a header cell (the first 15 lines), and no term printed with its own
-   * month range anywhere (the transcript's months win). */
+   * the INSTITUTION's own heading (`institutionHeading`, review fix
+   * 2026-10-10), and no term printed with its own month range anywhere (the
+   * transcript's months win). */
   const countryCalendar: CountryCalendar | undefined = (() => {
     if (lines.some((l) => MONTH_RANGE_RE.test(l) && TERM_WORD_RE.test(l))) return undefined;
-    const cells = lines.slice(0, 15).flatMap((l) => l.split(/\s{2,}/).map((c) => c.trim()));
+    const cells = institutionHeading(lines).flatMap((l) => l.split(/\s{2,}/).map((c) => c.trim()));
     return COUNTRY_CALENDARS.find((c) => cells.some((cell) => c.evidence.test(cell)));
   })();
   /** A numbered semester of `academicYear` by the country's calendar. */
@@ -2876,7 +2938,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
    * stricter (2) — a numeric code needs its credits — cost real rows whose
    * credits the scan misread, and a stricter (1) — any lower-case letter —
    * cost Addis Ababa's rows. A line read with confidence keeps every reading
-   * it had; a text layer is never touched. The refused row is not guessed at:
+   * it had; a text layer is never touched — a scanner's own embedded layer
+   * included (review fix 2026-10-10: read at confidence 0, it switched the
+   * guard on for every row). The refused row is not guessed at:
    * a course the scan could not show is the student's to add. */
   const ocrJunkCode = (lead: NonNullable<Lead>, into: RowScan): boolean => {
     const subject = lead.printed.replace(/[^A-Za-z ].*$/, '').trim();
@@ -2934,8 +2998,12 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const gradeRead = a.grade === undefined && a.rawGrade === undefined && (b.grade !== undefined || b.rawGrade !== undefined) ? rawOf(b.gradeText) : undefined;
     const creditsKept = creditsRead !== undefined || b.credits === a.credits;
     const gradeKept = gradeRead !== undefined || (b.grade === a.grade && b.rawGrade === a.rawGrade);
-    const correctedRaw = new Set(tokens.filter((_, i) => fixes[i] !== undefined));
-    const titleKept = b.titleParts.join('\u0000') === a.titleParts.filter((t) => !correctedRaw.has(t)).join('\u0000');
+    // Only a decimal ("l.0") or a grade ("Bt") may leave the title the raw
+    // reading put it in — a whole number there is the title's own numeral,
+    // never the credits (review fix 2026-10-10: "Calculus I1" had become 11
+    // credits; `ocrCellCorrection` now refuses that token too).
+    const leavesTitle = new Set(tokens.filter((t, i) => fixes[i] !== undefined && (/[.,]/.test(t) || /^[A-D]t$/.test(t))));
+    const titleKept = b.titleParts.join('\u0000') === a.titleParts.filter((t) => !leavesTitle.has(t)).join('\u0000');
     if ((creditsRead === undefined && gradeRead === undefined) || !creditsKept || !gradeKept || !titleKept) {
       headerGrades = afterRaw;
       return undefined;
@@ -3068,7 +3136,9 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         if (after !== undefined) lineIndex += 1; // consumed as a title, never as a row
       }
     }
-    if (ocrLines && rowConfidence !== undefined && rowConfidence < OCR_CONFIDENCE_FLOOR && ocrJunkCode(lead, into)) return lineIndex;
+    // Our engine's low-confidence lines only — never a scanner's own layer
+    // (`ExternalParseOptions.scannerLayer`, review fix 2026-10-10).
+    if (ocrLines && options.scannerLayer !== true && rowConfidence !== undefined && rowConfidence < OCR_CONFIDENCE_FLOOR && ocrJunkCode(lead, into)) return lineIndex;
     if (inProgressBlock && into.grade === undefined && into.rawGrade === undefined) into.grade = 'IP';
     const confidence = confidences?.[lineIndex];
     // OCR-only sanity check: real credit values come in half-credit steps, so
@@ -3184,21 +3254,41 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
   // Chulalongkorn layout). BOTH labels are required: a "Program:" line, a
   // "Date of Admission:" alone, a date two lines away or a forecast
   // ("Expected Date of Graduation") is no evidence.
+  // Review fix (2026-10-10): the label's value is its own cell's text or, when
+  // that is empty, the NEXT cell only if that cell is no label itself —
+  // "Date of Graduation:   Date of Issue: 15 March 2024" leaves the graduation
+  // date empty; it never borrows the issue date. And the value must be a date
+  // and nothing else (`bareDate`): "Withdrawn 2023-06-30" holds a date but
+  // says the student left, so it is no conferral either.
+  const LABEL_CELL_RE = /^[^:]{1,40}:(?:\s|$)/;
   const labelledCell = (line: string, label: RegExp): string | undefined => {
     const cells = line.split(/\s{2,}/).map((c) => c.trim());
     for (let i = 0; i < cells.length; i++) {
       const m = label.exec(cells[i]!);
-      if (m) return (m[1]!.trim() || (cells[i + 1] ?? '')).trim();
+      if (!m) continue;
+      const own = m[1]!.trim();
+      if (own !== '') return own;
+      const next = (cells[i + 1] ?? '').trim();
+      return LABEL_CELL_RE.test(next) ? '' : next;
     }
     return undefined;
   };
+  const MONTH_WORD_RE = /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b\.?/gi;
+  /** A value that reads as a date and holds nothing but the date: digits,
+   * month names, ordinal endings and separators. */
+  const bareDate = (value: string): boolean =>
+    dateOnLine(value) !== undefined &&
+    value
+      .replace(MONTH_WORD_RE, ' ')
+      .replace(/(\d)(?:st|nd|rd|th)\b/gi, '$1')
+      .replace(/[\d\s,./-]/g, '') === '';
   const adjacentConferral = lines.some((l, i) => {
     const degree = labelledCell(l, /^degree\s*:\s*(.*)$/i);
     if (degree === undefined || !gradDegreeNameIn(degree) || NOT_AWARDED_RE.test(l) || NOT_YET_RE.test(l) || NOT_COMPLETE_RE.test(l) || NOT_CONFERRED_STATUS_RE.test(l)) return false;
     return [lines[i - 1], lines[i + 1]].some((n) => {
       if (n === undefined || NOT_YET_RE.test(n)) return false;
       const date = labelledCell(n, /^date\s+of\s+graduation\s*:\s*(.*)$/i);
-      return date !== undefined && dateOnLine(date) !== undefined;
+      return date !== undefined && bareDate(date);
     });
   });
   const degreeConferred =
