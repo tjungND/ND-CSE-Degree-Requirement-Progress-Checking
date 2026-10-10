@@ -1999,7 +1999,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     const tokens = raw.length >= 2 && (MULTI_TERM_MARK_RE.test(raw[0]!) || ocrMark(raw)) ? raw.slice(1) : raw;
     return tokens.length >= 2 && /^0\d{1,2}$/.test(tokens[0]!) && /^[\p{L}]/u.test(tokens[1]!) && /[\p{L}]{2}/u.test(tokens[1]!) ? tokens.slice(1) : tokens;
   };
-  const leadCode = (flat: string): { code: string; tokens: string[]; date?: string; preCell?: string } | undefined => {
+  /** `printed`: the code as the line prints it, case kept ("fot ta 12",
+   * "cs 430"); `decimalCell`: a code of digits whose cell is a decimal
+   * number ("3837.3635", "2430.24") — the two facts the scan-only junk-code
+   * guard reads (OCR plan step 2.5, `ocrJunkCode`). */
+  const leadCode = (flat: string): { code: string; tokens: string[]; date?: string; preCell?: string; printed: string; decimalCell?: true } | undefined => {
     // A stray 1–2-letter security mark merged onto the row's start ("XK ITWS
     // 1882 …", 2026-09-05) is skipped when a real code follows it. Three
     // letters are a college prefix that belongs to the code — BU's "CAS CS
@@ -2029,7 +2033,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const tokens = dropSection(tokensOf([num[2]!.trim().replace(/^[-–—]\s+/, ''), ...cells.slice(i + 2)]));
       if (looksLikeIdentifierLine(subject, tokens)) continue;
       const date = i === 1 && LEAD_DATE_RE.test(cells[0]!) ? cells[0] : undefined;
-      return { code: colonSubject ? `${subject}${num[1]!}` : `${subject} ${num[1]!.toUpperCase()}`, tokens, ...(date ? { date } : {}), ...(i === 1 ? { preCell: cells[0] } : {}) };
+      return { code: colonSubject ? `${subject}${num[1]!}` : `${subject} ${num[1]!.toUpperCase()}`, tokens, ...(date ? { date } : {}), ...(i === 1 ? { preCell: cells[0] } : {}), printed: `${subjectCell} ${num[1]!}` };
     }
     for (const idx of [0, 1] as const) {
       const cell = cells[idx];
@@ -2084,7 +2088,11 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
       const tokens = dropSection(tokensOf([rest, ...cells.slice(idx + 1)]));
       if (looksLikeIdentifierLine(code.replace(/[^A-Z]/g, ''), tokens)) return undefined;
       const date = idx === 1 && LEAD_DATE_RE.test(cells[0]!) ? cells[0] : undefined;
-      return { code, tokens, ...(date ? { date } : {}), ...(idx === 1 ? { preCell: cells[0] } : {}) };
+      // A code of digits whose cell goes on with a decimal part ("3837.3635":
+      // the pattern took "3837" and left ".3635"), or a dotted code whose
+      // decimals are all zeros ("15.000"), is a number in that cell.
+      const decimalCell = /^[\d.\-]+$/.test(code) && (/^[.:]\d/.test(cell.slice(code.length)) || /^\d+\.0+$/.test(code));
+      return { code, tokens, ...(date ? { date } : {}), ...(idx === 1 ? { preCell: cells[0] } : {}), printed: cell.slice(0, code.length), ...(decimalCell ? { decimalCell: true as const } : {}) };
     }
     return undefined;
   };
@@ -2800,7 +2808,37 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     readCodelessCells(flat.split(/\s{2,}/), lineIndex);
     return lineIndex;
   };
+  /** The junk-code guard (OCR plan step 2.5, 2026-10-09). On a line the
+   * engine read with low confidence (under OCR_CONFIDENCE_FLOOR — the lines
+   * whose rows the preview flags), the cell path took junk for a course on
+   * the registrar keys and forms the bench degrades: a word set in lower case
+   * ("ec   20   55 - 59 %", "fot ta   12 db"), a number from a grade table
+   * ("3837.3635   A   granied.", "2430.24   P   Pass. Work that…") or specks
+   * read as a title ("Tc 23   i   fF   &   &   Fd", "343332   Br   N   Fis
+   * ing   C"). A row on such a line is refused when
+   *  (1) its subject is printed all in lower case with a letter whose capital
+   *      has another shape (a b d e f g h i j l m n q r t y) — "cs", "soc",
+   *      "sw" stay: the engine reads those capitals small; a subject with a
+   *      capital is left alone (Addis Ababa prints "Math 1011", "Phys 1011");
+   *  (2) its code of digits is a decimal number in its cell ("3837.3635":
+   *      the pattern took "3837" and left ".3635"; "15.000");
+   *  (3) its title holds no word of four letters or more.
+   * Measured (DECISIONS 2026-10-09): no row of the 62 bench seeds, nor of ten
+   * numeric-code and title-case layouts rendered and scanned, is lost; a
+   * stricter (2) — a numeric code needs its credits — cost real rows whose
+   * credits the scan misread, and a stricter (1) — any lower-case letter —
+   * cost Addis Ababa's rows. A line read with confidence keeps every reading
+   * it had; a text layer is never touched. The refused row is not guessed at:
+   * a course the scan could not show is the student's to add. */
+  const ocrJunkCode = (lead: NonNullable<Lead>, into: RowScan): boolean => {
+    const subject = lead.printed.replace(/[^A-Za-z ].*$/, '').trim();
+    if (/[abd-jlmnqrty]/.test(subject) && !/[A-Z]/.test(subject)) return true;
+    if (lead.decimalCell) return true;
+    return !into.titleParts.some((w) => /\p{L}{4}/u.test(w));
+  };
   const readCourseRow = (line: string, flat: string, lead: Lead, lineIndex: number): number => {
+    // The row line's own confidence, before a title line below it is consumed.
+    const rowConfidence = confidences?.[lineIndex];
     if (flat.length < 6) return lineIndex;
     // The course code is expected at the start of the row (or right after a
     // leading term/date cell). Column gaps are unreliable across layouts, so
@@ -2916,6 +2954,7 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
         if (after !== undefined) lineIndex += 1; // consumed as a title, never as a row
       }
     }
+    if (ocrLines && rowConfidence !== undefined && rowConfidence < OCR_CONFIDENCE_FLOOR && ocrJunkCode(lead, into)) return lineIndex;
     if (inProgressBlock && into.grade === undefined && into.rawGrade === undefined) into.grade = 'IP';
     const confidence = confidences?.[lineIndex];
     // OCR-only sanity check: real credit values come in half-credit steps, so
