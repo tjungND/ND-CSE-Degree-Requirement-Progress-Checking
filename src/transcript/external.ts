@@ -2873,9 +2873,36 @@ export function parseExternalTranscript(lines: string[], confidences?: number[])
     if (level !== undefined) c.level = level;
   });
   const levels = new Set(courses.map((c) => c.level).filter((l) => l !== undefined));
+  // Adjacent-line graduate conferral (DGS 2026-10-09, transcript accuracy
+  // program Batch C, answer (3) — it supersedes the 2026-09-03 same-line
+  // rule for this labelled shape ONLY): a "Degree:" cell naming a graduate
+  // degree, and on the line right above or below it a "Date of Graduation:"
+  // cell with a date that reads ("Degree: Master of Engineering" / "Date of
+  // Admission: August 2022   Date of Graduation: 30 June 2024", the
+  // Chulalongkorn layout). BOTH labels are required: a "Program:" line, a
+  // "Date of Admission:" alone, a date two lines away or a forecast
+  // ("Expected Date of Graduation") is no evidence.
+  const labelledCell = (line: string, label: RegExp): string | undefined => {
+    const cells = line.split(/\s{2,}/).map((c) => c.trim());
+    for (let i = 0; i < cells.length; i++) {
+      const m = label.exec(cells[i]!);
+      if (m) return (m[1]!.trim() || (cells[i + 1] ?? '')).trim();
+    }
+    return undefined;
+  };
+  const adjacentConferral = lines.some((l, i) => {
+    const degree = labelledCell(l, /^degree\s*:\s*(.*)$/i);
+    if (degree === undefined || !gradDegreeNameIn(degree) || NOT_AWARDED_RE.test(l) || NOT_YET_RE.test(l) || NOT_COMPLETE_RE.test(l) || NOT_CONFERRED_STATUS_RE.test(l)) return false;
+    return [lines[i - 1], lines[i + 1]].some((n) => {
+      if (n === undefined || NOT_YET_RE.test(n)) return false;
+      const date = labelledCell(n, /^date\s+of\s+graduation\s*:\s*(.*)$/i);
+      return date !== undefined && dateOnLine(date) !== undefined;
+    });
+  });
   const degreeConferred =
     blockConferredGrad ||
     lines.some((l) => saysConferred(l) && gradDegreeIn(l) && !NOT_COMPLETE_RE.test(l) && !NOT_CONFERRED_STATUS_RE.test(l)) ||
+    adjacentConferral ||
     undefined;
   // Quarter system (2026-09-11): the word "quarter" in a term header ("Fall
   // Quarter 2023", "Autumn Qtr 2023 Graduate") or in a credits heading

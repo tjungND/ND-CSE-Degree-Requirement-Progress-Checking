@@ -2,9 +2,6 @@
  "sjtu-lifelong-template": [
   "CC16 read since Batch C (2026-10-09): both halves of every side-by-side row are read, each under its column\u2019s semester, and a one-group line\u2019s term is left blank (its column cannot be told from the text). Still open: \u20182001 Academic Year\u2019 with \u20181st Semester   2nd Semester\u2019 is a single-year academic year whose first semester is the fall in China and the spring in Korea or Japan \u2014 only a country calendar places it, and the template prints no country (\u2018SHANGHAI\u2019 in the university\u2019s name only): 14 rows read with a blank term, want fall/spring"
  ],
- "chulalongkorn": [
-  "Adjacent-line graduate conferral (DGS answer (3), 2026-10-09; Batch C item 4): \u2018Degree: Master of Engineering\u2019 with \u2018Date of Graduation: 30 June 2024\u2019 on the next line reads degreeConferred null, want true. (TH02, Thailand\u2019s calendar, landed 2026-10-09: every row\u2019s term is right.)"
- ],
  "pdf-mcgill-minerva-not-a-transcript": [
   "Batch B \u2014 no 'is this a transcript at all' gate: a course outline's one line ('COMP 250   001 Intro to Computer Science   3') reads as a course row; the McGill project refuses the page because its header never says Transcript"
  ],

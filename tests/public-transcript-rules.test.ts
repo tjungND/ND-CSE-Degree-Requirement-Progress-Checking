@@ -876,3 +876,23 @@ describe('transcript accuracy program, Batch C — TH02 country calendars (2026-
     assert.deepEqual(lone.courses.map((c) => [c.title, c.season, c.year]), [['Computer Architecture', 'fall', 2022]]);
   });
 });
+
+describe('transcript accuracy program, Batch C — adjacent-line graduate conferral (2026-10-09)', () => {
+  const head = ['CHULALONGKORN UNIVERSITY', 'OFFICE OF THE REGISTRAR   Bangkok, Thailand', 'TRANSCRIPT OF RECORDS'];
+  const rows = ['First Semester 2022', 'Course No.   Course Title   Credits   Grade', '2110501   Computer Architecture   3   A'];
+  const conferred = (...lines: string[]) => doc(...head, ...lines, ...rows).degreeConferred ?? null;
+  it('"Degree: Master of …" with "Date of Graduation: <date>" on the next line — or the line above — is a graduate conferral', () => {
+    assert.equal(conferred('Degree: Master of Engineering', 'Date of Admission: August 2022   Date of Graduation: 30 June 2024'), true);
+    assert.equal(conferred('Date of Graduation:   30 June 2024', 'Degree:   Master of Engineering'), true);
+    assert.equal(conferred('Degree: M.Eng. in Computer Engineering', 'Date of Graduation: June 2024'), true);
+  });
+  it('both labels are required, on ADJACENT lines, with a date that reads; a bachelor’s or a forecast is none', () => {
+    assert.equal(conferred('Program: Master of Engineering', 'Date of Graduation: 30 June 2024'), null, 'no "Degree:" label');
+    assert.equal(conferred('Degree: Master of Engineering', 'Date of Admission: August 2022'), null, 'no "Date of Graduation:" label');
+    assert.equal(conferred('Degree: Master of Engineering', 'Faculty: Engineering', 'Date of Graduation: 30 June 2024'), null, 'two lines apart');
+    assert.equal(conferred('Degree: Master of Engineering', 'Date of Graduation: —'), null, 'no date');
+    assert.equal(conferred('Degree: Master of Engineering', 'Expected Date of Graduation: 30 June 2027'), null, 'a forecast');
+    assert.equal(conferred('Degree: Bachelor of Engineering', 'Date of Graduation: 30 June 2024'), null, 'a bachelor’s is not a graduate conferral');
+    assert.equal(conferred('Degree: Master of Engineering (in progress)', 'Date of Graduation: 30 June 2024'), null, 'a status that says not yet');
+  });
+});
